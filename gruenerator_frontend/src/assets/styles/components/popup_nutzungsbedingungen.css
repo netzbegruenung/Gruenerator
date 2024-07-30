@@ -1,0 +1,49 @@
+.popup-terms {
+  position: fixed;
+  bottom: 0;
+  width: 100%;
+  background-color: var(--background-color); /* Hintergrund ist weiß */
+  padding: 10px 20px; /* Padding links und rechts 20px */
+  box-shadow: 0 -2px 5px rgba(236, 214, 214, 0.3);
+  text-align: left; /* Text linksbündig */
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box; /* Sicherstellen, dass das Padding zur Gesamtbreite gehört */
+}
+
+.terms-text {
+  flex-grow: 1;
+}
+
+.terms-link {
+  color: var(--font-color-h);
+  text-decoration: underline;
+}
+
+.button-terms {
+  background-color: var(--font-color-h);
+  color: var(--background-color);
+  padding: 10px 20px;
+  border: none;
+  border-radius: 50px;
+  font-size: 1.2em;
+  cursor: pointer;
+  transition: background-color 0.3s ease, color 0.3s ease;
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  margin-left: 20px; /* Abstand zwischen Text und Button */
+}
+
+.button-terms:hover {
+  background-color: var(--dunkelgruen); /* Aktualisiert auf dunkelgrün beim Hover */
+  color: var(--weiß); /* Beibehaltung der Schriftfarbe */
+}
+
+@media (max-width: 767px) {
+  .popup-terms {
+    flex-direction: column;
+    padding-bottom: 30px;
+  }
+}

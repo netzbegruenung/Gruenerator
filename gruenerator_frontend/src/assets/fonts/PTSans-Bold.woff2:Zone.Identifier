@@ -1,0 +1,4 @@
+[ZoneTransfer]
+ZoneId=3
+ReferrerUrl=https://cloudconvert.com/
+HostUrl=https://eu-central.storage.cloudconvert.com/tasks/f5168aa7-8a06-495f-8fac-807cc0d70425/PTSans-Bold.woff2?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=cloudconvert-production%2F20240526%2Ffra%2Fs3%2Faws4_request&X-Amz-Date=20240526T091352Z&X-Amz-Expires=86400&X-Amz-Signature=fad446123be2856b032e3e5c27280fd1dc8bf853f4f44d00f0b32c7821e99a9d&X-Amz-SignedHeaders=host&response-content-disposition=attachment%3B%20filename%3D%22PTSans-Bold.woff2%22&response-content-type=font%2Fwoff2&x-id=GetObject

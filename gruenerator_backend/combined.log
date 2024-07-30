@@ -1,0 +1,396 @@
+{"level":"info","message":"Server will run on port 3001","timestamp":"2024-07-17T18:40:29.099Z"}
+{"level":"info","message":"Middleware configured","timestamp":"2024-07-17T18:40:29.105Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T18:40:29.106Z"}
+{"level":"info","message":"Registered routes:","timestamp":"2024-07-17T18:40:29.110Z"}
+{"level":"info","message":"GET /","timestamp":"2024-07-17T18:40:29.111Z"}
+{"level":"info","message":"POST /api/pdf-extraction/test","timestamp":"2024-07-17T18:40:29.111Z"}
+{"level":"info","message":"GET *","timestamp":"2024-07-17T18:40:29.112Z"}
+{"level":"info","message":"HTTP Server running at http://localhost:3001","timestamp":"2024-07-17T18:40:29.113Z"}
+{"level":"info","message":"::1 - - [17/Jul/2024:18:45:42 +0000] \"POST /api/sharepic-3zeilen HTTP/1.1\" 200 226456 \"-\" \"curl/8.7.1\"","timestamp":"2024-07-17T18:45:42.231Z"}
+{"level":"info","message":"Server will run on port 3001","timestamp":"2024-07-17T18:58:00.923Z"}
+{"level":"info","message":"Middleware configured","timestamp":"2024-07-17T18:58:00.929Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T18:58:00.930Z"}
+{"level":"info","message":"Registered routes:","timestamp":"2024-07-17T18:58:00.934Z"}
+{"level":"info","message":"GET /","timestamp":"2024-07-17T18:58:00.935Z"}
+{"level":"info","message":"POST /api/pdf-extraction/test","timestamp":"2024-07-17T18:58:00.935Z"}
+{"level":"info","message":"GET *","timestamp":"2024-07-17T18:58:00.936Z"}
+{"level":"info","message":"HTTP Server running at http://localhost:3001","timestamp":"2024-07-17T18:58:00.938Z"}
+{"level":"info","message":"::1 - - [17/Jul/2024:18:59:09 +0000] \"POST /api/sharepic-3zeilen HTTP/1.1\" 200 226456 \"-\" \"curl/8.7.1\"","timestamp":"2024-07-17T18:59:09.715Z"}
+{"level":"info","message":"Server will run on port 3001","timestamp":"2024-07-17T19:02:34.792Z"}
+{"level":"info","message":"Middleware configured","timestamp":"2024-07-17T19:02:34.797Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T19:02:34.798Z"}
+{"level":"info","message":"Registered routes:","timestamp":"2024-07-17T19:02:34.801Z"}
+{"level":"info","message":"GET /","timestamp":"2024-07-17T19:02:34.802Z"}
+{"level":"info","message":"POST /api/pdf-extraction/test","timestamp":"2024-07-17T19:02:34.802Z"}
+{"level":"info","message":"GET *","timestamp":"2024-07-17T19:02:34.803Z"}
+{"level":"info","message":"HTTP Server running at http://localhost:3001","timestamp":"2024-07-17T19:02:34.804Z"}
+{"level":"info","message":"::1 - - [17/Jul/2024:19:03:58 +0000] \"POST /api/sharepic-3zeilen HTTP/1.1\" 200 191121 \"-\" \"curl/8.7.1\"","timestamp":"2024-07-17T19:03:58.942Z"}
+{"level":"info","message":"::1 - - [17/Jul/2024:19:04:20 +0000] \"POST /api/sharepic-3zeilen HTTP/1.1\" 200 191121 \"-\" \"curl/8.7.1\"","timestamp":"2024-07-17T19:04:20.249Z"}
+{"level":"info","message":"Server will run on port 3001","timestamp":"2024-07-17T19:06:01.005Z"}
+{"level":"info","message":"Middleware configured","timestamp":"2024-07-17T19:06:01.010Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T19:06:01.011Z"}
+{"level":"info","message":"Registered routes:","timestamp":"2024-07-17T19:06:01.014Z"}
+{"level":"info","message":"GET /","timestamp":"2024-07-17T19:06:01.015Z"}
+{"level":"info","message":"POST /api/pdf-extraction/test","timestamp":"2024-07-17T19:06:01.015Z"}
+{"level":"info","message":"GET *","timestamp":"2024-07-17T19:06:01.016Z"}
+{"level":"info","message":"HTTP Server running at http://localhost:3001","timestamp":"2024-07-17T19:06:01.017Z"}
+{"level":"info","message":"::1 - - [17/Jul/2024:19:06:35 +0000] \"POST /api/sharepic-3zeilen HTTP/1.1\" 200 162815 \"-\" \"curl/8.7.1\"","timestamp":"2024-07-17T19:06:35.953Z"}
+{"level":"info","message":"Server will run on port 3001","timestamp":"2024-07-17T19:08:32.250Z"}
+{"level":"info","message":"Middleware configured","timestamp":"2024-07-17T19:08:32.255Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T19:08:32.256Z"}
+{"level":"info","message":"Registered routes:","timestamp":"2024-07-17T19:08:32.259Z"}
+{"level":"info","message":"GET /","timestamp":"2024-07-17T19:08:32.260Z"}
+{"level":"info","message":"POST /api/pdf-extraction/test","timestamp":"2024-07-17T19:08:32.260Z"}
+{"level":"info","message":"GET *","timestamp":"2024-07-17T19:08:32.260Z"}
+{"level":"info","message":"HTTP Server running at http://localhost:3001","timestamp":"2024-07-17T19:08:32.262Z"}
+{"level":"info","message":"::1 - - [17/Jul/2024:19:08:39 +0000] \"POST /api/sharepic-3zeilen HTTP/1.1\" 200 235742 \"-\" \"curl/8.7.1\"","timestamp":"2024-07-17T19:08:39.909Z"}
+{"level":"info","message":"Server will run on port 3001","timestamp":"2024-07-17T19:10:36.658Z"}
+{"level":"info","message":"Middleware configured","timestamp":"2024-07-17T19:10:36.665Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T19:10:36.666Z"}
+{"level":"info","message":"Registered routes:","timestamp":"2024-07-17T19:10:36.669Z"}
+{"level":"info","message":"GET /","timestamp":"2024-07-17T19:10:36.670Z"}
+{"level":"info","message":"POST /api/pdf-extraction/test","timestamp":"2024-07-17T19:10:36.670Z"}
+{"level":"info","message":"GET *","timestamp":"2024-07-17T19:10:36.670Z"}
+{"level":"info","message":"HTTP Server running at http://localhost:3001","timestamp":"2024-07-17T19:10:36.672Z"}
+{"level":"info","message":"::1 - - [17/Jul/2024:19:10:51 +0000] \"POST /api/sharepic-3zeilen HTTP/1.1\" 200 223854 \"-\" \"curl/8.7.1\"","timestamp":"2024-07-17T19:10:51.721Z"}
+{"level":"info","message":"Server will run on port 3001","timestamp":"2024-07-17T19:14:24.214Z"}
+{"level":"info","message":"Middleware configured","timestamp":"2024-07-17T19:14:24.220Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T19:14:24.220Z"}
+{"level":"info","message":"Registered routes:","timestamp":"2024-07-17T19:14:24.223Z"}
+{"level":"info","message":"GET /","timestamp":"2024-07-17T19:14:24.224Z"}
+{"level":"info","message":"POST /api/pdf-extraction/test","timestamp":"2024-07-17T19:14:24.224Z"}
+{"level":"info","message":"GET *","timestamp":"2024-07-17T19:14:24.225Z"}
+{"level":"info","message":"HTTP Server running at http://localhost:3001","timestamp":"2024-07-17T19:14:24.226Z"}
+{"level":"info","message":"::1 - - [17/Jul/2024:19:14:48 +0000] \"POST /api/sharepic-3zeilen HTTP/1.1\" 200 230366 \"-\" \"curl/8.7.1\"","timestamp":"2024-07-17T19:14:48.885Z"}
+{"level":"info","message":"Server will run on port 3001","timestamp":"2024-07-17T19:19:38.888Z"}
+{"level":"info","message":"Middleware configured","timestamp":"2024-07-17T19:19:38.894Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T19:19:38.894Z"}
+{"level":"info","message":"Registered routes:","timestamp":"2024-07-17T19:19:38.900Z"}
+{"level":"info","message":"GET /","timestamp":"2024-07-17T19:19:38.901Z"}
+{"level":"info","message":"POST /api/pdf-extraction/test","timestamp":"2024-07-17T19:19:38.902Z"}
+{"level":"info","message":"GET *","timestamp":"2024-07-17T19:19:38.902Z"}
+{"level":"info","message":"HTTP Server running at http://localhost:3001","timestamp":"2024-07-17T19:19:38.906Z"}
+{"level":"info","message":"::1 - - [17/Jul/2024:19:19:46 +0000] \"POST /api/sharepic-3zeilen HTTP/1.1\" 200 235812 \"-\" \"curl/8.7.1\"","timestamp":"2024-07-17T19:19:46.007Z"}
+{"level":"info","message":"Server will run on port 3001","timestamp":"2024-07-17T19:21:53.926Z"}
+{"level":"info","message":"Middleware configured","timestamp":"2024-07-17T19:21:53.932Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T19:21:53.933Z"}
+{"level":"info","message":"Registered routes:","timestamp":"2024-07-17T19:21:53.936Z"}
+{"level":"info","message":"GET /","timestamp":"2024-07-17T19:21:53.936Z"}
+{"level":"info","message":"POST /api/pdf-extraction/test","timestamp":"2024-07-17T19:21:53.937Z"}
+{"level":"info","message":"GET *","timestamp":"2024-07-17T19:21:53.937Z"}
+{"level":"info","message":"HTTP Server running at http://localhost:3001","timestamp":"2024-07-17T19:21:53.938Z"}
+{"level":"info","message":"::1 - - [17/Jul/2024:19:22:14 +0000] \"POST /api/sharepic-3zeilen HTTP/1.1\" 200 239855 \"-\" \"curl/8.7.1\"","timestamp":"2024-07-17T19:22:14.673Z"}
+{"level":"info","message":"Server will run on port 3001","timestamp":"2024-07-17T19:23:25.314Z"}
+{"level":"info","message":"Middleware configured","timestamp":"2024-07-17T19:23:25.319Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T19:23:25.323Z"}
+{"level":"info","message":"Registered routes:","timestamp":"2024-07-17T19:23:25.327Z"}
+{"level":"info","message":"GET /","timestamp":"2024-07-17T19:23:25.328Z"}
+{"level":"info","message":"POST /api/pdf-extraction/test","timestamp":"2024-07-17T19:23:25.329Z"}
+{"level":"info","message":"GET *","timestamp":"2024-07-17T19:23:25.329Z"}
+{"level":"info","message":"HTTP Server running at http://localhost:3001","timestamp":"2024-07-17T19:23:25.331Z"}
+{"level":"info","message":"::1 - - [17/Jul/2024:19:23:37 +0000] \"POST /api/sharepic-3zeilen HTTP/1.1\" 200 230366 \"-\" \"curl/8.7.1\"","timestamp":"2024-07-17T19:23:37.318Z"}
+{"level":"info","message":"Server will run on port 3001","timestamp":"2024-07-17T19:25:21.382Z"}
+{"level":"info","message":"Middleware configured","timestamp":"2024-07-17T19:25:21.388Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T19:25:21.388Z"}
+{"level":"info","message":"Registered routes:","timestamp":"2024-07-17T19:25:21.391Z"}
+{"level":"info","message":"GET /","timestamp":"2024-07-17T19:25:21.392Z"}
+{"level":"info","message":"POST /api/pdf-extraction/test","timestamp":"2024-07-17T19:25:21.392Z"}
+{"level":"info","message":"GET *","timestamp":"2024-07-17T19:25:21.392Z"}
+{"level":"info","message":"HTTP Server running at http://localhost:3001","timestamp":"2024-07-17T19:25:21.394Z"}
+{"level":"info","message":"::1 - - [17/Jul/2024:19:25:55 +0000] \"POST /api/sharepic-3zeilen HTTP/1.1\" 200 234303 \"-\" \"curl/8.7.1\"","timestamp":"2024-07-17T19:25:55.081Z"}
+{"level":"info","message":"Server will run on port 3001","timestamp":"2024-07-17T19:27:50.715Z"}
+{"level":"info","message":"Middleware configured","timestamp":"2024-07-17T19:27:50.720Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T19:27:50.721Z"}
+{"level":"info","message":"Registered routes:","timestamp":"2024-07-17T19:27:50.724Z"}
+{"level":"info","message":"GET /","timestamp":"2024-07-17T19:27:50.724Z"}
+{"level":"info","message":"POST /api/pdf-extraction/test","timestamp":"2024-07-17T19:27:50.725Z"}
+{"level":"info","message":"GET *","timestamp":"2024-07-17T19:27:50.725Z"}
+{"level":"info","message":"HTTP Server running at http://localhost:3001","timestamp":"2024-07-17T19:27:50.726Z"}
+{"level":"info","message":"::1 - - [17/Jul/2024:19:28:14 +0000] \"POST /api/sharepic-3zeilen HTTP/1.1\" 200 230976 \"-\" \"curl/8.7.1\"","timestamp":"2024-07-17T19:28:14.166Z"}
+{"level":"info","message":"Server will run on port 3001","timestamp":"2024-07-17T19:31:14.649Z"}
+{"level":"info","message":"Middleware configured","timestamp":"2024-07-17T19:31:14.657Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T19:31:14.659Z"}
+{"level":"info","message":"Registered routes:","timestamp":"2024-07-17T19:31:14.664Z"}
+{"level":"info","message":"GET /","timestamp":"2024-07-17T19:31:14.665Z"}
+{"level":"info","message":"POST /api/pdf-extraction/test","timestamp":"2024-07-17T19:31:14.665Z"}
+{"level":"info","message":"GET *","timestamp":"2024-07-17T19:31:14.666Z"}
+{"level":"info","message":"HTTP Server running at http://localhost:3001","timestamp":"2024-07-17T19:31:14.669Z"}
+{"level":"info","message":"::1 - - [17/Jul/2024:19:31:38 +0000] \"POST /api/sharepic-3zeilen HTTP/1.1\" 200 230976 \"-\" \"curl/8.7.1\"","timestamp":"2024-07-17T19:31:38.367Z"}
+{"level":"info","message":"::1 - - [17/Jul/2024:19:33:05 +0000] \"POST /api/sharepic-3zeilen HTTP/1.1\" 200 229966 \"-\" \"curl/8.7.1\"","timestamp":"2024-07-17T19:33:05.845Z"}
+{"level":"info","message":"Server will run on port 3001","timestamp":"2024-07-17T19:35:40.684Z"}
+{"level":"info","message":"Middleware configured","timestamp":"2024-07-17T19:35:40.690Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T19:35:40.691Z"}
+{"level":"info","message":"Registered routes:","timestamp":"2024-07-17T19:35:40.695Z"}
+{"level":"info","message":"GET /","timestamp":"2024-07-17T19:35:40.695Z"}
+{"level":"info","message":"POST /api/pdf-extraction/test","timestamp":"2024-07-17T19:35:40.696Z"}
+{"level":"info","message":"GET *","timestamp":"2024-07-17T19:35:40.696Z"}
+{"level":"info","message":"HTTP Server running at http://localhost:3001","timestamp":"2024-07-17T19:35:40.699Z"}
+{"level":"info","message":"::1 - - [17/Jul/2024:19:35:52 +0000] \"POST /api/sharepic-3zeilen HTTP/1.1\" 200 232628 \"-\" \"curl/8.7.1\"","timestamp":"2024-07-17T19:35:52.496Z"}
+{"level":"info","message":"Server will run on port 3001","timestamp":"2024-07-17T20:06:08.875Z"}
+{"level":"info","message":"Middleware configured","timestamp":"2024-07-17T20:06:08.882Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T20:06:08.883Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T20:06:08.884Z"}
+{"level":"info","message":"Registered routes:","timestamp":"2024-07-17T20:06:08.887Z"}
+{"level":"info","message":"GET /","timestamp":"2024-07-17T20:06:08.888Z"}
+{"level":"info","message":"POST /api/pdf-extraction/test","timestamp":"2024-07-17T20:06:08.890Z"}
+{"level":"info","message":"GET *","timestamp":"2024-07-17T20:06:08.890Z"}
+{"level":"info","message":"HTTP Server running at http://localhost:3001","timestamp":"2024-07-17T20:06:08.892Z"}
+{"level":"info","message":"Server will run on port 3001","timestamp":"2024-07-17T20:08:41.137Z"}
+{"level":"info","message":"Middleware configured","timestamp":"2024-07-17T20:08:41.146Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T20:08:41.147Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T20:08:41.148Z"}
+{"level":"info","message":"Registered routes:","timestamp":"2024-07-17T20:08:41.151Z"}
+{"level":"info","message":"GET /","timestamp":"2024-07-17T20:08:41.152Z"}
+{"level":"info","message":"POST /api/pdf-extraction/test","timestamp":"2024-07-17T20:08:41.153Z"}
+{"level":"info","message":"GET *","timestamp":"2024-07-17T20:08:41.154Z"}
+{"level":"info","message":"HTTP Server running at http://localhost:3001","timestamp":"2024-07-17T20:08:41.156Z"}
+{"level":"info","message":"Server will run on port 3001","timestamp":"2024-07-17T20:10:11.961Z"}
+{"level":"info","message":"Middleware configured","timestamp":"2024-07-17T20:10:11.967Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T20:10:11.968Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T20:10:11.969Z"}
+{"level":"info","message":"Registered routes:","timestamp":"2024-07-17T20:10:11.974Z"}
+{"level":"info","message":"GET /","timestamp":"2024-07-17T20:10:11.975Z"}
+{"level":"info","message":"POST /api/pdf-extraction/test","timestamp":"2024-07-17T20:10:11.975Z"}
+{"level":"info","message":"GET *","timestamp":"2024-07-17T20:10:11.976Z"}
+{"level":"info","message":"HTTP Server running at http://localhost:3001","timestamp":"2024-07-17T20:10:11.977Z"}
+{"level":"info","message":"Server will run on port 3001","timestamp":"2024-07-17T20:20:39.010Z"}
+{"level":"info","message":"Middleware configured","timestamp":"2024-07-17T20:20:39.015Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T20:20:39.015Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T20:20:39.016Z"}
+{"level":"info","message":"Registered routes:","timestamp":"2024-07-17T20:20:39.019Z"}
+{"level":"info","message":"GET /","timestamp":"2024-07-17T20:20:39.020Z"}
+{"level":"info","message":"POST /api/pdf-extraction/test","timestamp":"2024-07-17T20:20:39.020Z"}
+{"level":"info","message":"GET *","timestamp":"2024-07-17T20:20:39.021Z"}
+{"level":"info","message":"HTTP Server running at http://localhost:3001","timestamp":"2024-07-17T20:20:39.023Z"}
+{"level":"info","message":"::1 - - [17/Jul/2024:20:23:25 +0000] \"POST /api/sharepic-3zeilen/generate HTTP/1.1\" 200 1994552 \"-\" \"curl/8.7.1\"","timestamp":"2024-07-17T20:23:25.836Z"}
+{"level":"info","message":"Server will run on port 3001","timestamp":"2024-07-17T20:26:25.127Z"}
+{"level":"info","message":"Middleware configured","timestamp":"2024-07-17T20:26:25.134Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T20:26:25.135Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T20:26:25.137Z"}
+{"level":"info","message":"Registered routes:","timestamp":"2024-07-17T20:26:25.140Z"}
+{"level":"info","message":"GET /","timestamp":"2024-07-17T20:26:25.141Z"}
+{"level":"info","message":"POST /api/pdf-extraction/test","timestamp":"2024-07-17T20:26:25.142Z"}
+{"level":"info","message":"GET *","timestamp":"2024-07-17T20:26:25.142Z"}
+{"level":"info","message":"HTTP Server running at http://localhost:3001","timestamp":"2024-07-17T20:26:25.144Z"}
+{"level":"info","message":"::1 - - [17/Jul/2024:20:26:47 +0000] \"POST /api/sharepic-3zeilen HTTP/1.1\" 200 1994552 \"-\" \"curl/8.7.1\"","timestamp":"2024-07-17T20:26:47.286Z"}
+{"level":"info","message":"Server will run on port 3001","timestamp":"2024-07-17T20:28:45.437Z"}
+{"level":"info","message":"Middleware configured","timestamp":"2024-07-17T20:28:45.443Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T20:28:45.443Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T20:28:45.444Z"}
+{"level":"info","message":"Registered routes:","timestamp":"2024-07-17T20:28:45.447Z"}
+{"level":"info","message":"GET /","timestamp":"2024-07-17T20:28:45.448Z"}
+{"level":"info","message":"POST /api/pdf-extraction/test","timestamp":"2024-07-17T20:28:45.449Z"}
+{"level":"info","message":"GET *","timestamp":"2024-07-17T20:28:45.449Z"}
+{"level":"info","message":"HTTP Server running at http://localhost:3001","timestamp":"2024-07-17T20:28:45.451Z"}
+{"level":"info","message":"::1 - - [17/Jul/2024:20:30:13 +0000] \"POST /api/sharepic-3zeilen HTTP/1.1\" 200 2107720 \"-\" \"curl/8.7.1\"","timestamp":"2024-07-17T20:30:13.595Z"}
+{"level":"info","message":"Server will run on port 3001","timestamp":"2024-07-17T20:31:11.861Z"}
+{"level":"info","message":"Middleware configured","timestamp":"2024-07-17T20:31:11.868Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T20:31:11.868Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T20:31:11.869Z"}
+{"level":"info","message":"Registered routes:","timestamp":"2024-07-17T20:31:11.872Z"}
+{"level":"info","message":"GET /","timestamp":"2024-07-17T20:31:11.873Z"}
+{"level":"info","message":"POST /api/pdf-extraction/test","timestamp":"2024-07-17T20:31:11.873Z"}
+{"level":"info","message":"GET *","timestamp":"2024-07-17T20:31:11.873Z"}
+{"level":"info","message":"HTTP Server running at http://localhost:3001","timestamp":"2024-07-17T20:31:11.874Z"}
+{"level":"info","message":"::1 - - [17/Jul/2024:20:31:49 +0000] \"POST /api/sharepic-3zeilen HTTP/1.1\" 200 1994552 \"-\" \"curl/8.7.1\"","timestamp":"2024-07-17T20:31:49.239Z"}
+{"level":"info","message":"Server will run on port 3001","timestamp":"2024-07-17T20:34:59.107Z"}
+{"level":"info","message":"Middleware configured","timestamp":"2024-07-17T20:34:59.113Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T20:34:59.114Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T20:34:59.116Z"}
+{"level":"info","message":"Registered routes:","timestamp":"2024-07-17T20:34:59.121Z"}
+{"level":"info","message":"GET /","timestamp":"2024-07-17T20:34:59.123Z"}
+{"level":"info","message":"POST /api/pdf-extraction/test","timestamp":"2024-07-17T20:34:59.124Z"}
+{"level":"info","message":"GET *","timestamp":"2024-07-17T20:34:59.124Z"}
+{"level":"info","message":"HTTP Server running at http://localhost:3001","timestamp":"2024-07-17T20:34:59.126Z"}
+{"level":"info","message":"::1 - - [17/Jul/2024:20:35:12 +0000] \"POST /api/sharepic-3zeilen HTTP/1.1\" 200 1980927 \"-\" \"curl/8.7.1\"","timestamp":"2024-07-17T20:35:12.074Z"}
+{"level":"info","message":"Server will run on port 3001","timestamp":"2024-07-17T20:41:14.804Z"}
+{"level":"info","message":"Middleware configured","timestamp":"2024-07-17T20:41:14.810Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T20:41:14.811Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T20:41:14.813Z"}
+{"level":"info","message":"Registered routes:","timestamp":"2024-07-17T20:41:14.816Z"}
+{"level":"info","message":"GET /","timestamp":"2024-07-17T20:41:14.816Z"}
+{"level":"info","message":"POST /api/pdf-extraction/test","timestamp":"2024-07-17T20:41:14.817Z"}
+{"level":"info","message":"GET *","timestamp":"2024-07-17T20:41:14.817Z"}
+{"level":"info","message":"HTTP Server running at http://localhost:3001","timestamp":"2024-07-17T20:41:14.819Z"}
+{"level":"info","message":"::1 - - [17/Jul/2024:20:41:36 +0000] \"POST /api/sharepic-3zeilen HTTP/1.1\" 200 1883315 \"-\" \"curl/8.7.1\"","timestamp":"2024-07-17T20:41:36.085Z"}
+{"level":"info","message":"::1 - - [17/Jul/2024:20:41:45 +0000] \"POST /api/sharepic-3zeilen HTTP/1.1\" 200 1883315 \"-\" \"curl/8.7.1\"","timestamp":"2024-07-17T20:41:45.464Z"}
+{"level":"info","message":"Server will run on port 3001","timestamp":"2024-07-17T20:43:42.634Z"}
+{"level":"info","message":"Middleware configured","timestamp":"2024-07-17T20:43:42.641Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T20:43:42.642Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T20:43:42.644Z"}
+{"level":"info","message":"Registered routes:","timestamp":"2024-07-17T20:43:42.646Z"}
+{"level":"info","message":"GET /","timestamp":"2024-07-17T20:43:42.647Z"}
+{"level":"info","message":"POST /api/pdf-extraction/test","timestamp":"2024-07-17T20:43:42.647Z"}
+{"level":"info","message":"GET *","timestamp":"2024-07-17T20:43:42.647Z"}
+{"level":"info","message":"HTTP Server running at http://localhost:3001","timestamp":"2024-07-17T20:43:42.649Z"}
+{"level":"info","message":"::1 - - [17/Jul/2024:20:44:06 +0000] \"POST /api/sharepic-3zeilen HTTP/1.1\" 200 1867754 \"-\" \"curl/8.7.1\"","timestamp":"2024-07-17T20:44:06.526Z"}
+{"level":"info","message":"Server will run on port 3001","timestamp":"2024-07-17T20:46:28.522Z"}
+{"level":"info","message":"Middleware configured","timestamp":"2024-07-17T20:46:28.528Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T20:46:28.529Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T20:46:28.530Z"}
+{"level":"info","message":"Registered routes:","timestamp":"2024-07-17T20:46:28.532Z"}
+{"level":"info","message":"GET /","timestamp":"2024-07-17T20:46:28.533Z"}
+{"level":"info","message":"POST /api/pdf-extraction/test","timestamp":"2024-07-17T20:46:28.533Z"}
+{"level":"info","message":"GET *","timestamp":"2024-07-17T20:46:28.534Z"}
+{"level":"info","message":"HTTP Server running at http://localhost:3001","timestamp":"2024-07-17T20:46:28.535Z"}
+{"level":"info","message":"::1 - - [17/Jul/2024:20:47:02 +0000] \"POST /api/sharepic-3zeilen HTTP/1.1\" 200 1891703 \"-\" \"curl/8.7.1\"","timestamp":"2024-07-17T20:47:02.096Z"}
+{"level":"info","message":"::1 - - [17/Jul/2024:20:49:43 +0000] \"POST /api/sharepic-3zeilen HTTP/1.1\" 200 1891703 \"-\" \"curl/8.7.1\"","timestamp":"2024-07-17T20:49:43.048Z"}
+{"level":"info","message":"::1 - - [17/Jul/2024:20:49:51 +0000] \"POST /api/sharepic-3zeilen HTTP/1.1\" 200 1891703 \"-\" \"curl/8.7.1\"","timestamp":"2024-07-17T20:49:51.778Z"}
+{"level":"info","message":"Server will run on port 3001","timestamp":"2024-07-17T20:50:13.574Z"}
+{"level":"info","message":"Middleware configured","timestamp":"2024-07-17T20:50:13.581Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T20:50:13.582Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T20:50:13.584Z"}
+{"level":"info","message":"Registered routes:","timestamp":"2024-07-17T20:50:13.587Z"}
+{"level":"info","message":"GET /","timestamp":"2024-07-17T20:50:13.587Z"}
+{"level":"info","message":"POST /api/pdf-extraction/test","timestamp":"2024-07-17T20:50:13.587Z"}
+{"level":"info","message":"GET *","timestamp":"2024-07-17T20:50:13.588Z"}
+{"level":"info","message":"HTTP Server running at http://localhost:3001","timestamp":"2024-07-17T20:50:13.590Z"}
+{"level":"info","message":"::1 - - [17/Jul/2024:20:50:25 +0000] \"POST /api/sharepic-3zeilen HTTP/1.1\" 200 1721610 \"-\" \"curl/8.7.1\"","timestamp":"2024-07-17T20:50:25.878Z"}
+{"level":"info","message":"Server will run on port 3001","timestamp":"2024-07-17T20:55:08.018Z"}
+{"level":"info","message":"Middleware configured","timestamp":"2024-07-17T20:55:08.027Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T20:55:08.028Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T20:55:08.030Z"}
+{"level":"info","message":"Registered routes:","timestamp":"2024-07-17T20:55:08.035Z"}
+{"level":"info","message":"GET /","timestamp":"2024-07-17T20:55:08.035Z"}
+{"level":"info","message":"POST /api/pdf-extraction/test","timestamp":"2024-07-17T20:55:08.036Z"}
+{"level":"info","message":"GET *","timestamp":"2024-07-17T20:55:08.037Z"}
+{"level":"info","message":"HTTP Server running at http://localhost:3001","timestamp":"2024-07-17T20:55:08.038Z"}
+{"level":"info","message":"::1 - - [17/Jul/2024:20:55:41 +0000] \"POST /api/sharepic-3zeilen HTTP/1.1\" 200 1552077 \"-\" \"curl/8.7.1\"","timestamp":"2024-07-17T20:55:41.572Z"}
+{"level":"info","message":"Server will run on port 3001","timestamp":"2024-07-17T20:58:25.438Z"}
+{"level":"info","message":"Middleware configured","timestamp":"2024-07-17T20:58:25.444Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T20:58:25.445Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T20:58:25.446Z"}
+{"level":"info","message":"Registered routes:","timestamp":"2024-07-17T20:58:25.450Z"}
+{"level":"info","message":"GET /","timestamp":"2024-07-17T20:58:25.451Z"}
+{"level":"info","message":"POST /api/pdf-extraction/test","timestamp":"2024-07-17T20:58:25.451Z"}
+{"level":"info","message":"GET *","timestamp":"2024-07-17T20:58:25.451Z"}
+{"level":"info","message":"HTTP Server running at http://localhost:3001","timestamp":"2024-07-17T20:58:25.453Z"}
+{"level":"info","message":"::1 - - [17/Jul/2024:20:58:36 +0000] \"POST /api/sharepic-3zeilen HTTP/1.1\" 200 1571547 \"-\" \"curl/8.7.1\"","timestamp":"2024-07-17T20:58:36.566Z"}
+{"level":"info","message":"Server will run on port 3001","timestamp":"2024-07-17T21:01:15.633Z"}
+{"level":"info","message":"Middleware configured","timestamp":"2024-07-17T21:01:15.640Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T21:01:15.641Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T21:01:15.642Z"}
+{"level":"info","message":"Registered routes:","timestamp":"2024-07-17T21:01:15.646Z"}
+{"level":"info","message":"GET /","timestamp":"2024-07-17T21:01:15.647Z"}
+{"level":"info","message":"POST /api/pdf-extraction/test","timestamp":"2024-07-17T21:01:15.648Z"}
+{"level":"info","message":"GET *","timestamp":"2024-07-17T21:01:15.648Z"}
+{"level":"info","message":"HTTP Server running at http://localhost:3001","timestamp":"2024-07-17T21:01:15.650Z"}
+{"level":"info","message":"::1 - - [17/Jul/2024:21:02:35 +0000] \"POST /api/sharepic-3zeilen HTTP/1.1\" 200 1597060 \"-\" \"curl/8.7.1\"","timestamp":"2024-07-17T21:02:35.555Z"}
+{"level":"info","message":"Server will run on port 3001","timestamp":"2024-07-17T21:09:12.642Z"}
+{"level":"info","message":"Middleware configured","timestamp":"2024-07-17T21:09:12.654Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T21:09:12.657Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T21:09:12.660Z"}
+{"level":"info","message":"Registered routes:","timestamp":"2024-07-17T21:09:12.677Z"}
+{"level":"info","message":"GET /","timestamp":"2024-07-17T21:09:12.679Z"}
+{"level":"info","message":"POST /api/pdf-extraction/test","timestamp":"2024-07-17T21:09:12.694Z"}
+{"level":"info","message":"GET *","timestamp":"2024-07-17T21:09:12.695Z"}
+{"level":"info","message":"HTTP Server running at http://localhost:3001","timestamp":"2024-07-17T21:09:12.704Z"}
+{"level":"info","message":"::1 - - [17/Jul/2024:21:09:38 +0000] \"POST /api/sharepic-3zeilen HTTP/1.1\" 200 1282383 \"-\" \"curl/8.7.1\"","timestamp":"2024-07-17T21:09:38.816Z"}
+{"level":"info","message":"Server will run on port 3001","timestamp":"2024-07-17T21:11:50.331Z"}
+{"level":"info","message":"Middleware configured","timestamp":"2024-07-17T21:11:50.339Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T21:11:50.339Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T21:11:50.341Z"}
+{"level":"info","message":"Registered routes:","timestamp":"2024-07-17T21:11:50.348Z"}
+{"level":"info","message":"GET /","timestamp":"2024-07-17T21:11:50.350Z"}
+{"level":"info","message":"POST /api/pdf-extraction/test","timestamp":"2024-07-17T21:11:50.351Z"}
+{"level":"info","message":"GET *","timestamp":"2024-07-17T21:11:50.352Z"}
+{"level":"info","message":"HTTP Server running at http://localhost:3001","timestamp":"2024-07-17T21:11:50.360Z"}
+{"level":"info","message":"::1 - - [17/Jul/2024:21:11:59 +0000] \"POST /api/sharepic-3zeilen HTTP/1.1\" 200 1026574 \"-\" \"curl/8.7.1\"","timestamp":"2024-07-17T21:11:59.765Z"}
+{"level":"info","message":"::1 - - [17/Jul/2024:21:12:14 +0000] \"POST /api/sharepic-3zeilen HTTP/1.1\" 200 1026574 \"-\" \"curl/8.7.1\"","timestamp":"2024-07-17T21:12:14.188Z"}
+{"level":"info","message":"Server will run on port 3001","timestamp":"2024-07-17T21:14:12.126Z"}
+{"level":"info","message":"Middleware configured","timestamp":"2024-07-17T21:14:12.135Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T21:14:12.137Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T21:14:12.138Z"}
+{"level":"info","message":"Registered routes:","timestamp":"2024-07-17T21:14:12.143Z"}
+{"level":"info","message":"GET /","timestamp":"2024-07-17T21:14:12.144Z"}
+{"level":"info","message":"POST /api/pdf-extraction/test","timestamp":"2024-07-17T21:14:12.145Z"}
+{"level":"info","message":"GET *","timestamp":"2024-07-17T21:14:12.145Z"}
+{"level":"info","message":"HTTP Server running at http://localhost:3001","timestamp":"2024-07-17T21:14:12.147Z"}
+{"level":"info","message":"::1 - - [17/Jul/2024:21:14:40 +0000] \"POST /api/sharepic-3zeilen HTTP/1.1\" 200 1419166 \"-\" \"curl/8.7.1\"","timestamp":"2024-07-17T21:14:40.145Z"}
+{"level":"info","message":"Server will run on port 3001","timestamp":"2024-07-17T21:17:01.061Z"}
+{"level":"info","message":"Middleware configured","timestamp":"2024-07-17T21:17:01.071Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T21:17:01.072Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T21:17:01.074Z"}
+{"level":"info","message":"Registered routes:","timestamp":"2024-07-17T21:17:01.078Z"}
+{"level":"info","message":"GET /","timestamp":"2024-07-17T21:17:01.079Z"}
+{"level":"info","message":"POST /api/pdf-extraction/test","timestamp":"2024-07-17T21:17:01.080Z"}
+{"level":"info","message":"GET *","timestamp":"2024-07-17T21:17:01.081Z"}
+{"level":"info","message":"HTTP Server running at http://localhost:3001","timestamp":"2024-07-17T21:17:01.085Z"}
+{"level":"info","message":"::1 - - [17/Jul/2024:21:17:45 +0000] \"POST /api/sharepic-3zeilen HTTP/1.1\" 200 1453492 \"-\" \"curl/8.7.1\"","timestamp":"2024-07-17T21:17:45.043Z"}
+{"level":"info","message":"Server will run on port 3001","timestamp":"2024-07-17T21:28:52.769Z"}
+{"level":"info","message":"Middleware configured","timestamp":"2024-07-17T21:28:52.779Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T21:28:52.781Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T21:28:52.782Z"}
+{"level":"info","message":"Registered routes:","timestamp":"2024-07-17T21:28:52.789Z"}
+{"level":"info","message":"GET /","timestamp":"2024-07-17T21:28:52.790Z"}
+{"level":"info","message":"GET *","timestamp":"2024-07-17T21:28:52.791Z"}
+{"level":"info","message":"HTTP Server running at http://localhost:3001","timestamp":"2024-07-17T21:28:52.794Z"}
+{"level":"info","message":"::1 - - [17/Jul/2024:21:29:05 +0000] \"POST /api/zitatsharepic HTTP/1.1\" 200 1667546 \"-\" \"curl/8.7.1\"","timestamp":"2024-07-17T21:29:05.987Z"}
+{"level":"info","message":"Server will run on port 3001","timestamp":"2024-07-17T21:39:46.476Z"}
+{"level":"info","message":"Middleware configured","timestamp":"2024-07-17T21:39:46.491Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T21:39:46.493Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T21:39:46.495Z"}
+{"level":"info","message":"Registered routes:","timestamp":"2024-07-17T21:39:46.541Z"}
+{"level":"info","message":"GET /","timestamp":"2024-07-17T21:39:46.542Z"}
+{"level":"info","message":"GET *","timestamp":"2024-07-17T21:39:46.544Z"}
+{"level":"info","message":"HTTP Server running at http://localhost:3001","timestamp":"2024-07-17T21:39:46.548Z"}
+{"level":"info","message":"::1 - - [17/Jul/2024:21:40:39 +0000] \"POST /api/zitatsharepic HTTP/1.1\" 200 1667546 \"-\" \"curl/8.7.1\"","timestamp":"2024-07-17T21:40:39.952Z"}
+{"level":"info","message":"Server will run on port 3001","timestamp":"2024-07-17T21:41:35.935Z"}
+{"level":"info","message":"Middleware configured","timestamp":"2024-07-17T21:41:35.946Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T21:41:35.948Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T21:41:35.950Z"}
+{"level":"info","message":"Registered routes:","timestamp":"2024-07-17T21:41:35.955Z"}
+{"level":"info","message":"GET /","timestamp":"2024-07-17T21:41:35.956Z"}
+{"level":"info","message":"GET *","timestamp":"2024-07-17T21:41:35.956Z"}
+{"level":"info","message":"HTTP Server running at http://localhost:3001","timestamp":"2024-07-17T21:41:35.958Z"}
+{"level":"info","message":"::1 - - [17/Jul/2024:21:41:46 +0000] \"POST /api/zitatsharepic HTTP/1.1\" 200 1667546 \"-\" \"curl/8.7.1\"","timestamp":"2024-07-17T21:41:46.755Z"}
+{"level":"info","message":"Server will run on port 3001","timestamp":"2024-07-17T21:44:59.690Z"}
+{"level":"info","message":"Middleware configured","timestamp":"2024-07-17T21:44:59.700Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T21:44:59.702Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T21:44:59.703Z"}
+{"level":"info","message":"Registered routes:","timestamp":"2024-07-17T21:44:59.707Z"}
+{"level":"info","message":"GET /","timestamp":"2024-07-17T21:44:59.707Z"}
+{"level":"info","message":"GET *","timestamp":"2024-07-17T21:44:59.708Z"}
+{"level":"info","message":"HTTP Server running at http://localhost:3001","timestamp":"2024-07-17T21:44:59.714Z"}
+{"level":"info","message":"::1 - - [17/Jul/2024:21:45:10 +0000] \"POST /api/zitatsharepic HTTP/1.1\" 200 1667546 \"-\" \"curl/8.7.1\"","timestamp":"2024-07-17T21:45:10.356Z"}
+{"level":"info","message":"::1 - - [17/Jul/2024:21:45:22 +0000] \"POST /api/zitatsharepic HTTP/1.1\" 200 1667546 \"-\" \"curl/8.7.1\"","timestamp":"2024-07-17T21:45:22.154Z"}
+{"level":"info","message":"Server will run on port 3001","timestamp":"2024-07-17T21:49:00.077Z"}
+{"level":"info","message":"Middleware configured","timestamp":"2024-07-17T21:49:00.085Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T21:49:00.087Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T21:49:00.089Z"}
+{"level":"info","message":"Registered routes:","timestamp":"2024-07-17T21:49:00.094Z"}
+{"level":"info","message":"GET /","timestamp":"2024-07-17T21:49:00.095Z"}
+{"level":"info","message":"GET *","timestamp":"2024-07-17T21:49:00.095Z"}
+{"level":"info","message":"HTTP Server running at http://localhost:3001","timestamp":"2024-07-17T21:49:00.097Z"}
+{"level":"info","message":"::1 - - [17/Jul/2024:21:49:20 +0000] \"POST /api/zitatsharepic HTTP/1.1\" 200 1667546 \"-\" \"curl/8.7.1\"","timestamp":"2024-07-17T21:49:20.538Z"}
+{"level":"info","message":"::1 - - [17/Jul/2024:21:49:33 +0000] \"POST /api/zitatsharepic HTTP/1.1\" 200 1667546 \"-\" \"curl/8.7.1\"","timestamp":"2024-07-17T21:49:33.717Z"}
+{"level":"info","message":"::1 - - [17/Jul/2024:21:51:56 +0000] \"POST /api/zitatsharepic HTTP/1.1\" 200 1667546 \"-\" \"curl/8.7.1\"","timestamp":"2024-07-17T21:51:56.072Z"}
+{"level":"info","message":"::1 - - [17/Jul/2024:21:52:10 +0000] \"POST /api/zitatsharepic HTTP/1.1\" 200 1667546 \"-\" \"curl/8.7.1\"","timestamp":"2024-07-17T21:52:10.010Z"}
+{"level":"info","message":"Server will run on port 3001","timestamp":"2024-07-17T21:55:15.244Z"}
+{"level":"info","message":"Middleware configured","timestamp":"2024-07-17T21:55:15.251Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T21:55:15.252Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T21:55:15.253Z"}
+{"level":"info","message":"Registered routes:","timestamp":"2024-07-17T21:55:15.259Z"}
+{"level":"info","message":"GET /","timestamp":"2024-07-17T21:55:15.260Z"}
+{"level":"info","message":"GET *","timestamp":"2024-07-17T21:55:15.260Z"}
+{"level":"info","message":"HTTP Server running at http://localhost:3001","timestamp":"2024-07-17T21:55:15.262Z"}
+{"level":"info","message":"::1 - - [17/Jul/2024:21:55:21 +0000] \"POST /api/zitatsharepic HTTP/1.1\" 200 1683481 \"-\" \"curl/8.7.1\"","timestamp":"2024-07-17T21:55:21.858Z"}
+{"level":"info","message":"::1 - - [17/Jul/2024:21:55:39 +0000] \"POST /api/zitatsharepic HTTP/1.1\" 200 1683481 \"-\" \"curl/8.7.1\"","timestamp":"2024-07-17T21:55:39.744Z"}
+{"level":"info","message":"Server will run on port 3001","timestamp":"2024-07-17T21:57:42.344Z"}
+{"level":"info","message":"Middleware configured","timestamp":"2024-07-17T21:57:42.352Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T21:57:42.355Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T21:57:42.357Z"}
+{"level":"info","message":"Registered routes:","timestamp":"2024-07-17T21:57:42.362Z"}
+{"level":"info","message":"GET /","timestamp":"2024-07-17T21:57:42.363Z"}
+{"level":"info","message":"GET *","timestamp":"2024-07-17T21:57:42.364Z"}
+{"level":"info","message":"HTTP Server running at http://localhost:3001","timestamp":"2024-07-17T21:57:42.366Z"}
+{"level":"info","message":"::1 - - [17/Jul/2024:22:01:29 +0000] \"POST /api/zitatsharepic HTTP/1.1\" 200 1679848 \"-\" \"curl/8.7.1\"","timestamp":"2024-07-17T22:01:29.705Z"}
+{"level":"info","message":"Server will run on port 3001","timestamp":"2024-07-17T22:02:41.269Z"}
+{"level":"info","message":"Middleware configured","timestamp":"2024-07-17T22:02:41.277Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T22:02:41.277Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-17T22:02:41.278Z"}
+{"level":"info","message":"Registered routes:","timestamp":"2024-07-17T22:02:41.282Z"}
+{"level":"info","message":"GET /","timestamp":"2024-07-17T22:02:41.283Z"}
+{"level":"info","message":"GET *","timestamp":"2024-07-17T22:02:41.283Z"}
+{"level":"info","message":"HTTP Server running at http://localhost:3001","timestamp":"2024-07-17T22:02:41.285Z"}
+{"level":"info","message":"::1 - - [17/Jul/2024:22:03:05 +0000] \"POST /api/zitatsharepic HTTP/1.1\" 200 1678638 \"-\" \"curl/8.7.1\"","timestamp":"2024-07-17T22:03:05.962Z"}
