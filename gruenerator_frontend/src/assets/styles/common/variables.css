@@ -1,0 +1,99 @@
+@import url('./variables.css');
+@import url('./typography.css');
+
+
+:root {
+    /* Basisfarben */
+    --tanne: #085f36;
+    --klee: #137508;
+    --grashalm: #b8db64;
+    --sand: #f5f1e9;
+    --himmel: #11a8db;
+    --sonne: #ffeb00;
+    --weiß: #ffffff;
+    --dunkelgruen: #005437;
+    --backgroundgruen: #f3faf6;
+    --dunkelgrau: #333;
+    --anthrazit: #222;
+
+    /* Light Mode (Standard) */
+    --background-color: white;
+    --background-color-alt: var(--backgroundgruen);
+    --background-color-sand: var(--sand);
+    --font-color: var(--dunkelgrau);
+    --font-color-h: var(--tanne);
+    --font-color-h3: var(--tanne);
+    --link-color: var(--tanne);
+    --button-background-color: #e0e0e0;
+    --button-text-color: black;
+}
+
+/* Dark Mode */
+[data-theme="dark"] {
+    --background-color: #222;
+    --background-color-alt: #343434;
+    --background-color-sand: #343434;
+    --font-color: var(--sand);
+    --font-color-h: var(--sand);
+    --font-color-h3: var(--sand);
+    --link-color: lightblue;
+    --button-background-color: #555;
+    --button-text-color: white;
+}
+
+/* Automatischer Dark Mode basierend auf Systemeinstellungen */
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+        --background-color: #222;
+        --background-color-alt: #343434;
+        --background-color-sand: var(--dunkelgruen);
+        --font-color: var(--sand);
+        --font-color-h: var(--sand);
+        --font-color-h3: var(--sand);
+        --link-color: lightblue;
+        --button-background-color: #555;
+        --button-text-color: white;
+    }
+}
+
+body {
+    background-color: var(--background-color);
+    color: var(--text-color);
+    transition: background-color 0.5s, color 0.5s;
+}
+
+a {
+    color: var(--link-color);
+    transition: color 0.5s;
+}
+
+button {
+    background-color: var(--button-background-color);
+    color: var(--button-text-color);
+    transition: background-color 0.5s, color 0.5s;
+}
+
+.container {
+    width: 100%;
+    padding: 10px;
+    box-sizing: border-box;
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+
+.with-header {
+    margin-top: 80px; 
+}
+
+@media (max-width: 768px) {
+    .container {
+        flex-direction: column;
+        margin-top: 0; /* Entfernt den oberen Abstand in der mobilen Ansicht */
+        margin-bottom: 0px;
+    }
+
+    .container.with-header {
+        margin-top: 80px; /* Fügt den oberen Abstand nur hinzu, wenn der Header vorhanden ist */
+    }
+}

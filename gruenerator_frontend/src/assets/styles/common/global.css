@@ -1,0 +1,44 @@
+@import url('./variables.css');
+@import url('./typography.css');
+
+body {
+    background-color: var(--background-color);
+    color: var(--text-color);
+    transition: background-color 0.5s, color 0.5s;
+}
+
+a {
+    color: var(--link-color);
+    transition: color 0.5s;
+}
+
+button {
+    background-color: var(--button-background-color);
+    color: var(--button-text-color);
+    transition: background-color 0.5s, color 0.5s;
+}
+
+.container {
+    width: 100%;
+    padding: 10px;
+    box-sizing: border-box;
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+
+.with-header {
+    margin-top: 80px; 
+}
+
+@media (max-width: 768px) {
+    .container {
+        flex-direction: column;
+        margin-top: 0;
+        margin-bottom: 0px;
+    }
+
+    .container.with-header {
+        margin-top: 80px;
+    }
+}

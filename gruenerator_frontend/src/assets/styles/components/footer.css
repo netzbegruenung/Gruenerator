@@ -1,0 +1,128 @@
+/* Beispiel: footer.css */
+@import url('../common/variables.css');
+@import url('../common/global.css');
+
+/* Footer Styling */
+.footer {
+    background-color: var(--dunkelgruen);
+    padding: 20px 0;
+    color: #fff;
+}
+
+.footer-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+.footer-left {
+    display: flex;
+    flex-direction: column;
+    width: 50%;
+}
+
+.footer-logo a img {
+    max-width: 200px;
+    margin-bottom: 20px;
+    display: block;
+}
+
+.footer-nav ul {
+    list-style: none;
+    display: flex;
+    flex-direction: row;
+    margin: 0;
+    padding: 0;
+}
+
+.footer-nav ul li {
+    margin: 0 10px;
+}
+
+.footer-nav ul li a {
+    font-family: 'PT Sans', Arial, sans-serif;
+    font-weight: bold;
+    color: #fff;
+    text-decoration: none;
+    font-size: 1em;
+    padding: 5px 0;
+    white-space: nowrap;
+}
+
+.footer-nav ul li a:hover {
+    text-decoration: underline;
+}
+
+.footer-bottom {
+    margin-top: 20px;
+    font-size: 0.9em;
+    text-align: left;
+}
+
+.footer-right {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    width: 50%;
+    align-items: flex-end;
+}
+
+.footer-social-icon {
+    color: #fff;
+    font-size: 1.5em;
+    margin: 10px 0;
+    text-decoration: none;
+}
+
+/* Adding subtle shadow to the footer */
+.footer {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Media Queries for responsive design */
+@media (max-width: 768px) {
+    .footer-container {
+        flex-direction: column;
+        align-items: center;
+        padding-left: 10px;
+        padding-right: 10px;    }
+
+    .footer-left,
+    .footer-right {
+        width: 100%;
+        text-align: center;
+    }
+
+    .footer-logo a img {
+        margin: 0 auto;
+    }
+
+    .footer-nav ul {
+    
+        flex-wrap: wrap;
+        
+    }
+
+    .footer-nav ul li {
+        margin: 5px;
+    }
+
+    .footer-bottom {
+        font-size: 0.8em;
+        padding-top: 0px;
+        margin-top: 0px;
+
+    } 
+    .footer-right {
+        margin-top: 10px;
+        flex-direction: row;
+        gap: 20px;
+        justify-content: center;
+    }
+    .footer-nav ul li a {
+        font-size: 0.8em;
+    }
+}

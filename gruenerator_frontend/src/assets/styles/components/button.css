@@ -1,0 +1,121 @@
+/* buttons.css */
+@import url('../common/variables.css');
+@import url('../common/typography.css');
+
+:root {
+  --button-padding: 10px 20px;
+  --button-border-radius: 7px;
+  --button-font-size: 1em;
+  --button-transition: 0.3s ease;
+}
+
+.button-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.button {
+  padding: var(--button-padding);
+  border: none;
+  border-radius: var(--button-border-radius);
+  font-size: var(--button-font-size);
+  cursor: pointer;
+  transition: background-color var(--button-transition), transform var(--button-transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.button:hover {
+  transform: scale(1.01);
+}
+
+.button:active {
+  transform: scale(0.98);
+}
+
+.button .icon {
+  margin-right: 8px;
+}
+
+.button.loading {
+  cursor: wait;
+}
+
+.button.loading .icon {
+  animation: spin 2s linear infinite;
+}
+
+/* Spezifische Stile für verschiedene Button-Typen */
+.submit-button, .generate-post-button, .copy-button {
+  background-color: var(--tanne);
+  color: var(--weiß);
+  width: 100%;
+}
+
+.back-button {
+  flex: 0 0 auto;
+  min-width: fit-content;
+}
+
+.form-button {
+  background-color: var(--weiß);
+  color: #333;
+  margin-top: 20px;
+  width: 100%;
+}
+
+.download-button {
+  background-color: var(--tanne);
+  color: var(--weiß);
+  text-decoration: none;
+}
+
+.download-button,
+.copy-button {
+  /* Fügen Sie hier die gleichen Styles wie für die anderen Buttons hinzu */
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  background-color: #4CAF50;
+  color: white;
+  cursor: pointer;
+  font-size: 16px;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.checkmark {
+  width: 24px;
+  height: 24px;
+  stroke-width: 2;
+  stroke: var(--klee);
+  fill: none;
+  stroke-linecap: round;
+  animation: checkmark 0.4s ease-in-out forwards;
+}
+
+@keyframes checkmark {
+  0% { stroke-dashoffset: 50px; }
+  100% { stroke-dashoffset: 0; }
+}
+
+@media (max-width: 768px) {
+  .button {
+    font-size: 0.8em;
+  }
+
+  .download-button {
+    border-radius: 20px;
+    padding: 12px 10px;
+  }
+}
