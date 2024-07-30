@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import FileUploadService from './FileUploadService';
+import FileUploadService from '../utils/FileUpload';
 
 const useFileUpload = (allowedTypes, maxSize = 10 * 1024 * 1024) => {
   const [file, setFile] = useState(null);
