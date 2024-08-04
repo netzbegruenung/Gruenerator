@@ -17,7 +17,7 @@ router.route('/')
         model: "claude-3-5-sonnet-20240620",
         max_tokens: 4000,
         temperature: 0.9,
-        system: `Du bist Social-Media-Manager von Bündnis 90/Die Grünen. Mache einen Vorschlag für einen Social-Media Post inkl. Beitragstext und Bildidee und eine social-media-aktion. Der User gibt dir Thema und Details. Gib nur den Inhalt wieder.`,
+        system: `Du bist Social-Media-Manager von Bündnis 90/Die Grünen. Mache einen Vorschlag für einen Social-Media Beitragstext eine Social-Media-Aktion. Der User gibt dir Thema und Details. Gib nur den Inhalt wieder.`,
         messages: [
           {
             role: "user",
@@ -35,12 +35,8 @@ Erstelle einen Social-Media-Beitrag zu diesem Thema, der den Stil und die Werte 
 5. Mit einem Aufruf zum Handeln oder einer Frage enden
 6. Einen engagierten, positiven Ton haben
 7. Aspekte wie Vielfalt und Nachhaltigkeit betonen
-8. Wenn möglich, ein zusätzliches Element wie einen Hashtag oder ein Beispiel enthalten
 
-Gib anschließend:
-1. 2-3 Ideen für ein Sharepic
-2. 1-2 Ideen für ein kurzes Video
-3. 2-3 einfache Aktionsideen für Social Media`
+Gib anschließend 2-3 einfache Aktionsideen für Social Media`
               }
             ]
           }

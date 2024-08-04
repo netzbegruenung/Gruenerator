@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { handleError } from '../../utils/errorHandling';
-import { sharepicAPI } from '../../../services/api';
+import { SHAREPIC_TYPES } from '../../utils/constants'; // Fügen Sie diesen Import hinzu
 
 export const useSharepicGeneration = () => {
   const [loading, setLoading] = useState(false);
@@ -9,7 +9,16 @@ export const useSharepicGeneration = () => {
   const generateText = useCallback(async (type, formData) => {
     console.log(`Generating text for ${type}:`, formData);
     try {
-      const response = await fetch(`/api/${type.toLowerCase()}_claude`, {
+      let apiRoute;
+      if (type === SHAREPIC_TYPES.THREE_LINES) {
+        apiRoute = '/api/dreizeilen_claude';
+      } else if (type === SHAREPIC_TYPES.QUOTE) {
+        apiRoute = '/api/quote_claude';
+      } else {
+        throw new Error('Ungültiger Sharepic-Typ');
+      }
+
+      const response = await fetch(apiRoute, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
@@ -29,9 +38,29 @@ export const useSharepicGeneration = () => {
     setError('');
     try {
       console.log(`Generating image for ${formData.type}:`, formData);
-      const imageData = await sharepicAPI.generateImage(formData);
-      console.log("Image data received:", imageData);
-      return imageData;
+      
+      const formDataToSend = new FormData();
+      Object.keys(formData).forEach(key => {
+        if (key === 'image' && formData[key] instanceof File) {
+          formDataToSend.append(key, formData[key]);
+        } else {
+          formDataToSend.append(key, String(formData[key]));
+        }
+      });
+      
+      const apiRoute = formData.type === SHAREPIC_TYPES.THREE_LINES ? '/api/dreizeilen_canvas' : '/api/quote_canvas';
+
+      const response = await fetch(apiRoute, {
+        method: 'POST',
+        body: formDataToSend,
+      });
+      
+      if (!response.ok) throw new Error('Netzwerkfehler bei der Bilderstellung');
+      
+      const result = await response.json();
+      console.log("Image data received:", result);
+      
+      return result.image;
     } catch (err) {
       handleError(err, setError);
       throw err;
@@ -39,7 +68,6 @@ export const useSharepicGeneration = () => {
       setLoading(false);
     }
   }, []);
-
   const modifyImage = useCallback(async (instruction, currentParams) => {
     console.log("Sending modification request:", { instruction, currentParams });
 

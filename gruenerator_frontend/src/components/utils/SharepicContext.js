@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useReducer } from 'react';
-import PropTypes from 'prop-types'; // Importieren Sie PropTypes
-
+import PropTypes from 'prop-types';
+import { FONT_SIZES, MIN_FONT_SIZE, MAX_FONT_SIZE } from './constants';
 const SharepicContext = createContext();
 
 const initialState = {
@@ -15,6 +15,7 @@ const initialState = {
     line3: '',
     uploadedImage: null
   },
+  fontSize: 'm', // Standardwert für die Schriftgröße
   currentStep: 0,
   generatedImageSrc: '',
   error: null,
@@ -33,10 +34,13 @@ function sharepicReducer(state, action) {
       return { ...state, error: action.payload };
     case 'SET_LOADING':
       return { ...state, loading: action.payload };
+    case 'UPDATE_FONT_SIZE':
+      return { ...state, fontSize: action.payload };
     default:
       return state;
   }
 }
+
 
 export function SharepicProvider({ children }) {
   const [state, dispatch] = useReducer(sharepicReducer, initialState);
@@ -48,7 +52,6 @@ export function SharepicProvider({ children }) {
   );
 }
 
-// Fügen Sie die PropTypes-Validierung hinzu
 SharepicProvider.propTypes = {
   children: PropTypes.node.isRequired,
 };
@@ -60,3 +63,8 @@ export function useSharepicContext() {
   }
   return context;
 }
+
+export function getFontSizeInPixels(fontSize) {
+  const pixelSize = FONT_SIZES[fontSize] || FONT_SIZES.m;
+  return Math.min(Math.max(pixelSize, MIN_FONT_SIZE), MAX_FONT_SIZE);
+  }

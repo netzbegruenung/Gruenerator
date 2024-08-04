@@ -14,15 +14,15 @@ router.post('/', async (req, res) => {
   try {
     console.log('[3Zeilen-Claude API] Preparing request to Claude API');
     const prompt = thema && details
-      ? `Erstelle ein prägnanten, kurzen slogan für ein Sharepic von Bündnis 90/Die Grünen in einem Satz zum Thema "${thema}" basierend auf folgenden Details: ${details}. Teile diesen einen SLogan auf drei zeilen auf. Gib nur die drei Zeilen aus, ohne Nummerierung oder zusätzlichen Text.`
-      : `teile ihn ungefähr gleichmäßig auf diese drei Zeilen auf. Line3 darf etwas kürzer sein.:\n1. ${line1}\n2. ${line2}\n3. ${line3}\nGib nur die optimierten Zeilen aus, ohne Nummerierung oder zusätzlichen Text.`;
+      ? `Erstelle ein prägnanten, kurzen slogan für ein Sharepic von Bündnis 90/Die Grünen in einem Satz zum Thema "${thema}" Optional gibt dir der user noch folgende Details: ${details}. Teile diesen einen SLogan auf drei zeilen auf. Gib nur die drei Zeilen aus, ohne Nummerierung oder zusätzlichen Text. Gib zusätzlich 1-2 Wörter als Suchbegriff für ein passendes Hintergrundbild von unsplash an, getrennt durch ein Komma.`
+      : `:\n1. ${line1}\n2. ${line2}\n3. ${line3}\nGib nur die optimierten Zeilen aus, ohne Nummerierung oder zusätzlichen Text. Gib zusätzlich einen Suchbegriff aus 1- maximal 2 Wörtern für ein passendes Hintergrundbild an`;
 
     console.log('[3Zeilen-Claude API] Sending request to Claude API with prompt:', prompt);
     const response = await anthropic.messages.create({
       model: "claude-3-5-sonnet-20240620",
       max_tokens: 1000,
       temperature: 0.9,
-      system: "Du bist ein erfahrener Social-Media-Manager für Bündnis 90/Die Grünen. Deine Aufgabe ist es, einen sehr kurzen, prägnanten text, der auf ein sharepic gesetzt wird, zu generieren. Er wird auf drei Zeilen aufgeteilt. Es soll ein kurzer, prägnanter SLogan sein, der auf drei Zeilen aufgeteilt wird. Maximallänge pro Zeile sind 15 Zeichen.",
+      system: "Du bist ein erfahrener Social-Media-Manager für Bündnis 90/Die Grünen. Deine Aufgabe ist es, einen sehr kurzen, prägnanten text, der auf ein sharepic gesetzt wird, zu generieren. Er wird auf drei Zeilen aufgeteilt. Es soll ein kurzer, prägnanter SLogan sei. Maximallänge pro Zeile sind 15 Zeichen. Zusätzlich sollst du 1-2 passende Wörter für einen Suchbegriff für Unsplash für ein Hintergrundbild vorschlagen.Das Bild soll gut geeignet sein für ein Social-Media-Bild für die Grünen also etwas aktives, mit idealerweise Menschen oder tieren oder Natur. Es soll zum Inhalt des Sharepics und der 3-Zeilen genau passen. Sind bestimmte Orte angegeben, berücksichtige diese",
       messages: [{ role: "user", content: prompt }]
     });
 
@@ -31,19 +31,19 @@ router.post('/', async (req, res) => {
     if (response && response.content && Array.isArray(response.content)) {
       const textContent = response.content.map(item => item.text).join("\n");
       console.log('[3Zeilen-Claude API] Processed text content:', textContent);
-      
+
       // Extrahiere die drei Zeilen, entferne Nummerierungen und leere Zeilen
       const lines = textContent.split('\n')
         .map(line => line.replace(/^\d+\.?\s*/, '').trim())
-        .filter(line => line !== '')
-        .slice(0, 3);
-      
+        .filter(line => line !== '');
+
       const result = {
         line1: lines[0] || '',
         line2: lines[1] || '',
-        line3: lines[2] || ''
+        line3: lines[2] || '',
+        searchTerms: lines[3] ? lines[3].split(',').map(term => term.trim()) : []
       };
-      
+
       console.log('[3Zeilen-Claude API] Sending response:', result);
       res.json(result);
     } else {

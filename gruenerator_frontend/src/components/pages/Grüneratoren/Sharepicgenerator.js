@@ -1,49 +1,131 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import PropTypes from 'prop-types';
-import { useSharepicContext } from '../../utils/SharepicContext';
-import { FORM_STEPS, BUTTON_LABELS } from '../../utils/constants';
+import { useSharepicContext, getFontSizeInPixels } from '../../utils/SharepicContext';
+import { FORM_STEPS, BUTTON_LABELS, SHAREPIC_TYPES, FONT_SIZES } from '../../utils/constants';
 import BaseForm from '../../common/BaseForm';
 import { useSharepicGeneration } from '../../hooks/sharepic/useSharepicGeneration';
 import { useSharepicRendering } from '../../hooks/sharepic/useSharepicRendering';
 import { useFormValidation } from '../../hooks/useFormValidation';
 import ErrorBoundary from '../../ErrorBoundary';
-import ImageModificationForm from '../../utils/ImageModificationForm';
 import useGeneratePost from '../../hooks/sharepic/useGeneratePost';
 import FileUpload from '../../utils/FileUpload';
+import { useUnsplashImage } from '../../hooks/useUnsplashImage';
 
 const SharepicGenerator = ({ showHeaderFooter = true, darkMode }) => {
+  console.log('SharepicGenerator: Rendering component');
+
+  // Context und State-Definitionen
   const { state, dispatch } = useSharepicContext();
-  const { formData, error: contextError, loading: contextLoading } = state;
+  const { formData, error: contextError, loading: contextLoading, fontSize } = state;
   const [currentStep, setCurrentStep] = useState(FORM_STEPS.INPUT);
   const [generatedImageSrc, setGeneratedImageSrc] = useState('');
-  const [isImageModified, setIsImageModified] = useState(false);
-  const [imageModificationInstruction, setImageModificationInstruction] = useState('');
   const [file, setFile] = useState(null);
   const [uploadError, setUploadError] = useState(null);
+  const [searchTerms, setSearchTerms] = useState([]);
+  const [generatedPost, setGeneratedPost] = useState(null);
+  const [unsplashImages, setUnsplashImages] = useState([]);
+  const [ setSelectedUnsplashImage] = useState(null);
+  const [initialLoadDone, setInitialLoadDone] = useState(false);
+  const [isImageModified, setIsImageModified] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const latestUnsplashImages = useRef(unsplashImages);
 
-  const { generateText, generateImage, modifyImage, loading: generationLoading, error: generationError } = useSharepicGeneration();
+  // Custom Hooks
+  const { generateText, generateImage, loading: generationLoading, error: generationError } = useSharepicGeneration();
   const { renderFormFields } = useSharepicRendering();
-  const { postContent, generatePost } = useGeneratePost();
+  const { generatePost } = useGeneratePost();
+  const {  
+    loading: unsplashLoading, 
+    error: unsplashError, 
+    fetchUnsplashImages,
+    fetchFullSizeImage,
+    triggerDownload
+  } = useUnsplashImage();
 
   const validationRules = {
     thema: { required: true },
     type: { required: true },
   };
-
   const { errors, validateForm } = useFormValidation(validationRules);
 
-  const isLoading = contextLoading || generationLoading;
-  const error = contextError || generationError || uploadError;
+  // Berechnete Werte
+  const totalLoading = contextLoading || generationLoading || isLoading;
+  const error = contextError || generationError || uploadError || unsplashError;
+  const defaultSharepicType = SHAREPIC_TYPES.THREE_LINES;
 
-  const handleChange = useCallback((e) => {
-    const { name, value } = e.target;
+  // useEffect Hooks
+  useEffect(() => {
+    console.log('SharepicGenerator: unsplashImages updated', unsplashImages);
+    latestUnsplashImages.current = unsplashImages;
+  }, [unsplashImages]);
+
+
+  useEffect(() => {
+    console.log('SharepicGenerator: currentStep changed', currentStep);
+    dispatch({ type: 'SET_ERROR', payload: null });
+  }, [currentStep, dispatch]);
+
+  useEffect(() => {
+    console.log('SharepicGenerator: Setting initial form data');
     dispatch({
       type: 'UPDATE_FORM_DATA',
-      payload: { [name]: value }
+      payload: { type: SHAREPIC_TYPES.THREE_LINES }
     });
   }, [dispatch]);
 
+  // Callback-Funktionen
+
+  const fetchUnsplashImagesWrapper = useCallback(async (isInitialLoad = false) => {
+    setIsLoading(true);
+    console.log('SharepicGenerator: fetchUnsplashImagesWrapper called', { isInitialLoad, searchTerms });
+  
+    try {
+      const images = await fetchUnsplashImages(searchTerms, isInitialLoad);
+      console.log('SharepicGenerator: Received images from Unsplash', images);
+  
+      if (images && images.length > 0) {
+        const processedImages = images.map(img => {
+          if (!img || !img.imageUrl) {
+            console.error('Invalid image data:', img);
+            return null;
+          }
+          return {
+            id: img.imageUrl,
+            imageUrl: img.imageUrl,
+            photographerName: img.photographerName || 'Unknown',
+            photographerUsername: img.photographerUsername || 'unknown',
+            downloadLocation: img.downloadLocation || ''
+          };
+        }).filter(Boolean);
+  
+        console.log('SharepicGenerator: Processed images', processedImages);
+        setUnsplashImages(processedImages);
+        console.log('SharepicGenerator: Updated unsplashImages', processedImages);
+        setInitialLoadDone(true);
+      } else {
+        console.log('SharepicGenerator: No images received from fetchUnsplashImages');
+        setUnsplashImages([]);
+      }
+    } catch (error) {
+      console.error('SharepicGenerator: Error fetching Unsplash images:', error);
+      setError(`Fehler beim Laden der Unsplash-Bilder: ${error.message}`);
+      setUnsplashImages([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [fetchUnsplashImages, searchTerms, setUnsplashImages, setError]);
+  
+  useEffect(() => {
+    console.log('SharepicGenerator: useEffect for initial Unsplash image load', { currentStep, initialLoadDone, unsplashImages });
+  
+    if (currentStep === FORM_STEPS.PREVIEW && !initialLoadDone && unsplashImages.length === 0) {
+      console.log('SharepicGenerator: Conditions met for initial Unsplash image load');
+      fetchUnsplashImagesWrapper(true);
+    }
+  }, [currentStep, initialLoadDone, fetchUnsplashImagesWrapper, unsplashImages.length]);
+
   const handleFileChange = useCallback((selectedFile) => {
+    console.log('SharepicGenerator: File selected', selectedFile);
     setFile(selectedFile);
     setUploadError(null);
     dispatch({
@@ -52,93 +134,99 @@ const SharepicGenerator = ({ showHeaderFooter = true, darkMode }) => {
     });
   }, [dispatch]);
 
-  const uploadAndProcessFile = useCallback(async (file) => {
-    if (!file) {
-      setUploadError('Keine Datei ausgewählt');
-      return null;
-    }
-
-    dispatch({ type: 'SET_LOADING', payload: true });
-    setUploadError(null);
-
-    try {
-      const formData = new FormData();
-      formData.append('image', file);
-
-      console.log('Sending request to /api/upload');
-      console.log('FormData content:', [...formData.entries()]);
-
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      });
-
-      console.log('Response status:', response.status);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Server error response:', errorText);
-        throw new Error(`Network error during upload: ${response.status} ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      console.log('Received data:', data);
-      return data;
-    } catch (error) {
-      console.error('Error during upload:', error);
-      setUploadError(error.message);
-      return null;
-    } finally {
-      dispatch({ type: 'SET_LOADING', payload: false });
-    }
-  }, [dispatch]);
-
-  const handleSubmit = useCallback(async () => {
-    console.log('handleSubmit called. Current step:', currentStep);
-    console.log('Current form data:', formData);
-    dispatch({ type: 'SET_LOADING', payload: true });
-    if (!validateForm(formData)) {
-      dispatch({ type: 'SET_LOADING', payload: false });
+  const handleImageSelection = useCallback(async (selectedImage) => {
+    console.log('SharepicGenerator: Image selected', selectedImage);
+    if (!selectedImage) {
+      console.error('SharepicGenerator: No image selected');
       return;
     }
     try {
+      const fullSizeFile = await fetchFullSizeImage(selectedImage.fullImageUrl);
+      setSelectedUnsplashImage(selectedImage);
+      handleFileChange(fullSizeFile);
+      await triggerDownload(selectedImage.downloadLocation);
+    } catch (error) {
+      console.error('SharepicGenerator: Error handling image selection:', error);
+    }
+  }, [fetchFullSizeImage, handleFileChange, triggerDownload]);
+
+ // const handleUnsplashSelect = useCallback((selectedImage) => {
+   // console.log('SharepicGenerator: Unsplash image selected', selectedImage);
+    //if (selectedImage) {
+      //handleImageSelection(selectedImage);
+    //}
+  //}, [handleImageSelection]);
+
+  const handleFontSizeChange = useCallback((event) => {
+    console.log('SharepicGenerator: Font size changed', event.target.value);
+    dispatch({ type: 'UPDATE_FONT_SIZE', payload: event.target.value });
+  }, [dispatch]);
+
+  const handleChange = useCallback((e) => {
+    const { name, value } = e.target;
+    console.log('SharepicGenerator: Form data changed', { name, value });
+    dispatch({
+      type: 'UPDATE_FORM_DATA',
+      payload: { [name]: value }
+    });
+  }, [dispatch]);
+
+  const handleSubmit = async (event) => {
+    if (event) event.preventDefault();
+  
+    console.log('SharepicGenerator: handleSubmit called', { currentStep, formData });
+    
+    dispatch({ type: 'SET_LOADING', payload: true });
+    
+    if (!validateForm(formData)) {
+      console.log('SharepicGenerator: Form validation failed');
+      dispatch({ type: 'SET_LOADING', payload: false });
+      return;
+    }
+  
+    try {
       if (currentStep === FORM_STEPS.INPUT) {
-        const result = await generateText(formData.type, { thema: formData.thema, details: formData.details });
+        const sharepicType = formData.type || defaultSharepicType;
+        console.log('SharepicGenerator: Generating text', { sharepicType, thema: formData.thema, details: formData.details });
+        const result = await generateText(sharepicType, { thema: formData.thema, details: formData.details });
         if (result) {
-          dispatch({ type: 'UPDATE_FORM_DATA', payload: result });
-          setCurrentStep(FORM_STEPS.PREVIEW);
+          console.log('SharepicGenerator: Text generation successful', result);
+          dispatch({ 
+            type: 'UPDATE_FORM_DATA', 
+            payload: { ...result, type: sharepicType }
+          });
+          
+          if (result.searchTerms && result.searchTerms.length > 0) {
+            setSearchTerms(result.searchTerms);
+            setCurrentStep(FORM_STEPS.PREVIEW);
+          } else {
+            console.error('No search terms found in the result');
+          }
         } else {
           throw new Error("Keine Textdaten empfangen");
         }
-      } else if (currentStep === FORM_STEPS.PREVIEW) {
+      } else if (currentStep === FORM_STEPS.PREVIEW || currentStep === FORM_STEPS.RESULT) {
         if (!file) {
           throw new Error("Bitte wählen Sie ein Bild aus");
         }
-        const imageResult = await uploadAndProcessFile(file);
-        if (imageResult && imageResult.image) {
-          setGeneratedImageSrc(imageResult.image);
+        console.log('SharepicGenerator: Generating image', { ...formData, fontSize });
+        const imageResult = await generateImage({ ...formData, image: file, fontSize: getFontSizeInPixels(fontSize) });
+        if (imageResult) {
+          console.log('SharepicGenerator: Image generation successful');
+          setGeneratedImageSrc(imageResult);
           setCurrentStep(FORM_STEPS.RESULT);
         } else {
           throw new Error("Keine Bilddaten empfangen");
         }
-      } else if (currentStep === FORM_STEPS.RESULT) {
-        const modifiedParams = await modifyImage(imageModificationInstruction, formData);
-        const newImageResult = await generateImage({ ...formData, ...modifiedParams });
-        if (newImageResult && newImageResult.startsWith('data:image')) {
-          setGeneratedImageSrc(newImageResult);
-          setIsImageModified(true);
-          dispatch({ type: 'UPDATE_FORM_DATA', payload: modifiedParams });
-        } else {
-          throw new Error("Keine modifizierten Bilddaten empfangen");
-        }
       }
     } catch (error) {
-      console.error("Error in handleSubmit:", error);
+      console.error("SharepicGenerator: Error in handleSubmit:", error);
       dispatch({ type: 'SET_ERROR', payload: error.message });
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
-  }, [currentStep, formData, file, uploadAndProcessFile, dispatch, validateForm, generateImage, generateText, modifyImage, imageModificationInstruction]);
+  };
+  
 
   const handleBack = useCallback(() => {
     if (currentStep === FORM_STEPS.RESULT) {
@@ -147,18 +235,28 @@ const SharepicGenerator = ({ showHeaderFooter = true, darkMode }) => {
         setGeneratedImageSrc('');
         setIsImageModified(false);
         setFile(null);
+        setUnsplashImages([]);
+        setGeneratedPost(null);
       }
+    } else if (currentStep === FORM_STEPS.PREVIEW) {
+      setCurrentStep(FORM_STEPS.INPUT);
+      setUnsplashImages([]);
+      setFile(null);
+      setGeneratedPost(null);
     } else if (currentStep > FORM_STEPS.INPUT) {
-      setCurrentStep(currentStep - 1);
+      setCurrentStep(prevStep => prevStep - 1);
+      setGeneratedPost(null);
     }
   }, [currentStep]);
 
   const handleGeneratePost = useCallback(async () => {
     const formDataToSend = { thema: formData.thema, details: formData.details };
-    console.log('FormData Inhalt:', formDataToSend);
-    await generatePost(formDataToSend);
+    console.log('SharepicGenerator: Generating post', formDataToSend);
+    const post = await generatePost(formDataToSend);
+    setGeneratedPost(post);
   }, [formData, generatePost]);
 
+  // Render-Logik
   const submitButtonText = useMemo(() =>
     currentStep === FORM_STEPS.INPUT ? BUTTON_LABELS.GENERATE_TEXT :
     currentStep === FORM_STEPS.PREVIEW ? BUTTON_LABELS.GENERATE_IMAGE :
@@ -167,30 +265,19 @@ const SharepicGenerator = ({ showHeaderFooter = true, darkMode }) => {
   );
 
   const memoizedFormFields = useMemo(() => {
-    const fields = renderFormFields(currentStep, formData, handleChange, errors);
-    
-    if (currentStep === FORM_STEPS.PREVIEW) {
-      return (
-        <>
-          {fields}
-          <FileUpload
-            loading={isLoading}
-            file={file}
-            handleChange={handleFileChange}
-            error={uploadError}
-            allowedTypes={['image/*']}
-          />
-        </>
-      );
-    }
-    return fields;
-  }, [currentStep, formData, handleChange, errors, renderFormFields, isLoading, file, handleFileChange, uploadError]);
+    console.log('SharepicGenerator: Rendering form fields', { currentStep, formData });
+    return renderFormFields(currentStep, formData, handleChange, errors, defaultSharepicType);
+  }, [currentStep, formData, handleChange, errors, defaultSharepicType, renderFormFields]);
 
-  useEffect(() => {
-    // Reset error state when switching steps
-    dispatch({ type: 'SET_ERROR', payload: null });
-  }, [currentStep, dispatch]);
 
+
+  console.log('SharepicGenerator: Rendering with state', {
+    currentStep,
+    unsplashImages,
+    isLoading,
+    error
+  });
+  // Rendering
   return (
     <ErrorBoundary>
       <div
@@ -202,7 +289,7 @@ const SharepicGenerator = ({ showHeaderFooter = true, darkMode }) => {
           title="Sharepic Grünerator"
           onSubmit={handleSubmit}
           onBack={handleBack}
-          loading={isLoading}
+          loading={totalLoading}
           error={error}
           generatedContent={generatedImageSrc}
           useDownloadButton={currentStep === FORM_STEPS.RESULT}
@@ -210,16 +297,45 @@ const SharepicGenerator = ({ showHeaderFooter = true, darkMode }) => {
           submitButtonText={submitButtonText}
           isImageModified={isImageModified}
           generatedImageSrc={generatedImageSrc}
-          showGeneratePostButton={!!generatedImageSrc}
+          showGeneratePostButton={currentStep === FORM_STEPS.RESULT && !generatedPost}
           onGeneratePost={handleGeneratePost}
-          generatedPost={postContent}
+          generatedPost={currentStep === FORM_STEPS.RESULT ? generatedPost : null}
+          isSharepicGenerator={true}
+          currentStep={currentStep}
+          unsplashImages={unsplashImages}
+          onUnsplashSelect={handleImageSelection}
+          unsplashLoading={unsplashLoading}
+          unsplashError={unsplashError}
+          fetchFullSizeImage={fetchFullSizeImage}
+          triggerDownload={triggerDownload}
+          fileUploadComponent={
+            <FileUpload
+              loading={totalLoading}
+              file={file}
+              handleChange={handleFileChange}
+              error={uploadError}
+              allowedTypes={['image/*']}
+            />
+          }
+          formErrors={errors}
         >
           {memoizedFormFields}
           {currentStep === FORM_STEPS.RESULT && (
-            <ImageModificationForm
-              instruction={imageModificationInstruction}
-              setInstruction={setImageModificationInstruction}
-            />
+            <div className="form-group">
+              <label htmlFor="fontSize">Schriftgröße:</label>
+              <select
+                id="fontSize"
+                name="fontSize"
+                value={fontSize}
+                onChange={handleFontSizeChange}
+              >
+                {Object.entries(FONT_SIZES).map(([key, value]) => (
+                  <option key={key} value={key}>
+                    {key.toUpperCase()} ({value}px)
+                  </option>
+                ))}
+              </select>
+            </div>
           )}
         </BaseForm>
       </div>
