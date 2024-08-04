@@ -32,7 +32,7 @@ const FileUpload = ({ loading, file, handleChange, error, allowedTypes }) => {
           ref={fileInputRef}
           style={{ display: 'none' }}
         />
-        <label htmlFor="fileUpload" className="btn-file-input" onClick={handleClick}>
+        <label htmlFor="fileUpload" className="file-input-text" onClick={handleClick}>
           {loading ? 'Laden...' : (
             <>
               <FiUpload size={20} />

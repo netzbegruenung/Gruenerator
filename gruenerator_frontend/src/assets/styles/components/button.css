@@ -49,23 +49,27 @@
   animation: spin 2s linear infinite;
 }
 
-/* Spezifische Stile für verschiedene Button-Typen */
 .submit-button, .generate-post-button, .copy-button {
   background-color: var(--tanne);
   color: var(--weiß);
   width: 100%;
 }
 
-.back-button {
-  flex: 0 0 auto;
-  min-width: fit-content;
+.back-button .form-button {
+  flex: 1;
+  min-width: 0; 
 }
 
 .form-button {
   background-color: var(--weiß);
   color: #333;
-  margin-top: 20px;
-  width: 100%;
+}
+
+.back-button {
+  flex: 0 0 auto;
+  min-width: fit-content;
+  background-color: var(--weiß);
+  color: #333;
 }
 
 .download-button {
@@ -76,11 +80,10 @@
 
 .download-button,
 .copy-button {
-  /* Fügen Sie hier die gleichen Styles wie für die anderen Buttons hinzu */
   padding: 10px 20px;
   border: none;
   border-radius: 5px;
-  background-color: #4CAF50;
+  background-color: var(--tanne);
   color: white;
   cursor: pointer;
   font-size: 16px;
@@ -89,6 +92,96 @@
   align-items: center;
   justify-content: center;
 }
+
+.file-input-wrapper,
+.unsplash-button {
+  background-color: var(--tanne);
+  color: var(--weiß);
+  border: 2px solid var(--weiß);
+}
+
+.file-input-wrapper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.3s, transform 0.3s;
+  border-radius: var(--button-border-radius);
+  padding: 10px 20px;
+}
+
+.generate-post-button,
+.download-button {
+  background-color: var(--tanne);
+  color: var(--weiß);
+  border: none;
+}
+
+.file-input-wrapper:hover, .generate-post-button:hover {
+  transform: scale(1.01);
+}
+
+.file-input-wrapper input[type="file"] {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  padding: 10px 20px;
+  top: 0;
+  left: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.file-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 150px;
+}
+
+.file-input-text {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  text-align: center;
+  cursor: pointer;
+}
+
+.file-input-text svg {
+  margin-right: 10px;
+}
+
+.file-upload {
+  border: 2px dashed var(--weiß);
+  border-radius: 8px;
+  padding: 20px;
+  text-align: center;
+  cursor: pointer;
+  position: relative;
+  margin-bottom: 20px;
+  background-color: transparent;
+  color: var(--weiß);
+  justify-content: center;
+  transition: border-color 0.3s, background-color 0.3s;
+}
+
+.file-upload.dragging {
+  border-color: var(--sonne);
+}
+
+.file-upload input[type="file"] {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  opacity: 0;
+  justify-content: center;
+  cursor: pointer;
+  background-color: var(--sand)
+}
+
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }

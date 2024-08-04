@@ -9,6 +9,17 @@ export const FORM_STEPS = {
   RESULT: 2
 };
 
+export const FONT_SIZES = {
+  s: 90,
+  m: 100,
+  l: 110,
+
+
+};
+
+export const MAX_FONT_SIZE = 120;
+export const MIN_FONT_SIZE = 80;
+
 export const VALIDATION_MESSAGES = {
   REQUIRED_THEME: 'Thema ist erforderlich',
   REQUIRED_TYPE: 'Typ ist erforderlich',
@@ -28,7 +39,9 @@ export const BUTTON_LABELS = {
   COPY: 'Kopieren',
   REGENERATE_TEXT: 'Text neu-Grünerieren',
   MENU: 'Menü',
-  CLOSE_MENU: 'Menü schließen'
+  CLOSE_MENU: 'Menü schließen',
+  UNSPLASH_SELECT: 'Zufälliges Naturbild von Unsplash'
+
 };
 
 export const ARIA_LABELS = {
@@ -45,7 +58,12 @@ export const ANNOUNCEMENTS = {
   GENERATING_TEXT: 'Generiere Beitragstext...',
   TEXT_GENERATED: 'Beitragstext wurde erfolgreich generiert.',
   TEXT_GENERATION_ERROR: 'Fehler beim Generieren des Beitragstexts.',
-  TEXT_COPIED: 'Text wurde in die Zwischenablage kopiert.'
+  TEXT_COPIED: 'Text wurde in die Zwischenablage kopiert.',
+  UNSPLASH_SELECT: 'Zufälliges Naturbild von Unsplash auswählen',
+  UNSPLASH_IMAGE_LOADING: "Lade zufälliges Bild von Unsplash...",
+  UNSPLASH_IMAGE_LOADED: "Bild von Unsplash erfolgreich geladen",
+  UNSPLASH_IMAGE_ERROR: "Fehler beim Laden des Bildes von Unsplash",
+
 };
 
 export const UI_ELEMENTS = {
@@ -144,4 +162,6 @@ export const HEADER_TEXT = {
           { LINK: 'https://person.webbegruenung.de', TEXT: 'Demo-Seite', ICON: 'PiLink' }
       ]
   }
+
+  
 };

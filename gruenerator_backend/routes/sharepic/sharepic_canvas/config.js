@@ -32,6 +32,10 @@ module.exports = {
     TEXT_PADDING_FACTOR: 0.3,
     SUNFLOWER_SIZE_FACTOR: 0.8,
     SUNFLOWER_OVERLAP_FACTOR: 0.25,
+    OUTPUT_WIDTH: 1080,
+    OUTPUT_HEIGHT: 1080,
+
+    
 
     // Hinzufügen der Validierungsgrenzen
     MAX_BALKEN_GRUPPEN_OFFSET: 300,
