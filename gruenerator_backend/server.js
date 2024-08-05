@@ -64,8 +64,8 @@ const corsOptions = {
 app.use((req, res, next) => {
   res.setHeader(
   'Content-Security-Policy',
-    "default-src 'self'; img-src 'self' data: blob:; connect-src 'self'"
-  );
+  "default-src 'self'; img-src 'self' data: blob: https://images.unsplash.com; connect-src 'self'"
+);
   next();
 });
 // Middleware

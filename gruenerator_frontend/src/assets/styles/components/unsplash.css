@@ -32,7 +32,7 @@
 }
 
 .image-item.selected {
-  border-color: var(--tanne);
+  border: 2px solid var(--tanne);
   box-shadow: 0 0 0 3px var(--tanne);
 }
 
@@ -64,6 +64,7 @@
   color: var(--tanne);
   text-decoration: none;
 }
+
 .fullscreen-preview {
   position: fixed;
   top: 0;

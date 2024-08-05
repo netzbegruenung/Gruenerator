@@ -42,10 +42,11 @@ const BaseForm = ({
   isLoadingUnsplashImages, // Stellen Sie sicher, dass dieser Prop hier definiert ist
   fileUploadComponent,
 
+
 }) => {
   const { announce, setupKeyboardNav } = useAccessibility();
 
-  const [showUnsplashImages, setShowUnsplashImages] = useState(false);
+  const [ setShowUnsplashImages] = useState(false);
 
   console.log('BaseForm: Rendering with props', {
     currentStep,
@@ -84,103 +85,103 @@ const handleUnsplashButtonClick = () => {
     }
   }, [error, announce]);
 
-  return (
-    <div className={`base-container ${generatedContent ? 'with-content' : ''}`}>
-      <div className="container">
-        <div className="form-container">
-          <form onSubmit={(e) => {
-            e.preventDefault();
-            onSubmit();
-          }}>
-          <div className={`form-content ${generatedContent ? 'with-generated-content' : ''}`}>
-            {children}
-            <FormErrors errors={formErrors} />
-            {currentStep === FORM_STEPS.PREVIEW && (
-              <div className="upload-and-generate-container">
-                {fileUploadComponent}
-                <UnsplashButton
-  onClick={handleUnsplashButtonClick}
-  loading={unsplashLoading}
-/>
-
-{showUnsplashImages && (
-    isLoadingUnsplashImages ? ( // Hier 'isLoadingUnsplashImages' statt 'isLoading' verwenden
-      <div>Lade Bilder...</div>
-  ) : error ? (
-    <div>{error}</div>
-  ) : unsplashImages.length > 0 ? (
-    <UnsplashImageSelector
-      images={unsplashImages}
-      onSelect={onUnsplashSelect}
-    />
-  ) : (
-    <div>Keine Bilder verfügbar</div>
-  )
-)}
-              </div>
-            )}
-              <div className="button-container">
-                {showBackButton && (
-                  <Button 
-                    onClick={onBack} 
-                    text={BUTTON_LABELS.BACK}
-                    className="back-button"
-                    ariaLabel={ARIA_LABELS.BACK}
-                  />
+   return (
+      <div className={`base-container ${generatedContent ? 'with-content' : ''}`}>
+        <div className="container">
+          <div className="form-container">
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              onSubmit();
+            }}>
+              <div className={`form-content ${generatedContent ? 'with-generated-content' : ''}`}>
+                {children}
+                <FormErrors errors={formErrors} />
+                {currentStep === FORM_STEPS.PREVIEW && (
+                  <div className="upload-and-generate-container">
+                    {fileUploadComponent}
+                    <UnsplashButton
+                      onClick={handleUnsplashButtonClick}
+                      loading={unsplashLoading}
+                    />
+                  </div>
                 )}
-                <Button
-                  onClick={onSubmit}
-                  loading={loading}
-                  success={success}
-                  text={submitButtonText}
-                  icon={<HiCog />}
-                  className="submit-button form-button"
-                  ariaLabel={ARIA_LABELS.SUBMIT}
-                />
+                <div className="button-container">
+                  {showBackButton && (
+                    <Button 
+                      onClick={onBack} 
+                      text={BUTTON_LABELS.BACK}
+                      className="back-button"
+                      ariaLabel={ARIA_LABELS.BACK}
+                    />
+                  )}
+                  <Button
+                    onClick={onSubmit}
+                    loading={loading}
+                    success={success}
+                    text={submitButtonText}
+                    icon={<HiCog />}
+                    className="submit-button form-button"
+                    ariaLabel={ARIA_LABELS.SUBMIT}
+                  />
+                </div>
+                {error && <p role="alert" aria-live="assertive" className="error-message">{error}</p>}
               </div>
-              {error && <p role="alert" aria-live="assertive" className="error-message">{error}</p>}
-            </div>
-          </form>
-        </div>
-        <div className="display-container">
-          <h3>{title}</h3>
-          <div className="display-content" style={{ fontSize: textSize }}>
-          
-            {((currentStep === FORM_STEPS.RESULT) || (!currentStep)) && (
-              <>
-                {typeof generatedContent === 'string' && generatedContent.startsWith('data:image') ? (
+            </form>
+          </div>
+          <div className="display-container">
+            <h3>{title}</h3>
+            <div className="display-content" style={{ fontSize: textSize }}>
+              {currentStep === FORM_STEPS.PREVIEW && (
+                isLoadingUnsplashImages ? (
+                  <div>Lade Bilder...</div>
+                ) : error ? (
+                  <div>{error}</div>
+                ) : unsplashImages && unsplashImages.length > 0 ? (
                   <>
-                    <img src={generatedContent} alt="Generiertes Sharepic" style={{ maxWidth: '100%' }} />
-                    <div className="button-container">
-                      {useDownloadButton && (
-                        <DownloadButton imageUrl={generatedContent} />
-                      )}
-                      {showGeneratePostButton && !generatedPost && (
-                        <GeneratePostButton
-                          onClick={onGeneratePost}
-                          loading={generatePostLoading}
-                        />
-                      )}
-                    </div>
+                    {console.log('BaseForm: Rendering UnsplashImageSelector with', unsplashImages.length, 'images')}
+                    <UnsplashImageSelector
+                      images={unsplashImages}
+                      onSelect={onUnsplashSelect}
+                    />
                   </>
                 ) : (
-                  <div>{generatedContent}</div>
-                )}
-              </>
-            )}
-            <GeneratedPostContainer
-              post={generatedPost}
-              onGeneratePost={onGeneratePost}
-              generatePostLoading={generatePostLoading}
-              isSharepicGenerator={isSharepicGenerator}
-            />
+                  <div>Keine Bilder verfügbar</div>
+                )
+              )}
+              {((currentStep === FORM_STEPS.RESULT) || (!currentStep)) && (
+                <>
+                  {typeof generatedContent === 'string' && generatedContent.startsWith('data:image') ? (
+                    <>
+                      <img src={generatedContent} alt="Generiertes Sharepic" style={{ maxWidth: '100%' }} />
+                      <div className="button-container">
+                        {useDownloadButton && (
+                          <DownloadButton imageUrl={generatedContent} />
+                        )}
+                        {showGeneratePostButton && !generatedPost && (
+                          <GeneratePostButton
+                            onClick={onGeneratePost}
+                            loading={generatePostLoading}
+                          />
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <div>{generatedContent}</div>
+                  )}
+                </>
+              )}
+              <GeneratedPostContainer
+                post={generatedPost}
+                onGeneratePost={onGeneratePost}
+                generatePostLoading={generatePostLoading}
+                isSharepicGenerator={isSharepicGenerator}
+              />
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  );
-};
-
+    );
+  };
 BaseForm.propTypes = {
   title: PropTypes.string.isRequired,
   children: PropTypes.node.isRequired,

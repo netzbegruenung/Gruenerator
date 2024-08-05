@@ -23,24 +23,29 @@ const SharepicGenerator = ({ showHeaderFooter = true, darkMode }) => {
   const [uploadError, setUploadError] = useState(null);
   const [searchTerms, setSearchTerms] = useState([]);
   const [generatedPost, setGeneratedPost] = useState(null);
-  const [unsplashImages, setUnsplashImages] = useState([]);
-  const [ setSelectedUnsplashImage] = useState(null);
-  const [initialLoadDone, setInitialLoadDone] = useState(false);
+  const [selectedUnsplashImage, setSelectedUnsplashImage] = useState(null);
   const [isImageModified, setIsImageModified] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const latestUnsplashImages = useRef(unsplashImages);
+  const [isLoading] = useState(false);
+  const [ setError] = useState(null);
+  const [initialLoadDone, setInitialLoadDone] = useState(false);
+  const [isLoadingUnsplashImages, setIsLoadingUnsplashImages] = useState(false);
 
   // Custom Hooks
   const { generateText, generateImage, loading: generationLoading, error: generationError } = useSharepicGeneration();
   const { renderFormFields } = useSharepicRendering();
   const { generatePost } = useGeneratePost();
-  const {  
-    loading: unsplashLoading, 
-    error: unsplashError, 
+  const {
+    loading: unsplashLoading,
+    error: unsplashError,
     fetchUnsplashImages,
     fetchFullSizeImage,
     triggerDownload
   } = useUnsplashImage();
+  
+  // Fügen Sie einen separaten State für unsplashImages hinzu
+  const [unsplashImages, setUnsplashImages] = useState([]);
+  const latestUnsplashImages = useRef(unsplashImages);
+
 
   const validationRules = {
     thema: { required: true },
@@ -59,7 +64,6 @@ const SharepicGenerator = ({ showHeaderFooter = true, darkMode }) => {
     latestUnsplashImages.current = unsplashImages;
   }, [unsplashImages]);
 
-
   useEffect(() => {
     console.log('SharepicGenerator: currentStep changed', currentStep);
     dispatch({ type: 'SET_ERROR', payload: null });
@@ -76,45 +80,50 @@ const SharepicGenerator = ({ showHeaderFooter = true, darkMode }) => {
   // Callback-Funktionen
 
   const fetchUnsplashImagesWrapper = useCallback(async (isInitialLoad = false) => {
-    setIsLoading(true);
-    console.log('SharepicGenerator: fetchUnsplashImagesWrapper called', { isInitialLoad, searchTerms });
+    setIsLoadingUnsplashImages(true);
+    let retryCount = 0;
+    const maxRetries = 3;
   
-    try {
-      const images = await fetchUnsplashImages(searchTerms, isInitialLoad);
-      console.log('SharepicGenerator: Received images from Unsplash', images);
+    const tryFetchImages = async () => {
+      try {
+        const images = await new Promise((resolve) => {
+          fetchUnsplashImages(searchTerms, isInitialLoad, (loadedImages) => {
+            resolve(loadedImages);
+          });
+        });
   
-      if (images && images.length > 0) {
-        const processedImages = images.map(img => {
-          if (!img || !img.imageUrl) {
-            console.error('Invalid image data:', img);
-            return null;
-          }
-          return {
-            id: img.imageUrl,
-            imageUrl: img.imageUrl,
-            photographerName: img.photographerName || 'Unknown',
-            photographerUsername: img.photographerUsername || 'unknown',
-            downloadLocation: img.downloadLocation || ''
-          };
-        }).filter(Boolean);
-  
-        console.log('SharepicGenerator: Processed images', processedImages);
-        setUnsplashImages(processedImages);
-        console.log('SharepicGenerator: Updated unsplashImages', processedImages);
-        setInitialLoadDone(true);
-      } else {
-        console.log('SharepicGenerator: No images received from fetchUnsplashImages');
-        setUnsplashImages([]);
+        console.log('SharepicGenerator: Received images from Unsplash', images);
+        
+        if (images && images.length > 0) {
+          setUnsplashImages(images);
+          setInitialLoadDone(true);
+          return true; // Erfolgreicher Abruf
+        } else {
+          console.log('SharepicGenerator: No images received');
+          return false; // Kein erfolgreicher Abruf
+        }
+      } catch (error) {
+        console.error('SharepicGenerator: Error fetching Unsplash images:');
+        return false; // Fehler beim Abruf
       }
-    } catch (error) {
-      console.error('SharepicGenerator: Error fetching Unsplash images:', error);
-      setError(`Fehler beim Laden der Unsplash-Bilder: ${error.message}`);
-      setUnsplashImages([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [fetchUnsplashImages, searchTerms, setUnsplashImages, setError]);
+    };
   
+    while (retryCount < maxRetries) {
+      const success = await tryFetchImages();
+      if (success) break;
+      retryCount++;
+      if (retryCount < maxRetries) {
+        console.log(`SharepicGenerator: Retry attempt ${retryCount}`);
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Warte 1 Sekunde vor dem nächsten Versuch
+      }
+    }
+  
+    if (retryCount === maxRetries) {
+      setError('Fehler beim Laden der Unsplash-Bilder nach mehreren Versuchen');
+    }
+  
+    setIsLoadingUnsplashImages(false);
+  }, [fetchUnsplashImages, searchTerms, setUnsplashImages, setInitialLoadDone, setError]);
   useEffect(() => {
     console.log('SharepicGenerator: useEffect for initial Unsplash image load', { currentStep, initialLoadDone, unsplashImages });
   
@@ -134,28 +143,20 @@ const SharepicGenerator = ({ showHeaderFooter = true, darkMode }) => {
     });
   }, [dispatch]);
 
-  const handleImageSelection = useCallback(async (selectedImage) => {
+  const handleImageSelection = useCallback((selectedImage) => {
     console.log('SharepicGenerator: Image selected', selectedImage);
-    if (!selectedImage) {
-      console.error('SharepicGenerator: No image selected');
-      return;
+    if (selectedImage) {
+      setSelectedUnsplashImage(selectedImage); // Speichert nur das ausgewählte Bild
     }
-    try {
-      const fullSizeFile = await fetchFullSizeImage(selectedImage.fullImageUrl);
-      setSelectedUnsplashImage(selectedImage);
-      handleFileChange(fullSizeFile);
-      await triggerDownload(selectedImage.downloadLocation);
-    } catch (error) {
-      console.error('SharepicGenerator: Error handling image selection:', error);
+  }, []);
+  
+  
+  const handleUnsplashSelect = useCallback((selectedImage) => {
+    console.log('SharepicGenerator: Unsplash image selected', selectedImage);
+    if (selectedImage) {
+      handleImageSelection(selectedImage);
     }
-  }, [fetchFullSizeImage, handleFileChange, triggerDownload]);
-
- // const handleUnsplashSelect = useCallback((selectedImage) => {
-   // console.log('SharepicGenerator: Unsplash image selected', selectedImage);
-    //if (selectedImage) {
-      //handleImageSelection(selectedImage);
-    //}
-  //}, [handleImageSelection]);
+  }, [handleImageSelection]);
 
   const handleFontSizeChange = useCallback((event) => {
     console.log('SharepicGenerator: Font size changed', event.target.value);
@@ -173,7 +174,7 @@ const SharepicGenerator = ({ showHeaderFooter = true, darkMode }) => {
 
   const handleSubmit = async (event) => {
     if (event) event.preventDefault();
-  
+    
     console.log('SharepicGenerator: handleSubmit called', { currentStep, formData });
     
     dispatch({ type: 'SET_LOADING', payload: true });
@@ -183,7 +184,7 @@ const SharepicGenerator = ({ showHeaderFooter = true, darkMode }) => {
       dispatch({ type: 'SET_LOADING', payload: false });
       return;
     }
-  
+    
     try {
       if (currentStep === FORM_STEPS.INPUT) {
         const sharepicType = formData.type || defaultSharepicType;
@@ -206,11 +207,22 @@ const SharepicGenerator = ({ showHeaderFooter = true, darkMode }) => {
           throw new Error("Keine Textdaten empfangen");
         }
       } else if (currentStep === FORM_STEPS.PREVIEW || currentStep === FORM_STEPS.RESULT) {
-        if (!file) {
+        let fileToUse = file;
+        if (!fileToUse && selectedUnsplashImage) {
+          console.log('Fetching full size image from:', selectedUnsplashImage.fullImageUrl);
+          fileToUse = await fetchFullSizeImage(selectedUnsplashImage.fullImageUrl);
+          console.log('Full size image fetched:', fileToUse);
+          handleFileChange(fileToUse);
+          console.log('Triggering download for:', selectedUnsplashImage.downloadLocation);
+          await triggerDownload(selectedUnsplashImage.downloadLocation);
+        }
+        
+        if (!fileToUse) {
           throw new Error("Bitte wählen Sie ein Bild aus");
         }
+  
         console.log('SharepicGenerator: Generating image', { ...formData, fontSize });
-        const imageResult = await generateImage({ ...formData, image: file, fontSize: getFontSizeInPixels(fontSize) });
+        const imageResult = await generateImage({ ...formData, image: fileToUse, fontSize: getFontSizeInPixels(fontSize) });
         if (imageResult) {
           console.log('SharepicGenerator: Image generation successful');
           setGeneratedImageSrc(imageResult);
@@ -226,6 +238,7 @@ const SharepicGenerator = ({ showHeaderFooter = true, darkMode }) => {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
   };
+  
   
 
   const handleBack = useCallback(() => {
@@ -303,11 +316,12 @@ const SharepicGenerator = ({ showHeaderFooter = true, darkMode }) => {
           isSharepicGenerator={true}
           currentStep={currentStep}
           unsplashImages={unsplashImages}
-          onUnsplashSelect={handleImageSelection}
+          onUnsplashSelect={handleUnsplashSelect}  // <-- Hier richtig
           unsplashLoading={unsplashLoading}
           unsplashError={unsplashError}
           fetchFullSizeImage={fetchFullSizeImage}
           triggerDownload={triggerDownload}
+          isLoadingUnsplashImages={isLoadingUnsplashImages}
           fileUploadComponent={
             <FileUpload
               loading={totalLoading}
@@ -315,6 +329,8 @@ const SharepicGenerator = ({ showHeaderFooter = true, darkMode }) => {
               handleChange={handleFileChange}
               error={uploadError}
               allowedTypes={['image/*']}
+              selectedUnsplashImage={selectedUnsplashImage} // Hinzufügen dieser Prop
+
             />
           }
           formErrors={errors}
