@@ -1,3 +1,4 @@
+//unsplashutils
 export const getUnsplashAttribution = (photographerName) => {
     return `Photo by ${photographerName} on Unsplash`;
   };

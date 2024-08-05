@@ -1,20 +1,34 @@
-import React from 'react';
+//unsplashimageselector
+import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import '../../assets/styles/components/unsplash.css';
 
-console.log('BaseForm: Preparing to render UnsplashImageSelector', {
-  showUnsplashImages,
-  isLoadingUnsplashImages,
-  error,
-  unsplashImagesLength: unsplashImages.length
-});
-
 const UnsplashImageSelector = ({ images, onSelect, loading, error }) => {
+  const [selectedImageId, setSelectedImageId] = useState(null);
+  const [clickTimeout, setClickTimeout] = useState(null);
 
+  console.log('UnsplashImageSelector: Image URLs', images.map(img => img.previewUrl));
   console.log('UnsplashImageSelector: Rendering with props', {
     imagesCount: images.length,
     hasOnSelect: !!onSelect
   });
+
+  const handleMouseDown = (image) => {
+    const timeout = setTimeout(() => {
+      window.open(image.fullImageUrl, '_blank');
+    }, 800); // 800ms für langes Klicken
+    setClickTimeout(timeout);
+  };
+
+  const handleMouseUp = (image) => {
+    if (clickTimeout) {
+      clearTimeout(clickTimeout);
+      setClickTimeout(null);
+      setSelectedImageId(image.id);
+      onSelect(image); // kurzes Klicken
+    }
+  };
+
   if (loading) {
     return <div className="unsplash-image-selector">Lade Bilder...</div>;
   }
@@ -34,11 +48,12 @@ const UnsplashImageSelector = ({ images, onSelect, loading, error }) => {
         {images.map((image) => (
           <div 
             key={image.id} 
-            className="image-item"
-            onClick={() => onSelect(image)}
+            className={`image-item ${selectedImageId === image.id ? 'selected' : ''}`}
+            onMouseDown={() => handleMouseDown(image)}
+            onMouseUp={() => handleMouseUp(image)}
           >
             <img 
-              src={image.imageUrl} 
+              src={image.previewUrl} 
               alt={`Bild von ${image.photographerName}`}
               loading="lazy"
             />
@@ -61,7 +76,7 @@ const UnsplashImageSelector = ({ images, onSelect, loading, error }) => {
 UnsplashImageSelector.propTypes = {
   images: PropTypes.arrayOf(PropTypes.shape({
     id: PropTypes.string.isRequired,
-    imageUrl: PropTypes.string.isRequired,
+    previewUrl: PropTypes.string.isRequired,
     photographerName: PropTypes.string.isRequired,
     photographerUsername: PropTypes.string.isRequired,
   })).isRequired,

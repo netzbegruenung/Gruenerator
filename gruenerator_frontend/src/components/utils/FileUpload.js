@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import PropTypes from 'prop-types';
 import { FiUpload } from 'react-icons/fi';
 
-const FileUpload = ({ loading, file, handleChange, error, allowedTypes }) => {
+const FileUpload = ({ loading, file, handleChange, error, allowedTypes, selectedUnsplashImage }) => {
   const fileInputRef = useRef(null);
 
   const handleClick = (event) => {
@@ -41,6 +41,11 @@ const FileUpload = ({ loading, file, handleChange, error, allowedTypes }) => {
           )}
         </label>
       </div>
+      {selectedUnsplashImage && (
+        <div className="selected-unsplash-message">
+          Unsplash Bild ausgewählt: {selectedUnsplashImage.photographerName}
+        </div>
+      )}
       {error && <div className="error-message">{error}</div>}
     </>
   );
@@ -51,7 +56,8 @@ FileUpload.propTypes = {
   file: PropTypes.object,
   handleChange: PropTypes.func.isRequired,
   error: PropTypes.string,
-  allowedTypes: PropTypes.array.isRequired
+  allowedTypes: PropTypes.array.isRequired,
+  selectedUnsplashImage: PropTypes.object // Hinzufügen dieser Prop
 };
 
 export default FileUpload;

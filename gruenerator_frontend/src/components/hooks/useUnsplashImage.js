@@ -1,3 +1,4 @@
+//useunsplashimage
 import { useState, useCallback, useRef, useEffect } from 'react';
 import debounce from 'lodash/debounce';
 
@@ -5,30 +6,29 @@ export const useUnsplashImage = () => {
   const [unsplashImages, setUnsplashImages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const pageRef = useRef(1);
   const isMountedRef = useRef(true);
 
   const fetchUnsplashImages = useCallback(
-    debounce(async (searchTerms = [], isNewSearch = false) => {
+    debounce(async (searchTerms = [], isNewSearch = false, onImagesLoaded) => {
       if (!isMountedRef.current) return [];
-
+  
       setLoading(true);
       setError(null);
       
       try {
         const query = searchTerms.join(',');
         const url = `/api/unsplash/random-images?query=${encodeURIComponent(query)}`;
-        console.log('Fetching images from:', url);
+        console.log('useUnsplashImage: Fetching images from:', url);
     
         const response = await fetch(url);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         const imagesData = await response.json();
-        console.log('Received image data:', imagesData);
+        console.log('useUnsplashImage: Received image data:', imagesData);
     
         const processedImages = imagesData.map((imageData) => ({
-          id: imageData.imageUrl, // Verwenden Sie die imageUrl als ID
+          id: imageData.imageUrl,
           previewUrl: imageData.imageUrl,
           fullImageUrl: imageData.imageUrl,
           photographerName: imageData.photographerName,
@@ -36,23 +36,29 @@ export const useUnsplashImage = () => {
           downloadLocation: imageData.downloadLocation,
         }));
     
-        console.log('Processed images:', processedImages);
+        console.log('useUnsplashImage: Processed images:', processedImages);
         if (!isMountedRef.current) return [];
-
+  
         if (isNewSearch) {
           setUnsplashImages(processedImages);
-          pageRef.current = 2;
         } else {
           setUnsplashImages((prevImages) => [...prevImages, ...processedImages]);
-          pageRef.current += 1;
         }
-
+  
+        // Rufe den Callback mit den geladenen Bildern auf
+        if (onImagesLoaded) {
+          onImagesLoaded(processedImages);
+        }
+  
         return processedImages;
       } catch (error) {
+        console.error('useUnsplashImage: Error fetching Unsplash images:', error);
         if (isMountedRef.current) {
           setError(`Fehler beim Laden der Unsplash-Bilder: ${error.message}`);
         }
-        console.error('Error fetching Unsplash images:', error);
+        if (onImagesLoaded) {
+          onImagesLoaded([]);
+        }
         return [];
       } finally {
         if (isMountedRef.current) {
@@ -100,7 +106,8 @@ export const useUnsplashImage = () => {
     unsplashImages, 
     loading, 
     error, 
-    fetchUnsplashImages, 
+    fetchUnsplashImages: (searchTerms, isNewSearch, callback) => 
+      fetchUnsplashImages(searchTerms, isNewSearch, callback),
     fetchFullSizeImage,
     triggerDownload,
     setUnsplashImages 
