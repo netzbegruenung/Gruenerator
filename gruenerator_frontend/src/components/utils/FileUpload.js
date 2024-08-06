@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import PropTypes from 'prop-types';
 import { FiUpload } from 'react-icons/fi';
 
-const FileUpload = ({ loading, file, handleChange, error, allowedTypes, selectedUnsplashImage }) => {
+const FileUpload = ({ loading, file, handleChange, error, allowedTypes, selectedUnsplashImage, isCompact }) => {
   const fileInputRef = useRef(null);
 
   const handleClick = (event) => {
@@ -20,8 +20,23 @@ const FileUpload = ({ loading, file, handleChange, error, allowedTypes, selected
     }
   };
 
+  const renderContent = () => {
+    if (loading) {
+      return <span>Laden...</span>;
+    }
+    if (isCompact) {
+      return <FiUpload size={20} />;
+    }
+    return (
+      <>
+        <FiUpload size={20} />
+        <span>{file ? file.name : 'Datei auswählen'}</span>
+      </>
+    );
+  };
+
   return (
-    <>
+    <div className={`file-upload-container ${isCompact ? 'compact' : ''}`}>
       <div className={`file-input-wrapper ${loading ? 'loading' : ''}`}>
         <input
           id="fileUpload"
@@ -32,22 +47,22 @@ const FileUpload = ({ loading, file, handleChange, error, allowedTypes, selected
           ref={fileInputRef}
           style={{ display: 'none' }}
         />
-        <label htmlFor="fileUpload" className="file-input-text" onClick={handleClick}>
-          {loading ? 'Laden...' : (
-            <>
-              <FiUpload size={20} />
-              <span>{file ? file.name : 'Datei auswählen'}</span>
-            </>
-          )}
+        <label 
+          htmlFor="fileUpload" 
+          className="file-input-text" 
+          onClick={handleClick}
+          aria-label={isCompact ? "Datei hochladen" : undefined}
+        >
+          {renderContent()}
         </label>
       </div>
-      {selectedUnsplashImage && (
+      {!isCompact && selectedUnsplashImage && (
         <div className="selected-unsplash-message">
           Unsplash Bild ausgewählt: {selectedUnsplashImage.photographerName}
         </div>
       )}
-      {error && <div className="error-message">{error}</div>}
-    </>
+      {!isCompact && error && <div className="error-message">{error}</div>}
+    </div>
   );
 };
 
@@ -57,7 +72,12 @@ FileUpload.propTypes = {
   handleChange: PropTypes.func.isRequired,
   error: PropTypes.string,
   allowedTypes: PropTypes.array.isRequired,
-  selectedUnsplashImage: PropTypes.object // Hinzufügen dieser Prop
+  selectedUnsplashImage: PropTypes.object,
+  isCompact: PropTypes.bool
+};
+
+FileUpload.defaultProps = {
+  isCompact: false
 };
 
 export default FileUpload;
