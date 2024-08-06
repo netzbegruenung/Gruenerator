@@ -1,16 +1,22 @@
-//unsplashimageselector
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
-import '../../assets/styles/components/unsplash.css';
+import '../../../assets/styles/components/unsplash.css';
 
-const UnsplashImageSelector = ({ images, onSelect, loading, error }) => {
+const UnsplashImageSelector = ({ images, onSelect, loading, error, forceUpdateKey }) => {
   const [selectedImageId, setSelectedImageId] = useState(null);
   const [clickTimeout, setClickTimeout] = useState(null);
+  const [localImages, setLocalImages] = useState(images);
 
-  console.log('UnsplashImageSelector: Image URLs', images.map(img => img.previewUrl));
+  useEffect(() => {
+    console.log('UnsplashImageSelector: forceUpdateKey or images changed', { forceUpdateKey, imagesCount: images.length });
+    setLocalImages(images);
+  }, [images, forceUpdateKey]);
+
+  console.log('UnsplashImageSelector: Image URLs', localImages.map(img => img.previewUrl));
   console.log('UnsplashImageSelector: Rendering with props', {
-    imagesCount: images.length,
-    hasOnSelect: !!onSelect
+    imagesCount: localImages.length,
+    hasOnSelect: !!onSelect,
+    forceUpdateKey
   });
 
   const handleMouseDown = (image) => {
@@ -37,7 +43,7 @@ const UnsplashImageSelector = ({ images, onSelect, loading, error }) => {
     return <div className="unsplash-image-selector">Fehler beim Laden der Bilder: {error}</div>;
   }
 
-  if (!images || images.length === 0) {
+  if (!localImages || localImages.length === 0) {
     return <div className="unsplash-image-selector">Keine Bilder gefunden.</div>;
   }
 
@@ -45,15 +51,15 @@ const UnsplashImageSelector = ({ images, onSelect, loading, error }) => {
     <div className="unsplash-image-selector">
       <h4>Wähle ein Bild aus:</h4>
       <div className="image-grid">
-        {images.map((image) => (
-          <div 
-            key={image.id} 
+        {localImages.map((image) => (
+          <div
+            key={image.id}
             className={`image-item ${selectedImageId === image.id ? 'selected' : ''}`}
             onMouseDown={() => handleMouseDown(image)}
             onMouseUp={() => handleMouseUp(image)}
           >
-            <img 
-              src={image.previewUrl} 
+            <img
+              src={image.previewUrl}
               alt={`Bild von ${image.photographerName}`}
               loading="lazy"
             />
@@ -83,6 +89,7 @@ UnsplashImageSelector.propTypes = {
   onSelect: PropTypes.func.isRequired,
   loading: PropTypes.bool,
   error: PropTypes.string,
+  forceUpdateKey: PropTypes.number, // Neue Prop
 };
 
 export default UnsplashImageSelector;

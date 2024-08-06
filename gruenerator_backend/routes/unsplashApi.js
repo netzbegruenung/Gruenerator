@@ -7,15 +7,19 @@ const UNSPLASH_ACCESS_KEY = process.env.UNSPLASH_ACCESS_KEY;
 
 // Hilfsfunktion zum Loggen
 const logInfo = (message, data) => {
-  console.log(`[INFO] ${message}`, data);
+  console.log(`[INFO] ${message}`, data ? JSON.stringify(data, null, 2) : '');
 };
 
 const logError = (message, error) => {
-  console.error(`[ERROR] ${message}`, error);
+  console.error(`[ERROR] ${message}`, error ? JSON.stringify({
+    message: error.message,
+    stack: error.stack,
+    response: error.response ? error.response.data : 'No response data'
+  }, null, 2) : '');
 };
 
-router.get('/random-images', async (req, res) => {
-  logInfo('Received request for images');
+router.get('/search-images', async (req, res) => {
+  logInfo('Received request for images', req.query);
   try {
     if (!UNSPLASH_ACCESS_KEY) {
       throw new Error('UNSPLASH_ACCESS_KEY is not set');
@@ -26,37 +30,38 @@ router.get('/random-images', async (req, res) => {
       throw new Error('Query parameter is required');
     }
 
-    logInfo('Fetching images with query:', query);
+    logInfo('Fetching images with query', { query });
 
     const response = await axios.get('https://api.unsplash.com/search/photos', {
       params: {
         query: query,
+        order_by: 'relevant',
         per_page: 6,
         client_id: UNSPLASH_ACCESS_KEY
       }
     });
 
-    logInfo('Successfully fetched images from Unsplash');
+    logInfo('Full Unsplash API request', response.config);  // Log the full request configuration
+    logInfo('Successfully fetched images from Unsplash', response.data);
 
     if (response.data.results.length === 0) {
       throw new Error('No images found for the given query');
     }
 
-    const imagesData = response.data.results.map(image => ({
-      imageUrl: image.urls.regular,
-      downloadLocation: image.links.download_location,
-      photographerName: image.user.name,
-      photographerUsername: image.user.username
+    const imagesData = response.data.results.map(result => ({
+      id: result.id,
+      imageUrl: result.urls.regular,
+      previewUrl: result.urls.small,
+      fullImageUrl: result.urls.full,
+      downloadLocation: result.links.download_location,
+      photographerName: result.user.name,
+      photographerUsername: result.user.username
     }));
 
-    logInfo('Sending images data to client');
+    logInfo('Sending images data to client', imagesData);
     res.json(imagesData);
   } catch (error) {
-    logError('Error fetching images from Unsplash:', error);
-
-    if (error.response) {
-      logError('Unsplash API response:', error.response.data);
-    }
+    logError('Error fetching images from Unsplash', error);
 
     res.status(500).json({
       error: 'Failed to fetch images from Unsplash',
@@ -66,17 +71,15 @@ router.get('/random-images', async (req, res) => {
   }
 });
 
-module.exports = router;
-
 router.get('/trigger-download', async (req, res) => {
-  logInfo('Received request to trigger download');
+  logInfo('Received request to trigger download', req.query);
   try {
     const downloadLocation = req.query.downloadLocation;
     if (!downloadLocation) {
       throw new Error('Download location is required');
     }
 
-    logInfo('Triggering download for location:', downloadLocation);
+    logInfo('Triggering download for location', { downloadLocation });
 
     await axios.get(downloadLocation, {
       params: { client_id: UNSPLASH_ACCESS_KEY }
@@ -85,13 +88,9 @@ router.get('/trigger-download', async (req, res) => {
     logInfo('Successfully triggered download');
     res.sendStatus(200);
   } catch (error) {
-    logError('Error triggering download:', error);
+    logError('Error triggering download', error);
 
-    if (error.response) {
-      logError('Unsplash API response for download:', error.response.data);
-    }
-
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to trigger download',
       message: error.message,
       details: error.response ? error.response.data : 'No additional details'

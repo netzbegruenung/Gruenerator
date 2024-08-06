@@ -4,12 +4,12 @@ import { HiCog } from "react-icons/hi";
 import Button from './Button';
 import DownloadButton from './DownloadButton';
 import GeneratePostButton from './GeneratePostButton';
-import UnsplashButton from './UnsplashButton';
 import FormErrors from './FormErrors';
 import GeneratedPostContainer from './GeneratedPostContainer';
 import useAccessibility from '../hooks/useAccessibility';
-import UnsplashImageSelector from '../utils/UnsplashImageSelector';
+import UnsplashImageSelector from '../utils/Unsplash/UnsplashImageSelector';
 import { addAriaLabelsToElements, enhanceFocusVisibility } from '../utils/accessibilityHelpers';
+import ImageSearchBar from './ImageSearchBar';
 import { 
   BUTTON_LABELS, 
   ARIA_LABELS, 
@@ -35,18 +35,26 @@ const BaseForm = ({
   generatePostLoading,
   generatedPost,
   isSharepicGenerator = false,
+  onUnsplashSearch,
   currentStep,
   unsplashImages,
   onUnsplashSelect,
   unsplashLoading,
   isLoadingUnsplashImages, // Stellen Sie sicher, dass dieser Prop hier definiert ist
   fileUploadComponent,
-
-
+  forceUpdateKey,
 }) => {
+  const handleImageSearch = (query) => {
+    console.log('BaseForm: Image search triggered with query:', query);
+    if (onUnsplashSearch) {
+      onUnsplashSearch(query);
+    }
+  };
+  
+  
   const { announce, setupKeyboardNav } = useAccessibility();
 
-  const [ setShowUnsplashImages] = useState(false);
+  const [isSearchBarActive, setIsSearchBarActive] = useState(false);
 
   console.log('BaseForm: Rendering with props', {
     currentStep,
@@ -55,11 +63,6 @@ const BaseForm = ({
     isLoadingUnsplashImages,
     error
   });
-
-const handleUnsplashButtonClick = () => {
-  console.log('BaseForm: UnsplashButton clicked, toggling Unsplash image display');
-  setShowUnsplashImages(prev => !prev);
-};
 
   useEffect(() => {
     enhanceFocusVisibility();
@@ -91,20 +94,24 @@ const handleUnsplashButtonClick = () => {
           <div className="form-container">
             <form onSubmit={(e) => {
               e.preventDefault();
+              if (!e.target.closest('.image-search-form')) {
               onSubmit();
+              }
             }}>
               <div className={`form-content ${generatedContent ? 'with-generated-content' : ''}`}>
                 {children}
                 <FormErrors errors={formErrors} />
                 {currentStep === FORM_STEPS.PREVIEW && (
-                  <div className="upload-and-generate-container">
-                    {fileUploadComponent}
-                    <UnsplashButton
-                      onClick={handleUnsplashButtonClick}
-                      loading={unsplashLoading}
-                    />
-                  </div>
-                )}
+  <div className="upload-and-search-container">
+    {React.cloneElement(fileUploadComponent, { isCompact: isSearchBarActive })}
+    <ImageSearchBar
+  onSearch={handleImageSearch}
+  isActive={isSearchBarActive}
+  setIsActive={setIsSearchBarActive}
+  loading={unsplashLoading}
+/>
+  </div>
+)}
                 <div className="button-container">
                   {showBackButton && (
                     <Button 
@@ -142,6 +149,8 @@ const handleUnsplashButtonClick = () => {
                     <UnsplashImageSelector
                       images={unsplashImages}
                       onSelect={onUnsplashSelect}
+                      forceUpdateKey={forceUpdateKey}
+
                     />
                   </>
                 ) : (
@@ -205,12 +214,14 @@ BaseForm.propTypes = {
   unsplashImages: PropTypes.array,
   onUnsplashSelect: PropTypes.func,
     isLoadingUnsplashImages: PropTypes.bool,
-
+      onUnsplashSearch: PropTypes.func.isRequired,
   unsplashLoading: PropTypes.bool,
   fileUploadComponent: PropTypes.node,
   unsplashError: PropTypes.string,
   fetchFullSizeImage: PropTypes.func,
   triggerDownload: PropTypes.func,
+  forceUpdateKey: PropTypes.number,
+
 };
 
 export default BaseForm;
