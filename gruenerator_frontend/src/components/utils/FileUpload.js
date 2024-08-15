@@ -27,10 +27,11 @@ const FileUpload = ({ loading, file, handleChange, error, allowedTypes, selected
     if (isCompact) {
       return <FiUpload size={20} />;
     }
+    const fileName = file ? file.name : selectedUnsplashImage ? `Unsplash: ${selectedUnsplashImage.photographerName}` : 'Datei auswählen';
     return (
       <>
         <FiUpload size={20} />
-        <span>{file ? file.name : 'Datei auswählen'}</span>
+        <span>{fileName}</span>
       </>
     );
   };
@@ -43,7 +44,7 @@ const FileUpload = ({ loading, file, handleChange, error, allowedTypes, selected
           type="file"
           name="fileUpload"
           onChange={onFileChange}
-          accept={allowedTypes.join(',')}
+          accept={(allowedTypes && allowedTypes.length > 0) ? allowedTypes.join(',') : 'image/*'}
           ref={fileInputRef}
           style={{ display: 'none' }}
         />
@@ -56,11 +57,6 @@ const FileUpload = ({ loading, file, handleChange, error, allowedTypes, selected
           {renderContent()}
         </label>
       </div>
-      {!isCompact && selectedUnsplashImage && (
-        <div className="selected-unsplash-message">
-          Unsplash Bild ausgewählt: {selectedUnsplashImage.photographerName}
-        </div>
-      )}
       {!isCompact && error && <div className="error-message">{error}</div>}
     </div>
   );

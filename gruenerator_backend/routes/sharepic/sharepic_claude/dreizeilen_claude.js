@@ -14,7 +14,7 @@ router.post('/', async (req, res) => {
   try {
     console.log('[3Zeilen-Claude API] Preparing request to Claude API');
     const prompt = thema && details
-      ? `Erstelle ein prägnanten, kurzen slogan für ein Sharepic von Bündnis 90/Die Grünen in einem Satz zum Thema "${thema}" Optional gibt dir der user noch folgende Details: ${details}. Teile diesen einen SLogan auf drei zeilen auf. Gib nur die drei Zeilen aus, ohne Nummerierung oder zusätzlichen Text. Gib zusätzlich 1-2 Wörter als Suchbegriff für ein passendes Hintergrundbild von unsplash an, getrennt durch ein Komma.`
+      ? `Erstelle ein prägnanten, kurzen slogan für ein Sharepic von Bündnis 90/Die Grünen in einem Satz zum Thema "${thema}" Optional gibt dir der user noch folgende Details: ${details}. Teile diesen einen SLogan auf drei zeilen auf. Gib nur die drei Zeilen aus, ohne Nummerierung oder zusätzlichen Text. Gib zusätzlich 1-2 Wörter als Suchbegriff für ein passendes Hintergrundbild von unsplash an. Der Suchbegriff für Unsplash soll auf Englisch sein, der rest auf Deutsch.`
       : `:\n1. ${line1}\n2. ${line2}\n3. ${line3}\nGib nur die optimierten Zeilen aus, ohne Nummerierung oder zusätzlichen Text. Gib zusätzlich einen Suchbegriff aus 1- maximal 2 Wörtern für ein passendes Hintergrundbild an`;
 
     console.log('[3Zeilen-Claude API] Sending request to Claude API with prompt:', prompt);
