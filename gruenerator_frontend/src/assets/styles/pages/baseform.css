@@ -1,3 +1,4 @@
+
 @import url('../common/variables.css');
 @import url('../common/global.css');
 @import url('../common/typography.css');
@@ -27,6 +28,8 @@
     display: flex;
     white-space: pre-wrap;
     flex-direction: column;
+    overflow: hidden; /* Verhindert Scrollbars */
+
 }
 
 .upload-and-generate-container {
@@ -48,6 +51,20 @@
     flex: 0.7;
 }
 
+.base-container.result-step .form-container,
+.base-container.result-step .display-container {
+    flex: 1;
+}
+
+.base-container.with-content.result-step .form-container {
+    flex: 1;
+}
+
+.base-container.with-content.result-step .display-container {
+    flex: 1;
+}
+
+  
 .form-container h3, .display-container h3 {
     margin-top: 0;
     text-align: left;
@@ -96,9 +113,7 @@
 }
 
 .form-container select {
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    appearance: none;
+   
     background-repeat: no-repeat;
     background-position: right 10px center;
     background-size: 10px;
@@ -117,12 +132,27 @@
     color: var(--font-color);
     text-align: left;
     margin-bottom: 20px;
-    overflow-y: auto;
+    overflow-y: hidden;
 }
 
 .generated-post-container {
     overflow-y: auto;
   }
+
+  /* Gemeinsamer Container für File Upload und Image Search Bar */
+.upload-and-search-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    align-items: center;
+    flex-direction: row;
+}
+
+.upload-and-search-container .image-search-button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
 
 @keyframes pulse {
   0% { box-shadow: 0 0 0 0 rgba(0, 0, 0, 0.2); }
@@ -174,6 +204,11 @@
     font-style: italic;
 }
 
+.lottie-container.hidden, .image-preview.hidden {
+    opacity: 0;
+}
+
+
 @keyframes fancy-checkmark {
     0% {
         stroke-dashoffset: 50px;
@@ -211,6 +246,7 @@
         margin-bottom: 20px;
         margin-left: 0;
         margin-right: 0;
+        
     }
 
     .form-container input, .form-container textarea, .form-container select {

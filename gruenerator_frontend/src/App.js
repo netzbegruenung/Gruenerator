@@ -5,7 +5,7 @@ import Home from './components/pages/Home';
 import Antragsgenerator from './components/pages/Grüneratoren/Antragsgenerator';
 import Pressemitteilung from './components/pages/Grüneratoren/Pressemitteilung';
 import SocialMediaGenerator from './components/pages/Grüneratoren/SocialMediaGenerator';
-import Sharepicgenerator from './components/pages/Grüneratoren/Sharepicgenerator.js'; // Neue Komponente hinzugefügt
+import Sharepicgenerator from './components/pages/Grüneratoren/Sharepicgenerator'; // Neue Komponente hinzugefügt
 import Webbaukasten from './components/pages/Webbaukasten';
 import Antragsversteher from './components/pages/Grüneratoren/Antragsversteher';
 import WahlpruefsteinThueringen from './components/pages/Grüneratoren/WahlpruefsteinThueringen';
@@ -15,19 +15,16 @@ import Impressum from './components/pages/Impressum_Datenschutz_Terms/Impressum'
 import Header from './components/layout/Header/Header';
 import Footer from './components/layout/Footer/Footer';
 import ScrollToTop from './components/utils/ScrollToTop';
-import { SharepicProvider } from './components/utils/SharepicContext.js';
 import { useScrollRestoration } from './components/utils/commonFunctions';
 import PopupNutzungsbedingungen from './components/Popups/popup_nutzungsbedingungen';
 import useAccessibility from './components/hooks/useAccessibility';
 import useDarkMode from './components/hooks/useDarkMode';
-
-
+import { SharepicGeneratorProvider } from './components/utils/Sharepic/SharepicGeneratorContext'; // SharepicGeneratorProvider importiert
 
 function App() {
   useScrollRestoration();
   const { setupKeyboardNav } = useAccessibility();
   const [darkMode, toggleDarkMode] = useDarkMode();
-  
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -56,7 +53,6 @@ function App() {
     '/antragsgenerator',
     '/pressemitteilung',
     '/socialmedia',
-    '/sharepicgenerator', // Neue Route hinzugefügt
     '/webbaukasten',
     '/antragsversteher',
     '/wahlpruefsteinthueringen',
@@ -71,28 +67,38 @@ function App() {
       <ScrollToTop />
       <PopupNutzungsbedingungen />
       <div id="aria-live-region" aria-live="polite" style={{ position: 'absolute', left: '-9999px' }}></div>
-      <SharepicProvider>
-        <Routes>
-          {routesWithHeaderFooter.map(path => (
-            <Route key={path} path={path} element={
-              <>
-                <Header darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
-                <RouteComponent path={path} darkMode={darkMode} />
-                <Footer />
-              </>
-              
-            } />
-          ))}
+      <Routes>
+        {routesWithHeaderFooter.map(path => (
+          <Route key={path} path={path} element={
+            <>
+              <Header darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
+              <RouteComponent path={path} darkMode={darkMode} />
+              <Footer />
+            </>
+          } />
+        ))}
+
+        <Route path="/sharepicgenerator" element={
+          <SharepicGeneratorProvider>
+            <>
+              <Header darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
+              <Sharepicgenerator showHeaderFooter={true} darkMode={darkMode} />
+              <Footer />
+            </>
+          </SharepicGeneratorProvider>
+        } />
 
         <Route path="/antragsgenerator-no-header-footer" element={<Antragsgenerator showHeaderFooter={false} darkMode={darkMode} />} />
         <Route path="/pressemitteilung-no-header-footer" element={<Pressemitteilung showHeaderFooter={false} darkMode={darkMode} />} />
         <Route path="/socialmedia-no-header-footer" element={<SocialMediaGenerator showHeaderFooter={false} darkMode={darkMode} />} />
         <Route path="/rede-no-header-footer" element={<Redengenerator ShowHeaderFooter={false} darkMode={darkMode} />} />
         <Route path="/antragsversteher-no-header-footer" element={<Antragsversteher showHeaderFooter={false} darkMode={darkMode} />} />
-        <Route path="/sharepicgenerator-no-header-footer" element={<Sharepicgenerator showHeaderFooter={false} darkMode={darkMode} />} /> {/* Neue Route hinzugefügt */}
+        <Route path="/sharepicgenerator-no-header-footer" element={
+          <SharepicGeneratorProvider>
+            <Sharepicgenerator showHeaderFooter={false} darkMode={darkMode} />
+          </SharepicGeneratorProvider>
+        } />
       </Routes>
-      </SharepicProvider>
-
     </Router>
   );
 }

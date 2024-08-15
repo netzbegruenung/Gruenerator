@@ -1,22 +1,16 @@
 import { useState, useCallback } from 'react';
 import { handleError } from '../../utils/errorHandling';
-import { SHAREPIC_TYPES } from '../../utils/constants'; // Fügen Sie diesen Import hinzu
+import { SHAREPIC_TYPES } from '../../utils/constants';
 
 export const useSharepicGeneration = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const generateText = useCallback(async (type, formData) => {
-    console.log(`Generating text for ${type}:`, formData);
+    const sharepicType = type === SHAREPIC_TYPES.QUOTE ? SHAREPIC_TYPES.QUOTE : SHAREPIC_TYPES.THREE_LINES;
+    console.log(`Generating text for ${sharepicType}:`, formData);
     try {
-      let apiRoute;
-      if (type === SHAREPIC_TYPES.THREE_LINES) {
-        apiRoute = '/api/dreizeilen_claude';
-      } else if (type === SHAREPIC_TYPES.QUOTE) {
-        apiRoute = '/api/quote_claude';
-      } else {
-        throw new Error('Ungültiger Sharepic-Typ');
-      }
+      const apiRoute = sharepicType === SHAREPIC_TYPES.QUOTE ? '/api/quote_claude' : '/api/dreizeilen_claude';
 
       const response = await fetch(apiRoute, {
         method: 'POST',
@@ -37,7 +31,8 @@ export const useSharepicGeneration = () => {
     setLoading(true);
     setError('');
     try {
-      console.log(`Generating image for ${formData.type}:`, formData);
+      const sharepicType = formData.type === SHAREPIC_TYPES.QUOTE ? SHAREPIC_TYPES.QUOTE : SHAREPIC_TYPES.THREE_LINES;
+      console.log(`Generating image for ${sharepicType}:`, formData);
       
       const formDataToSend = new FormData();
       Object.keys(formData).forEach(key => {
@@ -48,7 +43,7 @@ export const useSharepicGeneration = () => {
         }
       });
       
-      const apiRoute = formData.type === SHAREPIC_TYPES.THREE_LINES ? '/api/dreizeilen_canvas' : '/api/quote_canvas';
+      const apiRoute = sharepicType === SHAREPIC_TYPES.QUOTE ? '/api/quote_canvas' : '/api/dreizeilen_canvas';
 
       const response = await fetch(apiRoute, {
         method: 'POST',
@@ -68,34 +63,11 @@ export const useSharepicGeneration = () => {
       setLoading(false);
     }
   }, []);
-  const modifyImage = useCallback(async (instruction, currentParams) => {
-    console.log("Sending modification request:", { instruction, currentParams });
 
-    setLoading(true);
-    setError('');
-    try {
-      console.log("Modifying image with instruction:", instruction);
-      const response = await fetch('/api/ai-image-modification', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userInstruction: instruction, currentImageParams: currentParams }),
-      });
-      if (!response.ok) throw new Error('Netzwerkfehler bei der Bildmodifikation');
-      const modifiedParams = await response.json();
-      console.log("Modified image params:", modifiedParams);
-      return modifiedParams;
-    } catch (err) {
-      handleError(err, setError);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
+  
   return {
     generateText,
     generateImage,
-    modifyImage,
     loading,
     error,
     setError

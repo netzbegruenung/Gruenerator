@@ -1,9 +1,15 @@
-/* unsplash.css */
 @import url('../common/variables.css');
 
+:root {
+  --transition-duration: 0.5s;
+  --transition-timing: ease-in-out;
+}
+
+/* Hauptcontainer für die Unsplash-Bildauswahl */
 .unsplash-image-selector {
   width: 100%;
   margin-bottom: 2rem;
+  
 }
 
 .unsplash-image-selector h4 {
@@ -12,18 +18,33 @@
   color: var(--font-color-h3);
 }
 
+/* Bildgitter für die Darstellung der Unsplash-Bilder */
 .image-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 1rem;
 }
 
+@media (max-width: 768px) {
+  .image-grid {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  }
+}
+
+/* Einzelne Bild-Container */
 .image-item {
   position: relative;
   overflow: hidden;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  transition: transform 0.3s ease, box-shadow 0.3s ease, opacity 0.5s ease;
+  opacity: 1;
+  transform: scale(1);
+
+}
+
+.image-item.show {
+  transform: scale(1.05); /* Leichter Zoom-Effekt */
 }
 
 .image-item:hover {
@@ -32,17 +53,25 @@
 }
 
 .image-item.selected {
-  border: 2px solid var(--tanne);
-  box-shadow: 0 0 0 3px var(--tanne);
+  border: 5px solid var(--tanne);
 }
 
+/* Bild selbst */
 .image-item img {
   width: 100%;
   height: 200px;
   object-fit: cover;
   cursor: pointer;
+  transition: opacity 0.5s ease, transform 0.5s ease;
+  overflow: hidden;
 }
 
+.image-grid img.show {
+  opacity: 1;
+  transform: scale(1.05);
+}
+
+/* Bildnachweis (Fotograf und Plattform) */
 .image-attribution {
   position: absolute;
   bottom: 0;
@@ -61,119 +90,129 @@
 }
 
 .image-attribution a {
-  color: var(--tanne);
+  color: var(--weiß);
   text-decoration: none;
 }
 
-.fullscreen-preview {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.9);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-}
 
-.fullscreen-preview img {
-  max-width: 90%;
-  max-height: 90%;
-  object-fit: contain;
-}
-
-.fullscreen-attribution {
-  color: white;
-  margin-top: 10px;
-  text-align: center;
-}
-
-.fullscreen-attribution a {
-  color: #ddd;
-}
-
-.unsplash-image-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 16px;
-  padding: 16px;
-}
-
-.unsplash-image {
-  width: 100%;
-  height: auto;
-  object-fit: cover;
-  cursor: pointer;
-}
-
-.image-search-button {
-  padding: 8px 16px;
-  background-color: #4CAF50;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.3s;
-}
-
-.image-search-button:hover {
-  background-color: #45a049;
-}
-
-.image-search-button:disabled {
-  background-color: #cccccc;
-  cursor: not-allowed;
-}
-
-.image-search-form {
+/* Bildsuche-Formular */
+.image-search-form-element {
   display: flex;
   align-items: center;
   gap: 8px;
+  width: 100%;
 }
 
 .image-search-input {
   flex-grow: 1;
-  padding: 8px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  margin-top: 10px;
+  margin-bottom: 10px;
+}
+
+.image-search-input:disabled {
+  background-color: var(--hellgrau);
 }
 
 .image-search-submit,
 .image-search-cancel {
-  padding: 8px;
-  background-color: #f0f0f0;
-  border: none;
+  padding: 10px;
+  background-color: var(--dunkelgruen);
+  color: var(--weiß);
+  border: 1px solid var(--weiß);
   border-radius: 4px;
   cursor: pointer;
-  transition: background-color 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.3s ease, transform 0.3s ease;
 }
 
 .image-search-submit:hover,
 .image-search-cancel:hover {
-  background-color: #e0e0e0;
+  transform: scale(1.01);
+  color: var(--sand);
 }
 
 .image-search-submit:disabled,
 .image-search-cancel:disabled {
-  background-color: #cccccc;
+  background-color: var(--grau);
   cursor: not-allowed;
 }
 
 .image-search-error {
-  color: #ff0000;
-  font-size: 0.8em;
+  color: var(--rot);
+  font-size: 0.9em;
   margin-top: 4px;
 }
-@media (max-width: 768px) {
-  .image-grid {
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  }
 
-  .image-item img {
-    height: 150px;
-  }
+/* Lottie-Animation und Übergänge */
+.lottie-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.5s ease-in-out;
 }
 
+.lottie-wrapper,
+.image-preview {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  transition: opacity var(--transition-duration) var(--transition-timing),
+              transform var(--transition-duration) var(--transition-timing),
+              clip-path var(--transition-duration) var(--transition-timing);
+  will-change: opacity, transform, clip-path;
+}
+
+.lottie-animation {
+  width: 100%;
+  height: 100%;
+}
+
+.lottie-wrapper.show,
+.image-preview.hide {
+  opacity: 1;
+  transform: scale(1);
+  clip-path: circle(100% at center);
+  z-index: 1;
+}
+
+.lottie-wrapper.hide,
+.image-preview.show {
+  opacity: 0;
+  transform: scale(0.95);
+  clip-path: circle(0% at center);
+  z-index: 0;
+}
+
+@media (max-width: 768px) {
+  .image-modification-form {
+    padding: 10px;
+  }
+
+  .font-size-control, .balken-offset-control {
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .font-size-control button, .balken-offset-control button {
+    width: 100%;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .lottie-wrapper,
+    .image-preview,
+    .unsplash-image-selector,
+    .image-item {
+      transition: none;
+    }
+
+  }
+}

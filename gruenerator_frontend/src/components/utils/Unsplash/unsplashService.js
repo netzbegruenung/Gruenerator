@@ -1,75 +1,96 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+//unsplashservice
+import { useCallback, useRef, useEffect } from 'react';
 import debounce from 'lodash/debounce';
 
-export const useUnsplashService = () => {
-  const [unsplashImages, setUnsplashImages] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+const DEBOUNCE_TIME = 1000; // Ändern Sie dies von 300 auf 1000
+const API_BASE_URL = '/api';
+
+const createUnsplashImageObject = (imageData) => ({
+  id: imageData.imageUrl,
+  previewUrl: imageData.imageUrl,
+  fullImageUrl: imageData.imageUrl,
+  photographerName: imageData.photographerName,
+  photographerUsername: imageData.photographerUsername,
+  downloadLocation: imageData.downloadLocation,
+});
+
+export const useUnsplashService = (onImagesUpdate) => {
+
   const isMountedRef = useRef(true);
 
-  const fetchUnsplashImages = useCallback(
-    debounce(async (searchTerms = [], isNewSearch = false, onImagesLoaded) => {
-      if (!isMountedRef.current) return [];
+  const fetchFromAPI = useCallback(async (url) => {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return response.json();
+  }, []);
 
-      setLoading(true);
-      setError(null);
-
-      try {
-        const query = searchTerms.join(',');
-        const url = `/api/unsplash/search-images?query=${encodeURIComponent(query)}`;
-        console.log('useUnsplashImage: Fetching images from:', url);
-
-        const response = await fetch(url);
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const imagesData = await response.json();
-        console.log('useUnsplashImage: Received image data:', imagesData);
-
-        const processedImages = imagesData.map((imageData) => ({
-          id: imageData.imageUrl,
-          previewUrl: imageData.imageUrl,
-          fullImageUrl: imageData.imageUrl,
-          photographerName: imageData.photographerName,
-          photographerUsername: imageData.photographerUsername,
-          downloadLocation: imageData.downloadLocation,
-        }));
-
-        console.log('useUnsplashImage: Processed images:', processedImages);
-        if (!isMountedRef.current) return [];
-
-        if (isNewSearch) {
-          setUnsplashImages(processedImages);
-        } else {
-          setUnsplashImages((prevImages) => [...prevImages, ...processedImages]);
-        }
-
-        if (onImagesLoaded) {
-          onImagesLoaded(processedImages);
-        }
-
-        return processedImages;
-      } catch (error) {
-        console.error('useUnsplashImage: Error fetching Unsplash images:', error);
-        if (isMountedRef.current) {
-          setError(`Fehler beim Laden der Unsplash-Bilder: ${error.message}`);
-        }
-        if (onImagesLoaded) {
-          onImagesLoaded([]);
-        }
-        return [];
-      } finally {
-        if (isMountedRef.current) {
-          setLoading(false);
-        }
+  const debouncedFetchUnsplashImages = debounce(async (searchTerms = [], isNewSearch = false, onImagesLoaded = () => {}) => {
+    console.log('fetchUnsplashImages in service called with:', { searchTerms, isNewSearch });
+    
+    if (!isMountedRef.current || searchTerms.length === 0) {
+      console.log('Exiting fetchUnsplashImages early');
+      onImagesLoaded([]);
+      return;
+    }
+  
+    try {
+      const query = searchTerms.join(',');
+      const url = `${API_BASE_URL}/unsplash/search-images?query=${encodeURIComponent(query)}`;
+      console.log('Fetching images from:', url);
+  
+      const imagesData = await fetchFromAPI(url);
+      console.log('Received image data:', imagesData);
+  
+      if (!Array.isArray(imagesData) || imagesData.length === 0) {
+        throw new Error('Keine Bilder gefunden');
       }
-    }, 300),
-    []
-  );
+  
+      const processedImages = imagesData.map(createUnsplashImageObject);
+  
+      console.log('Processed images:', processedImages);
+      if (!isMountedRef.current) {
+        console.log('Component unmounted, returning early');
+        onImagesLoaded([]);
+        return;
+      }
+  
+      let newImages;
+      if (isNewSearch) {
+        newImages = processedImages;
+      } else {
+        const existingImages = await fetchFromAPI(`${API_BASE_URL}/unsplash/get-images`);
+        newImages = [...existingImages, ...processedImages];
+      }
+  
+      console.log('Setting Unsplash images:', newImages);
+      onImagesUpdate(newImages);
+      onImagesLoaded(newImages);
+    } catch (error) {
+      console.error('Error fetching Unsplash images:', error);
+      if (isMountedRef.current) {
+        onImagesUpdate([]);
+        onImagesLoaded([]);
+      }
+    }
+  }, DEBOUNCE_TIME);
 
+const fetchUnsplashImages = (searchTerms, isNewSearch) => {
+  return new Promise((resolve, reject) => {
+    debouncedFetchUnsplashImages(searchTerms, isNewSearch, (images) => {
+      if (images.length > 0) {
+        resolve(images);
+      } else {
+        reject(new Error('Keine Bilder gefunden'));
+      }
+    });
+  });
+};
+   
   const fetchFullSizeImage = useCallback(async (fullImageUrl) => {
     try {
-      const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(fullImageUrl)}`;
+      const proxyUrl = `${API_BASE_URL}/proxy-image?url=${encodeURIComponent(fullImageUrl)}`;
       const imageResponse = await fetch(proxyUrl);
       if (!imageResponse.ok) {
         throw new Error(`Failed to fetch full-size image: ${imageResponse.statusText}`);
@@ -84,15 +105,12 @@ export const useUnsplashService = () => {
 
   const triggerDownload = useCallback(async (downloadLocation) => {
     try {
-      const downloadUrl = `/api/unsplash/trigger-download?downloadLocation=${encodeURIComponent(downloadLocation)}`;
-      const downloadResponse = await fetch(downloadUrl);
-      if (!downloadResponse.ok) {
-        throw new Error(`Failed to trigger download: ${downloadResponse.statusText}`);
-      }
+      const downloadUrl = `${API_BASE_URL}/unsplash/trigger-download?downloadLocation=${encodeURIComponent(downloadLocation)}`;
+      await fetchFromAPI(downloadUrl);
     } catch (error) {
       console.warn(`Error triggering download: ${error.message}`);
     }
-  }, []);
+  }, [fetchFromAPI]);
 
   useEffect(() => {
     return () => {
@@ -101,25 +119,17 @@ export const useUnsplashService = () => {
   }, []);
 
   return {
-    unsplashImages,
-    loading,
-    error,
-    fetchUnsplashImages: (searchTerms, isNewSearch, callback) =>
-      fetchUnsplashImages(searchTerms, isNewSearch, callback),
+    fetchUnsplashImages,
     fetchFullSizeImage,
-    triggerDownload,
-    setUnsplashImages
+    triggerDownload
   };
 };
 
-export const getUnsplashAttribution = (photographerName) => {
-  return `Photo by ${photographerName} on Unsplash`;
-};
+export const getUnsplashAttribution = (photographerName) => 
+  `Photo by ${photographerName} on Unsplash`;
 
-export const getUnsplashAttributionLink = (photographerUsername) => {
-  return `https://unsplash.com/@${photographerUsername}?utm_source=your_app_name&utm_medium=referral`;
-};
+export const getUnsplashAttributionLink = (photographerUsername) => 
+  `https://unsplash.com/@${photographerUsername}?utm_source=your_app_name&utm_medium=referral`;
 
-export const getUnsplashLink = () => {
-  return "https://unsplash.com/?utm_source=your_app_name&utm_medium=referral";
-};
+export const getUnsplashLink = () => 
+  "https://unsplash.com/?utm_source=your_app_name&utm_medium=referral";
