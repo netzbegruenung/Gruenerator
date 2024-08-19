@@ -38,7 +38,7 @@ const host = process.env.HOST || "127.0.0.1";
 
 logger.info(`Server will run on port ${port}`);
 
-const allowedOrigins = ['https://gruenerator-test.de'];
+const allowedOrigins = ['https://gruenerator-test.de', 'https://gruenerator.netzbegruenung.verdigado.net'];
 
 const corsOptions = {
   origin: function (origin, callback) {
