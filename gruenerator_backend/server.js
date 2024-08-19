@@ -63,11 +63,12 @@ const corsOptions = {
 // Fügen Sie diese neue Middleware für die Content Security Policy hinzu
 app.use((req, res, next) => {
   res.setHeader(
-  'Content-Security-Policy',
-  "default-src 'self'; img-src 'self' data: blob: https://images.unsplash.com; connect-src 'self'"
-);
+    'Content-Security-Policy',
+    "default-src 'self'; img-src 'self' data: blob: https://images.unsplash.com; connect-src 'self' https://gruenerator-test.de https://gruenerator.netzbegruenung.verdigado.net;"
+  );
   next();
 });
+
 // Middleware
 app.use(bodyParser.json({ limit: '10mb' }));
 app.use(bodyParser.urlencoded({ limit: '10mb', extended: true }));
