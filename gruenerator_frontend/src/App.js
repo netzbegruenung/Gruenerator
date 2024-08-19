@@ -17,6 +17,7 @@ import Footer from './components/layout/Footer/Footer';
 import ScrollToTop from './components/utils/ScrollToTop';
 import { useScrollRestoration } from './components/utils/commonFunctions';
 import PopupNutzungsbedingungen from './components/Popups/popup_nutzungsbedingungen';
+import WelcomePopup from './components/Popups/popup_welcome';
 import useAccessibility from './components/hooks/useAccessibility';
 import useDarkMode from './components/hooks/useDarkMode';
 import { SharepicGeneratorProvider } from './components/utils/Sharepic/SharepicGeneratorContext'; // SharepicGeneratorProvider importiert
@@ -66,6 +67,7 @@ function App() {
     <Router>
       <ScrollToTop />
       <PopupNutzungsbedingungen />
+      <WelcomePopup />
       <div id="aria-live-region" aria-live="polite" style={{ position: 'absolute', left: '-9999px' }}></div>
       <Routes>
         {routesWithHeaderFooter.map(path => (

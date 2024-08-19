@@ -28,23 +28,41 @@ FontSizeControl.propTypes = {
 };
 
 export const BalkenOffsetControl = ({ balkenOffset, onControlChange }) => {
+  console.log('BalkenOffsetControl rendered with:', balkenOffset); // Debugging
+
   const handleOffsetChange = (index, direction) => {
+    console.log('handleOffsetChange called:', index, direction); // Debugging
+    if (!Array.isArray(balkenOffset)) {
+      console.warn('Invalid balkenOffset:', balkenOffset);
+      return;
+    }
     const newOffset = [...balkenOffset];
     newOffset[index] = Math.max(-250, Math.min(250, newOffset[index] + direction * 50));
+    console.log('New balkenOffset:', newOffset); // Debugging
     onControlChange('balkenOffset', newOffset);
   };
 
   return (
     <div className="balken-offset-control">
-      {balkenOffset.map((offset, index) => (
+      {Array.isArray(balkenOffset) && balkenOffset.map((offset, index) => (
         <div key={index} className="balken-offset-control-item">
           <label>Zeile {index + 1}</label>
           <div className="balken-offset-buttons">
-            <button onClick={() => handleOffsetChange(index, -1)}>
+            <button onClick={(e) => {
+              console.log('Left button clicked for index:', index); // Debugging
+              e.preventDefault();
+              e.stopPropagation();
+              handleOffsetChange(index, -1);
+            }}>
               <FaChevronLeft />
             </button>
             <span>{offset}px</span>
-            <button onClick={() => handleOffsetChange(index, 1)}>
+            <button onClick={(e) => {
+              console.log('Right button clicked for index:', index); // Debugging
+              e.preventDefault();
+              e.stopPropagation();
+              handleOffsetChange(index, 1);
+            }}>
               <FaChevronRight />
             </button>
           </div>
@@ -55,14 +73,16 @@ export const BalkenOffsetControl = ({ balkenOffset, onControlChange }) => {
 };
 
 BalkenOffsetControl.propTypes = {
-  balkenOffset: PropTypes.arrayOf(PropTypes.number).isRequired,
+  balkenOffset: PropTypes.arrayOf(PropTypes.number),
   onControlChange: PropTypes.func.isRequired,
 };
 
+BalkenOffsetControl.defaultProps = {
+  balkenOffset: SHAREPIC_GENERATOR.DEFAULT_BALKEN_OFFSET,
+};
 export const ColorSchemeControl = ({ colorScheme, onControlChange }) => {
   return (
     <div className="color-scheme-control">
-      <span>{IMAGE_MODIFICATION.LABELS.COLOR_SCHEME}</span>
       <div className="color-scheme-images">
         {IMAGE_MODIFICATION.COLOR_SCHEMES.map((scheme, index) => (
         

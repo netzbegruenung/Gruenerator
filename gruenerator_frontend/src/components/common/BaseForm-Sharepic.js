@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useCallback } from 'react';
 import PropTypes from 'prop-types';
-import { HiCog } from "react-icons/hi";
+import { HiCog, HiChevronDown, HiChevronUp } from "react-icons/hi";
 import Button from './Button';
 import DownloadButton from './DownloadButton';
 import GeneratePostButton from './GeneratePostButton';
@@ -13,6 +13,8 @@ import { useSharepicGeneratorContext } from '../utils/Sharepic/SharepicGenerator
 import AdvancedEditingSection from './AdvancedEditingSection';
 import '../../assets/styles/pages/baseform.css';
 import '../../assets/styles/components/imagemodificator.css';
+import '../../assets/styles/components/button.css';
+
 import { 
   ColorSchemeControl, 
   FontSizeControl, 
@@ -40,8 +42,6 @@ const BaseForm = ({
   submitButtonText = BUTTON_LABELS.SUBMIT,
   showGeneratePostButton = false,
   onGeneratePost,
-  generatePostLoading,
-  generatedPost,
   isSharepicGenerator = false,
   onUnsplashSearch,
   fontSize,
@@ -53,6 +53,8 @@ const BaseForm = ({
   balkenGruppenOffset,
   sunflowerOffset,
   credit,
+  generatePostLoading,
+  generatedPost,
 }) => {
   const { 
     state: { 
@@ -66,7 +68,6 @@ const BaseForm = ({
     },
     updateFormData,
     toggleAdvancedEditing,
-    FORM_STEPS
   } = useSharepicGeneratorContext();  
 
   useEffect(() => {
@@ -82,15 +83,57 @@ const BaseForm = ({
     });
   }, [currentStep, isSubmitting, currentSubmittingStep, isLottieVisible]);
 
+  useEffect(() => {
+    if (isAdvancedEditingOpen) {
+      const advancedSection = document.querySelector('.advanced-editing-section');
+      if (advancedSection) {
+        advancedSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+  }, [isAdvancedEditingOpen]);
+  
   const handleUnsplashSelect = useCallback((image) => {
     updateFormData({ selectedImage: image });
   }, [updateFormData]);
 
+  const renderFormButtons = useMemo(() => {
+    const buttons = (
+      <>
+        {showBackButton && (
+          <Button 
+            onClick={onBack} 
+            text={BUTTON_LABELS.BACK}
+            className="back-button"
+            ariaLabel={ARIA_LABELS.BACK}
+          />
+        )}
+        {currentStep !== FORM_STEPS.RESULT && (
+          <Button
+            onClick={onSubmit}
+            loading={loading}
+            success={success}
+            text={submitButtonText}
+            icon={<HiCog />}
+            className="form-button"
+            ariaLabel={ARIA_LABELS.SUBMIT}
+          />
+        )}
+      </>
+    );
+
+    return (
+      <div className={`form-buttons ${currentStep === FORM_STEPS.PREVIEW ? 'preview-buttons' : ''}`}>
+        {buttons}
+      </div>
+    );
+  }, [showBackButton, onBack, currentStep, onSubmit, loading, success, submitButtonText]);
+
   const renderInputStep = useMemo(() => (
     <div className="input-fields-wrapper">
       {children}
+      {renderFormButtons}
     </div>
-  ), [children]);
+  ), [children, renderFormButtons]);
 
   const renderPreviewStep = useMemo(() => (
     <>
@@ -101,8 +144,9 @@ const BaseForm = ({
         <FileUpload {...fileUploadProps} />
         <ImageSearchBar onSearch={onUnsplashSearch} />
       </div>
+      {renderFormButtons}
     </>
-  ), [children, fileUploadProps, onUnsplashSearch]);
+  ), [children, fileUploadProps, onUnsplashSearch, renderFormButtons]);
 
   const renderResultStep = useMemo(() => (
     <div className="image-modification-controls">
@@ -116,7 +160,7 @@ const BaseForm = ({
         </div>
         <div className="absender-group">
           <h3>Absender</h3>
-          <p>Du kannst hier optional einen Absender einfügen</p>
+          <p>Du kannst hier optional einen Absender einfügen oder das Feld frei lassen.</p>
           <CreditControl
             credit={credit}
             onControlChange={onControlChange}
@@ -128,7 +172,7 @@ const BaseForm = ({
           success={success}
           text="Text aktualisieren"
           icon={<HiCog />}
-          className="submit-button form-button"
+          className="form-button"
           ariaLabel={ARIA_LABELS.SUBMIT}
         />
       </div>
@@ -143,7 +187,7 @@ const BaseForm = ({
         </div>
         <div className="schriftgroesse-group">
           <h3>Schriftgröße</h3>
-          <p>Passe die Größe der Schrift an</p>
+          <p>Du kannst mit den Buttons unten drei verschiedene Schriftgrößen wählen. Standard ist M.</p>
           <FontSizeControl
             fontSize={fontSize}
             onControlChange={onControlChange}
@@ -151,34 +195,29 @@ const BaseForm = ({
         </div>
         <div className="Beitragstext-group">
           <h3>Beitragstext</h3>
-          <p>Wenn du noch einen Beitragstext brauchst, kannst du hier einen erstellen.</p>
-          <Button
-          text="Beitragstext"
-          className="post-text-button"
-          onClick={onGeneratePost}
-        />
+          <p>Wenn du noch keinen Beitragstext geschrieben hast, kann der Grünerator dir anhand deiner Eingaben einen Vorschlag machen. Klicke dafür auf den Button unten.</p>
+          <GeneratePostButton
+            onGenerate={onGeneratePost}
+            loading={generatePostLoading}
+            isRegenerateText={!!generatedPost}
+          />
         </div>
       </div>
-      <div className="button-container">
-
-      </div>
-      <Button
-        text="Erweiterte Bildbearbeitung"
-        className="advanced-editing-button"
-        onClick={toggleAdvancedEditing}
-      />
-      {isAdvancedEditingOpen && (
-        <AdvancedEditingSection
-          balkenOffset={balkenOffset}
-          balkenGruppenOffset={balkenGruppenOffset}
-          sunflowerOffset={sunflowerOffset}
-          onBalkenOffsetChange={(newOffset) => onControlChange('balkenOffset', newOffset)}
-          onBalkenGruppenOffsetChange={(newOffset) => onControlChange('balkenGruppenOffset', newOffset)}
-          onSonnenblumenOffsetChange={(newOffset) => onControlChange('sunflowerOffset', newOffset)}
-        />
-      )}
     </div>
-  ), [children, credit, colorScheme, fontSize, onControlChange, onSubmit, loading, success, onGeneratePost, toggleAdvancedEditing, isAdvancedEditingOpen, balkenOffset, balkenGruppenOffset, sunflowerOffset]);
+  ), [
+    children, 
+    credit, 
+    onControlChange, 
+    colorScheme, 
+    fontSize, 
+    onGeneratePost, 
+    generatePostLoading, 
+    generatedPost, 
+    onSubmit, 
+    loading, 
+    success
+  ]);
+
   const renderFormContent = useMemo(() => {
     switch (currentStep) {
       case FORM_STEPS.INPUT:
@@ -191,28 +230,6 @@ const BaseForm = ({
         return null;
     }
   }, [currentStep, renderInputStep, renderPreviewStep, renderResultStep]);
-
-  const renderButtons = useMemo(() => (
-    <div className="button-container">
-      {showBackButton && (
-        <Button 
-          onClick={onBack} 
-          text={BUTTON_LABELS.BACK}
-          className="back-button"
-          ariaLabel={ARIA_LABELS.BACK}
-        />
-      )}
-      <Button
-        onClick={onSubmit}
-        loading={loading}
-        success={success}
-        text={submitButtonText}
-        icon={<HiCog />}
-        className="submit-button form-button"
-        ariaLabel={ARIA_LABELS.SUBMIT}
-      />
-    </div>
-  ), [showBackButton, onBack, onSubmit, loading, success, submitButtonText]);
 
   const renderDisplayContent = useMemo(() => (
     <div className="display-content" style={{ fontSize: textSize }}>
@@ -245,10 +262,16 @@ const BaseForm = ({
     </div>
   ), [currentStep, generatedImageSrc, useDownloadButton, showGeneratePostButton, generatedPost, onGeneratePost, generatePostLoading, unsplashImages, handleUnsplashSelect, selectedImage, isSharepicGenerator, textSize]);
 
+  const handleAdvancedEditingClick = useCallback((event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    toggleAdvancedEditing();
+  }, [toggleAdvancedEditing]);
+
   return (
     <div className={`base-container ${generatedContent ? 'with-content' : ''} ${currentStep === FORM_STEPS.RESULT ? 'result-step' : ''}`}>
       <div className="container">
-        <div className="form-container">
+        <div className={`form-container ${isAdvancedEditingOpen ? 'expanded' : ''}`}>
           <form onSubmit={(e) => {
             e.preventDefault();
             if (!e.target.closest('.image-search-form')) {
@@ -258,8 +281,29 @@ const BaseForm = ({
             <div className={`form-content ${generatedContent ? 'with-generated-content' : ''}`}>
               {renderFormContent}
               <FormErrors errors={formErrors} />
-              {renderButtons}
             </div>
+            {currentStep === FORM_STEPS.RESULT && (
+              <>
+                <div className="advanced-editing-button-container">
+                  <Button
+                    text={isAdvancedEditingOpen ? "Erweiterte Bildbearbeitung schließen" : "Erweiterte Bildbearbeitung"}
+                    className={`advanced-editing-button ${isAdvancedEditingOpen ? 'open' : ''}`}
+                    onClick={handleAdvancedEditingClick}
+                    icon={isAdvancedEditingOpen ? <HiChevronUp /> : <HiChevronDown />}
+                  />
+                </div>
+                {isAdvancedEditingOpen && (
+                  <AdvancedEditingSection
+                    balkenOffset={balkenOffset}
+                    balkenGruppenOffset={balkenGruppenOffset}
+                    sunflowerOffset={sunflowerOffset}
+                    onBalkenOffsetChange={(newOffset) => onControlChange('balkenOffset', newOffset)}
+                    onBalkenGruppenOffsetChange={(newOffset) => onControlChange('balkenGruppenOffset', newOffset)}
+                    onSonnenblumenOffsetChange={(newOffset) => onControlChange('sunflowerOffset', newOffset)}
+                  />
+                )}
+              </>
+            )}
           </form>
           {error && <p role="alert" aria-live="assertive" className="error-message">{error}</p>}
         </div>

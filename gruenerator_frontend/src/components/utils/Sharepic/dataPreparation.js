@@ -3,9 +3,9 @@ import { DEFAULT_COLORS } from '../constants';
 export const prepareDataForDreizeilenCanvas = (formData, modificationData) => {
     const formDataToSend = new FormData();
 
-    console.log('Incoming formData balkenOffset:', formData.balkenOffset);
-    console.log('Incoming modificationData balkenOffset:', modificationData.balkenOffset);
-  
+    console.log('Incoming formData:', formData);
+    console.log('Incoming modificationData:', modificationData);
+    
     // Textzeilen
     formDataToSend.append('line1', formData.line1 || '');
     formDataToSend.append('line2', formData.line2 || '');
@@ -14,11 +14,17 @@ export const prepareDataForDreizeilenCanvas = (formData, modificationData) => {
     // Schriftgröße
     formDataToSend.append('fontSize', modificationData.fontSize || formData.fontSize || '85');
   
-    // Balken-Offsets
-    const balkenOffset = modificationData.balkenOffset || formData.balkenOffset || [50, -100, 50];
-    balkenOffset.forEach((offset, index) => {
-      formDataToSend.append(`balkenOffset_${index}`, offset.toString());
-    });
+   // Balken-Offsets
+   let balkenOffset = modificationData.balkenOffset || formData.balkenOffset || [50, -100, 50];
+   if (!Array.isArray(balkenOffset)) {
+       console.warn('balkenOffset is not an array. Using default value:', balkenOffset);
+       balkenOffset = [50, -100, 50];
+   }
+   balkenOffset.forEach((offset, index) => {
+     formDataToSend.append(`balkenOffset_${index}`, offset.toString());
+   });
+
+   console.log('Applied balkenOffset:', balkenOffset);
 
     // Balken Gruppe Offset
   const balkenGruppenOffset = modificationData.balkenGruppenOffset || formData.balkenGruppenOffset || [0, 0];
