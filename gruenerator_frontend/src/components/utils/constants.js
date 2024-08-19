@@ -129,29 +129,6 @@ export const SHAREPIC_GENERATOR = {
   }
 };
 
-export const BALKEN_OFFSET_PRESETS = [
-  {
-    name: 'Standard',
-    offsets: [50, -100, 50],
-    imageSrc: '/images/BalkenOffset_Standard.png'
-  },
-  {
-    name: 'Oben',
-    offsets: [0, 0, 0],
-    imageSrc: '/images/BalkenOffset_Oben.png'
-  },
-  {
-    name: 'Mitte',
-    offsets: [-50, 0, 50],
-    imageSrc: '/images/BalkenOffset_Mitte.png'
-  },
-  {
-    name: 'Unten',
-    offsets: [-100, -50, 0],
-    imageSrc: '/images/BalkenOffset_Unten.png'
-  }
-];
-
 export const IMAGE_MODIFICATION = {
   BALKEN_OFFSET: {
     MIN: -250,
@@ -205,8 +182,6 @@ export const IMAGE_MODIFICATION = {
       imageSrc: '/images/Sand_Sand_Tanne.png'
     }
   ],
-
-  
   
   LABELS: {
     FONT_SIZE: 'Schriftgröße:',

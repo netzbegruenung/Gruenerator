@@ -49,19 +49,26 @@ function sharepicGeneratorReducer(state, action) {
   console.log('Reducer received action:', action);
 
   switch (action.type) {
-    case 'UPDATE_FORM_DATA':
+    case 'UPDATE_FORM_DATA': {
+      const updatedFormData = Object.keys(action.payload).reduce((acc, key) => {
+        if (key === 'balkenOffset' && !Array.isArray(action.payload[key])) {
+          console.warn('Invalid balkenOffset in UPDATE_FORM_DATA:', action.payload[key]);
+          acc[key] = Array.isArray(state.formData[key]) ? state.formData[key] : [50, -100, 50];
+        } else {
+          acc[key] = action.payload[key];
+        }
+        return acc;
+      }, { ...state.formData });
+    
       return {
         ...state,
-        formData: { ...state.formData, ...action.payload },
-        currentStep: action.payload.currentStep !== undefined 
-          ? action.payload.currentStep 
-          : state.currentStep,
-        loading: action.payload.loading !== undefined 
-          ? action.payload.loading 
-          : state.loading,
+        formData: updatedFormData,
+        currentStep: action.payload.currentStep !== undefined ? action.payload.currentStep : state.currentStep,
+        loading: action.payload.loading !== undefined ? action.payload.loading : state.loading,
         generatedImageSrc: action.payload.generatedImageSrc || state.generatedImageSrc,
         selectedImage: action.payload.selectedImage || state.selectedImage,
       };
+    }
     case 'SET_CURRENT_STEP':
       return { ...state, currentStep: action.payload };
     case 'SET_LOADING_UNSPLASH_IMAGES':
@@ -93,16 +100,21 @@ function sharepicGeneratorReducer(state, action) {
         unsplashError: null,
         selectedImage: null
       };
-      case 'UPDATE_IMAGE_MODIFICATION':
+      case 'UPDATE_IMAGE_MODIFICATION': {
+        const updatedFormData = {
+          ...state.formData,
+          colorScheme: action.payload.colorScheme || state.formData.colorScheme,
+          fontSize: action.payload.fontSize || state.formData.fontSize,
+          balkenOffset: Array.isArray(action.payload.balkenOffset) 
+            ? action.payload.balkenOffset 
+            : (Array.isArray(state.formData.balkenOffset) ? state.formData.balkenOffset : [50, -100, 50]),
+        };
+      
         return {
           ...state,
-          formData: {
-            ...state.formData,
-            colorScheme: action.payload.colorScheme || state.formData.colorScheme,
-            fontSize: action.payload.fontSize || state.formData.fontSize,
-            balkenOffset: action.payload.balkenOffset || state.formData.balkenOffset,
-          }
+          formData: updatedFormData
         };
+      }
     case 'RESET_STATE':
       return initialState;
       case 'SET_SEARCH_BAR_ACTIVE':
@@ -165,7 +177,12 @@ export function SharepicGeneratorProvider({ children }) {
 
   const updateFormData = useCallback((data) => {
     console.log('SharepicGeneratorContext: Updating form data:', data);
-    dispatch({ type: 'UPDATE_FORM_DATA', payload: data });
+    const safeData = { ...data };
+    if ('balkenOffset' in safeData && !Array.isArray(safeData.balkenOffset)) {
+      console.warn('Invalid balkenOffset in updateFormData:', safeData.balkenOffset);
+      delete safeData.balkenOffset; // Entferne ungültige Werte
+    }
+    dispatch({ type: 'UPDATE_FORM_DATA', payload: safeData });
   }, []);
 
   const toggleAdvancedEditing = useCallback(() => {

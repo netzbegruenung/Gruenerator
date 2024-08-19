@@ -1,9 +1,8 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import CopyButton from './CopyButton';
-import GeneratePostButton from './GeneratePostButton';
 
-const GeneratedPostContainer = ({ post, onGeneratePost, generatePostLoading, isSharepicGenerator }) => {
+const GeneratedPostContainer = ({ post, isSharepicGenerator }) => {
   if (!post) return null;
 
   return (
@@ -14,11 +13,6 @@ const GeneratedPostContainer = ({ post, onGeneratePost, generatePostLoading, isS
           content={post} 
           text={isSharepicGenerator ? "Beitragstext kopieren" : "In die Zwischenablage kopieren"}
         />
-        <GeneratePostButton
-          onClick={onGeneratePost}
-          loading={generatePostLoading}
-          isRegenerateText={true}
-        />
       </div>
     </div>
   );
@@ -26,8 +20,6 @@ const GeneratedPostContainer = ({ post, onGeneratePost, generatePostLoading, isS
 
 GeneratedPostContainer.propTypes = {
   post: PropTypes.string,
-  onGeneratePost: PropTypes.func.isRequired,
-  generatePostLoading: PropTypes.bool,
   isSharepicGenerator: PropTypes.bool,
 };
 

@@ -49,10 +49,17 @@
   animation: spin 2s linear infinite;
 }
 
-.submit-button, .generate-post-button, .copy-button {
+ .copy-button {
   background-color: var(--tanne);
   color: var(--weiß);
   width: 100%;
+}
+
+.form-buttons {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  max-width: calc(50% - 10px);
 }
 
 .back-button .form-button {
@@ -60,9 +67,13 @@
   min-width: 0; 
 }
 
-.form-button {
+.form-button, .generate-post-button, .submit-button {
   background-color: var(--weiß);
   color: #333;
+}
+
+.form-button{
+  width: 100%;
 }
 
 .back-button {
@@ -93,6 +104,10 @@
   justify-content: center;
 }
 
+.copy-button {
+  margin-top: 10px;
+}
+
 .file-input-wrapper,
 .unsplash-button {
   background-color: var(--tanne);
@@ -108,13 +123,6 @@
   transition: background-color 0.3s, transform 0.3s;
   border-radius: var(--button-border-radius);
   padding: 10px 20px;
-}
-
-.generate-post-button,
-.download-button {
-  background-color: var(--tanne);
-  color: var(--weiß);
-  border: none;
 }
 
 .image-search-button {
@@ -205,21 +213,6 @@
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
-}
-
-.checkmark {
-  width: 24px;
-  height: 24px;
-  stroke-width: 2;
-  stroke: var(--klee);
-  fill: none;
-  stroke-linecap: round;
-  animation: checkmark 0.4s ease-in-out forwards;
-}
-
-@keyframes checkmark {
-  0% { stroke-dashoffset: 50px; }
-  100% { stroke-dashoffset: 0; }
 }
 
 @media (max-width: 768px) {

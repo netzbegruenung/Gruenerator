@@ -6,6 +6,8 @@ import { useSharepicGeneration } from '../../hooks/sharepic/useSharepicGeneratio
 import { useSharepicRendering } from '../../hooks/sharepic/useSharepicRendering';
 import BaseForm from '../../common/BaseForm-Sharepic';
 import ErrorBoundary from '../../ErrorBoundary';
+import { useGenerateSocialPost } from '../../hooks/useGenerateSocialPost';
+
 
 import { 
   FORM_STEPS, 
@@ -35,6 +37,9 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
   const [errors, setErrors] = useState({}); 
   const [searchQuery, setSearchQuery] = useState('');
 
+  const { generatePost, loading: generatePostLoading, } = useGenerateSocialPost();
+const [generatedPost, setGeneratedPost] = useState('');
+
   const validateForm = useCallback((formData) => {
     const newErrors = {};
     if (!formData.thema) newErrors.thema = ERROR_MESSAGES.THEMA;
@@ -54,6 +59,14 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
     console.log('Selected Unsplash image:', selectedImage);
     updateFormData({ selectedImage });
   }, [updateFormData]);
+
+  const handleGeneratePost = useCallback(async () => {
+    const newPost = await generatePost(state.formData.thema, state.formData.details);
+    if (newPost) {
+      setGeneratedPost(newPost);
+      updateFormData({ generatedPost: newPost });
+    }
+  }, [generatePost, state.formData, updateFormData]);
 
   const uploadAndProcessFile = useCallback(async (file) => {
     if (!file) {
@@ -230,7 +243,6 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
 
   useEffect(() => {
     console.log('SharepicGenerator: Current step:', state.currentStep);
-    console.log('SharepicGenerator: Generated image src:', state.generatedImageSrc);
     console.log('SharepicGenerator: Form data:', state.formData);
   }, [state.currentStep, state.generatedImageSrc, state.formData]);
   
@@ -244,6 +256,18 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
     }
   }, [state.currentStep, state.formData.searchTerms, searchQuery, handleUnsplashSearch]);
 
+  const handleControlChange = useCallback((name, value) => {
+    console.log(`Handling control change: ${name}`, value);
+    if (name === 'balkenOffset' && !Array.isArray(value)) {
+      console.warn('Invalid balkenOffset value:', value);
+      // Verwende den aktuellen Wert oder einen Standardwert
+      value = Array.isArray(state.formData.balkenOffset) 
+        ? state.formData.balkenOffset 
+        : SHAREPIC_GENERATOR.DEFAULT_BALKEN_OFFSET;
+    }
+    updateFormData({ [name]: value });
+  }, [state.formData.balkenOffset, updateFormData]);
+
   const submitButtonText = useMemo(() => 
     state.currentStep === FORM_STEPS.INPUT ? BUTTON_LABELS.GENERATE_TEXT :
     state.currentStep === FORM_STEPS.PREVIEW ? BUTTON_LABELS.GENERATE_IMAGE :
@@ -253,11 +277,6 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
   const memoizedFormFields = useMemo(() => {
     console.log('Rendering memoizedFormFields for step:', state.currentStep);
     const fields = renderFormFields(state.currentStep, state.formData, handleChange, errors);
-    
-    if (state.currentStep === FORM_STEPS.RESULT) {
-      console.log('Rendering RESULT step');
-      return fields; // Wir entfernen die ImageModificationForm von hier
-    }
     return fields;
   }, [state.currentStep, state.formData, handleChange, errors, renderFormFields]);
 
@@ -287,6 +306,9 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
     isSubmitting={state.isSubmitting}
     currentSubmittingStep={state.currentSubmittingStep}
     credit={state.formData.credit}
+    onGeneratePost={handleGeneratePost}
+    generatePostLoading={generatePostLoading}
+    generatedPost={generatedPost}
     fileUploadProps={{
       loading: state.loading,
       file: state.file,
@@ -300,8 +322,8 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
   colorScheme={state.formData.colorScheme || SHAREPIC_GENERATOR.DEFAULT_COLOR_SCHEME}
   balkenGruppenOffset={state.formData.balkenGruppenOffset || [0, 0]}
         sunflowerOffset={state.formData.sunflowerOffset || [0, 0]}
-  onControlChange={(name, value) => updateFormData({ [name]: value })}
-  >
+        onControlChange={handleControlChange}
+        >
     {memoizedFormFields}
   </BaseForm>
       </div>

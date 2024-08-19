@@ -13,11 +13,14 @@ const AdvancedEditingSection = ({
 }) => {
   return (
     <div className="advanced-editing-section">
-      <h2>Erweiterter Editor (für Expert*innen)</h2>
+      <h3>Erweiterter Editor (für Expert*innen)</h3>
       <BalkenOffsetControl
-        balkenOffset={balkenOffset}
-        onControlChange={onBalkenOffsetChange}
-      />
+  balkenOffset={balkenOffset}
+  onControlChange={(name, value) => {
+    console.log('AdvancedEditingSection onControlChange:', name, value);
+    onBalkenOffsetChange(value);
+  }}
+/>
       <BalkenGruppeControl
         offset={balkenGruppenOffset}
         onOffsetChange={onBalkenGruppenOffsetChange}

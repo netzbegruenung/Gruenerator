@@ -28,8 +28,6 @@
     display: flex;
     white-space: pre-wrap;
     flex-direction: column;
-    overflow: hidden; /* Verhindert Scrollbars */
-
 }
 
 .upload-and-generate-container {
@@ -139,6 +137,20 @@
     overflow-y: auto;
   }
 
+  .form-buttons.preview-buttons {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+    margin-top: 20px;
+    width: 100%;
+  }
+  
+  .form-buttons.preview-buttons .back-button {
+    background-color: var(--sand);
+    color: var(--dunkelgruen);
+  }
+  
+
   /* Gemeinsamer Container für File Upload und Image Search Bar */
 .upload-and-search-container {
     display: flex;
@@ -146,18 +158,13 @@
     gap: 20px;
     align-items: center;
     flex-direction: row;
+    margin-bottom: 20px;
 }
 
 .upload-and-search-container .image-search-button {
     display: flex;
     align-items: center;
     gap: 8px;
-}
-
-@keyframes pulse {
-  0% { box-shadow: 0 0 0 0 rgba(0, 0, 0, 0.2); }
-  70% { box-shadow: 0 0 0 10px rgba(0, 0, 0, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(0, 0, 0, 0); }
 }
 
 .form-container input.error-input,
@@ -209,33 +216,126 @@
 }
 
 
-@keyframes fancy-checkmark {
+/* New styles for platform selection */
+.platform-checkboxes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 15px;
+    margin-bottom: 15px;
+}
+
+.platform-checkbox {
+    display: flex;
+    align-items: center;
+    border-radius: 8px;
+    border: 1.5px solid var(--sand);
+    color: var(--weiß);
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+
+}
+
+.platform-checkbox:hover {
+    background-color: var(--klee);
+}
+
+.platform-checkbox input[type="checkbox"] {
+    appearance: none;
+     border-radius: 3px;
+    margin-right: 8px;
+    margin-top: 0;
+    margin-bottom: 0;
+    cursor: pointer;
+    position: relative;
+    outline: none;
+}
+
+.platform-checkbox input[type="checkbox"]:checked {
+    background-color: var(--sand);
+    border-color: var(--sand);
+}
+
+.platform-checkbox input[type="checkbox"]:focus {
+    border-color: var(--sand);
+}
+.platform-checkbox input[type="checkbox"]:checked::after {
+    content: '✓';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    color: var(--tanne);
+    font-size: 14px;
+    font-weight: bold;
+}
+
+/* Animation for checkbox selection */
+@keyframes subtleCheckmark {
     0% {
-        stroke-dashoffset: 50px;
         opacity: 0;
-    }
-    50% {
-        stroke-dashoffset: 50px;
-        opacity: 1;
+        transform: translate(-50%, -50%) scale(0.9);
     }
     100% {
-        stroke-dashoffset: 0;
         opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
     }
 }
 
-.checkmark {
-    width: 24px;
-    height: 24px;
-    display: block;
-    stroke-width: 2;
-    stroke: var(--klee);
-    fill: none;
-    stroke-linecap: round;
-    animation: fancy-checkmark 0.6s ease-in-out forwards;
+.loading-icon {
+    animation: spin 1s linear infinite;
+  }
+  
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+
+.platform-checkbox input[type="checkbox"]:checked::after {
+    animation: subtleCheckmark 0.2s ease-out forwards;
+    
 }
 
+/* Responsiveness improvements */
 @media (max-width: 768px) {
+    
+    .platform-checkboxes {
+        flex-direction: column;
+    }
+
+    .platform-checkbox {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        align-items: center;
+        padding: 15px 20px;
+        background-color: var(--dunkelgruen);
+        border: 1px solid var(--sand);
+        border-radius: 8px;
+        margin-bottom: 10px;
+        color: var(--weiß);
+        font-weight: bold;
+    }
+
+    .platform-checkbox input[type="checkbox"] {
+        appearance: none;
+        -webkit-appearance: none;
+        width: 15px;
+        height: 15px;
+        border: 2px solid var(--weiß);
+        border-radius: 4px;
+        margin-right: 15px;
+        position: relative;
+        cursor: pointer;
+        grid-column: 1;
+    }
+    .platform-checkbox span {
+        font-weight: bold;
+    }
+
+    .platform-checkbox input[type="checkbox"]:checked + span {
+        font-weight: bold;
+    }
+    
     .base-container {
         gap: 0;
         padding: 0;
@@ -253,4 +353,14 @@
         font-size: 0.7em;
         line-height: 1.4;
     }
+
+    .form-buttons.preview-buttons {
+        flex-direction: column;
+      }
+      
+      .form-buttons.preview-buttons .back-button,
+      .form-buttons.preview-buttons .form-button {
+        max-width: 100%;
+      }
+    
 }
