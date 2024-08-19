@@ -1,27 +1,77 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { FaTwitter, FaLinkedin, FaInstagram } from 'react-icons/fa';
+import useAccessibility from '../../hooks/useAccessibility';
+import { addAriaLabelsToElements, enhanceFocusVisibility } from '../../utils/accessibilityHelpers';
 import '../../../assets/styles/common/variables.css';
 import '../../../assets/styles/common/global.css';
 import '../../../assets/styles/components/footer.css';
 
 const Footer = () => {
+    const { announce, focusElement, setupKeyboardNav } = useAccessibility();
+    const footerRef = useRef(null);
+    const skipToMainContentRef = useRef(null);
+
+    useEffect(() => {
+        enhanceFocusVisibility();
+
+        const footerElements = footerRef.current.querySelectorAll('a, button');
+        const cleanup = setupKeyboardNav(Array.from(footerElements));
+
+        addAriaLabelsToElements([
+            { element: skipToMainContentRef.current, label: 'Zum Hauptinhalt springen' },
+            { element: footerRef.current.querySelector('.footer-logo a'), label: 'Grünerator Homepage' },
+            { element: footerRef.current.querySelector('a[href="/pressemitteilung"]'), label: 'Pressemitteilung Seite' },
+            { element: footerRef.current.querySelector('a[href="/antragsgenerator"]'), label: 'Anträge Seite' },
+            { element: footerRef.current.querySelector('a[href="/socialmedia"]'), label: 'Social Media Seite' },
+            { element: footerRef.current.querySelector('a[href="/rede"]'), label: 'Politische Rede Seite' },
+            { element: footerRef.current.querySelector('a[href="/webbaukasten"]'), label: 'Webbaukasten'},
+            { element: footerRef.current.querySelector('a[href="/impressum"]'), label: 'Impressum Seite' },
+            { element: footerRef.current.querySelector('a[href="/datenschutz"]'), label: 'Datenschutz Seite' },
+            { element: footerRef.current.querySelector('a[href="https://twitter.com/MoritzWaech"]'), label: 'Twitter Profil von Moritz Wächter' },
+            { element: footerRef.current.querySelector('a[href="https://www.instagram.com/moritz_waechter/?hl=bg"]'), label: 'Instagram Profil von Moritz Wächter' },
+            { element: footerRef.current.querySelector('a[href="https://www.linkedin.com/in/moritz-w%C3%A4chter-6ab033210"]'), label: 'LinkedIn Profil von Moritz Wächter' },
+        ]);
+
+        return cleanup;
+    }, [setupKeyboardNav]);
+
+    const handleFooterFocus = () => {
+        announce('Sie befinden sich im Footer-Bereich der Website.');
+    };
+
+    const handleSkipToMainContent = (e) => {
+        e.preventDefault();
+        focusElement('main-content');
+        announce('Sie haben zum Hauptinhalt gesprungen.');
+    };
+
     return (
-        <footer className="footer">
+        <footer className="footer" ref={footerRef} onFocus={handleFooterFocus}>
+            <a 
+                href="#main-content" 
+                className="skip-link" 
+                ref={skipToMainContentRef}
+                onClick={handleSkipToMainContent}
+            >
+                Zum Hauptinhalt springen
+            </a>
             <div className="footer-container">
                 <div className="footer-left">
                     <div className="footer-logo">
-                        <Link to="/"><img src="/images/Logo_Sand.svg" alt="Grünerator Logo" /></Link>
+                        <Link to="/" onClick={() => announce('Navigation zur Homepage')}>
+                            <img src="/images/Logo_Sand.svg" alt="Grünerator Logo" />
+                        </Link>
                     </div>
-                    <nav className="footer-nav">
+                    <nav className="footer-nav" aria-label="Footer Navigation">
                         <ul>
-                            <li><Link to="/pressemitteilung">Pressemitteilung</Link></li>
-                            <li><Link to="/antragsgenerator">Anträge</Link></li>
-                            <li><Link to="/socialmedia">Social Media</Link></li>
-                            <li><Link to="/rede">Politische Rede</Link></li>
-                            <li><Link to="/antragsversteher">Antrags-Erklärer</Link></li>
-                            <li><Link to="/impressum">Impressum</Link></li>
-                            <li><Link to="/datenschutz">Datenschutz</Link></li>
+                            <li><Link to="/pressemitteilung" onClick={() => announce('Navigation zur Pressemitteilung Seite')}>Pressemitteilung</Link></li>
+                            <li><Link to="/antragsgenerator" onClick={() => announce('Navigation zur Anträge Seite')}>Anträge</Link></li>
+                            <li><Link to="/socialmedia" onClick={() => announce('Navigation zur Social Media Seite')}>Social Media</Link></li>
+                            <li><Link to="/rede" onClick={() => announce('Navigation zur Politische Rede Seite')}>Politische Rede</Link></li>
+                            <li><Link to="/webbaukasten" onClick={() => announce('Navigation zur Websitegenerator Seite')}>Website</Link></li>
+                            <li><Link to="/impressum" onClick={() => announce('Navigation zur Impressum Seite')}>Impressum</Link></li>
+                            <li><Link to="/datenschutz" onClick={() => announce('Navigation zur Datenschutz Seite')}>Datenschutz</Link></li>
                         </ul>
                     </nav>
                     <div className="footer-bottom">
@@ -31,14 +81,17 @@ const Footer = () => {
                     </div>
                 </div>
                 <div className="footer-right">
-                    <a href="https://twitter.com/MoritzWaech" target="_blank" rel="noopener noreferrer" className="footer-social-icon">
-                        <FaTwitter />
+                    <a href="https://twitter.com/MoritzWaech" target="_blank" rel="noopener noreferrer" className="footer-social-icon" onClick={() => announce('Öffne Twitter Profil von Moritz Wächter in einem neuen Tab')}>
+                        <FaTwitter aria-hidden="true" />
+                        <span className="sr-only">Twitter</span>
                     </a>
-                    <a href="https://www.instagram.com/moritz_waechter/?hl=bg" target="_blank" rel="noopener noreferrer" className="footer-social-icon">
-                        <FaInstagram />
+                    <a href="https://www.instagram.com/moritz_waechter/?hl=bg" target="_blank" rel="noopener noreferrer" className="footer-social-icon" onClick={() => announce('Öffne Instagram Profil von Moritz Wächter in einem neuen Tab')}>
+                        <FaInstagram aria-hidden="true" />
+                        <span className="sr-only">Instagram</span>
                     </a>
-                    <a href="https://www.linkedin.com/in/moritz-w%C3%A4chter-6ab033210" target="_blank" rel="noopener noreferrer" className="footer-social-icon">
-                        <FaLinkedin />
+                    <a href="https://www.linkedin.com/in/moritz-w%C3%A4chter-6ab033210" target="_blank" rel="noopener noreferrer" className="footer-social-icon" onClick={() => announce('Öffne LinkedIn Profil von Moritz Wächter in einem neuen Tab')}>
+                        <FaLinkedin aria-hidden="true" />
+                        <span className="sr-only">LinkedIn</span>
                     </a>
                 </div>
             </div>
