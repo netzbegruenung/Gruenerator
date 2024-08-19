@@ -1,195 +1,284 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+// SharepicGeneratorneu
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
-import { useSharepicContext } from '../../utils/SharepicContext';
-import { FORM_STEPS, BUTTON_LABELS } from '../../utils/constants';
-import BaseForm from '../../common/BaseForm';
+import { SharepicGeneratorProvider, useSharepicGeneratorContext } from '../../utils/Sharepic/SharepicGeneratorContext';
 import { useSharepicGeneration } from '../../hooks/sharepic/useSharepicGeneration';
 import { useSharepicRendering } from '../../hooks/sharepic/useSharepicRendering';
-import { useFormValidation } from '../../hooks/useFormValidation';
+import BaseForm from '../../common/BaseForm-Sharepic';
 import ErrorBoundary from '../../ErrorBoundary';
-import ImageModificationForm from '../../utils/ImageModificationForm';
-import useGeneratePost from '../../hooks/sharepic/useGeneratePost';
-import FileUpload from '../../utils/FileUpload';
+import { useGenerateSocialPost } from '../../hooks/useGenerateSocialPost';
 
-const SharepicGenerator = ({ showHeaderFooter = true, darkMode }) => {
-  const { state, dispatch } = useSharepicContext();
-  const { formData, error: contextError, loading: contextLoading } = state;
-  const [currentStep, setCurrentStep] = useState(FORM_STEPS.INPUT);
-  const [generatedImageSrc, setGeneratedImageSrc] = useState('');
-  const [isImageModified, setIsImageModified] = useState(false);
-  const [imageModificationInstruction, setImageModificationInstruction] = useState('');
-  const [file, setFile] = useState(null);
-  const [uploadError, setUploadError] = useState(null);
 
-  const { generateText, generateImage, modifyImage, loading: generationLoading, error: generationError } = useSharepicGeneration();
+import { 
+  FORM_STEPS, 
+  BUTTON_LABELS, 
+  SHAREPIC_GENERATOR, 
+  ERROR_MESSAGES,
+ 
+} from '../../utils/constants';
+
+function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
+  const { 
+    state, 
+    setFile,
+    setError, 
+    updateFormData, 
+    handleUnsplashSearch, 
+    fetchFullSizeImage, 
+    triggerDownload,
+    modifyImage,
+    setLottieVisible, 
+
+  } = useSharepicGeneratorContext();
+
+  const { generateText, generateImage, loading: generationLoading, error: generationError } = useSharepicGeneration();
+
   const { renderFormFields } = useSharepicRendering();
-  const { postContent, generatePost } = useGeneratePost();
+  const [errors, setErrors] = useState({}); 
+  const [searchQuery, setSearchQuery] = useState('');
 
-  const validationRules = {
-    thema: { required: true },
-    type: { required: true },
-  };
+  const { generatePost, loading: generatePostLoading, } = useGenerateSocialPost();
+const [generatedPost, setGeneratedPost] = useState('');
 
-  const { errors, validateForm } = useFormValidation(validationRules);
+  const validateForm = useCallback((formData) => {
+    const newErrors = {};
+    if (!formData.thema) newErrors.thema = ERROR_MESSAGES.THEMA;
+    if (!formData.type) newErrors.type = ERROR_MESSAGES.TYPE;
 
-  const isLoading = contextLoading || generationLoading;
-  const error = contextError || generationError || uploadError;
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  }, []);
 
-  const handleChange = useCallback((e) => {
-    const { name, value } = e.target;
-    dispatch({
-      type: 'UPDATE_FORM_DATA',
-      payload: { [name]: value }
-    });
-  }, [dispatch]);
+  useEffect(() => {
+    console.log('SharepicGenerator: Current step:', state.currentStep);
+    console.log('SharepicGenerator: Generated image src:', state.generatedImageSrc);
+    console.log('SharepicGenerator: Form data:', state.formData);
+  }, [state.currentStep, state.generatedImageSrc, state.formData]);
 
-  const handleFileChange = useCallback((selectedFile) => {
-    setFile(selectedFile);
-    setUploadError(null);
-    dispatch({
-      type: 'UPDATE_FORM_DATA',
-      payload: { image: selectedFile }
-    });
-  }, [dispatch]);
+  const handleUnsplashSelect = useCallback((selectedImage) => {
+    console.log('Selected Unsplash image:', selectedImage);
+    updateFormData({ selectedImage });
+  }, [updateFormData]);
+
+  const handleGeneratePost = useCallback(async () => {
+    const newPost = await generatePost(state.formData.thema, state.formData.details);
+    if (newPost) {
+      setGeneratedPost(newPost);
+      updateFormData({ generatedPost: newPost });
+    }
+  }, [generatePost, state.formData, updateFormData]);
 
   const uploadAndProcessFile = useCallback(async (file) => {
     if (!file) {
-      setUploadError('Keine Datei ausgewählt');
+      setError('Keine Datei ausgewählt');
       return null;
     }
-
-    dispatch({ type: 'SET_LOADING', payload: true });
-    setUploadError(null);
-
+  
+    updateFormData({ loading: true });
+    setError(null);
+  
     try {
       const formData = new FormData();
       formData.append('image', file);
-
-      console.log('Sending request to /api/upload');
-      console.log('FormData content:', [...formData.entries()]);
-
+  
       const response = await fetch('/api/upload', {
         method: 'POST',
         body: formData,
       });
-
-      console.log('Response status:', response.status);
-
+  
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Server error response:', errorText);
         throw new Error(`Network error during upload: ${response.status} ${response.statusText}`);
       }
-
+  
       const data = await response.json();
-      console.log('Received data:', data);
       return data;
     } catch (error) {
       console.error('Error during upload:', error);
-      setUploadError(error.message);
+      setError(error.message);
       return null;
     } finally {
-      dispatch({ type: 'SET_LOADING', payload: false });
+      updateFormData({ loading: false });
     }
-  }, [dispatch]);
+  }, [setError, updateFormData]);
 
-  const handleSubmit = useCallback(async () => {
-    console.log('handleSubmit called. Current step:', currentStep);
-    console.log('Current form data:', formData);
-    dispatch({ type: 'SET_LOADING', payload: true });
-    if (!validateForm(formData)) {
-      dispatch({ type: 'SET_LOADING', payload: false });
-      return;
-    }
+  const handleChange = useCallback((e) => {
+    const { name, value } = e.target;
+    updateFormData({ [name]: value });
+  }, [updateFormData]);
+
+  const handleFormSubmit = useCallback(async (event) => {
+    console.log(SHAREPIC_GENERATOR.LOG_MESSAGES.FORM_SUBMISSION_STARTED);
+    if (event) event.preventDefault();
+    
+    updateFormData({ loading: true });
+    
     try {
-      if (currentStep === FORM_STEPS.INPUT) {
-        const result = await generateText(formData.type, { thema: formData.thema, details: formData.details });
-        if (result) {
-          dispatch({ type: 'UPDATE_FORM_DATA', payload: result });
-          setCurrentStep(FORM_STEPS.PREVIEW);
-        } else {
-          throw new Error("Keine Textdaten empfangen");
+      if (!validateForm(state.formData)) {
+        throw new Error(ERROR_MESSAGES.FORM_VALIDATION_FAILED);
+      }
+  
+      if (state.currentStep === FORM_STEPS.INPUT) {
+        console.log(SHAREPIC_GENERATOR.LOG_MESSAGES.GENERATING_TEXT, state.currentStep);
+        setLottieVisible(true); // Lottie sichtbar machen
+        const result = await generateText(state.formData.type, { 
+          thema: state.formData.thema, 
+          details: state.formData.details 
+        });
+        
+        if (!result) throw new Error(ERROR_MESSAGES.NO_TEXT_DATA);
+        
+        console.log(SHAREPIC_GENERATOR.LOG_MESSAGES.TEXT_GENERATED);
+        await updateFormData({ 
+          ...result, 
+          type: state.formData.type, 
+          currentStep: FORM_STEPS.PREVIEW 
+        });
+        console.log(SHAREPIC_GENERATOR.LOG_MESSAGES.FORM_DATA_UPDATED, FORM_STEPS.PREVIEW);
+  
+  
+      } else if (state.currentStep === FORM_STEPS.PREVIEW) {
+        let fileToUse = state.formData.uploadedImage;
+        
+        if (!fileToUse && state.selectedImage) {
+          fileToUse = await fetchFullSizeImage(state.selectedImage.fullImageUrl);
+          await updateFormData({ uploadedImage: fileToUse });
+          await triggerDownload(state.selectedImage.downloadLocation);
+        } else if (state.file) {
+          const uploadedFile = await uploadAndProcessFile(state.file);
+          if (!uploadedFile) throw new Error("Fehler beim Hochladen der Datei");
+          fileToUse = uploadedFile;
+          await updateFormData({ uploadedImage: fileToUse });
         }
-      } else if (currentStep === FORM_STEPS.PREVIEW) {
-        if (!file) {
-          throw new Error("Bitte wählen Sie ein Bild aus");
-        }
-        const imageResult = await uploadAndProcessFile(file);
-        if (imageResult && imageResult.image) {
-          setGeneratedImageSrc(imageResult.image);
-          setCurrentStep(FORM_STEPS.RESULT);
-        } else {
-          throw new Error("Keine Bilddaten empfangen");
-        }
-      } else if (currentStep === FORM_STEPS.RESULT) {
-        const modifiedParams = await modifyImage(imageModificationInstruction, formData);
-        const newImageResult = await generateImage({ ...formData, ...modifiedParams });
-        if (newImageResult && newImageResult.startsWith('data:image')) {
-          setGeneratedImageSrc(newImageResult);
-          setIsImageModified(true);
-          dispatch({ type: 'UPDATE_FORM_DATA', payload: modifiedParams });
-        } else {
-          throw new Error("Keine modifizierten Bilddaten empfangen");
+
+        if (!fileToUse) throw new Error("Bitte wählen Sie ein Bild aus");
+
+  
+        const imageResult = await generateImage({ ...state.formData, image: fileToUse });
+        console.log('Generated image result:', imageResult);
+  
+        if (!imageResult) throw new Error("Keine Bilddaten empfangen");
+  
+        await updateFormData({ 
+          generatedImageSrc: imageResult, 
+          currentStep: FORM_STEPS.RESULT
+        });
+  
+      } else if (state.currentStep === FORM_STEPS.RESULT) {
+        const { fontSize, balkenOffset, colorScheme, credit } = state.formData;
+        try {
+          console.log(SHAREPIC_GENERATOR.LOG_MESSAGES.MODIFYING_IMAGE, { fontSize, balkenOffset, colorScheme });
+          const modifiedImage = await modifyImage({ fontSize, balkenOffset, colorScheme, credit });
+          console.log(SHAREPIC_GENERATOR.LOG_MESSAGES.IMAGE_MODIFIED);
+          
+          if (!modifiedImage) {
+            throw new Error(ERROR_MESSAGES.NO_MODIFIED_IMAGE_DATA);
+          }
+          
+          await updateFormData({ 
+            generatedImageSrc: modifiedImage,
+            fontSize,
+            balkenOffset,
+            colorScheme,
+            credit
+          });
+        } catch (error) {
+          console.error('Error in modifyImage:', error);
+          setError(`${ERROR_MESSAGES.NETWORK_ERROR}: ${error.message}`);
         }
       }
     } catch (error) {
-      console.error("Error in handleSubmit:", error);
-      dispatch({ type: 'SET_ERROR', payload: error.message });
+      console.error('Error in form submission:', error);
+      setError(error.message);
     } finally {
-      dispatch({ type: 'SET_LOADING', payload: false });
+      updateFormData({ loading: false });
+
     }
-  }, [currentStep, formData, file, uploadAndProcessFile, dispatch, validateForm, generateImage, generateText, modifyImage, imageModificationInstruction]);
+  }, [
+    state.currentStep, 
+    state.formData,
+    validateForm,
+    generateText,
+    generateImage,
+    modifyImage,
+    updateFormData,
+    setError,
+    setLottieVisible, // Lottie-Sichtbarkeitssteuerung über den Kontext
 
-  const handleBack = useCallback(() => {
-    if (currentStep === FORM_STEPS.RESULT) {
-      if (window.confirm("Möchtest du wirklich zurück zum ersten Schritt? Das generierte Sharepic geht verloren.")) {
-        setCurrentStep(FORM_STEPS.INPUT);
-        setGeneratedImageSrc('');
-        setIsImageModified(false);
-        setFile(null);
-      }
-    } else if (currentStep > FORM_STEPS.INPUT) {
-      setCurrentStep(currentStep - 1);
-    }
-  }, [currentStep]);
-
-  const handleGeneratePost = useCallback(async () => {
-    const formDataToSend = { thema: formData.thema, details: formData.details };
-    console.log('FormData Inhalt:', formDataToSend);
-    await generatePost(formDataToSend);
-  }, [formData, generatePost]);
-
-  const submitButtonText = useMemo(() =>
-    currentStep === FORM_STEPS.INPUT ? BUTTON_LABELS.GENERATE_TEXT :
-    currentStep === FORM_STEPS.PREVIEW ? BUTTON_LABELS.GENERATE_IMAGE :
-    BUTTON_LABELS.MODIFY_IMAGE,
-    [currentStep]
-  );
-
-  const memoizedFormFields = useMemo(() => {
-    const fields = renderFormFields(currentStep, formData, handleChange, errors);
-    
-    if (currentStep === FORM_STEPS.PREVIEW) {
-      return (
-        <>
-          {fields}
-          <FileUpload
-            loading={isLoading}
-            file={file}
-            handleChange={handleFileChange}
-            error={uploadError}
-            allowedTypes={['image/*']}
-          />
-        </>
-      );
-    }
-    return fields;
-  }, [currentStep, formData, handleChange, errors, renderFormFields, isLoading, file, handleFileChange, uploadError]);
+  ]);
 
   useEffect(() => {
-    // Reset error state when switching steps
-    dispatch({ type: 'SET_ERROR', payload: null });
-  }, [currentStep, dispatch]);
+    console.log('SharepicGenerator state update:', {
+      currentStep: state.currentStep,
+      isSubmitting: state.isSubmitting,
+      currentSubmittingStep: state.currentSubmittingStep,
+      isLottieVisible: state.isLottieVisible,
+    });
+  }, [state.currentStep, state.isSubmitting, state.currentSubmittingStep, state.isLottieVisible]);
+  
+  const handleBack = useCallback(() => {
+    if (state.currentStep === FORM_STEPS.RESULT) {
+      if (window.confirm("Möchtest du wirklich zurück zum ersten Schritt? Das generierte Sharepic geht verloren.")) {
+        updateFormData({ 
+          currentStep: FORM_STEPS.INPUT, 
+          generatedImageSrc: '', 
+          uploadedImage: null 
+        });
+      }
+    } else if (state.currentStep === FORM_STEPS.PREVIEW) {
+      updateFormData({ 
+        currentStep: FORM_STEPS.INPUT, 
+        uploadedImage: null 
+      });
+    } else if (state.currentStep > FORM_STEPS.INPUT) {
+      updateFormData({ currentStep: state.currentStep - 1 });
+    }
+  }, [state.currentStep, updateFormData]);
+
+    
+  const handleFileChange = useCallback((selectedFile) => {
+    setFile(selectedFile);
+    updateFormData({ uploadedImage: selectedFile });
+  }, [setFile, updateFormData]);
+  
+
+  useEffect(() => {
+    console.log('SharepicGenerator: Current step:', state.currentStep);
+    console.log('SharepicGenerator: Form data:', state.formData);
+  }, [state.currentStep, state.generatedImageSrc, state.formData]);
+  
+  useEffect(() => {
+    if (state.currentStep === FORM_STEPS.PREVIEW && state.formData.searchTerms?.length > 0) {
+      const newQuery = state.formData.searchTerms.join(' ');
+      if (newQuery !== searchQuery) {
+        setSearchQuery(newQuery);
+        handleUnsplashSearch(newQuery);
+      }
+    }
+  }, [state.currentStep, state.formData.searchTerms, searchQuery, handleUnsplashSearch]);
+
+  const handleControlChange = useCallback((name, value) => {
+    console.log(`Handling control change: ${name}`, value);
+    if (name === 'balkenOffset' && !Array.isArray(value)) {
+      console.warn('Invalid balkenOffset value:', value);
+      // Verwende den aktuellen Wert oder einen Standardwert
+      value = Array.isArray(state.formData.balkenOffset) 
+        ? state.formData.balkenOffset 
+        : SHAREPIC_GENERATOR.DEFAULT_BALKEN_OFFSET;
+    }
+    updateFormData({ [name]: value });
+  }, [state.formData.balkenOffset, updateFormData]);
+
+  const submitButtonText = useMemo(() => 
+    state.currentStep === FORM_STEPS.INPUT ? BUTTON_LABELS.GENERATE_TEXT :
+    state.currentStep === FORM_STEPS.PREVIEW ? BUTTON_LABELS.GENERATE_IMAGE :
+    BUTTON_LABELS.MODIFY_IMAGE,
+  [state.currentStep]);
+
+  const memoizedFormFields = useMemo(() => {
+    console.log('Rendering memoizedFormFields for step:', state.currentStep);
+    const fields = renderFormFields(state.currentStep, state.formData, handleChange, errors);
+    return fields;
+  }, [state.currentStep, state.formData, handleChange, errors, renderFormFields]);
 
   return (
     <ErrorBoundary>
@@ -198,38 +287,60 @@ const SharepicGenerator = ({ showHeaderFooter = true, darkMode }) => {
         role="main"
         aria-label="Sharepic Generator"
       >
-        <BaseForm
-          title="Sharepic Grünerator"
-          onSubmit={handleSubmit}
-          onBack={handleBack}
-          loading={isLoading}
-          error={error}
-          generatedContent={generatedImageSrc}
-          useDownloadButton={currentStep === FORM_STEPS.RESULT}
-          showBackButton={currentStep > FORM_STEPS.INPUT}
-          submitButtonText={submitButtonText}
-          isImageModified={isImageModified}
-          generatedImageSrc={generatedImageSrc}
-          showGeneratePostButton={!!generatedImageSrc}
-          onGeneratePost={handleGeneratePost}
-          generatedPost={postContent}
+       <BaseForm
+    title={SHAREPIC_GENERATOR.TITLE}
+    onSubmit={handleFormSubmit}
+    onBack={handleBack}
+    loading={state.loading || generationLoading}
+    error={state.error || generationError}
+    generatedContent={state.generatedImageSrc}
+    useDownloadButton={state.currentStep === FORM_STEPS.RESULT}
+    showBackButton={state.currentStep > FORM_STEPS.INPUT}
+    submitButtonText={submitButtonText}
+    isSharepicGenerator={true}
+    onUnsplashSearch={handleUnsplashSearch}
+    currentStep={state.currentStep}
+    isLottieVisible={state.isLottieVisible}    
+    onUnsplashSelect={handleUnsplashSelect}
+    formErrors={errors}
+    isSubmitting={state.isSubmitting}
+    currentSubmittingStep={state.currentSubmittingStep}
+    credit={state.formData.credit}
+    onGeneratePost={handleGeneratePost}
+    generatePostLoading={generatePostLoading}
+    generatedPost={generatedPost}
+    fileUploadProps={{
+      loading: state.loading,
+      file: state.file,
+      handleChange: handleFileChange,
+      error: state.uploadError,
+      allowedTypes: SHAREPIC_GENERATOR.ALLOWED_FILE_TYPES,
+      selectedUnsplashImage: state.selectedImage,
+    }}
+    fontSize={state.formData.fontSize || SHAREPIC_GENERATOR.DEFAULT_FONT_SIZE}
+  balkenOffset={state.formData.balkenOffset || SHAREPIC_GENERATOR.DEFAULT_BALKEN_OFFSET}
+  colorScheme={state.formData.colorScheme || SHAREPIC_GENERATOR.DEFAULT_COLOR_SCHEME}
+  balkenGruppenOffset={state.formData.balkenGruppenOffset || [0, 0]}
+        sunflowerOffset={state.formData.sunflowerOffset || [0, 0]}
+        onControlChange={handleControlChange}
         >
-          {memoizedFormFields}
-          {currentStep === FORM_STEPS.RESULT && (
-            <ImageModificationForm
-              instruction={imageModificationInstruction}
-              setInstruction={setImageModificationInstruction}
-            />
-          )}
-        </BaseForm>
+    {memoizedFormFields}
+  </BaseForm>
       </div>
     </ErrorBoundary>
   );
-};
 
-SharepicGenerator.propTypes = {
+}
+
+SharepicGeneratorContent.propTypes = {
   showHeaderFooter: PropTypes.bool,
-  darkMode: PropTypes.bool.isRequired,
+  darkMode: PropTypes.bool,
 };
 
-export default SharepicGenerator;
+export default function SharepicGenerator(props) {
+  return (
+    <SharepicGeneratorProvider>
+      <SharepicGeneratorContent {...props} />
+    </SharepicGeneratorProvider>
+  );
+}

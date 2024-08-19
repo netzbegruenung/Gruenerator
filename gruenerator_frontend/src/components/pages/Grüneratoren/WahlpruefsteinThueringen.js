@@ -3,7 +3,6 @@ import PropTypes from 'prop-types';
 import { PiClipboardText, PiGear } from 'react-icons/pi';
 import '../../../assets/styles/common/variables.css';
 import '../../../assets/styles/common/global.css';
-import '../../../assets/styles/components/form.css';
 import '../../../assets/styles/components/button.css';
 import '../../../assets/styles/pages/baseform.css';
 import { handleCopyToClipboard, useDynamicTextSize } from '../../utils/commonFunctions';

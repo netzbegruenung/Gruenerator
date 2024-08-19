@@ -394,3 +394,11 @@
 {"level":"info","message":"GET *","timestamp":"2024-07-17T22:02:41.283Z"}
 {"level":"info","message":"HTTP Server running at http://localhost:3001","timestamp":"2024-07-17T22:02:41.285Z"}
 {"level":"info","message":"::1 - - [17/Jul/2024:22:03:05 +0000] \"POST /api/zitatsharepic HTTP/1.1\" 200 1678638 \"-\" \"curl/8.7.1\"","timestamp":"2024-07-17T22:03:05.962Z"}
+{"level":"info","message":"Server will run on port 3001","timestamp":"2024-07-30T17:34:50.892Z"}
+{"level":"info","message":"Middleware configured","timestamp":"2024-07-30T17:34:50.903Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-30T17:34:50.905Z"}
+{"level":"info","message":"Static file serving configured","timestamp":"2024-07-30T17:34:50.906Z"}
+{"level":"info","message":"Registered routes:","timestamp":"2024-07-30T17:34:50.916Z"}
+{"level":"info","message":"GET /","timestamp":"2024-07-30T17:34:50.917Z"}
+{"level":"info","message":"GET *","timestamp":"2024-07-30T17:34:50.918Z"}
+{"level":"info","message":"HTTP Server running at http://localhost:3001","timestamp":"2024-07-30T17:34:50.923Z"}
