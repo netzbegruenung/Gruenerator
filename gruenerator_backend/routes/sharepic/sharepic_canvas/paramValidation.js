@@ -4,24 +4,40 @@ const { isValidHexColor } = require('./utils');
 function validateParams(inputParams) {
   return {
     balkenGruppenOffset: inputParams.balkenGruppenOffset?.map((offset, index) => 
-      Math.max(params.MIN_BALKEN_GRUPPEN_OFFSET, Math.min(params.MAX_BALKEN_GRUPPEN_OFFSET, offset ?? params.DEFAULT_BALKEN_GRUPPEN_OFFSET[index]))) 
-      ?? params.DEFAULT_BALKEN_GRUPPEN_OFFSET,
-    fontSize: Math.max(params.MIN_FONT_SIZE, Math.min(params.MAX_FONT_SIZE, inputParams.fontSize ?? params.DEFAULT_FONT_SIZE)),
+      offset !== undefined
+        ? Math.max(params.MIN_BALKEN_GRUPPEN_OFFSET, Math.min(params.MAX_BALKEN_GRUPPEN_OFFSET, offset))
+        : params.DEFAULT_BALKEN_GRUPPEN_OFFSET[index]
+    ) ?? params.DEFAULT_BALKEN_GRUPPEN_OFFSET,
+
+    fontSize: Math.max(params.MIN_FONT_SIZE, Math.min(params.MAX_FONT_SIZE, parseInt(inputParams.fontSize) || params.DEFAULT_FONT_SIZE)),
+    
     colors: Array.isArray(inputParams.colors) && inputParams.colors.length === 3
       ? inputParams.colors.map((color, index) => ({
           background: isValidHexColor(color.background) ? color.background : params.DEFAULT_COLORS[index].background,
           text: isValidHexColor(color.text) ? color.text : params.DEFAULT_COLORS[index].text
         }))
       : params.DEFAULT_COLORS,
+
+      credit: typeof inputParams.credit === 'string' 
+      ? inputParams.credit.slice(0, params.MAX_CREDIT_LENGTH || 50).trim() 
+      : '',
+
     balkenOffset: inputParams.balkenOffset?.map((offset, index) => 
-      Math.max(params.MIN_BALKEN_OFFSET, Math.min(params.MAX_BALKEN_OFFSET, offset ?? params.DEFAULT_BALKEN_OFFSET[index]))) 
-      ?? params.DEFAULT_BALKEN_OFFSET,
+      offset !== undefined && offset !== null
+        ? Math.max(params.MIN_BALKEN_OFFSET, Math.min(params.MAX_BALKEN_OFFSET, offset))
+        : params.DEFAULT_BALKEN_OFFSET[index]
+    ) ?? params.DEFAULT_BALKEN_OFFSET,
+    
     sunflowerPosition: ['topLeft', 'topRight', 'bottomLeft', 'bottomRight'].includes(inputParams.sunflowerPosition)
       ? inputParams.sunflowerPosition
       : params.DEFAULT_SUNFLOWER_POSITION,
+
     sunflowerOffset: inputParams.sunflowerOffset?.map((offset, index) => 
-      Math.max(params.MIN_SUNFLOWER_OFFSET, Math.min(params.MAX_SUNFLOWER_OFFSET, offset ?? params.DEFAULT_SUNFLOWER_OFFSET[index]))) 
-      ?? params.DEFAULT_SUNFLOWER_OFFSET,
+      offset !== undefined
+        ? Math.max(params.MIN_SUNFLOWER_OFFSET, Math.min(params.MAX_SUNFLOWER_OFFSET, offset))
+        : params.DEFAULT_SUNFLOWER_OFFSET[index]
+    ) ?? params.DEFAULT_SUNFLOWER_OFFSET,
+
     text: Array.isArray(inputParams.text) && inputParams.text.length === 3
       ? inputParams.text
       : ['', '', ''],
