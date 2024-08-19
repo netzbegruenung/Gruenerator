@@ -2,7 +2,6 @@ import React from 'react';
 import { PiArrowDown, PiCaretRight } from 'react-icons/pi';
 import '../../assets/styles/common/variables.css';
 import '../../assets/styles/common/global.css';
-import '../../assets/styles/components/form.css';
 import '../../assets/styles/components/button.css';
 import '../../assets/styles/pages/Startseitenstyle.css';
 
