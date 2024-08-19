@@ -4,25 +4,34 @@ import PropTypes from 'prop-types';
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false };
+    this.state = { hasError: false, error: null, errorInfo: null };
   }
 
-  static getDerivedStateFromError() {
-    // Beachten Sie, dass wir den 'error' Parameter hier entfernt haben
-    return { hasError: true };
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
-    // Hier könnten Sie den Fehler an einen Logging-Service senden
+    this.setState({ errorInfo });
+    this.logErrorToService(error, errorInfo);
+  }
+
+  logErrorToService(error, errorInfo) {
+    console.error("Uncaught error:", error, errorInfo);
+    // Hier könnte ein Aufruf zu einem Fehlerprotokollierungsdienst erfolgen
   }
 
   render() {
     if (this.state.hasError) {
-      return this.props.fallback || (
-        <div role="alert">
-          <h2>Oops, etwas ist schiefgelaufen.</h2>
-          <p>Bitte versuchen Sie es später erneut oder kontaktieren Sie den Support.</p>
+      return (
+        <div className="error-boundary">
+          <h1>Oops, etwas ist schiefgelaufen.</h1>
+          <p>Wir entschuldigen uns für die Unannehmlichkeiten. Bitte versuchen Sie, die Seite neu zu laden.</p>
+          {this.props.fallback ? (
+            this.props.fallback(this.state.error, this.state.errorInfo)
+          ) : (
+            <button onClick={() => window.location.reload()}>Seite neu laden</button>
+          )}
         </div>
       );
     }
@@ -33,7 +42,7 @@ class ErrorBoundary extends React.Component {
 
 ErrorBoundary.propTypes = {
   children: PropTypes.node.isRequired,
-  fallback: PropTypes.node
+  fallback: PropTypes.func,
 };
 
 export default ErrorBoundary;

@@ -1,4 +1,3 @@
-/* Beispiel: footer.css */
 @import url('../common/variables.css');
 @import url('../common/global.css');
 
@@ -7,6 +6,7 @@
     background-color: var(--dunkelgruen);
     padding: 20px 0;
     color: #fff;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 .footer-container {
@@ -21,7 +21,7 @@
 .footer-left {
     display: flex;
     flex-direction: column;
-    width: 50%;
+    width: 70%;
 }
 
 .footer-logo a img {
@@ -33,13 +33,13 @@
 .footer-nav ul {
     list-style: none;
     display: flex;
-    flex-direction: row;
+    flex-wrap: wrap;
     margin: 0;
     padding: 0;
 }
 
 .footer-nav ul li {
-    margin: 0 10px;
+    margin: 0 10px 10px 0;
 }
 
 .footer-nav ul li a {
@@ -49,11 +49,18 @@
     text-decoration: none;
     font-size: 1em;
     padding: 5px 0;
-    white-space: nowrap;
+    white-space: normal;
 }
 
-.footer-nav ul li a:hover {
+.footer-nav ul li a:hover,
+.footer-nav ul li a:focus {
     text-decoration: underline;
+}
+
+/* Für Tastaturnavigation, fügen wir einen subtilen Fokusindikator hinzu */
+.footer-nav ul li a:focus-visible {
+    outline: 2px solid rgba(255, 255, 255, 0.5);
+    outline-offset: 2px;
 }
 
 .footer-bottom {
@@ -65,8 +72,8 @@
 .footer-right {
     display: flex;
     flex-direction: column;
-    justify-content: flex-end;
-    width: 50%;
+    justify-content: flex-start;
+    width: 30%;
     align-items: flex-end;
 }
 
@@ -75,20 +82,56 @@
     font-size: 1.5em;
     margin: 10px 0;
     text-decoration: none;
+    padding: 5px;
 }
 
-/* Adding subtle shadow to the footer */
-.footer {
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+.footer-social-icon:hover,
+.footer-social-icon:focus {
+color: var(--sand)}
+
+.footer-social-icon:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 2px;
 }
 
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+}
+
+/* Focus visibility */
+.user-is-tabbing *:focus {
+    outline: 3px solid #fff;
+    outline-offset: 3px;
+}
+
+.skip-link {
+    position: absolute;
+    top: -40px;
+    left: 0;
+    background: #000;
+    color: white;
+    padding: 8px;
+    z-index: 100;
+}
+
+.skip-link:focus {
+    top: 0;
+}
 /* Media Queries for responsive design */
 @media (max-width: 768px) {
     .footer-container {
         flex-direction: column;
         align-items: center;
-        padding-left: 10px;
-        padding-right: 10px;    }
+        padding: 20px;
+    }
 
     .footer-left,
     .footer-right {
@@ -97,13 +140,11 @@
     }
 
     .footer-logo a img {
-        margin: 0 auto;
+        margin: 0 auto 20px;
     }
 
     .footer-nav ul {
-    
-        flex-wrap: wrap;
-        
+        justify-content: center;
     }
 
     .footer-nav ul li {
@@ -112,17 +153,32 @@
 
     .footer-bottom {
         font-size: 0.8em;
-        padding-top: 0px;
-        margin-top: 0px;
+        padding-top: 20px;
+        margin-top: 20px;
+        border-top: 1px solid rgba(255, 255, 255, 0.2);
+    }
 
-    } 
     .footer-right {
-        margin-top: 10px;
+        margin-top: 20px;
         flex-direction: row;
         gap: 20px;
         justify-content: center;
     }
+
     .footer-nav ul li a {
-        font-size: 0.8em;
+        font-size: 0.9em;
+    }
+}
+
+@media (max-width: 480px) {
+    .footer-nav ul li {
+        width: 100%;
+        text-align: center;
+        margin-bottom: 10px;
+    }
+
+    .footer-nav ul li a {
+        display: block;
+        padding: 5px;
     }
 }
