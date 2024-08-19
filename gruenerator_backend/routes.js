@@ -11,8 +11,8 @@ const sharepicDreizeilenClaudeRoute = require('./routes/sharepic/sharepic_claude
 const zitatSharepicClaudeRoute = require('./routes/sharepic/sharepic_claude/zitat_claude');
 const aiImageModificationRouter = require('./routes/sharepic/sharepic_canvas/aiImageModification');
 const imageUploadRouter = require('./routes/sharepic/sharepic_canvas/imageUploadRouter');
-
-
+const processTextRouter = require('./routes/sharepic/sharepic_canvas/processTextRouter');
+const unsplashRoute  = require('./routes/unsplashApi');
 
 function setupRoutes(app) {
   app.use('/api/claude', claudeRoute);
@@ -27,9 +27,9 @@ function setupRoutes(app) {
   app.use('/api/dreizeilen_claude', sharepicDreizeilenClaudeRoute); // Neue Route hinzugefügt
   app.use('/api/zitat_claude', zitatSharepicClaudeRoute); // Neue Route hinzugefügt
   app.use('/api/ai-image-modification', aiImageModificationRouter);
-  app.use('/api/upload', imageUploadRouter); // Neue Route für Bildupload
-
-
+  app.use('/api/imageupload', imageUploadRouter); // Neue Route für Bildupload
+  app.use('/api/processText', processTextRouter);
+  app.use('/api/unsplash', unsplashRoute);
 
 }
 

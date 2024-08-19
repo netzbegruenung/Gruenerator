@@ -1,28 +1,20 @@
 import React from 'react';
-import { FORM_STEPS, SHAREPIC_TYPES } from '../../utils/constants';
-import FileUpload from '../../utils/FileUpload';
+import { FORM_STEPS } from '../../utils/constants';
 
 export const useSharepicRendering = () => {
-  const renderFormFields = (currentStep, formData, handleChange, handleFileChange, formErrors = {}, file, uploadError, isLoading) => {
+  const renderFormFields = (currentStep, formData, handleChange, formErrors = {}, defaultSharepicType) => {
     let fields = null;
 
     if (currentStep === FORM_STEPS.INPUT) {
       fields = (
         <>
-          <h3><label htmlFor="type">Sharepic-Typ</label></h3>
-          <select 
+          <input
+            type="hidden"
             id="type"
             name="type"
-            value={formData.type || ''} 
-            onChange={handleChange}
-            className={formErrors.type ? 'error-input' : ''}
-          >
-            <option value="">Bitte wählen</option>
-            <option value={SHAREPIC_TYPES.QUOTE}>{SHAREPIC_TYPES.QUOTE}</option>
-            <option value={SHAREPIC_TYPES.THREE_LINES}>{SHAREPIC_TYPES.THREE_LINES}</option>
-          </select>
-          {formErrors.type && <div className="error-message">{formErrors.type}</div>}
-
+            value={defaultSharepicType}
+      />
+          
           <h3><label htmlFor="thema">Thema</label></h3>
           <input
             id="thema"
@@ -34,7 +26,7 @@ export const useSharepicRendering = () => {
             className={formErrors.thema ? 'error-input' : ''}
           />
           {formErrors.thema && <div className="error-message">{formErrors.thema}</div>}
-
+          
           <h3><label htmlFor="details">Details</label></h3>
           <textarea
             id="details"
@@ -50,32 +42,7 @@ export const useSharepicRendering = () => {
     }
 
     if (currentStep === FORM_STEPS.PREVIEW || currentStep === FORM_STEPS.RESULT) {
-      fields = formData.type === SHAREPIC_TYPES.QUOTE ? (
-        <>
-          <h3><label htmlFor="quote">Zitat</label></h3>
-          <textarea
-            id="quote"
-            name="quote"
-            placeholder="Gib das Zitat ein"
-            value={formData.quote || ''}
-            onChange={handleChange}
-            className={formErrors.quote ? 'error-input' : ''}
-          />
-          {formErrors.quote && <div className="error-message">{formErrors.quote}</div>}
-
-          <h3><label htmlFor="name">Name</label></h3>
-          <input
-            id="name"
-            type="text"
-            name="name"
-            placeholder="Gib den Namen ein"
-            value={formData.name || ''}
-            onChange={handleChange}
-            className={formErrors.name ? 'error-input' : ''}
-          />
-          {formErrors.name && <div className="error-message">{formErrors.name}</div>}
-        </>
-      ) : (
+      fields = (
         <>
           <h3><label htmlFor="line1">Zeile 1</label></h3>
           <input
@@ -111,22 +78,7 @@ export const useSharepicRendering = () => {
           {formErrors.line3 && <div className="error-message">{formErrors.line3}</div>}
         </>
       );
-
-      // Füge FileUpload am Ende hinzu
-      fields = (
-        <>
-          {fields}
-          <FileUpload
-            loading={isLoading}
-            file={file}
-            handleChange={handleFileChange}
-            error={uploadError}
-            allowedTypes={['image/*']}
-          />
-        </>
-      );
     }
-
     return fields;
   };
 
