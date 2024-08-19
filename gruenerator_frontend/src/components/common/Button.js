@@ -1,18 +1,34 @@
-// Button.js
 import React from 'react';
 import PropTypes from 'prop-types';
+import Lottie from 'react-lottie-player';
+
+// Importieren Sie die Lottie-Animation und loggen Sie den Import
+let lottie_checkmark;
+try {
+  lottie_checkmark = require('../../assets/lotties/lottie_checkmark.json');
+  console.log('Lottie animation imported successfully');
+} catch (error) {
+  console.error('Failed to import Lottie animation:', error);
+}
 
 const Button = ({ onClick, loading, success, text, icon, className, ariaLabel }) => (
-  <button 
-    onClick={onClick} 
-    className={`button ${className} ${loading ? 'loading' : ''}`} 
+  <button
+    onClick={onClick}
+    className={`button ${className} ${loading ? 'loading' : ''}`}
     aria-busy={loading}
     aria-label={ariaLabel}
   >
-    {icon && <span className={`icon ${loading ? 'loading-icon' : ''}`}>{icon}</span>}
-    {loading ? '' : (success ? <svg className="checkmark" viewBox="0 0 24 24">
-      <path d="M20 6L9 17l-5-5" />
-    </svg> : text)}
+    {success && lottie_checkmark ? (
+      <Lottie
+        animationData={lottie_checkmark}
+        play
+        loop={false}
+        style={{ width: 35, height: 35 }}
+      />
+    ) : (
+      icon && <span className={`icon ${loading ? 'loading-icon' : ''}`}>{icon}</span>
+    )}
+    {text}
   </button>
 );
 

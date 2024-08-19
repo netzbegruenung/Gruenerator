@@ -4,12 +4,12 @@
 
 :root {
     /* Basisfarben */
-    --tanne: #085f36;
-    --klee: #137508;
-    --grashalm: #b8db64;
-    --sand: #f5f1e9;
-    --himmel: #11a8db;
-    --sonne: #ffeb00;
+    --tanne: #005538;
+    --klee: #008939;
+    --grashalm: #8ABD24;
+    --sand: #F5F1E9;
+    --himmel: #0BA1DD;
+    --sonne: #FFF17A;
     --weiß: #ffffff;
     --dunkelgruen: #005437;
     --backgroundgruen: #f3faf6;
@@ -37,7 +37,7 @@
     --font-color-h: var(--sand);
     --font-color-h3: var(--sand);
     --link-color: lightblue;
-    --button-background-color: #555;
+    --button-background-color: var(--tanne);
     --button-text-color: white;
 }
 
@@ -51,7 +51,7 @@
         --font-color-h: var(--sand);
         --font-color-h3: var(--sand);
         --link-color: lightblue;
-        --button-background-color: #555;
+        --button-background-color: # var(--tanne);
         --button-text-color: white;
     }
 }

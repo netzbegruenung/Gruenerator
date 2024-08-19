@@ -9,7 +9,24 @@ const { checkFiles, registerFonts } = require('./fileManagement');
 const { validateParams } = require('./paramValidation');
 
 const router = express.Router();
-const upload = multer({ dest: 'uploads/' });
+const upload = multer({ storage: multer.memoryStorage() });
+
+async function processText(textData) {
+  console.log('processText aufgerufen mit:', textData);
+
+  const { line1, line2, line3 } = textData;
+
+  if (!line1 && !line2 && !line3) {
+    throw new Error('Mindestens eine Textzeile muss angegeben werden');
+  }
+
+  const processedTextData = [line1, line2, line3].map((line, index) => ({
+    text: line,
+    // Hier können Sie weitere Verarbeitungsschritte hinzufügen, z.B. Zeilenumbrüche, Formatierung, etc.
+  }));
+
+  return processedTextData;
+}
 
 async function fileExists(filePath) {
   try {
@@ -32,21 +49,33 @@ async function testLoadImage(filePath) {
   }
 }
 
-async function addTextToImage(imagePath, textLines, modParams) {
-  const isUploadedImage = imagePath.startsWith(TEMP_UPLOAD_DIR);
-  const mainImagePath = isUploadedImage ? imagePath : TESTBILD_PATH;
+async function addTextToImage(imageBuffer, textLines, modParams) {
+  console.log('addTextToImage aufgerufen mit Buffer der Größe:', imageBuffer ? imageBuffer.length : 'kein Buffer');
 
   try {
     await checkFiles();
     registerFonts();
 
-    console.log('Loading main image from:', mainImagePath);
-    const image = await loadImage(mainImagePath);
-    
-    console.log('Loading sunflower image...');
-    const sunflowerImage = await loadImage(SUNFLOWER_PATH);
+    let image;
+    if (imageBuffer) {
+      console.log('Lade hochgeladenes Bild aus Buffer');
+      image = await loadImage(Buffer.from(imageBuffer));
+    } else {
+      console.log('Kein Bild-Buffer vorhanden, lade Standard-Testbild');
+      const testbildBuffer = await fs.readFile(TESTBILD_PATH);
+      image = await loadImage(testbildBuffer);
+    }
+    console.log('Hauptbild geladen. Dimensionen:', { width: image.width, height: image.height });
 
-    // Draw background image
+    console.log('Lade Sonnenblumenbild...');
+    const sunflowerBuffer = await fs.readFile(SUNFLOWER_PATH);
+    const sunflowerImage = await loadImage(sunflowerBuffer);
+    console.log('Sonnenblumenbild geladen');
+
+    const canvas = createCanvas(params.OUTPUT_WIDTH, params.OUTPUT_HEIGHT);
+    const ctx = canvas.getContext('2d');
+
+    // Hintergrundbild zeichnen
     const { width: canvasWidth, height: canvasHeight } = canvas;
     const imageAspectRatio = image.width / image.height;
     const canvasAspectRatio = canvasWidth / canvasHeight;
@@ -68,7 +97,7 @@ async function addTextToImage(imagePath, textLines, modParams) {
     ctx.drawImage(image, sx, sy, sWidth, sHeight, 0, 0, canvasWidth, canvasHeight);
     console.log('Background image drawn.');
 
-    const { balkenGruppenOffset, fontSize, colors, balkenOffset, sunflowerOffset, sunflowerPosition } = modParams;
+    const { balkenGruppenOffset, fontSize, colors, balkenOffset, sunflowerOffset, sunflowerPosition, credit } = modParams;
     ctx.font = `${fontSize}px GrueneType`;
     ctx.textBaseline = 'middle';
     ctx.textAlign = 'center';
@@ -80,7 +109,7 @@ async function addTextToImage(imagePath, textLines, modParams) {
     startY = Math.max(startY, 100);
 
     const balkenPositions = textLines.map((line, index) => {
-      const textWidth = ctx.measureText(line).width;
+      const textWidth = ctx.measureText(line.text).width;
       const padding = fontSize * params.TEXT_PADDING_FACTOR;
       const rectWidth = Math.min(textWidth + padding * 2 + 20, canvasWidth - 20);
       const x = Math.max(10, Math.min(canvasWidth - rectWidth - 10, 
@@ -173,11 +202,28 @@ async function addTextToImage(imagePath, textLines, modParams) {
       ctx.fillStyle = text;
       const textX = x + width / 2;
       const textY = y + height / 2;
-      ctx.fillText(textLines[index], textX, textY);
+      ctx.fillText(textLines[index].text, textX, textY);
 
       console.log(`Balken ${index} drawn at: x=${x}, y=${y}, width=${width}, height=${height}`);
     });
    
+    if (credit) {
+      console.log('Zeichne Credit-Text:', credit);
+      ctx.font = '60px GrueneType'; // Feste Schriftgröße für Credit
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      
+      const creditY = canvasHeight - 40; // 20px vom unteren Ran
+      
+      // Text zeichnen
+      ctx.fillStyle = '#FFFFFF'; // Weiße Schriftfarbe für Credit
+      ctx.fillText(credit, canvasWidth / 2, creditY);
+      
+      console.log('Credit-Text gezeichnet an Position:', { x: canvasWidth / 2, y: creditY });
+    } else {
+      console.log('Kein Credit-Text vorhanden, wird nicht gezeichnet');
+    }
+
     return canvas.toBuffer('image/png');
   } catch (err) {
     console.error('Fehler beim Erstellen des Bildes:', err);
@@ -199,12 +245,12 @@ router.post('/', upload.single('image'), async (req, res) => {
       colors_2_background, colors_2_text,
       balkenOffset_0, balkenOffset_1, balkenOffset_2,
       line1, line2, line3,
-      text_0, text_1, text_2,
       sunflower_offset_x, sunflower_offset_y,
-      sunflowerPosition
+      sunflowerPosition,
+      credit // Neuer Credit-Parameter
     } = req.body;
 
-    const imagePath = req.file ? req.file.path : TESTBILD_PATH;
+    const uploadedImageBuffer = req.file ? req.file.buffer : null;
 
     console.log('Incoming color values:', {
       colors_0_background, colors_0_text,
@@ -215,7 +261,7 @@ router.post('/', upload.single('image'), async (req, res) => {
     const modParams = {
       balkenGruppenOffset: [parseFloat(balkenGruppe_offset_x) || 0, parseFloat(balkenGruppe_offset_y) || 0],
       fontSize: parseInt(fontSize, 10) || params.DEFAULT_FONT_SIZE,
-      colors: [
+            colors: [
         {
           background: isValidHexColor(colors_0_background) ? colors_0_background : getDefaultColor('background', 0),
           text: isValidHexColor(colors_0_text) ? colors_0_text : getDefaultColor('text', 0)
@@ -230,16 +276,17 @@ router.post('/', upload.single('image'), async (req, res) => {
         }
       ],
       balkenOffset: [
-        parseFloat(balkenOffset_0) || params.DEFAULT_BALKEN_OFFSET[0],
-        parseFloat(balkenOffset_1) || params.DEFAULT_BALKEN_OFFSET[1],
-        parseFloat(balkenOffset_2) || params.DEFAULT_BALKEN_OFFSET[2]
+        balkenOffset_0 !== undefined ? parseFloat(balkenOffset_0) : params.DEFAULT_BALKEN_OFFSET[0],
+        balkenOffset_1 !== undefined ? parseFloat(balkenOffset_1) : params.DEFAULT_BALKEN_OFFSET[1],
+        balkenOffset_2 !== undefined ? parseFloat(balkenOffset_2) : params.DEFAULT_BALKEN_OFFSET[2]
       ],
-      text: [text_0 || line1 || '', text_1 || line2 || '', text_2 || line3 || ''],
       sunflowerOffset: [
         parseFloat(sunflower_offset_x) || 0,
         parseFloat(sunflower_offset_y) || 0
       ],
-      sunflowerPosition: sunflowerPosition || params.DEFAULT_SUNFLOWER_POSITION
+      sunflowerPosition: sunflowerPosition || params.DEFAULT_SUNFLOWER_POSITION,
+      credit: credit || '' // Credit-Parameter hinzufügen
+
     };
 
     console.log('Parsed modParams:', modParams);
@@ -250,19 +297,18 @@ router.post('/', upload.single('image'), async (req, res) => {
     const validatedParams = validateParams(modParams);
     console.log('Validated params:', validatedParams);
 
-    const imageBuffer = await addTextToImage(imagePath, validatedParams.text, validatedParams);
-    const base64Image = `data:image/png;base64,${imageBuffer.toString('base64')}`;
+    const processedText = await processText({ line1, line2, line3 });
+    console.log('Processed text:', processedText);
+
+    const generatedImageBuffer = await addTextToImage(uploadedImageBuffer, processedText, validatedParams);
+    const base64Image = `data:image/png;base64,${generatedImageBuffer.toString('base64')}`;
 
     console.log('Image generated successfully and converted to Base64');
 
     res.json({ image: base64Image });
   } catch (err) {
     console.error('Fehler bei der Anfrage:', err);
-    res.status(500).send('Fehler beim Erstellen des Bildes: ' + err.message);
-  } finally {
-    if (req.file) {
-      await fs.unlink(req.file.path).catch(err => console.error('Fehler beim Löschen der temporären Upload-Datei:', err));
-    }
+    res.status(500).json({ error: 'Fehler beim Erstellen des Bildes: ' + err.message });
   }
 });
 
