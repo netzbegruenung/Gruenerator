@@ -14,24 +14,28 @@ const useApiSubmit = (endpoint) => {
       console.log(`[useApiSubmit] Submitting to ${endpoint}:`, formData);
       const response = await processText(endpoint, formData);
       console.log(`[useApiSubmit] Received response from ${endpoint}:`, response);
-      
-      if (response && response.content) {
+
+      if (response && typeof response === 'object') {
         setSuccess(true);
-        setTimeout(() => setSuccess(false), 2000);
-        return response.content;
+        // Extrahieren Sie den 'content' aus der Antwort, falls vorhanden
+        return response.content || response;
       } else {
         throw new Error('Unerwartete Antwortstruktur von der API');
       }
     } catch (error) {
       console.error(`[useApiSubmit] Error processing ${endpoint}:`, error);
       setError('Es gab einen Fehler. Bitte versuchen Sie es später erneut.');
-      throw error; // Werfen Sie den Fehler, damit er in der aufrufenden Komponente behandelt werden kann
+      throw error;
     } finally {
       setLoading(false);
     }
   };
 
-  return { submitForm, loading, success, error };
+  const resetSuccess = () => {
+    setSuccess(false);
+  };
+
+  return { submitForm, loading, success, resetSuccess, error };
 };
 
 export default useApiSubmit;

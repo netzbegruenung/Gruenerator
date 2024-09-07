@@ -37,19 +37,22 @@ export const handleCopyToClipboard = (text) => {
 // Hook to dynamically adjust text size based on length
 export const useDynamicTextSize = (text, baseSize = 1.2, minSize = 0.8, thresholds = [1000, 2000]) => {
   const [textSize, setTextSize] = useState(`${baseSize}em`);
-
+  
   useEffect(() => {
+    if (text === undefined || text === null) {
+      console.log('Warning: text is undefined or null in useDynamicTextSize');
+      return;
+    }
+    
     let newSize = baseSize;
     if (text.length > thresholds[1]) {
       newSize = minSize;
     } else if (text.length > thresholds[0]) {
       newSize = (baseSize - 0.2).toFixed(1);
-    } else {
-      newSize = baseSize;
     }
     setTextSize(`${newSize}em`);
   }, [text, baseSize, minSize, thresholds]);
-
+  
   return textSize;
 };
 

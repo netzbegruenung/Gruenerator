@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { HiCog } from "react-icons/hi";
-import Button from './Button';
+import SubmitButton from './SubmitButton';
 import CopyButton from './CopyButton';
 import useAccessibility from '../hooks/useAccessibility';
 import { addAriaLabelsToElements, enhanceFocusVisibility } from '../utils/accessibilityHelpers';
@@ -82,8 +82,8 @@ const BaseForm = ({
                 </div>
               )}
               <div className="button-container">
-                <Button
-                  type="submit"
+                <SubmitButton
+                  onClick={onSubmit}
                   loading={loading}
                   success={success}
                   text={submitButtonText}
@@ -99,19 +99,14 @@ const BaseForm = ({
         <div className="display-container">
           <h3>{title}</h3>
           <div className="display-content" style={{ fontSize: textSize }}>
-            <div>
+            <div className="generated-content-wrapper">
               {generatedContent}
-              {generatedContent && <CopyButton content={generatedContent} />}
             </div>
             {generatedPost && (
               <div className="generated-post-container">
                 <p>{generatedPost}</p>
                 <div className="button-container">
-                  <CopyButton 
-                    content={generatedPost} 
-                    text="In die Zwischenablage kopieren"
-                  />
-                  <Button
+                  <SubmitButton
                     onClick={handleGeneratePost}
                     loading={generatePostLoading}
                     text={BUTTON_LABELS.REGENERATE_TEXT}
@@ -123,6 +118,11 @@ const BaseForm = ({
               </div>
             )}
           </div>
+          {generatedContent && (
+            <div className="copy-button-container">
+              <CopyButton content={generatedContent} />
+            </div>
+          )}
         </div>
       </div>
     </div>
