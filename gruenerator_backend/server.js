@@ -53,6 +53,12 @@ const corsOptions = {
   optionsSuccessStatus: 204
 };
 
+app.use(cors(corsOptions));
+
+// Speziell für Preflight-Anfragen (OPTIONS)
+app.options('*', cors(corsOptions));
+
+
 // Security middleware
 //app.use(helmet());
 //app.use(rateLimit({

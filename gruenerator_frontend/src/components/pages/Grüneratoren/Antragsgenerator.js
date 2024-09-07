@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import PropTypes from 'prop-types';
 import '../../../assets/styles/common/variables.css';
 import '../../../assets/styles/common/global.css';
@@ -33,7 +33,7 @@ const Antragsgenerator = ({ showHeaderFooter = true }) => {
   const textSize = useDynamicTextSize(formData.antrag, 1.2, 0.8, [1000, 2000]);
   const { submitForm } = useApiSubmit('/claude');
 
-  const handleSubmit = async () => {
+  const handleSubmit = useCallback(async () => {
     setLoading(true);
     setError('');
     setSuccess(false);
@@ -43,13 +43,15 @@ const Antragsgenerator = ({ showHeaderFooter = true }) => {
       if (content) {
         setFormData(prevState => ({ ...prevState, antrag: content }));
         setSuccess(true);
+        // Reset success after 3 seconds to match SubmitButton animation duration
+        setTimeout(() => setSuccess(false), 3000);
       }
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  };
+  }, [formData, setLoading, setError, setSuccess, setFormData, submitForm]);
 
   return (
     <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>

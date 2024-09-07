@@ -2,12 +2,12 @@ import React, { useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Home from './components/pages/Home';
-import Antragsgenerator from './components/pages/Grüneratoren/Antragsgenerator';
+import Antrag from './components/pages/Grüneratoren/Antragsgenerator';
 import Pressemitteilung from './components/pages/Grüneratoren/Pressemitteilung';
 import SocialMediaGenerator from './components/pages/Grüneratoren/SocialMediaGenerator';
 import Sharepicgenerator from './components/pages/Grüneratoren/Sharepicgenerator'; // Neue Komponente hinzugefügt
 import Webbaukasten from './components/pages/Webbaukasten';
-import Antragsversteher from './components/pages/Grüneratoren/Antragsversteher';
+import Antragscheck from './components/pages/Grüneratoren/Antragsversteher';
 import WahlpruefsteinThueringen from './components/pages/Grüneratoren/WahlpruefsteinThueringen';
 import Redengenerator from './components/pages/Grüneratoren/Redengenerator';
 import Datenschutz from './components/pages/Impressum_Datenschutz_Terms/Datenschutz';
@@ -51,11 +51,11 @@ function App() {
 
   const routesWithHeaderFooter = [
     '/',
-    '/antragsgenerator',
+    '/antrag',
     '/pressemitteilung',
     '/socialmedia',
     '/webbaukasten',
-    '/antragsversteher',
+    '/antragscheck',
     '/wahlpruefsteinthueringen',
     '/rede',
     '/datenschutz',
@@ -90,11 +90,11 @@ function App() {
           </SharepicGeneratorProvider>
         } />
 
-        <Route path="/antragsgenerator-no-header-footer" element={<Antragsgenerator showHeaderFooter={false} darkMode={darkMode} />} />
+        <Route path="/antrag-no-header-footer" element={<Antrag showHeaderFooter={false} darkMode={darkMode} />} />
         <Route path="/pressemitteilung-no-header-footer" element={<Pressemitteilung showHeaderFooter={false} darkMode={darkMode} />} />
         <Route path="/socialmedia-no-header-footer" element={<SocialMediaGenerator showHeaderFooter={false} darkMode={darkMode} />} />
         <Route path="/rede-no-header-footer" element={<Redengenerator ShowHeaderFooter={false} darkMode={darkMode} />} />
-        <Route path="/antragsversteher-no-header-footer" element={<Antragsversteher showHeaderFooter={false} darkMode={darkMode} />} />
+        <Route path="/antragscheck-no-header-footer" element={<Antragscheck showHeaderFooter={false} darkMode={darkMode} />} />
         <Route path="/sharepicgenerator-no-header-footer" element={
           <SharepicGeneratorProvider>
             <Sharepicgenerator showHeaderFooter={false} darkMode={darkMode} />
@@ -109,8 +109,8 @@ const RouteComponent = ({ path, darkMode }) => {
   switch (path) {
     case '/':
       return <Home darkMode={darkMode} />;
-    case '/antragsgenerator':
-      return <Antragsgenerator showHeaderFooter={true} darkMode={darkMode} />;
+    case '/antrag':
+      return <Antrag showHeaderFooter={true} darkMode={darkMode} />;
     case '/pressemitteilung':
       return <Pressemitteilung showHeaderFooter={true} darkMode={darkMode} />;
     case '/socialmedia':
@@ -119,8 +119,8 @@ const RouteComponent = ({ path, darkMode }) => {
       return <Sharepicgenerator showHeaderFooter={true} darkMode={darkMode} />;
     case '/webbaukasten':
       return <Webbaukasten darkMode={darkMode} />;
-    case '/antragsversteher':
-      return <Antragsversteher darkMode={darkMode} />;
+    case '/antragscheck':
+      return <Antragscheck darkMode={darkMode} />;
     case '/wahlpruefsteinthueringen':
       return <WahlpruefsteinThueringen darkMode={darkMode} />;
     case '/rede':

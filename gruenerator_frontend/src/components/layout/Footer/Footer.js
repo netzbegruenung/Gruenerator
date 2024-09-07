@@ -22,7 +22,7 @@ const Footer = () => {
             { element: skipToMainContentRef.current, label: 'Zum Hauptinhalt springen' },
             { element: footerRef.current.querySelector('.footer-logo a'), label: 'Grünerator Homepage' },
             { element: footerRef.current.querySelector('a[href="/pressemitteilung"]'), label: 'Pressemitteilung Seite' },
-            { element: footerRef.current.querySelector('a[href="/antragsgenerator"]'), label: 'Anträge Seite' },
+            { element: footerRef.current.querySelector('a[href="/antrag"]'), label: 'Anträge Seite' },
             { element: footerRef.current.querySelector('a[href="/socialmedia"]'), label: 'Social Media Seite' },
             { element: footerRef.current.querySelector('a[href="/rede"]'), label: 'Politische Rede Seite' },
             { element: footerRef.current.querySelector('a[href="/webbaukasten"]'), label: 'Webbaukasten'},
@@ -66,7 +66,7 @@ const Footer = () => {
                     <nav className="footer-nav" aria-label="Footer Navigation">
                         <ul>
                             <li><Link to="/pressemitteilung" onClick={() => announce('Navigation zur Pressemitteilung Seite')}>Pressemitteilung</Link></li>
-                            <li><Link to="/antragsgenerator" onClick={() => announce('Navigation zur Anträge Seite')}>Anträge</Link></li>
+                            <li><Link to="/antrag" onClick={() => announce('Navigation zur Anträge Seite')}>Anträge</Link></li>
                             <li><Link to="/socialmedia" onClick={() => announce('Navigation zur Social Media Seite')}>Social Media</Link></li>
                             <li><Link to="/rede" onClick={() => announce('Navigation zur Politische Rede Seite')}>Politische Rede</Link></li>
                             <li><Link to="/webbaukasten" onClick={() => announce('Navigation zur Websitegenerator Seite')}>Website</Link></li>

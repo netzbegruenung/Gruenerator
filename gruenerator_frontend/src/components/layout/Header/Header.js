@@ -1,6 +1,7 @@
+//header.js
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { PiFileText, PiNewspaper, PiChatsCircle, PiDeviceMobile, PiCaretDown, PiFile, PiGlobe, PiLink, PiMicrophone, PiSun, PiMoon } from 'react-icons/pi';
+import { PiFileText, PiNewspaper, PiChatsCircle, PiCaretDown, PiMicrophone, PiSun, PiMoon } from 'react-icons/pi';
 import '../../../assets/styles/common/variables.css';
 import '../../../assets/styles/common/global.css';
 import '../../../assets/styles/components/header.css';
@@ -89,7 +90,7 @@ const Header = () => {
                                 Grüneratoren <PiCaretDown className={activeDropdown === 'grueneratoren' ? 'open' : ''} aria-hidden="true" />
                             </span>
                             <ul className={`header-dropdown-content ${activeDropdown === 'grueneratoren' ? 'show' : ''}`} aria-label="Grüneratoren Untermenü">
-                                <li><Link to="/antragsgenerator" onClick={() => handleLinkClick('/antragsgenerator', 'Anträge')}><PiFileText aria-hidden="true" /> Anträge</Link></li>
+                                <li><Link to="/antrag" onClick={() => handleLinkClick('/antragsgenerator', 'Anträge')}><PiFileText aria-hidden="true" /> Anträge</Link></li>
                                 <li><Link to="/pressemitteilung" onClick={() => handleLinkClick('/pressemitteilung', 'Pressemitteilungen')}><PiNewspaper aria-hidden="true" /> Pressemitteilungen</Link></li>
                                 <li><Link to="/socialmedia" onClick={() => handleLinkClick('/socialmedia', 'Social Media')}><PiChatsCircle aria-hidden="true" /> Social Media</Link></li>
                                 <li><Link to="/rede" onClick={() => handleLinkClick('/rede', 'Politische Rede')}><PiMicrophone aria-hidden="true" /> Politische Rede</Link></li>
@@ -107,26 +108,11 @@ const Header = () => {
                                 GPTs für ChatGPT <PiCaretDown className={activeDropdown === 'gpts' ? 'open' : ''} aria-hidden="true" />
                             </span>
                             <ul className={`header-dropdown-content ${activeDropdown === 'gpts' ? 'show' : ''}`} aria-label="GPTs Untermenü">
-                                <li><a href="https://chat.openai.com/g/g-Xd3HrGped-wahlprufstein-grunerator" target="_blank" rel="noopener noreferrer" onClick={() => announce('Öffne externen Link: Wahlprüfstein')}><PiFile aria-hidden="true" /> Wahlprüfstein</a></li>
-                                <li><a href="https://chat.openai.com/g/g-ZZwx8kZS3-grunerator-social-media" target="_blank" rel="noopener noreferrer" onClick={() => announce('Öffne externen Link: Social Media')}><PiGlobe aria-hidden="true" /> Social Media</a></li>
+                                <li><a href="https://chat.openai.com/g/g-ZZwx8kZS3-grunerator-social-media" target="_blank" rel="noopener noreferrer" onClick={() => announce('Öffne externen Link: Social Media')}><PiChatsCircle aria-hidden="true" /> Social Media</a></li>
+                                <li><a href="https://chatgpt.com/g/g-Npcb04iH7-grunerator-pressemitteilungen " target="_blank" rel="noopener noreferrer" onClick={() => announce('Öffne externen Link: Pressemitteilung')}><PiNewspaper aria-hidden="true" /> Pressemitteilung</a></li>
                             </ul>
                         </li>
-                        <li className="header-dropdown" 
-                            onMouseEnter={() => handleMouseEnter('gruneratorWeb')} 
-                            onMouseLeave={handleMouseLeave}
-                            onKeyDown={(e) => handleKeyDown(e, 'gruneratorWeb')}
-                            tabIndex="0"
-                            aria-haspopup="true"
-                            aria-expanded={activeDropdown === 'gruneratorWeb'}
-                        >
-                            <span>
-                                Grünerator Web <PiCaretDown className={activeDropdown === 'gruneratorWeb' ? 'open' : ''} aria-hidden="true" />
-                            </span>
-                            <ul className={`header-dropdown-content ${activeDropdown === 'gruneratorWeb' ? 'show' : ''}`} aria-label="Grünerator Web Untermenü">
-                                <li><Link to="/webbaukasten" onClick={() => handleLinkClick('/webbaukasten', 'Webbaukasten')}><PiDeviceMobile aria-hidden="true" /> Webbaukasten</Link></li>
-                                <li><a href="https://person.webbegruenung.de" target="_blank" rel="noopener noreferrer" onClick={() => announce('Öffne externen Link: Demo-Seite')}><PiLink aria-hidden="true" /> Demo-Seite</a></li>
-                            </ul>
-                        </li>
+
                     </ul>
                 </nav>
                 <NavMenu open={menuActive} onClose={handleNavMenuClose} />

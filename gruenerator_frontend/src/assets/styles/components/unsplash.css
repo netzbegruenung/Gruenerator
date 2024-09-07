@@ -145,53 +145,6 @@
   margin-top: 4px;
 }
 
-/* Lottie-Animation und Übergänge */
-.lottie-container {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: opacity 0.5s ease-in-out;
-}
-
-.lottie-wrapper,
-.image-preview {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  transition: opacity var(--transition-duration) var(--transition-timing),
-              transform var(--transition-duration) var(--transition-timing),
-              clip-path var(--transition-duration) var(--transition-timing);
-  will-change: opacity, transform, clip-path;
-}
-
-.lottie-animation {
-  width: 100%;
-  height: 100%;
-}
-
-.lottie-wrapper.show,
-.image-preview.hide {
-  opacity: 1;
-  transform: scale(1);
-  clip-path: circle(100% at center);
-  z-index: 1;
-}
-
-.lottie-wrapper.hide,
-.image-preview.show {
-  opacity: 0;
-  transform: scale(0.95);
-  clip-path: circle(0% at center);
-  z-index: 0;
-}
-
 @media (max-width: 768px) {
   .image-modification-form {
     padding: 10px;

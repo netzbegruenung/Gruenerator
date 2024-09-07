@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { HiCog, HiChevronDown, HiChevronUp } from "react-icons/hi";
-import Button from './Button';
+import Button from './SubmitButton';
 import DownloadButton from './DownloadButton';
 import GeneratePostButton from './GeneratePostButton';
 import FormErrors from './FormErrors';
