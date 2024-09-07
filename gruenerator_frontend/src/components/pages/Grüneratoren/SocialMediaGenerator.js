@@ -1,38 +1,66 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import PropTypes from 'prop-types';
-import '../../../assets/styles/common/variables.css';
-import '../../../assets/styles/common/global.css';
-import '../../../assets/styles/components/button.css';
-import '../../../assets/styles/pages/baseform.css';
+import BaseForm from '../../common/BaseForm_social';
+import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../utils/constants';
 import { useDynamicTextSize } from '../../utils/commonFunctions';
 import useApiSubmit from '../../hooks/useApiSubmit';
-import BaseForm from '../../common/BaseForm';
-import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../utils/constants';
 
 const SocialMediaGenerator = ({ showHeaderFooter = true }) => {
   const [thema, setThema] = useState('');
   const [details, setDetails] = useState('');
-  const [socialMediaPost, setSocialMediaPost] = useState('');
+  const [socialMediaPosts, setSocialMediaPosts] = useState({});
   const [platforms, setPlatforms] = useState({
     facebook: false,
     instagram: false,
     twitter: false,
     linkedin: false
   });
+  const [includeActionIdeas, setIncludeActionIdeas] = useState(false);
 
-  const textSize = useDynamicTextSize(socialMediaPost, 1.2, 0.8, [1000, 2000]);
-  const { submitForm, loading, success, error } = useApiSubmit('/claude_social');
+  const textSize = useDynamicTextSize(
+    Object.values(socialMediaPosts)
+      .filter(post => typeof post === 'object')
+      .map(post => post.content)
+      .join('\n'), 
+    1.2, 
+    0.8, 
+    [1000, 2000]
+  );
 
-  const handleSubmit = async () => {
+  const { submitForm, loading, success, resetSuccess, error } = useApiSubmit('/claude_social');
+
+  const handleSubmit = useCallback(async () => {
     const selectedPlatforms = Object.keys(platforms).filter(key => platforms[key]);
-    const formData = { thema, details, platforms: selectedPlatforms };
-    const content = await submitForm(formData);
-    if (content) setSocialMediaPost(content);
-  };
+    const formData = { thema, details, platforms: selectedPlatforms, includeActionIdeas };
+    try {
+      const content = await submitForm(formData);
+      if (content) {
+        setSocialMediaPosts(content);
+        setTimeout(resetSuccess, 3000);
+      }
+    } catch (error) {
+      console.error('Error submitting form:', error);
+    }
+  }, [thema, details, platforms, includeActionIdeas, submitForm, resetSuccess]);
 
-  const handlePlatformChange = (platform) => {
+  const handlePlatformChange = useCallback((platform) => {
     setPlatforms(prev => ({ ...prev, [platform]: !prev[platform] }));
-  };
+  }, []);
+
+  const handleGeneratePost = useCallback(async (platform) => {
+    const formData = { thema, details, platforms: [platform], includeActionIdeas: false };
+    try {
+      const content = await submitForm(formData);
+      if (content && content[platform]) {
+        setSocialMediaPosts(prev => ({
+          ...prev,
+          [platform]: content[platform]
+        }));
+      }
+    } catch (error) {
+      console.error('Error regenerating post:', error);
+    }
+  }, [thema, details, includeActionIdeas, submitForm]);
 
   return (
     <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
@@ -42,8 +70,9 @@ const SocialMediaGenerator = ({ showHeaderFooter = true }) => {
         loading={loading}
         success={success}
         error={error}
-        generatedContent={socialMediaPost}
+        generatedContent={socialMediaPosts}
         textSize={textSize}
+        onGeneratePost={handleGeneratePost}
       >
         <h3><label htmlFor="thema">{FORM_LABELS.THEME}</label></h3>
         <input
@@ -80,6 +109,15 @@ const SocialMediaGenerator = ({ showHeaderFooter = true }) => {
             </label>
           ))}
         </div>
+
+        <label className="action-ideas-checkbox">
+          <input
+            type="checkbox"
+            checked={includeActionIdeas}
+            onChange={() => setIncludeActionIdeas(!includeActionIdeas)}
+          />
+          Aktionsideen einschließen
+        </label>
       </BaseForm>
     </div>
   );
