@@ -1,89 +1,185 @@
-import React, { useRef } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import PropTypes from 'prop-types';
-import { PiFilePdf } from 'react-icons/pi';
+import axios from 'axios';
+import { FiUpload, FiFile } from 'react-icons/fi';
+
 import '../../../assets/styles/common/variables.css';
 import '../../../assets/styles/common/global.css';
 import '../../../assets/styles/components/button.css';
 import '../../../assets/styles/pages/baseform.css';
+
 import { useDynamicTextSize } from '../../utils/commonFunctions';
 import BaseForm from '../../common/BaseForm';
-import { useFileHandling } from '../../utils/fileHandling';
-import useFileUpload from '../../hooks/useFileUpload';
-import { BUTTON_LABELS, FORM_PLACEHOLDERS } from '../../utils/constants';
+import { BUTTON_LABELS } from '../../utils/constants';
 
 const Antragsversteher = ({ showHeaderFooter = true }) => {
-  const {
-    file,
-    fileName,
-    dragging,
-    error: fileError,
-    handleFileChange,
-    handleDragEnter,
-    handleDragLeave,
-    handleDragOver,
-    handleDrop,
-  } = useFileHandling(['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.oasis.opendocument.text']);
+  const [antrag, setAntrag] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
+  const [generatedContent, setGeneratedContent] = useState('');
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
 
-  const { antrag, loading, success, error, uploadAndProcessFile, setError } = useFileUpload();
-  const textSize = useDynamicTextSize(antrag, 1.2, 0.8, [1000, 2000]);
-  const fileInputRef = useRef(null);
+  const textSize = useDynamicTextSize(generatedContent, 1.2, 0.8, [1000, 2000]);
 
-  const handleSubmit = () => {
-    if (!file) {
-      setError('Bitte wählen Sie eine Datei aus.');
+  const resetSuccess = useCallback(() => {
+    setSuccess(false);
+  }, []);
+
+  useEffect(() => {
+    let timeoutId;
+    if (success) {
+      timeoutId = setTimeout(resetSuccess, 3000);
+    }
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [success, resetSuccess]);
+
+  const handleFileSelect = useCallback((file) => {
+    console.log('Datei ausgewählt:', file.name);
+    setSelectedFile(file);
+    setError('');
+  }, []);
+
+  const handleDragEnter = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    
+    const files = e.dataTransfer.files;
+    if (files.length) {
+      handleFileSelect(files[0]);
+    }
+  };
+
+  const handleSubmit = useCallback(async () => {
+    if (!selectedFile) {
+      setError('Bitte wählen Sie zuerst eine Datei aus.');
       return;
     }
-    uploadAndProcessFile(file);
-  };
+
+    setLoading(true);
+    setError('');
+    setSuccess(false);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+
+      console.log('Sende Datei-Upload-Anfrage an /api/antragsversteher/upload-pdf');
+      const response = await axios.post('/api/antragsversteher/upload-pdf', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      console.log('Datei-Upload-Antwort erhalten:', response.data);
+
+      if (response.data && response.data.text && response.data.summary) {
+        setAntrag(response.data.text);
+        setGeneratedContent(response.data.summary);
+        setSuccess(true);
+        console.log('Antrag und generierter Content erfolgreich gesetzt');
+      } else {
+        throw new Error('Unerwartete Serverantwort');
+      }
+    } catch (err) {
+      console.error('Fehler beim Datei-Upload:', err);
+      setError('Fehler beim Hochladen und Verarbeiten der Datei: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedFile]);
+
+  const handleGeneratePost = useCallback(async () => {
+    if (!antrag) {
+      setError('Kein Antragstext vorhanden. Bitte lade zuerst eine Datei hoch.');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await axios.post('/api/antragsversteher/analyze', { text: antrag });
+
+      if (response.data && response.data.summary) {
+        setGeneratedContent(response.data.summary);
+        setSuccess(true);
+      } else {
+        throw new Error('Unerwartete Serverantwort bei der Analyse');
+      }
+    } catch (err) {
+      console.error('Fehler bei der Analyse:', err);
+      setError('Fehler bei der Analyse des Antragstextes: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setLoading(false);
+    }
+  }, [antrag]);
 
   return (
     <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
       <BaseForm
-        title="PDF hochladen"
+        title="Grünerator Antragscheck"
         onSubmit={handleSubmit}
         loading={loading}
         success={success}
-        error={error || fileError}
-        generatedContent={antrag}
+        error={error}
+        generatedContent={generatedContent}
         textSize={textSize}
+        submitButtonText={BUTTON_LABELS.SUBMIT}
+        onGeneratePost={handleGeneratePost}
+        generatedPost=""
       >
-        <div
-          className={`file-upload ${dragging ? 'dragging' : ''} ${file ? 'file-selected' : ''}`}
+        <div 
+          className={`file-upload-area ${isDragging ? 'dragging' : ''}`}
           onDragEnter={handleDragEnter}
           onDragLeave={handleDragLeave}
           onDragOver={handleDragOver}
           onDrop={handleDrop}
-          onClick={() => fileInputRef.current && fileInputRef.current.click()}
         >
-          {file ? (
-            <>
-              <PiFilePdf size={50} />
-              <p>{fileName}</p>
-              <p
-                className="change-file-text"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  fileInputRef.current.click();
-                }}
-                style={{ cursor: 'pointer', color: 'blue', textDecoration: 'underline' }}
-              >
-                {BUTTON_LABELS.CHANGE_FILE}
-              </p>
-            </>
-          ) : (
-            <>
-              <PiFilePdf size={50} />
-              <p>{FORM_PLACEHOLDERS.DRAG_AND_DROP}</p>
-            </>
-          )}
+          <input
+            type="file"
+            onChange={(e) => handleFileSelect(e.target.files[0])}
+            accept="application/pdf"
+            style={{ display: 'none' }}
+            id="file-input"
+          />
+          <label htmlFor="file-input" className="file-upload-label">
+            {selectedFile ? (
+              <>
+                <FiFile size={24} />
+                <span className="file-name">{selectedFile.name}</span>
+              </>
+            ) : (
+              <>
+                <FiUpload size={24} className="upload-icon" />
+                <span>PDF-Datei hier ablegen oder klicken zum Auswählen</span>
+              </>
+            )}
+          </label>
         </div>
-        <input
-          type="file"
-          accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.oasis.opendocument.text"
-          onChange={handleFileChange}
-          ref={fileInputRef}
-          style={{ display: 'none' }}
-        />
       </BaseForm>
     </div>
   );
