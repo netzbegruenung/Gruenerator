@@ -30,11 +30,26 @@ const platformGuidelines = {
   }
 };
 
+const processContent = (content) => {
+  const processedContent = {};
+  for (const [key, value] of Object.entries(content)) {
+    if (key === 'actionIdeas') {
+      processedContent[key] = Array.isArray(value) ? value : [];
+    } else {
+      processedContent[key] = {
+        title: value.title || key,
+        content: value.content || '',
+        hashtags: Array.isArray(value.hashtags) ? value.hashtags : []
+      };
+    }
+  }
+  return processedContent;
+};
+
 router.route('/')
   .post(async (req, res) => {
     const { thema, details, platforms, includeActionIdeas } = req.body;
     console.log('Received request:', { thema, details, platforms, includeActionIdeas });
-
 
     try {
       const response = await anthropic.messages.create({
@@ -47,13 +62,15 @@ router.route('/')
             role: "user",
             content: `
             Theme: ${thema}
-            Details: ${details}
+            Details (optional): ${details}
             Platforms: ${platforms.join(', ')}
             
             Create a tailored social media post for each selected platform on this theme, reflecting the style and values of Bündnis 90/Die Grünen. Consider these platform-specific guidelines:
 
             ${platforms.map(platform => `
             ${platform.toUpperCase()}: Max length: ${platformGuidelines[platform].maxLength} characters. Style: ${platformGuidelines[platform].style} Focus: ${platformGuidelines[platform].focus}`).join('\n')}
+
+            ${includeActionIdeas ? 'Bitte füge 5 Aktionsideen für Soziale Medien hinzu.' : ''}
 
             Each post should:
             1. Be adapted to the specific platform and its audience
@@ -104,41 +121,42 @@ router.route('/')
 
       console.log('Raw API response:', JSON.stringify(response, null, 2));
 
-      // Process API response
       if (response && response.content && Array.isArray(response.content)) {
         console.log('Response content:', response.content);
         let content;
         try {
-          // Extrahieren des gesamten Textes aus der Antwort
           const fullText = response.content[0].text;
           console.log('Full text response:', fullText);
 
-          // Versuchen, den gesamten Text als JSON zu parsen
           content = JSON.parse(fullText);
           console.log('Parsed content:', JSON.stringify(content, null, 2));
         } catch (parseError) {
           console.error('Error parsing response content:', parseError);
-          res.status(500).send('Error parsing API response');
-          return;
+          return res.status(500).json({ error: 'Error parsing API response', details: parseError.message });
         }
         
-        // Filter out platforms that weren't requested
+        let processedContent = processContent(content);
+        
         const filteredContent = Object.fromEntries(
-          Object.entries(content).filter(([key]) => 
+          Object.entries(processedContent).filter(([key]) => 
             platforms.includes(key) || (includeActionIdeas && key === 'actionIdeas')
           )
         );
+
+        if (includeActionIdeas && !filteredContent.actionIdeas) {
+          filteredContent.actionIdeas = ["Keine Aktionsideen verfügbar"];
+        }
 
         console.log('Filtered content to be sent to client:', JSON.stringify(filteredContent, null, 2));
         res.json(filteredContent);
       } else {
         console.error('API response missing or incorrect content structure:', JSON.stringify(response, null, 2));
-        res.status(500).send('API response missing or incorrect content structure');
+        res.status(500).json({ error: 'API response missing or incorrect content structure' });
       }
     } catch (error) {
       console.error('Error with Claude API:', error.response ? JSON.stringify(error.response.data, null, 2) : error.message);
       console.error('Full error object:', JSON.stringify(error, null, 2));
-      res.status(500).send('Internal Server Error');
+      res.status(500).json({ error: 'Internal Server Error', details: error.message });
     }
   });
 
