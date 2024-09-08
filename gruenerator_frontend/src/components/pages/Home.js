@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { PiNewspaper, PiInstagramLogo, PiFileText, PiMicrophone, PiGlobe, PiLightbulb } from 'react-icons/pi';
+import { PiNewspaper, PiInstagramLogo, PiFileText, PiMicrophone, PiLightbulb, PiClockBold } from 'react-icons/pi';
 import '../../assets/styles/common/variables.css';
 import '../../assets/styles/common/global.css';
 import '../../assets/styles/components/button.css';
@@ -26,8 +26,8 @@ const Home = () => {
                   <Link to="/rede" aria-label="Zum Redengenerator"><PiMicrophone /> Rede Schreiben</Link>
                   <Link to="/pressemitteilung" aria-label="Zur Pressemitteilung erstellen"><PiNewspaper /> Pressemitteilung erstellen</Link>
                   <Link to="/socialmedia" aria-label="Zum Social-Media-Generator"><PiInstagramLogo /> Social-Media-Post schreiben</Link>
-                  <Link to="/" aria-label="Zum Sharepic-Generator (coming soon)"><PiLightbulb /> Sharepic (soon)</Link>
-                  <Link to="/webbaukasten" aria-label="Zum Website-Baukasten"><PiGlobe /> Website entwickeln</Link>
+                  <Link to="/antragscheck" aria-label="Zum Antragscheck"><PiLightbulb /> Antrag checken</Link>
+                  <Link to="/" aria-label="Zum Sharepic-Generator (coming soon)"><PiClockBold /> Sharepic (soon)</Link>
                 </div>
               </div>
             </div>
