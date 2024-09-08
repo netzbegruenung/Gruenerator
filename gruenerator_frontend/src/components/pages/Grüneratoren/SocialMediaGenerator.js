@@ -1,69 +1,132 @@
 import React, { useState, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import BaseForm from '../../common/BaseForm_social';
+import '../../../assets/styles/pages/baseform_social.css';
 import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../utils/constants';
-import { useDynamicTextSize } from '../../utils/commonFunctions';
 import useApiSubmit from '../../hooks/useApiSubmit';
+import useEditFunctionality from '../../hooks/useEditFunctionality';
+import { FaFacebook, FaInstagram, FaTwitter, FaLinkedin } from "react-icons/fa";
+
+const platformIcons = {
+  facebook: FaFacebook,
+  instagram: FaInstagram,
+  twitter: FaTwitter,
+  linkedin: FaLinkedin
+};
 
 const SocialMediaGenerator = ({ showHeaderFooter = true }) => {
   const [thema, setThema] = useState('');
   const [details, setDetails] = useState('');
-  const [socialMediaPosts, setSocialMediaPosts] = useState({});
   const [platforms, setPlatforms] = useState({
     facebook: false,
     instagram: false,
     twitter: false,
-    linkedin: false
+    linkedin: false,
+    actionIdeas: false 
+
   });
-  const [includeActionIdeas, setIncludeActionIdeas] = useState(false);
 
-  const textSize = useDynamicTextSize(
-    Object.values(socialMediaPosts)
-      .filter(post => typeof post === 'object')
-      .map(post => post.content)
-      .join('\n'), 
-    1.2, 
-    0.8, 
-    [1000, 2000]
-  );
+  const { submitForm, loading, success, resetSuccess } = useApiSubmit('/claude_social');
 
-  const { submitForm, loading, success, resetSuccess, error } = useApiSubmit('/claude_social');
+  const [error, setError] = useState('');
+  
+  const {
+    posts: socialMediaPosts,
+    setPosts: setSocialMediaPosts,
+    editingPlatform,
+    handleEditPost,
+    handleSavePost,
+    handlePostContentChange
+  } = useEditFunctionality({});
 
   const handleSubmit = useCallback(async () => {
-    const selectedPlatforms = Object.keys(platforms).filter(key => platforms[key]);
-    const formData = { thema, details, platforms: selectedPlatforms, includeActionIdeas };
+    const selectedPlatforms = Object.keys(platforms).filter(key => platforms[key] && key !== 'actionIdeas');
+    const formData = { 
+      thema, 
+      details, 
+      platforms: selectedPlatforms, 
+      includeActionIdeas: platforms.actionIdeas 
+    };
     try {
       const content = await submitForm(formData);
       if (content) {
         setSocialMediaPosts(content);
         setTimeout(resetSuccess, 3000);
+        setError(''); // Clear any previous errors
       }
-    } catch (error) {
-      console.error('Error submitting form:', error);
+    } catch (err) {
+      console.error('Error submitting form:', err);
+      setError(err.message || 'Ein Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.');
     }
-  }, [thema, details, platforms, includeActionIdeas, submitForm, resetSuccess]);
+  }, [thema, details, platforms, submitForm, resetSuccess, setSocialMediaPosts]);
 
   const handlePlatformChange = useCallback((platform) => {
     setPlatforms(prev => ({ ...prev, [platform]: !prev[platform] }));
   }, []);
 
   const handleGeneratePost = useCallback(async (platform) => {
-    const formData = { thema, details, platforms: [platform], includeActionIdeas: false };
-    try {
-      const content = await submitForm(formData);
-      if (content && content[platform]) {
-        setSocialMediaPosts(prev => ({
-          ...prev,
-          [platform]: content[platform]
-        }));
-      }
-    } catch (error) {
-      console.error('Error regenerating post:', error);
+  const formData = { 
+    thema, 
+    details, 
+    platforms: [platform], 
+    includeActionIdeas: platform === 'actionIdeas' 
+  };
+  try {
+    const content = await submitForm(formData);
+    if (content) {
+      setSocialMediaPosts(prev => ({
+        ...prev,
+        ...(platform === 'actionIdeas' ? { actionIdeas: content.actionIdeas } : { [platform]: content[platform] })
+      }));
     }
-  }, [thema, details, includeActionIdeas, submitForm]);
+  } catch (error) {
+    console.error('Error regenerating post:', error);
+    setError(error.message || 'An error occurred while regenerating the post.');
+  }
+}, [thema, details, submitForm, setSocialMediaPosts, setError]);
+
+  const renderFormInputs = () => (
+    <>
+      <h3><label htmlFor="thema">{FORM_LABELS.THEME}</label></h3>
+      <input
+        id="thema"
+        type="text"
+        name="thema"
+        placeholder={FORM_PLACEHOLDERS.THEME}
+        value={thema}
+        onChange={(e) => setThema(e.target.value)}
+        aria-required="true"
+      />
+
+      <h3><label htmlFor="details">{FORM_LABELS.DETAILS}</label></h3>
+      <textarea
+        id="details"
+        name="details"
+        style={{ height: '120px' }}
+        placeholder={FORM_PLACEHOLDERS.DETAILS}
+        value={details}
+        onChange={(e) => setDetails(e.target.value)}
+        aria-required="true"
+      ></textarea>
+
+<h3>Plattformen & Aktionsideen</h3>
+    <div className="platform-checkboxes">
+      {Object.keys(platforms).map((platform) => (
+        <label key={platform} className="platform-checkbox">
+          <input
+            type="checkbox"
+            checked={platforms[platform]}
+            onChange={() => handlePlatformChange(platform)}
+          />
+          {platform === 'actionIdeas' ? 'Aktionsideen' : platform.charAt(0).toUpperCase() + platform.slice(1)}
+        </label>
+      ))}
+    </div>
+  </>
+);
 
   return (
-    <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
+    <div className={`container social-media-baseform ${showHeaderFooter ? 'with-header' : ''}`}>
       <BaseForm
         title="Social-Media Grünerator"
         onSubmit={handleSubmit}
@@ -71,54 +134,15 @@ const SocialMediaGenerator = ({ showHeaderFooter = true }) => {
         success={success}
         error={error}
         generatedContent={socialMediaPosts}
-        textSize={textSize}
         onGeneratePost={handleGeneratePost}
-      >
-        <h3><label htmlFor="thema">{FORM_LABELS.THEME}</label></h3>
-        <input
-          id="thema"
-          type="text"
-          name="thema"
-          placeholder={FORM_PLACEHOLDERS.THEME}
-          value={thema}
-          onChange={(e) => setThema(e.target.value)}
-          aria-required="true"
-        />
-
-        <h3><label htmlFor="details">{FORM_LABELS.DETAILS}</label></h3>
-        <textarea
-          id="details"
-          name="details"
-          style={{ height: '120px' }}
-          placeholder={FORM_PLACEHOLDERS.DETAILS}
-          value={details}
-          onChange={(e) => setDetails(e.target.value)}
-          aria-required="true"
-        ></textarea>
-
-        <h3>Plattformen</h3>
-        <div className="platform-checkboxes">
-          {Object.keys(platforms).map((platform) => (
-            <label key={platform} className="platform-checkbox">
-              <input
-                type="checkbox"
-                checked={platforms[platform]}
-                onChange={() => handlePlatformChange(platform)}
-              />
-              {platform.charAt(0).toUpperCase() + platform.slice(1)}
-            </label>
-          ))}
-        </div>
-
-        <label className="action-ideas-checkbox">
-          <input
-            type="checkbox"
-            checked={includeActionIdeas}
-            onChange={() => setIncludeActionIdeas(!includeActionIdeas)}
-          />
-          Aktionsideen einschließen
-        </label>
-      </BaseForm>
+        renderFormInputs={renderFormInputs}
+        editingPlatform={editingPlatform}
+        handleEditPost={handleEditPost}
+        handleSavePost={handleSavePost}
+        handlePostContentChange={handlePostContentChange}
+        platformIcons={platformIcons}
+        includeActionIdeas={platforms.actionIdeas} // Add this line
+      />
     </div>
   );
 };

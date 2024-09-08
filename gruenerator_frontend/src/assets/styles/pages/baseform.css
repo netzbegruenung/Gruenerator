@@ -1,4 +1,4 @@
-/*baseform css */
+/* baseform.css */
 @import url('../common/variables.css');
 @import url('../common/global.css');
 @import url('../common/typography.css');
@@ -28,35 +28,35 @@
     display: flex;
     flex-direction: column;
     height: 100%;
-  }
+}
 
-  .generated-content-wrapper {
+.generated-content-wrapper {
     margin-bottom: 20px;
     word-break: break-word;
     white-space: pre-wrap;
     overflow-wrap: break-word;
-    max-height: none; /* Entfernen Sie jegliche max-height Beschränkungen */
-  }
-  
-  .copy-button-container {
+    max-height: none;
+}
+
+.copy-button-container {
     margin-top: auto;
     width: 100%;
-    display: flex; /* Macht den Container zu einem Flex-Container */
-    justify-content: center; /* Zentriert den Button horizontal */
+    display: flex;
+    justify-content: center;
     overflow: hidden;
-  }
+}
 
 .upload-and-generate-container {
     display: flex;
     gap: 20px;
-  }
+}
 
-  .display-content {
+.display-content {
     flex: 1;
     overflow-y: auto;
     white-space: pre-wrap;
     margin-bottom: 20px;
-  }
+}
 
 .base-container.with-content .form-container {
     flex: 0.3;
@@ -79,7 +79,6 @@
     flex: 1;
 }
 
-  
 .form-container h3, .display-container h3 {
     margin-top: 0;
     text-align: left;
@@ -128,7 +127,6 @@
 }
 
 .form-container select {
-   
     background-repeat: no-repeat;
     background-position: right 10px center;
     background-size: 10px;
@@ -152,23 +150,21 @@
 
 .generated-post-container {
     overflow-y: auto;
-  }
+}
 
-  .form-buttons.preview-buttons {
+.form-buttons.preview-buttons {
     display: flex;
     justify-content: space-between;
     gap: 20px;
     margin-top: 20px;
     width: 100%;
-  }
-  
-  .form-buttons.preview-buttons .back-button {
+}
+
+.form-buttons.preview-buttons .back-button {
     background-color: var(--sand);
     color: var(--dunkelgruen);
-  }
-  
+}
 
-  /* Gemeinsamer Container für File Upload und Image Search Bar */
 .upload-and-search-container {
     display: flex;
     flex-wrap: wrap;
@@ -187,14 +183,14 @@
 .form-container input.error-input,
 .form-container textarea.error-input,
 .form-container select.error-input {
-  border: 2px solid var(--sonne);
+    border: 2px solid var(--sonne);
 }
 
 .error-message {
-  color: var(--weiß);
-  font-size: 0.8em;
-  margin-top: 4px;
-  margin-bottom: 8px;
+    color: var(--weiß);
+    font-size: 0.8em;
+    margin-top: 4px;
+    margin-bottom: 8px;
 }
 
 .file-upload-area {
@@ -229,267 +225,16 @@
     font-style: italic;
 }
 
-/* New styles for platform selection */
-.platform-checkboxes {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    margin-top: 15px;
-    margin-bottom: 15px;
-}
-
-.platform-checkbox {
-    display: flex;
-    align-items: center;
-    border-radius: 8px;
-    border: 1.5px solid var(--sand);
-    color: var(--weiß);
-    padding: 8px 12px;
-    cursor: pointer;
-    transition: background-color 0.3s ease, border-color 0.3s ease;
-
-}
-
-.platform-checkbox:hover {
-    background-color: var(--klee);
-}
-
-.platform-checkbox input[type="checkbox"] {
-    appearance: none;
-     border-radius: 3px;
-    margin-right: 8px;
-    margin-top: 0;
-    height: 15px;
-    margin-bottom: 0;
-    cursor: pointer;
-    position: relative;
-    outline: none;
-}
-
-.platform-checkbox input[type="checkbox"]:checked {
-    background-color: var(--sand);
-    border-color: var(--sand);
-}
-
-.platform-checkbox input[type="checkbox"]:focus {
-    border-color: var(--sand);
-}
-.platform-checkbox input[type="checkbox"]:checked::after {
-    content: '✓';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    color: var(--tanne);
-    font-size: 14px;
-    font-weight: bold;
-}
-
-/* Neue Stile für das Layout der Plattform-Inhalte */
-.social-media-baseform .platform-content {
-  background-color: var(--sand);
-  border-radius: 8px;
-  margin-bottom: 20px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  overflow: hidden;
-}
-
-.social-media-baseform .platform-header {
-  display: flex;
-  justify-content: space-between; /* Verteilt Elemente an die Enden */
-  align-items: center;
-  background-color: var(--tanne);
-  padding: 10px 15px;
-  color: white;
-}
-
-.social-media-baseform .platform-title {
-  display: flex;
-  align-items: center; /* Richtet Icon und Text vertikal aus */
-  margin-bottom: 0px;
-  color: white;
-
-
-}
-
-.social-media-baseform .platform-icon {
-  margin-right: 10px;
-  margin-bottom: 0px;
-  color: white;
-
-}
-
-.social-media-baseform .platform-name {
-  margin: 0;
-  font-size: 18px;
-  text-transform: capitalize;
-  color: white;
-}
-
-.social-media-baseform .platform-body {
-  padding: 15px;
-}
-
-.social-media-baseform .generated-content-wrapper {
-  font-size: 14px;
-  line-height: 1.5;
-  color: #333;
-  word-wrap: break-word;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
-.social-media-baseform .copy-button {
-  background-color: transparent;
-  border: none;
-  cursor: pointer;
-  padding: 5px;
-  color: white; /* Ändern Sie die Farbe, damit sie auf dem grünen Hintergrund sichtbar ist */
-  transition: opacity 0.3s ease;
-}
-
-.social-media-baseform .copy-button:hover {
-  opacity: 0.7;
-}
-
-/* Zusätzliche Styles für die Hashtags */
-.social-media-baseform .hashtags {
-  margin-top: 10px;
-}
-
-.social-media-baseform .hashtag {
-  display: inline-block;
-  margin-right: 5px;
-  color: #1a9431;
-}
- 
-  /* Anpassungen für die Aktionsideen */
-  .action-ideas-checkbox {
-    display: flex;
-    align-items: center;
-    margin-top: 15px;
-    padding: 8px 12px;
-    background-color: var(--dunkelgruen);
-    border: 1.5px solid var(--sand);
-    border-radius: 8px;
-    color: var(--weiß);
-    font-size: 0.9em;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-}
-
-.action-ideas-checkbox:hover {
-    background-color: var(--klee);
-}
-
-.action-ideas-checkbox input[type="checkbox"] {
-    appearance: none;
-    -webkit-appearance: none;
-    width: 18px;
-    height: 18px;
-    border: 2px solid var(--sand);
-    border-radius: 3px;
-    margin-right: 10px;
-    position: relative;
-    cursor: pointer;
-    outline: none;
-}
-
-.action-ideas-checkbox input[type="checkbox"]:checked {
-    background-color: var(--sand);
-}
-
-.action-ideas-checkbox input[type="checkbox"]:checked::after {
-    content: '✓';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    color: var(--dunkelgruen);
-    font-size: 14px;
-    font-weight: bold;
-}
-
-.action-ideas-checkbox label {
-    cursor: pointer;
-}
-/* Animation for checkbox selection */
-@keyframes subtleCheckmark {
-    0% {
-        opacity: 0;
-        transform: translate(-50%, -50%) scale(0.9);
-    }
-    100% {
-        opacity: 1;
-        transform: translate(-50%, -50%) scale(1);
-    }
-}
-
 .loading-icon {
     animation: spin 1s linear infinite;
-  }
-  
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
-
-.platform-checkbox input[type="checkbox"]:checked::after {
-    animation: subtleCheckmark 0.2s ease-out forwards;
-    
 }
 
-/* Responsiveness improvements */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
 @media (max-width: 768px) {
-    
-    .platform-content-row {
-        flex-direction: column;
-      }
-    
-      .platform-icon {
-        margin-bottom: 10px;
-      }
-    
-      .copy-button {
-        align-self: flex-end;
-      }
-
-    .platform-checkboxes {
-        flex-direction: column;
-    }
-
-    .platform-checkbox {
-        display: grid;
-        grid-template-columns: auto 1fr;
-        align-items: center;
-        padding: 15px 20px;
-        background-color: var(--dunkelgruen);
-        border: 1px solid var(--sand);
-        border-radius: 8px;
-        margin-bottom: 10px;
-        color: var(--weiß);
-        font-weight: bold;
-    }
-
-    .platform-checkbox input[type="checkbox"] {
-        appearance: none;
-        -webkit-appearance: none;
-        width: 15px;
-        height: 15px;
-        border: 2px solid var(--weiß);
-        border-radius: 4px;
-        margin-right: 15px;
-        position: relative;
-        cursor: pointer;
-        grid-column: 1;
-    }
-    .platform-checkbox span {
-        font-weight: bold;
-    }
-
-    .platform-checkbox input[type="checkbox"]:checked + span {
-        font-weight: bold;
-    }
-    
     .base-container {
         gap: 0;
         padding: 0;
@@ -500,7 +245,6 @@
         margin-bottom: 20px;
         margin-left: 0;
         margin-right: 0;
-        
     }
 
     .form-container input, .form-container textarea, .form-container select {
@@ -510,11 +254,10 @@
 
     .form-buttons.preview-buttons {
         flex-direction: column;
-      }
-      
-      .form-buttons.preview-buttons .back-button,
-      .form-buttons.preview-buttons .form-button {
-        max-width: 100%;
-      }
+    }
     
+    .form-buttons.preview-buttons .back-button,
+    .form-buttons.preview-buttons .form-button {
+        max-width: 100%;
+    }
 }
