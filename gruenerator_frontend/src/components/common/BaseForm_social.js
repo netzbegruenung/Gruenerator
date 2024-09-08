@@ -1,7 +1,6 @@
 import React, { useMemo, useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { HiCog, HiLightBulb } from "react-icons/hi";
-import { FaFacebook, FaInstagram, FaTwitter, FaLinkedin } from "react-icons/fa";
 import { IoCopyOutline, IoPencil, IoSave } from "react-icons/io5";
 import SubmitButton from './SubmitButton';
 import useAccessibility from '../hooks/useAccessibility';
@@ -11,17 +10,6 @@ import {
   BUTTON_LABELS, 
   ARIA_LABELS, 
 } from '../utils/constants';
-
-const platformIcons = {
-  facebook: FaFacebook,
-  instagram: FaInstagram,
-  twitter: FaTwitter,
-  linkedin: FaLinkedin
-};
-
-const generateValidClassName = (str) => {
-  return str.toLowerCase().replace(/[^a-z0-9]/g, '-');
-};
 
 const BaseForm = ({
   title,
@@ -38,6 +26,7 @@ const BaseForm = ({
   handleSavePost,
   handlePostContentChange,
   submitButtonText = BUTTON_LABELS.SUBMIT,
+  platformIcons,
 }) => {
   const { announce, setupKeyboardNav } = useAccessibility();
 
@@ -74,6 +63,10 @@ const BaseForm = ({
       textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
     }
   }, [editingPlatform, generatedContent]);
+
+  const generateValidClassName = (str) => {
+    return str.toLowerCase().replace(/[^a-z0-9]/g, '-');
+  };
 
   const renderPlatformContent = (platform, content) => {
     if (typeof content !== 'object' || content === null) {
@@ -119,6 +112,7 @@ const BaseForm = ({
                 <IoPencil size={16} />
               </button>
             )}
+      
           </div>
         </div>
         <div className="platform-body">
@@ -201,16 +195,16 @@ const BaseForm = ({
           </form>
         </div>
         <div className="display-container">
-      <h3>{title}</h3>
-      <div className="display-content" style={{ fontSize: textSize }}>
-        {Object.entries(generatedContent).map(([platform, content]) => renderPlatformContent(platform, content))}
+          <h3>{title}</h3>
+          <div className="display-content" style={{ fontSize: textSize }}>
+            {Object.entries(generatedContent).map(([platform, content]) => renderPlatformContent(platform, content))}
+          </div>
+        </div>
       </div>
     </div>
-  </div>
-  </div>
-    
-);
+  );
 };
+
 BaseForm.propTypes = {
   title: PropTypes.string.isRequired,
   onSubmit: PropTypes.func.isRequired,
@@ -226,6 +220,7 @@ BaseForm.propTypes = {
   handleSavePost: PropTypes.func.isRequired,
   handlePostContentChange: PropTypes.func.isRequired,
   submitButtonText: PropTypes.string,
+  platformIcons: PropTypes.object.isRequired,
   includeActionIdeas: PropTypes.bool,
 };
 

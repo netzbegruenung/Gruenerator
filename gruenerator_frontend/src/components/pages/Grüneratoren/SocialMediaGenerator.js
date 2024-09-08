@@ -6,6 +6,7 @@ import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../utils/constants';
 import useApiSubmit from '../../hooks/useApiSubmit';
 import useEditFunctionality from '../../hooks/useEditFunctionality';
 import { FaFacebook, FaInstagram, FaTwitter, FaLinkedin } from "react-icons/fa";
+import StyledCheckbox from '../../common/AnimatedCheckbox';  // Importieren Sie die AnimatedCheckbox-Komponente
 
 const platformIcons = {
   facebook: FaFacebook,
@@ -23,7 +24,6 @@ const SocialMediaGenerator = ({ showHeaderFooter = true }) => {
     twitter: false,
     linkedin: false,
     actionIdeas: false 
-
   });
 
   const { submitForm, loading, success, resetSuccess } = useApiSubmit('/claude_social');
@@ -52,7 +52,7 @@ const SocialMediaGenerator = ({ showHeaderFooter = true }) => {
       if (content) {
         setSocialMediaPosts(content);
         setTimeout(resetSuccess, 3000);
-        setError(''); // Clear any previous errors
+        setError('');
       }
     } catch (err) {
       console.error('Error submitting form:', err);
@@ -65,25 +65,25 @@ const SocialMediaGenerator = ({ showHeaderFooter = true }) => {
   }, []);
 
   const handleGeneratePost = useCallback(async (platform) => {
-  const formData = { 
-    thema, 
-    details, 
-    platforms: [platform], 
-    includeActionIdeas: platform === 'actionIdeas' 
-  };
-  try {
-    const content = await submitForm(formData);
-    if (content) {
-      setSocialMediaPosts(prev => ({
-        ...prev,
-        ...(platform === 'actionIdeas' ? { actionIdeas: content.actionIdeas } : { [platform]: content[platform] })
-      }));
+    const formData = { 
+      thema, 
+      details, 
+      platforms: [platform], 
+      includeActionIdeas: platform === 'actionIdeas' 
+    };
+    try {
+      const content = await submitForm(formData);
+      if (content) {
+        setSocialMediaPosts(prev => ({
+          ...prev,
+          ...(platform === 'actionIdeas' ? { actionIdeas: content.actionIdeas } : { [platform]: content[platform] })
+        }));
+      }
+    } catch (error) {
+      console.error('Error regenerating post:', error);
+      setError(error.message || 'An error occurred while regenerating the post.');
     }
-  } catch (error) {
-    console.error('Error regenerating post:', error);
-    setError(error.message || 'An error occurred while regenerating the post.');
-  }
-}, [thema, details, submitForm, setSocialMediaPosts, setError]);
+  }, [thema, details, submitForm, setSocialMediaPosts, setError]);
 
   const renderFormInputs = () => (
     <>
@@ -110,20 +110,19 @@ const SocialMediaGenerator = ({ showHeaderFooter = true }) => {
       ></textarea>
 
 <h3>Plattformen & Aktionsideen</h3>
-    <div className="platform-checkboxes">
-      {Object.keys(platforms).map((platform) => (
-        <label key={platform} className="platform-checkbox">
-          <input
-            type="checkbox"
-            checked={platforms[platform]}
+      <div className="platform-checkboxes">
+        {Object.entries(platforms).map(([platform, isChecked]) => (
+          <StyledCheckbox
+            key={platform}
+            id={`checkbox-${platform}`} // Hier wird die id korrekt gesetzt
+            checked={isChecked}
             onChange={() => handlePlatformChange(platform)}
+            label={platform === 'actionIdeas' ? 'Aktionsideen' : platform.charAt(0).toUpperCase() + platform.slice(1)}
           />
-          {platform === 'actionIdeas' ? 'Aktionsideen' : platform.charAt(0).toUpperCase() + platform.slice(1)}
-        </label>
-      ))}
-    </div>
-  </>
-);
+        ))}
+      </div>
+    </>
+  );
 
   return (
     <div className={`container social-media-baseform ${showHeaderFooter ? 'with-header' : ''}`}>
@@ -141,7 +140,7 @@ const SocialMediaGenerator = ({ showHeaderFooter = true }) => {
         handleSavePost={handleSavePost}
         handlePostContentChange={handlePostContentChange}
         platformIcons={platformIcons}
-        includeActionIdeas={platforms.actionIdeas} // Add this line
+        includeActionIdeas={platforms.actionIdeas}
       />
     </div>
   );

@@ -46,12 +46,8 @@
 }
 
 .social-media-baseform .generated-content-wrapper {
-  font-size: 14px;
-  line-height: 1.5;
-  color: #333;
-  word-wrap: break-word;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
+  padding: 15px;
+ 
 }
 
 .social-media-baseform .platform-actions {
@@ -61,7 +57,7 @@
 }
 
 .social-media-baseform div {
-  color: var(--dunkelgrau)
+  color: var(--dunkelgrau);
 }
 
 .social-media-baseform .copy-button,
@@ -96,16 +92,10 @@
 .social-media-baseform .edit-content-textarea {
   width: 100%;
   min-height: 100px;
-  padding: 10px;
-  border: 1px solid var(--klee);
-  border-radius: 4px;
-  font-family: inherit;
-  font-size: inherit;
-  line-height: 1.5;
   resize: none;
   overflow: hidden;
-  background-color: var(--weiß);
-  color: var(--dunkelgruen);
+  border: 0px;
+  background-color: var(--sand);
 }
 
 .social-media-baseform .edit-content-textarea:focus {
@@ -114,185 +104,96 @@
   box-shadow: 0 0 0 2px rgba(0, 128, 0, 0.1);
 }
 
-.social-media-baseform .action-ideas {
-  background-color: var(--sand);
-  border-radius: 8px;
-  margin-top: 20px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  overflow: hidden;
-}
-
-.social-media-baseform .action-ideas .platform-header {
-  background-color: var(--klee);
-}
-
-.social-media-baseform .action-ideas ul {
-  list-style-type: none;
-  padding-left: 0;
-}
-
-.social-media-baseform .action-ideas li {
-  margin-bottom: 10px;
-  padding-left: 20px;
+/* Styles für StyledCheckbox */
+.checkbox-wrapper-28 {
+  --size: 15px;
   position: relative;
+  display: inline-flex;
+  margin: 0 10px 10px 0;
 }
 
-.social-media-baseform .action-ideas li::before {
-  content: '•';
+.checkbox-wrapper-28 .promoted-input-checkbox {
   position: absolute;
-  left: 0;
-  color: var(--tanne);
+  opacity: 0;
+  cursor: pointer;
+  height: 0;
+  width: 0;
 }
 
-.social-media-baseform .platform-checkboxes {
+.checkbox-wrapper-28 label {
+  color: #ffffff;
+  cursor: pointer;
+  position: relative;
+  display: flex;
+  align-items: center;
+  border: 1.5px solid var(--sand);
+  border-radius: 8px;
+  padding: 8px 12px 8px 35px;
+  transition: background-color 0.3s ease;
+  white-space: nowrap;
+}
+
+.checkbox-wrapper-28 label:hover {
+  background-color: #007a54;
+}
+
+.checkbox-wrapper-28 label::before {
+  content: '';
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: var(--size);
+  height: var(--size);
+  border: 1.5px solid #ffffff;
+  border-radius: 3px;
+  background-color: transparent;
+  transition: all 0.2s ease-in-out;
+}
+
+.checkbox-wrapper-28 .checkbox-svg {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%) scale(0.8);
+  width: calc(var(--size) - 4px);
+  height: calc(var(--size) - 4px);
+  stroke: #ffffff;
+  stroke-width: 3px;
+  fill: none;
+  opacity: 0;
+  transition: all 0.2s ease-in-out;
+}
+
+.checkbox-wrapper-28 input:checked ~ label .checkbox-svg {
+  opacity: 1;
+  stroke: var(--tanne);
+  transform: translateY(-50%) scale(0.8) rotate(3deg);
+}
+
+.checkbox-wrapper-28 .checkbox-label {
+  margin-left: 4px;
+  font-size: 14px;
+}
+
+.platform-checkboxes {
+  margin-top: 20px;
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 15px;
-  margin-bottom: 15px;
-}
-
-.social-media-baseform .platform-checkbox {
-  display: flex;
-  align-items: center;
-  border-radius: 8px;
-  border: 1.5px solid var(--sand);
-  color: var(--weiß);
-  padding: 7px 11px;
-  cursor: pointer;
-  transition: background-color 0.3s ease, border-color 0.3s ease;
-}
-
-.social-media-baseform .platform-checkbox:hover {
-  background-color: var(--klee);
-}
-
-.social-media-baseform .platform-checkbox input[type="checkbox"] {
-  appearance: none;
-  border-radius: 3px;
-  margin-right: 8px;
-  margin-top: 0;
-  height: 15px;
-  margin-bottom: 0;
-  cursor: pointer;
-  position: relative;
-  outline: none;
-  padding: 10px;
-}
-
-.social-media-baseform input
-
-.social-media-baseform .platform-checkbox input[type="checkbox"]:checked {
-  background-color: var(--sand);
-  border-color: var(--sand);
-}
-
-.social-media-baseform .platform-checkbox input[type="checkbox"]:focus {
-  border-color: var(--sand);
-}
-
-.social-media-baseform .platform-checkbox input[type="checkbox"]:checked::after {
-  content: '✓';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  color: var(--tanne);
-  font-size: 14px;
-  font-weight: bold;
-}
-
-.social-media-baseform .action-ideas-checkbox {
-  display: flex;
-  align-items: center;
-  margin-top: 15px;
-  padding: 8px 12px;
-  background-color: var(--dunkelgruen);
-  border: 1.5px solid var(--sand);
-  border-radius: 8px;
-  color: var(--weiß);
-  font-size: 0.9em;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-}
-
-.social-media-baseform .action-ideas-checkbox:hover {
-  background-color: var(--klee);
-}
-
-.social-media-baseform .action-ideas-checkbox input[type="checkbox"] {
-  appearance: none;
-  -webkit-appearance: none;
-  width: 18px;
-  height: 18px;
-  border: 2px solid var(--sand);
-  border-radius: 3px;
-  margin-right: 10px;
-  position: relative;
-  cursor: pointer;
-  outline: none;
-}
-
-.social-media-baseform .action-ideas-checkbox input[type="checkbox"]:checked {
-  background-color: var(--sand);
-}
-
-.social-media-baseform .action-ideas-checkbox input[type="checkbox"]:checked::after {
-  content: '✓';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  color: var(--dunkelgruen);
-  font-size: 14px;
-  font-weight: bold;
-}
-
-.social-media-baseform .action-ideas-checkbox label {
-  cursor: pointer;
 }
 
 @media (max-width: 768px) {
-  .social-media-baseform .platform-checkboxes {
+  .platform-checkboxes {
     flex-direction: column;
   }
 
-  .social-media-baseform .platform-checkbox {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    align-items: center;
-    padding: 15px 20px;
-    background-color: var(--dunkelgruen);
-    border: 1px solid var(--sand);
-    border-radius: 8px;
-    margin-bottom: 10px;
-    color: var(--weiß);
-    font-weight: bold;
+  .checkbox-wrapper-28 {
+    margin: 0 0 10px 0;
+    width: 100%;
   }
 
-  .social-media-baseform .platform-checkbox input[type="checkbox"] {
-    width: 15px;
-    height: 15px;
-    border: 2px solid var(--weiß);
-    border-radius: 4px;
-    margin-right: 15px;
-    grid-column: 1;
-  }
-
-  .social-media-baseform .platform-checkbox span {
-    font-weight: bold;
-  }
-
-  .social-media-baseform .platform-content-row {
-    flex-direction: column;
-  }
-
-  .social-media-baseform .platform-icon {
-    margin-bottom: 10px;
-  }
-
-  .social-media-baseform .platform-actions {
-    flex-wrap: wrap;
-    justify-content: flex-end;
+  .checkbox-wrapper-28 label {
+    width: 100%;
+    justify-content: flex-start;
   }
 }
