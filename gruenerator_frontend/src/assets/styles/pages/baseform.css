@@ -27,7 +27,6 @@
     background-color: var(--background-color-alt);
     display: flex;
     flex-direction: column;
-    height: 100%;
 }
 
 .generated-content-wrapper {
@@ -144,8 +143,8 @@
 .display-container div {
     color: var(--font-color);
     text-align: left;
-    margin-bottom: 20px;
     overflow-y: hidden;
+    margin-bottom: 0px;
 }
 
 .generated-post-container {
