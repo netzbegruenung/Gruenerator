@@ -1,8 +1,8 @@
-import React, { useMemo, useEffect } from 'react';
+import React, { useMemo, useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { HiCog, HiLightBulb } from "react-icons/hi";
 import { FaFacebook, FaInstagram, FaTwitter, FaLinkedin } from "react-icons/fa";
-import { IoCopyOutline } from "react-icons/io5";
+import { IoCopyOutline, IoPencil, IoSave } from "react-icons/io5";
 import SubmitButton from './SubmitButton';
 import useAccessibility from '../hooks/useAccessibility';
 import { addAriaLabelsToElements, enhanceFocusVisibility } from '../utils/accessibilityHelpers';
@@ -25,7 +25,6 @@ const generateValidClassName = (str) => {
 
 const BaseForm = ({
   title,
-  children,
   onSubmit,
   loading,
   success,
@@ -33,6 +32,11 @@ const BaseForm = ({
   formErrors = {},
   generatedContent,
   textSize,
+  renderFormInputs,
+  editingPlatform,
+  handleEditPost,
+  handleSavePost,
+  handlePostContentChange,
   submitButtonText = BUTTON_LABELS.SUBMIT,
 }) => {
   const { announce, setupKeyboardNav } = useAccessibility();
@@ -62,6 +66,108 @@ const BaseForm = ({
     }
   }, [error, announce]);
 
+  const textareaRef = useRef(null);
+
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+    }
+  }, [editingPlatform, generatedContent]);
+
+  const renderPlatformContent = (platform, content) => {
+    if (typeof content !== 'object' || content === null) {
+      console.error(`Invalid content for platform ${platform}:`, content);
+      return null;
+    }
+  
+    const Icon = platform === 'actionIdeas' ? HiLightBulb : (platformIcons[platform] || (() => null));
+    const isEditing = editingPlatform === platform;
+    const validClassName = generateValidClassName(platform);
+  
+    return (
+      <div key={platform} className="platform-content">
+        <div className="platform-header">
+          <div className="platform-title">
+            <div className="platform-icon">
+              {Icon && <Icon size={20} />}
+            </div>
+            <h3 className="platform-name">{platform === 'actionIdeas' ? 'Aktionsideen' : (content.title || platform)}</h3>
+          </div>
+          <div className="platform-actions">
+            <button 
+              onClick={() => handleCopyToClipboard(platform === 'actionIdeas' ? content.join('\n') : `${content.content}\n\n${content.hashtags.join(' ')}`)} 
+              className={`copy-button copy-button-${validClassName}`}
+              aria-label={`${ARIA_LABELS.COPY} ${platform}`}
+            >
+              <IoCopyOutline size={16} />
+            </button>
+            {isEditing ? (
+              <button 
+                onClick={() => handleSavePost()} 
+                className="save-button" 
+                aria-label={`Save ${platform} content`}
+              >
+                <IoSave size={16} />
+              </button>
+            ) : (
+              <button 
+                onClick={() => handleEditPost(platform)} 
+                className="edit-button" 
+                aria-label={`Edit ${platform} content`}
+              >
+                <IoPencil size={16} />
+              </button>
+            )}
+          </div>
+        </div>
+        <div className="platform-body">
+          <div className="generated-content-wrapper">
+            {isEditing ? (
+              <textarea
+                ref={textareaRef}
+                value={platform === 'actionIdeas' ? content.join('\n') : `${content.content}\n\n${content.hashtags.join(' ')}`}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (platform === 'actionIdeas') {
+                    handlePostContentChange(platform, value.split('\n'), []);
+                  } else {
+                    const lastNewLineIndex = value.lastIndexOf('\n\n');
+                    const newContent = value.substring(0, lastNewLineIndex);
+                    const newHashtags = value.substring(lastNewLineIndex + 2).split(' ');
+                    handlePostContentChange(platform, newContent, newHashtags);
+                  }
+                }}
+                className="edit-content-textarea"
+              />
+            ) : (
+              <>
+                {platform === 'actionIdeas' ? (
+                  <ul className="action-ideas-list">
+                    {content.map((idea, index) => (
+                      <li key={index}>{idea}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <>
+                    <div>{content.content}</div>
+                    {Array.isArray(content.hashtags) && content.hashtags.length > 0 && (
+                      <div className="hashtags">
+                        {content.hashtags.map((hashtag, index) => (
+                          <span key={index} className="hashtag">{hashtag}</span>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+  
   return (
     <div className="base-container social-media-baseform">
       <div className="container">
@@ -71,7 +177,7 @@ const BaseForm = ({
             onSubmit();
           }}>
             <div className={`form-content ${generatedContent ? 'with-generated-content' : ''}`}>
-              {children}
+              {renderFormInputs()}
               {hasFormErrors && (
                 <div className="form-errors" role="alert" aria-live="assertive">
                   {Object.entries(formErrors).map(([field, message]) => (
@@ -95,79 +201,18 @@ const BaseForm = ({
           </form>
         </div>
         <div className="display-container">
-          <h3>{title}</h3>
-          <div className="display-content" style={{ fontSize: textSize }}>
-          {Object.entries(generatedContent).map(([platform, content]) => {
-  const Icon = platformIcons[platform] || (() => null);
-  const validClassName = generateValidClassName(platform);
-  return (
-    <div key={platform} className="platform-content">
-      <div className="platform-header">
-        <div className="platform-title">
-          <div className="platform-icon">
-            {Icon && <Icon size={20} />}
-          </div>
-          <h3 className="platform-name">{content.title}</h3>
-        </div>
-        <button 
-          onClick={() => handleCopyToClipboard(`${content.content}\n\n${content.hashtags.join(' ')}`)} 
-          className={`copy-button copy-button-${validClassName}`} 
-          aria-label={`${ARIA_LABELS.COPY} ${platform}`}
-        >
-          <IoCopyOutline size={16} />
-        </button>
-      </div>
-      <div className="platform-body">
-        <div className="generated-content-wrapper">
-          {content.content}
-          <div className="hashtags">
-            {content.hashtags.map((hashtag, index) => (
-              <span key={index} className="hashtag">{hashtag}</span>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-})}
-{generatedContent.actionIdeas && (
-  <div className="action-ideas">
-    <div className="platform-header">
-      <div className="platform-title">
-        <div className="platform-icon">
-          <HiLightBulb size={20} />
-        </div>
-        <h3 className="platform-name">Aktionsideen</h3>
-      </div>
-      <button 
-        onClick={() => handleCopyToClipboard(generatedContent.actionIdeas.join('\n'))} 
-        className="copy-button copy-button-action-ideas" 
-        aria-label={ARIA_LABELS.COPY_ACTION_IDEAS}
-      >
-        <IoCopyOutline size={16} />
-      </button>
-    </div>
-    <div className="platform-body">
-      <div className="generated-content-wrapper">
-        <ul>
-          {generatedContent.actionIdeas.map((idea, index) => (
-            <li key={index}>{idea}</li>
-          ))}
-        </ul>
+      <h3>{title}</h3>
+      <div className="display-content" style={{ fontSize: textSize }}>
+        {Object.entries(generatedContent).map(([platform, content]) => renderPlatformContent(platform, content))}
       </div>
     </div>
   </div>
-)}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  </div>
+    
+);
 };
-
 BaseForm.propTypes = {
   title: PropTypes.string.isRequired,
-  children: PropTypes.node.isRequired,
   onSubmit: PropTypes.func.isRequired,
   loading: PropTypes.bool.isRequired,
   success: PropTypes.bool,
@@ -175,7 +220,13 @@ BaseForm.propTypes = {
   formErrors: PropTypes.object,
   generatedContent: PropTypes.object,
   textSize: PropTypes.string,
+  renderFormInputs: PropTypes.func.isRequired,
+  editingPlatform: PropTypes.string,
+  handleEditPost: PropTypes.func.isRequired,
+  handleSavePost: PropTypes.func.isRequired,
+  handlePostContentChange: PropTypes.func.isRequired,
   submitButtonText: PropTypes.string,
+  includeActionIdeas: PropTypes.bool,
 };
 
 export default BaseForm;

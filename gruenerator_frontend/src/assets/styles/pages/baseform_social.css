@@ -1,0 +1,298 @@
+/* social-media-baseform.css */
+
+@import url('../common/variables.css');
+@import url('../common/global.css');
+@import url('../common/typography.css');
+
+.social-media-baseform .platform-content {
+  background-color: var(--sand);
+  border-radius: 8px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  overflow: hidden;
+}
+
+.social-media-baseform .platform-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: var(--tanne);
+  padding: 10px 15px;
+  color: white;
+}
+
+.social-media-baseform .platform-title {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0;
+  color: white;
+}
+
+.social-media-baseform .platform-icon {
+  margin-right: 10px;
+  margin-bottom: 0;
+  color: white;
+}
+
+.social-media-baseform .platform-name {
+  margin: 0;
+  font-size: 18px;
+  text-transform: capitalize;
+  color: white;
+}
+
+.social-media-baseform .platform-body {
+  padding: 15px;
+}
+
+.social-media-baseform .generated-content-wrapper {
+  font-size: 14px;
+  line-height: 1.5;
+  color: #333;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.social-media-baseform .platform-actions {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 0px;
+}
+
+.social-media-baseform div {
+  color: var(--dunkelgrau)
+}
+
+.social-media-baseform .copy-button,
+.social-media-baseform .edit-button,
+.social-media-baseform .save-button,
+.social-media-baseform .regenerate-button {
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 5px;
+  color: white;
+  transition: opacity 0.3s ease;
+}
+
+.social-media-baseform .copy-button:hover,
+.social-media-baseform .edit-button:hover,
+.social-media-baseform .save-button:hover,
+.social-media-baseform .regenerate-button:hover {
+  opacity: 0.7;
+}
+
+.social-media-baseform .hashtags {
+  margin-top: 10px;
+}
+
+.social-media-baseform .hashtag {
+  display: inline-block;
+  margin-right: 5px;
+  color: var(--klee);
+}
+
+.social-media-baseform .edit-content-textarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 10px;
+  border: 1px solid var(--klee);
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: 1.5;
+  resize: none;
+  overflow: hidden;
+  background-color: var(--weiß);
+  color: var(--dunkelgruen);
+}
+
+.social-media-baseform .edit-content-textarea:focus {
+  outline: none;
+  border-color: var(--tanne);
+  box-shadow: 0 0 0 2px rgba(0, 128, 0, 0.1);
+}
+
+.social-media-baseform .action-ideas {
+  background-color: var(--sand);
+  border-radius: 8px;
+  margin-top: 20px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  overflow: hidden;
+}
+
+.social-media-baseform .action-ideas .platform-header {
+  background-color: var(--klee);
+}
+
+.social-media-baseform .action-ideas ul {
+  list-style-type: none;
+  padding-left: 0;
+}
+
+.social-media-baseform .action-ideas li {
+  margin-bottom: 10px;
+  padding-left: 20px;
+  position: relative;
+}
+
+.social-media-baseform .action-ideas li::before {
+  content: '•';
+  position: absolute;
+  left: 0;
+  color: var(--tanne);
+}
+
+.social-media-baseform .platform-checkboxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 15px;
+  margin-bottom: 15px;
+}
+
+.social-media-baseform .platform-checkbox {
+  display: flex;
+  align-items: center;
+  border-radius: 8px;
+  border: 1.5px solid var(--sand);
+  color: var(--weiß);
+  padding: 7px 11px;
+  cursor: pointer;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.social-media-baseform .platform-checkbox:hover {
+  background-color: var(--klee);
+}
+
+.social-media-baseform .platform-checkbox input[type="checkbox"] {
+  appearance: none;
+  border-radius: 3px;
+  margin-right: 8px;
+  margin-top: 0;
+  height: 15px;
+  margin-bottom: 0;
+  cursor: pointer;
+  position: relative;
+  outline: none;
+  padding: 10px;
+}
+
+.social-media-baseform input
+
+.social-media-baseform .platform-checkbox input[type="checkbox"]:checked {
+  background-color: var(--sand);
+  border-color: var(--sand);
+}
+
+.social-media-baseform .platform-checkbox input[type="checkbox"]:focus {
+  border-color: var(--sand);
+}
+
+.social-media-baseform .platform-checkbox input[type="checkbox"]:checked::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--tanne);
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.social-media-baseform .action-ideas-checkbox {
+  display: flex;
+  align-items: center;
+  margin-top: 15px;
+  padding: 8px 12px;
+  background-color: var(--dunkelgruen);
+  border: 1.5px solid var(--sand);
+  border-radius: 8px;
+  color: var(--weiß);
+  font-size: 0.9em;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.social-media-baseform .action-ideas-checkbox:hover {
+  background-color: var(--klee);
+}
+
+.social-media-baseform .action-ideas-checkbox input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--sand);
+  border-radius: 3px;
+  margin-right: 10px;
+  position: relative;
+  cursor: pointer;
+  outline: none;
+}
+
+.social-media-baseform .action-ideas-checkbox input[type="checkbox"]:checked {
+  background-color: var(--sand);
+}
+
+.social-media-baseform .action-ideas-checkbox input[type="checkbox"]:checked::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--dunkelgruen);
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.social-media-baseform .action-ideas-checkbox label {
+  cursor: pointer;
+}
+
+@media (max-width: 768px) {
+  .social-media-baseform .platform-checkboxes {
+    flex-direction: column;
+  }
+
+  .social-media-baseform .platform-checkbox {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    padding: 15px 20px;
+    background-color: var(--dunkelgruen);
+    border: 1px solid var(--sand);
+    border-radius: 8px;
+    margin-bottom: 10px;
+    color: var(--weiß);
+    font-weight: bold;
+  }
+
+  .social-media-baseform .platform-checkbox input[type="checkbox"] {
+    width: 15px;
+    height: 15px;
+    border: 2px solid var(--weiß);
+    border-radius: 4px;
+    margin-right: 15px;
+    grid-column: 1;
+  }
+
+  .social-media-baseform .platform-checkbox span {
+    font-weight: bold;
+  }
+
+  .social-media-baseform .platform-content-row {
+    flex-direction: column;
+  }
+
+  .social-media-baseform .platform-icon {
+    margin-bottom: 10px;
+  }
+
+  .social-media-baseform .platform-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+}
