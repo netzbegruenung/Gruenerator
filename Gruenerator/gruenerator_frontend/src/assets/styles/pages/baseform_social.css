@@ -1,0 +1,199 @@
+/* social-media-baseform.css */
+
+@import url('../common/variables.css');
+@import url('../common/global.css');
+@import url('../common/typography.css');
+
+.social-media-baseform .platform-content {
+  background-color: var(--sand);
+  border-radius: 8px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  overflow: hidden;
+}
+
+.social-media-baseform .platform-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: var(--tanne);
+  padding: 10px 15px;
+  color: white;
+}
+
+.social-media-baseform .platform-title {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0;
+  color: white;
+}
+
+.social-media-baseform .platform-icon {
+  margin-right: 10px;
+  margin-bottom: 0;
+  color: white;
+}
+
+.social-media-baseform .platform-name {
+  margin: 0;
+  font-size: 18px;
+  text-transform: capitalize;
+  color: white;
+}
+
+.social-media-baseform .platform-body {
+  padding: 15px;
+}
+
+.social-media-baseform .generated-content-wrapper {
+  padding: 15px;
+ 
+}
+
+.social-media-baseform .platform-actions {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 0px;
+}
+
+.social-media-baseform div {
+  color: var(--dunkelgrau);
+}
+
+.social-media-baseform .copy-button,
+.social-media-baseform .edit-button,
+.social-media-baseform .save-button,
+.social-media-baseform .regenerate-button {
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 5px;
+  color: white;
+  transition: opacity 0.3s ease;
+}
+
+.social-media-baseform .copy-button:hover,
+.social-media-baseform .edit-button:hover,
+.social-media-baseform .save-button:hover,
+.social-media-baseform .regenerate-button:hover {
+  opacity: 0.7;
+}
+
+.social-media-baseform .hashtags {
+  margin-top: 10px;
+}
+
+.social-media-baseform .hashtag {
+  display: inline-block;
+  margin-right: 5px;
+  color: var(--klee);
+}
+
+.social-media-baseform .edit-content-textarea {
+  width: 100%;
+  min-height: 100px;
+  resize: none;
+  overflow: hidden;
+  border: 0px;
+  background-color: var(--sand);
+}
+
+.social-media-baseform .edit-content-textarea:focus {
+  outline: none;
+  border-color: var(--tanne);
+  box-shadow: 0 0 0 2px rgba(0, 128, 0, 0.1);
+}
+
+/* Styles für StyledCheckbox */
+.checkbox-wrapper-28 {
+  --size: 15px;
+  position: relative;
+  display: inline-flex;
+  margin: 0 10px 10px 0;
+}
+
+.checkbox-wrapper-28 .promoted-input-checkbox {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+  height: 0;
+  width: 0;
+}
+
+.checkbox-wrapper-28 label {
+  color: #ffffff;
+  cursor: pointer;
+  position: relative;
+  display: flex;
+  align-items: center;
+  border: 1.5px solid var(--sand);
+  border-radius: 8px;
+  padding: 8px 12px 8px 35px;
+  transition: background-color 0.3s ease;
+  white-space: nowrap;
+}
+
+.checkbox-wrapper-28 label:hover {
+  background-color: #007a54;
+}
+
+.checkbox-wrapper-28 label::before {
+  content: '';
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: var(--size);
+  height: var(--size);
+  border: 1.5px solid #ffffff;
+  border-radius: 3px;
+  background-color: transparent;
+  transition: all 0.2s ease-in-out;
+}
+
+.checkbox-wrapper-28 .checkbox-svg {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%) scale(0.8);
+  width: calc(var(--size) - 4px);
+  height: calc(var(--size) - 4px);
+  stroke: #ffffff;
+  stroke-width: 3px;
+  fill: none;
+  opacity: 0;
+  transition: all 0.2s ease-in-out;
+}
+
+.checkbox-wrapper-28 input:checked ~ label .checkbox-svg {
+  opacity: 1;
+  stroke: var(--tanne);
+  transform: translateY(-50%) scale(0.8) rotate(3deg);
+}
+
+.checkbox-wrapper-28 .checkbox-label {
+  margin-left: 4px;
+  font-size: 14px;
+}
+
+.platform-checkboxes {
+  margin-top: 20px;
+  display: flex;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+  .platform-checkboxes {
+    flex-direction: column;
+  }
+
+  .checkbox-wrapper-28 {
+    margin: 0 0 10px 0;
+    width: 100%;
+  }
+
+  .checkbox-wrapper-28 label {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
