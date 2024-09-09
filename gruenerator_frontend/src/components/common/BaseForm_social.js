@@ -89,7 +89,7 @@ const BaseForm = ({
           </div>
           <div className="platform-actions">
             <button 
-              onClick={() => handleCopyToClipboard(platform === 'actionIdeas' ? content.join('\n') : `${content.content}\n\n${content.hashtags.join(' ')}`)} 
+              onClick={() => handleCopyToClipboard(platform === 'actionIdeas' ? content.join('\n') : content.content)} 
               className={`copy-button copy-button-${validClassName}`}
               aria-label={`${ARIA_LABELS.COPY} ${platform}`}
             >
@@ -112,7 +112,6 @@ const BaseForm = ({
                 <IoPencil size={16} />
               </button>
             )}
-      
           </div>
         </div>
         <div className="platform-body">
@@ -120,18 +119,8 @@ const BaseForm = ({
             {isEditing ? (
               <textarea
                 ref={textareaRef}
-                value={platform === 'actionIdeas' ? content.join('\n') : `${content.content}\n\n${content.hashtags.join(' ')}`}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  if (platform === 'actionIdeas') {
-                    handlePostContentChange(platform, value.split('\n'), []);
-                  } else {
-                    const lastNewLineIndex = value.lastIndexOf('\n\n');
-                    const newContent = value.substring(0, lastNewLineIndex);
-                    const newHashtags = value.substring(lastNewLineIndex + 2).split(' ');
-                    handlePostContentChange(platform, newContent, newHashtags);
-                  }
-                }}
+                value={platform === 'actionIdeas' ? content.join('\n') : content.content}
+                onChange={(e) => handlePostContentChange(platform, e.target.value)}
                 className="edit-content-textarea"
               />
             ) : (
@@ -143,16 +132,7 @@ const BaseForm = ({
                     ))}
                   </ul>
                 ) : (
-                  <>
-                    <div>{content.content}</div>
-                    {Array.isArray(content.hashtags) && content.hashtags.length > 0 && (
-                      <div className="hashtags">
-                        {content.hashtags.map((hashtag, index) => (
-                          <span key={index} className="hashtag">{hashtag}</span>
-                        ))}
-                      </div>
-                    )}
-                  </>
+                  <div>{content.content}</div>
                 )}
               </>
             )}
@@ -221,7 +201,6 @@ BaseForm.propTypes = {
   handlePostContentChange: PropTypes.func.isRequired,
   submitButtonText: PropTypes.string,
   platformIcons: PropTypes.object.isRequired,
-  includeActionIdeas: PropTypes.bool,
 };
 
 export default BaseForm;
