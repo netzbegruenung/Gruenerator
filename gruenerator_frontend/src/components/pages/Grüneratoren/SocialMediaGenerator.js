@@ -6,7 +6,7 @@ import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../utils/constants';
 import useApiSubmit from '../../hooks/useApiSubmit';
 import useEditFunctionality from '../../hooks/useEditFunctionality';
 import { FaFacebook, FaInstagram, FaTwitter, FaLinkedin } from "react-icons/fa";
-import StyledCheckbox from '../../common/AnimatedCheckbox';
+import StyledCheckbox from '../../common/AnimatedCheckbox';  // Importieren Sie die AnimatedCheckbox-Komponente
 
 const platformIcons = {
   facebook: FaFacebook,
@@ -36,13 +36,8 @@ const SocialMediaGenerator = ({ showHeaderFooter = true }) => {
     editingPlatform,
     handleEditPost,
     handleSavePost,
-    handlePostContentChange: originalHandlePostContentChange
+    handlePostContentChange
   } = useEditFunctionality({});
-
-  // Update handlePostContentChange to match the new BaseForm expectations
-  const handlePostContentChange = useCallback((platform, newContent) => {
-    originalHandlePostContentChange(platform, { content: newContent });
-  }, [originalHandlePostContentChange]);
 
   const handleSubmit = useCallback(async () => {
     const selectedPlatforms = Object.keys(platforms).filter(key => platforms[key] && key !== 'actionIdeas');
@@ -55,16 +50,7 @@ const SocialMediaGenerator = ({ showHeaderFooter = true }) => {
     try {
       const content = await submitForm(formData);
       if (content) {
-        // Ensure the content structure matches what BaseForm expects
-        const formattedContent = Object.entries(content).reduce((acc, [key, value]) => {
-          if (key === 'actionIdeas') {
-            acc[key] = value;
-          } else {
-            acc[key] = { content: value };
-          }
-          return acc;
-        }, {});
-        setSocialMediaPosts(formattedContent);
+        setSocialMediaPosts(content);
         setTimeout(resetSuccess, 3000);
         setError('');
       }
@@ -90,9 +76,7 @@ const SocialMediaGenerator = ({ showHeaderFooter = true }) => {
       if (content) {
         setSocialMediaPosts(prev => ({
           ...prev,
-          ...(platform === 'actionIdeas' 
-            ? { actionIdeas: content.actionIdeas } 
-            : { [platform]: { content: content[platform] } })
+          ...(platform === 'actionIdeas' ? { actionIdeas: content.actionIdeas } : { [platform]: content[platform] })
         }));
       }
     } catch (error) {
@@ -125,12 +109,12 @@ const SocialMediaGenerator = ({ showHeaderFooter = true }) => {
         aria-required="true"
       ></textarea>
 
-      <h3>Plattformen & Aktionsideen</h3>
+<h3>Plattformen & Aktionsideen</h3>
       <div className="platform-checkboxes">
         {Object.entries(platforms).map(([platform, isChecked]) => (
           <StyledCheckbox
             key={platform}
-            id={`checkbox-${platform}`}
+            id={`checkbox-${platform}`} // Hier wird die id korrekt gesetzt
             checked={isChecked}
             onChange={() => handlePlatformChange(platform)}
             label={platform === 'actionIdeas' ? 'Aktionsideen' : platform.charAt(0).toUpperCase() + platform.slice(1)}
