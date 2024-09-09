@@ -43,3 +43,4 @@ Moritz Wächter - [info@moritz-waechter.de](mailto:info@moritz-waechter.de)
 ## Danksagungen
 
 - An die Netzbegrünung für herausragenden technischen und inhaltlichen Support
+# Hotfix Branch Update
