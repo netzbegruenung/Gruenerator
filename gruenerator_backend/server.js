@@ -8,8 +8,11 @@ const http = require('http');
 const path = require('path');
 //const helmet = require('helmet');
 //const rateLimit = require('express-rate-limit');
+//const helmet = require('helmet');
+//const rateLimit = require('express-rate-limit');
 const winston = require('winston');
 const multer = require('multer');  // Hinzufügen von multer
+const axios = require('axios');
 const axios = require('axios');
 
 const { setupRoutes } = require('./routes');
@@ -35,10 +38,11 @@ const logger = winston.createLogger({
 const app = express();
 const port = process.env.PORT || 3001;
 const host = process.env.HOST || "127.0.0.1"; 
+const host = process.env.HOST || "127.0.0.1"; 
 
 logger.info(`Server will run on port ${port}`);
 
-const allowedOrigins = ['https://gruenerator-test.de'];
+const allowedOrigins = ['https://gruenerator-test.de', 'https://gruenerator.netzbegruenung.verdigado.net'];
 
 const corsOptions = {
   origin: function (origin, callback) {
@@ -52,6 +56,12 @@ const corsOptions = {
   credentials: true,
   optionsSuccessStatus: 204
 };
+
+app.use(cors(corsOptions));
+
+// Speziell für Preflight-Anfragen (OPTIONS)
+app.options('*', cors(corsOptions));
+
 
 // Security middleware
 //app.use(helmet());
@@ -115,6 +125,28 @@ app.get('/api/proxy-image', async (req, res) => {
   }
 });
 
+app.get('/api/proxy-image', async (req, res) => {
+  try {
+    const imageUrl = req.query.url;
+    if (!imageUrl) {
+      return res.status(400).send('Image URL is required');
+    }
+
+    const response = await axios({
+      method: 'get',
+      url: imageUrl,
+      responseType: 'stream'
+    });
+
+    res.set('Content-Type', response.headers['content-type']);
+    res.set('Content-Length', response.headers['content-length']);
+    response.data.pipe(res);
+  } catch (error) {
+    logger.error('Error proxying image:', error);
+    res.status(500).send('Error proxying image');
+  }
+});
+
 // Serve static files
 app.use(express.static('/var/www/html'));
 logger.info('Static file serving configured');
@@ -142,6 +174,7 @@ app.use(express.static(path.join(__dirname, 'public')));  // Hier wird der Pfad 
 logger.info('Static file serving configured');
 
 // Starting the HTTP Server
+http.createServer(app).listen(port, host, () => { 
 http.createServer(app).listen(port, host, () => { 
   logger.info(`HTTP Server running at http://localhost:${port}`);
 });

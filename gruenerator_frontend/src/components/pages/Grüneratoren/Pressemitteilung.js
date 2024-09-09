@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import '../../../assets/styles/common/variables.css';
 import '../../../assets/styles/common/global.css';
@@ -16,13 +16,22 @@ const Pressemitteilungsgenerator = ({ showHeaderFooter = true }) => {
   const [pressekontakt, setPressekontakt] = useState('');
   const [pressemitteilung, setPressemitteilung] = useState('');
   const textSize = useDynamicTextSize(pressemitteilung, 1.2, 0.8, [1000, 2000]);
-  const { submitForm, loading, success, error } = useApiSubmit('/claude_presse');
+  const { submitForm, loading, success, resetSuccess, error } = useApiSubmit('/claude_presse');
 
-  const handleSubmit = async () => {
+  const handleSubmit = useCallback(async () => {
     const formData = { was, wie, zitatgeber, pressekontakt };
-    const content = await submitForm(formData);
-    if (content) setPressemitteilung(content);
-  };
+    try {
+      const content = await submitForm(formData);
+      if (content) {
+        setPressemitteilung(content);
+        // Reset success after 3 seconds to match SubmitButton animation duration
+        setTimeout(resetSuccess, 3000);
+      }
+    } catch (error) {
+      console.error('Error submitting form:', error);
+      // You might want to set an error state here or show a notification to the user
+    }
+  }, [was, wie, zitatgeber, pressekontakt, submitForm, resetSuccess]);
 
   return (
     <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
