@@ -15,7 +15,7 @@ const Home = () => {
         <div className="home-container">
           <div className="home-header">
             <h1>Erstelle deine Grünen Inhalte. Schnell und kostenfrei.</h1>
-            <p>Der Grünerator ist dein täglicher Begleiter für Grüne Politik. Mit dem Grünerator kannst du schnell und kostenlos einen Vorschlag für Grüne Inhalte deiner Wahl erhalten. Alle Eingaben werden von Anthropic verarbeitet. Bitte gib daher keine obsoleten privaten Daten ein.</p>
+            <p>Wir arbeiten an den Serverfehlern! Der Grünerator ist dein täglicher Begleiter für Grüne Politik. Mit dem Grünerator kannst du schnell und kostenlos einen Vorschlag für Grüne Inhalte deiner Wahl erhalten. Alle Eingaben werden von Anthropic verarbeitet. Bitte gib daher keine obsoleten privaten Daten ein.</p>
           </div>
           <div className="links-container">
             <div className="home-links">
