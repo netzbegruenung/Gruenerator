@@ -199,7 +199,6 @@ export const IMAGE_MODIFICATION = {
   BALKEN_GRUPPE_STEP: 100,
   SUNFLOWER_STEP: 25,
 };
-  
 
 // Form Labels
 export const FORM_LABELS = {
@@ -217,7 +216,10 @@ export const FORM_LABELS = {
   DETAILS_ALL: 'Alle wichtigen Details',
   WHO_QUOTE: 'Wer soll zitiert werden?',
   PRESS_CONTACT: 'Pressekontakt',
-  TYPE: 'Sharepic-Typ'
+  TYPE: 'Sharepic-Typ',
+  LOCATION: 'Ort',
+  ORGANIZATION: 'Gliederung',
+  CHARACTER_COUNT: 'Zeichenzahl'
 };
 
 // Form Placeholders
@@ -237,7 +239,10 @@ export const FORM_PLACEHOLDERS = {
   DETAILS_ALL: 'Durch Baumpflanzaktionen, neue Parks und grüne Dachflächen in Kooperation mit lokalen Schulen und Unternehmen.',
   WHO_QUOTE: 'Alex Schmidt, Sprecher*in der Grünen OV Musterdorf',
   PRESS_CONTACT: 'Alex Schmidt, Sprecher*in, 01234 567890, alex.schmidt@gruene-musterdorf.de',
-  TYPE: 'Bitte wählen'
+  TYPE: 'Bitte wählen',
+  LOCATION: 'Gib den Ort oder die Region an, z.B. Siegburg, Köln etc...',
+  ORGANIZATION: 'Gib die Gliederung an, z.B. LOrtsverband Detmold...',
+  CHARACTER_COUNT: 'Gib die gewünschte Zeichenzahl ein'
 };
 
 // Footer Text
@@ -280,5 +285,19 @@ export const HEADER_TEXT = {
       { LINK: '/webbaukasten', TEXT: 'Webbaukasten', ICON: 'PiDeviceMobile' },
       { LINK: 'https://person.webbegruenung.de', TEXT: 'Demo-Seite', ICON: 'PiLink' }
     ]
+  }
+};
+
+export const WAHLPROGRAMM_GENERATOR = {
+  TITLE: "Wahlprogramm-Grünerator",
+  SUBTITLE: "Erstelle ein Kapitel für dein Wahlprogramm",
+  CONFIRMATION_MESSAGES: {
+    BACK_TO_START: "Möchtest du wirklich zurück zum ersten Schritt? Das generierte Wahlprogramm-Kapitel geht verloren."
+  },
+  LOG_MESSAGES: {
+    FORM_SUBMISSION_STARTED: 'WahlprogrammGenerator: Form submission started',
+    GENERATING_CONTENT: 'Generating Wahlprogramm content, current step:',
+    CONTENT_GENERATED: 'Wahlprogramm content generated, updating form data',
+    FORM_DATA_UPDATED: 'Form data updated, new step:',
   }
 };

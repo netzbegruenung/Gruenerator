@@ -25,6 +25,7 @@ const Footer = () => {
             { element: footerRef.current.querySelector('a[href="/antrag"]'), label: 'Anträge Seite' },
             { element: footerRef.current.querySelector('a[href="/socialmedia"]'), label: 'Social Media Seite' },
             { element: footerRef.current.querySelector('a[href="/rede"]'), label: 'Politische Rede Seite' },
+            { element: footerRef.current.querySelector('a[href="/antragscheck"]'), label: 'Antragscheck Seite' },
             { element: footerRef.current.querySelector('a[href="/webbaukasten"]'), label: 'Webbaukasten'},
             { element: footerRef.current.querySelector('a[href="/impressum"]'), label: 'Impressum Seite' },
             { element: footerRef.current.querySelector('a[href="/datenschutz"]'), label: 'Datenschutz Seite' },
@@ -69,7 +70,7 @@ const Footer = () => {
                             <li><Link to="/antrag" onClick={() => announce('Navigation zur Anträge Seite')}>Anträge</Link></li>
                             <li><Link to="/socialmedia" onClick={() => announce('Navigation zur Social Media Seite')}>Social Media</Link></li>
                             <li><Link to="/rede" onClick={() => announce('Navigation zur Politische Rede Seite')}>Politische Rede</Link></li>
-                            <li><Link to="/webbaukasten" onClick={() => announce('Navigation zur Websitegenerator Seite')}>Website</Link></li>
+                            <li><Link to="/antragscheck" onClick={() => announce('Navigation zur Antragscheck Seite')}>Antragscheck</Link></li>
                             <li><Link to="/impressum" onClick={() => announce('Navigation zur Impressum Seite')}>Impressum</Link></li>
                             <li><Link to="/datenschutz" onClick={() => announce('Navigation zur Datenschutz Seite')}>Datenschutz</Link></li>
                         </ul>
