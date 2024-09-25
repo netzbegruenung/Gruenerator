@@ -14,6 +14,7 @@ const aiImageModificationRouter = require('./routes/sharepic/sharepic_canvas/aiI
 const imageUploadRouter = require('./routes/sharepic/sharepic_canvas/imageUploadRouter');
 const processTextRouter = require('./routes/sharepic/sharepic_canvas/processTextRouter');
 const unsplashRoute  = require('./routes/unsplashApi');
+const claudeWahlprogrammRoute = require('./routes/claude_wahlprogramm');
 
 function setupRoutes(app) {
   app.use('/api/claude', claudeRoute);
@@ -23,15 +24,15 @@ function setupRoutes(app) {
   app.use('/api/antragsversteher', antragsversteherRoute);
   app.use('/api/pdf-extraction', pdfExtractionRoute);
   app.use('/api/wahlpruefsteinthueringen', wahlpruefsteinThueringenRoute);
-  app.use('/api/dreizeilen_canvas', sharepicDreizeilenCanvasRoute); // Neue Route hinzugefügt
-  app.use('/api/zitat_canvas', zitatSharepicCanvasRoute); // Neue Route hinzugefügt
-  app.use('/api/dreizeilen_claude', sharepicDreizeilenClaudeRoute); // Neue Route hinzugefügt
-  app.use('/api/zitat_claude', zitatSharepicClaudeRoute); // Neue Route hinzugefügt
+  app.use('/api/dreizeilen_canvas', sharepicDreizeilenCanvasRoute);
+  app.use('/api/zitat_canvas', zitatSharepicCanvasRoute);
+  app.use('/api/dreizeilen_claude', sharepicDreizeilenClaudeRoute);
+  app.use('/api/zitat_claude', zitatSharepicClaudeRoute);
   app.use('/api/ai-image-modification', aiImageModificationRouter);
-  app.use('/api/imageupload', imageUploadRouter); // Neue Route für Bildupload
+  app.use('/api/imageupload', imageUploadRouter);
   app.use('/api/processText', processTextRouter);
   app.use('/api/unsplash', unsplashRoute);
-
+  app.use('/api/generate-wahlprogramm', claudeWahlprogrammRoute);
 }
 
 module.exports = { setupRoutes };
