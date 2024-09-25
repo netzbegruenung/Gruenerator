@@ -21,6 +21,7 @@ import WelcomePopup from './components/Popups/popup_welcome';
 import useAccessibility from './components/hooks/useAccessibility';
 import useDarkMode from './components/hooks/useDarkMode';
 import { SharepicGeneratorProvider } from './components/utils/Sharepic/SharepicGeneratorContext'; // SharepicGeneratorProvider importiert
+import Wahlprogramm from './components/pages/Grüneratoren/Wahlprogramm'; // Neue Komponente importiert
 
 function App() {
   useScrollRestoration();
@@ -58,6 +59,7 @@ function App() {
     '/antragscheck',
     '/wahlpruefsteinthueringen',
     '/rede',
+    '/wahlprogramm', // Neue Route hinzugefügt
     '/datenschutz',
     '/impressum',
     '/nutzungsbedingungen'
@@ -100,6 +102,7 @@ function App() {
             <Sharepicgenerator showHeaderFooter={false} darkMode={darkMode} />
           </SharepicGeneratorProvider>
         } />
+        <Route path="/wahlprogramm-no-header-footer" element={<Wahlprogramm showHeaderFooter={false} darkMode={darkMode} />} />
       </Routes>
     </Router>
   );
@@ -129,6 +132,8 @@ const RouteComponent = ({ path, darkMode }) => {
       return <Datenschutz darkMode={darkMode} />;
     case '/impressum':
       return <Impressum darkMode={darkMode} />;
+    case '/wahlprogramm':
+      return <Wahlprogramm showHeaderFooter={true} darkMode={darkMode} />;
     default:
       return null;
   }

@@ -32,6 +32,8 @@
   margin-right: 10px;
   margin-bottom: 0;
   color: white;
+  height: 24px; /* Festgelegte Höhe für alle Platform-Icons */
+  width: auto; /* Breite automatisch anpassen, um das Seitenverhältnis beizubehalten */
 }
 
 .social-media-baseform .platform-name {
