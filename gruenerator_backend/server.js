@@ -6,8 +6,8 @@ const morgan = require('morgan');
 const fs = require('fs');
 const http = require('http');
 const path = require('path');
-//const helmet = require('helmet');
-//const rateLimit = require('express-rate-limit');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const winston = require('winston');
 const multer = require('multer');  // Hinzufügen von multer
 const axios = require('axios');
@@ -38,7 +38,12 @@ const host = process.env.HOST || "127.0.0.1";
 
 logger.info(`Server will run on port ${port}`);
 
-const allowedOrigins = ['https://gruenerator-test.de', 'https://gruenerator.netzbegruenung.verdigado.net'];
+const allowedOrigins = [
+  'https://gruenerator-test.de', 
+  'https://gruenerator.netzbegruenung.verdigado.net', 
+  'https://gruenerator.de',
+  'https://beta.gruenerator.de'
+];
 
 const corsOptions = {
   origin: function (origin, callback) {
@@ -48,37 +53,62 @@ const corsOptions = {
       callback(new Error('Not allowed by CORS'));
     }
   },
-  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+  methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
   optionsSuccessStatus: 204
 };
 
+// Anwenden der CORS-Konfiguration auf alle Routen
 app.use(cors(corsOptions));
 
-// Speziell für Preflight-Anfragen (OPTIONS)
+// Explizite Behandlung von OPTIONS-Anfragen für alle Routen
 app.options('*', cors(corsOptions));
 
+// Zusätzliche Middleware zur Sicherstellung der CORS-Header
+// Diese Zeilen können gelöscht werden:
+// app.use((req, res, next) => {
+//   res.header('Access-Control-Allow-Origin', allowedOrigins);
+//   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+//   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+//   next();
+// });
 
 // Security middleware
-//app.use(helmet());
-//app.use(rateLimit({
-  //windowMs: 15 * 60 * 1000, // 15 minutes
- // max: 100 // limit each IP to 100 requests per windowMs
-//}));
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      connectSrc: ["'self'", ...allowedOrigins],
+      imgSrc: ["'self'", "data:", "blob:", "https://images.unsplash.com"],
+      // Weitere Direktiven nach Bedarf hinzufügen
+    },
+  },
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }
+}));
 
-// Fügen Sie diese neue Middleware für die Content Security Policy hinzu
-app.use((req, res, next) => {
-  res.setHeader(
-    'Content-Security-Policy',
-    "default-src 'self'; img-src 'self' data: blob: https://images.unsplash.com; connect-src 'self' https://gruenerator-test.de https://gruenerator.netzbegruenung.verdigado.net;"
-  );
-  next();
+app.use(rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 Minuten
+  max: 300, // Erhöht auf 300 Anfragen pro Zeitfenster
+  message: 'Zu viele Anfragen von dieser IP, bitte versuchen Sie es später erneut.',
+  standardHeaders: true, // Füge Standard-RateLimit-Informationen zu den `RateLimit-*` Headern hinzu
+  legacyHeaders: false, // Deaktiviere die `X-RateLimit-*` Header
+}));
+
+// Zusätzliche Rate-Limiting für spezifische Routen
+const apiLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000, // 5 Minuten
+  max: 150, // Erhöht auf 150 Anfragen pro 5 Minuten
+  message: 'Zu viele API-Anfragen, bitte versuchen Sie es in 5 Minuten erneut.'
 });
+
+// Wende das API-Limit auf alle Routen an, die mit /api beginnen
+app.use('/api/', apiLimiter);
 
 // Middleware
 app.use(bodyParser.json({ limit: '10mb' }));
 app.use(bodyParser.urlencoded({ limit: '10mb', extended: true }));
-app.use(cors(corsOptions));
 app.use(morgan('combined', {
   skip: function (req, res) {
     return req.url.includes('/api/') && req.method === 'POST';
@@ -86,41 +116,8 @@ app.use(morgan('combined', {
   stream: { write: message => logger.info(message.trim()) }
 }));
 
-// Middleware für multer
-const upload = multer({
-  dest: 'uploads/',
-  limits: { fileSize: 10 * 1024 * 1024 } // 10 MB
-});
-
-// Beispielroute für Datei-Upload (dies sollte in Ihren Routendateien erfolgen)
-// app.post('/upload', upload.single('image'), (req, res) => {
-//   // Ihre Logik hier
-//   res.send('Datei hochgeladen');
-// });
-
-logger.info('Middleware configured');
-
-app.get('/api/proxy-image', async (req, res) => {
-  try {
-    const imageUrl = req.query.url;
-    if (!imageUrl) {
-      return res.status(400).send('Image URL is required');
-    }
-
-    const response = await axios({
-      method: 'get',
-      url: imageUrl,
-      responseType: 'stream'
-    });
-
-    res.set('Content-Type', response.headers['content-type']);
-    res.set('Content-Length', response.headers['content-length']);
-    response.data.pipe(res);
-  } catch (error) {
-    logger.error('Error proxying image:', error);
-    res.status(500).send('Error proxying image');
-  }
-});
+// **Setup routes vor den statischen Dateien und Catch-all-Routen**
+setupRoutes(app);
 
 // Serve static files
 app.use(express.static('/var/www/html'));
@@ -132,31 +129,28 @@ app.get('/', (req, res) => {
   res.sendFile(path.join('/var/www/html', 'index.html'));
 });
 
-// Setup routes
-setupRoutes(app);
-
 // Catch-all route for undefined routes
 app.get('*', (req, res) => {
   logger.info('Catch-all route accessed');
   res.sendFile(path.join('/var/www/html', 'index.html'));
 });
 
+// Serve additional static files (falls erforderlich)
+app.use(express.static(path.join(__dirname, 'public')));
+logger.info('Static file serving configured');
+
 // Error handling middleware
 app.use(errorHandler);
 
-// Serve static files
-app.use(express.static(path.join(__dirname, 'public')));  // Hier wird der Pfad zum statischen Verzeichnis konfiguriert
-logger.info('Static file serving configured');
-
 // Starting the HTTP Server
 http.createServer(app).listen(port, host, () => { 
-  logger.info(`HTTP Server running at http://localhost:${port}`);
+  logger.info(`HTTP Server running at http://${host}:${port}`);
 });
 
 // Log all registered routes
 logger.info('Registered routes:');
 app._router.stack.forEach(function(r){
     if (r.route && r.route.path){
-      logger.info(r.route.stack[0].method.toUpperCase() + ' ' + r.route.path)
+      logger.info(`${r.route.stack[0].method.toUpperCase()} ${r.route.path}`);
     }
 });
