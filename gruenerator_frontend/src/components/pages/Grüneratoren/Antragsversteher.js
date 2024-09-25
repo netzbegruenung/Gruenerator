@@ -20,6 +20,7 @@ const Antragsversteher = ({ showHeaderFooter = true }) => {
   const [generatedContent, setGeneratedContent] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [truncatedFileName, setTruncatedFileName] = useState('');
 
   const textSize = useDynamicTextSize(generatedContent, 1.2, 0.8, [1000, 2000]);
 
@@ -43,7 +44,14 @@ const Antragsversteher = ({ showHeaderFooter = true }) => {
     console.log('Datei ausgewählt:', file.name);
     setSelectedFile(file);
     setError('');
+    setTruncatedFileName(truncateFileName(file.name));
   }, []);
+
+  const truncateFileName = (fileName) => {
+    if (fileName.length <= 20) return fileName;
+    const extension = fileName.split('.').pop();
+    return fileName.substring(0, 17) + '...' + extension;
+  };
 
   const handleDragEnter = (e) => {
     e.preventDefault();
@@ -170,7 +178,7 @@ const Antragsversteher = ({ showHeaderFooter = true }) => {
             {selectedFile ? (
               <>
                 <FiFile size={24} />
-                <span className="file-name">{selectedFile.name}</span>
+                <span className="file-name">{truncatedFileName}</span>
               </>
             ) : (
               <>
