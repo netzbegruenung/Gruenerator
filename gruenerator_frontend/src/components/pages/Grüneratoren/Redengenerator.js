@@ -33,6 +33,11 @@ const Redengenerator = ({ showHeaderFooter = true }) => {
     }
   }, [rolle, thema, zielgruppe, schwerpunkte, redezeit, submitForm, resetSuccess]);
 
+  const handleGeneratedContentChange = useCallback((content) => {
+    console.log('Generated content changed:', content);
+    setRede(content);
+  }, [setRede]);
+
   return (
     <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
       <BaseForm
@@ -43,6 +48,7 @@ const Redengenerator = ({ showHeaderFooter = true }) => {
         error={error}
         generatedContent={rede}
         textSize={textSize}
+        onGeneratedContentChange={handleGeneratedContentChange}
       >
         <h3><label htmlFor="rolle">Rolle/Position des Redners</label></h3>
         <input
