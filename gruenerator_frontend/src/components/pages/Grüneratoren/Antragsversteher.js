@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import axios from 'axios';
 import { FiUpload, FiFile } from 'react-icons/fi';
+import ErrorBoundary from '../../ErrorBoundary';  // Importieren Sie die ErrorBoundary-Komponente
 
 import '../../../assets/styles/common/variables.css';
 import '../../../assets/styles/common/global.css';
@@ -40,7 +41,19 @@ const Antragsversteher = ({ showHeaderFooter = true }) => {
     };
   }, [success, resetSuccess]);
 
+  const validateFile = (file) => {
+    if (!file) return 'Bitte wählen Sie eine Datei aus.';
+    if (file.type !== 'application/pdf') return 'Bitte wählen Sie eine PDF-Datei aus.';
+    if (file.size > 10 * 1024 * 1024) return 'Die Datei ist zu groß. Maximale Größe ist 10 MB.';
+    return null;
+  };
+
   const handleFileSelect = useCallback((file) => {
+    const validationError = validateFile(file);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
     console.log('Datei ausgewählt:', file.name);
     setSelectedFile(file);
     setError('');
@@ -82,8 +95,9 @@ const Antragsversteher = ({ showHeaderFooter = true }) => {
   };
 
   const handleSubmit = useCallback(async () => {
-    if (!selectedFile) {
-      setError('Bitte wählen Sie zuerst eine Datei aus.');
+    const validationError = validateFile(selectedFile);
+    if (validationError) {
+      setError(validationError);
       return;
     }
 
@@ -114,7 +128,15 @@ const Antragsversteher = ({ showHeaderFooter = true }) => {
       }
     } catch (err) {
       console.error('Fehler beim Datei-Upload:', err);
-      setError('Fehler beim Hochladen und Verarbeiten der Datei: ' + (err.response?.data?.message || err.message));
+      if (err.response && err.response.status === 400) {
+        setError('Die hochgeladene Datei konnte nicht verarbeitet werden. Bitte stellen Sie sicher, dass es sich um ein gültiges PDF-Dokument handelt.');
+      } else if (err.response && err.response.status === 413) {
+        setError('Die Datei ist zu groß. Bitte laden Sie eine kleinere Datei hoch.');
+      } else {
+        setError('Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.');
+      }
+      // Hier könnte ein Aufruf zu einem Fehlerprotokollierungsdienst erfolgen
+      logErrorToService(err);
     } finally {
       setLoading(false);
     }
@@ -147,54 +169,63 @@ const Antragsversteher = ({ showHeaderFooter = true }) => {
   }, [antrag]);
 
   return (
-    <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
-      <BaseForm
-        title="Grünerator Antragscheck"
-        onSubmit={handleSubmit}
-        loading={loading}
-        success={success}
-        error={error}
-        generatedContent={generatedContent}
-        textSize={textSize}
-        submitButtonText={BUTTON_LABELS.SUBMIT}
-        onGeneratePost={handleGeneratePost}
-        generatedPost=""
-      >
-        <div 
-          className={`file-upload-area ${isDragging ? 'dragging' : ''}`}
-          onDragEnter={handleDragEnter}
-          onDragLeave={handleDragLeave}
-          onDragOver={handleDragOver}
-          onDrop={handleDrop}
+    <ErrorBoundary>
+      <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
+        <BaseForm
+          title="Grünerator Antragscheck"
+          onSubmit={handleSubmit}
+          loading={loading}
+          success={success}
+          error={error}
+          generatedContent={generatedContent}
+          textSize={textSize}
+          submitButtonText={BUTTON_LABELS.SUBMIT}
+          onGeneratePost={handleGeneratePost}
+          generatedPost=""
+          allowEditing={false} // Deaktiviert die Bearbeitungsfunktion
         >
-          <input
-            type="file"
-            onChange={(e) => handleFileSelect(e.target.files[0])}
-            accept="application/pdf"
-            style={{ display: 'none' }}
-            id="file-input"
-          />
-          <label htmlFor="file-input" className="file-upload-label">
-            {selectedFile ? (
-              <>
-                <FiFile size={24} />
-                <span className="file-name">{truncatedFileName}</span>
-              </>
-            ) : (
-              <>
-                <FiUpload size={24} className="upload-icon" />
-                <span>PDF-Datei hier ablegen oder klicken zum Auswählen</span>
-              </>
-            )}
-          </label>
-        </div>
-      </BaseForm>
-    </div>
+          <div 
+            className={`file-upload-area ${isDragging ? 'dragging' : ''}`}
+            onDragEnter={handleDragEnter}
+            onDragLeave={handleDragLeave}
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
+          >
+            <input
+              type="file"
+              onChange={(e) => handleFileSelect(e.target.files[0])}
+              accept="application/pdf"
+              style={{ display: 'none' }}
+              id="file-input"
+            />
+            <label htmlFor="file-input" className="file-upload-label">
+              {selectedFile ? (
+                <>
+                  <FiFile size={24} />
+                  <span className="file-name">{truncatedFileName}</span>
+                </>
+              ) : (
+                <>
+                  <FiUpload size={24} className="upload-icon" />
+                  <span>PDF-Datei hier ablegen oder klicken zum Auswählen</span>
+                </>
+              )}
+            </label>
+          </div>
+        </BaseForm>
+      </div>
+    </ErrorBoundary>
   );
 };
 
 Antragsversteher.propTypes = {
   showHeaderFooter: PropTypes.bool,
 };
+
+// Funktion zur Fehlerprotokollierung (kann an einen externen Dienst angepasst werden)
+function logErrorToService(error) {
+  console.error("Fehler aufgetreten:", error);
+  // Hier könnte ein Aufruf zu einem Fehlerprotokollierungsdienst erfolgen
+}
 
 export default Antragsversteher;

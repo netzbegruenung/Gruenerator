@@ -1,86 +1,82 @@
-/* baseform.css */
+/* Imports */
 @import url('../common/variables.css');
 @import url('../common/global.css');
 @import url('../common/typography.css');
 
+/* Grundlegende Container-Struktur */
 .base-container {
     display: flex;
     width: 100%;
+    max-width: 1200px; /* Maximale Gesamtbreite */
+    margin: 0 auto; /* Zentriert den Container */
     gap: 20px;
+    transition: all 0.5s ease;
+    position: relative;
+    align-items: stretch;
+    box-sizing: border-box;
+
 }
 
+/* Formular-Container */
 .form-container {
-    margin-right: 20px;
     flex: 1;
-    transition: flex 0.3s ease;
+    max-width: 600px; /* Maximale Breite für den Formular-Container */
+    display: flex;
+    flex-direction: column;
+    transition: all 0.5s ease;
     padding: 20px;
     border-radius: 8px;
     background-color: var(--dunkelgruen);
-    height: fit-content;
+    opacity: 1;
+    transform: translateX(0);
 }
 
+/* Inhalt-Container für den Normalmodus */
+.content-container {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    gap: 20px;
+    justify-content: center; /* Zentriert die Elemente horizontal */
+    transition: all 0.5s ease;
+}
+
+/* Anzeige-Container */
 .display-container {
     flex: 1;
-    transition: flex 0.3s ease;
+    max-width: 700px; /* Maximale Breite für den Anzeige-Container */
+    display: flex;
+    flex-direction: column;
+    transition: all 0.5s ease;
     padding: 20px;
     border-radius: 8px;
     background-color: var(--background-color-alt);
+}
+
+/* Generierter Inhalt */
+.generated-content-wrapper {
+    flex: 1;
     display: flex;
     flex-direction: column;
+    min-height: 0;
 }
 
-.generated-content-wrapper {
-    margin-bottom: 20px;
-    word-break: break-word;
-    white-space: pre-wrap;
-    overflow-wrap: break-word;
-    max-height: none;
-}
 
-.copy-button-container {
-    margin-top: auto;
-    width: 100%;
-    display: flex;
-    justify-content: center;
-    overflow: hidden;
-}
-
-.upload-and-generate-container {
-    display: flex;
-    gap: 20px;
-}
-
+/* Anzeige-Inhalt */
 .display-content {
-    flex: 1;
-    overflow-y: auto;
+    flex: 1; /* Erlaubt dem Inhalt, den verfügbaren Platz zu füllen */
+    overflow-y: auto; /* Fügt Scrollbalken hinzu, wenn der Inhalt zu lang ist */
     white-space: pre-wrap;
-    margin-bottom: 20px;
+    margin-bottom: 0;
 }
 
-.base-container.with-content .form-container {
-    flex: 0.3;
-}
-
-.base-container.with-content .display-container {
-    flex: 0.7;
-}
-
-.base-container.result-step .form-container,
-.base-container.result-step .display-container {
-    flex: 1;
-}
-
-.base-container.with-content.result-step .form-container {
-    flex: 1;
-}
-
-.base-container.with-content.result-step .display-container {
-    flex: 1;
-}
-
-.form-container h3, .display-container h3 {
+/* Überschriften-Stile */
+.form-container h3, .display-container h3, .sidebar h2 {
     margin-top: 0;
     text-align: left;
+}
+.sidebar h2 {
+    color: var(--weiß);
 }
 
 .form-container h3 {
@@ -92,6 +88,7 @@
     margin-bottom: 8px;
 }
 
+/* Subtext im Formular */
 .form-container .subtext {
     color: var(--sand);
     font-size: 0.9em;
@@ -100,7 +97,9 @@
     text-align: left;
 }
 
-.form-container input, .form-container textarea, .form-container select {
+/* Formular-Eingabefelder */
+.form-container input, .form-container textarea, .form-container select,
+.sidebar input, .sidebar textarea, .sidebar select {
     font-family: 'PT Sans', Arial, sans-serif;
     width: 100%;
     padding: 10px;
@@ -116,30 +115,33 @@
     margin-bottom: 15px;
 }
 
-.form-container textarea {
+.form-container textarea, .sidebar textarea {
     height: 120px;
 }
 
-.form-container input:focus, .form-container textarea:focus {
+.form-container input:focus, .form-container textarea:focus,
+.sidebar input:focus, .sidebar textarea:focus {
     border: 2px solid var(--grashalm);
     padding: 8px;
 }
 
-.form-container select {
+/* Select-Feld-Stile */
+.form-container select, .sidebar select {
     background-repeat: no-repeat;
     background-position: right 10px center;
     background-size: 10px;
 }
 
-.form-container select option {
+.form-container select option, .sidebar select option {
     background-color: var(--weiß);
 }
 
-.form-container select option:hover {
+.form-container select option:hover, .sidebar select option:hover {
     background-color: var(--grashalm);
     color: var(--dunkelgruen);
 }
 
+/* Anzeige-Container Div-Stile */
 .display-container div {
     color: var(--font-color);
     text-align: left;
@@ -151,37 +153,13 @@
     overflow-y: auto;
 }
 
-.form-buttons.preview-buttons {
-    display: flex;
-    justify-content: space-between;
-    gap: 20px;
-    margin-top: 20px;
-    width: 100%;
-}
-
-.form-buttons.preview-buttons .back-button {
-    background-color: var(--sand);
-    color: var(--dunkelgruen);
-}
-
-.upload-and-search-container {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 20px;
-    align-items: center;
-    flex-direction: row;
-    margin-bottom: 20px;
-}
-
-.upload-and-search-container .image-search-button {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
+/* Fehlermeldungen und Fehler-Inputs */
 .form-container input.error-input,
 .form-container textarea.error-input,
-.form-container select.error-input {
+.form-container select.error-input,
+.sidebar input.error-input,
+.sidebar textarea.error-input,
+.sidebar select.error-input {
     border: 2px solid var(--sonne);
 }
 
@@ -192,6 +170,7 @@
     margin-bottom: 8px;
 }
 
+/* Datei-Upload-Bereich */
 .file-upload-area {
     border: 2px dashed var(--tanne);
     border-radius: 8px;
@@ -209,7 +188,7 @@
 .upload-icon {
     font-size: 48px;
     color: var(--tanne);
-    margin-right: 10px
+    margin-right: 10px;
 }
 
 .file-upload-label {
@@ -224,39 +203,321 @@
     font-style: italic;
 }
 
+/* Lade-Icon */
 .loading-icon {
     animation: spin 1s linear infinite;
 }
 
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+/* Anzeige-Header */
+.display-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-left: 20px;
+    transition: all 0.3s ease;
 }
+
+.display-actions {
+    display: flex;
+    gap: 10px;
+}
+
+/* Aktions-Buttons */
+.display-actions .action-button {
+    background-color: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 5px;
+    color: var(--font-color-h);
+    transition: opacity 0.3s ease, transform 0.2s ease;
+}
+
+.display-actions .action-button:hover {
+    opacity: 0.7;
+    transform: scale(1.1);
+}
+
+.edit-content-container {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+}
+
+/* Bearbeitungs-Textarea */
+.edit-content-textarea {
+    width: 100%;
+    flex: 1 1 auto;
+    height: auto;
+    resize: none;
+    padding: 12px;
+    border: 1px solid var(--hellgrau);
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: inherit;
+    line-height: 1.5;
+    transition: all 0.3s ease;
+    opacity: 0;
+    transform: translateY(10px);
+    background-color: var(--background-color);
+    color: var(--font-color);
+}
+
+.display-container.editing-mode .edit-content-textarea {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.edit-content-textarea:hover {
+    border-color: var(--klee);
+    /* Weitere Hover-Effekte */
+}
+
+/* Bearbeitungsmodus-Stile */
+.base-container.editing-mode {
+    gap: 0;
+    justify-content: center;
+    align-items: flex-start;
+    height: auto;
+    min-height: 100vh;
+    padding: 20px;
+    transition: all 0.5s ease;
+}
+
+.base-container.editing-mode .form-container {
+    flex: 0;
+    width: 0;
+    padding: 0;
+    margin: 0;
+    opacity: 0;
+    transform: translateX(-100%);
+    transition: all 0.5s ease;
+}
+
+.base-container.editing-mode {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+    gap: 20px;
+}
+
+.base-container.editing-mode .display-container {
+    flex: 0.7;
+    max-width: 816px; /* Ungefähre Breite eines Word-Dokuments (21,59 cm) */
+    width: 100%;
+    height: auto;
+    min-height: calc(100vh - 40px);
+    margin: 0 auto;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    transition: all 0.5s ease;
+    transform: scale(1);
+}
+
+.display-container.editing-mode {
+    background-color: var(--background-color-alt);
+    padding: 0;
+    transition: all 0.5s ease;
+}
+
+.base-container.editing-mode .display-container .display-header {
+    color: var(--weiß);
+    padding: 30px 20px;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.base-container.editing-mode .display-container .display-header h3 {
+    margin-bottom: 0;
+}
+
+.base-container.editing-mode .display-container .display-content {
+    flex-grow: 1;
+    overflow-y: visible;
+}
+
+/* Verbesserte Animation für den Übergang */
+@keyframes fadeInScale {
+    from {
+        opacity: 0.9;
+        transform: scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes fadeOutScale {
+    from {
+        opacity: 1;
+        transform: scale(1);
+    }
+    to {
+        opacity: 0.9;
+        transform: scale(0.98);
+    }
+}
+
+.base-container.editing-mode .display-container {
+    animation: fadeInScale 0.5s ease forwards;
+}
+
+.base-container:not(.editing-mode) .display-container {
+    animation: fadeOutScale 0.5s ease forwards;
+}
+
+/* Entfernen der Animation für den Normalzustand */
+.base-container:not(.editing-mode) .display-container {
+    animation: none;
+}
+
+/* Stellen sicher, dass der Endzustand der Animation korrekt ist */
+.base-container .display-container {
+    transform: scale(1);
+    opacity: 1;
+}
+
+/* Responsive Anpassungen */
 
 @media (max-width: 768px) {
     .base-container {
-        gap: 0;
-        padding: 0;
+        padding: 10px;
     }
 
-    .form-container, .display-container {
-        width: auto;
-        margin-bottom: 20px;
-        margin-left: 0;
-        margin-right: 0;
-    }
-
-    .form-container input, .form-container textarea, .form-container select {
-        font-size: 0.7em;
-        line-height: 1.4;
-    }
-
-    .form-buttons.preview-buttons {
+    .base-container:not(.editing-mode) {
         flex-direction: column;
     }
-    
-    .form-buttons.preview-buttons .back-button,
-    .form-buttons.preview-buttons .form-button {
+
+    .form-container, .content-container {
         max-width: 100%;
+        margin-bottom: 20px;
+        margin-right: 0;
+        margin-left: 0;
+    }
+
+    .form-container {
+        order: 1;
+    }
+
+    .content-container {
+        order: 2;
+    }
+
+    .display-container {
+        max-width: 100%;
+    }
+
+    /* Neue Stile für den Bearbeitungsmodus auf mobilen Geräten */
+    .base-container.editing-mode {
+        padding: 0;
+        margin: 0;
+        height: 100vh;
+        width: 100vw;
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 1000;
+        background-color: var(--background-color);
+    }
+
+    .base-container.editing-mode .display-container {
+        height: 100%;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        border-radius: 0;
+        box-shadow: none;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden; /* Verhindert Scrolling des gesamten Containers */
+    }
+
+    .base-container.editing-mode .display-header {
+        flex-shrink: 0;
+        position: sticky;
+        top: 0;
+        z-index: 1001;
+        padding: 10px;
+        background-color: var(--dunkelgruen);
+    }
+
+    .base-container.editing-mode .display-content {
+        flex-grow: 1;
+        overflow-y: auto; /* Ermöglicht Scrolling innerhalb des Inhaltsbereichs */
+        -webkit-overflow-scrolling: touch; /* Für besseres Scrolling auf iOS */
+        padding: 10px;
+        height: calc(100% - 60px); /* Anpassen basierend auf der Höhe des Headers */
+    }
+
+    .base-container.editing-mode .quill-editor {
+        height: 100%;
+        overflow-y: auto; /* Ermöglicht Scrolling innerhalb des Editors */
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .base-container.editing-mode .quill-editor .ql-container {
+        height: auto; /* Lässt den Container mit dem Inhalt wachsen */
+        min-height: calc(100% - 42px); /* 42px ist die Standardhöhe der Quill-Toolbar */
+    }
+
+    .base-container.editing-mode .quill-editor .ql-editor {
+        min-height: 200px; /* Stellt sicher, dass es genug Platz zum Schreiben gibt */
+        max-height: none; /* Entfernt die maximale Höhe */
+    }
+
+    /* Animation für den Übergang in den Bearbeitungsmodus */
+    @keyframes expandFullscreen {
+        from {
+            transform: scale(0.95);
+            opacity: 0;
+        }
+        to {
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
+
+    .base-container.editing-mode {
+        animation: expandFullscreen 0.3s ease-out forwards;
+    }
+
+    /* Stift-Button-Animation */
+    @keyframes rotatePencil {
+        from {
+            transform: rotate(0deg);
+        }
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    .edit-button {
+        transition: background-color 0.3s ease;
+    }
+
+    .edit-button:active {
+        animation: rotatePencil 0.5s ease;
+    }
+
+    /* Anpassung der Schriftgröße und anderer Eigenschaften für Formulareingaben */
+    .form-container input,
+    .form-container textarea,
+    .form-container select {
+        font-size: 0.7em;
+        padding: 10px;
+        margin-bottom: 10px;
+    }
+
+    .base-container.editing-mode .form-container {
+        display: none;
+    }
+    .form-container select {
+        font-size: 0.7em; /* Kleinere Schriftgröße für mobile Geräte (14px in em umgerechnet) */
+        padding: 10px; /* Reduziertes Padding */
+        margin-bottom: 10px; /* Reduzierter Abstand zwischen den Eingabefeldern */
     }
 }

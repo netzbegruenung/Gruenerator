@@ -1,3 +1,4 @@
+// src/components/pages/Pressemitteilungsgenerator.js
 import React, { useState, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import '../../../assets/styles/common/variables.css';
@@ -20,18 +21,26 @@ const Pressemitteilungsgenerator = ({ showHeaderFooter = true }) => {
 
   const handleSubmit = useCallback(async () => {
     const formData = { was, wie, zitatgeber, pressekontakt };
+    console.log('Submitting form with data:', formData);
     try {
       const content = await submitForm(formData);
       if (content) {
+        console.log('Form submitted successfully. Received content:', content);
         setPressemitteilung(content);
         // Reset success after 3 seconds to match SubmitButton animation duration
         setTimeout(resetSuccess, 3000);
       }
     } catch (error) {
       console.error('Error submitting form:', error);
-      // You might want to set an error state here or show a notification to the user
+      // Optionally set an error state or show a notification to the user
     }
   }, [was, wie, zitatgeber, pressekontakt, submitForm, resetSuccess]);
+
+  // Debugging: Log when onGeneratedContentChange is called
+  const handleGeneratedContentChange = (content) => {
+    console.log('Generated content changed:', content);
+    setPressemitteilung(content);
+  };
 
   return (
     <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
@@ -43,6 +52,7 @@ const Pressemitteilungsgenerator = ({ showHeaderFooter = true }) => {
         error={error}
         generatedContent={pressemitteilung}
         textSize={textSize}
+        onGeneratedContentChange={handleGeneratedContentChange}
       >
         <h3><label htmlFor="was">{FORM_LABELS.WHAT}</label></h3>
         <input
@@ -93,7 +103,7 @@ const Pressemitteilungsgenerator = ({ showHeaderFooter = true }) => {
 };
 
 Pressemitteilungsgenerator.propTypes = {
-  showHeaderFooter: PropTypes.bool
+  showHeaderFooter: PropTypes.bool,
 };
 
 export default Pressemitteilungsgenerator;
