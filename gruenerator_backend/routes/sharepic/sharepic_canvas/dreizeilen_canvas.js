@@ -2,6 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const { createCanvas, loadImage } = require('canvas');
 const fs = require('fs').promises;
+const sharp = require('sharp');
 
 const { TESTBILD_PATH, params, SUNFLOWER_PATH } = require('./config');
 const { isValidHexColor, getDefaultColor } = require('./utils');
@@ -49,66 +50,59 @@ async function testLoadImage(filePath) {
   }
 }
 
-async function addTextToImage(imageBuffer, textLines, modParams) {
-  console.log('addTextToImage aufgerufen mit Buffer der Größe:', imageBuffer ? imageBuffer.length : 'kein Buffer');
-
+async function addTextToImage(uploadedImageBuffer, processedText, validatedParams) {
+  console.log('Starting addTextToImage function');
   try {
+    let img;
+    if (uploadedImageBuffer) {
+      console.log('Loading image from buffer, size:', uploadedImageBuffer.length);
+      img = await loadImage(uploadedImageBuffer);
+    } else {
+      console.log('Loading default image');
+      img = await loadImage(TESTBILD_PATH);
+    }
+    console.log('Image loaded successfully, dimensions:', img.width, 'x', img.height);
+
     await checkFiles();
     registerFonts();
-
-    let image;
-    if (imageBuffer) {
-      console.log('Lade hochgeladenes Bild aus Buffer');
-      image = await loadImage(Buffer.from(imageBuffer));
-    } else {
-      console.log('Kein Bild-Buffer vorhanden, lade Standard-Testbild');
-      const testbildBuffer = await fs.readFile(TESTBILD_PATH);
-      image = await loadImage(testbildBuffer);
-    }
-    console.log('Hauptbild geladen. Dimensionen:', { width: image.width, height: image.height });
-
-    console.log('Lade Sonnenblumenbild...');
-    const sunflowerBuffer = await fs.readFile(SUNFLOWER_PATH);
-    const sunflowerImage = await loadImage(sunflowerBuffer);
-    console.log('Sonnenblumenbild geladen');
 
     const canvas = createCanvas(params.OUTPUT_WIDTH, params.OUTPUT_HEIGHT);
     const ctx = canvas.getContext('2d');
 
     // Hintergrundbild zeichnen
     const { width: canvasWidth, height: canvasHeight } = canvas;
-    const imageAspectRatio = image.width / image.height;
+    const imageAspectRatio = img.width / img.height;
     const canvasAspectRatio = canvasWidth / canvasHeight;
 
     let sx, sy, sWidth, sHeight;
     if (imageAspectRatio > canvasAspectRatio) {
-      sHeight = image.height;
-      sWidth = image.height * canvasAspectRatio;
-      sx = (image.width - sWidth) / 2;
+      sHeight = img.height;
+      sWidth = img.height * canvasAspectRatio;
+      sx = (img.width - sWidth) / 2;
       sy = 0;
     } else {
-      sWidth = image.width;
-      sHeight = image.width / canvasAspectRatio;
+      sWidth = img.width;
+      sHeight = img.width / canvasAspectRatio;
       sx = 0;
-      sy = (image.height - sHeight) / 2;
+      sy = (img.height - sHeight) / 2;
     }
 
     console.log('Drawing background image...');
-    ctx.drawImage(image, sx, sy, sWidth, sHeight, 0, 0, canvasWidth, canvasHeight);
+    ctx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, canvasWidth, canvasHeight);
     console.log('Background image drawn.');
 
-    const { balkenGruppenOffset, fontSize, colors, balkenOffset, sunflowerOffset, sunflowerPosition, credit } = modParams;
+    const { balkenGruppenOffset, fontSize, colors, balkenOffset, sunflowerOffset, sunflowerPosition, credit } = validatedParams;
     ctx.font = `${fontSize}px GrueneType`;
     ctx.textBaseline = 'middle';
     ctx.textAlign = 'center';
 
     // Berechne die Positionen und Dimensionen der Textbalken
     const balkenHeight = fontSize * params.BALKEN_HEIGHT_FACTOR;
-    const totalBalkenHeight = balkenHeight * textLines.length;
+    const totalBalkenHeight = balkenHeight * processedText.length;
     let startY = (canvasHeight - totalBalkenHeight) / 2 + 80; // Erhöhter Offset nach unten
     startY = Math.max(startY, 100);
 
-    const balkenPositions = textLines.map((line, index) => {
+    const balkenPositions = processedText.map((line, index) => {
       const textWidth = ctx.measureText(line.text).width;
       const padding = fontSize * params.TEXT_PADDING_FACTOR;
       const rectWidth = Math.min(textWidth + padding * 2 + 20, canvasWidth - 20);
@@ -175,6 +169,8 @@ async function addTextToImage(imageBuffer, textLines, modParams) {
     const adjustedSunflowerY = Math.max(0, Math.min(canvasHeight - sunflowerSize, sunflowerY + sunflowerOffset[1]));
 
     console.log('Drawing sunflower image...');
+    const sunflowerBuffer = await fs.readFile(SUNFLOWER_PATH);
+    const sunflowerImage = await loadImage(sunflowerBuffer);
     ctx.drawImage(sunflowerImage, adjustedSunflowerX, adjustedSunflowerY, sunflowerSize, sunflowerSize);
     console.log('Sunflower image drawn at:', { adjustedSunflowerX, adjustedSunflowerY, sunflowerSize });
 
@@ -202,7 +198,7 @@ async function addTextToImage(imageBuffer, textLines, modParams) {
       ctx.fillStyle = text;
       const textX = x + width / 2;
       const textY = y + height / 2;
-      ctx.fillText(textLines[index].text, textX, textY);
+      ctx.fillText(processedText[index].text, textX, textY);
 
       console.log(`Balken ${index} drawn at: x=${x}, y=${y}, width=${width}, height=${height}`);
     });
@@ -225,19 +221,35 @@ async function addTextToImage(imageBuffer, textLines, modParams) {
     }
 
     return canvas.toBuffer('image/png');
-  } catch (err) {
-    console.error('Fehler beim Erstellen des Bildes:', err);
-    if (err.name === 'TypeError') {
-      throw new Error('Ungültige Parameterwerte: ' + err.message);
+  } catch (error) {
+    console.error('Error in addTextToImage:', error);
+    if (error.message.includes('Unsupported image type')) {
+      console.error('Image buffer details:', uploadedImageBuffer.slice(0, 20));  // Log the first 20 bytes of the buffer
     }
-    throw err;
+    throw error;
   }
 }
 
 router.post('/', upload.single('image'), async (req, res) => {
-  console.log('Received request body:', req.body);
-
+  console.log('Received request for dreizeilen_canvas');
   try {
+    if (req.file) {
+      console.log('Received file details:', {
+        fieldname: req.file.fieldname,
+        originalname: req.file.originalname,
+        encoding: req.file.encoding,
+        mimetype: req.file.mimetype,
+        size: req.file.size
+      });
+
+      // Kommentieren Sie die Größenprüfung vorerst aus
+      // if (req.file.size < 1000) {
+      //   throw new Error(`File size too small: ${req.file.size} bytes`);
+      // }
+    }
+
+    console.log('Received request body:', req.body);
+
     const {
       balkenGruppe_offset_x, balkenGruppe_offset_y, fontSize,
       colors_0_background, colors_0_text,
@@ -299,6 +311,18 @@ router.post('/', upload.single('image'), async (req, res) => {
 
     const processedText = await processText({ line1, line2, line3 });
     console.log('Processed text:', processedText);
+
+    const imageBuffer = req.file.buffer;
+    try {
+      const metadata = await sharp(imageBuffer).metadata();
+      if (!['jpeg', 'png', 'webp'].includes(metadata.format)) {
+        throw new Error(`Nicht unterstütztes Bildformat: ${metadata.format}`);
+      }
+      // Fahren Sie mit der Bildverarbeitung fort
+    } catch (error) {
+      console.error('Fehler bei der Bildverarbeitung:', error);
+      return res.status(400).json({ error: error.message });
+    }
 
     const generatedImageBuffer = await addTextToImage(uploadedImageBuffer, processedText, validatedParams);
     const base64Image = `data:image/png;base64,${generatedImageBuffer.toString('base64')}`;

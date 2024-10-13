@@ -1,0 +1,270 @@
+/* src/assets/styles/components/editor.css */
+
+/* Grundlegende Container-Struktur */
+.text-editor {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Anpassung der Textmarkierungsfarbe */
+.text-editor .ql-editor::selection {
+    background-color: var(--sonne);
+}
+
+/* Behalten Sie die spezifischen Stile für den "Text mit AI anpassen" Button */
+.ql-adjust-text.custom-button {
+    display: flex;
+    align-items: center;
+    padding: 6px 10px;
+    color: var(--font-color-h);
+    background-color: transparent;
+    border: 1px solid var(--hellgrau);
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.ql-adjust-text.custom-button:hover {
+    color: var(--klee);
+}
+
+.ql-adjust-text.custom-button .adjust-icon,
+.ql-adjust-text.custom-button .adjust-text {
+    transition: color 0.3s ease;
+}
+
+.ql-adjust-text.custom-button:hover .adjust-icon,
+.ql-adjust-text.custom-button:hover .adjust-text {
+    color: var(--klee);
+}
+
+/* Anpassungscontainer */
+.adjust-container {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 1000;
+    background-color: white;
+    border: 1px solid var(--hellgrau);
+    border-radius: 3px;
+    padding: 10px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    width: 300px;
+}
+
+.adjust-form {
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.adjust-input {
+    font-family: 'PT Sans', Arial, sans-serif;
+    width: 100%;
+    padding: 10px;
+    border: none;
+    border-radius: 4px;
+    box-sizing: border-box;
+    font-size: 0.9em;
+    outline: none;
+    color: #333;
+    background-color: var(--weiß);
+    transition: box-shadow 0.3s ease, background-color 0.3s ease;
+    margin-top: 15px;
+    margin-bottom: 15px;
+}
+
+.adjust-input:focus {
+    border: 2px solid var(--grashalm);
+    padding: 8px;
+}
+
+.adjust-input {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.adjust-submit, .cancel-adjust {
+    padding: 6px 10px;
+    background-color: var(--klee);
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    margin-left: 4px;
+}
+
+.adjust-submit:hover, .cancel-adjust:hover {
+    background-color: var(--grashalm);
+}
+
+
+/* Fehlermeldung */
+.error-message {
+    color: var(--sonne);
+    font-size: 0.9em;
+    margin-top: 5px;
+}
+
+/* Animationen für den Inline-Adjustment-Container */
+.adjustment-animation-enter {
+    opacity: 0;
+    transform: scale(0.9);
+}
+
+.adjustment-animation-enter-active {
+    opacity: 1;
+    transform: scale(1);
+    transition: opacity 300ms, transform 300ms;
+}
+
+.adjustment-animation-exit {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.adjustment-animation-exit-active {
+    opacity: 0;
+    transform: scale(0.9);
+    transition: opacity 300ms, transform 300ms;
+}
+
+/* Positionierung für den Editor-Inhalt */
+.generated-content-wrapper {
+    position: relative;
+}
+
+.input-wrapper {
+    position: relative;
+    flex-grow: 1;
+}
+
+.cancel-adjust {
+    position: absolute;
+    right: 5px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 18px;
+    color: var(--font-color-h);
+}
+
+.adjust-submit {
+    background-color: var(--klee);
+    color: var(--font-color-h);
+    border: none;
+    border-radius: 3px;
+    padding: 6px 12px;
+    cursor: pointer;
+}
+
+.adjust-submit:hover {
+    background-color: var(--grashalm);
+}
+
+.adjust-submit .icon {
+    font-size: 18px;
+}
+
+.confirmation-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 0;
+}
+
+.confirmation-container p {
+    margin-right: 10px;
+}
+
+.confirm-button, .reject-button {
+    padding: 5px 10px;
+    margin: 0 5px;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+}
+
+.confirm-button {
+    background-color: var(--klee);
+    color: var(--font-color-h);
+}
+
+.reject-button {
+    background-color: var(--sonne);
+    color: var(--font-color-h);
+}
+
+/* Horizontales Scrollen für display actions ermöglichen */
+.display-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+/* Entfernen des "Vorschläge werden geladen" Textes */
+.loading-text {
+    display: none;
+}
+
+/* Übernahme des Designs der Input-Felder aus baseform.css */
+.adjust-input {
+    font-family: 'PT Sans', Arial, sans-serif;
+    width: 100%;
+    padding: 10px;
+    border: none;
+    border-radius: 4px;
+    box-sizing: border-box;
+    font-size: 0.9em;
+    outline: none;
+    color: #333;
+    background-color: var(--weiß);
+    transition: box-shadow 0.3s ease, background-color 0.3s ease;
+    margin-top: 15px;
+    margin-bottom: 15px;
+}
+
+.adjust-input:focus {
+    border: 2px solid var(--grashalm);
+    padding: 8px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+  
+  .adjust-submit.loading .loading-icon {
+    animation: spin 1s linear infinite;
+  }
+  
+  .adjust-submit {
+    /* Stellen Sie sicher, dass der Button eine feste Größe hat */
+    width: 30px;
+    height: 30px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  .adjust-submit .icon,
+  .adjust-submit .loading-icon {
+    font-size: 16px;
+  }
+
+.ql-editor .ql-bg-yellow {
+    background-color: #ffff00;
+    color: #000000;
+}
+
+.ql-editor .ql-bg-green {
+    background-color: var(--klee);
+    color: #000000;
+}

@@ -1,6 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import Button from './Button';
+import SubmitButton from './SubmitButton';
 import { HiCog } from "react-icons/hi";
 import { BUTTON_LABELS, ARIA_LABELS } from '../utils/constants';
 
@@ -12,7 +12,7 @@ const GeneratePostButton = ({ onGenerate, loading, isRegenerateText }) => {
   };
 
   return (
-    <Button
+    <SubmitButton
       onClick={handleClick}
       loading={loading}
       text={isRegenerateText ? BUTTON_LABELS.REGENERATE_TEXT : BUTTON_LABELS.GENERATE_TEXT}

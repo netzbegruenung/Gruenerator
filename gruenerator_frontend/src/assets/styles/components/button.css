@@ -17,7 +17,7 @@
   margin-top: 20px;
 }
 
-.button {
+.button  {
   padding: var(--button-padding);
   border: none;
   border-radius: var(--button-border-radius);
@@ -49,10 +49,15 @@
   animation: spin 2s linear infinite;
 }
 
- .copy-button {
-  background-color: var(--tanne);
-  color: var(--weiß);
-  width: 100%;
+
+
+.social-media-baseform .copy-button {
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 5px;
+  transition: opacity 0.3s ease;
+  width: auto;
 }
 
 .form-buttons {
@@ -104,10 +109,6 @@
   justify-content: center;
 }
 
-.copy-button {
-  margin-top: 10px;
-}
-
 .file-input-wrapper,
 .unsplash-button {
   background-color: var(--tanne);
@@ -136,17 +137,79 @@
   width:auto;
 }
 
-.image-search-button:hover {
-  transform: scale(1.01);
-}
-
 .image-search-button:disabled {
   background-color: #cccccc;
   cursor: not-allowed;
 }
 
-.file-input-wrapper:hover, .generate-post-button:hover {
+.file-input-wrapper:hover, .generate-post-button:hover, .form-button:hover, .image-search-button:hover, .copy-button:hover {
+
   transform: scale(1.01);
+}
+
+/*submitbutton*/
+
+.submit-button {
+  position: relative;
+  overflow: hidden;
+  padding: var(--button-padding, 10px 20px);
+  border: none;
+  border-radius: var(--button-border-radius, 5px);
+  font-size: var(--button-font-size, 1em);
+  cursor: pointer;
+  transition: background-color 0.3s, transform 0.3s;
+}
+
+.submit-button--loading {
+  cursor: loading;
+}
+
+.submit-button--success {
+  background-color: var(--success-color, #28a745);
+}
+
+.submit-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.submit-button__lottie-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.submit-button__lottie-animation {
+  width: 100%;
+  height: 100%;
+}
+
+.submit-button__content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.3s ease-in-out;
+}
+
+.submit-button__content--visible {
+  opacity: 1;
+}
+
+.submit-button__content--hidden {
+  opacity: 0;
+}
+
+.submit-button__icon {
+  margin-right: 8px;
+}
+
+.submit-button__icon--loading {
+  animation: spin 2s linear infinite;
 }
 
 .file-input-wrapper input[type="file"] {
@@ -216,8 +279,17 @@
 }
 
 @media (max-width: 768px) {
-  .button {
-    font-size: 0.8em;
+  .button,
+  .form-button,
+  .submit-button,
+  .generate-post-button,
+  .back-button,
+  .download-button,
+  .copy-button,
+  .image-search-button,
+  .file-input-wrapper {
+    font-size: 0.85em;
+    padding: 8px 16px; /* Reduziertes Padding für mobile Geräte */
   }
 
   .download-button {

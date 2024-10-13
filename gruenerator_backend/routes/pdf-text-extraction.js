@@ -1,3 +1,4 @@
+//pdf-text-ectraction.js
 const express = require('express');
 const multer = require('multer');
 const pdf = require('pdf-parse');
@@ -7,27 +8,27 @@ const router = express.Router();
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
-// PDF Text Extraction Endpoint
-router.post('/', upload.single('file'), async (req, res) => {
+// PDF Text Extraction Endpoint für Antragsversteher
+router.post('/api/antragsversteher/upload-pdf', upload.single('file'), async (req, res) => {
   if (!req.file) {
-    console.log('No file received in PDF extraction request');
-    return res.status(400).send('No file uploaded');
+    console.log('Keine Datei im Antragsversteher-PDF-Upload empfangen');
+    return res.status(400).send('Keine Datei hochgeladen');
   }
-
+  
   try {
     const fileBuffer = req.file.buffer;
     const data = await pdf(fileBuffer);
-    
+   
     if (!data || !data.text) {
-      console.log('No text extracted from PDF');
-      return res.status(422).json({ error: 'Failed to extract text from PDF. The file may be empty or corrupted.' });
+      console.log('Kein Text aus der PDF für Antragsversteher extrahiert');
+      return res.status(422).json({ error: 'Fehler beim Extrahieren des Textes aus der PDF. Die Datei könnte leer oder beschädigt sein.' });
     }
-
-    console.log('PDF text extraction successful');
+    
+    console.log('PDF-Textextraktion für Antragsversteher erfolgreich');
     res.json({ text: data.text });
   } catch (error) {
-    console.error('Error extracting text from PDF:', error.message);
-    res.status(500).send('Internal Server Error');
+    console.error('Fehler beim Extrahieren des Textes aus der PDF für Antragsversteher:', error.message);
+    res.status(500).send('Interner Serverfehler');
   }
 });
 
