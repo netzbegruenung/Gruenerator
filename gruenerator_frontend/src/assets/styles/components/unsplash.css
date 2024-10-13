@@ -145,51 +145,27 @@
   margin-top: 4px;
 }
 
-/* Lottie-Animation und Übergänge */
-.lottie-container {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: opacity 0.5s ease-in-out;
+.sticky-sharepic-container {
+  position: sticky;
+  top: 20px; /* Abstand vom oberen Rand beim Scrollen */
+  z-index: 100;
 }
 
-.lottie-wrapper,
-.image-preview {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  transition: opacity var(--transition-duration) var(--transition-timing),
-              transform var(--transition-duration) var(--transition-timing),
-              clip-path var(--transition-duration) var(--transition-timing);
-  will-change: opacity, transform, clip-path;
+.sticky-sharepic {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin-bottom: 10px;
 }
 
-.lottie-animation {
-  width: 100%;
-  height: 100%;
+.button-container {
+  margin-top: 10px;
 }
 
-.lottie-wrapper.show,
-.image-preview.hide {
-  opacity: 1;
-  transform: scale(1);
-  clip-path: circle(100% at center);
-  z-index: 1;
-}
-
-.lottie-wrapper.hide,
-.image-preview.show {
-  opacity: 0;
-  transform: scale(0.95);
-  clip-path: circle(0% at center);
-  z-index: 0;
+@media (max-width: 768px) {
+  .sticky-sharepic-container {
+    position: static;
+  }
 }
 
 @media (max-width: 768px) {
@@ -205,6 +181,8 @@
   .font-size-control button, .balken-offset-control button {
     width: 100%;
   }
+
+
 
   @media (prefers-reduced-motion: reduce) {
     .lottie-wrapper,

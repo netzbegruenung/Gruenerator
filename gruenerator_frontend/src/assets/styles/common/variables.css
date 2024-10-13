@@ -12,6 +12,8 @@
     --sonne: #FFF17A;
     --weiß: #ffffff;
     --dunkelgruen: #005437;
+    --dunkelgruen-alt: #004d40; /* Eine dunklere Variante von dunkelgrün */
+
     --backgroundgruen: #f3faf6;
     --dunkelgrau: #333;
     --anthrazit: #222;
@@ -25,6 +27,7 @@
     --font-color-h3: var(--tanne);
     --link-color: var(--tanne);
     --button-background-color: #e0e0e0;
+    --button-color: var(--tanne);
     --button-text-color: black;
 }
 
@@ -36,8 +39,9 @@
     --font-color: var(--sand);
     --font-color-h: var(--sand);
     --font-color-h3: var(--sand);
-    --link-color: lightblue;
+    --link-color: var(--tanne);
     --button-background-color: var(--tanne);
+    --button-color: var(--sand);
     --button-text-color: white;
 }
 

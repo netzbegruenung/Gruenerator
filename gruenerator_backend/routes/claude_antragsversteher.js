@@ -1,70 +1,49 @@
 const express = require('express');
 const multer = require('multer');
-const fs = require('fs');
-const path = require('path');
-const axios = require('axios');
-const FormData = require('form-data');
+const pdf = require('pdf-parse');
+const { createWorker } = require('tesseract.js');
 const { Anthropic } = require('@anthropic-ai/sdk');
 const router = express.Router();
-const dotenv = require('dotenv');
-
-dotenv.config();
 
 const anthropic = new Anthropic({
   apiKey: process.env.CLAUDE_API_KEY
 });
 
-// Configure multer storage
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    const uploadPath = path.join(__dirname, 'uploads');
-    fs.mkdirSync(uploadPath, { recursive: true });
-    cb(null, uploadPath);
-  },
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + '-' + file.originalname);
-  }
-});
-
+const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
-router.post('/upload', upload.single('file'), async (req, res) => {
+router.post('/upload-pdf', upload.single('file'), async (req, res) => {
   if (!req.file) {
-    return res.status(400).send('No file uploaded');
+    return res.status(400).send('Keine Datei hochgeladen');
   }
 
-  const filePath = path.join(__dirname, 'uploads', req.file.filename);
-
   try {
-    const fileBuffer = await fs.promises.readFile(filePath);
+    const fileBuffer = req.file.buffer;
+    let extractedText = '';
+    let usedOCR = false;
 
-    const formData = new FormData();
-    formData.append('file', fileBuffer, {
-      filename: req.file.originalname,
-      contentType: req.file.mimetype
-    });
+    // Versuche zuerst, Text direkt aus der PDF zu extrahieren
+    try {
+      const data = await pdf(fileBuffer);
+      extractedText = data.text;
+    } catch (pdfError) {
+      console.log('Fehler bei der PDF-Textextraktion, versuche OCR:', pdfError);
+    }
 
-    const uploadResponse = await axios.post(process.env.PDF_TEXT_EXTRACTION_ENDPOINT, formData, {
-      headers: {
-        ...formData.getHeaders(),
-        'Authorization': `Bearer ${process.env.CLAUDE_API_KEY}`
-      },
-    });
+    // Wenn kein Text extrahiert wurde, wende OCR an
+    if (!extractedText.trim()) {
+      const worker = await createWorker('deu');
+      const { data: { text } } = await worker.recognize(fileBuffer);
+      await worker.terminate();
+      extractedText = text;
+      usedOCR = true;
+    }
 
-    const { text } = uploadResponse.data;
-    res.json({ text });
+    if (!extractedText.trim()) {
+      return res.status(422).json({ error: 'Konnte keinen Text aus der Datei extrahieren.' });
+    }
 
-    await fs.promises.unlink(filePath);
-  } catch (error) {
-    console.error('Error processing the PDF:', error.message);
-    res.status(500).send('Internal Server Error');
-  }
-});
-
-router.post('/api', async (req, res) => {
-  const { text } = req.body;
-
-  try {
+    // Weiterleitung des extrahierten Textes an die Claude API
     const response = await anthropic.messages.create({
       model: 'claude-3-5-sonnet-20240620',
       max_tokens: 2048,
@@ -76,19 +55,19 @@ router.post('/api', async (req, res) => {
                   3. Negative und kritische Aspekte aus Sicht der Partei.
                   4. Mögliche Rückfragen für die kommende Sitzung, falls notwendig.
                   Stellen Sie sicher, dass die Antwort objektiv, sachlich und präzise ist.
-                  Hier ist der Text: <paper>${text}</paper>`
+                  Hier ist der Text: <paper>${extractedText}</paper>`
       }]
     });
 
     if (response && response.content && Array.isArray(response.content)) {
-      const textContent = response.content.map(item => item.text).join("\n");
-      res.json({ summary: textContent });
+      const summary = response.content.map(item => item.text).join("\n");
+      res.json({ text: extractedText, summary: summary, usedOCR: usedOCR });
     } else {
-      res.status(500).send('API response missing or incorrect content structure');
+      throw new Error('API response missing or incorrect content structure');
     }
   } catch (error) {
-    console.error('Error with Claude API:', error.message);
-    res.status(500).send('Internal Server Error');
+    console.error('Fehler bei der Verarbeitung:', error.message);
+    res.status(500).send('Interner Serverfehler');
   }
 });
 

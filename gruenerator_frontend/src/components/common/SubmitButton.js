@@ -1,45 +1,93 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
-import { HiCog } from "react-icons/hi";
 import Lottie from 'react-lottie-player';
-import lottie_checkmark from '../../assets/lotties/lottie_checkmark.json';
 
-const SubmitButton = ({ onClick, loading, success, text = 'Grünerieren' }) => {
-  const lottieRef = useRef(null);
+let lottie_checkmark;
+try {
+  lottie_checkmark = require('../../assets/lotties/lottie_checkmark1.json');
+} catch (error) {
+  console.error('Failed to import Lottie animation:', error);
+}
+
+const SubmitButton = ({ onClick, loading, success, text, icon, className, ariaLabel, type = "submit" }) => {
+  const [showLottie, setShowLottie] = useState(false);
+  const [internalSuccess, setInternalSuccess] = useState(false);
+  const timerRef = useRef(null);
+  const buttonRef = useRef(null);
+  const [buttonSize, setButtonSize] = useState({ width: 'auto', height: 'auto' });
 
   useEffect(() => {
-    if (success && lottieRef.current) {
-      lottieRef.current.play();
+    if (buttonRef.current) {
+      const { offsetWidth, offsetHeight } = buttonRef.current;
+      setButtonSize({ width: `${offsetWidth}px`, height: `${offsetHeight}px` });
     }
-  }, [success]);
+  }, []);
+
+  useEffect(() => {
+    if (success && !internalSuccess) {
+      setInternalSuccess(true);
+      setShowLottie(true);
+    }
+
+    if (internalSuccess) {
+      timerRef.current = setTimeout(() => {
+        setShowLottie(false);
+        setInternalSuccess(false);
+      }, 3000);
+    }
+
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
+  }, [success, internalSuccess]);
+
+  const handleClick = (event) => {
+    if (!loading && !showLottie && onClick) {
+      onClick(event);
+    }
+  };
 
   return (
-    <button 
-      onClick={onClick} 
-      className={`form-button ${loading ? 'loading' : ''}`} 
+    <button
+      ref={buttonRef}
+      type={type}
+      onClick={handleClick}
+      className={`submit-button ${className} ${loading ? 'submit-button--loading' : ''} ${showLottie ? 'submit-button--success' : ''}`}
       aria-busy={loading}
+      aria-label={ariaLabel}
+      disabled={loading || showLottie}
+      style={{ width: '100%', height: buttonSize.height }}
     >
-      <HiCog className={`icon ${loading ? 'loading-icon' : ''}`} />
-      {loading ? '' : (
-        success ? (
+      {showLottie && lottie_checkmark ? (
+        <div className="submit-button__lottie-container">
           <Lottie
-            ref={lottieRef}
             animationData={lottie_checkmark}
-            play={false}
+            play
             loop={false}
-            style={{ width: 24, height: 24 }}
+            className="submit-button__lottie-animation"
           />
-        ) : text
+        </div>
+      ) : (
+        <div className="submit-button__content">
+          {icon && <span className={`submit-button__icon ${loading ? 'submit-button__icon--loading' : ''}`}>{icon}</span>}
+          {!loading && <span>{text}</span>}
+        </div>
       )}
     </button>
   );
 };
 
 SubmitButton.propTypes = {
-  onClick: PropTypes.func.isRequired,
-  loading: PropTypes.bool.isRequired,
+  onClick: PropTypes.func,
+  loading: PropTypes.bool,
   success: PropTypes.bool,
-  text: PropTypes.string
+  text: PropTypes.string.isRequired,
+  icon: PropTypes.node,
+  className: PropTypes.string,
+  ariaLabel: PropTypes.string,
+  type: PropTypes.string
 };
 
 export default SubmitButton;

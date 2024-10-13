@@ -1,33 +1,58 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="de">
   <head>
     <meta charset="utf-8" />
     <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#000000" />
+    <meta name="theme-color" content="#1DA64A" />
     <meta
       name="description"
-      content="Web site created using create-react-app"
+      content="Grünerator - Dein KI-Assistent für grüne Politik. Erstelle schnell und kostenlos Anträge, Reden, Pressemitteilungen und mehr für deine politische Arbeit."
     />
+    <meta name="keywords" content="Grünerator, grüne Politik, KI-Assistent, Anträge, Reden, Pressemitteilungen, politische Inhalte" />
+    <meta name="author" content="Moritz Wächter" />
     <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
     <!--
       manifest.json provides metadata used when your web app is installed on a
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
-    <!--
-      Notice the use of %PUBLIC_URL% in the tags above.
-      It will be replaced with the URL of the `public` folder during the build.
-      Only files inside the `public` folder can be referenced from the HTML.
+    <title>Grünerator - KI-Assistent für grüne Politik | Anträge, Reden & mehr</title>
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://www.gruenerator.de/" />
+    <meta property="og:title" content="Grünerator - KI-Assistent für grüne Politik" />
+    <meta property="og:description" content="Erstelle schnell und kostenlos Anträge, Reden, Pressemitteilungen und mehr für deine politische Arbeit." />
+    <meta property="og:image" content="%PUBLIC_URL%/og-image.jpg" />
 
-      Unlike "/favicon.ico" or "favicon.ico", "%PUBLIC_URL%/favicon.ico" will
-      work correctly both with client-side routing and a non-root public URL.
-      Learn how to configure a non-root public URL by running `npm run build`.
-    -->
-    <title>Grünerator</title>
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:url" content="https://www.gruenerator.de/" />
+    <meta property="twitter:title" content="Grünerator - KI-Assistent für grüne Politik" />
+    <meta property="twitter:description" content="Erstelle schnell und kostenlos Anträge, Reden, Pressemitteilungen und mehr für deine politische Arbeit." />
+    <meta property="twitter:image" content="%PUBLIC_URL%/twitter-image.jpg" />
+    
+    <!-- Strukturierte Daten für Google -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "Grünerator",
+      "url": "https://www.gruenerator.de",
+      "description": "KI-Assistent für die Erstellung grüner politischer Inhalte",
+      "applicationCategory": "UtilitiesApplication",
+      "operatingSystem": "Web",
+      "offers": {
+        "@type": "Offer",
+        "price": "0"
+      }
+    }
+    </script>
+    <link rel="canonical" href="https://www.gruenerator.de" />
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <noscript>Sie müssen JavaScript aktivieren, um diese App nutzen zu können.</noscript>
     <div id="root"></div>
     <!--
       This HTML file is a template.
