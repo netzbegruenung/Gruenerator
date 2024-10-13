@@ -42,7 +42,8 @@ const allowedOrigins = [
   'https://gruenerator-test.de', 
   'https://gruenerator.netzbegruenung.verdigado.net', 
   'https://gruenerator.de',
-  'https://beta.gruenerator.de'
+  'https://beta.gruenerator.de',
+  'https://jitvshdwttfvtqsjpdzw.supabase.co'
 ];
 
 const corsOptions = {
@@ -79,9 +80,14 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      connectSrc: ["'self'", ...allowedOrigins],
-      imgSrc: ["'self'", "data:", "blob:", "https://images.unsplash.com"],
-      // Weitere Direktiven nach Bedarf hinzufügen
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "blob:", "https://*.unsplash.com"],
+      connectSrc: ["'self'", ...allowedOrigins, "https://api.unsplash.com", "https://*.supabase.co"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      frameSrc: ["'none'"],
     },
   },
   crossOriginResourcePolicy: { policy: "cross-origin" },
@@ -154,3 +160,9 @@ app._router.stack.forEach(function(r){
       logger.info(`${r.route.stack[0].method.toUpperCase()} ${r.route.path}`);
     }
 });
+
+const isValidUnsplashUrl = (url) => {
+  return url.startsWith('https://images.unsplash.com/') || url.startsWith('https://api.unsplash.com/');
+};
+
+// Verwenden Sie diese Funktion in Ihrem Proxy oder anderen relevanten Routen
