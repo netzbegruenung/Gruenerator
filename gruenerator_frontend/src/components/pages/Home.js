@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { PiNewspaper, PiInstagramLogo, PiFileText, PiMicrophone, PiGlobe, PiLightbulb } from 'react-icons/pi';
+import { PiNewspaper, PiInstagramLogo, PiFileText, PiMicrophone, PiLightbulb, PiClockBold } from 'react-icons/pi';
 import '../../assets/styles/common/variables.css';
 import '../../assets/styles/common/global.css';
 import '../../assets/styles/components/button.css';
@@ -14,20 +14,20 @@ const Home = () => {
       <div className="top-section">
         <div className="home-container">
           <div className="home-header">
-            <h1>Erstelle deine Grünen Inhalte. Schnell und kostenfrei.</h1>
-            <p>Der Grünerator ist dein täglicher Begleiter für Grüne Politik. Mit dem Grünerator kannst du schnell und kostenlos einen Vorschlag für Grüne Inhalte deiner Wahl erhalten. Alle Eingaben werden von Anthropic verarbeitet. Bitte gib daher keine obsoleten privaten Daten ein.</p>
+            <h1>Willkommen beim Grünerator - Dein Assistent für grüne Politik!</h1>
+            <p> Mit dem Grünerator kannst du schnell und kostenlos einen Vorschlag für Grüne Inhalte deiner Wahl erhalten. Alle Eingaben werden von Anthropic verarbeitet. Bitte gib daher keine obsoleten privaten Daten ein.</p>
           </div>
           <div className="links-container">
             <div className="home-links">
               <div className="link-section">
                 <h3>Wähle deinen Grünerator</h3>
                 <div className="link-buttons">
-                  <Link to="/antragsgenerator" aria-label="Zum Antragsgenerator"><PiFileText /> Antrag schreiben</Link>
+                  <Link to="/antrag" aria-label="Zum Antragsgenerator"><PiFileText /> Antrag schreiben</Link>
                   <Link to="/rede" aria-label="Zum Redengenerator"><PiMicrophone /> Rede Schreiben</Link>
                   <Link to="/pressemitteilung" aria-label="Zur Pressemitteilung erstellen"><PiNewspaper /> Pressemitteilung erstellen</Link>
                   <Link to="/socialmedia" aria-label="Zum Social-Media-Generator"><PiInstagramLogo /> Social-Media-Post schreiben</Link>
-                  <Link to="/" aria-label="Zum Sharepic-Generator (coming soon)"><PiLightbulb /> Sharepic (soon)</Link>
-                  <Link to="/webbaukasten" aria-label="Zum Website-Baukasten"><PiGlobe /> Website entwickeln</Link>
+                  <Link to="/antragscheck" aria-label="Zum Antragscheck"><PiLightbulb /> Antrag checken</Link>
+                  <Link to="/" aria-label="Zum Sharepic-Generator (coming soon)"><PiClockBold /> Sharepic (soon)</Link>
                 </div>
               </div>
             </div>

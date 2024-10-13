@@ -5,13 +5,10 @@ import {
   PiFileText,
   PiNewspaper,
   PiChatsCircle,
-  PiDeviceMobile,
   PiCaretDown,
-  PiFile,
-  PiGlobe,
-  PiLink,
   PiCaretUp,
-  PiMicrophone
+  PiMicrophone,
+  PiLightbulb
 } from 'react-icons/pi';
 import { CSSTransition } from 'react-transition-group';
 import useAccessibility from '../../hooks/useAccessibility';
@@ -55,12 +52,6 @@ const NavMenu = ({ open, onClose }) => {
     announce(`Navigation zu ${label}`);
   };
 
-  const handleExternalLinkClick = (label) => {
-    setActiveDropdown(null);
-    if (onClose) onClose();
-    announce(`Öffne externen Link: ${label}`);
-  };
-
   const handleKeyDown = (event, dropdown) => {
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
@@ -98,10 +89,11 @@ const NavMenu = ({ open, onClose }) => {
           nodeRef={nodeRefs.grueneratoren}
         >
           <ul className="nav-dropdown-content" ref={nodeRefs.grueneratoren} aria-label="Grüneratoren Untermenü">
-            <li><Link to="/antragsgenerator" onClick={() => handleLinkClick('/antragsgenerator', 'Anträge')}><PiFileText className="nav-icon" aria-hidden="true" /> Anträge</Link></li>
+            <li><Link to="/antrag" onClick={() => handleLinkClick('/antragsgenerator', 'Anträge')}><PiFileText className="nav-icon" aria-hidden="true" /> Anträge</Link></li>
             <li><Link to="/pressemitteilung" onClick={() => handleLinkClick('/pressemitteilung', 'Pressemitteilungen')}><PiNewspaper className="nav-icon" aria-hidden="true" /> Pressemitteilungen</Link></li>
             <li><Link to="/socialmedia" onClick={() => handleLinkClick('/socialmedia', 'Social Media')}><PiChatsCircle className="nav-icon" aria-hidden="true" /> Social Media</Link></li>
             <li><Link to="/rede" onClick={() => handleLinkClick('/rede', 'Politische Rede')}><PiMicrophone className="nav-icon" aria-hidden="true" /> Politische Rede</Link></li>
+            <li><Link to="/antragscheck" onClick={() => handleLinkClick('/antragscheck', 'Antrag checken')}><PiLightbulb className="nav-icon" aria-hidden="true" /> Antrag checken</Link></li>
           </ul>
         </CSSTransition>
       </div>
@@ -128,37 +120,9 @@ const NavMenu = ({ open, onClose }) => {
           nodeRef={nodeRefs.gpts}
         >
           <ul className="nav-dropdown-content" ref={nodeRefs.gpts} aria-label="GPTs Untermenü">
-            <li><a href="https://chat.openai.com/g/g-Xd3HrGped-wahlprufstein-grunerator" target="_blank" rel="noopener noreferrer" onClick={() => handleExternalLinkClick('Wahlprüfstein')}><PiFile className="nav-icon" aria-hidden="true" /> Wahlprüfstein</a></li>
-            <li><a href="https://chat.openai.com/g/g-ZZwx8kZS3-grunerator-social-media" target="_blank" rel="noopener noreferrer" onClick={() => handleExternalLinkClick('Social Media')}><PiGlobe className="nav-icon" aria-hidden="true" /> Social Media</a></li>
-          </ul>
-        </CSSTransition>
-      </div>
-      <div className="nav-dropdown">
-        <span 
-          onClick={() => handleDropdownClick('gruneratorWeb')}
-          onKeyDown={(e) => handleKeyDown(e, 'gruneratorWeb')}
-          tabIndex="0"
-          role="button"
-          aria-haspopup="true"
-          aria-expanded={activeDropdown === 'gruneratorWeb'}
-        >
-          Grünerator Web 
-          {activeDropdown === 'gruneratorWeb' ? 
-            <PiCaretUp className="nav-icon dropdown-icon" aria-hidden="true" /> : 
-            <PiCaretDown className="nav-icon dropdown-icon" aria-hidden="true" />
-          }
-        </span>
-        <CSSTransition
-          in={activeDropdown === 'gruneratorWeb'}
-          timeout={300}
-          classNames="dropdown"
-          unmountOnExit
-          nodeRef={nodeRefs.gruneratorWeb}
-        >
-          <ul className="nav-dropdown-content" ref={nodeRefs.gruneratorWeb} aria-label="Grünerator Web Untermenü">
-            <li><Link to="/webbaukasten" onClick={() => handleLinkClick('/webbaukasten', 'Webbaukasten')}><PiDeviceMobile className="nav-icon" aria-hidden="true" /> Webbaukasten</Link></li>
-            <li><a href="https://person.webbegruenung.de" target="_blank" rel="noopener noreferrer" onClick={() => handleExternalLinkClick('Demo-Seite')}><PiLink className="nav-icon" aria-hidden="true" /> Demo-Seite</a></li>
-          </ul>
+          <li><a href="https://chat.openai.com/g/g-ZZwx8kZS3-grunerator-social-media" target="_blank" rel="noopener noreferrer" onClick={() => announce('Öffne externen Link: Social Media')}><PiChatsCircle className="nav-icon" aria-hidden="true" /> Social Media</a></li>
+                                <li><a href="https://chatgpt.com/g/g-Npcb04iH7-grunerator-pressemitteilungen" target="_blank" rel="noopener noreferrer" onClick={() => announce('Öffne externen Link: Pressemitteilung')}><PiNewspaper className="nav-icon" aria-hidden="true" /> Pressemitteilung</a></li>
+                            </ul>
         </CSSTransition>
       </div>
     </div>

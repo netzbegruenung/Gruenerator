@@ -1,3 +1,30 @@
 # https://www.robotstxt.org/robotstxt.html
 User-agent: *
-Disallow:
+Allow: /
+
+# Verhindern Sie die Indexierung von Test-Domains
+Host: https://www.gruenerator.de
+
+# Alternative Schreibweisen der Hauptdomain
+Host: https://gruenerator.de
+Host: http://www.gruenerator.de
+Host: http://gruenerator.de
+
+# Ausschluss von Test- und Beta-Domains
+User-agent: *
+Disallow: /
+Host: https://gruenerator-test.de
+Host: http://gruenerator-test.de
+Host: https://www.gruenerator-test.de
+Host: http://www.gruenerator-test.de
+
+User-agent: *
+Disallow: /
+Host: https://beta.gruenerator.de
+Host: http://beta.gruenerator.de
+
+# Sicherstellen, dass keine anderen Subdomains indexiert werden
+User-agent: *
+Disallow: /
+Host: https://*.gruenerator.de
+Host: http://*.gruenerator.de
