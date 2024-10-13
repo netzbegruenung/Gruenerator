@@ -14,7 +14,7 @@ const aiImageModificationRouter = require('./routes/sharepic/sharepic_canvas/aiI
 const imageUploadRouter = require('./routes/sharepic/sharepic_canvas/imageUploadRouter');
 const processTextRouter = require('./routes/sharepic/sharepic_canvas/processTextRouter');
 const unsplashRoute  = require('./routes/unsplashApi');
-const claudeWahlprogrammRoute = require('./routes/claude_wahlprogramm');
+const claudeTextAdjustmentRoute = require('./routes/claude_text_adjustment'); // Neue Route hinzugefügt
 
 function setupRoutes(app) {
   app.use('/api/claude', claudeRoute);
@@ -32,7 +32,7 @@ function setupRoutes(app) {
   app.use('/api/imageupload', imageUploadRouter);
   app.use('/api/processText', processTextRouter);
   app.use('/api/unsplash', unsplashRoute);
-  app.use('/api/generate-wahlprogramm', claudeWahlprogrammRoute);
+  app.use('/api/claude_text_adjustment', claudeTextAdjustmentRoute); // Neue Route verwendet
 }
 
 module.exports = { setupRoutes };
