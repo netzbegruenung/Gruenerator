@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useContext, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import '../../../assets/styles/common/variables.css';
 import '../../../assets/styles/common/global.css';
@@ -9,6 +9,7 @@ import useApiSubmit from '../../hooks/useApiSubmit';
 import BaseForm from '../../common/BaseForm';
 import { useFormState } from '../../hooks/useFormState';
 import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../utils/constants';
+import { FormContext } from '../../utils/FormContext';
 
 const Antragsgenerator = ({ showHeaderFooter = true }) => {
   const initialState = {
@@ -33,6 +34,8 @@ const Antragsgenerator = ({ showHeaderFooter = true }) => {
   const textSize = useDynamicTextSize(formData.antrag, 1.2, 0.8, [1000, 2000]);
   const { submitForm } = useApiSubmit('/claude');
 
+  const { setGeneratedContent } = useContext(FormContext);
+
   const handleSubmit = useCallback(async () => {
     setLoading(true);
     setError('');
@@ -41,7 +44,8 @@ const Antragsgenerator = ({ showHeaderFooter = true }) => {
     try {
       const content = await submitForm(formData);
       if (content) {
-        setFormData(prevState => ({ ...prevState, antrag: content }));
+        console.log('Neuer Antrag-Inhalt erhalten:', content);
+        setGeneratedContent(content);
         setSuccess(true);
         // Reset success after 3 seconds to match SubmitButton animation duration
         setTimeout(() => setSuccess(false), 3000);
@@ -51,7 +55,12 @@ const Antragsgenerator = ({ showHeaderFooter = true }) => {
     } finally {
       setLoading(false);
     }
-  }, [formData, setLoading, setError, setSuccess, setFormData, submitForm]);
+  }, [formData, setLoading, setError, setSuccess, setFormData, submitForm, setGeneratedContent]);
+
+  const handleGeneratedContentChange = useCallback((content) => {
+    console.log('Generated content changed:', content);
+    setFormData(prevState => ({ ...prevState, antrag: content }));
+  }, [setFormData]);
 
   return (
     <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
@@ -63,6 +72,7 @@ const Antragsgenerator = ({ showHeaderFooter = true }) => {
         error={error}
         generatedContent={formData.antrag}
         textSize={textSize}
+        onGeneratedContentChange={handleGeneratedContentChange}
       >
         <h3><label htmlFor="idee">{FORM_LABELS.IDEE}</label></h3>
         <input

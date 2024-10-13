@@ -34,6 +34,25 @@ export const handleCopyToClipboard = (text) => {
     });
 };
 
+// Function to copy plain text to clipboard
+export const copyPlainText = (htmlContent) => {
+  // Temporäres DOM-Element erstellen
+  const tempElement = document.createElement('div');
+  tempElement.innerHTML = htmlContent;
+  
+  // Reinen Text aus dem HTML extrahieren
+  const plainText = tempElement.textContent || tempElement.innerText || '';
+
+  // Text in die Zwischenablage kopieren
+  navigator.clipboard.writeText(plainText)
+    .then(() => {
+      console.log('Reiner Text erfolgreich in die Zwischenablage kopiert.');
+    })
+    .catch((err) => {
+      console.error('Fehler beim Kopieren des reinen Textes:', err);
+    });
+};
+
 // Hook to dynamically adjust text size based on length
 export const useDynamicTextSize = (text, baseSize = 1.2, minSize = 0.8, thresholds = [1000, 2000]) => {
   const [textSize, setTextSize] = useState(`${baseSize}em`);

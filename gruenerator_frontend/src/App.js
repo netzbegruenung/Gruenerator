@@ -20,8 +20,12 @@ import PopupNutzungsbedingungen from './components/Popups/popup_nutzungsbedingun
 import WelcomePopup from './components/Popups/popup_welcome';
 import useAccessibility from './components/hooks/useAccessibility';
 import useDarkMode from './components/hooks/useDarkMode';
+import Wahlprogramm from './components/pages/Grüneratoren/Wahlprogramm';
 import { SharepicGeneratorProvider } from './components/utils/Sharepic/SharepicGeneratorContext'; // SharepicGeneratorProvider importiert
-import Wahlprogramm from './components/pages/Grüneratoren/Wahlprogramm'; // Neue Komponente importiert
+import { FormProvider } from './components/utils/FormContext';
+import Gruenerator_Editor from './components/pages/Gruenerator_Editor';
+import SupabaseTest from './components/utils/SupabaseTest'; // Neue Komponente importiert
+import ErrorBoundary from './components/ErrorBoundary';
 
 function App() {
   useScrollRestoration();
@@ -59,52 +63,77 @@ function App() {
     '/antragscheck',
     '/wahlpruefsteinthueringen',
     '/rede',
-    '/wahlprogramm', // Neue Route hinzugefügt
+    '/wahlprogramm',
     '/datenschutz',
     '/impressum',
-    '/nutzungsbedingungen'
+    '/nutzungsbedingungen',
+    '/supabase-test' // Neue Route für den Supabase-Test
   ];
 
   return (
-    <Router>
-      <ScrollToTop />
-      <PopupNutzungsbedingungen />
-      <WelcomePopup />
-      <div id="aria-live-region" aria-live="polite" style={{ position: 'absolute', left: '-9999px' }}></div>
-      <Routes>
-        {routesWithHeaderFooter.map(path => (
-          <Route key={path} path={path} element={
+    <ErrorBoundary>
+      <Router>
+        <ScrollToTop />
+        <PopupNutzungsbedingungen />
+        <WelcomePopup />
+        <div id="aria-live-region" aria-live="polite" style={{ position: 'absolute', left: '-9999px' }}></div>
+        <Routes>
+          {routesWithHeaderFooter.map(path => (
+            <Route key={path} path={path} element={
+              <>
+                <Header darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
+                <RouteComponent path={path} darkMode={darkMode} />
+                <Footer />
+              </>
+            } />
+          ))}
+
+          <Route path="/sharepicgenerator" element={
+            <SharepicGeneratorProvider>
+              <>
+                <Header darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
+                <Sharepicgenerator showHeaderFooter={true} darkMode={darkMode} />
+                <Footer />
+              </>
+            </SharepicGeneratorProvider>
+          } />
+
+          <Route path="/antrag-no-header-footer" element={<Antrag showHeaderFooter={false} darkMode={darkMode} />} />
+          <Route path="/pressemitteilung-no-header-footer" element={<Pressemitteilung showHeaderFooter={false} darkMode={darkMode} />} />
+          <Route path="/socialmedia-no-header-footer" element={<SocialMediaGenerator showHeaderFooter={false} darkMode={darkMode} />} />
+          <Route path="/rede-no-header-footer" element={<Redengenerator ShowHeaderFooter={false} darkMode={darkMode} />} />
+          <Route path="/antragscheck-no-header-footer" element={<Antragscheck showHeaderFooter={false} darkMode={darkMode} />} />
+          <Route path="/sharepicgenerator-no-header-footer" element={
+            <SharepicGeneratorProvider>
+              <Sharepicgenerator showHeaderFooter={false} darkMode={darkMode} />
+            </SharepicGeneratorProvider>
+          } />
+          <Route path="/wahlprogramm-no-header-footer" element={<Wahlprogramm showHeaderFooter={false} darkMode={darkMode} />} />
+
+          {/* Neue Route für SavedContentPage */}
+          <Route path="/ae/:linkName" element={
+            <ErrorBoundary>
+              <FormProvider>
+                <>
+                  <Header darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
+                  <Gruenerator_Editor darkMode={darkMode} />
+                  <Footer />
+                </>
+              </FormProvider>
+            </ErrorBoundary>
+          } />
+
+          {/* Neue Route für SupabaseTest */}
+          <Route path="/supabase-test" element={
             <>
               <Header darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
-              <RouteComponent path={path} darkMode={darkMode} />
+              <SupabaseTest />
               <Footer />
             </>
           } />
-        ))}
-
-        <Route path="/sharepicgenerator" element={
-          <SharepicGeneratorProvider>
-            <>
-              <Header darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
-              <Sharepicgenerator showHeaderFooter={true} darkMode={darkMode} />
-              <Footer />
-            </>
-          </SharepicGeneratorProvider>
-        } />
-
-        <Route path="/antrag-no-header-footer" element={<Antrag showHeaderFooter={false} darkMode={darkMode} />} />
-        <Route path="/pressemitteilung-no-header-footer" element={<Pressemitteilung showHeaderFooter={false} darkMode={darkMode} />} />
-        <Route path="/socialmedia-no-header-footer" element={<SocialMediaGenerator showHeaderFooter={false} darkMode={darkMode} />} />
-        <Route path="/rede-no-header-footer" element={<Redengenerator ShowHeaderFooter={false} darkMode={darkMode} />} />
-        <Route path="/antragscheck-no-header-footer" element={<Antragscheck showHeaderFooter={false} darkMode={darkMode} />} />
-        <Route path="/sharepicgenerator-no-header-footer" element={
-          <SharepicGeneratorProvider>
-            <Sharepicgenerator showHeaderFooter={false} darkMode={darkMode} />
-          </SharepicGeneratorProvider>
-        } />
-        <Route path="/wahlprogramm-no-header-footer" element={<Wahlprogramm showHeaderFooter={false} darkMode={darkMode} />} />
-      </Routes>
-    </Router>
+        </Routes>
+      </Router>
+    </ErrorBoundary>
   );
 }
 
@@ -113,11 +142,23 @@ const RouteComponent = ({ path, darkMode }) => {
     case '/':
       return <Home darkMode={darkMode} />;
     case '/antrag':
-      return <Antrag showHeaderFooter={true} darkMode={darkMode} />;
+      return (
+        <FormProvider>
+          <Antrag showHeaderFooter={true} darkMode={darkMode} />
+        </FormProvider>
+      );
     case '/pressemitteilung':
-      return <Pressemitteilung showHeaderFooter={true} darkMode={darkMode} />;
+      return (
+        <FormProvider>
+          <Pressemitteilung showHeaderFooter={true} darkMode={darkMode} />
+        </FormProvider>
+      );
     case '/socialmedia':
-      return <SocialMediaGenerator showHeaderFooter={true} darkMode={darkMode} />;
+      return (
+        <FormProvider>
+          <SocialMediaGenerator showHeaderFooter={true} darkMode={darkMode} />
+        </FormProvider>
+      );
     case '/sharepicgenerator': // Neue Route hinzugefügt
       return <Sharepicgenerator showHeaderFooter={true} darkMode={darkMode} />;
     case '/webbaukasten':
@@ -133,7 +174,13 @@ const RouteComponent = ({ path, darkMode }) => {
     case '/impressum':
       return <Impressum darkMode={darkMode} />;
     case '/wahlprogramm':
-      return <Wahlprogramm showHeaderFooter={true} darkMode={darkMode} />;
+      return (
+        <FormProvider>
+          <Wahlprogramm showHeaderFooter={true} darkMode={darkMode} />
+        </FormProvider>
+      );
+    case '/supabase-test':
+      return <SupabaseTest />;
     default:
       return null;
   }

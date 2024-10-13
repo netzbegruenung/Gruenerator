@@ -24,17 +24,13 @@ const SubmitButton = ({ onClick, loading, success, text, icon, className, ariaLa
   }, []);
 
   useEffect(() => {
-    console.log('Effect triggered. Success:', success, 'InternalSuccess:', internalSuccess, 'ShowLottie:', showLottie);
-    
     if (success && !internalSuccess) {
-      console.log('Setting internal success state and showing Lottie');
       setInternalSuccess(true);
       setShowLottie(true);
     }
 
     if (internalSuccess) {
       timerRef.current = setTimeout(() => {
-        console.log('Timer callback executed. Resetting states');
         setShowLottie(false);
         setInternalSuccess(false);
       }, 3000);
@@ -42,20 +38,16 @@ const SubmitButton = ({ onClick, loading, success, text, icon, className, ariaLa
 
     return () => {
       if (timerRef.current) {
-        console.log('Clearing timeout');
         clearTimeout(timerRef.current);
       }
     };
   }, [success, internalSuccess]);
 
   const handleClick = (event) => {
-    console.log('Button clicked. Loading:', loading, 'ShowLottie:', showLottie);
     if (!loading && !showLottie && onClick) {
       onClick(event);
     }
   };
-
-  console.log('Rendering button. Loading:', loading, 'Success:', success, 'InternalSuccess:', internalSuccess, 'ShowLottie:', showLottie);
 
   return (
     <button
