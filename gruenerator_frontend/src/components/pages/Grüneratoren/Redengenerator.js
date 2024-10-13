@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import '../../../assets/styles/common/variables.css';
 import '../../../assets/styles/common/global.css';
@@ -16,13 +16,27 @@ const Redengenerator = ({ showHeaderFooter = true }) => {
   const [redezeit, setRedezeit] = useState('');
   const [rede, setRede] = useState('');
   const textSize = useDynamicTextSize(rede, 1.2, 0.8, [1000, 2000]);
-  const { submitForm, loading, success, error } = useApiSubmit('/claude_rede');
+  const { submitForm, loading, success, resetSuccess, error } = useApiSubmit('/claude_rede');
 
-  const handleSubmit = async () => {
+  const handleSubmit = useCallback(async () => {
     const formData = { rolle, thema, zielgruppe, schwerpunkte, redezeit };
-    const content = await submitForm(formData);
-    if (content) setRede(content);
-  };
+    try {
+      const content = await submitForm(formData);
+      if (content) {
+        setRede(content);
+        // Reset success after 3 seconds to match SubmitButton animation duration
+        setTimeout(resetSuccess, 3000);
+      }
+    } catch (error) {
+      console.error('Error submitting form:', error);
+      // You might want to set an error state here or show a notification to the user
+    }
+  }, [rolle, thema, zielgruppe, schwerpunkte, redezeit, submitForm, resetSuccess]);
+
+  const handleGeneratedContentChange = useCallback((content) => {
+    console.log('Generated content changed:', content);
+    setRede(content);
+  }, [setRede]);
 
   return (
     <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
@@ -34,6 +48,7 @@ const Redengenerator = ({ showHeaderFooter = true }) => {
         error={error}
         generatedContent={rede}
         textSize={textSize}
+        onGeneratedContentChange={handleGeneratedContentChange}
       >
         <h3><label htmlFor="rolle">Rolle/Position des Redners</label></h3>
         <input

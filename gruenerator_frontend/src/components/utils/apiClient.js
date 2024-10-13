@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const baseURL = process.env.REACT_APP_API_BASE_URL || 'https://gruenerator-test.de/api';
+const baseURL = process.env.REACT_APP_API_BASE_URL || 'https://gruenerator.de/api';
 
 const apiClient = axios.create({
   baseURL: baseURL,

@@ -1,0 +1,22 @@
+[33m5128aa64[m[33m ([m[1;36mHEAD -> [m[1;32mgruenerator-write-update[m[33m, [m[1;31morigin/release/update-september2024[m[33m, [m[1;31morigin/master[m[33m, [m[1;31morigin/gruenerator-write-update[m[33m, [m[1;32mrelease/update-september2024[m[33m)[m Merge pull request #23 from netzbegruenung/release/update-september2024
+[33m85e72d1c[m Release Update September 2024
+[33me603aa06[m[33m ([m[1;32mmaster[m[33m, [m[1;32mUpdate-250924[m[33m)[m Modified Home.JS
+[33m206a0a87[m Merge pull request #22 from netzbegruenung/updated_home.js
+[33m9256108f[m[33m ([m[1;31morigin/updated_home.js[m[33m, [m[1;32mupdated_home.js[m[33m)[m Modified home.js
+[33mcd83883d[m[33m ([m[1;31morigin/hotfix_socialmediagenerator_090924[m[33m, [m[1;32mhotfix_socialmediagenerator_090924[m[33m)[m Merge pull request #21 from netzbegruenung/hotfix_socialmediagenerator_090924
+[33m85caddbd[m fixed abstürze SocialMediaGenerator
+[33mcf4601bc[m[33m ([m[1;31morigin/hotfix0909#[m[33m, [m[1;32mhotfix0909#[m[33m)[m Added hotfix branch update note
+[33me87e452b[m[33m ([m[1;31morigin/master-backup[m[33m, [m[1;32mmaster-backup[m[33m)[m socialmediafix
+[33m2cc4f61f[m[33m ([m[1;31morigin/update_0709_neu[m[33m, [m[mrefs/original/refs/remotes/origin/update_0709_neu[m[33m, [m[mrefs/original/refs/heads/update_0709_neu[m[33m)[m Zwischenfix babel
+[33m194fbe98[m Updated_packagejson & SocialBackend
+[33m452f03f2[m updated_social_media
+[33md32e49a6[m Edited Social Media Styling
+[33m7bf18206[m Updated SocialMediaGenerator
+[33m470c529a[m[33m ([m[1;31morigin/Update_070924[m[33m, [m[mrefs/original/refs/remotes/origin/Update_070924[m[33m, [m[mrefs/original/refs/heads/Update_070924[m[33m)[m added tesseract.js
+[33m3af02664[m audit fix
+[33m89bbe400[m Updated SocialMediaGenerator, new antragscheck
+[33m2c1a7427[m[33m ([m[1;31morigin/server_change[m[33m, [m[mrefs/original/refs/remotes/origin/server_change[m[33m, [m[mrefs/original/refs/heads/server_change[m[33m)[m modified server.js
+[33m939d9eda[m Merge branch 'server_change' of github.com:netzbegruenung/Gruenerator into server_change
+[33m6ef8f9a9[m added gitignore to backend
+[33mfb2addf5[m Merge branch 'master' into server_change
+[33m913e5c85[m Remove large files and node_modules from repository
