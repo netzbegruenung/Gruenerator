@@ -13,8 +13,7 @@ import {
   FORM_STEPS, 
   BUTTON_LABELS, 
   SHAREPIC_GENERATOR, 
-  ERROR_MESSAGES,
- 
+  ERROR_MESSAGES, 
 } from '../../utils/constants';
 
 function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
@@ -39,6 +38,13 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
 
   const { generatePost, loading: generatePostLoading, } = useGenerateSocialPost();
 const [generatedPost, setGeneratedPost] = useState('');
+const [platforms, setPlatforms] = useState({
+  facebook: false,
+  instagram: false,
+  twitter: false,
+  linkedin: false
+});
+const [includeActionIdeas, setIncludeActionIdeas] = useState(false);
 
   const validateForm = useCallback((formData) => {
     const newErrors = {};
@@ -60,13 +66,22 @@ const [generatedPost, setGeneratedPost] = useState('');
     updateFormData({ selectedImage });
   }, [updateFormData]);
 
+  const handlePlatformChange = useCallback((platform) => {
+    setPlatforms(prev => ({ ...prev, [platform]: !prev[platform] }));
+  }, []);
+
+  const handleActionIdeasChange = useCallback(() => {
+    setIncludeActionIdeas(prev => !prev);
+  }, []);
+
   const handleGeneratePost = useCallback(async () => {
-    const newPost = await generatePost(state.formData.thema, state.formData.details);
+    const selectedPlatforms = Object.keys(platforms).filter(key => platforms[key]);
+    const newPost = await generatePost(state.formData.thema, state.formData.details, selectedPlatforms, includeActionIdeas);
     if (newPost) {
       setGeneratedPost(newPost);
       updateFormData({ generatedPost: newPost });
     }
-  }, [generatePost, state.formData, updateFormData]);
+  }, [generatePost, state.formData, platforms, includeActionIdeas, updateFormData]);
 
   const uploadAndProcessFile = useCallback(async (file) => {
     if (!file) {
@@ -309,6 +324,10 @@ const [generatedPost, setGeneratedPost] = useState('');
     onGeneratePost={handleGeneratePost}
     generatePostLoading={generatePostLoading}
     generatedPost={generatedPost}
+    platforms={platforms}
+    onPlatformChange={handlePlatformChange}
+    includeActionIdeas={includeActionIdeas}
+    onActionIdeasChange={handleActionIdeasChange}
     fileUploadProps={{
       loading: state.loading,
       file: state.file,

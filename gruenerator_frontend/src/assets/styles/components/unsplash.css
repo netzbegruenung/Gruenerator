@@ -145,6 +145,29 @@
   margin-top: 4px;
 }
 
+.sticky-sharepic-container {
+  position: sticky;
+  top: 20px; /* Abstand vom oberen Rand beim Scrollen */
+  z-index: 100;
+}
+
+.sticky-sharepic {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin-bottom: 10px;
+}
+
+.button-container {
+  margin-top: 10px;
+}
+
+@media (max-width: 768px) {
+  .sticky-sharepic-container {
+    position: static;
+  }
+}
+
 @media (max-width: 768px) {
   .image-modification-form {
     padding: 10px;
@@ -158,6 +181,8 @@
   .font-size-control button, .balken-offset-control button {
     width: 100%;
   }
+
+
 
   @media (prefers-reduced-motion: reduce) {
     .lottie-wrapper,
