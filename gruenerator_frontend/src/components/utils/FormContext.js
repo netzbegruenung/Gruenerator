@@ -1,26 +1,41 @@
-import React, { createContext, useState, useCallback, useMemo } from 'react';
+import React, { createContext, useState, useCallback, useMemo, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import debounce from 'lodash.debounce';
 import useApiSubmit from '../hooks/useApiSubmit';
-import { useSupabaseStorage } from '../hooks/useSupabaseStorage'; // Neuer Import
+import { useSupabaseStorage } from '../hooks/useSupabaseStorage';
+import { removeAllHighlights } from '../utils/highlightUtils';
 
 export const FormContext = createContext();
 
-export const FormProvider = ({ children, initialGeneratedContent = '' }) => {
+export const FormProvider = ({ 
+  children, 
+  initialGeneratedContent = '', 
+  initialEditingMode = false,
+  originalLinkData = null
+}) => {
   const [value, setValue] = useState(initialGeneratedContent);
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(initialEditingMode);
   const [isAdjusting, setIsAdjusting] = useState(false);
   const [aiAdjustment, setAiAdjustment] = useState(null);
   const [selectedText, setSelectedText] = useState('');
   const [highlightedRange, setHighlightedRange] = useState(null);
-  const [syncStatus, setSyncStatus] = useState('synced'); // Neu hinzugefügt
+  const [syncStatus, setSyncStatus] = useState('synced');
   const [originalSelectedText, setOriginalSelectedText] = useState('');
   const [newSelectedText, setNewSelectedText] = useState('');
-  const [quillRef, setQuillRef] = useState(null);
+  const [quillRef, setQuillRef] = useState(() => ({ current: null }));
   const { submitForm, loading, error } = useApiSubmit('/claude_text_adjustment');
   const [originalContent, setOriginalContent] = useState('');
-  const [linkName, setLinkName] = useState(''); // Neuer State für den Link-Namen
-  const { saveContent, getContent, listSavedContents, deleteContent, loading: supabaseLoading, error: supabaseError } = useSupabaseStorage(); // Neue Hooks
+  const [linkName, setLinkName] = useState('');
+  const { saveContent, getContent, listSavedContents, deleteContent, loading: supabaseLoading, error: supabaseError } = useSupabaseStorage();
+  const [linkData, setLinkData] = useState(originalLinkData);
+  const [isApplyingAdjustment, setIsApplyingAdjustment] = useState(false);
+
+  useEffect(() => {
+    if (quillRef.current) {
+      const quill = quillRef.current.getEditor();
+      setQuillRef({ current: quill });
+    }
+  }, [setQuillRef]);
 
   const debouncedSetValue = useMemo(() => 
     debounce((newValue) => {
@@ -38,12 +53,10 @@ export const FormProvider = ({ children, initialGeneratedContent = '' }) => {
 
   const updateValue = useCallback((newValue) => {
     console.log('updateValue aufgerufen:', newValue);
-    setValue(newValue); // Direktes Setzen des Wertes
+    setValue(newValue);
     setSyncStatus('syncing');
-    debouncedSetSyncStatus(); // Verzögerte Aktualisierung des Sync-Status
+    debouncedSetSyncStatus();
   }, [debouncedSetSyncStatus]);
-
-
 
   const setGeneratedContent = useCallback((content) => {
     console.log('Setze generierten Inhalt:', content);
@@ -68,6 +81,10 @@ export const FormProvider = ({ children, initialGeneratedContent = '' }) => {
     console.log('Bearbeitung abgebrochen');
   }, []);
 
+  const setQuillInstance = useCallback((quillEditor) => {
+    setQuillRef({ current: quillEditor });
+  }, []);
+
   const applyAdjustmentToEditor = useCallback((newText) => {
     if (quillRef.current && highlightedRange) {
       const quill = quillRef.current.getEditor();
@@ -76,63 +93,39 @@ export const FormProvider = ({ children, initialGeneratedContent = '' }) => {
       quill.setSelection(highlightedRange.index + newText.length, 0);
       updateValue(quill.root.innerHTML);
     }
-  }, [quillRef, highlightedRange, updateValue]);
+  }, [highlightedRange, updateValue]);
 
-  const applyHighlight = useCallback((index, length, color = '#ffff00') => {
-    if (quillRef.current) {
-      const quill = quillRef.current.getEditor();
-      quill.formatText(index, length, {
-        'background': color,
-        'color': color === '#ffff00' ? '#000000' : '#ffffff',
-      });
-    }
-  }, [quillRef]);
-
-  const handleAiAdjustmentCallback = useCallback((adjustmentOrState, originalText = '') => {
+  const handleAiAdjustment = useCallback((adjustmentOrState, selectedText) => {
     if (typeof adjustmentOrState === 'boolean') {
       setIsAdjusting(adjustmentOrState);
+      setIsApplyingAdjustment(false); // Immer auf false setzen, wenn der Zustand geändert wird
       if (adjustmentOrState) {
-        setOriginalContent(value); // Speichern des gesamten Inhalts
-        setOriginalSelectedText(originalText);
+        setOriginalSelectedText(selectedText);
+      } else {
+        setNewSelectedText('');
+        setOriginalSelectedText('');
+        setHighlightedRange(null);
       }
-      console.log(`FormContext: KI-Anpassung: ${adjustmentOrState ? 'gestartet' : 'beendet'}, neuer isAdjusting-Zustand:`, adjustmentOrState);
     } else if (typeof adjustmentOrState === 'string') {
       setNewSelectedText(adjustmentOrState);
-      setIsAdjusting(true);
-      if (highlightedRange) {
-        applyHighlight(highlightedRange.index, highlightedRange.length, '#00ff00');
-      }
-      console.log('FormContext: Neue KI-Anpassung erhalten, isAdjusting auf true gesetzt');
+      setIsApplyingAdjustment(false);
     }
-  }, [value, highlightedRange, applyHighlight]);
-
-  const removeAllHighlights = useCallback(() => {
-    if (quillRef.current) {
-      const quill = quillRef.current.getEditor();
-      quill.formatText(0, quill.getLength(), {
-        'background': false,
-        'color': false
-      });
-    }
-  }, [quillRef]);
+  }, [setIsAdjusting, setIsApplyingAdjustment, setOriginalSelectedText, setNewSelectedText, setHighlightedRange]);
 
   const handleAcceptAdjustment = useCallback(() => {
     console.log('KI-Anpassung akzeptiert');
     setIsAdjusting(false);
-    if (quillRef.current) {
-      const quill = quillRef.current.getEditor();
-      applyAdjustmentToEditor(newSelectedText, false);
-      updateValue(quill.root.innerHTML);
-    }
+    setIsApplyingAdjustment(false);
     setNewSelectedText('');
-    removeAllHighlights();
-  }, [newSelectedText, updateValue, applyAdjustmentToEditor, removeAllHighlights]);
+    setOriginalSelectedText('');
+    setHighlightedRange(null);
+  }, [setIsAdjusting, setIsApplyingAdjustment, setNewSelectedText, setOriginalSelectedText, setHighlightedRange]);
 
   const handleRejectAdjustment = useCallback(() => {
     console.log('KI-Anpassung abgelehnt');
     setIsAdjusting(false);
     if (originalContent) {
-      setValue(originalContent); // Wiederherstellen des gesamten ursprünglichen Inhalts
+      setValue(originalContent);
       if (quillRef.current) {
         const quill = quillRef.current.getEditor();
         quill.root.innerHTML = originalContent;
@@ -143,13 +136,10 @@ export const FormProvider = ({ children, initialGeneratedContent = '' }) => {
     removeAllHighlights();
   }, [originalContent, setValue, quillRef, removeAllHighlights]);
 
-  
-
   const toggleEditMode = useCallback(() => {
     console.log('Toggling edit mode');
     setIsEditing(prevState => {
       if (prevState) {
-        // Wenn wir den Bearbeitungsmodus verlassen, speichern wir den aktuellen Wert
         setValue(value);
       }
       console.log('New isEditing state:', !prevState);
@@ -159,16 +149,18 @@ export const FormProvider = ({ children, initialGeneratedContent = '' }) => {
 
   const adjustText = useCallback(async (adjustmentText, textToAdjust) => {
     try {
-      console.log('Sende Anpassungsanfrage:', { adjustmentText, textToAdjust });
+      console.log('Sende Anpassungsanfrage:', { adjustmentText, textToAdjust, fullText: value });
       const result = await submitForm({ 
         originalText: textToAdjust, 
-        modification: adjustmentText 
+        modification: adjustmentText,
+        fullText: value
       });
       console.log('API-Antwort:', result);
       if (result && result.suggestions && result.suggestions.length > 0) {
         const newText = result.suggestions[0];
         setNewSelectedText(newText);
         console.log('Neuer Text gesetzt:', newText);
+        await new Promise(resolve => setTimeout(resolve, 100));
         return true;
       }
       console.error('Keine gültigen Vorschläge in der API-Antwort');
@@ -177,9 +169,7 @@ export const FormProvider = ({ children, initialGeneratedContent = '' }) => {
       console.error('Fehler bei der Textanpassung:', error);
       return false;
     }
-  }, [submitForm, setNewSelectedText]);
-
- 
+  }, [submitForm, setNewSelectedText, value]);
 
   const handleSaveContent = useCallback(async (content, name) => {
     if (!name.trim()) {
@@ -189,10 +179,8 @@ export const FormProvider = ({ children, initialGeneratedContent = '' }) => {
     try {
       await saveContent(content, name);
       console.log('Inhalt erfolgreich gespeichert');
-      // Hier könnten Sie eine Erfolgsmeldung anzeigen
     } catch (err) {
       console.error('Fehler beim Speichern des Inhalts:', err);
-      // Hier könnten Sie eine Fehlermeldung anzeigen
     }
   }, [saveContent]);
 
@@ -206,14 +194,11 @@ export const FormProvider = ({ children, initialGeneratedContent = '' }) => {
       if (content) {
         setValue(content);
         console.log('Inhalt erfolgreich geladen');
-        // Hier könnten Sie eine Erfolgsmeldung anzeigen
       } else {
         console.log('Kein Inhalt für diesen Link-Namen gefunden');
-        // Hier könnten Sie eine Meldung anzeigen, dass kein Inhalt gefunden wurde
       }
     } catch (err) {
       console.error('Fehler beim Laden des Inhalts:', err);
-      // Hier könnten Sie eine Fehlermeldung anzeigen
     }
   }, [getContent, setValue]);
 
@@ -232,10 +217,8 @@ export const FormProvider = ({ children, initialGeneratedContent = '' }) => {
     try {
       await deleteContent(name);
       console.log('Inhalt erfolgreich gelöscht');
-      // Hier könnten Sie eine Erfolgsmeldung anzeigen
     } catch (err) {
       console.error('Fehler beim Löschen des Inhalts:', err);
-      // Hier könnten Sie eine Fehlermeldung anzeigen
     }
   }, [deleteContent]);
 
@@ -246,14 +229,24 @@ export const FormProvider = ({ children, initialGeneratedContent = '' }) => {
       return { success: false, error: 'Link-Name ist erforderlich' };
     }
     try {
-      await saveContent(value, name, generatedLink);
+      if (linkData) {
+        await saveContent(value, linkData.linkName, linkData.generatedLink);
+      } else {
+        await saveContent(value, name, generatedLink);
+      }
       console.log('Inhalt erfolgreich gespeichert');
       return { success: true };
     } catch (err) {
       console.error('Fehler beim Speichern des Inhalts:', err);
       return { success: false, error: err.message };
     }
-  }, [saveContent, value]);
+  }, [saveContent, value, linkData]);
+
+  const clearAllHighlights = useCallback(() => {
+    if (quillRef.current) {
+      removeAllHighlights(quillRef.current.getEditor());
+    }
+  }, [quillRef]);
 
   const contextValue = useMemo(() => ({
     value,
@@ -269,14 +262,14 @@ export const FormProvider = ({ children, initialGeneratedContent = '' }) => {
     setIsAdjusting,
     aiAdjustment,
     setAiAdjustment,
-    handleAiAdjustment: handleAiAdjustmentCallback,
+    handleAiAdjustment,
     handleAcceptAdjustment,
     selectedText,
     setSelectedText,
     highlightedRange,
     setHighlightedRange,
-    syncStatus, // Neu hinzugefügt
-    setSyncStatus, // Neu hinzugefügt
+    syncStatus,
+    setSyncStatus,
     toggleEditMode,
     originalSelectedText,
     setOriginalSelectedText,
@@ -284,8 +277,6 @@ export const FormProvider = ({ children, initialGeneratedContent = '' }) => {
     setNewSelectedText,
     handleRejectAdjustment,
     adjustText,
-    quillRef,
-    setQuillRef,
     loading,
     error,
     applyAdjustmentToEditor,
@@ -301,6 +292,12 @@ export const FormProvider = ({ children, initialGeneratedContent = '' }) => {
     supabaseLoading,
     supabaseError,
     saveCurrentContent,
+    linkData,
+    setLinkData,
+    setQuillInstance,
+    clearAllHighlights,
+    isApplyingAdjustment,
+    setIsApplyingAdjustment,
   }), [
     value,
     debouncedSetValue,
@@ -312,12 +309,11 @@ export const FormProvider = ({ children, initialGeneratedContent = '' }) => {
     handleCancel,
     isAdjusting,
     aiAdjustment,
-    handleAiAdjustmentCallback,
     handleAcceptAdjustment,
     selectedText,
     highlightedRange,
-    syncStatus, // Neu hinzugefügt
-    setSyncStatus, // Neu hinzugefügt
+    syncStatus,
+    setSyncStatus,
     toggleEditMode,
     originalSelectedText,
     newSelectedText,
@@ -325,8 +321,6 @@ export const FormProvider = ({ children, initialGeneratedContent = '' }) => {
     adjustText,
     loading,
     error,
-    quillRef,
-    setQuillRef,
     applyAdjustmentToEditor,
     originalContent,
     setOriginalContent,
@@ -339,6 +333,11 @@ export const FormProvider = ({ children, initialGeneratedContent = '' }) => {
     supabaseLoading,
     supabaseError,
     saveCurrentContent,
+    linkData,
+    setLinkData,
+    setQuillInstance,
+    clearAllHighlights,
+    isApplyingAdjustment,
   ]);
 
   return (
@@ -351,6 +350,8 @@ export const FormProvider = ({ children, initialGeneratedContent = '' }) => {
 FormProvider.propTypes = {
   children: PropTypes.node.isRequired,
   initialGeneratedContent: PropTypes.string,
+  initialEditingMode: PropTypes.bool,
+  originalLinkData: PropTypes.object,
 };
 
 export default FormProvider;

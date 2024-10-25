@@ -10,12 +10,11 @@ const anthropic = new Anthropic({
 
 router.route('/')
   .post(async (req, res) => {
-    const { originalText, modification } = req.body;
-    console.log('Original Text:', originalText);
-    console.log('Modification:', modification);
+    const { originalText, modification, fullText } = req.body;
 
-    if (!originalText || !modification) {
-      return res.status(400).json({ error: 'originalText und modification sind erforderlich.' });
+
+    if (!originalText || !modification || !fullText) {
+      return res.status(400).json({ error: 'originalText, modification und fullText sind erforderlich.' });
     }
 
     try {
@@ -23,11 +22,19 @@ router.route('/')
         model: "claude-3-5-sonnet-20240620",
         max_tokens: 1024,
         temperature: 0.5,
-        system: `Du bist ein hilfreicher Assistent, der eine verbesserte Formulierung für einen gegebenen Satz oder Absatz basierend auf den vom Benutzer angegebenen Änderungen vorschlägt. Stelle sicher, dass der Vorschlag klar, prägnant und stilistisch konsistent mit dem Originaltext ist.`,
+        system: `Du bist ein hilfreicher Assistent, der eine verbesserte Formulierung für einen gegebenen Textabschnitt basierend auf den vom Benutzer angegebenen Änderungen vorschlägt. Berücksichtige dabei den gesamten Kontext des Textes, um sicherzustellen, dass der geänderte Abschnitt sich nahtlos in den Gesamttext einfügt. Stelle sicher, dass der Vorschlag klar, prägnant und stilistisch konsistent mit dem Originaltext ist.`,
         messages: [
           {
             role: "user",
-            content: `Hier ist ein Text: "${originalText}" Der Benutzer möchte Folgendes ändern: "${modification}" Bitte schlage eine verbesserte Version des obigen Textes vor, die die gewünschten Änderungen berücksichtigt. Gib nur den reinen Textvorschlag ohne Einleitungen oder andere Formatierungen zurück.`
+            content: `Hier ist der gesamte Text:
+
+"${fullText}"
+
+Der Benutzer möchte folgenden Abschnitt ändern: "${originalText}"
+
+Die gewünschte Änderung lautet: "${modification}"
+
+Bitte schlage eine verbesserte Version des Abschnitts vor, die die gewünschten Änderungen berücksichtigt und sich nahtlos in den Gesamttext einfügt. Gib nur den reinen Textvorschlag für den zu ändernden Abschnitt ohne Einleitungen oder andere Formatierungen zurück.`
           }
         ]
       });

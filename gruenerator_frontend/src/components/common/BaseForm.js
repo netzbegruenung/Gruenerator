@@ -5,12 +5,13 @@ import SubmitButton from './SubmitButton';
 import useAccessibility from '../hooks/useAccessibility';
 import { addAriaLabelsToElements, enhanceFocusVisibility } from '../utils/accessibilityHelpers';
 import { BUTTON_LABELS, ARIA_LABELS, ANNOUNCEMENTS } from '../utils/constants';
-import { IoCopyOutline, IoPencil, IoSaveOutline } from 'react-icons/io5';
+import { IoCopyOutline, IoPencil, IoCheckmarkOutline } from 'react-icons/io5';
 import Editor from './Editor';
 import SaveLinkModal from './SaveLinkModal';
 import { copyPlainText } from '../utils/commonFunctions';
 import 'react-quill/dist/quill.bubble.css';
 import { FormContext } from '../utils/FormContext';
+import ExportToDocument from './ExportToDocument';
 
 const BaseForm = ({
   title,
@@ -24,6 +25,9 @@ const BaseForm = ({
   generatedPost,
   allowEditing = true,
   initialContent = '',
+  alwaysEditing = false,
+  hideEditButton = false,
+  originalLinkData,
 }) => {
   console.log('BaseForm wird gerendert', { title, loading, success, error });
 
@@ -36,7 +40,11 @@ const BaseForm = ({
     handleLoadContent,
     handleDeleteContent,
     savedLinks,
+    linkData,
+    setLinkData,
   } = useContext(FormContext);
+
+  const [copyIcon, setCopyIcon] = useState(<IoCopyOutline size={16} />);
 
   useEffect(() => {
     if (initialContent) {
@@ -47,6 +55,13 @@ const BaseForm = ({
   const { announce, setupKeyboardNav } = useAccessibility();
   const [generatePostLoading, setGeneratePostLoading] = React.useState(false);
   const [isSaveLinkModalOpen, setIsSaveLinkModalOpen] = useState(false);
+  
+
+  useEffect(() => {
+    if (originalLinkData && !linkData) {
+      setLinkData(originalLinkData);
+    }
+  }, [originalLinkData, linkData, setLinkData]);
 
   const handleGeneratePost = React.useCallback(async () => {
     console.log('Beitrag wird generiert');
@@ -70,6 +85,10 @@ const BaseForm = ({
     console.log('Inhalt wird in die Zwischenablage kopiert');
     copyPlainText(content);
     announce(ANNOUNCEMENTS.CONTENT_COPIED);
+    setCopyIcon(<IoCheckmarkOutline size={16} />);
+    setTimeout(() => {
+      setCopyIcon(<IoCopyOutline size={16} />);
+    }, 2000);
   }, [announce]);
 
   useEffect(() => {
@@ -99,11 +118,33 @@ const BaseForm = ({
     console.log('After toggle, value:', value);
   };
 
-  const handleSaveClick = () => {
-    setIsSaveLinkModalOpen(true);
-  };
+// const handleSaveClick = async () => {
+//   if (linkData) {
+//     try {
+//       const result = await saveCurrentContent(linkData.linkName, linkData.generatedLink);
+//       if (result.success) {
+//         // Ändern Sie das Icon zu einem Häkchen
+//         setSaveIcon(<IoCheckmarkOutline size={16} />);
+//         // Setzen Sie das Icon nach 2 Sekunden zurück
+//         setTimeout(() => {
+//           setSaveIcon(<IoSaveOutline size={16} />);
+//         }, 2000);
+//       } else {
+//         console.error(`Fehler beim Speichern: ${result.error}`);
+//       }
+//     } catch (error) {
+//       console.error(`Fehler beim Speichern: ${error.message}`);
+//     }
+//   } else {
+//     setIsSaveLinkModalOpen(true);
+//   }
+// };
 
-
+  useEffect(() => {
+    if (alwaysEditing && !isEditing) {
+      toggleEditMode();
+    }
+  }, [alwaysEditing, isEditing, toggleEditMode]);
 
   return (
     <div className={`base-container ${isEditing ? 'editing-mode' : ''}`}>
@@ -143,7 +184,6 @@ const BaseForm = ({
           </div>
         </form>
       </div>
-
       <div className="content-container">
         <div className="display-container">
           <div className="display-header">
@@ -156,16 +196,10 @@ const BaseForm = ({
                     className="action-button copy-button"
                     aria-label={ARIA_LABELS.COPY}
                   >
-                    <IoCopyOutline size={16} />
+                    {copyIcon}
                   </button>
-                  <button
-                    onClick={handleSaveClick}
-                    className="action-button save-button"
-                    aria-label={ARIA_LABELS.SAVE}
-                  >
-                    <IoSaveOutline size={16} />
-                  </button>
-                  {allowEditing && (
+                  <ExportToDocument content={value} />
+                  {allowEditing && !hideEditButton && (
                     <button
                       onClick={handleToggleEditMode}
                       className="action-button edit-button"
@@ -224,6 +258,9 @@ BaseForm.propTypes = {
   generatedPost: PropTypes.string,
   allowEditing: PropTypes.bool,
   initialContent: PropTypes.string,
+  alwaysEditing: PropTypes.bool,
+  hideEditButton: PropTypes.bool,
+  originalLinkData: PropTypes.object,
 };
 
 export default BaseForm;

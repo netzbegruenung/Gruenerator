@@ -1,27 +1,28 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useContext } from 'react';
 import PropTypes from 'prop-types';
 import axios from 'axios';
 import { FiUpload, FiFile } from 'react-icons/fi';
-import ErrorBoundary from '../../ErrorBoundary';  // Importieren Sie die ErrorBoundary-Komponente
-
+import ErrorBoundary from '../../ErrorBoundary';
 import '../../../assets/styles/common/variables.css';
 import '../../../assets/styles/common/global.css';
 import '../../../assets/styles/components/button.css';
 import '../../../assets/styles/pages/baseform.css';
-
 import { useDynamicTextSize } from '../../utils/commonFunctions';
 import BaseForm from '../../common/BaseForm';
 import { BUTTON_LABELS } from '../../utils/constants';
+import { FormContext } from '../../utils/FormContext';
 
 const Antragsversteher = ({ showHeaderFooter = true }) => {
   const [antrag, setAntrag] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
-  const [generatedContent, setGeneratedContent] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const [truncatedFileName, setTruncatedFileName] = useState('');
+
+  const formContext = useContext(FormContext);
+  const { value: generatedContent, updateValue: setGeneratedContent } = formContext || {};
 
   const textSize = useDynamicTextSize(generatedContent, 1.2, 0.8, [1000, 2000]);
 
@@ -135,12 +136,11 @@ const Antragsversteher = ({ showHeaderFooter = true }) => {
       } else {
         setError('Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.');
       }
-      // Hier könnte ein Aufruf zu einem Fehlerprotokollierungsdienst erfolgen
       logErrorToService(err);
     } finally {
       setLoading(false);
     }
-  }, [selectedFile]);
+  }, [selectedFile, setGeneratedContent]);
 
   const handleGeneratePost = useCallback(async () => {
     if (!antrag) {
@@ -166,7 +166,7 @@ const Antragsversteher = ({ showHeaderFooter = true }) => {
     } finally {
       setLoading(false);
     }
-  }, [antrag]);
+  }, [antrag, setGeneratedContent]);
 
   return (
     <ErrorBoundary>
@@ -182,7 +182,7 @@ const Antragsversteher = ({ showHeaderFooter = true }) => {
           submitButtonText={BUTTON_LABELS.SUBMIT}
           onGeneratePost={handleGeneratePost}
           generatedPost=""
-          allowEditing={false} // Deaktiviert die Bearbeitungsfunktion
+          allowEditing={false}
         >
           <div 
             className={`file-upload-area ${isDragging ? 'dragging' : ''}`}
@@ -222,10 +222,8 @@ Antragsversteher.propTypes = {
   showHeaderFooter: PropTypes.bool,
 };
 
-// Funktion zur Fehlerprotokollierung (kann an einen externen Dienst angepasst werden)
 function logErrorToService(error) {
   console.error("Fehler aufgetreten:", error);
-  // Hier könnte ein Aufruf zu einem Fehlerprotokollierungsdienst erfolgen
 }
 
 export default Antragsversteher;

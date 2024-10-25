@@ -381,7 +381,9 @@
     opacity: 1;
 }
 
-/* Responsive Anpassungen */
+.save-button svg {
+    transition: all 0.3s ease;
+  }
 
 @media (max-width: 768px) {
     .base-container {
@@ -435,6 +437,10 @@
         flex-direction: column;
         overflow: hidden; /* Verhindert Scrolling des gesamten Containers */
     }
+    .base-container.editing-mode .display-container .display-header {
+        border-top-left-radius: 0;
+        border-top-right-radius: 0;
+    }
 
     .base-container.editing-mode .display-header {
         flex-shrink: 0;
@@ -443,6 +449,7 @@
         z-index: 1001;
         padding: 10px;
         background-color: var(--dunkelgruen);
+        border-radius: 0;
     }
 
     .base-container.editing-mode .display-content {

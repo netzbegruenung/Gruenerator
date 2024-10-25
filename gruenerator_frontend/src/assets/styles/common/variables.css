@@ -28,6 +28,7 @@
     --link-color: var(--tanne);
     --button-background-color: #e0e0e0;
     --button-color: var(--tanne);
+    --button-color-hover: var(--sand);
     --button-text-color: black;
 }
 
@@ -42,6 +43,7 @@
     --link-color: var(--tanne);
     --button-background-color: var(--tanne);
     --button-color: var(--sand);
+    --button-color-hover: var(--klee);
     --button-text-color: white;
 }
 
@@ -55,7 +57,9 @@
         --font-color-h: var(--sand);
         --font-color-h3: var(--sand);
         --link-color: lightblue;
-        --button-background-color: # var(--tanne);
+        --button-background-color: var(--tanne);
+        --button-color: var(--sand);
+        --button-color-hover: var(--klee);
         --button-text-color: white;
     }
 }

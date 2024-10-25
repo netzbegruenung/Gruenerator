@@ -36,15 +36,35 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
   const [errors, setErrors] = useState({}); 
   const [searchQuery, setSearchQuery] = useState('');
 
-  const { generatePost, loading: generatePostLoading, } = useGenerateSocialPost();
-const [generatedPost, setGeneratedPost] = useState('');
+  const { generatePost, loading: generatePostLoading, error: generatePostError } = useGenerateSocialPost();
+const [generatedPosts, setGeneratedPosts] = useState({});
 const [platforms, setPlatforms] = useState({
   facebook: false,
   instagram: false,
   twitter: false,
-  linkedin: false
+  linkedin: false,
+  actionIdeas: false
 });
-const [includeActionIdeas, setIncludeActionIdeas] = useState(false);
+
+const handlePlatformChange = useCallback((platform) => {
+  setPlatforms(prev => ({ ...prev, [platform]: !prev[platform] }));
+}, []);
+
+const handleGeneratePost = useCallback(async () => {
+  const selectedPlatforms = Object.keys(platforms).filter(key => platforms[key] && key !== 'actionIdeas');
+  const includeActionIdeas = platforms.actionIdeas;
+  
+  try {
+    const newPosts = await generatePost(state.formData.thema, state.formData.details, selectedPlatforms, includeActionIdeas);
+    if (newPosts) {
+      setGeneratedPosts(newPosts);
+      updateFormData({ generatedPosts: newPosts });
+    }
+  } catch (error) {
+    console.error('Fehler beim Generieren der Posts:', error);
+    // Hier könnten Sie einen Fehlerzustand setzen oder eine Benachrichtigung anzeigen
+  }
+}, [generatePost, state.formData, platforms, updateFormData]);
 
   const validateForm = useCallback((formData) => {
     const newErrors = {};
@@ -65,23 +85,6 @@ const [includeActionIdeas, setIncludeActionIdeas] = useState(false);
     console.log('Selected Unsplash image:', selectedImage);
     updateFormData({ selectedImage });
   }, [updateFormData]);
-
-  const handlePlatformChange = useCallback((platform) => {
-    setPlatforms(prev => ({ ...prev, [platform]: !prev[platform] }));
-  }, []);
-
-  const handleActionIdeasChange = useCallback(() => {
-    setIncludeActionIdeas(prev => !prev);
-  }, []);
-
-  const handleGeneratePost = useCallback(async () => {
-    const selectedPlatforms = Object.keys(platforms).filter(key => platforms[key]);
-    const newPost = await generatePost(state.formData.thema, state.formData.details, selectedPlatforms, includeActionIdeas);
-    if (newPost) {
-      setGeneratedPost(newPost);
-      updateFormData({ generatedPost: newPost });
-    }
-  }, [generatePost, state.formData, platforms, includeActionIdeas, updateFormData]);
 
   const uploadAndProcessFile = useCallback(async (file) => {
     if (!file) {
@@ -323,11 +326,11 @@ const [includeActionIdeas, setIncludeActionIdeas] = useState(false);
     credit={state.formData.credit}
     onGeneratePost={handleGeneratePost}
     generatePostLoading={generatePostLoading}
-    generatedPost={generatedPost}
+    generatePostError={generatePostError}
+    generatedPosts={generatedPosts}
     platforms={platforms}
     onPlatformChange={handlePlatformChange}
-    includeActionIdeas={includeActionIdeas}
-    onActionIdeasChange={handleActionIdeasChange}
+    includeActionIdeas={platforms.actionIdeas}
     fileUploadProps={{
       loading: state.loading,
       file: state.file,
