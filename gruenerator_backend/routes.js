@@ -15,6 +15,8 @@ const imageUploadRouter = require('./routes/sharepic/sharepic_canvas/imageUpload
 const processTextRouter = require('./routes/sharepic/sharepic_canvas/processTextRouter');
 const unsplashRoute  = require('./routes/unsplashApi');
 const claudeTextAdjustmentRoute = require('./routes/claude_text_adjustment'); // Neue Route hinzugefügt
+const etherpadRoute = require('./routes/etherpad/etherpadController');
+
 
 function setupRoutes(app) {
   app.use('/api/claude', claudeRoute);
@@ -32,7 +34,8 @@ function setupRoutes(app) {
   app.use('/api/imageupload', imageUploadRouter);
   app.use('/api/processText', processTextRouter);
   app.use('/api/unsplash', unsplashRoute);
-  app.use('/api/claude_text_adjustment', claudeTextAdjustmentRoute); // Neue Route verwendet
+  app.use('/api/claude_text_adjustment', claudeTextAdjustmentRoute); 
+  app.use('/api/etherpad', etherpadRoute);
 }
 
 module.exports = { setupRoutes };

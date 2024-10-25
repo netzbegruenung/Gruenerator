@@ -223,13 +223,13 @@ const BaseForm = ({
         </div>
         <div className="Beitragstext-group">
           <h3>Beitragstext</h3>
-          <p>Wenn du noch keinen Beitragstext geschrieben hast, kann der Grünerator dir anhand deiner Eingaben einen Vorschlag machen. Klicke dafür auf den Button unten.</p>
+          <p>Wenn du noch keinen Beitragstext geschrieben hast, kannst du den Social Media Generator nutzen, um Vorschläge zu erhalten.</p>
           {renderSocialMediaControls}
-          <GeneratePostButton
-            onGenerate={onGeneratePost}
-            loading={generatePostLoading}
-            isRegenerateText={!!generatedPost}
-          />
+          <a href="/socialmediagenerator" target="_blank" rel="noopener noreferrer">
+            <button className="generate-post-button">
+              Zum Social Media Generator
+            </button>
+          </a>
         </div>
       </div>
     </div>

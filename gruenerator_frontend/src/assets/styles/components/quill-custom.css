@@ -45,7 +45,7 @@
 /* Toolbar-Buttons */
 .ql-editor .ql-toolbar button,
 .ql-toolbar.ql-snow button {
-    color: var(--sand) !important;
+    color: var(--font-color-h) !important;
     border: none !important;
     background: none;
     cursor: pointer;
@@ -66,7 +66,7 @@
 /* Stroke und Fill Stile */
 .ql-editor .ql-toolbar .ql-stroke,
 .ql-toolbar.ql-snow .ql-stroke {
-    stroke: var(--sand) !important;
+    color: var(--font-color-h) !important;
 }
 
 .ql-editor .ql-toolbar button:hover .ql-stroke,
@@ -74,12 +74,12 @@
 .ql-toolbar.ql-snow button:hover .ql-stroke,
 .ql-toolbar.ql-snow button:focus .ql-stroke,
 .ql-toolbar.ql-snow button.ql-active .ql-stroke {
-    stroke: var(--weiß) !important;
+    color: var(--font-color-h) !important;
 }
 
 .ql-editor .ql-toolbar .ql-fill,
 .ql-toolbar.ql-snow .ql-fill {
-    fill: var(--sand) !important;
+    color: var(--font-color-h) !important;
 }
 
 .ql-editor .ql-toolbar button:hover .ql-fill,
@@ -87,9 +87,34 @@
 .ql-toolbar.ql-snow button:hover .ql-fill,
 .ql-toolbar.ql-snow button:focus .ql-fill,
 .ql-toolbar.ql-snow button.ql-active .ql-fill {
-    fill: var(--weiß) !important;
+    color: var(--font-color-h) !important;
 }
 
+/* Überschreiben der SVG-Füllung und -Kontur für Quill-Toolbar-Buttons */
+.ql-toolbar .ql-stroke {
+    stroke: var(--font-color-h) !important;
+  }
+  
+  .ql-toolbar .ql-fill {
+    fill: var(--font-color-h) !important;
+  }
+  
+  .ql-toolbar .ql-stroke-miter {
+    stroke: var(--font-color-h) !important;
+  }
+  
+  /* Hover- und Active-Zustände */
+  .ql-toolbar button:hover .ql-stroke,
+  .ql-toolbar button.ql-active .ql-stroke {
+    stroke: var(--weiß) !important;
+  }
+  
+  .ql-toolbar button:hover .ql-fill,
+  .ql-toolbar button.ql-active .ql-fill {
+    fill: var(--weiß) !important;
+  }
+
+  
 /* Bearbeitungsmodus */
 .display-container.editing-mode .ql-editor {
     height: 100%;
@@ -137,20 +162,6 @@
 }
 
 /* "Text mit AI anpassen" Button */
-.ql-adjust-text.custom-button {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 8px 12px;
-    background-color: var(--grashalm);
-    color: var(--weiß);
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.9em;
-    margin-left: 8px;
-    transition: background-color 0.3s ease, color 0.3s ease;
-}
 
 .adjust-content {
     display: flex;
@@ -168,14 +179,6 @@
 .adjust-text {
     display: inline-block;
     white-space: nowrap;
-}
-
-.ql-adjust-text.custom-button:hover {
-    background-color: var(--klee);
-}
-
-.ql-adjust-text.custom-button:hover .adjust-icon {
-    filter: brightness(1.2);
 }
 
 /* Responsive Design */

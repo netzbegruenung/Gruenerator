@@ -1,8 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import '../../assets/styles/components/linksave.css';
+import { supabase } from '../utils/supabaseClient';
 
-const SaveLinkModal = ({ isOpen, onClose, onSave, savedLinks = [], onDelete, onLoad }) => {
+const checkLinkExists = async (generatedLink) => {
+  try {
+    const { data, error } = await supabase
+      .from('editor_contents')
+      .select('id')
+      .eq('generated_link', generatedLink)
+      .single();
+
+    if (error) throw error;
+
+    return !!data; // Returns true if data exists, false otherwise
+  } catch (err) {
+    console.error('Fehler beim Überprüfen des Links:', err);
+    return false; // Assume the link doesn't exist if there's an error
+  }
+};
+
+const SaveLinkModal = ({ isOpen, onClose, onSave, savedLinks = [], onDelete, onLoad, existingLinkData }) => {
   const [linkName, setLinkName] = useState('');
   const [generatedLink, setGeneratedLink] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
@@ -10,9 +28,17 @@ const SaveLinkModal = ({ isOpen, onClose, onSave, savedLinks = [], onDelete, onL
 
   useEffect(() => {
     if (isOpen) {
-      setGeneratedLink(generateUniqueLink(linkName));
+      if (existingLinkData) {
+        setLinkName(existingLinkData.linkName);
+        setGeneratedLink(existingLinkData.generatedLink);
+      } else {
+        const defaultLinkName = `antrag-${Math.random().toString(36).substring(2, 6)}`;
+        setLinkName(defaultLinkName);
+        const newGeneratedLink = generateUniqueLink(defaultLinkName);
+        setGeneratedLink(newGeneratedLink);
+      }
     }
-  }, [linkName, isOpen]);
+  }, [isOpen, existingLinkData]);
 
   const generateUniqueLink = (baseName) => {
     const baseUrl = 'gruenerator-test.de/ae/';
@@ -29,25 +55,32 @@ const SaveLinkModal = ({ isOpen, onClose, onSave, savedLinks = [], onDelete, onL
     }
 
     try {
+      if (!existingLinkData) {
+        const linkExists = await checkLinkExists(generatedLink);
+        if (linkExists) {
+          setErrorMessage('Dieser Link existiert bereits. Bitte wählen Sie einen anderen Namen.');
+          return;
+        }
+      }
+
       const result = await onSave(linkName, generatedLink);
       console.log('onSave Ergebnis:', result);
       if (result.success) {
         setSuccessMessage('Inhalt erfolgreich gespeichert!');
-        setLinkName('');
-        setTimeout(() => {
-          setSuccessMessage('');
-        }, 2000);
       } else {
-        throw new Error(result.error);
+        throw new Error(result.error || 'Unbekannter Fehler beim Speichern');
       }
     } catch (err) {
       console.error('Fehler beim Speichern:', err);
-      setErrorMessage('Fehler beim Speichern: ' + err.message);
+      setErrorMessage(`Fehler beim Speichern: ${err.message}`);
     }
   };
 
   const handleLinkNameChange = (e) => {
-    setLinkName(e.target.value);
+    const newLinkName = e.target.value;
+    setLinkName(newLinkName);
+    const newGeneratedLink = generateUniqueLink(newLinkName);
+    setGeneratedLink(newGeneratedLink);
     setErrorMessage('');
   };
 
@@ -60,11 +93,20 @@ const SaveLinkModal = ({ isOpen, onClose, onSave, savedLinks = [], onDelete, onL
     });
   };
 
+  const handleLoad = (link) => {
+    onLoad(link.link_name, link.generated_link);
+  };
+
+  const handleDelete = (link) => {
+    onDelete(link.link_name, link.generated_link);
+  };
+
   if (!isOpen) return null;
 
   return (
     <div className="modal-overlay">
       <div className="modal-content">
+        <button onClick={onClose} className="close-button">&times;</button>
         <h2>Inhalt speichern</h2>
         <input
           type="text"
@@ -80,10 +122,8 @@ const SaveLinkModal = ({ isOpen, onClose, onSave, savedLinks = [], onDelete, onL
           </div>
         )}
         <div className="button-container">
-          <button onClick={handleSave} className="save-button">
-            Speichern
-          </button>
-          <button onClick={onClose} className="cancel-button">Abbrechen</button>
+          <button onClick={handleSave} className="save-button">Speichern</button>
+          <button onClick={onClose} className="cancel-button">Schließen</button>
         </div>
         {errorMessage && <p className="error-message">{errorMessage}</p>}
         {successMessage && <p className="success-message">{successMessage}</p>}
@@ -95,8 +135,8 @@ const SaveLinkModal = ({ isOpen, onClose, onSave, savedLinks = [], onDelete, onL
               {savedLinks.map((link, index) => (
                 <li key={index}>
                   {link.link_name} - {link.generated_link}
-                  <button onClick={() => onLoad(link.link_name)}>Laden</button>
-                  <button onClick={() => onDelete(link.link_name)}>Löschen</button>
+                  <button onClick={() => handleLoad(link)}>Laden</button>
+                  <button onClick={() => handleDelete(link)}>Löschen</button>
                 </li>
               ))}
             </ul>
@@ -114,6 +154,7 @@ SaveLinkModal.propTypes = {
   savedLinks: PropTypes.array,
   onDelete: PropTypes.func.isRequired,
   onLoad: PropTypes.func.isRequired,
+  existingLinkData: PropTypes.object,
 };
 
 export default SaveLinkModal;
