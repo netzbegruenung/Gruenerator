@@ -43,7 +43,8 @@ const allowedOrigins = [
   'https://gruenerator.netzbegruenung.verdigado.net', 
   'https://gruenerator.de',
   'https://beta.gruenerator.de',
-  'https://jitvshdwttfvtqsjpdzw.supabase.co'
+  'https://jitvshdwttfvtqsjpdzw.supabase.co',
+  'https://gruenerator-test.netzbegruenung.verdigado.net'
 ];
 
 const corsOptions = {
@@ -96,17 +97,19 @@ app.use(helmet({
 
 app.use(rateLimit({
   windowMs: 15 * 60 * 1000, // 15 Minuten
-  max: 300, // Erhöht auf 300 Anfragen pro Zeitfenster
+  max: 300, // 300 Anfragen pro IP pro Zeitfenster
   message: 'Zu viele Anfragen von dieser IP, bitte versuchen Sie es später erneut.',
-  standardHeaders: true, // Füge Standard-RateLimit-Informationen zu den `RateLimit-*` Headern hinzu
-  legacyHeaders: false, // Deaktiviere die `X-RateLimit-*` Header
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => req.ip // Verwendet die IP-Adresse als Schlüssel
 }));
 
 // Zusätzliche Rate-Limiting für spezifische Routen
 const apiLimiter = rateLimit({
   windowMs: 5 * 60 * 1000, // 5 Minuten
-  max: 150, // Erhöht auf 150 Anfragen pro 5 Minuten
-  message: 'Zu viele API-Anfragen, bitte versuchen Sie es in 5 Minuten erneut.'
+  max: 150, // 150 Anfragen pro IP pro 5 Minuten
+  message: 'Zu viele API-Anfragen, bitte versuchen Sie es in 5 Minuten erneut.',
+  keyGenerator: (req) => req.ip // Verwendet die IP-Adresse als Schlüssel
 });
 
 // Wende das API-Limit auf alle Routen an, die mit /api beginnen

@@ -4,12 +4,14 @@ import PropTypes from 'prop-types';
 import BaseForm from '../common/BaseForm';
 import { supabase } from '../utils/supabaseClient';
 import { FormProvider } from '../utils/FormContext';
+import { useSupabaseStorage } from '../hooks/useSupabaseStorage';
 
 const Gruenerator_Editor = ({ darkMode }) => {
   const { linkName } = useParams();
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [originalLinkData, setOriginalLinkData] = useState(null);
 
   useEffect(() => {
     console.log('Gruenerator_Editor Seite wurde aufgerufen');
@@ -20,14 +22,18 @@ const Gruenerator_Editor = ({ darkMode }) => {
       setLoading(true);
       const { data, error } = await supabase
         .from('editor_contents')
-        .select('content')
-        .eq('link_name', linkName)
-        .single();
+        .select('content, link_name, generated_link')
+        .or(`link_name.eq.${linkName},generated_link.ilike.%${linkName}%`)
+        .maybeSingle();
 
       if (error) throw error;
 
       if (data) {
         setContent(data.content);
+        setOriginalLinkData({
+          linkName: data.link_name,
+          generatedLink: data.generated_link
+        });
       } else {
         throw new Error('Inhalt nicht gefunden');
       }
@@ -42,17 +48,21 @@ const Gruenerator_Editor = ({ darkMode }) => {
     fetchContent();
   }, [fetchContent]);
 
+  const { saveContent } = useSupabaseStorage();
+
   const handleSubmit = async (updatedContent) => {
     try {
-      const { error } = await supabase
-        .from('editor_contents')
-        .update({ content: updatedContent })
-        .eq('link_name', linkName);
-
-      if (error) throw error;
-
-      alert('Inhalt erfolgreich aktualisiert');
+      console.log('handleSubmit aufgerufen mit Inhalt:', updatedContent);
+      const result = await saveContent(updatedContent, originalLinkData.linkName, originalLinkData.generatedLink);
+      if (result.success) {
+        setContent(updatedContent);
+        console.log('Inhalt erfolgreich aktualisiert:', result.data);
+        alert('Inhalt erfolgreich aktualisiert');
+      } else {
+        throw new Error(result.error);
+      }
     } catch (err) {
+      console.error('Fehler beim Aktualisieren:', err);
       setError('Fehler beim Aktualisieren: ' + err.message);
     }
   };
@@ -78,13 +88,20 @@ const Gruenerator_Editor = ({ darkMode }) => {
   }
 
   return (
-    <FormProvider initialGeneratedContent={content}>
+    <FormProvider 
+      initialGeneratedContent={content} 
+      initialEditingMode={true}
+      originalLinkData={originalLinkData}
+    >
       <BaseForm
-        title={`Gruenerator Editor: ${linkName}`}
+        title={`Gruenerator Editor: ${originalLinkData.linkName}`}
         initialContent={content}
         allowEditing={true}
         onSubmit={handleSubmit}
         darkMode={darkMode}
+        alwaysEditing={true}
+        hideEditButton={true}
+        originalLinkData={originalLinkData}
       />
     </FormProvider>
   );

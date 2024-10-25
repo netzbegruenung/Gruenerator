@@ -74,17 +74,14 @@
     transition: box-shadow 0.3s ease, background-color 0.3s ease;
     margin-top: 15px;
     margin-bottom: 15px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .adjust-input:focus {
     border: 2px solid var(--grashalm);
     padding: 8px;
-}
-
-.adjust-input {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 .adjust-submit, .cancel-adjust {
@@ -174,30 +171,42 @@
 .confirmation-container {
     display: flex;
     align-items: center;
-    justify-content: center;
-    margin-top: 0;
+    justify-content: space-between;
+    padding: 8px 12px;
+    color: var(--font-color);
+    border-radius: 4px;
 }
 
 .confirmation-container p {
-    margin-right: 10px;
+    margin: 0;
+    font-weight: bold;
 }
 
-.confirm-button, .reject-button {
+.confirmation-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+.confirm-adjust, .reject-adjust {
     padding: 5px 10px;
-    margin: 0 5px;
     border: none;
     border-radius: 3px;
     cursor: pointer;
+    font-weight: bold;
 }
 
-.confirm-button {
+.confirm-adjust {
     background-color: var(--klee);
     color: var(--font-color-h);
 }
 
-.reject-button {
-    background-color: var(--sonne);
-    color: var(--font-color-h);
+.reject-adjust {
+    background-color: var(--sand);
+    color: var(--tanne);
+}
+
+.confirm-adjust:hover, .reject-adjust:hover {
+    opacity: 0.8;
 }
 
 /* Horizontales Scrollen für display actions ermöglichen */
@@ -222,13 +231,10 @@
     border: none;
     border-radius: 4px;
     box-sizing: border-box;
-    font-size: 0.9em;
     outline: none;
     color: #333;
     background-color: var(--weiß);
     transition: box-shadow 0.3s ease, background-color 0.3s ease;
-    margin-top: 15px;
-    margin-bottom: 15px;
 }
 
 .adjust-input:focus {
@@ -267,4 +273,137 @@
 .ql-editor .ql-bg-green {
     background-color: var(--klee);
     color: #000000;
+}
+
+.ql-adjust-text.custom-button,
+.adjust-form,
+.confirmation-container {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.ql-adjust-text.custom-button.hidden,
+.adjust-form.hidden,
+.confirmation-container.hidden {
+  opacity: 0;
+  transform: scale(0.95);
+  pointer-events: none;
+}
+
+.adjust-input {
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.adjust-input:focus {
+  border-color: var(--klee);
+  box-shadow: 0 0 0 2px rgba(var(--klee-rgb), 0.2);
+}
+
+.error-message {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+.error-message.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.custom-context-menu {
+  background-color: var(--background-color-alt);
+  border: 1px solid var(--hellgrau);
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  border-radius: 4px;
+  padding: 5px;
+  z-index: 1000;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.custom-context-menu button {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 8px 12px;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--font-color-h);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.custom-context-menu button:hover {
+  background-color: var(--klee);
+  color: var(--weiß);
+}
+
+.custom-context-menu .menu-icon {
+  margin-right: 8px;
+  transition: color 0.3s ease;
+}
+
+.custom-context-menu button:hover .menu-icon {
+  color: var(--weiß);
+}
+
+@media (max-width: 768px) {
+  .custom-context-menu {
+    width: 100%;
+    max-width: 300px;
+  }
+
+  .custom-context-menu button {
+    padding: 12px 16px;
+    font-size: 16px;
+  }
+
+  .adjust-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .input-wrapper {
+    margin-bottom: 5px;
+  }
+
+  .adjust-input {
+    width: 100%;
+  }
+
+  .adjust-submit {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .confirmation-container {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .confirmation-container p {
+    margin-bottom: 5px;
+    text-align: center;
+  }
+
+  .confirmation-buttons {
+    display: flex;
+    justify-content: center;
+  }
+
+  .base-container.editing-mode .display-actions .action-button {
+    color: var(--sand);
+  }
+
+  .base-container.editing-mode .display-container .display-header h3 {
+    color: var(--sand);
+  }
+
+  /* Ausblenden der AI-Anpassungsfeatures auf mobilen Geräten */
+  .ql-adjust-text.custom-button,
+  .adjust-form,
+  .confirmation-container,
+  .custom-context-menu {
+    display: none !important;
+  }
 }

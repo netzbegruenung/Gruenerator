@@ -175,3 +175,18 @@
         margin-top: 10px;
     }
 }
+
+.close-button {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-size: 1.5em;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--font-color);
+}
+
+.close-button:hover {
+  color: var(--sonne);
+}

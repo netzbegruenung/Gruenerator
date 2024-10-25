@@ -31,6 +31,7 @@ const Footer = () => {
             { element: footerRef.current.querySelector('a[href="https://twitter.com/MoritzWaech"]'), label: 'Twitter Profil von Moritz Wächter' },
             { element: footerRef.current.querySelector('a[href="https://www.instagram.com/moritz_waechter/?hl=bg"]'), label: 'Instagram Profil von Moritz Wächter' },
             { element: footerRef.current.querySelector('a[href="https://www.linkedin.com/in/moritz-w%C3%A4chter-6ab033210"]'), label: 'LinkedIn Profil von Moritz Wächter' },
+            { element: footerRef.current.querySelector('a[href="https://896ca129.sibforms.com/serve/MUIFAFnH3lov98jrw3d75u_DFByChA39XRS6JkBKqjTsN9gx0MxCvDn1FMnkvHLgzxEh1JBcEOiyHEkyzRC-XUO2DffKsVccZ4r7CCaYiugoiLf1a-yoTxDwoctxuzCsmDuodwrVwEwnofr7K42jQc-saIKeVuB_8UxrwS18QIaahZml1qMExNno2sEC7HyMy9Nz4f2f8-UJ4QmW"]'), label: 'Newsletter Anmeldung' },
         ]);
 
         return cleanup;
@@ -72,6 +73,16 @@ const Footer = () => {
                             <li><Link to="/webbaukasten" onClick={() => announce('Navigation zur Websitegenerator Seite')}>Website</Link></li>
                             <li><Link to="/impressum" onClick={() => announce('Navigation zur Impressum Seite')}>Impressum</Link></li>
                             <li><Link to="/datenschutz" onClick={() => announce('Navigation zur Datenschutz Seite')}>Datenschutz</Link></li>
+                            <li>
+                                <a 
+                                    href="https://896ca129.sibforms.com/serve/MUIFAFnH3lov98jrw3d75u_DFByChA39XRS6JkBKqjTsN9gx0MxCvDn1FMnkvHLgzxEh1JBcEOiyHEkyzRC-XUO2DffKsVccZ4r7CCaYiugoiLf1a-yoTxDwoctxuzCsmDuodwrVwEwnofr7K42jQc-saIKeVuB_8UxrwS18QIaahZml1qMExNno2sEC7HyMy9Nz4f2f8-UJ4QmW" 
+                                    target="_blank" 
+                                    rel="noopener noreferrer" 
+                                    onClick={() => announce('Öffne Newsletter Anmeldung in einem neuen Tab')}
+                                >
+                                    Newsletter
+                                </a>
+                            </li>
                         </ul>
                     </nav>
                     <div className="footer-bottom">
