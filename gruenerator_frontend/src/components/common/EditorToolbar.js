@@ -3,6 +3,8 @@ import PropTypes from 'prop-types';
 import { HiCog } from 'react-icons/hi';
 import { FaUndo, FaRedo } from 'react-icons/fa';
 import { FormContext } from '../utils/FormContext';
+import CustomContextMenu from './CustomContextMenu';
+import { useMediaQuery } from 'react-responsive';
 
 const CustomUndo = React.memo(() => {
   console.log('CustomUndo-Komponente gerendert');
@@ -34,7 +36,7 @@ const EditorToolbarComponent = ({
   onRejectAdjustment,
   isEditing,
 }) => {
-  const { adjustText, loading, error, setError } = useContext(FormContext);
+  const { adjustText, error, setError, isApplyingAdjustment } = useContext(FormContext);
 
   console.log('EditorToolbarComponent gerendert', { isAdjusting, showAdjustButton, selectedText });
 
@@ -43,6 +45,9 @@ const EditorToolbarComponent = ({
   const adjustContainerRef = useRef(null);
   const inputRef = useRef(null);
   const isInitialClickRef = useRef(false);
+  const [showCustomMenu, setShowCustomMenu] = useState(false);
+  const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
+  const [isProcessingAdjustment, setIsProcessingAdjustment] = useState(false);
 
   const handleKeyDown = useCallback((e) => {
     if (e.key === 'Escape') {
@@ -56,12 +61,9 @@ const EditorToolbarComponent = ({
 
   const handleAdjustClick = useCallback((e) => {
     e.stopPropagation();
-    e.preventDefault(); // Verhindert, dass der Editor den Fokus verliert
-    console.log('Adjust-Button geklickt, aktueller isAdjusting-Zustand:', isAdjusting);
-    if (typeof onAiAdjustment === 'function') {
-      onAiAdjustment(true, selectedText); // Übergeben Sie den ausgewählten Text
-    }
-  }, [onAiAdjustment, isAdjusting, selectedText]);
+    e.preventDefault();
+    onAiAdjustment(true, selectedText);
+  }, [onAiAdjustment, selectedText]);
 
   const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
@@ -72,12 +74,13 @@ const EditorToolbarComponent = ({
       return;
     }
 
+    setIsProcessingAdjustment(true);
     try {
       console.log('Sende Anpassungsanfrage:', { adjustmentText, textToAdjust });
       const result = await adjustText(adjustmentText, textToAdjust);
       console.log('Ergebnis der Anpassung:', result);
       if (result) {
-        onAiAdjustment(result); // Dies wird den neuen Text grün markieren
+        await onAiAdjustment(result); // Warten auf die Anwendung der Anpassung
         setShowConfirmation(true);
       } else {
         console.error('Keine Vorschläge von der API erhalten');
@@ -85,14 +88,64 @@ const EditorToolbarComponent = ({
     } catch (error) {
       console.error('Fehler bei der Textanpassung:', error);
       setError('Error adjusting text. Please try again.');
+    } finally {
+      setIsProcessingAdjustment(false);
     }
   }, [selectedText, originalSelectedText, adjustmentText, adjustText, onAiAdjustment, setError]);
 
-  const handleReject = useCallback(() => {
-    onRejectAdjustment();
+  const handleConfirmAdjustment = useCallback(() => {
+    onConfirmAdjustment();
     setShowConfirmation(false);
     setAdjustmentText('');
-  }, [onRejectAdjustment]);
+    onAiAdjustment(false);
+  }, [onConfirmAdjustment, onAiAdjustment]);
+
+  const handleContextMenu = useCallback((e) => {
+    e.preventDefault();
+    const selection = window.getSelection();
+    if (selection.toString().trim()) {
+      const range = selection.getRangeAt(0);
+      const rect = range.getBoundingClientRect();
+      
+      let x = e.clientX;
+      let y = e.clientY;
+
+      if (window.innerHeight - rect.bottom > 100) {
+        y = rect.bottom + window.scrollY;
+      } else {
+        y = rect.top + window.scrollY - 40;
+      }
+
+      if (x + 200 > window.innerWidth) {
+        x = window.innerWidth - 220;
+      }
+
+      setMenuPosition({ x, y });
+      setShowCustomMenu(true);
+    }
+  }, []);
+
+  const handleCloseCustomMenu = useCallback(() => {
+    setShowCustomMenu(false);
+  }, []);
+
+  const handleCustomMenuClick = useCallback((e) => {
+    e.stopPropagation();
+    handleAdjustClick(e);
+    setShowCustomMenu(false);
+  }, [handleAdjustClick]);
+
+  useEffect(() => {
+    const editorElement = document.querySelector('.ql-editor');
+    if (editorElement) {
+      editorElement.addEventListener('contextmenu', handleContextMenu);
+    }
+    return () => {
+      if (editorElement) {
+        editorElement.removeEventListener('contextmenu', handleContextMenu);
+      }
+    };
+  }, [handleContextMenu]);
 
   useEffect(() => {
     console.log('EditorToolbar: isAdjusting changed:', isAdjusting);
@@ -138,6 +191,8 @@ const EditorToolbarComponent = ({
     }
   }, [error, setError]);
 
+  const isMobile = useMediaQuery({ maxWidth: 768 });
+
   return (
     <div className={`editor-toolbar-wrapper ${!isEditing ? 'read-only' : ''}`} ref={adjustContainerRef}>
       <div id="toolbar" className="ql-toolbar ql-snow">
@@ -154,82 +209,98 @@ const EditorToolbarComponent = ({
           <CustomUndo />
           <CustomRedo />
         </span>
-        {(showAdjustButton || isAdjusting || showConfirmation) && (
+        {!isMobile && (showAdjustButton || isAdjusting || showConfirmation) && (
           <span className={`ql-formats adjust-text-container ${isAdjusting ? 'adjusting' : ''}`}>
             {isAdjusting && (
-              <form onSubmit={handleSubmit} className="adjust-form">
-                <div className="input-wrapper">
-                  <input
-                    ref={inputRef}
-                    type="text"
-                    value={adjustmentText}
-                    onChange={(e) => {
-                      console.log('Anpassungstext geändert:', e.target.value);
-                      setAdjustmentText(e.target.value);
-                    }}
-                    onKeyDown={handleKeyDown}
-                    placeholder="Improvement suggestion"
-                    className="adjust-input"
-                  />
-                  <button 
-                    type="button" 
-                    onClick={() => {
-                      console.log('Anpassung abgebrochen');
-                      onAiAdjustment(false);
-                    }} 
-                    className="cancel-adjust"
-                    aria-label="Cancel Adjustment"
-                  >
-                    ×
-                  </button>
-                </div>
-                <button type="submit" className={`adjust-submit ${loading ? 'loading' : ''}`} aria-label="Submit Adjustment" disabled={loading}>
-  {loading ? (
-    <HiCog className="loading-icon" />
-  ) : (
-    <span className="icon">➤</span>
-  )}
-</button>
-              </form>
+              <>
+                {!showConfirmation && (
+                  <form onSubmit={handleSubmit} className="adjust-form">
+                    <div className="input-wrapper">
+                      <input
+                        ref={inputRef}
+                        type="text"
+                        value={adjustmentText}
+                        onChange={(e) => {
+                          console.log('Anpassungstext geändert:', e.target.value);
+                          setAdjustmentText(e.target.value);
+                        }}
+                        onKeyDown={handleKeyDown}
+                        placeholder="Improvement suggestion"
+                        className="adjust-input"
+                      />
+                      <button 
+                        type="button" 
+                        onClick={() => {
+                          console.log('Anpassung abgebrochen');
+                          onAiAdjustment(false);
+                        }} 
+                        className="cancel-adjust"
+                        aria-label="Cancel Adjustment"
+                      >
+                        ×
+                      </button>
+                    </div>
+                    <button type="submit" className={`adjust-submit ${isProcessingAdjustment ? 'loading' : ''}`} aria-label="Submit Adjustment" disabled={isProcessingAdjustment}>
+                      {isProcessingAdjustment ? (
+                        <HiCog className="loading-icon" />
+                      ) : (
+                        <span className="icon">➤</span>
+                      )}
+                    </button>
+                  </form>
+                )}
+                {showConfirmation && (
+                  <div className="confirmation-container">
+                    <p>Anpassung annehmen?</p>
+                    <div className="confirmation-buttons">
+                      <button 
+                        onClick={handleConfirmAdjustment} 
+                        className="confirm-adjust" 
+                        aria-label="Accept Adjustment"
+                        disabled={isApplyingAdjustment}
+                      >
+                        {isApplyingAdjustment ? <HiCog className="loading-icon" /> : '✓'}
+                      </button>
+                      <button 
+                        onClick={() => {
+                          onRejectAdjustment();
+                          setShowConfirmation(false);
+                          setAdjustmentText('');
+                          onAiAdjustment(false);
+                        }}
+                        className="reject-adjust" 
+                        aria-label="Reject Adjustment"
+                      >
+                        ✗
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
-            {showConfirmation && (
-              <div className="confirmation-buttons">
-                <button 
-                  onClick={() => {
-                    onConfirmAdjustment(false); // false bedeutet, die Formatierung nicht beibehalten
-                    setShowConfirmation(false);
-                    setAdjustmentText('');
-                  }} 
-                  className="confirm-adjust" 
-                  aria-label="Accept Adjustment"
-                >
-                  ✓
-                </button>
-                <button 
-                  onClick={handleReject}
-                  className="reject-adjust" 
-                  aria-label="Reject Adjustment"
-                >
-                  ✗
-                </button>
-              </div>
-            )}
-            {!isAdjusting && !showConfirmation && showAdjustButton && selectedText && (
+            {!isAdjusting && showAdjustButton && selectedText && (
               <button
                 className="ql-adjust-text custom-button"
                 onClick={handleAdjustClick}
-                aria-label="Adjust Text with AI"
+                aria-label="Gruenerator AI-Anpassung"
               >
                 <span className="adjust-content">
                   <HiCog size={16} className="adjust-icon" />
-                  <span className="adjust-text">Adjust Text with AI</span>
+                  <span className="adjust-text">Grünerator AI-Anpassung</span>
                 </span>
               </button>
             )}
           </span>
         )}
       </div>
-      {error && <p className="error-message">Error: {error}</p>}
+      {!isMobile && error && <p className="error-message">Error: {error}</p>}
+      {!isMobile && showCustomMenu && (
+        <CustomContextMenu
+          position={menuPosition}
+          onClose={handleCloseCustomMenu}
+          onAdjustClick={handleCustomMenuClick}
+        />
+      )}
     </div>
   );
 };
@@ -246,7 +317,6 @@ EditorToolbarComponent.propTypes = {
   }),
   onAiAdjustment: PropTypes.func.isRequired,
   originalSelectedText: PropTypes.string.isRequired,
-  newSelectedText: PropTypes.string,
   onRejectAdjustment: PropTypes.func.isRequired,
   isEditing: PropTypes.bool.isRequired,
 };

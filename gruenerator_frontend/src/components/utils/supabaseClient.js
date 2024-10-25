@@ -1,5 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 
+
+// Fügen Sie diese Zeilen am Anfang der Datei hinzu
+
 const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
 const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
 

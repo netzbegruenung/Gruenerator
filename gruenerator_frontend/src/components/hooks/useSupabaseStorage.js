@@ -1,13 +1,6 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '../utils/supabaseClient';
 
-const checkAuth = async () => {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    throw new Error('Benutzer ist nicht authentifiziert');
-  }
-  return user;
-};
 
 export const useSupabaseStorage = () => {
   const [loading, setLoading] = useState(false);
@@ -15,75 +8,77 @@ export const useSupabaseStorage = () => {
 
   const saveContent = useCallback(async (content, linkName, generatedLink) => {
     try {
-      await checkAuth();
       console.log('saveContent aufgerufen', { content, linkName, generatedLink });
       setLoading(true);
       setError(null);
+
       const { data: existingData, error: existingError } = await supabase
         .from('editor_contents')
-        .select('id')
+        .select('*')
         .eq('link_name', linkName)
-        .single();
+        .maybeSingle();
       
       console.log('Existierende Daten überprüft', { existingData, existingError });
 
       if (existingError && existingError.code !== 'PGRST116') {
-        throw existingError;
+        console.error('Fehler beim Überprüfen existierender Daten:', existingError);
       }
 
       let result;
       if (existingData) {
         result = await supabase
           .from('editor_contents')
-          .update({ content, updated_at: new Date(), generated_link: generatedLink })
-          .eq('id', existingData.id);
+          .update({ 
+            content, 
+            updated_at: new Date(), 
+            generated_link: generatedLink 
+          })
+          .eq('id', existingData.id)
+          .select();
+        
+        console.log('Update-Operation durchgeführt', result);
       } else {
         result = await supabase
           .from('editor_contents')
-          .insert([{ content, link_name: linkName, generated_link: generatedLink, created_at: new Date() }]);
+          .insert([{ 
+            content, 
+            link_name: linkName, 
+            generated_link: generatedLink, 
+            created_at: new Date() 
+          }])
+          .select();
+        
+        console.log('Insert-Operation durchgeführt', result);
       }
-
-      console.log('Supabase-Operation abgeschlossen', result);
 
       if (result.error) throw result.error;
-      return result.data;
+      
+      console.log('Supabase-Operation erfolgreich abgeschlossen', result);
+      return { success: true, data: result.data[0] };
     } catch (err) {
       console.error('Detaillierter Fehler in saveContent:', err);
-      console.error('Fehler-Stack:', err.stack);
-      if (err.response) {
-        console.error('Fehler-Response:', err.response);
-      }
       setError(err.message);
-      return null;
+      return { success: false, error: err.message };
     } finally {
       setLoading(false);
     }
   }, []);
 
-  const getContent = useCallback(async (linkName) => {
-    setLoading(true);
-    setError(null);
-    try {
-      console.log('Versuche Inhalt abzurufen für link_name:', linkName);
-      const { data, error } = await supabase
-        .from('editor_contents')
-        .select('content, link_name, generated_link')
-        .eq('link_name', linkName)
-        .single();
-      
-      if (error) {
-        console.error('Fehler beim Abrufen des Inhalts:', error);
-        throw error;
-      }
-      console.log('Abgerufene Daten:', data);
-      return data.content;
-    } catch (err) {
-      console.error('Fehler in getContent:', err);
-      setError(err.message);
-      return null;
-    } finally {
-      setLoading(false);
+  const getContent = useCallback(async (linkIdentifier) => {
+    console.log('Versuche Inhalt abzurufen für:', linkIdentifier);
+    const { data, error } = await supabase
+      .from('editor_contents')
+      .select('content, link_name, generated_link')
+      .or(`link_name.eq.${linkIdentifier},generated_link.eq.${linkIdentifier}`)
+      .maybeSingle();
+    
+    console.log('Supabase-Antwort:', { data, error });
+    
+    if (error) {
+      console.error('Fehler beim Abrufen des Inhalts:', error);
+      throw error;
     }
+    return data ? data.content : null;
   }, []);
 
   const listSavedContents = useCallback(async () => {

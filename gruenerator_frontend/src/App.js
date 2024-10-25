@@ -164,11 +164,19 @@ const RouteComponent = ({ path, darkMode }) => {
     case '/webbaukasten':
       return <Webbaukasten darkMode={darkMode} />;
     case '/antragscheck':
-      return <Antragscheck darkMode={darkMode} />;
+      return (
+        <FormProvider>
+          <Antragscheck showHeaderFooter={true} darkMode={darkMode} />
+        </FormProvider>
+      );
     case '/wahlpruefsteinthueringen':
       return <WahlpruefsteinThueringen darkMode={darkMode} />;
     case '/rede':
-      return <Redengenerator showHeaderFooter={true} darkMode={darkMode} />;
+      return (
+        <FormProvider>
+          <Redengenerator showHeaderFooter={true} darkMode={darkMode} />
+        </FormProvider>
+      );
     case '/datenschutz':
       return <Datenschutz darkMode={darkMode} />;
     case '/impressum':

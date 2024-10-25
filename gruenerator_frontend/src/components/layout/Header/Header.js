@@ -58,7 +58,7 @@ const Header = () => {
                 <div className="header-logo">
                     <Link to="/" aria-label="Zur Startseite">
                         <img 
-                            src={darkMode ? "/images/Logo_Sand_Beta.svg" : "/images/Logo_Gruen_Beta.svg"} 
+                            src={darkMode ? "/images/Logo_Sand.svg" : "/images/Logo_Grün.svg"} 
                             alt="Grünerator Logo" 
                         />
                     </Link>
