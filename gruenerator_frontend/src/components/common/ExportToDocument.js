@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import useApiSubmit from '../hooks/useApiSubmit';
 import { IoDocumentOutline, IoCopyOutline, IoOpenOutline, IoCloseOutline } from "react-icons/io5";
@@ -7,13 +7,62 @@ import '../../assets/styles/components/exportToDocument.css';
 const ExportToDocument = ({ content }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [padURL, setPadURL] = useState('');
+  const [hasExistingPad, setHasExistingPad] = useState(false);
   const { submitForm, loading, error } = useApiSubmit('etherpad/create');
 
+  // Beim ersten Rendern prüfen, ob bereits ein Link existiert
+  useEffect(() => {
+    const existingPadURL = sessionStorage.getItem('padURL');
+    if (existingPadURL) {
+      setPadURL(existingPadURL);
+      setHasExistingPad(true);
+    }
+  }, []);
+
+  // Funktion zum Bereinigen des HTML-Texts
+  const cleanHtmlContent = (htmlContent) => {
+    // Temporäres div-Element erstellen
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = htmlContent;
+    
+    // Text extrahieren und Formatierungen entfernen
+    let cleanText = '';
+    const processNode = (node) => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        cleanText += node.textContent;
+      } else if (node.nodeType === Node.ELEMENT_NODE) {
+        if (node.tagName === 'P' || node.tagName === 'DIV') {
+          if (cleanText && !cleanText.endsWith('\n')) {
+            cleanText += '\n';
+          }
+        }
+        node.childNodes.forEach(processNode);
+        if (node.tagName === 'P' || node.tagName === 'DIV') {
+          if (!cleanText.endsWith('\n')) {
+            cleanText += '\n';
+          }
+        }
+      }
+    };
+    
+    processNode(tempDiv);
+    return cleanText.trim();
+  };
+
   const handleEtherpadExport = async () => {
+    // Wenn bereits ein Pad existiert, verwenden wir die bestehende URL
+    if (hasExistingPad) {
+      return;
+    }
+
     try {
-      const result = await submitForm({ text: content });
+      const cleanContent = cleanHtmlContent(content);
+      const result = await submitForm({ text: cleanContent });
       if (result && result.padURL) {
         setPadURL(result.padURL);
+        setHasExistingPad(true);
+        // Speichern der URL in der Session
+        sessionStorage.setItem('padURL', result.padURL);
       } else {
         throw new Error('Keine gültige Pad-URL erhalten');
       }
@@ -22,11 +71,11 @@ const ExportToDocument = ({ content }) => {
     }
   };
 
-  const handleCopyLink = () => {
+  const handleCopyCollaborateLink = () => {
     navigator.clipboard.writeText(padURL).then(() => {
-      alert('Link wurde in deine Zwischenablage kopiert!');
+      alert('Collaborate-Link wurde in deine Zwischenablage kopiert!');
     }).catch(err => {
-      console.error('Fehler beim Kopieren des Links:', err);
+      console.error('Fehler beim Kopieren des Collaborate-Links:', err);
     });
   };
 
@@ -69,10 +118,10 @@ const ExportToDocument = ({ content }) => {
               </>
             ) : (
               <>
-                <p>Dein Text wurde erfolgreich in Grünerator Collaborate exportiert.</p>
+                <p>{hasExistingPad ? 'Dein Text wurde bereits in Grünerator Collaborate exportiert.' : 'Dein Text wurde erfolgreich in Grünerator Collaborate exportiert.'}</p>
                 <div className="url-container">
                   <input type="text" value={padURL} readOnly className="url-input" />
-                  <button onClick={handleCopyLink} className="copy-button">
+                  <button onClick={handleCopyCollaborateLink} className="copy-collaborate-link-button">
                     <IoCopyOutline size={20} />
                   </button>
                 </div>
