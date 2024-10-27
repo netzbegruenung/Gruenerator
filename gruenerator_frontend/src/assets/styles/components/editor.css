@@ -309,7 +309,7 @@
   transform: translateY(0);
 }
 
-.custom-context-menu {
+/* .custom-context-menu {
   background-color: var(--background-color-alt);
   border: 1px solid var(--hellgrau);
   box-shadow: 0 2px 5px rgba(0,0,0,0.1);
@@ -345,7 +345,7 @@
 
 .custom-context-menu button:hover .menu-icon {
   color: var(--weiß);
-}
+} */
 
 @media (max-width: 768px) {
   .custom-context-menu {

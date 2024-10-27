@@ -235,14 +235,35 @@ const Editor = React.memo(({ setEditorInstance }) => {
     }
   }, [updateValue]);
 
+  const handleAiAdjustmentLocal = useCallback((adjustmentOrState, text) => {
+    if (typeof adjustmentOrState === 'boolean') {
+      handleAiAdjustment(adjustmentOrState, text);
+    } else if (typeof adjustmentOrState === 'string') {
+      // Wenn ein neuer Text vorgeschlagen wird, aktualisieren wir den Editor
+      const quill = quillRef.current?.getEditor();
+      if (quill && highlightedRange) {
+        quill.deleteText(highlightedRange.index, highlightedRange.length);
+        quill.insertText(highlightedRange.index, adjustmentOrState, {
+          'color': '#000000',
+          'background': '#ffff99' // Gelbe Hintergrundfarbe für den vorgeschlagenen Text
+        });
+        setLocalValue(quill.root.innerHTML);
+      }
+      handleAiAdjustment(true, adjustmentOrState);
+    }
+  }, [handleAiAdjustment, highlightedRange]);
+
   const onConfirmAdjustment = useCallback(() => {
     console.log('onConfirmAdjustment aufgerufen', { newSelectedText, highlightedRange });
     if (newSelectedText) {
       const quill = quillRef.current?.getEditor();
       if (quill) {
-        setIsApplyingAdjustment(true); // Setzen Sie den Status auf true, bevor die Anpassung beginnt
+        setIsApplyingAdjustment(true);
         if (highlightedRange) {
-          applyAdjustment(newSelectedText, false);
+          // Der Text wurde bereits eingefügt, wir müssen nur die Formatierung anpassen
+          quill.formatText(highlightedRange.index, newSelectedText.length, {
+            'background': '#e6ffe6' // Hellgrüne Hintergrundfarbe für den akzeptierten Text
+          });
         } else {
           const length = quill.getLength();
           quill.insertText(length, newSelectedText, {
@@ -270,7 +291,7 @@ const Editor = React.memo(({ setEditorInstance }) => {
         isAdjusting={isAdjusting}
         onConfirmAdjustment={onConfirmAdjustment}
         highlightedRange={highlightedRange}
-        onAiAdjustment={handleAiAdjustment}
+        onAiAdjustment={handleAiAdjustmentLocal}
         showAdjustButton={showAdjustButton}
         selectedText={selectedText}
         originalSelectedText={selectedText}

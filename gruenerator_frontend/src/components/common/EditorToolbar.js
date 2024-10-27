@@ -80,7 +80,7 @@ const EditorToolbarComponent = ({
       const result = await adjustText(adjustmentText, textToAdjust);
       console.log('Ergebnis der Anpassung:', result);
       if (result) {
-        await onAiAdjustment(result); // Warten auf die Anwendung der Anpassung
+        await onAiAdjustment(result);
         setShowConfirmation(true);
       } else {
         console.error('Keine Vorschläge von der API erhalten');
@@ -225,7 +225,7 @@ const EditorToolbarComponent = ({
                           setAdjustmentText(e.target.value);
                         }}
                         onKeyDown={handleKeyDown}
-                        placeholder="Improvement suggestion"
+                        placeholder="Verbesserungsvorschlag"
                         className="adjust-input"
                       />
                       <button 
