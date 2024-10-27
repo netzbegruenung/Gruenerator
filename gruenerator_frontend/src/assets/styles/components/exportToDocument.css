@@ -71,15 +71,13 @@
     margin-top: 20px;
     border: none;
     border-radius: 6px;
-    background-color: var(--klee);
-    color: var(--weiß);
     font-size: 1em;
     cursor: pointer;
     transition: background-color 0.3s ease;
 }
 
 .export-action-button:hover, .open-button:hover {
-    background-color: var(--grashalm);
+    background-color: var(--klee);
 }
 
 .url-container {
@@ -94,20 +92,14 @@
     border-radius: 6px 0 0 6px;
     font-size: 0.9em;
     background-color: var(--weiß);
-    color: var(--font-color);
 }
 
-.copy-button {
+.copy-collaborate-link-button {
     padding: 10px;
-    background-color: var(--sand);
     border: none;
     border-radius: 0 6px 6px 0;
     cursor: pointer;
     transition: background-color 0.3s ease;
-}
-
-.copy-button:hover {
-    background-color: var(--klee);
 }
 
 .error-message {
@@ -115,24 +107,129 @@
     margin-top: 10px;
 }
 
+/* Mobile Optimierungen */
 @media (max-width: 768px) {
+    .modal {
+        align-items: flex-end; /* Modal von unten einfahren lassen */
+        padding: 0;
+    }
+
     .modal-content {
-        width: 95%;
+        width: 100%;
+        max-width: 100%;
+        margin: 0;
         padding: 20px;
+        border-radius: 20px 20px 0 0; /* Nur oben abgerundet */
+        max-height: 90vh; /* Maximale Höhe auf mobilen Geräten */
+        overflow-y: auto; /* Scrollbar wenn nötig */
+    }
+
+    .modal-content h2 {
+        font-size: 1.3em;
+        padding-right: 30px; /* Platz für Close-Button */
+    }
+
+    .modal-content p {
+        font-size: 0.95em;
+        margin-bottom: 12px;
+    }
+
+    .url-container {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .url-input {
+        width: 100%;
+        border-radius: 6px;
+        font-size: 0.9em;
+        padding: 12px;
+    }
+
+    .copy-collaborate-link-button {
+        width: 100%;
+        border-radius: 6px;
+        padding: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        background-color: var(--klee);
+        color: var(--weiß);
+    }
+
+    .copy-collaborate-link-button::after {
+        content: 'Link kopieren';
+        font-size: 0.9em;
+    }
+
+    .open-button {
+        margin-top: 10px;
+        padding: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        font-size: 0.9em;
+    }
+
+    /* Angepasste Animationen für Mobile */
+    @keyframes slideIn {
+        from { transform: translateY(100%); }
+        to { transform: translateY(0); }
+    }
+
+    .close-button {
+        top: 15px;
+        right: 15px;
+        padding: 8px;
+    }
+
+    .export-action-button {
+        padding: 14px;
+        font-size: 0.95em;
+    }
+}
+
+/* Zusätzliche Anpassungen für sehr kleine Bildschirme */
+@media (max-width: 360px) {
+    .modal-content {
+        padding: 15px;
+    }
+
+    .modal-content h2 {
+        font-size: 1.2em;
+    }
+
+    .modal-content p {
+        font-size: 0.9em;
+    }
+
+    .url-input,
+    .copy-collaborate-link-button,
+    .open-button {
+        padding: 10px;
+    }
+}
+
+/* Landscape-Modus Optimierungen */
+@media (max-height: 600px) and (orientation: landscape) {
+    .modal {
+        align-items: center;
+    }
+
+    .modal-content {
+        max-height: 85vh;
+        border-radius: 12px;
+        margin: 20px;
+    }
+
+    .modal-content p {
+        margin-bottom: 10px;
     }
 }
 
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
-}
-
-@keyframes slideIn {
-  from { transform: translateY(-20px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
-}
-
-.modal-content p {
-    line-height: 1.5;
-    margin-bottom: 15px;
 }

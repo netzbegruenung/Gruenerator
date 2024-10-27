@@ -60,7 +60,7 @@
 .ql-toolbar.ql-snow button:hover,
 .ql-toolbar.ql-snow button:focus,
 .ql-toolbar.ql-snow button.ql-active {
-    color: var(--weiß) !important;
+    color: var(--klee) !important;
 }
 
 /* Stroke und Fill Stile */
@@ -106,12 +106,12 @@
   /* Hover- und Active-Zustände */
   .ql-toolbar button:hover .ql-stroke,
   .ql-toolbar button.ql-active .ql-stroke {
-    stroke: var(--weiß) !important;
+    stroke: var(--klee) !important;
   }
   
   .ql-toolbar button:hover .ql-fill,
   .ql-toolbar button.ql-active .ql-fill {
-    fill: var(--weiß) !important;
+    fill: var(--klee) !important;
   }
 
   
