@@ -7,9 +7,8 @@ import { addAriaLabelsToElements, enhanceFocusVisibility } from '../utils/access
 import { BUTTON_LABELS, ARIA_LABELS, ANNOUNCEMENTS } from '../utils/constants';
 import { IoCopyOutline, IoPencil, IoCheckmarkOutline } from 'react-icons/io5';
 import Editor from './Editor';
-import SaveLinkModal from './SaveLinkModal';
+// import SaveLinkModal from './SaveLinkModal';
 import { copyPlainText } from '../utils/commonFunctions';
-import 'react-quill/dist/quill.bubble.css';
 import { FormContext } from '../utils/FormContext';
 import ExportToDocument from './ExportToDocument';
 
@@ -27,7 +26,7 @@ const BaseForm = ({
   initialContent = '',
   alwaysEditing = false,
   hideEditButton = false,
-  originalLinkData,
+  // originalLinkData,
 }) => {
   console.log('BaseForm wird gerendert', { title, loading, success, error });
 
@@ -36,12 +35,12 @@ const BaseForm = ({
     isEditing,
     toggleEditMode,
     updateValue,
-    saveCurrentContent,
-    handleLoadContent,
-    handleDeleteContent,
-    savedLinks,
-    linkData,
-    setLinkData,
+    // saveCurrentContent,
+    // handleLoadContent,
+    // handleDeleteContent,
+    // savedLinks,
+    // linkData,
+    // setLinkData,
   } = useContext(FormContext);
 
   const [copyIcon, setCopyIcon] = useState(<IoCopyOutline size={16} />);
@@ -54,14 +53,14 @@ const BaseForm = ({
 
   const { announce, setupKeyboardNav } = useAccessibility();
   const [generatePostLoading, setGeneratePostLoading] = React.useState(false);
-  const [isSaveLinkModalOpen, setIsSaveLinkModalOpen] = useState(false);
+  // const [isSaveLinkModalOpen, setIsSaveLinkModalOpen] = useState(false);
   
 
-  useEffect(() => {
-    if (originalLinkData && !linkData) {
-      setLinkData(originalLinkData);
-    }
-  }, [originalLinkData, linkData, setLinkData]);
+  // useEffect(() => {
+  //   if (originalLinkData && !linkData) {
+  //     setLinkData(originalLinkData);
+  //   }
+  // }, [originalLinkData, linkData, setLinkData]);
 
   const handleGeneratePost = React.useCallback(async () => {
     console.log('Beitrag wird generiert');
@@ -234,14 +233,14 @@ const BaseForm = ({
           )}
         </div>
       </div>
-      <SaveLinkModal
+      {/* <SaveLinkModal
         isOpen={isSaveLinkModalOpen}
         onClose={() => setIsSaveLinkModalOpen(false)}
         onSave={saveCurrentContent}
         savedLinks={savedLinks}
         onDelete={handleDeleteContent}
         onLoad={handleLoadContent}
-      />
+      /> */}
     </div>
   );
 };
@@ -260,7 +259,7 @@ BaseForm.propTypes = {
   initialContent: PropTypes.string,
   alwaysEditing: PropTypes.bool,
   hideEditButton: PropTypes.bool,
-  originalLinkData: PropTypes.object,
+  // originalLinkData: PropTypes.object,
 };
 
 export default BaseForm;
