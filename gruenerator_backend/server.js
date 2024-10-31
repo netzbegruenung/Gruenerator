@@ -67,15 +67,6 @@ app.use(cors(corsOptions));
 // Explizite Behandlung von OPTIONS-Anfragen für alle Routen
 app.options('*', cors(corsOptions));
 
-// Zusätzliche Middleware zur Sicherstellung der CORS-Header
-// Diese Zeilen können gelöscht werden:
-// app.use((req, res, next) => {
-//   res.header('Access-Control-Allow-Origin', allowedOrigins);
-//   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-//   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-//   next();
-// });
-
 // Security middleware
 app.use(helmet({
   contentSecurityPolicy: {

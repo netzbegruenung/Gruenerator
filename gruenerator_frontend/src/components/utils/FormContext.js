@@ -4,6 +4,7 @@ import debounce from 'lodash.debounce';
 import useApiSubmit from '../hooks/useApiSubmit';
 import { useSupabaseStorage } from '../hooks/useSupabaseStorage';
 import { removeAllHighlights } from '../utils/highlightUtils';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 export const FormContext = createContext();
 
@@ -29,6 +30,9 @@ export const FormProvider = ({
   const { saveContent, getContent, listSavedContents, deleteContent, loading: supabaseLoading, error: supabaseError } = useSupabaseStorage();
   const [linkData, setLinkData] = useState(originalLinkData);
   const [isApplyingAdjustment, setIsApplyingAdjustment] = useState(false);
+  const [hasContent, setHasContent] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     if (quillRef.current) {
@@ -36,6 +40,60 @@ export const FormProvider = ({
       setQuillRef({ current: quill });
     }
   }, [setQuillRef]);
+
+  useEffect(() => {
+    setHasContent(!!value);
+  }, [value]);
+
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (hasContent) {
+        const message = 'Wenn Sie diese Seite verlassen, gehen Ihre Änderungen verloren. Möchten Sie die Seite wirklich verlassen?';
+        e.preventDefault();
+        e.returnValue = message;
+        return message;
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [hasContent]);
+
+  useEffect(() => {
+    if (!hasContent) return;
+
+    const unlisten = navigate((to) => {
+      if (to.pathname === location.pathname) return true;
+
+      const userConfirmed = window.confirm(
+        'Wenn Sie diese Seite verlassen, gehen Ihre Änderungen verloren. Möchten Sie die Seite wirklich verlassen?'
+      );
+
+      if (userConfirmed) {
+        setValue('');
+        setHasContent(false);
+        return true;
+      }
+      
+      return false;
+    });
+
+    return () => unlisten?.();
+  }, [hasContent, location.pathname, navigate]);
+
+  useEffect(() => {
+    setValue('');
+    setHasContent(false);
+    setIsEditing(false);
+    setIsAdjusting(false);
+    setAiAdjustment(null);
+    setSelectedText('');
+    setHighlightedRange(null);
+    setSyncStatus('synced');
+  }, [location.pathname]);
 
   const debouncedSetValue = useMemo(() => 
     debounce((newValue) => {
@@ -298,6 +356,7 @@ export const FormProvider = ({
     clearAllHighlights,
     isApplyingAdjustment,
     setIsApplyingAdjustment,
+    hasContent,
   }), [
     value,
     debouncedSetValue,
@@ -338,6 +397,7 @@ export const FormProvider = ({
     setQuillInstance,
     clearAllHighlights,
     isApplyingAdjustment,
+    hasContent,
   ]);
 
   return (
