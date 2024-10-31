@@ -1,11 +1,11 @@
 import React, { useEffect } from 'react';
 import PropTypes from 'prop-types';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import Home from './components/pages/Home';
 import Antrag from './components/pages/Grüneratoren/Antragsgenerator';
 import Pressemitteilung from './components/pages/Grüneratoren/Pressemitteilung';
 import SocialMediaGenerator from './components/pages/Grüneratoren/SocialMediaGenerator';
-import Sharepicgenerator from './components/pages/Grüneratoren/Sharepicgenerator'; // Neue Komponente hinzugefügt
+import Sharepicgenerator from './components/pages/Grüneratoren/Sharepicgenerator';
 import Webbaukasten from './components/pages/Webbaukasten';
 import Antragscheck from './components/pages/Grüneratoren/Antragsversteher';
 import WahlpruefsteinThueringen from './components/pages/Grüneratoren/WahlpruefsteinThueringen';
@@ -21,10 +21,10 @@ import WelcomePopup from './components/Popups/popup_welcome';
 import useAccessibility from './components/hooks/useAccessibility';
 import useDarkMode from './components/hooks/useDarkMode';
 import Wahlprogramm from './components/pages/Grüneratoren/Wahlprogramm';
-import { SharepicGeneratorProvider } from './components/utils/Sharepic/SharepicGeneratorContext'; // SharepicGeneratorProvider importiert
+import { SharepicGeneratorProvider } from './components/utils/Sharepic/SharepicGeneratorContext';
 import { FormProvider } from './components/utils/FormContext';
 import Gruenerator_Editor from './components/pages/Gruenerator_Editor';
-import SupabaseTest from './components/utils/SupabaseTest'; // Neue Komponente importiert
+import SupabaseTest from './components/utils/SupabaseTest';
 import ErrorBoundary from './components/ErrorBoundary';
 
 function App() {
@@ -67,7 +67,7 @@ function App() {
     '/datenschutz',
     '/impressum',
     '/nutzungsbedingungen',
-    '/supabase-test' // Neue Route für den Supabase-Test
+    '/supabase-test'
   ];
 
   return (
@@ -110,10 +110,9 @@ function App() {
           } />
           <Route path="/wahlprogramm-no-header-footer" element={<Wahlprogramm showHeaderFooter={false} darkMode={darkMode} />} />
 
-          {/* Neue Route für SavedContentPage */}
           <Route path="/ae/:linkName" element={
             <ErrorBoundary>
-              <FormProvider>
+              <FormProvider key={`form-${location.pathname}`}>
                 <>
                   <Header darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
                   <Gruenerator_Editor darkMode={darkMode} />
@@ -123,7 +122,6 @@ function App() {
             </ErrorBoundary>
           } />
 
-          {/* Neue Route für SupabaseTest */}
           <Route path="/supabase-test" element={
             <>
               <Header darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
@@ -138,34 +136,36 @@ function App() {
 }
 
 const RouteComponent = ({ path, darkMode }) => {
+  const location = useLocation();
+
   switch (path) {
     case '/':
       return <Home darkMode={darkMode} />;
     case '/antrag':
       return (
-        <FormProvider>
+        <FormProvider key={`form-${location.pathname}`}>
           <Antrag showHeaderFooter={true} darkMode={darkMode} />
         </FormProvider>
       );
     case '/pressemitteilung':
       return (
-        <FormProvider>
+        <FormProvider key={`form-${location.pathname}`}>
           <Pressemitteilung showHeaderFooter={true} darkMode={darkMode} />
         </FormProvider>
       );
     case '/socialmedia':
       return (
-        <FormProvider>
+        <FormProvider key={`form-${location.pathname}`}>
           <SocialMediaGenerator showHeaderFooter={true} darkMode={darkMode} />
         </FormProvider>
       );
-    case '/sharepicgenerator': // Neue Route hinzugefügt
+    case '/sharepicgenerator':
       return <Sharepicgenerator showHeaderFooter={true} darkMode={darkMode} />;
     case '/webbaukasten':
       return <Webbaukasten darkMode={darkMode} />;
     case '/antragscheck':
       return (
-        <FormProvider>
+        <FormProvider key={`form-${location.pathname}`}>
           <Antragscheck showHeaderFooter={true} darkMode={darkMode} />
         </FormProvider>
       );
@@ -173,7 +173,7 @@ const RouteComponent = ({ path, darkMode }) => {
       return <WahlpruefsteinThueringen darkMode={darkMode} />;
     case '/rede':
       return (
-        <FormProvider>
+        <FormProvider key={`form-${location.pathname}`}>
           <Redengenerator showHeaderFooter={true} darkMode={darkMode} />
         </FormProvider>
       );
@@ -183,7 +183,7 @@ const RouteComponent = ({ path, darkMode }) => {
       return <Impressum darkMode={darkMode} />;
     case '/wahlprogramm':
       return (
-        <FormProvider>
+        <FormProvider key={`form-${location.pathname}`}>
           <Wahlprogramm showHeaderFooter={true} darkMode={darkMode} />
         </FormProvider>
       );

@@ -10,6 +10,7 @@ import {
   BUTTON_LABELS, 
   ARIA_LABELS, 
 } from '../utils/constants';
+import SocialMediaEditor from './SocialMediaEditor';
 
 const BaseForm = ({
   title,
@@ -117,12 +118,20 @@ const BaseForm = ({
         <div className="platform-body">
           <div className="generated-content-wrapper">
             {isEditing ? (
-              <textarea
-                ref={textareaRef}
-                value={platform === 'actionIdeas' ? content.join('\n') : content.content}
-                onChange={(e) => handlePostContentChange(platform, e.target.value)}
-                className="edit-content-textarea"
-              />
+              platform === 'actionIdeas' ? (
+                <textarea
+                  ref={textareaRef}
+                  value={content.join('\n')}
+                  onChange={(e) => handlePostContentChange(platform, e.target.value)}
+                  className="edit-content-textarea"
+                />
+              ) : (
+                <SocialMediaEditor
+                  value={content.content}
+                  onChange={(value) => handlePostContentChange(platform, value)}
+                  isEditing={isEditing}
+                />
+              )
             ) : (
               <>
                 {platform === 'actionIdeas' ? (
@@ -132,7 +141,7 @@ const BaseForm = ({
                     ))}
                   </ul>
                 ) : (
-                  <div>{content.content}</div>
+                  <div dangerouslySetInnerHTML={{ __html: content.content }} />
                 )}
               </>
             )}
