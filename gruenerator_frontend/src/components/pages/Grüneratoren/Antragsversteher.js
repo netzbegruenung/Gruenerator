@@ -43,9 +43,14 @@ const Antragsversteher = ({ showHeaderFooter = true }) => {
   }, [success, resetSuccess]);
 
   const validateFile = (file) => {
+    const maxSizeMB = 10;
+    const maxSizeBytes = maxSizeMB * 1024 * 1024;
+
     if (!file) return 'Bitte wählen Sie eine Datei aus.';
     if (file.type !== 'application/pdf') return 'Bitte wählen Sie eine PDF-Datei aus.';
-    if (file.size > 10 * 1024 * 1024) return 'Die Datei ist zu groß. Maximale Größe ist 10 MB.';
+    if (file.size > maxSizeBytes) {
+      return `Die Datei ist zu groß (${(file.size / (1024 * 1024)).toFixed(1)} MB). Maximale Größe ist ${maxSizeMB} MB.`;
+    }
     return null;
   };
 
@@ -207,7 +212,7 @@ const Antragsversteher = ({ showHeaderFooter = true }) => {
               ) : (
                 <>
                   <FiUpload size={24} className="upload-icon" />
-                  <span>PDF-Datei hier ablegen oder klicken zum Auswählen</span>
+                  <span>PDF-Datei hier ablegen oder klicken zum Auswählen (max. 10 MB)</span>
                 </>
               )}
             </label>

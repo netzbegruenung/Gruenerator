@@ -58,12 +58,29 @@ const platformGuidelines = {
       - Use emojis sparingly and limit excessive hashtag use.
       - End the post with a call to action or a question geared towards professional engagement.
     `
+  },
+  reelScript: {
+    maxLength: 1000,
+    style: "Einfach, authentisch und direkt",
+    focus: "Klare Botschaft mit minimalen technischen Anforderungen.",
+    additionalGuidelines: `
+      - Skript für 90 Sekunden Sprechzeit
+      - Maximal 2-3 einfache Schnitte/Szenen
+      - [Szenenanweisungen] sollten mit Smartphone und ohne spezielle Ausrüstung umsetzbar sein
+      - Struktur:
+        * Einstieg/Hook (20s): Eine Szene, direkt in die Kamera sprechen
+        * Hauptteil (50s): Optional 1-2 einfache Einblendungen von Bilderm, Videos, Fakten oder Zahlen
+        * Abschluss (20s): Wieder direkt in die Kamera, Call-to-Action
+      - Natürliche, authentische Sprache wie in einem persönlichen Gespräch
+      - Text sollte auch ohne visuelle Elemente funktionieren
+      - Einblendungen nur für wichtige Zahlen oder Kernbotschaften verwenden
+    `
   }
 };
 
 router.route('/')
   .post(async (req, res) => {
-    const { thema, details, platforms, includeActionIdeas } = req.body;
+    const { thema, details, platforms = [], includeActionIdeas } = req.body;
     console.log('Received request:', { thema, details, platforms, includeActionIdeas });
 
     try {
@@ -117,7 +134,11 @@ router.route('/')
                 "Action idea 1",
                 "Action idea 2",
                 "Action idea 3"
-              ]
+              ],
+              "reelScript": {
+                "title": "Instagram Reel Script (60 Sekunden)",
+                "content": "Script content with [visual descriptions] and timing markers..."
+              }
             }
 
             Only include sections for the requested platforms. If no action ideas were requested, omit the "actionIdeas" field.

@@ -1,7 +1,7 @@
 //header.js
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { PiFileText, PiNewspaper, PiChatsCircle, PiCaretDown, PiMicrophone, PiSun, PiMoon, PiLightbulb } from 'react-icons/pi';
+import { PiFileText, PiNewspaper, PiChatsCircle, PiCaretDown, PiMicrophone, PiSun, PiMoon, PiLightbulb, PiBook } from 'react-icons/pi';
 import '../../../assets/styles/common/variables.css';
 import '../../../assets/styles/common/global.css';
 import '../../../assets/styles/components/header.css';
@@ -95,6 +95,7 @@ const Header = () => {
                                 <li><Link to="/socialmedia" onClick={() => handleLinkClick('/socialmedia', 'Social Media')}><PiChatsCircle aria-hidden="true" /> Social Media</Link></li>
                                 <li><Link to="/rede" onClick={() => handleLinkClick('/rede', 'Politische Rede')}><PiMicrophone aria-hidden="true" /> Politische Rede</Link></li>
                                 <li><Link to="/antragscheck" onClick={() => handleLinkClick('/antragscheck', 'Antrag checken')}><PiLightbulb aria-hidden="true" /> Antrag checken</Link></li>
+                                <li><Link to="/wahlprogramm" onClick={() => handleLinkClick('/wahlprogramm', 'Wahlprogramm')}><PiBook aria-hidden="true" /> Wahlprogramm</Link></li>
                             </ul>
                         </li>
                         <li className="header-dropdown" 

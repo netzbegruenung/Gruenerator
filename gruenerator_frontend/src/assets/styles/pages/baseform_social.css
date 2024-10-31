@@ -4,6 +4,40 @@
 @import url('../common/global.css');
 @import url('../common/typography.css');
 
+/* Grundlegende Container-Struktur von BaseForm übernehmen */
+.social-media-baseform .base-container {
+    display: flex;
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    gap: 20px;
+    transition: all 0.5s ease;
+    position: relative;
+    align-items: stretch;
+    box-sizing: border-box;
+}
+
+/* Form und Content Container anpassen */
+.social-media-baseform .form-container {
+    flex: 1;
+    max-width: 600px;
+    display: flex;
+    flex-direction: column;
+    transition: all 0.5s ease;
+    padding: 20px;
+    border-radius: 8px;
+    background-color: var(--dunkelgruen);
+}
+
+.social-media-baseform .content-container {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    gap: 20px;
+    justify-content: center;
+    transition: all 0.5s ease;
+}
+
 .social-media-baseform .platform-content {
   background-color: var(--sand);
   border-radius: 8px;
@@ -32,8 +66,8 @@
   margin-right: 10px;
   margin-bottom: 0;
   color: white;
-  height: 24px; /* Festgelegte Höhe für alle Platform-Icons */
-  width: auto; /* Breite automatisch anpassen, um das Seitenverhältnis beizubehalten */
+  height: 24px;
+  width: auto;
 }
 
 .social-media-baseform .platform-name {
@@ -49,7 +83,6 @@
 
 .social-media-baseform .generated-content-wrapper {
   padding: 15px;
- 
 }
 
 .social-media-baseform .platform-actions {
@@ -184,18 +217,83 @@
   flex-wrap: wrap;
 }
 
+.social-media-baseform .quill {
+  background-color: var(--sand);
+  border: none;
+}
+
+.social-media-baseform .ql-toolbar {
+  border: none;
+  border-bottom: 1px solid var(--hellgrau);
+}
+
+.social-media-baseform .ql-container {
+  border: none;
+  font-family: inherit;
+}
+
+.social-media-baseform .ql-editor {
+  padding: 12px;
+  min-height: 100px;
+}
+
+/* Mobile Anpassungen */
 @media (max-width: 768px) {
-  .platform-checkboxes {
-    flex-direction: column;
-  }
+    .social-media-baseform .base-container {
+        padding: 10px;
+    }
 
-  .checkbox-wrapper-28 {
-    margin: 0 0 10px 0;
-    width: 100%;
-  }
+    .social-media-baseform .base-container:not(.editing-mode) {
+        flex-direction: column;
+    }
 
-  .checkbox-wrapper-28 label {
-    width: 100%;
-    justify-content: flex-start;
-  }
+    .social-media-baseform .form-container,
+    .social-media-baseform .content-container {
+        max-width: 100%;
+        margin-bottom: 20px;
+        margin-right: 0;
+        margin-left: 0;
+    }
+
+    .social-media-baseform .form-container {
+        order: 1;
+    }
+
+    .social-media-baseform .content-container {
+        order: 2;
+    }
+
+    .social-media-baseform .base-container.editing-mode {
+        padding: 0;
+        margin: 0;
+        height: 100vh;
+        width: 100vw;
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 1000;
+        background-color: var(--background-color);
+    }
+
+    .social-media-baseform .base-container.editing-mode .form-container {
+        display: none;
+    }
+
+    .platform-checkboxes {
+        flex-direction: column;
+    }
+
+    .checkbox-wrapper-28 {
+        margin: 0 0 10px 0;
+        width: 100%;
+    }
+
+    .checkbox-wrapper-28 label {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .social-media-baseform div {
+        font-size: 0.9em;
+    }
 }
