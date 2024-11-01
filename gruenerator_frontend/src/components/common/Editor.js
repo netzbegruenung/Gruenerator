@@ -9,7 +9,16 @@ import { FormContext } from '../utils/FormContext';
 import { applyHighlightWithAnimation } from '../utils/highlightUtils';
 //import { useDebouncedCallback } from 'use-debounce';
 
-const Editor = React.memo(({ setEditorInstance }) => {
+const QuillWrapper = React.forwardRef((props, ref) => (
+  <ReactQuill
+    {...props}
+    ref={ref}
+  />
+));
+
+QuillWrapper.displayName = 'QuillWrapper';
+
+const Editor = React.memo(({ setEditorInstance = () => {} }) => {
   const {
     value,
     updateValue,
@@ -302,7 +311,7 @@ const Editor = React.memo(({ setEditorInstance }) => {
         removeAllHighlights={removeAllHighlights}
         originalContent={originalContent}
       />
-      <ReactQuill
+      <QuillWrapper
         ref={quillRef}
         value={localValue}
         onChange={handleChange}
@@ -322,10 +331,6 @@ const Editor = React.memo(({ setEditorInstance }) => {
 
 Editor.propTypes = {
   setEditorInstance: PropTypes.func,
-};
-
-Editor.defaultProps = {
-  setEditorInstance: () => {},
 };
 
 Editor.displayName = 'Editor';
