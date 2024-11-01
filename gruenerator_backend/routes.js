@@ -17,6 +17,19 @@ const claudeTextAdjustmentRoute = require('./routes/claude_text_adjustment');
 const etherpadRoute = require('./routes/etherpad/etherpadController');
 const claudeWahlprogrammRoute = require('./routes/claude_wahlprogramm');
 
+const withLazyLoading = (importFunc) => 
+  lazy(() => 
+    importFunc()
+      .then(module => {
+        // Simuliere Ladezeit im Development
+        if (process.env.NODE_ENV === 'development') {
+          return new Promise(resolve => 
+            setTimeout(() => resolve(module), 1000)
+          );
+        }
+        return module;
+      })
+  );
 
 function setupRoutes(app) {
   app.use('/api/claude', claudeRoute);
