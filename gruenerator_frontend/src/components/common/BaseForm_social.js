@@ -1,16 +1,20 @@
-import React, { useMemo, useEffect, useRef } from 'react';
+import React, { useMemo, useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { HiCog, HiLightBulb } from "react-icons/hi";
-import { IoCopyOutline, IoPencil, IoSave } from "react-icons/io5";
+import { IoCopyOutline, IoPencil, IoSave, IoCheckmarkOutline } from "react-icons/io5";
 import SubmitButton from './SubmitButton';
 import useAccessibility from '../hooks/useAccessibility';
-import { addAriaLabelsToElements, enhanceFocusVisibility } from '../utils/accessibilityHelpers';
-import { handleCopyToClipboard } from '../utils/commonFunctions';
+import { 
+  addAriaLabelsToElements, 
+  enhanceFocusVisibility,
+} from '../utils/accessibilityHelpers';
 import { 
   BUTTON_LABELS, 
   ARIA_LABELS, 
 } from '../utils/constants';
 import SocialMediaEditor from './SocialMediaEditor';
+import { copyFormattedContent } from '../utils/commonFunctions';
+import ExportToDocument from './ExportToDocument';
 
 const BaseForm = ({
   title,
@@ -69,6 +73,45 @@ const BaseForm = ({
     return str.toLowerCase().replace(/[^a-z0-9]/g, '-');
   };
 
+  const [copyIcons, setCopyIcons] = useState({});
+
+  const handleCopyContent = (platform, content) => {
+    const textToCopy = platform === 'actionIdeas' ? content.join('\n') : content.content;
+    
+    copyFormattedContent(
+      textToCopy,
+      () => {
+        announce(`${platform} content copied to clipboard`);
+        setCopyIcons(prev => ({
+          ...prev,
+          [platform]: <IoCheckmarkOutline size={16} />
+        }));
+        setTimeout(() => {
+          setCopyIcons(prev => ({
+            ...prev,
+            [platform]: <IoCopyOutline size={16} />
+          }));
+        }, 2000);
+      },
+      (error) => {
+        console.error(`Error copying ${platform} content:`, error);
+      }
+    );
+  };
+
+  const getCombinedContent = () => {
+    return Object.entries(generatedContent)
+      .map(([platform, content]) => {
+        const platformTitle = platform === 'actionIdeas' ? 'Aktionsideen' : platform;
+        const contentText = platform === 'actionIdeas' 
+          ? content.join('\n')
+          : content.content;
+        
+        return `${platformTitle}:\n${contentText}\n\n`;
+      })
+      .join('');
+  };
+
   const renderPlatformContent = (platform, content) => {
     if (typeof content !== 'object' || content === null) {
       console.error(`Invalid content for platform ${platform}:`, content);
@@ -90,11 +133,11 @@ const BaseForm = ({
           </div>
           <div className="platform-actions">
             <button 
-              onClick={() => handleCopyToClipboard(platform === 'actionIdeas' ? content.join('\n') : content.content)} 
+              onClick={() => handleCopyContent(platform, content)}
               className={`copy-button copy-button-${validClassName}`}
               aria-label={`${ARIA_LABELS.COPY} ${platform}`}
             >
-              <IoCopyOutline size={16} />
+              {copyIcons[platform] || <IoCopyOutline size={16} />}
             </button>
             {isEditing ? (
               <button 
@@ -153,38 +196,45 @@ const BaseForm = ({
   
   return (
     <div className="base-container social-media-baseform">
-      <div className="container">
-        <div className="form-container">
-          <form onSubmit={(e) => {
-            e.preventDefault();
-            onSubmit();
-          }}>
-            <div className={`form-content ${generatedContent ? 'with-generated-content' : ''}`}>
-              {renderFormInputs()}
-              {hasFormErrors && (
-                <div className="form-errors" role="alert" aria-live="assertive">
-                  {Object.entries(formErrors).map(([field, message]) => (
-                    <p key={field} className="error-message">{message}</p>
-                  ))}
-                </div>
-              )}
-              <div className="button-container">
-                <SubmitButton
-                  onClick={onSubmit}
-                  loading={loading}
-                  success={success}
-                  text={submitButtonText}
-                  icon={<HiCog />}
-                  className="submit-button form-button"
-                  ariaLabel={ARIA_LABELS.SUBMIT}
-                />
+      <div className="form-container">
+        <form onSubmit={(e) => {
+          e.preventDefault();
+          onSubmit();
+        }}>
+          <div className={`form-content ${generatedContent ? 'with-generated-content' : ''}`}>
+            {renderFormInputs()}
+            {hasFormErrors && (
+              <div className="form-errors" role="alert" aria-live="assertive">
+                {Object.entries(formErrors).map(([field, message]) => (
+                  <p key={field} className="error-message">{message}</p>
+                ))}
               </div>
-              {error && <p role="alert" aria-live="assertive" className="error-message">{error}</p>}
+            )}
+            <div className="button-container">
+              <SubmitButton
+                onClick={onSubmit}
+                loading={loading}
+                success={success}
+                text={submitButtonText}
+                icon={<HiCog />}
+                className="submit-button form-button"
+                ariaLabel={ARIA_LABELS.SUBMIT}
+              />
             </div>
-          </form>
-        </div>
+            {error && <p role="alert" aria-live="assertive" className="error-message">{error}</p>}
+          </div>
+        </form>
+      </div>
+      <div className="content-container">
         <div className="display-container">
-          <h3>{title}</h3>
+          <div className="display-header">
+            <h3>{title}</h3>
+            <div className="display-actions">
+              {Object.keys(generatedContent).length > 0 && (
+                <ExportToDocument content={getCombinedContent()} />
+              )}
+            </div>
+          </div>
           <div className="display-content" style={{ fontSize: textSize }}>
             {Object.entries(generatedContent).map(([platform, content]) => renderPlatformContent(platform, content))}
           </div>

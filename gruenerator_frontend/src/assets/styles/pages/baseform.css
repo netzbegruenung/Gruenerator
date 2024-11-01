@@ -423,6 +423,7 @@
         top: 0;
         left: 0;
         z-index: 1000;
+        overflow-y: auto;
         background-color: var(--background-color);
     }
 
@@ -435,7 +436,8 @@
         box-shadow: none;
         display: flex;
         flex-direction: column;
-        overflow: hidden; /* Verhindert Scrolling des gesamten Containers */
+        overflow: auto
+    
     }
     .base-container.editing-mode .display-container .display-header {
         border-top-left-radius: 0;
@@ -454,14 +456,16 @@
 
     .base-container.editing-mode .display-content {
         flex-grow: 1;
-        overflow-y: auto; /* Ermöglicht Scrolling innerhalb des Inhaltsbereichs */
+        overflow-y: visible; /* Änderung: von 'auto' zu 'visible' */
         -webkit-overflow-scrolling: touch; /* Für besseres Scrolling auf iOS */
         padding: 10px;
-        height: calc(100% - 60px); /* Anpassen basierend auf der Höhe des Headers */
+        min-height: calc(100vh - 60px);
+        height: auto;
+
     }
 
     .base-container.editing-mode .quill-editor {
-        height: 100%;
+        height: auto; /* Änderung: von '100%' zu 'auto' */
         overflow-y: auto; /* Ermöglicht Scrolling innerhalb des Editors */
         -webkit-overflow-scrolling: touch;
     }
@@ -510,7 +514,10 @@
         animation: rotatePencil 0.5s ease;
     }
 
-    /* Anpassung der Schriftgröße und anderer Eigenschaften für Formulareingaben */
+    .base-container:not(.editing-mode) .display-header {
+        padding-left: 0;
+    }
+
     .form-container input,
     .form-container textarea,
     .form-container select {

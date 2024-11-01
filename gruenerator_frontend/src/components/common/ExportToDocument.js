@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import PropTypes from 'prop-types';
 import useApiSubmit from '../hooks/useApiSubmit';
 import { IoDocumentOutline, IoCopyOutline, IoOpenOutline, IoCloseOutline } from "react-icons/io5";
@@ -85,7 +86,63 @@ const ExportToDocument = ({ content }) => {
 
   const handleCloseModal = () => {
     setIsModalOpen(false);
-    setPadURL(''); // Zurücksetzen der URL beim Schließen
+  };
+
+  // Modal-Komponente als separates Element
+  const Modal = () => {
+    return ReactDOM.createPortal(
+      <div className="modal" role="dialog" aria-labelledby="export-modal-title" onClick={handleCloseModal}>
+        <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+          <button className="close-button" onClick={handleCloseModal}>
+            <IoCloseOutline size={24} />
+          </button>
+          <h2 id="export-modal-title">Grünerator Collaborate Export</h2>
+          {!hasExistingPad ? (
+            <>
+              <p>Möchtest du diesen Text in Grünerator Collaborate exportieren?</p>
+              <p>Grünerator Collaborate ermöglicht die gemeinsame Textbearbeitung in Echtzeit. Mehrere Personen können gleichzeitig an einem Dokument arbeiten. Änderungen sind sofort für alle sichtbar, und das Dokument ist einfach über einen Link zugänglich. Perfekt für Brainstorming, gemeinsames Schreiben oder schnelle Zusammenarbeit an Texten.</p>
+              {padURL ? (
+                <>
+                  <p>Hier ist dein Link zum Collaborate-Dokument:</p>
+                  <div className="url-container">
+                    <input type="text" value={padURL} readOnly className="url-input" />
+                    <button onClick={handleCopyCollaborateLink} className="copy-collaborate-link-button">
+                      <IoCopyOutline size={20} />
+                    </button>
+                  </div>
+                  <button onClick={handleOpenLink} className="open-button">
+                    <IoOpenOutline size={20} /> Link öffnen
+                  </button>
+                </>
+              ) : (
+                <button 
+                  onClick={handleEtherpadExport} 
+                  disabled={loading}
+                  className="export-action-button"
+                >
+                  {loading ? 'Wird exportiert...' : 'Zu Grünerator Collaborate exportieren'}
+                </button>
+              )}
+            </>
+          ) : (
+            <>
+              <p>Dein Text wurde bereits in Grünerator Collaborate exportiert.</p>
+              <div className="url-container">
+                <input type="text" value={padURL} readOnly className="url-input" />
+                <button onClick={handleCopyCollaborateLink} className="copy-collaborate-link-button">
+                  <IoCopyOutline size={20} />
+                </button>
+              </div>
+              <button onClick={handleOpenLink} className="open-button">
+                <IoOpenOutline size={20} /> Link öffnen
+              </button>
+            </>
+          )}
+          {error && <p className="error-message" role="alert">{error}</p>}
+        </div>
+      </div>,
+      document.body
+    );
   };
 
   return (
@@ -97,43 +154,7 @@ const ExportToDocument = ({ content }) => {
       >
         <IoDocumentOutline size={16} />
       </button>
-      {isModalOpen && (
-        <div className="modal" role="dialog" aria-labelledby="export-modal-title" onClick={handleCloseModal}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <button className="close-button" onClick={handleCloseModal}>
-              <IoCloseOutline size={24} />
-            </button>
-            <h2 id="export-modal-title">Grünerator Collaborate Export</h2>
-            {!padURL ? (
-              <>
-                <p>Möchtest du diesen Text in Grünerator Collaborate exportieren?</p>
-                <p>Grünerator Collaborate ermöglicht die gemeinsame Textbearbeitung in Echtzeit. Mehrere Personen können gleichzeitig an einem Dokument arbeiten. Änderungen sind sofort für alle sichtbar, und das Dokument ist einfach über einen Link zugänglich. Perfekt für Brainstorming, gemeinsames Schreiben oder schnelle Zusammenarbeit an Texten.</p>
-                <button 
-                  onClick={handleEtherpadExport} 
-                  disabled={loading}
-                  className="export-action-button"
-                >
-                  {loading ? 'Wird exportiert...' : 'Zu Grünerator Collaborate exportieren'}
-                </button>
-              </>
-            ) : (
-              <>
-                <p>{hasExistingPad ? 'Dein Text wurde bereits in Grünerator Collaborate exportiert.' : 'Dein Text wurde erfolgreich in Grünerator Collaborate exportiert.'}</p>
-                <div className="url-container">
-                  <input type="text" value={padURL} readOnly className="url-input" />
-                  <button onClick={handleCopyCollaborateLink} className="copy-collaborate-link-button">
-                    <IoCopyOutline size={20} />
-                  </button>
-                </div>
-                <button onClick={handleOpenLink} className="open-button">
-                  <IoOpenOutline size={20} /> Link öffnen
-                </button>
-              </>
-            )}
-            {error && <p className="error-message" role="alert">{error}</p>}
-          </div>
-        </div>
-      )}
+      {isModalOpen && <Modal />}
     </>
   );
 };

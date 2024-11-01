@@ -8,7 +8,7 @@ import { BUTTON_LABELS, ARIA_LABELS, ANNOUNCEMENTS } from '../utils/constants';
 import { IoCopyOutline, IoPencil, IoCheckmarkOutline } from 'react-icons/io5';
 import Editor from './Editor';
 // import SaveLinkModal from './SaveLinkModal';
-import { copyPlainText } from '../utils/commonFunctions';
+import { copyFormattedContent } from '../utils/commonFunctions';
 import { FormContext } from '../utils/FormContext';
 import ExportToDocument from './ExportToDocument';
 
@@ -81,13 +81,19 @@ const BaseForm = ({
   const hasFormErrors = React.useMemo(() => Object.keys(formErrors).length > 0, [formErrors]);
 
   const handleCopyToClipboard = React.useCallback((content) => {
-    console.log('Inhalt wird in die Zwischenablage kopiert');
-    copyPlainText(content);
-    announce(ANNOUNCEMENTS.CONTENT_COPIED);
-    setCopyIcon(<IoCheckmarkOutline size={16} />);
-    setTimeout(() => {
-      setCopyIcon(<IoCopyOutline size={16} />);
-    }, 2000);
+    copyFormattedContent(
+      content,
+      () => {
+        announce(ANNOUNCEMENTS.CONTENT_COPIED);
+        setCopyIcon(<IoCheckmarkOutline size={16} />);
+        setTimeout(() => {
+          setCopyIcon(<IoCopyOutline size={16} />);
+        }, 2000);
+      },
+      (error) => {
+        console.error('Fehler beim Kopieren:', error);
+      }
+    );
   }, [announce]);
 
   useEffect(() => {
@@ -110,7 +116,6 @@ const BaseForm = ({
   const handleToggleEditMode = () => {
     console.log('Before toggle, value:', value);
     if (window.innerWidth <= 768) {
-      // Für mobile Geräte
       document.body.style.overflow = isEditing ? 'auto' : 'hidden';
     }
     toggleEditMode();
@@ -122,9 +127,7 @@ const BaseForm = ({
 //     try {
 //       const result = await saveCurrentContent(linkData.linkName, linkData.generatedLink);
 //       if (result.success) {
-//         // Ändern Sie das Icon zu einem Häkchen
 //         setSaveIcon(<IoCheckmarkOutline size={16} />);
-//         // Setzen Sie das Icon nach 2 Sekunden zurück
 //         setTimeout(() => {
 //           setSaveIcon(<IoSaveOutline size={16} />);
 //         }, 2000);
@@ -144,6 +147,11 @@ const BaseForm = ({
       toggleEditMode();
     }
   }, [alwaysEditing, isEditing, toggleEditMode]);
+
+  const displayTitle = React.useMemo(() => {
+    const isMobile = window.innerWidth <= 768;
+    return isMobile && isEditing ? "Grünerator Editor" : title;
+  }, [isEditing, title]);
 
   return (
     <div className={`base-container ${isEditing ? 'editing-mode' : ''}`}>
@@ -186,7 +194,7 @@ const BaseForm = ({
       <div className="content-container">
         <div className="display-container">
           <div className="display-header">
-            <h3>{title}</h3>
+            <h3>{displayTitle}</h3>
             <div className="display-actions">
               {value && (
                 <>
