@@ -39,7 +39,7 @@
     display: none; /* This will be changed in the media query */
     position: absolute;
     top: 50%;
-    right: 75px; /* Adjusted to move the icon left */
+    right: 30px;
     transform: translateY(-50%);
     width: 30px;
     height: 24px;
