@@ -9,6 +9,7 @@ import useApiSubmit from '../../hooks/useApiSubmit';
 import BaseForm from '../../common/BaseForm';
 import { FormContext } from '../../utils/FormContext';
 import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../utils/constants';
+import { useFormValidation } from '../../hooks/useFormValidation';
 
 const Wahlprogrammgenerator = ({ showHeaderFooter = true }) => {
   const [thema, setThema] = useState('');
@@ -20,8 +21,22 @@ const Wahlprogrammgenerator = ({ showHeaderFooter = true }) => {
 
   const { setGeneratedContent } = useContext(FormContext);
 
+  const validationRules = {
+    thema: { required: true },
+    details: { required: true },
+    zeichenanzahl: { 
+      required: true,
+      min: 1000
+    }
+  };
+
+  const { errors, validateForm } = useFormValidation(validationRules);
+
   const handleSubmit = useCallback(async () => {
     const formData = { thema, details, zeichenanzahl };
+    if (!validateForm(formData)) {
+      return;
+    }
     console.log('Submitting form with data:', formData);
     try {
       const content = await submitForm(formData);
@@ -34,7 +49,7 @@ const Wahlprogrammgenerator = ({ showHeaderFooter = true }) => {
     } catch (error) {
       console.error('Error submitting form:', error);
     }
-  }, [thema, details, zeichenanzahl, submitForm, resetSuccess, setGeneratedContent]);
+  }, [thema, details, zeichenanzahl, submitForm, resetSuccess, setGeneratedContent, validateForm]);
 
   const handleGeneratedContentChange = useCallback((content) => {
     console.log('Generated content changed:', content);
@@ -52,6 +67,7 @@ const Wahlprogrammgenerator = ({ showHeaderFooter = true }) => {
         generatedContent={wahlprogramm}
         textSize={textSize}
         onGeneratedContentChange={handleGeneratedContentChange}
+        validationErrors={errors}
       >
         <h3><label htmlFor="thema">{FORM_LABELS.THEME}</label></h3>
         <input

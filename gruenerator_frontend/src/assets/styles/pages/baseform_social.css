@@ -5,7 +5,7 @@
 @import url('../common/typography.css');
 
 /* Grundlegende Container-Struktur von BaseForm übernehmen */
-.social-media-baseform .base-container {
+.social-media-baseform.base-container {
     display: flex;
     width: 100%;
     max-width: 1200px;
@@ -17,16 +17,31 @@
     box-sizing: border-box;
 }
 
+.social-media-baseform .container {
+    display: flex;
+    width: 100%;
+    gap: 20px;
+}
+
 /* Form und Content Container anpassen */
-.social-media-baseform .form-container {
+.social-media-baseform .form-container,
+.social-media-baseform .display-container {
     flex: 1;
-    max-width: 600px;
     display: flex;
     flex-direction: column;
-    transition: all 0.5s ease;
-    padding: 20px;
     border-radius: 8px;
+    transition: all 0.5s ease;
+}
+
+.social-media-baseform .form-container {
+    max-width: 600px;
     background-color: var(--dunkelgruen);
+    padding: 20px;
+}
+
+.social-media-baseform .display-container {
+    background-color: var(--background-color-alt);
+    padding: 20px;
 }
 
 .social-media-baseform .content-container {
@@ -239,11 +254,11 @@
 
 /* Mobile Anpassungen */
 @media (max-width: 768px) {
-    .social-media-baseform .base-container {
+    .social-media-baseform.base-container {
         padding: 10px;
     }
 
-    .social-media-baseform .base-container:not(.editing-mode) {
+    .social-media-baseform.base-container:not(.editing-mode) {
         flex-direction: column;
     }
 
@@ -275,8 +290,8 @@
         background-color: var(--background-color);
     }
 
-    .social-media-baseform .base-container.editing-mode .form-container {
-        display: none;
+    .social-media-baseform .base-container.editing-mode .container {
+        padding: 0;  /* Entferne Padding im Editing-Mode */
     }
 
     .platform-checkboxes {
@@ -295,5 +310,9 @@
 
     .social-media-baseform div {
         font-size: 0.9em;
+    }
+
+    .social-media-baseform .container {
+        flex-direction: column;
     }
 }

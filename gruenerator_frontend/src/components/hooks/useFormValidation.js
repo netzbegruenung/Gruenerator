@@ -13,6 +13,8 @@ export const useFormValidation = (validationRules) => {
         newErrors[field] = `${field} ist erforderlich`;
       } else if (fieldRules.pattern && !fieldRules.pattern.test(value)) {
         newErrors[field] = fieldRules.message || `${field} ist ungültig`;
+      } else if (fieldRules.min && Number(value) < fieldRules.min) {
+        newErrors[field] = `${field} muss mindestens ${fieldRules.min} sein`;
       }
       // Hier können weitere Validierungsregeln hinzugefügt werden
     });

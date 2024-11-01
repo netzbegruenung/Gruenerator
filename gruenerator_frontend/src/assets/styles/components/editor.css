@@ -397,6 +397,7 @@
 
   .base-container.editing-mode .display-container .display-header h3 {
     color: var(--sand);
+    margin-right: 10px;
   }
 
   /* Ausblenden der AI-Anpassungsfeatures auf mobilen Geräten */
