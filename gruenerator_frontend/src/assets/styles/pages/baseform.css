@@ -141,7 +141,6 @@
     color: var(--dunkelgruen);
 }
 
-/* Anzeige-Container Div-Stile */
 .display-container div {
     color: var(--font-color);
     text-align: left;
