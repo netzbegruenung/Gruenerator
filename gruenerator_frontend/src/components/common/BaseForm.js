@@ -7,7 +7,7 @@ import { addAriaLabelsToElements, enhanceFocusVisibility } from '../utils/access
 import { BUTTON_LABELS, ARIA_LABELS, ANNOUNCEMENTS } from '../utils/constants';
 import { IoCopyOutline, IoPencil, IoCheckmarkOutline } from 'react-icons/io5';
 import Editor from './Editor';
-import { copyFormattedContent } from '../utils/commonFunctions';
+import { copyFormattedContent, useAutoScroll } from '../utils/commonFunctions';
 import { FormContext } from '../utils/FormContext';
 import ExportToDocument from './ExportToDocument';
 
@@ -144,6 +144,31 @@ const BaseForm = ({
     const isMobile = window.innerWidth <= 768;
     return isMobile && isEditing ? "Grünerator Editor" : title;
   }, [isEditing, title]);
+
+  const isMobile = window.innerWidth <= 768;
+  
+  // Wir fügen einen State hinzu, um zu tracken ob der Content sich geändert hat
+  const [contentChanged, setContentChanged] = useState(false);
+
+  // Effect um Änderungen am Content zu erkennen
+  useEffect(() => {
+    if (value) {
+      setContentChanged(true);
+    }
+  }, [value]);
+
+  // Hook für automatisches Scrollen - jetzt mit contentChanged
+  useAutoScroll({ content: value, changed: contentChanged }, isMobile);
+
+  // Reset contentChanged wenn der User scrollt
+  useEffect(() => {
+    const handleScroll = () => {
+      setContentChanged(false);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   return (
     <div className={`base-container ${isEditing ? 'editing-mode' : ''}`}>

@@ -338,11 +338,18 @@
     }
 
     .social-media-baseform div {
-        font-size: 0.9em;
+        font-size: 1rem;
     }
 
     .social-media-baseform .container {
         flex-direction: column;
+    }
+
+    /* Überschreibe die zu kleine Schriftgröße für Social Media Inputs */
+    .social-media-baseform .form-container input,
+    .social-media-baseform .form-container textarea,
+    .social-media-baseform .form-container select {
+        font-size: 1rem; /* entspricht 14px bei einer Root-Schriftgröße von 16px */
     }
 }
 
