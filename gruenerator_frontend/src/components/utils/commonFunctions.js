@@ -40,16 +40,36 @@ export const copyPlainText = (htmlContent) => {
   const tempElement = document.createElement('div');
   tempElement.innerHTML = htmlContent;
   
-  // Reinen Text aus dem HTML extrahieren
-  const plainText = tempElement.textContent || tempElement.innerText || '';
+  // Zeilenumbrüche für Block-Elemente hinzufügen
+  const blockElements = tempElement.querySelectorAll('p, div, li, h1, h2, h3, h4, h5, h6, blockquote');
+  blockElements.forEach(element => {
+    // Fügt Zeilenumbrüche nach Block-Elementen ein
+    element.insertAdjacentHTML('afterend', '\n');
+    
+    // Spezielle Behandlung für Listenelemente
+    if (element.tagName === 'LI') {
+      element.insertAdjacentHTML('beforebegin', '• ');
+    }
+  });
+
+  // Doppelte Zeilenumbrüche für bessere Lesbarkeit
+  const lists = tempElement.querySelectorAll('ul, ol');
+  lists.forEach(list => {
+    list.insertAdjacentHTML('afterend', '\n');
+  });
+
+  // Extrahiere den formatierten Text
+  const plainText = tempElement.innerText
+    .replace(/\n{3,}/g, '\n\n') // Reduziere mehrfache Zeilenumbrüche auf maximal zwei
+    .trim();
 
   // Text in die Zwischenablage kopieren
   navigator.clipboard.writeText(plainText)
     .then(() => {
-      console.log('Reiner Text erfolgreich in die Zwischenablage kopiert.');
+      console.log('Formatierter Text erfolgreich in die Zwischenablage kopiert.');
     })
     .catch((err) => {
-      console.error('Fehler beim Kopieren des reinen Textes:', err);
+      console.error('Fehler beim Kopieren des formatierten Textes:', err);
     });
 };
 
@@ -109,4 +129,75 @@ export const handleDrop = (e, setDragging, setFile, setFileName) => {
   setFile(file);
   setFileName(file ? file.name : '');
   setDragging(false);
+};
+
+export const copyFormattedContent = (content, onSuccess, onError) => {
+  console.log('1. Kopiervorgang startet mit:', { 
+    contentLength: content?.length,
+    hasOnSuccess: !!onSuccess,
+    hasOnError: !!onError 
+  });
+  
+  const quillEditor = document.querySelector('.ql-editor');
+  console.log('2. Quill Editor gefunden:', !!quillEditor, 'mit __quill:', !!quillEditor?.__quill);
+  
+  if (quillEditor && quillEditor.__quill) {
+    const delta = quillEditor.__quill.getContents();
+    console.log('3. Delta erhalten:', delta);
+    
+    let formattedText = '';
+    
+    delta.ops.forEach(op => {
+      if (typeof op.insert === 'string') {
+        let text = op.insert;
+        
+        if (op.attributes) {
+          if (op.attributes.list) {
+            text = `• ${text}`;
+          }
+          if (op.attributes.header) {
+            text = `${text}\n`;
+          }
+          if (op.attributes.blockquote) {
+            text = `> ${text}\n`;
+          }
+        }
+        
+        formattedText += text;
+      } else if (op.insert && op.insert.break) {
+        formattedText += '\n';
+      }
+    });
+
+    const cleanText = formattedText
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+      
+    console.log('4. Formatierter Text erstellt:', cleanText);
+
+    navigator.clipboard.writeText(cleanText)
+      .then(() => {
+        console.log('5. Text erfolgreich in Zwischenablage kopiert');
+        if (onSuccess) {
+          console.log('6. onSuccess Callback wird aufgerufen');
+          onSuccess();
+        }
+      })
+      .catch(err => {
+        console.error('5. Fehler beim Kopieren:', err);
+        console.log('Fallback wird verwendet');
+        copyPlainText(content);
+        if (onError) {
+          console.log('6. onError Callback wird aufgerufen');
+          onError(err);
+        }
+      });
+  } else {
+    console.log('2b. Kein Quill Editor gefunden, verwende Fallback');
+    copyPlainText(content);
+    if (onSuccess) {
+      console.log('3b. onSuccess Callback wird aufgerufen (Fallback)');
+      onSuccess();
+    }
+  }
 };

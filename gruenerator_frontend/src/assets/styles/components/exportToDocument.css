@@ -28,19 +28,19 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 1000;
-    animation: fadeIn 0.3s ease-out;
+    z-index: 9999;
 }
 
 .modal-content {
+    position: relative;
     background-color: var(--background-color-alt);
     padding: 30px;
     border-radius: 12px;
     max-width: 500px;
     width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-    position: relative;
-    animation: slideIn 0.3s ease-out;
 }
 
 .close-button {
@@ -73,6 +73,8 @@
     border-radius: 6px;
     font-size: 1em;
     cursor: pointer;
+    background-color: var(--tanne);
+    color: var(--weiß);
     transition: background-color 0.3s ease;
 }
 
@@ -99,6 +101,8 @@
     border: none;
     border-radius: 0 6px 6px 0;
     cursor: pointer;
+    background-color: var(--tanne);
+    color: var(--weiß);
     transition: background-color 0.3s ease;
 }
 
@@ -115,6 +119,11 @@
     }
 
     .modal-content {
+        position: fixed; /* Fixierte Position */
+        bottom: 0; /* Am unteren Rand fixieren */
+        left: 0;
+        right: 0;
+        max-height: 80vh; /* Etwas kleiner für besseres Scrolling */
         width: 100%;
         max-width: 100%;
         margin: 0;
@@ -142,7 +151,7 @@
     .url-input {
         width: 100%;
         border-radius: 6px;
-        font-size: 0.9em;
+        font-size: 0.5em; /* Kleinere Schriftgröße */
         padding: 12px;
     }
 

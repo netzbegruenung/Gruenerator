@@ -1,4 +1,0 @@
-[ZoneTransfer]
-ZoneId=3
-ReferrerUrl=https://cloudconvert.com/
-HostUrl=https://eu-central.storage.cloudconvert.com/tasks/2da3da5b-cdee-4581-a5a4-97b214e7a75c/PTSans-Italic.woff2?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=cloudconvert-production%2F20240526%2Ffra%2Fs3%2Faws4_request&X-Amz-Date=20240526T091422Z&X-Amz-Expires=86400&X-Amz-Signature=3ee1ec6968ca930d2bbcca17312475e067cc47e83b76487b4c5e6f2fd6033912&X-Amz-SignedHeaders=host&response-content-disposition=attachment%3B%20filename%3D%22PTSans-Italic.woff2%22&response-content-type=font%2Fwoff2&x-id=GetObject
