@@ -122,14 +122,26 @@ const BaseForm = ({
     const isEditing = editingPlatform === platform;
     const validClassName = generateValidClassName(platform);
   
+    const cleanContent = (htmlContent) => {
+      if (typeof htmlContent !== 'string') return htmlContent;
+      return htmlContent
+        .replace(/<p><br><\/p>/g, '')
+        .replace(/^\s+|\s+$/g, '');
+    };
+  
     return (
-      <div key={platform} className="platform-content">
+      <div key={platform} className={`platform-content ${isEditing ? 'editing' : ''}`}>
         <div className="platform-header">
           <div className="platform-title">
             <div className="platform-icon">
               {Icon && <Icon size={20} />}
             </div>
-            <h3 className="platform-name">{platform === 'actionIdeas' ? 'Aktionsideen' : (content.title || platform)}</h3>
+            <h3 className="platform-name">
+              {isEditing 
+                ? "Grünerator Editor"
+                : (platform === 'actionIdeas' ? 'Aktionsideen' : (content.title || platform))
+              }
+            </h3>
           </div>
           <div className="platform-actions">
             <button 
@@ -141,7 +153,7 @@ const BaseForm = ({
             </button>
             {isEditing ? (
               <button 
-                onClick={() => handleSavePost()} 
+                onClick={() => handleSavePost(platform, content)} 
                 className="save-button" 
                 aria-label={`Save ${platform} content`}
               >
@@ -184,7 +196,9 @@ const BaseForm = ({
                     ))}
                   </ul>
                 ) : (
-                  <div dangerouslySetInnerHTML={{ __html: content.content }} />
+                  <div dangerouslySetInnerHTML={{ 
+                    __html: cleanContent(content.content) 
+                  }} />
                 )}
               </>
             )}

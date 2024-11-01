@@ -1,5 +1,3 @@
-
-
 /* Grundlegende Container-Struktur von BaseForm übernehmen */
 .social-media-baseform.base-container {
     display: flex;
@@ -70,6 +68,12 @@
   color: white;
 }
 
+/* Für die Platform Icons in der Titelzeile */
+.platform-header .platform-title .platform-icon svg {
+  color: var(--sand);
+}
+
+
 .social-media-baseform .platform-title {
   display: flex;
   align-items: center;
@@ -93,8 +97,7 @@
 }
 
 .social-media-baseform .platform-body {
-  padding: 15px;
-  color: var(--dunkelgrau) !important;
+  padding: 0;
 }
 
 .social-media-baseform .generated-content-wrapper {
@@ -248,11 +251,34 @@
 .social-media-baseform .ql-container {
   border: none;
   font-family: inherit;
+  margin: 0;
 }
 
 .social-media-baseform .ql-editor {
   padding: 12px;
   min-height: 100px;
+  margin: 12px 0;
+}
+
+.social-media-baseform .platform-content.editing {
+  .generated-content-wrapper {
+    padding: 0;
+  }
+
+  .platform-body {
+    padding: 0;
+  }
+
+  .ql-editor {
+    padding: 8px 12px;
+    margin: 0;
+  }
+
+  .quill .ql-blank::before {
+    font-style: normal;
+    margin: 0;
+    padding: 0;
+  }
 }
 
 /* Mobile Anpassungen */
@@ -319,3 +345,4 @@
         flex-direction: column;
     }
 }
+
