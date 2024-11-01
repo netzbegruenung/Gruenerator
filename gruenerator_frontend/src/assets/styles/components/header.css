@@ -14,8 +14,10 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    max-width: 1200px;
+    max-width: var(--container-max-width, 1200px);
+    width: 100%;
     margin: 0 auto;
+    padding: 0 25px;
 }
 
 .header-logo a {
@@ -259,7 +261,7 @@
 
 .header-toggle {
     margin-left: 20px;
-    margin-right: 80px;
+    margin-right: 20px;
     display: flex;
     align-items: center;
 }
@@ -368,6 +370,10 @@ input:not(:checked) + .slider .icon.moon {
   }
 
 @media (max-width: 768px) {
+
+    .header-container {
+        padding: 0;
+    }
     .burger {
         display: block;
     }
