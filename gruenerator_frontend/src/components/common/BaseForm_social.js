@@ -15,6 +15,7 @@ import {
 import SocialMediaEditor from './SocialMediaEditor';
 import { copyFormattedContent } from '../utils/commonFunctions';
 import ExportToDocument from './ExportToDocument';
+import { useAutoScroll } from '../utils/commonFunctions';
 
 const BaseForm = ({
   title,
@@ -208,6 +209,34 @@ const BaseForm = ({
     );
   };
   
+  const isMobile = window.innerWidth <= 768;
+  
+  // State für Content-Änderungen
+  const [contentChanged, setContentChanged] = useState(false);
+
+  // Effect um Änderungen am Content zu erkennen
+  useEffect(() => {
+    if (Object.keys(generatedContent).length > 0) {
+      setContentChanged(true);
+    }
+  }, [generatedContent]);
+
+  // Hook für automatisches Scrollen
+  useAutoScroll({ 
+    content: generatedContent, 
+    changed: contentChanged 
+  }, isMobile);
+
+  // Reset contentChanged wenn der User scrollt
+  useEffect(() => {
+    const handleScroll = () => {
+      setContentChanged(false);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   return (
     <div className="base-container social-media-baseform">
       <div className="form-container">
