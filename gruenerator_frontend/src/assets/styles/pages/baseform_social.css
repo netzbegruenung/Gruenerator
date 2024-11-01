@@ -1,8 +1,4 @@
-/* social-media-baseform.css */
 
-@import url('../common/variables.css');
-@import url('../common/global.css');
-@import url('../common/typography.css');
 
 /* Grundlegende Container-Struktur von BaseForm übernehmen */
 .social-media-baseform.base-container {
@@ -42,6 +38,10 @@
 .social-media-baseform .display-container {
     background-color: var(--background-color-alt);
     padding: 20px;
+}
+
+.social-media-baseform .display-container .div {
+    color: var(--dunkelgrau);
 }
 
 .social-media-baseform .content-container {
