@@ -3,25 +3,20 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
-    "@supabase/supabase-js": "^2.45.4",
     "@testing-library/react": "^16.0.1",
     "axios": "^1.7.2",
-    "dompurify": "^3.1.7",
-    "dotenv": "^16.4.5",
     "lodash": "^4.17.21",
     "lodash.debounce": "^4.0.8",
     "prop-types": "^15.8.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-icons": "^5.2.1",
-    "react-intersection-observer": "^9.13.1",
     "react-lottie-player": "^2.1.0",
     "react-quill": "^2.0.0",
     "react-responsive": "^10.0.0",
     "react-router-dom": "^6.23.1",
     "react-scripts": "^5.0.1",
     "react-transition-group": "^4.4.5",
-    "use-debounce": "^10.0.4",
     "web-vitals": "^4.0.1"
   },
   "devDependencies": {
@@ -29,7 +24,8 @@
     "@babel/plugin-proposal-private-property-in-object": "^7.21.0",
     "@testing-library/jest-dom": "^6.5.0",
     "babel-jest": "^29.7.0",
-    "eslint": "^9.10.0",
+    "eslint": "^8.56.0",
+    "eslint-config-react-app": "^7.0.1",
     "eslint-plugin-react": "^7.34.2"
   },
   "resolutions": {

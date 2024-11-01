@@ -40,6 +40,16 @@ function App() {
     }
   }, [darkMode]);
 
+  useEffect(() => {
+    // Setze die Scroll-Position beim ersten Laden
+    window.history.scrollRestoration = 'manual';
+    window.scrollTo({
+      top: 0,
+      left: 0,
+      behavior: 'instant'
+    });
+  }, []);
+
   return (
     <ErrorBoundary>
       <Router>

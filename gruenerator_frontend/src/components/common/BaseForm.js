@@ -7,7 +7,6 @@ import { addAriaLabelsToElements, enhanceFocusVisibility } from '../utils/access
 import { BUTTON_LABELS, ARIA_LABELS, ANNOUNCEMENTS } from '../utils/constants';
 import { IoCopyOutline, IoPencil, IoCheckmarkOutline } from 'react-icons/io5';
 import Editor from './Editor';
-// import SaveLinkModal from './SaveLinkModal';
 import { copyFormattedContent } from '../utils/commonFunctions';
 import { FormContext } from '../utils/FormContext';
 import ExportToDocument from './ExportToDocument';
@@ -26,7 +25,6 @@ const BaseForm = ({
   initialContent = '',
   alwaysEditing = false,
   hideEditButton = false,
-  // originalLinkData,
 }) => {
   console.log('BaseForm wird gerendert', { title, loading, success, error });
 
@@ -35,12 +33,6 @@ const BaseForm = ({
     isEditing,
     toggleEditMode,
     updateValue,
-    // saveCurrentContent,
-    // handleLoadContent,
-    // handleDeleteContent,
-    // savedLinks,
-    // linkData,
-    // setLinkData,
   } = useContext(FormContext);
 
   const [copyIcon, setCopyIcon] = useState(<IoCopyOutline size={16} />);
