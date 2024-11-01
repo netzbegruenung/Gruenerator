@@ -94,10 +94,12 @@
 
 .social-media-baseform .platform-body {
   padding: 15px;
+  color: var(--dunkelgrau) !important;
 }
 
 .social-media-baseform .generated-content-wrapper {
   padding: 15px;
+  color: var(--dunkelgrau);
 }
 
 .social-media-baseform .platform-actions {
@@ -107,7 +109,7 @@
 }
 
 .social-media-baseform div {
-  color: var(--dunkelgrau);
+  color: var(--dunkelgrau) !important; 
 }
 
 .social-media-baseform .copy-button,
@@ -146,6 +148,7 @@
   overflow: hidden;
   border: 0px;
   background-color: var(--sand);
+  color: var(--dunkelgrau);
 }
 
 .social-media-baseform .edit-content-textarea:focus {
@@ -203,7 +206,7 @@
 
 .checkbox-wrapper-28 .checkbox-svg {
   position: absolute;
-  left: 11px;
+  left: 10px;
   top: 50%;
   transform: translateY(-50%) scale(0.8);
   width: calc(var(--size) - 4px);
