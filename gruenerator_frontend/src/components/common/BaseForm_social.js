@@ -16,6 +16,9 @@ import SocialMediaEditor from './SocialMediaEditor';
 import { copyFormattedContent } from '../utils/commonFunctions';
 import ExportToDocument from './ExportToDocument';
 import { useAutoScroll } from '../utils/commonFunctions';
+import { Tooltip } from 'react-tooltip';
+import '../../assets/styles/pages/baseform_social.css';
+
 
 const BaseForm = ({
   title,
@@ -147,24 +150,36 @@ const BaseForm = ({
           <div className="platform-actions">
             <button 
               onClick={() => handleCopyContent(platform, content)}
-              className={`copy-button copy-button-${validClassName}`}
+              className={`action-button copy-button-${validClassName}`}
               aria-label={`${ARIA_LABELS.COPY} ${platform}`}
+              {...(!isMobileView && {
+                'data-tooltip-id': "action-tooltip",
+                'data-tooltip-content': "In die Zwischenablage kopieren"
+              })}
             >
               {copyIcons[platform] || <IoCopyOutline size={16} />}
             </button>
             {isEditing ? (
               <button 
                 onClick={() => handleSavePost(platform, content)} 
-                className="save-button" 
+                className="action-button" 
                 aria-label={`Save ${platform} content`}
+                {...(!isMobileView && {
+                  'data-tooltip-id': "action-tooltip",
+                  'data-tooltip-content': "Änderungen speichern"
+                })}
               >
                 <IoSave size={16} />
               </button>
             ) : (
               <button 
                 onClick={() => handleEditPost(platform)} 
-                className="edit-button" 
+                className="action-button" 
                 aria-label={`Edit ${platform} content`}
+                {...(!isMobileView && {
+                  'data-tooltip-id': "action-tooltip",
+                  'data-tooltip-content': "Beitrag bearbeiten"
+                })}
               >
                 <IoPencil size={16} />
               </button>
@@ -237,6 +252,17 @@ const BaseForm = ({
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  const [isMobileView, setIsMobileView] = useState(window.innerWidth <= 768);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobileView(window.innerWidth <= 768);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   return (
     <div className="base-container social-media-baseform">
       <div className="form-container">
@@ -274,7 +300,13 @@ const BaseForm = ({
             <h3>{title}</h3>
             <div className="display-actions">
               {Object.keys(generatedContent).length > 0 && (
-                <ExportToDocument content={getCombinedContent()} />
+                <ExportToDocument 
+                  content={getCombinedContent()} 
+                  {...(!isMobileView && {
+                    'data-tooltip-id': "action-tooltip",
+                    'data-tooltip-content': "Als Dokument exportieren"
+                  })}
+                />
               )}
             </div>
           </div>
@@ -283,6 +315,9 @@ const BaseForm = ({
           </div>
         </div>
       </div>
+      {!isMobileView && (
+        <Tooltip id="action-tooltip" place="bottom" />
+      )}
     </div>
   );
 };
