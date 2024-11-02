@@ -5,7 +5,7 @@ import useApiSubmit from '../hooks/useApiSubmit';
 import { IoDocumentOutline, IoCopyOutline, IoOpenOutline, IoCloseOutline } from "react-icons/io5";
 import '../../assets/styles/components/exportToDocument.css';
 
-const ExportToDocument = ({ content }) => {
+const ExportToDocument = ({ content, ...props }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [padURL, setPadURL] = useState('');
   const [hasExistingPad, setHasExistingPad] = useState(false);
@@ -88,6 +88,10 @@ const ExportToDocument = ({ content }) => {
     setIsModalOpen(false);
   };
 
+  const handleExport = () => {
+    setIsModalOpen(true); // Öffnet das Modal
+  };
+
   // Modal-Komponente als separates Element
   const Modal = () => {
     return ReactDOM.createPortal(
@@ -148,9 +152,10 @@ const ExportToDocument = ({ content }) => {
   return (
     <>
       <button
-        onClick={() => setIsModalOpen(true)}
-        className="action-button export-button"
-        aria-label="Zu Grünerator Collaborate exportieren"
+        onClick={handleExport}
+        className="action-button"
+        aria-label="Als Dokument exportieren"
+        {...props}
       >
         <IoDocumentOutline size={16} />
       </button>
