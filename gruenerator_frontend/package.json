@@ -16,6 +16,7 @@
     "react-responsive": "^10.0.0",
     "react-router-dom": "^6.23.1",
     "react-scripts": "^5.0.1",
+    "react-tooltip": "^5.28.0",
     "react-transition-group": "^4.4.5",
     "web-vitals": "^4.0.1"
   },
