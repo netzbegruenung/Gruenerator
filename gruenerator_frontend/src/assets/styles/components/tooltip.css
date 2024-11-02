@@ -14,10 +14,3 @@
     border-bottom-color: var(--grau) !important;
     border-top-color: transparent !important;
   }
-  
-  /* Tooltip auf Mobilgeräten ausblenden */
-  @media (max-width: 768px) {
-    #action-tooltip {
-      display: none !important;
-    }
-  }

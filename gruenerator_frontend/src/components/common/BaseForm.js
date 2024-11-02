@@ -10,6 +10,7 @@ import Editor from './Editor';
 import { copyFormattedContent, useAutoScroll } from '../utils/commonFunctions';
 import { FormContext } from '../utils/FormContext';
 import ExportToDocument from './ExportToDocument';
+import { Tooltip } from 'react-tooltip';
 
 const BaseForm = ({
   title,
@@ -170,6 +171,17 @@ const BaseForm = ({
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  const [isMobileView, setIsMobileView] = useState(window.innerWidth <= 768);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobileView(window.innerWidth <= 768);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   return (
     <div className={`base-container ${isEditing ? 'editing-mode' : ''}`}>
       <div className="form-container">
@@ -217,17 +229,33 @@ const BaseForm = ({
                 <>
                   <button
                     onClick={() => handleCopyToClipboard(value)}
-                    className="action-button copy-button"
+                    className="action-button"
                     aria-label={ARIA_LABELS.COPY}
+                    {...(!isMobileView && {
+                      'data-tooltip-id': "action-tooltip",
+                      'data-tooltip-content': "Kopieren"
+                    })}
                   >
                     {copyIcon}
                   </button>
-                  <ExportToDocument content={value} />
+                  <button
+                    className="action-button"
+                    {...(!isMobileView && {
+                      'data-tooltip-id': "action-tooltip",
+                      'data-tooltip-content': "Als Dokument exportieren"
+                    })}
+                  >
+                    <ExportToDocument content={value} />
+                  </button>
                   {allowEditing && !hideEditButton && (
                     <button
                       onClick={handleToggleEditMode}
-                      className="action-button edit-button"
+                      className="action-button"
                       aria-label={isEditing ? ARIA_LABELS.SAVE : ARIA_LABELS.EDIT}
+                      {...(!isMobileView && {
+                        'data-tooltip-id': "action-tooltip",
+                        'data-tooltip-content': isEditing ? "Bearbeiten beenden" : "Bearbeiten"
+                      })}
                     >
                       <IoPencil size={16} />
                     </button>
@@ -258,14 +286,9 @@ const BaseForm = ({
           )}
         </div>
       </div>
-      {/* <SaveLinkModal
-        isOpen={isSaveLinkModalOpen}
-        onClose={() => setIsSaveLinkModalOpen(false)}
-        onSave={saveCurrentContent}
-        savedLinks={savedLinks}
-        onDelete={handleDeleteContent}
-        onLoad={handleLoadContent}
-      /> */}
+      {!isMobileView && (
+        <Tooltip id="action-tooltip" place="bottom" />
+      )}
     </div>
   );
 };
