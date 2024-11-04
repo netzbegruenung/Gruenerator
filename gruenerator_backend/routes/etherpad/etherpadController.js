@@ -5,14 +5,13 @@ const { generateSecureId } = require('../../utils/securityUtils');
 
 router.post('/create', async (req, res) => {
   try {
-    const { text } = req.body;
+    const { text, documentType } = req.body;
     if (!text) {
       return res.status(400).json({ error: 'Text ist erforderlich' });
     }
 
     const padId = generateSecureId();
-    
-    const padURL = await createPadWithText(padId, text);
+    const padURL = await createPadWithText(padId, text, documentType);
     
     res.json({ padURL });
   } catch (error) {
