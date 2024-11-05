@@ -232,3 +232,92 @@
     outline: none;
     box-shadow: 0 0 0 2px var(--sand);
 }
+
+.privacy-checkbox-container,
+.terms-checkbox-container {
+  margin-top: 25px;
+  margin-bottom: 15px;
+  position: relative;
+}
+
+.privacy-label,
+.terms-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  color: var(--sand);
+  font-size: 0.9em;
+  line-height: 1.5;
+  padding: 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.privacy-label span,
+.terms-label span {
+  flex: 1;
+}
+
+.privacy-checkbox,
+.terms-checkbox {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  border: 2px solid var(--sand);
+  border-radius: 4px;
+  margin: 0;
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+  margin-top: 2px;
+  background-color: transparent;
+  transition: all 0.2s ease;
+}
+
+.privacy-checkbox:focus,
+.terms-checkbox:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--grashalm);
+}
+
+.terms-link {
+  color: var(--sand);
+  text-decoration: underline;
+  transition: color 0.2s ease;
+}
+
+.terms-link:hover {
+  color: var(--weiß);
+}
+.antragsversteher .checkbox-wrapper-28 label {
+  border: none;
+  padding: 20px;
+}
+
+.checkbox-with-text {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+
+/* Mobile Anpassungen für Checkbox Container */
+@media (max-width: 768px) {
+  .privacy-checkbox-container,
+  .terms-checkbox-container {
+    margin: 15px 0;
+  }
+}
+
+.checkbox-with-text {
+  display: flex;
+  align-items: flex-start;
+}
+
+.antragsversteher .checkbox-text {
+  margin-top: 2px;
+}
