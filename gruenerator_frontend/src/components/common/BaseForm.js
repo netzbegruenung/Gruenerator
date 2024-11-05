@@ -183,7 +183,7 @@ const BaseForm = ({
   }, []);
 
   return (
-    <div className={`base-container ${isEditing ? 'editing-mode' : ''} ${title === "Grünerator Antragscheck" ? 'antragsversteher-base' : ''}`}>
+    <div className={`base-container ${isEditing ? 'editing-mode' : ''} ${title === "Grünerator Antragscheck" ? 'antragsversteher-base' : ''} ${value ? 'has-generated-content' : ''}`}>
       <div className="form-container">
         <form onSubmit={(e) => {
           e.preventDefault();
