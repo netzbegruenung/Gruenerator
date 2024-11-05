@@ -105,9 +105,12 @@
     align-items: center;
     margin-bottom: 0;
     color: var(--weiß);
+    height: 24px;
 }
 
 .social-media-baseform .platform-icon {
+    display: flex;
+    align-items: center;
     margin-right: 10px;
     margin-bottom: 0;
     height: 24px;
@@ -328,26 +331,67 @@
 @media (max-width: 768px) {
     .social-media-baseform.base-container {
         padding: 10px;
+        flex-direction: column;
+        gap: 10px;
     }
 
-    .social-media-baseform.base-container:not(.editing-mode) {
+    /* Form Container Anpassungen */
+    .social-media-baseform.base-container.has-generated-content .form-container {
+        flex: 1;
+        min-width: 100%;
+        width: 100%;
+        margin-bottom: 10px;
+    }
+
+    /* Content Container Anpassungen */
+    .social-media-baseform.base-container.has-generated-content .content-container {
+        flex: 1;
+        min-width: 100%;
+        width: 100%;
+    }
+
+    /* Editing Mode Anpassungen */
+    .social-media-baseform.base-container.editing-mode {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        padding: 0;
+        margin: 0;
+        z-index: 1000;
+        background-color: var(--background-color);
+        overflow-y: auto;
+    }
+
+    /* Platform Content Anpassungen */
+    .social-media-baseform .platform-content {
+        margin-bottom: 10px;
+    }
+
+    /* Editor Anpassungen */
+    .social-media-baseform .edit-content-textarea,
+    .social-media-baseform .ql-editor {
+        min-height: calc(100vh - 150px);
+        max-height: none;
+        padding: 10px;
+    }
+
+    /* Quill Editor Anpassungen */
+    .social-media-baseform .quill {
+        height: auto;
+        display: flex;
         flex-direction: column;
     }
 
-    .social-media-baseform .form-container,
-    .social-media-baseform .content-container {
-        max-width: 100%;
-        margin-bottom: 20px;
-        margin-right: 0;
-        margin-left: 0;
+    .social-media-baseform .ql-container {
+        flex: 1;
+        height: auto;
     }
 
-    .social-media-baseform .form-container {
-        order: 1;
-    }
-
-    .social-media-baseform .content-container {
-        order: 2;
+    /* Platform Actions Anpassungen */
+    .social-media-baseform .platform-actions {
+        gap: 15px;
     }
 
     .social-media-baseform .platform-actions .action-button {
@@ -359,26 +403,26 @@
         height: 20px;
     }
 
+    .social-media-baseform .generated-content-wrapper {
+        padding: 20px;
+    }
+
     .platform-checkboxes {
-        flex-direction: column;
-    }
-
-    .checkbox-wrapper-28 {
-        margin: 0 0 10px 0;
-        width: 100%;
-    }
-
-    .checkbox-wrapper-28 label {
-        width: 100%;
+        gap: 6px;
         justify-content: flex-start;
     }
 
-    .social-media-baseform .form-container input,
-    .social-media-baseform .form-container textarea,
-    .social-media-baseform .form-container select {
-        font-size: 1rem;
+    .checkbox-wrapper-28 label {
+        padding: 6px 8px 6px 30px;
+        font-size: 14px;
+    }
+
+    .checkbox-wrapper-28 label::before {
+        left: 6px;
+        --size: 14px;
+    }
+
+    .checkbox-wrapper-28 .checkbox-svg {
+        left: 8px;
     }
 }
-
-
-

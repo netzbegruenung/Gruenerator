@@ -88,19 +88,27 @@ app.use(helmet({
 
 app.use(rateLimit({
   windowMs: 15 * 60 * 1000, // 15 Minuten
-  max: 300, // 300 Anfragen pro IP pro Zeitfenster
+  max: 1000, // Erhöht von 300 auf 1000 Anfragen
   message: 'Zu viele Anfragen von dieser IP, bitte versuchen Sie es später erneut.',
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => req.ip // Verwendet die IP-Adresse als Schlüssel
+  keyGenerator: (req) => req.ip,
+  skip: (req) => {
+    // Statische Ressourcen vom Rate-Limiting ausnehmen
+    return req.url.endsWith('.js') || 
+           req.url.endsWith('.css') || 
+           req.url.endsWith('.png') || 
+           req.url.endsWith('.jpg') || 
+           req.url.endsWith('.ico');
+  }
 }));
 
-// Zusätzliche Rate-Limiting für spezifische Routen
+// API-spezifisches Rate-Limit
 const apiLimiter = rateLimit({
   windowMs: 5 * 60 * 1000, // 5 Minuten
-  max: 150, // 150 Anfragen pro IP pro 5 Minuten
+  max: 300, // Erhöht von 150 auf 300 Anfragen
   message: 'Zu viele API-Anfragen, bitte versuchen Sie es in 5 Minuten erneut.',
-  keyGenerator: (req) => req.ip // Verwendet die IP-Adresse als Schlüssel
+  keyGenerator: (req) => req.ip
 });
 
 // Wende das API-Limit auf alle Routen an, die mit /api beginnen
