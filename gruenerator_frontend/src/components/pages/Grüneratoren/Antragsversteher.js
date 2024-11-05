@@ -13,7 +13,6 @@ import { BUTTON_LABELS } from '../../utils/constants';
 import { FormContext } from '../../utils/FormContext';
 
 const Antragsversteher = ({ showHeaderFooter = true }) => {
-  const [antrag, setAntrag] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -43,7 +42,7 @@ const Antragsversteher = ({ showHeaderFooter = true }) => {
   }, [success, resetSuccess]);
 
   const validateFile = (file) => {
-    const maxSizeMB = 10;
+    const maxSizeMB = 32;
     const maxSizeBytes = maxSizeMB * 1024 * 1024;
 
     if (!file) return 'Bitte wählen Sie eine Datei aus.';
@@ -100,6 +99,20 @@ const Antragsversteher = ({ showHeaderFooter = true }) => {
     }
   };
 
+  const resetUpload = useCallback(() => {
+    setSelectedFile(null);
+    setTruncatedFileName('');
+    setGeneratedContent('');
+    setError('');
+    setSuccess(false);
+  }, [setGeneratedContent]);
+
+  useEffect(() => {
+    return () => {
+      resetUpload();
+    };
+  }, [resetUpload]);
+
   const handleSubmit = useCallback(async () => {
     const validationError = validateFile(selectedFile);
     if (validationError) {
@@ -115,26 +128,24 @@ const Antragsversteher = ({ showHeaderFooter = true }) => {
       const formData = new FormData();
       formData.append('file', selectedFile);
 
-      console.log('Sende Datei-Upload-Anfrage an /api/antragsversteher/upload-pdf');
       const response = await axios.post('/api/antragsversteher/upload-pdf', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
+        timeout: 300000,
       });
 
-      console.log('Datei-Upload-Antwort erhalten:', response.data);
-
-      if (response.data && response.data.text && response.data.summary) {
-        setAntrag(response.data.text);
+      if (response.data && response.data.summary) {
         setGeneratedContent(response.data.summary);
         setSuccess(true);
-        console.log('Antrag und generierter Content erfolgreich gesetzt');
       } else {
         throw new Error('Unerwartete Serverantwort');
       }
     } catch (err) {
       console.error('Fehler beim Datei-Upload:', err);
-      if (err.response && err.response.status === 400) {
+      if (err.code === 'ECONNABORTED') {
+        setError('Die Anfrage hat zu lange gedauert. Bitte versuchen Sie es erneut.');
+      } else if (err.response && err.response.status === 400) {
         setError('Die hochgeladene Datei konnte nicht verarbeitet werden. Bitte stellen Sie sicher, dass es sich um ein gültiges PDF-Dokument handelt.');
       } else if (err.response && err.response.status === 413) {
         setError('Die Datei ist zu groß. Bitte laden Sie eine kleinere Datei hoch.');
@@ -147,32 +158,6 @@ const Antragsversteher = ({ showHeaderFooter = true }) => {
     }
   }, [selectedFile, setGeneratedContent]);
 
-  const handleGeneratePost = useCallback(async () => {
-    if (!antrag) {
-      setError('Kein Antragstext vorhanden. Bitte lade zuerst eine Datei hoch.');
-      return;
-    }
-
-    setLoading(true);
-    setError('');
-
-    try {
-      const response = await axios.post('/api/antragsversteher/analyze', { text: antrag });
-
-      if (response.data && response.data.summary) {
-        setGeneratedContent(response.data.summary);
-        setSuccess(true);
-      } else {
-        throw new Error('Unerwartete Serverantwort bei der Analyse');
-      }
-    } catch (err) {
-      console.error('Fehler bei der Analyse:', err);
-      setError('Fehler bei der Analyse des Antragstextes: ' + (err.response?.data?.message || err.message));
-    } finally {
-      setLoading(false);
-    }
-  }, [antrag, setGeneratedContent]);
-
   return (
     <ErrorBoundary>
       <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
@@ -184,10 +169,10 @@ const Antragsversteher = ({ showHeaderFooter = true }) => {
           error={error}
           generatedContent={generatedContent}
           textSize={textSize}
-          submitButtonText={BUTTON_LABELS.SUBMIT}
-          onGeneratePost={handleGeneratePost}
+          submitButtonText={selectedFile ? BUTTON_LABELS.SUBMIT : 'Bitte wählen Sie eine PDF-Datei aus'}
           generatedPost=""
           allowEditing={false}
+          onReset={resetUpload}
         >
           <div 
             className={`file-upload-area ${isDragging ? 'dragging' : ''}`}
@@ -212,7 +197,7 @@ const Antragsversteher = ({ showHeaderFooter = true }) => {
               ) : (
                 <>
                   <FiUpload size={24} className="upload-icon" />
-                  <span>PDF-Datei hier ablegen oder klicken zum Auswählen (max. 10 MB)</span>
+                  <span>PDF-Datei hier ablegen oder klicken zum Auswählen (max. 32 MB)</span>
                 </>
               )}
             </label>
