@@ -34,7 +34,7 @@ const RouteComponent = ({
         toggleDarkMode={toggleDarkMode}
         showHeaderFooter={showHeaderFooter}
       >
-        <div style={{ minHeight: '100vh' }}>
+        <div>
           <Suspense fallback={null}>
             <CachedComponent 
               key={path}

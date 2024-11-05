@@ -29,6 +29,7 @@
     background-color: var(--dunkelgruen);
     opacity: 1;
     transform: translateX(0);
+    align-self: flex-start;
 }
 
 /* Inhalt-Container für den Normalmodus */
@@ -169,45 +170,6 @@
     margin-bottom: 8px;
 }
 
-/* Datei-Upload-Bereich */
-.file-upload-area {
-    border: 2px dashed var(--tanne);
-    border-radius: 8px;
-    padding: 20px;
-    text-align: center;
-    transition: all 0.3s ease;
-    background-color: #f0f8f0;
-}
-
-.file-upload-area.dragging {
-    background-color: #e0f0e0;
-    border-color: var(--klee);
-}
-
-.upload-icon {
-    font-size: 48px;
-    color: var(--tanne);
-    margin-right: 10px;
-}
-
-.file-upload-label {
-    cursor: pointer;
-    color: var(--tanne);
-    font-weight: bold;
-    padding: 20px;
-}
-
-.file-name {
-    margin-top: 10px;
-    font-style: italic;
-}
-
-/* Lade-Icon */
-.loading-icon {
-    animation: spin 1s linear infinite;
-}
-
-/* Anzeige-Header */
 .display-header {
     display: flex;
     justify-content: space-between;
@@ -383,6 +345,8 @@
 .save-button svg {
     transition: all 0.3s ease;
   }
+
+  
 
 @media (max-width: 768px) {
     .base-container {
