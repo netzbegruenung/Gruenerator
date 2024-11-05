@@ -264,13 +264,13 @@ const BaseForm = ({
   }, []);
 
   return (
-    <div className="base-container social-media-baseform">
+    <div className={`base-container social-media-baseform ${Object.keys(generatedContent).length > 0 ? 'has-generated-content' : ''}`}>
       <div className="form-container">
         <form onSubmit={(e) => {
           e.preventDefault();
           onSubmit();
         }}>
-          <div className={`form-content ${generatedContent ? 'with-generated-content' : ''}`}>
+          <div className={`form-content ${Object.keys(generatedContent).length > 0 ? 'with-generated-content' : ''}`}>
             {renderFormInputs()}
             {hasFormErrors && (
               <div className="form-errors" role="alert" aria-live="assertive">
