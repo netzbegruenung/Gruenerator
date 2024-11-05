@@ -22,11 +22,14 @@ const Wahlprogrammgenerator = ({ showHeaderFooter = true }) => {
   const { setGeneratedContent } = useContext(FormContext);
 
   const validationRules = {
-    thema: { required: true },
-    details: { required: true },
+    thema: { 
+      required: true,
+      message: 'Bitte geben Sie ein Thema an'
+    },
     zeichenanzahl: { 
       required: true,
-      min: 1000
+      min: 1000,
+      message: 'Die Zeichenanzahl muss mindestens 1000 betragen'
     }
   };
 
