@@ -1,12 +1,13 @@
 import React, { useState, useCallback, useEffect, useContext } from 'react';
 import PropTypes from 'prop-types';
 import axios from 'axios';
-import { FiUpload, FiFile } from 'react-icons/fi';
+import { FiUpload, FiFile, FiX } from 'react-icons/fi';
 import ErrorBoundary from '../../ErrorBoundary';
 import '../../../assets/styles/common/variables.css';
 import '../../../assets/styles/common/global.css';
 import '../../../assets/styles/components/button.css';
 import '../../../assets/styles/pages/baseform.css';
+import '../../../assets/styles/pages/antragsversteher.css';  // Neue Import-Zeile hinzufügen
 import { useDynamicTextSize } from '../../utils/commonFunctions';
 import BaseForm from '../../common/BaseForm';
 import { BUTTON_LABELS } from '../../utils/constants';
@@ -160,13 +161,13 @@ const Antragsversteher = ({ showHeaderFooter = true }) => {
 
   return (
     <ErrorBoundary>
-      <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
+      <div className={`container ${showHeaderFooter ? 'with-header' : ''} antragsversteher-container ${generatedContent ? 'has-content' : ''}`}>
         <BaseForm
-          title="Grünerator Antragscheck"
+          title={generatedContent ? "Analyse" : "Grünerator Antragscheck"}
           onSubmit={handleSubmit}
           loading={loading}
           success={success}
-          error={error}
+          error={error || undefined}
           generatedContent={generatedContent}
           textSize={textSize}
           submitButtonText={selectedFile ? BUTTON_LABELS.SUBMIT : 'Bitte wählen Sie eine PDF-Datei aus'}
@@ -174,6 +175,15 @@ const Antragsversteher = ({ showHeaderFooter = true }) => {
           allowEditing={false}
           onReset={resetUpload}
         >
+          <h3>{!generatedContent && "Grünerator Antragscheck"}</h3>
+          <p className="explanation-text">
+            Lade hier deinen Antrag als PDF-Datei hoch. Der Grünerator analysiert den Text und gibt dir eine Einschätzung aus grüner Perspektive.
+          </p>
+          {error && (
+            <div className="error-message">
+              {error}
+            </div>
+          )}
           <div 
             className={`file-upload-area ${isDragging ? 'dragging' : ''}`}
             onDragEnter={handleDragEnter}
@@ -188,6 +198,18 @@ const Antragsversteher = ({ showHeaderFooter = true }) => {
               style={{ display: 'none' }}
               id="file-input"
             />
+            {selectedFile && (
+              <button 
+                className="file-reset-button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  resetUpload();
+                }}
+                aria-label="Datei entfernen"
+              >
+                <FiX size={16} />
+              </button>
+            )}
             <label htmlFor="file-input" className="file-upload-label">
               {selectedFile ? (
                 <>
