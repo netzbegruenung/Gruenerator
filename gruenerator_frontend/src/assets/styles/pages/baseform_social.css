@@ -11,6 +11,36 @@
     box-sizing: border-box;
 }
 
+/* Neue Stile für den generierten Zustand */
+.social-media-baseform.base-container.has-generated-content {
+    justify-content: space-between;
+    width: 100%;
+}
+
+.social-media-baseform.base-container.has-generated-content .form-container {
+    flex: 0.3;
+    min-width: 30%;
+    width: 30%;
+}
+
+.social-media-baseform.base-container.has-generated-content .content-container {
+    flex: 0.7;
+    min-width: 70%;
+    width: 70%;
+}
+
+/* Der display-container erbt dann vom content-container */
+.social-media-baseform .content-container .display-container {
+    width: 100%;
+}
+
+/* Anpassung der Textfarbe im Display Container */
+.social-media-baseform .display-container div {
+    color: var(--dunkelgrau);
+    text-align: left;
+    overflow-y: hidden;
+}
+
 .social-media-baseform .container {
     display: flex;
     width: 100%;
@@ -55,9 +85,9 @@
 .social-media-baseform .platform-content {
     background-color: var(--sand);
     border-radius: 8px;
-    margin-bottom: 20px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     overflow: hidden;
+    margin: 0;
 }
 
 .social-media-baseform .platform-header {
@@ -145,7 +175,7 @@
 
 .social-media-baseform .generated-content-wrapper {
     padding: 15px;
-    color: var(--dunkelgrau);
+    margin-bottom: 20px;
 }
 
 /* Editor Textarea */
@@ -190,6 +220,13 @@
     min-height: 100px;
     margin: 12px 0;
     color: var(--dunkelgrau);
+}
+
+/* Content-Bereich mit korrektem Spacing */
+.social-media-baseform .display-content {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
 }
 
 /* Editing Mode Styles */
@@ -342,4 +379,6 @@
         font-size: 1rem;
     }
 }
+
+
 
