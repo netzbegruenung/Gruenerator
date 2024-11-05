@@ -12,6 +12,8 @@ import { useDynamicTextSize } from '../../utils/commonFunctions';
 import BaseForm from '../../common/BaseForm';
 import { BUTTON_LABELS } from '../../utils/constants';
 import { FormContext } from '../../utils/FormContext';
+import AnimatedCheckbox from '../../common/AnimatedCheckbox';
+import '../../../assets/styles/components/animatedcheckbox.css';
 
 const Antragsversteher = ({ showHeaderFooter = true }) => {
   const [loading, setLoading] = useState(false);
@@ -20,6 +22,8 @@ const Antragsversteher = ({ showHeaderFooter = true }) => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const [truncatedFileName, setTruncatedFileName] = useState('');
+  const [dataPrivacyAccepted, setDataPrivacyAccepted] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   const formContext = useContext(FormContext);
   const { value: generatedContent, updateValue: setGeneratedContent } = formContext || {};
@@ -41,6 +45,13 @@ const Antragsversteher = ({ showHeaderFooter = true }) => {
       }
     };
   }, [success, resetSuccess]);
+
+  useEffect(() => {
+    const hasAcceptedTerms = localStorage.getItem('termsAccepted');
+    if (hasAcceptedTerms) {
+      setTermsAccepted(true);
+    }
+  }, []);
 
   const validateFile = (file) => {
     const maxSizeMB = 32;
@@ -115,6 +126,16 @@ const Antragsversteher = ({ showHeaderFooter = true }) => {
   }, [resetUpload]);
 
   const handleSubmit = useCallback(async () => {
+    if (!dataPrivacyAccepted) {
+      setError('Bitte bestätigen Sie die Datenschutzerklärung.');
+      return;
+    }
+
+    if (!termsAccepted) {
+      setError('Bitte stimmen Sie den Nutzungsbedingungen zu.');
+      return;
+    }
+
     const validationError = validateFile(selectedFile);
     if (validationError) {
       setError(validationError);
@@ -157,7 +178,7 @@ const Antragsversteher = ({ showHeaderFooter = true }) => {
     } finally {
       setLoading(false);
     }
-  }, [selectedFile, setGeneratedContent]);
+  }, [selectedFile, setGeneratedContent, dataPrivacyAccepted, termsAccepted]);
 
   return (
     <ErrorBoundary>
@@ -224,6 +245,47 @@ const Antragsversteher = ({ showHeaderFooter = true }) => {
               )}
             </label>
           </div>
+
+          <div className="privacy-checkbox-container">
+            <div className="checkbox-with-text">
+              <AnimatedCheckbox
+                id="privacy-checkbox"
+                checked={dataPrivacyAccepted}
+                onChange={(e) => setDataPrivacyAccepted(e.target.checked)}
+                label=""
+                variant="simple"
+              />
+              <span className="checkbox-text">
+                Ich bestätige, dass ich keine personenbezogenen oder vertraulichen Daten eingebe und bin damit einverstanden, dass die Daten entsprechend der <a href="/datenschutz#nutzungsbedingungen" className="terms-link">Nutzungsbedingungen</a> des Grünerators von Anthropic verarbeitet und 28 Tage gespeichert werden.
+              </span>
+            </div>
+          </div>
+
+          {!termsAccepted && (
+            <div className="terms-checkbox-container">
+              <div className="checkbox-with-text">
+                <AnimatedCheckbox
+                  id="terms-checkbox"
+                  checked={termsAccepted}
+                  onChange={(e) => {
+                    setTermsAccepted(e.target.checked);
+                    if (e.target.checked) {
+                      localStorage.setItem('termsAccepted', 'true');
+                    }
+                  }}
+                  label=""
+                  variant="simple"
+                />
+                <span className="checkbox-text">
+                  Ich stimme den{' '}
+                  <a href="/datenschutz#nutzungsbedingungen" className="terms-link">
+                    Nutzungsbedingungen
+                  </a>{' '}
+                  zu.
+                </span>
+              </div>
+            </div>
+          )}
         </BaseForm>
       </div>
     </ErrorBoundary>
