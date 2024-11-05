@@ -407,6 +407,11 @@
 @media (max-width: 768px) {
     .base-container {
         padding: 10px;
+        flex-direction: column;
+        gap: 20px;
+        width: 100%;
+        max-width: 100%;
+        margin: 0;
     }
 
     .base-container:not(.editing-mode) {
@@ -434,13 +439,13 @@
 
     /* Neue Stile für den Bearbeitungsmodus auf mobilen Geräten */
     .base-container.editing-mode {
-        padding: 0;
-        margin: 0;
-        height: 100vh;
-        width: 100vw;
         position: fixed;
         top: 0;
         left: 0;
+        width: 100vw;
+        height: 100vh;
+        padding: 0;
+        margin: 0;
         z-index: 1000;
         overflow-y: auto;
         background-color: var(--background-color);
@@ -553,5 +558,59 @@
         padding: 10px; /* Reduziertes Padding */
         margin-bottom: 10px; /* Reduzierter Abstand zwischen den Eingabefeldern */
     }
-}
 
+    .base-container.has-generated-content .form-container {
+        flex: 1;
+        min-width: 100%;
+        width: 100%;
+        max-width: 100%;
+        margin-bottom: 10px;
+        padding: 15px;
+    }
+
+    .base-container.has-generated-content .content-container {
+        flex: 1;
+        min-width: 100%;
+        width: 100%;
+    }
+
+    .base-container.has-generated-content.editing-mode {
+        padding: 0;
+    }
+
+    .display-container {
+        padding: 20px;
+        margin: 0;
+        width: 100%;
+        max-width: 100%;
+    }
+
+    /* Form Container Anpassungen */
+    .form-container {
+        flex: 1;
+        width: 100%;
+        min-width: 100%;
+        max-width: 100%;
+        margin: 0;
+        padding: 15px;
+        box-sizing: border-box;
+    }
+
+    /* Form Content Anpassungen */
+    .form-content {
+        width: 100%;
+    }
+
+    /* Input-Felder Anpassungen */
+    .form-container input,
+    .form-container textarea,
+    .form-container select {
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    /* Button Container Anpassungen */
+    .button-container {
+        width: 100%;
+    }
+}
