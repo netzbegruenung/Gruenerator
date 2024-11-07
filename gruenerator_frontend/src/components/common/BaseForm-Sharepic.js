@@ -14,6 +14,7 @@ import AdvancedEditingSection from './AdvancedEditingSection';
 import '../../assets/styles/pages/baseform.css';
 import '../../assets/styles/components/imagemodificator.css';
 import '../../assets/styles/components/button.css';
+import StyledCheckbox from './AnimatedCheckbox';
 
 import { 
   ColorSchemeControl, 
@@ -42,6 +43,12 @@ const BaseForm = ({
   submitButtonText = BUTTON_LABELS.SUBMIT,
   showGeneratePostButton = false,
   onGeneratePost,
+  generatePostLoading,
+  generatedPost,
+  platforms,
+  onPlatformChange,
+  includeActionIdeas,
+  onActionIdeasChange,
   isSharepicGenerator = false,
   onUnsplashSearch,
   fontSize,
@@ -53,8 +60,6 @@ const BaseForm = ({
   balkenGruppenOffset,
   sunflowerOffset,
   credit,
-  generatePostLoading,
-  generatedPost,
 }) => {
   const { 
     state: { 
@@ -148,6 +153,29 @@ const BaseForm = ({
     </>
   ), [children, fileUploadProps, onUnsplashSearch, renderFormButtons]);
 
+  const renderSocialMediaControls = useMemo(() => (
+    <div className="social-media-controls">
+      <h3>Plattformen & Aktionsideen</h3>
+      <div className="platform-checkboxes">
+        {Object.entries(platforms).map(([platform, isChecked]) => (
+          <StyledCheckbox
+            key={platform}
+            id={`checkbox-${platform}`}
+            checked={isChecked}
+            onChange={() => onPlatformChange(platform)}
+            label={platform === 'actionIdeas' ? 'Aktionsideen' : platform.charAt(0).toUpperCase() + platform.slice(1)}
+          />
+        ))}
+        <StyledCheckbox
+          id="checkbox-actionIdeas"
+          checked={includeActionIdeas}
+          onChange={onActionIdeasChange}
+          label="Aktionsideen"
+        />
+      </div>
+    </div>
+  ), [platforms, onPlatformChange, includeActionIdeas, onActionIdeasChange]);
+
   const renderResultStep = useMemo(() => (
     <div className="image-modification-controls">
       <div className="left-column">
@@ -195,12 +223,13 @@ const BaseForm = ({
         </div>
         <div className="Beitragstext-group">
           <h3>Beitragstext</h3>
-          <p>Wenn du noch keinen Beitragstext geschrieben hast, kann der Grünerator dir anhand deiner Eingaben einen Vorschlag machen. Klicke dafür auf den Button unten.</p>
-          <GeneratePostButton
-            onGenerate={onGeneratePost}
-            loading={generatePostLoading}
-            isRegenerateText={!!generatedPost}
-          />
+          <p>Wenn du noch keinen Beitragstext geschrieben hast, kannst du den Social Media Generator nutzen, um Vorschläge zu erhalten.</p>
+          {renderSocialMediaControls}
+          <a href="/socialmediagenerator" target="_blank" rel="noopener noreferrer">
+            <button className="generate-post-button">
+              Zum Social Media Generator
+            </button>
+          </a>
         </div>
       </div>
     </div>
@@ -210,9 +239,10 @@ const BaseForm = ({
     onControlChange, 
     colorScheme, 
     fontSize, 
-    onGeneratePost, 
-    generatePostLoading, 
-    generatedPost, 
+    renderSocialMediaControls,
+    onGeneratePost,
+    generatePostLoading,
+    generatedPost,
     onSubmit, 
     loading, 
     success
@@ -234,15 +264,15 @@ const BaseForm = ({
   const renderDisplayContent = useMemo(() => (
     <div className="display-content" style={{ fontSize: textSize }}>
       {currentStep === FORM_STEPS.RESULT && typeof generatedImageSrc === 'string' && generatedImageSrc.startsWith('data:image') && (
-        <>
-          <img src={generatedImageSrc} alt="Generiertes Sharepic" style={{ maxWidth: '100%' }} />
+        <div className="sticky-sharepic-container">
+          <img src={generatedImageSrc} alt="Generiertes Sharepic" className="sticky-sharepic" />
           <div className="button-container">
             {useDownloadButton && <DownloadButton imageUrl={generatedImageSrc} />}
             {showGeneratePostButton && !generatedPost && (
               <GeneratePostButton onClick={onGeneratePost} loading={generatePostLoading} />
             )}
           </div>
-        </>
+        </div>
       )}
       {currentStep === FORM_STEPS.PREVIEW && Array.isArray(unsplashImages) && unsplashImages.length > 0 && (
         <UnsplashImageSelector 
@@ -348,6 +378,10 @@ BaseForm.propTypes = {
   balkenGruppenOffset: PropTypes.arrayOf(PropTypes.number).isRequired,
   sunflowerOffset: PropTypes.arrayOf(PropTypes.number).isRequired,
   credit: PropTypes.string,
+  platforms: PropTypes.object,
+  onPlatformChange: PropTypes.func,
+  includeActionIdeas: PropTypes.bool,
+  onActionIdeasChange: PropTypes.func,
 };
 
 export default BaseForm;

@@ -104,6 +104,46 @@ const Datenschutz = () => {
         ist.
       </p>
 
+      <h2>Verwendung von Supabase</h2>
+      <p>
+        Wir nutzen die Dienste von Supabase (Supabase, Inc., 1321 Upland Drive, PMB 19350, Houston, TX 77043, USA) zur Speicherung und Verarbeitung von Benutzerinhalten. Supabase fungiert dabei als unser Auftragsverarbeiter.
+      </p>
+
+      <h3>Art der gespeicherten Daten</h3>
+      <p>
+        Folgende Daten werden in Supabase gespeichert:
+        <ul>
+          <li>Von Ihnen erstellte Inhalte (z.B. Texte, Entwürfe)</li>
+          <li>Metadaten zu diesen Inhalten (z.B. Erstellungsdatum, Änderungsdatum)</li>
+          <li>Eindeutige Identifikatoren für Ihre Inhalte</li>
+        </ul>
+      </p>
+
+      <h3>Zweck der Datenspeicherung</h3>
+      <p>
+        Die Speicherung dieser Daten dient dazu, Ihnen die Funktionen unserer Anwendung zur Verfügung zu stellen, insbesondere das Erstellen, Bearbeiten und Abrufen Ihrer Inhalte.
+      </p>
+
+      <h3>Dauer der Datenspeicherung</h3>
+      <p>
+        Ihre Daten werden so lange in Supabase gespeichert, wie sie für die Bereitstellung unserer Dienste erforderlich sind oder bis Sie eine Löschung beantragen. Nach Beendigung der Nutzung unserer Dienste werden Ihre Daten für weitere [X] Tage aufbewahrt und anschließend gelöscht, es sei denn, gesetzliche Aufbewahrungspflichten erfordern eine längere Speicherung.
+      </p>
+
+      <h3>Standort der Datenverarbeitung</h3>
+      <p>
+        Supabase verarbeitet Daten in Rechenzentren innerhalb der Europäischen Union. [Falls zutreffend: In einigen Fällen können Daten auch in Rechenzentren außerhalb der EU verarbeitet werden. In diesen Fällen stellen wir sicher, dass ein angemessenes Datenschutzniveau gemäß Art. 44 ff. DSGVO gewährleistet ist.]
+      </p>
+
+      <h3>Rechtsgrundlage</h3>
+      <p>
+        Die Verarbeitung Ihrer Daten in Supabase erfolgt auf Grundlage von Art. 6 Abs. 1 lit. b DSGVO (Vertragserfüllung bzw. Durchführung vorvertraglicher Maßnahmen) sowie Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an der effizienten und sicheren Bereitstellung unserer Dienste).
+      </p>
+
+      <h3>Ihre Rechte</h3>
+      <p>
+        Sie haben das Recht auf Auskunft, Berichtigung, Löschung und Einschränkung der Verarbeitung Ihrer in Supabase gespeicherten Daten. Zur Ausübung dieser Rechte können Sie sich jederzeit an uns wenden.
+      </p>
+
       <h3>3. Betroffenenrechte</h3>
       <h4>a. Recht auf Auskunft</h4>
       <p>

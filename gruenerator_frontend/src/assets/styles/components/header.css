@@ -14,8 +14,10 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    max-width: 1200px;
+    max-width: var(--container-max-width, 1200px);
+    width: 100%;
     margin: 0 auto;
+    padding: 0 25px;
 }
 
 .header-logo a {
@@ -39,7 +41,7 @@
     display: none; /* This will be changed in the media query */
     position: absolute;
     top: 50%;
-    right: 75px; /* Adjusted to move the icon left */
+    right: 30px;
     transform: translateY(-50%);
     width: 30px;
     height: 24px;
@@ -259,7 +261,7 @@
 
 .header-toggle {
     margin-left: 20px;
-    margin-right: 80px;
+    margin-right: 20px;
     display: flex;
     align-items: center;
 }
@@ -368,6 +370,10 @@ input:not(:checked) + .slider .icon.moon {
   }
 
 @media (max-width: 768px) {
+
+    .header-container {
+        padding: 0;
+    }
     .burger {
         display: block;
     }

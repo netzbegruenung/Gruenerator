@@ -1,15 +1,24 @@
-import React, { useMemo, useEffect, useRef } from 'react';
+import React, { useMemo, useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { HiCog, HiLightBulb } from "react-icons/hi";
-import { IoCopyOutline, IoPencil, IoSave } from "react-icons/io5";
+import { IoCopyOutline, IoPencil, IoSave, IoCheckmarkOutline } from "react-icons/io5";
 import SubmitButton from './SubmitButton';
 import useAccessibility from '../hooks/useAccessibility';
-import { addAriaLabelsToElements, enhanceFocusVisibility } from '../utils/accessibilityHelpers';
-import { handleCopyToClipboard } from '../utils/commonFunctions';
+import { 
+  addAriaLabelsToElements, 
+  enhanceFocusVisibility,
+} from '../utils/accessibilityHelpers';
 import { 
   BUTTON_LABELS, 
   ARIA_LABELS, 
 } from '../utils/constants';
+import SocialMediaEditor from './SocialMediaEditor';
+import { copyFormattedContent } from '../utils/commonFunctions';
+import ExportToDocument from './ExportToDocument';
+import { useAutoScroll } from '../utils/commonFunctions';
+import { Tooltip } from 'react-tooltip';
+import '../../assets/styles/pages/baseform_social.css';
+
 
 const BaseForm = ({
   title,
@@ -68,6 +77,45 @@ const BaseForm = ({
     return str.toLowerCase().replace(/[^a-z0-9]/g, '-');
   };
 
+  const [copyIcons, setCopyIcons] = useState({});
+
+  const handleCopyContent = (platform, content) => {
+    const textToCopy = platform === 'actionIdeas' ? content.join('\n') : content.content;
+    
+    copyFormattedContent(
+      textToCopy,
+      () => {
+        announce(`${platform} content copied to clipboard`);
+        setCopyIcons(prev => ({
+          ...prev,
+          [platform]: <IoCheckmarkOutline size={16} />
+        }));
+        setTimeout(() => {
+          setCopyIcons(prev => ({
+            ...prev,
+            [platform]: <IoCopyOutline size={16} />
+          }));
+        }, 2000);
+      },
+      (error) => {
+        console.error(`Error copying ${platform} content:`, error);
+      }
+    );
+  };
+
+  const getCombinedContent = () => {
+    return Object.entries(generatedContent)
+      .map(([platform, content]) => {
+        const platformTitle = platform === 'actionIdeas' ? 'Aktionsideen' : platform;
+        const contentText = platform === 'actionIdeas' 
+          ? content.join('\n')
+          : content.content;
+        
+        return `${platformTitle}:\n${contentText}\n\n`;
+      })
+      .join('');
+  };
+
   const renderPlatformContent = (platform, content) => {
     if (typeof content !== 'object' || content === null) {
       console.error(`Invalid content for platform ${platform}:`, content);
@@ -78,36 +126,60 @@ const BaseForm = ({
     const isEditing = editingPlatform === platform;
     const validClassName = generateValidClassName(platform);
   
+    const cleanContent = (htmlContent) => {
+      if (typeof htmlContent !== 'string') return htmlContent;
+      return htmlContent
+        .replace(/<p><br><\/p>/g, '')
+        .replace(/^\s+|\s+$/g, '');
+    };
+  
     return (
-      <div key={platform} className="platform-content">
+      <div key={platform} className={`platform-content ${isEditing ? 'editing' : ''}`}>
         <div className="platform-header">
           <div className="platform-title">
             <div className="platform-icon">
               {Icon && <Icon size={20} />}
             </div>
-            <h3 className="platform-name">{platform === 'actionIdeas' ? 'Aktionsideen' : (content.title || platform)}</h3>
+            <h3 className="platform-name">
+              {isEditing 
+                ? "Grünerator Editor"
+                : (platform === 'actionIdeas' ? 'Aktionsideen' : (content.title || platform))
+              }
+            </h3>
           </div>
           <div className="platform-actions">
             <button 
-              onClick={() => handleCopyToClipboard(platform === 'actionIdeas' ? content.join('\n') : content.content)} 
-              className={`copy-button copy-button-${validClassName}`}
+              onClick={() => handleCopyContent(platform, content)}
+              className={`action-button copy-button-${validClassName}`}
               aria-label={`${ARIA_LABELS.COPY} ${platform}`}
+              {...(!isMobileView && {
+                'data-tooltip-id': "action-tooltip",
+                'data-tooltip-content': "In die Zwischenablage kopieren"
+              })}
             >
-              <IoCopyOutline size={16} />
+              {copyIcons[platform] || <IoCopyOutline size={16} />}
             </button>
             {isEditing ? (
               <button 
-                onClick={() => handleSavePost()} 
-                className="save-button" 
+                onClick={() => handleSavePost(platform, content)} 
+                className="action-button" 
                 aria-label={`Save ${platform} content`}
+                {...(!isMobileView && {
+                  'data-tooltip-id': "action-tooltip",
+                  'data-tooltip-content': "Änderungen speichern"
+                })}
               >
                 <IoSave size={16} />
               </button>
             ) : (
               <button 
                 onClick={() => handleEditPost(platform)} 
-                className="edit-button" 
+                className="action-button" 
                 aria-label={`Edit ${platform} content`}
+                {...(!isMobileView && {
+                  'data-tooltip-id': "action-tooltip",
+                  'data-tooltip-content': "Beitrag bearbeiten"
+                })}
               >
                 <IoPencil size={16} />
               </button>
@@ -117,12 +189,20 @@ const BaseForm = ({
         <div className="platform-body">
           <div className="generated-content-wrapper">
             {isEditing ? (
-              <textarea
-                ref={textareaRef}
-                value={platform === 'actionIdeas' ? content.join('\n') : content.content}
-                onChange={(e) => handlePostContentChange(platform, e.target.value)}
-                className="edit-content-textarea"
-              />
+              platform === 'actionIdeas' ? (
+                <textarea
+                  ref={textareaRef}
+                  value={content.join('\n')}
+                  onChange={(e) => handlePostContentChange(platform, e.target.value)}
+                  className="edit-content-textarea"
+                />
+              ) : (
+                <SocialMediaEditor
+                  value={content.content}
+                  onChange={(value) => handlePostContentChange(platform, value)}
+                  isEditing={isEditing}
+                />
+              )
             ) : (
               <>
                 {platform === 'actionIdeas' ? (
@@ -132,7 +212,9 @@ const BaseForm = ({
                     ))}
                   </ul>
                 ) : (
-                  <div>{content.content}</div>
+                  <div dangerouslySetInnerHTML={{ 
+                    __html: cleanContent(content.content) 
+                  }} />
                 )}
               </>
             )}
@@ -142,45 +224,100 @@ const BaseForm = ({
     );
   };
   
+  const isMobile = window.innerWidth <= 768;
+  
+  // State für Content-Änderungen
+  const [contentChanged, setContentChanged] = useState(false);
+
+  // Effect um Änderungen am Content zu erkennen
+  useEffect(() => {
+    if (Object.keys(generatedContent).length > 0) {
+      setContentChanged(true);
+    }
+  }, [generatedContent]);
+
+  // Hook für automatisches Scrollen
+  useAutoScroll({ 
+    content: generatedContent, 
+    changed: contentChanged 
+  }, isMobile);
+
+  // Reset contentChanged wenn der User scrollt
+  useEffect(() => {
+    const handleScroll = () => {
+      setContentChanged(false);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const [isMobileView, setIsMobileView] = useState(window.innerWidth <= 768);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobileView(window.innerWidth <= 768);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   return (
-    <div className="base-container social-media-baseform">
-      <div className="container">
-        <div className="form-container">
-          <form onSubmit={(e) => {
-            e.preventDefault();
-            onSubmit();
-          }}>
-            <div className={`form-content ${generatedContent ? 'with-generated-content' : ''}`}>
-              {renderFormInputs()}
-              {hasFormErrors && (
-                <div className="form-errors" role="alert" aria-live="assertive">
-                  {Object.entries(formErrors).map(([field, message]) => (
-                    <p key={field} className="error-message">{message}</p>
-                  ))}
-                </div>
-              )}
-              <div className="button-container">
-                <SubmitButton
-                  onClick={onSubmit}
-                  loading={loading}
-                  success={success}
-                  text={submitButtonText}
-                  icon={<HiCog />}
-                  className="submit-button form-button"
-                  ariaLabel={ARIA_LABELS.SUBMIT}
-                />
+    <div className={`base-container social-media-baseform ${Object.keys(generatedContent).length > 0 ? 'has-generated-content' : ''}`}>
+      <div className="form-container">
+        <form onSubmit={(e) => {
+          e.preventDefault();
+          onSubmit();
+        }}>
+          <div className={`form-content ${Object.keys(generatedContent).length > 0 ? 'with-generated-content' : ''}`}>
+            {renderFormInputs()}
+            {hasFormErrors && (
+              <div className="form-errors" role="alert" aria-live="assertive">
+                {Object.entries(formErrors).map(([field, message]) => (
+                  <p key={field} className="error-message">{message}</p>
+                ))}
               </div>
-              {error && <p role="alert" aria-live="assertive" className="error-message">{error}</p>}
+            )}
+            <div className="button-container">
+              <SubmitButton
+                onClick={onSubmit}
+                loading={loading}
+                success={success}
+                text={submitButtonText}
+                icon={<HiCog />}
+                className="submit-button form-button"
+                ariaLabel={ARIA_LABELS.SUBMIT}
+              />
             </div>
-          </form>
-        </div>
+            {error && <p role="alert" aria-live="assertive" className="error-message">{error}</p>}
+          </div>
+        </form>
+      </div>
+      <div className="content-container">
         <div className="display-container">
-          <h3>{title}</h3>
+          <div className="display-header">
+            <h3>{title}</h3>
+            <div className="display-actions">
+              {Object.keys(generatedContent).length > 0 && (
+                <ExportToDocument 
+                  content={getCombinedContent()} 
+                  {...(!isMobileView && {
+                    'data-tooltip-id': "action-tooltip",
+                    'data-tooltip-content': "Als Dokument exportieren"
+                  })}
+                />
+              )}
+            </div>
+          </div>
           <div className="display-content" style={{ fontSize: textSize }}>
             {Object.entries(generatedContent).map(([platform, content]) => renderPlatformContent(platform, content))}
           </div>
         </div>
       </div>
+      {!isMobileView && (
+        <Tooltip id="action-tooltip" place="bottom" />
+      )}
     </div>
   );
 };

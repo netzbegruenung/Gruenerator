@@ -23,7 +23,8 @@ const SocialMediaGenerator = ({ showHeaderFooter = true }) => {
     instagram: false,
     twitter: false,
     linkedin: false,
-    actionIdeas: false 
+    actionIdeas: false,
+    reelScript: false 
   });
 
   const { submitForm, loading, success, resetSuccess } = useApiSubmit('/claude_social');
@@ -68,7 +69,7 @@ const SocialMediaGenerator = ({ showHeaderFooter = true }) => {
     const formData = { 
       thema, 
       details, 
-      platforms: [platform], 
+      platforms: platform === 'actionIdeas' ? [] : [platform], 
       includeActionIdeas: platform === 'actionIdeas' 
     };
     try {
@@ -81,9 +82,9 @@ const SocialMediaGenerator = ({ showHeaderFooter = true }) => {
       }
     } catch (error) {
       console.error('Error regenerating post:', error);
-      setError(error.message || 'An error occurred while regenerating the post.');
+      setError(error.message || 'Ein Fehler ist aufgetreten beim Regenerieren des Posts.');
     }
-  }, [thema, details, submitForm, setSocialMediaPosts, setError]);
+  }, [thema, details, submitForm, setSocialMediaPosts]);
 
   const renderFormInputs = () => (
     <>
@@ -109,15 +110,19 @@ const SocialMediaGenerator = ({ showHeaderFooter = true }) => {
         aria-required="true"
       ></textarea>
 
-<h3>Plattformen & Aktionsideen</h3>
+<h3>Was & Wofür</h3>
       <div className="platform-checkboxes">
         {Object.entries(platforms).map(([platform, isChecked]) => (
           <StyledCheckbox
             key={platform}
-            id={`checkbox-${platform}`} // Hier wird die id korrekt gesetzt
+            id={`checkbox-${platform}`}
             checked={isChecked}
             onChange={() => handlePlatformChange(platform)}
-            label={platform === 'actionIdeas' ? 'Aktionsideen' : platform.charAt(0).toUpperCase() + platform.slice(1)}
+            label={
+              platform === 'actionIdeas' ? 'Aktionsideen' :
+              platform === 'reelScript' ? 'Instagram Reel' :
+              platform.charAt(0).toUpperCase() + platform.slice(1)
+            }
           />
         ))}
       </div>

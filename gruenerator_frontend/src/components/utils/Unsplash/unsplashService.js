@@ -89,28 +89,53 @@ const fetchUnsplashImages = (searchTerms, isNewSearch) => {
 };
    
   const fetchFullSizeImage = useCallback(async (fullImageUrl) => {
+    console.log('Starte Download des Vollbildes in unsplashService:', fullImageUrl);
     try {
-      const proxyUrl = `${API_BASE_URL}/proxy-image?url=${encodeURIComponent(fullImageUrl)}`;
+      const proxyUrl = `${API_BASE_URL}/unsplash/proxy-image?url=${encodeURIComponent(fullImageUrl)}`;
+      console.log('Verwende Proxy-URL in unsplashService:', proxyUrl);
+
+      const startTime = Date.now();
       const imageResponse = await fetch(proxyUrl);
-      if (!imageResponse.ok) {
-        throw new Error(`Failed to fetch full-size image: ${imageResponse.statusText}`);
+      const endTime = Date.now();
+      console.log(`Fetch-Anfrage in unsplashService abgeschlossen in ${endTime - startTime}ms`);
+
+      const contentType = imageResponse.headers.get('content-type');
+      if (!imageResponse.ok || !contentType.startsWith('image/')) {
+        console.error('Ungültiger Content-Type oder Fehler beim Abrufen des Bildes:', contentType, imageResponse.status);
+        throw new Error(`Ungültiger Content-Type: ${contentType}`);
       }
+
       const blob = await imageResponse.blob();
-      return new File([blob], 'unsplash_full_image.jpg', { type: 'image/jpeg' });
+      console.log('Blob erstellt in unsplashService. Größe:', blob.size, 'Bytes, Typ:', blob.type);
+
+      if (blob.size < 1000) {
+        console.warn('Warnung: Blob-Größe ist sehr klein (< 1000 Bytes). Möglicherweise kein gültiges Bild.');
+      }
+
+      const file = new File([blob], 'unsplash_full_image.jpg', { type: blob.type });
+      console.log('File-Objekt erstellt in unsplashService:', file.name, file.type, file.size, 'Bytes');
+
+      return file;
     } catch (error) {
-      console.error('Error fetching full-size image:', error);
+      console.error('Fehler beim Herunterladen des Vollbildes in unsplashService:', error);
       throw error;
     }
   }, []);
 
-  const triggerDownload = useCallback(async (downloadLocation) => {
+  const triggerDownload = async (downloadLocation) => {
     try {
-      const downloadUrl = `${API_BASE_URL}/unsplash/trigger-download?downloadLocation=${encodeURIComponent(downloadLocation)}`;
-      await fetchFromAPI(downloadUrl);
+      const response = await fetch(`/api/unsplash/trigger-download?downloadLocation=${encodeURIComponent(downloadLocation)}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const text = await response.text();
+      console.log('Trigger download response:', text);
+      return text === 'OK';
     } catch (error) {
-      console.warn(`Error triggering download: ${error.message}`);
+      console.error('Error triggering download:', error);
+      throw error;
     }
-  }, [fetchFromAPI]);
+  };
 
   useEffect(() => {
     return () => {

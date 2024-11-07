@@ -1,4 +1,5 @@
-import React, { useState, useCallback } from 'react';
+// src/components/pages/Pressemitteilungsgenerator.js
+import React, { useState, useCallback, useContext } from 'react';
 import PropTypes from 'prop-types';
 import '../../../assets/styles/common/variables.css';
 import '../../../assets/styles/common/global.css';
@@ -8,6 +9,7 @@ import { useDynamicTextSize } from '../../utils/commonFunctions';
 import useApiSubmit from '../../hooks/useApiSubmit';
 import BaseForm from '../../common/BaseForm';
 import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../utils/constants';
+import { FormContext } from '../../utils/FormContext';
 
 const Pressemitteilungsgenerator = ({ showHeaderFooter = true }) => {
   const [was, setWas] = useState('');
@@ -17,6 +19,7 @@ const Pressemitteilungsgenerator = ({ showHeaderFooter = true }) => {
   const [pressemitteilung, setPressemitteilung] = useState('');
   const textSize = useDynamicTextSize(pressemitteilung, 1.2, 0.8, [1000, 2000]);
   const { submitForm, loading, success, resetSuccess, error } = useApiSubmit('/claude_presse');
+  const { setGeneratedContent } = useContext(FormContext);
 
   const handleSubmit = useCallback(async () => {
     const formData = { was, wie, zitatgeber, pressekontakt };
@@ -24,14 +27,18 @@ const Pressemitteilungsgenerator = ({ showHeaderFooter = true }) => {
       const content = await submitForm(formData);
       if (content) {
         setPressemitteilung(content);
-        // Reset success after 3 seconds to match SubmitButton animation duration
+        setGeneratedContent(content);
         setTimeout(resetSuccess, 3000);
       }
     } catch (error) {
-      console.error('Error submitting form:', error);
-      // You might want to set an error state here or show a notification to the user
+      // Error handling
     }
-  }, [was, wie, zitatgeber, pressekontakt, submitForm, resetSuccess]);
+  }, [was, wie, zitatgeber, pressekontakt, submitForm, resetSuccess, setGeneratedContent]);
+
+  const handleGeneratedContentChange = useCallback((content) => {
+    setPressemitteilung(content);
+    setGeneratedContent(content);
+  }, [setGeneratedContent]);
 
   return (
     <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
@@ -43,6 +50,7 @@ const Pressemitteilungsgenerator = ({ showHeaderFooter = true }) => {
         error={error}
         generatedContent={pressemitteilung}
         textSize={textSize}
+        onGeneratedContentChange={handleGeneratedContentChange}
       >
         <h3><label htmlFor="was">{FORM_LABELS.WHAT}</label></h3>
         <input
@@ -93,7 +101,7 @@ const Pressemitteilungsgenerator = ({ showHeaderFooter = true }) => {
 };
 
 Pressemitteilungsgenerator.propTypes = {
-  showHeaderFooter: PropTypes.bool
+  showHeaderFooter: PropTypes.bool,
 };
 
 export default Pressemitteilungsgenerator;

@@ -1,0 +1,329 @@
+/* Grundlegendes Layout */
+.antragsversteher-container {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.antragsversteher-container .base-container {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    gap: 20px;
+}
+
+/* Form Container */
+.antragsversteher-container .form-container {
+    max-width: 700px;
+    margin: 0 auto;
+    margin-top: 30px;
+}
+
+.antragsversteher-container .form-container h3 {
+    margin-top: 10px;
+    text-align: center;
+}
+
+.antragsversteher-container .form-container .explanation-text {
+    color: var(--sand);
+    text-align: center;
+    margin-bottom: 20px;
+    font-size: 1.1em;
+    line-height: 1.4;
+}
+
+/* File Upload Styles */
+.file-upload-area {
+    position: relative;
+    border: 2px dashed var(--sand);
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
+.file-upload-area.dragging {
+    background-color: var(--background-color-hover);
+    border-color: var(--sand);
+}
+
+.file-upload-label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    color: var(--sand);
+}
+
+.file-upload-label .upload-icon {
+    transition: transform 0.3s ease;
+}
+
+.file-upload-area:hover .upload-icon {
+    transform: translateY(-2px);
+}
+
+.file-name {
+    color: var(--sand);
+    font-weight: bold;
+}
+
+/* Reset Button */
+.file-reset-button {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: none;
+    border: none;
+    padding: 4px;
+    cursor: pointer;
+    color: var(--sand);
+    opacity: 0.7;
+    transition: all 0.2s ease;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+}
+
+.file-reset-button:hover {
+    opacity: 1;
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.file-reset-button:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--sand);
+}
+
+/* Display Container Styles */
+.antragsversteher-container .display-container {
+    display: none;
+}
+
+/* Styles wenn Content vorhanden ist */
+.antragsversteher-container.has-content {
+    flex-direction: row;
+}
+
+.antragsversteher-base.has-content {
+    flex-direction: row;
+}
+
+.antragsversteher-container.has-content .base-container {
+    flex-direction: row;
+    align-items: flex-start;
+}
+
+.antragsversteher-container.has-content .form-container {
+    flex: 0.25;
+    max-width: 25%;
+    margin: 0;
+    padding: 15px;
+    transition: all 0.5s ease-in-out;
+}
+
+.antragsversteher-container.has-content .content-container {
+    flex: 0.75;
+    max-width: 75%;
+    display: flex;
+    transition: all 0.5s ease-in-out;
+}
+
+.antragsversteher-container.has-content .display-container {
+    display: flex;
+    flex: 0.75;
+    max-width: 75%;
+    transition: all 0.5s ease-in-out;
+}
+
+.antragsversteher-container.has-content .display-container .display-header {
+    display: flex;
+}
+
+.antragsversteher-container.has-content .display-container .display-header h3 {
+    margin: 0;
+    color: var(--sand);
+}
+
+/* Error States */
+.antragsversteher-container .error-message {
+    color: var(--error-color);
+    margin-top: 10px;
+    margin-bottom: 10px;
+    font-size: 0.9em;
+    text-align: center;
+    opacity: 1;
+    transition: opacity 0.3s ease;
+}
+
+/* Loading States */
+.antragsversteher-container .loading-indicator {
+    color: var(--sand);
+    text-align: center;
+    margin: 10px 0;
+}
+
+/* Mobile Anpassungen */
+@media (max-width: 768px) {
+    .antragsversteher-container,
+    .antragsversteher-container.has-content {
+        flex-direction: column;
+    }
+
+    .antragsversteher-container .form-container,
+    .antragsversteher-container.has-content .form-container,
+    .antragsversteher-container .display-container,
+    .antragsversteher-container.has-content .display-container {
+        flex: 1;
+        max-width: 100%;
+    }
+
+    .file-upload-area {
+        padding: 15px;
+    }
+
+    .file-upload-label {
+        font-size: 0.9em;
+    }
+
+    .antragsversteher-container.has-content .base-container {
+        flex-direction: column;
+    }
+
+    .antragsversteher-container.has-content .form-container,
+    .antragsversteher-container.has-content .content-container {
+        flex: 1;
+        max-width: 100%;
+        margin: 10px 0;
+    }
+}
+
+/* Reset Button */
+.file-reset-button {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: none;
+    border: none;
+    padding: 4px;
+    cursor: pointer;
+    color: var(--sand);
+    opacity: 0.7;
+    transition: all 0.2s ease;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+}
+
+.file-reset-button:hover {
+    opacity: 1;
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.file-reset-button:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--sand);
+}
+
+.privacy-checkbox-container,
+.terms-checkbox-container {
+  margin-top: 25px;
+  margin-bottom: 15px;
+  position: relative;
+}
+
+.privacy-label,
+.terms-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  color: var(--sand);
+  font-size: 0.9em;
+  line-height: 1.5;
+  padding: 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.privacy-label span,
+.terms-label span {
+  flex: 1;
+}
+
+.privacy-checkbox,
+.terms-checkbox {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  border: 2px solid var(--sand);
+  border-radius: 4px;
+  margin: 0;
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+  margin-top: 2px;
+  background-color: transparent;
+  transition: all 0.2s ease;
+}
+
+.privacy-checkbox:focus,
+.terms-checkbox:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--grashalm);
+}
+
+.terms-link {
+  color: var(--sand);
+  text-decoration: underline;
+  transition: color 0.2s ease;
+}
+
+.terms-link:hover {
+  color: var(--weiß);
+}
+
+/* Checkbox Anpassungen */
+.antragsversteher-container .checkbox-with-text .checkbox-wrapper-28 label {
+  border: none;
+  padding: 20px;
+}
+
+.antragsversteher-container .checkbox-with-text .checkbox-text {
+  margin-top: 2px;
+}
+
+.checkbox-with-text {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+
+/* Mobile Anpassungen für Checkbox Container */
+@media (max-width: 768px) {
+  .privacy-checkbox-container,
+  .terms-checkbox-container {
+    margin: 15px 0;
+  }
+}
+
+.checkbox-with-text {
+  display: flex;
+  align-items: flex-start;
+}
+
+.antragsversteher .checkbox-text {
+  margin-top: 2px;
+}

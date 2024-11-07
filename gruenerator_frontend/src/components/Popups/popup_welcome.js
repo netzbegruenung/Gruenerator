@@ -1,58 +1,50 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 
 const WelcomePopup = () => {
-  const [isWelcomePopupOpen, setIsWelcomePopupOpen] = useState(false);
+  const [isVisible, setIsVisible] = useState(() => {
+    return !localStorage.getItem('welcomePopupShown');
+  });
 
-  useEffect(() => {
-    const hasSeenWelcomePopup = localStorage.getItem('hasSeenWelcomePopup');
-    if (!hasSeenWelcomePopup) {
-      setIsWelcomePopupOpen(true);
-      localStorage.setItem('hasSeenWelcomePopup', 'true');
-    }
-  }, []);
-
-  const handleCloseWelcomePopup = () => {
-    setIsWelcomePopupOpen(false);
+  const handleCloseWelcomePopup = (e) => {
+    e.preventDefault();
+    localStorage.setItem('welcomePopupShown', 'true');
+    setIsVisible(false);
   };
 
-  const handleNewsletterSignup = () => {
-    window.open('https://896ca129.sibforms.com/serve/MUIFAFnH3lov98jrw3d75u_DFByChA39XRS6JkBKqjTsN9gx0MxCvDn1FMnkvHLgzxEh1JBcEOiyHEkyzRC-XUO2DffKsVccZ4r7CCaYiugoiLf1a-yoTxDwoctxuzCsmDuodwrVwEwnofr7K42jQc-saIKeVuB_8UxrwS18QIaahZml1qMExNno2sEC7HyMy9Nz4f2f8-UJ4QmW', '_blank');
-    setIsWelcomePopupOpen(false);
+  const handleNewsletterSignup = (e) => {
+    e.preventDefault();
+    window.location.href = '/newsletter';
   };
 
-  if (!isWelcomePopupOpen) return null;
+  if (!isVisible) {
+    return null;
+  }
 
   return (
     <div className="welcome-popup-overlay">
       <div className="welcome-popup">
-        <h1>Willkommen bei der Grünerator Open Beta!</h1>
-        <p>
-          Du gehörst zu den Ersten, die den neuen Grünerator erleben dürfen. Er kann jetzt vieles besser:
-        </p>
+        <h1>Das Work Update ist da!</h1>
         <ul>
-          <li>Komplett neuer Code & verbesserte UI auf Open-Source-Basis</li>
-          <li>Automatischer Dark Mode: Respektiert die Arbeitszeiten des Ehrenamts</li>
-          <li>Neuer Grünerator: Schreibe politische Reden für Parteitage, Ratssitzungen & Co</li>
-          <li>Verwendet das beste Sprachmodell der Welt: Bessere Ergebnisse bei allen Grüneratoren</li>
+          <li>Grünerator Editor: Nach der &quot;Grünerierung&quot; kannst du den Text direkt anpassen</li>
+          <li>Grünerator KI-Textverbesserung: Markiere Text im Editor und nutze die neue KI-Anpassung (Desktop only)</li>
+          <li>Grünerator Office: Erstelle automatisch ein Dokument (wie Google Docs), verschicke einen Link und bearbeite es im Team</li>
+          <li>Neuer Grünerator &quot;Wahlprogramm&quot;: Erstelle Kapitel für dein Wahlprogramm</li>
         </ul>
         <p>
-          Der neue Grünerator ist noch in der Testphase und kann Fehler enthalten. Gib gerne Feedback
-        </p>
-        <p>
-          Ich empfehle dir, dich für das GRÜNERATOR FAX anzumelden, den neuen Grünerator Newsletter. Dort erhälst du Tipps und Tricks, um deine Arbeit im Ehrenamt, im Abgeordnetenbüro oder in den Geschäftsstellen zu vereinfachen.
+          Melde dich für das GRÜNERATOR FAX an und erhalte die wichtigsten Infos zu KI und dem Grünerator. Kostenlos, kein Spam, nur wenige E-Mails. Versprochen!
         </p>
         <div className="welcome-button-container">
           <button
             onClick={handleNewsletterSignup}
             className="welcome-button welcome-button-signup"
           >
-            Ja, anmelden
+            Anmelden
           </button>
           <button
             onClick={handleCloseWelcomePopup}
             className="welcome-button"
           >
-            Erstmal nicht
+            Hab ich schon
           </button>
         </div>
       </div>

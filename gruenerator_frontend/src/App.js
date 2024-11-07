@@ -1,27 +1,17 @@
-import React, { useEffect } from 'react';
-import PropTypes from 'prop-types';
+import React, { lazy, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import Home from './components/pages/Home';
-import Antrag from './components/pages/Grüneratoren/Antragsgenerator';
-import Pressemitteilung from './components/pages/Grüneratoren/Pressemitteilung';
-import SocialMediaGenerator from './components/pages/Grüneratoren/SocialMediaGenerator';
-import Sharepicgenerator from './components/pages/Grüneratoren/Sharepicgenerator'; // Neue Komponente hinzugefügt
-import Webbaukasten from './components/pages/Webbaukasten';
-import Antragscheck from './components/pages/Grüneratoren/Antragsversteher';
-import WahlpruefsteinThueringen from './components/pages/Grüneratoren/WahlpruefsteinThueringen';
-import Redengenerator from './components/pages/Grüneratoren/Redengenerator';
-import Datenschutz from './components/pages/Impressum_Datenschutz_Terms/Datenschutz';
-import Impressum from './components/pages/Impressum_Datenschutz_Terms/Impressum';
-import Header from './components/layout/Header/Header';
-import Footer from './components/layout/Footer/Footer';
 import ScrollToTop from './components/utils/ScrollToTop';
 import { useScrollRestoration } from './components/utils/commonFunctions';
-import PopupNutzungsbedingungen from './components/Popups/popup_nutzungsbedingungen';
-import WelcomePopup from './components/Popups/popup_welcome';
 import useAccessibility from './components/hooks/useAccessibility';
 import useDarkMode from './components/hooks/useDarkMode';
-import { SharepicGeneratorProvider } from './components/utils/Sharepic/SharepicGeneratorContext'; // SharepicGeneratorProvider importiert
-import Wahlprogramm from './components/pages/Grüneratoren/Wahlprogramm'; // Neue Komponente importiert
+import ErrorBoundary from './components/ErrorBoundary';
+import SuspenseWrapper from './components/common/SuspenseWrapper';
+import RouteComponent from './components/routing/RouteComponent';
+import { routes } from './config/routes';
+
+// Lazy loading für Popups
+const PopupNutzungsbedingungen = lazy(() => import('./components/Popups/popup_nutzungsbedingungen'));
+const WelcomePopup = lazy(() => import('./components/Popups/popup_welcome'));
 
 function App() {
   useScrollRestoration();
@@ -50,98 +40,77 @@ function App() {
     }
   }, [darkMode]);
 
-  const routesWithHeaderFooter = [
-    '/',
-    '/antrag',
-    '/pressemitteilung',
-    '/socialmedia',
-    '/webbaukasten',
-    '/antragscheck',
-    '/wahlpruefsteinthueringen',
-    '/rede',
-    '/wahlprogramm', // Neue Route hinzugefügt
-    '/datenschutz',
-    '/impressum',
-    '/nutzungsbedingungen'
-  ];
+  useEffect(() => {
+    // Setze die Scroll-Position beim ersten Laden
+    window.history.scrollRestoration = 'manual';
+    window.scrollTo({
+      top: 0,
+      left: 0,
+      behavior: 'instant'
+    });
+  }, []);
 
   return (
-    <Router>
-      <ScrollToTop />
-      <PopupNutzungsbedingungen />
-      <WelcomePopup />
-      <div id="aria-live-region" aria-live="polite" style={{ position: 'absolute', left: '-9999px' }}></div>
-      <Routes>
-        {routesWithHeaderFooter.map(path => (
-          <Route key={path} path={path} element={
-            <>
-              <Header darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
-              <RouteComponent path={path} darkMode={darkMode} />
-              <Footer />
-            </>
-          } />
-        ))}
+    <ErrorBoundary>
+      <Router>
+        <ScrollToTop />
+        <SuspenseWrapper>
+          <PopupNutzungsbedingungen />
+          <WelcomePopup />
+          <div id="aria-live-region" aria-live="polite" className="sr-only"></div>
+          
+          <Routes>
+            {/* Standard-Routen */}
+            {routes.standard.map(({ path }) => (
+              <Route
+                key={path}
+                path={path}
+                element={
+                  <RouteComponent 
+                    path={path} 
+                    darkMode={darkMode} 
+                    toggleDarkMode={toggleDarkMode}
+                  />
+                }
+              />
+            ))}
 
-        <Route path="/sharepicgenerator" element={
-          <SharepicGeneratorProvider>
-            <>
-              <Header darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
-              <Sharepicgenerator showHeaderFooter={true} darkMode={darkMode} />
-              <Footer />
-            </>
-          </SharepicGeneratorProvider>
-        } />
+            {/* Spezielle Routen */}
+            {routes.special.map(({ path }) => (
+              <Route
+                key={path}
+                path={path}
+                element={
+                  <RouteComponent 
+                    path={path} 
+                    darkMode={darkMode} 
+                    toggleDarkMode={toggleDarkMode}
+                    isSpecial
+                  />
+                }
+              />
+            ))}
 
-        <Route path="/antrag-no-header-footer" element={<Antrag showHeaderFooter={false} darkMode={darkMode} />} />
-        <Route path="/pressemitteilung-no-header-footer" element={<Pressemitteilung showHeaderFooter={false} darkMode={darkMode} />} />
-        <Route path="/socialmedia-no-header-footer" element={<SocialMediaGenerator showHeaderFooter={false} darkMode={darkMode} />} />
-        <Route path="/rede-no-header-footer" element={<Redengenerator ShowHeaderFooter={false} darkMode={darkMode} />} />
-        <Route path="/antragscheck-no-header-footer" element={<Antragscheck showHeaderFooter={false} darkMode={darkMode} />} />
-        <Route path="/sharepicgenerator-no-header-footer" element={
-          <SharepicGeneratorProvider>
-            <Sharepicgenerator showHeaderFooter={false} darkMode={darkMode} />
-          </SharepicGeneratorProvider>
-        } />
-        <Route path="/wahlprogramm-no-header-footer" element={<Wahlprogramm showHeaderFooter={false} darkMode={darkMode} />} />
-      </Routes>
-    </Router>
+            {/* No-Header-Footer Routen */}
+            {routes.noHeaderFooter.map(({ path }) => (
+              <Route
+                key={path}
+                path={path}
+                element={
+                  <RouteComponent 
+                    path={path} 
+                    darkMode={darkMode} 
+                    toggleDarkMode={toggleDarkMode}
+                    showHeaderFooter={false}
+                  />
+                }
+              />
+            ))}
+          </Routes>
+        </SuspenseWrapper>
+      </Router>
+    </ErrorBoundary>
   );
 }
-
-const RouteComponent = ({ path, darkMode }) => {
-  switch (path) {
-    case '/':
-      return <Home darkMode={darkMode} />;
-    case '/antrag':
-      return <Antrag showHeaderFooter={true} darkMode={darkMode} />;
-    case '/pressemitteilung':
-      return <Pressemitteilung showHeaderFooter={true} darkMode={darkMode} />;
-    case '/socialmedia':
-      return <SocialMediaGenerator showHeaderFooter={true} darkMode={darkMode} />;
-    case '/sharepicgenerator': // Neue Route hinzugefügt
-      return <Sharepicgenerator showHeaderFooter={true} darkMode={darkMode} />;
-    case '/webbaukasten':
-      return <Webbaukasten darkMode={darkMode} />;
-    case '/antragscheck':
-      return <Antragscheck darkMode={darkMode} />;
-    case '/wahlpruefsteinthueringen':
-      return <WahlpruefsteinThueringen darkMode={darkMode} />;
-    case '/rede':
-      return <Redengenerator showHeaderFooter={true} darkMode={darkMode} />;
-    case '/datenschutz':
-      return <Datenschutz darkMode={darkMode} />;
-    case '/impressum':
-      return <Impressum darkMode={darkMode} />;
-    case '/wahlprogramm':
-      return <Wahlprogramm showHeaderFooter={true} darkMode={darkMode} />;
-    default:
-      return null;
-  }
-};
-
-RouteComponent.propTypes = {
-  path: PropTypes.string.isRequired,
-  darkMode: PropTypes.bool.isRequired
-};
 
 export default App;

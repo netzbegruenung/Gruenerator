@@ -1,7 +1,5 @@
 const express = require('express');
 const multer = require('multer');
-const pdf = require('pdf-parse');
-const { createWorker } = require('tesseract.js');
 const { Anthropic } = require('@anthropic-ai/sdk');
 const router = express.Router();
 
@@ -19,49 +17,39 @@ router.post('/upload-pdf', upload.single('file'), async (req, res) => {
 
   try {
     const fileBuffer = req.file.buffer;
-    let extractedText = '';
-    let usedOCR = false;
+    const base64PDF = fileBuffer.toString('base64');
 
-    // Versuche zuerst, Text direkt aus der PDF zu extrahieren
-    try {
-      const data = await pdf(fileBuffer);
-      extractedText = data.text;
-    } catch (pdfError) {
-      console.log('Fehler bei der PDF-Textextraktion, versuche OCR:', pdfError);
-    }
-
-    // Wenn kein Text extrahiert wurde, wende OCR an
-    if (!extractedText.trim()) {
-      const worker = await createWorker('deu');
-      const { data: { text } } = await worker.recognize(fileBuffer);
-      await worker.terminate();
-      extractedText = text;
-      usedOCR = true;
-    }
-
-    if (!extractedText.trim()) {
-      return res.status(422).json({ error: 'Konnte keinen Text aus der Datei extrahieren.' });
-    }
-
-    // Weiterleitung des extrahierten Textes an die Claude API
-    const response = await anthropic.messages.create({
-      model: 'claude-3-5-sonnet-20240620',
+    const response = await anthropic.beta.messages.create({
+      model: 'claude-3-5-sonnet-20241022',
+      betas: ["pdfs-2024-09-25"],
       max_tokens: 2048,
       messages: [{
         role: 'user',
-        content: `Sie sind ein hilfreicher kommunalpolitischer Berater von Bündnis 90/Die Grünen. Bitte lesen Sie das folgende Dokument, das ein Antrag, eine Vorlage oder ähnliches ist, ausführlich. Geben Sie dann folgende Informationen:
+        content: [
+          {
+            type: 'document',
+            source: {
+              type: 'base64',
+              media_type: 'application/pdf',
+              data: base64PDF
+            }
+          },
+          {
+            type: 'text',
+            text: `Sie sind ein hilfreicher kommunalpolitischer Berater von Bündnis 90/Die Grünen. Bitte lesen Sie das folgende Dokument, das ein Antrag, eine Vorlage oder ähnliches ist, ausführlich. Geben Sie dann folgende Informationen:
                   1. Eine kurze Beschreibung, worum es in dem Text geht.
                   2. Positive Aspekte aus Sicht der Partei.
                   3. Negative und kritische Aspekte aus Sicht der Partei.
                   4. Mögliche Rückfragen für die kommende Sitzung, falls notwendig.
-                  Stellen Sie sicher, dass die Antwort objektiv, sachlich und präzise ist.
-                  Hier ist der Text: <paper>${extractedText}</paper>`
+                  Stellen Sie sicher, dass die Antwort objektiv, sachlich und präzise ist.`
+          }
+        ]
       }]
     });
 
-    if (response && response.content && Array.isArray(response.content)) {
-      const summary = response.content.map(item => item.text).join("\n");
-      res.json({ text: extractedText, summary: summary, usedOCR: usedOCR });
+    if (response && response.content && response.content.length > 0) {
+      const summary = response.content[0].text;
+      res.json({ summary: summary });
     } else {
       throw new Error('API response missing or incorrect content structure');
     }
