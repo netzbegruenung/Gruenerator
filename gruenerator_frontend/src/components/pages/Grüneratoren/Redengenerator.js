@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useContext } from 'react';
 import PropTypes from 'prop-types';
 import '../../../assets/styles/common/variables.css';
 import '../../../assets/styles/common/global.css';
@@ -7,6 +7,7 @@ import '../../../assets/styles/pages/baseform.css';
 import { useDynamicTextSize } from '../../utils/commonFunctions';
 import useApiSubmit from '../../hooks/useApiSubmit';
 import BaseForm from '../../common/BaseForm';
+import { FormContext } from '../../utils/FormContext';
 
 const Redengenerator = ({ showHeaderFooter = true }) => {
   const [rolle, setRolle] = useState('');
@@ -18,20 +19,27 @@ const Redengenerator = ({ showHeaderFooter = true }) => {
   const textSize = useDynamicTextSize(rede, 1.2, 0.8, [1000, 2000]);
   const { submitForm, loading, success, resetSuccess, error } = useApiSubmit('/claude_rede');
 
+  const { setGeneratedContent } = useContext(FormContext);
+
   const handleSubmit = useCallback(async () => {
     const formData = { rolle, thema, zielgruppe, schwerpunkte, redezeit };
     try {
       const content = await submitForm(formData);
       if (content) {
         setRede(content);
-        // Reset success after 3 seconds to match SubmitButton animation duration
+        setGeneratedContent(content);
         setTimeout(resetSuccess, 3000);
       }
     } catch (error) {
       console.error('Error submitting form:', error);
-      // You might want to set an error state here or show a notification to the user
     }
-  }, [rolle, thema, zielgruppe, schwerpunkte, redezeit, submitForm, resetSuccess]);
+  }, [rolle, thema, zielgruppe, schwerpunkte, redezeit, submitForm, resetSuccess, setGeneratedContent]);
+
+  const handleGeneratedContentChange = useCallback((content) => {
+    console.log('Generated content changed:', content);
+    setRede(content);
+    setGeneratedContent(content);
+  }, [setRede, setGeneratedContent]);
 
   return (
     <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
@@ -43,13 +51,14 @@ const Redengenerator = ({ showHeaderFooter = true }) => {
         error={error}
         generatedContent={rede}
         textSize={textSize}
+        onGeneratedContentChange={handleGeneratedContentChange}
       >
-        <h3><label htmlFor="rolle">Rolle/Position des Redners</label></h3>
+        <h3><label htmlFor="rolle">Rolle/Position</label></h3>
         <input
           id="rolle"
           type="text"
           name="rolle"
-          placeholder="Sprecher*in der Grünen OV Musterdorf"
+          placeholder="Sprecher*in der Grünen OV Musterdorf, Antragssteller*in etc."
           value={rolle}
           onChange={(e) => setRolle(e.target.value)}
           aria-required="true"

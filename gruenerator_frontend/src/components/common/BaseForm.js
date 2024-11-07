@@ -1,15 +1,16 @@
-import React, { useCallback, useMemo, useEffect } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import { HiCog } from "react-icons/hi";
 import SubmitButton from './SubmitButton';
-import CopyButton from './CopyButton';
 import useAccessibility from '../hooks/useAccessibility';
 import { addAriaLabelsToElements, enhanceFocusVisibility } from '../utils/accessibilityHelpers';
-import { 
-  BUTTON_LABELS, 
-  ARIA_LABELS, 
-  ANNOUNCEMENTS
-} from '../utils/constants';
+import { BUTTON_LABELS, ARIA_LABELS, ANNOUNCEMENTS } from '../utils/constants';
+import { IoCopyOutline, IoPencil, IoCheckmarkOutline } from 'react-icons/io5';
+import Editor from './Editor';
+import { copyFormattedContent, useAutoScroll } from '../utils/commonFunctions';
+import { FormContext } from '../utils/FormContext';
+import ExportToDocument from './ExportToDocument';
+import { Tooltip } from 'react-tooltip';
 
 const BaseForm = ({
   title,
@@ -19,16 +20,40 @@ const BaseForm = ({
   success,
   error,
   formErrors = {},
-  generatedContent,
-  textSize,
-  submitButtonText = BUTTON_LABELS.SUBMIT,
   onGeneratePost,
   generatedPost,
+  allowEditing = true,
+  initialContent = '',
+  alwaysEditing = false,
+  hideEditButton = false,
 }) => {
+  const {
+    value,
+    isEditing,
+    toggleEditMode,
+    updateValue,
+  } = useContext(FormContext);
+
+  const [copyIcon, setCopyIcon] = useState(<IoCopyOutline size={16} />);
+
+  useEffect(() => {
+    if (initialContent) {
+      updateValue(initialContent);
+    }
+  }, [initialContent, updateValue]);
+
   const { announce, setupKeyboardNav } = useAccessibility();
   const [generatePostLoading, setGeneratePostLoading] = React.useState(false);
+  // const [isSaveLinkModalOpen, setIsSaveLinkModalOpen] = useState(false);
+  
 
-  const handleGeneratePost = useCallback(async () => {
+  // useEffect(() => {
+  //   if (originalLinkData && !linkData) {
+  //     setLinkData(originalLinkData);
+  //   }
+  // }, [originalLinkData, linkData, setLinkData]);
+
+  const handleGeneratePost = React.useCallback(async () => {
     setGeneratePostLoading(true);
     announce(ANNOUNCEMENTS.GENERATING_TEXT);
     try {
@@ -41,90 +66,214 @@ const BaseForm = ({
     }
   }, [onGeneratePost, announce]);
 
-  const hasFormErrors = useMemo(() => Object.keys(formErrors).length > 0, [formErrors]);
+  const hasFormErrors = React.useMemo(() => Object.keys(formErrors).length > 0, [formErrors]);
+
+  const handleCopyToClipboard = React.useCallback((content) => {
+    copyFormattedContent(
+      content,
+      () => {
+        announce(ANNOUNCEMENTS.CONTENT_COPIED);
+        setCopyIcon(<IoCheckmarkOutline size={16} />);
+        setTimeout(() => {
+          setCopyIcon(<IoCopyOutline size={16} />);
+        }, 2000);
+      },
+      () => {}
+    );
+  }, [announce]);
 
   useEffect(() => {
     enhanceFocusVisibility();
-    
+
     const labelledElements = [
-      { element: document.querySelector('.submit-button'), label: submitButtonText },
+      { element: document.querySelector('.submit-button'), label: BUTTON_LABELS.SUBMIT },
       { element: document.querySelector('.generate-post-button'), label: BUTTON_LABELS.GENERATE_TEXT },
       { element: document.querySelector('.copy-button'), label: BUTTON_LABELS.COPY },
+      { element: document.querySelector('.edit-button'), label: BUTTON_LABELS.EDIT },
     ];
-    
+
     addAriaLabelsToElements(labelledElements);
-    
+
     const interactiveElements = labelledElements.map(item => item.element).filter(Boolean);
-    return setupKeyboardNav(interactiveElements);
-  }, [setupKeyboardNav, submitButtonText]);
+    setupKeyboardNav(interactiveElements);
+  }, [setupKeyboardNav]);
+
+  const handleToggleEditMode = () => {
+    if (window.innerWidth <= 768) {
+      document.body.style.overflow = isEditing ? 'auto' : 'hidden';
+    }
+    toggleEditMode();
+  };
+
+// const handleSaveClick = async () => {
+//   if (linkData) {
+//     try {
+//       const result = await saveCurrentContent(linkData.linkName, linkData.generatedLink);
+//       if (result.success) {
+//         setSaveIcon(<IoCheckmarkOutline size={16} />);
+//         setTimeout(() => {
+//           setSaveIcon(<IoSaveOutline size={16} />);
+//         }, 2000);
+//       } else {
+//         console.error(`Fehler beim Speichern: ${result.error}`);
+//       }
+//     } catch (error) {
+//       console.error(`Fehler beim Speichern: ${error.message}`);
+//     }
+//   } else {
+//     setIsSaveLinkModalOpen(true);
+//   }
+// };
 
   useEffect(() => {
-    if (error) {
-      announce(`Fehler aufgetreten: ${error}`);
+    if (alwaysEditing && !isEditing) {
+      toggleEditMode();
     }
-  }, [error, announce]);
+  }, [alwaysEditing, isEditing, toggleEditMode]);
+
+  const displayTitle = React.useMemo(() => {
+    const isMobile = window.innerWidth <= 768;
+    return isMobile && isEditing ? "Grünerator Editor" : title;
+  }, [isEditing, title]);
+
+  const isMobile = window.innerWidth <= 768;
+  
+  const [contentChanged, setContentChanged] = useState(false);
+
+  useEffect(() => {
+    if (value) {
+      setContentChanged(true);
+    }
+  }, [value]);
+
+  useAutoScroll({ content: value, changed: contentChanged }, isMobile);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setContentChanged(false);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const [isMobileView, setIsMobileView] = useState(window.innerWidth <= 768);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobileView(window.innerWidth <= 768);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   return (
-    <div className={`base-container ${generatedContent ? 'with-content' : ''}`}>
-      <div className="container">
-        <div className="form-container">
-          <form onSubmit={(e) => {
-            e.preventDefault();
-            onSubmit();
-          }}>
-            <div className={`form-content ${generatedContent ? 'with-generated-content' : ''}`}>
-              {children}
-              {hasFormErrors && (
-                <div className="form-errors" role="alert" aria-live="assertive">
-                  {Object.entries(formErrors).map(([field, message]) => (
-                    <p key={field} className="error-message">{message}</p>
-                  ))}
-                </div>
-              )}
-              <div className="button-container">
-                <SubmitButton
-                  onClick={onSubmit}
-                  loading={loading}
-                  success={success}
-                  text={submitButtonText}
-                  icon={<HiCog />}
-                  className="submit-button form-button"
-                  ariaLabel={ARIA_LABELS.SUBMIT}
-                />
-              </div>
-              {error && <p role="alert" aria-live="assertive" className="error-message">{error}</p>}
-            </div>
-          </form>
-        </div>
-        <div className="display-container">
-          <h3>{title}</h3>
-          <div className="display-content" style={{ fontSize: textSize }}>
-            <div className="generated-content-wrapper">
-              {generatedContent}
-            </div>
-            {generatedPost && (
-              <div className="generated-post-container">
-                <p>{generatedPost}</p>
-                <div className="button-container">
-                  <SubmitButton
-                    onClick={handleGeneratePost}
-                    loading={generatePostLoading}
-                    text={BUTTON_LABELS.REGENERATE_TEXT}
-                    icon={<HiCog />}
-                    className="generate-post-button"
-                    ariaLabel={ARIA_LABELS.REGENERATE_TEXT}
-                  />
-                </div>
+    <div className={`base-container ${isEditing ? 'editing-mode' : ''} ${title === "Grünerator Antragscheck" ? 'antragsversteher-base' : ''} ${value ? 'has-generated-content' : ''}`}>
+      <div className="form-container">
+        <form onSubmit={(e) => {
+          e.preventDefault();
+          onSubmit();
+        }}>
+          <div className={`form-content ${hasFormErrors ? 'has-errors' : ''}`}>
+            {children}
+            {hasFormErrors && (
+              <div className="form-errors" role="alert" aria-live="assertive">
+                {Object.entries(formErrors).map(([field, message]) => (
+                  <p key={field} className="error-message">
+                    {message}
+                  </p>
+                ))}
               </div>
             )}
+            <div className="button-container">
+              <SubmitButton
+                onClick={onSubmit}
+                loading={loading}
+                success={success}
+                text={BUTTON_LABELS.SUBMIT}
+                icon={<HiCog />}
+                className="submit-button form-button"
+                ariaLabel={ARIA_LABELS.SUBMIT}
+              />
+            </div>
+            {error && (
+              <p role="alert" aria-live="assertive" className="error-message">
+                {error}
+              </p>
+            )}
           </div>
-          {generatedContent && (
-            <div className="copy-button-container">
-              <CopyButton content={generatedContent} />
+        </form>
+      </div>
+      <div className="content-container">
+        <div className="display-container">
+          <div className="display-header">
+            <h3>{displayTitle}</h3>
+            <div className="display-actions">
+              {value && (
+                <>
+                  <button
+                    onClick={() => handleCopyToClipboard(value)}
+                    className="action-button"
+                    aria-label={ARIA_LABELS.COPY}
+                    {...(!isMobileView && {
+                      'data-tooltip-id': "action-tooltip",
+                      'data-tooltip-content': "Kopieren"
+                    })}
+                  >
+                    {copyIcon}
+                  </button>
+                  <button
+                    className="action-button"
+                    {...(!isMobileView && {
+                      'data-tooltip-id': "action-tooltip",
+                      'data-tooltip-content': "Als Dokument exportieren"
+                    })}
+                  >
+                    <ExportToDocument content={value} />
+                  </button>
+                  {allowEditing && !hideEditButton && (
+                    <button
+                      onClick={handleToggleEditMode}
+                      className="action-button"
+                      aria-label={isEditing ? ARIA_LABELS.SAVE : ARIA_LABELS.EDIT}
+                      {...(!isMobileView && {
+                        'data-tooltip-id': "action-tooltip",
+                        'data-tooltip-content': isEditing ? "Bearbeiten beenden" : "Bearbeiten"
+                      })}
+                    >
+                      <IoPencil size={16} />
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+          <div className="display-content" style={{ fontSize: '16px' }}>
+            <div className="generated-content-wrapper">
+              <Editor />
+            </div>
+          </div>
+          {generatedPost && (
+            <div className="generated-post-container">
+              <p>{generatedPost}</p>
+              <div className="button-container">
+                <SubmitButton
+                  onClick={handleGeneratePost}
+                  loading={generatePostLoading}
+                  text={BUTTON_LABELS.REGENERATE_TEXT}
+                  icon={<HiCog />}
+                  className="generate-post-button"
+                  ariaLabel={ARIA_LABELS.REGENERATE_TEXT}
+                />
+              </div>
             </div>
           )}
         </div>
       </div>
+      {!isMobileView && (
+        <Tooltip id="action-tooltip" place="bottom" />
+      )}
     </div>
   );
 };
@@ -137,12 +286,13 @@ BaseForm.propTypes = {
   success: PropTypes.bool,
   error: PropTypes.string,
   formErrors: PropTypes.object,
-  generatedContent: PropTypes.oneOfType([PropTypes.string, PropTypes.node]),
-  textSize: PropTypes.string,
-  submitButtonText: PropTypes.string,
-  showGeneratePostButton: PropTypes.bool,
   onGeneratePost: PropTypes.func,
   generatedPost: PropTypes.string,
+  allowEditing: PropTypes.bool,
+  initialContent: PropTypes.string,
+  alwaysEditing: PropTypes.bool,
+  hideEditButton: PropTypes.bool,
+  // originalLinkData: PropTypes.object,
 };
 
 export default BaseForm;

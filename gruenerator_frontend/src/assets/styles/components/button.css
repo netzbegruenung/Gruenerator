@@ -49,18 +49,6 @@
   animation: spin 2s linear infinite;
 }
 
- .copy-button {
-  background-color: var(--tanne);
-  width: auto; /* Lässt den Button seine natürliche Breite annehmen */
-  max-width: 100%; /* Verhindert Überlauf */
-  color: var(--weiß);
-  width: 98%;
-  white-space: nowrap; /* Verhindert Umbruch des Button-Textes */
-  overflow: hidden; /* Verhindert horizontales Scrollen */
-  text-overflow: ellipsis;
-  transition: background-color 0.3s, transform 0.3s;
-  margin-top: 10px; /* Fügt Abstand nach oben hinzu */
-}
 
 
 .social-media-baseform .copy-button {
@@ -291,8 +279,17 @@
 }
 
 @media (max-width: 768px) {
-  .button {
-    font-size: 0.8em;
+  .button,
+  .form-button,
+  .submit-button,
+  .generate-post-button,
+  .back-button,
+  .download-button,
+  .copy-button,
+  .image-search-button,
+  .file-input-wrapper {
+    font-size: 0.85em;
+    padding: 8px 16px; /* Reduziertes Padding für mobile Geräte */
   }
 
   .download-button {

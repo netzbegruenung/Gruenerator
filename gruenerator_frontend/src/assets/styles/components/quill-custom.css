@@ -1,0 +1,210 @@
+/* Grundlegende Quill-Editor-Stile */
+.ql-editor {
+    font-family: 'PT Sans', Arial, sans-serif;
+    color: var(--font-color);
+    border: none;
+    font-size: 1.2em;
+    border: none !important;
+    min-height: 200px !important;
+    overflow-y: auto !important;
+    border: none !important;
+    color: var(--weiß);
+    padding: 12px 0px;
+    font-family: 'PT Sans', Arial, sans-serif !important;
+    line-height: 1.5;
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+.ql-editor::selection {
+    background-color: rgba(255, 255, 0, 0.3); /* Gelbe, halbtransparente Markierung */
+}
+
+@media (max-width: 768px) {
+    .editing-mode .ql-container {
+        padding: 0;
+    }
+}
+/* Entfernen der Umrandung für den Quill-Container */
+.ql-container.ql-snow {
+    border: none;
+}
+
+/* Toolbar-Stile */
+.ql-editor .ql-toolbar,
+.ql-toolbar.ql-snow {
+    color: var(--tanne);
+    border: none;
+    padding: 8px 15px;
+}
+
+.ql-toolbar.ql-snow .ql-formats {
+    margin-right: 15px;
+}
+
+/* Toolbar-Buttons */
+.ql-editor .ql-toolbar button,
+.ql-toolbar.ql-snow button {
+    color: var(--font-color-h) !important;
+    border: none !important;
+    background: none;
+    cursor: pointer;
+    padding: 3px 5px;
+    width: 28px;
+    height: 24px;
+    transition: color 0.3s ease;
+}
+
+.ql-editor .ql-toolbar button:hover,
+.ql-editor .ql-toolbar button.ql-active,
+.ql-toolbar.ql-snow button:hover,
+.ql-toolbar.ql-snow button:focus,
+.ql-toolbar.ql-snow button.ql-active {
+    color: var(--klee) !important;
+}
+
+/* Stroke und Fill Stile */
+.ql-editor .ql-toolbar .ql-stroke,
+.ql-toolbar.ql-snow .ql-stroke {
+    color: var(--font-color-h) !important;
+}
+
+.ql-editor .ql-toolbar button:hover .ql-stroke,
+.ql-editor .ql-toolbar button.ql-active .ql-stroke,
+.ql-toolbar.ql-snow button:hover .ql-stroke,
+.ql-toolbar.ql-snow button:focus .ql-stroke,
+.ql-toolbar.ql-snow button.ql-active .ql-stroke {
+    color: var(--font-color-h) !important;
+}
+
+.ql-editor .ql-toolbar .ql-fill,
+.ql-toolbar.ql-snow .ql-fill {
+    color: var(--font-color-h) !important;
+}
+
+.ql-editor .ql-toolbar button:hover .ql-fill,
+.ql-editor .ql-toolbar button.ql-active .ql-fill,
+.ql-toolbar.ql-snow button:hover .ql-fill,
+.ql-toolbar.ql-snow button:focus .ql-fill,
+.ql-toolbar.ql-snow button.ql-active .ql-fill {
+    color: var(--font-color-h) !important;
+}
+
+/* Überschreiben der SVG-Füllung und -Kontur für Quill-Toolbar-Buttons */
+.ql-toolbar .ql-stroke {
+    stroke: var(--font-color-h) !important;
+  }
+  
+  .ql-toolbar .ql-fill {
+    fill: var(--font-color-h) !important;
+  }
+  
+  .ql-toolbar .ql-stroke-miter {
+    stroke: var(--font-color-h) !important;
+  }
+  
+  /* Hover- und Active-Zustände */
+  .ql-toolbar button:hover .ql-stroke,
+  .ql-toolbar button.ql-active .ql-stroke {
+    stroke: var(--klee) !important;
+  }
+  
+  .ql-toolbar button:hover .ql-fill,
+  .ql-toolbar button.ql-active .ql-fill {
+    fill: var(--klee) !important;
+  }
+
+  
+/* Bearbeitungsmodus */
+.display-container.editing-mode .ql-editor {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    border: none;
+}
+
+.display-container.editing-mode .ql-editor .ql-container {
+    flex: 1;
+    overflow: auto;
+    border: none;
+}
+
+.display-container.editing-mode .ql-editor .ql-toolbar {
+    background-color: var(--dunkelgruen-alt);
+}
+
+.display-container.editing-mode .ql-editor .ql-container {
+    border-top: none;
+}
+
+.editing-mode .ql-editor {
+    padding: 12px 20px;
+}
+
+/* Read-only Modus */
+.editor-toolbar-wrapper.read-only .ql-toolbar {
+    display: none;
+}
+
+.text-editor.read-only {
+    border: 2px solid gray;
+}
+
+/* Hintergrundfarben */
+.ql-editor .ql-bg-yellow {
+    background-color: #ffff00;
+    color: #000000;
+}
+
+.ql-editor .ql-bg-green {
+    background-color: var(--klee);
+    color: #000000;
+}
+
+/* "Text mit AI anpassen" Button */
+
+.adjust-content {
+    display: flex;
+    align-items: center;
+}
+
+.adjust-icon {
+    margin-right: 6px;
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    transition: filter 0.3s ease;
+}
+
+.adjust-text {
+    display: inline-block;
+    white-space: nowrap;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .ql-editor .ql-editor,
+    .ql-editor {
+        font-size: 14px;
+    }
+
+    .ql-toolbar.ql-snow {
+        padding: 6px 10px;
+    }
+
+    .ql-toolbar.ql-snow button {
+        padding: 2px 4px;
+        width: 24px;
+        height: 20px;
+    }
+
+    .ql-editor {
+        font-size: 1.25em;
+        min-height: 0px;
+    }
+
+        .editing-mode .ql-container {
+            padding: 0;
+        }
+    
+}

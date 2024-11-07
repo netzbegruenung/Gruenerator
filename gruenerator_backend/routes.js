@@ -13,8 +13,23 @@ const zitatSharepicClaudeRoute = require('./routes/sharepic/sharepic_claude/zita
 const aiImageModificationRouter = require('./routes/sharepic/sharepic_canvas/aiImageModification');
 const imageUploadRouter = require('./routes/sharepic/sharepic_canvas/imageUploadRouter');
 const processTextRouter = require('./routes/sharepic/sharepic_canvas/processTextRouter');
-const unsplashRoute  = require('./routes/unsplashApi');
+const claudeTextAdjustmentRoute = require('./routes/claude_text_adjustment');
+const etherpadRoute = require('./routes/etherpad/etherpadController');
 const claudeWahlprogrammRoute = require('./routes/claude_wahlprogramm');
+
+const withLazyLoading = (importFunc) => 
+  lazy(() => 
+    importFunc()
+      .then(module => {
+        // Simuliere Ladezeit im Development
+        if (process.env.NODE_ENV === 'development') {
+          return new Promise(resolve => 
+            setTimeout(() => resolve(module), 1000)
+          );
+        }
+        return module;
+      })
+  );
 
 function setupRoutes(app) {
   app.use('/api/claude', claudeRoute);
@@ -31,8 +46,9 @@ function setupRoutes(app) {
   app.use('/api/ai-image-modification', aiImageModificationRouter);
   app.use('/api/imageupload', imageUploadRouter);
   app.use('/api/processText', processTextRouter);
-  app.use('/api/unsplash', unsplashRoute);
-  app.use('/api/generate-wahlprogramm', claudeWahlprogrammRoute);
+  app.use('/api/claude_text_adjustment', claudeTextAdjustmentRoute); 
+  app.use('/api/etherpad', etherpadRoute);
+  app.use('/api/claude_wahlprogramm', claudeWahlprogrammRoute);
 }
 
 module.exports = { setupRoutes };
