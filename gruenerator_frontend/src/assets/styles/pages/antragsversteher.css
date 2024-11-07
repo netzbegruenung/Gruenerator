@@ -293,9 +293,15 @@
 .terms-link:hover {
   color: var(--weiß);
 }
-.antragsversteher .checkbox-wrapper-28 label {
+
+/* Checkbox Anpassungen */
+.antragsversteher-container .checkbox-with-text .checkbox-wrapper-28 label {
   border: none;
   padding: 20px;
+}
+
+.antragsversteher-container .checkbox-with-text .checkbox-text {
+  margin-top: 2px;
 }
 
 .checkbox-with-text {

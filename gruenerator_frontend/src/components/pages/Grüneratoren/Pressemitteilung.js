@@ -23,22 +23,19 @@ const Pressemitteilungsgenerator = ({ showHeaderFooter = true }) => {
 
   const handleSubmit = useCallback(async () => {
     const formData = { was, wie, zitatgeber, pressekontakt };
-    console.log('Submitting form with data:', formData);
     try {
       const content = await submitForm(formData);
       if (content) {
-        console.log('Form submitted successfully. Received content:', content);
         setPressemitteilung(content);
         setGeneratedContent(content);
         setTimeout(resetSuccess, 3000);
       }
     } catch (error) {
-      console.error('Error submitting form:', error);
+      // Error handling
     }
   }, [was, wie, zitatgeber, pressekontakt, submitForm, resetSuccess, setGeneratedContent]);
 
   const handleGeneratedContentChange = useCallback((content) => {
-    console.log('Generated content changed:', content);
     setPressemitteilung(content);
     setGeneratedContent(content);
   }, [setGeneratedContent]);

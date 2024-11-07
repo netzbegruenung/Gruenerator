@@ -44,10 +44,8 @@ const Antragsgenerator = ({ showHeaderFooter = true }) => {
     try {
       const content = await submitForm(formData);
       if (content) {
-        console.log('Neuer Antrag-Inhalt erhalten:', content);
         setGeneratedContent(content);
         setSuccess(true);
-        // Reset success after 3 seconds to match SubmitButton animation duration
         setTimeout(() => setSuccess(false), 3000);
       }
     } catch (err) {
@@ -58,7 +56,6 @@ const Antragsgenerator = ({ showHeaderFooter = true }) => {
   }, [formData, setLoading, setError, setSuccess, setFormData, submitForm, setGeneratedContent]);
 
   const handleGeneratedContentChange = useCallback((content) => {
-    console.log('Generated content changed:', content);
     setFormData(prevState => ({ ...prevState, antrag: content }));
   }, [setFormData]);
 
