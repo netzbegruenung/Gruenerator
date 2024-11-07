@@ -9,7 +9,6 @@ const anthropic = new Anthropic({
 
 router.post('/', async (req, res) => {
   const { thema, details, zeichenanzahl } = req.body;
-  console.log('Using API Key:', process.env.CLAUDE_API_KEY);
 
   try {
     const response = await anthropic.messages.create({

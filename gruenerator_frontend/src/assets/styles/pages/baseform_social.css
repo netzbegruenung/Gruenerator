@@ -254,6 +254,11 @@
     }
 }
 
+
+.social-media-baseform .display-header {
+    margin-bottom: 15px;  /* Neuer Abstand nach unten */
+}
+
 /* Checkbox Styles */
 .checkbox-wrapper-28 {
     --size: 15px;

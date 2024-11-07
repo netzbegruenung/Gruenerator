@@ -10,7 +10,6 @@ const anthropic = new Anthropic({
 router.route('/')
   .post(async (req, res) => {
     const { was, wie, zitatgeber, pressekontakt } = req.body;
-    console.log('Using API Key:', process.env.CLAUDE_API_KEY); // Debug-Ausgabe
 
     try {
       const response = await anthropic.messages.create({

@@ -27,8 +27,6 @@ const BaseForm = ({
   alwaysEditing = false,
   hideEditButton = false,
 }) => {
-  console.log('BaseForm wird gerendert', { title, loading, success, error });
-
   const {
     value,
     isEditing,
@@ -56,15 +54,12 @@ const BaseForm = ({
   // }, [originalLinkData, linkData, setLinkData]);
 
   const handleGeneratePost = React.useCallback(async () => {
-    console.log('Beitrag wird generiert');
     setGeneratePostLoading(true);
     announce(ANNOUNCEMENTS.GENERATING_TEXT);
     try {
       await onGeneratePost();
-      console.log('Beitrag erfolgreich generiert');
       announce(ANNOUNCEMENTS.TEXT_GENERATED);
     } catch (error) {
-      console.error('Fehler beim Generieren des Textes:', error);
       announce(ANNOUNCEMENTS.TEXT_GENERATION_ERROR);
     } finally {
       setGeneratePostLoading(false);
@@ -83,14 +78,11 @@ const BaseForm = ({
           setCopyIcon(<IoCopyOutline size={16} />);
         }, 2000);
       },
-      (error) => {
-        console.error('Fehler beim Kopieren:', error);
-      }
+      () => {}
     );
   }, [announce]);
 
   useEffect(() => {
-    console.log('useEffect: Barrierefreiheit wird eingerichtet');
     enhanceFocusVisibility();
 
     const labelledElements = [
@@ -107,12 +99,10 @@ const BaseForm = ({
   }, [setupKeyboardNav]);
 
   const handleToggleEditMode = () => {
-    console.log('Before toggle, value:', value);
     if (window.innerWidth <= 768) {
       document.body.style.overflow = isEditing ? 'auto' : 'hidden';
     }
     toggleEditMode();
-    console.log('After toggle, value:', value);
   };
 
 // const handleSaveClick = async () => {
@@ -148,20 +138,16 @@ const BaseForm = ({
 
   const isMobile = window.innerWidth <= 768;
   
-  // Wir fügen einen State hinzu, um zu tracken ob der Content sich geändert hat
   const [contentChanged, setContentChanged] = useState(false);
 
-  // Effect um Änderungen am Content zu erkennen
   useEffect(() => {
     if (value) {
       setContentChanged(true);
     }
   }, [value]);
 
-  // Hook für automatisches Scrollen - jetzt mit contentChanged
   useAutoScroll({ content: value, changed: contentChanged }, isMobile);
 
-  // Reset contentChanged wenn der User scrollt
   useEffect(() => {
     const handleScroll = () => {
       setContentChanged(false);
@@ -187,7 +173,6 @@ const BaseForm = ({
       <div className="form-container">
         <form onSubmit={(e) => {
           e.preventDefault();
-          console.log('Formular wird übermittelt');
           onSubmit();
         }}>
           <div className={`form-content ${hasFormErrors ? 'has-errors' : ''}`}>
