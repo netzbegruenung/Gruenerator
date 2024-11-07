@@ -1,10 +1,23 @@
 @import url('./variables.css');
 @import url('./typography.css');
 
+*, *:before, *:after { box-sizing: inherit; }
+html { box-sizing: border-box; }
+
+html {
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+}
+
 body {
     background-color: var(--background-color);
     color: var(--text-color);
     transition: background-color 0.5s, color 0.5s;
+    min-height: 100%;
 }
 
 a {
@@ -25,6 +38,9 @@ button {
     display: flex;
     justify-content: space-between;
     margin-bottom: 20px;
+    max-width: var(--container-max-width, 1200px);
+    margin-left: auto;
+    margin-right: auto;
 }
 
 .with-header {

@@ -42,7 +42,9 @@ const allowedOrigins = [
   'https://gruenerator-test.de', 
   'https://gruenerator.netzbegruenung.verdigado.net', 
   'https://gruenerator.de',
-  'https://beta.gruenerator.de'
+  'https://beta.gruenerator.de',
+  'https://jitvshdwttfvtqsjpdzw.supabase.co',
+  'https://gruenerator-test.netzbegruenung.verdigado.net'
 ];
 
 const corsOptions = {
@@ -65,23 +67,19 @@ app.use(cors(corsOptions));
 // Explizite Behandlung von OPTIONS-Anfragen für alle Routen
 app.options('*', cors(corsOptions));
 
-// Zusätzliche Middleware zur Sicherstellung der CORS-Header
-// Diese Zeilen können gelöscht werden:
-// app.use((req, res, next) => {
-//   res.header('Access-Control-Allow-Origin', allowedOrigins);
-//   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-//   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-//   next();
-// });
-
 // Security middleware
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      connectSrc: ["'self'", ...allowedOrigins],
-      imgSrc: ["'self'", "data:", "blob:", "https://images.unsplash.com"],
-      // Weitere Direktiven nach Bedarf hinzufügen
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "blob:", "https://*.unsplash.com"],
+      connectSrc: ["'self'", ...allowedOrigins, "https://api.unsplash.com", "https://*.supabase.co"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      frameSrc: ["'none'"],
     },
   },
   crossOriginResourcePolicy: { policy: "cross-origin" },
@@ -90,17 +88,27 @@ app.use(helmet({
 
 app.use(rateLimit({
   windowMs: 15 * 60 * 1000, // 15 Minuten
-  max: 300, // Erhöht auf 300 Anfragen pro Zeitfenster
+  max: 1000, // Erhöht von 300 auf 1000 Anfragen
   message: 'Zu viele Anfragen von dieser IP, bitte versuchen Sie es später erneut.',
-  standardHeaders: true, // Füge Standard-RateLimit-Informationen zu den `RateLimit-*` Headern hinzu
-  legacyHeaders: false, // Deaktiviere die `X-RateLimit-*` Header
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => req.ip,
+  skip: (req) => {
+    // Statische Ressourcen vom Rate-Limiting ausnehmen
+    return req.url.endsWith('.js') || 
+           req.url.endsWith('.css') || 
+           req.url.endsWith('.png') || 
+           req.url.endsWith('.jpg') || 
+           req.url.endsWith('.ico');
+  }
 }));
 
-// Zusätzliche Rate-Limiting für spezifische Routen
+// API-spezifisches Rate-Limit
 const apiLimiter = rateLimit({
   windowMs: 5 * 60 * 1000, // 5 Minuten
-  max: 150, // Erhöht auf 150 Anfragen pro 5 Minuten
-  message: 'Zu viele API-Anfragen, bitte versuchen Sie es in 5 Minuten erneut.'
+  max: 300, // Erhöht von 150 auf 300 Anfragen
+  message: 'Zu viele API-Anfragen, bitte versuchen Sie es in 5 Minuten erneut.',
+  keyGenerator: (req) => req.ip
 });
 
 // Wende das API-Limit auf alle Routen an, die mit /api beginnen
@@ -154,3 +162,9 @@ app._router.stack.forEach(function(r){
       logger.info(`${r.route.stack[0].method.toUpperCase()} ${r.route.path}`);
     }
 });
+
+const isValidUnsplashUrl = (url) => {
+  return url.startsWith('https://images.unsplash.com/') || url.startsWith('https://api.unsplash.com/');
+};
+
+// Verwenden Sie diese Funktion in Ihrem Proxy oder anderen relevanten Routen
