@@ -38,7 +38,6 @@ exports.createPadWithText = async (padId, text, documentType) => {
       `${formattedDocType}-${padId}` : 
       padId;
 
-    console.log('Creating pad with ID:', formattedPadId); // Debug-Log
 
     // Erstelle Pad
     await etherpadApi.get('/api/1.2.15/createPad', {
@@ -52,7 +51,6 @@ exports.createPadWithText = async (padId, text, documentType) => {
     
     // Generiere URL
     const padURL = `${ETHERPAD_FRONTEND_URL}/p/${formattedPadId}`;
-    console.log('Generated URL:', padURL); // Debug-Log
     return padURL;
   } catch (error) {
     console.error('Fehler bei Etherpad-API-Aufruf:', error.response ? error.response.data : error.message);

@@ -81,7 +81,6 @@ const platformGuidelines = {
 router.route('/')
   .post(async (req, res) => {
     const { thema, details, platforms = [], includeActionIdeas } = req.body;
-    console.log('Received request:', { thema, details, platforms, includeActionIdeas });
 
     try {
       const response = await anthropic.messages.create({
@@ -147,67 +146,35 @@ router.route('/')
         ]
       });
 
-      console.log('Raw API response:', JSON.stringify(response, null, 2));
-      console.log('Raw response text:', response.content[0].text);
-
       const sanitizeResponse = (responseText) => {
-        // Entferne führende und nachfolgende Leerzeichen
         let trimmed = responseText.trim();
-        
-        // Ersetze Zeilenumbrüche innerhalb von Anführungszeichen durch \n
         return trimmed.replace(/("(?:title|content)":\s*")([^"]*)"/g, (match, p1, p2) => {
           return p1 + p2.replace(/\n/g, "\\n") + '"';
         });
       };
-      
 
-     
       if (response && response.content && Array.isArray(response.content)) {
-        console.log('Response content:', response.content);
         let content;
         let fullText;
         try {
-          console.log('Raw response text:', response.content[0].text);
-          
-          // Extrahiere den Text aus der Antwort und führe die Vorverarbeitung durch
           fullText = sanitizeResponse(response.content[0].text);
-          console.log('Sanitized response text (first 500 chars):', fullText.substring(0, 500));
-      
-          // Versuche, die JSON-Antwort zu parsen
           content = JSON5.parse(fullText);
-          console.log('Parsed content:', JSON.stringify(content, null, 2));
         } catch (parseError) {
-          console.error('Error parsing response content:', parseError);
-          console.error('Problematic JSON:', fullText);
-          console.error('Error details:', {
-            message: parseError.message,
-            position: parseError.columnNumber,
-            snippet: fullText.substring(Math.max(0, parseError.columnNumber - 20), parseError.columnNumber + 20)
-          });
           res.status(500).send('Error parsing API response');
           return;
-      }
-        // Filter out platforms that weren't requested
+        }
+
         const filteredContent = Object.fromEntries(
           Object.entries(content).filter(([key]) => 
             platforms.includes(key) || (includeActionIdeas && key === 'actionIdeas')
           )
         );
 
-        console.log('Filtered content to be sent to client:', JSON.stringify(filteredContent, null, 2));
         res.json(filteredContent);
       } else {
-        console.error('API response missing or incorrect content structure:', JSON.stringify(response, null, 2));
         res.status(500).send('API response missing or incorrect content structure');
       }
     } catch (error) {
-      console.error('Error with Claude API:', error.message);
-      if (typeof fullText !== 'undefined') {
-        console.error('Problematic text:', fullText.substring(0, 100)); // Zeige die ersten 100 Zeichen
-      } else {
-        console.error('fullText is undefined');
-      }
-      console.error('Full error object:', JSON.stringify(error, null, 2));
       res.status(500).send('Internal Server Error');
     }
   });
