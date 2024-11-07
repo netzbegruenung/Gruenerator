@@ -242,7 +242,7 @@ export const FORM_PLACEHOLDERS = {
   TYPE: 'Bitte wählen',
   LOCATION: 'Gib den Ort oder die Region an, z.B. Siegburg, Köln etc...',
   ORGANIZATION: 'Gib die Gliederung an, z.B. LOrtsverband Detmold...',
-  CHARACTER_COUNT: 'Gib die gewünschte Zeichenzahl ein'
+  CHARACTER_COUNT: 'Gib die gewünschte Zeichenzahl (mindestens 1000) ein.'
 };
 
 // Footer Text

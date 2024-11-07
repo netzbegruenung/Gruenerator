@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useContext } from 'react';
 import PropTypes from 'prop-types';
 import '../../../assets/styles/common/variables.css';
 import '../../../assets/styles/common/global.css';
@@ -7,46 +7,70 @@ import '../../../assets/styles/pages/baseform.css';
 import { useDynamicTextSize } from '../../utils/commonFunctions';
 import useApiSubmit from '../../hooks/useApiSubmit';
 import BaseForm from '../../common/BaseForm';
-import { FORM_LABELS, FORM_PLACEHOLDERS, WAHLPROGRAMM_GENERATOR } from '../../utils/constants';
+import { FormContext } from '../../utils/FormContext';
+import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../utils/constants';
+import { useFormValidation } from '../../hooks/useFormValidation';
 
-const Wahlprogramm = ({ showHeaderFooter = true }) => {
+const Wahlprogrammgenerator = ({ showHeaderFooter = true }) => {
   const [thema, setThema] = useState('');
   const [details, setDetails] = useState('');
-  const [ort, setOrt] = useState('');
-  const [gliederung, setGliederung] = useState('');
-  const [zeichenzahl, setZeichenzahl] = useState('');
-  const [generatedContent, setGeneratedContent] = useState('');
-  const textSize = useDynamicTextSize(generatedContent, 1.2, 0.8, [1000, 2000]);
-  const { submitForm, loading, success, resetSuccess, error } = useApiSubmit('generate-wahlprogramm');
+  const [zeichenanzahl, setZeichenanzahl] = useState('');
+  const [wahlprogramm, setWahlprogramm] = useState('');
+  const textSize = useDynamicTextSize(wahlprogramm, 1.2, 0.8, [1000, 2000]);
+  const { submitForm, loading, success, resetSuccess, error } = useApiSubmit('/claude_wahlprogramm');
+
+  const { setGeneratedContent } = useContext(FormContext);
+
+  const validationRules = {
+    thema: { 
+      required: true,
+      message: 'Bitte geben Sie ein Thema an'
+    },
+    zeichenanzahl: { 
+      required: true,
+      min: 1000,
+      message: 'Die Zeichenanzahl muss mindestens 1000 betragen'
+    }
+  };
+
+  const { errors, validateForm } = useFormValidation(validationRules);
 
   const handleSubmit = useCallback(async () => {
-    const formData = { thema, details, ort, gliederung, zeichenzahl };
+    const formData = { thema, details, zeichenanzahl };
+    if (!validateForm(formData)) {
+      return;
+    }
+    console.log('Submitting form with data:', formData);
     try {
-      console.log('Submitting form data:', formData);
-      const response = await submitForm(formData);
-      console.log('Received response:', response);
-      if (response && response.generatedContent) {
-        setGeneratedContent(response.generatedContent);
+      const content = await submitForm(formData);
+      if (content) {
+        console.log('Form submitted successfully. Received content:', content);
+        setWahlprogramm(content);
+        setGeneratedContent(content);
         setTimeout(resetSuccess, 3000);
-      } else {
-        throw new Error('Unerwartetes Antwortformat');
       }
     } catch (error) {
       console.error('Error submitting form:', error);
     }
-  }, [thema, details, ort, gliederung, zeichenzahl, submitForm, resetSuccess]);
+  }, [thema, details, zeichenanzahl, submitForm, resetSuccess, setGeneratedContent, validateForm]);
+
+  const handleGeneratedContentChange = useCallback((content) => {
+    console.log('Generated content changed:', content);
+    setWahlprogramm(content);
+  }, []);
 
   return (
     <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
       <BaseForm
-        title={WAHLPROGRAMM_GENERATOR.TITLE}
-        subtitle={WAHLPROGRAMM_GENERATOR.SUBTITLE}
+        title="Grünerator für Wahlprogramm-Kapitel"
         onSubmit={handleSubmit}
         loading={loading}
         success={success}
         error={error}
-        generatedContent={generatedContent}
+        generatedContent={wahlprogramm}
         textSize={textSize}
+        onGeneratedContentChange={handleGeneratedContentChange}
+        validationErrors={errors}
       >
         <h3><label htmlFor="thema">{FORM_LABELS.THEME}</label></h3>
         <input
@@ -58,47 +82,26 @@ const Wahlprogramm = ({ showHeaderFooter = true }) => {
           onChange={(e) => setThema(e.target.value)}
           aria-required="true"
         />
-
+        
         <h3><label htmlFor="details">{FORM_LABELS.DETAILS}</label></h3>
         <textarea
           id="details"
           name="details"
+          style={{ height: '120px' }}
           placeholder={FORM_PLACEHOLDERS.DETAILS}
           value={details}
           onChange={(e) => setDetails(e.target.value)}
           aria-required="true"
         ></textarea>
 
-        <h3><label htmlFor="ort">{FORM_LABELS.LOCATION}</label></h3>
+        <h3><label htmlFor="zeichenanzahl">{FORM_LABELS.CHARACTER_COUNT}</label></h3>
         <input
-          id="ort"
-          type="text"
-          name="ort"
-          placeholder={FORM_PLACEHOLDERS.LOCATION}
-          value={ort}
-          onChange={(e) => setOrt(e.target.value)}
-          aria-required="true"
-        />
-
-        <h3><label htmlFor="gliederung">{FORM_LABELS.ORGANIZATION}</label></h3>
-        <input
-          id="gliederung"
-          type="text"
-          name="gliederung"
-          placeholder={FORM_PLACEHOLDERS.ORGANIZATION}
-          value={gliederung}
-          onChange={(e) => setGliederung(e.target.value)}
-          aria-required="true"
-        />
-
-        <h3><label htmlFor="zeichenzahl">{FORM_LABELS.CHARACTER_COUNT}</label></h3>
-        <input
-          id="zeichenzahl"
+          id="zeichenanzahl"
           type="number"
-          name="zeichenzahl"
+          name="zeichenanzahl"
           placeholder={FORM_PLACEHOLDERS.CHARACTER_COUNT}
-          value={zeichenzahl}
-          onChange={(e) => setZeichenzahl(e.target.value)}
+          value={zeichenanzahl}
+          onChange={(e) => setZeichenanzahl(e.target.value)}
           aria-required="true"
         />
       </BaseForm>
@@ -106,8 +109,8 @@ const Wahlprogramm = ({ showHeaderFooter = true }) => {
   );
 };
 
-Wahlprogramm.propTypes = {
+Wahlprogrammgenerator.propTypes = {
   showHeaderFooter: PropTypes.bool
 };
 
-export default Wahlprogramm;
+export default Wahlprogrammgenerator;

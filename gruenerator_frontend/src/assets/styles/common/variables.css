@@ -1,7 +1,3 @@
-@import url('./variables.css');
-@import url('./typography.css');
-
-
 :root {
     /* Basisfarben */
     --tanne: #005538;
@@ -12,6 +8,8 @@
     --sonne: #FFF17A;
     --weiß: #ffffff;
     --dunkelgruen: #005437;
+    --dunkelgruen-alt: #004d40; /* Eine dunklere Variante von dunkelgrün */
+
     --backgroundgruen: #f3faf6;
     --dunkelgrau: #333;
     --anthrazit: #222;
@@ -25,6 +23,8 @@
     --font-color-h3: var(--tanne);
     --link-color: var(--tanne);
     --button-background-color: #e0e0e0;
+    --button-color: var(--tanne);
+    --button-color-hover: var(--sand);
     --button-text-color: black;
 }
 
@@ -36,8 +36,10 @@
     --font-color: var(--sand);
     --font-color-h: var(--sand);
     --font-color-h3: var(--sand);
-    --link-color: lightblue;
+    --link-color: var(--tanne);
     --button-background-color: var(--tanne);
+    --button-color: var(--sand);
+    --button-color-hover: var(--klee);
     --button-text-color: white;
 }
 
@@ -51,7 +53,9 @@
         --font-color-h: var(--sand);
         --font-color-h3: var(--sand);
         --link-color: lightblue;
-        --button-background-color: # var(--tanne);
+        --button-background-color: var(--tanne);
+        --button-color: var(--sand);
+        --button-color-hover: var(--klee);
         --button-text-color: white;
     }
 }

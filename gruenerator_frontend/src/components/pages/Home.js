@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { PiNewspaper, PiInstagramLogo, PiFileText, PiMicrophone, PiLightbulb, PiClockBold } from 'react-icons/pi';
+import { PiNewspaper, PiInstagramLogo, PiFileText, PiMicrophone, PiLightbulb, PiBook } from 'react-icons/pi';
 import '../../assets/styles/common/variables.css';
 import '../../assets/styles/common/global.css';
 import '../../assets/styles/components/button.css';
@@ -27,7 +27,7 @@ const Home = () => {
                   <Link to="/pressemitteilung" aria-label="Zur Pressemitteilung erstellen"><PiNewspaper /> Pressemitteilung erstellen</Link>
                   <Link to="/socialmedia" aria-label="Zum Social-Media-Generator"><PiInstagramLogo /> Social-Media-Post schreiben</Link>
                   <Link to="/antragscheck" aria-label="Zum Antragscheck"><PiLightbulb /> Antrag checken</Link>
-                  <Link to="/" aria-label="Zum Sharepic-Generator (coming soon)"><PiClockBold /> Sharepic (soon)</Link>
+                  <Link to="/wahlprogramm" aria-label="Zum Wahlprogramm-Generator"><PiBook /> Wahlprogramm erstellen</Link>
                 </div>
               </div>
             </div>
@@ -57,8 +57,8 @@ const Home = () => {
 
   <div className="section">
     <div className="text-column">
-      <h2>Finanzierung</h2>
-      <p>Der Grünerator ist kostenfrei und soll es bleiben. Um die Kosten für Server und Software bezahlen zu können, wäre es super wenn du dich mit einem Euro beteiligen könntest.</p>
+      <h2>Newsletter</h2>
+      <p>Bleib informiert und melde dich für das <a href="https://896ca129.sibforms.com/serve/MUIFAFnH3lov98jrw3d75u_DFByChA39XRS6JkBKqjTsN9gx0MxCvDn1FMnkvHLgzxEh1JBcEOiyHEkyzRC-XUO2DffKsVccZ4r7CCaYiugoiLf1a-yoTxDwoctxuzCsmDuodwrVwEwnofr7K42jQc-saIKeVuB_8UxrwS18QIaahZml1qMExNno2sEC7HyMy9Nz4f2f8-UJ4QmW" target="_blank" rel="noopener noreferrer">Grünerator Fax</a> an, um keine Updates zu verpassen.</p>
     </div>
     <div className="image-column">
       <img src="/images/undraw_online_banking_re_kwqh.svg" alt="Finanzierung" loading="lazy" />

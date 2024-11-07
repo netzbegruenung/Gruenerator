@@ -1,0 +1,244 @@
+@import url('../common/variables.css');
+@import url('../common/global.css');
+@import url('../common/typography.css');
+
+/* Export-Button Stil */
+.export-button {
+    background-color: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 5px;
+    color: var(--font-color-h);
+    transition: opacity 0.3s ease, transform 0.2s ease;
+}
+
+.export-button:hover {
+    opacity: 0.7;
+    transform: scale(1.1);
+}
+
+/* Modal Stil */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.modal-content {
+    position: relative;
+    background-color: var(--background-color-alt);
+    padding: 30px;
+    border-radius: 12px;
+    max-width: 500px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.close-button {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--font-color-h);
+    transition: transform 0.2s ease;
+}
+
+.close-button:hover {
+    transform: scale(1.1);
+}
+
+.modal-content h2 {
+    color: var(--font-color-h);
+    margin-top: 0;
+    margin-bottom: 20px;
+    font-size: 1.5em;
+}
+
+.export-action-button, .open-button {
+    width: 100%;
+    padding: 12px;
+    margin-top: 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 1em;
+    cursor: pointer;
+    background-color: var(--tanne);
+    color: var(--weiß);
+    transition: background-color 0.3s ease;
+}
+
+.export-action-button:hover, .open-button:hover {
+    background-color: var(--klee);
+}
+
+.url-container {
+    display: flex;
+    margin-top: 20px;
+}
+
+.url-input {
+    flex-grow: 1;
+    padding: 10px;
+    border: 1px solid var(--hellgrau);
+    border-radius: 6px 0 0 6px;
+    font-size: 0.9em;
+    background-color: var(--weiß);
+}
+
+.copy-collaborate-link-button {
+    padding: 10px;
+    border: none;
+    border-radius: 0 6px 6px 0;
+    cursor: pointer;
+    background-color: var(--tanne);
+    color: var(--weiß);
+    transition: background-color 0.3s ease;
+}
+
+.error-message {
+    color: var(--sonne);
+    margin-top: 10px;
+}
+
+/* Mobile Optimierungen */
+@media (max-width: 768px) {
+    .modal {
+        align-items: flex-end; /* Modal von unten einfahren lassen */
+        padding: 0;
+    }
+
+    .modal-content {
+        position: fixed; /* Fixierte Position */
+        bottom: 0; /* Am unteren Rand fixieren */
+        left: 0;
+        right: 0;
+        max-height: 80vh; /* Etwas kleiner für besseres Scrolling */
+        width: 100%;
+        max-width: 100%;
+        margin: 0;
+        padding: 20px;
+        border-radius: 20px 20px 0 0; /* Nur oben abgerundet */
+        max-height: 90vh; /* Maximale Höhe auf mobilen Geräten */
+        overflow-y: auto; /* Scrollbar wenn nötig */
+    }
+
+    .modal-content h2 {
+        font-size: 1.3em;
+        padding-right: 30px; /* Platz für Close-Button */
+    }
+
+    .modal-content p {
+        font-size: 0.95em;
+        margin-bottom: 12px;
+    }
+
+    .url-container {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .url-input {
+        width: 100%;
+        border-radius: 6px;
+        font-size: 0.5em; /* Kleinere Schriftgröße */
+        padding: 12px;
+    }
+
+    .copy-collaborate-link-button {
+        width: 100%;
+        border-radius: 6px;
+        padding: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        background-color: var(--klee);
+        color: var(--weiß);
+    }
+
+    .copy-collaborate-link-button::after {
+        content: 'Link kopieren';
+        font-size: 0.9em;
+    }
+
+    .open-button {
+        margin-top: 10px;
+        padding: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        font-size: 0.9em;
+    }
+
+    /* Angepasste Animationen für Mobile */
+    @keyframes slideIn {
+        from { transform: translateY(100%); }
+        to { transform: translateY(0); }
+    }
+
+    .close-button {
+        top: 15px;
+        right: 15px;
+        padding: 8px;
+    }
+
+    .export-action-button {
+        padding: 14px;
+        font-size: 0.95em;
+    }
+}
+
+/* Zusätzliche Anpassungen für sehr kleine Bildschirme */
+@media (max-width: 360px) {
+    .modal-content {
+        padding: 15px;
+    }
+
+    .modal-content h2 {
+        font-size: 1.2em;
+    }
+
+    .modal-content p {
+        font-size: 0.9em;
+    }
+
+    .url-input,
+    .copy-collaborate-link-button,
+    .open-button {
+        padding: 10px;
+    }
+}
+
+/* Landscape-Modus Optimierungen */
+@media (max-height: 600px) and (orientation: landscape) {
+    .modal {
+        align-items: center;
+    }
+
+    .modal-content {
+        max-height: 85vh;
+        border-radius: 12px;
+        margin: 20px;
+    }
+
+    .modal-content p {
+        margin-bottom: 10px;
+    }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}

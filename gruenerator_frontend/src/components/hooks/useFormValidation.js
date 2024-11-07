@@ -10,11 +10,10 @@ export const useFormValidation = (validationRules) => {
       const fieldRules = validationRules[field];
       
       if (fieldRules.required && (!value || value.trim() === '')) {
-        newErrors[field] = `${field} ist erforderlich`;
-      } else if (fieldRules.pattern && !fieldRules.pattern.test(value)) {
-        newErrors[field] = fieldRules.message || `${field} ist ungültig`;
+        newErrors[field] = fieldRules.message || `${field} ist erforderlich`;
+      } else if (fieldRules.min && Number(value) < fieldRules.min) {
+        newErrors[field] = fieldRules.message || `${field} muss mindestens ${fieldRules.min} sein`;
       }
-      // Hier können weitere Validierungsregeln hinzugefügt werden
     });
 
     setErrors(newErrors);
