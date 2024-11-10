@@ -9,6 +9,7 @@ const cors = require('cors');
 const morgan = require('morgan');
 const fs = require('fs');
 const http = require('http');
+const https = require('https');
 const path = require('path');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
@@ -208,9 +209,28 @@ if (cluster.isMaster) {
     res.status(500).send('Something broke!');
   });
 
-  // Server starten
-  http.createServer(app).listen(port, host, () => {
-    logger.info(`Worker ${process.pid} started - HTTP Server running at http://${host}:${port}`);
+  // Ändere die Server-Konfiguration
+  const serverOptions = {
+    // HTTP/2 Einstellungen
+    enableHTTP2: true,
+    allowHTTP1: true, // Fallback auf HTTP/1
+    // PING Timeout erhöhen
+    timeout: 5000,
+    // Keep-Alive Einstellungen
+    keepAliveTimeout: 60000,
+    headersTimeout: 65000,
+  };
+
+  // Ersetze den Server-Start
+  const server = http.createServer(serverOptions, app);
+
+  // PING Intervall konfigurieren
+  server.on('connection', (socket) => {
+    socket.setKeepAlive(true, 30000); // 30 Sekunden
+  });
+
+  server.listen(port, host, () => {
+    logger.info(`Worker ${process.pid} started - Server running at http://${host}:${port}`);
   });
 }
 
