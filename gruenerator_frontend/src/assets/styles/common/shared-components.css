@@ -1,0 +1,262 @@
+/* Gemeinsame Basis-Stile */
+.flex-base {
+    display: flex;
+    flex-direction: column;
+}
+  
+.container-base {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    transition: all 0.3s ease;
+}
+  
+/* Überschriften Basis-Stile */
+.form-container h3,
+.display-container h3 {
+    font-family: 'GrueneType';
+    font-size: 1.5em;
+    text-align: left;
+    margin-top: 0;
+}
+
+.form-container h3 {
+    color: var(--sand);
+    margin-bottom: -12px;
+}
+
+.display-container h3 {
+    color: var(--font-color-h3);
+    margin-bottom: 8px;
+}
+
+.sidebar h2 {
+    font-family: var(--font-family-heading);
+    font-size: 2em;
+    color: var(--weiß);
+    margin-top: 0;
+}
+
+/* Mobile Anpassungen */
+@media (max-width: 768px) {
+    .form-container h3,
+    .display-container h3 {
+        font-size: 1.15em;
+    }
+
+    .sidebar h2 {
+        font-size: 1.5em;
+    }
+}
+
+/* Subtext Basis-Stile */
+.form-container .subtext {
+    color: var(--sand);
+    font-size: 0.9em;
+    margin-top: 10px;
+    margin-bottom: 0;
+    text-align: left;
+}
+  
+/* Input und Form Basis-Stile */
+.input-base,
+.form-container input,
+.form-container textarea,
+.form-container select,
+.sidebar input,
+.sidebar textarea,
+.sidebar select {
+    width: 100%;
+    padding: 8px;
+    border: 2px solid transparent;
+    border-radius: 4px;
+    box-sizing: border-box;
+    font-family: var(--font-family-base);
+    font-size: 0.9em;
+    outline: none;
+    color: var(--dunkelgrau);
+    background-color: var(--weiß);
+    transition: all 0.3s ease;
+    margin: 15px 0;
+}
+
+.input-base:focus,
+.form-container input:focus,
+.form-container textarea:focus,
+.form-container select:focus,
+.sidebar input:focus,
+.sidebar textarea:focus {
+    border: 2px solid var(--grashalm);
+    padding: 8px;
+}
+
+/* Textarea spezifische Höhe */
+.form-container textarea,
+.sidebar textarea {
+    height: 120px;
+}
+  
+.header-base {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+  
+.action-button-base {
+    background-color: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 5px;
+    transition: all 0.3s ease;
+}
+
+/* Checkbox Styles */
+.checkbox-wrapper-28 {
+    --size: 15px;
+    position: relative;
+    display: inline-flex;
+    margin: 0 10px 10px 0;
+}
+
+.checkbox-wrapper-28 .promoted-input-checkbox {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    height: 0;
+    width: 0;
+}
+
+.checkbox-wrapper-28 label {
+    color: var(--weiß);
+    cursor: pointer;
+    position: relative;
+    display: flex;
+    align-items: center;
+    border: 1.5px solid var(--sand);
+    border-radius: 8px;
+    padding: 8px 12px 8px 35px;
+    transition: background-color 0.3s ease;
+    white-space: nowrap;
+}
+
+.checkbox-wrapper-28 label:hover {
+    background-color: #007a54;
+}
+
+.checkbox-wrapper-28 label::before {
+    content: '';
+    position: absolute;
+    left: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: var(--size);
+    height: var(--size);
+    border: 1.5px solid var(--weiß);
+    border-radius: 3px;
+    background-color: transparent;
+    transition: all 0.2s ease-in-out;
+}
+
+.checkbox-wrapper-28 .checkbox-svg {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%) scale(0.8);
+    width: calc(var(--size) - 4px);
+    height: calc(var(--size) - 4px);
+    stroke: var(--weiß);
+    stroke-width: 3px;
+    fill: none;
+    opacity: 0;
+    transition: all 0.2s ease-in-out;
+}
+
+.checkbox-wrapper-28 input:checked ~ label .checkbox-svg {
+    opacity: 1;
+    stroke: var(--tanne);
+    transform: translateY(-50%) scale(0.8) rotate(3deg);
+}
+
+.platform-checkboxes {
+    margin-top: 20px;
+    display: flex;
+    flex-wrap: wrap;
+}
+
+/* Mobile Anpassungen für Checkboxen */
+@media (max-width: 768px) {
+    .platform-checkboxes {
+        gap: 6px;
+        justify-content: flex-start;
+    }
+}
+
+/* Action Buttons */
+.content-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.action-button {
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--font-color-h);
+  transition: opacity 0.3s ease, transform 0.2s ease;
+}
+
+.action-button:hover {
+  opacity: 0.7;
+  transform: scale(1.1);
+}
+
+.action-button:focus {
+  outline: 2px solid var(--grashalm);
+  outline-offset: 2px;
+}
+
+/* Spezifische Button-Stile */
+.action-button.copy-button svg,
+.action-button.export-button svg,
+.action-button.edit-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Mobile Anpassungen für Action Buttons */
+@media (max-width: 768px) {
+  .content-actions {
+    gap: 5px;
+  }
+
+  .action-button {
+    padding: 6px;
+  }
+
+  .action-button svg {
+    width: 14px;
+    height: 14px;
+  }
+}
+
+/* Tooltip Anpassungen für Action Buttons */
+.action-button[data-tooltip-id] {
+  position: relative;
+}
+
+/* Active State */
+.action-button:active {
+  transform: scale(0.95);
+}
+
+/* Disabled State */
+.action-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
