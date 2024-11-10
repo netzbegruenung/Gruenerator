@@ -1,0 +1,14 @@
+/* Kritische Styles zuerst */
+@import './common/variables.css';
+@import './common/typography.css';
+@import './common/global.css';
+
+/* Verhindert Font-Flashing */
+body {
+  font-family: 'PT Sans', Arial, sans-serif !important;
+}
+
+/* Stellt sicher, dass alle Elemente die Schriftart erben */
+* {
+  font-family: inherit;
+}
