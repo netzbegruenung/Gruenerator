@@ -8,10 +8,7 @@ import { useLocation } from 'react-router-dom';
 import { useUnmount } from 'react-use';
 
 const ExportToDocument = ({ content, ...props }) => {
-<<<<<<< Updated upstream
   const location = useLocation();
-=======
->>>>>>> Stashed changes
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [padURL, setPadURL] = useState('');
   const [hasExistingPad, setHasExistingPad] = useState(false);
@@ -117,7 +114,6 @@ const ExportToDocument = ({ content, ...props }) => {
           <button className="close-button" onClick={handleCloseModal}>
             <IoCloseOutline size={24} />
           </button>
-<<<<<<< Updated upstream
           <h2 id="export-modal-title">Grünerator Collaborate Export</h2>
           {hasExistingPad ? (
             <>
@@ -149,16 +145,6 @@ const ExportToDocument = ({ content, ...props }) => {
               ) : (
                 <>
                   <p>Deine {documentType} wurde erfolgreich exportiert. Hier ist dein Collaborate-Link:</p>
-=======
-          <h2 id="export-modal-title">Grünerator Office Export</h2>
-          {!hasExistingPad ? (
-            <>
-              <p>Möchtest du diesen Text in Grünerator Office exportieren?</p>
-              <p>Grünerator Office ermöglicht die gemeinsame Textbearbeitung in Echtzeit. Mehrere Personen können gleichzeitig an einem Dokument arbeiten. Änderungen sind sofort für alle sichtbar, und das Dokument ist einfach über einen Link zugänglich. Perfekt für Brainstorming, gemeinsames Schreiben oder schnelle Zusammenarbeit an Texten.</p>
-              {padURL ? (
-                <>
-                  <p>Hier ist dein Link zum Office-Dokument:</p>
->>>>>>> Stashed changes
                   <div className="url-container">
                     <input type="text" value={padURL} readOnly className="url-input" />
                     <button onClick={handleCopyCollaborateLink} className="copy-collaborate-link-button">
@@ -169,34 +155,8 @@ const ExportToDocument = ({ content, ...props }) => {
                     <IoOpenOutline size={20} /> Link öffnen
                   </button>
                 </>
-<<<<<<< Updated upstream
               )}
             </>
-=======
-              ) : (
-                <button 
-                  onClick={handleEtherpadExport} 
-                  disabled={loading}
-                  className="export-action-button"
-                >
-                  {loading ? 'Wird exportiert...' : 'Zu Grünerator Office exportieren'}
-                </button>
-              )}
-            </>
-          ) : (
-            <>
-              <p>Dein Text wurde bereits in Grünerator Office exportiert.</p>
-              <div className="url-container">
-                <input type="text" value={padURL} readOnly className="url-input" />
-                <button onClick={handleCopyCollaborateLink} className="copy-collaborate-link-button">
-                  <IoCopyOutline size={20} />
-                </button>
-              </div>
-              <button onClick={handleOpenLink} className="open-button">
-                <IoOpenOutline size={20} /> Link öffnen
-              </button>
-            </>
->>>>>>> Stashed changes
           )}
           {error && <p className="error-message" role="alert">{error}</p>}
         </div>
@@ -208,15 +168,9 @@ const ExportToDocument = ({ content, ...props }) => {
   return (
     <>
       <button
-<<<<<<< Updated upstream
         onClick={handleExport}
         className="action-button"
         aria-label="Als Dokument exportieren"
-=======
-        onClick={() => setIsModalOpen(true)}
-        className="action-button export-button"
-        aria-label="Zu Grünerator Office exportieren"
->>>>>>> Stashed changes
         {...props}
       >
         <IoDocumentOutline size={16} />
