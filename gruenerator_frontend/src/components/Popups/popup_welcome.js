@@ -24,6 +24,12 @@ const WelcomePopup = () => {
     <div className="welcome-popup-overlay">
       <div className="welcome-popup">
         <h1>Das Work Update ist da!</h1>
+<<<<<<< Updated upstream
+=======
+        <p>
+          Der Grünerator hat neue Features bekommen:
+        </p>
+>>>>>>> Stashed changes
         <ul>
           <li>Grünerator Editor: Nach der &quot;Grünerierung&quot; kannst du den Text direkt anpassen</li>
           <li>Grünerator KI-Textverbesserung: Markiere Text im Editor und nutze die neue KI-Anpassung (Desktop only)</li>
@@ -32,6 +38,12 @@ const WelcomePopup = () => {
         </ul>
         <p>
           Melde dich für das GRÜNERATOR FAX an und erhalte die wichtigsten Infos zu KI und dem Grünerator. Kostenlos, kein Spam, nur wenige E-Mails. Versprochen!
+<<<<<<< Updated upstream
+=======
+        </p>
+        <p>
+          <strong>Viel Spaß mit dem Grünerator<br/>Euer Moritz</strong>
+>>>>>>> Stashed changes
         </p>
         <div className="welcome-button-container">
           <button
