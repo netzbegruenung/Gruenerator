@@ -332,6 +332,27 @@
     flex-wrap: wrap;
 }
 
+/* ... existing styles ... */
+
+.social-media-editor.reading .ql-toolbar {
+  display: none;
+}
+
+.social-media-editor.reading .ql-container {
+  border: none;
+}
+
+.social-media-editor.reading .ql-editor {
+  padding: 15px;
+  min-height: auto;
+}
+
+.social-media-editor.editing .ql-container {
+  border: 1px solid var(--hellgrau);
+}
+
+/* ... rest of the styles ... */
+
 /* Mobile Anpassungen */
 @media (max-width: 768px) {
     .social-media-baseform.base-container {

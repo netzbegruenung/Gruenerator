@@ -17,8 +17,11 @@ import { copyFormattedContent } from '../utils/commonFunctions';
 import ExportToDocument from './ExportToDocument';
 import { useAutoScroll } from '../utils/commonFunctions';
 import { Tooltip } from 'react-tooltip';
+<<<<<<< Updated upstream
 import '../../assets/styles/pages/baseform_social.css';
 
+=======
+>>>>>>> Stashed changes
 
 const BaseForm = ({
   title,
@@ -152,10 +155,15 @@ const BaseForm = ({
               onClick={() => handleCopyContent(platform, content)}
               className={`action-button copy-button-${validClassName}`}
               aria-label={`${ARIA_LABELS.COPY} ${platform}`}
+<<<<<<< Updated upstream
               {...(!isMobileView && {
                 'data-tooltip-id': "action-tooltip",
                 'data-tooltip-content': "In die Zwischenablage kopieren"
               })}
+=======
+              data-tooltip-id="action-tooltip"
+              data-tooltip-content="In die Zwischenablage kopieren"
+>>>>>>> Stashed changes
             >
               {copyIcons[platform] || <IoCopyOutline size={16} />}
             </button>
@@ -164,10 +172,15 @@ const BaseForm = ({
                 onClick={() => handleSavePost(platform, content)} 
                 className="action-button" 
                 aria-label={`Save ${platform} content`}
+<<<<<<< Updated upstream
                 {...(!isMobileView && {
                   'data-tooltip-id': "action-tooltip",
                   'data-tooltip-content': "Änderungen speichern"
                 })}
+=======
+                data-tooltip-id="action-tooltip"
+                data-tooltip-content="Änderungen speichern"
+>>>>>>> Stashed changes
               >
                 <IoSave size={16} />
               </button>
@@ -176,10 +189,15 @@ const BaseForm = ({
                 onClick={() => handleEditPost(platform)} 
                 className="action-button" 
                 aria-label={`Edit ${platform} content`}
+<<<<<<< Updated upstream
                 {...(!isMobileView && {
                   'data-tooltip-id': "action-tooltip",
                   'data-tooltip-content': "Beitrag bearbeiten"
                 })}
+=======
+                data-tooltip-id="action-tooltip"
+                data-tooltip-content="Beitrag bearbeiten"
+>>>>>>> Stashed changes
               >
                 <IoPencil size={16} />
               </button>
@@ -302,10 +320,15 @@ const BaseForm = ({
               {Object.keys(generatedContent).length > 0 && (
                 <ExportToDocument 
                   content={getCombinedContent()} 
+<<<<<<< Updated upstream
                   {...(!isMobileView && {
                     'data-tooltip-id': "action-tooltip",
                     'data-tooltip-content': "Als Dokument exportieren"
                   })}
+=======
+                  data-tooltip-id="action-tooltip"
+                  data-tooltip-content="Als Dokument exportieren"
+>>>>>>> Stashed changes
                 />
               )}
             </div>
@@ -315,9 +338,13 @@ const BaseForm = ({
           </div>
         </div>
       </div>
+<<<<<<< Updated upstream
       {!isMobileView && (
         <Tooltip id="action-tooltip" place="bottom" />
       )}
+=======
+      <Tooltip id="action-tooltip" place="bottom" />
+>>>>>>> Stashed changes
     </div>
   );
 };
