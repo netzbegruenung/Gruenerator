@@ -2,7 +2,6 @@ import React, { createContext, useState, useCallback, useMemo, useEffect } from 
 import PropTypes from 'prop-types';
 import debounce from 'lodash.debounce';
 import useApiSubmit from '../hooks/useApiSubmit';
-import { useSupabaseStorage } from '../hooks/useSupabaseStorage';
 import { removeAllHighlights } from '../utils/highlightUtils';
 import { useNavigate, useLocation } from 'react-router-dom';
 
@@ -27,7 +26,6 @@ export const FormProvider = ({
   const { submitForm, loading, error } = useApiSubmit('/claude_text_adjustment');
   const [originalContent, setOriginalContent] = useState('');
   const [linkName, setLinkName] = useState('');
-  const { saveContent, getContent, listSavedContents, deleteContent, loading: supabaseLoading, error: supabaseError } = useSupabaseStorage();
   const [linkData, setLinkData] = useState(originalLinkData);
   const [isApplyingAdjustment, setIsApplyingAdjustment] = useState(false);
   const [hasContent, setHasContent] = useState(false);
@@ -156,7 +154,7 @@ export const FormProvider = ({
   const handleAiAdjustment = useCallback((adjustmentOrState, selectedText) => {
     if (typeof adjustmentOrState === 'boolean') {
       setIsAdjusting(adjustmentOrState);
-      setIsApplyingAdjustment(false); // Immer auf false setzen, wenn der Zustand geändert wird
+      setIsApplyingAdjustment(false);
       if (adjustmentOrState) {
         setOriginalSelectedText(selectedText);
       } else {
@@ -229,77 +227,6 @@ export const FormProvider = ({
     }
   }, [submitForm, setNewSelectedText, value]);
 
-  const handleSaveContent = useCallback(async (content, name) => {
-    if (!name.trim()) {
-      console.error('Link-Name ist erforderlich');
-      return;
-    }
-    try {
-      await saveContent(content, name);
-      console.log('Inhalt erfolgreich gespeichert');
-    } catch (err) {
-      console.error('Fehler beim Speichern des Inhalts:', err);
-    }
-  }, [saveContent]);
-
-  const handleLoadContent = useCallback(async (name) => {
-    if (!name.trim()) {
-      console.error('Link-Name ist erforderlich');
-      return;
-    }
-    try {
-      const content = await getContent(name);
-      if (content) {
-        setValue(content);
-        console.log('Inhalt erfolgreich geladen');
-      } else {
-        console.log('Kein Inhalt für diesen Link-Namen gefunden');
-      }
-    } catch (err) {
-      console.error('Fehler beim Laden des Inhalts:', err);
-    }
-  }, [getContent, setValue]);
-
-  const handleListSavedContents = useCallback(async () => {
-    try {
-      const savedContents = await listSavedContents();
-      console.log('Gespeicherte Inhalte:', savedContents);
-      return savedContents;
-    } catch (err) {
-      console.error('Fehler beim Auflisten der gespeicherten Inhalte:', err);
-      return [];
-    }
-  }, [listSavedContents]);
-
-  const handleDeleteContent = useCallback(async (name) => {
-    try {
-      await deleteContent(name);
-      console.log('Inhalt erfolgreich gelöscht');
-    } catch (err) {
-      console.error('Fehler beim Löschen des Inhalts:', err);
-    }
-  }, [deleteContent]);
-
-  const saveCurrentContent = useCallback(async (name, generatedLink) => {
-    console.log('saveCurrentContent aufgerufen', { name, generatedLink, value });
-    if (!name.trim()) {
-      console.error('Link-Name ist erforderlich');
-      return { success: false, error: 'Link-Name ist erforderlich' };
-    }
-    try {
-      if (linkData) {
-        await saveContent(value, linkData.linkName, linkData.generatedLink);
-      } else {
-        await saveContent(value, name, generatedLink);
-      }
-      console.log('Inhalt erfolgreich gespeichert');
-      return { success: true };
-    } catch (err) {
-      console.error('Fehler beim Speichern des Inhalts:', err);
-      return { success: false, error: err.message };
-    }
-  }, [saveContent, value, linkData]);
-
   const clearAllHighlights = useCallback(() => {
     if (quillRef.current) {
       removeAllHighlights(quillRef.current.getEditor());
@@ -343,13 +270,6 @@ export const FormProvider = ({
     removeAllHighlights,
     linkName,
     setLinkName,
-    handleSaveContent,
-    handleLoadContent,
-    handleListSavedContents,
-    handleDeleteContent,
-    supabaseLoading,
-    supabaseError,
-    saveCurrentContent,
     linkData,
     setLinkData,
     setQuillInstance,
@@ -385,13 +305,6 @@ export const FormProvider = ({
     setOriginalContent,
     removeAllHighlights,
     linkName,
-    handleSaveContent,
-    handleLoadContent,
-    handleListSavedContents,
-    handleDeleteContent,
-    supabaseLoading,
-    supabaseError,
-    saveCurrentContent,
     linkData,
     setLinkData,
     setQuillInstance,
