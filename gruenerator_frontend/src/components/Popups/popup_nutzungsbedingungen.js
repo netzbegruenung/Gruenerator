@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import '../../assets/styles/common/variables.css';
 import '../../assets/styles/common/global.css';
 import '../../assets/styles/components/button.css';
-import '../../assets/styles/components/popup_nutzungsbedingungen.css';
+import '../../assets/styles/components/popup.css';
 
 const PopupNutzungsbedingungen = () => {
   const [visible, setVisible] = useState(false);
@@ -23,6 +23,7 @@ const PopupNutzungsbedingungen = () => {
 
   return (
     <div className="popup-terms">
+      <button className="close-button" onClick={handleAccept}>&times;</button>
       <p className="terms-text">
         Durch die Nutzung dieser Website stimmst du den{' '}
         <a href="/datenschutz#nutzungsbedingungen" className="terms-link">

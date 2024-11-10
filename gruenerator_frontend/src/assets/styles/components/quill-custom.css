@@ -16,6 +16,14 @@
     user-select: text;
 }
 
+.ql-editor.ql-blank {
+    border: none !important;
+}
+
+.ql-toolbar.ql-snow {
+    border: none !important;
+}
+
 .ql-editor::selection {
     background-color: rgba(255, 255, 0, 0.3); /* Gelbe, halbtransparente Markierung */
 }
