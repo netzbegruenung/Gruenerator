@@ -104,11 +104,6 @@ const Datenschutz = () => {
         ist.
       </p>
 
-      <h2>Verwendung von Supabase</h2>
-      <p>
-        Wir nutzen die Dienste von Supabase (Supabase, Inc., 1321 Upland Drive, PMB 19350, Houston, TX 77043, USA) zur Speicherung und Verarbeitung von Benutzerinhalten. Supabase fungiert dabei als unser Auftragsverarbeiter.
-      </p>
-
       <h3>Art der gespeicherten Daten</h3>
       <p>
         Folgende Daten werden in Supabase gespeichert:
