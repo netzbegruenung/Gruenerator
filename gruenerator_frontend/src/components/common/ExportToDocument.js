@@ -86,15 +86,15 @@ const ExportToDocument = ({ content, ...props }) => {
         throw new Error('Keine gültige Pad-URL erhalten');
       }
     } catch (err) {
-      console.error('Fehler beim Exportieren zu Grünerator Collaborate:', err);
+      console.error('Fehler beim Exportieren zu Grünerator Office:', err);
     }
   };
 
   const handleCopyCollaborateLink = () => {
     navigator.clipboard.writeText(padURL).then(() => {
-      alert('Collaborate-Link wurde in deine Zwischenablage kopiert!');
+      alert('Office-Link wurde in deine Zwischenablage kopiert!');
     }).catch(err => {
-      console.error('Fehler beim Kopieren des Collaborate-Links:', err);
+      console.error('Fehler beim Kopieren des Office-Links:', err);
     });
   };
 

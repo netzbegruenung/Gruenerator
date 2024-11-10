@@ -408,3 +408,33 @@
     display: none !important;
   }
 }
+
+/* Emoji Button Styles */
+.ql-snow .ql-emoji {
+  width: 24px;
+  height: 24px;
+}
+
+/* Emoji Picker Container */
+.ql-emoji-list {
+  background: var(--weiß);
+  border: 1px solid var(--hellgrau);
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+/* Emoji Categories */
+.ql-emoji-list .emoji-categories {
+  border-bottom: 1px solid var(--hellgrau);
+}
+
+/* Individual Emojis */
+.ql-emoji-list .emoji-item {
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.ql-emoji-list .emoji-item:hover {
+  background-color: var(--sand);
+}
