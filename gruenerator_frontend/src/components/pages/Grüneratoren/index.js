@@ -1,7 +1,6 @@
 import { lazy } from 'react';
 
-const PRELOAD_DELAY = 2000; // 2 Sekunden nach App-Start
-
+const PRELOAD_DELAY = 2000; 
 const withImmedatePreloading = (importFunc) => {
   // Sofortiges Laden des Moduls
   const modulePromise = importFunc();
@@ -26,14 +25,22 @@ export const GrueneratorenBundle = {
   WahlpruefsteinThueringen: withImmedatePreloading(() => import('./WahlpruefsteinThueringen'))
 };
 
-// Sofortiges Vorladen aller Grüneratoren
-export const preloadAllGrueneratoren = () => {
+// Nur häufig genutzte Module vorladen
+const CRITICAL_MODULES = ['SocialMedia', 'Pressemitteilung'];
+
+export const preloadCriticalModules = () => {
   setTimeout(() => {
-    Object.values(GrueneratorenBundle).forEach(component => {
-      component.preload();
+    CRITICAL_MODULES.forEach(module => {
+      GrueneratorenBundle[module].preload();
     });
   }, PRELOAD_DELAY);
 };
 
 // Führe preload direkt aus
-preloadAllGrueneratoren();
+preloadCriticalModules();
+
+export const preloadAllGrueneratoren = () => {
+  Object.values(GrueneratorenBundle).forEach(component => {
+    component.preload();
+  });
+};

@@ -42,6 +42,10 @@
     margin: 0 10px 10px 0;
 }
 
+.footer a {
+    color: #fff;
+}
+
 .footer-nav ul li a {
     font-family: 'PT Sans', Arial, sans-serif;
     font-weight: bold;
