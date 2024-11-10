@@ -212,7 +212,6 @@ const BaseForm = ({
             <div className="display-actions">
               {value && (
                 <>
-<<<<<<< Updated upstream
                   <button
                     onClick={() => handleCopyToClipboard(value)}
                     className="action-button"
@@ -233,38 +232,15 @@ const BaseForm = ({
                   >
                     <ExportToDocument content={value} />
                   </button>
-=======
-                  <button 
-                    onClick={() => handleCopyToClipboard(value)} 
-                    className="action-button"
-                    aria-label={ARIA_LABELS.COPY}
-                    data-tooltip-id="action-tooltip"
-                    data-tooltip-content="Kopieren"
-                  >
-                    {copyIcon}
-                  </button>
-
-                  <ExportToDocument 
-                    content={value} 
-                    data-tooltip-id="action-tooltip"
-                    data-tooltip-content="Als Dokument exportieren"
-                  />
-
->>>>>>> Stashed changes
                   {allowEditing && !hideEditButton && (
                     <button
                       onClick={handleToggleEditMode}
                       className="action-button"
                       aria-label={isEditing ? ARIA_LABELS.SAVE : ARIA_LABELS.EDIT}
-<<<<<<< Updated upstream
                       {...(!isMobileView && {
                         'data-tooltip-id': "action-tooltip",
                         'data-tooltip-content': isEditing ? "Bearbeiten beenden" : "Bearbeiten"
                       })}
-=======
-                      data-tooltip-id="action-tooltip"
-                      data-tooltip-content={isEditing ? "Bearbeiten beenden" : "Bearbeiten"}
->>>>>>> Stashed changes
                     >
                       <IoPencil size={16} />
                     </button>
@@ -295,21 +271,9 @@ const BaseForm = ({
           )}
         </div>
       </div>
-<<<<<<< Updated upstream
       {!isMobileView && (
         <Tooltip id="action-tooltip" place="bottom" />
       )}
-=======
-      {/* <SaveLinkModal
-        isOpen={isSaveLinkModalOpen}
-        onClose={() => setIsSaveLinkModalOpen(false)}
-        onSave={saveCurrentContent}
-        savedLinks={savedLinks}
-        onDelete={handleDeleteContent}
-        onLoad={handleLoadContent}
-      /> */}
-      <Tooltip id="action-tooltip" place="bottom" />
->>>>>>> Stashed changes
     </div>
   );
 };
@@ -328,7 +292,6 @@ BaseForm.propTypes = {
   initialContent: PropTypes.string,
   alwaysEditing: PropTypes.bool,
   hideEditButton: PropTypes.bool,
-  // originalLinkData: PropTypes.object,
 };
 
 export default BaseForm;

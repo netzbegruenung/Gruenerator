@@ -38,3 +38,9 @@ export const preloadCriticalModules = () => {
 
 // Führe preload direkt aus
 preloadCriticalModules();
+
+export const preloadAllGrueneratoren = () => {
+  Object.values(GrueneratorenBundle).forEach(component => {
+    component.preload();
+  });
+};
