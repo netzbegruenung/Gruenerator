@@ -5,8 +5,6 @@ const Home = lazy(() => import('../components/pages/Home'));
 const Webbaukasten = lazy(() => import('../components/pages/Webbaukasten'));
 const Datenschutz = lazy(() => import('../components/pages/Impressum_Datenschutz_Terms/Datenschutz'));
 const Impressum = lazy(() => import('../components/pages/Impressum_Datenschutz_Terms/Impressum'));
-const Gruenerator_Editor = lazy(() => import('../components/pages/Gruenerator_Editor'));
-const SupabaseTest = lazy(() => import('../components/utils/SupabaseTest'));
 
 // Lazy loading für Grüneratoren Bundle
 export const GrueneratorenBundle = {
@@ -42,17 +40,8 @@ export const routes = {
       withForm: true, 
       withSharepic: true 
     },
-    { 
-      path: '/ae/:linkName', 
-      component: Gruenerator_Editor, 
-      withForm: true, 
-      isEditor: true 
-    },
-    { 
-      path: '/supabase-test', 
-      component: SupabaseTest, 
-      isSpecial: true 
-    }
+ 
+  
   ],
   noHeaderFooter: Object.entries(GrueneratorenBundle).map(([key]) => ({
     path: `/${key.toLowerCase()}-no-header-footer`,
