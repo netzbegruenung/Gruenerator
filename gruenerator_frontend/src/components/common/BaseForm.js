@@ -292,7 +292,6 @@ BaseForm.propTypes = {
   initialContent: PropTypes.string,
   alwaysEditing: PropTypes.bool,
   hideEditButton: PropTypes.bool,
-  // originalLinkData: PropTypes.object,
 };
 
 export default BaseForm;
