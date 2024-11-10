@@ -1,25 +1,15 @@
 const express = require('express');
-const { Anthropic } = require('@anthropic-ai/sdk');
 const router = express.Router();
-require('dotenv').config();
-
-const anthropic = new Anthropic({
-  apiKey: process.env.CLAUDE_API_KEY
-});
+const AIRequestManager = require('../utils/AIRequestManager');
 
 router.post('/', async (req, res) => {
   const { thema, details, zeichenanzahl } = req.body;
 
   try {
-    const response = await anthropic.messages.create({
-      model: "claude-3-5-sonnet-20240620",
-      max_tokens: 4000,
-      temperature: 0.3,
-      system: `Du bist Schreiber des Wahlprogramms einer Gliederung von Bündnis 90/Die Grünen.`,
-      messages: [
-        {
-          role: "user",
-          content: `Erstelle ein Kapitel für ein Wahlprogramm zum Thema ${thema} im Stil des vorliegenden Dokuments.
+    const result = await AIRequestManager.processRequest({
+      type: 'wahlprogramm',
+      systemPrompt: 'Du bist Schreiber des Wahlprogramms einer Gliederung von Bündnis 90/Die Grünen.',
+      prompt: `Erstelle ein Kapitel für ein Wahlprogramm zum Thema ${thema} im Stil des vorliegenden Dokuments.
 
 Berücksichtige dabei folgende Details und Schwerpunkte:
 ${details}
@@ -41,25 +31,19 @@ Beachte zusätzlich diese sprachlichen Aspekte:
 - Verbindende Elemente
 - Konkrete Beispiele
 - Starke Verben
-- Abwechslungsreicher Satzbau`
-        }
-      ]
+- Abwechslungsreicher Satzbau`,
+      options: {
+        model: "claude-3-5-sonnet-20240620",
+        max_tokens: 4000,
+        temperature: 0.3
+      }
     });
 
-    if (response && response.content && Array.isArray(response.content)) {
-      const textContent = response.content
-        .filter(item => item.type === 'text')
-        .map(item => item.text)
-        .join('');
-      
-      res.json({ content: textContent });
-    } else {
-      console.error('API response missing or incorrect content structure:', response);
-      res.status(500).send('API response missing or incorrect content structure');
-    }
+    if (!result.success) throw new Error(result.error);
+    res.json({ content: result.result });
   } catch (error) {
-    console.error('Error with Claude API:', error.response ? error.response.data : error.message);
-    res.status(500).send('Internal Server Error');
+    console.error('Fehler bei der Wahlprogramm-Erstellung:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 
