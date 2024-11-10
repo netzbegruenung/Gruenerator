@@ -104,7 +104,6 @@ if (cluster.isMaster) {
     'https://gruenerator.netzbegruenung.verdigado.net',
     'https://gruenerator.de',
     'https://beta.gruenerator.de',
-    'https://jitvshdwttfvtqsjpdzw.supabase.co',
     'https://gruenerator-test.netzbegruenung.verdigado.net'
   ];
 
@@ -210,7 +209,7 @@ if (cluster.isMaster) {
     res.status(500).send('Something broke!');
   });
 
-  // Server starten
+  // Ändere die Server-Konfiguration
   const serverOptions = {
     // HTTP/2 Einstellungen
     enableHTTP2: true,
@@ -222,6 +221,7 @@ if (cluster.isMaster) {
     headersTimeout: 65000,
   };
 
+  // Ersetze den Server-Start
   const server = http.createServer(serverOptions, app);
 
   // PING Intervall konfigurieren
