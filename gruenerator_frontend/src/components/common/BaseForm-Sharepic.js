@@ -3,11 +3,6 @@ import PropTypes from 'prop-types';
 import { HiCog, HiChevronDown, HiChevronUp } from "react-icons/hi";
 import Button from './SubmitButton';
 import DownloadButton from './DownloadButton';
-import GeneratePostButton from './GeneratePostButton';
-import FormErrors from './FormErrors';
-import GeneratedPostContainer from './GeneratedPostContainer';
-import UnsplashImageSelector from '../utils/Unsplash/UnsplashImageSelector';
-import ImageSearchBar from './ImageSearchBar';
 import FileUpload from '../utils/FileUpload';
 import { useSharepicGeneratorContext } from '../utils/Sharepic/SharepicGeneratorContext';
 import AdvancedEditingSection from './AdvancedEditingSection';
@@ -15,6 +10,7 @@ import '../../assets/styles/pages/baseform.css';
 import '../../assets/styles/components/imagemodificator.css';
 import '../../assets/styles/components/button.css';
 import StyledCheckbox from './AnimatedCheckbox';
+import FormErrors from './FormErrors';
 
 import { 
   ColorSchemeControl, 
@@ -147,7 +143,6 @@ const BaseForm = ({
       </div>
       <div className="upload-and-search-container">
         <FileUpload {...fileUploadProps} />
-        <ImageSearchBar onSearch={onUnsplashSearch} />
       </div>
       {renderFormButtons}
     </>
@@ -268,27 +263,10 @@ const BaseForm = ({
           <img src={generatedImageSrc} alt="Generiertes Sharepic" className="sticky-sharepic" />
           <div className="button-container">
             {useDownloadButton && <DownloadButton imageUrl={generatedImageSrc} />}
-            {showGeneratePostButton && !generatedPost && (
-              <GeneratePostButton onClick={onGeneratePost} loading={generatePostLoading} />
-            )}
           </div>
         </div>
       )}
-      {currentStep === FORM_STEPS.PREVIEW && Array.isArray(unsplashImages) && unsplashImages.length > 0 && (
-        <UnsplashImageSelector 
-          onSelect={handleUnsplashSelect} 
-          selectedImage={selectedImage}
-          images={unsplashImages}
-        />
-      )}
-      {currentStep === FORM_STEPS.RESULT && (
-        <GeneratedPostContainer
-          post={generatedPost}
-          onGeneratePost={onGeneratePost}
-          generatePostLoading={generatePostLoading}
-          isSharepicGenerator={isSharepicGenerator}
-        />
-      )}
+
     </div>
   ), [currentStep, generatedImageSrc, useDownloadButton, showGeneratePostButton, generatedPost, onGeneratePost, generatePostLoading, unsplashImages, handleUnsplashSelect, selectedImage, isSharepicGenerator, textSize]);
 

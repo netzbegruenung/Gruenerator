@@ -1,0 +1,241 @@
+@import url('../common/variables.css');
+
+/* Upload und Suche */
+.upload-and-search-container {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  width: 100%;
+}
+
+.file-upload-wrapper {
+  flex: 1;
+}
+
+.unsplash-search-button {
+  padding: 0.5rem 1rem;
+  background-color: var(--dunkelgruen);
+  color: var(--weiß);
+  border: 2px solid var(--weiß);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  white-space: nowrap;
+  height: 42px;
+}
+
+.unsplash-search-button:hover {
+  background-color: var(--tanne);
+}
+
+/* Button Container für Zurück und Generieren */
+.upload-step-buttons {
+  display: flex;
+  gap: 1rem;
+  width: 100%;
+}
+
+.upload-step-buttons button {
+  flex: 1;
+  min-width: 0;
+}
+
+.back-button {
+  background-color: var(--hellgrau);
+  color: var(--dunkelgruen);
+}
+
+.generate-button {
+  background-color: var(--dunkelgruen);
+  color: var(--weiß);
+}
+
+/* Image Modification Controls */
+.image-modification-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  padding: 1rem;
+}
+
+.left-column,
+.right-column {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+/* Gruppierungen */
+.textzeilen-group,
+.absender-group,
+.farbkombi-group,
+.schriftgroesse-group {
+  background: var(--hellgrau);
+  padding: 1.5rem;
+  border-radius: 8px;
+}
+
+.textzeilen-group h3,
+.absender-group h3,
+.farbkombi-group h3,
+.schriftgroesse-group h3 {
+  color: var(--dunkelgruen);
+  margin-bottom: 0.5rem;
+}
+
+.textzeilen-group p,
+.absender-group p,
+.farbkombi-group p,
+.schriftgroesse-group p {
+  color: var(--grau);
+  margin-bottom: 1rem;
+}
+
+/* Sharepic Display */
+.sticky-sharepic-container {
+  position: sticky;
+  top: 20px;
+  z-index: 100;
+  width: 100%;
+  max-height: calc(100vh - 40px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.sticky-sharepic {
+  width: 100%;
+  height: auto;
+  max-width: 100%;
+  max-height: calc(100vh - 100px);
+  object-fit: contain;
+  display: block;
+  margin: 0 auto;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.button-container {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding: 0 1rem;
+}
+
+/* Erweiterte Bearbeitung */
+.advanced-editing-button-container {
+  margin: 1rem 0;
+}
+
+.advanced-editing-button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background-color: var(--hellgrau);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.advanced-editing-button.open {
+  background-color: var(--dunkelgruen);
+  color: var(--weiß);
+}
+/* Vorschaubild */
+.display-container {
+  position: relative;
+}
+
+.preview-image {
+  width: 100%;
+  max-width: 400px;
+  height: auto;
+  border-radius: 8px;
+  margin: 1rem 0;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* File Upload Button Styles */
+.file-input-text {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background-color: var(--hellgrau);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.file-input-text:hover {
+  background-color: var(--mittelgrau);
+}
+
+.file-input-text .file-name {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ... rest of the styles ... */
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .image-modification-controls {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .upload-and-search-container {
+    flex-direction: column;
+  }
+
+  .upload-step-buttons {
+    flex-direction: column;
+  }
+
+  .unsplash-search-button {
+    width: 100%;
+  }
+
+  .sticky-sharepic-container {
+    position: static;
+    max-height: none;
+    margin-bottom: 1rem;
+  }
+
+  .sticky-sharepic {
+    max-height: none;
+    width: 100%;
+    height: auto;
+  }
+
+  .image-modification-controls {
+    padding: 0.5rem;
+  }
+
+  .textzeilen-group,
+  .absender-group,
+  .farbkombi-group,
+  .schriftgroesse-group {
+    padding: 1rem;
+  }
+}
+
+
+
+/* Reduzierte Bewegung */
+@media (prefers-reduced-motion: reduce) {
+  .unsplash-search-button,
+  .advanced-editing-button {
+    transition: none;
+  }
+}
