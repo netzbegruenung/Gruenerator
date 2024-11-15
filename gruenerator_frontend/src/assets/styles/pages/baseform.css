@@ -167,12 +167,6 @@
     border: 2px solid var(--sonne);
 }
 
-.error-message {
-    color: var(--weiß);
-    font-size: 0.8em;
-    margin-top: 4px;
-    margin-bottom: 8px;
-}
 
 .display-header {
     display: flex;
@@ -403,6 +397,7 @@
     width: 100%;
     margin: 0 auto;
 }
+
 
 @media (max-width: 768px) {
     .base-container {

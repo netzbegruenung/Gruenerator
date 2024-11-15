@@ -168,6 +168,31 @@ const BaseForm = ({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  const getErrorMessage = (error) => {
+    if (!error) return '';
+    
+    const errorMessages = {
+      '400': 'Deine Eingabe konnte nicht verarbeitet werden. Bitte überprüfe deine Eingaben und versuche es erneut.',
+      '401': 'Es gibt ein Problem mit der Verbindung zum Server. Bitte lade die Seite neu.',
+      '403': 'Du hast leider keine Berechtigung für diese Aktion. Bitte kontaktiere uns, wenn du denkst, dass dies ein Fehler ist.',
+      '404': 'Die angeforderte Ressource wurde nicht gefunden. Möglicherweise wurde sie gelöscht oder verschoben.',
+      '413': 'Deine Eingabe ist zu lang. Bitte kürze deinen Text etwas.',
+      '429': 'Unser System wird gerade von zu vielen Nutzer*innen verwendet. Bitte warte einen Moment und versuche es dann erneut.',
+      '500': 'Ein unerwarteter Fehler ist aufgetreten. Unsere Techniker*innen wurden automatisch informiert und arbeiten an einer Lösung.',
+      '529': 'Die Server unseres KI-Anbieters Anthropic sind momentan überlastet. Bitte versuche es in einigen Minuten erneut.'
+    };
+
+    // Prüfe ob der error-string einen der Error Codes enthält
+    for (const [code, message] of Object.entries(errorMessages)) {
+      if (error.includes(code)) {
+        return `[Fehler ${code}] ${message} Es tut mir sehr leid. Bitte versuche es später erneut.`;
+      }
+    }
+
+    // Standardfehlertext wenn kein spezifischer Code gefunden wurde
+    return `Ein Fehler ist aufgetreten. Es mir sehr leid. Bitte versuche es später erneut.`;
+  };
+
   return (
     <div className={`base-container ${isEditing ? 'editing-mode' : ''} ${title === "Grünerator Antragscheck" ? 'antragsversteher-base' : ''} ${value ? 'has-generated-content' : ''}`}>
       <div className="form-container">
@@ -197,11 +222,6 @@ const BaseForm = ({
                 ariaLabel={ARIA_LABELS.SUBMIT}
               />
             </div>
-            {error && (
-              <p role="alert" aria-live="assertive" className="error-message">
-                {error}
-              </p>
-            )}
           </div>
         </form>
       </div>
@@ -250,6 +270,11 @@ const BaseForm = ({
             </div>
           </div>
           <div className="display-content" style={{ fontSize: '16px' }}>
+            {error && (
+              <p role="alert" aria-live="assertive" className="error-message">
+                {getErrorMessage(error)}
+              </p>
+            )}
             <div className="generated-content-wrapper">
               <Editor />
             </div>
