@@ -32,7 +32,7 @@ const Antragsgenerator = ({ showHeaderFooter = true }) => {
   } = useFormState(initialState);
 
   const textSize = useDynamicTextSize(formData.antrag, 1.2, 0.8, [1000, 2000]);
-  const { submitForm } = useApiSubmit('/claude');
+  const { submitForm } = useApiSubmit('/claude1');
 
   const { setGeneratedContent } = useContext(FormContext);
 

@@ -298,6 +298,15 @@ const handleGeneratePost = useCallback(async () => {
     return fields;
   }, [state.currentStep, state.formData, handleChange, errors, renderFormFields]);
 
+  const fileUploadProps = {
+    loading: state.loading,
+    file: state.file,
+    handleChange: handleFileChange,
+    error: state.error,
+    allowedTypes: SHAREPIC_GENERATOR.ALLOWED_FILE_TYPES,
+    selectedUnsplashImage: state.selectedImage,
+  };
+
   return (
     <ErrorBoundary>
       <div
@@ -331,14 +340,7 @@ const handleGeneratePost = useCallback(async () => {
     platforms={platforms}
     onPlatformChange={handlePlatformChange}
     includeActionIdeas={platforms.actionIdeas}
-    fileUploadProps={{
-      loading: state.loading,
-      file: state.file,
-      handleChange: handleFileChange,
-      error: state.uploadError,
-      allowedTypes: SHAREPIC_GENERATOR.ALLOWED_FILE_TYPES,
-      selectedUnsplashImage: state.selectedImage,
-    }}
+    fileUploadProps={fileUploadProps}
     fontSize={state.formData.fontSize || SHAREPIC_GENERATOR.DEFAULT_FONT_SIZE}
   balkenOffset={state.formData.balkenOffset || SHAREPIC_GENERATOR.DEFAULT_BALKEN_OFFSET}
   colorScheme={state.formData.colorScheme || SHAREPIC_GENERATOR.DEFAULT_COLOR_SCHEME}
