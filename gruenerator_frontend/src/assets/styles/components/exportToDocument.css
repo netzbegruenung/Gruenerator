@@ -106,11 +106,6 @@
     transition: background-color 0.3s ease;
 }
 
-.error-message {
-    color: var(--sonne);
-    margin-top: 10px;
-}
-
 /* Mobile Optimierungen */
 @media (max-width: 768px) {
     .modal {
