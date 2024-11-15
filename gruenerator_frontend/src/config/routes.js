@@ -2,7 +2,6 @@ import { lazy } from 'react';
 
 // Lazy loading für statische Seiten
 const Home = lazy(() => import('../components/pages/Home'));
-const Webbaukasten = lazy(() => import('../components/pages/Webbaukasten'));
 const Datenschutz = lazy(() => import('../components/pages/Impressum_Datenschutz_Terms/Datenschutz'));
 const Impressum = lazy(() => import('../components/pages/Impressum_Datenschutz_Terms/Impressum'));
 
@@ -25,7 +24,6 @@ export const routes = {
     { path: '/antrag', component: GrueneratorenBundle.Antrag, withForm: true },
     { path: '/pressemitteilung', component: GrueneratorenBundle.Pressemitteilung, withForm: true },
     { path: '/socialmedia', component: GrueneratorenBundle.SocialMedia, withForm: true },
-    { path: '/webbaukasten', component: Webbaukasten },
     { path: '/antragscheck', component: GrueneratorenBundle.Antragscheck, withForm: true },
     { path: '/wahlpruefsteinthueringen', component: GrueneratorenBundle.WahlpruefsteinThueringen },
     { path: '/rede', component: GrueneratorenBundle.Rede, withForm: true },

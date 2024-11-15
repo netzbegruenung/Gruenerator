@@ -12,7 +12,6 @@ const http = require('http');
 const https = require('https');
 const path = require('path');
 const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
 const winston = require('winston');
 const multer = require('multer');
 const axios = require('axios');
@@ -69,6 +68,7 @@ if (cluster.isMaster) {
   const host = process.env.HOST || "127.0.0.1";
 
   // Redis-basiertes Rate Limiting
+  /*
   const redisRateLimiter = async (req, res, next) => {
     const key = `rate-limit:${req.ip}`;
     try {
@@ -86,6 +86,7 @@ if (cluster.isMaster) {
       next(); // Bei Redis-Fehler weitermachen
     }
   };
+  */
 
   // Compression Middleware
   app.use(compression({
@@ -179,7 +180,7 @@ if (cluster.isMaster) {
   }));
 
   // Rate Limiting
-  app.use(redisRateLimiter);
+  // app.use(redisRateLimiter);
 
   // Cache für statische Dateien
   app.use(cacheMiddleware);
@@ -233,9 +234,3 @@ if (cluster.isMaster) {
     logger.info(`Worker ${process.pid} started - Server running at http://${host}:${port}`);
   });
 }
-
-// Hilfsfunktionen
-const isValidUnsplashUrl = (url) => {
-  return url.startsWith('https://images.unsplash.com/') || 
-         url.startsWith('https://api.unsplash.com/');
-};

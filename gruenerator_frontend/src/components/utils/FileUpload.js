@@ -24,14 +24,33 @@ const FileUpload = ({ loading, file, handleChange, error, allowedTypes, selected
     if (loading) {
       return <span>Laden...</span>;
     }
-    if (isCompact) {
-      return <FiUpload size={20} />;
+    
+    if (file) {
+      // Kürze den Dateinamen, wenn er zu lang ist
+      const fileName = file.name.length > 20 
+        ? file.name.substring(0, 17) + '...' 
+        : file.name;
+      return (
+        <>
+          <FiUpload size={20} />
+          <span className="file-name">{fileName}</span>
+        </>
+      );
     }
-    const fileName = file ? file.name : selectedUnsplashImage ? `Unsplash: ${selectedUnsplashImage.photographerName}` : 'Datei auswählen';
+    
+    if (selectedUnsplashImage) {
+      return (
+        <>
+          <FiUpload size={20} />
+          <span>Unsplash: {selectedUnsplashImage.photographerName}</span>
+        </>
+      );
+    }
+
     return (
       <>
         <FiUpload size={20} />
-        <span>{fileName}</span>
+        <span>Datei auswählen</span>
       </>
     );
   };
