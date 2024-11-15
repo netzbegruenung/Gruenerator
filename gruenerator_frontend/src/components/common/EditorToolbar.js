@@ -7,7 +7,6 @@ import CustomContextMenu from './CustomContextMenu';
 import { useMediaQuery } from 'react-responsive';
 
 const CustomUndo = React.memo(() => {
-  console.log('CustomUndo-Komponente gerendert');
   return (
     <button className="ql-undo custom-button" data-label="Undo" aria-label="Undo">
       <FaUndo />
@@ -17,7 +16,6 @@ const CustomUndo = React.memo(() => {
 CustomUndo.displayName = "CustomUndo";
 
 const CustomRedo = React.memo(() => {
-  console.log('CustomRedo-Komponente gerendert');
   return (
     <button className="ql-redo custom-button" data-label="Redo" aria-label="Redo">
       <FaRedo />
@@ -38,8 +36,6 @@ const EditorToolbarComponent = ({
 }) => {
   const { adjustText, error, setError, isApplyingAdjustment } = useContext(FormContext);
 
-  console.log('EditorToolbarComponent gerendert', { isAdjusting, showAdjustButton, selectedText });
-
   const [adjustmentText, setAdjustmentText] = useState('');
   const [showConfirmation, setShowConfirmation] = useState(false);
   const adjustContainerRef = useRef(null);
@@ -51,7 +47,6 @@ const EditorToolbarComponent = ({
 
   const handleKeyDown = useCallback((e) => {
     if (e.key === 'Escape') {
-      console.log('Escape-Taste gedrückt');
       if (typeof onAiAdjustment === 'function') {
         onAiAdjustment(false);
       }
@@ -70,15 +65,12 @@ const EditorToolbarComponent = ({
     e.stopPropagation();
     const textToAdjust = selectedText || originalSelectedText || '';
     if (!textToAdjust.trim() || !adjustmentText.trim()) {
-      console.log('Kein Text ausgewählt oder kein Anpassungstext eingegeben');
       return;
     }
 
     setIsProcessingAdjustment(true);
     try {
-      console.log('Sende Anpassungsanfrage:', { adjustmentText, textToAdjust });
       const result = await adjustText(adjustmentText, textToAdjust);
-      console.log('Ergebnis der Anpassung:', result);
       if (result) {
         await onAiAdjustment(result);
         setShowConfirmation(true);
@@ -86,7 +78,6 @@ const EditorToolbarComponent = ({
         console.error('Keine Vorschläge von der API erhalten');
       }
     } catch (error) {
-      console.error('Fehler bei der Textanpassung:', error);
       setError('Error adjusting text. Please try again.');
     } finally {
       setIsProcessingAdjustment(false);
@@ -148,7 +139,6 @@ const EditorToolbarComponent = ({
   }, [handleContextMenu]);
 
   useEffect(() => {
-    console.log('EditorToolbar: isAdjusting changed:', isAdjusting);
   }, [isAdjusting]);
 
   useEffect(() => {
@@ -159,7 +149,6 @@ const EditorToolbarComponent = ({
       }
       setTimeout(() => {
         if (adjustContainerRef.current && !adjustContainerRef.current.contains(event.target)) {
-          console.log('Klick außerhalb des Anpassungsbereichs');
           onAiAdjustment(false);
         }
       }, 100); // 100ms Verzögerung
@@ -176,16 +165,12 @@ const EditorToolbarComponent = ({
 
   useEffect(() => {
     if (isAdjusting && inputRef.current) {
-      console.log('Fokus auf Eingabefeld gesetzt');
       inputRef.current.focus();
     }
   }, [isAdjusting]);
 
   useEffect(() => {
     if (error) {
-      // Zeigen Sie eine Fehlermeldung an oder führen Sie andere Aktionen durch
-      console.error('Fehler bei der Textanpassung:', error);
-      // Setzen Sie den Fehlerzustand nach einer Weile zurück
       const timer = setTimeout(() => setError(null), 5000);
       return () => clearTimeout(timer);
     }
@@ -221,7 +206,6 @@ const EditorToolbarComponent = ({
                         type="text"
                         value={adjustmentText}
                         onChange={(e) => {
-                          console.log('Anpassungstext geändert:', e.target.value);
                           setAdjustmentText(e.target.value);
                         }}
                         onKeyDown={handleKeyDown}
@@ -231,7 +215,6 @@ const EditorToolbarComponent = ({
                       <button 
                         type="button" 
                         onClick={() => {
-                          console.log('Anpassung abgebrochen');
                           onAiAdjustment(false);
                         }} 
                         className="cancel-adjust"
