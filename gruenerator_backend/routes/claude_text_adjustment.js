@@ -1,22 +1,41 @@
 // src/routes/claude_text_adjustment.js
 const express = require('express');
 const router = express.Router();
-require('dotenv').config(); // Lädt die .env Datei
 const AIRequestManager = require('../utils/AIRequestManager');
 
 router.post('/', async (req, res) => {
+  const { originalText, modification, fullText } = req.body;
+
+  if (!originalText || !modification || !fullText) {
+    return res.status(400).json({ error: 'originalText, modification und fullText sind erforderlich.' });
+  }
+
   try {
     const result = await AIRequestManager.processRequest({
       type: 'text_adjustment',
-      prompt: req.body.prompt,
-      options: req.body.options
+      systemPrompt: `Du bist ein hilfreicher Assistent, der eine verbesserte Formulierung für einen gegebenen Textabschnitt basierend auf den vom Benutzer angegebenen Änderungen vorschlägt. Berücksichtige dabei den gesamten Kontext des Textes, um sicherzustellen, dass der geänderte Abschnitt sich nahtlos in den Gesamttext einfügt. Stelle sicher, dass der Vorschlag klar, prägnant und stilistisch konsistent mit dem Originaltext ist.`,
+      messages: [
+        {
+          role: "user",
+          content: `Hier ist der gesamte Text:
+
+"${fullText}"
+
+Der Benutzer möchte folgenden Abschnitt ändern: "${originalText}"
+
+Die gewünschte Änderung lautet: "${modification}"
+
+Bitte schlage eine verbesserte Version des Abschnitts vor, die die gewünschten Änderungen berücksichtigt und sich nahtlos in den Gesamttext einfügt. Gib nur den reinen Textvorschlag für den zu ändernden Abschnitt ohne Einleitungen oder andere Formatierungen zurück.`
+        }
+      ],
+      options: {
+        max_tokens: 1024,
+        temperature: 0.5
+      }
     });
 
     if (result.success) {
-      res.json({ 
-        success: true, 
-        content: result.result 
-      });
+      res.json({ suggestions: [result.result.trim()] });
     } else {
       throw new Error(result.error);
     }
