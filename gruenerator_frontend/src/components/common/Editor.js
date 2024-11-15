@@ -7,7 +7,6 @@ import '../../assets/styles/components/quill-custom.css';
 import '../../assets/styles/components/editor.css';
 import { FormContext } from '../utils/FormContext';
 import { applyHighlightWithAnimation } from '../utils/highlightUtils';
-//import { useDebouncedCallback } from 'use-debounce';
 
 const QuillWrapper = React.forwardRef((props, ref) => (
   <ReactQuill
@@ -34,12 +33,10 @@ const Editor = React.memo(({ setEditorInstance = () => {} }) => {
     adjustText,
     error,
     newSelectedText,
-//   applyAdjustmentToEditor,
     removeAllHighlights,
     originalContent,
     setOriginalContent,
     setIsApplyingAdjustment,
-
   } = useContext(FormContext);
 
   const quillRef = useRef(null);
@@ -54,7 +51,6 @@ const Editor = React.memo(({ setEditorInstance = () => {} }) => {
   }, [value]);
 
   const handleChange = useCallback((content, source) => {
-    console.log('handleChange called', { content, source, isEditing });
     setLocalValue(content);
     if (isEditing && source === 'user') {
       updateValue(content);
@@ -62,7 +58,6 @@ const Editor = React.memo(({ setEditorInstance = () => {} }) => {
   }, [isEditing, updateValue]);
 
   const setEditorContent = useCallback((content, format = 'html') => {
-    console.log('Editor-Inhalt wird aktualisiert:', { format, contentLength: content.length });
     const editor = quillRef.current?.getEditor();
     if (editor) {
       isProgrammaticChange.current = true;
@@ -73,9 +68,7 @@ const Editor = React.memo(({ setEditorInstance = () => {} }) => {
           editor.setText(content);
         }
         setLocalValue(content);
-        console.log('Editor-Inhalt erfolgreich aktualisiert');
       } catch (error) {
-        console.error('Fehler beim Setzen des Editor-Inhalts:', error);
         editor.setText(content);
       } finally {
         isProgrammaticChange.current = false;
@@ -95,18 +88,16 @@ const Editor = React.memo(({ setEditorInstance = () => {} }) => {
   }, [setEditorInstance, setEditorContent]);
 
   const handleSelection = useCallback((range) => {
-    console.log('handleSelection called', { range, isAdjusting });
     const editor = quillRef.current?.getEditor();
     if (!editor) return;
-  
+
     if (range && range.length > 0 && !isAdjusting) {
       const text = editor.getText(range.index, range.length);
       setSelectedText(text);
       setHighlightedRange(range);
       setShowAdjustButton(true);
       setOriginalContent(editor.root.innerHTML);
-  
-      // Only apply highlight on non-touch devices
+
       if (!isTouchDevice) {
         applyHighlightWithAnimation(editor, range.index, range.length);
       }
@@ -117,19 +108,10 @@ const Editor = React.memo(({ setEditorInstance = () => {} }) => {
       removeAllHighlights(editor);
     }
   }, [isAdjusting, isTouchDevice, setSelectedText, setHighlightedRange, setShowAdjustButton, setOriginalContent, removeAllHighlights]);
-  
-  // const debouncedHandleSelection = useDebouncedCallback(
-  //   (range) => {
-  //     handleSelection(range);
-  //   },
-  //   200
-  // );
 
   const handleSelectionChange = useCallback((range) => {
-    console.log('handleSelectionChange called', { range });
     handleSelection(range);
   }, [handleSelection]);
-  
 
   useEffect(() => {
     const editor = quillRef.current?.getEditor();
@@ -147,10 +129,9 @@ const Editor = React.memo(({ setEditorInstance = () => {} }) => {
       const handleTouchEnd = () => {
         const range = editor.getSelection();
         if (range && range.length > 0) {
-          handleSelection(range); // Setzt highlightedRange und selectedText
+          handleSelection(range);
           applyHighlightWithAnimation(editor, range.index, range.length);
         } else {
-          // Wenn keine Auswahl vorhanden ist, Rücksetzen der Auswahlzustände
           setSelectedText('');
           setHighlightedRange(null);
           setShowAdjustButton(false);
@@ -171,8 +152,6 @@ const Editor = React.memo(({ setEditorInstance = () => {} }) => {
     setShowAdjustButton, 
     removeAllHighlights
   ]);
-  
-  
 
   const formats = useMemo(() => [
     'header', 'bold', 'italic', 'underline', 'strike', 'blockquote',
@@ -196,20 +175,14 @@ const Editor = React.memo(({ setEditorInstance = () => {} }) => {
     if (quillRef.current) {
       try {
         const quill = quillRef.current.getEditor();
-        console.log('Updating editor state', { isEditing, isAdjusting });
         quill.enable(isEditing && !isAdjusting);
       } catch (error) {
-        console.error('Fehler beim Aktualisieren des Editor-Zustands:', error);
+        // Fehlerbehandlung
       }
     }
   }, [isEditing, isAdjusting]);
 
-  useEffect(() => {
-    console.log('Editor: isAdjusting changed:', isAdjusting);
-  }, [isAdjusting]);
-
   const applyAdjustment = useCallback((newText, keepFormatting = true) => {
-    console.log('applyAdjustment aufgerufen', { newText, highlightedRange, keepFormatting });
     const quill = quillRef.current?.getEditor();
     if (quill && highlightedRange) {
       quill.deleteText(highlightedRange.index, highlightedRange.length);
@@ -221,8 +194,6 @@ const Editor = React.memo(({ setEditorInstance = () => {} }) => {
       const updatedContent = quill.root.innerHTML;
       setLocalValue(updatedContent);
       updateValue(updatedContent);
-    } else {
-      console.error('Quill-Editor oder highlightedRange nicht verfügbar');
     }
   }, [highlightedRange, updateValue]);
 
@@ -248,13 +219,12 @@ const Editor = React.memo(({ setEditorInstance = () => {} }) => {
     if (typeof adjustmentOrState === 'boolean') {
       handleAiAdjustment(adjustmentOrState, text);
     } else if (typeof adjustmentOrState === 'string') {
-      // Wenn ein neuer Text vorgeschlagen wird, aktualisieren wir den Editor
       const quill = quillRef.current?.getEditor();
       if (quill && highlightedRange) {
         quill.deleteText(highlightedRange.index, highlightedRange.length);
         quill.insertText(highlightedRange.index, adjustmentOrState, {
           'color': '#000000',
-          'background': '#ffff99' // Gelbe Hintergrundfarbe für den vorgeschlagenen Text
+          'background': '#ffff99'
         });
         setLocalValue(quill.root.innerHTML);
       }
@@ -263,15 +233,13 @@ const Editor = React.memo(({ setEditorInstance = () => {} }) => {
   }, [handleAiAdjustment, highlightedRange]);
 
   const onConfirmAdjustment = useCallback(() => {
-    console.log('onConfirmAdjustment aufgerufen', { newSelectedText, highlightedRange });
     if (newSelectedText) {
       const quill = quillRef.current?.getEditor();
       if (quill) {
         setIsApplyingAdjustment(true);
         if (highlightedRange) {
-          // Der Text wurde bereits eingefügt, wir müssen nur die Formatierung anpassen
           quill.formatText(highlightedRange.index, newSelectedText.length, {
-            'background': '#e6ffe6' // Hellgrüne Hintergrundfarbe für den akzeptierten Text
+            'background': '#e6ffe6'
           });
         } else {
           const length = quill.getLength();
@@ -284,11 +252,7 @@ const Editor = React.memo(({ setEditorInstance = () => {} }) => {
         setHighlightedRange(null);
         setSelectedText('');
         handleAiAdjustment(false);
-      } else {
-        console.error('Quill-Editor nicht verfügbar');
       }
-    } else {
-      console.error('Kein neuer Text zum Anwenden verfügbar');
     }
   }, [applyAdjustment, handleAcceptAdjustment, newSelectedText, highlightedRange, setHighlightedRange, setSelectedText, handleAiAdjustment]);
 
