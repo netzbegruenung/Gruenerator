@@ -1,43 +1,27 @@
-// src/utils/errorHandling.js
+import { getErrorMessage } from './errorMessages';
 
-class AppError extends Error {
-    constructor(message, type, originalError = null) {
-      super(message);
-      this.name = this.constructor.name;
-      this.type = type;
-      this.originalError = originalError;
-    }
-  }
+// Zentrale Fehlerbehandlungsfunktion
+export const handleError = (error, setError) => {
+  console.group('[handleError]');
+  console.error('Original error:', error);
+  console.log('SetError function provided:', !!setError);
   
-  export const ErrorTypes = {
-    NETWORK: 'NETWORK',
-    API: 'API',
-    VALIDATION: 'VALIDATION',
-    UNEXPECTED: 'UNEXPECTED'
+  const errorInfo = getErrorMessage(error);
+  console.log('Processed errorInfo:', errorInfo);
+  
+  const finalError = {
+    title: errorInfo.title,
+    message: errorInfo.message,
+    details: errorInfo.details || error.message,
+    status: error.response?.status,
+    requestId: error.response?.headers?.['request-id']
   };
   
-  export function handleError(error, setError) {
-    let appError;
-    if (error instanceof AppError) {
-      appError = error;
-    } else if (error.isAxiosError) {
-      appError = new AppError(
-        'Ein Netzwerkfehler ist aufgetreten.',
-        ErrorTypes.NETWORK,
-        error
-      );
-    } else {
-      appError = new AppError(
-        'Ein unerwarteter Fehler ist aufgetreten.',
-        ErrorTypes.UNEXPECTED,
-        error
-      );
-    }
-  
-    console.error('Error:', appError);
-    setError(appError.message);
-  
-    // Hier können Sie zusätzliche Aktionen durchführen, z.B. Fehler-Logging
-  }
-  
-  export { AppError };
+  console.log('Final error object:', finalError);
+  setError(finalError);
+  console.groupEnd();
+};
+
+export const resetError = (setError) => {
+  setError(null);
+};

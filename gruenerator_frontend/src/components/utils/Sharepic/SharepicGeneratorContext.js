@@ -1,7 +1,6 @@
 // SharepicGeneratorContext.js
 import React, { createContext, useReducer, useCallback, useContext, useMemo } from 'react';
 import PropTypes from 'prop-types';
-import { useUnsplashService } from '../Unsplash/unsplashService';
 import { prepareDataForDreizeilenCanvas } from './dataPreparation';
 import { debounce } from 'lodash';
 
@@ -31,18 +30,14 @@ const initialState = {
     sunflowerOffset: [0, 0],
     credit: '', // Add credit to initial state
     isAdvancedEditingOpen: false,
-
+    searchTerms: [], // Behalte nur diese Eigenschaft für die Suche
   },
   currentStep: FORM_STEPS.INPUT,
-  isLoadingUnsplashImages: false,
-  unsplashError: null,
-  selectedImage: null,
-  generatedImageSrc: '',
   error: null,
   loading: false,
   uploadedImage: null,
-  isSearchBarActive: false, 
-  isLottieVisible: false, 
+  isLottieVisible: false,
+  file: null,
 };
 
 function sharepicGeneratorReducer(state, action) {
@@ -121,6 +116,11 @@ function sharepicGeneratorReducer(state, action) {
       return { ...state, isSearchBarActive: action.payload };
     case 'SET_LOTTIE_VISIBLE': // Angepasste Case für Lottie
       return { ...state, isLottieVisible: action.payload };
+    case 'SET_FILE':
+      return {
+        ...state,
+        file: action.payload
+      };
     default:
       return state;
       case 'UPDATE_BALKEN_GRUPPEN_OFFSET':
@@ -158,14 +158,10 @@ function sharepicGeneratorReducer(state, action) {
   
 }
 export function SharepicGeneratorProvider({ children }) {
-  const [state, dispatch] = useReducer(sharepicGeneratorReducer, initialState);
- 
-  const handleUnsplashImagesUpdate = useCallback((newImages) => {
-    console.log('handleUnsplashImagesUpdate called with:', newImages);
-    dispatch({ type: 'SET_UNSPLASH_IMAGES', payload: newImages });
-  }, []);
-   
-  const unsplashService = useUnsplashService(handleUnsplashImagesUpdate);
+  const [state, dispatch] = useReducer(sharepicGeneratorReducer, {
+    ...initialState,
+    file: null
+  });
 
   const setLottieVisible = useCallback((isVisible) => {
     dispatch({ type: 'SET_LOTTIE_VISIBLE', payload: isVisible });
@@ -209,30 +205,12 @@ export function SharepicGeneratorProvider({ children }) {
     dispatch({ type: 'UPDATE_SUNFLOWER_OFFSET', payload: newOffset });
   }, []);
 
-  const handleUnsplashSearch = useCallback(async (query) => {
+  const handleUnsplashSearch = useCallback((query) => {
     if (!query) return;
-    
-    console.log('handleUnsplashSearch called with query:', query);
-    
-    dispatch({ type: 'SET_LOADING_UNSPLASH_IMAGES', payload: true });
-    dispatch({ type: 'SET_UNSPLASH_ERROR', payload: null });
-  
-    try {
-      console.log('Fetching Unsplash images for query:', query);
-      await unsplashService.fetchUnsplashImages([query], true);
-      dispatch({ type: 'SET_UNSPLASH_ERROR', payload: null });
-    } catch (error) {
-      console.error('Error fetching Unsplash images:', error);
-      dispatch({ type: 'SET_UNSPLASH_IMAGES', payload: [] });
-      dispatch({ type: 'SET_UNSPLASH_ERROR', payload: error.message });
-    } finally {
-      dispatch({ type: 'SET_LOADING_UNSPLASH_IMAGES', payload: false });
-      setLottieVisible(false);  // Hier das Lottie ausblenden
+    const searchUrl = `https://unsplash.com/de/s/fotos/${encodeURIComponent(query)}?license=free`;
+    window.open(searchUrl, '_blank');
+  }, []);
 
-    }
-  }, [unsplashService]);
-
- 
   const modifyImage = useCallback(async (modificationData) => {
     try {
       console.log('Modifying image with data:', modificationData);
@@ -293,8 +271,6 @@ export function SharepicGeneratorProvider({ children }) {
     updateFormData,
     setError,
     handleUnsplashSearch,
-    fetchFullSizeImage: unsplashService.fetchFullSizeImage,
-    triggerDownload: unsplashService.triggerDownload,
     isAdvancedEditingOpen: state.isAdvancedEditingOpen,
     modifyImage,
     updateCredit, // Add updateCredit to the context value
@@ -315,8 +291,6 @@ export function SharepicGeneratorProvider({ children }) {
     updateFormData,
     setError,
     handleUnsplashSearch,
-    unsplashService.fetchFullSizeImage,
-    unsplashService.triggerDownload,
     modifyImage,
     updateImageModification,
     setSearchBarActive, 
