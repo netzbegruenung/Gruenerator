@@ -16,11 +16,14 @@ const winston = require('winston');
 const multer = require('multer');
 const axios = require('axios');
 const { setupRoutes } = require('./routes');
+const AIWorkerPool = require('./workers/aiWorkerPool.js');
 
 // Load environment variables
 dotenv.config();
 
-// Cluster-Konfiguration
+// Globaler Worker-Pool für AI-Anfragen
+let aiWorkerPool;
+
 if (cluster.isMaster) {
   console.log(`Master ${process.pid} is running`);
 
@@ -31,10 +34,24 @@ if (cluster.isMaster) {
 
   cluster.on('exit', (worker, code, signal) => {
     console.log(`Worker ${worker.process.pid} died`);
-    // Worker neu starten wenn er stirbt
     cluster.fork();
   });
 } else {
+  // Worker-Pool für AI-Anfragen initialisieren
+  aiWorkerPool = new AIWorkerPool(4); // 4 AI-Worker pro Server-Worker
+
+  // Graceful Shutdown Handler
+  process.on('SIGTERM', async () => {
+    console.log('Shutting down AI worker pool...');
+    if (aiWorkerPool) {
+      await aiWorkerPool.shutdown();
+    }
+    server.close(() => {
+      console.log('Server beendet');
+      process.exit(0);
+    });
+  });
+
   // Redis Client Setup
   const redisClient = Redis.createClient({
     url: process.env.REDIS_URL || 'redis://localhost:6379'
@@ -232,5 +249,25 @@ if (cluster.isMaster) {
 
   server.listen(port, host, () => {
     logger.info(`Worker ${process.pid} started - Server running at http://${host}:${port}`);
+  });
+
+  // Middleware für AI-Anfragen
+  app.use('/api/*', async (req, res, next) => {
+    if (req.method === 'POST' && req.path.includes('claude')) {
+      try {
+        const result = await aiWorkerPool.processRequest({
+          type: req.path.split('/')[2], // Extrahiert den Typ aus dem Pfad
+          ...req.body
+        });
+        return res.json(result);
+      } catch (error) {
+        console.error('AI Request Error:', error);
+        return res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    }
+    next();
   });
 }
