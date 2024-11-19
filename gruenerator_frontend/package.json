@@ -5,6 +5,7 @@
   "dependencies": {
     "@testing-library/react": "^16.0.1",
     "axios": "^1.7.2",
+    "browser-image-compression": "^2.0.2",
     "lodash": "^4.17.21",
     "lodash.debounce": "^4.0.8",
     "prop-types": "^15.8.1",
