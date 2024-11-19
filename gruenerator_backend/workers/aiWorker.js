@@ -12,6 +12,11 @@ class ConcurrentRequestManager {
       maxRequests: 500,   // Erhöht auf 500 Anfragen
       timeWindow: 60000   // Pro Minute (60000 ms)
     };
+    this.retryConfig = {
+      maxRetries: 3,
+      baseDelay: 1000, // Basis-Verzögerung in Millisekunden
+      maxDelay: 30000  // Maximale Verzögerung in Millisekunden
+    };
   }
 
   async add(data) {
@@ -49,11 +54,24 @@ class ConcurrentRequestManager {
   }
 
   async processRequest(request, requestId) {
-    try {
-      const result = await processAIRequest(request.data);
-      request.resolve(result);
-    } catch (error) {
-      request.reject(error);
+    let retryCount = 0;
+    
+    while (true) {
+      try {
+        const result = await processAIRequest(request.data);
+        request.resolve(result);
+        return;
+      } catch (error) {
+        if (this.shouldRetry(error, retryCount)) {
+          const delay = this.calculateBackoff(retryCount);
+          console.log(`Retry ${retryCount + 1} nach ${delay}ms für Request ${requestId}`);
+          await this.wait(delay);
+          retryCount++;
+        } else {
+          request.reject(error);
+          return;
+        }
+      }
     }
   }
 
@@ -74,6 +92,43 @@ class ConcurrentRequestManager {
 
     this.rateLimit.requests.set(now, true);
     return true;
+  }
+
+  shouldRetry(error, retryCount) {
+    // Definiere retry-würdige Fehler
+    const retryableErrors = [
+      'rate_limit',
+      'timeout',
+      'network_error',
+      'internal_server_error',
+      '429',
+      '500',
+      '503'
+    ];
+
+    return (
+      retryCount < this.retryConfig.maxRetries &&
+      retryableErrors.some(errType => 
+        error.message.toLowerCase().includes(errType.toLowerCase()) ||
+        error.status === parseInt(errType)
+      )
+    );
+  }
+
+  calculateBackoff(retryCount) {
+    // Exponentieller Backoff mit Jitter
+    const exponentialDelay = Math.min(
+      this.retryConfig.maxDelay,
+      this.retryConfig.baseDelay * Math.pow(2, retryCount)
+    );
+    
+    // Füge zufälligen Jitter hinzu (±25%)
+    const jitter = exponentialDelay * 0.25 * (Math.random() * 2 - 1);
+    return Math.floor(exponentialDelay + jitter);
+  }
+
+  wait(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 }
 
