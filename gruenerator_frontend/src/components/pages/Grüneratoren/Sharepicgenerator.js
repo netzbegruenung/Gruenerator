@@ -7,7 +7,7 @@ import { useSharepicRendering } from '../../hooks/sharepic/useSharepicRendering'
 import BaseForm from '../../common/BaseForm-Sharepic';
 import ErrorBoundary from '../../ErrorBoundary';
 import { useGenerateSocialPost } from '../../hooks/useGenerateSocialPost';
-
+import { createImageFormData, processImageForUpload } from '../../utils/imageCompression';
 
 import { 
   FORM_STEPS, 
@@ -91,27 +91,26 @@ const handleGeneratePost = useCallback(async () => {
       setError('Keine Datei ausgewählt');
       return null;
     }
-  
+
     updateFormData({ loading: true });
     setError(null);
-  
+
     try {
-      const formData = new FormData();
-      formData.append('image', file);
-  
+      const formData = await createImageFormData(file);
+      
       const response = await fetch('/api/upload', {
         method: 'POST',
         body: formData,
       });
-  
+
       if (!response.ok) {
-        throw new Error(`Network error during upload: ${response.status} ${response.statusText}`);
+        throw new Error(`Netzwerkfehler beim Upload: ${response.status} ${response.statusText}`);
       }
-  
+
       const data = await response.json();
       return data;
     } catch (error) {
-      console.error('Error during upload:', error);
+      console.error('Fehler beim Upload:', error);
       setError(error.message);
       return null;
     } finally {
@@ -157,30 +156,36 @@ const handleGeneratePost = useCallback(async () => {
       } else if (state.currentStep === FORM_STEPS.PREVIEW) {
         let fileToUse = state.formData.uploadedImage;
         
-        if (!fileToUse && state.selectedImage) {
-          fileToUse = await fetchFullSizeImage(state.selectedImage.fullImageUrl);
-          await updateFormData({ uploadedImage: fileToUse });
-          await triggerDownload(state.selectedImage.downloadLocation);
-        } else if (state.file) {
-          const uploadedFile = await uploadAndProcessFile(state.file);
-          if (!uploadedFile) throw new Error("Fehler beim Hochladen der Datei");
-          fileToUse = uploadedFile;
-          await updateFormData({ uploadedImage: fileToUse });
+        try {
+          if (!fileToUse && state.selectedImage) {
+            const fullSizeImage = await fetchFullSizeImage(state.selectedImage.fullImageUrl);
+            fileToUse = await processImageForUpload(fullSizeImage);
+            await updateFormData({ uploadedImage: fileToUse });
+            await triggerDownload(state.selectedImage.downloadLocation);
+          } else if (state.file) {
+            const uploadedFile = await uploadAndProcessFile(state.file);
+            if (!uploadedFile) throw new Error("Fehler beim Hochladen der Datei");
+            fileToUse = uploadedFile;
+            await updateFormData({ uploadedImage: fileToUse });
+          }
+
+          if (!fileToUse) throw new Error("Bitte wählen Sie ein Bild aus");
+
+  
+          const imageResult = await generateImage({ ...state.formData, image: fileToUse });
+          console.log('Generated image result:', imageResult);
+  
+          if (!imageResult) throw new Error("Keine Bilddaten empfangen");
+  
+          await updateFormData({ 
+            generatedImageSrc: imageResult, 
+            currentStep: FORM_STEPS.RESULT
+          });
+  
+        } catch (error) {
+          console.error('Error in handleFormSubmit:', error);
+          setError(error.message);
         }
-
-        if (!fileToUse) throw new Error("Bitte wählen Sie ein Bild aus");
-
-  
-        const imageResult = await generateImage({ ...state.formData, image: fileToUse });
-        console.log('Generated image result:', imageResult);
-  
-        if (!imageResult) throw new Error("Keine Bilddaten empfangen");
-  
-        await updateFormData({ 
-          generatedImageSrc: imageResult, 
-          currentStep: FORM_STEPS.RESULT
-        });
-  
       } else if (state.currentStep === FORM_STEPS.RESULT) {
         const { fontSize, balkenOffset, colorScheme, credit } = state.formData;
         try {
@@ -253,10 +258,18 @@ const handleGeneratePost = useCallback(async () => {
   }, [state.currentStep, updateFormData]);
 
     
-  const handleFileChange = useCallback((selectedFile) => {
-    setFile(selectedFile);
-    updateFormData({ uploadedImage: selectedFile });
-  }, [setFile, updateFormData]);
+  const handleFileChange = useCallback(async (selectedFile) => {
+    try {
+      if (selectedFile) {
+        const processedFile = await processImageForUpload(selectedFile);
+        setFile(processedFile);
+        updateFormData({ uploadedImage: processedFile });
+      }
+    } catch (error) {
+      console.error('Fehler bei der Bildverarbeitung:', error);
+      setError(error.message);
+    }
+  }, [setFile, updateFormData, setError]);
   
 
   useEffect(() => {
