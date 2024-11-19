@@ -13,10 +13,20 @@ module.exports = {
         maxConcurrent: 25
       },
       
-      // Retry-Einstellungen
+      // Erweiterte Retry-Einstellungen
       retry: {
         maxRetries: 3,
-        baseDelay: 1000, // 1 Sekunde
+        baseDelay: 1000,    // 1 Sekunde Basis-Verzögerung
+        maxDelay: 30000,    // 30 Sekunden maximale Verzögerung
+        retryableErrors: [
+          'rate_limit',
+          'timeout',
+          'network_error',
+          'internal_server_error',
+          '429',
+          '500',
+          '503'
+        ]
       }
     },
     
