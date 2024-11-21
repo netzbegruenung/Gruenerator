@@ -263,7 +263,14 @@ const handleGeneratePost = useCallback(async () => {
       if (selectedFile) {
         const processedFile = await processImageForUpload(selectedFile);
         setFile(processedFile);
-        updateFormData({ uploadedImage: processedFile });
+        updateFormData({ 
+          uploadedImage: processedFile,
+          file: processedFile  // Speichere auch das ursprüngliche File
+        });
+        console.log('Bild erfolgreich verarbeitet:', {
+          size: processedFile.size,
+          type: processedFile.type
+        });
       }
     } catch (error) {
       console.error('Fehler bei der Bildverarbeitung:', error);
