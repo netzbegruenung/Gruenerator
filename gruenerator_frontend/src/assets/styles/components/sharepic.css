@@ -10,9 +10,11 @@
 
 .file-upload-wrapper {
   flex: 1;
+  display: flex;
 }
 
 .unsplash-search-button {
+  flex: 1;
   padding: 0.5rem 1rem;
   background-color: var(--dunkelgruen);
   color: var(--weiß);
@@ -28,14 +30,15 @@
   background-color: var(--tanne);
 }
 
-/* Button Container für Zurück und Generieren */
-.upload-step-buttons {
+/* Form Buttons */
+.form-buttons {
   display: flex;
   gap: 1rem;
   width: 100%;
+  margin-top: 1rem;
 }
 
-.upload-step-buttons button {
+.form-buttons button {
   flex: 1;
   min-width: 0;
 }
@@ -194,8 +197,16 @@
 }
 
 @media (max-width: 768px) {
-  .upload-and-search-container {
+  .upload-and-search-container,
+  .form-buttons {
     flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .file-upload-wrapper,
+  .unsplash-search-button,
+  .form-buttons button {
+    width: 100%;
   }
 
   .upload-step-buttons {

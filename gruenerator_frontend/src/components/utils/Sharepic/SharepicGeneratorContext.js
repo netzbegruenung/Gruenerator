@@ -214,7 +214,7 @@ export function SharepicGeneratorProvider({ children }) {
   const modifyImage = useCallback(async (modificationData) => {
     try {
       console.log('Modifying image with data:', modificationData);
-      const formDataToSend = prepareDataForDreizeilenCanvas(state.formData, modificationData);
+      const formDataToSend = prepareDataForDreizeilenCanvas(state.formData, modificationData, state.file);
 
       const response = await fetch('/api/dreizeilen_canvas', {
         method: 'POST',
@@ -249,7 +249,7 @@ export function SharepicGeneratorProvider({ children }) {
       dispatch({ type: 'SET_ERROR', payload: error.message });
       throw error;
     }
-  }, [state.formData, dispatch, prepareDataForDreizeilenCanvas]);
+  }, [state.formData, state.file]);
 
   const debouncedModifyImage = useMemo(
     () => debounce(modifyImage, 300),
@@ -307,7 +307,6 @@ export function SharepicGeneratorProvider({ children }) {
     </SharepicGeneratorContext.Provider>
   );
 }
-
 SharepicGeneratorProvider.propTypes = {
   children: PropTypes.node.isRequired,
 };
