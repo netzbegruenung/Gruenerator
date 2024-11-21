@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { HiCog, HiChevronDown, HiChevronUp } from "react-icons/hi";
+import { SiUnsplash } from "react-icons/si";
 import Button from './SubmitButton';
 import DownloadButton from './DownloadButton';
 import FileUpload from '../utils/FileUpload';
@@ -37,15 +38,12 @@ const BaseForm = ({
   useDownloadButton = false,
   showBackButton = false,
   submitButtonText = BUTTON_LABELS.SUBMIT,
-  showGeneratePostButton = false,
-  onGeneratePost,
   generatePostLoading,
   generatedPost,
   platforms,
   onPlatformChange,
   includeActionIdeas,
   onActionIdeasChange,
-  isSharepicGenerator = false,
   onUnsplashSearch,
   fontSize,
   balkenOffset,
@@ -61,13 +59,10 @@ const BaseForm = ({
     state: { 
       currentStep, 
       isLottieVisible, 
-      unsplashImages, 
-      selectedImage,
       generatedImageSrc,
       isAdvancedEditingOpen,
       formData: { fontSize: textSize }
     },
-    updateFormData,
     toggleAdvancedEditing,
   } = useSharepicGeneratorContext();  
 
@@ -92,61 +87,73 @@ const BaseForm = ({
       }
     }
   }, [isAdvancedEditingOpen]);
-  
-  const handleUnsplashSelect = useCallback((image) => {
-    updateFormData({ selectedImage: image });
-  }, [updateFormData]);
 
-  const renderFormButtons = useMemo(() => {
-    const buttons = (
-      <>
-        {showBackButton && (
+  const formButtons = useMemo(() => ({
+    showBack: showBackButton,
+    submitText: submitButtonText,
+    loading,
+    success
+  }), [showBackButton, submitButtonText, loading, success]);
+
+  const renderFormButtons = () => (
+    <div className="upload-and-search-container">
+      {formButtons.showBack && (
+        <div className="button-wrapper">
           <Button 
             onClick={onBack} 
             text={BUTTON_LABELS.BACK}
             className="back-button"
             ariaLabel={ARIA_LABELS.BACK}
           />
-        )}
-        {currentStep !== FORM_STEPS.RESULT && (
+        </div>
+      )}
+      {currentStep !== FORM_STEPS.RESULT && (
+        <div className="button-wrapper">
           <Button
             onClick={onSubmit}
-            loading={loading}
-            success={success}
-            text={submitButtonText}
+            loading={formButtons.loading}
+            success={formButtons.success}
+            text={formButtons.submitText}
             icon={<HiCog />}
             className="form-button"
             ariaLabel={ARIA_LABELS.SUBMIT}
           />
-        )}
-      </>
-    );
+        </div>
+      )}
+    </div>
+  );
 
-    return (
-      <div className={`form-buttons ${currentStep === FORM_STEPS.PREVIEW ? 'preview-buttons' : ''}`}>
-        {buttons}
-      </div>
-    );
-  }, [showBackButton, onBack, currentStep, onSubmit, loading, success, submitButtonText]);
-
-  const renderInputStep = useMemo(() => (
+  const renderInputStep = () => (
     <div className="input-fields-wrapper">
       {children}
-      {renderFormButtons}
+      {renderFormButtons()}
     </div>
-  ), [children, renderFormButtons]);
+  );
 
-  const renderPreviewStep = useMemo(() => (
-    <>
-      <div className="input-fields-wrapper">
-        {children}
-      </div>
-      <div className="upload-and-search-container">
-        <FileUpload {...fileUploadProps} />
-      </div>
-      {renderFormButtons}
-    </>
-  ), [children, fileUploadProps, onUnsplashSearch, renderFormButtons]);
+  const renderPreviewStep = () => {
+    const { state: { formData } } = useSharepicGeneratorContext();
+    return (
+      <>
+        <div className="input-fields-wrapper">
+          {children}
+        </div>
+        <div className="upload-and-search-container">
+          <div className="file-upload-wrapper">
+            <FileUpload {...fileUploadProps} />
+          </div>
+          <button 
+            className="unsplash-search-button"
+            onClick={() => onUnsplashSearch(formData.searchTerms?.[0] || formData.thema)}
+            type="button"
+          >
+            <SiUnsplash className="icon" />
+            Bild von Unsplash
+          </button>
+        </div>
+        {renderFormButtons()}
+      </>
+    );
+  };
 
   const renderSocialMediaControls = useMemo(() => (
     <div className="social-media-controls">
@@ -235,7 +242,6 @@ const BaseForm = ({
     colorScheme, 
     fontSize, 
     renderSocialMediaControls,
-    onGeneratePost,
     generatePostLoading,
     generatedPost,
     onSubmit, 
@@ -243,32 +249,63 @@ const BaseForm = ({
     success
   ]);
 
-  const renderFormContent = useMemo(() => {
+  const renderFormContent = () => {
     switch (currentStep) {
       case FORM_STEPS.INPUT:
-        return renderInputStep;
+        return renderInputStep();
       case FORM_STEPS.PREVIEW:
-        return renderPreviewStep;
+        return renderPreviewStep();
       case FORM_STEPS.RESULT:
-        return renderResultStep;
+        return renderResultStep();
       default:
         return null;
     }
-  }, [currentStep, renderInputStep, renderPreviewStep, renderResultStep]);
+  };
 
-  const renderDisplayContent = useMemo(() => (
-    <div className="display-content" style={{ fontSize: textSize }}>
-      {currentStep === FORM_STEPS.RESULT && typeof generatedImageSrc === 'string' && generatedImageSrc.startsWith('data:image') && (
-        <div className="sticky-sharepic-container">
-          <img src={generatedImageSrc} alt="Generiertes Sharepic" className="sticky-sharepic" />
-          <div className="button-container">
-            {useDownloadButton && <DownloadButton imageUrl={generatedImageSrc} />}
+  const renderDisplayContent = useMemo(() => {
+    const { 
+      state: { 
+        formData,
+        selectedImage 
+      }
+    } = useSharepicGeneratorContext();
+
+    return (
+      <div className="display-content" style={{ fontSize: textSize }}>
+        {currentStep === FORM_STEPS.PREVIEW && (
+          <div className="preview-image-container">
+            {formData.uploadedImage && (
+              <img 
+                src={URL.createObjectURL(formData.uploadedImage)} 
+                alt="Vorschau" 
+                className="preview-image"
+              />
+            )}
+            {selectedImage && (
+              <img 
+                src={selectedImage.urls.regular} 
+                alt={selectedImage.alt_description || "Unsplash Vorschau"} 
+                className="preview-image"
+              />
+            )}
           </div>
-        </div>
-      )}
-
-    </div>
-  ), [currentStep, generatedImageSrc, useDownloadButton, showGeneratePostButton, generatedPost, onGeneratePost, generatePostLoading, unsplashImages, handleUnsplashSelect, selectedImage, isSharepicGenerator, textSize]);
+        )}
+        {currentStep === FORM_STEPS.RESULT && typeof generatedImageSrc === 'string' && generatedImageSrc.startsWith('data:image') && (
+          <div className="sticky-sharepic-container">
+            <img src={generatedImageSrc} alt="Generiertes Sharepic" className="sticky-sharepic" />
+            <div className="button-container">
+              {useDownloadButton && <DownloadButton imageUrl={generatedImageSrc} />}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }, [
+    currentStep, 
+    generatedImageSrc, 
+    useDownloadButton, 
+    textSize
+  ]);
 
   const handleAdvancedEditingClick = useCallback((event) => {
     event.preventDefault();
@@ -287,7 +324,7 @@ const BaseForm = ({
             }
           }}>
             <div className={`form-content ${generatedContent ? 'with-generated-content' : ''}`}>
-              {renderFormContent}
+              {renderFormContent()}
               <FormErrors errors={formErrors} />
             </div>
             {currentStep === FORM_STEPS.RESULT && (
