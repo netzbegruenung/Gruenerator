@@ -17,14 +17,20 @@ const useApiSubmit = (endpoint) => {
 
       if (response && typeof response === 'object') {
         setSuccess(true);
-        // Extrahieren Sie den 'content' aus der Antwort, falls vorhanden
         return response.content || response;
       } else {
         throw new Error('Unerwartete Antwortstruktur von der API');
       }
     } catch (error) {
       console.error(`[useApiSubmit] Error processing ${endpoint}:`, error);
-      setError('Es gab einen Fehler. Bitte versuchen Sie es später erneut.');
+      
+      if (error.response?.status === 529) {
+        setError('Der Server ist momentan überlastet. Ein neuer Versuch wird automatisch gestartet...');
+      } else if (error.response?.status === 503) {
+        setError('Der Service ist vorübergehend nicht verfügbar. Ein neuer Versuch wird automatisch gestartet...');
+      } else {
+        setError('Es gab einen Fehler. Bitte versuchen Sie es später erneut.');
+      }
       throw error;
     } finally {
       setLoading(false);

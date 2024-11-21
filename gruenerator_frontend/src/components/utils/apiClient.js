@@ -29,6 +29,25 @@ apiClient.interceptors.response.use(
   }
 );
 
+const MAX_RETRIES = 3;
+const BASE_DELAY = 1000;
+
+async function retryWithExponentialBackoff(operation, retryCount = 0) {
+  try {
+    return await operation();
+  } catch (error) {
+    // Prüfen auf 529 oder andere relevante Fehler (z.B. 503, 504)
+    if ((error.response?.status === 529 || error.response?.status === 503) && retryCount < MAX_RETRIES) {
+      const delay = BASE_DELAY * Math.pow(2, retryCount);
+      const jitter = Math.random() * 1000;
+      
+      await new Promise(resolve => setTimeout(resolve, delay + jitter));
+      return retryWithExponentialBackoff(operation, retryCount + 1);
+    }
+    throw error;
+  }
+}
+
 export const uploadFileAndGetText = async (endpoint, file) => {
   const formData = new FormData();
   formData.append('file', file);
@@ -46,7 +65,9 @@ export const uploadFileAndGetText = async (endpoint, file) => {
 
 export const processText = async (endpoint, formData) => {
   try {
-    const response = await apiClient.post(endpoint, formData);
+    const response = await retryWithExponentialBackoff(() => 
+      apiClient.post(endpoint, formData)
+    );
     return response.data;
   } catch (error) {
     handleApiError(error);
