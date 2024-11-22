@@ -35,6 +35,8 @@ const Wahlprogrammgenerator = ({ showHeaderFooter = true }) => {
 
   const { errors, validateForm } = useFormValidation(validationRules);
 
+  const [useBackupProvider, setUseBackupProvider] = useState(false);
+
   const handleSubmit = useCallback(async () => {
     const formData = { thema, details, zeichenanzahl };
     if (!validateForm(formData)) {
@@ -42,7 +44,7 @@ const Wahlprogrammgenerator = ({ showHeaderFooter = true }) => {
     }
     console.log('Submitting form with data:', formData);
     try {
-      const content = await submitForm(formData);
+      const content = await submitForm(formData, useBackupProvider);
       if (content) {
         console.log('Form submitted successfully. Received content:', content);
         setWahlprogramm(content);
@@ -52,7 +54,7 @@ const Wahlprogrammgenerator = ({ showHeaderFooter = true }) => {
     } catch (error) {
       console.error('Error submitting form:', error);
     }
-  }, [thema, details, zeichenanzahl, submitForm, resetSuccess, setGeneratedContent, validateForm]);
+  }, [thema, details, zeichenanzahl, submitForm, resetSuccess, setGeneratedContent, validateForm, useBackupProvider]);
 
   const handleGeneratedContentChange = useCallback((content) => {
     console.log('Generated content changed:', content);
@@ -71,6 +73,8 @@ const Wahlprogrammgenerator = ({ showHeaderFooter = true }) => {
         textSize={textSize}
         onGeneratedContentChange={handleGeneratedContentChange}
         validationErrors={errors}
+        useBackupProvider={useBackupProvider}
+        setUseBackupProvider={setUseBackupProvider}
       >
         <h3><label htmlFor="thema">{FORM_LABELS.THEME}</label></h3>
         <input
