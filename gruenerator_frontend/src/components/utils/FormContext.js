@@ -211,14 +211,15 @@ export const FormProvider = ({
         modification: adjustmentText,
         fullText: value
       });
+      
       console.log('API-Antwort:', result);
-      if (result && result.suggestions && result.suggestions.length > 0) {
-        const newText = result.suggestions[0];
-        setNewSelectedText(newText);
-        console.log('Neuer Text gesetzt:', newText);
+      if (result) {
+        setNewSelectedText(result);
+        console.log('Neuer Text gesetzt:', result);
         await new Promise(resolve => setTimeout(resolve, 100));
         return true;
       }
+      
       console.error('Keine gültigen Vorschläge in der API-Antwort');
       return false;
     } catch (error) {

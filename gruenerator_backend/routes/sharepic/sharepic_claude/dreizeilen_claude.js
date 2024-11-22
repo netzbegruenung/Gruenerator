@@ -1,15 +1,9 @@
 const express = require('express');
-const Anthropic = require('@anthropic-ai/sdk');
 const router = express.Router();
-require('dotenv').config();
-
-const anthropic = new Anthropic({
-  apiKey: process.env.CLAUDE_API_KEY
-});
 
 router.post('/', async (req, res) => {
   console.log('[3Zeilen-Claude API] Received request:', req.body);
-  const { thema, details, line1, line2, line3 } = req.body;
+  const { thema, details, line1, line2, line3, useBackupProvider } = req.body;
 
   try {
     console.log('[3Zeilen-Claude API] Preparing request to Claude API');
@@ -83,17 +77,26 @@ Zeile 3: ${line3}
 `;
 
     console.log('[3Zeilen-Claude API] Sending request to Claude API with prompt:', xmlPrompt);
-    const response = await anthropic.messages.create({
-      model: "claude-3-5-sonnet-20240620",
-      max_tokens: 4000,
-      temperature: 1.0,
-      messages: [{ role: "user", content: xmlPrompt }]
+    const result = await req.app.locals.aiWorkerPool.processRequest({
+      type: 'dreizeilen',
+      systemPrompt: `Du bist ein erfahrener Texter für Bündnis 90/Die Grünen. Deine Aufgabe ist es, kurze, prägnante Slogans für Sharepics zu erstellen.`,
+      messages: [{
+        role: "user",
+        content: xmlPrompt
+      }],
+      options: {
+        model: "claude-3-5-sonnet-20240620",
+        max_tokens: 4000,
+        temperature: 1.0
+      },
+      useBackupProvider
     });
 
-    console.log('[3Zeilen-Claude API] Received response from Claude API:', response);
+    console.log('[3Zeilen-Claude API] Received response from Claude API:', result);
 
-    if (response && response.content && Array.isArray(response.content)) {
-      const textContent = response.content.map(item => item.text).join("\n");
+    if (result.success) {
+      const textContent = result.content;
+
       console.log('[3Zeilen-Claude API] Processed text content:', textContent);
 
       // Extrahiere die drei Zeilen und den Suchbegriff
@@ -111,8 +114,7 @@ Zeile 3: ${line3}
       console.log('[3Zeilen-Claude API] Sending response:', result);
       res.json(result);
     } else {
-      console.error('[3Zeilen-Claude API] API response missing or incorrect content structure:', response);
-      res.status(500).send('API response missing or incorrect content structure');
+      throw new Error(result.error || 'Fehler bei der Dreizeilen-Generierung');
     }
   } catch (error) {
     console.error('[3Zeilen-Claude API] Error with Claude API:', error.response ? error.response.data : error.message);

@@ -2,12 +2,12 @@ import React, { useState } from 'react';
 
 const WelcomePopup = () => {
   const [isVisible, setIsVisible] = useState(() => {
-    return !localStorage.getItem('popupShown');
+    return !localStorage.getItem('popupShownAgain'); // Name geändert
   });
 
   const handleCloseWelcomePopup = (e) => {
     e.preventDefault();
-    localStorage.setItem('popupShown', 'true');
+    localStorage.setItem('popupShownAgain', 'true'); // Name geändert
     setIsVisible(false);
   };
 
@@ -19,20 +19,13 @@ const WelcomePopup = () => {
   return (
     <div className="welcome-popup-overlay">
       <div className="welcome-popup">
-        <h1>Störung des Grünerators.</h1>
+        <h1>Neues Backup-Feature</h1>
         <p>
-          Leider kommt es aktuell insbesondere zwischen 15 und 19 Uhr zu vermehrten Ausfällen des Grünerators. 
-          Das Problem liegt bei unserem Dienstanbieter Anthropic. Wir arbeiten an einer Lösung.
+          Gute Nachrichten: Die meisten Fehler des Grünerators konnten wir beheben! 
+          Falls du dennoch eine Fehlermeldung erhältst, kannst du jetzt "Grünerator Backup" nutzen.
         </p>
         <p>
-          Tipps bei Problemen:
-        </p>
-        <ul>
-          <li>Versuche es zu einem späteren Zeitpunkt erneut</li>
-          <li>Außerhalb der Stoßzeiten läuft der Dienst meist störungsfrei</li>
-        </ul>
-        <p>
-          Danke für dein Verständnis und deine Geduld.
+          Vielen Dank für deine Geduld!
         </p>
         <div className="welcome-button-container">
           <button
