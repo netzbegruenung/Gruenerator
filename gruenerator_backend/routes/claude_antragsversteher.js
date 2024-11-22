@@ -1,13 +1,14 @@
 const express = require('express');
 const multer = require('multer');
 const router = express.Router();
-const AIRequestManager = require('../utils/AIRequestManager');
 
 // Multer Konfiguration für PDF-Upload
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
 router.post('/upload-pdf', upload.single('file'), async (req, res) => {
+  const useBackupProvider = req.body.useBackupProvider;
+
   if (!req.file) {
     return res.status(400).send('Keine Datei hochgeladen');
   }
@@ -16,7 +17,7 @@ router.post('/upload-pdf', upload.single('file'), async (req, res) => {
     const fileBuffer = req.file.buffer;
     const base64PDF = fileBuffer.toString('base64');
 
-    const result = await AIRequestManager.processRequest({
+    const result = await req.app.locals.aiWorkerPool.processRequest({
       type: 'antragsversteher',
       systemPrompt: 'Sie sind ein hilfreicher kommunalpolitischer Berater von Bündnis 90/Die Grünen.',
       messages: [{
@@ -46,7 +47,8 @@ router.post('/upload-pdf', upload.single('file'), async (req, res) => {
         max_tokens: 2048,
         temperature: 0.3,
         betas: ["pdfs-2024-09-25"]  // Wichtig für PDF-Verarbeitung
-      }
+      },
+      useBackupProvider
     });
 
     if (!result.success) {
@@ -55,7 +57,7 @@ router.post('/upload-pdf', upload.single('file'), async (req, res) => {
 
     res.json({ 
       success: true,
-      summary: result.result 
+      summary: result.content 
     });
 
   } catch (error) {
