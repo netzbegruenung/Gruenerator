@@ -16,8 +16,14 @@ const useApiSubmit = (endpoint) => {
       console.log(`[useApiSubmit] Received response from ${endpoint}:`, response);
 
       if (response && typeof response === 'object') {
+        console.log(`[useApiSubmit] Using provider: ${response.provider}`);
+        
+        if (response.provider === 'openai') {
+          setError('Backup-System wird verwendet aufgrund temporärer Probleme.');
+        }
+        
         setSuccess(true);
-        return response.content || response;
+        return response.content || response.result;
       } else {
         throw new Error('Unerwartete Antwortstruktur von der API');
       }
