@@ -6,25 +6,59 @@ const useApiSubmit = (endpoint) => {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
 
-  const submitForm = async (formData) => {
+  const submitForm = async (formData, useBackup = false) => {
     setLoading(true);
     setSuccess(false);
     setError('');
     try {
-      console.log(`[useApiSubmit] Submitting to ${endpoint}:`, formData);
-      const response = await processText(endpoint, formData);
-      console.log(`[useApiSubmit] Received response from ${endpoint}:`, response);
+      const requestData = {
+        ...formData,
+        useBackupProvider: useBackup
+      };
+      
+      console.log(`[useApiSubmit] Submitting to ${endpoint}:`, {
+        useBackup,
+        formData: requestData,
+        endpoint
+      });
 
-      if (response && typeof response === 'object') {
-        setSuccess(true);
-        // Extrahieren Sie den 'content' aus der Antwort, falls vorhanden
-        return response.content || response;
+      const response = await processText(endpoint, requestData);
+      
+      console.log('[useApiSubmit] Response Details:', {
+        hasContent: !!response.content,
+        provider: response.metadata?.provider,
+        backupRequested: response.metadata?.backupRequested,
+        timestamp: response.metadata?.timestamp
+      });
+
+      // Spezielle Behandlung für verschiedene Endpoints
+      if (endpoint === '/claude_social') {
+        if (response && response.content) {
+          setSuccess(true);
+          return response; // Gebe komplette Response für Social Media zurück
+        }
+      } else if (endpoint.includes('etherpad')) {
+        if (response && response.padURL) {
+          setSuccess(true);
+          return response;
+        }
+      } else if (endpoint === '/claude_text_adjustment') {
+        if (response && response.suggestions && response.suggestions.length > 0) {
+          setSuccess(true);
+          return response.suggestions[0];
+        }
       } else {
-        throw new Error('Unerwartete Antwortstruktur von der API');
+        // Standard AI-Response-Behandlung
+        if (response && response.content) {
+          setSuccess(true);
+          return response.content;
+        }
       }
+
+      throw new Error('Unerwartete Antwortstruktur von der API');
     } catch (error) {
-      console.error(`[useApiSubmit] Error processing ${endpoint}:`, error);
-      setError('Es gab einen Fehler. Bitte versuchen Sie es später erneut.');
+      console.error(`[useApiSubmit] Error:`, error);
+      setError(error.message);
       throw error;
     } finally {
       setLoading(false);
