@@ -20,11 +20,12 @@ const Pressemitteilungsgenerator = ({ showHeaderFooter = true }) => {
   const textSize = useDynamicTextSize(pressemitteilung, 1.2, 0.8, [1000, 2000]);
   const { submitForm, loading, success, resetSuccess, error } = useApiSubmit('/claude_presse');
   const { setGeneratedContent } = useContext(FormContext);
+  const [useBackupProvider, setUseBackupProvider] = useState(false);
 
   const handleSubmit = useCallback(async () => {
     const formData = { was, wie, zitatgeber, pressekontakt };
     try {
-      const content = await submitForm(formData);
+      const content = await submitForm(formData, useBackupProvider);
       if (content) {
         setPressemitteilung(content);
         setGeneratedContent(content);
@@ -33,7 +34,7 @@ const Pressemitteilungsgenerator = ({ showHeaderFooter = true }) => {
     } catch (error) {
       // Error handling
     }
-  }, [was, wie, zitatgeber, pressekontakt, submitForm, resetSuccess, setGeneratedContent]);
+  }, [was, wie, zitatgeber, pressekontakt, submitForm, resetSuccess, setGeneratedContent, useBackupProvider]);
 
   const handleGeneratedContentChange = useCallback((content) => {
     setPressemitteilung(content);
@@ -51,6 +52,8 @@ const Pressemitteilungsgenerator = ({ showHeaderFooter = true }) => {
         generatedContent={pressemitteilung}
         textSize={textSize}
         onGeneratedContentChange={handleGeneratedContentChange}
+        useBackupProvider={useBackupProvider}
+        setUseBackupProvider={setUseBackupProvider}
       >
         <h3><label htmlFor="was">{FORM_LABELS.WHAT}</label></h3>
         <input

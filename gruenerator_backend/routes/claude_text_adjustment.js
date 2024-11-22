@@ -1,17 +1,16 @@
 // src/routes/claude_text_adjustment.js
 const express = require('express');
 const router = express.Router();
-const AIRequestManager = require('../utils/AIRequestManager');
 
 router.post('/', async (req, res) => {
-  const { originalText, modification, fullText } = req.body;
+  const { originalText, modification, fullText, useBackupProvider } = req.body;
 
   if (!originalText || !modification || !fullText) {
     return res.status(400).json({ error: 'originalText, modification und fullText sind erforderlich.' });
   }
 
   try {
-    const result = await AIRequestManager.processRequest({
+    const result = await req.app.locals.aiWorkerPool.processRequest({
       type: 'text_adjustment',
       systemPrompt: `Du bist ein hilfreicher Assistent, der eine verbesserte Formulierung für einen gegebenen Textabschnitt basierend auf den vom Benutzer angegebenen Änderungen vorschlägt. Berücksichtige dabei den gesamten Kontext des Textes, um sicherzustellen, dass der geänderte Abschnitt sich nahtlos in den Gesamttext einfügt. Stelle sicher, dass der Vorschlag klar, prägnant und stilistisch konsistent mit dem Originaltext ist.`,
       messages: [
@@ -29,13 +28,15 @@ Bitte schlage eine verbesserte Version des Abschnitts vor, die die gewünschten 
         }
       ],
       options: {
+        model: "claude-3-5-sonnet-20240620",
         max_tokens: 1024,
         temperature: 0.5
-      }
+      },
+      useBackupProvider
     });
 
     if (result.success) {
-      res.json({ suggestions: [result.result.trim()] });
+      res.json({ suggestions: [result.content.trim()] });
     } else {
       throw new Error(result.error);
     }

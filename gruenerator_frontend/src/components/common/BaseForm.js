@@ -11,6 +11,7 @@ import { copyFormattedContent, useAutoScroll } from '../utils/commonFunctions';
 import { FormContext } from '../utils/FormContext';
 import ExportToDocument from './ExportToDocument';
 import { Tooltip } from 'react-tooltip';
+import BackupToggle from './BackupToggle';
 
 const BaseForm = ({
   title,
@@ -26,6 +27,8 @@ const BaseForm = ({
   initialContent = '',
   alwaysEditing = false,
   hideEditButton = false,
+  useBackupProvider,
+  setUseBackupProvider,
 }) => {
   const {
     value,
@@ -190,26 +193,30 @@ const BaseForm = ({
     }
 
     // Standardfehlertext wenn kein spezifischer Code gefunden wurde
-    return `Ein Fehler ist aufgetreten. Es mir sehr leid. Bitte versuche es später erneut.`;
+    return `Ein Fehler ist aufgetreten. Es tut mir sehr leid. Bitte versuche es später erneut.`;
+  };
+
+  // Wrapper für onSubmit
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await onSubmit();
+    } catch (error) {
+      console.error('[BaseForm] Submit error:', error);
+    }
   };
 
   return (
     <div className={`base-container ${isEditing ? 'editing-mode' : ''} ${title === "Grünerator Antragscheck" ? 'antragsversteher-base' : ''} ${value ? 'has-generated-content' : ''}`}>
       <div className="form-container">
-        <form onSubmit={(e) => {
-          e.preventDefault();
-          onSubmit();
-        }}>
+        <form onSubmit={handleSubmit}>
           <div className={`form-content ${hasFormErrors ? 'has-errors' : ''}`}>
             {children}
-            {hasFormErrors && (
-              <div className="form-errors" role="alert" aria-live="assertive">
-                {Object.entries(formErrors).map(([field, message]) => (
-                  <p key={field} className="error-message">
-                    {message}
-                  </p>
-                ))}
-              </div>
+            {title !== "Grünerator Antragscheck" && (
+              <BackupToggle 
+                useBackupProvider={useBackupProvider}
+                setUseBackupProvider={setUseBackupProvider}
+              />
             )}
             <div className="button-container">
               <SubmitButton
@@ -317,6 +324,8 @@ BaseForm.propTypes = {
   initialContent: PropTypes.string,
   alwaysEditing: PropTypes.bool,
   hideEditButton: PropTypes.bool,
+  useBackupProvider: PropTypes.bool,
+  setUseBackupProvider: PropTypes.func,
 };
 
 export default BaseForm;
