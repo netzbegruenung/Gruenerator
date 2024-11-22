@@ -4,6 +4,7 @@ node_modules/
 # Logs
 *.log
 npm-debug.log*
+logs/
 
 # Runtime data
 pids
@@ -16,6 +17,7 @@ lib-cov
 
 # Coverage directory used by tools like istanbul
 coverage
+tests/
 
 # nyc test coverage
 .nyc_output
