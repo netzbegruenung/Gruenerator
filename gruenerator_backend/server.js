@@ -37,8 +37,11 @@ if (cluster.isMaster) {
     cluster.fork();
   });
 } else {
+  const app = express();
+  
   // Worker-Pool für AI-Anfragen initialisieren
-  aiWorkerPool = new AIWorkerPool(4); // 4 AI-Worker pro Server-Worker
+  aiWorkerPool = new AIWorkerPool(4);
+  app.locals.aiWorkerPool = aiWorkerPool;
 
   // Graceful Shutdown Handler
   process.on('SIGTERM', async () => {
@@ -80,7 +83,6 @@ if (cluster.isMaster) {
     ]
   });
 
-  const app = express();
   const port = process.env.PORT || 3001;
   const host = process.env.HOST || "127.0.0.1";
 
@@ -150,7 +152,20 @@ if (cluster.isMaster) {
         scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
         styleSrc: ["'self'", "'unsafe-inline'"],
         imgSrc: ["'self'", "data:", "blob:", "https://*.unsplash.com"],
-        connectSrc: ["'self'", ...allowedOrigins, "https://api.unsplash.com", "https://*.supabase.co"],
+        connectSrc: [
+          "'self'", 
+          "http://gruenerator-test.de",
+          "https://gruenerator-test.de",
+          "http://gruenerator.de",
+          "https://gruenerator.de",
+          "http://gruenerator-test.netzbegruenung.verdigado.net",
+          "https://gruenerator-test.netzbegruenung.verdigado.net",
+          "http://localhost:*",
+          "http://127.0.0.1:*",
+          ...allowedOrigins,
+          "https://api.unsplash.com",
+          "https://*.supabase.co"
+        ],
         fontSrc: ["'self'", "https://fonts.gstatic.com"],
         objectSrc: ["'none'"],
         mediaSrc: ["'self'"],

@@ -1,12 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const AIRequestManager = require('../utils/AIRequestManager');
 
 router.post('/', async (req, res) => {
-  const { was, wie, zitatgeber, pressekontakt } = req.body;
+  const { was, wie, zitatgeber, pressekontakt, useBackupProvider } = req.body;
 
   try {
-    const result = await AIRequestManager.processRequest({
+    const result = await req.app.locals.aiWorkerPool.processRequest({
       type: 'presse',
       systemPrompt: `Agiere als Pressesprecher einer Gliederung von Bündnis 90/Die Grünen und schreibe eine Pressemitteilung für den Presseverteiler. 
       
@@ -31,11 +30,17 @@ Pressekontakt: ${pressekontakt}`
         model: "claude-3-5-sonnet-20240620",
         max_tokens: 1024,
         temperature: 0.3
-      }
+      },
+      useBackupProvider
     });
 
-    if (!result.success) throw new Error(result.error);
-    res.json({ content: result.result });
+    if (!result.success) {
+      throw new Error(result.error);
+    }
+    res.json({ 
+      content: result.content,
+      metadata: result.metadata 
+    });
   } catch (error) {
     console.error('Fehler bei der Pressemitteilungserstellung:', error);
     res.status(500).json({ 
