@@ -42,6 +42,11 @@ const useApiSubmit = (endpoint) => {
           setSuccess(true);
           return response;
         }
+      } else if (endpoint === '/claude_text_adjustment') {
+        if (response && response.suggestions && response.suggestions.length > 0) {
+          setSuccess(true);
+          return response.suggestions[0];
+        }
       } else {
         // Standard AI-Response-Behandlung
         if (response && response.content) {
