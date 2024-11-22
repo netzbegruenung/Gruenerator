@@ -159,7 +159,7 @@ const openai = new OpenAI({
 
 // Mapping für Modelle
 const MODEL_MAPPING = {
-  'claude-3-5-sonnet-20241022': 'gpt-4-turbo-preview', // Primary zu Backup Modell
+  'claude-3-5-sonnet-20241022': 'gpt-4o', // Updated model to gpt-4o
 };
 
 // Logger konfigurieren
@@ -189,7 +189,7 @@ async function processOpenAIRequest(data, retryCount = 0) {
   
   try {
     const openaiConfig = {
-      model: MODEL_MAPPING[options.model] || 'gpt-4-turbo-preview',
+      model: MODEL_MAPPING[options.model] || 'gpt-4o', // Updated model to gpt-4o
       max_tokens: options.max_tokens || 8000,
       temperature: options.temperature || 0.9,
       messages: []
