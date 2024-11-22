@@ -1,8 +1,0 @@
-{"level":"info","message":"Server will run on port 3001","timestamp":"2024-10-25T21:58:26.838Z"}
-{"level":"info","message":"Static file serving configured","timestamp":"2024-10-25T21:58:26.846Z"}
-{"level":"info","message":"Static file serving configured","timestamp":"2024-10-25T21:58:26.847Z"}
-{"level":"info","message":"Registered routes:","timestamp":"2024-10-25T21:58:26.853Z"}
-{"level":"info","message":"OPTIONS *","timestamp":"2024-10-25T21:58:26.853Z"}
-{"level":"info","message":"GET /","timestamp":"2024-10-25T21:58:26.854Z"}
-{"level":"info","message":"GET *","timestamp":"2024-10-25T21:58:26.854Z"}
-{"level":"info","message":"HTTP Server running at http://127.0.0.1:3001","timestamp":"2024-10-25T21:58:26.859Z"}
