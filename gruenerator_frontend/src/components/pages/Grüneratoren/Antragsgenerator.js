@@ -1,4 +1,4 @@
-import React, { useContext, useCallback } from 'react';
+import React, { useState, useCallback, useContext } from 'react';
 import PropTypes from 'prop-types';
 import '../../../assets/styles/common/variables.css';
 import '../../../assets/styles/common/global.css';
@@ -7,57 +7,37 @@ import '../../../assets/styles/pages/baseform.css';
 import { useDynamicTextSize } from '../../utils/commonFunctions';
 import useApiSubmit from '../../hooks/useApiSubmit';
 import BaseForm from '../../common/BaseForm';
-import { useFormState } from '../../hooks/useFormState';
 import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../utils/constants';
 import { FormContext } from '../../utils/FormContext';
 
 const Antragsgenerator = ({ showHeaderFooter = true }) => {
-  const initialState = {
-    idee: '',
-    details: '',
-    gliederung: '',
-    antrag: ''
-  };
-
-  const {
-    formData,
-    loading,
-    success,
-    error,
-    handleChange,
-    setLoading,
-    setError,
-    setSuccess,
-    setFormData
-  } = useFormState(initialState);
-
-  const textSize = useDynamicTextSize(formData.antrag, 1.2, 0.8, [1000, 2000]);
-  const { submitForm } = useApiSubmit('/claude');
-
+  const [idee, setIdee] = useState('');
+  const [details, setDetails] = useState('');
+  const [gliederung, setGliederung] = useState('');
+  const [antrag, setAntrag] = useState('');
+  const [useBackupProvider, setUseBackupProvider] = useState(false);
+  const textSize = useDynamicTextSize(antrag, 1.2, 0.8, [1000, 2000]);
+  const { submitForm, loading, success, resetSuccess, error } = useApiSubmit('/claude');
   const { setGeneratedContent } = useContext(FormContext);
 
   const handleSubmit = useCallback(async () => {
-    setLoading(true);
-    setError('');
-    setSuccess(false);
-
+    const formData = { idee, details, gliederung };
     try {
-      const content = await submitForm(formData);
+      const content = await submitForm(formData, useBackupProvider);
       if (content) {
+        setAntrag(content);
         setGeneratedContent(content);
-        setSuccess(true);
-        setTimeout(() => setSuccess(false), 3000);
+        setTimeout(resetSuccess, 3000);
       }
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
+    } catch (error) {
+      // Error handling
     }
-  }, [formData, setLoading, setError, setSuccess, setFormData, submitForm, setGeneratedContent]);
+  }, [idee, details, gliederung, submitForm, resetSuccess, setGeneratedContent, useBackupProvider]);
 
   const handleGeneratedContentChange = useCallback((content) => {
-    setFormData(prevState => ({ ...prevState, antrag: content }));
-  }, [setFormData]);
+    setAntrag(content);
+    setGeneratedContent(content);
+  }, [setGeneratedContent]);
 
   return (
     <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
@@ -67,9 +47,11 @@ const Antragsgenerator = ({ showHeaderFooter = true }) => {
         loading={loading}
         success={success}
         error={error}
-        generatedContent={formData.antrag}
+        generatedContent={antrag}
         textSize={textSize}
         onGeneratedContentChange={handleGeneratedContentChange}
+        useBackupProvider={useBackupProvider}
+        setUseBackupProvider={setUseBackupProvider}
       >
         <h3><label htmlFor="idee">{FORM_LABELS.IDEE}</label></h3>
         <input
@@ -77,8 +59,8 @@ const Antragsgenerator = ({ showHeaderFooter = true }) => {
           type="text"
           name="idee"
           placeholder={FORM_PLACEHOLDERS.IDEE}
-          value={formData.idee}
-          onChange={handleChange}
+          value={idee}
+          onChange={(e) => setIdee(e.target.value)}
           aria-required="true"
         />
         
@@ -88,8 +70,8 @@ const Antragsgenerator = ({ showHeaderFooter = true }) => {
           name="details"
           style={{ height: '120px' }}
           placeholder={FORM_PLACEHOLDERS.DETAILS}
-          value={formData.details}
-          onChange={handleChange}
+          value={details}
+          onChange={(e) => setDetails(e.target.value)}
           aria-required="true"
         ></textarea>
         
@@ -99,8 +81,8 @@ const Antragsgenerator = ({ showHeaderFooter = true }) => {
           type="text"
           name="gliederung"
           placeholder={FORM_PLACEHOLDERS.GLIEDERUNG}
-          value={formData.gliederung}
-          onChange={handleChange}
+          value={gliederung}
+          onChange={(e) => setGliederung(e.target.value)}
           aria-required="true"
         />
       </BaseForm>

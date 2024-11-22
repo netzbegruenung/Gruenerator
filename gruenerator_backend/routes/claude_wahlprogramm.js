@@ -1,12 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const AIRequestManager = require('../utils/AIRequestManager');
 
 router.post('/', async (req, res) => {
-  const { thema, details, zeichenanzahl } = req.body;
+  const { thema, details, zeichenanzahl, useBackupProvider } = req.body;
 
   try {
-    const result = await AIRequestManager.processRequest({
+    const result = await req.app.locals.aiWorkerPool.processRequest({
       type: 'wahlprogramm',
       systemPrompt: 'Du bist Schreiber des Wahlprogramms einer Gliederung von Bündnis 90/Die Grünen.',
       prompt: `Erstelle ein Kapitel für ein Wahlprogramm zum Thema ${thema} im Stil des vorliegenden Dokuments.
@@ -36,14 +35,21 @@ Beachte zusätzlich diese sprachlichen Aspekte:
         model: "claude-3-5-sonnet-20240620",
         max_tokens: 4000,
         temperature: 0.3
-      }
+      },
+      useBackupProvider
     });
 
     if (!result.success) throw new Error(result.error);
-    res.json({ content: result.result });
+    res.json({ 
+      content: result.content,
+      metadata: result.metadata
+    });
   } catch (error) {
     console.error('Fehler bei der Wahlprogramm-Erstellung:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ 
+      error: 'Fehler bei der Erstellung des Wahlprogramms',
+      details: error.message
+    });
   }
 });
 
