@@ -7,6 +7,7 @@ import useApiSubmit from '../../hooks/useApiSubmit';
 import useEditFunctionality from '../../hooks/useEditFunctionality';
 import { FaFacebook, FaInstagram, FaTwitter, FaLinkedin } from "react-icons/fa";
 import StyledCheckbox from '../../common/AnimatedCheckbox';  // Importieren Sie die AnimatedCheckbox-Komponente
+import BackupToggle from '../../common/BackupToggle';  // BackupToggle importieren
 
 const platformIcons = {
   facebook: FaFacebook,
@@ -40,18 +41,20 @@ const SocialMediaGenerator = ({ showHeaderFooter = true }) => {
     handlePostContentChange
   } = useEditFunctionality({});
 
+  const [useBackupProvider, setUseBackupProvider] = useState(false);
+
   const handleSubmit = useCallback(async () => {
     const selectedPlatforms = Object.keys(platforms).filter(key => platforms[key] && key !== 'actionIdeas');
     const formData = { 
       thema, 
       details, 
       platforms: selectedPlatforms, 
-      includeActionIdeas: platforms.actionIdeas 
+      includeActionIdeas: platforms.actionIdeas
     };
     try {
-      const content = await submitForm(formData);
-      if (content) {
-        setSocialMediaPosts(content);
+      const response = await submitForm(formData, useBackupProvider);
+      if (response && response.content) {
+        setSocialMediaPosts(response.content);
         setTimeout(resetSuccess, 3000);
         setError('');
       }
@@ -59,7 +62,7 @@ const SocialMediaGenerator = ({ showHeaderFooter = true }) => {
       console.error('Error submitting form:', err);
       setError(err.message || 'Ein Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.');
     }
-  }, [thema, details, platforms, submitForm, resetSuccess, setSocialMediaPosts]);
+  }, [thema, details, platforms, submitForm, resetSuccess, setSocialMediaPosts, useBackupProvider]);
 
   const handlePlatformChange = useCallback((platform) => {
     setPlatforms(prev => ({ ...prev, [platform]: !prev[platform] }));
@@ -70,21 +73,23 @@ const SocialMediaGenerator = ({ showHeaderFooter = true }) => {
       thema, 
       details, 
       platforms: platform === 'actionIdeas' ? [] : [platform], 
-      includeActionIdeas: platform === 'actionIdeas' 
+      includeActionIdeas: platform === 'actionIdeas'
     };
     try {
-      const content = await submitForm(formData);
-      if (content) {
+      const response = await submitForm(formData, useBackupProvider);
+      if (response && response.content) {
         setSocialMediaPosts(prev => ({
           ...prev,
-          ...(platform === 'actionIdeas' ? { actionIdeas: content.actionIdeas } : { [platform]: content[platform] })
+          ...(platform === 'actionIdeas' 
+            ? { actionIdeas: response.content.actionIdeas } 
+            : { [platform]: response.content[platform] })
         }));
       }
     } catch (error) {
       console.error('Error regenerating post:', error);
       setError(error.message || 'Ein Fehler ist aufgetreten beim Regenerieren des Posts.');
     }
-  }, [thema, details, submitForm, setSocialMediaPosts]);
+  }, [thema, details, submitForm, setSocialMediaPosts, useBackupProvider]);
 
   const renderFormInputs = () => (
     <>
@@ -126,6 +131,11 @@ const SocialMediaGenerator = ({ showHeaderFooter = true }) => {
           />
         ))}
       </div>
+
+      <BackupToggle 
+        useBackupProvider={useBackupProvider}
+        setUseBackupProvider={setUseBackupProvider}
+      />
     </>
   );
 

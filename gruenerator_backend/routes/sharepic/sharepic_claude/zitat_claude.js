@@ -1,15 +1,9 @@
 const express = require('express');
-const Anthropic = require('@anthropic-ai/sdk');
 const router = express.Router();
-require('dotenv').config();
-
-const anthropic = new Anthropic({
-  apiKey: process.env.CLAUDE_API_KEY
-});
 
 router.post('/', async (req, res) => {
   console.log('[Zitat-Claude API] Received request:', req.body);
-  const { thema, details, quote, name } = req.body;
+  const { thema, details, quote, name, useBackupProvider } = req.body;
 
   try {
     console.log('[Zitat-Claude API] Preparing request to Claude API');
@@ -18,33 +12,39 @@ router.post('/', async (req, res) => {
       : `Optimiere folgendes Zitat: "${quote}" - ${name}`;
 
     console.log('[Zitat-Claude API] Sending request to Claude API with prompt:', prompt);
-    const response = await anthropic.messages.create({
-      model: "claude-3-5-sonnet-20240620",
-      max_tokens: 1000,
-      temperature: 0.7,
-      system: "Du bist ein erfahrener Social-Media-Manager für Bündnis 90/Die Grünen. Deine Aufgabe ist es, ein prägnantes und aussagekräftige Zitat mit maximal 140 Zeichen im STil von Bündnis 90/Die Grünen zu erstellen.",
-      messages: [{ role: "user", content: prompt }]
+    const result = await req.app.locals.aiWorkerPool.processRequest({
+      type: 'zitat',
+      systemPrompt: "Du bist ein erfahrener Social-Media-Manager für Bündnis 90/Die Grünen. Deine Aufgabe ist es, ein prägnantes und aussagekräftige Zitat mit maximal 140 Zeichen im STil von Bündnis 90/Die Grünen zu erstellen.",
+      messages: [{ 
+        role: "user", 
+        content: prompt 
+      }],
+      options: {
+        model: "claude-3-5-sonnet-20240620",
+        max_tokens: 1000,
+        temperature: 0.7
+      },
+      useBackupProvider
     });
 
-    console.log('[Zitat-Claude API] Received reasponse from Claude API:', response);
+    console.log('[Zitat-Claude API] Received reasponse from Claude API:', result);
 
-    if (response && response.content && Array.isArray(response.content)) {
-      const textContent = response.content.map(item => item.text).join("\n");
+    if (result.success) {
+      const textContent = result.content;
       console.log('[Zitat-Claude API] Processed text content:', textContent);
       
       // Extrahiere Zitat (ohne Anführungszeichen und einleitende Sätze)
       const extractedQuote = textContent.replace(/^.*?["„]|[""]$/g, '').trim();
       
-      const result = {
+      const resultObj = {
         quote: extractedQuote,
         name: 'Bündnis 90/Die Grünen'
       };
       
-      console.log('[Zitat-Claude API] Sending response:', result);
-      res.json(result);
+      console.log('[Zitat-Claude API] Sending response:', resultObj);
+      res.json(resultObj);
     } else {
-      console.error('[Zitat-Claude API] API response missing or incorrect content structure:', response);
-      res.status(500).send('API response missing or incorrect content structure');
+      throw new Error(result.error || 'Fehler bei der Zitat-Generierung');
     }
   } catch (error) {
     console.error('[Zitat-Claude API] Error with Claude API:', error.response ? error.response.data : error.message);

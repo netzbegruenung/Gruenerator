@@ -1,7 +1,6 @@
 const express = require('express');
 const JSON5 = require('json5');
 const router = express.Router();
-const AIRequestManager = require('../utils/AIRequestManager');
 
 const platformGuidelines = {
   facebook: {
@@ -74,10 +73,10 @@ const platformGuidelines = {
 };
 
 router.post('/', async (req, res) => {
-  const { thema, details, platforms = [], includeActionIdeas } = req.body;
+  const { thema, details, platforms = [], includeActionIdeas, useBackupProvider } = req.body;
 
   try {
-    const result = await AIRequestManager.processRequest({
+    const result = await req.app.locals.aiWorkerPool.processRequest({
       type: 'social',
       systemPrompt: 'You are a Social Media Manager for Bündnis 90/Die Grünen. Create social media post suggestions for the specified platforms, adapting the content and style to each platform. Provide your response in a structured JSON format.',
       messages: [{
@@ -137,7 +136,8 @@ router.post('/', async (req, res) => {
         model: "claude-3-5-sonnet-20240620",
         max_tokens: 4000,
         temperature: 0.9
-      }
+      },
+      useBackupProvider
     });
 
     if (!result.success) {
@@ -153,7 +153,7 @@ router.post('/', async (req, res) => {
     };
 
     try {
-      const sanitizedText = sanitizeResponse(result.result);
+      const sanitizedText = sanitizeResponse(result.content);
       const content = JSON5.parse(sanitizedText);
 
       const filteredContent = Object.fromEntries(
@@ -162,7 +162,10 @@ router.post('/', async (req, res) => {
         )
       );
 
-      res.json(filteredContent);
+      res.json({ 
+        content: filteredContent,
+        metadata: result.metadata
+      });
     } catch (parseError) {
       console.error('JSON Parsing Error:', parseError);
       res.status(500).json({
