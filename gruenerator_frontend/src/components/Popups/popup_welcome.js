@@ -11,7 +11,6 @@ const WelcomePopup = () => {
     setIsVisible(false);
   };
 
-
   if (!isVisible) {
     return null;
   }
@@ -22,7 +21,7 @@ const WelcomePopup = () => {
         <h1>Neues Backup-Feature</h1>
         <p>
           Gute Nachrichten: Die meisten Fehler des Grünerators konnten wir beheben! 
-          Falls du dennoch eine Fehlermeldung erhältst, kannst du jetzt "Grünerator Backup" nutzen.
+          Falls du dennoch eine Fehlermeldung erhältst, kannst du jetzt &quot;Grünerator Backup&quot; nutzen.
         </p>
         <p>
           Vielen Dank für deine Geduld!
