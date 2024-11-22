@@ -1,12 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const AIRequestManager = require('../utils/AIRequestManager');
 
 router.post('/', async (req, res) => {
-  const { rolle, thema, Zielgruppe, schwerpunkte, redezeit } = req.body;
+  const { rolle, thema, Zielgruppe, schwerpunkte, redezeit, useBackupProvider } = req.body;
 
   try {
-    const result = await AIRequestManager.processRequest({
+    const result = await req.app.locals.aiWorkerPool.processRequest({
       type: 'rede',
       systemPrompt: `Sie sind damit beauftragt, eine politische Rede für ein Mitglied von Bündnis 90/Die Grünen zu schreiben. Ihr Ziel ist es, eine überzeugende und mitreißende Rede zu erstellen, die den Werten und Positionen der Partei entspricht und das gegebene Thema behandelt. 
 
@@ -48,11 +47,12 @@ Gewünschte Redezeit (in Minuten): ${redezeit}`
         model: "claude-3-5-sonnet-20240620",
         max_tokens: 4000,
         temperature: 0.3
-      }
+      },
+      useBackupProvider
     });
 
     if (!result.success) throw new Error(result.error);
-    res.json({ content: result.result });
+    res.json({ content: result.content });
   } catch (error) {
     console.error('Fehler bei der Redenerstellung:', error);
     res.status(500).json({ error: error.message });
