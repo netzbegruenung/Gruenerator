@@ -2,19 +2,15 @@ import React, { useState } from 'react';
 
 const WelcomePopup = () => {
   const [isVisible, setIsVisible] = useState(() => {
-    return !localStorage.getItem('welcomePopupShown');
+    return !localStorage.getItem('popupShown');
   });
 
   const handleCloseWelcomePopup = (e) => {
     e.preventDefault();
-    localStorage.setItem('welcomePopupShown', 'true');
+    localStorage.setItem('popupShown', 'true');
     setIsVisible(false);
   };
 
-  const handleNewsletterSignup = (e) => {
-    e.preventDefault();
-    window.location.href = '/newsletter';
-  };
 
   if (!isVisible) {
     return null;
@@ -23,28 +19,27 @@ const WelcomePopup = () => {
   return (
     <div className="welcome-popup-overlay">
       <div className="welcome-popup">
-        <h1>Das Work Update ist da!</h1>
+        <h1>Störung des Grünerators.</h1>
+        <p>
+          Leider kommt es aktuell insbesondere zwischen 15 und 19 Uhr zu vermehrten Ausfällen des Grünerators. 
+          Das Problem liegt bei unserem Dienstanbieter Anthropic. Wir arbeiten an einer Lösung.
+        </p>
+        <p>
+          Tipps bei Problemen:
+        </p>
         <ul>
-          <li>Grünerator Editor: Nach der &quot;Grünerierung&quot; kannst du den Text direkt anpassen</li>
-          <li>Grünerator KI-Textverbesserung: Markiere Text im Editor und nutze die neue KI-Anpassung (Desktop only)</li>
-          <li>Grünerator Office: Erstelle automatisch ein Dokument (wie Google Docs), verschicke einen Link und bearbeite es im Team</li>
-          <li>Neuer Grünerator &quot;Wahlprogramm&quot;: Erstelle Kapitel für dein Wahlprogramm</li>
+          <li>Versuche es zu einem späteren Zeitpunkt erneut</li>
+          <li>Außerhalb der Stoßzeiten läuft der Dienst meist störungsfrei</li>
         </ul>
         <p>
-          Melde dich für das GRÜNERATOR FAX an und erhalte die wichtigsten Infos zu KI und dem Grünerator. Kostenlos, kein Spam, nur wenige E-Mails. Versprochen!
+          Danke für dein Verständnis und deine Geduld.
         </p>
         <div className="welcome-button-container">
-          <button
-            onClick={handleNewsletterSignup}
-            className="welcome-button welcome-button-signup"
-          >
-            Anmelden
-          </button>
           <button
             onClick={handleCloseWelcomePopup}
             className="welcome-button"
           >
-            Hab ich schon
+            Verstanden
           </button>
         </div>
       </div>

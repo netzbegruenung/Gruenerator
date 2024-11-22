@@ -26,7 +26,22 @@ module.exports = {
           '429',
           '500',
           '503'
-        ]
+        ],
+        useBackupOnFail: true,  // Aktiviert Backup-Provider bei Fehler
+        backupRetryCount: 2     // Maximale Anzahl von Backup-Versuchen
+      },
+      
+      // Backup-Provider Einstellungen
+      backup: {
+        enabled: true,
+        provider: 'openai',
+        modelMapping: {
+          'claude-3-5-sonnet-20241022': 'gpt-4-turbo-preview',
+          'claude-3-opus-20240229': 'gpt-4-turbo-preview',
+          'claude-2.1': 'gpt-4'
+        },
+        maxTokens: 8000,
+        timeout: 30000
       }
     },
     
