@@ -44,6 +44,12 @@ class AIWorkerPool {
   }
 
   async processRequest(data) {
+    console.log('[AIWorkerPool] Processing request:', {
+      type: data.type,
+      useBackupProvider: data.useBackupProvider,
+      workerId: this.currentWorker
+    });
+
     return new Promise((resolve, reject) => {
       const worker = this.workers[this.currentWorker];
       this.currentWorker = (this.currentWorker + 1) % this.workers.length;
@@ -57,7 +63,16 @@ class AIWorkerPool {
       worker.once('message', (result) => {
         clearTimeout(timeout);
         if (result.success) {
-          resolve(result);
+          resolve({
+            content: result.content,
+            success: true,
+            metadata: {
+              ...result.metadata,
+              provider: result.metadata?.provider || 'unknown',
+              timestamp: result.metadata?.timestamp || new Date().toISOString(),
+              backupRequested: result.metadata?.backupRequested ?? !!data.useBackupProvider
+            }
+          });
         } else {
           reject(new Error(result.error));
         }

@@ -75,13 +75,13 @@ const ExportToDocument = ({ content, ...props }) => {
   const handleEtherpadExport = async () => {
     try {
       const cleanContent = cleanHtmlContent(content);
-      const result = await submitForm({ 
+      const response = await submitForm({ 
         text: cleanContent,
         documentType: documentType
       });
       
-      if (result && result.padURL) {
-        setPadURL(result.padURL);
+      if (response && response.padURL) {
+        setPadURL(response.padURL);
       } else {
         throw new Error('Keine gültige Pad-URL erhalten');
       }

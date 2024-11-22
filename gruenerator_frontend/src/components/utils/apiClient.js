@@ -65,11 +65,30 @@ export const uploadFileAndGetText = async (endpoint, file) => {
 
 export const processText = async (endpoint, formData) => {
   try {
+    console.log('[apiClient] Sending request with backup:', formData.useBackupProvider, {
+      endpoint,
+      useBackupProvider: formData.useBackupProvider,
+      hasSystemPrompt: !!formData.systemPrompt,
+      type: formData.type
+    });
+
     const response = await retryWithExponentialBackoff(() => 
       apiClient.post(endpoint, formData)
     );
-    return response.data;
+
+    // Detaillierteres Logging
+    const responseData = response.data;
+    console.log('[apiClient] Raw Response:', responseData);
+    console.log('[apiClient] Response Details:', {
+      provider: responseData.metadata?.provider,
+      backupRequested: responseData.metadata?.backupRequested,
+      hasContent: !!responseData.content,
+      timestamp: responseData.metadata?.timestamp
+    });
+
+    return responseData;
   } catch (error) {
+    console.error('[apiClient] Error processing request:', error);
     handleApiError(error);
     throw error;
   }
