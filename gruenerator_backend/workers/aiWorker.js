@@ -96,23 +96,10 @@ class ConcurrentRequestManager {
   }
 
   shouldRetry(error, retryCount) {
-    // Definiere retry-würdige Fehler
-    const retryableErrors = [
-      'rate_limit',
-      'timeout',
-      'network_error',
-      'internal_server_error',
-      '429',
-      '500',
-      '503'
-    ];
-
+    // Prüfe nur auf HTTP Status Codes und Retry Count
     return (
-      retryCount < this.retryConfig.maxRetries &&
-      retryableErrors.some(errType => 
-        error.message.toLowerCase().includes(errType.toLowerCase()) ||
-        error.status === parseInt(errType)
-      )
+      retryCount < this.retryConfig.maxRetries && 
+      (error.status >= 500 || error.status === 429)
     );
   }
 
