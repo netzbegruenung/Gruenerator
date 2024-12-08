@@ -156,7 +156,7 @@ async function processAIRequest(data, retryCount = 0) {
         },
         'social': {
           system: "Du bist ein Social Media Manager...",
-          temperature: 0.5
+          temperature: 0.9
         },
         'rede': {
           system: "Du bist ein Redenschreiber...",
@@ -244,7 +244,7 @@ async function processWithOpenAI(data) {
     // System Message hinzufügen
     openAIMessages.push({
       role: 'system',
-      content: systemPrompt || 'You are a Social Media Manager for Bündnis 90/Die Grünen. Create social media post suggestions for the specified platforms, adapting the content and style to each platform. Provide your response in a structured JSON format.'
+      content: systemPrompt || 'Du bist ein Social Media Manager für Bündnis 90/Die Grünen. Erstelle Vorschläge für Social Media Beiträge für die angegebenen Plattformen und passe den Inhalt sowie den Stil an jede Plattform an. Gib deine Antwort in einem strukturierten JSON-Format zurück.'
     });
 
     // Konvertiere die komplexen Messages in einfache Textformate für OpenAI

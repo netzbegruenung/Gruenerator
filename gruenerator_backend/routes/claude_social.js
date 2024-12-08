@@ -78,21 +78,21 @@ router.post('/', async (req, res) => {
   try {
     const result = await req.app.locals.aiWorkerPool.processRequest({
       type: 'social',
-      systemPrompt: 'You are a Social Media Manager for Bündnis 90/Die Grünen. Create social media post suggestions for the specified platforms, adapting the content and style to each platform. Provide your response in a structured JSON format.',
+      systemPrompt: 'Du bist Social Media Manager für Bündnis 90/Die Grünen. Erstelle Vorschläge für Social-Media-Beiträge für die angegebenen Plattformen und passe den Inhalt und Stil an jede Plattform an. Liefere deine Antwort in einem strukturierten JSON-Format.',
       messages: [{
         role: 'user',
         content: `
-        Theme: ${thema}
+        Thema: ${thema}
         Details: ${details}
-        Platforms: ${platforms.join(', ')}
+        Plattformen: ${platforms.join(', ')}
         
-        Create a tailored social media post for each selected platform on this theme, reflecting the style and values of Bündnis 90/Die Grünen. Consider these platform-specific guidelines:
+        Erstelle einen maßgeschneiderten Social-Media-Beitrag für jede ausgewählte Plattform zu diesem Thema, der den Stil und die Werte von Bündnis 90/Die Grünen widerspiegelt. Berücksichtige diese plattformspezifischen Richtlinien:
 
         ${platforms.map(platform => `
-        ${platform.toUpperCase()}: Max length: ${platformGuidelines[platform].maxLength} characters. Style: ${platformGuidelines[platform].style} Focus: ${platformGuidelines[platform].focus} Additional guidelines: ${platformGuidelines[platform].additionalGuidelines}`).join('\n')}
+        ${platform.toUpperCase()}: Maximale Länge: ${platformGuidelines[platform].maxLength} Zeichen. Stil: ${platformGuidelines[platform].style} Fokus: ${platformGuidelines[platform].focus} Zusätzliche Richtlinien: ${platformGuidelines[platform].additionalGuidelines}`).join('\n')}
         ${includeActionIdeas ? 'Bitte füge 5 Aktionsideen für Soziale Medien hinzu.' : ''}
 
-        Jeder Post sollte:
+        Jeder Beitrag sollte:
         1. Ein eigener Beitragstext angepasst an die spezifische Plattform und deren Zielgruppe sein.
         2. Mit einer aufmerksamkeitsstarken Einleitung beginnen.
         3. Wichtige Botschaften klar und prägnant vermitteln.
@@ -101,36 +101,36 @@ router.post('/', async (req, res) => {
         6. Aktuelle Positionen der Grünen Partei einbeziehen.
         7. Bei Bedarf auf weiterführende Informationen verweisen (z.B. Webseite).
 
-        Provide your response in the following JSON format:
+        Liefere deine Antwort im folgenden JSON-Format:
         {
           "facebook": {
             "title": "Facebook",
-            "content": "Post content here including #hashtags within the text..."
+            "content": "Beitragsinhalt hier mit #hashtags im Text..."
           },
           "instagram": {
             "title": "Instagram",
-            "content": "Post content here including #hashtags within the text..."
+            "content": "Beitragsinhalt hier mit #hashtags im Text..."
           },
           "twitter": {
             "title": "Twitter",
-            "content": "Post content here including #hashtags within the text..."
+            "content": "Beitragsinhalt hier mit #hashtags im Text..."
           },
           "linkedin": {
             "title": "LinkedIn",
-            "content": "Post content here including #hashtags within the text..."
+            "content": "Beitragsinhalt hier mit #hashtags im Text..."
           },
           "actionIdeas": [
-            "Action idea 1",
-            "Action idea 2",
-            "Action idea 3"
+            "Aktionsidee 1",
+            "Aktionsidee 2",
+            "Aktionsidee 3"
           ],
           "reelScript": {
-            "title": "Instagram Reel Script (60 Sekunden)",
-            "content": "Script content with [visual descriptions] and timing markers..."
+            "title": "Instagram Reel Skript (60 Sekunden)",
+            "content": "Skriptinhalt mit [visuellen Beschreibungen] und Zeitmarkierungen..."
           }
         }
 
-        Only include sections for the requested platforms. If no action ideas were requested, omit the "actionIdeas" field.`
+        Füge nur Abschnitte für die angeforderten Plattformen ein. Wenn keine Aktionsideen angefordert wurden, lasse das Feld "actionIdeas" weg.`
       }],
       options: {
         model: "claude-3-5-sonnet-20240620",
