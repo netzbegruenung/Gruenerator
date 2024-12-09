@@ -121,10 +121,15 @@ if (cluster.isMaster) {
   // CORS Setup
   const allowedOrigins = [
     'https://gruenerator-test.de',
+    'https://www.gruenerator-test.de',
     'https://gruenerator.netzbegruenung.verdigado.net',
+    'https://www.gruenerator.netzbegruenung.verdigado.net',
     'https://gruenerator.de',
+    'https://www.gruenerator.de',
     'https://beta.gruenerator.de',
-    'https://gruenerator-test.netzbegruenung.verdigado.net'
+    'https://www.beta.gruenerator.de',
+    'https://gruenerator-test.netzbegruenung.verdigado.net',
+    'https://www.gruenerator-test.netzbegruenung.verdigado.net'
   ];
 
   const corsOptions = {
