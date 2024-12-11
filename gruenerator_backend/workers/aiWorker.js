@@ -16,7 +16,8 @@ class ConcurrentRequestManager {
     this.retryConfig = {
       maxRetries: 3,
       baseDelay: 1000, // Basis-Verzögerung in Millisekunden
-      maxDelay: 30000  // Maximale Verzögerung in Millisekunden
+      maxDelay: 30000,  // Maximale Verzögerung in Millisekunden
+      requestTimeout: 180000  // Neuer Timeout-Wert: 3 Minuten
     };
   }
 
@@ -56,13 +57,58 @@ class ConcurrentRequestManager {
 
   async processRequest(request, requestId) {
     let retryCount = 0;
+    let shouldUseBackup = request.data.useBackupProvider || false;
     
     while (true) {
       try {
-        const result = await processAIRequest(request.data);
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => {
+            reject(new Error('Request Timeout nach ' + this.retryConfig.requestTimeout/1000 + ' Sekunden'));
+          }, this.retryConfig.requestTimeout);
+        });
+
+        // Versuche zuerst mit dem primären Provider (Claude), falls nicht explizit Backup angefordert
+        let result;
+        if (!shouldUseBackup) {
+          result = await Promise.race([
+            processAIRequest({ ...request.data, useBackupProvider: false }),
+            timeoutPromise
+          ]);
+        } else {
+          // Verwende OpenAI als Backup
+          console.log(`[AI Worker] Verwende Backup-Provider nach ${retryCount} fehlgeschlagenen Versuchen`);
+          result = await Promise.race([
+            processAIRequest({ ...request.data, useBackupProvider: true }),
+            timeoutPromise
+          ]);
+        }
+
         request.resolve(result);
         return;
+        
       } catch (error) {
+        console.error(`[AI Worker] Fehler bei Request ${requestId}:`, {
+          error: error.message,
+          retryCount,
+          isTimeout: error.message.includes('Timeout'),
+          usingBackup: shouldUseBackup
+        });
+
+        // Wenn wir noch nicht das Backup verwenden und die maximalen Versuche erreicht sind
+        if (!shouldUseBackup && retryCount >= this.retryConfig.maxRetries - 1) {
+          console.log('[AI Worker] Wechsel zu Backup-Provider nach erschöpften Wiederholungsversuchen');
+          shouldUseBackup = true;
+          retryCount = 0; // Reset retry counter für den Backup-Provider
+          continue; // Versuche es erneut mit dem Backup-Provider
+        }
+
+        // Wenn wir bereits das Backup verwenden und auch dort die max. Versuche erreicht sind
+        if (shouldUseBackup && retryCount >= this.retryConfig.maxRetries - 1) {
+          request.reject(error);
+          return;
+        }
+
+        // Normale Retry-Logik
         if (this.shouldRetry(error, retryCount)) {
           const delay = this.calculateBackoff(retryCount);
           console.log(`Retry ${retryCount + 1} nach ${delay}ms für Request ${requestId}`);
@@ -96,10 +142,16 @@ class ConcurrentRequestManager {
   }
 
   shouldRetry(error, retryCount) {
-    // Prüfe nur auf HTTP Status Codes und Retry Count
+    // Erweiterte Retry-Logik
     return (
       retryCount < this.retryConfig.maxRetries && 
-      (error.status >= 500 || error.status === 429)
+      (
+        error.status >= 500 || 
+        error.status === 429 ||
+        error.message.includes('Timeout') ||
+        error.message.includes('network') ||
+        error.code === 'ECONNRESET'
+      )
     );
   }
 

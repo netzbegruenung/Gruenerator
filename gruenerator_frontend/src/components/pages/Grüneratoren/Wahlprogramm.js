@@ -29,7 +29,8 @@ const Wahlprogrammgenerator = ({ showHeaderFooter = true }) => {
     zeichenanzahl: { 
       required: true,
       min: 1000,
-      message: 'Die Zeichenanzahl muss mindestens 1000 betragen'
+      max: 3500,
+      message: 'Die Zeichenanzahl muss zwischen 1.000 und 3.500 liegen'
     }
   };
 
@@ -103,11 +104,12 @@ const Wahlprogrammgenerator = ({ showHeaderFooter = true }) => {
           id="zeichenanzahl"
           type="number"
           name="zeichenanzahl"
-          placeholder={FORM_PLACEHOLDERS.CHARACTER_COUNT}
+          placeholder="1000-3500"
           value={zeichenanzahl}
           onChange={(e) => setZeichenanzahl(e.target.value)}
           aria-required="true"
         />
+        <small className="help-text">Zwischen 1.000 und 3.500 Zeichen möglich</small>
       </BaseForm>
     </div>
   );
