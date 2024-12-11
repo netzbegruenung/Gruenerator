@@ -1,23 +1,24 @@
 const { parentPort } = require('worker_threads');
 const { Anthropic } = require('@anthropic-ai/sdk');
 const OpenAI = require('openai');
+const config = require('./worker.config');  // Config importieren
 require('dotenv').config();
 
 class ConcurrentRequestManager {
   constructor() {
     this.queue = [];
     this.activeRequests = new Set();
-    this.maxConcurrentRequests = 25;  // Erhöht auf 25 gleichzeitige Anfragen
+    this.maxConcurrentRequests = config.worker.rateLimit.maxConcurrent;
     this.rateLimit = {
       requests: new Map(),
-      maxRequests: 500,   // Erhöht auf 500 Anfragen
-      timeWindow: 60000   // Pro Minute (60000 ms)
+      maxRequests: config.worker.rateLimit.maxRequests,
+      timeWindow: config.worker.rateLimit.timeWindow
     };
     this.retryConfig = {
-      maxRetries: 3,
-      baseDelay: 1000, // Basis-Verzögerung in Millisekunden
-      maxDelay: 30000,  // Maximale Verzögerung in Millisekunden
-      requestTimeout: 180000  // Neuer Timeout-Wert: 3 Minuten
+      maxRetries: config.worker.retry.maxRetries,
+      baseDelay: config.worker.retry.baseDelay,
+      maxDelay: config.worker.retry.maxDelay,
+      requestTimeout: config.worker.requestTimeout
     };
   }
 
@@ -255,8 +256,17 @@ async function processAIRequest(data, retryCount = 0) {
         }];
       }
 
-      // Sende Anfrage mit Headers
-      result = await anthropic.messages.create(requestConfig, { headers });
+      // Verwende Haupt-Timeout aus der Konfiguration
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => {
+          reject(new Error('Request Timeout nach ' + config.worker.requestTimeout/1000 + ' Sekunden'));
+        }, config.worker.requestTimeout);
+      });
+
+      result = await Promise.race([
+        anthropic.messages.create(requestConfig, { headers }),
+        timeoutPromise
+      ]);
       
       // Strukturiere Claude-Response
       result = {
