@@ -8,6 +8,7 @@ import { useDynamicTextSize } from '../../utils/commonFunctions';
 import useApiSubmit from '../../hooks/useApiSubmit';
 import BaseForm from '../../common/BaseForm';
 import { FormContext } from '../../utils/FormContext';
+import { useFormValidation } from '../../hooks/useFormValidation';
 
 const Redengenerator = ({ showHeaderFooter = true }) => {
   const [rolle, setRolle] = useState('');
@@ -23,8 +24,22 @@ const Redengenerator = ({ showHeaderFooter = true }) => {
 
   const [useBackupProvider, setUseBackupProvider] = useState(false);
 
+  const validationRules = {
+    redezeit: { 
+      required: true,
+      min: 1,
+      max: 5,
+      message: 'Die Redezeit muss zwischen 1 und 3 Minuten liegen'
+    }
+  };
+
+  const { errors, validateForm } = useFormValidation(validationRules);
+
   const handleSubmit = useCallback(async () => {
     const formData = { rolle, thema, zielgruppe, schwerpunkte, redezeit };
+    if (!validateForm(formData)) {
+      return;
+    }
     try {
       const content = await submitForm(formData, useBackupProvider);
       if (content) {
@@ -35,7 +50,7 @@ const Redengenerator = ({ showHeaderFooter = true }) => {
     } catch (error) {
       console.error('Error submitting form:', error);
     }
-  }, [rolle, thema, zielgruppe, schwerpunkte, redezeit, submitForm, resetSuccess, setGeneratedContent, useBackupProvider]);
+  }, [rolle, thema, zielgruppe, schwerpunkte, redezeit, submitForm, resetSuccess, setGeneratedContent, useBackupProvider, validateForm]);
 
   const handleGeneratedContentChange = useCallback((content) => {
     console.log('Generated content changed:', content);
@@ -56,6 +71,7 @@ const Redengenerator = ({ showHeaderFooter = true }) => {
         onGeneratedContentChange={handleGeneratedContentChange}
         useBackupProvider={useBackupProvider}
         setUseBackupProvider={setUseBackupProvider}
+        validationErrors={errors}
       >
         <h3><label htmlFor="rolle">Rolle/Position</label></h3>
         <input
@@ -106,11 +122,12 @@ const Redengenerator = ({ showHeaderFooter = true }) => {
           id="redezeit"
           type="number"
           name="redezeit"
-          placeholder="5-7"
+          placeholder="1-5"
           value={redezeit}
           onChange={(e) => setRedezeit(e.target.value)}
           aria-required="true"
         />
+        <small className="help-text">Maximal 5 Minuten möglich</small>
       </BaseForm>
     </div>
   );
