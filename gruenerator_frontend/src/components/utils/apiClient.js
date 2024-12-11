@@ -4,7 +4,7 @@ const baseURL = process.env.REACT_APP_API_BASE_URL || 'https://gruenerator.de/ap
 
 const apiClient = axios.create({
   baseURL: baseURL,
-  timeout: 40000,
+  timeout: 180000,
   headers: { 'Content-Type': 'application/json' }
 });
 

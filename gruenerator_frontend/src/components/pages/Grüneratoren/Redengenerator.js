@@ -8,6 +8,7 @@ import { useDynamicTextSize } from '../../utils/commonFunctions';
 import useApiSubmit from '../../hooks/useApiSubmit';
 import BaseForm from '../../common/BaseForm';
 import { FormContext } from '../../utils/FormContext';
+import { useFormValidation } from '../../hooks/useFormValidation';
 
 const Redengenerator = ({ showHeaderFooter = true }) => {
   const [rolle, setRolle] = useState('');
@@ -22,6 +23,17 @@ const Redengenerator = ({ showHeaderFooter = true }) => {
   const { setGeneratedContent } = useContext(FormContext);
 
   const [useBackupProvider, setUseBackupProvider] = useState(false);
+
+  const validationRules = {
+    redezeit: { 
+      required: true,
+      min: 1,
+      max: 5,
+      message: 'Die Redezeit muss zwischen 1 und 5 Minuten liegen'
+    }
+  };
+
+  const { errors, validateForm } = useFormValidation(validationRules);
 
   const handleSubmit = useCallback(async () => {
     const formData = { rolle, thema, zielgruppe, schwerpunkte, redezeit };
@@ -106,11 +118,12 @@ const Redengenerator = ({ showHeaderFooter = true }) => {
           id="redezeit"
           type="number"
           name="redezeit"
-          placeholder="5-7"
+          placeholder="1-5"
           value={redezeit}
           onChange={(e) => setRedezeit(e.target.value)}
           aria-required="true"
         />
+        <small className="help-text">Maximal 5 Minuten möglich</small>
       </BaseForm>
     </div>
   );
