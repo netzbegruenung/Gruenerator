@@ -1,22 +1,24 @@
 const { parentPort } = require('worker_threads');
 const { Anthropic } = require('@anthropic-ai/sdk');
 const OpenAI = require('openai');
+const config = require('./worker.config');  // Config importieren
 require('dotenv').config();
 
 class ConcurrentRequestManager {
   constructor() {
     this.queue = [];
     this.activeRequests = new Set();
-    this.maxConcurrentRequests = 25;  // Erhöht auf 25 gleichzeitige Anfragen
+    this.maxConcurrentRequests = config.worker.rateLimit.maxConcurrent;
     this.rateLimit = {
       requests: new Map(),
-      maxRequests: 500,   // Erhöht auf 500 Anfragen
-      timeWindow: 60000   // Pro Minute (60000 ms)
+      maxRequests: config.worker.rateLimit.maxRequests,
+      timeWindow: config.worker.rateLimit.timeWindow
     };
     this.retryConfig = {
-      maxRetries: 3,
-      baseDelay: 1000, // Basis-Verzögerung in Millisekunden
-      maxDelay: 30000  // Maximale Verzögerung in Millisekunden
+      maxRetries: config.worker.retry.maxRetries,
+      baseDelay: config.worker.retry.baseDelay,
+      maxDelay: config.worker.retry.maxDelay,
+      requestTimeout: config.worker.requestTimeout
     };
   }
 
@@ -56,13 +58,58 @@ class ConcurrentRequestManager {
 
   async processRequest(request, requestId) {
     let retryCount = 0;
+    let shouldUseBackup = request.data.useBackupProvider || false;
     
     while (true) {
       try {
-        const result = await processAIRequest(request.data);
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => {
+            reject(new Error('Request Timeout nach ' + this.retryConfig.requestTimeout/1000 + ' Sekunden'));
+          }, this.retryConfig.requestTimeout);
+        });
+
+        // Versuche zuerst mit dem primären Provider (Claude), falls nicht explizit Backup angefordert
+        let result;
+        if (!shouldUseBackup) {
+          result = await Promise.race([
+            processAIRequest({ ...request.data, useBackupProvider: false }),
+            timeoutPromise
+          ]);
+        } else {
+          // Verwende OpenAI als Backup
+          console.log(`[AI Worker] Verwende Backup-Provider nach ${retryCount} fehlgeschlagenen Versuchen`);
+          result = await Promise.race([
+            processAIRequest({ ...request.data, useBackupProvider: true }),
+            timeoutPromise
+          ]);
+        }
+
         request.resolve(result);
         return;
+        
       } catch (error) {
+        console.error(`[AI Worker] Fehler bei Request ${requestId}:`, {
+          error: error.message,
+          retryCount,
+          isTimeout: error.message.includes('Timeout'),
+          usingBackup: shouldUseBackup
+        });
+
+        // Wenn wir noch nicht das Backup verwenden und die maximalen Versuche erreicht sind
+        if (!shouldUseBackup && retryCount >= this.retryConfig.maxRetries - 1) {
+          console.log('[AI Worker] Wechsel zu Backup-Provider nach erschöpften Wiederholungsversuchen');
+          shouldUseBackup = true;
+          retryCount = 0; // Reset retry counter für den Backup-Provider
+          continue; // Versuche es erneut mit dem Backup-Provider
+        }
+
+        // Wenn wir bereits das Backup verwenden und auch dort die max. Versuche erreicht sind
+        if (shouldUseBackup && retryCount >= this.retryConfig.maxRetries - 1) {
+          request.reject(error);
+          return;
+        }
+
+        // Normale Retry-Logik
         if (this.shouldRetry(error, retryCount)) {
           const delay = this.calculateBackoff(retryCount);
           console.log(`Retry ${retryCount + 1} nach ${delay}ms für Request ${requestId}`);
@@ -96,22 +143,15 @@ class ConcurrentRequestManager {
   }
 
   shouldRetry(error, retryCount) {
-    // Definiere retry-würdige Fehler
-    const retryableErrors = [
-      'rate_limit',
-      'timeout',
-      'network_error',
-      'internal_server_error',
-      '429',
-      '500',
-      '503'
-    ];
-
+    // Erweiterte Retry-Logik
     return (
-      retryCount < this.retryConfig.maxRetries &&
-      retryableErrors.some(errType => 
-        error.message.toLowerCase().includes(errType.toLowerCase()) ||
-        error.status === parseInt(errType)
+      retryCount < this.retryConfig.maxRetries && 
+      (
+        error.status >= 500 || 
+        error.status === 429 ||
+        error.message.includes('Timeout') ||
+        error.message.includes('network') ||
+        error.code === 'ECONNRESET'
       )
     );
   }
@@ -169,7 +209,7 @@ async function processAIRequest(data, retryCount = 0) {
         },
         'social': {
           system: "Du bist ein Social Media Manager...",
-          temperature: 0.5
+          temperature: 0.9
         },
         'rede': {
           system: "Du bist ein Redenschreiber...",
@@ -216,8 +256,17 @@ async function processAIRequest(data, retryCount = 0) {
         }];
       }
 
-      // Sende Anfrage mit Headers
-      result = await anthropic.messages.create(requestConfig, { headers });
+      // Verwende Haupt-Timeout aus der Konfiguration
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => {
+          reject(new Error('Request Timeout nach ' + config.worker.requestTimeout/1000 + ' Sekunden'));
+        }, config.worker.requestTimeout);
+      });
+
+      result = await Promise.race([
+        anthropic.messages.create(requestConfig, { headers }),
+        timeoutPromise
+      ]);
       
       // Strukturiere Claude-Response
       result = {
@@ -257,7 +306,7 @@ async function processWithOpenAI(data) {
     // System Message hinzufügen
     openAIMessages.push({
       role: 'system',
-      content: systemPrompt || 'You are a Social Media Manager for Bündnis 90/Die Grünen. Create social media post suggestions for the specified platforms, adapting the content and style to each platform. Provide your response in a structured JSON format.'
+      content: systemPrompt || 'Du bist ein Social Media Manager für Bündnis 90/Die Grünen. Erstelle Vorschläge für Social Media Beiträge für die angegebenen Plattformen und passe den Inhalt sowie den Stil an jede Plattform an. Gib deine Antwort in einem strukturierten JSON-Format zurück.'
     });
 
     // Konvertiere die komplexen Messages in einfache Textformate für OpenAI
