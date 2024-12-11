@@ -38,16 +38,17 @@ export const useSharepicGeneration = () => {
       const formDataToSend = new FormData();
       Object.keys(formData).forEach(key => {
         console.log(`Appending ${key} to formData`);
-        if (key === 'image') {
-          if (formData[key] instanceof File) {
-            formDataToSend.append(key, formData[key]);
-            console.log(`Appended file: ${formData[key].name}, type: ${formData[key].type}, size: ${formData[key].size} bytes`);
-          } else if (formData[key] instanceof Blob) {
-            formDataToSend.append(key, formData[key], 'unsplash_image.png');
-            console.log(`Appended blob, type: ${formData[key].type}, size: ${formData[key].size} bytes`);
+        if (key === 'image' || key === 'uploadedImage') {
+          const imageData = formData[key];
+          if (imageData instanceof File || imageData instanceof Blob) {
+            formDataToSend.append('image', imageData);
+            console.log(`Appended ${key} as File/Blob, type: ${imageData.type}, size: ${imageData.size} bytes`);
+          } else if (imageData?.buffer) {
+            formDataToSend.append('image', new Blob([imageData.buffer]));
+            console.log(`Appended ${key} as Buffer`);
           } else {
-            console.error(`Invalid image data: ${typeof formData[key]}`, formData[key]);
-            throw new Error('Ungültiges Bildformat');
+            console.error(`Invalid image data for ${key}:`, imageData);
+            throw new Error(`Ungültiges Bildformat für ${key}`);
           }
         } else {
           formDataToSend.append(key, String(formData[key]));

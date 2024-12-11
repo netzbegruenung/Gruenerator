@@ -241,11 +241,6 @@ router.post('/', upload.single('image'), async (req, res) => {
         mimetype: req.file.mimetype,
         size: req.file.size
       });
-
-      // Kommentieren Sie die Größenprüfung vorerst aus
-      // if (req.file.size < 1000) {
-      //   throw new Error(`File size too small: ${req.file.size} bytes`);
-      // }
     }
 
     console.log('Received request body:', req.body);
@@ -312,24 +307,34 @@ router.post('/', upload.single('image'), async (req, res) => {
     const processedText = await processText({ line1, line2, line3 });
     console.log('Processed text:', processedText);
 
-    const imageBuffer = req.file.buffer;
-    try {
-      const metadata = await sharp(imageBuffer).metadata();
-      if (!['jpeg', 'png', 'webp'].includes(metadata.format)) {
-        throw new Error(`Nicht unterstütztes Bildformat: ${metadata.format}`);
-      }
-      // Fahren Sie mit der Bildverarbeitung fort
-    } catch (error) {
-      console.error('Fehler bei der Bildverarbeitung:', error);
-      return res.status(400).json({ error: error.message });
+    const imageBuffer = req.file?.buffer;
+    if (!imageBuffer) {
+      throw new Error('Kein Bild gefunden');
     }
 
-    const generatedImageBuffer = await addTextToImage(uploadedImageBuffer, processedText, validatedParams);
-    const base64Image = `data:image/png;base64,${generatedImageBuffer.toString('base64')}`;
+    try {
+      const metadata = await sharp(imageBuffer).metadata();
+      console.log('Image metadata:', metadata); // Hilft bei der Diagnose
 
-    console.log('Image generated successfully and converted to Base64');
+      // Stellen Sie sicher, dass wir ein gültiges Bildformat haben
+      if (!metadata.format) {
+        throw new Error('Bildformat konnte nicht erkannt werden');
+      }
 
-    res.json({ image: base64Image });
+      // Verwenden Sie das verarbeitete Bild für addTextToImage
+      const generatedImageBuffer = await addTextToImage(imageBuffer, processedText, validatedParams);
+      const base64Image = `data:image/png;base64,${generatedImageBuffer.toString('base64')}`;
+
+      console.log('Image generated successfully and converted to Base64');
+      res.json({ image: base64Image });
+    } catch (error) {
+      console.error('Fehler bei der Bildverarbeitung:', error);
+      res.status(400).json({ 
+        error: 'Bildverarbeitungsfehler',
+        details: error.message 
+      });
+    }
+
   } catch (err) {
     console.error('Fehler bei der Anfrage:', err);
     res.status(500).json({ error: 'Fehler beim Erstellen des Bildes: ' + err.message });
