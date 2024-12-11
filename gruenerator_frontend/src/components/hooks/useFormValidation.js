@@ -13,6 +13,8 @@ export const useFormValidation = (validationRules) => {
         newErrors[field] = fieldRules.message || `${field} ist erforderlich`;
       } else if (fieldRules.min && Number(value) < fieldRules.min) {
         newErrors[field] = fieldRules.message || `${field} muss mindestens ${fieldRules.min} sein`;
+      } else if (fieldRules.max && Number(value) > fieldRules.max) {
+        newErrors[field] = fieldRules.message || `${field} darf maximal ${fieldRules.max} sein`;
       }
     });
 

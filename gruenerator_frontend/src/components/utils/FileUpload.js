@@ -14,9 +14,17 @@ const FileUpload = ({ loading, file, handleChange, error, allowedTypes, selected
   };
 
   const onFileChange = (event) => {
-    const selectedFile = event.target.files[0];
-    if (selectedFile) {
-      handleChange(selectedFile);
+    try {
+      console.log('FileUpload - Files:', event.target.files);
+      const selectedFile = event?.target?.files?.[0];
+      if (selectedFile) {
+        console.log('FileUpload - Selected file:', selectedFile);
+        handleChange(selectedFile);
+      } else {
+        console.log('FileUpload - Keine Datei ausgewählt');
+      }
+    } catch (error) {
+      console.error('FileUpload - Fehler beim Datei-Upload:', error);
     }
   };
 
@@ -27,9 +35,9 @@ const FileUpload = ({ loading, file, handleChange, error, allowedTypes, selected
     
     if (file) {
       // Kürze den Dateinamen, wenn er zu lang ist
-      const fileName = file.name.length > 20 
+      const fileName = file.name ? (file.name.length > 20 
         ? file.name.substring(0, 17) + '...' 
-        : file.name;
+        : file.name) : 'Unbekannte Datei';
       return (
         <>
           <FiUpload size={20} />
@@ -63,7 +71,7 @@ const FileUpload = ({ loading, file, handleChange, error, allowedTypes, selected
           type="file"
           name="fileUpload"
           onChange={onFileChange}
-          accept={(allowedTypes && allowedTypes.length > 0) ? allowedTypes.join(',') : 'image/*'}
+          accept={Array.isArray(allowedTypes) && allowedTypes.length > 0 ? allowedTypes.join(',') : 'image/*'}
           ref={fileInputRef}
           style={{ display: 'none' }}
         />
