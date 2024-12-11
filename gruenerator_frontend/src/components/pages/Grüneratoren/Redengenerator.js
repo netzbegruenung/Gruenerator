@@ -37,6 +37,9 @@ const Redengenerator = ({ showHeaderFooter = true }) => {
 
   const handleSubmit = useCallback(async () => {
     const formData = { rolle, thema, zielgruppe, schwerpunkte, redezeit };
+    if (!validateForm(formData)) {
+      return;
+    }
     try {
       const content = await submitForm(formData, useBackupProvider);
       if (content) {
@@ -47,7 +50,7 @@ const Redengenerator = ({ showHeaderFooter = true }) => {
     } catch (error) {
       console.error('Error submitting form:', error);
     }
-  }, [rolle, thema, zielgruppe, schwerpunkte, redezeit, submitForm, resetSuccess, setGeneratedContent, useBackupProvider]);
+  }, [rolle, thema, zielgruppe, schwerpunkte, redezeit, submitForm, resetSuccess, setGeneratedContent, useBackupProvider, validateForm]);
 
   const handleGeneratedContentChange = useCallback((content) => {
     console.log('Generated content changed:', content);
@@ -68,6 +71,7 @@ const Redengenerator = ({ showHeaderFooter = true }) => {
         onGeneratedContentChange={handleGeneratedContentChange}
         useBackupProvider={useBackupProvider}
         setUseBackupProvider={setUseBackupProvider}
+        validationErrors={errors}
       >
         <h3><label htmlFor="rolle">Rolle/Position</label></h3>
         <input
