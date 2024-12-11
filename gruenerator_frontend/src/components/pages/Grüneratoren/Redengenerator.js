@@ -28,7 +28,7 @@ const Redengenerator = ({ showHeaderFooter = true }) => {
     redezeit: { 
       required: true,
       min: 1,
-      max: 3,
+      max: 5,
       message: 'Die Redezeit muss zwischen 1 und 3 Minuten liegen'
     }
   };
