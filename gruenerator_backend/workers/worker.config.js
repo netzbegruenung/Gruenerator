@@ -1,10 +1,10 @@
 module.exports = {
     worker: {
       // Anzahl der AI-Worker pro Server-Worker
-      workersPerNode: process.env.AI_WORKERS_PER_NODE || 4,
+      workersPerNode: 4,
       
       // Timeout-Einstellungen
-      requestTimeout: 30000, // 30 Sekunden
+      requestTimeout: 120000, // 2 Minuten (120000ms)
       
       // Rate Limiting pro Worker
       rateLimit: {
@@ -17,7 +17,7 @@ module.exports = {
       retry: {
         maxRetries: 3,
         baseDelay: 1000,    // 1 Sekunde Basis-Verzögerung
-        maxDelay: 30000,    // 30 Sekunden maximale Verzögerung
+        maxDelay: 120000,    // 2 Minuten maximale Verzögerung
         retryableErrors: [
           'rate_limit',
           'timeout',
@@ -29,25 +29,12 @@ module.exports = {
         ],
         useBackupOnFail: true,  // Aktiviert Backup-Provider bei Fehler
         backupRetryCount: 2     // Maximale Anzahl von Backup-Versuchen
-      },
-      
-      // Backup-Provider Einstellungen
-      backup: {
-        enabled: true,
-        provider: 'openai',
-        modelMapping: {
-          'claude-3-5-sonnet-20241022': 'gpt-4-turbo-preview',
-          'claude-3-opus-20240229': 'gpt-4-turbo-preview',
-          'claude-2.1': 'gpt-4'
-        },
-        maxTokens: 8000,
-        timeout: 30000
       }
     },
     
     // Logging-Einstellungen
     logging: {
-      level: process.env.LOG_LEVEL || 'info',
+      level:  'info',
       aiRequests: true,
       performance: true
     }
