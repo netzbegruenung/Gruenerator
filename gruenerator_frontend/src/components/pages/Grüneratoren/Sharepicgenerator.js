@@ -6,7 +6,6 @@ import { useSharepicGeneration } from '../../hooks/sharepic/useSharepicGeneratio
 import { useSharepicRendering } from '../../hooks/sharepic/useSharepicRendering';
 import BaseForm from '../../common/BaseForm-Sharepic';
 import ErrorBoundary from '../../ErrorBoundary';
-import { useGenerateSocialPost } from '../../hooks/useGenerateSocialPost';
 import { processImageForUpload } from '../../utils/imageCompression';
 
 import { 
@@ -22,9 +21,6 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
     setFile,
     setError, 
     updateFormData, 
-    handleUnsplashSearch, 
-    fetchFullSizeImage, 
-    triggerDownload,
     modifyImage,
     setLottieVisible, 
 
@@ -34,37 +30,6 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
 
   const { renderFormFields } = useSharepicRendering();
   const [errors, setErrors] = useState({}); 
-  const [searchQuery, setSearchQuery] = useState('');
-
-  const { generatePost, loading: generatePostLoading, error: generatePostError } = useGenerateSocialPost();
-const [generatedPosts, setGeneratedPosts] = useState({});
-const [platforms, setPlatforms] = useState({
-  facebook: false,
-  instagram: false,
-  twitter: false,
-  linkedin: false,
-  actionIdeas: false
-});
-
-const handlePlatformChange = useCallback((platform) => {
-  setPlatforms(prev => ({ ...prev, [platform]: !prev[platform] }));
-}, []);
-
-const handleGeneratePost = useCallback(async () => {
-  const selectedPlatforms = Object.keys(platforms).filter(key => platforms[key] && key !== 'actionIdeas');
-  const includeActionIdeas = platforms.actionIdeas;
-  
-  try {
-    const newPosts = await generatePost(state.formData.thema, state.formData.details, selectedPlatforms, includeActionIdeas);
-    if (newPosts) {
-      setGeneratedPosts(newPosts);
-      updateFormData({ generatedPosts: newPosts });
-    }
-  } catch (error) {
-    console.error('Fehler beim Generieren der Posts:', error);
-    // Hier könnten Sie einen Fehlerzustand setzen oder eine Benachrichtigung anzeigen
-  }
-}, [generatePost, state.formData, platforms, updateFormData]);
 
   const validateForm = useCallback((formData) => {
     const newErrors = {};
@@ -77,7 +42,6 @@ const handleGeneratePost = useCallback(async () => {
 
   useEffect(() => {
     console.log('SharepicGenerator: Current step:', state.currentStep);
-    console.log('SharepicGenerator: Generated image src:', state.generatedImageSrc);
     console.log('SharepicGenerator: Form data:', state.formData);
   }, [state.currentStep, state.generatedImageSrc, state.formData]);
 
@@ -122,26 +86,14 @@ const handleGeneratePost = useCallback(async () => {
   
   
       } else if (state.currentStep === FORM_STEPS.PREVIEW) {
-        let fileToUse = state.file;
-        
         try {
-          if (!fileToUse && state.selectedImage) {
-            const fullSizeImage = await fetchFullSizeImage(state.selectedImage.fullImageUrl);
-            fileToUse = await processImageForUpload(fullSizeImage);
-            await updateFormData({ uploadedImage: fileToUse });
-            await triggerDownload(state.selectedImage.downloadLocation);
-          } else if (state.file) {
-            fileToUse = await processImageForUpload(state.file);
-            await updateFormData({ uploadedImage: fileToUse });
-          }
-
-          if (!fileToUse) {
+          if (!state.file) {
             throw new Error("Bitte wählen Sie ein Bild aus");
           }
 
           const imageResult = await generateImage({ 
             ...state.formData,
-            image: fileToUse
+            image: state.file
           });
 
           if (!imageResult) {
@@ -152,17 +104,36 @@ const handleGeneratePost = useCallback(async () => {
             generatedImageSrc: imageResult, 
             currentStep: FORM_STEPS.RESULT
           });
-
         } catch (error) {
           console.error('Error in image processing:', error);
           setError(error.message);
-          throw error;
         }
       } else if (state.currentStep === FORM_STEPS.RESULT) {
-        const { fontSize, balkenOffset, colorScheme, credit } = state.formData;
+        const { fontSize, balkenOffset, colorScheme, credit, uploadedImage, image } = state.formData;
         try {
-          console.log(SHAREPIC_GENERATOR.LOG_MESSAGES.MODIFYING_IMAGE, { fontSize, balkenOffset, colorScheme });
-          const modifiedImage = await modifyImage({ fontSize, balkenOffset, colorScheme, credit });
+          console.log(SHAREPIC_GENERATOR.LOG_MESSAGES.MODIFYING_IMAGE, { 
+            fontSize, 
+            balkenOffset, 
+            colorScheme,
+            hasImage: !!(uploadedImage || image),
+            imageType: uploadedImage ? 'uploadedImage' : image ? 'image' : 'none'
+          });
+
+          // Stelle sicher, dass wir das ursprüngliche Bild verwenden
+          const imageToUse = uploadedImage || image || state.file;
+          
+          if (!imageToUse) {
+            throw new Error("Kein Bild zum Modifizieren gefunden");
+          }
+
+          const modifiedImage = await modifyImage({ 
+            fontSize, 
+            balkenOffset, 
+            colorScheme, 
+            credit,
+            image: imageToUse
+          });
+          
           console.log(SHAREPIC_GENERATOR.LOG_MESSAGES.IMAGE_MODIFIED);
           
           if (!modifiedImage) {
@@ -174,7 +145,8 @@ const handleGeneratePost = useCallback(async () => {
             fontSize,
             balkenOffset,
             colorScheme,
-            credit
+            credit,
+            image: imageToUse // Behalte das Bild im Zustand
           });
         } catch (error) {
           console.error('Error in modifyImage:', error);
@@ -200,9 +172,7 @@ const handleGeneratePost = useCallback(async () => {
     setLottieVisible,
     state.file,
     state.selectedImage,
-    fetchFullSizeImage,
     processImageForUpload,
-    triggerDownload
   ]);
 
   useEffect(() => {
@@ -237,24 +207,30 @@ const handleGeneratePost = useCallback(async () => {
   const handleFileChange = useCallback(async (selectedFile) => {
     try {
       if (selectedFile) {
-        console.log('Verarbeite neue Datei:', selectedFile);
-        setFile(selectedFile); // Zuerst die Originaldatei setzen
-        
-        // Dann die Datei verarbeiten
+        console.log('Processing file:', selectedFile);
+        setFile(selectedFile);
         const processedFile = await processImageForUpload(selectedFile);
-        updateFormData({ 
-          uploadedImage: processedFile,
-          selectedImage: null // Unsplash-Auswahl zurücksetzen
+        console.log('Processed file:', {
+          type: processedFile.type,
+          size: processedFile.size,
+          isBlob: processedFile instanceof Blob,
+          isFile: processedFile instanceof File
         });
         
-        console.log('Bild erfolgreich verarbeitet:', {
-          originalSize: selectedFile.size,
-          processedSize: processedFile.size,
-          type: processedFile.type
+        // Konvertiere Blob zu File wenn nötig
+        const imageFile = processedFile instanceof File ? processedFile : 
+          new File([processedFile], selectedFile.name || 'image.jpg', { 
+            type: processedFile.type || 'image/jpeg' 
+          });
+
+        // Speichere das Bild sowohl als file als auch als uploadedImage
+        updateFormData({ 
+          uploadedImage: imageFile,
+          image: imageFile // Backup-Speicherung
         });
       }
     } catch (error) {
-      console.error('Fehler bei der Bildverarbeitung:', error);
+      console.error('Error processing file:', error);
       setError(`Fehler bei der Bildverarbeitung: ${error.message}`);
     }
   }, [setFile, updateFormData, setError]);
@@ -265,16 +241,6 @@ const handleGeneratePost = useCallback(async () => {
     console.log('SharepicGenerator: Form data:', state.formData);
   }, [state.currentStep, state.generatedImageSrc, state.formData]);
   
-  useEffect(() => {
-    if (state.currentStep === FORM_STEPS.PREVIEW && state.formData.searchTerms?.length > 0) {
-      const newQuery = state.formData.searchTerms.join(' ');
-      if (newQuery !== searchQuery) {
-        setSearchQuery(newQuery);
-        handleUnsplashSearch(newQuery);
-      }
-    }
-  }, [state.currentStep, state.formData.searchTerms, searchQuery, handleUnsplashSearch]);
-
   const handleControlChange = useCallback((name, value) => {
     console.log(`Handling control change: ${name}`, value);
     if (name === 'balkenOffset' && !Array.isArray(value)) {
@@ -304,8 +270,7 @@ const handleGeneratePost = useCallback(async () => {
     file: state.file,
     handleChange: handleFileChange,
     error: state.error,
-    allowedTypes: SHAREPIC_GENERATOR.ALLOWED_FILE_TYPES,
-    selectedUnsplashImage: state.selectedImage,
+    allowedTypes: SHAREPIC_GENERATOR.ALLOWED_FILE_TYPES
   };
 
   useEffect(() => {
@@ -335,8 +300,6 @@ const handleGeneratePost = useCallback(async () => {
     useDownloadButton={state.currentStep === FORM_STEPS.RESULT}
     showBackButton={state.currentStep > FORM_STEPS.INPUT}
     submitButtonText={submitButtonText}
-    isSharepicGenerator={true}
-    onUnsplashSearch={handleUnsplashSearch}
     currentStep={state.currentStep}
     isLottieVisible={state.isLottieVisible}    
     onUnsplashSelect={handleUnsplashSelect}
@@ -344,21 +307,14 @@ const handleGeneratePost = useCallback(async () => {
     isSubmitting={state.isSubmitting}
     currentSubmittingStep={state.currentSubmittingStep}
     credit={state.formData.credit}
-    onGeneratePost={handleGeneratePost}
-    generatePostLoading={generatePostLoading}
-    generatePostError={generatePostError}
-    generatedPosts={generatedPosts}
-    platforms={platforms}
-    onPlatformChange={handlePlatformChange}
-    includeActionIdeas={platforms.actionIdeas}
     fileUploadProps={fileUploadProps}
     fontSize={state.formData.fontSize || SHAREPIC_GENERATOR.DEFAULT_FONT_SIZE}
-  balkenOffset={state.formData.balkenOffset || SHAREPIC_GENERATOR.DEFAULT_BALKEN_OFFSET}
-  colorScheme={state.formData.colorScheme || SHAREPIC_GENERATOR.DEFAULT_COLOR_SCHEME}
-  balkenGruppenOffset={state.formData.balkenGruppenOffset || [0, 0]}
-        sunflowerOffset={state.formData.sunflowerOffset || [0, 0]}
-        onControlChange={handleControlChange}
-        >
+    balkenOffset={state.formData.balkenOffset || SHAREPIC_GENERATOR.DEFAULT_BALKEN_OFFSET}
+    colorScheme={state.formData.colorScheme || SHAREPIC_GENERATOR.DEFAULT_COLOR_SCHEME}
+    balkenGruppenOffset={state.formData.balkenGruppenOffset || [0, 0]}
+    sunflowerOffset={state.formData.sunflowerOffset || [0, 0]}
+    onControlChange={handleControlChange}
+  >
     {memoizedFormFields}
   </BaseForm>
       </div>

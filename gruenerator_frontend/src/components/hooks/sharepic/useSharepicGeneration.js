@@ -28,59 +28,39 @@ export const useSharepicGeneration = () => {
   }, []);
 
   const generateImage = useCallback(async (formData) => {
-    console.log('generateImage called with formData:', formData);
     setLoading(true);
     setError('');
     try {
-      const sharepicType = formData.type === SHAREPIC_TYPES.QUOTE ? SHAREPIC_TYPES.QUOTE : SHAREPIC_TYPES.THREE_LINES;
-      console.log(`Generating image for ${sharepicType}:`, formData);
-      
       const formDataToSend = new FormData();
+      
+      if (formData.uploadedImage) {
+        formDataToSend.append('image', formData.uploadedImage);
+      } else {
+        throw new Error('Kein Bild ausgewählt');
+      }
+
       Object.keys(formData).forEach(key => {
-        console.log(`Appending ${key} to formData`);
-        if (key === 'image' || key === 'uploadedImage') {
-          const imageData = formData[key];
-          if (imageData instanceof File || imageData instanceof Blob) {
-            formDataToSend.append('image', imageData);
-            console.log(`Appended ${key} as File/Blob, type: ${imageData.type}, size: ${imageData.size} bytes`);
-          } else if (imageData?.buffer) {
-            formDataToSend.append('image', new Blob([imageData.buffer]));
-            console.log(`Appended ${key} as Buffer`);
-          } else {
-            console.error(`Invalid image data for ${key}:`, imageData);
-            throw new Error(`Ungültiges Bildformat für ${key}`);
-          }
-        } else {
+        if (key !== 'uploadedImage') {
           formDataToSend.append(key, String(formData[key]));
         }
       });
-      
-      const apiRoute = sharepicType === SHAREPIC_TYPES.QUOTE ? '/api/quote_canvas' : '/api/dreizeilen_canvas';
-      console.log('Sending request to:', apiRoute);
 
+      const apiRoute = formData.type === SHAREPIC_TYPES.QUOTE ? 
+        '/api/quote_canvas' : '/api/dreizeilen_canvas';
+      
       const response = await fetch(apiRoute, {
         method: 'POST',
         body: formDataToSend,
       });
-      
-      console.log('Response received:', response);
 
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Server response:', response.status, errorText);
-        throw new Error(`Netzwerkfehler bei der Bilderstellung: ${response.status} ${errorText}`);
+        throw new Error(`Netzwerkfehler bei der Bilderstellung: ${response.status}`);
       }
-      
+
       const result = await response.json();
-      console.log("Image data received:", result);
-      
-      if (!result.image) {
-        throw new Error('Keine Bilddaten in der Serverantwort');
-      }
-      
       return result.image;
+
     } catch (err) {
-      console.error("Error generating image:", err);
       handleError(err, setError);
       throw err;
     } finally {

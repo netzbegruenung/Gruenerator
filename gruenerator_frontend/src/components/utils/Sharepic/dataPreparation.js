@@ -54,12 +54,33 @@ console.log('Outgoing balkenOffset values:', Object.fromEntries(formDataToSend))
   });
   
     // Bild hinzufügen, wenn vorhanden
-    if (formData.uploadedImage instanceof File) {
-      formDataToSend.append('image', formData.uploadedImage);
+    console.log('Checking image sources:', {
+      uploadedImage: formData.uploadedImage,
+      selectedImage: formData.selectedImage,
+      image: formData.image,
+      modificationImage: modificationData.image
+    });
+
+    const imageToUse = modificationData.image || formData.uploadedImage || formData.image;
+    
+    if (imageToUse instanceof Blob || imageToUse instanceof File) {
+      console.log('Using image of type:', imageToUse.type);
+      // Konvertiere Blob zu File wenn nötig
+      const imageFile = imageToUse instanceof File ? imageToUse : new File([imageToUse], 'image.jpg', { type: imageToUse.type });
+      formDataToSend.append('image', imageFile);
     } else if (formData.selectedImage && formData.selectedImage.fullImageUrl) {
-      // Hier müssten wir das Bild von der URL herunterladen und als File anhängen
-      // Dies würde einen zusätzlichen Schritt erfordern, möglicherweise einen separaten API-Aufruf
+      console.warn('Unsplash image handling not implemented yet');
+    } else {
+      console.warn('No valid image found in form data');
     }
+
+    console.log('FormData before sending:', {
+      hasImage: formDataToSend.has('image'),
+      formDataEntries: Array.from(formDataToSend.entries()).map(([key, value]) => ({
+        key,
+        type: value instanceof Blob ? 'Blob' : value instanceof File ? 'File' : typeof value
+      }))
+    });
   
     return formDataToSend;
   };

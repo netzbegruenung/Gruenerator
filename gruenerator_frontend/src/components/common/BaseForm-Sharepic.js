@@ -10,7 +10,7 @@ import AdvancedEditingSection from './AdvancedEditingSection';
 import '../../assets/styles/pages/baseform.css';
 import '../../assets/styles/components/imagemodificator.css';
 import '../../assets/styles/components/button.css';
-import StyledCheckbox from './AnimatedCheckbox';
+import '../../assets/styles/components/sharepic.css';
 import FormErrors from './FormErrors';
 
 import { 
@@ -38,12 +38,6 @@ const BaseForm = ({
   useDownloadButton = false,
   showBackButton = false,
   submitButtonText = BUTTON_LABELS.SUBMIT,
-  generatePostLoading,
-  generatedPost,
-  platforms,
-  onPlatformChange,
-  includeActionIdeas,
-  onActionIdeasChange,
   onUnsplashSearch,
   fontSize,
   balkenOffset,
@@ -155,30 +149,7 @@ const BaseForm = ({
     );
   };
 
-  const renderSocialMediaControls = useMemo(() => (
-    <div className="social-media-controls">
-      <h3>Plattformen & Aktionsideen</h3>
-      <div className="platform-checkboxes">
-        {Object.entries(platforms).map(([platform, isChecked]) => (
-          <StyledCheckbox
-            key={platform}
-            id={`checkbox-${platform}`}
-            checked={isChecked}
-            onChange={() => onPlatformChange(platform)}
-            label={platform === 'actionIdeas' ? 'Aktionsideen' : platform.charAt(0).toUpperCase() + platform.slice(1)}
-          />
-        ))}
-        <StyledCheckbox
-          id="checkbox-actionIdeas"
-          checked={includeActionIdeas}
-          onChange={onActionIdeasChange}
-          label="Aktionsideen"
-        />
-      </div>
-    </div>
-  ), [platforms, onPlatformChange, includeActionIdeas, onActionIdeasChange]);
-
-  const renderResultStep = useMemo(() => (
+  const renderResultStep = () => (
     <div className="image-modification-controls">
       <div className="left-column">
         <div className="textzeilen-group">
@@ -200,7 +171,7 @@ const BaseForm = ({
           onClick={onSubmit}
           loading={loading}
           success={success}
-          text="Text aktualisieren"
+          text="Aktualisieren"
           icon={<HiCog />}
           className="form-button"
           ariaLabel={ARIA_LABELS.SUBMIT}
@@ -223,31 +194,9 @@ const BaseForm = ({
             onControlChange={onControlChange}
           />
         </div>
-        <div className="Beitragstext-group">
-          <h3>Beitragstext</h3>
-          <p>Wenn du noch keinen Beitragstext geschrieben hast, kannst du den Social Media Generator nutzen, um Vorschläge zu erhalten.</p>
-          {renderSocialMediaControls}
-          <a href="/socialmediagenerator" target="_blank" rel="noopener noreferrer">
-            <button className="generate-post-button">
-              Zum Social Media Generator
-            </button>
-          </a>
-        </div>
       </div>
     </div>
-  ), [
-    children, 
-    credit, 
-    onControlChange, 
-    colorScheme, 
-    fontSize, 
-    renderSocialMediaControls,
-    generatePostLoading,
-    generatedPost,
-    onSubmit, 
-    loading, 
-    success
-  ]);
+  );
 
   const renderFormContent = () => {
     switch (currentStep) {
@@ -319,9 +268,7 @@ const BaseForm = ({
         <div className={`form-container ${isAdvancedEditingOpen ? 'expanded' : ''}`}>
           <form onSubmit={(e) => {
             e.preventDefault();
-            if (!e.target.closest('.image-search-form')) {
-              onSubmit();
-            }
+            onSubmit();
           }}>
             <div className={`form-content ${generatedContent ? 'with-generated-content' : ''}`}>
               {renderFormContent()}
@@ -374,12 +321,6 @@ BaseForm.propTypes = {
   useDownloadButton: PropTypes.bool,
   showBackButton: PropTypes.bool,
   submitButtonText: PropTypes.string,
-  showGeneratePostButton: PropTypes.bool,
-  onGeneratePost: PropTypes.func,
-  generatePostLoading: PropTypes.bool,
-  generatedPost: PropTypes.string,
-  isSharepicGenerator: PropTypes.bool,
-  fileUploadProps: PropTypes.object.isRequired,
   onUnsplashSearch: PropTypes.func,
   fontSize: PropTypes.number.isRequired,
   balkenOffset: PropTypes.arrayOf(PropTypes.number).isRequired,
@@ -393,10 +334,13 @@ BaseForm.propTypes = {
   balkenGruppenOffset: PropTypes.arrayOf(PropTypes.number).isRequired,
   sunflowerOffset: PropTypes.arrayOf(PropTypes.number).isRequired,
   credit: PropTypes.string,
-  platforms: PropTypes.object,
-  onPlatformChange: PropTypes.func,
-  includeActionIdeas: PropTypes.bool,
-  onActionIdeasChange: PropTypes.func,
+  fileUploadProps: PropTypes.shape({
+    loading: PropTypes.bool,
+    file: PropTypes.object,
+    handleChange: PropTypes.func,
+    error: PropTypes.string,
+    allowedTypes: PropTypes.arrayOf(PropTypes.string)
+  }).isRequired,
 };
 
 export default BaseForm;
