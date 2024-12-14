@@ -19,13 +19,6 @@
 }
 
 /* Headings and Descriptions */
-.textzeilen-group h3,
-.absender-group h3,
-.farbkombi-group h3,
-.schriftgroesse-group h3 {
-  margin-bottom: 5px;
-  color: var(--weiß);
-}
 
 .textzeilen-group p,
 .absender-group p,
