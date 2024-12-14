@@ -58,33 +58,15 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 2rem;
-  padding: 1rem;
 }
 
 .left-column,
 .right-column {
   display: flex;
   flex-direction: column;
-  gap: 2rem;
 }
 
 /* Gruppierungen */
-.textzeilen-group,
-.absender-group,
-.farbkombi-group,
-.schriftgroesse-group {
-  background: var(--hellgrau);
-  padding: 1.5rem;
-  border-radius: 8px;
-}
-
-.textzeilen-group h3,
-.absender-group h3,
-.farbkombi-group h3,
-.schriftgroesse-group h3 {
-  color: var(--dunkelgruen);
-  margin-bottom: 0.5rem;
-}
 
 .textzeilen-group p,
 .absender-group p,
