@@ -24,6 +24,13 @@
   transition: background-color 0.3s ease;
   white-space: nowrap;
   height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.unsplash-search-button svg {
+  margin-right: 8px;
 }
 
 .unsplash-search-button:hover {

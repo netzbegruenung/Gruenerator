@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { HiCog, HiChevronDown, HiChevronUp } from "react-icons/hi";
-import { SiUnsplash } from "react-icons/si";
 import Button from './SubmitButton';
 import DownloadButton from './DownloadButton';
 import FileUpload from '../utils/FileUpload';
+import UnsplashButton from './UnsplashButton';
 import { useSharepicGeneratorContext } from '../utils/Sharepic/SharepicGeneratorContext';
 import AdvancedEditingSection from './AdvancedEditingSection';
 import '../../assets/styles/pages/baseform.css';
@@ -38,7 +38,6 @@ const BaseForm = ({
   useDownloadButton = false,
   showBackButton = false,
   submitButtonText = BUTTON_LABELS.SUBMIT,
-  onUnsplashSearch,
   fontSize,
   balkenOffset,
   colorScheme,
@@ -135,14 +134,9 @@ const BaseForm = ({
           <div className="file-upload-wrapper">
             <FileUpload {...fileUploadProps} />
           </div>
-          <button 
-            className="unsplash-search-button"
-            onClick={() => onUnsplashSearch(formData.searchTerms?.[0] || formData.thema)}
-            type="button"
-          >
-            <SiUnsplash className="icon" />
-            Bild von Unsplash
-          </button>
+          <UnsplashButton 
+            searchTerms={[formData.searchTerms?.[0] || formData.thema].filter(Boolean)}
+          />
         </div>
         {renderFormButtons()}
       </>
@@ -321,7 +315,6 @@ BaseForm.propTypes = {
   useDownloadButton: PropTypes.bool,
   showBackButton: PropTypes.bool,
   submitButtonText: PropTypes.string,
-  onUnsplashSearch: PropTypes.func,
   fontSize: PropTypes.number.isRequired,
   balkenOffset: PropTypes.arrayOf(PropTypes.number).isRequired,
   colorScheme: PropTypes.arrayOf(PropTypes.shape({
