@@ -110,7 +110,7 @@
 }
 
 .file-input-wrapper,
-.unsplash-button {
+.unsplash-search-button {
   background-color: var(--tanne);
   color: var(--weiß);
   border: 2px solid var(--weiß);
@@ -123,26 +123,10 @@
   cursor: pointer;
   transition: background-color 0.3s, transform 0.3s;
   border-radius: var(--button-border-radius);
-  padding: 10px 20px;
+  padding: 0px;
 }
 
-.image-search-button {
-  padding: 12px 16px;
-  background-color: var(--tanne);
-  color: var(--weiß);
-  border: 2px solid var(--weiß);  color: white;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.3s;
-  width:auto;
-}
-
-.image-search-button:disabled {
-  background-color: #cccccc;
-  cursor: not-allowed;
-}
-
-.file-input-wrapper:hover, .generate-post-button:hover, .form-button:hover, .image-search-button:hover, .copy-button:hover {
+.file-input-wrapper:hover, .generate-post-button:hover, .form-button:hover, .copy-button:hover {
 
   transform: scale(1.01);
 }

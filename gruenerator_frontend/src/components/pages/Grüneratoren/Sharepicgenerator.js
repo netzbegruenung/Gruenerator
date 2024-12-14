@@ -45,11 +45,6 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
     console.log('SharepicGenerator: Form data:', state.formData);
   }, [state.currentStep, state.generatedImageSrc, state.formData]);
 
-  const handleUnsplashSelect = useCallback((selectedImage) => {
-    console.log('Selected Unsplash image:', selectedImage);
-    updateFormData({ selectedImage });
-  }, [updateFormData]);
-
   const handleChange = useCallback((e) => {
     const { name, value } = e.target;
     updateFormData({ [name]: value });
@@ -77,6 +72,7 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
         if (!result) throw new Error(ERROR_MESSAGES.NO_TEXT_DATA);
         
         console.log(SHAREPIC_GENERATOR.LOG_MESSAGES.TEXT_GENERATED);
+        
         await updateFormData({ 
           ...result, 
           type: state.formData.type, 
@@ -302,7 +298,6 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
     submitButtonText={submitButtonText}
     currentStep={state.currentStep}
     isLottieVisible={state.isLottieVisible}    
-    onUnsplashSelect={handleUnsplashSelect}
     formErrors={errors}
     isSubmitting={state.isSubmitting}
     currentSubmittingStep={state.currentSubmittingStep}
