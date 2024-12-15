@@ -14,7 +14,7 @@
   font-size: 2rem;
   font-weight: 600;
   margin-bottom: 1rem;
-  color: var(--text-color);
+  color: var(--font-color-h);
 }
 
 .template-gallery-intro {
@@ -22,7 +22,7 @@
   margin: 0 auto 2rem;
   font-size: 1.1rem;
   line-height: 1.6;
-  color: var(--text-secondary);
+  color: var(--font-color);
   text-align: center;
 }
 
@@ -36,16 +36,16 @@
   width: 100%;
   padding: 1rem;
   font-size: 1rem;
-  border: 2px solid var(--border-color);
+  border: 2px solid var(--button-background-color);
   border-radius: 8px;
   background: var(--background-color);
-  color: var(--text-color);
+  color: var(--font-color);
   transition: border-color 0.2s ease;
 }
 
 .search-bar input:focus {
   outline: none;
-  border-color: var(--primary-color);
+  border-color: var(--tanne);
 }
 
 /* Kategorie-Filter */
@@ -60,24 +60,24 @@
 .category-button {
   padding: 0.75rem 1.5rem;
   font-size: 0.95rem;
-  border: 2px solid var(--border-color);
+  border: 2px solid var(--button-background-color);
   border-radius: 25px;
   background: var(--background-color);
-  color: var(--text-color);
+  color: var(--font-color);
   cursor: pointer;
   transition: all 0.2s ease;
   font-weight: 500;
 }
 
 .category-button:hover {
-  background: var(--hover-color);
+  background: var(--background-color-alt);
   transform: translateY(-1px);
 }
 
 .category-button.active {
   background: var(--background-color-alt);
-  color: var(--text-color);
-  border-color: var(--primary-color);
+  color: var(--font-color);
+  border-color: var(--tanne);
 }
 
 /* Template Grid */
@@ -92,8 +92,8 @@
 .template-card {
   display: flex;
   flex-direction: column;
-  background: var(--card-background);
-  border: 1px solid var(--border-color);
+  background: var(--background-color);
+  border: 1px solid var(--button-background-color);
   border-radius: 12px;
   overflow: hidden;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
@@ -145,8 +145,8 @@
 .loading-spinner {
   width: 40px;
   height: 40px;
-  border: 3px solid var(--border-color);
-  border-top-color: var(--primary-color);
+  border: 3px solid var(--button-background-color);
+  border-top-color: var(--tanne);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -189,12 +189,12 @@
   font-size: 1.25rem;
   font-weight: 600;
   margin: 0 0 0.75rem 0;
-  color: var(--text-color);
+  color: var(--font-color);
 }
 
 .template-card p {
   font-size: 0.95rem;
-  color: var(--text-secondary);
+  color: var(--font-color);
   margin: 0 0 1.5rem 0;
   line-height: 1.5;
   flex-grow: 1;
@@ -202,7 +202,7 @@
 
 .template-credit {
   font-size: 0.85rem !important;
-  color: var(--text-secondary) !important;
+  color: var(--font-color) !important;
   margin: 0 0 1rem 0 !important;
   font-style: italic;
   opacity: 0.8;
@@ -215,7 +215,7 @@
   justify-content: center;
   margin-top: auto;
   padding-top: 1rem;
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid var(--button-background-color);
 }
 
 .canva-button {
@@ -231,13 +231,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: var(--primary-color);
+  background: var(--tanne);
   color: white;
   border: none;
 }
 
 .canva-button:hover {
-  background: var(--primary-color-dark);
+  background: var(--dunkelgruen);
   transform: translateY(-1px);
 }
 
@@ -257,7 +257,7 @@
   grid-column: 1 / -1;
   text-align: center;
   padding: 3rem;
-  color: var(--text-secondary);
+  color: var(--font-color);
   font-size: 1.1rem;
 }
 
