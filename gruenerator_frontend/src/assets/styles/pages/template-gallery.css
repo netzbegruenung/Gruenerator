@@ -278,7 +278,7 @@
 
 @media (max-width: 768px) {
   .template-gallery {
-    padding: 1rem;
+    padding: 80px 1rem 1rem 1rem;
   }
 
   .template-grid {
