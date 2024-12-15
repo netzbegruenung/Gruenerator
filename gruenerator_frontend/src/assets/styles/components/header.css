@@ -452,3 +452,12 @@ input:not(:checked) + .slider .icon.moon {
     }
 
 }
+
+.disabled-link span {
+    color: var(--text-muted);
+    cursor: default;
+    padding: 10px 15px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}

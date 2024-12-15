@@ -1,17 +1,30 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, Suspense, lazy, useState } from 'react';
 import PropTypes from 'prop-types';
 import Header from '../../layout/Header/Header';
-import Footer from '../../layout/Footer/Footer';
 import { preloadAllGrueneratoren } from '../../pages/Grüneratoren';
 
+// Lazy load Footer
+const Footer = lazy(() => import('../../layout/Footer/Footer'));
+
 const PageLayout = ({ children, darkMode, toggleDarkMode, showHeaderFooter = true }) => {
+  const [showFooter, setShowFooter] = useState(false);
+
   useEffect(() => {
     // Lade alle Grüneratoren im Hintergrund
     const timeoutId = setTimeout(() => {
       preloadAllGrueneratoren();
-    }, 1000); // Warte 1 Sekunde nach dem initialen Render
+    }, 1000);
 
     return () => clearTimeout(timeoutId);
+  }, []);
+
+  useEffect(() => {
+    // Verzögere das Anzeigen des Footers
+    const footerTimeout = setTimeout(() => {
+      setShowFooter(true);
+    }, 100);
+
+    return () => clearTimeout(footerTimeout);
   }, []);
 
   if (!showHeaderFooter) {
@@ -22,7 +35,11 @@ const PageLayout = ({ children, darkMode, toggleDarkMode, showHeaderFooter = tru
     <>
       <Header darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
       <main className="content-wrapper">{children}</main>
-      <Footer />
+      {showFooter && (
+        <Suspense fallback={<div style={{ height: '80px' }} />}>
+          <Footer />
+        </Suspense>
+      )}
     </>
   );
 };
