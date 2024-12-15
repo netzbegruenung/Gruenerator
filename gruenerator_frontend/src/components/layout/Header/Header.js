@@ -1,7 +1,7 @@
 //header.js
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { PiFileText, PiNewspaper, PiChatsCircle, PiCaretDown, PiMicrophone, PiSun, PiMoon, PiLightbulb, PiBook } from 'react-icons/pi';
+import { PiFileText, PiNewspaper, PiChatsCircle, PiCaretDown, PiMicrophone, PiSun, PiMoon, PiLightbulb, PiBook, PiImage, PiPaintBrush } from 'react-icons/pi';
 import '../../../assets/styles/common/variables.css';
 import '../../../assets/styles/common/global.css';
 import '../../../assets/styles/components/header.css';
@@ -79,23 +79,39 @@ const Header = () => {
                 <nav className={`header-nav ${menuActive ? 'active' : ''}`} id="nav" aria-label="Hauptnavigation">
                     <ul>
                         <li className="header-dropdown" 
-                            onMouseEnter={() => handleMouseEnter('grueneratoren')} 
+                            onMouseEnter={() => handleMouseEnter('texte')} 
                             onMouseLeave={handleMouseLeave}
-                            onKeyDown={(e) => handleKeyDown(e, 'grueneratoren')}
+                            onKeyDown={(e) => handleKeyDown(e, 'texte')}
                             tabIndex="0"
                             aria-haspopup="true"
-                            aria-expanded={activeDropdown === 'grueneratoren'}
+                            aria-expanded={activeDropdown === 'texte'}
                         >
                             <span>
-                                Grüneratoren <PiCaretDown className={activeDropdown === 'grueneratoren' ? 'open' : ''} aria-hidden="true" />
+                                Texte <PiCaretDown className={activeDropdown === 'texte' ? 'open' : ''} aria-hidden="true" />
                             </span>
-                            <ul className={`header-dropdown-content ${activeDropdown === 'grueneratoren' ? 'show' : ''}`} aria-label="Grüneratoren Untermenü">
+                            <ul className={`header-dropdown-content ${activeDropdown === 'texte' ? 'show' : ''}`} aria-label="Texte Untermenü">
                                 <li><Link to="/antrag" onClick={() => handleLinkClick('/antragsgenerator', 'Anträge')}><PiFileText aria-hidden="true" /> Anträge</Link></li>
                                 <li><Link to="/pressemitteilung" onClick={() => handleLinkClick('/pressemitteilung', 'Pressemitteilungen')}><PiNewspaper aria-hidden="true" /> Pressemitteilungen</Link></li>
                                 <li><Link to="/socialmedia" onClick={() => handleLinkClick('/socialmedia', 'Social Media')}><PiChatsCircle aria-hidden="true" /> Social Media</Link></li>
                                 <li><Link to="/rede" onClick={() => handleLinkClick('/rede', 'Politische Rede')}><PiMicrophone aria-hidden="true" /> Politische Rede</Link></li>
                                 <li><Link to="/antragscheck" onClick={() => handleLinkClick('/antragscheck', 'Antrag checken')}><PiLightbulb aria-hidden="true" /> Antrag checken</Link></li>
                                 <li><Link to="/wahlprogramm" onClick={() => handleLinkClick('/wahlprogramm', 'Wahlprogramm')}><PiBook aria-hidden="true" /> Wahlprogramm</Link></li>
+                            </ul>
+                        </li>
+                        <li className="header-dropdown" 
+                            onMouseEnter={() => handleMouseEnter('grafik')} 
+                            onMouseLeave={handleMouseLeave}
+                            onKeyDown={(e) => handleKeyDown(e, 'grafik')}
+                            tabIndex="0"
+                            aria-haspopup="true"
+                            aria-expanded={activeDropdown === 'grafik'}
+                        >
+                            <span>
+                                Sharepics & Grafik <PiCaretDown className={activeDropdown === 'grafik' ? 'open' : ''} aria-hidden="true" />
+                            </span>
+                            <ul className={`header-dropdown-content ${activeDropdown === 'grafik' ? 'show' : ''}`} aria-label="Sharepics & Grafik Untermenü">
+                                <li><Link to="/vorlagen" onClick={() => handleLinkClick('/vorlagen', 'Canva-Vorlagen')}><PiPaintBrush aria-hidden="true" /> Canva-Vorlagen</Link></li>
+                                <li className="disabled-link"><span><PiImage aria-hidden="true" /> Sharepic Grünerator (soon)</span></li>
                             </ul>
                         </li>
                         <li className="header-dropdown" 
@@ -111,10 +127,9 @@ const Header = () => {
                             </span>
                             <ul className={`header-dropdown-content ${activeDropdown === 'gpts' ? 'show' : ''}`} aria-label="GPTs Untermenü">
                                 <li><a href="https://chat.openai.com/g/g-ZZwx8kZS3-grunerator-social-media" target="_blank" rel="noopener noreferrer" onClick={() => announce('Öffne externen Link: Social Media')}><PiChatsCircle aria-hidden="true" /> Social Media</a></li>
-                                <li><a href="https://chatgpt.com/g/g-Npcb04iH7-grunerator-pressemitteilungen " target="_blank" rel="noopener noreferrer" onClick={() => announce('Öffne externen Link: Pressemitteilung')}><PiNewspaper aria-hidden="true" /> Pressemitteilung</a></li>
+                                <li><a href="https://chatgpt.com/g/g-Npcb04iH7-grunerator-pressemitteilungen" target="_blank" rel="noopener noreferrer" onClick={() => announce('Öffne externen Link: Pressemitteilung')}><PiNewspaper aria-hidden="true" /> Pressemitteilung</a></li>
                             </ul>
                         </li>
-
                     </ul>
                 </nav>
                 <NavMenu open={menuActive} onClose={handleNavMenuClose} />
