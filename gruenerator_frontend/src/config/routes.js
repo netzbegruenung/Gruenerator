@@ -4,6 +4,7 @@ import { lazy } from 'react';
 const Home = lazy(() => import('../components/pages/Home'));
 const Datenschutz = lazy(() => import('../components/pages/Impressum_Datenschutz_Terms/Datenschutz'));
 const Impressum = lazy(() => import('../components/pages/Impressum_Datenschutz_Terms/Impressum'));
+const TemplateGallery = lazy(() => import('../components/pages/TemplateGallery'));
 
 // Lazy loading für Grüneratoren Bundle
 export const GrueneratorenBundle = {
@@ -14,7 +15,8 @@ export const GrueneratorenBundle = {
   Antragscheck: lazy(() => import('../components/pages/Grüneratoren/Antragsversteher')),
   WahlpruefsteinThueringen: lazy(() => import('../components/pages/Grüneratoren/WahlpruefsteinThueringen')),
   Rede: lazy(() => import('../components/pages/Grüneratoren/Redengenerator')),
-  Wahlprogramm: lazy(() => import('../components/pages/Grüneratoren/Wahlprogramm'))
+  Wahlprogramm: lazy(() => import('../components/pages/Grüneratoren/Wahlprogramm')),
+  Templates: TemplateGallery
 };
 
 // Route Konfigurationen
@@ -28,6 +30,7 @@ export const routes = {
     { path: '/wahlpruefsteinthueringen', component: GrueneratorenBundle.WahlpruefsteinThueringen },
     { path: '/rede', component: GrueneratorenBundle.Rede, withForm: true },
     { path: '/wahlprogramm', component: GrueneratorenBundle.Wahlprogramm, withForm: true },
+    { path: '/vorlagen', component: GrueneratorenBundle.Templates },
     { path: '/datenschutz', component: Datenschutz },
     { path: '/impressum', component: Impressum }
   ],

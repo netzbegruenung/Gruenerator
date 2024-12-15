@@ -9,7 +9,9 @@ import {
   PiCaretUp,
   PiMicrophone,
   PiLightbulb,
-  PiBook
+  PiBook,
+  PiImage,
+  PiPaintBrush
 } from 'react-icons/pi';
 import { CSSTransition } from 'react-transition-group';
 import useAccessibility from '../../hooks/useAccessibility';
@@ -22,9 +24,9 @@ const NavMenu = ({ open, onClose }) => {
   const { announce, setupKeyboardNav } = useAccessibility();
   const navMenuRef = useRef(null);
   const nodeRefs = {
-    grueneratoren: useRef(null),
-    gpts: useRef(null),
-    gruneratorWeb: useRef(null)
+    texte: useRef(null),
+    grafik: useRef(null),
+    gpts: useRef(null)
   };
 
   useEffect(() => {
@@ -67,29 +69,30 @@ const NavMenu = ({ open, onClose }) => {
       aria-label="Mobile Navigation" 
       role="navigation"
     >
+      {/* Texte Dropdown */}
       <div className="nav-dropdown">
         <span 
-          onClick={() => handleDropdownClick('grueneratoren')}
-          onKeyDown={(e) => handleKeyDown(e, 'grueneratoren')}
+          onClick={() => handleDropdownClick('texte')}
+          onKeyDown={(e) => handleKeyDown(e, 'texte')}
           tabIndex="0"
           role="button"
           aria-haspopup="true"
-          aria-expanded={activeDropdown === 'grueneratoren'}
+          aria-expanded={activeDropdown === 'texte'}
         >
-          Grüneratoren 
-          {activeDropdown === 'grueneratoren' ? 
+          Texte 
+          {activeDropdown === 'texte' ? 
             <PiCaretUp className="nav-icon dropdown-icon" aria-hidden="true" /> : 
             <PiCaretDown className="nav-icon dropdown-icon" aria-hidden="true" />
           }
         </span>
         <CSSTransition
-          in={activeDropdown === 'grueneratoren'}
+          in={activeDropdown === 'texte'}
           timeout={300}
           classNames="dropdown"
           unmountOnExit
-          nodeRef={nodeRefs.grueneratoren}
+          nodeRef={nodeRefs.texte}
         >
-          <ul className="nav-dropdown-content" ref={nodeRefs.grueneratoren} aria-label="Grüneratoren Untermenü">
+          <ul className="nav-dropdown-content" ref={nodeRefs.texte} aria-label="Texte Untermenü">
             <li><Link to="/antrag" onClick={() => handleLinkClick('/antragsgenerator', 'Anträge')}><PiFileText className="nav-icon" aria-hidden="true" /> Anträge</Link></li>
             <li><Link to="/pressemitteilung" onClick={() => handleLinkClick('/pressemitteilung', 'Pressemitteilungen')}><PiNewspaper className="nav-icon" aria-hidden="true" /> Pressemitteilungen</Link></li>
             <li><Link to="/socialmedia" onClick={() => handleLinkClick('/socialmedia', 'Social Media')}><PiChatsCircle className="nav-icon" aria-hidden="true" /> Social Media</Link></li>
@@ -99,6 +102,38 @@ const NavMenu = ({ open, onClose }) => {
           </ul>
         </CSSTransition>
       </div>
+
+      {/* Sharepics & Grafik Dropdown */}
+      <div className="nav-dropdown">
+        <span 
+          onClick={() => handleDropdownClick('grafik')}
+          onKeyDown={(e) => handleKeyDown(e, 'grafik')}
+          tabIndex="0"
+          role="button"
+          aria-haspopup="true"
+          aria-expanded={activeDropdown === 'grafik'}
+        >
+          Sharepics & Grafik 
+          {activeDropdown === 'grafik' ? 
+            <PiCaretUp className="nav-icon dropdown-icon" aria-hidden="true" /> : 
+            <PiCaretDown className="nav-icon dropdown-icon" aria-hidden="true" />
+          }
+        </span>
+        <CSSTransition
+          in={activeDropdown === 'grafik'}
+          timeout={300}
+          classNames="dropdown"
+          unmountOnExit
+          nodeRef={nodeRefs.grafik}
+        >
+          <ul className="nav-dropdown-content" ref={nodeRefs.grafik} aria-label="Sharepics & Grafik Untermenü">
+            <li><Link to="/vorlagen" onClick={() => handleLinkClick('/vorlagen', 'Canva-Vorlagen')}><PiPaintBrush className="nav-icon" aria-hidden="true" /> Canva-Vorlagen</Link></li>
+            <li className="disabled-link"><span><PiImage className="nav-icon" aria-hidden="true" /> Sharepic Grünerator (soon)</span></li>
+          </ul>
+        </CSSTransition>
+      </div>
+
+      {/* GPTs Dropdown */}
       <div className="nav-dropdown">
         <span 
           onClick={() => handleDropdownClick('gpts')}
@@ -108,7 +143,7 @@ const NavMenu = ({ open, onClose }) => {
           aria-haspopup="true"
           aria-expanded={activeDropdown === 'gpts'}
         >
-          GPTs für ChatGPT
+          GPTs für ChatGPT 
           {activeDropdown === 'gpts' ? 
             <PiCaretUp className="nav-icon dropdown-icon" aria-hidden="true" /> : 
             <PiCaretDown className="nav-icon dropdown-icon" aria-hidden="true" />
@@ -122,9 +157,9 @@ const NavMenu = ({ open, onClose }) => {
           nodeRef={nodeRefs.gpts}
         >
           <ul className="nav-dropdown-content" ref={nodeRefs.gpts} aria-label="GPTs Untermenü">
-          <li><a href="https://chat.openai.com/g/g-ZZwx8kZS3-grunerator-social-media" target="_blank" rel="noopener noreferrer" onClick={() => announce('Öffne externen Link: Social Media')}><PiChatsCircle className="nav-icon" aria-hidden="true" /> Social Media</a></li>
-                                <li><a href="https://chatgpt.com/g/g-Npcb04iH7-grunerator-pressemitteilungen" target="_blank" rel="noopener noreferrer" onClick={() => announce('Öffne externen Link: Pressemitteilung')}><PiNewspaper className="nav-icon" aria-hidden="true" /> Pressemitteilung</a></li>
-                            </ul>
+            <li><a href="https://chat.openai.com/g/g-ZZwx8kZS3-grunerator-social-media" target="_blank" rel="noopener noreferrer" onClick={() => announce('Öffne externen Link: Social Media')}><PiChatsCircle className="nav-icon" aria-hidden="true" /> Social Media</a></li>
+            <li><a href="https://chatgpt.com/g/g-Npcb04iH7-grunerator-pressemitteilungen" target="_blank" rel="noopener noreferrer" onClick={() => announce('Öffne externen Link: Pressemitteilung')}><PiNewspaper className="nav-icon" aria-hidden="true" /> Pressemitteilung</a></li>
+          </ul>
         </CSSTransition>
       </div>
     </div>

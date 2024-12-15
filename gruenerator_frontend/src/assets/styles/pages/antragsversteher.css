@@ -25,7 +25,7 @@
 }
 
 .antragsversteher-container .form-container .explanation-text {
-    color: var(--sand);
+    color: var(--weiß);
     text-align: center;
     margin-bottom: 20px;
     font-size: 1.1em;
@@ -285,7 +285,7 @@
 }
 
 .terms-link {
-  color: var(--sand);
+  color: var(--sand) !important;
   text-decoration: underline;
   transition: color 0.2s ease;
 }
@@ -302,6 +302,7 @@
 
 .antragsversteher-container .checkbox-with-text .checkbox-text {
   margin-top: 2px;
+  color: var(--weiß);
 }
 
 .checkbox-with-text {
