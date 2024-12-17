@@ -608,3 +608,11 @@
         width: 100%;
     }
 }
+
+/* Help-Text Styling */
+.help-text {
+    color: var(--weiß);
+    font-size: 0.9em;
+    margin-top: -10px;
+    margin-bottom: 15px;
+}

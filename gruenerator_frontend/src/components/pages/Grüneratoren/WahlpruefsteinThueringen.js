@@ -1,102 +1,96 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback, useContext } from 'react';
 import PropTypes from 'prop-types';
-import { PiClipboardText, PiGear } from 'react-icons/pi';
 import '../../../assets/styles/common/variables.css';
 import '../../../assets/styles/common/global.css';
 import '../../../assets/styles/components/button.css';
 import '../../../assets/styles/pages/baseform.css';
-import { handleCopyToClipboard, useDynamicTextSize } from '../../utils/commonFunctions';
-import axios from 'axios';
+import {useDynamicTextSize } from '../../utils/commonFunctions';
+import useApiSubmit from '../../hooks/useApiSubmit';
+import BaseForm from '../../common/BaseForm';
+import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../utils/constants';
+import { FormContext } from '../../utils/FormContext';
+import ErrorBoundary from '../../ErrorBoundary';
+import BackupToggle from '../../common/BackupToggle';
 
 const WahlpruefsteinThueringen = ({ showHeaderFooter = true }) => {
   const [question, setQuestion] = useState('');
   const [selectedSection, setSelectedSection] = useState('');
   const [response, setResponse] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
-  const [error, setError] = useState('');
   const textSize = useDynamicTextSize(response, 1.2, 0.8, [1000, 2000]);
+  const { submitForm, loading, success, resetSuccess, error } = useApiSubmit('/wahlpruefsteinthueringen/frage');
+  const { setGeneratedContent } = useContext(FormContext);
+  const [useBackupProvider, setUseBackupProvider] = useState(false);
 
-  useEffect(() => {
-    // Hier könnte man eine Funktion hinzufügen, die beim Laden der Komponente
-    // die verfügbaren Programmsektionen vom Server abruft, falls nötig
-  }, []);
-
-  const handleSubmit = async () => {
-    if (!question.trim() || !selectedSection) {
-      setError('Bitte geben Sie eine Frage ein und wählen Sie einen Themenbereich aus.');
-      return;
-    }
-
-    setLoading(true);
-    setSuccess(false);
-    setError('');
-    setResponse('');
+  const handleSubmit = useCallback(async () => {
+    const formData = { 
+      question: question.trim(), 
+      sectionIndex: parseInt(selectedSection, 10) 
+    };
 
     try {
-      const apiResponse = await axios.post('/api/wahlpruefsteinthueringen/frage', {
-        question: question.trim(),
-        sectionIndex: parseInt(selectedSection, 10),
-      });
-
-      if (apiResponse.data && apiResponse.data.content) {
-        setResponse(apiResponse.data.content);
-        setSuccess(true);
-        setTimeout(() => setSuccess(false), 2000); // Show success checkmark for 2 seconds
-      } else {
-        throw new Error('Unerwartete Antwortstruktur von der API');
+      const content = await submitForm(formData, useBackupProvider);
+      if (content) {
+        setResponse(content);
+        setGeneratedContent(content);
+        setTimeout(resetSuccess, 3000);
       }
     } catch (error) {
       console.error('Error processing the question:', error);
-      setError(error.response?.data?.message || error.message || 'Fehler bei der Verarbeitung der Frage');
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [question, selectedSection, submitForm, resetSuccess, setGeneratedContent, useBackupProvider]);
+
+  const handleGeneratedContentChange = useCallback((content) => {
+    setResponse(content);
+    setGeneratedContent(content);
+  }, [setGeneratedContent]);
 
   return (
-    <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
-      <div className="form-container">
-        <h3>Stellen Sie Ihre Frage</h3>
-        <textarea 
-          placeholder="Stellen Sie hier Ihre Frage zum Wahlprogramm..."
-          value={question}
-          onChange={(e) => setQuestion(e.target.value)}
-        />
-
-        <h3>Wählen Sie einen Themenbereich</h3>
-        <select 
-          value={selectedSection} 
-          onChange={(e) => setSelectedSection(e.target.value)}
+    <ErrorBoundary>
+      <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
+        <BaseForm
+          title="Wahlprüfstein-Generator Thüringen"
+          onSubmit={handleSubmit}
+          loading={loading}
+          success={success}
+          error={error}
+          generatedContent={response}
+          textSize={textSize}
+          onGeneratedContentChange={handleGeneratedContentChange}
+          useBackupProvider={useBackupProvider}
+          setUseBackupProvider={setUseBackupProvider}
         >
-          <option value="">-- Bitte wählen --</option>
-          <option value="0">🌳 Umwelt</option>
-          <option value="1">⚖️ Gerechtigkeit</option>
-          <option value="2">🌈 Vielfalt/Freiheit</option>
-        </select>
+          <h3><label htmlFor="question">{FORM_LABELS.QUESTION || 'Stellen Sie Ihre Frage'}</label></h3>
+          <textarea
+            id="question"
+            name="question"
+            placeholder={FORM_PLACEHOLDERS.QUESTION || 'Stellen Sie hier Ihre Frage zum Wahlprogramm...'}
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+            aria-required="true"
+            style={{ height: '120px' }}
+          />
 
-        {error && <p className="error-message">{error}</p>}
+          <h3><label htmlFor="section">{FORM_LABELS.SECTION || 'Wählen Sie einen Themenbereich'}</label></h3>
+          <select
+            id="section"
+            name="section"
+            value={selectedSection}
+            onChange={(e) => setSelectedSection(e.target.value)}
+            aria-required="true"
+          >
+            <option value="">-- Bitte wählen --</option>
+            <option value="0">🌳 Umwelt</option>
+            <option value="1">⚖️ Gerechtigkeit</option>
+            <option value="2">🌈 Vielfalt/Freiheit</option>
+          </select>
 
-        <button 
-          onClick={handleSubmit} 
-          className={`submit-button ${loading ? 'loading' : ''} ${success ? 'success' : ''}`}
-          disabled={loading}
-        >
-          {loading ? <PiGear className="loading-icon" /> : (success ? <svg className="checkmark" viewBox="0 0 24 24">
-            <path d="M20 6L9 17l-5-5" />
-          </svg> : 'Absenden')}
-        </button>
+          <BackupToggle
+            useBackupProvider={useBackupProvider}
+            setUseBackupProvider={setUseBackupProvider}
+          />
+        </BaseForm>
       </div>
-      <div className="display-container">
-        <h2>Ergebnis</h2>
-        <div style={{ fontSize: textSize }} dangerouslySetInnerHTML={{ __html: response }}></div>
-        {response && (
-          <button onClick={() => handleCopyToClipboard(response)} className="copy-button">
-            <PiClipboardText style={{ marginRight: '10px' }} /> In die Zwischenablage kopieren
-          </button>
-        )}
-      </div>
-    </div>
+    </ErrorBoundary>
   );
 };
 
