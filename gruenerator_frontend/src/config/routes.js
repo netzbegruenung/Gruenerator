@@ -14,6 +14,7 @@ export const GrueneratorenBundle = {
   Sharepic: lazy(() => import('../components/pages/Grüneratoren/Sharepicgenerator')),
   Antragscheck: lazy(() => import('../components/pages/Grüneratoren/Antragsversteher')),
   WahlpruefsteinThueringen: lazy(() => import('../components/pages/Grüneratoren/WahlpruefsteinThueringen')),
+  WahlpruefsteinBundestagswahl: lazy(() => import('../components/pages/Grüneratoren/WahlpruefsteinBundestagswahl')),
   Rede: lazy(() => import('../components/pages/Grüneratoren/Redengenerator')),
   Wahlprogramm: lazy(() => import('../components/pages/Grüneratoren/Wahlprogramm')),
   Templates: TemplateGallery
@@ -28,6 +29,7 @@ export const routes = {
     { path: '/socialmedia', component: GrueneratorenBundle.SocialMedia, withForm: true },
     { path: '/antragscheck', component: GrueneratorenBundle.Antragscheck, withForm: true },
     { path: '/wahlpruefsteinthueringen', component: GrueneratorenBundle.WahlpruefsteinThueringen },
+    { path: '/wahlpruefstein-bundestagswahl', component: GrueneratorenBundle.WahlpruefsteinBundestagswahl },
     { path: '/rede', component: GrueneratorenBundle.Rede, withForm: true },
     { path: '/wahlprogramm', component: GrueneratorenBundle.Wahlprogramm, withForm: true },
     { path: '/vorlagen', component: GrueneratorenBundle.Templates },
@@ -40,9 +42,7 @@ export const routes = {
       component: GrueneratorenBundle.Sharepic, 
       withForm: true, 
       withSharepic: true 
-    },
- 
-  
+    }
   ],
   noHeaderFooter: Object.entries(GrueneratorenBundle).map(([key]) => ({
     path: `/${key.toLowerCase()}-no-header-footer`,
