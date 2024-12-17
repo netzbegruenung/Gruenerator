@@ -1,5 +1,4 @@
 const express = require('express');
-const { Anthropic } = require('@anthropic-ai/sdk');
 const router = express.Router();
 const fs = require('fs');
 const path = require('path');
@@ -8,11 +7,6 @@ console.log('Wahlpruefstein Thueringen route module loaded');
 
 require('dotenv').config();
 console.log('Environment variables loaded');
-
-const anthropic = new Anthropic({
-  apiKey: process.env.CLAUDE_API_KEY
-});
-console.log('Anthropic client initialized');
 
 const loadProgramSections = () => {
     console.log('Loading program sections');
@@ -48,48 +42,51 @@ router.get('/programSections', (req, res) => {
 
 router.post('/frage', async (req, res) => {
     console.log('Received question request');
-    const { question, sectionIndex } = req.body;
+    const { question, sectionIndex, useBackupProvider } = req.body;
     console.log('Question:', question);
     console.log('Section Index:', sectionIndex);
-    console.log('Using API Key:', process.env.CLAUDE_API_KEY);
+    console.log('Using Backup Provider:', useBackupProvider);
 
     if (typeof question !== 'string' || typeof sectionIndex !== 'number' || sectionIndex < 0 || sectionIndex >= programSections.length) {
         console.log('Invalid input received');
-        return res.status(400).json({ message: 'Invalid input' });
+        return res.status(400).json({ 
+            error: 'Ungültige Eingabe',
+            details: 'Frage oder Themenbereich ungültig'
+        });
     }
 
     const selectedSection = programSections[sectionIndex];
-    console.log('Selected section length:', selectedSection.length);
 
     try {
-        console.log('Sending request to Claude API');
-        const response = await anthropic.messages.create({
-            model: "claude-3-5-sonnet-20240620",
-            max_tokens: 4000,
-            temperature: 0.9,
-            system: `You are an expert on the election program of Bündnis 90/Die Grünen. Provide detailed answers based on the following context:\n\n${selectedSection}`,
-            messages: [
-                {
-                    role: "user",
-                    content: question
-                }
-            ]
+        const result = await req.app.locals.aiWorkerPool.processRequest({
+            type: 'wahlpruefstein',
+            systemPrompt: `Du bist ein Experte für das Wahlprogramm von Bündnis 90/Die Grünen. Beantworte Fragen basierend auf folgendem Kontext:\n\n${selectedSection}`,
+            messages: [{
+                role: "user",
+                content: question
+            }],
+            options: {
+                model: "claude-3-5-sonnet-20240620",
+                max_tokens: 4000,
+                temperature: 0.9
+            },
+            useBackupProvider
         });
 
-        console.log('Received response from Claude API');
-
-        if (response && response.content && Array.isArray(response.content)) {
-            const textContent = response.content.map(item => item.text).join("\n");
-            console.log('Processed API response, sending to client');
-            res.json({ content: textContent });
-        } else {
-            console.error('API response missing or incorrect content structure:', response);
-            res.status(500).send('API response missing or incorrect content structure');
+        if (!result.success) {
+            throw new Error(result.error);
         }
+
+        res.json({ 
+            content: result.content,
+            metadata: result.metadata
+        });
     } catch (error) {
-        console.error('Error with Claude API:', error.response ? error.response.data : error.message);
-        console.error('Full error object:', JSON.stringify(error, null, 2));
-        res.status(500).send('Internal Server Error');
+        console.error('Fehler bei der Wahlprüfstein-Verarbeitung:', error);
+        res.status(500).json({ 
+            error: 'Fehler bei der Verarbeitung der Frage',
+            details: error.message 
+        });
     }
 });
 
