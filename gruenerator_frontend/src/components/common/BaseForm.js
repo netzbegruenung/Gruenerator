@@ -212,7 +212,7 @@ const BaseForm = ({
         <form onSubmit={handleSubmit}>
           <div className={`form-content ${hasFormErrors ? 'has-errors' : ''}`}>
             {children}
-            {title !== "Grünerator Antragscheck" && (
+            {title !== "Grünerator Antragscheck" && title !== "Wahlprüfstein-Generator Bundestagswahl" && (
               <BackupToggle 
                 useBackupProvider={useBackupProvider}
                 setUseBackupProvider={setUseBackupProvider}
