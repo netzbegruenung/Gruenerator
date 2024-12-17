@@ -8,64 +8,49 @@ console.log('Wahlpruefstein Bundestagswahl route module loaded');
 require('dotenv').config();
 console.log('Environment variables loaded');
 
-const loadProgramText = () => {
-    console.log('Loading Bundestagswahlprogramm');
-    // Absoluter Pfad für Debugging
-    const absolutePath = path.resolve(__dirname);
-    console.log('Current directory:', absolutePath);
-    
+const loadChapterText = (chapterNumber) => {
+    console.log(`Loading Bundestagswahlprogramm Kapitel ${chapterNumber}`);
     const uploadsDir = path.join(__dirname, 'uploads');
-    const filePath = path.join(uploadsDir, 'Wahlprogramm', 'BundestagswahlprogrammGruene.txt');
+    const filePath = path.join(uploadsDir, 'Wahlprogramm', `BTWKapitel${chapterNumber}.txt`);
     console.log('Attempting to read file from:', filePath);
     
     try {
-        // Liste alle Dateien im Verzeichnis auf
-        console.log('Checking if uploads directory exists:', fs.existsSync(uploadsDir));
-        if (fs.existsSync(uploadsDir)) {
-            console.log('Contents of uploads directory:', fs.readdirSync(uploadsDir));
-            
-            const wahlprogrammDir = path.join(uploadsDir, 'Wahlprogramm');
-            if (fs.existsSync(wahlprogrammDir)) {
-                console.log('Contents of Wahlprogramm directory:', fs.readdirSync(wahlprogrammDir));
-            }
-        }
-        
         if (!fs.existsSync(filePath)) {
             console.error(`File does not exist at path: ${filePath}`);
             return null;
         }
         
-        const programText = fs.readFileSync(filePath, 'utf-8');
-        console.log('Successfully loaded Bundestagswahlprogramm');
-        return programText;
+        const chapterText = fs.readFileSync(filePath, 'utf-8');
+        console.log(`Successfully loaded Kapitel ${chapterNumber}`);
+        return chapterText;
     } catch (error) {
-        console.error('Error loading Bundestagswahlprogramm:', error.message);
+        console.error(`Error loading Kapitel ${chapterNumber}:`, error.message);
         console.error('Full error:', error);
         console.error('Stack trace:', error.stack);
         return null;
     }
 };
 
-const programText = loadProgramText();
-
 router.post('/frage', async (req, res) => {
     console.log('Received question request');
-    const { question, useBackupProvider } = req.body;
+    const { question, selectedChapter, useBackupProvider } = req.body;
     console.log('Question:', question);
+    console.log('Selected Chapter:', selectedChapter);
     console.log('Using backup provider:', useBackupProvider);
 
-    if (!programText) {
-        return res.status(500).json({ 
-            error: 'Wahlprogramm konnte nicht geladen werden',
-            details: 'Datei nicht gefunden oder Lesefehler'
-        });
-    }
-
-    if (typeof question !== 'string' || question.trim().length === 0) {
+    if (typeof question !== 'string' || question.trim().length === 0 || !selectedChapter) {
         console.log('Invalid input received');
         return res.status(400).json({ 
             error: 'Ungültige Eingabe',
-            details: 'Bitte geben Sie eine Frage ein'
+            details: 'Bitte geben Sie eine Frage ein und wählen Sie ein Kapitel aus'
+        });
+    }
+
+    const chapterText = loadChapterText(selectedChapter);
+    if (!chapterText) {
+        return res.status(500).json({ 
+            error: 'Kapitel konnte nicht geladen werden',
+            details: 'Datei nicht gefunden oder Lesefehler'
         });
     }
 
@@ -110,8 +95,8 @@ Wichtige Grundsätze für deine Antwort:
 - Stelle die Informationen in einen größeren Kontext
 - Zeige die Relevanz für die Bürger*innen auf
 
-Kontext (Wahlprogramm):
-${programText}
+Kontext (ausgewähltes Kapitel des Wahlprogramms):
+${chapterText}
 
 Bitte beantworte nun folgende Frage: ${question}`
             }],
