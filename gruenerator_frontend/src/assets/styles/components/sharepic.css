@@ -1,66 +1,20 @@
 @import url('../common/variables.css');
 
-/* Upload und Suche */
-.upload-and-search-container {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-  width: 100%;
+/* Result Step Proportionen */
+.base-container.result-step .form-container {
+  flex: 0.65;
+  width: 65%;
+  max-width: none;
 }
 
-.file-upload-wrapper {
-  flex: 1;
-  display: flex;
+.base-container.result-step .content-container {
+  flex: 0.35;
+  width: 35%;
 }
 
-.unsplash-search-button {
-  flex: 1;
-  padding: 0.5rem 1rem;
-  background-color: var(--dunkelgruen);
-  color: var(--weiß);
-  border: 2px solid var(--weiß);
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-  white-space: nowrap;
-  height: 42px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.unsplash-search-button svg {
-  margin-right: 8px;
-}
-
-.unsplash-search-button:hover {
-  background-color: var(--tanne);
-}
-
-/* Form Buttons */
-.form-buttons {
-  display: flex;
-  gap: 1rem;
-  width: 100%;
-  margin-top: 1rem;
-}
-
-.form-buttons button {
-  flex: 1;
-  min-width: 0;
-}
-
-.back-button {
-  background-color: var(--hellgrau);
-  color: var(--dunkelgruen);
-}
-
-.generate-button {
-  background-color: var(--dunkelgruen);
-  color: var(--weiß);
-}
-
-/* Image Modification Controls */
+/* ==========================================================================
+   Image Modification Controls
+   ========================================================================== */
 .image-modification-controls {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -74,16 +28,250 @@
 }
 
 /* Gruppierungen */
+.textzeilen-group,
+.absender-group,
+.farbkombi-group,
+.schriftgroesse-group {
+  margin-bottom: 1.5rem;
+}
 
 .textzeilen-group p,
 .absender-group p,
 .farbkombi-group p,
-.schriftgroesse-group p {
-  color: var(--grau);
+.schriftgroesse-group p,
+.credit-control p {
+  color: var(--weiß);
   margin-bottom: 1rem;
 }
 
-/* Sharepic Display */
+/* ==========================================================================
+   Form Controls
+   ========================================================================== */
+.form-container h3,
+.form-container h4 {
+  color: var(--weiß);
+}
+
+.form-container.result-step h3 {
+  margin-bottom: 0;
+}
+
+/* Font Size Control */
+.font-size-control {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.font-size-control span {
+  color: var(--weiß);
+}
+
+.font-size-control button {
+  padding: 0.75rem;
+  border-radius: 4px;
+  border: 2px solid var(--weiß);
+  color: var(--weiß);
+  background-color: transparent;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.font-size-control button:hover {
+  background-color: var(--grashalm);
+}
+
+.font-size-control button.active {
+  background-color: var(--klee);
+}
+
+/* Color Scheme Control */
+.color-scheme-control {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.color-scheme-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.color-scheme-option {
+  cursor: pointer;
+  transition: transform 0.3s ease;
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+.color-scheme-image {
+  width: 100px;
+  height: auto;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  transition: border-color 0.3s ease;
+}
+
+.color-scheme-option.active .color-scheme-image {
+  border-color: var(--sand);
+}
+
+.color-scheme-option:hover .color-scheme-image {
+  border-color: var(--klee);
+}
+
+/* ==========================================================================
+   Advanced Editing
+   ========================================================================== */
+.advanced-editing-button-container {
+  margin: 2rem 0;
+  width: 100%;
+}
+
+.advanced-editing-button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background-color: transparent;
+  color: var(--weiß);
+  border: 2px solid var(--weiß);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+/* Advanced Controls Container */
+.advanced-controls-container {
+  margin-top: 1rem;
+  padding: 0 1.5rem;
+  border-radius: 4px;
+}
+
+.controls-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+}
+
+.control-item {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.control-item p {
+  color: var(--weiß);
+}
+
+/* Balken Offset Controls */
+.balken-offset-control {
+  color: var(--weiß);
+  margin-bottom: 1rem;
+}
+
+.balken-offset-control-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.balken-offset-control-item label {
+  color: var(--weiß);
+  min-width: 80px;
+}
+
+.balken-offset-buttons {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.balken-offset-buttons button {
+  background-color: var(--klee);
+  color: var(--weiß);
+  border: none;
+  padding: 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.balken-offset-buttons button:hover {
+  background-color: var(--grashalm);
+}
+
+.balken-offset-buttons span {
+  min-width: 3rem;
+  text-align: center;
+  color: var(--weiß);
+  font-weight: bold;
+}
+
+/* Cross Controls */
+.cross-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  max-width: 180px;
+  margin: 0 auto;
+}
+
+.cross-button {
+  background-color: var(--klee);
+  color: var(--weiß);
+  border: none;
+  padding: 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cross-button:hover {
+  background-color: var(--grashalm);
+}
+
+.cross-button.up { grid-column: 2 / 3; grid-row: 1 / 2; }
+.cross-button.left { grid-column: 1 / 2; grid-row: 2 / 3; }
+.cross-button.right { grid-column: 3 / 4; grid-row: 2 / 3; }
+.cross-button.down { grid-column: 2 / 3; grid-row: 3 / 4; }
+
+.offset-display {
+  grid-column: 2 / 3;
+  grid-row: 2 / 3;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: transparent;
+  color: var(--weiß);
+  border: 2px solid var(--weiß);
+  border-radius: 4px;
+  padding: 0.5rem;
+  font-weight: bold;
+}
+
+/* ==========================================================================
+   Display & Preview
+   ========================================================================== */
+.display-container {
+  background-color: var(--background-color-alt);
+  padding: 1.5rem;
+  border-radius: 8px;
+  width: 100%;
+}
+
 .sticky-sharepic-container {
   position: sticky;
   top: 20px;
@@ -108,43 +296,6 @@
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-.button-container {
-  width: 100%;
-  display: flex;
-  justify-content: center;
-  gap: 1rem;
-  margin-top: 1rem;
-  padding: 0 1rem;
-}
-
-/* Erweiterte Bearbeitung */
-.advanced-editing-button-container {
-  margin: 1rem 0;
-}
-
-.advanced-editing-button {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.75rem;
-  background-color: var(--hellgrau);
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-}
-
-.advanced-editing-button.open {
-  background-color: var(--dunkelgruen);
-  color: var(--weiß);
-}
-/* Vorschaubild */
-.display-container {
-  position: relative;
-}
-
 .preview-image {
   width: 100%;
   max-width: 400px;
@@ -154,20 +305,157 @@
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-/* File Upload Button Styles */
-.file-input-text {
+/* ==========================================================================
+   Utility Classes
+   ========================================================================== */
+.error-message {
+  color: var(--weiß);
+  margin: 1rem 0;
+}
+
+.button-container {
+  width: 100%;
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+/* ==========================================================================
+   Responsive Design
+   ========================================================================== */
+@media (max-width: 1024px) {
+  .image-modification-controls {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .base-container {
+    flex-direction: column;
+    padding: 1rem;
+  }
+
+  .form-container,
+  .base-container.result-step .form-container {
+    order: -1;
+    width: 100%;
+    min-width: 100%;
+    max-width: 100%;
+    margin-bottom: 1.5rem;
+  }
+
+  .content-container,
+  .base-container.result-step .content-container {
+    width: 100%;
+  }
+
+  /* Input Step & Upload Mobile */
+  .upload-and-search-container {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .file-upload-wrapper,
+  .unsplash-search-button {
+    width: 100%;
+  }
+
+  .form-buttons {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .form-buttons button {
+    width: 100%;
+  }
+
+  /* Form Fields Mobile */
+  .form-content input,
+  .form-content textarea {
+    font-size: 16px; /* Verhindert Zoom auf iOS */
+    padding: 0.5rem;
+  }
+
+  /* Image Controls Mobile */
+  .image-modification-controls {
+    padding: 0.5rem;
+  }
+
+  .advanced-controls-container {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    padding: 1rem;
+  }
+
+  .advanced-control {
+    padding: 1rem;
+  }
+
+  .balken-offset-control-item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .balken-offset-control-item label {
+    margin-bottom: 0.5rem;
+    margin-right: 0;
+  }
+
+  .cross-grid {
+    max-width: 150px;
+  }
+
+  .color-scheme-image {
+    width: 80px;
+  }
+
+  /* Preview & Display Mobile */
+  .sticky-sharepic-container {
+    position: static;
+    max-height: none;
+    margin-bottom: 1rem;
+  }
+
+  .sticky-sharepic {
+    max-height: none;
+  }
+
+  .preview-image {
+    max-width: 100%;
+  }
+}
+
+/* ==========================================================================
+   Animations
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
+}
+/* ==========================================================================
+   Input Step & Upload
+   ========================================================================== */
+.input-fields-wrapper {
+  display: flex;
+  flex-direction: column;
+}
+
+.upload-and-search-container {
+  display: flex;
+  gap: 1rem;
+  width: 100%;
+  margin-bottom: 1rem; /* etwas Abstand nach unten */
+}
+
+.file-input-text {
   padding: 0.75rem 1rem;
-  background-color: var(--hellgrau);
-  border-radius: 4px;
-  cursor: pointer;
   transition: background-color 0.3s ease;
 }
 
 .file-input-text:hover {
-  background-color: var(--mittelgrau);
+  background-color: var(--backgroundgruen);
 }
 
 .file-input-text .file-name {
@@ -177,65 +465,77 @@
   white-space: nowrap;
 }
 
-/* ... rest of the styles ... */
-/* Responsive Design */
-@media (max-width: 1024px) {
-  .image-modification-controls {
-    grid-template-columns: 1fr;
-  }
+.unsplash-search-button {
+  flex: 1;
+  padding: 0.5rem 1rem;
+  background-color: var(--tanne);
+  color: var(--weiß);
+  border: 2px solid var(--weiß);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  white-space: nowrap;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-@media (max-width: 768px) {
-  .upload-and-search-container,
-  .form-buttons {
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .file-upload-wrapper,
-  .unsplash-search-button,
-  .form-buttons button {
-    width: 100%;
-  }
-
-  .upload-step-buttons {
-    flex-direction: column;
-  }
-
-  .unsplash-search-button {
-    width: 100%;
-  }
-
-  .sticky-sharepic-container {
-    position: static;
-    max-height: none;
-    margin-bottom: 1rem;
-  }
-
-  .sticky-sharepic {
-    max-height: none;
-    width: 100%;
-    height: auto;
-  }
-
-  .image-modification-controls {
-    padding: 0.5rem;
-  }
-
-  .textzeilen-group,
-  .absender-group,
-  .farbkombi-group,
-  .schriftgroesse-group {
-    padding: 1rem;
-  }
+.unsplash-search-button svg {
+  margin-right: 8px;
 }
 
-
-
-/* Reduzierte Bewegung */
-@media (prefers-reduced-motion: reduce) {
-  .unsplash-search-button,
-  .advanced-editing-button {
-    transition: none;
-  }
+.unsplash-search-button:hover {
+  background-color: var(--klee);
 }
+
+/* Form Buttons */
+.form-buttons {
+  display: flex;
+  gap: 1rem;
+  width: 100%;
+  margin-top: 1rem;
+}
+
+.form-buttons button {
+  flex: 1;
+  min-width: 0;
+}
+
+.back-button {
+  background-color: var(--sand);
+  color: var(--tanne);
+}
+
+.generate-button {
+  background-color: var(--tanne);
+  color: var(--weiß);
+}
+
+/* ==========================================================================
+   Form Fields
+   ========================================================================== */
+
+.form-content .help-text {
+  color: var(--sand);
+  font-size: 0.9em;
+  margin-top: -0.5rem;
+  margin-bottom: 1rem;
+}
+
+/* Social Media Section */
+.social-media-section {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+}
+
+.social-media-section h3 {
+  margin-bottom: 0.5rem;
+}
+
+.social-media-section p {
+  margin-bottom: 1rem;
+  color: var(--weiß);
+
+}
+
