@@ -8,7 +8,6 @@ import UnsplashButton from './UnsplashButton';
 import { useSharepicGeneratorContext } from '../utils/Sharepic/SharepicGeneratorContext';
 import AdvancedEditingSection from './AdvancedEditingSection';
 import '../../assets/styles/pages/baseform.css';
-import '../../assets/styles/components/imagemodificator.css';
 import '../../assets/styles/components/button.css';
 import '../../assets/styles/components/sharepic.css';
 import FormErrors from './FormErrors';
@@ -54,7 +53,7 @@ const BaseForm = ({
       isLottieVisible, 
       generatedImageSrc,
       isAdvancedEditingOpen,
-      formData: { fontSize: textSize }
+      formData: { fontSize: textSize, thema, details }
     },
     toggleAdvancedEditing,
   } = useSharepicGeneratorContext();  
@@ -143,53 +142,80 @@ const BaseForm = ({
     );
   };
 
+  const handleSocialMediaClick = useCallback(() => {
+    const url = new URL(window.location.origin + '/socialmedia');
+    url.searchParams.append('thema', thema || '');
+    url.searchParams.append('details', details || '');
+    window.open(url.toString(), '_blank');
+  }, [thema, details]);
+
   const renderResultStep = () => (
-    <div className="image-modification-controls">
-      <div className="left-column">
-        <div className="textzeilen-group">
-          <h3>Textzeilen</h3>
-          <p>Hier änderst du den Text auf dem Bild</p>
-          <div className="input-fields-wrapper">
-            {children}
+    <>
+      <div className="image-modification-controls">
+        <div className="left-column">
+          <div className="textzeilen-group">
+            <h3>Textzeilen</h3>
+            <p>Hier änderst du den Text auf dem Bild</p>
+            <div className="input-fields-wrapper">
+              {children}
+            </div>
+          </div>
+          <div className="absender-group">
+            <h3>Absender</h3>
+            <p>Du kannst hier optional einen Absender einfügen oder das Feld frei lassen.</p>
+            <CreditControl
+              credit={credit}
+              onControlChange={onControlChange}
+            />
+          </div>
+          <Button
+            onClick={onSubmit}
+            loading={loading}
+            success={success}
+            text="Aktualisieren"
+            icon={<HiCog />}
+            className="form-button"
+            ariaLabel={ARIA_LABELS.SUBMIT}
+          />
+        </div>
+        <div className="right-column">
+          <div className="farbkombi-group">
+            <h3>Farbkombi</h3>
+            <p>Wähle eine von vier Farbkombis</p>
+            <ColorSchemeControl
+              colorScheme={colorScheme}
+              onControlChange={onControlChange}
+            />
+          </div>
+          <div className="schriftgroesse-group">
+            <h3>Schriftgröße</h3>
+            <p>Du kannst mit den Buttons unten drei verschiedene Schriftgrößen wählen. Standard ist M.</p>
+            <FontSizeControl
+              fontSize={fontSize}
+              onControlChange={onControlChange}
+            />
+          </div>
+          <div className="social-media-section">
+            <h3>Social Media</h3>
+            <p>Erstelle passende Social-Media-Beiträge zu deinem Sharepic.</p>
+            <Button
+              onClick={handleSocialMediaClick}
+              text="Social-Media-Text erstellen"
+              className="social-media-button"
+              ariaLabel="Social Media Text erstellen"
+            />
           </div>
         </div>
-        <div className="absender-group">
-          <h3>Absender</h3>
-          <p>Du kannst hier optional einen Absender einfügen oder das Feld frei lassen.</p>
-          <CreditControl
-            credit={credit}
-            onControlChange={onControlChange}
-          />
-        </div>
+      </div>
+      <div className="advanced-editing-button-container">
         <Button
-          onClick={onSubmit}
-          loading={loading}
-          success={success}
-          text="Aktualisieren"
-          icon={<HiCog />}
-          className="form-button"
-          ariaLabel={ARIA_LABELS.SUBMIT}
+          text={isAdvancedEditingOpen ? "Erweiterte Bildbearbeitung schließen" : "Erweiterte Bildbearbeitung"}
+          className={`advanced-editing-button ${isAdvancedEditingOpen ? 'open' : ''}`}
+          onClick={handleAdvancedEditingClick}
+          icon={isAdvancedEditingOpen ? <HiChevronUp /> : <HiChevronDown />}
         />
       </div>
-      <div className="right-column">
-        <div className="farbkombi-group">
-          <h3>Farbkombi</h3>
-          <p>Wähle eine von vier Farbkombis</p>
-          <ColorSchemeControl
-            colorScheme={colorScheme}
-            onControlChange={onControlChange}
-          />
-        </div>
-        <div className="schriftgroesse-group">
-          <h3>Schriftgröße</h3>
-          <p>Du kannst mit den Buttons unten drei verschiedene Schriftgrößen wählen. Standard ist M.</p>
-          <FontSizeControl
-            fontSize={fontSize}
-            onControlChange={onControlChange}
-          />
-        </div>
-      </div>
-    </div>
+    </>
   );
 
   const renderFormContent = () => {
@@ -258,27 +284,19 @@ const BaseForm = ({
 
   return (
     <div className={`base-container ${generatedContent ? 'with-content' : ''} ${currentStep === FORM_STEPS.RESULT ? 'result-step' : ''}`}>
-      <div className="container">
-        <div className={`form-container ${isAdvancedEditingOpen ? 'expanded' : ''}`}>
-          <form onSubmit={(e) => {
-            e.preventDefault();
-            onSubmit();
-          }}>
-            <div className={`form-content ${generatedContent ? 'with-generated-content' : ''}`}>
-              {renderFormContent()}
-              <FormErrors errors={formErrors} />
-            </div>
-            {currentStep === FORM_STEPS.RESULT && (
-              <>
-                <div className="advanced-editing-button-container">
-                  <Button
-                    text={isAdvancedEditingOpen ? "Erweiterte Bildbearbeitung schließen" : "Erweiterte Bildbearbeitung"}
-                    className={`advanced-editing-button ${isAdvancedEditingOpen ? 'open' : ''}`}
-                    onClick={handleAdvancedEditingClick}
-                    icon={isAdvancedEditingOpen ? <HiChevronUp /> : <HiChevronDown />}
-                  />
-                </div>
-                {isAdvancedEditingOpen && (
+      <div className="form-container">
+        <form onSubmit={(e) => {
+          e.preventDefault();
+          onSubmit();
+        }}>
+          <div className={`form-content ${generatedContent ? 'with-generated-content' : ''}`}>
+            {renderFormContent()}
+            <FormErrors errors={formErrors} />
+          </div>
+          {currentStep === FORM_STEPS.RESULT && (
+            <>
+              {isAdvancedEditingOpen && (
+                <div className="advanced-controls-container">
                   <AdvancedEditingSection
                     balkenOffset={balkenOffset}
                     balkenGruppenOffset={balkenGruppenOffset}
@@ -287,12 +305,14 @@ const BaseForm = ({
                     onBalkenGruppenOffsetChange={(newOffset) => onControlChange('balkenGruppenOffset', newOffset)}
                     onSonnenblumenOffsetChange={(newOffset) => onControlChange('sunflowerOffset', newOffset)}
                   />
-                )}
-              </>
-            )}
-          </form>
-          {error && <p role="alert" aria-live="assertive" className="error-message">{error}</p>}
-        </div>
+                </div>
+              )}
+            </>
+          )}
+        </form>
+        {error && <p role="alert" aria-live="assertive" className="error-message">{error}</p>}
+      </div>
+      <div className="content-container">
         <div className="display-container">
           <h3>{title}</h3>
           {renderDisplayContent}

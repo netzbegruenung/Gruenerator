@@ -5,9 +5,10 @@ import '../../../assets/styles/pages/baseform_social.css';
 import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../utils/constants';
 import useApiSubmit from '../../hooks/useApiSubmit';
 import useEditFunctionality from '../../hooks/useEditFunctionality';
+import { useSharedContent } from '../../../hooks/useSharedContent';
 import { FaFacebook, FaInstagram, FaTwitter, FaLinkedin } from "react-icons/fa";
-import StyledCheckbox from '../../common/AnimatedCheckbox';  // Importieren Sie die AnimatedCheckbox-Komponente
-import BackupToggle from '../../common/BackupToggle';  // BackupToggle importieren
+import StyledCheckbox from '../../common/AnimatedCheckbox';
+import BackupToggle from '../../common/BackupToggle';
 
 const platformIcons = {
   facebook: FaFacebook,
@@ -17,20 +18,21 @@ const platformIcons = {
 };
 
 const SocialMediaGenerator = ({ showHeaderFooter = true }) => {
-  const [thema, setThema] = useState('');
-  const [details, setDetails] = useState('');
+  const { initialContent } = useSharedContent();
+  const [thema, setThema] = useState(initialContent.thema);
+  const [details, setDetails] = useState(initialContent.details);
   const [platforms, setPlatforms] = useState({
-    facebook: false,
-    instagram: false,
-    twitter: false,
+    facebook: initialContent.isFromSharepic,
+    instagram: initialContent.isFromSharepic,
+    twitter: initialContent.isFromSharepic,
     linkedin: false,
     actionIdeas: false,
     reelScript: false 
   });
 
   const { submitForm, loading, success, resetSuccess } = useApiSubmit('/claude_social');
-
   const [error, setError] = useState('');
+  const [useBackupProvider, setUseBackupProvider] = useState(false);
   
   const {
     posts: socialMediaPosts,
@@ -40,8 +42,6 @@ const SocialMediaGenerator = ({ showHeaderFooter = true }) => {
     handleSavePost,
     handlePostContentChange
   } = useEditFunctionality({});
-
-  const [useBackupProvider, setUseBackupProvider] = useState(false);
 
   const handleSubmit = useCallback(async () => {
     const selectedPlatforms = Object.keys(platforms).filter(key => platforms[key] && key !== 'actionIdeas');
@@ -53,7 +53,7 @@ const SocialMediaGenerator = ({ showHeaderFooter = true }) => {
     };
     try {
       const response = await submitForm(formData, useBackupProvider);
-      if (response && response.content) {
+      if (response?.content) {
         setSocialMediaPosts(response.content);
         setTimeout(resetSuccess, 3000);
         setError('');
@@ -67,29 +67,6 @@ const SocialMediaGenerator = ({ showHeaderFooter = true }) => {
   const handlePlatformChange = useCallback((platform) => {
     setPlatforms(prev => ({ ...prev, [platform]: !prev[platform] }));
   }, []);
-
-  const handleGeneratePost = useCallback(async (platform) => {
-    const formData = { 
-      thema, 
-      details, 
-      platforms: platform === 'actionIdeas' ? [] : [platform], 
-      includeActionIdeas: platform === 'actionIdeas'
-    };
-    try {
-      const response = await submitForm(formData, useBackupProvider);
-      if (response && response.content) {
-        setSocialMediaPosts(prev => ({
-          ...prev,
-          ...(platform === 'actionIdeas' 
-            ? { actionIdeas: response.content.actionIdeas } 
-            : { [platform]: response.content[platform] })
-        }));
-      }
-    } catch (error) {
-      console.error('Error regenerating post:', error);
-      setError(error.message || 'Ein Fehler ist aufgetreten beim Regenerieren des Posts.');
-    }
-  }, [thema, details, submitForm, setSocialMediaPosts, useBackupProvider]);
 
   const renderFormInputs = () => (
     <>
@@ -113,9 +90,9 @@ const SocialMediaGenerator = ({ showHeaderFooter = true }) => {
         value={details}
         onChange={(e) => setDetails(e.target.value)}
         aria-required="true"
-      ></textarea>
+      />
 
-<h3>Was & Wofür</h3>
+      <h3>Was & Wofür</h3>
       <div className="platform-checkboxes">
         {Object.entries(platforms).map(([platform, isChecked]) => (
           <StyledCheckbox
@@ -148,7 +125,6 @@ const SocialMediaGenerator = ({ showHeaderFooter = true }) => {
         success={success}
         error={error}
         generatedContent={socialMediaPosts}
-        onGeneratePost={handleGeneratePost}
         renderFormInputs={renderFormInputs}
         editingPlatform={editingPlatform}
         handleEditPost={handleEditPost}
