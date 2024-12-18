@@ -124,10 +124,19 @@
   transition: background-color 0.3s, transform 0.3s;
   border-radius: var(--button-border-radius);
   padding: 0px;
+  background-color: var(--tanne);
+  color: var(--weiß);
+  border: 2px solid var(--weiß);
 }
 
-.file-input-wrapper:hover, .generate-post-button:hover, .form-button:hover, .copy-button:hover {
+.file-input-wrapper:hover {
+  background-color: var(--klee);
+  transform: scale(1.01);
+}
 
+.generate-post-button:hover, 
+.form-button:hover, 
+.copy-button:hover {
   transform: scale(1.01);
 }
 
