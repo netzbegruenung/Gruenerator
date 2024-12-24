@@ -44,10 +44,14 @@ export const routes = {
       withSharepic: true 
     }
   ],
-  noHeaderFooter: Object.entries(GrueneratorenBundle).map(([key]) => ({
-    path: `/${key.toLowerCase()}-no-header-footer`,
-    component: GrueneratorenBundle[key],
-    showHeaderFooter: false
+  noHeaderFooter: Object.entries(GrueneratorenBundle).map(([key, component]) => ({
+    path: `/${key.toLowerCase().replace(/[äöüß]/g, (match) => {
+      const replacements = { 'ä': 'ae', 'ö': 'oe', 'ü': 'ue', 'ß': 'ss' };
+      return replacements[match];
+    })}-no-header-footer`,
+    component: component,
+    showHeaderFooter: false,
+    withForm: true
   }))
 };
 

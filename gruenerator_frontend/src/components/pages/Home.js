@@ -1,10 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { PiNewspaper, PiInstagramLogo, PiFileText, PiMicrophone, PiLightbulb, PiBook } from 'react-icons/pi';
-import '../../assets/styles/common/variables.css';
-import '../../assets/styles/common/global.css';
-import '../../assets/styles/components/button.css';
-import '../../assets/styles/pages/Startseitenstyle.css';
 
 const Home = () => {
   const email = 'info' + '@' + 'moritz-waechter.de';
