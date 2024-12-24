@@ -3,8 +3,6 @@ import PropTypes from 'prop-types';
 import ReactQuill from 'react-quill';
 import { EditorToolbar } from './EditorToolbar';
 import 'react-quill/dist/quill.snow.css';
-import '../../assets/styles/components/quill-custom.css';
-import '../../assets/styles/components/editor.css';
 import { FormContext } from '../utils/FormContext';
 import { applyHighlightWithAnimation } from '../utils/highlightUtils';
 

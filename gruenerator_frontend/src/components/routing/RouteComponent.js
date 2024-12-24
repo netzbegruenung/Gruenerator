@@ -1,4 +1,4 @@
-import React, { Suspense } from 'react';
+import React, { Suspense, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { useLocation } from 'react-router-dom';
 import AppProviders from '../common/Providers/AppProviders';
@@ -15,11 +15,30 @@ const RouteComponent = ({
 }) => {
   const location = useLocation();
   
-  const route = isSpecial 
-    ? routes.special.find(r => r.path === path)
-    : routes.standard.find(r => r.path === path);
+  useEffect(() => {
+    console.log('RouteComponent Debug:', {
+      path,
+      currentLocation: location.pathname,
+      showHeaderFooter,
+      isSpecial
+    });
+  }, [path, location.pathname, showHeaderFooter, isSpecial]);
 
-  if (!route) return null;
+  // Finde die passende Route
+  let route;
+  if (!showHeaderFooter) {
+    route = routes.noHeaderFooter.find(r => r.path === path);
+    console.log('No-Header-Footer Route gefunden:', route);
+  } else {
+    route = isSpecial 
+      ? routes.special.find(r => r.path === path)
+      : routes.standard.find(r => r.path === path);
+  }
+
+  if (!route) {
+    console.warn('Keine Route gefunden für:', path);
+    return null;
+  }
 
   const CachedComponent = useRouteCache(route.component);
 

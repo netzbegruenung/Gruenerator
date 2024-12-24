@@ -3,9 +3,6 @@ import { Link } from 'react-router-dom';
 import { FaTwitter, FaLinkedin, FaInstagram } from 'react-icons/fa';
 import useAccessibility from '../../hooks/useAccessibility';
 import { addAriaLabelsToElements, enhanceFocusVisibility } from '../../utils/accessibilityHelpers';
-import '../../../assets/styles/common/variables.css';
-import '../../../assets/styles/common/global.css';
-import '../../../assets/styles/components/footer.css';
 
 const Footer = () => {
     const { announce, focusElement, setupKeyboardNav } = useAccessibility();
