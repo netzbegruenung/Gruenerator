@@ -129,7 +129,17 @@ if (cluster.isMaster) {
     'https://beta.gruenerator.de',
     'https://www.beta.gruenerator.de',
     'https://gruenerator-test.netzbegruenung.verdigado.net',
-    'https://www.gruenerator-test.netzbegruenung.verdigado.net'
+    'https://www.gruenerator-test.netzbegruenung.verdigado.net',
+    'https://grüenerator-test.de',
+    'https://www.grüenerator-test.de',
+    'https://grüenerator.netzbegrünung.verdigado.net',
+    'https://www.grüenerator.netzbegrünung.verdigado.net',
+    'https://grüenerator.de',
+    'https://www.grüenerator.de',
+    'https://beta.grüenerator.de',
+    'https://www.beta.grüenerator.de',
+    'https://grüenerator-test.netzbegrünung.verdigado.net',
+    'https://www.grüenerator-test.netzbegrünung.verdigado.net'
   ];
 
   const corsOptions = {
@@ -205,8 +215,8 @@ if (cluster.isMaster) {
   };
 
   // Optimierte Middleware-Stack
-  app.use(bodyParser.json({ limit: '10mb' }));
-  app.use(bodyParser.urlencoded({ limit: '10mb', extended: true }));
+  app.use(bodyParser.json({ limit: '32mb' }));
+  app.use(bodyParser.urlencoded({ limit: '32mb', extended: true }));
   
   // Logging nur für wichtige Requests
   app.use(morgan('combined', {
