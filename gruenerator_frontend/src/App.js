@@ -1,5 +1,5 @@
 import React, { lazy, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import ScrollToTop from './components/utils/ScrollToTop';
 import { useScrollRestoration } from './components/utils/commonFunctions';
 import useAccessibility from './components/hooks/useAccessibility';
@@ -13,10 +13,29 @@ import { routes } from './config/routes';
 const PopupNutzungsbedingungen = lazy(() => import('./components/Popups/popup_nutzungsbedingungen'));
 const WelcomePopup = lazy(() => import('./components/Popups/popup_welcome'));
 
+// Debug-Komponente für Route-Logging
+const RouteLogger = () => {
+  const location = useLocation();
+  useEffect(() => {
+    console.log('Route geändert:', {
+      pathname: location.pathname,
+      isNoHeaderFooter: location.pathname.includes('-no-header-footer'),
+      search: location.search
+    });
+  }, [location]);
+  return null;
+};
+
 function App() {
   useScrollRestoration();
   const { setupKeyboardNav } = useAccessibility();
   const [darkMode, toggleDarkMode] = useDarkMode();
+
+  useEffect(() => {
+    console.log('Verfügbare no-header-footer Routen:', 
+      routes.noHeaderFooter.map(route => route.path)
+    );
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -54,6 +73,7 @@ function App() {
     <ErrorBoundary>
       <Router>
         <ScrollToTop />
+        <RouteLogger />
         <SuspenseWrapper>
           <PopupNutzungsbedingungen />
           <WelcomePopup />
@@ -92,20 +112,23 @@ function App() {
             ))}
 
             {/* No-Header-Footer Routen */}
-            {routes.noHeaderFooter.map(({ path }) => (
-              <Route
-                key={path}
-                path={path}
-                element={
-                  <RouteComponent 
-                    path={path} 
-                    darkMode={darkMode} 
-                    toggleDarkMode={toggleDarkMode}
-                    showHeaderFooter={false}
-                  />
-                }
-              />
-            ))}
+            {routes.noHeaderFooter.map(({ path }) => {
+              console.log('Registriere no-header-footer Route:', path);
+              return (
+                <Route
+                  key={path}
+                  path={path}
+                  element={
+                    <RouteComponent 
+                      path={path} 
+                      darkMode={darkMode} 
+                      toggleDarkMode={toggleDarkMode}
+                      showHeaderFooter={false}
+                    />
+                  }
+                />
+              );
+            })}
           </Routes>
         </SuspenseWrapper>
       </Router>
