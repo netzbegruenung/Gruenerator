@@ -10,6 +10,14 @@ const PageLayout = ({ children, darkMode, toggleDarkMode, showHeaderFooter = tru
   const [showFooter, setShowFooter] = useState(false);
 
   useEffect(() => {
+    console.log('PageLayout Debug:', {
+      showHeaderFooter,
+      darkMode,
+      hasChildren: !!children
+    });
+  }, [showHeaderFooter, darkMode, children]);
+
+  useEffect(() => {
     // Lade alle Grüneratoren im Hintergrund
     const timeoutId = setTimeout(() => {
       preloadAllGrueneratoren();
@@ -28,7 +36,8 @@ const PageLayout = ({ children, darkMode, toggleDarkMode, showHeaderFooter = tru
   }, []);
 
   if (!showHeaderFooter) {
-    return <main className="content-wrapper">{children}</main>;
+    console.log('Rendere no-header-footer Layout');
+    return <main className="content-wrapper no-header-footer">{children}</main>;
   }
 
   return (

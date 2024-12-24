@@ -15,7 +15,6 @@ import {
 } from 'react-icons/pi';
 import { CSSTransition } from 'react-transition-group';
 import useAccessibility from '../../hooks/useAccessibility';
-import '../../../assets/styles/components/navmenu.css';
 
 const NavMenu = ({ open, onClose }) => {
   const [activeDropdown, setActiveDropdown] = useState(null);

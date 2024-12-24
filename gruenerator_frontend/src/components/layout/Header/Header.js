@@ -2,9 +2,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { PiFileText, PiNewspaper, PiChatsCircle, PiCaretDown, PiMicrophone, PiSun, PiMoon, PiLightbulb, PiBook, PiImage, PiPaintBrush } from 'react-icons/pi';
-import '../../../assets/styles/common/variables.css';
-import '../../../assets/styles/common/global.css';
-import '../../../assets/styles/components/header.css';
 import NavMenu from './NavMenu';
 import useDarkMode from '../../hooks/useDarkMode';
 import useAccessibility from '../../hooks/useAccessibility';

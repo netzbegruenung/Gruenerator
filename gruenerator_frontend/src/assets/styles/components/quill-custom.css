@@ -35,7 +35,7 @@
 }
 /* Entfernen der Umrandung für den Quill-Container */
 .ql-container.ql-snow {
-    border: none;
+    border: none !important; 
 }
 
 /* Toolbar-Stile */
