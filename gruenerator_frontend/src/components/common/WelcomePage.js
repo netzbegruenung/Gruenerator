@@ -2,7 +2,7 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import '../../assets/styles/components/welcome.css';
 
-const WelcomePage = ({ title, description, steps, onStart }) => {
+const WelcomePage = ({ title, description, steps, onStart, stepsTitle }) => {
   const handleStart = () => {
     const welcomeScreen = document.querySelector('.welcome-screen');
     welcomeScreen.classList.add('fade-out');
@@ -19,7 +19,7 @@ const WelcomePage = ({ title, description, steps, onStart }) => {
         <p className="welcome-intro">{description}</p>
         
         <div className="welcome-steps">
-          <h2>In drei Schritten zu deiner Kandidat*innenseite</h2>
+          <h2>{stepsTitle}</h2>
           <div className="steps-grid">
             {steps.map((step, index) => (
               <div key={index} className="step-card">
@@ -45,6 +45,7 @@ const WelcomePage = ({ title, description, steps, onStart }) => {
 WelcomePage.propTypes = {
   title: PropTypes.string.isRequired,
   description: PropTypes.string.isRequired,
+  stepsTitle: PropTypes.string.isRequired,
   steps: PropTypes.arrayOf(
     PropTypes.shape({
       title: PropTypes.string.isRequired,
