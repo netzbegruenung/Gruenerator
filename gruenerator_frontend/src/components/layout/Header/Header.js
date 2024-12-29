@@ -109,7 +109,7 @@ const Header = () => {
                             </span>
                             <ul className={`header-dropdown-content ${activeDropdown === 'grafik' ? 'show' : ''}`} aria-label="Sharepics & Grafik Untermenü">
                                 <li><Link to="/vorlagen" onClick={() => handleLinkClick('/vorlagen', 'Canva-Vorlagen')}><PiPaintBrush aria-hidden="true" /> Canva-Vorlagen</Link></li>
-                                <li className="disabled-link"><span><PiImage aria-hidden="true" /> Sharepic Grünerator (soon)</span></li>
+                                <li><Link to="/sharepic" onClick={() => handleLinkClick('/sharepic', 'Sharepic Grünerator')}><PiImage aria-hidden="true" /> Sharepic Grünerator</Link></li>
                             </ul>
                         </li>
                         <li className="header-dropdown" 
