@@ -127,7 +127,7 @@ const NavMenu = ({ open, onClose }) => {
         >
           <ul className="nav-dropdown-content" ref={nodeRefs.grafik} aria-label="Sharepics & Grafik Untermenü">
             <li><Link to="/vorlagen" onClick={() => handleLinkClick('/vorlagen', 'Canva-Vorlagen')}><PiPaintBrush className="nav-icon" aria-hidden="true" /> Canva-Vorlagen</Link></li>
-            <li className="disabled-link"><span><PiImage className="nav-icon" aria-hidden="true" /> Sharepic Grünerator (soon)</span></li>
+            <li><Link to="/sharepic" onClick={() => handleLinkClick('/sharepic', 'Sharepic Grünerator')}><PiImage className="nav-icon" aria-hidden="true" /> Sharepic Grünerator</Link></li>
           </ul>
         </CSSTransition>
       </div>
