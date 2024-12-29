@@ -54,6 +54,11 @@ const useApiSubmit = (endpoint) => {
           setSuccess(true);
           return response.suggestions[0];
         }
+      } else if (endpoint === '/dreizeilen_claude') {
+        if (response && response.line1 && response.line2 && response.line3) {
+          setSuccess(true);
+          return response;
+        }
       } else {
         // Standard AI-Response-Behandlung
         if (response && response.content) {

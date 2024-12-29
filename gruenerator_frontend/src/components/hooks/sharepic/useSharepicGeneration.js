@@ -1,64 +1,85 @@
 import { useState, useCallback } from 'react';
 import { handleError } from '../../utils/errorHandling';
 import { SHAREPIC_TYPES } from '../../utils/constants';
+import useApiSubmit from '../useApiSubmit';
+import apiClient from '../../utils/apiClient';
 
 export const useSharepicGeneration = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const quoteSubmit = useApiSubmit('/quote_claude');
+  const dreizeilenSubmit = useApiSubmit('/dreizeilen_claude');
 
   const generateText = useCallback(async (type, formData) => {
     const sharepicType = type === SHAREPIC_TYPES.QUOTE ? SHAREPIC_TYPES.QUOTE : SHAREPIC_TYPES.THREE_LINES;
     console.log(`Generating text for ${sharepicType}:`, formData);
     try {
-      const apiRoute = sharepicType === SHAREPIC_TYPES.QUOTE ? '/api/quote_claude' : '/api/dreizeilen_claude';
-
-      const response = await fetch(apiRoute, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-      if (!response.ok) throw new Error('Netzwerkfehler');
-      const data = await response.json();
+      const submitFn = sharepicType === SHAREPIC_TYPES.QUOTE ? quoteSubmit.submitForm : dreizeilenSubmit.submitForm;
+      const data = await submitFn(formData);
       console.log("Text generation response:", data);
       return data;
     } catch (err) {
       console.error("Error generating text:", err);
       throw err;
     }
-  }, []);
+  }, [quoteSubmit, dreizeilenSubmit]);
 
   const generateImage = useCallback(async (formData) => {
     setLoading(true);
     setError('');
     try {
+      console.log('Generating image with formData:', formData);
       const formDataToSend = new FormData();
       
-      if (formData.uploadedImage) {
-        formDataToSend.append('image', formData.uploadedImage);
-      } else {
+      const imageToUse = formData.uploadedImage || formData.image;
+      if (!imageToUse) {
         throw new Error('Kein Bild ausgewählt');
       }
 
-      Object.keys(formData).forEach(key => {
-        if (key !== 'uploadedImage') {
-          formDataToSend.append(key, String(formData[key]));
+      const imageFile = imageToUse instanceof File ? imageToUse : 
+        new File([imageToUse], 'image.jpg', { type: imageToUse.type || 'image/jpeg' });
+      formDataToSend.append('image', imageFile);
+
+      formDataToSend.append('line1', formData.line1 || '');
+      formDataToSend.append('line2', formData.line2 || '');
+      formDataToSend.append('line3', formData.line3 || '');
+
+      const fieldsToAdd = {
+        type: formData.type,
+        fontSize: formData.fontSize || '85',
+        credit: formData.credit || '',
+        balkenOffset_0: formData.balkenOffset?.[0] || '50',
+        balkenOffset_1: formData.balkenOffset?.[1] || '-100',
+        balkenOffset_2: formData.balkenOffset?.[2] || '50',
+        balkenGruppe_offset_x: formData.balkenGruppenOffset?.[0] || '0',
+        balkenGruppe_offset_y: formData.balkenGruppenOffset?.[1] || '0',
+        sunflower_offset_x: formData.sunflowerOffset?.[0] || '0',
+        sunflower_offset_y: formData.sunflowerOffset?.[1] || '0'
+      };
+
+      if (formData.colorScheme) {
+        formData.colorScheme.forEach((color, index) => {
+          formDataToSend.append(`colors_${index}_background`, color.background);
+          formDataToSend.append(`colors_${index}_text`, color.text);
+        });
+      }
+
+      Object.entries(fieldsToAdd).forEach(([key, value]) => {
+        formDataToSend.append(key, String(value));
+      });
+
+      console.log('Sending FormData:', Object.fromEntries(formDataToSend.entries()));
+
+      const endpoint = formData.type === SHAREPIC_TYPES.QUOTE ? 
+        'quote_canvas' : 'dreizeilen_canvas';
+
+      const response = await apiClient.post(endpoint, formDataToSend, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
         }
       });
 
-      const apiRoute = formData.type === SHAREPIC_TYPES.QUOTE ? 
-        '/api/quote_canvas' : '/api/dreizeilen_canvas';
-      
-      const response = await fetch(apiRoute, {
-        method: 'POST',
-        body: formDataToSend,
-      });
-
-      if (!response.ok) {
-        throw new Error(`Netzwerkfehler bei der Bilderstellung: ${response.status}`);
-      }
-
-      const result = await response.json();
-      return result.image;
+      return response.data.image;
 
     } catch (err) {
       handleError(err, setError);
@@ -68,7 +89,6 @@ export const useSharepicGeneration = () => {
     }
   }, []);
 
-  
   return {
     generateText,
     generateImage,
