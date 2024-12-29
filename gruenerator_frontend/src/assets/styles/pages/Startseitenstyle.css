@@ -317,7 +317,6 @@
         border-radius: 10px;
         width: 100%;
         justify-content: flex-start;
-        background-color: var(--background-color);
     }
 
     .sections-container {
