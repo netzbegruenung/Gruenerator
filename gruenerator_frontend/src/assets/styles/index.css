@@ -20,6 +20,8 @@
 @import './components/fileUpload.css';
 @import './components/exportToDocument.css';
 @import './components/BackupToggle.css';
+@import './components/welcome.css';
+@import './components/help.css';
 
 /* Seiten-spezifische Styles */
 @import './pages/baseform.css';

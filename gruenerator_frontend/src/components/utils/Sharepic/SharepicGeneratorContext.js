@@ -28,11 +28,11 @@ const initialState = {
     colorScheme: DEFAULT_COLORS,
     balkenGruppenOffset: [0, 0],
     sunflowerOffset: [0, 0],
-    credit: '', // Add credit to initial state
+    credit: '',
     isAdvancedEditingOpen: false,
-    searchTerms: [], // Behalte nur diese Eigenschaft für die Suche
+    searchTerms: [],
   },
-  currentStep: FORM_STEPS.INPUT,
+  currentStep: FORM_STEPS.WELCOME,
   error: null,
   loading: false,
   uploadedImage: null,

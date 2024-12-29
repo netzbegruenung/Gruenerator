@@ -17,6 +17,7 @@ const processTextRouter = require('./routes/sharepic/sharepic_canvas/processText
 const claudeTextAdjustmentRoute = require('./routes/claude_text_adjustment');
 const etherpadRoute = require('./routes/etherpad/etherpadController');
 const claudeWahlprogrammRoute = require('./routes/claude_wahlprogramm');
+const claudeKandidatRoute = require('./routes/claude_kandidat');
 
 const withLazyLoading = (importFunc) => 
   lazy(() => 
@@ -51,6 +52,7 @@ function setupRoutes(app) {
   app.use('/api/claude_text_adjustment', claudeTextAdjustmentRoute); 
   app.use('/api/etherpad', etherpadRoute);
   app.use('/api/claude_wahlprogramm', claudeWahlprogrammRoute);
+  app.use('/api/claude_kandidat', claudeKandidatRoute);
 }
 
 module.exports = { setupRoutes };

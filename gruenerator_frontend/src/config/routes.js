@@ -17,6 +17,7 @@ export const GrueneratorenBundle = {
   WahlpruefsteinBundestagswahl: lazy(() => import('../components/pages/Grüneratoren/WahlpruefsteinBundestagswahl')),
   Rede: lazy(() => import('../components/pages/Grüneratoren/Redengenerator')),
   Wahlprogramm: lazy(() => import('../components/pages/Grüneratoren/Wahlprogramm')),
+  Kandidat: lazy(() => import('../components/pages/Grüneratoren/Kandidatengenerator')),
   Templates: TemplateGallery
 };
 
@@ -32,6 +33,7 @@ export const routes = {
     { path: '/wahlpruefstein-bundestagswahl', component: GrueneratorenBundle.WahlpruefsteinBundestagswahl },
     { path: '/rede', component: GrueneratorenBundle.Rede, withForm: true },
     { path: '/wahlprogramm', component: GrueneratorenBundle.Wahlprogramm, withForm: true },
+    { path: '/kandidat', component: GrueneratorenBundle.Kandidat, withForm: true },
     { path: '/vorlagen', component: GrueneratorenBundle.Templates },
     { path: '/datenschutz', component: Datenschutz },
     { path: '/impressum', component: Impressum }

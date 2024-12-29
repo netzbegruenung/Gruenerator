@@ -2,12 +2,12 @@ import React, { useState } from 'react';
 
 const WelcomePopup = () => {
   const [isVisible, setIsVisible] = useState(() => {
-    return !localStorage.getItem('popupShownAgain'); // Name geändert
+    return !localStorage.getItem('popupShownAgain');
   });
 
   const handleCloseWelcomePopup = (e) => {
     e.preventDefault();
-    localStorage.setItem('popupShownAgain', 'true'); // Name geändert
+    localStorage.setItem('popupShownAgain', 'true');
     setIsVisible(false);
   };
 
@@ -18,14 +18,28 @@ const WelcomePopup = () => {
   return (
     <div className="welcome-popup-overlay">
       <div className="welcome-popup">
-        <h1>Neues Backup-Feature</h1>
-        <p>
-          Gute Nachrichten: Die meisten Fehler des Grünerators konnten wir beheben! 
-          Falls du dennoch eine Fehlermeldung erhältst, kannst du jetzt &quot;Grünerator Backup&quot; nutzen.
-        </p>
-        <p>
-          Vielen Dank für deine Geduld!
-        </p>
+        <h1>Willkommen beim Grünerator!</h1>
+        <div className="welcome-content">
+          <section>
+            <h2>Neue Features</h2>
+            <p>
+              Die meisten Fehler des Grünerators konnten wir beheben! 
+              Falls du dennoch eine Fehlermeldung erhältst, kannst du jetzt &ldquo;Grünerator Backup&rdquo; nutzen.
+            </p>
+          </section>
+          
+          <section>
+            <h2>Mobile App Installation</h2>
+            <p>
+              Du kannst den Grünerator auch als App auf deinem Smartphone installieren:
+            </p>
+            <ul>
+              <li><strong>Android:</strong> Öffne Chrome → Menü (⋮) → &quot;Zum Startbildschirm hinzufügen&quot;</li>
+              <li><strong>iOS:</strong> Öffne Safari → Teilen (⋯) → &quot;Zum Home-Bildschirm&quot;</li>
+            </ul>
+          </section>
+        </div>
+        
         <div className="welcome-button-container">
           <button
             onClick={handleCloseWelcomePopup}
