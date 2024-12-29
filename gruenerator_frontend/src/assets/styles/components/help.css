@@ -3,13 +3,10 @@
 
 /* Help Content Styles */
 .help-content {
-  padding: 20px;
-  background-color: var(--background-color-alt);
-  border-radius: 8px;
+  padding-top: 10px;
 }
 
 .help-content h4 {
-  color: var(--font-color-h);
   margin: 20px 0 10px;
 }
 
@@ -22,7 +19,6 @@
   margin-bottom: 10px;
   padding-left: 25px;
   position: relative;
-  color: var(--font-color);
 }
 
 .help-content ul li::before {
@@ -36,6 +32,6 @@
 /* Mobile Styles */
 @media (max-width: 768px) {
   .help-content {
-    padding: 15px;
+    padding: 0px;
   }
 } 
