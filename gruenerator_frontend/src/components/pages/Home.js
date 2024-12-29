@@ -19,6 +19,12 @@ const Home = () => {
               5000,
               'Antrag für den Rat?',
               5000,
+              'Wahlprogramm-Kapitel?',
+              5000,
+              'Redebeitrag?',
+              5000,
+              'Sharepic?',
+              5000,
             ]}
             wrapper="span"
             speed={50}
@@ -27,7 +33,7 @@ const Home = () => {
           />
           <h2>Dafür gibt&apos;s den Grünerator.</h2>
         </div>
-        <p>Mit dem Grünerator kannst du schnell und kostenlos einen Vorschlag für Grüne Inhalte deiner Wahl erhalten. Alle Eingaben werden von Anthropic verarbeitet. Bitte gib daher keine obsoleten privaten Daten ein.</p>
+        <p>Mit dem Grünerator kannst du schnell und kostenlos einen Vorschlag für Grüne Inhalte deiner Wahl erhalten. Alle Eingaben werden von Anthropic verarbeitet. Bitte gib daher keine privaten Daten ein.</p>
         <div className="link-buttons-container">
           <div className="link-buttons primary-buttons">
             <Link to="/pressemitteilung" aria-label="Zur Pressemitteilung erstellen"><PiNewspaper /> Pressemitteilung</Link>

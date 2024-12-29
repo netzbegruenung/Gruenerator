@@ -316,6 +316,7 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
         <WelcomePage
           title="Sharepic-Grünerator"
           description="Erstelle professionelle Sharepics für Social Media. Die KI hilft dir dabei, deine Botschaft optimal zu präsentieren."
+          stepsTitle="In drei Schritten zu deinem Sharepic"
           steps={[
             {
               title: "Thema & Text",
@@ -327,7 +328,7 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
             },
             {
               title: "Design anpassen",
-              description: "Passe Farben, Schriftgröße und Layout nach deinen Wünschen an."
+              description: "Passe Farben und Schriftgröße deinen Wünschen an."
             }
           ]}
           onStart={() => updateFormData({ currentStep: FORM_STEPS.INPUT })}
