@@ -52,7 +52,7 @@
   color: var(--weiß);
 }
 
-.form-container.result-step h3 {
+.base-container.result-step .form-container h3 {
   margin-bottom: 0;
 }
 
@@ -94,8 +94,8 @@
 }
 
 .color-scheme-images {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
   gap: 1rem;
 }
 
@@ -455,7 +455,7 @@
 }
 
 .file-input-text:hover {
-  background-color: var(--backgroundgruen);
+  background-color: transparent;
 }
 
 .file-input-text .file-name {
@@ -525,8 +525,8 @@
 
 /* Social Media Section */
 .social-media-section {
-  margin-top: 2rem;
-  padding-top: 1.5rem;
+  margin-top: 0.1rem;
+  padding-top: 0.1rem;
 }
 
 .social-media-section h3 {

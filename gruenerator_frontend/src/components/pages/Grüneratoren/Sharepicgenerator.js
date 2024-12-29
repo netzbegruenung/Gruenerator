@@ -5,8 +5,10 @@ import { SharepicGeneratorProvider, useSharepicGeneratorContext } from '../../ut
 import { useSharepicGeneration } from '../../hooks/sharepic/useSharepicGeneration';
 import { useSharepicRendering } from '../../hooks/sharepic/useSharepicRendering';
 import BaseForm from '../../common/BaseForm-Sharepic';
+import WelcomePage from '../../common/WelcomePage';
 import ErrorBoundary from '../../ErrorBoundary';
 import { processImageForUpload } from '../../utils/imageCompression';
+import HelpDisplay from '../../common/HelpDisplay';
 
 import { 
   FORM_STEPS, 
@@ -14,6 +16,33 @@ import {
   SHAREPIC_GENERATOR, 
   ERROR_MESSAGES, 
 } from '../../utils/constants';
+
+const getHelpContent = (step) => {
+  switch (step) {
+    case FORM_STEPS.INPUT:
+      return {
+        title: "Thema des Sharepics",
+        content: "Beschreibe dein Thema und gib Details an. Die KI wird dir einen passenden Textvorschlag generieren.",
+        tips: [
+          "Je konkreter dein Thema, desto besser der generierte Text",
+          "Füge Details hinzu, um den Text noch spezifischer zu machen",
+          "KI fügt automatisch einen Suchbegriff für ein passendes Unsplash-Hintergrundbild hinzu"
+        ]
+      };
+    case FORM_STEPS.PREVIEW:
+      return {
+        title: "Bildauswahl",
+        content: "Wähle ein passendes Bild für dein Sharepic aus. Du kannst entweder ein eigenes Bild hochladen oder ein Bild aus der Unsplash-Bibliothek verwenden.",
+        tips: [
+          "Tippe auf den Unsplash-Button, um ein passendes Bild aus der Unsplash-Bibliothek zu finden",
+          "Lade das Unsplash-Bild herunter und dann hier hoch, um es zu verwenden",
+          "Die Suchbegriffe sind manchmal Quark, suche dann einfach nach Alternativen"
+        ]
+      };
+    default:
+      return null;
+  }
+};
 
 function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
   const { 
@@ -23,13 +52,12 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
     updateFormData, 
     modifyImage,
     setLottieVisible, 
-
   } = useSharepicGeneratorContext();
 
   const { generateText, generateImage, loading: generationLoading, error: generationError } = useSharepicGeneration();
 
   const { renderFormFields } = useSharepicRendering();
-  const [errors, setErrors] = useState({}); 
+  const [errors, setErrors] = useState({});
 
   const validateForm = useCallback((formData) => {
     const newErrors = {};
@@ -39,11 +67,6 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }, []);
-
-  useEffect(() => {
-    console.log('SharepicGenerator: Current step:', state.currentStep);
-    console.log('SharepicGenerator: Form data:', state.formData);
-  }, [state.currentStep, state.generatedImageSrc, state.formData]);
 
   const handleChange = useCallback((e) => {
     const { name, value } = e.target;
@@ -279,6 +302,40 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
     });
   }, [state.file, state.formData.uploadedImage, state.selectedImage, state.currentStep, state.error]);
 
+  const helpContent = getHelpContent(state.currentStep);
+  const helpDisplay = helpContent ? (
+    <HelpDisplay
+      content={helpContent.content}
+      tips={helpContent.tips}
+    />
+  ) : null;
+
+  if (state.currentStep === FORM_STEPS.WELCOME) {
+    return (
+      <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
+        <WelcomePage
+          title="Sharepic-Grünerator"
+          description="Erstelle professionelle Sharepics für Social Media. Die KI hilft dir dabei, deine Botschaft optimal zu präsentieren."
+          steps={[
+            {
+              title: "Thema & Text",
+              description: "Gib dein Thema ein und lass die KI einen passenden Text generieren."
+            },
+            {
+              title: "Bild auswählen",
+              description: "Wähle ein passendes Bild aus oder lade dein eigenes hoch."
+            },
+            {
+              title: "Design anpassen",
+              description: "Passe Farben, Schriftgröße und Layout nach deinen Wünschen an."
+            }
+          ]}
+          onStart={() => updateFormData({ currentStep: FORM_STEPS.INPUT })}
+        />
+      </div>
+    );
+  }
+
   return (
     <ErrorBoundary>
       <div
@@ -287,31 +344,31 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
         aria-label="Sharepic Generator"
       >
        <BaseForm
-    title={SHAREPIC_GENERATOR.TITLE}
-    onSubmit={handleFormSubmit}
-    onBack={handleBack}
-    loading={state.loading || generationLoading}
-    error={state.error || generationError}
-    generatedContent={state.generatedImageSrc}
-    useDownloadButton={state.currentStep === FORM_STEPS.RESULT}
-    showBackButton={state.currentStep > FORM_STEPS.INPUT}
-    submitButtonText={submitButtonText}
-    currentStep={state.currentStep}
-    isLottieVisible={state.isLottieVisible}    
-    formErrors={errors}
-    isSubmitting={state.isSubmitting}
-    currentSubmittingStep={state.currentSubmittingStep}
-    credit={state.formData.credit}
-    fileUploadProps={fileUploadProps}
-    fontSize={state.formData.fontSize || SHAREPIC_GENERATOR.DEFAULT_FONT_SIZE}
-    balkenOffset={state.formData.balkenOffset || SHAREPIC_GENERATOR.DEFAULT_BALKEN_OFFSET}
-    colorScheme={state.formData.colorScheme || SHAREPIC_GENERATOR.DEFAULT_COLOR_SCHEME}
-    balkenGruppenOffset={state.formData.balkenGruppenOffset || [0, 0]}
-    sunflowerOffset={state.formData.sunflowerOffset || [0, 0]}
-    onControlChange={handleControlChange}
-  >
-    {memoizedFormFields}
-  </BaseForm>
+        title={helpContent ? helpContent.title : SHAREPIC_GENERATOR.TITLE}
+        onSubmit={handleFormSubmit}
+        onBack={handleBack}
+        loading={state.loading || generationLoading}
+        error={state.error || generationError}
+        generatedContent={state.generatedImageSrc || helpDisplay}
+        useDownloadButton={state.currentStep === FORM_STEPS.RESULT}
+        showBackButton={state.currentStep > FORM_STEPS.INPUT}
+        submitButtonText={submitButtonText}
+        currentStep={state.currentStep}
+        isLottieVisible={state.isLottieVisible}    
+        formErrors={errors}
+        isSubmitting={state.isSubmitting}
+        currentSubmittingStep={state.currentSubmittingStep}
+        credit={state.formData.credit}
+        fileUploadProps={fileUploadProps}
+        fontSize={state.formData.fontSize || SHAREPIC_GENERATOR.DEFAULT_FONT_SIZE}
+        balkenOffset={state.formData.balkenOffset || SHAREPIC_GENERATOR.DEFAULT_BALKEN_OFFSET}
+        colorScheme={state.formData.colorScheme || SHAREPIC_GENERATOR.DEFAULT_COLOR_SCHEME}
+        balkenGruppenOffset={state.formData.balkenGruppenOffset || [0, 0]}
+        sunflowerOffset={state.formData.sunflowerOffset || [0, 0]}
+        onControlChange={handleControlChange}
+      >
+        {memoizedFormFields}
+      </BaseForm>
       </div>
     </ErrorBoundary>
   );

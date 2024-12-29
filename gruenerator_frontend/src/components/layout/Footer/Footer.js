@@ -27,9 +27,6 @@ const Footer = () => {
             { element: footerRef.current.querySelector('a[href="/impressum"]'), label: 'Impressum Seite' },
             { element: footerRef.current.querySelector('a[href="/datenschutz"]'), label: 'Datenschutz Seite' },
             { element: footerRef.current.querySelector('a[href="https://896ca129.sibforms.com/serve/MUIFAFnH3lov98jrw3d75u_DFByChA39XRS6JkBKqjTsN9gx0MxCvDn1FMnkvHLgzxEh1JBcEOiyHEkyzRC-XUO2DffKsVccZ4r7CCaYiugoiLf1a-yoTxDwoctxuzCsmDuodwrVwEwnofr7K42jQc-saIKeVuB_8UxrwS18QIaahZml1qMExNno2sEC7HyMy9Nz4f2f8-UJ4QmW"]'), label: 'Newsletter Anmeldung' },
-            { element: footerRef.current.querySelector('a[href="https://twitter.com/MoritzWaech"]'), label: 'Twitter Profil von Moritz Wächter' },
-            { element: footerRef.current.querySelector('a[href="https://www.instagram.com/moritz_waechter/?hl=bg"]'), label: 'Instagram Profil von Moritz Wächter' },
-            { element: footerRef.current.querySelector('a[href="https://www.linkedin.com/in/moritz-w%C3%A4chter-6ab033210"]'), label: 'LinkedIn Profil von Moritz Wächter' },
         ]);
 
         return cleanup;
@@ -56,45 +53,75 @@ const Footer = () => {
                 Zum Hauptinhalt springen
             </a>
             <div className="footer-container">
-                <div className="footer-left">
-                    <div className="footer-logo">
-                        <Link to="/" onClick={() => announce('Navigation zur Homepage')}>
-                            <img src="/images/Logo_Sand.svg" alt="Grünerator Logo" />
-                        </Link>
+                <div className="footer-content">
+                    <div className="footer-main">
+                        <div className="footer-logo">
+                            <Link to="/" onClick={() => announce('Navigation zur Homepage')}>
+                                <img src="/images/Logo_Sand.svg" alt="Grünerator Logo" />
+                            </Link>
+                        </div>
+                        
+                        <div className="footer-sections">
+                            <div className="footer-section">
+                                <h3>Texte</h3>
+                                <ul>
+                                    <li><Link to="/antrag" onClick={() => announce('Navigation zur Anträge Seite')}>Anträge</Link></li>
+                                    <li><Link to="/pressemitteilung" onClick={() => announce('Navigation zur Pressemitteilung Seite')}>Pressemitteilung</Link></li>
+                                    <li><Link to="/socialmedia" onClick={() => announce('Navigation zur Social Media Seite')}>Social Media</Link></li>
+                                    <li><Link to="/rede" onClick={() => announce('Navigation zur Politische Rede Seite')}>Politische Rede</Link></li>
+                                    <li><Link to="/antragscheck" onClick={() => announce('Navigation zur Antragscheck Seite')}>Antragscheck</Link></li>
+                                    <li><Link to="/wahlprogramm" onClick={() => announce('Navigation zur Wahlprogramm Seite')}>Wahlprogramm</Link></li>
+                                </ul>
+                            </div>
+
+                            <div className="footer-section combined-section">
+                                <div className="subsection">
+                                    <h3>Sharepics & Grafik</h3>
+                                    <ul>
+                                        <li><Link to="/vorlagen" onClick={() => announce('Navigation zu Canva-Vorlagen')}>Canva-Vorlagen</Link></li>
+                                        <li><span className="disabled-link">Sharepic Grünerator (soon)</span></li>
+                                    </ul>
+                                </div>
+
+                                <div className="subsection">
+                                    <h3>GPTs für ChatGPT</h3>
+                                    <ul>
+                                        <li><a href="https://chat.openai.com/g/g-ZZwx8kZS3-grunerator-social-media" target="_blank" rel="noopener noreferrer" onClick={() => announce('Öffne GPT Social Media')}>Social Media</a></li>
+                                        <li><a href="https://chatgpt.com/g/g-Npcb04iH7-grunerator-pressemitteilungen" target="_blank" rel="noopener noreferrer" onClick={() => announce('Öffne GPT Pressemitteilung')}>Pressemitteilung</a></li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <div className="footer-section">
+                                <h3>Rechtliches & Info</h3>
+                                <ul>
+                                    <li><Link to="/impressum" onClick={() => announce('Navigation zur Impressum Seite')}>Impressum</Link></li>
+                                    <li><Link to="/datenschutz" onClick={() => announce('Navigation zur Datenschutz Seite')}>Datenschutz</Link></li>
+                                    <li><a href="https://896ca129.sibforms.com/serve/MUIFAFnH3lov98jrw3d75u_DFByChA39XRS6JkBKqjTsN9gx0MxCvDn1FMnkvHLgzxEh1JBcEOiyHEkyzRC-XUO2DffKsVccZ4r7CCaYiugoiLf1a-yoTxDwoctxuzCsmDuodwrVwEwnofr7K42jQc-saIKeVuB_8UxrwS18QIaahZml1qMExNno2sEC7HyMy9Nz4f2f8-UJ4QmW" target="_blank" rel="noopener noreferrer" onClick={() => announce('Öffne Newsletter Anmeldung')}>Newsletter</a></li>
+                                </ul>
+                            </div>
+                        </div>
                     </div>
-                    <nav className="footer-nav" aria-label="Footer Navigation">
-                        <ul>
-                            <li><Link to="/pressemitteilung" onClick={() => announce('Navigation zur Pressemitteilung Seite')}>Pressemitteilung</Link></li>
-                            <li><Link to="/antrag" onClick={() => announce('Navigation zur Anträge Seite')}>Anträge</Link></li>
-                            <li><Link to="/socialmedia" onClick={() => announce('Navigation zur Social Media Seite')}>Social Media</Link></li>
-                            <li><Link to="/rede" onClick={() => announce('Navigation zur Politische Rede Seite')}>Politische Rede</Link></li>
-                            <li><Link to="/antragscheck" onClick={() => announce('Navigation zur Antragscheck Seite')}>Antragscheck</Link></li>
-                            <li><Link to="/wahlprogramm" onClick={() => announce('Navigation zur Wahlprogramm Seite')}>Wahlprogramm</Link></li>
-                            <li><Link to="/wahlpruefstein-bundestagswahl" onClick={() => announce('Navigation zur Wahlprüfstein Bundestagswahl Seite')}>Wahlprüfstein BTW</Link></li>
-                            <li><a href="https://896ca129.sibforms.com/serve/MUIFAFnH3lov98jrw3d75u_DFByChA39XRS6JkBKqjTsN9gx0MxCvDn1FMnkvHLgzxEh1JBcEOiyHEkyzRC-XUO2DffKsVccZ4r7CCaYiugoiLf1a-yoTxDwoctxuzCsmDuodwrVwEwnofr7K42jQc-saIKeVuB_8UxrwS18QIaahZml1qMExNno2sEC7HyMy9Nz4f2f8-UJ4QmW" target="_blank" rel="noopener noreferrer" onClick={() => announce('Öffne Newsletter Anmeldung in einem neuen Tab')}>Newsletter</a></li>
-                            <li><Link to="/impressum" onClick={() => announce('Navigation zur Impressum Seite')}>Impressum</Link></li>
-                            <li><Link to="/datenschutz" onClick={() => announce('Navigation zur Datenschutz Seite')}>Datenschutz</Link></li>
-                        </ul>
-                    </nav>
+
                     <div className="footer-bottom">
+                        <div className="footer-social">
+                            <a href="https://twitter.com/MoritzWaech" target="_blank" rel="noopener noreferrer" className="footer-social-icon" onClick={() => announce('Öffne Twitter Profil von Moritz Wächter')}>
+                                <FaTwitter aria-hidden="true" />
+                                <span className="sr-only">Twitter</span>
+                            </a>
+                            <a href="https://www.instagram.com/moritz_waechter/?hl=bg" target="_blank" rel="noopener noreferrer" className="footer-social-icon" onClick={() => announce('Öffne Instagram Profil von Moritz Wächter')}>
+                                <FaInstagram aria-hidden="true" />
+                                <span className="sr-only">Instagram</span>
+                            </a>
+                            <a href="https://www.linkedin.com/in/moritz-w%C3%A4chter-6ab033210" target="_blank" rel="noopener noreferrer" className="footer-social-icon" onClick={() => announce('Öffne LinkedIn Profil von Moritz Wächter')}>
+                                <FaLinkedin aria-hidden="true" />
+                                <span className="sr-only">LinkedIn</span>
+                            </a>
+                        </div>
                         <p>© 2024. Eine Website von Moritz Wächter. Alle Rechte vorbehalten. Der Grünerator wird unterstützt von der <a href="https://netzbegruenung.de/" target="_blank" rel="noopener noreferrer">netzbegrünung</a>. 
                             Du kannst <a href="https://netzbegruenung.de/verein/mitgliedsantrag/" target="_blank" rel="noopener noreferrer">hier Mitglied werden</a>.
                         </p>
                     </div>
-                </div>
-                <div className="footer-right">
-                    <a href="https://twitter.com/MoritzWaech" target="_blank" rel="noopener noreferrer" className="footer-social-icon" onClick={() => announce('Öffne Twitter Profil von Moritz Wächter in einem neuen Tab')}>
-                        <FaTwitter aria-hidden="true" />
-                        <span className="sr-only">Twitter</span>
-                    </a>
-                    <a href="https://www.instagram.com/moritz_waechter/?hl=bg" target="_blank" rel="noopener noreferrer" className="footer-social-icon" onClick={() => announce('Öffne Instagram Profil von Moritz Wächter in einem neuen Tab')}>
-                        <FaInstagram aria-hidden="true" />
-                        <span className="sr-only">Instagram</span>
-                    </a>
-                    <a href="https://www.linkedin.com/in/moritz-w%C3%A4chter-6ab033210" target="_blank" rel="noopener noreferrer" className="footer-social-icon" onClick={() => announce('Öffne LinkedIn Profil von Moritz Wächter in einem neuen Tab')}>
-                        <FaLinkedin aria-hidden="true" />
-                        <span className="sr-only">LinkedIn</span>
-                    </a>
                 </div>
             </div>
         </footer>
