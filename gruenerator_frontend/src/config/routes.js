@@ -40,7 +40,7 @@ export const routes = {
   ],
   special: [
     { 
-      path: '/sharepicgenerator', 
+      path: '/sharepic', 
       component: GrueneratorenBundle.Sharepic, 
       withForm: true, 
       withSharepic: true 

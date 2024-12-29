@@ -79,7 +79,7 @@ const Footer = () => {
                                     <h3>Sharepics & Grafik</h3>
                                     <ul>
                                         <li><Link to="/vorlagen" onClick={() => announce('Navigation zu Canva-Vorlagen')}>Canva-Vorlagen</Link></li>
-                                        <li><span className="disabled-link">Sharepic Grünerator (soon)</span></li>
+                                        <li><Link to="/sharepic" onClick={() => announce('Navigation zum Sharepic Grünerator')}>Sharepic Grünerator</Link></li>
                                     </ul>
                                 </div>
 
