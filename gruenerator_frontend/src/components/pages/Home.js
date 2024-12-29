@@ -1,33 +1,66 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { PiNewspaper, PiInstagramLogo, PiFileText, PiMicrophone, PiLightbulb, PiBook } from 'react-icons/pi';
+import { PiNewspaper, PiInstagramLogo, PiFileText, PiArrowRight, PiMicrophone, PiLightbulb, PiBook, PiCaretDown } from 'react-icons/pi';
+import { TypeAnimation } from 'react-type-animation';
 
 const Home = () => {
   const email = 'info' + '@' + 'moritz-waechter.de';
+  const [showMore, setShowMore] = useState(false);
 
   return (
     <div>
       <div className="top-section">
-        <div className="home-container">
-          <div className="home-header">
-            <h1>Willkommen beim Grünerator - Dein Assistent für grüne Politik!</h1>
-            <p> Mit dem Grünerator kannst du schnell und kostenlos einen Vorschlag für Grüne Inhalte deiner Wahl erhalten. Alle Eingaben werden von Anthropic verarbeitet. Bitte gib daher keine obsoleten privaten Daten ein.</p>
+        <div className="animated-heading">
+          <TypeAnimation
+            sequence={[
+              'Pressemitteilung?',
+              5000,
+              'Social-Media-Post?',
+              5000,
+              'Antrag für den Rat?',
+              5000,
+            ]}
+            wrapper="span"
+            speed={50}
+            repeat={Infinity}
+            className="typing-text"
+          />
+          <h2>Dafür gibt&apos;s den Grünerator.</h2>
+        </div>
+        <p>Mit dem Grünerator kannst du schnell und kostenlos einen Vorschlag für Grüne Inhalte deiner Wahl erhalten. Alle Eingaben werden von Anthropic verarbeitet. Bitte gib daher keine obsoleten privaten Daten ein.</p>
+        <div className="link-buttons-container">
+          <div className="link-buttons primary-buttons">
+            <Link to="/pressemitteilung" aria-label="Zur Pressemitteilung erstellen"><PiNewspaper /> Pressemitteilung</Link>
+            <Link to="/socialmedia" aria-label="Zum Social-Media-Generator"><PiInstagramLogo /> Social Media</Link>
+            <button 
+              onClick={() => setShowMore(!showMore)} 
+              className={`more-button ${showMore ? 'active' : ''}`}
+              aria-expanded={showMore}
+              aria-label="Weitere Grüneratoren anzeigen"
+            >
+              <PiCaretDown /> Mehr
+            </button>
+            <a href="https://896ca129.sibforms.com/serve/MUIFAFnH3lov98jrw3d75u_DFByChA39XRS6JkBKqjTsN9gx0MxCvDn1FMnkvHLgzxEh1JBcEOiyHEkyzRC-XUO2DffKsVccZ4r7CCaYiugoiLf1a-yoTxDwoctxuzCsmDuodwrVwEwnofr7K42jQc-saIKeVuB_8UxrwS18QIaahZml1qMExNno2sEC7HyMy9Nz4f2f8-UJ4QmW" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="newsletter-button desktop-only"
+              aria-label="Zum Newsletter anmelden">
+              Newsletter <PiArrowRight />
+            </a>
           </div>
-          <div className="links-container">
-            <div className="home-links">
-              <div className="link-section">
-                <h3>Wähle deinen Grünerator</h3>
-                <div className="link-buttons">
-                  <Link to="/antrag" aria-label="Zum Antragsgenerator"><PiFileText /> Antrag schreiben</Link>
-                  <Link to="/rede" aria-label="Zum Redengenerator"><PiMicrophone /> Rede Schreiben</Link>
-                  <Link to="/pressemitteilung" aria-label="Zur Pressemitteilung erstellen"><PiNewspaper /> Pressemitteilung erstellen</Link>
-                  <Link to="/socialmedia" aria-label="Zum Social-Media-Generator"><PiInstagramLogo /> Social-Media-Post schreiben</Link>
-                  <Link to="/antragscheck" aria-label="Zum Antragscheck"><PiLightbulb /> Antrag checken</Link>
-                  <Link to="/wahlprogramm" aria-label="Zum Wahlprogramm-Generator"><PiBook /> Wahlprogramm erstellen</Link>
-                </div>
-              </div>
-            </div>
+          <div className={`link-buttons secondary-buttons ${showMore ? 'show' : ''}`}>
+            <Link to="/antrag" aria-label="Zum Antragsgenerator"><PiFileText /> Antrag</Link>
+            <Link to="/rede" aria-label="Zum Redengenerator"><PiMicrophone /> Rede</Link>
+            <Link to="/antragscheck" aria-label="Zum Antrags-Check"><PiLightbulb /> Antrags-Check</Link>
+            <Link to="/wahlprogramm" aria-label="Zum Wahlprogramm-Generator"><PiBook /> Wahlprogramm-Kapitel</Link>
           </div>
+          <a href="https://896ca129.sibforms.com/serve/MUIFAFnH3lov98jrw3d75u_DFByChA39XRS6JkBKqjTsN9gx0MxCvDn1FMnkvHLgzxEh1JBcEOiyHEkyzRC-XUO2DffKsVccZ4r7CCaYiugoiLf1a-yoTxDwoctxuzCsmDuodwrVwEwnofr7K42jQc-saIKeVuB_8UxrwS18QIaahZml1qMExNno2sEC7HyMy9Nz4f2f8-UJ4QmW" 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="newsletter-button mobile-only"
+            aria-label="Zum Newsletter anmelden">
+            Newsletter <PiArrowRight />
+          </a>
         </div>
       </div>
       <div className="sections-container">

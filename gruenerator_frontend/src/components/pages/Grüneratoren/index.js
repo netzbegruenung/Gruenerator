@@ -22,7 +22,8 @@ export const GrueneratorenBundle = {
   Rede: withImmedatePreloading(() => import('./Redengenerator')),
   Wahlprogramm: withImmedatePreloading(() => import('./Wahlprogramm')),
   Antragsversteher: withImmedatePreloading(() => import('./Antragsversteher')),
-  WahlpruefsteinThueringen: withImmedatePreloading(() => import('./WahlpruefsteinThueringen'))
+  WahlpruefsteinThueringen: withImmedatePreloading(() => import('./WahlpruefsteinThueringen')),
+  Kandidat: withImmedatePreloading(() => import('./Kandidatengenerator'))
 };
 
 // Nur häufig genutzte Module vorladen

@@ -139,7 +139,11 @@ if (cluster.isMaster) {
     'https://beta.grüenerator.de',
     'https://www.beta.grüenerator.de',
     'https://grüenerator-test.netzbegrünung.verdigado.net',
-    'https://www.grüenerator-test.netzbegrünung.verdigado.net'
+    'https://www.grüenerator-test.netzbegrünung.verdigado.net',
+    'http://localhost:3000',
+    'https://localhost:3000',
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:3001'
   ];
 
   const corsOptions = {

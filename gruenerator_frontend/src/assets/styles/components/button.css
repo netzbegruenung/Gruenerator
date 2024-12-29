@@ -130,7 +130,7 @@
 }
 
 .file-input-wrapper:hover {
-  background-color: var(--klee);
+  background-color: var(--backgroundgruen);
   transform: scale(1.01);
 }
 

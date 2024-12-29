@@ -7,6 +7,7 @@ import FileUpload from '../utils/FileUpload';
 import UnsplashButton from './UnsplashButton';
 import { useSharepicGeneratorContext } from '../utils/Sharepic/SharepicGeneratorContext';
 import AdvancedEditingSection from './AdvancedEditingSection';
+import HelpDisplay from './HelpDisplay';
 import '../../assets/styles/pages/baseform.css';
 import '../../assets/styles/components/button.css';
 import '../../assets/styles/components/sharepic.css';
@@ -46,6 +47,7 @@ const BaseForm = ({
   balkenGruppenOffset,
   sunflowerOffset,
   credit,
+  helpContent,
 }) => {
   const { 
     state: { 
@@ -219,16 +221,30 @@ const BaseForm = ({
   );
 
   const renderFormContent = () => {
-    switch (currentStep) {
-      case FORM_STEPS.INPUT:
-        return renderInputStep();
-      case FORM_STEPS.PREVIEW:
-        return renderPreviewStep();
-      case FORM_STEPS.RESULT:
-        return renderResultStep();
-      default:
-        return null;
-    }
+    const helpDisplay = helpContent ? (
+      <HelpDisplay
+        content={helpContent.content}
+        tips={helpContent.tips}
+      />
+    ) : null;
+
+    return (
+      <>
+        {helpDisplay}
+        {(() => {
+          switch (currentStep) {
+            case FORM_STEPS.INPUT:
+              return renderInputStep();
+            case FORM_STEPS.PREVIEW:
+              return renderPreviewStep();
+            case FORM_STEPS.RESULT:
+              return renderResultStep();
+            default:
+              return null;
+          }
+        })()}
+      </>
+    );
   };
 
   const renderDisplayContent = useMemo(() => {
@@ -238,6 +254,10 @@ const BaseForm = ({
         selectedImage 
       }
     } = useSharepicGeneratorContext();
+
+    if (!generatedImageSrc && generatedContent) {
+      return <div className="display-content">{generatedContent}</div>;
+    }
 
     return (
       <div className="display-content" style={{ fontSize: textSize }}>
@@ -271,7 +291,8 @@ const BaseForm = ({
     );
   }, [
     currentStep, 
-    generatedImageSrc, 
+    generatedImageSrc,
+    generatedContent,
     useDownloadButton, 
     textSize
   ]);
@@ -314,7 +335,7 @@ const BaseForm = ({
       </div>
       <div className="content-container">
         <div className="display-container">
-          <h3>{title}</h3>
+          <h3>{helpContent?.title || title}</h3>
           {renderDisplayContent}
         </div>
       </div>
@@ -354,6 +375,11 @@ BaseForm.propTypes = {
     error: PropTypes.string,
     allowedTypes: PropTypes.arrayOf(PropTypes.string)
   }).isRequired,
+  helpContent: PropTypes.shape({
+    title: PropTypes.string,
+    content: PropTypes.string,
+    tips: PropTypes.arrayOf(PropTypes.string)
+  }),
 };
 
 export default BaseForm;
