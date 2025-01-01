@@ -454,6 +454,28 @@
     border-radius: 12px;
     margin: 0.5rem 0;
   }
+
+  /* Textgruppen Mobile */
+  .textzeilen-group,
+  .absender-group,
+  .farbkombi-group,
+  .schriftgroesse-group,
+  .credit-control {
+    padding: 0.75rem;
+    margin-bottom: 1rem;
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+  }
+
+  .textzeilen-group p,
+  .absender-group p,
+  .farbkombi-group p,
+  .schriftgroesse-group p,
+  .credit-control p {
+    margin-bottom: 0.75rem;
+    font-size: 0.95rem;
+    line-height: 1.4;
+  }
 }
 
 /* ==========================================================================

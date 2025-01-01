@@ -9,7 +9,7 @@
     overflow-y: auto !important;
     border: none !important;
     color: var(--weiß);
-    padding: 12px 0px;
+    padding: 12px 0px !important;
     font-family: 'PT Sans', Arial, sans-serif !important;
     line-height: 1.5;
     -webkit-user-select: text;

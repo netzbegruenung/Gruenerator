@@ -195,7 +195,7 @@
 /* Action Buttons */
 .content-actions {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   align-items: center;
 }
 
@@ -217,8 +217,7 @@
 }
 
 .action-button:focus {
-  outline: 2px solid var(--grashalm);
-  outline-offset: 2px;
+  outline: none;
 }
 
 /* Spezifische Button-Stile */

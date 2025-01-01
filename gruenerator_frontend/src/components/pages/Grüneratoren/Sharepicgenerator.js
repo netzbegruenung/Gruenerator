@@ -9,6 +9,7 @@ import WelcomePage from '../../common/WelcomePage';
 import ErrorBoundary from '../../ErrorBoundary';
 import { processImageForUpload } from '../../utils/imageCompression';
 import HelpDisplay from '../../common/HelpDisplay';
+import VerifyFeature from '../../common/VerifyFeature';
 
 import { 
   FORM_STEPS, 
@@ -74,7 +75,6 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
   }, [updateFormData]);
 
   const handleFormSubmit = useCallback(async (event) => {
-    console.log(SHAREPIC_GENERATOR.LOG_MESSAGES.FORM_SUBMISSION_STARTED);
     if (event) event.preventDefault();
     
     updateFormData({ loading: true });
@@ -85,8 +85,7 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
       }
   
       if (state.currentStep === FORM_STEPS.INPUT) {
-        console.log(SHAREPIC_GENERATOR.LOG_MESSAGES.GENERATING_TEXT, state.currentStep);
-        setLottieVisible(true); // Lottie sichtbar machen
+        setLottieVisible(true);
         const result = await generateText(state.formData.type, { 
           thema: state.formData.thema, 
           details: state.formData.details 
@@ -94,15 +93,11 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
         
         if (!result) throw new Error(ERROR_MESSAGES.NO_TEXT_DATA);
         
-        console.log(SHAREPIC_GENERATOR.LOG_MESSAGES.TEXT_GENERATED);
-        
         await updateFormData({ 
           ...result, 
           type: state.formData.type, 
           currentStep: FORM_STEPS.PREVIEW 
         });
-        console.log(SHAREPIC_GENERATOR.LOG_MESSAGES.FORM_DATA_UPDATED, FORM_STEPS.PREVIEW);
-  
   
       } else if (state.currentStep === FORM_STEPS.PREVIEW) {
         try {
@@ -124,21 +119,11 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
             currentStep: FORM_STEPS.RESULT
           });
         } catch (error) {
-          console.error('Error in image processing:', error);
           setError(error.message);
         }
       } else if (state.currentStep === FORM_STEPS.RESULT) {
         const { fontSize, balkenOffset, colorScheme, credit, uploadedImage, image } = state.formData;
         try {
-          console.log(SHAREPIC_GENERATOR.LOG_MESSAGES.MODIFYING_IMAGE, { 
-            fontSize, 
-            balkenOffset, 
-            colorScheme,
-            hasImage: !!(uploadedImage || image),
-            imageType: uploadedImage ? 'uploadedImage' : image ? 'image' : 'none'
-          });
-
-          // Stelle sicher, dass wir das ursprüngliche Bild verwenden
           const imageToUse = uploadedImage || image || state.file;
           
           if (!imageToUse) {
@@ -153,8 +138,6 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
             image: imageToUse
           });
           
-          console.log(SHAREPIC_GENERATOR.LOG_MESSAGES.IMAGE_MODIFIED);
-          
           if (!modifiedImage) {
             throw new Error(ERROR_MESSAGES.NO_MODIFIED_IMAGE_DATA);
           }
@@ -165,19 +148,16 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
             balkenOffset,
             colorScheme,
             credit,
-            image: imageToUse // Behalte das Bild im Zustand
+            image: imageToUse
           });
         } catch (error) {
-          console.error('Error in modifyImage:', error);
           setError(`${ERROR_MESSAGES.NETWORK_ERROR}: ${error.message}`);
         }
       }
     } catch (error) {
-      console.error('Error in form submission:', error);
       setError(error.message);
     } finally {
       updateFormData({ loading: false });
-
     }
   }, [
     state.currentStep, 
@@ -195,12 +175,7 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
   ]);
 
   useEffect(() => {
-    console.log('SharepicGenerator state update:', {
-      currentStep: state.currentStep,
-      isSubmitting: state.isSubmitting,
-      currentSubmittingStep: state.currentSubmittingStep,
-      isLottieVisible: state.isLottieVisible,
-    });
+    // Entferne den gesamten Effekt, da er nur für Logging verwendet wurde
   }, [state.currentStep, state.isSubmitting, state.currentSubmittingStep, state.isLottieVisible]);
   
   const handleBack = useCallback(() => {
@@ -226,45 +201,31 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
   const handleFileChange = useCallback(async (selectedFile) => {
     try {
       if (selectedFile) {
-        console.log('Processing file:', selectedFile);
         setFile(selectedFile);
         const processedFile = await processImageForUpload(selectedFile);
-        console.log('Processed file:', {
-          type: processedFile.type,
-          size: processedFile.size,
-          isBlob: processedFile instanceof Blob,
-          isFile: processedFile instanceof File
-        });
         
-        // Konvertiere Blob zu File wenn nötig
         const imageFile = processedFile instanceof File ? processedFile : 
           new File([processedFile], selectedFile.name || 'image.jpg', { 
             type: processedFile.type || 'image/jpeg' 
           });
 
-        // Speichere das Bild sowohl als file als auch als uploadedImage
         updateFormData({ 
           uploadedImage: imageFile,
-          image: imageFile // Backup-Speicherung
+          image: imageFile
         });
       }
     } catch (error) {
-      console.error('Error processing file:', error);
       setError(`Fehler bei der Bildverarbeitung: ${error.message}`);
     }
   }, [setFile, updateFormData, setError]);
   
 
   useEffect(() => {
-    console.log('SharepicGenerator: Current step:', state.currentStep);
-    console.log('SharepicGenerator: Form data:', state.formData);
-  }, [state.currentStep, state.generatedImageSrc, state.formData]);
+    // Entferne den gesamten Effekt, da er nur für Logging verwendet wurde
+  }, [state.file, state.formData.uploadedImage, state.selectedImage, state.currentStep, state.error]);
   
   const handleControlChange = useCallback((name, value) => {
-    console.log(`Handling control change: ${name}`, value);
     if (name === 'balkenOffset' && !Array.isArray(value)) {
-      console.warn('Invalid balkenOffset value:', value);
-      // Verwende den aktuellen Wert oder einen Standardwert
       value = Array.isArray(state.formData.balkenOffset) 
         ? state.formData.balkenOffset 
         : SHAREPIC_GENERATOR.DEFAULT_BALKEN_OFFSET;
@@ -279,7 +240,6 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
   [state.currentStep]);
 
   const memoizedFormFields = useMemo(() => {
-    console.log('Rendering memoizedFormFields for step:', state.currentStep);
     const fields = renderFormFields(state.currentStep, state.formData, handleChange, errors);
     return fields;
   }, [state.currentStep, state.formData, handleChange, errors, renderFormFields]);
@@ -291,16 +251,6 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
     error: state.error,
     allowedTypes: SHAREPIC_GENERATOR.ALLOWED_FILE_TYPES
   };
-
-  useEffect(() => {
-    console.log('SharepicGenerator Zustand:', {
-      file: state.file,
-      uploadedImage: state.formData.uploadedImage,
-      selectedImage: state.selectedImage,
-      currentStep: state.currentStep,
-      error: state.error
-    });
-  }, [state.file, state.formData.uploadedImage, state.selectedImage, state.currentStep, state.error]);
 
   const helpContent = getHelpContent(state.currentStep);
   const helpDisplay = helpContent ? (
@@ -339,38 +289,40 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
 
   return (
     <ErrorBoundary>
-      <div
-        className={`container ${showHeaderFooter ? 'with-header' : ''} ${darkMode ? 'dark-mode' : ''}`}
-        role="main"
-        aria-label="Sharepic Generator"
-      >
-       <BaseForm
-        title={helpContent ? helpContent.title : SHAREPIC_GENERATOR.TITLE}
-        onSubmit={handleFormSubmit}
-        onBack={handleBack}
-        loading={state.loading || generationLoading}
-        error={state.error || generationError}
-        generatedContent={state.generatedImageSrc || helpDisplay}
-        useDownloadButton={state.currentStep === FORM_STEPS.RESULT}
-        showBackButton={state.currentStep > FORM_STEPS.INPUT}
-        submitButtonText={submitButtonText}
-        currentStep={state.currentStep}
-        isLottieVisible={state.isLottieVisible}    
-        formErrors={errors}
-        isSubmitting={state.isSubmitting}
-        currentSubmittingStep={state.currentSubmittingStep}
-        credit={state.formData.credit}
-        fileUploadProps={fileUploadProps}
-        fontSize={state.formData.fontSize || SHAREPIC_GENERATOR.DEFAULT_FONT_SIZE}
-        balkenOffset={state.formData.balkenOffset || SHAREPIC_GENERATOR.DEFAULT_BALKEN_OFFSET}
-        colorScheme={state.formData.colorScheme || SHAREPIC_GENERATOR.DEFAULT_COLOR_SCHEME}
-        balkenGruppenOffset={state.formData.balkenGruppenOffset || [0, 0]}
-        sunflowerOffset={state.formData.sunflowerOffset || [0, 0]}
-        onControlChange={handleControlChange}
-      >
-        {memoizedFormFields}
-      </BaseForm>
-      </div>
+      <VerifyFeature feature="sharepic">
+        <div
+          className={`container ${showHeaderFooter ? 'with-header' : ''} ${darkMode ? 'dark-mode' : ''}`}
+          role="main"
+          aria-label="Sharepic Generator"
+        >
+          <BaseForm
+            title={helpContent ? helpContent.title : SHAREPIC_GENERATOR.TITLE}
+            onSubmit={handleFormSubmit}
+            onBack={handleBack}
+            loading={state.loading || generationLoading}
+            error={state.error || generationError}
+            generatedContent={state.generatedImageSrc || helpDisplay}
+            useDownloadButton={state.currentStep === FORM_STEPS.RESULT}
+            showBackButton={state.currentStep > FORM_STEPS.INPUT}
+            submitButtonText={submitButtonText}
+            currentStep={state.currentStep}
+            isLottieVisible={state.isLottieVisible}    
+            formErrors={errors}
+            isSubmitting={state.isSubmitting}
+            currentSubmittingStep={state.currentSubmittingStep}
+            credit={state.formData.credit}
+            fileUploadProps={fileUploadProps}
+            fontSize={state.formData.fontSize || SHAREPIC_GENERATOR.DEFAULT_FONT_SIZE}
+            balkenOffset={state.formData.balkenOffset || SHAREPIC_GENERATOR.DEFAULT_BALKEN_OFFSET}
+            colorScheme={state.formData.colorScheme || SHAREPIC_GENERATOR.DEFAULT_COLOR_SCHEME}
+            balkenGruppenOffset={state.formData.balkenGruppenOffset || [0, 0]}
+            sunflowerOffset={state.formData.sunflowerOffset || [0, 0]}
+            onControlChange={handleControlChange}
+          >
+            {memoizedFormFields}
+          </BaseForm>
+        </div>
+      </VerifyFeature>
     </ErrorBoundary>
   );
 

@@ -14,7 +14,6 @@
     position: relative;
     align-items: stretch;
     box-sizing: border-box;
-
 }
 
 /* Formular-Container */
@@ -91,15 +90,6 @@
 
 .display-container h3 {
     margin-bottom: 8px;
-}
-
-/* Subtext im Formular */
-.form-container .subtext {
-    color: var(--sand);
-    font-size: 0.9em;
-    margin-top: 10px;
-    margin-bottom: 0;
-    text-align: left;
 }
 
 /* Formular-Eingabefelder */
@@ -607,12 +597,4 @@
     .button-container {
         width: 100%;
     }
-}
-
-/* Help-Text Styling */
-.help-text {
-    color: var(--weiß);
-    font-size: 0.9em;
-    margin-top: -10px;
-    margin-bottom: 15px;
 }
