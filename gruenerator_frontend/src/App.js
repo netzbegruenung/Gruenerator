@@ -8,6 +8,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import SuspenseWrapper from './components/common/SuspenseWrapper';
 import RouteComponent from './components/routing/RouteComponent';
 import { routes } from './config/routes';
+import { AuthProvider } from './components/utils/AuthContext';
 
 // Lazy loading für Popups
 const PopupNutzungsbedingungen = lazy(() => import('./components/Popups/popup_nutzungsbedingungen'));
@@ -71,50 +72,18 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <Router>
-        <ScrollToTop />
-        <RouteLogger />
-        <SuspenseWrapper>
-          <PopupNutzungsbedingungen />
-          <WelcomePopup />
-          <div id="aria-live-region" aria-live="polite" className="sr-only"></div>
-          
-          <Routes>
-            {/* Standard-Routen */}
-            {routes.standard.map(({ path }) => (
-              <Route
-                key={path}
-                path={path}
-                element={
-                  <RouteComponent 
-                    path={path} 
-                    darkMode={darkMode} 
-                    toggleDarkMode={toggleDarkMode}
-                  />
-                }
-              />
-            ))}
-
-            {/* Spezielle Routen */}
-            {routes.special.map(({ path }) => (
-              <Route
-                key={path}
-                path={path}
-                element={
-                  <RouteComponent 
-                    path={path} 
-                    darkMode={darkMode} 
-                    toggleDarkMode={toggleDarkMode}
-                    isSpecial
-                  />
-                }
-              />
-            ))}
-
-            {/* No-Header-Footer Routen */}
-            {routes.noHeaderFooter.map(({ path }) => {
-              console.log('Registriere no-header-footer Route:', path);
-              return (
+      <AuthProvider>
+        <Router>
+          <ScrollToTop />
+          <RouteLogger />
+          <SuspenseWrapper>
+            <PopupNutzungsbedingungen />
+            <WelcomePopup />
+            <div id="aria-live-region" aria-live="polite" className="sr-only"></div>
+            
+            <Routes>
+              {/* Standard-Routen */}
+              {routes.standard.map(({ path }) => (
                 <Route
                   key={path}
                   path={path}
@@ -123,15 +92,49 @@ function App() {
                       path={path} 
                       darkMode={darkMode} 
                       toggleDarkMode={toggleDarkMode}
-                      showHeaderFooter={false}
                     />
                   }
                 />
-              );
-            })}
-          </Routes>
-        </SuspenseWrapper>
-      </Router>
+              ))}
+
+              {/* Spezielle Routen */}
+              {routes.special.map(({ path }) => (
+                <Route
+                  key={path}
+                  path={path}
+                  element={
+                    <RouteComponent 
+                      path={path} 
+                      darkMode={darkMode} 
+                      toggleDarkMode={toggleDarkMode}
+                      isSpecial
+                    />
+                  }
+                />
+              ))}
+
+              {/* No-Header-Footer Routen */}
+              {routes.noHeaderFooter.map(({ path }) => {
+                console.log('Registriere no-header-footer Route:', path);
+                return (
+                  <Route
+                    key={path}
+                    path={path}
+                    element={
+                      <RouteComponent 
+                        path={path} 
+                        darkMode={darkMode} 
+                        toggleDarkMode={toggleDarkMode}
+                        showHeaderFooter={false}
+                      />
+                    }
+                  />
+                );
+              })}
+            </Routes>
+          </SuspenseWrapper>
+        </Router>
+      </AuthProvider>
     </ErrorBoundary>
   );
 }

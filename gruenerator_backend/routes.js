@@ -18,6 +18,7 @@ const claudeTextAdjustmentRoute = require('./routes/claude_text_adjustment');
 const etherpadRoute = require('./routes/etherpad/etherpadController');
 const claudeWahlprogrammRoute = require('./routes/claude_wahlprogramm');
 const claudeKandidatRoute = require('./routes/claude_kandidat');
+const claudeUniversalRoute = require('./routes/claude_universal');
 
 const withLazyLoading = (importFunc) => 
   lazy(() => 
@@ -53,6 +54,7 @@ function setupRoutes(app) {
   app.use('/api/etherpad', etherpadRoute);
   app.use('/api/claude_wahlprogramm', claudeWahlprogrammRoute);
   app.use('/api/claude_kandidat', claudeKandidatRoute);
+  app.use('/api/claude_universal', claudeUniversalRoute);
 }
 
 module.exports = { setupRoutes };

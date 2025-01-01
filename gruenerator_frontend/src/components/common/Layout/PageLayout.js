@@ -30,7 +30,7 @@ const PageLayout = ({ children, darkMode, toggleDarkMode, showHeaderFooter = tru
     // Verzögere das Anzeigen des Footers
     const footerTimeout = setTimeout(() => {
       setShowFooter(true);
-    }, 100);
+    }, 1000);
 
     return () => clearTimeout(footerTimeout);
   }, []);
