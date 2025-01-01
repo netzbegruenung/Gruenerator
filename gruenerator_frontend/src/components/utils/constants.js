@@ -271,6 +271,7 @@ export const HEADER_TEXT = {
   },
   DROPDOWN_ITEMS: {
     GRUENERATOREN: [
+      { LINK: '/universal', TEXT: 'Universal Grünerator', ICON: 'PiMagicWand' },
       { LINK: '/antragsgenerator', TEXT: 'Anträge', ICON: 'PiFileText' },
       { LINK: '/pressemitteilung', TEXT: 'Pressemitteilungen', ICON: 'PiNewspaper' },
       { LINK: '/socialmedia', TEXT: 'Social Media', ICON: 'PiChatsCircle' },

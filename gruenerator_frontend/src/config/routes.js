@@ -8,6 +8,7 @@ const TemplateGallery = lazy(() => import('../components/pages/TemplateGallery')
 
 // Lazy loading für Grüneratoren Bundle
 export const GrueneratorenBundle = {
+  Universal: lazy(() => import('../components/pages/Grüneratoren/UniversalGenerator')),
   Antrag: lazy(() => import('../components/pages/Grüneratoren/Antragsgenerator')),
   Pressemitteilung: lazy(() => import('../components/pages/Grüneratoren/Pressemitteilung')),
   SocialMedia: lazy(() => import('../components/pages/Grüneratoren/SocialMediaGenerator')),
@@ -25,6 +26,7 @@ export const GrueneratorenBundle = {
 export const routes = {
   standard: [
     { path: '/', component: Home },
+    { path: '/universal', component: GrueneratorenBundle.Universal, withForm: true },
     { path: '/antrag', component: GrueneratorenBundle.Antrag, withForm: true },
     { path: '/pressemitteilung', component: GrueneratorenBundle.Pressemitteilung, withForm: true },
     { path: '/socialmedia', component: GrueneratorenBundle.SocialMedia, withForm: true },

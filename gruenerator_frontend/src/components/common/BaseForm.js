@@ -54,14 +54,6 @@ const BaseForm = ({
 
   const { announce, setupKeyboardNav } = useAccessibility();
   const [generatePostLoading, setGeneratePostLoading] = React.useState(false);
-  // const [isSaveLinkModalOpen, setIsSaveLinkModalOpen] = useState(false);
-  
-
-  // useEffect(() => {
-  //   if (originalLinkData && !linkData) {
-  //     setLinkData(originalLinkData);
-  //   }
-  // }, [originalLinkData, linkData, setLinkData]);
 
   const handleGeneratePost = React.useCallback(async () => {
     setGeneratePostLoading(true);
@@ -114,26 +106,6 @@ const BaseForm = ({
     }
     toggleEditMode();
   };
-
-// const handleSaveClick = async () => {
-//   if (linkData) {
-//     try {
-//       const result = await saveCurrentContent(linkData.linkName, linkData.generatedLink);
-//       if (result.success) {
-//         setSaveIcon(<IoCheckmarkOutline size={16} />);
-//         setTimeout(() => {
-//           setSaveIcon(<IoSaveOutline size={16} />);
-//         }, 2000);
-//       } else {
-//         console.error(`Fehler beim Speichern: ${result.error}`);
-//       }
-//     } catch (error) {
-//       console.error(`Fehler beim Speichern: ${error.message}`);
-//     }
-//   } else {
-//     setIsSaveLinkModalOpen(true);
-//   }
-// };
 
   useEffect(() => {
     if (alwaysEditing && !isEditing) {
@@ -257,7 +229,7 @@ const BaseForm = ({
                   onClick={onSubmit}
                   loading={loading}
                   success={success}
-                  text="Generieren"
+                  text="Grünerieren"
                   icon={<HiCog />}
                   className="submit-button form-button"
                   ariaLabel="Generieren"
