@@ -5,14 +5,14 @@ import SubmitButton from './SubmitButton';
 import useAccessibility from '../hooks/useAccessibility';
 import { addAriaLabelsToElements, enhanceFocusVisibility } from '../utils/accessibilityHelpers';
 import { BUTTON_LABELS, ARIA_LABELS, ANNOUNCEMENTS } from '../utils/constants';
-import { IoCopyOutline, IoPencil, IoCheckmarkOutline } from 'react-icons/io5';
 import Editor from './Editor';
-import { copyFormattedContent, useAutoScroll } from '../utils/commonFunctions';
+import { useAutoScroll } from '../utils/commonFunctions';
 import { FormContext } from '../utils/FormContext';
 import { Tooltip } from 'react-tooltip';
+import ActionButtons from './ActionButtons';
+import PlatformContainer from './PlatformContainer';
 
 const BackupToggle = React.lazy(() => import('./BackupToggle'));
-const ExportToDocument = React.lazy(() => import('./ExportToDocument'));
 
 const BaseForm = ({
   title,
@@ -35,16 +35,20 @@ const BaseForm = ({
   showBackButton = false,
   nextButtonText,
   generatedContent,
-  hideDisplayContainer = false
+  hideDisplayContainer = false,
+  isMultiPlatform = false,
+  platforms = [],
+  platformIcons = {},
 }) => {
   const {
     value,
     isEditing,
     toggleEditMode,
     updateValue,
+    activePlatform,
+    platformContents,
+    updatePlatformContent
   } = useContext(FormContext);
-
-  const [copyIcon, setCopyIcon] = useState(<IoCopyOutline size={16} />);
 
   useEffect(() => {
     if (initialContent) {
@@ -69,20 +73,6 @@ const BaseForm = ({
   }, [onGeneratePost, announce]);
 
   const hasFormErrors = React.useMemo(() => Object.keys(formErrors).length > 0, [formErrors]);
-
-  const handleCopyToClipboard = React.useCallback((content) => {
-    copyFormattedContent(
-      content,
-      () => {
-        announce(ANNOUNCEMENTS.CONTENT_COPIED);
-        setCopyIcon(<IoCheckmarkOutline size={16} />);
-        setTimeout(() => {
-          setCopyIcon(<IoCopyOutline size={16} />);
-        }, 2000);
-      },
-      () => {}
-    );
-  }, [announce]);
 
   useEffect(() => {
     enhanceFocusVisibility();
@@ -188,8 +178,46 @@ const BaseForm = ({
     }
   };
 
+  const renderContent = () => {
+    if (isMultiPlatform && generatedContent) {
+      return platforms.map(platform => {
+        const platformContent = generatedContent[platform]?.content;
+        if (!platformContent) return null;
+        
+        return (
+          <PlatformContainer
+            key={platform}
+            platform={platform}
+            icon={platformIcons[platform]}
+            content={platformContent}
+            title={platform.charAt(0).toUpperCase() + platform.slice(1)}
+            showEditButton={isEditing}
+            onEdit={() => updateValue(platformContent)}
+          >
+            {isEditing && activePlatform === platform ? (
+              <Editor />
+            ) : (
+              <div dangerouslySetInnerHTML={{ __html: platformContents[platform] || platformContent }} />
+            )}
+          </PlatformContainer>
+        );
+      }).filter(Boolean);
+    }
+
+    return value ? <Editor /> : generatedContent;
+  };
+
+  // Aktualisiere Platform Contents wenn sich generatedContent ändert
+  useEffect(() => {
+    if (isMultiPlatform && generatedContent) {
+      Object.entries(generatedContent).forEach(([platform, data]) => {
+        updatePlatformContent(platform, data.content);
+      });
+    }
+  }, [isMultiPlatform, generatedContent, updatePlatformContent]);
+
   return (
-    <div className={`base-container ${isEditing ? 'editing-mode' : ''} ${title === "Grünerator Antragscheck" ? 'antragsversteher-base' : ''} ${value ? 'has-generated-content' : ''}`}>
+    <div className={`base-container ${isEditing ? 'editing-mode' : ''} ${title === "Grünerator Antragscheck" ? 'antragsversteher-base' : ''} ${generatedContent ? 'has-generated-content' : ''} ${isMultiPlatform ? 'multi-platform' : ''}`}>
       <div className="form-container">
         <form onSubmit={handleSubmit}>
           <div className={`form-content ${hasFormErrors ? 'has-errors' : ''}`}>
@@ -244,39 +272,16 @@ const BaseForm = ({
           <div className="display-container">
             <div className="display-header">
               <h3>{displayTitle}</h3>
-              <div className="display-actions">
-                {value && (
-                  <>
-                    <button
-                      onClick={() => handleCopyToClipboard(value)}
-                      className="action-button"
-                      aria-label={ARIA_LABELS.COPY}
-                      {...(!isMobileView && {
-                        'data-tooltip-id': "action-tooltip",
-                        'data-tooltip-content': "Kopieren"
-                      })}
-                    >
-                      {copyIcon}
-                    </button>
-                    <Suspense fallback={<div>Lade...</div>}>
-                      <ExportToDocument content={value} />
-                    </Suspense>
-                    {allowEditing && !hideEditButton && (
-                      <button
-                        onClick={handleToggleEditMode}
-                        className="action-button"
-                        aria-label={isEditing ? ARIA_LABELS.SAVE : ARIA_LABELS.EDIT}
-                        {...(!isMobileView && {
-                          'data-tooltip-id': "action-tooltip",
-                          'data-tooltip-content': isEditing ? "Bearbeiten beenden" : "Bearbeiten"
-                        })}
-                      >
-                        <IoPencil size={16} />
-                      </button>
-                    )}
-                  </>
-                )}
-              </div>
+              {generatedContent && (
+                <ActionButtons 
+                  content={typeof generatedContent === 'object' ? Object.values(generatedContent).join('\n\n') : generatedContent}
+                  onEdit={handleToggleEditMode}
+                  isEditing={isEditing}
+                  allowEditing={allowEditing}
+                  hideEditButton={hideEditButton}
+                  showExport={true}
+                />
+              )}
             </div>
             <div className="display-content" style={{ fontSize: '16px' }}>
               {error && (
@@ -285,7 +290,7 @@ const BaseForm = ({
                 </p>
               )}
               <div className="generated-content-wrapper">
-                {value ? <Editor /> : generatedContent}
+                {renderContent()}
               </div>
             </div>
             {generatedPost && (
@@ -334,7 +339,10 @@ BaseForm.propTypes = {
   showBackButton: PropTypes.bool,
   nextButtonText: PropTypes.string,
   generatedContent: PropTypes.node,
-  hideDisplayContainer: PropTypes.bool
+  hideDisplayContainer: PropTypes.bool,
+  isMultiPlatform: PropTypes.bool,
+  platforms: PropTypes.array,
+  platformIcons: PropTypes.object
 };
 
 export default BaseForm;
