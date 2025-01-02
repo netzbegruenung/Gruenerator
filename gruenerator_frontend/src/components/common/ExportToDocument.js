@@ -171,6 +171,8 @@ const ExportToDocument = ({ content, ...props }) => {
         onClick={handleExport}
         className="action-button"
         aria-label="Als Dokument exportieren"
+        data-tooltip-id="action-tooltip"
+        data-tooltip-content="Collaborate Export"
         {...props}
       >
         <IoDocumentOutline size={16} />

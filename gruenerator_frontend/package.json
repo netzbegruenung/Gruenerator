@@ -30,11 +30,18 @@
   "devDependencies": {
     "@babel/core": "^7.25.2",
     "@babel/plugin-proposal-private-property-in-object": "^7.21.0",
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/commit-analyzer": "^13.0.0",
+    "@semantic-release/git": "^10.0.1",
+    "@semantic-release/github": "^11.0.1",
+    "@semantic-release/npm": "^12.0.1",
+    "@semantic-release/release-notes-generator": "^14.0.2",
     "@testing-library/jest-dom": "^6.5.0",
     "babel-jest": "^29.7.0",
     "eslint": "^8.56.0",
     "eslint-config-react-app": "^7.0.1",
-    "eslint-plugin-react": "^7.34.2"
+    "eslint-plugin-react": "^7.34.2",
+    "semantic-release": "^24.2.0"
   },
   "resolutions": {
     "nth-check": "^2.0.1",
@@ -53,7 +60,8 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "release": "semantic-release"
   },
   "eslintConfig": {
     "extends": [
