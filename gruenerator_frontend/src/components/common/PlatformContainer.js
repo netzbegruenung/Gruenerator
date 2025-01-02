@@ -12,26 +12,23 @@ const PlatformContainer = ({
   showEditButton = false
 }) => {
   const { 
-    activePlatform,
     isEditing,
-    startPlatformEdit,
-    finishPlatformEdit,
-    generatedContent
+    handleEdit,
+    handleSave,
+    handleCancel,
+    value
   } = useContext(FormContext);
 
-  const isEditingThis = isEditing && activePlatform === platform;
-  const currentContent = generatedContent[platform]?.content || content;
-
   const handlePlatformEdit = () => {
-    if (isEditingThis) {
-      finishPlatformEdit();
+    if (isEditing) {
+      handleSave(platform);
     } else {
-      startPlatformEdit(platform);
+      handleEdit(platform);
     }
   };
 
   return (
-    <div className={`platform-content ${isEditingThis ? 'editing' : ''}`}>
+    <div className={`platform-content ${isEditing ? 'editing' : ''}`}>
       <div className="platform-header">
         <div className="platform-title">
           {Icon && (
@@ -40,14 +37,14 @@ const PlatformContainer = ({
             </div>
           )}
           <h3 className="platform-name">
-            {isEditingThis ? "Grünerator Editor" : (title || platform)}
+            {isEditing ? "Grünerator Editor" : (title || platform)}
           </h3>
         </div>
         {showEditButton && (
           <ActionButtons 
-            content={currentContent}
+            content={content}
             onEdit={handlePlatformEdit}
-            isEditing={isEditingThis}
+            isEditing={isEditing}
             allowEditing={true}
             hideEditButton={false}
             showExport={false}

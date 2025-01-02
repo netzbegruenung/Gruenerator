@@ -31,7 +31,6 @@ export const FormProvider = ({
   const [hasContent, setHasContent] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const [activePlatform, setActivePlatform] = useState(null);
   const [generatedContent, setGeneratedContent] = useState({});
 
   useEffect(() => {
@@ -116,21 +115,30 @@ export const FormProvider = ({
     debouncedSetSyncStatus();
   }, [debouncedSetSyncStatus]);
 
-  const handleEdit = useCallback(() => {
+  const handleEdit = useCallback((platform) => {
     setIsEditing(true);
+    setValue(generatedContent[platform]?.content || '');
     console.log('Bearbeitung gestartet');
-  }, []);
+  }, [generatedContent]);
 
-  const handleSave = useCallback((newContent) => {
-    if (newContent !== undefined) {
-      setValue(newContent);
+  const handleSave = useCallback((platform) => {
+    if (value) {
+      setGeneratedContent(prev => ({
+        ...prev,
+        [platform]: {
+          ...prev[platform],
+          content: value
+        }
+      }));
     }
     setIsEditing(false);
+    setValue('');
     console.log('Änderungen gespeichert und Bearbeitung beendet');
-  }, []);
+  }, [value]);
 
   const handleCancel = useCallback(() => {
     setIsEditing(false);
+    setValue('');
     console.log('Bearbeitung abgebrochen');
   }, []);
 
@@ -231,26 +239,6 @@ export const FormProvider = ({
     }
   }, [quillRef]);
 
-  const startPlatformEdit = useCallback((platform) => {
-    setActivePlatform(platform);
-    setValue(generatedContent[platform]?.content || '');
-    setIsEditing(true);
-  }, [generatedContent]);
-
-  const finishPlatformEdit = useCallback(() => {
-    if (activePlatform && value) {
-      setGeneratedContent(prev => ({
-        ...prev,
-        [activePlatform]: {
-          ...prev[activePlatform],
-          content: value
-        }
-      }));
-    }
-    setActivePlatform(null);
-    setValue('');
-  }, [activePlatform, value]);
-
   const contextValue = useMemo(() => ({
     value,
     setValue: debouncedSetValue,
@@ -295,7 +283,6 @@ export const FormProvider = ({
     isApplyingAdjustment,
     setIsApplyingAdjustment,
     hasContent,
-    activePlatform,
     generatedContent,
     startPlatformEdit,
     finishPlatformEdit
@@ -333,7 +320,6 @@ export const FormProvider = ({
     clearAllHighlights,
     isApplyingAdjustment,
     hasContent,
-    activePlatform,
     generatedContent,
     startPlatformEdit,
     finishPlatformEdit
