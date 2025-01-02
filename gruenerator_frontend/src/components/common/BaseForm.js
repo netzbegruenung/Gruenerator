@@ -44,8 +44,7 @@ const BaseForm = ({
     value,
     isEditing,
     toggleEditMode,
-    updateValue,
-    activePlatform
+    updateValue
   } = useContext(FormContext);
 
   useEffect(() => {
