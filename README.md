@@ -1,57 +1,88 @@
-# Grünerator
+# 🌱 Grünerator
 
-Grünerator ist eine Webanwendung, die mit React und Node.js entwickelt wurde. Der Anwendung bietet Funktionen für die Erstellung von Texten, speziell für Mitglieder und Unterstützer der Grünen.
+![Version](https://img.shields.io/badge/version-1.0.0-green)
+![License](https://img.shields.io/badge/license-Proprietary-blue)
 
-## Installation
+Grünerator ist eine moderne Webanwendung für die KI-gestützte Erstellung von Texten, speziell entwickelt für Mitglieder und Unterstützer der Grünen.
 
-1. Repository klonen:
-   ```sh
-   git clone https://github.com/movm/gruenerator.git
-   ```
-2. In das Verzeichnis wechseln:
-   ```sh
-   cd gruenerator
-   ```
-3. Abhängigkeiten installieren:
-   ```sh
-   npm install
-   ```
-4. Anwendung starten:
-   ```sh
-   npm start
-   ```
+## 🚀 Features
 
-## Features
+- ✨ KI-basierte Textvorschläge
+- 📱 Als PWA auf mobilen Geräten nutzbar
+- 🔒 Datenschutzfreundlich (keine Cookies)
+- 💫 Intuitive Benutzeroberfläche
 
-- Schnell und einfach Grüne Texte erstellen
-- KI-basierte Textvorschläge
-- Keine Cookie-Nutzung
-- Als mobile App installierbar auf Android und iOS
+## 🛠️ Tech Stack
 
-## Mobile Installation
+- **Frontend:** React.js
+- **Backend:** Node.js
+- **KI-Integration:** Claude AI
+- **Styling:** CSS/SCSS
 
-Die Webanwendung kann als Progressive Web App (PWA) auf mobilen Geräten installiert werden:
+## ⚙️ Installation
 
-1. Öffne die Webseite in Chrome (Android) oder Safari (iOS)
-2. Tippe auf das Menü-Symbol (⋮ oder ⋯)
-3. Wähle "Zum Startbildschirm hinzufügen" (Android) oder "Zum Home-Bildschirm" (iOS)
-4. Folge den Anweisungen auf dem Bildschirm
+### Voraussetzungen
+- Node.js (>= 14.x)
+- npm oder yarn
+- Git
 
-Nach der Installation kannst du die App wie eine native Anwendung von deinem Startbildschirm aus öffnen.
+### Frontend & Backend Setup
+```sh
+# Repository klonen
+git clone https://github.com/movm/gruenerator.git
+cd gruenerator
 
-## Contributing
+# Backend Setup
+cd gruenerator_backend
+npm install
+cp .env.example .env  # Konfiguriere deine Umgebungsvariablen
+npm start
 
-Beiträge sind willkommen! Bitte lese die [CONTRIBUTING.md](CONTRIBUTING.md) für Details zum Einreichen von Pull Requests und unseren Verhaltenskodex.
+# Frontend Setup (in neuem Terminal)
+cd ../gruenerator_frontend
+npm install
+cp .env.example .env  # Konfiguriere deine Umgebungsvariablen
+npm start
+```
 
-## Lizenz
+## 📱 Mobile Installation
 
-Siehe  [LICENSE.md](LICENSE.md) 
+Die App kann als PWA installiert werden:
 
-## Kontakt
+1. **Android (Chrome):**
+   - Öffne die Webseite
+   - Tippe auf "⋮"
+   - Wähle "Zum Startbildschirm hinzufügen"
 
-Moritz Wächter - [info@moritz-waechter.de](mailto:info@moritz-waechter.de)
+2. **iOS (Safari):**
+   - Öffne die Webseite
+   - Tippe auf "Teilen"
+   - Wähle "Zum Home-Bildschirm"
 
-## Danksagungen
+## 🤝 Contributing
 
-- An die Netzbegrünung für herausragenden technischen und inhaltlichen Support
-# Hotfix Branch Update
+Beiträge sind herzlich willkommen! Siehe [CONTRIBUTING.md](CONTRIBUTING.md) für Details.
+
+## 📂 Projektstruktur
+
+```
+gruenerator/
+├── gruenerator_frontend/   # React Frontend
+├── gruenerator_backend/    # Node.js Backend
+├── docs/                   # Dokumentation
+└── README.md
+```
+
+## 🔑 Lizenz
+
+Alle Rechte vorbehalten. Siehe [LICENSE.md](LICENSE.md)
+
+## 📞 Support & Kontakt
+
+- **Email:** [info@moritz-waechter.de](mailto:info@moritz-waechter.de)
+- **Issues:** Bitte nutze den GitHub Issue Tracker
+
+## 🙏 Danksagungen
+
+- Netzbegrünung für technischen und inhaltlichen Support
+- Allen Mitwirkenden und Unterstützern

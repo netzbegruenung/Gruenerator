@@ -102,14 +102,6 @@
     align-items: center;
     margin-bottom: 15px;
 }
-  
-.action-button-base {
-    background-color: transparent;
-    border: none;
-    cursor: pointer;
-    padding: 5px;
-    transition: all 0.3s ease;
-}
 
 /* Checkbox Styles */
 .checkbox-wrapper-28 {
@@ -190,72 +182,4 @@
         gap: 6px;
         justify-content: flex-start;
     }
-}
-
-/* Action Buttons */
-.content-actions {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.action-button {
-  background-color: transparent;
-  border: none;
-  cursor: pointer;
-  padding: 5px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--font-color-h);
-  transition: opacity 0.3s ease, transform 0.2s ease;
-}
-
-.action-button:hover {
-  opacity: 0.7;
-  transform: scale(1.1);
-}
-
-.action-button:focus {
-  outline: none;
-}
-
-/* Spezifische Button-Stile */
-.action-button.copy-button svg,
-.action-button.export-button svg,
-.action-button.edit-button svg {
-  width: 16px;
-  height: 16px;
-}
-
-/* Mobile Anpassungen für Action Buttons */
-@media (max-width: 768px) {
-  .content-actions {
-    gap: 5px;
-  }
-
-  .action-button {
-    padding: 6px;
-  }
-
-  .action-button svg {
-    width: 14px;
-    height: 14px;
-  }
-}
-
-/* Tooltip Anpassungen für Action Buttons */
-.action-button[data-tooltip-id] {
-  position: relative;
-}
-
-/* Active State */
-.action-button:active {
-  transform: scale(0.95);
-}
-
-/* Disabled State */
-.action-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }

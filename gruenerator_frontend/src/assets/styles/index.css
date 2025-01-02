@@ -4,6 +4,7 @@
 @import './common/typography.css';
 @import './common/global.css';
 @import './common/shared-components.css';
+@import './components/action-buttons.css';
 
 /* Komponenten */
 @import './components/button.css';
@@ -22,10 +23,10 @@
 @import './components/BackupToggle.css';
 @import './components/welcome.css';
 @import './components/help.css';
+@import './components/platform-container.css';
 
 /* Seiten-spezifische Styles */
 @import './pages/baseform.css';
-@import './pages/baseform_social.css';
 @import './pages/template-gallery.css';
 @import './pages/antragsversteher.css';
 @import './pages/Startseitenstyle.css';
