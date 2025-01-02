@@ -1,0 +1,142 @@
+/* Platform Container Styles */
+.platform-container {
+  position: relative;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border-radius: 12px;
+  background: var(--background-color);
+  border: 1px solid var(--background-color-alt);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
+}
+
+[data-theme='dark'] .platform-container {
+  background: var(--background-color);
+  border-color: var(--background-color-alt);
+}
+
+.platform-content {
+  padding: 1.5rem;
+  margin: 1rem 0;
+  background: var(--background-color);
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease-in-out;
+}
+
+.platform-content:hover {
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+}
+
+.platform-content .display-content {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--text-color);
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.platform-content .display-content p {
+  margin: 0.75rem 0;
+}
+
+.platform-content .display-content p:first-child {
+  margin-top: 0;
+}
+
+.platform-content .display-content p:last-child {
+  margin-bottom: 0;
+}
+
+.platform-content .display-content a {
+  color: var(--primary-color);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.platform-content .display-content a:hover {
+  color: var(--primary-color-dark);
+  text-decoration: underline;
+}
+
+.platform-content .display-content ul,
+.platform-content .display-content ol {
+  margin: 0.75rem 0;
+  padding-left: 1.5rem;
+}
+
+.platform-content .display-content li {
+  margin: 0.5rem 0;
+}
+
+.platform-content .display-content blockquote {
+  margin: 1rem 0;
+  padding-left: 1rem;
+  border-left: 4px solid var(--primary-color);
+  color: var(--text-color-light);
+  font-style: italic;
+}
+
+.platform-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--background-color-alt);
+}
+
+.platform-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.platform-icon {
+  display: flex;
+  align-items: center;
+  font-size: 1.25rem;
+  color: var(--text-color);
+}
+
+.platform-name {
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: var(--text-color);
+  margin: 0;
+}
+
+.platform-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Mobile Anpassungen */
+@media (max-width: 768px) {
+  .platform-content {
+    padding: 1rem;
+    margin: 0.75rem 0;
+  }
+  
+  .platform-content .display-content {
+    font-size: 0.95rem;
+  }
+
+  .platform-header {
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .platform-title {
+    gap: 0.5rem;
+  }
+
+  .platform-icon {
+    font-size: 1.1rem;
+  }
+
+  .platform-name {
+    font-size: 1rem;
+  }
+} 
