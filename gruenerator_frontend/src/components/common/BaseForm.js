@@ -45,9 +45,7 @@ const BaseForm = ({
     isEditing,
     toggleEditMode,
     updateValue,
-    activePlatform,
-    platformContents,
-    updatePlatformContent
+    activePlatform
   } = useContext(FormContext);
 
   useEffect(() => {
@@ -205,15 +203,6 @@ const BaseForm = ({
 
     return value ? <Editor /> : generatedContent;
   };
-
-  // Aktualisiere Platform Contents wenn sich generatedContent ändert
-  useEffect(() => {
-    if (isMultiPlatform && generatedContent) {
-      Object.entries(generatedContent).forEach(([platform, data]) => {
-        updatePlatformContent(platform, data.content);
-      });
-    }
-  }, [isMultiPlatform, generatedContent, updatePlatformContent]);
 
   return (
     <div className={`base-container ${isEditing ? 'editing-mode' : ''} ${
