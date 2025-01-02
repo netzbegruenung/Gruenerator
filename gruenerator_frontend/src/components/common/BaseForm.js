@@ -217,7 +217,10 @@ const BaseForm = ({
   }, [isMultiPlatform, generatedContent, updatePlatformContent]);
 
   return (
-    <div className={`base-container ${isEditing ? 'editing-mode' : ''} ${title === "Grünerator Antragscheck" ? 'antragsversteher-base' : ''} ${generatedContent ? 'has-generated-content' : ''} ${isMultiPlatform ? 'multi-platform' : ''}`}>
+    <div className={`base-container ${isEditing ? 'editing-mode' : ''} ${
+      title === "Grünerator Antragscheck" ? 'antragsversteher-base' : ''
+    } ${generatedContent && (!isMultiPlatform || Object.values(generatedContent).some(data => data?.content)) ? 'has-generated-content' : ''
+    } ${isMultiPlatform ? 'multi-platform' : ''}`}>
       <div className="form-container">
         <form onSubmit={handleSubmit}>
           <div className={`form-content ${hasFormErrors ? 'has-errors' : ''}`}>
@@ -274,7 +277,12 @@ const BaseForm = ({
               <h3>{displayTitle}</h3>
               {generatedContent && (
                 <ActionButtons 
-                  content={isMultiPlatform ? Object.values(generatedContent).map(platform => platform.content).join('\n\n---\n\n') : generatedContent}
+                  content={isMultiPlatform ? 
+                    Object.entries(generatedContent)
+                      .filter(([, data]) => data?.content)
+                      .map(([platform, data]) => `# ${platform.charAt(0).toUpperCase() + platform.slice(1)}\n\n${data.content}`)
+                      .join('\n\n---\n\n') 
+                    : generatedContent}
                   onEdit={handleToggleEditMode}
                   isEditing={isEditing}
                   allowEditing={allowEditing}
