@@ -189,10 +189,10 @@ const BaseForm = ({
             icon={platformIcons[platform]}
             content={platformContent}
             title={platform.charAt(0).toUpperCase() + platform.slice(1)}
-            showEditButton={isEditing}
+            showEditButton={true}
           >
-            {isEditing && activePlatform === platform ? (
-              <Editor />
+            {isEditing ? (
+              <Editor value={value} />
             ) : (
               <div dangerouslySetInnerHTML={{ __html: platformContent }} />
             )}
@@ -201,7 +201,7 @@ const BaseForm = ({
       }).filter(Boolean);
     }
 
-    return value ? <Editor /> : generatedContent;
+    return value ? <Editor value={value} /> : generatedContent;
   };
 
   return (
