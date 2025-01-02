@@ -253,12 +253,20 @@ export const FormProvider = ({
   }, [platformContents, setValue, setIsEditing]);
 
   const finishPlatformEdit = useCallback(() => {
-    if (activePlatform) {
-      updatePlatformContent(activePlatform, value);
+    if (activePlatform && value) {
+      const updatedContent = value;
+      updatePlatformContent(activePlatform, updatedContent);
+      setGeneratedContent(prev => ({
+        ...prev,
+        [activePlatform]: {
+          ...prev[activePlatform],
+          content: updatedContent
+        }
+      }));
     }
     setActivePlatform(null);
     setValue('');
-  }, [activePlatform, value, updatePlatformContent]);
+  }, [activePlatform, value, updatePlatformContent, setGeneratedContent]);
 
   const contextValue = useMemo(() => ({
     value,
