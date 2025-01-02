@@ -11,6 +11,8 @@ import { FormContext } from '../utils/FormContext';
 import { Tooltip } from 'react-tooltip';
 import ActionButtons from './ActionButtons';
 import PlatformContainer from './PlatformContainer';
+import FormToggleButton from './FormToggleButton';
+import '../../assets/styles/components/form-toggle-button.css';
 
 const BackupToggle = React.lazy(() => import('./BackupToggle'));
 
@@ -36,22 +38,37 @@ const BaseForm = ({
   nextButtonText,
   generatedContent,
   hideDisplayContainer = false,
-  isMultiPlatform = false,
-  platforms = [],
-  platformIcons = {},
+  usePlatformContainers = false,
 }) => {
   const {
     value,
     isEditing,
     toggleEditMode,
-    updateValue
+    updateValue,
   } = useContext(FormContext);
+
+  const [isFormVisible, setIsFormVisible] = useState(true);
+  const [isMultiPlatform, setIsMultiPlatform] = useState(false);
 
   useEffect(() => {
     if (initialContent) {
       updateValue(initialContent);
     }
   }, [initialContent, updateValue]);
+
+  useEffect(() => {
+    if (value && usePlatformContainers) {
+      const platformCount = (value.match(/(TWITTER|FACEBOOK|INSTAGRAM|LINKEDIN|ACTIONIDEAS|INSTAGRAM REEL):/g) || []).length;
+      setIsMultiPlatform(platformCount >= 2);
+      if (platformCount >= 2 && isFormVisible) {
+        setIsFormVisible(false);
+      }
+    }
+  }, [value, usePlatformContainers]);
+
+  const toggleForm = () => {
+    setIsFormVisible(prev => !prev);
+  };
 
   const { announce, setupKeyboardNav } = useAccessibility();
   const [generatePostLoading, setGeneratePostLoading] = React.useState(false);
@@ -79,18 +96,16 @@ const BaseForm = ({
       { element: document.querySelector('.generate-post-button'), label: BUTTON_LABELS.GENERATE_TEXT },
       { element: document.querySelector('.copy-button'), label: BUTTON_LABELS.COPY },
       { element: document.querySelector('.edit-button'), label: BUTTON_LABELS.EDIT },
-    ];
+    ].filter(item => item.element !== null);
 
-    addAriaLabelsToElements(labelledElements);
-
-    const interactiveElements = labelledElements.map(item => item.element).filter(Boolean);
-    setupKeyboardNav(interactiveElements);
-  }, [setupKeyboardNav]);
+    if (labelledElements.length > 0) {
+      addAriaLabelsToElements(labelledElements);
+      const interactiveElements = labelledElements.map(item => item.element);
+      setupKeyboardNav(interactiveElements);
+    }
+  }, [setupKeyboardNav, generatedContent]);
 
   const handleToggleEditMode = () => {
-    if (window.innerWidth <= 768) {
-      document.body.style.overflow = isEditing ? 'auto' : 'hidden';
-    }
     toggleEditMode();
   };
 
@@ -154,18 +169,15 @@ const BaseForm = ({
       '529': 'Die Server unseres KI-Anbieters Anthropic sind momentan überlastet. Bitte versuche es in einigen Minuten erneut. Du kannst alternativ den Grünerator Backup verwenden.'
     };
 
-    // Prüfe ob der error-string einen der Error Codes enthält
     for (const [code, message] of Object.entries(errorMessages)) {
       if (error.includes(code)) {
         return `[Fehler ${code}] ${message} Es tut mir sehr leid. Bitte versuche es später erneut.`;
       }
     }
 
-    // Standardfehlertext wenn kein spezifischer Code gefunden wurde
     return `Ein Fehler ist aufgetreten. Es tut mir sehr leid. Bitte versuche es später erneut.`;
   };
 
-  // Wrapper für onSubmit
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -176,43 +188,85 @@ const BaseForm = ({
   };
 
   const renderContent = () => {
-    if (isMultiPlatform && generatedContent) {
-      return platforms.map(platform => {
-        const platformContent = generatedContent[platform]?.content;
-        if (!platformContent) return null;
-        
-        return (
-          <PlatformContainer
-            key={platform}
-            platform={platform}
-            icon={platformIcons[platform]}
-            content={platformContent}
-            title={platform.charAt(0).toUpperCase() + platform.slice(1)}
-            showEditButton={true}
-          >
-            {isEditing ? (
-              <Editor value={value} />
-            ) : (
-              <div dangerouslySetInnerHTML={{ __html: platformContent }} />
-            )}
-          </PlatformContainer>
-        );
-      }).filter(Boolean);
+    console.log('[BaseForm] Rendere Content:', { 
+      value, 
+      generatedContent,
+      isEditing,
+      usePlatformContainers
+    });
+    
+    // Wenn kein Content vorhanden ist, nichts rendern
+    if (!value && !generatedContent) {
+      console.log('[BaseForm] Kein Content vorhanden');
+      return null;
     }
 
-    return value ? <Editor value={value} /> : generatedContent;
+    // Im Edit-Modus immer den Editor anzeigen
+    if (isEditing) {
+      console.log('[BaseForm] Editor-Modus');
+      return (
+        <div className="generated-content-wrapper">
+          <Editor value={value || ''} />
+        </div>
+      );
+    }
+
+    // Platform Container nur anzeigen wenn aktiviert
+    if (usePlatformContainers && value) {
+      console.log('[BaseForm] Prüfe Platform Container');
+      const hasPlatformHeaders = value.includes('TWITTER:') || 
+                                value.includes('FACEBOOK:') || 
+                                value.includes('INSTAGRAM:') || 
+                                value.includes('LINKEDIN:') || 
+                                value.includes('AKTIONSIDEEN:') || 
+                                value.includes('INSTAGRAM REEL:');
+
+      if (hasPlatformHeaders) {
+        console.log('[BaseForm] Zeige Platform Container');
+        return (
+          <div className="generated-content-wrapper">
+            <PlatformContainer content={value} key={Date.now()} />
+          </div>
+        );
+      }
+    }
+
+    // Standard Editor anzeigen
+    console.log('[BaseForm] Standard Editor');
+    return (
+      <div className="generated-content-wrapper">
+        <Editor value={value || ''} />
+      </div>
+    );
   };
 
+  const getExportableContent = () => {
+    if (generatedContent) {
+      return typeof generatedContent === 'string' ? generatedContent : generatedContent?.content || '';
+    }
+    return value || '';
+  };
+
+  const baseContainerClasses = [
+    'base-container',
+    isEditing ? 'editing-mode' : '',
+    title === "Grünerator Antragscheck" ? 'antragsversteher-base' : '',
+    generatedContent && (
+      typeof generatedContent === 'string' ? generatedContent.length > 0 : generatedContent?.content?.length > 0
+    ) ? 'has-generated-content' : '',
+    isMultiPlatform ? 'multi-platform' : '',
+    !isFormVisible ? 'form-hidden' : ''
+  ].filter(Boolean).join(' ');
+
   return (
-    <div className={`base-container ${isEditing ? 'editing-mode' : ''} ${
-      title === "Grünerator Antragscheck" ? 'antragsversteher-base' : ''
-    } ${generatedContent && (
-        isMultiPlatform 
-          ? Object.values(generatedContent).some(data => data?.content?.length > 0)
-          : typeof generatedContent === 'string' ? generatedContent.length > 0 : generatedContent?.content?.length > 0
-      ) ? 'has-generated-content' : ''
-    } ${isMultiPlatform ? 'multi-platform' : ''}`}>
-      <div className="form-container">
+    <div className={baseContainerClasses}>
+      {isMultiPlatform && (
+        <FormToggleButton
+          isFormVisible={isFormVisible}
+          toggleForm={toggleForm}
+        />
+      )}
+      <div className={`form-container ${isFormVisible ? 'visible' : ''}`}>
         <form onSubmit={handleSubmit}>
           <div className={`form-content ${hasFormErrors ? 'has-errors' : ''}`}>
             {children}
@@ -262,52 +316,43 @@ const BaseForm = ({
         </form>
       </div>
       {!hideDisplayContainer && (
-        <div className="content-container">
-          <div className="display-container">
-            <div className="display-header">
-              <h3>{displayTitle}</h3>
-              {generatedContent && (
-                <ActionButtons 
-                  content={isMultiPlatform ? 
-                    Object.entries(generatedContent)
-                      .filter(([, data]) => data?.content?.length > 0)
-                      .map(([platform, data]) => `# ${platform.charAt(0).toUpperCase() + platform.slice(1)}\n\n${data.content}`)
-                      .join('\n\n---\n\n') 
-                    : generatedContent}
-                  onEdit={handleToggleEditMode}
-                  isEditing={isEditing}
-                  allowEditing={allowEditing}
-                  hideEditButton={hideEditButton}
-                  showExport={true}
-                />
-              )}
-            </div>
-            <div className="display-content" style={{ fontSize: '16px' }}>
-              {error && (
-                <p role="alert" aria-live="assertive" className="error-message">
-                  {getErrorMessage(error)}
-                </p>
-              )}
-              <div className="generated-content-wrapper">
-                {renderContent()}
-              </div>
-            </div>
-            {generatedPost && (
-              <div className="generated-post-container">
-                <p>{generatedPost}</p>
-                <div className="button-container">
-                  <SubmitButton
-                    onClick={handleGeneratePost}
-                    loading={generatePostLoading}
-                    text={BUTTON_LABELS.REGENERATE_TEXT}
-                    icon={<HiCog />}
-                    className="generate-post-button"
-                    ariaLabel={ARIA_LABELS.REGENERATE_TEXT}
-                  />
-                </div>
-              </div>
+        <div className="display-container">
+          <div className="display-header">
+            <h3>{displayTitle}</h3>
+            {generatedContent && (
+              <ActionButtons 
+                content={getExportableContent()}
+                onEdit={handleToggleEditMode}
+                isEditing={isEditing}
+                allowEditing={allowEditing}
+                hideEditButton={hideEditButton}
+                showExport={true}
+              />
             )}
           </div>
+          <div className="display-content" style={{ fontSize: '16px' }}>
+            {error && (
+              <p role="alert" aria-live="assertive" className="error-message">
+                {getErrorMessage(error)}
+              </p>
+            )}
+            {renderContent()}
+          </div>
+          {generatedPost && (
+            <div className="generated-post-container">
+              <p>{generatedPost}</p>
+              <div className="button-container">
+                <SubmitButton
+                  onClick={handleGeneratePost}
+                  loading={generatePostLoading}
+                  text={BUTTON_LABELS.REGENERATE_TEXT}
+                  icon={<HiCog />}
+                  className="generate-post-button"
+                  ariaLabel={ARIA_LABELS.REGENERATE_TEXT}
+                />
+              </div>
+            </div>
+          )}
         </div>
       )}
       {!isMobileView && (
@@ -337,11 +382,14 @@ BaseForm.propTypes = {
   onBack: PropTypes.func,
   showBackButton: PropTypes.bool,
   nextButtonText: PropTypes.string,
-  generatedContent: PropTypes.node,
+  generatedContent: PropTypes.oneOfType([
+    PropTypes.string,
+    PropTypes.shape({
+      content: PropTypes.string
+    })
+  ]),
   hideDisplayContainer: PropTypes.bool,
-  isMultiPlatform: PropTypes.bool,
-  platforms: PropTypes.array,
-  platformIcons: PropTypes.object
+  usePlatformContainers: PropTypes.bool
 };
 
 export default BaseForm;

@@ -31,7 +31,6 @@ export const FormProvider = ({
   const [hasContent, setHasContent] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const [generatedContent, setGeneratedContent] = useState({});
 
   useEffect(() => {
     if (quillRef.current) {
@@ -115,30 +114,26 @@ export const FormProvider = ({
     debouncedSetSyncStatus();
   }, [debouncedSetSyncStatus]);
 
-  const handleEdit = useCallback((platform) => {
-    setIsEditing(true);
-    setValue(generatedContent[platform]?.content || '');
-    console.log('Bearbeitung gestartet');
-  }, [generatedContent]);
+  const setGeneratedContent = useCallback((content) => {
+    console.log('Setze generierten Inhalt:', content);
+    setValue(content);
+  }, []);
 
-  const handleSave = useCallback((platform) => {
-    if (value) {
-      setGeneratedContent(prev => ({
-        ...prev,
-        [platform]: {
-          ...prev[platform],
-          content: value
-        }
-      }));
+  const handleEdit = useCallback(() => {
+    setIsEditing(true);
+    console.log('Bearbeitung gestartet');
+  }, []);
+
+  const handleSave = useCallback((newContent) => {
+    if (newContent !== undefined) {
+      setValue(newContent);
     }
     setIsEditing(false);
-    setValue('');
     console.log('Änderungen gespeichert und Bearbeitung beendet');
-  }, [value]);
+  }, []);
 
   const handleCancel = useCallback(() => {
     setIsEditing(false);
-    setValue('');
     console.log('Bearbeitung abgebrochen');
   }, []);
 
@@ -283,7 +278,6 @@ export const FormProvider = ({
     isApplyingAdjustment,
     setIsApplyingAdjustment,
     hasContent,
-    generatedContent
   }), [
     value,
     debouncedSetValue,
@@ -318,7 +312,6 @@ export const FormProvider = ({
     clearAllHighlights,
     isApplyingAdjustment,
     hasContent,
-    generatedContent
   ]);
 
   return (
@@ -327,6 +320,7 @@ export const FormProvider = ({
     </FormContext.Provider>
   );
 };
+
 FormProvider.propTypes = {
   children: PropTypes.node.isRequired,
   initialGeneratedContent: PropTypes.string,
