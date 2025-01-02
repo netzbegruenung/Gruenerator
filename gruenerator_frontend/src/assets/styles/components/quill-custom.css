@@ -1,7 +1,7 @@
 /* Grundlegende Quill-Editor-Stile */
 .ql-editor {
     font-family: 'PT Sans', Arial, sans-serif;
-    color: var(--font-color);
+    color: var(--font-color) !important;
     border: none;
     font-size: 1.2em;
     border: none !important;
@@ -14,6 +14,10 @@
     line-height: 1.5;
     -webkit-user-select: text;
     user-select: text;
+}
+
+.ql-editor p, .ql-editor ol, .ql-editor ul, .ql-editor pre, .ql-editor blockquote, .ql-editor h1, .ql-editor h2, .ql-editor h3, .ql-editor h4, .ql-editor h5, .ql-editor h6 {
+    color: var(--font-color) !important;
 }
 
 .ql-editor.ql-blank {
@@ -41,9 +45,9 @@
 /* Toolbar-Stile */
 .ql-editor .ql-toolbar,
 .ql-toolbar.ql-snow {
-    color: var(--tanne);
-    border: none;
-    padding: 8px 15px;
+    color: var(--tanne) !important;
+    border: none !important;
+    padding: 8px 30px !important;
 }
 
 .ql-toolbar.ql-snow .ql-formats {
@@ -146,7 +150,7 @@
 }
 
 .editing-mode .ql-editor {
-    padding: 12px 20px;
+    padding: 12px 35px !important;
 }
 
 /* Read-only Modus */
@@ -193,11 +197,11 @@
 @media (max-width: 768px) {
     .ql-editor .ql-editor,
     .ql-editor {
-        font-size: 14px;
+        font-size: 14px !important;
     }
 
     .ql-toolbar.ql-snow {
-        padding: 6px 10px;
+        padding: 10px 30px !important;
     }
 
     .ql-toolbar.ql-snow button {

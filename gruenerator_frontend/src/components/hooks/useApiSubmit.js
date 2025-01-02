@@ -39,12 +39,7 @@ const useApiSubmit = (endpoint) => {
       });
 
       // Spezielle Behandlung für verschiedene Endpoints
-      if (endpoint === '/claude_social') {
-        if (response && response.content) {
-          setSuccess(true);
-          return response; // Gebe komplette Response für Social Media zurück
-        }
-      } else if (endpoint.includes('etherpad')) {
+      if (endpoint.includes('etherpad')) {
         if (response && response.padURL) {
           setSuccess(true);
           return response;

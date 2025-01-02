@@ -46,7 +46,6 @@
 @media (prefers-color-scheme: light) {
   .welcome-content h1 {
     background: linear-gradient(90deg, var(--klee) -50%, var(--font-color-h) 150%);
-    -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
   }
@@ -259,7 +258,7 @@
 }
 
 /* BaseForm Transition */
-.base-container {
+.welcome-screen .base-container {
   opacity: 0;
   transform: translateY(20px);
   animation: fadeIn 0.5s ease-out 0.3s forwards;

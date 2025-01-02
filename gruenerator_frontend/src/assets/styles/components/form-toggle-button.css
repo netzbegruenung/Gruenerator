@@ -1,0 +1,35 @@
+/* Toggle Button Basis-Styles */
+.form-toggle-button {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 9999;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 50%;
+  background-color: var(--dunkelgruen);
+  color: var(--weiß);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.form-toggle-button:hover {
+  background-color: var(--klee);
+}
+
+/* Mobile Anpassungen */
+@media (max-width: 768px) {
+  .form-toggle-button {
+    position: fixed;
+    left: 20px;
+    bottom: 20px;
+    top: auto;
+    transform: none;
+  }
+} 
