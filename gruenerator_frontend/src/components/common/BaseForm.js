@@ -218,7 +218,12 @@ const BaseForm = ({
   return (
     <div className={`base-container ${isEditing ? 'editing-mode' : ''} ${
       title === "Grünerator Antragscheck" ? 'antragsversteher-base' : ''
-    } ${generatedContent ? 'has-generated-content' : ''} ${isMultiPlatform ? 'multi-platform' : ''}`}>
+    } ${generatedContent && (
+        isMultiPlatform 
+          ? Object.values(generatedContent).some(data => data?.content?.length > 0)
+          : typeof generatedContent === 'string' ? generatedContent.length > 0 : generatedContent?.content?.length > 0
+      ) ? 'has-generated-content' : ''
+    } ${isMultiPlatform ? 'multi-platform' : ''}`}>
       <div className="form-container">
         <form onSubmit={handleSubmit}>
           <div className={`form-content ${hasFormErrors ? 'has-errors' : ''}`}>
