@@ -307,8 +307,7 @@ export const FormProvider = ({
     activePlatform,
     platformContents,
     updatePlatformContent,
-    startPlatformEdit,
-    finishPlatformEdit,
+    setActivePlatform
   }), [
     value,
     debouncedSetValue,
@@ -346,8 +345,7 @@ export const FormProvider = ({
     activePlatform,
     platformContents,
     updatePlatformContent,
-    startPlatformEdit,
-    finishPlatformEdit,
+    setActivePlatform
   ]);
 
   return (
@@ -356,7 +354,6 @@ export const FormProvider = ({
     </FormContext.Provider>
   );
 };
-
 FormProvider.propTypes = {
   children: PropTypes.node.isRequired,
   initialGeneratedContent: PropTypes.string,
