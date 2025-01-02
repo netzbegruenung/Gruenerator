@@ -283,9 +283,7 @@ export const FormProvider = ({
     isApplyingAdjustment,
     setIsApplyingAdjustment,
     hasContent,
-    generatedContent,
-    startPlatformEdit,
-    finishPlatformEdit
+    generatedContent
   }), [
     value,
     debouncedSetValue,
@@ -320,9 +318,7 @@ export const FormProvider = ({
     clearAllHighlights,
     isApplyingAdjustment,
     hasContent,
-    generatedContent,
-    startPlatformEdit,
-    finishPlatformEdit
+    generatedContent
   ]);
 
   return (
