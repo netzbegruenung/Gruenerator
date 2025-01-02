@@ -274,7 +274,7 @@ const BaseForm = ({
               <h3>{displayTitle}</h3>
               {generatedContent && (
                 <ActionButtons 
-                  content={typeof generatedContent === 'object' ? Object.values(generatedContent).join('\n\n') : generatedContent}
+                  content={isMultiPlatform ? Object.values(generatedContent).map(platform => platform.content).join('\n\n---\n\n') : generatedContent}
                   onEdit={handleToggleEditMode}
                   isEditing={isEditing}
                   allowEditing={allowEditing}
