@@ -192,18 +192,6 @@ const BaseForm = ({
             content={platformContent}
             title={platform.charAt(0).toUpperCase() + platform.slice(1)}
             showEditButton={isEditing}
-            onEdit={() => {
-              if (activePlatform === platform) {
-                // Wenn Bearbeitung beendet wird, speichere den aktuellen Editor-Wert
-                if (value) {
-                  updatePlatformContent(platform, value);
-                }
-                updateValue('');
-              } else {
-                // Wenn Bearbeitung startet, setze den Content in den Editor
-                updateValue(platformContents[platform] || platformContent);
-              }
-            }}
           >
             {isEditing && activePlatform === platform ? (
               <Editor />
@@ -230,12 +218,7 @@ const BaseForm = ({
   return (
     <div className={`base-container ${isEditing ? 'editing-mode' : ''} ${
       title === "Grünerator Antragscheck" ? 'antragsversteher-base' : ''
-    } ${generatedContent && (
-        isMultiPlatform 
-          ? Object.values(generatedContent).some(data => data?.content?.length > 0)
-          : typeof generatedContent === 'string' ? generatedContent.length > 0 : generatedContent?.content?.length > 0
-      ) ? 'has-generated-content' : ''
-    } ${isMultiPlatform ? 'multi-platform' : ''}`}>
+    } ${generatedContent ? 'has-generated-content' : ''} ${isMultiPlatform ? 'multi-platform' : ''}`}>
       <div className="form-container">
         <form onSubmit={handleSubmit}>
           <div className={`form-content ${hasFormErrors ? 'has-errors' : ''}`}>

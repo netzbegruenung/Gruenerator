@@ -12,19 +12,24 @@ const PlatformContainer = ({
   showEditButton = false
 }) => {
   const { 
-    startPlatformEdit, 
-    finishPlatformEdit, 
+    value,
     activePlatform,
-    isEditing
+    isEditing,
+    updateValue,
+    platformContents,
+    updatePlatformContent,
+    setActivePlatform
   } = useContext(FormContext);
 
   const isEditingThis = isEditing && activePlatform === platform;
 
-  const handleEdit = () => {
+  const handlePlatformEdit = () => {
     if (activePlatform === platform) {
-      finishPlatformEdit();
+      updatePlatformContent(platform, value);
+      setActivePlatform(null);
     } else {
-      startPlatformEdit(platform);
+      setActivePlatform(platform);
+      updateValue(platformContents[platform] || content);
     }
   };
 
@@ -44,7 +49,7 @@ const PlatformContainer = ({
         {showEditButton && (
           <ActionButtons 
             content={content}
-            onEdit={handleEdit}
+            onEdit={handlePlatformEdit}
             isEditing={isEditingThis}
             allowEditing={true}
             hideEditButton={false}
