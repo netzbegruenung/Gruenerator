@@ -1,14 +1,11 @@
 import React, { useState, useCallback } from 'react';
 import PropTypes from 'prop-types';
-import BaseForm from '../../common/BaseForm_social';
-import '../../../assets/styles/pages/baseform_social.css';
+import BaseForm from '../../common/BaseForm';
 import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../utils/constants';
 import useApiSubmit from '../../hooks/useApiSubmit';
-import useEditFunctionality from '../../hooks/useEditFunctionality';
 import { useSharedContent } from '../../../hooks/useSharedContent';
 import { FaFacebook, FaInstagram, FaTwitter, FaLinkedin } from "react-icons/fa";
 import StyledCheckbox from '../../common/AnimatedCheckbox';
-import BackupToggle from '../../common/BackupToggle';
 
 const platformIcons = {
   facebook: FaFacebook,
@@ -33,15 +30,7 @@ const SocialMediaGenerator = ({ showHeaderFooter = true }) => {
   const { submitForm, loading, success, resetSuccess } = useApiSubmit('/claude_social');
   const [error, setError] = useState('');
   const [useBackupProvider, setUseBackupProvider] = useState(false);
-  
-  const {
-    posts: socialMediaPosts,
-    setPosts: setSocialMediaPosts,
-    editingPlatform,
-    handleEditPost,
-    handleSavePost,
-    handlePostContentChange
-  } = useEditFunctionality({});
+  const [generatedContent, setGeneratedContent] = useState({});
 
   const handleSubmit = useCallback(async () => {
     const selectedPlatforms = Object.keys(platforms).filter(key => platforms[key] && key !== 'actionIdeas');
@@ -54,7 +43,7 @@ const SocialMediaGenerator = ({ showHeaderFooter = true }) => {
     try {
       const response = await submitForm(formData, useBackupProvider);
       if (response?.content) {
-        setSocialMediaPosts(response.content);
+        setGeneratedContent(response.content);
         setTimeout(resetSuccess, 3000);
         setError('');
       }
@@ -62,7 +51,7 @@ const SocialMediaGenerator = ({ showHeaderFooter = true }) => {
       console.error('Error submitting form:', err);
       setError(err.message || 'Ein Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.');
     }
-  }, [thema, details, platforms, submitForm, resetSuccess, setSocialMediaPosts, useBackupProvider]);
+  }, [thema, details, platforms, submitForm, resetSuccess, useBackupProvider]);
 
   const handlePlatformChange = useCallback((platform) => {
     setPlatforms(prev => ({ ...prev, [platform]: !prev[platform] }));
@@ -108,31 +97,34 @@ const SocialMediaGenerator = ({ showHeaderFooter = true }) => {
           />
         ))}
       </div>
-
-      <BackupToggle 
-        useBackupProvider={useBackupProvider}
-        setUseBackupProvider={setUseBackupProvider}
-      />
     </>
   );
 
+  // Aktive Plattformen für die Anzeige
+  const activePlatforms = Object.entries(platforms)
+    .filter(([platform, isActive]) => isActive && platform !== 'actionIdeas')
+    .map(([platform]) => platform);
+
+  // Bestimme, ob wir Multi-Platform-Modus verwenden
+  const isMultiPlatform = activePlatforms.length > 1;
+
   return (
-    <div className={`container social-media-baseform ${showHeaderFooter ? 'with-header' : ''}`}>
+    <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
       <BaseForm
         title="Social-Media Grünerator"
         onSubmit={handleSubmit}
         loading={loading}
         success={success}
         error={error}
-        generatedContent={socialMediaPosts}
-        renderFormInputs={renderFormInputs}
-        editingPlatform={editingPlatform}
-        handleEditPost={handleEditPost}
-        handleSavePost={handleSavePost}
-        handlePostContentChange={handlePostContentChange}
+        isMultiPlatform={isMultiPlatform}
+        platforms={activePlatforms}
         platformIcons={platformIcons}
-        includeActionIdeas={platforms.actionIdeas}
-      />
+        generatedContent={isMultiPlatform ? generatedContent : (generatedContent[activePlatforms[0]] || '')}
+        useBackupProvider={useBackupProvider}
+        setUseBackupProvider={setUseBackupProvider}
+      >
+        {renderFormInputs()}
+      </BaseForm>
     </div>
   );
 };

@@ -31,6 +31,8 @@ export const FormProvider = ({
   const [hasContent, setHasContent] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const [activePlatform, setActivePlatform] = useState(null);
+  const [platformContents, setPlatformContents] = useState({});
 
   useEffect(() => {
     if (quillRef.current) {
@@ -234,6 +236,30 @@ export const FormProvider = ({
     }
   }, [quillRef]);
 
+  const updatePlatformContent = useCallback((platform, content) => {
+    setPlatformContents(prev => ({
+      ...prev,
+      [platform]: content
+    }));
+    if (platform === activePlatform) {
+      setValue(content);
+    }
+  }, [activePlatform]);
+
+  const startPlatformEdit = useCallback((platform) => {
+    setActivePlatform(platform);
+    setValue(platformContents[platform] || '');
+    setIsEditing(true);
+  }, [platformContents]);
+
+  const finishPlatformEdit = useCallback(() => {
+    if (activePlatform) {
+      updatePlatformContent(activePlatform, value);
+    }
+    setActivePlatform(null);
+    setValue('');
+  }, [activePlatform, value, updatePlatformContent]);
+
   const contextValue = useMemo(() => ({
     value,
     setValue: debouncedSetValue,
@@ -278,6 +304,11 @@ export const FormProvider = ({
     isApplyingAdjustment,
     setIsApplyingAdjustment,
     hasContent,
+    activePlatform,
+    platformContents,
+    updatePlatformContent,
+    startPlatformEdit,
+    finishPlatformEdit,
   }), [
     value,
     debouncedSetValue,
@@ -312,6 +343,11 @@ export const FormProvider = ({
     clearAllHighlights,
     isApplyingAdjustment,
     hasContent,
+    activePlatform,
+    platformContents,
+    updatePlatformContent,
+    startPlatformEdit,
+    finishPlatformEdit,
   ]);
 
   return (
