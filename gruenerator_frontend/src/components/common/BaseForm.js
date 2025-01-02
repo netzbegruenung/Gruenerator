@@ -192,7 +192,18 @@ const BaseForm = ({
             content={platformContent}
             title={platform.charAt(0).toUpperCase() + platform.slice(1)}
             showEditButton={isEditing}
-            onEdit={() => updateValue(platformContent)}
+            onEdit={() => {
+              if (activePlatform === platform) {
+                // Wenn Bearbeitung beendet wird, speichere den aktuellen Editor-Wert
+                if (value) {
+                  updatePlatformContent(platform, value);
+                }
+                updateValue('');
+              } else {
+                // Wenn Bearbeitung startet, setze den Content in den Editor
+                updateValue(platformContents[platform] || platformContent);
+              }
+            }}
           >
             {isEditing && activePlatform === platform ? (
               <Editor />
@@ -219,7 +230,11 @@ const BaseForm = ({
   return (
     <div className={`base-container ${isEditing ? 'editing-mode' : ''} ${
       title === "Grünerator Antragscheck" ? 'antragsversteher-base' : ''
-    } ${generatedContent && (!isMultiPlatform || Object.values(generatedContent).some(data => data?.content)) ? 'has-generated-content' : ''
+    } ${generatedContent && (
+        isMultiPlatform 
+          ? Object.values(generatedContent).some(data => data?.content?.length > 0)
+          : typeof generatedContent === 'string' ? generatedContent.length > 0 : generatedContent?.content?.length > 0
+      ) ? 'has-generated-content' : ''
     } ${isMultiPlatform ? 'multi-platform' : ''}`}>
       <div className="form-container">
         <form onSubmit={handleSubmit}>
@@ -279,7 +294,7 @@ const BaseForm = ({
                 <ActionButtons 
                   content={isMultiPlatform ? 
                     Object.entries(generatedContent)
-                      .filter(([, data]) => data?.content)
+                      .filter(([, data]) => data?.content?.length > 0)
                       .map(([platform, data]) => `# ${platform.charAt(0).toUpperCase() + platform.slice(1)}\n\n${data.content}`)
                       .join('\n\n---\n\n') 
                     : generatedContent}
