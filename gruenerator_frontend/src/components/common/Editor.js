@@ -15,12 +15,28 @@ const QuillWrapper = React.forwardRef((props, ref) => (
 
 QuillWrapper.displayName = 'QuillWrapper';
 
+const PROTECTED_HEADERS = [
+  'TWITTER:',
+  'FACEBOOK:',
+  'INSTAGRAM:',
+  'LINKEDIN:',
+  'AKTIONSIDEEN:',
+  'INSTAGRAM REEL:'
+];
+
 const Editor = React.memo(({ setEditorInstance = () => {} }) => {
   const {
     value,
     updateValue,
     isEditing,
     isAdjusting,
+    activePlatform,
+    facebookValue,
+    instagramValue,
+    twitterValue,
+    linkedinValue,
+    reelScriptValue,
+    actionIdeasValue,
     handleAiAdjustment,
     handleAcceptAdjustment,
     handleRejectAdjustment,
@@ -45,8 +61,29 @@ const Editor = React.memo(({ setEditorInstance = () => {} }) => {
   const isProgrammaticChange = useRef(false);
 
   useEffect(() => {
-    setLocalValue(value);
-  }, [value]);
+    if (activePlatform) {
+      const platformContent = {
+        facebook: facebookValue,
+        instagram: instagramValue,
+        twitter: twitterValue,
+        linkedin: linkedinValue,
+        reelScript: reelScriptValue,
+        actionIdeas: actionIdeasValue
+      }[activePlatform] || '';
+      setLocalValue(platformContent);
+    } else {
+      setLocalValue(value);
+    }
+  }, [
+    value, 
+    activePlatform, 
+    facebookValue,
+    instagramValue,
+    twitterValue,
+    linkedinValue,
+    reelScriptValue,
+    actionIdeasValue
+  ]);
 
   const handleChange = useCallback((content, source) => {
     setLocalValue(content);
@@ -66,13 +103,16 @@ const Editor = React.memo(({ setEditorInstance = () => {} }) => {
           editor.setText(content);
         }
         setLocalValue(content);
+        if (activePlatform) {
+          updateValue(content);
+        }
       } catch (error) {
         editor.setText(content);
       } finally {
         isProgrammaticChange.current = false;
       }
     }
-  }, []);
+  }, [activePlatform, updateValue]);
 
   useEffect(() => {
     if (setEditorInstance) {
@@ -154,7 +194,7 @@ const Editor = React.memo(({ setEditorInstance = () => {} }) => {
   const formats = useMemo(() => [
     'header', 'bold', 'italic', 'underline', 'strike', 'blockquote',
     'list', 'bullet', 'indent', 'link', 'image', 'code-block',
-    'script', 'align', 'color', 'background', 'clean'
+    'script', 'align', 'color', 'background', 'clean', 'protected'
   ], []);
 
   const modules = useMemo(() => ({
@@ -201,17 +241,91 @@ const Editor = React.memo(({ setEditorInstance = () => {} }) => {
     }
   }, [newSelectedText, highlightedRange, applyAdjustment]);
 
+  const findProtectedRanges = useCallback((text) => {
+    const ranges = [];
+    const lines = text.split('\n');
+    let currentIndex = 0;
+
+    lines.forEach((line) => {
+      PROTECTED_HEADERS.forEach(header => {
+        if (line.trim().toUpperCase() === header) {
+          ranges.push({
+            start: currentIndex,
+            end: currentIndex + line.length
+          });
+        }
+      });
+      currentIndex += line.length + 1; // +1 für den Zeilenumbruch
+    });
+    return ranges;
+  }, []);
+
   useEffect(() => {
     if (quillRef.current) {
       const quill = quillRef.current.getEditor();
+      let lastGoodValue = quill.getText();
+      let lastGoodHtml = quill.root.innerHTML;
+      
       quill.on('text-change', (delta, oldDelta, source) => {
         if (source === 'user') {
-          setLocalValue(quill.root.innerHTML);
-          updateValue(quill.root.innerHTML);
+          const currentText = quill.getText();
+          const protectedRanges = findProtectedRanges(lastGoodValue);
+          
+          let hasProtectedChanges = false;
+          
+          // Prüfe, ob geschützte Bereiche verändert wurden
+          protectedRanges.forEach(range => {
+            const originalHeader = lastGoodValue.slice(range.start, range.end);
+            const currentHeader = currentText.slice(range.start, Math.min(range.end, currentText.length));
+            
+            if (originalHeader !== currentHeader) {
+              hasProtectedChanges = true;
+            }
+          });
+
+          if (hasProtectedChanges) {
+            // Stelle den letzten guten Zustand wieder her
+            quill.root.innerHTML = lastGoodHtml;
+            
+            // Aktualisiere den Text-Inhalt
+            lastGoodValue = quill.getText();
+            
+            // Markiere die geschützten Bereiche visuell
+            protectedRanges.forEach(range => {
+              quill.formatText(range.start, range.end - range.start, {
+                'color': '#000000',
+                'background': '#f0f0f0'
+              });
+            });
+
+            // Aktualisiere die Werte
+            setLocalValue(lastGoodHtml);
+            updateValue(lastGoodHtml);
+          } else {
+            // Speichere den neuen guten Zustand
+            lastGoodValue = currentText;
+            lastGoodHtml = quill.root.innerHTML;
+            setLocalValue(lastGoodHtml);
+            updateValue(lastGoodHtml);
+          }
         }
       });
     }
-  }, [updateValue]);
+  }, [updateValue, findProtectedRanges]);
+
+  // Füge einen neuen Effect hinzu, um die Platform-Container beim Schließen des Editors wiederherzustellen
+  useEffect(() => {
+    if (!isEditing && localValue) {
+      const containsPlatformHeaders = PROTECTED_HEADERS.some(header => 
+        localValue.toUpperCase().includes(header)
+      );
+      
+      if (containsPlatformHeaders) {
+        setLocalValue(localValue);
+        updateValue(localValue);
+      }
+    }
+  }, [isEditing, localValue, updateValue]);
 
   const handleAiAdjustmentLocal = useCallback((adjustmentOrState, text) => {
     if (typeof adjustmentOrState === 'boolean') {

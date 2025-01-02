@@ -7,54 +7,140 @@
 .base-container {
     display: flex;
     width: 100%;
-    max-width: 1200px; /* Maximale Gesamtbreite */
-    margin: 0 auto; /* Zentriert den Container */
+    max-width: 1200px;
+    margin: 0 auto;
     gap: 20px;
-    transition: all 0.5s ease;
     position: relative;
     align-items: stretch;
     box-sizing: border-box;
+    transition: all 0.3s ease-in-out;
+}
+
+/* Edit Mode */
+.base-container.editing-mode {
+    max-width: 100%;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 20px;
+    gap: 0;
 }
 
 /* Formular-Container */
 .form-container {
-    flex: 1;
-    max-width: 600px; /* Maximale Breite für den Formular-Container */
+    flex: 1 1 50%;
+    max-width: 50%;
     display: flex;
     flex-direction: column;
-    transition: all 0.5s ease;
     padding: 20px;
     border-radius: 8px;
     background-color: var(--dunkelgruen);
-    opacity: 1;
-    transform: translateX(0);
     align-self: flex-start;
-}
-
-/* Inhalt-Container für den Normalmodus */
-.content-container {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    gap: 20px;
-    justify-content: center; /* Zentriert die Elemente horizontal */
-    transition: all 0.5s ease;
+    transition: all 0.3s ease-in-out;
 }
 
 /* Anzeige-Container */
 .display-container {
-    flex: 1;
-    max-width: 700px; /* Maximale Breite für den Anzeige-Container */
+    flex: 1 1 50%;
+    max-width: 50%;
+    width: 50%;
     display: flex;
     flex-direction: column;
-    transition: all 0.5s ease;
     padding: 25px;
     border-radius: 8px;
     background-color: var(--background-color-alt);
+    transition: padding 0.3s ease-in-out;
 }
 
-.editing-mode .display-container {
+/* Anpassung wenn Content generiert wurde */
+.base-container.has-generated-content {
+    padding: 0 40px;
+}
+
+.base-container.has-generated-content .form-container {
+    flex: 0 0 30%;
+    max-width: 30%;
+}
+
+.base-container.has-generated-content .display-container {
+    flex: 0 0 65%;
+    max-width: 65%;
+    width: 65%;
+}
+
+/* Multi-Platform Anpassungen */
+.base-container.multi-platform {
+    max-width: 100%;
+    padding: 0 40px;
+}
+
+.base-container.multi-platform .form-container {
+    flex: 0 0 0;
+    max-width: 0;
+    padding: 0;
+    overflow: hidden;
+    transform: translateX(-350px);
+    transition: all 0.3s ease-out;
+}
+
+.base-container.multi-platform .form-container.visible {
+    flex: 0 0 350px;
+    max-width: 350px;
     padding: 20px;
+    transform: translateX(0);
+}
+
+.base-container.multi-platform .display-container {
+    flex: 1;
+    max-width: 100%;
+    transition: all 0.3s ease-out;
+}
+
+/* Anzeige-Container */
+.display-container {
+    flex: 1 1 50%;
+    max-width: 50%;
+    width: 50%;
+    display: flex;
+    flex-direction: column;
+    padding: 25px;
+    border-radius: 8px;
+    background-color: var(--background-color-alt);
+    transition: padding 0.3s ease-in-out;
+}
+
+.base-container.has-generated-content .display-container {
+    flex: 0 0 65%;
+    max-width: 65%;
+    width: 65%;
+    transition: padding 0.3s ease-in-out;
+}
+
+.base-container.editing-mode .display-container {
+    flex: 1;
+    max-width: 816px;
+    width: 816px;
+    margin: 0 auto;
+    min-height: calc(100vh - 40px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    padding: 0;
+    position: relative;
+    transition: padding 0.3s ease-in-out;
+}
+
+.base-container.multi-platform .display-container {
+    flex: 1;
+    max-width: 100%;
+}
+
+/* Spezifische Anpassungen für den Antragsversteher */
+.antragsversteher-base .form-container {
+    flex: 1 1 25%;
+    max-width: 25%;
+}
+
+.antragsversteher-base .display-container {
+    flex: 1 1 75%;
+    max-width: 75%;
 }
 
 /* Generierter Inhalt */
@@ -65,20 +151,25 @@
     min-height: 0;
 }
 
-
-/* Anzeige-Inhalt */
-.display-content {
-    flex: 1; /* Erlaubt dem Inhalt, den verfügbaren Platz zu füllen */
-    overflow-y: auto; /* Fügt Scrollbalken hinzu, wenn der Inhalt zu lang ist */
-    white-space: pre-wrap;
-    margin-bottom: 0;
+/* Header Styles */
+.display-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0px;
+    transition: all 0.3s ease-in-out;
 }
 
-/* Überschriften-Stile */
+.display-header h3 {
+    padding-left: 15px;
+}
+
+/* Überschriften */
 .form-container h3, .display-container h3, .sidebar h2 {
     margin-top: 0;
     text-align: left;
 }
+
 .sidebar h2 {
     color: var(--weiß);
 }
@@ -120,34 +211,7 @@
     padding: 8px;
 }
 
-/* Select-Feld-Stile */
-.form-container select, .sidebar select {
-    background-repeat: no-repeat;
-    background-position: right 10px center;
-    background-size: 10px;
-}
-
-.form-container select option, .sidebar select option {
-    background-color: var(--weiß);
-}
-
-.form-container select option:hover, .sidebar select option:hover {
-    background-color: var(--grashalm);
-    color: var(--dunkelgruen);
-}
-
-.display-container div {
-    color: var(--font-color);
-    text-align: left;
-    overflow-y: hidden;
-    margin-bottom: 0px;
-}
-
-.generated-post-container {
-    overflow-y: auto;
-}
-
-/* Fehlermeldungen und Fehler-Inputs */
+/* Fehlermeldungen */
 .form-container input.error-input,
 .form-container textarea.error-input,
 .form-container select.error-input,
@@ -157,123 +221,28 @@
     border: 2px solid var(--sonne);
 }
 
-
-.display-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 15px;
-    transition: all 0.3s ease;
-}
-
-.display-container.editing-mode .display-header {
-    padding-left: 20px;
-}
-
-.display-actions {
-    display: flex;
-    gap: 10px;
-}
-
-/* Aktions-Buttons */
-.display-actions .action-button {
-    background-color: transparent;
-    border: none;
-    cursor: pointer;
-    padding: 5px;
-    color: var(--font-color-h);
-    transition: opacity 0.3s ease, transform 0.2s ease;
-}
-
-.display-actions .action-button:hover {
-    opacity: 0.7;
-    transform: scale(1.1);
-}
-
-.edit-content-container {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    min-height: 0;
-}
-
-/* Bearbeitungs-Textarea */
-.edit-content-textarea {
-    width: 100%;
-    flex: 1 1 auto;
-    height: auto;
-    resize: none;
-    padding: 12px;
-    border: 1px solid var(--hellgrau);
-    border-radius: 4px;
-    font-family: inherit;
-    font-size: inherit;
-    line-height: 1.5;
-    transition: all 0.3s ease;
-    opacity: 0;
-    transform: translateY(10px);
-    background-color: var(--background-color);
-    color: var(--font-color);
-}
-
-.display-container.editing-mode .edit-content-textarea {
-    opacity: 1;
-    transform: translateY(0);
-}
-
-.edit-content-textarea:hover {
-    border-color: var(--klee);
-    /* Weitere Hover-Effekte */
-}
-
-/* Bearbeitungsmodus-Stile */
+/* Edit Mode */
 .base-container.editing-mode {
     gap: 0;
     justify-content: center;
-    width: 100%;
-    max-width: 1200px;
-    margin: 0 auto;
     padding: 20px;
-    transition: all 0.5s ease;
 }
 
 .base-container.editing-mode .form-container {
-    flex: 0;
-    width: 0;
-    padding: 0;
-    margin: 0;
-    opacity: 0;
-    transform: translateX(-100%);
-    transition: all 0.5s ease;
-}
-
-.base-container.editing-mode {
-    display: flex;
-    flex-direction: row;
-    width: 100%;
-    gap: 20px;
+    display: none;
 }
 
 .base-container.editing-mode .display-container {
     flex: 1;
-    max-width: 816px; /* Word-Dokument Breite */
-    width: 100%;
-    margin: 0 auto; /* Zentriert den Container */
-    height: auto;
-    min-height: calc(100vh - 40px);
+    max-width: 816px;
+    width: 816px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-    transition: all 0.5s ease;
-    transform: scale(1);
-}
-
-.display-container.editing-mode {
-    background-color: var(--background-color-alt);
     padding: 0;
-    transition: all 0.5s ease;
+    position: relative;
+    transform: translateZ(0);
 }
 
 .base-container.editing-mode .display-container .display-header {
-    color: var(--weiß);
     padding: 30px 20px;
     border-top-left-radius: 8px;
     border-top-right-radius: 8px;
@@ -282,146 +251,80 @@
     z-index: 10;
 }
 
-.base-container.editing-mode .display-container .display-header h3 {
-    margin-bottom: 0;
-}
-
-.base-container.editing-mode .display-container .display-content {
-    flex-grow: 1;
-    overflow-y: visible;
-}
-
-/* Verbesserte Animation für den Übergang */
-@keyframes fadeInScale {
-    from {
-        opacity: 0.9;
-        transform: scale(0.98);
+/* Media Queries */
+@media (max-width: 1024px) {
+    .base-container.multi-platform .platforms-container {
+        grid-template-columns: 1fr;
     }
-    to {
-        opacity: 1;
-        transform: scale(1);
-    }
-}
-
-@keyframes fadeOutScale {
-    from {
-        opacity: 1;
-        transform: scale(1);
-    }
-    to {
-        opacity: 0.9;
-        transform: scale(0.98);
-    }
-}
-
-.base-container.editing-mode .display-container {
-    animation: fadeInScale 0.5s ease forwards;
-}
-
-.base-container:not(.editing-mode) .display-container {
-    animation: fadeOutScale 0.5s ease forwards;
-}
-
-/* Entfernen der Animation für den Normalzustand */
-.base-container:not(.editing-mode) .display-container {
-    animation: none;
-}
-
-/* Stellen sicher, dass der Endzustand der Animation korrekt ist */
-.base-container .display-container {
-    transform: scale(1);
-    opacity: 1;
-}
-
-.save-button svg {
-    transition: all 0.3s ease;
-  }
-
-  /* Neue Stile für den generierten Zustand */
-.base-container.has-generated-content {
-    justify-content: center;
-    width: 100%;
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 20px;
-    gap: 20px;
-}
-
-.base-container.has-generated-content .form-container {
-    flex: 0.35;
-    min-width: 300px;
-    max-width: 350px;
-}
-
-.base-container.has-generated-content .content-container {
-    flex: 0.65;
-    width: 100%;
-    max-width: none;
-}
-
-/* Display Container erbt vom Content Container */
-.content-container .display-container {
-    width: 100%;
-    max-width: none;
-}
-
-/* Überschreiben der Content-Aufteilung im Editing-Mode */
-.base-container.has-generated-content.editing-mode {
-    justify-content: center;
-    width: 100%;
-    padding: 20px;
-}
-
-.base-container.has-generated-content.editing-mode .form-container {
-    display: none;
-}
-
-.base-container.has-generated-content.editing-mode .content-container {
-    flex: 1;
-    width: 100%;
-    max-width: 816px; /* Word-Dokument Breite */
-    margin: 0 auto; /* Zentriert den Container */
-}
-
-.base-container.has-generated-content.editing-mode .display-container {
-    width: 100%;
-    margin: 0 auto;
 }
 
 @media (max-width: 768px) {
     .base-container {
-        padding: 10px;
+        padding: 0;
         flex-direction: column;
         gap: 20px;
-        width: 100%;
         max-width: 100%;
         margin: 0;
     }
 
-    .base-container:not(.editing-mode) {
-        flex-direction: column;
-    }
-
-    .form-container, .content-container {
-        max-width: 100%;
-        margin-bottom: 20px;
-        margin-right: 0;
-        margin-left: 0;
-    }
-
-    .form-container {
-        order: 1;
-    }
-
-    .content-container {
-        order: 2;
-    }
-
+    .form-container,
     .display-container {
+        flex: 1 1 100%;
         max-width: 100%;
+        width: 100%;
+        margin: 0;
+        padding: 20px;
     }
 
-    /* Neue Stile für den Bearbeitungsmodus auf mobilen Geräten */
+    .display-header h3,
+    .form-container h3 {
+        padding-left: 0;
+        padding-right: 10px;
+        margin: 0;
+        margin-bottom: 0px;
+    }
+
+    .base-container.has-generated-content {
+        padding: 10px;
+    }
+
+    .base-container.has-generated-content .form-container,
+    .base-container.has-generated-content .display-container {
+        flex: 1 1 100%;
+        max-width: 100%;
+        width: 100%;
+    }
+
+    /* Multi-Platform Mobile Override */
+    .base-container.multi-platform {
+        padding: 10px;
+    }
+
+    .base-container.multi-platform .form-container {
+        position: static;
+        transform: none;
+        flex: 1 1 100%;
+        max-width: 100%;
+        width: 100%;
+        padding: 15px 20px;
+        margin-bottom: 15px;
+    }
+
+    .base-container.multi-platform .form-container.visible {
+        flex: 1 1 100%;
+        max-width: 100%;
+        padding: 15px 20px;
+        transform: none;
+    }
+
+    .base-container.multi-platform .display-container {
+        margin: 0;
+        flex: 1 1 100%;
+        max-width: 100%;
+        width: 100%;
+    }
+
+    /* Edit Mode Mobile */
     .base-container.editing-mode {
         position: fixed;
         top: 0;
@@ -431,101 +334,30 @@
         padding: 0;
         margin: 0;
         z-index: 1000;
-        overflow-y: auto;
         background-color: var(--background-color);
     }
 
     .base-container.editing-mode .display-container {
-        height: 100%;
-        width: 100%;
-        margin: 0;
-        padding: 0;
         border-radius: 0;
         box-shadow: none;
-        display: flex;
-        flex-direction: column;
-        overflow: auto
-    
-    }
-    .base-container.editing-mode .display-container .display-header {
-        border-top-left-radius: 0;
-        border-top-right-radius: 0;
+        width: 100%;
+        max-width: 100%;
+        height: 100vh;
     }
 
-    .base-container.editing-mode .display-header {
-        flex-shrink: 0;
-        position: sticky;
-        top: 0;
-        z-index: 1001;
-        padding: 10px;
+    .base-container.editing-mode .display-container .display-header {
+        padding: 20px 20px 20px 20px !important;
         background-color: var(--dunkelgruen);
         border-radius: 0;
     }
 
-    .base-container.editing-mode .display-content {
-        flex-grow: 1;
-        overflow-y: visible; /* Änderung: von 'auto' zu 'visible' */
-        -webkit-overflow-scrolling: touch; /* Für besseres Scrolling auf iOS */
-        padding: 10px;
-        min-height: calc(100vh - 60px);
-        height: auto;
-
+    .base-container.editing-mode .display-container .display-header h3 {
+        color: var(--sand);
+        margin-right: 10px;
+        padding-left: 5px;
     }
 
-    .base-container.editing-mode .quill-editor {
-        height: auto; /* Änderung: von '100%' zu 'auto' */
-        overflow-y: auto; /* Ermöglicht Scrolling innerhalb des Editors */
-        -webkit-overflow-scrolling: touch;
-    }
-
-    .base-container.editing-mode .quill-editor .ql-container {
-        height: auto; /* Lässt den Container mit dem Inhalt wachsen */
-        min-height: calc(100% - 42px); /* 42px ist die Standardhöhe der Quill-Toolbar */
-    }
-
-    .base-container.editing-mode .quill-editor .ql-editor {
-        min-height: 200px; /* Stellt sicher, dass es genug Platz zum Schreiben gibt */
-        max-height: none; /* Entfernt die maximale Höhe */
-    }
-
-    /* Animation für den Übergang in den Bearbeitungsmodus */
-    @keyframes expandFullscreen {
-        from {
-            transform: scale(0.95);
-            opacity: 0;
-        }
-        to {
-            transform: scale(1);
-            opacity: 1;
-        }
-    }
-
-    .base-container.editing-mode {
-        animation: expandFullscreen 0.3s ease-out forwards;
-    }
-
-    /* Stift-Button-Animation */
-    @keyframes rotatePencil {
-        from {
-            transform: rotate(0deg);
-        }
-        to {
-            transform: rotate(360deg);
-        }
-    }
-
-    .edit-button {
-        transition: background-color 0.3s ease;
-    }
-
-    .edit-button:active {
-        animation: rotatePencil 0.5s ease;
-    }
-
-    .base-container:not(.editing-mode) .display-header {
-        padding-left: 0;
-    }
-
+    /* Form Elements Mobile */
     .form-container input,
     .form-container textarea,
     .form-container select {
@@ -534,67 +366,7 @@
         margin-bottom: 10px;
     }
 
-    .base-container.editing-mode .form-container {
-        display: none;
-    }
-    .form-container select {
-        font-size: 0.7em; /* Kleinere Schriftgröße für mobile Geräte (14px in em umgerechnet) */
-        padding: 10px; /* Reduziertes Padding */
-        margin-bottom: 10px; /* Reduzierter Abstand zwischen den Eingabefeldern */
-    }
-
-    .base-container.has-generated-content .form-container {
-        flex: 1;
-        min-width: 100%;
-        width: 100%;
-        max-width: 100%;
-        margin-bottom: 10px;
-        padding: 15px;
-    }
-
-    .base-container.has-generated-content .content-container {
-        flex: 1;
-        min-width: 100%;
-        width: 100%;
-    }
-
-    .base-container.has-generated-content.editing-mode {
-        padding: 0;
-    }
-
-    .display-container {
-        padding: 20px;
-        margin: 0;
-        width: 100%;
-        max-width: 100%;
-    }
-
-    /* Form Container Anpassungen */
-    .form-container {
-        flex: 1;
-        width: 100%;
-        min-width: 100%;
-        max-width: 100%;
-        margin: 0;
-        padding: 15px;
-        box-sizing: border-box;
-    }
-
-    /* Form Content Anpassungen */
-    .form-content {
-        width: 100%;
-    }
-
-    /* Input-Felder Anpassungen */
-    .form-container input,
-    .form-container textarea,
-    .form-container select {
-        width: 100%;
-        box-sizing: border-box;
-    }
-
-    /* Button Container Anpassungen */
-    .button-container {
-        width: 100%;
+    .base-container.multi-platform .display-container .display-header {
+        padding: 20px 0;
     }
 }
