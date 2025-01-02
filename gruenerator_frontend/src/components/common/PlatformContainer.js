@@ -14,9 +14,7 @@ const PlatformContainer = ({
   const { 
     isEditing,
     handleEdit,
-    handleSave,
-    handleCancel,
-    value
+    handleSave
   } = useContext(FormContext);
 
   const handlePlatformEdit = () => {
