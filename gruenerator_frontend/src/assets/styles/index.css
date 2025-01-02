@@ -24,6 +24,7 @@
 @import './components/welcome.css';
 @import './components/help.css';
 @import './components/platform-container.css';
+@import './components/animatedcheckbox.css';
 
 /* Seiten-spezifische Styles */
 @import './pages/baseform.css';

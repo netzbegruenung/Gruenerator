@@ -1,18 +1,12 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useContext } from 'react';
 import PropTypes from 'prop-types';
 import BaseForm from '../../common/BaseForm';
 import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../utils/constants';
 import useApiSubmit from '../../hooks/useApiSubmit';
 import { useSharedContent } from '../../../hooks/useSharedContent';
-import { FaFacebook, FaInstagram, FaTwitter, FaLinkedin } from "react-icons/fa";
 import StyledCheckbox from '../../common/AnimatedCheckbox';
-
-const platformIcons = {
-  facebook: FaFacebook,
-  instagram: FaInstagram,
-  twitter: FaTwitter,
-  linkedin: FaLinkedin
-};
+import { FormContext } from '../../utils/FormContext';
+import { useDynamicTextSize } from '../../utils/commonFunctions';
 
 const SocialMediaGenerator = ({ showHeaderFooter = true }) => {
   const { initialContent } = useSharedContent();
@@ -26,32 +20,41 @@ const SocialMediaGenerator = ({ showHeaderFooter = true }) => {
     actionIdeas: false,
     reelScript: false 
   });
-
-  const { submitForm, loading, success, resetSuccess } = useApiSubmit('/claude_social');
-  const [error, setError] = useState('');
+  const [socialMediaContent, setSocialMediaContent] = useState('');
+  const textSize = useDynamicTextSize(socialMediaContent, 1.2, 0.8, [1000, 2000]);
+  const { submitForm, loading, success, resetSuccess, error } = useApiSubmit('/claude_social');
+  const { setGeneratedContent } = useContext(FormContext);
   const [useBackupProvider, setUseBackupProvider] = useState(false);
-  const [generatedContent, setGeneratedContent] = useState({});
 
   const handleSubmit = useCallback(async () => {
-    const selectedPlatforms = Object.keys(platforms).filter(key => platforms[key] && key !== 'actionIdeas');
+    const selectedPlatforms = Object.keys(platforms).filter(key => platforms[key]);
+
     const formData = { 
       thema, 
       details, 
-      platforms: selectedPlatforms, 
-      includeActionIdeas: platforms.actionIdeas
+      platforms: selectedPlatforms
     };
+
+    console.log('[SocialMediaGenerator] Sende Formular mit Daten:', formData);
     try {
-      const response = await submitForm(formData, useBackupProvider);
-      if (response?.content) {
-        setGeneratedContent(response.content);
+      const content = await submitForm(formData, useBackupProvider);
+      console.log('[SocialMediaGenerator] API Antwort erhalten:', content);
+      if (content) {
+        console.log('[SocialMediaGenerator] Setze generierten Content:', content.substring(0, 100) + '...');
+        setSocialMediaContent(content);
+        setGeneratedContent(content);
         setTimeout(resetSuccess, 3000);
-        setError('');
       }
     } catch (err) {
-      console.error('Error submitting form:', err);
-      setError(err.message || 'Ein Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.');
+      console.error('[SocialMediaGenerator] Fehler beim Formular-Submit:', err);
     }
-  }, [thema, details, platforms, submitForm, resetSuccess, useBackupProvider]);
+  }, [thema, details, platforms, submitForm, resetSuccess, setGeneratedContent, useBackupProvider]);
+
+  const handleGeneratedContentChange = useCallback((content) => {
+    console.log('[SocialMediaGenerator] Content Change Handler aufgerufen mit:', content?.substring(0, 100) + '...');
+    setSocialMediaContent(content);
+    setGeneratedContent(content);
+  }, [setGeneratedContent]);
 
   const handlePlatformChange = useCallback((platform) => {
     setPlatforms(prev => ({ ...prev, [platform]: !prev[platform] }));
@@ -100,28 +103,20 @@ const SocialMediaGenerator = ({ showHeaderFooter = true }) => {
     </>
   );
 
-  // Aktive Plattformen für die Anzeige
-  const activePlatforms = Object.entries(platforms)
-    .filter(([platform, isActive]) => isActive && platform !== 'actionIdeas')
-    .map(([platform]) => platform);
-
-  // Bestimme, ob wir Multi-Platform-Modus verwenden
-  const isMultiPlatform = activePlatforms.length > 1;
-
   return (
     <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
       <BaseForm
-        title="Social-Media Grünerator"
+        title="Social Media Grünerator"
         onSubmit={handleSubmit}
         loading={loading}
         success={success}
         error={error}
-        isMultiPlatform={isMultiPlatform}
-        platforms={activePlatforms}
-        platformIcons={platformIcons}
-        generatedContent={isMultiPlatform ? generatedContent : (generatedContent[activePlatforms[0]] || '')}
+        generatedContent={socialMediaContent}
+        textSize={textSize}
+        onGeneratedContentChange={handleGeneratedContentChange}
         useBackupProvider={useBackupProvider}
         setUseBackupProvider={setUseBackupProvider}
+        usePlatformContainers={true}
       >
         {renderFormInputs()}
       </BaseForm>

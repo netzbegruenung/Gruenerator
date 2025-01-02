@@ -202,15 +202,6 @@
     opacity: 0.8;
 }
 
-/* Horizontales Scrollen für display actions ermöglichen */
-.display-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    max-width: 100%;
-    overflow-x: hidden;
-}
-
 /* Entfernen des "Vorschläge werden geladen" Textes */
 .loading-text {
     display: none;
@@ -328,6 +319,7 @@
 
   .base-container.editing-mode .display-actions .action-button {
     color: var(--sand);
+    background-color: transparent;
   }
 
   .base-container.editing-mode .display-container .display-header h3 {
