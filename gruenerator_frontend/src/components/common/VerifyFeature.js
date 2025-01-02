@@ -44,8 +44,13 @@ export default function VerifyFeature({ feature, children, onVerified, onCancel 
     e.preventDefault();
     setError('');
     
+    console.log('Eingegebenes Passwort:', password);
+    console.log('Feature:', feature);
+    console.log('ENV Passwort:', process.env.REACT_APP_VERIFY_PASSWORD);
+    
     try {
       const success = await verifyPassword(password, feature);
+      console.log('Verifizierungsergebnis:', success);
       if (!success) {
         setError('Falsches Passwort');
       } else if (onVerified) {
