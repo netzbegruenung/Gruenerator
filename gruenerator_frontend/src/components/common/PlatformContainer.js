@@ -15,13 +15,15 @@ const PlatformContainer = ({
     activePlatform,
     isEditing,
     startPlatformEdit,
-    finishPlatformEdit
+    finishPlatformEdit,
+    generatedContent
   } = useContext(FormContext);
 
   const isEditingThis = isEditing && activePlatform === platform;
+  const currentContent = generatedContent[platform]?.content || content;
 
   const handlePlatformEdit = () => {
-    if (activePlatform === platform) {
+    if (isEditingThis) {
       finishPlatformEdit();
     } else {
       startPlatformEdit(platform);
@@ -43,7 +45,7 @@ const PlatformContainer = ({
         </div>
         {showEditButton && (
           <ActionButtons 
-            content={content}
+            content={currentContent}
             onEdit={handlePlatformEdit}
             isEditing={isEditingThis}
             allowEditing={true}

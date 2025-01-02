@@ -196,7 +196,7 @@ const BaseForm = ({
             {isEditing && activePlatform === platform ? (
               <Editor />
             ) : (
-              <div dangerouslySetInnerHTML={{ __html: platformContents[platform] || platformContent }} />
+              <div dangerouslySetInnerHTML={{ __html: platformContent }} />
             )}
           </PlatformContainer>
         );

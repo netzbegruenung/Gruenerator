@@ -32,7 +32,7 @@ export const FormProvider = ({
   const navigate = useNavigate();
   const location = useLocation();
   const [activePlatform, setActivePlatform] = useState(null);
-  const [platformContents, setPlatformContents] = useState({});
+  const [generatedContent, setGeneratedContent] = useState({});
 
   useEffect(() => {
     if (quillRef.current) {
@@ -115,11 +115,6 @@ export const FormProvider = ({
     setSyncStatus('syncing');
     debouncedSetSyncStatus();
   }, [debouncedSetSyncStatus]);
-
-  const setGeneratedContent = useCallback((content) => {
-    console.log('Setze generierten Inhalt:', content);
-    setValue(content);
-  }, []);
 
   const handleEdit = useCallback(() => {
     setIsEditing(true);
@@ -236,37 +231,25 @@ export const FormProvider = ({
     }
   }, [quillRef]);
 
-  const updatePlatformContent = useCallback((platform, content) => {
-    setPlatformContents(prev => ({
-      ...prev,
-      [platform]: content
-    }));
-    if (platform === activePlatform) {
-      setValue(content);
-    }
-  }, [activePlatform, setValue]);
-
   const startPlatformEdit = useCallback((platform) => {
     setActivePlatform(platform);
-    setValue(platformContents[platform] || '');
+    setValue(generatedContent[platform]?.content || '');
     setIsEditing(true);
-  }, [platformContents, setValue, setIsEditing]);
+  }, [generatedContent]);
 
   const finishPlatformEdit = useCallback(() => {
     if (activePlatform && value) {
-      const updatedContent = value;
-      updatePlatformContent(activePlatform, updatedContent);
       setGeneratedContent(prev => ({
         ...prev,
         [activePlatform]: {
           ...prev[activePlatform],
-          content: updatedContent
+          content: value
         }
       }));
     }
     setActivePlatform(null);
     setValue('');
-  }, [activePlatform, value, updatePlatformContent, setGeneratedContent]);
+  }, [activePlatform, value]);
 
   const contextValue = useMemo(() => ({
     value,
@@ -313,8 +296,7 @@ export const FormProvider = ({
     setIsApplyingAdjustment,
     hasContent,
     activePlatform,
-    platformContents,
-    updatePlatformContent,
+    generatedContent,
     startPlatformEdit,
     finishPlatformEdit
   }), [
@@ -352,8 +334,7 @@ export const FormProvider = ({
     isApplyingAdjustment,
     hasContent,
     activePlatform,
-    platformContents,
-    updatePlatformContent,
+    generatedContent,
     startPlatformEdit,
     finishPlatformEdit
   ]);
