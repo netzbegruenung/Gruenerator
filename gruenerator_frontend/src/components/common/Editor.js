@@ -53,7 +53,12 @@ const Editor = React.memo(({ setEditorInstance = () => {} }) => {
     setIsApplyingAdjustment,
   } = useContext(FormContext);
 
+  console.log('[Editor] isEditing Status:', isEditing);
+  console.log('[Editor] isAdjusting Status:', isAdjusting);
+  console.log('[Editor] activePlatform:', activePlatform);
+
   const quillRef = useRef(null);
+  const prevLocalValue = useRef('');
   const [localValue, setLocalValue] = useState(value);
   const [showAdjustButton, setShowAdjustButton] = useState(false);
   const isTouchDevice = useMemo(() => 'ontouchstart' in window || navigator.maxTouchPoints > 0, []);
@@ -86,6 +91,7 @@ const Editor = React.memo(({ setEditorInstance = () => {} }) => {
   ]);
 
   const handleChange = useCallback((content, source) => {
+    console.log('[Editor] Content Change:', { source, isEditing, content: content.substring(0, 100) + '...' });
     setLocalValue(content);
     if (isEditing && source === 'user') {
       updateValue(content);
@@ -213,9 +219,10 @@ const Editor = React.memo(({ setEditorInstance = () => {} }) => {
     if (quillRef.current) {
       try {
         const quill = quillRef.current.getEditor();
+        console.log('[Editor] Aktiviere/Deaktiviere Editor:', { isEditing, isAdjusting, enabled: isEditing && !isAdjusting });
         quill.enable(isEditing && !isAdjusting);
       } catch (error) {
-        // Fehlerbehandlung
+        console.error('[Editor] Fehler beim Aktivieren/Deaktivieren des Editors:', error);
       }
     }
   }, [isEditing, isAdjusting]);
@@ -241,88 +248,126 @@ const Editor = React.memo(({ setEditorInstance = () => {} }) => {
     }
   }, [newSelectedText, highlightedRange, applyAdjustment]);
 
-  const findProtectedRanges = useCallback((text) => {
-    const ranges = [];
-    const lines = text.split('\n');
-    let currentIndex = 0;
-
-    lines.forEach((line) => {
-      PROTECTED_HEADERS.forEach(header => {
-        if (line.trim().toUpperCase() === header) {
-          ranges.push({
-            start: currentIndex,
-            end: currentIndex + line.length
-          });
-        }
-      });
-      currentIndex += line.length + 1; // +1 für den Zeilenumbruch
-    });
-    return ranges;
-  }, []);
-
   useEffect(() => {
     if (quillRef.current) {
       const quill = quillRef.current.getEditor();
-      let lastGoodValue = quill.getText();
-      let lastGoodHtml = quill.root.innerHTML;
+      let lastProtectedHeaders = {};
+      
+      // Initial geschützte Header speichern
+      const text = quill.getText();
+      const lines = text.split('\n');
+      lines.forEach((line, index) => {
+        PROTECTED_HEADERS.forEach(header => {
+          if (line.trim().toUpperCase() === header) {
+            lastProtectedHeaders[index] = line;
+          }
+        });
+      });
       
       quill.on('text-change', (delta, oldDelta, source) => {
         if (source === 'user') {
           const currentText = quill.getText();
-          const protectedRanges = findProtectedRanges(lastGoodValue);
+          const currentLines = currentText.split('\n');
+          let offset = 0;
+          let hasHeaderChanges = false;
+          let contentChanged = false;
           
-          let hasProtectedChanges = false;
-          
-          // Prüfe, ob geschützte Bereiche verändert wurden
-          protectedRanges.forEach(range => {
-            const originalHeader = lastGoodValue.slice(range.start, range.end);
-            const currentHeader = currentText.slice(range.start, Math.min(range.end, currentText.length));
-            
-            if (originalHeader !== currentHeader) {
-              hasProtectedChanges = true;
-            }
+          // Sammle alle existierenden Header
+          const existingHeaders = new Set();
+          currentLines.forEach(line => {
+            PROTECTED_HEADERS.forEach(header => {
+              if (line.trim().toUpperCase() === header) {
+                existingHeaders.add(header);
+              }
+            });
           });
-
-          if (hasProtectedChanges) {
-            // Stelle den letzten guten Zustand wieder her
-            quill.root.innerHTML = lastGoodHtml;
+          
+          // Für jede Zeile prüfen
+          currentLines.forEach((line, index) => {
+            // Prüfen ob diese Zeile ein geschützter Header war
+            if (lastProtectedHeaders[index]) {
+              const originalHeader = lastProtectedHeaders[index];
+              // Nur wiederherstellen wenn der Header nicht schon existiert
+              if (line.trim().toUpperCase() !== originalHeader.trim().toUpperCase() && 
+                  !existingHeaders.has(originalHeader.trim().toUpperCase())) {
+                // Nur den Header wiederherstellen
+                const start = offset;
+                hasHeaderChanges = true;
+                
+                // Header wiederherstellen
+                quill.deleteText(start, line.length);
+                quill.insertText(start, originalHeader, {
+                  'color': '#000000',
+                  'background': '#f0f0f0'
+                });
+                existingHeaders.add(originalHeader.trim().toUpperCase());
+              }
+            }
             
-            // Aktualisiere den Text-Inhalt
-            lastGoodValue = quill.getText();
+            // Offset für nächste Zeile aktualisieren
+            offset += line.length + 1; // +1 für den Zeilenumbruch
+          });
+          
+          const newContent = quill.root.innerHTML;
+          contentChanged = newContent !== localValue;
+          
+          // Nur aktualisieren wenn Header geändert wurden oder der Inhalt sich wirklich geändert hat
+          if (hasHeaderChanges || contentChanged) {
+            // Neue geschützte Header speichern
+            const newHeaders = {};
+            const newLines = quill.getText().split('\n');
+            let hasValidContent = false;
             
-            // Markiere die geschützten Bereiche visuell
-            protectedRanges.forEach(range => {
-              quill.formatText(range.start, range.end - range.start, {
-                'color': '#000000',
-                'background': '#f0f0f0'
+            // Entferne doppelte Header
+            const seenHeaders = new Set();
+            newLines.forEach((line, index) => {
+              PROTECTED_HEADERS.forEach(header => {
+                if (line.trim().toUpperCase() === header) {
+                  if (!seenHeaders.has(header)) {
+                    newHeaders[index] = line;
+                    seenHeaders.add(header);
+                  } else {
+                    // Lösche doppelte Header
+                    const start = offset;
+                    quill.deleteText(start, line.length + 1);
+                    hasHeaderChanges = true;
+                  }
+                } else if (line.trim().length > 0) {
+                  hasValidContent = true;
+                }
               });
             });
-
-            // Aktualisiere die Werte
-            setLocalValue(lastGoodHtml);
-            updateValue(lastGoodHtml);
-          } else {
-            // Speichere den neuen guten Zustand
-            lastGoodValue = currentText;
-            lastGoodHtml = quill.root.innerHTML;
-            setLocalValue(lastGoodHtml);
-            updateValue(lastGoodHtml);
+            
+            // Nur aktualisieren wenn es gültigen Inhalt gibt
+            if (hasValidContent) {
+              lastProtectedHeaders = newHeaders;
+              const finalContent = quill.root.innerHTML;
+              if (finalContent !== localValue) {
+                setLocalValue(finalContent);
+                updateValue(finalContent);
+              }
+            }
           }
         }
       });
     }
-  }, [updateValue, findProtectedRanges]);
+  }, [updateValue]);
 
-  // Füge einen neuen Effect hinzu, um die Platform-Container beim Schließen des Editors wiederherzustellen
+  // Modifiziere den Platform-Container Wiederherstellungs-Effect
   useEffect(() => {
     if (!isEditing && localValue) {
       const containsPlatformHeaders = PROTECTED_HEADERS.some(header => 
         localValue.toUpperCase().includes(header)
       );
       
-      if (containsPlatformHeaders) {
-        setLocalValue(localValue);
-        updateValue(localValue);
+      if (containsPlatformHeaders && localValue !== prevLocalValue.current) {
+        prevLocalValue.current = localValue;
+        // Prüfe ob der Inhalt nicht leer ist
+        const textContent = localValue.replace(/<[^>]*>/g, '').trim();
+        if (textContent.length > 0) {
+          setLocalValue(localValue);
+          updateValue(localValue);
+        }
       }
     }
   }, [isEditing, localValue, updateValue]);
