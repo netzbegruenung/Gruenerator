@@ -13,6 +13,7 @@
 @import './components/navmenu.css';
 @import './components/editor.css';
 @import './components/sharepic.css';
+@import './components/advanced-editing.css';
 @import './components/image-slider.css';
 @import './components/popup.css';
 @import './components/tooltip.css';
