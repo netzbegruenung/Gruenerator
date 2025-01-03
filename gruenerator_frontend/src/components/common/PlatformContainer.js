@@ -1,44 +1,61 @@
-import React, { useContext } from 'react';
+import React, { useContext, useState } from 'react';
 import PropTypes from 'prop-types';
 import { FaTwitter, FaFacebook, FaInstagram, FaLinkedin, FaLightbulb, FaVideo } from 'react-icons/fa';
+import { IoCopyOutline, IoCheckmarkOutline } from "react-icons/io5";
 import { FormContext } from '../utils/FormContext';
+import { copyPlainText } from '../utils/commonFunctions';
 import Editor from './Editor';
 
 const PLATFORM_CONFIG = {
   'TWITTER': {
     displayName: 'Twitter',
     icon: FaTwitter,
-    color: '#1DA1F2'
+    color: '#1DA1F2',
+    copyText: 'Tweet kopieren'
   },
   'FACEBOOK': {
     displayName: 'Facebook',
     icon: FaFacebook,
-    color: '#4267B2'
+    color: '#4267B2',
+    copyText: 'Facebook-Post kopieren'
   },
   'INSTAGRAM': {
     displayName: 'Instagram',
     icon: FaInstagram,
-    color: '#E1306C'
+    color: '#E1306C',
+    copyText: 'Instagram-Post kopieren'
   },
   'LINKEDIN': {
     displayName: 'LinkedIn',
     icon: FaLinkedin,
-    color: '#0077B5'
+    color: '#0077B5',
+    copyText: 'LinkedIn-Post kopieren'
   },
   'ACTIONIDEAS': {
     displayName: 'Aktionsideen',
     icon: FaLightbulb,
-    color: '#4caf50'
+    color: '#4caf50',
+    copyText: 'Aktionsidee kopieren'
   },
   'INSTAGRAM REEL': {
     displayName: 'Instagram Reel',
     icon: FaVideo,
-    color: '#E1306C'
+    color: '#E1306C',
+    copyText: 'Reel-Text kopieren'
   }
 };
 
 const PlatformContainer = ({ content }) => {
   const { isEditing } = useContext(FormContext);
+  const [copiedPlatform, setCopiedPlatform] = useState(null);
+
+  const handleCopyPlatformContent = (content) => {
+    copyPlainText(content);
+    setCopiedPlatform(content);
+    setTimeout(() => {
+      setCopiedPlatform(null);
+    }, 2000);
+  };
 
   const cleanHtmlButKeepLinebreaks = (html) => {
     if (!html) return '';
@@ -83,6 +100,7 @@ const PlatformContainer = ({ content }) => {
   const renderPlatformCard = (platform, content) => {
     const config = PLATFORM_CONFIG[platform];
     const Icon = config.icon;
+    const isCopied = copiedPlatform === content;
 
     return (
       <div key={platform} className="platform-content">
@@ -92,6 +110,17 @@ const PlatformContainer = ({ content }) => {
               <Icon size={20} />
             </div>
             <h3 className="platform-name">{config.displayName}</h3>
+          </div>
+          <div className="display-actions">
+            <button
+              onClick={() => handleCopyPlatformContent(content)}
+              className="action-button"
+              aria-label={config.copyText}
+              data-tooltip-id="action-tooltip"
+              data-tooltip-content={config.copyText}
+            >
+              {isCopied ? <IoCheckmarkOutline size={16} /> : <IoCopyOutline size={16} />}
+            </button>
           </div>
         </div>
         <hr className="platform-divider" style={{ borderColor: `${config.color}40` }} />

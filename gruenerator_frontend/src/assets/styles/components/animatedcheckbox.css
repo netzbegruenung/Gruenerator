@@ -3,9 +3,7 @@
     --size: 15px;
     position: relative;
     display: inline-flex;
-    margin: 0 10px 10px 0;
-    margin-bottom: 10px;
-    padding: 10px;
+    padding: 5px;
 }
 
 .checkbox-wrapper-28 .promoted-input-checkbox {
@@ -69,6 +67,7 @@
 
 .platform-checkboxes {
     margin-top: 20px;
+    margin-bottom: 20px;
     display: flex;
     flex-wrap: wrap;
 }

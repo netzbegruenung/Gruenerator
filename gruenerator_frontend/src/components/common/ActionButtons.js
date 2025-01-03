@@ -66,7 +66,7 @@ const ActionButtons = ({
 };
 
 ActionButtons.propTypes = {
-  content: PropTypes.string,
+  content: PropTypes.string.isRequired,
   onEdit: PropTypes.func.isRequired,
   isEditing: PropTypes.bool.isRequired,
   allowEditing: PropTypes.bool,
