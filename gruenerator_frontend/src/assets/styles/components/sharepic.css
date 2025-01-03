@@ -1,30 +1,72 @@
 @import url('../common/variables.css');
 
+/* Grundlegende Container-Struktur */
+.sharepic-base-container {
+    display: flex;
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    gap: 20px;
+    position: relative;
+    align-items: stretch;
+    box-sizing: border-box;
+    transition: all 0.3s ease-in-out;
+}
+
+/* Formular-Container */
+.sharepic-base-container .form-container {
+    flex: 1 1 50%;
+    max-width: 50%;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    border-radius: 8px;
+    background-color: var(--dunkelgruen);
+    align-self: flex-start;
+    transition: all 0.3s ease-in-out;
+}
+
+/* Display-Container */
+.sharepic-base-container .display-container {
+    flex: 1 1 50%;
+    max-width: 50%;
+    width: 50%;
+    display: flex;
+    flex-direction: column;
+    padding: 25px;
+    border-radius: 8px;
+    background-color: var(--background-color-alt);
+    transition: padding 0.3s ease-in-out;
+}
+
 /* Result Step Proportionen */
 .sharepic-base-container.result-step .form-container {
-  flex: 0.65;
-  width: 65%;
-  max-width: none;
+    flex: 0 0 65%;
+    max-width: 65%;
+    width: 65%;
 }
 
-.sharepic-base-container.result-step .content-container {
-  flex: 0.35;
-  width: 35%;
+.sharepic-base-container.result-step .display-container {
+    flex: 0 0 35%;
+    max-width: 35%;
+    width: 35%;
 }
 
-/* ==========================================================================
-   Image Modification Controls
-   ========================================================================== */
+.sharepic-base-container.result-step h3 {
+    margin: 0;
+}
+
+/* Image Modification Controls */
 .sharepic-image-modification-controls {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
 }
 
 .sharepic-left-column,
 .sharepic-right-column {
-  display: flex;
-  flex-direction: column;
+    display: flex;
+    flex-direction: column;
 }
 
 /* Gruppierungen */
@@ -32,7 +74,10 @@
 .sharepic-absender-group,
 .sharepic-farbkombi-group,
 .sharepic-schriftgroesse-group {
-  margin-bottom: 1.5rem;
+    margin-bottom: 1.5rem;
+    padding: 0.75rem;
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
 }
 
 .sharepic-textzeilen-group p,
@@ -40,554 +85,235 @@
 .sharepic-farbkombi-group p,
 .sharepic-schriftgroesse-group p,
 .sharepic-credit-control p {
-  color: var(--weiß);
-  margin-bottom: 1rem;
+    color: var(--weiß);
+    margin-bottom: 1rem;
 }
 
-/* ==========================================================================
-   Form Controls
-   ========================================================================== */
+/* Form Controls */
 .sharepic-form-container h3,
 .sharepic-form-container h4 {
-  color: var(--weiß);
-}
-
-.sharepic-base-container.result-step .sharepic-form-container h3 {
-  margin-bottom: 0;
+    color: var(--weiß);
+    margin-bottom: 0;
 }
 
 /* Font Size Control */
 .sharepic-font-size-control {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.sharepic-font-size-control span {
-  color: var(--weiß);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
 }
 
 .sharepic-font-size-control button {
-  padding: 0.75rem;
-  border-radius: 4px;
-  border: 2px solid var(--weiß);
-  color: var(--weiß);
-  background-color: transparent;
-  cursor: pointer;
-  transition: all 0.3s ease;
+    padding: 0.75rem;
+    border-radius: 4px;
+    border: 2px solid var(--weiß);
+    color: var(--weiß);
+    background-color: transparent;
+    cursor: pointer;
+    transition: all 0.3s ease;
 }
 
 .sharepic-font-size-control button:hover {
-  background-color: var(--grashalm);
+    background-color: var(--grashalm);
 }
 
 .sharepic-font-size-control button.active {
-  background-color: var(--klee);
+    background-color: var(--klee);
 }
 
 /* Color Scheme Control */
 .sharepic-color-scheme-control {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
 }
 
 .sharepic-color-scheme-images {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1rem;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
 }
 
 .sharepic-color-scheme-option {
-  cursor: pointer;
-  transition: transform 0.3s ease;
-  background: none;
-  border: none;
-  padding: 0;
+    cursor: pointer;
+    transition: transform 0.3s ease;
+    background: none;
+    border: none;
+    padding: 0;
 }
 
 .sharepic-color-scheme-image {
-  width: 100px;
-  height: auto;
-  border-radius: 8px;
-  border: 2px solid transparent;
-  transition: border-color 0.3s ease;
+    width: 100px;
+    height: auto;
+    border-radius: 8px;
+    border: 2px solid transparent;
+    transition: border-color 0.3s ease;
 }
 
 .sharepic-color-scheme-option.active .sharepic-color-scheme-image {
-  border-color: var(--sand);
+    border-color: var(--sand);
 }
 
 .sharepic-color-scheme-option:hover .sharepic-color-scheme-image {
-  border-color: var(--klee);
+    border-color: var(--klee);
 }
 
-/* ==========================================================================
-   Advanced Editing
-   ========================================================================== */
+/* Advanced Editing */
 .sharepic-advanced-editing-button-container {
-  margin: 2rem 0;
-  width: 100%;
+    margin: 2rem 0;
+    width: 100%;
 }
 
 .sharepic-advanced-editing-button {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.75rem;
-  background-color: transparent;
-  color: var(--weiß);
-  border: 2px solid var(--weiß);
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.3s ease;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    background-color: transparent;
+    color: var(--weiß);
+    border: 2px solid var(--weiß);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s ease;
 }
 
-/* Advanced Controls Container */
-.sharepic-advanced-controls-container {
-  margin-top: 1rem;
-  padding: 0 1.5rem;
-  border-radius: 4px;
-}
-
-.sharepic-controls-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2rem;
-}
-
-.sharepic-control-item {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.sharepic-control-item p {
-  color: var(--weiß);
-}
-
-/* Balken Offset Controls */
-.sharepic-balken-offset-control {
-  color: var(--weiß);
-  margin-bottom: 1rem;
-}
-
-.sharepic-balken-offset-control-item {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-
-.sharepic-balken-offset-control-item label {
-  color: var(--weiß);
-  min-width: 80px;
-}
-
-.sharepic-balken-offset-buttons {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-}
-
-.sharepic-balken-offset-buttons button {
-  background-color: var(--klee);
-  color: var(--weiß);
-  border: none;
-  padding: 0.5rem;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.sharepic-balken-offset-buttons button:hover {
-  background-color: var(--grashalm);
-}
-
-.sharepic-balken-offset-buttons span {
-  min-width: 3rem;
-  text-align: center;
-  color: var(--weiß);
-  font-weight: bold;
-}
-
-/* Cross Controls */
-.sharepic-cross-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0.5rem;
-  max-width: 180px;
-  margin: 0 auto;
-}
-
-.sharepic-cross-button {
-  background-color: var(--klee);
-  color: var(--weiß);
-  border: none;
-  padding: 0.5rem;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.sharepic-cross-button:hover {
-  background-color: var(--grashalm);
-}
-
-.sharepic-cross-button.up { grid-column: 2 / 3; grid-row: 1 / 2; }
-.sharepic-cross-button.left { grid-column: 1 / 2; grid-row: 2 / 3; }
-.sharepic-cross-button.right { grid-column: 3 / 4; grid-row: 2 / 3; }
-.sharepic-cross-button.down { grid-column: 2 / 3; grid-row: 3 / 4; }
-
-.sharepic-offset-display {
-  grid-column: 2 / 3;
-  grid-row: 2 / 3;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background-color: transparent;
-  color: var(--weiß);
-  border: 2px solid var(--weiß);
-  border-radius: 4px;
-  padding: 0.5rem;
-  font-weight: bold;
-}
-
-/* ==========================================================================
-   Display & Preview
-   ========================================================================== */
-.sharepic-display-container {
-  background-color: var(--background-color-alt);
-  padding: 1.5rem;
-  border-radius: 8px;
-  width: 100%;
-}
-
-.sharepic-sticky-container {
-  position: sticky;
-  top: 20px;
-  z-index: 100;
-  width: 100%;
-  max-height: calc(100vh - 40px);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.sharepic-preview {
-  width: 100%;
-  height: auto;
-  max-width: 100%;
-  max-height: calc(100vh - 100px);
-  object-fit: contain;
-  display: block;
-  margin: 0 auto;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.sharepic-preview-image {
-  width: 100%;
-  max-width: 400px;
-  height: auto;
-  border-radius: 8px;
-  margin: 1rem 0;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-/* ==========================================================================
-   Utility Classes
-   ========================================================================== */
-.sharepic-error-message {
-  color: var(--weiß);
-  margin: 1rem 0;
-}
-
-.sharepic-button-container {
-  width: 100%;
-  display: flex;
-  justify-content: center;
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
-/* ==========================================================================
-   Responsive Design
-   ========================================================================== */
+/* Media Queries */
 @media (max-width: 1024px) {
-  .sharepic-image-modification-controls {
-    grid-template-columns: 1fr;
-  }
+    .sharepic-image-modification-controls {
+        grid-template-columns: 1fr;
+    }
 }
 
 @media (max-width: 768px) {
-  .sharepic-base-container {
-    flex-direction: column;
-    padding: 0.5rem;
-  }
+    .sharepic-base-container {
+        padding: 0;
+        flex-direction: column;
+        gap: 20px;
+        max-width: 100%;
+        margin: 0;
+    }
 
-  .sharepic-form-container {
-    order: -1;
-    width: 100%;
-    min-width: 100%;
-    max-width: 100%;
-    margin-bottom: 1rem;
-  }
+    .sharepic-base-container .form-container,
+    .sharepic-base-container .display-container {
+        flex: 1 1 100%;
+        max-width: 100%;
+        width: 100%;
+        margin: 0;
+        padding: 20px;
+    }
 
-  .sharepic-content-container {
-    width: 100%;
-  }
+    .sharepic-image-modification-controls {
+        padding: 0.75rem;
+        gap: 1.5rem;
+    }
 
-  /* Result Step: Display oben */
-  .sharepic-base-container.result-step .sharepic-form-container {
-    order: 1;
-  }
+    .sharepic-textzeilen-group,
+    .sharepic-absender-group,
+    .sharepic-farbkombi-group,
+    .sharepic-schriftgroesse-group,
+    .sharepic-credit-control {
+        padding: 0.75rem;
+        margin-bottom: 1rem;
+        background: rgba(0, 0, 0, 0.1);
+        border-radius: 8px;
+    }
 
-  /* Input Step & Upload Mobile */
-  .sharepic-upload-and-search-container {
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-
-  .sharepic-file-upload-wrapper,
-  .sharepic-unsplash-search-button {
-    width: 100%;
-    height: 48px;
-  }
-
-  .sharepic-form-buttons {
-    flex-direction: column;
-    gap: 0.75rem;
-    margin-top: 1.5rem;
-  }
-
-  .sharepic-form-buttons button {
-    width: 100%;
-    height: 48px;
-    font-size: 1rem;
-  }
-
-  /* Form Fields Mobile */
-  .sharepic-form-content {
-    margin: 0.5rem 0;
-  }
-
-  .sharepic-form-content input,
-  .sharepic-form-content textarea {
-    font-size: 16px;
-    padding: 0.75rem;
-    margin-bottom: 1rem;
-    border-radius: 8px;
-  }
-
-  /* Image Controls Mobile */
-  .sharepic-image-modification-controls {
-    padding: 0.75rem;
-    gap: 1.5rem;
-  }
-
-  .sharepic-advanced-controls-container {
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
-    padding: 0.75rem;
-  }
-
-  .sharepic-advanced-control {
-    padding: 0.75rem;
-  }
-
-  .sharepic-balken-offset-control-item {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.5rem;
-  }
-
-  .sharepic-balken-offset-control-item button {
-    height: 44px;
-    min-width: 44px;
-  }
-
-  .sharepic-cross-grid {
-    max-width: 180px;
-    gap: 0.75rem;
-  }
-
-  .sharepic-cross-grid button {
-    height: 44px;
-  }
-
-  .sharepic-color-scheme-images {
-    gap: 1.5rem;
-    padding: 0.5rem;
-  }
-
-  .sharepic-color-scheme-image {
-    width: 100px;
-    border-radius: 12px;
-  }
-
-  /* Preview & Display Mobile */
-  .sharepic-sticky-container {
-    position: static;
-    max-height: none;
-    margin: 0.5rem 0 1.5rem 0;
-    padding: 0.5rem;
-  }
-
-  .sharepic-preview {
-    max-height: none;
-    border-radius: 12px;
-  }
-
-  .sharepic-preview-image {
-    max-width: 100%;
-    border-radius: 12px;
-    margin: 0.5rem 0;
-  }
-
-  /* Textgruppen Mobile */
-  .sharepic-textzeilen-group,
-  .sharepic-absender-group,
-  .sharepic-farbkombi-group,
-  .sharepic-schriftgroesse-group,
-  .sharepic-credit-control {
-    padding: 0.75rem;
-    margin-bottom: 1rem;
-    background: rgba(0, 0, 0, 0.1);
-    border-radius: 8px;
-  }
-
-  .sharepic-textzeilen-group p,
-  .sharepic-absender-group p,
-  .sharepic-farbkombi-group p,
-  .sharepic-schriftgroesse-group p,
-  .sharepic-credit-control p {
-    margin-bottom: 0.75rem;
-    font-size: 0.95rem;
-    line-height: 1.4;
-  }
+    .sharepic-textzeilen-group p,
+    .sharepic-absender-group p,
+    .sharepic-farbkombi-group p,
+    .sharepic-schriftgroesse-group p,
+    .sharepic-credit-control p {
+        margin-bottom: 0.75rem;
+        font-size: 0.95rem;
+        line-height: 1.4;
+    }
 }
 
-/* ==========================================================================
-   Animations
-   ========================================================================== */
+/* Animations */
 @media (prefers-reduced-motion: reduce) {
-  .sharepic-base-container * {
-    transition: none !important;
-  }
+    .sharepic-base-container * {
+        transition: none !important;
+    }
 }
 
-/* ==========================================================================
-   Input Step & Upload
-   ========================================================================== */
-.sharepic-input-fields-wrapper {
-  display: flex;
-  flex-direction: column;
-}
-
+/* Upload und Search Container */
 .sharepic-upload-and-search-container {
-  display: flex;
-  gap: 1rem;
-  width: 100%;
-  margin-bottom: 1rem;
+    display: flex;
+    gap: 1rem;
+    width: 100%;
+    margin-bottom: 1rem;
+}
+
+.sharepic-file-upload-wrapper {
+    flex: 1;
 }
 
 .sharepic-file-input-text {
-  padding: 0.75rem 1rem;
-  transition: background-color 0.3s ease;
+    padding: 0.75rem 1rem;
+    background-color: var(--background-color-alt);
+    border: 2px solid var(--weiß);
+    border-radius: 4px;
+    color: var(--weiß);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 42px;
 }
 
 .sharepic-file-input-text:hover {
-  background-color: transparent;
+    background-color: var(--grashalm);
 }
 
 .sharepic-file-input-text .file-name {
-  max-width: 200px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .sharepic-unsplash-search-button {
-  flex: 1;
-  padding: 0.5rem 1rem;
-  background-color: var(--tanne);
-  color: var(--weiß);
-  border: 2px solid var(--weiß);
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-  white-space: nowrap;
-  height: 42px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+    flex: 1;
+    padding: 0.5rem 1rem;
+    background-color: var(--tanne);
+    color: var(--weiß);
+    border: 2px solid var(--weiß);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+    height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .sharepic-unsplash-search-button svg {
-  margin-right: 8px;
+    margin-right: 8px;
 }
 
 .sharepic-unsplash-search-button:hover {
-  background-color: var(--klee);
+    background-color: var(--klee);
 }
 
-/* Form Buttons */
-.sharepic-form-buttons {
-  display: flex;
-  gap: 1rem;
-  width: 100%;
-  margin-top: 1rem;
-}
+@media (max-width: 768px) {
+    .sharepic-upload-and-search-container {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
 
-.sharepic-form-buttons button {
-  flex: 1;
-  min-width: 0;
-}
+    .sharepic-file-upload-wrapper,
+    .sharepic-unsplash-search-button {
+        width: 100%;
+        height: 48px;
+    }
 
-.sharepic-back-button {
-  background-color: var(--sand);
-  color: var(--tanne);
-}
-
-.sharepic-generate-button {
-  background-color: var(--tanne);
-  color: var(--weiß);
-}
-
-/* ==========================================================================
-   Form Fields
-   ========================================================================== */
-
-.sharepic-form-content .help-text {
-  color: var(--sand);
-  font-size: 0.9em;
-  margin-top: -0.5rem;
-  margin-bottom: 1rem;
-}
-
-/* Social Media Section */
-.sharepic-social-media-section {
-  margin-top: 0.1rem;
-  padding-top: 0.1rem;
-}
-
-.sharepic-social-media-section h3 {
-  margin-bottom: 0.5rem;
-}
-
-.sharepic-social-media-section p {
-  margin-bottom: 1rem;
-  color: var(--weiß);
+    .sharepic-file-input-text {
+        height: 48px;
+    }
 }
 
