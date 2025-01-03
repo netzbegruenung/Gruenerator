@@ -16,94 +16,129 @@
 
 .advanced-editing-section h4 {
     color: var(--weiß);
-    margin: 0 0 1rem 0;
+    margin: 0 0 0.75rem 0;
     font-size: 1em;
     font-weight: 600;
 }
 
-/* Advanced Editing Button */
-.advanced-editing-button-container {
-    margin: 2rem 0;
+/* Horizontales Grid Layout */
+.advanced-controls-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
     width: 100%;
+    margin-top: 1.5rem;
 }
 
-.advanced-editing-button {
-    width: 100%;
+.control-item {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+/* Gemeinsame Styles für Beschreibungstexte */
+.control-item p,
+.cross-control p {
+    color: var(--weiß);
+    margin: 0 0 0.75rem 0;
+    font-size: 0.9em;
+    opacity: 0.9;
+}
+
+/* Cross Control Styles */
+.cross-control {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.cross-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-rows: 1fr 1fr 1fr;
+    gap: 0.5rem;
+    width: fit-content;
+    margin: 0 auto;
+}
+
+.cross-button {
+    background-color: transparent;
+    border: 2px solid var(--weiß);
+    color: var(--weiß);
+    border-radius: 4px;
+    padding: 0.5rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.5rem;
-    padding: 0.75rem;
-    background-color: transparent;
-    color: var(--weiß);
-    border: 2px solid var(--weiß);
-    border-radius: 4px;
-    cursor: pointer;
-    transition: all 0.3s ease;
+    width: 36px;
+    height: 36px;
 }
 
-.advanced-editing-button:hover {
+.cross-button:hover {
     background-color: var(--klee);
 }
 
-/* Zwei-Spalten Layout */
-.advanced-controls-container {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 2rem;
-    margin-top: 1.5rem;
-    width: 100%;
+.cross-button.up {
+    grid-column: 2;
+    grid-row: 1;
 }
 
-/* Linke Spalte */
-.advanced-controls-container .left-column {
+.cross-button.left {
+    grid-column: 1;
+    grid-row: 2;
+}
+
+.offset-display {
+    grid-column: 2;
+    grid-row: 2;
     display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-    background: rgba(0, 0, 0, 0.1);
-    border-radius: 8px;
-    padding: 1.5rem;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    width: 36px;
+    height: 36px;
 }
 
-/* Rechte Spalte */
-.advanced-controls-container .right-column {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
+.cross-button.right {
+    grid-column: 3;
+    grid-row: 2;
 }
 
-.advanced-controls-container .right-column .control-item {
-    background: rgba(0, 0, 0, 0.1);
-    border-radius: 8px;
-    padding: 1.5rem;
+.cross-button.down {
+    grid-column: 2;
+    grid-row: 3;
+}
+
+.offset-value {
+    color: var(--weiß);
+    font-size: 0.8em;
+    font-family: monospace;
+    text-align: center;
+    white-space: nowrap;
 }
 
 /* Balken Offset Control */
 .balken-offset-control {
-    margin-bottom: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
 }
 
 .balken-offset-control-item {
     display: flex;
     align-items: center;
-    gap: 1rem;
-    margin-bottom: 1rem;
-}
-
-.balken-offset-control-item:last-child {
-    margin-bottom: 0;
-}
-
-.balken-offset-control-item label {
-    color: var(--weiß);
-    min-width: 80px;
-    font-size: 0.9em;
+    justify-content: center;
 }
 
 .balken-offset-buttons {
     display: flex;
     align-items: center;
     gap: 0.75rem;
+    padding: 0.25rem;
+    border-radius: 4px;
 }
 
 .balken-offset-buttons button {
@@ -117,6 +152,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    width: 32px;
+    height: 32px;
 }
 
 .balken-offset-buttons button:hover {
@@ -124,29 +161,64 @@
 }
 
 .balken-offset-buttons span {
-    min-width: 60px;
+    min-width: 50px;
     text-align: center;
     color: var(--weiß);
+    font-family: monospace;
+    font-size: 0.9em;
 }
 
 /* Media Queries */
+@media (max-width: 1200px) {
+    .advanced-controls-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .advanced-controls-grid > *:last-child {
+        grid-column: 1 / -1;
+        max-width: 400px;
+        margin: 0 auto;
+    }
+}
+
 @media (max-width: 768px) {
+    .advanced-controls-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .advanced-controls-grid > *:last-child {
+        grid-column: auto;
+        max-width: none;
+        margin: 0;
+    }
+
     .advanced-editing-section {
         padding: 1rem;
     }
 
-    .advanced-controls-container {
-        grid-template-columns: 1fr;
-        gap: 1.5rem;
+    .control-item {
+        padding: 0.75rem;
     }
 
-    .balken-offset-control-item {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 0.5rem;
+    .cross-button,
+    .offset-display {
+        width: 32px;
+        height: 32px;
     }
 
-    .balken-offset-control-item label {
-        min-width: auto;
+    .offset-value {
+        font-size: 0.75em;
+    }
+
+    .balken-offset-buttons button {
+        width: 28px;
+        height: 28px;
+        padding: 0.375rem;
+    }
+
+    .balken-offset-buttons span {
+        min-width: 40px;
+        font-size: 0.8em;
     }
 } 
