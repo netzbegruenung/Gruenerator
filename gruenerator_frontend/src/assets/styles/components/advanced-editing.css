@@ -4,23 +4,83 @@
     border-radius: 8px;
     padding: 1.5rem;
     margin-top: 1.5rem;
+    width: 100%;
 }
 
 .advanced-editing-section h3 {
     color: var(--weiß);
     margin: 0 0 1.5rem 0;
     font-size: 1.1em;
+    font-weight: 600;
 }
 
 .advanced-editing-section h4 {
     color: var(--weiß);
     margin: 0 0 1rem 0;
     font-size: 1em;
+    font-weight: 600;
+}
+
+/* Advanced Editing Button */
+.advanced-editing-button-container {
+    margin: 2rem 0;
+    width: 100%;
+}
+
+.advanced-editing-button {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    background-color: transparent;
+    color: var(--weiß);
+    border: 2px solid var(--weiß);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.advanced-editing-button:hover {
+    background-color: var(--klee);
+}
+
+/* Zwei-Spalten Layout */
+.advanced-controls-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    margin-top: 1.5rem;
+    width: 100%;
+}
+
+/* Linke Spalte */
+.advanced-controls-container .left-column {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    padding: 1.5rem;
+}
+
+/* Rechte Spalte */
+.advanced-controls-container .right-column {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.advanced-controls-container .right-column .control-item {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    padding: 1.5rem;
 }
 
 /* Balken Offset Control */
 .balken-offset-control {
-    margin-bottom: 2rem;
+    margin-bottom: 1rem;
 }
 
 .balken-offset-control-item {
@@ -30,105 +90,43 @@
     margin-bottom: 1rem;
 }
 
+.balken-offset-control-item:last-child {
+    margin-bottom: 0;
+}
+
 .balken-offset-control-item label {
     color: var(--weiß);
     min-width: 80px;
+    font-size: 0.9em;
 }
 
 .balken-offset-buttons {
     display: flex;
-    gap: 0.5rem;
     align-items: center;
+    gap: 0.75rem;
 }
 
 .balken-offset-buttons button {
-    background-color: var(--klee);
+    background-color: transparent;
+    border: 2px solid var(--weiß);
     color: var(--weiß);
-    border: none;
-    padding: 0.5rem;
     border-radius: 4px;
+    padding: 0.5rem;
     cursor: pointer;
-    transition: background-color 0.3s ease;
+    transition: all 0.3s ease;
     display: flex;
     align-items: center;
     justify-content: center;
-    min-width: 44px;
-    height: 44px;
 }
 
 .balken-offset-buttons button:hover {
-    background-color: var(--grashalm);
+    background-color: var(--klee);
 }
 
 .balken-offset-buttons span {
-    min-width: 3rem;
+    min-width: 60px;
     text-align: center;
     color: var(--weiß);
-    font-weight: bold;
-}
-
-/* Controls Row */
-.controls-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 2rem;
-}
-
-.control-item {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-}
-
-.control-item p {
-    color: var(--weiß);
-    margin: 0;
-}
-
-/* Cross Controls */
-.cross-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 0.5rem;
-    max-width: 180px;
-    margin: 0 auto;
-}
-
-.cross-button {
-    background-color: var(--klee);
-    color: var(--weiß);
-    border: none;
-    padding: 0.5rem;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 44px;
-}
-
-.cross-button:hover {
-    background-color: var(--grashalm);
-}
-
-.cross-button.up { grid-column: 2 / 3; grid-row: 1 / 2; }
-.cross-button.left { grid-column: 1 / 2; grid-row: 2 / 3; }
-.cross-button.right { grid-column: 3 / 4; grid-row: 2 / 3; }
-.cross-button.down { grid-column: 2 / 3; grid-row: 3 / 4; }
-
-.offset-display {
-    grid-column: 2 / 3;
-    grid-row: 2 / 3;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    background-color: transparent;
-    color: var(--weiß);
-    border: 2px solid var(--weiß);
-    border-radius: 4px;
-    padding: 0.5rem;
-    font-weight: bold;
 }
 
 /* Media Queries */
@@ -137,7 +135,7 @@
         padding: 1rem;
     }
 
-    .controls-row {
+    .advanced-controls-container {
         grid-template-columns: 1fr;
         gap: 1.5rem;
     }
