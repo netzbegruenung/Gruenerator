@@ -196,7 +196,7 @@
     padding: 0.75rem;
     border-radius: 4px;
     border: 2px solid var(--weiß);
-    background-color: transparent;
+    background-color: rgba(0, 0, 0, 0.2);
     color: var(--weiß);
     font-size: 1em;
     transition: all 0.3s ease;
@@ -205,7 +205,7 @@
 .credit-control input:focus {
     outline: none;
     border-color: var(--klee);
-    background-color: rgba(255, 255, 255, 0.1);
+    background-color: rgba(0, 0, 0, 0.3);
 }
 
 .credit-control input::placeholder {
@@ -265,10 +265,9 @@
 
 @media (max-width: 768px) {
     .sharepic-base-container {
-        padding: 0;
         flex-direction: column;
-        gap: 20px;
-        max-width: 100%;
+        gap: 16px;
+        padding: 16px;
         margin: 0;
     }
 
@@ -278,46 +277,123 @@
         max-width: 100%;
         width: 100%;
         margin: 0;
-        padding: 20px;
+        padding: 16px;
     }
 
-    .sharepic-image-modification-controls {
-        grid-template-columns: 1fr;
-        gap: 1.5rem;
+    /* Spezielle Anpassungen für den Result-Step */
+    .sharepic-base-container.result-step {
+        display: flex;
+        flex-direction: column;
     }
 
-    .sharepic-left-column,
-    .sharepic-right-column {
-        gap: 1rem;
+    .sharepic-base-container.result-step .display-container {
+        order: -1; /* Bringt den Display-Container nach oben */
     }
 
-    .sharepic-textzeilen-group,
-    .sharepic-absender-group,
-    .sharepic-farbkombi-group,
-    .sharepic-schriftgroesse-group,
-    .sharepic-social-media-group {
-        padding: 0.75rem;
-        margin-bottom: 1rem;
-        background: rgba(0, 0, 0, 0.1);
-        border-radius: 8px;
-    }
-
-    .sharepic-textzeilen-group p,
-    .sharepic-absender-group p,
-    .sharepic-farbkombi-group p,
-    .sharepic-schriftgroesse-group p,
-    .sharepic-social-media-group p {
-        margin-bottom: 0.75rem;
-        font-size: 0.95rem;
-        line-height: 1.4;
+    .sharepic-base-container.result-step .form-container {
+        width: 100%;
+        max-width: 100%;
     }
 
     .image-modification-controls {
         grid-template-columns: 1fr;
+        gap: 1rem;
     }
-    
+
+    .textzeilen-group,
+    .absender-group,
+    .color-controls,
+    .font-size-group,
+    .social-media-group {
+        padding: 1rem;
+    }
+
+    .textzeilen-group h3,
+    .absender-group h3,
+    .color-controls h3,
+    .font-size-group h3,
+    .social-media-group h3 {
+        font-size: 1em;
+        margin-bottom: 0.5rem;
+    }
+
+    .textzeilen-group p,
+    .absender-group p,
+    .color-controls p,
+    .font-size-group p,
+    .social-media-group p {
+        font-size: 0.9em;
+        margin-bottom: 0.5rem;
+    }
+
+    .button-container {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .button-container .button-wrapper {
+        width: 100%;
+    }
+
+    .font-size-buttons {
+        flex-wrap: wrap;
+    }
+
+    .font-size-buttons button {
+        flex: 1 1 calc(50% - 0.375rem);
+        padding: 0.5rem;
+        font-size: 0.9em;
+    }
+
     .color-scheme-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+    }
+
+    .color-scheme-image {
+        width: 100%;
+        height: auto;
+    }
+
+    .credit-control input {
+        padding: 0.5rem;
+        font-size: 0.9em;
+    }
+
+    .social-media-button {
+        padding: 0.5rem;
+        font-size: 0.9em;
+    }
+
+    /* Sticky Preview im mobilen Layout */
+    .sticky-sharepic-container {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: var(--background-color-alt);
+        padding: 1rem;
+        margin: -1rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .sticky-sharepic {
+        width: 100%;
+        height: auto;
+        border-radius: 4px;
+    }
+
+    /* Verbesserte Input-Felder für Touch */
+    input[type="text"],
+    textarea {
+        font-size: 16px; /* Verhindert Zoom auf iOS */
+        padding: 0.75rem;
+    }
+
+    /* Bessere Touch-Targets */
+    button,
+    .button-wrapper {
+        min-height: 44px;
     }
 }
 
@@ -409,5 +485,17 @@
     .button-container .sharepic-unsplash-search-button {
         height: 48px;
     }
+}
+
+.advanced-editing-button-container {
+    margin-top: 2rem;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+}
+
+.advanced-editing-button {
+    width: auto;
+    min-width: 250px;
 }
 
