@@ -64,26 +64,24 @@ const FileUpload = ({ loading, file, handleChange, error, allowedTypes, selected
   };
 
   return (
-    <div className={`file-upload-container ${isCompact ? 'compact' : ''}`}>
-      <div className={`file-input-wrapper ${loading ? 'loading' : ''}`}>
-        <input
-          id="fileUpload"
-          type="file"
-          name="fileUpload"
-          onChange={onFileChange}
-          accept={Array.isArray(allowedTypes) && allowedTypes.length > 0 ? allowedTypes.join(',') : 'image/*'}
-          ref={fileInputRef}
-          style={{ display: 'none' }}
-        />
-        <label 
-          htmlFor="fileUpload" 
-          className="file-input-text" 
-          onClick={handleClick}
-          aria-label={isCompact ? "Datei hochladen" : undefined}
-        >
-          {renderContent()}
-        </label>
-      </div>
+    <div className={`button-wrapper ${isCompact ? 'compact' : ''}`}>
+      <input
+        id="fileUpload"
+        type="file"
+        name="fileUpload"
+        onChange={onFileChange}
+        accept={Array.isArray(allowedTypes) && allowedTypes.length > 0 ? allowedTypes.join(',') : 'image/*'}
+        ref={fileInputRef}
+        style={{ display: 'none' }}
+      />
+      <label 
+        htmlFor="fileUpload" 
+        className={`file-input-text ${loading ? 'loading' : ''}`}
+        onClick={handleClick}
+        aria-label={isCompact ? "Datei hochladen" : undefined}
+      >
+        {renderContent()}
+      </label>
       {!isCompact && error && <div className="error-message">{error}</div>}
     </div>
   );

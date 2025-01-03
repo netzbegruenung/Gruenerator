@@ -57,53 +57,122 @@
 }
 
 /* Image Modification Controls */
-.sharepic-image-modification-controls {
+.image-modification-controls {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 2rem;
+    margin-top: 1.5rem;
 }
 
-.sharepic-left-column,
-.sharepic-right-column {
+.image-modification-controls .left-column,
+.image-modification-controls .right-column {
     display: flex;
     flex-direction: column;
+    gap: 1.5rem;
 }
 
 /* Gruppierungen */
-.sharepic-textzeilen-group,
-.sharepic-absender-group,
-.sharepic-farbkombi-group,
-.sharepic-schriftgroesse-group {
-    margin-bottom: 1.5rem;
-    padding: 0.75rem;
+.textzeilen-group,
+.absender-group,
+.color-controls,
+.font-size-group,
+.social-media-group {
     background: rgba(0, 0, 0, 0.1);
     border-radius: 8px;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
 }
 
-.sharepic-textzeilen-group p,
-.sharepic-absender-group p,
-.sharepic-farbkombi-group p,
-.sharepic-schriftgroesse-group p,
-.sharepic-credit-control p {
+/* Einheitliche Überschriften */
+.textzeilen-group h3,
+.absender-group h3,
+.color-controls h3,
+.font-size-group h3,
+.social-media-group h3 {
     color: var(--weiß);
-    margin-bottom: 1rem;
+    margin: 0;
+    font-size: 1.1em;
+    font-weight: 600;
 }
 
-/* Form Controls */
-.sharepic-form-container h3,
-.sharepic-form-container h4 {
+/* Einheitliche Beschreibungstexte */
+.textzeilen-group p,
+.absender-group p,
+.color-controls p,
+.font-size-group p,
+.social-media-group p {
     color: var(--weiß);
-    margin-bottom: 0;
+    margin: 0 0 0.5rem 0;
+    font-size: 0.9em;
+    opacity: 0.9;
+    line-height: 1.4;
+}
+
+/* Einheitliche Abstände für Controls */
+.color-scheme-control,
+.font-size-control,
+.credit-control {
+    margin-top: 0.5rem;
+}
+
+/* Color Scheme Control */
+.color-scheme-control {
+    width: 100%;
+}
+
+.color-scheme-grid {
+    display: grid;
+    grid-template-columns: repeat(2, auto);
+    gap: 1rem;
+    width: 100%;
+    justify-content: center;
+    align-items: start;
+}
+
+.color-scheme-option {
+    cursor: pointer;
+    transition: transform 0.3s ease;
+    background: none;
+    border: none;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.color-scheme-image {
+    width: auto;
+    height: auto;
+    display: block;
+    border-radius: 8px;
+    border: 2px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.color-scheme-option.active .color-scheme-image {
+    border-color: var(--sand);
+    transform: scale(0.95);
+}
+
+.color-scheme-option:hover .color-scheme-image {
+    border-color: var(--klee);
+    transform: scale(0.98);
 }
 
 /* Font Size Control */
-.sharepic-font-size-control {
+.font-size-control {
+    margin: 0;
+}
+
+.font-size-buttons {
     display: flex;
-    align-items: center;
     gap: 0.75rem;
 }
 
-.sharepic-font-size-control button {
+.font-size-buttons button {
+    flex: 1;
     padding: 0.75rem;
     border-radius: 4px;
     border: 2px solid var(--weiß);
@@ -113,50 +182,57 @@
     transition: all 0.3s ease;
 }
 
-.sharepic-font-size-control button:hover {
+.font-size-buttons button:hover {
     background-color: var(--grashalm);
 }
 
-.sharepic-font-size-control button.active {
+.font-size-buttons button.active {
     background-color: var(--klee);
 }
 
-/* Color Scheme Control */
-.sharepic-color-scheme-control {
+/* Credit Control */
+.credit-control input {
     width: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
+    padding: 0.75rem;
+    border-radius: 4px;
+    border: 2px solid var(--weiß);
+    background-color: transparent;
+    color: var(--weiß);
+    font-size: 1em;
+    transition: all 0.3s ease;
 }
 
-.sharepic-color-scheme-images {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1rem;
-}
-
-.sharepic-color-scheme-option {
-    cursor: pointer;
-    transition: transform 0.3s ease;
-    background: none;
-    border: none;
-    padding: 0;
-}
-
-.sharepic-color-scheme-image {
-    width: 100px;
-    height: auto;
-    border-radius: 8px;
-    border: 2px solid transparent;
-    transition: border-color 0.3s ease;
-}
-
-.sharepic-color-scheme-option.active .sharepic-color-scheme-image {
-    border-color: var(--sand);
-}
-
-.sharepic-color-scheme-option:hover .sharepic-color-scheme-image {
+.credit-control input:focus {
+    outline: none;
     border-color: var(--klee);
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.credit-control input::placeholder {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.social-media-button {
+    width: 100%;
+    padding: 0.75rem;
+    background-color: var(--klee);
+    color: var(--weiß);
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    margin: 0;
+}
+
+.social-media-button:hover {
+    background-color: var(--grashalm);
+}
+
+/* Form Controls */
+.sharepic-form-container h3,
+.sharepic-form-container h4 {
+    color: var(--weiß);
+    margin-bottom: 0;
 }
 
 /* Advanced Editing */
@@ -206,15 +282,20 @@
     }
 
     .sharepic-image-modification-controls {
-        padding: 0.75rem;
+        grid-template-columns: 1fr;
         gap: 1.5rem;
+    }
+
+    .sharepic-left-column,
+    .sharepic-right-column {
+        gap: 1rem;
     }
 
     .sharepic-textzeilen-group,
     .sharepic-absender-group,
     .sharepic-farbkombi-group,
     .sharepic-schriftgroesse-group,
-    .sharepic-credit-control {
+    .sharepic-social-media-group {
         padding: 0.75rem;
         margin-bottom: 1rem;
         background: rgba(0, 0, 0, 0.1);
@@ -225,10 +306,18 @@
     .sharepic-absender-group p,
     .sharepic-farbkombi-group p,
     .sharepic-schriftgroesse-group p,
-    .sharepic-credit-control p {
+    .sharepic-social-media-group p {
         margin-bottom: 0.75rem;
         font-size: 0.95rem;
         line-height: 1.4;
+    }
+
+    .image-modification-controls {
+        grid-template-columns: 1fr;
+    }
+    
+    .color-scheme-grid {
+        grid-template-columns: 1fr;
     }
 }
 
@@ -239,18 +328,30 @@
     }
 }
 
-/* Upload und Search Container */
-.sharepic-upload-and-search-container {
+/* Button Container */
+.button-container {
     display: flex;
     gap: 1rem;
     width: 100%;
     margin-bottom: 1rem;
 }
 
-.sharepic-file-upload-wrapper {
+.button-container .button-wrapper {
     flex: 1;
 }
 
+.button-container .form-button,
+.button-container .back-button,
+.button-container .sharepic-file-input-text,
+.button-container .sharepic-unsplash-search-button {
+    width: 100%;
+    height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* File Input Styling */
 .sharepic-file-input-text {
     padding: 0.75rem 1rem;
     background-color: var(--background-color-alt);
@@ -259,10 +360,6 @@
     color: var(--weiß);
     cursor: pointer;
     transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 42px;
 }
 
 .sharepic-file-input-text:hover {
@@ -276,8 +373,8 @@
     white-space: nowrap;
 }
 
+/* Unsplash Button */
 .sharepic-unsplash-search-button {
-    flex: 1;
     padding: 0.5rem 1rem;
     background-color: var(--tanne);
     color: var(--weiß);
@@ -286,10 +383,6 @@
     cursor: pointer;
     transition: all 0.3s ease;
     white-space: nowrap;
-    height: 42px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
 }
 
 .sharepic-unsplash-search-button svg {
@@ -301,18 +394,19 @@
 }
 
 @media (max-width: 768px) {
-    .sharepic-upload-and-search-container {
-        flex-direction: column;
+    .button-container {
+        flex-direction: row;
         gap: 0.75rem;
     }
-
-    .sharepic-file-upload-wrapper,
-    .sharepic-unsplash-search-button {
-        width: 100%;
-        height: 48px;
+    
+    .button-container .button-wrapper {
+        flex: 1;
     }
 
-    .sharepic-file-input-text {
+    .button-container .form-button,
+    .button-container .back-button,
+    .button-container .sharepic-file-input-text,
+    .button-container .sharepic-unsplash-search-button {
         height: 48px;
     }
 }

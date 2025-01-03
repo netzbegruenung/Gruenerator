@@ -9,16 +9,17 @@ import {
 
 export const FontSizeControl = ({ fontSize, onControlChange }) => (
   <div className="font-size-control">
-    <span>{IMAGE_MODIFICATION.LABELS.FONT_SIZE}</span>
-    {IMAGE_MODIFICATION.FONT_SIZE.OPTIONS.map(option => (
-      <button 
-        key={option.label}
-        onClick={() => onControlChange('fontSize', option.value)} 
-        className={fontSize === option.value ? 'active' : ''}
-      >
-        {option.label}
-      </button>
-    ))}
+    <div className="font-size-buttons">
+      {IMAGE_MODIFICATION.FONT_SIZE.OPTIONS.map(option => (
+        <button 
+          key={option.label}
+          onClick={() => onControlChange('fontSize', option.value)} 
+          className={fontSize === option.value ? 'active' : ''}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
   </div>
 );
 
@@ -80,12 +81,12 @@ BalkenOffsetControl.propTypes = {
 BalkenOffsetControl.defaultProps = {
   balkenOffset: SHAREPIC_GENERATOR.DEFAULT_BALKEN_OFFSET,
 };
+
 export const ColorSchemeControl = ({ colorScheme, onControlChange }) => {
   return (
     <div className="color-scheme-control">
-      <div className="color-scheme-images">
+      <div className="color-scheme-grid">
         {IMAGE_MODIFICATION.COLOR_SCHEMES.map((scheme, index) => (
-        
           <button 
             key={index}
             className={`color-scheme-option ${JSON.stringify(colorScheme) === JSON.stringify(scheme.colors) ? 'active' : ''}`}
@@ -185,7 +186,6 @@ SonnenblumenControl.propTypes = {
 
 export const CreditControl = ({ credit, onControlChange }) => (
   <div className="credit-control">
-    <label htmlFor="credit">{IMAGE_MODIFICATION.LABELS.CREDIT}</label>
     <input
       type="text"
       id="credit"
