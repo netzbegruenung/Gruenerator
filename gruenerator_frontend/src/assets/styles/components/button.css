@@ -116,14 +116,14 @@
   border: 2px solid var(--weiß);
 }
 
-.file-input-wrapper {
+.file-input-wrapper .unsplash-search-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: background-color 0.3s, transform 0.3s;
   border-radius: var(--button-border-radius);
-  padding: 0px;
+  padding: 10px 15px; /* Vernünftiges Padding hinzugefügt */
   background-color: var(--tanne);
   color: var(--weiß);
   border: 2px solid var(--weiß);
