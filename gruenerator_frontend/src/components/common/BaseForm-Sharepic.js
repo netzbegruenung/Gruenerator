@@ -304,7 +304,7 @@ const BaseForm = ({
   }, [toggleAdvancedEditing]);
 
   return (
-    <div className={`base-container ${generatedContent ? 'with-content' : ''} ${currentStep === FORM_STEPS.RESULT ? 'result-step' : ''}`}>
+    <div className={`sharepic-base-container ${generatedContent ? 'with-content' : ''} ${currentStep === FORM_STEPS.RESULT ? 'result-step' : ''}`}>
       <div className="form-container">
         <form onSubmit={(e) => {
           e.preventDefault();
@@ -333,11 +333,9 @@ const BaseForm = ({
         </form>
         {error && <p role="alert" aria-live="assertive" className="error-message">{error}</p>}
       </div>
-      <div className="content-container">
-        <div className="display-container">
-          <h3>{helpContent?.title || title}</h3>
-          {renderDisplayContent}
-        </div>
+      <div className="display-container">
+        <h3>{helpContent?.title || title}</h3>
+        {renderDisplayContent}
       </div>
     </div>
   );
