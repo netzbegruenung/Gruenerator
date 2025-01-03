@@ -47,6 +47,21 @@ const BaseForm = ({
     updateValue,
   } = useContext(FormContext);
 
+  console.log('[BaseForm] Props:', { 
+    allowEditing, 
+    alwaysEditing, 
+    hideEditButton, 
+    usePlatformContainers 
+  });
+  console.log('[BaseForm] Context:', { 
+    isEditing, 
+    hasValue: !!value 
+  });
+
+  useEffect(() => {
+    console.log('[BaseForm] isEditing Status geändert:', isEditing);
+  }, [isEditing]);
+
   const [isFormVisible, setIsFormVisible] = useState(true);
   const [isMultiPlatform, setIsMultiPlatform] = useState(false);
 
@@ -106,6 +121,7 @@ const BaseForm = ({
   }, [setupKeyboardNav, generatedContent]);
 
   const handleToggleEditMode = () => {
+    console.log('[BaseForm] Toggle Edit Mode aufgerufen');
     toggleEditMode();
   };
 
