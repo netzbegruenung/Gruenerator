@@ -47,7 +47,6 @@ export const BalkenOffsetControl = ({ balkenOffset, onControlChange }) => {
     <div className="balken-offset-control">
       {Array.isArray(balkenOffset) && balkenOffset.map((offset, index) => (
         <div key={index} className="balken-offset-control-item">
-          <label>Zeile {index + 1}</label>
           <div className="balken-offset-buttons">
             <button onClick={(e) => {
               console.log('Left button clicked for index:', index); // Debugging
@@ -138,7 +137,9 @@ const CrossControlBase = ({ title, description, offset, onOffsetChange, step }) 
       <div className="cross-grid">
         <button onClick={() => handleMove('up')} className="cross-button up"><FaChevronUp /></button>
         <button onClick={() => handleMove('left')} className="cross-button left"><FaChevronLeft /></button>
-        <div className="offset-display"></div>
+        <div className="offset-display">
+          <span className="offset-value">{`${offset[0]},${offset[1]}`}</span>
+        </div>
         <button onClick={() => handleMove('right')} className="cross-button right"><FaChevronRight /></button>
         <button onClick={() => handleMove('down')} className="cross-button down"><FaChevronDown /></button>
       </div>
