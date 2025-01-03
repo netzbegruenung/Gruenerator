@@ -14,28 +14,32 @@ const AdvancedEditingSection = ({
   return (
     <div className="advanced-editing-section">
       <h3>Erweiterter Editor (für Expert*innen)</h3>
-      <div className="balken-offset-control">
-        <h4>Einzelne Balken verschieben</h4>
-        <BalkenOffsetControl
-          balkenOffset={balkenOffset}
-          onControlChange={(name, value) => {
-            console.log('AdvancedEditingSection onControlChange:', name, value);
-            onBalkenOffsetChange(value);
-          }}
-        />
-      </div>
-      <div className="controls-row">
-        <div className="control-item">
-          <BalkenGruppeControl
-            offset={balkenGruppenOffset}
-            onOffsetChange={onBalkenGruppenOffsetChange}
-          />
+      <div className="advanced-controls-container">
+        <div className="left-column">
+          <div className="balken-offset-control">
+            <h4>Einzelne Balken verschieben</h4>
+            <BalkenOffsetControl
+              balkenOffset={balkenOffset}
+              onControlChange={(name, value) => {
+                console.log('AdvancedEditingSection onControlChange:', name, value);
+                onBalkenOffsetChange(value);
+              }}
+            />
+          </div>
         </div>
-        <div className="control-item">
-          <SonnenblumenControl
-            offset={sunflowerOffset}
-            onOffsetChange={onSonnenblumenOffsetChange}
-          />
+        <div className="right-column">
+          <div className="control-item">
+            <BalkenGruppeControl
+              offset={balkenGruppenOffset}
+              onOffsetChange={onBalkenGruppenOffsetChange}
+            />
+          </div>
+          <div className="control-item">
+            <SonnenblumenControl
+              offset={sunflowerOffset}
+              onOffsetChange={onSonnenblumenOffsetChange}
+            />
+          </div>
         </div>
       </div>
     </div>

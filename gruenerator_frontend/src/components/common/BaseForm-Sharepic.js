@@ -11,6 +11,7 @@ import HelpDisplay from './HelpDisplay';
 import '../../assets/styles/pages/baseform.css';
 import '../../assets/styles/components/button.css';
 import '../../assets/styles/components/sharepic.css';
+import '../../assets/styles/components/advanced-editing.css';
 import FormErrors from './FormErrors';
 
 import { 
@@ -90,7 +91,7 @@ const BaseForm = ({
   }), [showBackButton, submitButtonText, loading, success]);
 
   const renderFormButtons = () => (
-    <div className="upload-and-search-container">
+    <div className="button-container">
       {formButtons.showBack && (
         <div className="button-wrapper">
           <Button 
@@ -131,13 +132,15 @@ const BaseForm = ({
         <div className="input-fields-wrapper">
           {children}
         </div>
-        <div className="upload-and-search-container">
-          <div className="file-upload-wrapper">
+        <div className="button-container">
+          <div className="button-wrapper">
             <FileUpload {...fileUploadProps} />
           </div>
-          <UnsplashButton 
-            searchTerms={[formData.searchTerms?.[0] || formData.thema].filter(Boolean)}
-          />
+          <div className="button-wrapper">
+            <UnsplashButton 
+              searchTerms={[formData.searchTerms?.[0] || formData.thema].filter(Boolean)}
+            />
+          </div>
         </div>
         {renderFormButtons()}
       </>
@@ -181,30 +184,30 @@ const BaseForm = ({
           />
         </div>
         <div className="right-column">
-          <div className="farbkombi-group">
-            <h3>Farbkombi</h3>
-            <p>Wähle eine von vier Farbkombis</p>
+          <div className="color-controls">
+            <h3>Farbschema</h3>
+            <p>Wähle eine von vier Farbkombinationen für dein Sharepic.</p>
             <ColorSchemeControl
               colorScheme={colorScheme}
               onControlChange={onControlChange}
             />
           </div>
-          <div className="schriftgroesse-group">
+          <div className="font-size-group">
             <h3>Schriftgröße</h3>
-            <p>Du kannst mit den Buttons unten drei verschiedene Schriftgrößen wählen. Standard ist M.</p>
+            <p>Passe die Größe des Textes auf deinem Sharepic an.</p>
             <FontSizeControl
               fontSize={fontSize}
               onControlChange={onControlChange}
             />
           </div>
-          <div className="social-media-section">
+          <div className="social-media-group">
             <h3>Social Media</h3>
-            <p>Erstelle passende Social-Media-Beiträge zu deinem Sharepic.</p>
+            <p>Erstelle passende Beitragstexte für deine Social-Media-Kanäle.</p>
             <Button
               onClick={handleSocialMediaClick}
-              text="Social-Media-Text erstellen"
+              text="Beitragstext erstellen"
               className="social-media-button"
-              ariaLabel="Social Media Text erstellen"
+              ariaLabel={ARIA_LABELS.SOCIAL_MEDIA}
             />
           </div>
         </div>
@@ -317,16 +320,14 @@ const BaseForm = ({
           {currentStep === FORM_STEPS.RESULT && (
             <>
               {isAdvancedEditingOpen && (
-                <div className="advanced-controls-container">
-                  <AdvancedEditingSection
-                    balkenOffset={balkenOffset}
-                    balkenGruppenOffset={balkenGruppenOffset}
-                    sunflowerOffset={sunflowerOffset}
-                    onBalkenOffsetChange={(newOffset) => onControlChange('balkenOffset', newOffset)}
-                    onBalkenGruppenOffsetChange={(newOffset) => onControlChange('balkenGruppenOffset', newOffset)}
-                    onSonnenblumenOffsetChange={(newOffset) => onControlChange('sunflowerOffset', newOffset)}
-                  />
-                </div>
+                <AdvancedEditingSection
+                  balkenOffset={balkenOffset}
+                  balkenGruppenOffset={balkenGruppenOffset}
+                  sunflowerOffset={sunflowerOffset}
+                  onBalkenOffsetChange={(newOffset) => onControlChange('balkenOffset', newOffset)}
+                  onBalkenGruppenOffsetChange={(newOffset) => onControlChange('balkenGruppenOffset', newOffset)}
+                  onSonnenblumenOffsetChange={(newOffset) => onControlChange('sunflowerOffset', newOffset)}
+                />
               )}
             </>
           )}
