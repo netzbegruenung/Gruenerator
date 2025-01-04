@@ -29,7 +29,7 @@ const TemplateGallery = () => {
       template.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
       template.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
     
-    const matchesCategory = selectedCategory === 'all' || template.category === selectedCategory;
+    const matchesCategory = selectedCategory === 'all' || template.category.includes(selectedCategory);
     return matchesSearch && matchesCategory;
   });
 
