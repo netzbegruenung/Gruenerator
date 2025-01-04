@@ -116,6 +116,7 @@
     display: none;
     opacity: 0;
     transition: opacity 0.3s ease;
+    grid-template-columns: repeat(5, 1fr) !important;
 }
 
 .secondary-buttons.show {
@@ -422,4 +423,21 @@
 .link-buttons button:hover {
     background-color: var(--button-hover-color);
     transform: translateY(-2px);
+}
+
+@media (max-width: 1024px) {
+    .secondary-buttons {
+        grid-template-columns: repeat(3, 1fr) !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .link-buttons {
+        grid-template-columns: 1fr;
+        max-width: 400px;
+    }
+
+    .secondary-buttons {
+        grid-template-columns: 1fr !important;
+    }
 }
