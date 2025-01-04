@@ -43,6 +43,7 @@ export const VALIDATION_MESSAGES = {
 export const BUTTON_LABELS = {
   GENERATE_TEXT: 'Text Grünerieren',
   GENERATE_IMAGE: 'Bild Grünerieren',
+  GENERATE_IMAGE_MOBILE: 'Grünerieren',
   MODIFY_IMAGE: 'Bild anpassen',
   UPLOAD_FILE: 'Datei hochladen',
   SUBMIT: 'Grünerieren',

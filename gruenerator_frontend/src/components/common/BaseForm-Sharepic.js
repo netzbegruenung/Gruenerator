@@ -284,7 +284,7 @@ const BaseForm = ({
         {currentStep === FORM_STEPS.RESULT && typeof generatedImageSrc === 'string' && generatedImageSrc.startsWith('data:image') && (
           <div className="sticky-sharepic-container">
             <img src={generatedImageSrc} alt="Generiertes Sharepic" className="sticky-sharepic" />
-            <div className="button-container">
+            <div className="button-container" style={{ fontSize: 'initial' }}>
               {useDownloadButton && <DownloadButton imageUrl={generatedImageSrc} />}
             </div>
           </div>
