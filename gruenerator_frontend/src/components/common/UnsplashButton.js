@@ -1,6 +1,7 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import '../../assets/styles/components/sharepic.css';
+import { FaImage } from 'react-icons/fa';
 
 const UnsplashButton = ({ searchTerms }) => {
   const handleUnsplashClick = () => {
@@ -19,12 +20,10 @@ const UnsplashButton = ({ searchTerms }) => {
       onClick={handleUnsplashClick}
       disabled={!searchTerms || searchTerms.length === 0}
       className="unsplash-search-button"
-      aria-label="Auf Unsplash suchen"
+      aria-label="Unsplash-Bild"
     >
-      <svg width="20" height="20" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-        <path d="M10 9V0h12v9H10zm12 5h10v18H0V14h10v9h12v-9z" fill="currentColor"/>
-      </svg>
-      Auf Unsplash suchen
+      <FaImage />
+      Unsplash-Bild
     </button>
   );
 };
