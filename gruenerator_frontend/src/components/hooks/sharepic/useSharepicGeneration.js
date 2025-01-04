@@ -15,9 +15,18 @@ export const useSharepicGeneration = () => {
     console.log(`Generating text for ${sharepicType}:`, formData);
     try {
       const submitFn = sharepicType === SHAREPIC_TYPES.QUOTE ? quoteSubmit.submitForm : dreizeilenSubmit.submitForm;
-      const data = await submitFn(formData);
-      console.log("Text generation response:", data);
-      return data;
+      const response = await submitFn(formData);
+      console.log("Text generation response:", response);
+      
+      if (!response || !response.mainSlogan || !response.alternatives) {
+        throw new Error('Unerwartete Antwortstruktur von der API');
+      }
+      
+      return {
+        mainSlogan: response.mainSlogan,
+        alternatives: response.alternatives,
+        searchTerms: response.searchTerms || []
+      };
     } catch (err) {
       console.error("Error generating text:", err);
       throw err;

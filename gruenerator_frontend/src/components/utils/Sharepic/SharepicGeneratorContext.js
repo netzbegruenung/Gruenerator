@@ -31,6 +31,7 @@ const initialState = {
     credit: '',
     isAdvancedEditingOpen: false,
     searchTerms: [],
+    sloganAlternatives: []
   },
   currentStep: FORM_STEPS.WELCOME,
   error: null,
@@ -120,6 +121,24 @@ function sharepicGeneratorReducer(state, action) {
       return {
         ...state,
         file: action.payload
+      };
+    case 'SET_SLOGAN_ALTERNATIVES':
+      return {
+        ...state,
+        formData: {
+          ...state.formData,
+          sloganAlternatives: action.payload
+        }
+      };
+    case 'SELECT_SLOGAN':
+      return {
+        ...state,
+        formData: {
+          ...state.formData,
+          line1: action.payload.line1,
+          line2: action.payload.line2,
+          line3: action.payload.line3
+        }
       };
     default:
       return state;
@@ -265,6 +284,14 @@ export function SharepicGeneratorProvider({ children }) {
     }
   }, [state.currentStep, debouncedModifyImage]);
   
+  const setAlternatives = useCallback((alternatives) => {
+    dispatch({ type: 'SET_SLOGAN_ALTERNATIVES', payload: alternatives });
+  }, []);
+
+  const selectSlogan = useCallback((slogan) => {
+    dispatch({ type: 'SELECT_SLOGAN', payload: slogan });
+  }, []);
+
   const value = useMemo(() => ({
     state,
     setFile,
@@ -273,18 +300,17 @@ export function SharepicGeneratorProvider({ children }) {
     handleUnsplashSearch,
     isAdvancedEditingOpen: state.isAdvancedEditingOpen,
     modifyImage,
-    updateCredit, // Add updateCredit to the context value
+    updateCredit,
     updateImageModification,
-    setLottieVisible, // Methode zum Setzen der Lottie-Sichtbarkeit
+    setLottieVisible,
+    setAlternatives,
+    selectSlogan,
     SHAREPIC_TYPES,
     FORM_STEPS,
     FONT_SIZES,
     ERROR_MESSAGES,
     setSearchBarActive, 
     toggleAdvancedEditing
-    
-    
-
   }), [
     state,
     setFile,
@@ -297,8 +323,9 @@ export function SharepicGeneratorProvider({ children }) {
     setLottieVisible,
     updateBalkenGruppenOffset,
     updateSunflowerOffset,
-    toggleAdvancedEditing
-
+    toggleAdvancedEditing,
+    setAlternatives,
+    selectSlogan
   ]);
 
   return (

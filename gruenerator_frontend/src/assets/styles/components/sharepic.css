@@ -427,28 +427,6 @@
     justify-content: center;
 }
 
-/* File Input Styling */
-.sharepic-file-input-text {
-    padding: 0.75rem 1rem;
-    background-color: var(--background-color-alt);
-    border: 2px solid var(--weiß);
-    border-radius: 4px;
-    color: var(--weiß);
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.sharepic-file-input-text:hover {
-    background-color: var(--grashalm);
-}
-
-.sharepic-file-input-text .file-name {
-    max-width: 200px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
 /* Unsplash Button */
 .sharepic-unsplash-search-button {
     padding: 0.5rem 1rem;
