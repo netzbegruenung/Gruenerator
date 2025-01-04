@@ -99,7 +99,7 @@ TemplateCard.propTypes = {
     id: PropTypes.string.isRequired,
     title: PropTypes.string.isRequired,
     description: PropTypes.string.isRequired,
-    category: PropTypes.string.isRequired,
+    category: PropTypes.arrayOf(PropTypes.string).isRequired,
     images: PropTypes.arrayOf(PropTypes.shape({
       url: PropTypes.string.isRequired,
       alt: PropTypes.string.isRequired
