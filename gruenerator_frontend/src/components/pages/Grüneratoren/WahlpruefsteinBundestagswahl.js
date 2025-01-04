@@ -7,6 +7,7 @@ import '../../../assets/styles/pages/baseform.css';
 import {useDynamicTextSize } from '../../utils/commonFunctions';
 import useApiSubmit from '../../hooks/useApiSubmit';
 import BaseForm from '../../common/BaseForm';
+import HelpDisplay from '../../common/HelpDisplay';
 import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../utils/constants';
 import { FormContext } from '../../utils/FormContext';
 import ErrorBoundary from '../../ErrorBoundary';
@@ -63,6 +64,21 @@ const WahlpruefsteinBundestagswahl = ({ showHeaderFooter = true }) => {
     setGeneratedContent(content);
   }, [setGeneratedContent]);
 
+  const helpContent = {
+    content: "Die Antwort wird in zwei Teilen gegeben: Zuerst die relevanten Zitate aus dem gewählten Kapitel des vorläufigen Wahlprogramms, dann eine Erklärung.",
+    tips: [
+      "Die Zitate musst du anschließend UNBEDINGT überprüfen",
+      "Beachte, dass sich das finale Wahlprogramm noch ändern kann"
+    ]
+  };
+
+  const displayContent = response || (
+    <HelpDisplay 
+      content={helpContent.content}
+      tips={helpContent.tips}
+    />
+  );
+
   return (
     <ErrorBoundary>
       <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
@@ -73,7 +89,7 @@ const WahlpruefsteinBundestagswahl = ({ showHeaderFooter = true }) => {
           loading={loading}
           success={success}
           error={error}
-          generatedContent={response}
+          generatedContent={displayContent}
           textSize={textSize}
           onGeneratedContentChange={handleGeneratedContentChange}
         >
@@ -92,7 +108,7 @@ const WahlpruefsteinBundestagswahl = ({ showHeaderFooter = true }) => {
           </select>
 
           {selectedChapter && (
-            <p className="help-text chapter-description">
+            <p className="help-text chapter-description white-text">
               {getChapterDescription(selectedChapter)}
             </p>
           )}
@@ -107,10 +123,6 @@ const WahlpruefsteinBundestagswahl = ({ showHeaderFooter = true }) => {
             required
             style={{ height: '120px' }}
           />
-          <p className="help-text">
-            Die Antwort wird in zwei Teilen gegeben: Zuerst die relevanten Zitate aus dem gewählten Kapitel des vorläufigen Wahlprogramms, 
-            dann eine Erklärung. Die Zitate musst du anschließend UNBEDINGT überprüfen. Beachte, dass sich das finale Wahlprogramm noch ändern kann.
-          </p>
         </BaseForm>
       </div>
     </ErrorBoundary>
