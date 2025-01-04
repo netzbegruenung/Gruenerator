@@ -6,6 +6,7 @@ const Home = lazy(() => import('../components/pages/Home'));
 const Datenschutz = lazy(() => import('../components/pages/Impressum_Datenschutz_Terms/Datenschutz'));
 const Impressum = lazy(() => import('../components/pages/Impressum_Datenschutz_Terms/Impressum'));
 const TemplateGallery = lazy(() => import('../components/pages/TemplateGallery'));
+const NotFound = lazy(() => import('../components/pages/NotFound'));
 
 // Lazy loading für Grüneratoren Bundle
 export const GrueneratorenBundle = {
@@ -40,7 +41,8 @@ export const routes = {
     { path: '/kandidat', component: GrueneratorenBundle.Kandidat, withForm: true },
     { path: '/vorlagen', component: GrueneratorenBundle.Templates },
     { path: '/datenschutz', component: Datenschutz },
-    { path: '/impressum', component: Impressum }
+    { path: '/impressum', component: Impressum },
+    { path: '*', component: NotFound }
   ],
   special: [
     { 
