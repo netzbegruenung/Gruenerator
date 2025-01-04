@@ -11,10 +11,13 @@
 
 .button-container {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-  margin-top: 20px;
+  gap: 1rem;
+  width: 100%;
+  margin-bottom: 1rem;
+}
+
+.button-container .button-wrapper {
+  flex: 1;
 }
 
 .button  {
@@ -291,9 +294,10 @@
   }
 }
 
-/* Gemeinsame Styles für FileUpload und UnsplashButton */
+/* Gemeinsame Styles für FileUpload, UnsplashButton und AlternativesButton */
 .file-input-text,
-.unsplash-search-button {
+.unsplash-search-button,
+.show-alternatives-button {
   width: 100%;
   height: 42px;
   padding: var(--button-padding);
@@ -307,17 +311,20 @@
   justify-content: center;
   background-color: var(--tanne);
   color: var(--weiß);
+  gap: 8px;
+  white-space: nowrap;
 }
 
 .file-input-text:hover,
-.unsplash-search-button:hover {
+.unsplash-search-button:hover,
+.show-alternatives-button:hover {
   background-color: var(--klee);
   transform: scale(1.01);
 }
 
 .file-input-text svg,
 .unsplash-search-button svg {
-  margin-right: 8px;
+  font-size: 1.2em;
 }
 
 .file-name {
@@ -329,8 +336,146 @@
 
 @media (max-width: 768px) {
   .file-input-text,
-  .unsplash-search-button {
+  .unsplash-search-button,
+  .show-alternatives-button {
     height: 48px;
     font-size: 0.95em;
+    padding: 8px 16px;
+  }
+}
+
+/* Action Buttons Container (für die drei Buttons in einer Reihe) */
+.action-buttons {
+  display: flex;
+  gap: 1rem;
+  width: 100%;
+  margin-bottom: 1rem;
+}
+
+.action-buttons.three-buttons {
+  display: flex;
+  gap: 1rem;
+  width: 100%;
+  margin-bottom: 1rem;
+}
+
+.action-buttons.three-buttons .button-wrapper {
+  flex: 1;
+}
+
+.alternatives-button {
+  width: 100%;
+  font-size: 0.9em;
+  padding: 0.5rem 1rem;
+  background-color: var(--tanne);
+  color: var(--weiß);
+  border: 2px solid var(--weiß);
+  border-radius: var(--button-border-radius);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.alternatives-button:hover {
+  background-color: var(--klee);
+}
+
+.alternatives-button-wrapper {
+  position: relative;
+  height: 42px;
+  width: auto;
+}
+
+.button-wrapper {
+  display: flex;
+  align-items: center;
+}
+
+@media (max-width: 768px) {
+  .action-buttons.three-buttons {
+    flex-wrap: wrap;
+  }
+  
+  .action-buttons.three-buttons .button-wrapper {
+    flex: 1 1 auto;
+    min-width: calc(33.33% - 0.67rem);
+  }
+  
+  .file-input-text,
+  .unsplash-search-button,
+  .show-alternatives-button {
+    height: 48px;
+    font-size: 0.95em;
+    padding: 8px 16px;
+  }
+}
+
+/* Spezifische Styles für Slogan-Alternative Buttons */
+.alternatives-button-wrapper {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 42px;
+}
+
+.show-alternatives-button,
+.hide-alternatives-button {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  padding: var(--button-padding);
+  border: 2px solid var(--weiß);
+  border-radius: var(--button-border-radius);
+  font-size: var(--button-font-size);
+  cursor: pointer;
+  transition: all var(--button-transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--tanne);
+  color: var(--weiß);
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.show-alternatives-button:hover,
+.hide-alternatives-button:hover {
+  background-color: var(--klee);
+  transform: scale(1.01);
+}
+
+/* Button Fade Transition */
+.button-fade-enter {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+.button-fade-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 300ms ease-in-out, transform 300ms ease-in-out;
+}
+
+.button-fade-exit {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.button-fade-exit-active {
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 300ms ease-in-out, transform 300ms ease-in-out;
+}
+
+@media (max-width: 768px) {
+  .alternatives-button-wrapper {
+    height: 48px;
+  }
+
+  .show-alternatives-button,
+  .hide-alternatives-button {
+    font-size: 0.95em;
+    padding: 8px 16px;
   }
 }

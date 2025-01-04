@@ -24,6 +24,7 @@ import {
   ARIA_LABELS, 
   FORM_STEPS,
 } from '../utils/constants';
+import { SloganAlternativesButton } from './SloganAlternatives';
 
 const BaseForm = ({
   title,
@@ -56,10 +57,11 @@ const BaseForm = ({
       isLottieVisible, 
       generatedImageSrc,
       isAdvancedEditingOpen,
-      formData: { fontSize: textSize, thema, details }
+      formData,
+      selectedImage
     },
     toggleAdvancedEditing,
-  } = useSharepicGeneratorContext();  
+  } = useSharepicGeneratorContext();
 
   useEffect(() => {
     console.log('BaseForm: Current step changed to', currentStep);
@@ -126,33 +128,37 @@ const BaseForm = ({
   );
 
   const renderPreviewStep = () => {
-    const { state: { formData } } = useSharepicGeneratorContext();
     return (
       <>
         <div className="input-fields-wrapper">
           {children}
         </div>
-        <div className="button-container">
+        <div className="action-buttons three-buttons">
           <div className="button-wrapper">
-            <FileUpload {...fileUploadProps} />
+            <SloganAlternativesButton {...fileUploadProps.alternativesButtonProps} buttonText="Anderer Slogan" />
+          </div>
+          <div className="button-wrapper">
+            <FileUpload {...fileUploadProps} buttonText="Upload" />
           </div>
           <div className="button-wrapper">
             <UnsplashButton 
-              searchTerms={[formData.searchTerms?.[0] || formData.thema].filter(Boolean)}
+              searchTerms={formData.searchTerms}
             />
           </div>
         </div>
-        {renderFormButtons()}
+        <div className="button-container">
+          {renderFormButtons()}
+        </div>
       </>
     );
   };
 
   const handleSocialMediaClick = useCallback(() => {
     const url = new URL(window.location.origin + '/socialmedia');
-    url.searchParams.append('thema', thema || '');
-    url.searchParams.append('details', details || '');
+    url.searchParams.append('thema', formData.thema || '');
+    url.searchParams.append('details', formData.details || '');
     window.open(url.toString(), '_blank');
-  }, [thema, details]);
+  }, [formData]);
 
   const renderResultStep = () => (
     <>
@@ -251,19 +257,12 @@ const BaseForm = ({
   };
 
   const renderDisplayContent = useMemo(() => {
-    const { 
-      state: { 
-        formData,
-        selectedImage 
-      }
-    } = useSharepicGeneratorContext();
-
     if (!generatedImageSrc && generatedContent) {
       return <div className="display-content">{generatedContent}</div>;
     }
 
     return (
-      <div className="display-content" style={{ fontSize: textSize }}>
+      <div className="display-content" style={{ fontSize: fontSize }}>
         {currentStep === FORM_STEPS.PREVIEW && (
           <div className="preview-image-container">
             {formData.uploadedImage && (
@@ -297,7 +296,9 @@ const BaseForm = ({
     generatedImageSrc,
     generatedContent,
     useDownloadButton, 
-    textSize
+    fontSize,
+    formData,
+    selectedImage
   ]);
 
   const handleAdvancedEditingClick = useCallback((event) => {
@@ -315,7 +316,7 @@ const BaseForm = ({
         }}>
           <div className={`form-content ${generatedContent ? 'with-generated-content' : ''}`}>
             {renderFormContent()}
-            <FormErrors errors={formErrors} />
+            {Object.keys(formErrors).length > 0 && <FormErrors errors={formErrors} />}
           </div>
           {currentStep === FORM_STEPS.RESULT && (
             <>
@@ -332,7 +333,9 @@ const BaseForm = ({
             </>
           )}
         </form>
-        {error && <p role="alert" aria-live="assertive" className="error-message">{error}</p>}
+        {error && !Object.keys(formErrors).length && (
+          <p role="alert" aria-live="assertive" className="error-message">{error}</p>
+        )}
       </div>
       <div className="display-container">
         <h3>{helpContent?.title || title}</h3>
@@ -372,7 +375,14 @@ BaseForm.propTypes = {
     file: PropTypes.object,
     handleChange: PropTypes.func,
     error: PropTypes.string,
-    allowedTypes: PropTypes.arrayOf(PropTypes.string)
+    allowedTypes: PropTypes.arrayOf(PropTypes.string),
+    buttonText: PropTypes.string,
+    unsplashButtonText: PropTypes.string,
+    showAlternativesButton: PropTypes.bool,
+    alternativesButtonProps: PropTypes.shape({
+      isExpanded: PropTypes.bool,
+      onClick: PropTypes.func
+    })
   }).isRequired,
   helpContent: PropTypes.shape({
     title: PropTypes.string,
