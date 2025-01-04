@@ -50,7 +50,7 @@ const useApiSubmit = (endpoint) => {
           return response.suggestions[0];
         }
       } else if (endpoint === '/dreizeilen_claude') {
-        if (response && response.line1 && response.line2 && response.line3) {
+        if (response && response.mainSlogan && response.alternatives) {
           setSuccess(true);
           return response;
         }

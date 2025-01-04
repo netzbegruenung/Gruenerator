@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import PropTypes from 'prop-types';
-import { FiUpload } from 'react-icons/fi';
+import { FaUpload } from 'react-icons/fa';
 
 const FileUpload = ({ loading, file, handleChange, error, allowedTypes, selectedUnsplashImage, isCompact }) => {
   const fileInputRef = useRef(null);
@@ -35,12 +35,12 @@ const FileUpload = ({ loading, file, handleChange, error, allowedTypes, selected
     
     if (file) {
       // Kürze den Dateinamen, wenn er zu lang ist
-      const fileName = file.name ? (file.name.length > 20 
-        ? file.name.substring(0, 17) + '...' 
-        : file.name) : 'Unbekannte Datei';
+      const fileName = file.name ? (file.name.length > 10 
+        ? file.name.substring(0, 7) + '...' 
+        : file.name) : 'Datei';
       return (
         <>
-          <FiUpload size={20} />
+          <FaUpload />
           <span className="file-name">{fileName}</span>
         </>
       );
@@ -49,7 +49,7 @@ const FileUpload = ({ loading, file, handleChange, error, allowedTypes, selected
     if (selectedUnsplashImage) {
       return (
         <>
-          <FiUpload size={20} />
+          <FaUpload />
           <span>Unsplash: {selectedUnsplashImage.photographerName}</span>
         </>
       );
@@ -57,8 +57,8 @@ const FileUpload = ({ loading, file, handleChange, error, allowedTypes, selected
 
     return (
       <>
-        <FiUpload size={20} />
-        <span>Datei auswählen</span>
+        <FaUpload />
+        <span>Upload</span>
       </>
     );
   };

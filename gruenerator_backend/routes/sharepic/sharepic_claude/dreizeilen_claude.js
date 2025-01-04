@@ -13,7 +13,7 @@ Du bist ein erfahrener Texter für Bündnis 90/Die Grünen. Deine Aufgabe ist es
 </context>
 
 <instructions>
-Erstelle einen prägnanten, zusammenhängenden Slogan zum gegebenen Thema. Der Slogan soll:
+Erstelle 5 verschiedene prägnante, zusammenhängende Slogans zum gegebenen Thema. Jeder Slogan soll:
 - Einen durchgängigen Gedanken oder eine Botschaft über drei Zeilen vermitteln
 - Die Werte der Grünen widerspiegeln
 - Inspirierend und zukunftsorientiert sein
@@ -22,12 +22,12 @@ Erstelle einen prägnanten, zusammenhängenden Slogan zum gegebenen Thema. Der S
 </instructions>
 
 <format>
-- Formuliere den Slogan als einen zusammenhängenden Satz oder Gedanken
-- Teile diesen Satz auf drei Zeilen auf
+- Formuliere jeden Slogan als einen zusammenhängenden Satz oder Gedanken
+- Teile jeden Satz auf drei Zeilen auf
 - Maximal 15 Zeichen pro Zeile, inklusive Leerzeichen
-- Der Slogan sollte auch beim Lesen über die Zeilenumbrüche hinweg Sinn ergeben und flüssig sein
+- Die Slogans sollten auch beim Lesen über die Zeilenumbrüche hinweg Sinn ergeben und flüssig sein
 - Vermeide Bindestriche oder andere Satzzeichen am Ende der Zeilen
-- Gib nur die drei Zeilen aus, ohne Nummerierung oder zusätzlichen Text
+- Gib die Slogans im Format "Slogan 1:", "Slogan 2:" etc. aus
 - Schlage zusätzlich ein Wort als Suchbegriff für ein passendes Unsplash-Hintergrundbild vor
 - Das Bild soll präzise zum Thema passen
 </format>
@@ -39,35 +39,44 @@ Thema: Klimaschutz
 Details: Fokus auf erneuerbare Energien
 </input>
 <output>
+Slogan 1:
 Grüne Energie
 gestaltet heute
 unsere Zukunft
-Suchbegriff: Windkraft
-</output>
-</example>
 
-<example>
-<input>
-Thema: Soziale Gerechtigkeit
-Details: Chancengleichheit in der Bildung
-</input>
-<output>
-Bildung befähigt
-jedes Kind zur
-besten Zukunft
-Suchbegriff: Klassenzimmer 
+Slogan 2:
+Sonnenkraft und
+Windenergie
+bewegen uns
+
+Slogan 3:
+Klimaschutz ist
+der Weg in die
+neue Zukunft
+
+Slogan 4:
+Gemeinsam für
+saubere Kraft
+von morgen
+
+Slogan 5:
+Naturenergie
+schafft Wandel
+für uns alle
+
+Suchbegriff: Windkraft, Solaranlage
 </output>
 </example>
 </examples>
 
 <task>
 ${thema && details 
-  ? `Erstelle nun einen zusammenhängenden Slogan basierend auf folgendem Input:
+  ? `Erstelle nun fünf verschiedene Slogans basierend auf folgendem Input:
 <input>
 Thema: ${thema}
 Details: ${details}
 </input>`
-  : `Optimiere diese Zeilen zu einem zusammenhängenden Slogan:
+  : `Optimiere diese Zeilen zu fünf verschiedenen Slogans:
 <input>
 Zeile 1: ${line1}
 Zeile 2: ${line2}
@@ -106,16 +115,48 @@ Zeile 3: ${line3}
     const textContent = aiResponse.content;
     console.log('[3Zeilen-Claude API] Processed text content:', textContent);
 
-    // Extrahiere die drei Zeilen und den Suchbegriff
+    // Extrahiere die Slogans und den Suchbegriff
     const lines = textContent.split('\n')
       .map(line => line.trim())
       .filter(line => line !== '');
 
+    const slogans = [];
+    let currentSlogan = {};
+    let lineCount = 0;
+
+    for (const line of lines) {
+      if (line.startsWith('Slogan')) {
+        if (lineCount > 0) {
+          slogans.push({ ...currentSlogan });
+        }
+        currentSlogan = {};
+        lineCount = 0;
+        continue;
+      }
+
+      if (line.startsWith('Suchbegriff:')) {
+        if (lineCount > 0) {
+          slogans.push({ ...currentSlogan });
+        }
+        break;
+      }
+
+      if (line && !line.startsWith('Slogan') && lineCount < 3) {
+        const lineKey = `line${lineCount + 1}`;
+        currentSlogan[lineKey] = line;
+        lineCount++;
+      }
+    }
+
+    const searchTermsLine = lines.find(line => line.startsWith('Suchbegriff:'));
+    const searchTerms = searchTermsLine 
+      ? searchTermsLine.replace('Suchbegriff:', '').split(',').map(term => term.trim())
+      : [];
+
     const response = {
-      line1: lines[0] || '',
-      line2: lines[1] || '',
-      line3: lines[2] || '',
-      searchTerms: lines[3] ? lines[3].replace('Suchbegriff:', '').split(',').map(term => term.trim()) : []
+      mainSlogan: slogans[0] || { line1: '', line2: '', line3: '' },
+      alternatives: slogans.slice(1),
+      searchTerms
     };
 
     res.json(response);

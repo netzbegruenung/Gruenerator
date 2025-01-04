@@ -10,6 +10,8 @@ import ErrorBoundary from '../../ErrorBoundary';
 import { processImageForUpload } from '../../utils/imageCompression';
 import HelpDisplay from '../../common/HelpDisplay';
 import VerifyFeature from '../../common/VerifyFeature';
+import { SloganAlternativesDisplay } from '../../common/SloganAlternatives';
+import '../../../assets/styles/components/slogan-alternatives.css';
 
 import { 
   FORM_STEPS, 
@@ -18,27 +20,32 @@ import {
   ERROR_MESSAGES, 
 } from '../../utils/constants';
 
-const getHelpContent = (step) => {
+const getHelpContent = (step, showingAlternatives = false) => {
   switch (step) {
     case FORM_STEPS.INPUT:
       return {
         title: "Thema des Sharepics",
-        content: "Beschreibe dein Thema und gib Details an. Die KI wird dir einen passenden Textvorschlag generieren.",
+        content: "Beschreibe dein Thema und gib Details an. Die KI wird dir passende Textvorschläge generieren.",
         tips: [
-          "Je konkreter dein Thema, desto besser der generierte Text",
-          "Füge Details hinzu, um den Text noch spezifischer zu machen",
+          "Je konkreter dein Thema, desto besser die generierten Texte",
+          "Füge Details hinzu, um die Texte noch spezifischer zu machen",
           "KI fügt automatisch einen Suchbegriff für ein passendes Unsplash-Hintergrundbild hinzu"
         ]
       };
     case FORM_STEPS.PREVIEW:
       return {
-        title: "Bildauswahl",
-        content: "Wähle ein passendes Bild für dein Sharepic aus. Du kannst entweder ein eigenes Bild hochladen oder ein Bild aus der Unsplash-Bibliothek verwenden.",
-        tips: [
-          "Tippe auf den Unsplash-Button, um ein passendes Bild aus der Unsplash-Bibliothek zu finden",
-          "Lade das Unsplash-Bild herunter und dann hier hoch, um es zu verwenden",
-          "Die Suchbegriffe sind manchmal Quark, suche dann einfach nach Alternativen"
-        ]
+        title: showingAlternatives ? "Text auswählen" : "Bild- und Sloganauswahl",
+        content: showingAlternatives 
+          ? "Wähle einen passenden Text für dein Sharepic aus."
+          : "Wähle ein passendes Bild für dein Sharepic aus und passe den Text an.",
+        tips: showingAlternatives 
+          ? [] 
+          : [
+              "Tippe auf den Unsplash-Button, um ein passendes Bild aus der Unsplash-Bibliothek zu finden",
+              "Lade das Unsplash-Bild herunter und dann hier hoch, um es zu verwenden",
+              "Klicke auf 'Alternativen anzeigen', um weitere Textvorschläge zu sehen",
+              "Du kannst den Text in den Eingabefeldern weiter anpassen"
+            ]
       };
     default:
       return null;
@@ -53,12 +60,15 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
     updateFormData, 
     modifyImage,
     setLottieVisible, 
+    setAlternatives,
+    selectSlogan
   } = useSharepicGeneratorContext();
 
   const { generateText, generateImage, loading: generationLoading, error: generationError } = useSharepicGeneration();
 
   const { renderFormFields } = useSharepicRendering();
   const [errors, setErrors] = useState({});
+  const [showAlternatives, setShowAlternatives] = useState(false);
 
   const validateForm = useCallback((formData) => {
     const newErrors = {};
@@ -78,6 +88,7 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
     if (event) event.preventDefault();
     
     updateFormData({ loading: true });
+    setError(''); // Reset error state
     
     try {
       if (!validateForm(state.formData)) {
@@ -94,17 +105,21 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
         if (!result) throw new Error(ERROR_MESSAGES.NO_TEXT_DATA);
         
         await updateFormData({ 
-          ...result, 
+          ...result.mainSlogan,
           type: state.formData.type, 
-          currentStep: FORM_STEPS.PREVIEW 
+          currentStep: FORM_STEPS.PREVIEW,
+          searchTerms: result.searchTerms
         });
+
+        setAlternatives(result.alternatives);
   
       } else if (state.currentStep === FORM_STEPS.PREVIEW) {
-        try {
-          if (!state.file) {
-            throw new Error("Bitte wählen Sie ein Bild aus");
-          }
+        if (!state.file && !showAlternatives) {
+          setError("Bitte wählen Sie ein Bild aus");
+          return;
+        }
 
+        if (!showAlternatives) {
           const imageResult = await generateImage({ 
             ...state.formData,
             image: state.file
@@ -118,41 +133,35 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
             generatedImageSrc: imageResult, 
             currentStep: FORM_STEPS.RESULT
           });
-        } catch (error) {
-          setError(error.message);
         }
       } else if (state.currentStep === FORM_STEPS.RESULT) {
         const { fontSize, balkenOffset, colorScheme, credit, uploadedImage, image } = state.formData;
-        try {
-          const imageToUse = uploadedImage || image || state.file;
-          
-          if (!imageToUse) {
-            throw new Error("Kein Bild zum Modifizieren gefunden");
-          }
-
-          const modifiedImage = await modifyImage({ 
-            fontSize, 
-            balkenOffset, 
-            colorScheme, 
-            credit,
-            image: imageToUse
-          });
-          
-          if (!modifiedImage) {
-            throw new Error(ERROR_MESSAGES.NO_MODIFIED_IMAGE_DATA);
-          }
-          
-          await updateFormData({ 
-            generatedImageSrc: modifiedImage,
-            fontSize,
-            balkenOffset,
-            colorScheme,
-            credit,
-            image: imageToUse
-          });
-        } catch (error) {
-          setError(`${ERROR_MESSAGES.NETWORK_ERROR}: ${error.message}`);
+        const imageToUse = uploadedImage || image || state.file;
+        
+        if (!imageToUse) {
+          throw new Error("Kein Bild zum Modifizieren gefunden");
         }
+
+        const modifiedImage = await modifyImage({ 
+          fontSize, 
+          balkenOffset, 
+          colorScheme, 
+          credit,
+          image: imageToUse
+        });
+        
+        if (!modifiedImage) {
+          throw new Error(ERROR_MESSAGES.NO_MODIFIED_IMAGE_DATA);
+        }
+        
+        await updateFormData({ 
+          generatedImageSrc: modifiedImage,
+          fontSize,
+          balkenOffset,
+          colorScheme,
+          credit,
+          image: imageToUse
+        });
       }
     } catch (error) {
       setError(error.message);
@@ -172,6 +181,8 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
     state.file,
     state.selectedImage,
     processImageForUpload,
+    setAlternatives,
+    showAlternatives
   ]);
 
   useEffect(() => {
@@ -242,23 +253,49 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
   const memoizedFormFields = useMemo(() => {
     const fields = renderFormFields(state.currentStep, state.formData, handleChange, errors);
     return fields;
-  }, [state.currentStep, state.formData, handleChange, errors, renderFormFields]);
+  }, [state.currentStep, state.formData, handleChange, errors]);
 
   const fileUploadProps = {
     loading: state.loading,
     file: state.file,
     handleChange: handleFileChange,
     error: state.error,
-    allowedTypes: SHAREPIC_GENERATOR.ALLOWED_FILE_TYPES
+    allowedTypes: SHAREPIC_GENERATOR.ALLOWED_FILE_TYPES,
+    alternativesButtonProps: {
+      isExpanded: showAlternatives,
+      onClick: () => setShowAlternatives(!showAlternatives)
+    }
   };
 
-  const helpContent = getHelpContent(state.currentStep);
+  const helpContent = getHelpContent(state.currentStep, showAlternatives);
   const helpDisplay = helpContent ? (
     <HelpDisplay
       content={helpContent.content}
       tips={helpContent.tips}
     />
   ) : null;
+
+  const displayContent = useMemo(() => {
+    if (state.currentStep === FORM_STEPS.PREVIEW) {
+      return (
+        <>
+          {helpDisplay}
+          {showAlternatives && (
+            <SloganAlternativesDisplay
+              currentSlogan={{
+                line1: state.formData.line1,
+                line2: state.formData.line2,
+                line3: state.formData.line3
+              }}
+              alternatives={state.formData.sloganAlternatives}
+              onSloganSelect={selectSlogan}
+            />
+          )}
+        </>
+      );
+    }
+    return helpDisplay;
+  }, [state.currentStep, state.formData, selectSlogan, helpDisplay, showAlternatives]);
 
   if (state.currentStep === FORM_STEPS.WELCOME) {
     return (
@@ -301,7 +338,7 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
             onBack={handleBack}
             loading={state.loading || generationLoading}
             error={state.error || generationError}
-            generatedContent={state.generatedImageSrc || helpDisplay}
+            generatedContent={state.generatedImageSrc || displayContent}
             useDownloadButton={state.currentStep === FORM_STEPS.RESULT}
             showBackButton={state.currentStep > FORM_STEPS.INPUT}
             submitButtonText={submitButtonText}
