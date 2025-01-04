@@ -244,11 +244,12 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
     updateFormData({ [name]: value });
   }, [state.formData.balkenOffset, updateFormData]);
 
-  const submitButtonText = useMemo(() => 
-    state.currentStep === FORM_STEPS.INPUT ? BUTTON_LABELS.GENERATE_TEXT :
-    state.currentStep === FORM_STEPS.PREVIEW ? BUTTON_LABELS.GENERATE_IMAGE :
-    BUTTON_LABELS.MODIFY_IMAGE,
-  [state.currentStep]);
+  const submitButtonText = useMemo(() => {
+    const isMobile = window.innerWidth <= 768;
+    return state.currentStep === FORM_STEPS.INPUT ? BUTTON_LABELS.GENERATE_TEXT :
+    state.currentStep === FORM_STEPS.PREVIEW ? (isMobile ? BUTTON_LABELS.GENERATE_IMAGE_MOBILE : BUTTON_LABELS.GENERATE_IMAGE) :
+    BUTTON_LABELS.MODIFY_IMAGE;
+  }, [state.currentStep]);
 
   const memoizedFormFields = useMemo(() => {
     const fields = renderFormFields(state.currentStep, state.formData, handleChange, errors);
