@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { PiNewspaper, PiInstagramLogo, PiFileText, PiArrowRight, PiMicrophone, PiLightbulb, PiBook, PiCaretDown } from 'react-icons/pi';
+import { PiNewspaper, PiInstagramLogo, PiFileText, PiArrowRight, PiMicrophone, PiBook, PiCaretDown, PiMagicWand } from 'react-icons/pi';
 import { TypeAnimation } from 'react-type-animation';
 
 const Home = () => {
@@ -38,7 +38,6 @@ const Home = () => {
           <div className="link-buttons primary-buttons">
             <Link to="/pressemitteilung" aria-label="Zur Pressemitteilung erstellen"><PiNewspaper /> Pressemitteilung</Link>
             <Link to="/socialmedia" aria-label="Zum Social-Media-Generator"><PiInstagramLogo /> Social Media</Link>
-            <Link to="/btw-kompass" aria-label="Zum BTW Programm-Kompass"><PiBook /> BTW Programm-Kompass</Link>
             <button 
               onClick={() => setShowMore(!showMore)} 
               className={`more-button ${showMore ? 'active' : ''}`}
@@ -58,8 +57,9 @@ const Home = () => {
           <div className={`link-buttons secondary-buttons ${showMore ? 'show' : ''}`}>
             <Link to="/antrag" aria-label="Zum Antragsgenerator"><PiFileText /> Antrag</Link>
             <Link to="/rede" aria-label="Zum Redengenerator"><PiMicrophone /> Rede</Link>
-            <Link to="/antragscheck" aria-label="Zum Antrags-Check"><PiLightbulb /> Antrags-Check</Link>
-            <Link to="/wahlprogramm" aria-label="Zum Wahlprogramm-Generator"><PiBook /> Wahlprogramm-Kapitel</Link>
+            <Link to="/universal" aria-label="Zum Universal Grünerator"><PiMagicWand /> Universal</Link>
+            <Link to="/btw-kompass" aria-label="Zum BTW Programm-Kompass"><PiBook /> BTW Kompass</Link>
+            <Link to="/wahlprogramm" aria-label="Zum Wahlprogramm-Generator"><PiBook /> Wahlprogramm</Link>
           </div>
           <a href="https://896ca129.sibforms.com/serve/MUIFAFnH3lov98jrw3d75u_DFByChA39XRS6JkBKqjTsN9gx0MxCvDn1FMnkvHLgzxEh1JBcEOiyHEkyzRC-XUO2DffKsVccZ4r7CCaYiugoiLf1a-yoTxDwoctxuzCsmDuodwrVwEwnofr7K42jQc-saIKeVuB_8UxrwS18QIaahZml1qMExNno2sEC7HyMy9Nz4f2f8-UJ4QmW" 
             target="_blank" 
