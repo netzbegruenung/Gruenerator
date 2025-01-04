@@ -5,7 +5,7 @@
       "label": "Social Media"
     },
     {
-      "id": "Print",
+      "id": "print",
       "label": "Print"
     },
     {
@@ -15,6 +15,10 @@
     {
       "id": "praesentation",
       "label": "Präsentation"
+    },
+    {
+      "id": "wahlen",
+      "label": "Wahlen und Wahlkämpfe"
     }
   ],
   "templates": [
@@ -22,7 +26,7 @@
       "id": "em-1",
       "title": "Newsletter Header - Standard",
       "description": "Professionelles Header-Design (600px) für E-Mail-Newsletter. Kompatibel mit gängigen E-Mail-Clients.",
-      "category": "email",
+      "category": ["email"],
       "images": [
         {
           "url": "/assets/images/template-previews/email/Newsletter_Header_Standard.png",
@@ -30,7 +34,7 @@
         }
       ],
       "thumbnailUrl": "/assets/images/template-previews/email/Newsletter_Header_Standard.png",
-      "canvaUrl": "https://wolke.netzbegruenung.de/s/cMmiqTTZLPYPCfe",
+      "canvaUrl": "https://www.canva.com/design/DAGLH5kytbU/seDwpDKZ7LoPMl0WfbdV6Q/view?utm_content=DAGLH5kytbU&utm_campaign=designshare&utm_medium=link&utm_source=publishsharelink&mode=preview",
       "tags": ["newsletter", "email", "header", "standard"],
       "credit": "Moritz Wächter, KV Rhein-Sieg"
     },
@@ -38,7 +42,7 @@
       "id": "sm-bv",
       "title": "Standard-Sharepics vom BV",
       "description": "Offizielle Sharepic-Vorlagen vom Bundesverband. Diese professionell gestalteten Templates bieten einen perfekten Ausgangspunkt für deine Social-Media-Kommunikation im Corporate Design.",
-      "category": "social-media",
+      "category": ["social-media"],
       "images": [
         {
           "url": "/assets/images/template-previews/social-media/Vorlage_01.png",
@@ -62,7 +66,7 @@
       "id": "pr-2",
       "title": "Präsentation - Simpel",
       "description": "Einfache und klare 16:9 Präsentationsvorlage für schnelle Erstellung von Folien im grünen Corporate Design.",
-      "category": "praesentation",
+      "category": ["praesentation"],
       "images": [
         {
           "url": "/assets/images/template-previews/praesentation/Praesi_Simple1.png",
@@ -90,7 +94,7 @@
         }
       ],
       "thumbnailUrl": "/assets/images/template-previews/praesentation/Praesi_Simple1.png",
-      "canvaUrl": "https://wolke.netzbegruenung.de/s/H6A6dgs393nYNFZ",
+      "canvaUrl": "https://www.canva.com/design/DAGZXTcUl7A/0gDarbP3oI5gwLdj8bWxUg/view?utm_content=DAGZXTcUl7A&utm_campaign=designshare&utm_medium=link&utm_source=publishsharelink&mode=preview",
       "tags": ["präsentation", "powerpoint", "slides", "16:9", "simpel", "einfach"],
       "credit": "Moritz Wächter, KV Rhein-Sieg"
     },
@@ -98,7 +102,7 @@
       "id": "pr-vk1",
       "title": "Visitenkarte",
       "description": "Professionelle Visitenkartenvorlage im grünen Corporate Design.",
-      "category": "Print",
+      "category": ["print"],
       "images": [
         {
           "url": "/assets/images/template-previews/print/visitenkarte/Visitenkarte1.png",
@@ -110,15 +114,15 @@
         }
       ],
       "thumbnailUrl": "/assets/images/template-previews/print/visitenkarte/Visitenkarte1.png",
-      "canvaUrl": "https://wolke.netzbegruenung.de/s/Zi8wYJRMCDnM6SX",
+      "canvaUrl": "https://www.canva.com/design/DAGXGxlHyzI/xVHgYyNp1aDIe16eO6wcuQ/view?utm_content=DAGXGxlHyzI&utm_campaign=designshare&utm_medium=link&utm_source=publishsharelink&mode=preview",
       "tags": ["print", "visitenkarte", "kontakt", "corporate design"],
-      "credit": "Michael Richter, KV Duisburg"
+      "credit": "Michael Spitzer, KV Duisburg"
     },
     {
       "id": "pr-cd",
       "title": "Präsentation CD-Nah",
       "description": "Präsentation nahe der Vorlage des Bundesverbandes und nahe des CD. Diese 16:9 Präsentationsvorlage orientiert sich eng am Corporate Design und bietet professionelle Layouts für verschiedene Präsentationszwecke.",
-      "category": "praesentation",
+      "category": ["praesentation"],
       "images": [
         {
           "url": "/assets/images/template-previews/praesentation/Praesi_CD_1.png",
@@ -150,9 +154,93 @@
         }
       ],
       "thumbnailUrl": "/assets/images/template-previews/praesentation/Praesi_CD_1.png",
-      "canvaUrl": "https://wolke.netzbegruenung.de/s/N3LNPyrAQwEJ2F8",
+      "canvaUrl": "https://www.canva.com/design/DAGZXgxjCKk/oN3_S2nRXx_J_gKri2C-1A/view?utm_content=DAGZXgxjCKk&utm_campaign=designshare&utm_medium=link&utm_source=publishsharelink&mode=preview",
       "tags": ["präsentation", "powerpoint", "slides", "16:9", "corporate design", "cd", "bundesverband"],
-      "credit": "Michael Richter, KV Duisburg & Moritz Wächter, KV Rhein-Sieg"
+      "credit": "Michael Spitzer, KV Duisburg & Moritz Wächter, KV Rhein-Sieg"
+    },
+    {
+      "id": "pr-wk1",
+      "title": "Weihnachtskarte",
+      "description": "Festliche Weihnachtskarten-Vorlage im grünen Corporate Design.",
+      "category": ["print"],
+      "images": [
+        {
+          "url": "/assets/images/template-previews/print/weihnachtskarte/Weihnachtskarte_1_S1.png",
+          "alt": "Vorderseite der Weihnachtskarte"
+        },
+        {
+          "url": "/assets/images/template-previews/print/weihnachtskarte/Weihnachtskarte_1_S2.png",
+          "alt": "Rückseite der Weihnachtskarte"
+        }
+      ],
+      "thumbnailUrl": "/assets/images/template-previews/print/weihnachtskarte/Weihnachtskarte_1_S1.png",
+      "canvaUrl": "https://www.canva.com/design/DAFTmtT--Fo/M8DWUl9KlXrcQs9D2cWAAQ/view?utm_content=DAFTmtT--Fo&utm_campaign=designshare&utm_medium=link&utm_source=publishsharelink&mode=preview",
+      "tags": ["print", "weihnachtskarte", "grußkarte", "festlich", "corporate design"],
+      "credit": "Stefan Osseborg"
+    },
+    {
+      "id": "wk-45",
+      "title": "Vorlage 4:5",
+      "description": "Offizielle Vorlage vom Bundesverband im Format 4:5, optimal für Instagram-Posts im Wahlkampf.",
+      "category": ["social-media", "wahlen"],
+      "images": [
+        {
+          "url": "/assets/images/template-previews/social-media/wahlkampf/Name.png",
+          "alt": "Namens-Vorlage 4:5"
+        },
+        {
+          "url": "/assets/images/template-previews/social-media/wahlkampf/Wort.png",
+          "alt": "Wort-Vorlage 4:5"
+        },
+        {
+          "url": "/assets/images/template-previews/social-media/wahlkampf/3.png",
+          "alt": "Weitere Vorlage 4:5"
+        },
+        {
+          "url": "/assets/images/template-previews/social-media/wahlkampf/veranstaltung1.png",
+          "alt": "Veranstaltungs-Vorlage 1 4:5"
+        },
+        {
+          "url": "/assets/images/template-previews/social-media/wahlkampf/veranstaltung2.png",
+          "alt": "Veranstaltungs-Vorlage 2 4:5"
+        }
+      ],
+      "thumbnailUrl": "/assets/images/template-previews/social-media/wahlkampf/Name.png",
+      "canvaUrl": "https://www.canva.com/design/DAGZMazDqJc/8uzoMIDGkuS7IgOf_vCpcA/view?utm_content=DAGZMazDqJc&utm_campaign=designshare&utm_medium=link&utm_source=publishsharelink&mode=preview",
+      "tags": ["social media", "wahlen", "wahlkampf", "instagram", "4:5", "bundesverband"],
+      "credit": "Bundesverband"
+    },
+    {
+      "id": "wk-916",
+      "title": "Vorlage 9:16",
+      "description": "Offizielle Vorlage vom Bundesverband im Format 9:16, optimal für Story-Formate auf Instagram und Facebook im Wahlkampf.",
+      "category": ["social-media", "wahlen"],
+      "images": [
+        {
+          "url": "/assets/images/template-previews/social-media/wahlkampf/Name.png",
+          "alt": "Namens-Vorlage 9:16"
+        },
+        {
+          "url": "/assets/images/template-previews/social-media/wahlkampf/Wort.png",
+          "alt": "Wort-Vorlage 9:16"
+        },
+        {
+          "url": "/assets/images/template-previews/social-media/wahlkampf/3.png",
+          "alt": "Weitere Vorlage 9:16"
+        },
+        {
+          "url": "/assets/images/template-previews/social-media/wahlkampf/veranstaltung1.png",
+          "alt": "Veranstaltungs-Vorlage 1 9:16"
+        },
+        {
+          "url": "/assets/images/template-previews/social-media/wahlkampf/veranstaltung2.png",
+          "alt": "Veranstaltungs-Vorlage 2 9:16"
+        }
+      ],
+      "thumbnailUrl": "/assets/images/template-previews/social-media/wahlkampf/Name.png",
+      "canvaUrl": "https://www.canva.com/design/DAGaHnH9gbQ/0PP_KBLfYSYWLoVw_B_PeA/view?utm_content=DAGaHnH9gbQ&utm_campaign=designshare&utm_medium=link&utm_source=publishsharelink&mode=preview",
+      "tags": ["social media", "wahlen", "wahlkampf", "instagram", "facebook", "story", "9:16", "bundesverband"],
+      "credit": "Bundesverband"
     }
   ]
 } 
