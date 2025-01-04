@@ -69,8 +69,10 @@ const Footer = () => {
                                     <li><Link to="/pressemitteilung" onClick={() => announce('Navigation zur Pressemitteilung Seite')}>Pressemitteilung</Link></li>
                                     <li><Link to="/socialmedia" onClick={() => announce('Navigation zur Social Media Seite')}>Social Media</Link></li>
                                     <li><Link to="/rede" onClick={() => announce('Navigation zur Politische Rede Seite')}>Politische Rede</Link></li>
+                                    <li><Link to="/universal" onClick={() => announce('Navigation zum Universal Grünerator')}>Universal Grünerator</Link></li>
                                     <li><Link to="/antragscheck" onClick={() => announce('Navigation zur Antragscheck Seite')}>Antragscheck</Link></li>
                                     <li><Link to="/wahlprogramm" onClick={() => announce('Navigation zur Wahlprogramm Seite')}>Wahlprogramm</Link></li>
+                                    <li><Link to="/btw-kompass" onClick={() => announce('Navigation zum BTW Programm-Kompass')}>BTW Programm-Kompass</Link></li>
                                 </ul>
                             </div>
 

@@ -1,4 +1,5 @@
 import { lazy } from 'react';
+import { Navigate } from 'react-router-dom';
 
 // Lazy loading für statische Seiten
 const Home = lazy(() => import('../components/pages/Home'));
@@ -32,7 +33,8 @@ export const routes = {
     { path: '/socialmedia', component: GrueneratorenBundle.SocialMedia, withForm: true },
     { path: '/antragscheck', component: GrueneratorenBundle.Antragscheck, withForm: true },
     { path: '/wahlpruefsteinthueringen', component: GrueneratorenBundle.WahlpruefsteinThueringen },
-    { path: '/wahlpruefstein-bundestagswahl', component: GrueneratorenBundle.WahlpruefsteinBundestagswahl },
+    { path: '/btw-kompass', component: GrueneratorenBundle.WahlpruefsteinBundestagswahl, withForm: true },
+    { path: '/wahlpruefstein-bundestagswahl', element: <Navigate to="/btw-kompass" replace /> },
     { path: '/rede', component: GrueneratorenBundle.Rede, withForm: true },
     { path: '/wahlprogramm', component: GrueneratorenBundle.Wahlprogramm, withForm: true },
     { path: '/kandidat', component: GrueneratorenBundle.Kandidat, withForm: true },
