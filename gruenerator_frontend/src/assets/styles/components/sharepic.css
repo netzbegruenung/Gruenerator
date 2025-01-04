@@ -52,10 +52,6 @@
     width: 35%;
 }
 
-.sharepic-base-container.result-step h3 {
-    margin: 0;
-}
-
 /* Image Modification Controls */
 .image-modification-controls {
     display: grid;
@@ -272,7 +268,9 @@
     }
 
     .sharepic-base-container .form-container,
-    .sharepic-base-container .display-container {
+    .sharepic-base-container .display-container,
+    .sharepic-base-container.result-step .form-container,
+    .sharepic-base-container.result-step .display-container {
         flex: 1 1 100%;
         max-width: 100%;
         width: 100%;
