@@ -38,6 +38,7 @@ const Home = () => {
           <div className="link-buttons primary-buttons">
             <Link to="/pressemitteilung" aria-label="Zur Pressemitteilung erstellen"><PiNewspaper /> Pressemitteilung</Link>
             <Link to="/socialmedia" aria-label="Zum Social-Media-Generator"><PiInstagramLogo /> Social Media</Link>
+            <Link to="/btw-kompass" aria-label="Zum BTW Programm-Kompass"><PiBook /> BTW Programm-Kompass</Link>
             <button 
               onClick={() => setShowMore(!showMore)} 
               className={`more-button ${showMore ? 'active' : ''}`}

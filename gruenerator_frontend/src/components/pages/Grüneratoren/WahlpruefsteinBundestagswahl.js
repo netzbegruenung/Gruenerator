@@ -67,8 +67,8 @@ const WahlpruefsteinBundestagswahl = ({ showHeaderFooter = true }) => {
     <ErrorBoundary>
       <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
         <BaseForm
-          title="Wahlprüfstein-Generator Bundestagswahl"
-          subtitle="Stelle eine Frage zum Bundestagswahlprogramm"
+          title="BTW Programm-Kompass"
+          subtitle="Stelle eine Frage zum vorläufigen Bundestagswahlprogramm"
           onSubmit={handleSubmit}
           loading={loading}
           success={success}
@@ -101,15 +101,15 @@ const WahlpruefsteinBundestagswahl = ({ showHeaderFooter = true }) => {
           <textarea
             id="question"
             name="question"
-            placeholder={FORM_PLACEHOLDERS.QUESTION || 'Was möchtest du zum Bundestagswahlprogramm wissen?'}
+            placeholder={FORM_PLACEHOLDERS.QUESTION || 'Was möchtest du zum vorläufigen Bundestagswahlprogramm wissen?'}
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
             required
             style={{ height: '120px' }}
           />
           <p className="help-text">
-            Die Antwort wird in zwei Teilen gegeben: Zuerst die relevanten Zitate aus dem gewählten Kapitel des Wahlprogramms, 
-            dann eine Erklärung. Die Zitate musst du anschließend UNBEDINGT überprüfen.
+            Die Antwort wird in zwei Teilen gegeben: Zuerst die relevanten Zitate aus dem gewählten Kapitel des vorläufigen Wahlprogramms, 
+            dann eine Erklärung. Die Zitate musst du anschließend UNBEDINGT überprüfen. Beachte, dass sich das finale Wahlprogramm noch ändern kann.
           </p>
         </BaseForm>
       </div>

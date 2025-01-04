@@ -8,7 +8,6 @@ import {
   PiCaretDown,
   PiCaretUp,
   PiMicrophone,
-  PiLightbulb,
   PiBook,
   PiImage,
   PiPaintBrush
@@ -96,8 +95,9 @@ const NavMenu = ({ open, onClose }) => {
             <li><Link to="/pressemitteilung" onClick={() => handleLinkClick('/pressemitteilung', 'Pressemitteilungen')}><PiNewspaper className="nav-icon" aria-hidden="true" /> Pressemitteilungen</Link></li>
             <li><Link to="/socialmedia" onClick={() => handleLinkClick('/socialmedia', 'Social Media')}><PiChatsCircle className="nav-icon" aria-hidden="true" /> Social Media</Link></li>
             <li><Link to="/rede" onClick={() => handleLinkClick('/rede', 'Politische Rede')}><PiMicrophone className="nav-icon" aria-hidden="true" /> Politische Rede</Link></li>
-            <li><Link to="/antragscheck" onClick={() => handleLinkClick('/antragscheck', 'Antrag checken')}><PiLightbulb className="nav-icon" aria-hidden="true" /> Antrag checken</Link></li>
+            <li><Link to="/universal" onClick={() => handleLinkClick('/universal', 'Universal Grünerator')}><PiFileText className="nav-icon" aria-hidden="true" /> Universal Grünerator</Link></li>
             <li><Link to="/wahlprogramm" onClick={() => handleLinkClick('/wahlprogramm', 'Wahlprogramm')}><PiBook className="nav-icon" aria-hidden="true" /> Wahlprogramm</Link></li>
+            <li><Link to="/btw-kompass" onClick={() => handleLinkClick('/btw-kompass', 'BTW Programm-Kompass')}><PiBook className="nav-icon" aria-hidden="true" /> BTW Programm-Kompass</Link></li>
           </ul>
         </CSSTransition>
       </div>
