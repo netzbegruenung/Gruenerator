@@ -1,7 +1,7 @@
 //header.js
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { PiFileText, PiNewspaper, PiChatsCircle, PiCaretDown, PiMicrophone, PiSun, PiMoon, PiBook, PiImage, PiPaintBrush } from 'react-icons/pi';
+import { PiFileText, PiNewspaper, PiInstagramLogo, PiCaretDown, PiMicrophone, PiSun, PiMoon, PiBook, PiImage, PiPaintBrush, PiMagicWand } from 'react-icons/pi';
 import NavMenu from './NavMenu';
 import useDarkMode from '../../hooks/useDarkMode';
 import useAccessibility from '../../hooks/useAccessibility';
@@ -89,9 +89,9 @@ const Header = () => {
                             <ul className={`header-dropdown-content ${activeDropdown === 'texte' ? 'show' : ''}`} aria-label="Texte Untermenü">
                                 <li><Link to="/antrag" onClick={() => handleLinkClick('/antragsgenerator', 'Anträge')}><PiFileText aria-hidden="true" /> Anträge</Link></li>
                                 <li><Link to="/pressemitteilung" onClick={() => handleLinkClick('/pressemitteilung', 'Pressemitteilungen')}><PiNewspaper aria-hidden="true" /> Pressemitteilungen</Link></li>
-                                <li><Link to="/socialmedia" onClick={() => handleLinkClick('/socialmedia', 'Social Media')}><PiChatsCircle aria-hidden="true" /> Social Media</Link></li>
+                                <li><Link to="/socialmedia" onClick={() => handleLinkClick('/socialmedia', 'Social Media')}><PiInstagramLogo aria-hidden="true" /> Social Media</Link></li>
                                 <li><Link to="/rede" onClick={() => handleLinkClick('/rede', 'Politische Rede')}><PiMicrophone aria-hidden="true" /> Politische Rede</Link></li>
-                                <li><Link to="/universal" onClick={() => handleLinkClick('/universal', 'Universal Grünerator')}><PiFileText aria-hidden="true" /> Universal Grünerator</Link></li>
+                                <li><Link to="/universal" onClick={() => handleLinkClick('/universal', 'Universal Grünerator')}><PiMagicWand aria-hidden="true" /> Universal Grünerator</Link></li>
                                 <li><Link to="/wahlprogramm" onClick={() => handleLinkClick('/wahlprogramm', 'Wahlprogramm')}><PiBook aria-hidden="true" /> Wahlprogramm</Link></li>
                                 <li><Link to="/btw-kompass" onClick={() => handleLinkClick('/btw-kompass', 'BTW Programm-Kompass')}><PiBook aria-hidden="true" /> BTW Programm-Kompass</Link></li>
                             </ul>
@@ -124,7 +124,7 @@ const Header = () => {
                                 GPTs für ChatGPT <PiCaretDown className={activeDropdown === 'gpts' ? 'open' : ''} aria-hidden="true" />
                             </span>
                             <ul className={`header-dropdown-content ${activeDropdown === 'gpts' ? 'show' : ''}`} aria-label="GPTs Untermenü">
-                                <li><a href="https://chat.openai.com/g/g-ZZwx8kZS3-grunerator-social-media" target="_blank" rel="noopener noreferrer" onClick={() => announce('Öffne externen Link: Social Media')}><PiChatsCircle aria-hidden="true" /> Social Media</a></li>
+                                <li><a href="https://chat.openai.com/g/g-ZZwx8kZS3-grunerator-social-media" target="_blank" rel="noopener noreferrer" onClick={() => announce('Öffne externen Link: Social Media')}><PiInstagramLogo aria-hidden="true" /> Social Media</a></li>
                                 <li><a href="https://chatgpt.com/g/g-Npcb04iH7-grunerator-pressemitteilungen" target="_blank" rel="noopener noreferrer" onClick={() => announce('Öffne externen Link: Pressemitteilung')}><PiNewspaper aria-hidden="true" /> Pressemitteilung</a></li>
                             </ul>
                         </li>

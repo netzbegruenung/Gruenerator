@@ -275,7 +275,7 @@ export const HEADER_TEXT = {
       { LINK: '/universal', TEXT: 'Universal Grünerator', ICON: 'PiMagicWand' },
       { LINK: '/antragsgenerator', TEXT: 'Anträge', ICON: 'PiFileText' },
       { LINK: '/pressemitteilung', TEXT: 'Pressemitteilungen', ICON: 'PiNewspaper' },
-      { LINK: '/socialmedia', TEXT: 'Social Media', ICON: 'PiChatsCircle' },
+      { LINK: '/socialmedia', TEXT: 'Social Media', ICON: 'PiInstagramLogo' },
       { LINK: '/rede', TEXT: 'Politische Rede', ICON: 'PiMicrophone' },
       { LINK: '/antragsversteher', TEXT: 'Antrags-Erklärer', ICON: 'PiLightbulb' }
     ],
