@@ -4,13 +4,14 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   PiFileText,
   PiNewspaper,
-  PiChatsCircle,
+  PiInstagramLogo,
   PiCaretDown,
   PiCaretUp,
   PiMicrophone,
   PiBook,
   PiImage,
-  PiPaintBrush
+  PiPaintBrush,
+  PiMagicWand
 } from 'react-icons/pi';
 import { CSSTransition } from 'react-transition-group';
 import useAccessibility from '../../hooks/useAccessibility';
@@ -93,9 +94,9 @@ const NavMenu = ({ open, onClose }) => {
           <ul className="nav-dropdown-content" ref={nodeRefs.texte} aria-label="Texte Untermenü">
             <li><Link to="/antrag" onClick={() => handleLinkClick('/antragsgenerator', 'Anträge')}><PiFileText className="nav-icon" aria-hidden="true" /> Anträge</Link></li>
             <li><Link to="/pressemitteilung" onClick={() => handleLinkClick('/pressemitteilung', 'Pressemitteilungen')}><PiNewspaper className="nav-icon" aria-hidden="true" /> Pressemitteilungen</Link></li>
-            <li><Link to="/socialmedia" onClick={() => handleLinkClick('/socialmedia', 'Social Media')}><PiChatsCircle className="nav-icon" aria-hidden="true" /> Social Media</Link></li>
+            <li><Link to="/socialmedia" onClick={() => handleLinkClick('/socialmedia', 'Social Media')}><PiInstagramLogo className="nav-icon" aria-hidden="true" /> Social Media</Link></li>
             <li><Link to="/rede" onClick={() => handleLinkClick('/rede', 'Politische Rede')}><PiMicrophone className="nav-icon" aria-hidden="true" /> Politische Rede</Link></li>
-            <li><Link to="/universal" onClick={() => handleLinkClick('/universal', 'Universal Grünerator')}><PiFileText className="nav-icon" aria-hidden="true" /> Universal Grünerator</Link></li>
+            <li><Link to="/universal" onClick={() => handleLinkClick('/universal', 'Universal Grünerator')}><PiMagicWand className="nav-icon" aria-hidden="true" /> Universal Grünerator</Link></li>
             <li><Link to="/wahlprogramm" onClick={() => handleLinkClick('/wahlprogramm', 'Wahlprogramm')}><PiBook className="nav-icon" aria-hidden="true" /> Wahlprogramm</Link></li>
             <li><Link to="/btw-kompass" onClick={() => handleLinkClick('/btw-kompass', 'BTW Programm-Kompass')}><PiBook className="nav-icon" aria-hidden="true" /> BTW Programm-Kompass</Link></li>
           </ul>
@@ -156,7 +157,7 @@ const NavMenu = ({ open, onClose }) => {
           nodeRef={nodeRefs.gpts}
         >
           <ul className="nav-dropdown-content" ref={nodeRefs.gpts} aria-label="GPTs Untermenü">
-            <li><a href="https://chat.openai.com/g/g-ZZwx8kZS3-grunerator-social-media" target="_blank" rel="noopener noreferrer" onClick={() => announce('Öffne externen Link: Social Media')}><PiChatsCircle className="nav-icon" aria-hidden="true" /> Social Media</a></li>
+            <li><a href="https://chat.openai.com/g/g-ZZwx8kZS3-grunerator-social-media" target="_blank" rel="noopener noreferrer" onClick={() => announce('Öffne externen Link: Social Media')}><PiInstagramLogo className="nav-icon" aria-hidden="true" /> Social Media</a></li>
             <li><a href="https://chatgpt.com/g/g-Npcb04iH7-grunerator-pressemitteilungen" target="_blank" rel="noopener noreferrer" onClick={() => announce('Öffne externen Link: Pressemitteilung')}><PiNewspaper className="nav-icon" aria-hidden="true" /> Pressemitteilung</a></li>
           </ul>
         </CSSTransition>
