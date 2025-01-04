@@ -12,6 +12,7 @@ import { Tooltip } from 'react-tooltip';
 import ActionButtons from './ActionButtons';
 import PlatformContainer from './PlatformContainer';
 import FormToggleButton from './FormToggleButton';
+import HelpDisplay from './HelpDisplay';
 import '../../assets/styles/components/form-toggle-button.css';
 
 const BackupToggle = React.lazy(() => import('./BackupToggle'));
@@ -39,6 +40,7 @@ const BaseForm = ({
   generatedContent,
   hideDisplayContainer = false,
   usePlatformContainers = false,
+  helpContent,
 }) => {
   const {
     value,
@@ -211,10 +213,15 @@ const BaseForm = ({
       usePlatformContainers
     });
     
-    // Wenn kein Content vorhanden ist, nichts rendern
+    // Wenn kein Content vorhanden ist, zeige den HelpDisplay
     if (!value && !generatedContent) {
-      console.log('[BaseForm] Kein Content vorhanden');
-      return null;
+      console.log('[BaseForm] Zeige HelpDisplay');
+      return helpContent ? (
+        <HelpDisplay
+          content={helpContent.content}
+          tips={helpContent.tips}
+        />
+      ) : null;
     }
 
     // Im Edit-Modus immer den Editor anzeigen
@@ -225,6 +232,12 @@ const BaseForm = ({
           <Editor value={value || ''} />
         </div>
       );
+    }
+
+    // Wenn generatedContent ein React-Element ist, direkt anzeigen
+    if (React.isValidElement(generatedContent)) {
+      console.log('[BaseForm] Zeige React Element');
+      return generatedContent;
     }
 
     // Platform Container nur anzeigen wenn aktiviert
@@ -274,6 +287,58 @@ const BaseForm = ({
     !isFormVisible ? 'form-hidden' : ''
   ].filter(Boolean).join(' ');
 
+  const renderFormContent = () => {
+    return (
+      <>
+        <div className={`form-content ${hasFormErrors ? 'has-errors' : ''}`}>
+          {children}
+          {title !== "Grünerator Antragscheck" && title !== "Wahlprüfstein-Generator Bundestagswahl" && (
+            <Suspense fallback={<div>Lade...</div>}>
+              <BackupToggle 
+                useBackupProvider={useBackupProvider}
+                setUseBackupProvider={setUseBackupProvider}
+              />
+            </Suspense>
+          )}
+          {isMultiStep ? (
+            <div className={`button-container ${showBackButton ? 'form-buttons' : ''}`}>
+              {showBackButton && (
+                <button 
+                  type="button" 
+                  onClick={onBack} 
+                  className="back-button form-button"
+                >
+                  Zurück
+                </button>
+              )}
+              <SubmitButton
+                onClick={onSubmit}
+                loading={loading}
+                success={success}
+                text={nextButtonText || 'Weiter'}
+                icon={<HiCog />}
+                className={`submit-button form-button ${showBackButton ? 'with-back-button' : ''}`}
+                ariaLabel={nextButtonText || 'Weiter'}
+              />
+            </div>
+          ) : (
+            <div className="button-container">
+              <SubmitButton
+                onClick={onSubmit}
+                loading={loading}
+                success={success}
+                text="Grünerieren"
+                icon={<HiCog />}
+                className="submit-button form-button"
+                ariaLabel="Generieren"
+              />
+            </div>
+          )}
+        </div>
+      </>
+    );
+  };
+
   return (
     <div className={baseContainerClasses}>
       {isMultiPlatform && (
@@ -284,51 +349,7 @@ const BaseForm = ({
       )}
       <div className={`form-container ${isFormVisible ? 'visible' : ''}`}>
         <form onSubmit={handleSubmit}>
-          <div className={`form-content ${hasFormErrors ? 'has-errors' : ''}`}>
-            {children}
-            {title !== "Grünerator Antragscheck" && title !== "Wahlprüfstein-Generator Bundestagswahl" && (
-              <Suspense fallback={<div>Lade...</div>}>
-                <BackupToggle 
-                  useBackupProvider={useBackupProvider}
-                  setUseBackupProvider={setUseBackupProvider}
-                />
-              </Suspense>
-            )}
-            {isMultiStep ? (
-              <div className={`button-container ${showBackButton ? 'form-buttons' : ''}`}>
-                {showBackButton && (
-                  <button 
-                    type="button" 
-                    onClick={onBack} 
-                    className="back-button form-button"
-                  >
-                    Zurück
-                  </button>
-                )}
-                <SubmitButton
-                  onClick={onSubmit}
-                  loading={loading}
-                  success={success}
-                  text={nextButtonText || 'Weiter'}
-                  icon={<HiCog />}
-                  className={`submit-button form-button ${showBackButton ? 'with-back-button' : ''}`}
-                  ariaLabel={nextButtonText || 'Weiter'}
-                />
-              </div>
-            ) : (
-              <div className="button-container">
-                <SubmitButton
-                  onClick={onSubmit}
-                  loading={loading}
-                  success={success}
-                  text="Grünerieren"
-                  icon={<HiCog />}
-                  className="submit-button form-button"
-                  ariaLabel="Generieren"
-                />
-              </div>
-            )}
-          </div>
+          {renderFormContent()}
         </form>
       </div>
       {!hideDisplayContainer && (
@@ -405,7 +426,11 @@ BaseForm.propTypes = {
     })
   ]),
   hideDisplayContainer: PropTypes.bool,
-  usePlatformContainers: PropTypes.bool
+  usePlatformContainers: PropTypes.bool,
+  helpContent: PropTypes.shape({
+    content: PropTypes.string,
+    tips: PropTypes.arrayOf(PropTypes.string)
+  })
 };
 
 export default BaseForm;

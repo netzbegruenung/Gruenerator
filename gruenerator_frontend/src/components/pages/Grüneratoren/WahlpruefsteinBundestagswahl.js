@@ -4,10 +4,10 @@ import '../../../assets/styles/common/variables.css';
 import '../../../assets/styles/common/global.css';
 import '../../../assets/styles/components/button.css';
 import '../../../assets/styles/pages/baseform.css';
+import '../../../assets/styles/components/help.css';
 import {useDynamicTextSize } from '../../utils/commonFunctions';
 import useApiSubmit from '../../hooks/useApiSubmit';
 import BaseForm from '../../common/BaseForm';
-import HelpDisplay from '../../common/HelpDisplay';
 import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../utils/constants';
 import { FormContext } from '../../utils/FormContext';
 import ErrorBoundary from '../../ErrorBoundary';
@@ -65,33 +65,29 @@ const WahlpruefsteinBundestagswahl = ({ showHeaderFooter = true }) => {
   }, [setGeneratedContent]);
 
   const helpContent = {
+    title: "BTW Programm-Kompass",
     content: "Die Antwort wird in zwei Teilen gegeben: Zuerst die relevanten Zitate aus dem gewählten Kapitel des vorläufigen Wahlprogramms, dann eine Erklärung.",
     tips: [
       "Die Zitate musst du anschließend UNBEDINGT überprüfen",
-      "Beachte, dass sich das finale Wahlprogramm noch ändern kann"
+      "Beachte, dass sich das finale Wahlprogramm noch ändern kann",
+      "Wenn du keine passende Antwort erhältst, versuche die Frage anders zu formulieren"
     ]
   };
-
-  const displayContent = response || (
-    <HelpDisplay 
-      content={helpContent.content}
-      tips={helpContent.tips}
-    />
-  );
 
   return (
     <ErrorBoundary>
       <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
         <BaseForm
-          title="BTW Programm-Kompass"
+          title={helpContent ? helpContent.title : "BTW Programm-Kompass"}
           subtitle="Stelle eine Frage zum vorläufigen Bundestagswahlprogramm"
           onSubmit={handleSubmit}
           loading={loading}
           success={success}
           error={error}
-          generatedContent={displayContent}
+          generatedContent={response}
           textSize={textSize}
           onGeneratedContentChange={handleGeneratedContentChange}
+          helpContent={helpContent}
         >
           <h3><label htmlFor="chapter">{FORM_LABELS.SECTION || 'Wähle ein Kapitel'}</label></h3>
           <select
