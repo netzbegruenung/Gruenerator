@@ -8,7 +8,7 @@
     display: flex;
     width: 100%;
     max-width: 1200px;
-    margin: 0 auto;
+    margin: 20px auto 20px;
     gap: 20px;
     position: relative;
     align-items: stretch;
@@ -21,7 +21,7 @@
     max-width: 100%;
     justify-content: center;
     align-items: flex-start;
-    padding: 20px;
+    padding: 20px 20px;
     gap: 0;
 }
 
@@ -160,7 +160,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 10px;
+    margin-bottom: 0;
     transition: all 0.3s ease-in-out;
 }
 
@@ -247,7 +247,7 @@
 }
 
 .base-container.editing-mode .display-container .display-header {
-    padding: 30px 20px;
+    padding: 30px 20px 20px 20px;
     border-top-left-radius: 8px;
     border-top-right-radius: 8px;
     position: sticky;
