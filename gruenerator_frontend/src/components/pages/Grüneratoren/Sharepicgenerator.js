@@ -114,26 +114,24 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
         setAlternatives(result.alternatives);
   
       } else if (state.currentStep === FORM_STEPS.PREVIEW) {
-        if (!state.file && !showAlternatives) {
+        if (!state.file) {
           setError("Bitte wählen Sie ein Bild aus");
           return;
         }
 
-        if (!showAlternatives) {
-          const imageResult = await generateImage({ 
-            ...state.formData,
-            image: state.file
-          });
+        const imageResult = await generateImage({ 
+          ...state.formData,
+          image: state.file
+        });
 
-          if (!imageResult) {
-            throw new Error("Keine Bilddaten empfangen");
-          }
-
-          await updateFormData({ 
-            generatedImageSrc: imageResult, 
-            currentStep: FORM_STEPS.RESULT
-          });
+        if (!imageResult) {
+          throw new Error("Keine Bilddaten empfangen");
         }
+
+        await updateFormData({ 
+          generatedImageSrc: imageResult, 
+          currentStep: FORM_STEPS.RESULT
+        });
       } else if (state.currentStep === FORM_STEPS.RESULT) {
         const { fontSize, balkenOffset, colorScheme, credit, uploadedImage, image } = state.formData;
         const imageToUse = uploadedImage || image || state.file;
