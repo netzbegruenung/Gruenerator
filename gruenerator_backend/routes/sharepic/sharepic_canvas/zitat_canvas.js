@@ -125,6 +125,15 @@ router.post('/', upload.single('image'), async (req, res) => {
   let outputImagePath;
   try {
     const { quote, name } = req.body;
+    
+    // Validierung hinzufügen
+    if (!quote || typeof quote !== 'string') {
+      throw new Error('Zitat ist erforderlich');
+    }
+    if (!name || typeof name !== 'string') {
+      throw new Error('Name ist erforderlich');
+    }
+
     const imagePath = req.file ? req.file.path : testbildPath;
     outputImagePath = path.join('uploads', `output-${uuidv4()}.png`);
 

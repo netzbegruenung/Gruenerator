@@ -26,7 +26,7 @@ const FileUpload = ({ handleChange, error, allowedTypes, loading, file }) => {
           type="button"
           onClick={() => fileInputRef.current.click()}
           disabled={loading}
-          className="file-upload-button"
+          className="file-input-text"
         >
           Datei auswählen
         </button>

@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { useQuoteForm } from './useQuoteForm';
+import { useQuoteForm } from '../../../features/sharepic/quote/hooks/useQuoteForm';
 import { useThreeLineForm } from './useThreeLineForm';
 import { SHAREPIC_TYPES } from '../../utils/constants';
 
@@ -9,18 +9,20 @@ export const useSharepicForm = () => {
   const [type, setType] = useState(SHAREPIC_TYPES.QUOTE);
   const [uploadedImage, setUploadedImage] = useState(null);
   const [imageModificationInstruction, setImageModificationInstruction] = useState('');
-  const [errors] = useState({});
+  const [errors, setErrors] = useState({});
+  const [name, setName] = useState('');
 
-  const { quoteData, handleQuoteChange } = useQuoteForm();
+  const { quoteData, handleQuoteChange, setQuoteColorScheme } = useQuoteForm();
   const { threeLineData, handleThreeLineChange } = useThreeLineForm();
     
   const handleChange = useCallback((e) => {
-    const { name, value, files } = e.target;
-    console.log(`[SharepicGenerator] ${name} changed:`, value || files);
-    switch (name) {
+    const { name: fieldName, value, files } = e.target;
+    console.log(`[SharepicGenerator] ${fieldName} changed:`, value || files);
+    switch (fieldName) {
       case 'thema': setThema(value); break;
       case 'details': setDetails(value); break;
       case 'type': setType(value); break;
+      case 'name': setName(value); break;
       case 'uploadedImage':
         if (files && files[0]) {
           setUploadedImage(files[0]);
@@ -43,12 +45,14 @@ export const useSharepicForm = () => {
       thema,
       details,
       type,
+      name,
       uploadedImage,
       imageModificationInstruction,
       ...quoteData,
       ...threeLineData
     },
     handleChange,
+    setQuoteColorScheme,
     errors
   };
 };
