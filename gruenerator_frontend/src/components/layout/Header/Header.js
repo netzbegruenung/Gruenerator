@@ -91,7 +91,7 @@ const Header = () => {
                                 <li><Link to="/pressemitteilung" onClick={() => handleLinkClick('/pressemitteilung', 'Pressemitteilungen')}><PiNewspaper aria-hidden="true" /> Pressemitteilungen</Link></li>
                                 <li><Link to="/socialmedia" onClick={() => handleLinkClick('/socialmedia', 'Social Media')}><PiInstagramLogo aria-hidden="true" /> Social Media</Link></li>
                                 <li><Link to="/rede" onClick={() => handleLinkClick('/rede', 'Politische Rede')}><PiMicrophone aria-hidden="true" /> Politische Rede</Link></li>
-                                <li><Link to="/universal" onClick={() => handleLinkClick('/universal', 'Universal Grünerator')}><PiMagicWand aria-hidden="true" /> Universal Grünerator</Link></li>
+                                <li><Link to="/universal" onClick={() => handleLinkClick('/universal', 'Universal')}><PiMagicWand aria-hidden="true" /> Universal</Link></li>
                                 <li><Link to="/wahlprogramm" onClick={() => handleLinkClick('/wahlprogramm', 'Wahlprogramm')}><PiBook aria-hidden="true" /> Wahlprogramm</Link></li>
                                 <li><Link to="/btw-kompass" onClick={() => handleLinkClick('/btw-kompass', 'BTW Programm-Kompass')}><PiBook aria-hidden="true" /> BTW Programm-Kompass</Link></li>
                             </ul>
