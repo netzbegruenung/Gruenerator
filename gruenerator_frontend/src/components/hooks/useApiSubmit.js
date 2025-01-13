@@ -31,15 +31,27 @@ const useApiSubmit = (endpoint) => {
 
       const response = await processText(endpoint, requestData);
       
-      console.log('[useApiSubmit] Response Details:', {
-        hasContent: !!response.content,
-        provider: response.metadata?.provider,
-        backupRequested: response.metadata?.backupRequested,
-        timestamp: response.metadata?.timestamp
-      });
+      console.log('[useApiSubmit] Full API Response:', response);
+      console.log('[useApiSubmit] Response Type:', typeof response);
+      console.log('[useApiSubmit] Response Keys:', Object.keys(response));
 
       // Spezielle Behandlung für verschiedene Endpoints
-      if (endpoint.includes('etherpad')) {
+      if (endpoint === '/dreizeilen_claude' || endpoint === 'dreizeilen_claude') {
+        console.log('[useApiSubmit] Processing dreizeilen_claude response:', {
+          hasMainSlogan: !!response?.mainSlogan,
+          hasAlternatives: !!response?.alternatives,
+          mainSloganType: typeof response?.mainSlogan,
+          alternativesType: typeof response?.alternatives
+        });
+        if (response && 
+            typeof response === 'object' && 
+            response.mainSlogan && 
+            response.alternatives && 
+            Array.isArray(response.alternatives)) {
+          setSuccess(true);
+          return response;
+        }
+      } else if (endpoint.includes('etherpad')) {
         if (response && response.padURL) {
           setSuccess(true);
           return response;
@@ -49,8 +61,8 @@ const useApiSubmit = (endpoint) => {
           setSuccess(true);
           return response.suggestions[0];
         }
-      } else if (endpoint === '/dreizeilen_claude') {
-        if (response && response.mainSlogan && response.alternatives) {
+      } else if (endpoint === 'zitat_claude') {
+        if (response && response.quote) {
           setSuccess(true);
           return response;
         }

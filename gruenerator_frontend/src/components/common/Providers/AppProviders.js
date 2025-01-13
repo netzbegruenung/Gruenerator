@@ -1,5 +1,5 @@
 import React from 'react';
-import { SharepicGeneratorProvider } from '../../utils/Sharepic/SharepicGeneratorContext';
+import { SharepicGeneratorProvider } from '../../../features/sharepic/core/utils/SharepicGeneratorContext';
 import { FormProvider } from '../../utils/FormContext';
 
 const AppProviders = ({ children, withSharepic = false, pathname }) => {
