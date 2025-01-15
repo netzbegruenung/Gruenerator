@@ -143,7 +143,13 @@ if (cluster.isMaster) {
     'http://localhost:3000',
     'https://localhost:3000',
     'http://127.0.0.1:3000',
-    'http://127.0.0.1:3001'
+    'http://127.0.0.1:3001',
+    'https://www.gruenerator-test.netzbegruenung.verdigado.net',
+    'https://www.gruenerator-test.de',
+    'https://www.gruenerator.de',
+    'https://www.gruenerator.netzbegruenung.verdigado.net',
+    'https://www.xn--grenerator-z2a.xn--netzbegrnung-dfb.verdigado.net',
+    'https://www.xn--grenerator-test-4pb.xn--netzbegrnung-dfb.verdigado.net',
   ];
 
   const corsOptions = {
@@ -173,14 +179,22 @@ if (cluster.isMaster) {
         imgSrc: ["'self'", "data:", "blob:", "https://*.unsplash.com"],
         connectSrc: [
           "'self'", 
+          "http://www.gruenerator-test.de",
+          "https://www.gruenerator-test.de",
           "http://gruenerator-test.de",
           "https://gruenerator-test.de",
+          "http://www.gruenerator.de",
+          "https://www.gruenerator.de",
           "http://gruenerator.de",
           "https://gruenerator.de",
           "http://gruenerator-test.netzbegruenung.verdigado.net",
           "https://gruenerator-test.netzbegruenung.verdigado.net",
+          "http://www.xn--grenerator-test-4pb.de",
+          "https://www.xn--grenerator-test-4pb.de",
           "http://xn--grenerator-test-4pb.de",
           "https://xn--grenerator-test-4pb.de",
+          "http://www.xn--grenerator-z2a.de",
+          "https://www.xn--grenerator-z2a.de",
           "http://xn--grenerator-z2a.de",
           "https://xn--grenerator-z2a.de",
           "http://xn--grenerator-test-4pb.xn--netzbegrnung-dfb.verdigado.net",
