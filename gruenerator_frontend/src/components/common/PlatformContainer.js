@@ -1,6 +1,6 @@
 import React, { useContext, useState } from 'react';
 import PropTypes from 'prop-types';
-import { FaTwitter, FaFacebook, FaInstagram, FaLinkedin, FaLightbulb, FaVideo } from 'react-icons/fa';
+import { FaTwitter, FaFacebook, FaInstagram, FaLinkedin, FaTiktok, FaWhatsapp, FaLightbulb, FaVideo } from 'react-icons/fa';
 import { IoCopyOutline, IoCheckmarkOutline } from "react-icons/io5";
 import { FormContext } from '../utils/FormContext';
 import { copyPlainText } from '../utils/commonFunctions';
@@ -30,6 +30,18 @@ const PLATFORM_CONFIG = {
     icon: FaLinkedin,
     color: '#0077B5',
     copyText: 'LinkedIn-Post kopieren'
+  },
+  'TIKTOK': {
+    displayName: 'TikTok',
+    icon: FaTiktok,
+    color: '#000000',
+    copyText: 'TikTok-Text kopieren'
+  },
+  'MESSENGER': {
+    displayName: 'Messenger',
+    icon: FaWhatsapp,
+    color: '#25D366',
+    copyText: 'Messenger-Text kopieren'
   },
   'ACTIONIDEAS': {
     displayName: 'Aktionsideen',
@@ -73,7 +85,7 @@ const PlatformContainer = ({ content }) => {
     if (!content) return null;
 
     const cleanContent = cleanHtmlButKeepLinebreaks(content);
-    const matches = [...cleanContent.matchAll(/(TWITTER|FACEBOOK|INSTAGRAM|LINKEDIN|ACTIONIDEAS|INSTAGRAM REEL):\s*/g)];
+    const matches = [...cleanContent.matchAll(/(TWITTER|FACEBOOK|INSTAGRAM|LINKEDIN|TIKTOK|MESSENGER|ACTIONIDEAS|INSTAGRAM REEL):\s*/g)];
     
     if (matches.length === 0) return cleanContent;
     if (matches.length === 1) return renderSinglePlatform(cleanContent, matches[0]);
