@@ -160,6 +160,7 @@ if (cluster.isMaster) {
   app.options('*', cors(corsOptions));
 
   // Security
+
   app.use(helmet({
     contentSecurityPolicy: {
       directives: {
@@ -168,18 +169,21 @@ if (cluster.isMaster) {
         styleSrc: ["'self'", "'unsafe-inline'"],
         imgSrc: ["'self'", "data:", "blob:", "https://*.unsplash.com"],
         connectSrc: [
-          "'self'", 
-          "http://gruenerator-test.de",
-          "https://gruenerator-test.de",
-          "http://gruenerator.de",
-          "https://gruenerator.de",
-          "http://gruenerator-test.netzbegruenung.verdigado.net",
-          "https://gruenerator-test.netzbegruenung.verdigado.net",
+          "'self'",
+          // Alle Subdomains von gruenerator.de (HTTP & HTTPS, falls lokal noch HTTP gebraucht wird)
+          "http://*.gruenerator.de",
+          "https://*.gruenerator.de",
+          // Umlaut-Domain grüenerator.de + Subdomains
+          "http://*.grünerator.de",
+          "https://*.grünerator.de",
+          // Weiterhin lokale Entwicklungs-URLs
           "http://localhost:*",
           "http://127.0.0.1:*",
+          // Falls *.netzbegruenung* genutzt wird
+          "http://*.netzbegruenung.verdigado.net",
+          "https://*.netzbegruenung.verdigado.net",
+          // Zusätzliche erlaubte Domains (z.B. aus allowedOrigins)
           ...allowedOrigins,
-          "https://api.unsplash.com",
-          "https://*.supabase.co"
         ],
         fontSrc: ["'self'", "https://fonts.gstatic.com"],
         objectSrc: ["'none'"],
@@ -190,6 +194,7 @@ if (cluster.isMaster) {
     crossOriginResourcePolicy: { policy: "cross-origin" },
     crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }
   }));
+  
 
   // Redis-Cache für statische Dateien
   const cacheMiddleware = async (req, res, next) => {
