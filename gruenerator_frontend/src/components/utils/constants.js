@@ -8,9 +8,11 @@ export const SHAREPIC_TYPES = {
 
 // Form Steps
 export const FORM_STEPS = {
-  INPUT: 0,
-  PREVIEW: 1,
-  RESULT: 2
+  WELCOME: 'welcome',
+  TYPE_SELECT: 'type_select',
+  INPUT: 'input',
+  PREVIEW: 'preview',
+  RESULT: 'result'
 };
 
 // Font Sizes

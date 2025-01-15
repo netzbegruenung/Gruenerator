@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { useAuth } from '../utils/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -37,24 +37,61 @@ export default function VerifyFeature({ feature, children, onVerified, onCancel 
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [attempts, setAttempts] = useState(0);
+  const [lockoutTime, setLockoutTime] = useState(0);
+  const [isLocked, setIsLocked] = useState(false);
   const { verifyPassword, isFeatureVerified } = useAuth();
   const navigate = useNavigate();
+
+  const MAX_ATTEMPTS = 3;
+  const LOCKOUT_DURATION = 300; // 5 Minuten in Sekunden
+
+  useEffect(() => {
+    let timer;
+    if (lockoutTime > 0) {
+      timer = setInterval(() => {
+        setLockoutTime(prev => {
+          if (prev <= 1) {
+            setIsLocked(false);
+            setAttempts(0);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [lockoutTime]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    
-    console.log('Eingegebenes Passwort:', password);
-    console.log('Feature:', feature);
-    console.log('ENV Passwort:', process.env.REACT_APP_VERIFY_PASSWORD);
+
+    if (isLocked) {
+      setError(`Bitte warten Sie noch ${Math.ceil(lockoutTime)} Sekunden`);
+      return;
+    }
     
     try {
       const success = await verifyPassword(password, feature);
-      console.log('Verifizierungsergebnis:', success);
       if (!success) {
-        setError('Falsches Passwort');
-      } else if (onVerified) {
-        onVerified();
+        const newAttempts = attempts + 1;
+        setAttempts(newAttempts);
+        
+        if (newAttempts >= MAX_ATTEMPTS) {
+          setIsLocked(true);
+          setLockoutTime(LOCKOUT_DURATION);
+          setError(`Zu viele fehlgeschlagene Versuche. Bitte warten Sie ${LOCKOUT_DURATION / 60} Minuten.`);
+          console.log(`Fehlgeschlagene Anmeldeversuche für Feature ${feature} - Account gesperrt für ${LOCKOUT_DURATION / 60} Minuten`);
+        } else {
+          setError(`Falsches Passwort. Noch ${MAX_ATTEMPTS - newAttempts} Versuche übrig`);
+          console.log(`Fehlgeschlagener Anmeldeversuch für Feature ${feature} - Versuch ${newAttempts} von ${MAX_ATTEMPTS}`);
+        }
+      } else {
+        setAttempts(0);
+        if (onVerified) {
+          onVerified();
+        }
       }
     } catch (err) {
       setError('Ein Fehler ist aufgetreten');
@@ -73,13 +110,28 @@ export default function VerifyFeature({ feature, children, onVerified, onCancel 
     setShowPassword(!showPassword);
   };
 
+  const renderAttemptDots = () => {
+    return (
+      <div className="verify-attempts">
+        {[...Array(MAX_ATTEMPTS)].map((_, index) => (
+          <div
+            key={index}
+            className={`attempt-dot ${
+              index < attempts ? 'failed' : 'active'
+            }`}
+          />
+        ))}
+      </div>
+    );
+  };
+
   if (isFeatureVerified(feature) && !onVerified) {
     return children;
   }
 
   return (
     <div className="verify-container">
-      <div className="verify-box">
+      <div className={`verify-box ${isLocked ? 'locked' : ''}`}>
         <h2>Zugriff verifizieren</h2>
         <p>Diese Funktion erfordert eine Verifizierung.</p>
         
@@ -91,22 +143,25 @@ export default function VerifyFeature({ feature, children, onVerified, onCancel 
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Passwort eingeben"
               className="verify-input"
+              disabled={isLocked}
             />
             <button
               type="button"
               onClick={togglePasswordVisibility}
               className="verify-password-toggle"
               aria-label={showPassword ? "Passwort verbergen" : "Passwort anzeigen"}
+              disabled={isLocked}
             >
               <EyeIcon closed={!showPassword} />
             </button>
           </div>
+          {renderAttemptDots()}
           {error && <div className="verify-error">{error}</div>}
           <div className="verify-buttons">
             <button type="button" onClick={handleBack} className="verify-button verify-button-secondary">
               {onCancel ? 'Abbrechen' : 'Zurück'}
             </button>
-            <button type="submit" className="verify-button">
+            <button type="submit" className="verify-button" disabled={isLocked}>
               Verifizieren
             </button>
           </div>

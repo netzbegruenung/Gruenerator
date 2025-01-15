@@ -60,24 +60,23 @@
 }
 
 .verify-box h2 {
-  margin: 0 0 1.5rem;
-  color: var(--font-color-h);
+  color: var(--tanne);
+  margin: 0 0 1rem 0;
+  font-size: 1.5rem;
   text-align: center;
-  font-size: 1.75rem;
-  font-weight: 600;
 }
 
 .verify-box p {
-  color: var(--font-color);
-  text-align: center;
+  color: #666;
   margin-bottom: 1.5rem;
-  line-height: 1.5;
+  text-align: center;
+  font-size: 0.95rem;
 }
 
 .verify-form {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 1rem;
 }
 
 .verify-input-group {
@@ -87,105 +86,34 @@
 }
 
 .verify-input {
-  padding: 1rem;
-  border: 2px solid var(--background-color-alt);
+  width: 100%;
+  padding: 0.8rem 1rem;
+  padding-right: 3rem;
+  border: 2px solid #e0e0e0;
   border-radius: 8px;
   font-size: 1rem;
-  width: 100%;
-  background-color: var(--background-color);
-  color: var(--font-color);
-  transition: all 0.3s ease;
-  box-sizing: border-box;
-  padding-right: 3rem;
+  transition: all 0.2s ease;
 }
 
 .verify-input:focus {
+  border-color: var(--tanne);
   outline: none;
-  border-color: var(--klee);
-  box-shadow: 0 0 0 3px rgba(0, 137, 57, 0.1);
-}
-
-.verify-input::placeholder {
-  color: var(--font-color);
-  opacity: 0.6;
+  box-shadow: 0 0 0 3px rgba(var(--tanne-rgb), 0.1);
 }
 
 .verify-password-toggle {
   position: absolute;
-  right: 0.75rem;
+  right: 0.8rem;
   background: none;
   border: none;
-  cursor: pointer;
   padding: 0.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--font-color);
-  opacity: 0.5;
-  transition: all 0.2s ease;
+  cursor: pointer;
+  color: #666;
+  transition: color 0.2s ease;
 }
 
 .verify-password-toggle:hover {
-  opacity: 0.8;
-}
-
-.verify-password-toggle:focus {
-  outline: none;
-  opacity: 0.8;
-}
-
-.verify-password-toggle svg {
-  width: 20px;
-  height: 20px;
-  stroke: currentColor;
-  stroke-width: 2;
-  transition: transform 0.2s ease;
-}
-
-.verify-password-toggle:hover svg {
-  transform: scale(1.1);
-}
-
-.verify-buttons {
-  display: flex;
-  gap: 1rem;
-  justify-content: space-between;
-}
-
-.verify-button {
-  background-color: var(--tanne);
-  color: var(--weiß);
-  border: none;
-  padding: 1rem;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 1rem;
-  font-weight: 500;
-  transition: all 0.3s ease;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  flex: 1;
-}
-
-.verify-button:hover {
-  background-color: var(--klee);
-  transform: translateY(-1px);
-}
-
-.verify-button:active {
-  transform: translateY(1px);
-}
-
-.verify-button-secondary {
-  background-color: transparent;
-  border: 2px solid var(--tanne);
   color: var(--tanne);
-}
-
-.verify-button-secondary:hover {
-  background-color: var(--sand);
-  border-color: var(--klee);
-  color: var(--klee);
 }
 
 .verify-error {
@@ -204,55 +132,120 @@
   75% { transform: translateX(5px); }
 }
 
-/* Dark Mode Anpassungen */
-[data-theme="dark"] .verify-box {
+.verify-buttons {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.verify-button {
+  flex: 1;
+  padding: 0.8rem 1.5rem;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background-color: var(--tanne);
+  color: var(--weiß);
+}
+
+.verify-button:hover {
+  background-color: var(--klee);
+  transform: translateY(-1px);
+}
+
+.verify-button:active {
+  transform: translateY(0);
+}
+
+.verify-button-secondary {
+  background-color: var(--background-color);
+  color: var(--tanne);
+  border: 2px solid var(--tanne);
+}
+
+.verify-button-secondary:hover {
+  background-color: #e9ecef;
+}
+
+/* Sperrzustand Styling */
+.verify-box.locked .verify-input {
+  border-color: #d32f2f;
+  background-color: rgba(211, 47, 47, 0.05);
+}
+
+.verify-box.locked .verify-button {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Fortschrittsanzeige für verbleibende Versuche */
+.verify-attempts {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  margin: 0.5rem 0;
+}
+
+.attempt-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
   background-color: var(--background-color-alt);
-  border-color: var(--background-color);
+  transition: all 0.3s ease;
 }
 
-[data-theme="dark"] .verify-input {
+.attempt-dot.active {
+  background-color: var(--klee);
+}
+
+.attempt-dot.failed {
+  background-color: #d32f2f;
+}
+
+/* Dark Mode Anpassungen für neue Elemente */
+[data-theme="dark"] .attempt-dot {
   background-color: var(--background-color);
-  border-color: var(--background-color);
 }
 
-[data-theme="dark"] .verify-password-toggle {
-  color: var(--sand);
-  opacity: 0.7;
+[data-theme="dark"] .attempt-dot.active {
+  background-color: var(--klee);
 }
 
-[data-theme="dark"] .verify-password-toggle:hover {
-  opacity: 1;
+[data-theme="dark"] .attempt-dot.failed {
+  background-color: #ff4444;
 }
 
-[data-theme="dark"] .verify-button-secondary {
-  border-color: var(--sand);
-  color: var(--sand);
+[data-theme="dark"] .verify-box.locked .verify-input {
+  background-color: rgba(211, 47, 47, 0.1);
 }
 
-[data-theme="dark"] .verify-button-secondary:hover {
-  background-color: var(--background-color);
-  border-color: var(--klee);
-  color: var(--klee);
+/* Neue Sicherheitsfunktionen */
+.verify-attempts {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  margin: 0.5rem 0;
 }
 
-[data-theme="dark"] .verify-error {
-  background-color: rgba(211, 47, 47, 0.2);
+.attempt-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--background-color-alt);
 }
 
-/* Responsive Design */
-@media (max-width: 768px) {
-  .verify-box {
-    padding: 2rem;
-    width: 85%;
-    margin: 1rem;
-  }
+.attempt-dot.active {
+  background-color: var(--klee);
+}
 
-  .verify-box h2 {
-    font-size: 1.5rem;
-  }
+.attempt-dot.failed {
+  background-color: #d32f2f;
+}
 
-  .verify-buttons {
-    flex-direction: column-reverse;
-    gap: 0.75rem;
-  }
+.verify-box.locked .verify-input,
+.verify-box.locked .verify-button {
+  opacity: 0.5;
+  cursor: not-allowed;
 } 

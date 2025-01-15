@@ -1,17 +1,18 @@
 // SharepicGeneratorneu
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
-import { SharepicGeneratorProvider, useSharepicGeneratorContext } from '../../utils/Sharepic/SharepicGeneratorContext';
-import { useSharepicGeneration } from '../../hooks/sharepic/useSharepicGeneration';
-import { useSharepicRendering } from '../../hooks/sharepic/useSharepicRendering';
-import BaseForm from '../../common/BaseForm-Sharepic';
+import { SharepicGeneratorProvider, useSharepicGeneratorContext } from '../../../features/sharepic/core/utils/SharepicGeneratorContext';
+import { useSharepicGeneration } from '../../../features/sharepic/core/hooks/useSharepicGeneration';
+import { useSharepicRendering } from '../../../features/sharepic/core/hooks/useSharepicRendering';
+import BaseForm from '../../../features/sharepic/core/components/BaseForm-Sharepic';
 import WelcomePage from '../../common/WelcomePage';
 import ErrorBoundary from '../../ErrorBoundary';
-import { processImageForUpload } from '../../utils/imageCompression';
+import { processImageForUpload } from '../../../components/utils/imageCompression';
 import HelpDisplay from '../../common/HelpDisplay';
 import VerifyFeature from '../../common/VerifyFeature';
-import { SloganAlternativesDisplay } from '../../common/SloganAlternatives';
+import { SloganAlternativesDisplay } from '../../../features/sharepic/dreizeilen/components/SloganAlternatives';
 import '../../../assets/styles/components/slogan-alternatives.css';
+import SharepicTypeSelector from '../../../features/sharepic/core/components/SharepicTypeSelector';
 
 import { 
   FORM_STEPS, 
@@ -53,6 +54,10 @@ const getHelpContent = (step, showingAlternatives = false) => {
 };
 
 function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
+  const [hasSeenWelcome, setHasSeenWelcome] = useState(() => {
+    return localStorage.getItem('hasSeenSharepicWelcome') === 'true';
+  });
+
   const { 
     state, 
     setFile,
@@ -69,6 +74,19 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
   const { renderFormFields } = useSharepicRendering();
   const [errors, setErrors] = useState({});
   const [showAlternatives, setShowAlternatives] = useState(false);
+
+  useEffect(() => {
+    if (hasSeenWelcome && state.currentStep === FORM_STEPS.WELCOME) {
+      updateFormData({ currentStep: FORM_STEPS.TYPE_SELECT });
+    }
+  }, [hasSeenWelcome, state.currentStep, updateFormData]);
+
+  useEffect(() => {
+    if (!hasSeenWelcome) {
+      localStorage.setItem('hasSeenSharepicWelcome', 'true');
+      setHasSeenWelcome(true);
+    }
+  }, [hasSeenWelcome]);
 
   const validateForm = useCallback((formData) => {
     const newErrors = {};
@@ -104,15 +122,22 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
         
         if (!result) throw new Error(ERROR_MESSAGES.NO_TEXT_DATA);
         
-        await updateFormData({ 
-          ...result.mainSlogan,
-          type: state.formData.type, 
-          currentStep: FORM_STEPS.PREVIEW,
-          searchTerms: result.searchTerms
-        });
-
-        setAlternatives(result.alternatives);
-  
+        if (state.formData.type === 'Zitat') {
+          await updateFormData({ 
+            ...state.formData,
+            quote: result.quote,
+            name: result.name || state.formData.name,
+            currentStep: FORM_STEPS.PREVIEW
+          });
+        } else {
+          await updateFormData({ 
+            ...result.mainSlogan,
+            type: state.formData.type, 
+            currentStep: FORM_STEPS.PREVIEW,
+            searchTerms: result.searchTerms
+          });
+          setAlternatives(result.alternatives);
+        }
       } else if (state.currentStep === FORM_STEPS.PREVIEW) {
         if (!state.file) {
           setError("Bitte wählen Sie ein Bild aus");
@@ -296,7 +321,14 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
     return helpDisplay;
   }, [state.currentStep, state.formData, selectSlogan, helpDisplay, showAlternatives]);
 
-  if (state.currentStep === FORM_STEPS.WELCOME) {
+  const handleTypeSelect = useCallback((selectedType) => {
+    updateFormData({ 
+      type: selectedType,
+      currentStep: FORM_STEPS.INPUT 
+    });
+  }, [updateFormData]);
+
+  if (state.currentStep === FORM_STEPS.WELCOME && !hasSeenWelcome) {
     return (
       <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
         <WelcomePage
@@ -317,10 +349,14 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
               description: "Passe Farben und Schriftgröße deinen Wünschen an."
             }
           ]}
-          onStart={() => updateFormData({ currentStep: FORM_STEPS.INPUT })}
+          onStart={() => updateFormData({ currentStep: FORM_STEPS.TYPE_SELECT })}
         />
       </div>
     );
+  }
+
+  if (state.currentStep === FORM_STEPS.TYPE_SELECT) {
+    return <SharepicTypeSelector onTypeSelect={handleTypeSelect} />;
   }
 
   return (
