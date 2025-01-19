@@ -22,7 +22,7 @@ const WelcomePopup = () => {
   return (
     <div className="welcome-popup-overlay">
       <div className="welcome-popup">
-        <h1>Willkommen in 2024! 🎉</h1>
+        <h1>Willkommen im Jahr 2025! 🎉</h1>
         <div className="welcome-content">
           <section className="feature-section">
             <h2>Neue Features</h2>
