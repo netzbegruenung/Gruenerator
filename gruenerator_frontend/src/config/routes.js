@@ -1,5 +1,4 @@
 import { lazy } from 'react';
-import { Navigate } from 'react-router-dom';
 import TemplateGallery from '../features/templates';
 
 // Lazy loading für statische Seiten
@@ -18,7 +17,7 @@ export const GrueneratorenBundle = {
   Sharepic: lazy(() => import('../components/pages/Grüneratoren/Sharepicgenerator')),
   Antragscheck: lazy(() => import('../components/pages/Grüneratoren/Antragsversteher')),
   WahlpruefsteinThueringen: lazy(() => import('../components/pages/Grüneratoren/WahlpruefsteinThueringen')),
-  WahlpruefsteinBundestagswahl: lazy(() => import('../components/pages/Grüneratoren/WahlpruefsteinBundestagswahl')),
+  BTWKompass: lazy(() => import('../components/pages/Grüneratoren/WahlpruefsteinBundestagswahl')),
   Rede: lazy(() => import('../components/pages/Grüneratoren/Redengenerator')),
   Wahlprogramm: lazy(() => import('../components/pages/Grüneratoren/Wahlprogramm')),
   Kandidat: lazy(() => import('../components/pages/Grüneratoren/Kandidatengenerator')),
@@ -36,8 +35,7 @@ export const routes = {
     { path: '/gruene-jugend', component: GrueneratorenBundle.GrueneJugend, withForm: true },
     { path: '/antragscheck', component: GrueneratorenBundle.Antragscheck, withForm: true },
     { path: '/wahlpruefsteinthueringen', component: GrueneratorenBundle.WahlpruefsteinThueringen },
-    { path: '/btw-kompass', component: GrueneratorenBundle.WahlpruefsteinBundestagswahl, withForm: true },
-    { path: '/wahlpruefstein-bundestagswahl', element: <Navigate to="/btw-kompass" replace /> },
+    { path: '/btw-kompass', component: GrueneratorenBundle.BTWKompass, withForm: true },
     { path: '/rede', component: GrueneratorenBundle.Rede, withForm: true },
     { path: '/wahlprogramm', component: GrueneratorenBundle.Wahlprogramm, withForm: true },
     { path: '/kandidat', component: GrueneratorenBundle.Kandidat, withForm: true },
@@ -54,15 +52,24 @@ export const routes = {
       withSharepic: true 
     }
   ],
-  noHeaderFooter: Object.entries(GrueneratorenBundle).map(([key, component]) => ({
-    path: `/${key.toLowerCase().replace(/[äöüß]/g, (match) => {
+  noHeaderFooter: Object.entries(GrueneratorenBundle).map(([key, component]) => {
+    // Spezielle URL-Transformationen
+    const specialPaths = {
+      'BTWKompass': 'btw-kompass'
+    };
+
+    const basePath = specialPaths[key] || key.toLowerCase().replace(/[äöüß]/g, (match) => {
       const replacements = { 'ä': 'ae', 'ö': 'oe', 'ü': 'ue', 'ß': 'ss' };
       return replacements[match];
-    })}-no-header-footer`,
-    component: component,
-    showHeaderFooter: false,
-    withForm: true
-  }))
+    });
+
+    return {
+      path: `/${basePath}-no-header-footer`,
+      component: component,
+      showHeaderFooter: false,
+      withForm: true
+    };
+  })
 };
 
 export default routes;
