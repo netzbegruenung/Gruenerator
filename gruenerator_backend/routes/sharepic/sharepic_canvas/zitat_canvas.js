@@ -10,13 +10,13 @@ const upload = multer({ dest: 'uploads/' });
 
 // Pfade definieren
 const fontPath = path.resolve(__dirname, '../../../public/fonts/GrueneType.ttf');
-const quotationMarkPath = path.resolve(__dirname, '../../../public/quotation.png');
+const quotationMarkPath = path.resolve(__dirname, '../../../public/quote.svg');
 const testbildPath = path.resolve(__dirname, '../../../public/testbild.jpg');
 
 // Überprüfen, ob notwendige Dateien existieren
 [
   { path: fontPath, name: 'Schriftartdatei' },
-  { path: quotationMarkPath, name: 'Anführungszeichen-Bild' },
+  { path: quotationMarkPath, name: 'Anführungszeichen-SVG' },
   { path: testbildPath, name: 'Testbild' }
 ].forEach(file => {
   if (!fs.existsSync(file.path)) {
@@ -76,6 +76,7 @@ async function addTextToImage(imagePath, outputImagePath, quote, name) {
     // Anführungszeichen hinzufügen
     const quoteMarkSize = 100;
     const quoteMarkY = 450;
+    ctx.fillStyle = 'white';
     ctx.drawImage(quotationMark, 50, quoteMarkY, quoteMarkSize, quoteMarkSize);
 
     // Zitat hinzufügen
