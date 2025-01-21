@@ -10,7 +10,7 @@ import ErrorBoundary from '../../ErrorBoundary';
 import { processImageForUpload } from '../../../components/utils/imageCompression';
 import HelpDisplay from '../../common/HelpDisplay';
 import VerifyFeature from '../../common/VerifyFeature';
-import { SloganAlternativesDisplay } from '../../../features/sharepic/dreizeilen/components/SloganAlternatives';
+import { SloganAlternativesDisplay } from '../../../features/sharepic/core/components/SloganAlternatives';
 import '../../../assets/styles/components/slogan-alternatives.css';
 import SharepicTypeSelector from '../../../features/sharepic/core/components/SharepicTypeSelector';
 
@@ -117,7 +117,9 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
         setLottieVisible(true);
         const result = await generateText(state.formData.type, { 
           thema: state.formData.thema, 
-          details: state.formData.details 
+          details: state.formData.details,
+          quote: state.formData.quote,
+          name: state.formData.name
         });
         
         if (!result) throw new Error(ERROR_MESSAGES.NO_TEXT_DATA);
@@ -127,16 +129,19 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
             ...state.formData,
             quote: result.quote,
             name: result.name || state.formData.name,
-            currentStep: FORM_STEPS.PREVIEW
+            currentStep: FORM_STEPS.PREVIEW,
+            sloganAlternatives: result.alternatives || []
           });
+          setAlternatives(result.alternatives || []);
         } else {
           await updateFormData({ 
             ...result.mainSlogan,
             type: state.formData.type, 
             currentStep: FORM_STEPS.PREVIEW,
-            searchTerms: result.searchTerms
+            searchTerms: result.searchTerms,
+            sloganAlternatives: result.alternatives || []
           });
-          setAlternatives(result.alternatives);
+          setAlternatives(result.alternatives || []);
         }
       } else if (state.currentStep === FORM_STEPS.PREVIEW) {
         if (!state.file) {
@@ -279,6 +284,17 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
     return fields;
   }, [state.currentStep, state.formData, handleChange, errors]);
 
+  const handleSloganSelect = useCallback((selected) => {
+    if (state.formData.type === 'Zitat') {
+      updateFormData({
+        ...state.formData,
+        quote: selected.quote
+      });
+    } else {
+      selectSlogan(selected);
+    }
+  }, [state.formData.type, updateFormData, selectSlogan]);
+
   const fileUploadProps = {
     loading: state.loading,
     file: state.file,
@@ -287,7 +303,10 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
     allowedTypes: SHAREPIC_GENERATOR.ALLOWED_FILE_TYPES,
     alternativesButtonProps: {
       isExpanded: showAlternatives,
-      onClick: () => setShowAlternatives(!showAlternatives)
+      onClick: () => {
+        setShowAlternatives(!showAlternatives);
+      },
+      onSloganSelect: handleSloganSelect
     }
   };
 
@@ -306,20 +325,24 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
           {helpDisplay}
           {showAlternatives && (
             <SloganAlternativesDisplay
-              currentSlogan={{
-                line1: state.formData.line1,
-                line2: state.formData.line2,
-                line3: state.formData.line3
-              }}
+              currentSlogan={
+                state.formData.type === 'Zitat'
+                  ? { quote: state.formData.quote }
+                  : {
+                      line1: state.formData.line1,
+                      line2: state.formData.line2,
+                      line3: state.formData.line3
+                    }
+              }
               alternatives={state.formData.sloganAlternatives}
-              onSloganSelect={selectSlogan}
+              onSloganSelect={handleSloganSelect}
             />
           )}
         </>
       );
     }
     return helpDisplay;
-  }, [state.currentStep, state.formData, selectSlogan, helpDisplay, showAlternatives]);
+  }, [state.currentStep, state.formData, helpDisplay, showAlternatives, handleSloganSelect]);
 
   const handleTypeSelect = useCallback((selectedType) => {
     updateFormData({ 

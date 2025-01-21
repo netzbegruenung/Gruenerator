@@ -15,14 +15,14 @@ const SharepicTypeSelector = ({ onTypeSelect }) => {
         <div className="type-options-grid">
           <div className="type-card" onClick={() => onTypeSelect(SHAREPIC_TYPES.THREE_LINES)}>
             <div className="type-icon">📝</div>
-            <h3>Standard-Sharepic</h3>
+            <h3>Dreizeilen</h3>
             <p>Perfekt für kurze, prägnante Botschaften in drei Zeilen. Ideal für Forderungen oder Statements.</p>
           </div>
 
           <div className="type-card" onClick={() => onTypeSelect(SHAREPIC_TYPES.QUOTE)}>
             <div className="type-icon">💬</div>
             <h3>Zitat</h3>
-            <p>Gestalte eindrucksvolle Zitate. Optimal für Aussagen und Stellungnahmen.</p>
+            <p>Gestalte eindrucksvolle Zitate mit Quellenangabe. Optimal für Aussagen und Stellungnahmen.</p>
           </div>
         </div>
       </div>

@@ -71,13 +71,14 @@ function sharepicGeneratorReducer(state, action) {
       return { ...state, currentStep: action.payload };
     case 'SET_LOADING_UNSPLASH_IMAGES':
       return { ...state, isLoadingUnsplashImages: action.payload };
-      case 'SET_UNSPLASH_IMAGES':
-        console.log('Reducer: Setting new unsplash images', action.payload);
-        return { 
-          ...state, 
-          unsplashImages: action.payload,
-          isLoadingUnsplashImages: false // Setzen Sie isLoadingUnsplashImages auf false, wenn neue Bilder gesetzt werden
-        };    case 'SET_UNSPLASH_ERROR':
+    case 'SET_UNSPLASH_IMAGES':
+      console.log('Reducer: Setting new unsplash images', action.payload);
+      return { 
+        ...state, 
+        unsplashImages: action.payload,
+        isLoadingUnsplashImages: false // Setzen Sie isLoadingUnsplashImages auf false, wenn neue Bilder gesetzt werden
+      };
+    case 'SET_UNSPLASH_ERROR':
       return { ...state, unsplashError: action.payload };
     case 'SET_SELECTED_IMAGE':
       return { ...state, selectedImage: action.payload };
@@ -89,8 +90,7 @@ function sharepicGeneratorReducer(state, action) {
       return { ...state, loading: action.payload };
     case 'SET_UPLOADED_IMAGE':
       return { ...state, uploadedImage: action.payload };
-    
-      case 'RESET_UNSPLASH_STATE':
+    case 'RESET_UNSPLASH_STATE':
       return { 
         ...state, 
         unsplashImages: [], 
@@ -98,24 +98,24 @@ function sharepicGeneratorReducer(state, action) {
         unsplashError: null,
         selectedImage: null
       };
-      case 'UPDATE_IMAGE_MODIFICATION': {
-        const updatedFormData = {
-          ...state.formData,
-          colorScheme: action.payload.colorScheme || state.formData.colorScheme,
-          fontSize: action.payload.fontSize || state.formData.fontSize,
-          balkenOffset: Array.isArray(action.payload.balkenOffset) 
-            ? action.payload.balkenOffset 
-            : (Array.isArray(state.formData.balkenOffset) ? state.formData.balkenOffset : [50, -100, 50]),
-        };
-      
-        return {
-          ...state,
-          formData: updatedFormData
-        };
-      }
+    case 'UPDATE_IMAGE_MODIFICATION': {
+      const updatedFormData = {
+        ...state.formData,
+        colorScheme: action.payload.colorScheme || state.formData.colorScheme,
+        fontSize: action.payload.fontSize || state.formData.fontSize,
+        balkenOffset: Array.isArray(action.payload.balkenOffset) 
+          ? action.payload.balkenOffset 
+          : (Array.isArray(state.formData.balkenOffset) ? state.formData.balkenOffset : [50, -100, 50]),
+      };
+    
+      return {
+        ...state,
+        formData: updatedFormData
+      };
+    }
     case 'RESET_STATE':
       return initialState;
-      case 'SET_SEARCH_BAR_ACTIVE':
+    case 'SET_SEARCH_BAR_ACTIVE':
       return { ...state, isSearchBarActive: action.payload };
     case 'SET_LOTTIE_VISIBLE': // Angepasste Case für Lottie
       return { ...state, isLottieVisible: action.payload };
@@ -144,7 +144,7 @@ function sharepicGeneratorReducer(state, action) {
       };
     default:
       return state;
-      case 'UPDATE_BALKEN_GRUPPEN_OFFSET':
+    case 'UPDATE_BALKEN_GRUPPEN_OFFSET':
       return {
         ...state,
         formData: {
@@ -160,23 +160,19 @@ function sharepicGeneratorReducer(state, action) {
           sunflowerOffset: action.payload,
         },
       };
-      case 'UPDATE_CREDIT':
-        return {
-          ...state,
-          formData: {
-            ...state.formData,
-            credit: action.payload,
-          },
-        };
-        case 'SET_ADVANCED_EDITING':
-          return { ...state, isAdvancedEditingOpen: action.payload };
-     
-      case 'SET_SUBMITTING':
-  return { ...state, isSubmitting: action.payload.isSubmitting, currentSubmittingStep: action.payload.step };
+    case 'UPDATE_CREDIT':
+      return {
+        ...state,
+        formData: {
+          ...state.formData,
+          credit: action.payload,
+        },
+      };
+    case 'SET_ADVANCED_EDITING':
+      return { ...state, isAdvancedEditingOpen: action.payload };
+    case 'SET_SUBMITTING':
+      return { ...state, isSubmitting: action.payload.isSubmitting, currentSubmittingStep: action.payload.step };
   }
-  
-  
-  
 }
 
 export const generateImage = async (formData, modificationData) => {
