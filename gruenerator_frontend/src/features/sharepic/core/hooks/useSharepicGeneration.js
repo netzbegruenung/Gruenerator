@@ -24,7 +24,8 @@ export const useSharepicGeneration = () => {
         }
         return {
           quote: response.quote,
-          name: formData.name
+          name: formData.name,
+          alternatives: response.alternatives || []
         };
       } else {
         if (!response || !response.mainSlogan || !response.alternatives) {

@@ -219,24 +219,42 @@
   cursor: pointer;
 }
 
-.file-name {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 150px;
-}
-
 .file-input-text {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0;
-  text-align: center;
+  width: 100%;
+  height: 42px;
+  padding: var(--button-padding);
+  border: 2px solid var(--weiß);
+  border-radius: var(--button-border-radius);
+  font-size: var(--button-font-size);
+  background-color: var(--tanne);
+  color: var(--weiß);
   cursor: pointer;
+  transition: background-color var(--button-transition), transform var(--button-transition);
+}
+
+.file-input-text:hover {
+  background-color: var(--klee);
+  transform: scale(1.01);
+}
+
+.file-input-text span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  padding: 0 8px;
 }
 
 .file-input-text svg {
-  margin-right: 10px;
+  flex-shrink: 0;
+  font-size: 1.2em;
+}
+
+.file-name {
+  display: none;
 }
 
 .file-upload {

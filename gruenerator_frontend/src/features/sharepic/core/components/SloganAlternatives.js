@@ -22,9 +22,9 @@ export const SloganAlternativesButton = ({ isExpanded, onClick }) => {
           className="alternatives-button"
           onClick={handleClick}
           aria-expanded={isExpanded}
-          aria-label="Anderer Slogan"
+          aria-label="Alternativen anzeigen"
         >
-          Anderer Slogan
+          Alternativen anzeigen
         </button>
       </CSSTransition>
 
@@ -75,6 +75,9 @@ export const SloganAlternativesDisplay = ({ currentSlogan, alternatives, onSloga
 
   return (
     <div className="slogan-alternatives">
+      <div className="slogan-alternatives-header">
+        <h4 className="slogan-alternatives-title">Alternative Vorschläge</h4>
+      </div>
       <div className="slogan-list">
         {alternatives.map((item, index) => (
           <div 
