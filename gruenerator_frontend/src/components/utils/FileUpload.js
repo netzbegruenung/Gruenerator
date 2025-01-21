@@ -34,14 +34,12 @@ const FileUpload = ({ loading, file, handleChange, error, allowedTypes, selected
     }
     
     if (file) {
-      // Kürze den Dateinamen, wenn er zu lang ist
-      const fileName = file.name ? (file.name.length > 10 
-        ? file.name.substring(0, 7) + '...' 
-        : file.name) : 'Datei';
+      const fileName = file.name || 'Datei';
+      const displayName = fileName.length > 20 ? fileName.substring(0, 17) + '...' : fileName;
       return (
         <>
           <FaUpload />
-          <span className="file-name">{fileName}</span>
+          <span>{displayName}</span>
         </>
       );
     }
@@ -58,7 +56,7 @@ const FileUpload = ({ loading, file, handleChange, error, allowedTypes, selected
     return (
       <>
         <FaUpload />
-        <span>Upload</span>
+        <span>Datei auswählen</span>
       </>
     );
   };
