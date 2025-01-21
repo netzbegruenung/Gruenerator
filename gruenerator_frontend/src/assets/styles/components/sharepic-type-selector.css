@@ -20,13 +20,13 @@
 .type-selector-content h1 {
   font-size: 2.5rem;
   margin-bottom: 1rem;
-  color: var(--primary-color);
+  color: var(--font-color-h);
 }
 
 .type-selector-intro {
   font-size: 1.2rem;
   margin-bottom: 3rem;
-  color: var(--text-color);
+  color: var(--font-color);
 }
 
 .type-options-grid {
@@ -37,11 +37,11 @@
 }
 
 .type-card {
-  background: var(--card-background, #ffffff);
+  background: var(--background-color-alt);
   border-radius: 12px;
   padding: 2rem;
   text-align: center;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  transition: all 0.3s ease;
   cursor: pointer;
   position: relative;
   overflow: hidden;
@@ -52,7 +52,8 @@
 .type-card:hover {
   transform: translateY(-5px);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-  border-color: var(--primary-color);
+  border-color: var(--tanne);
+  background: var(--background-color);
 }
 
 .type-icon {
@@ -63,31 +64,14 @@
 .type-card h3 {
   font-size: 1.5rem;
   margin-bottom: 1rem;
-  color: var(--primary-color);
+  color: var(--font-color-h3);
 }
 
 .type-card p {
   font-size: 1rem;
   line-height: 1.5;
   margin-bottom: 1.5rem;
-  color: var(--text-color);
-}
-
-.select-button {
-  background: var(--primary-color);
-  color: white;
-  border: none;
-  padding: 0.8rem 1.5rem;
-  border-radius: 6px;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-  width: auto;
-  display: inline-block;
-}
-
-.select-button:hover {
-  background: var(--primary-color-dark, #004428);
+  color: var(--font-color);
 }
 
 @media (max-width: 768px) {

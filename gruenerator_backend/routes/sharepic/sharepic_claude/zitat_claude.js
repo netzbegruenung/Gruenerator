@@ -8,8 +8,8 @@ router.post('/', async (req, res) => {
   try {
     console.log('[Zitat-Claude API] Preparing request to Claude API');
     const prompt = thema && details
-      ? `Erstelle 5 verschiedene Zitate zum Thema "${thema}" basierend auf folgenden Details: ${details}. Ist unter Details kein Inhalt, nimm nur das Thema. Gib die Zitate in einem JSON-Array zurück, wobei jedes Objekt ein "quote" Feld hat.`
-      : `Optimiere folgendes Zitat: "${quote}" und erstelle 4 weitere Varianten. Gib die Zitate in einem JSON-Array zurück, wobei jedes Objekt ein "quote" Feld hat.`;
+      ? `Erstelle 4 verschiedene Zitate zum Thema "${thema}" basierend auf folgenden Details: ${details}. Ist unter Details kein Inhalt, nimm nur das Thema. Gib die Zitate in einem JSON-Array zurück, wobei jedes Objekt ein "quote" Feld hat.`
+      : `Optimiere folgendes Zitat: "${quote}" und erstelle 3 weitere Varianten. Gib die Zitate in einem JSON-Array zurück, wobei jedes Objekt ein "quote" Feld hat.`;
 
     console.log('[Zitat-Claude API] Sending request to Claude API with prompt:', prompt);
     const result = await req.app.locals.aiWorkerPool.processRequest({
@@ -60,8 +60,8 @@ router.post('/', async (req, res) => {
         quotes = [{ quote: extractedQuote }];
       }
       
-      // Stelle sicher, dass wir maximal 5 Zitate haben
-      quotes = quotes.slice(0, 5);
+      // Stelle sicher, dass wir maximal 4 Zitate haben
+      quotes = quotes.slice(0, 4);
       
       const resultObj = {
         alternatives: quotes,

@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import { HiCog, HiChevronDown, HiChevronUp } from "react-icons/hi";
 import Button from '../../../../components/common/SubmitButton';
 import DownloadButton from './DownloadButton';
-import FileUpload from '../../../../components/common/FileUpload';
+import FileUpload from '../../../../components/utils/FileUpload';
 import UnsplashButton from './UnsplashButton';
 import { useSharepicGeneratorContext } from '../utils/SharepicGeneratorContext';
 import AdvancedEditingSection from '../../dreizeilen/components/AdvancedEditingSection';
@@ -24,7 +24,7 @@ import {
   ARIA_LABELS, 
   FORM_STEPS,
 } from '../../../../components/utils/constants';
-import { SloganAlternativesButton, SloganAlternativesDisplay } from '../../dreizeilen/components/SloganAlternatives';
+import { SloganAlternativesButton, SloganAlternativesDisplay } from '../components/SloganAlternatives';
 
 const BaseForm = ({
   title,
@@ -163,28 +163,6 @@ const BaseForm = ({
           <FileUpload {...fileUploadProps} buttonText="Upload" />
         </div>
       </div>
-      {fileUploadProps?.alternativesButtonProps?.isExpanded && (
-        <div className="alternatives-section">
-          <h4>Wähle einen passenden Text für dein Sharepic aus</h4>
-          <SloganAlternativesDisplay
-            currentSlogan={formData.type === 'Zitat' ? {
-              quote: formData.quote
-            } : formData}
-            alternatives={formData.alternatives || []}
-            onSloganSelect={formData.type === 'Zitat' ? 
-              (selected) => {
-                handleChange({
-                  target: {
-                    name: 'quote',
-                    value: selected.quote
-                  }
-                });
-              } : 
-              fileUploadProps.alternativesButtonProps.onSloganSelect
-            }
-          />
-        </div>
-      )}
       <div className="button-container">
         {renderFormButtons()}
       </div>
@@ -322,22 +300,50 @@ const BaseForm = ({
     return (
       <div className="display-content" style={{ fontSize: fontSize }}>
         {currentStep === FORM_STEPS.PREVIEW && (
-          <div className="preview-image-container">
-            {formData.uploadedImage && (
-              <img 
-                src={URL.createObjectURL(formData.uploadedImage)} 
-                alt="Vorschau" 
-                className="preview-image"
-              />
+          <>
+            <div className="preview-image-container">
+              {formData.uploadedImage && (
+                <img 
+                  src={URL.createObjectURL(formData.uploadedImage)} 
+                  alt="Vorschau" 
+                  className="preview-image"
+                />
+              )}
+              {selectedImage && (
+                <img 
+                  src={selectedImage.urls.regular} 
+                  alt={selectedImage.alt_description || "Unsplash Vorschau"} 
+                  className="preview-image"
+                />
+              )}
+            </div>
+            {fileUploadProps?.alternativesButtonProps?.isExpanded && formData.sloganAlternatives?.length > 0 && (
+              <div className="alternatives-section">
+                <h4>Wähle einen passenden Text für dein Sharepic aus</h4>
+                <SloganAlternativesDisplay
+                  currentSlogan={formData.type === 'Zitat' ? {
+                    quote: formData.quote
+                  } : {
+                    line1: formData.line1,
+                    line2: formData.line2,
+                    line3: formData.line3
+                  }}
+                  alternatives={formData.sloganAlternatives}
+                  onSloganSelect={formData.type === 'Zitat' ? 
+                    (selected) => {
+                      handleChange({
+                        target: {
+                          name: 'quote',
+                          value: selected.quote
+                        }
+                      });
+                    } : 
+                    fileUploadProps.alternativesButtonProps.onSloganSelect
+                  }
+                />
+              </div>
             )}
-            {selectedImage && (
-              <img 
-                src={selectedImage.urls.regular} 
-                alt={selectedImage.alt_description || "Unsplash Vorschau"} 
-                className="preview-image"
-              />
-            )}
-          </div>
+          </>
         )}
         {currentStep === FORM_STEPS.RESULT && typeof generatedImageSrc === 'string' && generatedImageSrc.startsWith('data:image') && (
           <div className="sticky-sharepic-container">
