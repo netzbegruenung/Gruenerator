@@ -1,15 +1,24 @@
-import React, { useState } from 'react';
+import React from 'react';
 import PropTypes from 'prop-types';
 import { FaSearch } from 'react-icons/fa';
 import '../styles/SearchBar.css';
 
-const SearchBar = ({ onSearch, loading }) => {
-  const [query, setQuery] = useState('');
+const exampleQuestions = [
+  {
+    icon: '🚲',
+    text: 'Verkehrswende in Kommunen Beispiele'
+  },
+  {
+    icon: '🌍',
+    text: 'Klimaschutz für Kommunen Ideen'
+  }
+];
 
+const SearchBar = ({ onSearch, loading, value, onChange }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (query.trim() && !loading) {
-      onSearch(query);
+    if (value.trim() && !loading) {
+      onSearch(value.trim());
     }
   };
 
@@ -17,32 +26,45 @@ const SearchBar = ({ onSearch, loading }) => {
     <div className="search-bar-container">
       <form onSubmit={handleSubmit} className="search-form">
         <div className="search-input-wrapper">
-          <FaSearch className="search-icon" />
           <input
             type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
             className="search-input"
-            placeholder="Grüne Suche"
+            placeholder="Deine Frage an die Grünen..."
             aria-label="Suchfeld"
             disabled={loading}
           />
-        </div>
-        <div className="search-buttons">
           <button 
-            type="submit" 
-            className={`search-button ${loading ? 'loading' : ''}`}
-            disabled={loading}
+            type="submit"
+            className="search-icon-button"
+            disabled={loading || !value.trim()}
+            aria-label="Suchen"
           >
             {loading ? (
-              <div className="button-loading-content">
-                <div className="button-spinner"></div>
-                <span>Analysiere...</span>
-              </div>
+              <div className="button-spinner"></div>
             ) : (
-              'Grüne Suche'
+              <FaSearch className="search-icon" />
             )}
           </button>
+        </div>
+        
+        <div className="ai-disclaimer">
+          KI-Systeme können Fakten falsch interpretieren oder erfinden. Bitte prüfe die Quellen.
+        </div>
+        
+        <div className="example-questions">
+          {exampleQuestions.map((question, index) => (
+            <button
+              key={index}
+              type="button"
+              className="example-question"
+              onClick={() => onChange(question.text)}
+            >
+              <span>{question.icon}</span>
+              <span>{question.text}</span>
+            </button>
+          ))}
         </div>
       </form>
     </div>
@@ -51,11 +73,15 @@ const SearchBar = ({ onSearch, loading }) => {
 
 SearchBar.propTypes = {
   onSearch: PropTypes.func.isRequired,
-  loading: PropTypes.bool
+  loading: PropTypes.bool,
+  value: PropTypes.string,
+  onChange: PropTypes.func
 };
 
 SearchBar.defaultProps = {
-  loading: false
+  loading: false,
+  value: '',
+  onChange: () => {}
 };
 
 export default SearchBar; 
