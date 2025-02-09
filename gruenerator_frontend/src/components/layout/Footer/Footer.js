@@ -70,7 +70,6 @@ const Footer = () => {
                                     <li><Link to="/socialmedia" onClick={() => announce('Navigation zur Social Media Seite')}>Social Media</Link></li>
                                     <li><Link to="/rede" onClick={() => announce('Navigation zur Politische Rede Seite')}>Politische Rede</Link></li>
                                     <li><Link to="/universal" onClick={() => announce('Navigation zum Universal Grünerator')}>Universal Grünerator</Link></li>
-                                    <li><Link to="/antragscheck" onClick={() => announce('Navigation zur Antragscheck Seite')}>Antragscheck</Link></li>
                                     <li><Link to="/wahlprogramm" onClick={() => announce('Navigation zur Wahlprogramm Seite')}>Wahlprogramm</Link></li>
                                     <li><Link to="/btw-kompass" onClick={() => announce('Navigation zum BTW Programm-Kompass')}>BTW Programm-Kompass</Link></li>
                                     <li><Link to="/gruene-jugend" onClick={() => announce('Navigation zum Grüne Jugend Grünerator')}>Grüne Jugend</Link></li>
@@ -78,31 +77,33 @@ const Footer = () => {
                             </div>
 
                             <div className="footer-section">
-                                <h3>Grafik</h3>
-                                <ul>
-                                    <li><Link to="/vorlagen" onClick={() => announce('Navigation zur Vorlagen Seite')}>Canva-Vorlagen</Link></li>
-                                    <li><Link to="/sharepic" onClick={() => announce('Navigation zum Sharepic Grünerator')}>Sharepic Grünerator</Link></li>
-                                </ul>
-                                <h3>Tools</h3>
+                                <h3>Tools & Grafik</h3>
                                 <ul>
                                     <li><Link to="/suche" onClick={() => announce('Navigation zur Suche')}>Suche</Link></li>
                                     <li><Link to="/antragscheck" onClick={() => announce('Navigation zur Antragscheck Seite')}>Antragscheck</Link></li>
                                     <li><Link to="/btw-kompass" onClick={() => announce('Navigation zum BTW Programm-Kompass')}>BTW Programm-Kompass</Link></li>
+                                    <li><Link to="/vorlagen" onClick={() => announce('Navigation zur Vorlagen Seite')}>Canva-Vorlagen</Link></li>
+                                    <li><Link to="/sharepic" onClick={() => announce('Navigation zum Sharepic Grünerator')}>Sharepic Grünerator</Link></li>
                                 </ul>
                             </div>
 
                             <div className="footer-section">
-                                <h3>GPTs für ChatGPT</h3>
-                                <ul>
-                                    <li><a href="https://chat.openai.com/g/g-ZZwx8kZS3-grunerator-social-media" target="_blank" rel="noopener noreferrer" onClick={() => announce('Öffne GPT Social Media')}>Social Media</a></li>
-                                    <li><a href="https://chatgpt.com/g/g-Npcb04iH7-grunerator-pressemitteilungen" target="_blank" rel="noopener noreferrer" onClick={() => announce('Öffne GPT Pressemitteilung')}>Pressemitteilung</a></li>
-                                </ul>
-                                <h3>Rechtliches & Info</h3>
-                                <ul>
-                                    <li><Link to="/impressum" onClick={() => announce('Navigation zur Impressum Seite')}>Impressum</Link></li>
-                                    <li><Link to="/datenschutz" onClick={() => announce('Navigation zur Datenschutz Seite')}>Datenschutz</Link></li>
-                                    <li><a href="https://896ca129.sibforms.com/serve/MUIFAFnH3lov98jrw3d75u_DFByChA39XRS6JkBKqjTsN9gx0MxCvDn1FMnkvHLgzxEh1JBcEOiyHEkyzRC-XUO2DffKsVccZ4r7CCaYiugoiLf1a-yoTxDwoctxuzCsmDuodwrVwEwnofr7K42jQc-saIKeVuB_8UxrwS18QIaahZml1qMExNno2sEC7HyMy9Nz4f2f8-UJ4QmW" target="_blank" rel="noopener noreferrer" onClick={() => announce('Öffne Newsletter Anmeldung')}>Newsletter</a></li>
-                                </ul>
+                                <div className="subsection">
+                                    <h3>GPTs für ChatGPT</h3>
+                                    <ul>
+                                        <li><a href="https://chat.openai.com/g/g-ZZwx8kZS3-grunerator-social-media" target="_blank" rel="noopener noreferrer" onClick={() => announce('Öffne GPT Social Media')}>Social Media</a></li>
+                                        <li><a href="https://chatgpt.com/g/g-Npcb04iH7-grunerator-pressemitteilungen" target="_blank" rel="noopener noreferrer" onClick={() => announce('Öffne GPT Pressemitteilung')}>Pressemitteilung</a></li>
+                                    </ul>
+                                </div>
+
+                                <div className="subsection">
+                                    <h3>Rechtliches & Info</h3>
+                                    <ul>
+                                        <li><Link to="/impressum" onClick={() => announce('Navigation zur Impressum Seite')}>Impressum</Link></li>
+                                        <li><Link to="/datenschutz" onClick={() => announce('Navigation zur Datenschutz Seite')}>Datenschutz</Link></li>
+                                        <li><a href="https://896ca129.sibforms.com/serve/MUIFAFnH3lov98jrw3d75u_DFByChA39XRS6JkBKqjTsN9gx0MxCvDn1FMnkvHLgzxEh1JBcEOiyHEkyzRC-XUO2DffKsVccZ4r7CCaYiugoiLf1a-yoTxDwoctxuzCsmDuodwrVwEwnofr7K42jQc-saIKeVuB_8UxrwS18QIaahZml1qMExNno2sEC7HyMy9Nz4f2f8-UJ4QmW" target="_blank" rel="noopener noreferrer" onClick={() => announce('Öffne Newsletter Anmeldung')}>Newsletter</a></li>
+                                    </ul>
+                                </div>
                             </div>
                         </div>
                     </div>
