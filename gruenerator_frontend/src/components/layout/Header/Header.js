@@ -114,7 +114,7 @@ const Header = () => {
                             </ul>
                         </li>
                         <li>
-                            <Link to="/suche" onClick={() => handleLinkClick('/suche', 'Suche')}><PiMagnifyingGlass aria-hidden="true" /> Suche</Link>
+                            <Link to="/suche" onClick={() => handleLinkClick('/suche', 'Suche')}>Suche <PiMagnifyingGlass className="search-icon" aria-hidden="true" /></Link>
                         </li>
                     </ul>
                 </nav>
