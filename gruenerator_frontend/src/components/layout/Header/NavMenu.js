@@ -14,6 +14,7 @@ import {
   PiMagicWand,
   PiMagnifyingGlass
 } from 'react-icons/pi';
+import { GiHedgehog } from 'react-icons/gi';
 import { CSSTransition } from 'react-transition-group';
 import useAccessibility from '../../hooks/useAccessibility';
 
@@ -103,7 +104,7 @@ const NavMenu = ({ open, onClose }) => {
             <li><Link to="/rede" onClick={() => handleLinkClick('/rede', 'Politische Rede')}><PiMicrophone className="nav-icon" aria-hidden="true" /> Politische Rede</Link></li>
             <li><Link to="/universal" onClick={() => handleLinkClick('/universal', 'Universal')}><PiMagicWand className="nav-icon" aria-hidden="true" /> Universal</Link></li>
             <li><Link to="/wahlprogramm" onClick={() => handleLinkClick('/wahlprogramm', 'Wahlprogramm')}><PiBook className="nav-icon" aria-hidden="true" /> Wahlprogramm</Link></li>
-            <li><Link to="/btw-kompass" onClick={() => handleLinkClick('/btw-kompass', 'BTW Programm-Kompass')}><PiBook className="nav-icon" aria-hidden="true" /> BTW Programm-Kompass</Link></li>
+            <li><Link to="/gruene-jugend" onClick={() => handleLinkClick('/gruene-jugend', 'Grüne Jugend')}><GiHedgehog className="nav-icon" aria-hidden="true" /> Grüne Jugend</Link></li>
           </ul>
         </CSSTransition>
       </div>
