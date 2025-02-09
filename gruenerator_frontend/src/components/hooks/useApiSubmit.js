@@ -66,6 +66,16 @@ const useApiSubmit = (endpoint) => {
           setSuccess(true);
           return response;
         }
+      } else if (endpoint === 'search') {
+        if (response && response.status === 'success' && Array.isArray(response.results)) {
+          setSuccess(true);
+          return response;
+        }
+      } else if (endpoint === 'analyze') {
+        if (response && response.status === 'success' && response.analysis) {
+          setSuccess(true);
+          return response;
+        }
       } else {
         // Standard AI-Response-Behandlung
         if (response && response.content) {
