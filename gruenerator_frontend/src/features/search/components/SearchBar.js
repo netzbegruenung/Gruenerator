@@ -31,7 +31,6 @@ const SearchBar = ({ onSearch, loading, value, onChange }) => {
             value={value}
             onChange={(e) => onChange(e.target.value)}
             className="search-input"
-            placeholder="Deine Frage an die Grünen..."
             aria-label="Suchfeld"
             disabled={loading}
           />
