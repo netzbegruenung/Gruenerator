@@ -16,7 +16,7 @@ router.post('/', async (req, res) => {
   try {
     const searchOptions = {
       includeAnswer: options.search_depth || "advanced",
-      maxResults: Math.min(options.max_results || 6, 6),  // Limit auf 6 Ergebnisse
+      maxResults: Math.min(options.max_results || 10, 10),  // Limit auf 10 Ergebnisse
       include_raw_content: false  // Kein Raw Content mehr
     };
     

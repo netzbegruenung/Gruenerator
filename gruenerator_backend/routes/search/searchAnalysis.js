@@ -23,19 +23,33 @@ router.post('/', async (req, res) => {
       systemPrompt: `Du bist ein Recherche-Assistent, der Suchergebnisse gründlich analysiert.
 
 Deine Aufgabe ist es, die Inhalte der gefundenen Webseiten zu analysieren und eine detaillierte Zusammenfassung zu erstellen:
-- Nutze möglichst alle verfügbaren Quellen
+- Nutze ALLE verfügbaren Quellen für deine Analyse
 - Fasse die Informationen ausführlich zusammen
-- Strukturiere den Text in logische Absätze
+- Strukturiere den Text mit Zwischenüberschriften und Hervorhebungen
 - Verwende Stichpunkte für Aufzählungen
 - Bleibe neutral und sachlich
 - Beziehe dich ausschließlich auf die Inhalte der Quellen
 
+Formatierung:
+- Verwende <h3>Zwischenüberschrift</h3> für thematische Abschnitte
+- Nutze <strong>Fettdruck</strong> für wichtige Begriffe und Kernaussagen
+- Setze <em>Kursivschrift</em> für Zitate oder Betonungen
+- Strukturiere Aufzählungen mit <ul> und <li> Tags
+- Trenne Absätze mit <p> Tags
+
+WICHTIG: Du MUSST für JEDE einzelne Quelle eine Empfehlung schreiben, keine auslassen!
+
 Format deiner Antwort:
-1. Hauptteil: Deine ausführliche Zusammenfassung
-2. Listen mit "- " beginnen, durch Leerzeilen getrennt
-3. Nach zwei Leerzeilen: "###USED_SOURCES_START###"
-4. Auflistung der verwendeten Quellen: "QUELLE: [Titel]"
-5. "###USED_SOURCES_END###"`,
+1. Hauptteil: Deine ausführlich formatierte Zusammenfassung
+2. Listen mit <ul> und <li> Tags
+3. Nach zwei Leerzeilen: "###SOURCE_RECOMMENDATIONS_START###"
+4. Für JEDE einzelne Quelle (keine auslassen):
+   "QUELLE: [Titel]
+   ZUSAMMENFASSUNG: [Ein prägnanter Satz, der den Hauptinhalt der Quelle zusammenfasst]"
+5. Nach zwei Leerzeilen: "###SOURCE_RECOMMENDATIONS_END###"
+6. Nach zwei Leerzeilen: "###USED_SOURCES_START###"
+7. Auflistung der verwendeten Quellen: "QUELLE: [Titel]"
+8. "###USED_SOURCES_END###"`,
       messages: [{
         role: "user",
         content: [{
@@ -56,7 +70,23 @@ Format deiner Antwort:
 
     // Extrahiere den Haupttext und die verwendeten Quellen
     const content = result.content;
-    const mainText = content.split('###USED_SOURCES_START###')[0].trim();
+    const mainText = content.split('###SOURCE_RECOMMENDATIONS_START###')[0].trim();
+    
+    // Extrahiere die Quellenempfehlungen
+    const recommendationsMatch = content.match(/###SOURCE_RECOMMENDATIONS_START###\n([\s\S]*?)\n###SOURCE_RECOMMENDATIONS_END###/);
+    const sourceRecommendations = recommendationsMatch ? 
+      recommendationsMatch[1]
+        .split('\nQUELLE: ')
+        .filter(Boolean)
+        .map(block => {
+          const [title, summaryLine] = block.split('\n');
+          return {
+            title: title.trim(),
+            summary: summaryLine.replace('ZUSAMMENFASSUNG: ', '').trim()
+          };
+        })
+      : [];
+
     const sourcesMatch = content.match(/###USED_SOURCES_START###\n([\s\S]*?)\n###USED_SOURCES_END###/);
     const usedSourceTitles = sourcesMatch ? 
       sourcesMatch[1]
@@ -69,6 +99,7 @@ Format deiner Antwort:
     res.json({ 
       status: 'success',
       analysis: mainText,
+      sourceRecommendations,
       claudeSourceTitles: usedSourceTitles,
       metadata: result.metadata 
     });
