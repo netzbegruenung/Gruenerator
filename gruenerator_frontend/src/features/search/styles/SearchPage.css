@@ -13,7 +13,7 @@
   flex-direction: column;
   align-items: center;
   margin-bottom: 32px;
-  margin-top: 80px;
+  margin-top: 6rem;
   text-align: center;
   width: 100%;
   max-width: var(--container-max-width, 1200px);
@@ -21,9 +21,8 @@
 
 .search-header h1 {
   font-size: 56px;
-  color: var(--klee);
+  color: var(--font-color-h);
   margin: 0;
-  font-weight: bold;
   letter-spacing: -1px;
   line-height: 1.2;
 }
@@ -87,12 +86,13 @@
 
 .analysis-container {
   width: 100%;
-  max-width: 800px;
+  max-width: 750px;
   margin: 20px auto;
-  padding: 24px;
+  padding: 35px;
   background-color: var(--background-color-alt);
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  position: relative;
 }
 
 .analysis-container h2 {
@@ -110,7 +110,37 @@
   hyphens: auto;
 }
 
-/* Verbesserte Absatz-Styles */
+.analysis-actions {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  display: flex;
+  gap: 8px;
+  z-index: 1;
+}
+
+.analysis-content h3 {
+  color: var(--font-color-h);
+  font-size: 18px;
+  font-weight: 500;
+  margin: 24px 0 12px 0;
+  line-height: 1.4;
+}
+
+.analysis-content h3:first-child {
+  margin-top: 0;
+}
+
+.analysis-content strong {
+  color: var(--font-color-h);
+  font-weight: 600;
+}
+
+.analysis-content em {
+  font-style: italic;
+  opacity: 0.9;
+}
+
 .analysis-content p {
   margin: 0 0 16px 0;
   white-space: normal;
@@ -181,23 +211,25 @@
 }
 
 .sources-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  padding: 0 1rem;
 }
 
 .source-item {
   display: block;
-  padding: 16px;
+  padding: 1rem;
   background-color: var(--background-color-alt);
   border-radius: 8px;
   text-decoration: none;
   transition: background-color 0.2s ease;
   overflow: hidden;
+  height: 100%;
 }
 
 .source-item:hover {
-  background-color: var(--background-color-sand);
+  background-color: var(--hover-color-alt);
 }
 
 .source-item h3 {
@@ -205,9 +237,10 @@
   margin: 0 0 8px 0;
   font-size: 16px;
   font-weight: 500;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.4;
 }
 
 .source-url {
@@ -240,15 +273,64 @@
 
 [data-theme="dark"] .analysis-container,
 [data-theme="dark"] .source-item {
-  background-color: var(--background-color-alt);
+  background-color: var(--hover-color-alt);
 }
 
 [data-theme="dark"] .source-item:hover {
-  background-color: var(--background-color-alt);
+  background-color: var(--hover-color-alt);
 }
 
 [data-theme="dark"] .analysis-content ul li::before {
   color: var(--sand);
+}
+
+.example-questions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+  justify-content: center;
+  width: 100%;
+  max-width: 584px;
+}
+
+.example-question {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.5rem 1rem;
+  background-color: var(--background-color-alt);
+  border-radius: 1.25rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid transparent;
+  font-size: 0.9375rem;
+  flex: 0 0 auto;
+  overflow: hidden;
+  opacity: 0.9;
+}
+
+.example-question:hover {
+  opacity: 1;
+  background-color: var(--hover-color-alt);
+}
+
+.example-question span {
+  color: var(--font-color);
+}
+
+.example-question span:first-child {
+  font-size: 1.125rem;
+  flex-shrink: 0;
+}
+
+.example-question span:last-child {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+[data-theme="dark"] .example-question:hover {
+  background-color: var(--hover-color-alt);
 }
 
 @media (max-width: 768px) {
@@ -257,22 +339,30 @@
   }
 
   .search-header {
-    margin-top: 60px;
+    margin-top: 5rem;
     margin-bottom: 24px;
+    padding: 0 16px;
   }
 
   .search-header h1 {
-    font-size: 40px;
+    font-size: 36px;
+    line-height: 1.3;
   }
 
   .search-subtitle {
     font-size: 16px;
-    margin-top: 8px;
+    margin-top: 12px;
+    padding: 0 8px;
   }
 
   .search-error {
     margin: 20px 16px;
     font-size: 14px;
+    max-width: calc(100% - 32px);
+  }
+
+  .analyze-button-container {
+    max-width: calc(100% - 32px);
   }
 
   .analysis-container {
@@ -282,23 +372,80 @@
 
   .analysis-content {
     font-size: 15px;
-    line-height: 1.7;
+    line-height: 1.6;
   }
 
   .sources-section {
     padding: 0 16px;
-    gap: 24px;
+    gap: 20px;
   }
 
   .source-item {
-    padding: 12px;
+    padding: 14px;
+    border-radius: 12px;
   }
 
   .source-item h3 {
     font-size: 14px;
+    margin-bottom: 6px;
   }
 
   .source-url {
     font-size: 12px;
   }
+
+  .example-questions {
+    margin: 0.5rem 0;
+    gap: 0.5rem;
+    padding: 0;
+  }
+
+  .example-question {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+  }
+
+  .example-question span:first-child {
+    font-size: 1rem;
+  }
+
+  .source-content {
+    font-size: 0.8125rem;
+  }
+
+  .sources-list {
+    grid-template-columns: 1fr;
+    padding: 0;
+  }
+
+  .analysis-actions {
+    top: 16px;
+    right: 16px;
+  }
+}
+
+.source-recommendation {
+  margin: 8px 0;
+  font-size: 14px;
+  color: var(--font-color);
+}
+
+.source-summary {
+  margin: 0;
+  line-height: 1.4;
+}
+
+@media (max-width: 768px) {
+  .source-recommendation {
+    font-size: 13px;
+  }
+  
+  .source-summary {
+    line-height: 1.3;
+  }
+}
+
+/* Entferne die alten Styles */
+.analysis-header {
+  display: none;
 } 

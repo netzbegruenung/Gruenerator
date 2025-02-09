@@ -74,7 +74,11 @@ const useApiSubmit = (endpoint) => {
       } else if (endpoint === 'analyze') {
         if (response && response.status === 'success' && response.analysis) {
           setSuccess(true);
-          return response;
+          return {
+            analysis: response.analysis,
+            sourceRecommendations: response.sourceRecommendations || [],
+            claudeSourceTitles: response.claudeSourceTitles || []
+          };
         }
       } else {
         // Standard AI-Response-Behandlung
