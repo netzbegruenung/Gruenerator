@@ -20,6 +20,8 @@ const claudeWahlprogrammRoute = require('./routes/claude_wahlprogramm');
 const claudeKandidatRoute = require('./routes/claude_kandidat');
 const claudeUniversalRoute = require('./routes/claude_universal');
 const claudeGrueneJugendRoute = require('./routes/claude_gruene_jugend');
+const searchRouter = require('./routes/search/searchController');
+const searchAnalysisRouter = require('./routes/search/searchAnalysis');
 
 const withLazyLoading = (importFunc) => 
   lazy(() => 
@@ -57,6 +59,10 @@ function setupRoutes(app) {
   app.use('/api/claude_kandidat', claudeKandidatRoute);
   app.use('/api/claude_universal', claudeUniversalRoute);
   app.use('/api/claude_gruene_jugend', claudeGrueneJugendRoute);
+  
+  // Suchrouten
+  app.use('/api/search', searchRouter);
+  app.use('/api/analyze', searchAnalysisRouter);
 }
 
 module.exports = { setupRoutes };

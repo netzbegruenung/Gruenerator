@@ -1,0 +1,136 @@
+.search-bar-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 584px;
+  margin: 0 auto;
+}
+
+.search-form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.search-input-wrapper {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  max-width: 584px;
+  height: 48px;
+  border: 1px solid var(--tanne);
+  border-radius: 24px;
+  padding: 0 16px;
+  transition: all 0.3s ease;
+  background: var(--background-color);
+}
+
+.search-input-wrapper:hover:not(:disabled),
+.search-input-wrapper:focus-within:not(:disabled) {
+  box-shadow: 0 1px 6px rgba(32,33,36,0.28);
+  border-color: var(--klee);
+}
+
+.search-input {
+  flex: 1;
+  height: 100%;
+  padding: 0 8px;
+  border: none;
+  outline: none;
+  font-size: 1.2em;
+  color: var(--font-color);
+  background: transparent;
+}
+
+.search-input:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.search-icon {
+  color: var(--font-color);
+  opacity: 0.6;
+  font-size: 1.25em;
+  transition: color 0.3s ease;
+}
+
+.search-buttons {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+.search-button {
+  background-color: var(--tanne);
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--weiß);
+  font-family: inherit;
+  font-size: 1.1em;
+  padding: 0 24px;
+  height: 44px;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.search-button:hover:not(:disabled) {
+  background-color: var(--klee);
+  color: var(--weiß);
+}
+
+.search-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+
+.button-loading-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.button-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--weiß);
+  border-top: 2px solid transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Dark Mode Anpassungen */
+[data-theme="dark"] .search-input-wrapper {
+  background: var(--background-color-alt);
+  border-color: var(--background-color-sand);
+}
+
+[data-theme="dark"] .search-input {
+  color: var(--font-color);
+}
+
+[data-theme="dark"] .search-icon {
+  color: var(--font-color);
+}
+
+@media (max-width: 768px) {
+  .search-bar-container {
+    padding: 0 16px;
+  }
+  
+  .search-button {
+    width: 100%;
+    max-width: 200px;
+  }
+} 

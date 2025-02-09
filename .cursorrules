@@ -1,0 +1,44 @@
+{
+  "editor": {
+    "formatOnSave": true,
+    "tabSize": 2,
+    "insertSpaces": true,
+    "trimTrailingWhitespace": true,
+    "insertFinalNewline": true
+  },
+  "javascript": {
+    "format": {
+      "semicolons": true,
+      "singleQuote": true,
+      "trailingComma": "es5"
+    }
+  },
+  "search": {
+    "exclude": [
+      "node_modules",
+      "build",
+      "dist",
+      ".git",
+      "*.log"
+    ]
+  },
+  "files": {
+    "associations": {
+      "*.jsx": "javascriptreact",
+      "*.js": "javascript"
+    },
+    "exclude": [
+      "node_modules",
+      "build",
+      "dist",
+      ".git"
+    ]
+  },
+  "terminal": {
+    "integrated": {
+      "shell": {
+        "linux": "/bin/bash"
+      }
+    }
+  }
+} 
