@@ -119,8 +119,8 @@ const SearchPage = () => {
     <VerifyFeature feature="search">
       <div className="search-page-container">
         <div className="search-header">
-          <h1>Gruugle</h1>
-          <p className="search-subtitle">Grünerator KI-Suche</p>
+          <h1>Gruugo</h1>
+          <p className="search-subtitle">KI-Suche des Grünerators</p>
         </div>
         
         <SearchBar 
