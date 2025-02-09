@@ -70,8 +70,8 @@ const NavMenu = ({ open, onClose }) => {
       aria-label="Mobile Navigation" 
       role="navigation"
     >
-      <Link to="/suche" className="nav-link" onClick={() => handleLinkClick('/suche', 'Suche')}>
-        <PiMagnifyingGlass className="nav-icon" aria-hidden="true" /> Suche
+      <Link to="/suche" className="nav-menu-item" onClick={() => handleLinkClick('/suche', 'Suche')}>
+        Suche <PiMagnifyingGlass className="nav-icon-right" aria-hidden="true" />
       </Link>
 
       {/* Texte Dropdown */}
