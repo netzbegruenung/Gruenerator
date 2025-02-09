@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState, Suspense } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import { HiCog } from "react-icons/hi";
 import SubmitButton from './SubmitButton';
@@ -15,7 +15,7 @@ import FormToggleButton from './FormToggleButton';
 import HelpDisplay from './HelpDisplay';
 import '../../assets/styles/components/form-toggle-button.css';
 
-const BackupToggle = React.lazy(() => import('./BackupToggle'));
+// const BackupToggle = React.lazy(() => import('./BackupToggle'));
 
 const BaseForm = ({
   title,
@@ -31,8 +31,8 @@ const BaseForm = ({
   initialContent = '',
   alwaysEditing = false,
   hideEditButton = false,
-  useBackupProvider,
-  setUseBackupProvider,
+  // useBackupProvider,
+  // setUseBackupProvider,
   isMultiStep = false,
   onBack,
   showBackButton = false,
@@ -292,14 +292,14 @@ const BaseForm = ({
       <>
         <div className={`form-content ${hasFormErrors ? 'has-errors' : ''}`}>
           {children}
-          {title !== "Grünerator Antragscheck" && title !== "Wahlprüfstein-Generator Bundestagswahl" && (
+          {/* {title !== "Grünerator Antragscheck" && title !== "Wahlprüfstein-Generator Bundestagswahl" && (
             <Suspense fallback={<div>Lade...</div>}>
               <BackupToggle 
                 useBackupProvider={useBackupProvider}
                 setUseBackupProvider={setUseBackupProvider}
               />
             </Suspense>
-          )}
+          )} */}
           {isMultiStep ? (
             <div className={`button-container ${showBackButton ? 'form-buttons' : ''}`}>
               {showBackButton && (
