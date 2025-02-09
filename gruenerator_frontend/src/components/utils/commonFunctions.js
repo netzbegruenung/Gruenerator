@@ -137,40 +137,93 @@ export const copyFormattedContent = (content, onSuccess, onError) => {
     hasOnSuccess: !!onSuccess,
     hasOnError: !!onError 
   });
+
+  // Prüfe ob es sich um einen Suchseiten-Export handelt
+  const isSearchExport = typeof content === 'object' && content.analysis;
+  
+  if (isSearchExport) {
+    // Formatiere den Suchseiten-Export
+    let formattedText = content.analysis;
+    
+    // Bereinige den Haupttext
+    formattedText = formattedText
+      .replace(/<\/?[^>]+(>|$)/g, '')  // Entferne HTML-Tags
+      .replace(/\n\s+•/g, '\n•')       // Entferne Leerzeichen vor Aufzählungspunkten
+      .replace(/•\s+/g, '• ')          // Korrigiere Abstände nach Aufzählungspunkten
+      .replace(/\n[ \t]+/g, '\n')      // Entferne Einrückungen am Zeilenanfang
+      .replace(/[ \t]+/g, ' ')         // Reduziere mehrfache Leerzeichen
+      .replace(/\n{2,}/g, '\n\n')      // Reduziere auf maximal eine Leerzeile
+      .trim();
+
+    // Füge Quellenempfehlungen hinzu
+    if (content.sourceRecommendations?.length > 0) {
+      formattedText += '\n\nQuellenempfehlungen:';
+      content.sourceRecommendations.forEach(rec => {
+        formattedText += `\n• ${rec.title} - ${rec.summary}`;
+      });
+    }
+    
+    // Füge weitere Quellen hinzu
+    if (content.unusedSources?.length > 0) {
+      formattedText += '\n\nWeitere relevante Quellen:';
+      content.unusedSources.forEach(source => {
+        formattedText += `\n• ${source.title}`;
+      });
+    }
+
+    // Finale Bereinigung
+    const cleanText = formattedText
+      .replace(/\n[ \t]+/g, '\n')      // Entferne Einrückungen am Zeilenanfang
+      .replace(/[ \t]+/g, ' ')         // Reduziere mehrfache Leerzeichen
+      .replace(/•\s+/g, '• ')          // Korrigiere Aufzählungszeichen-Abstände
+      .replace(/\n\s*\n(\s*• )/g, '\n$1')  // Entferne Leerzeilen vor Listenpunkten
+      .replace(/(\n• [^\n]+)\n\s*\n(\s*• )/g, '$1\n$2')  // Entferne Leerzeilen zwischen Listenpunkten
+      .replace(/\n{3,}/g, '\n\n')      // Maximal eine Leerzeile zwischen Abschnitten
+      .trim();
+
+    navigator.clipboard.writeText(cleanText)
+      .then(() => {
+        console.log('5. Suchseiten-Export erfolgreich kopiert');
+        if (onSuccess) onSuccess();
+      })
+      .catch(err => {
+        console.error('Fehler beim Kopieren des Suchseiten-Exports:', err);
+        if (onError) onError(err);
+      });
+    return;
+  }
   
   const quillEditor = document.querySelector('.ql-editor');
-  console.log('2. Quill Editor gefunden:', !!quillEditor, 'mit __quill:', !!quillEditor?.__quill);
+  console.log('2. Quill Editor gefunden:', !!quillEditor);
   
-  if (quillEditor && quillEditor.__quill) {
-    const delta = quillEditor.__quill.getContents();
-    console.log('3. Delta erhalten:', delta);
+  if (quillEditor) {
+    // Hole den aktuellen HTML-Inhalt direkt aus dem Editor
+    const currentContent = quillEditor.innerHTML;
+    console.log('3. Aktueller Editor-Inhalt geholt:', currentContent?.length);
     
-    let formattedText = '';
+    // Temporäres Element für die Formatierung
+    const tempElement = document.createElement('div');
+    tempElement.innerHTML = currentContent;
     
-    delta.ops.forEach(op => {
-      if (typeof op.insert === 'string') {
-        let text = op.insert;
-        
-        if (op.attributes) {
-          if (op.attributes.list) {
-            text = `• ${text}`;
-          }
-          if (op.attributes.header) {
-            text = `${text}\n`;
-          }
-          if (op.attributes.blockquote) {
-            text = `> ${text}\n`;
-          }
-        }
-        
-        formattedText += text;
-      } else if (op.insert && op.insert.break) {
-        formattedText += '\n';
+    // Formatiere Block-Elemente
+    const blockElements = tempElement.querySelectorAll('p, div, li, h1, h2, h3, h4, h5, h6, blockquote');
+    blockElements.forEach(element => {
+      element.insertAdjacentHTML('afterend', '\n');
+      if (element.tagName === 'LI') {
+        element.insertAdjacentHTML('beforebegin', '• ');
       }
     });
 
-    const cleanText = formattedText
-      .replace(/\n{3,}/g, '\n\n')
+    // Formatiere Listen
+    const lists = tempElement.querySelectorAll('ul, ol');
+    lists.forEach(list => {
+      list.insertAdjacentHTML('afterend', '\n');
+    });
+
+    // Extrahiere und bereinige den Text
+    const cleanText = tempElement.innerText
+      .replace(/\n{2,}/g, '\n')       // Reduziere mehrfache Zeilenumbrüche auf einen
+      .replace(/•\s+/g, '• ')         // Korrigiere Aufzählungszeichen-Abstände
       .trim();
       
     console.log('4. Formatierter Text erstellt:', cleanText);
