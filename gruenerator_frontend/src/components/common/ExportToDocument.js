@@ -7,6 +7,7 @@ import '../../assets/styles/components/exportToDocument.css';
 import { useLocation } from 'react-router-dom';
 import { useUnmount } from 'react-use';
 import { FormContext } from '../utils/FormContext';
+import { formatExportContent } from '../../utils/exportUtils';
 
 const ExportToDocument = ({ content: initialContent }) => {
   const location = useLocation();
@@ -48,41 +49,15 @@ const ExportToDocument = ({ content: initialContent }) => {
     setIsModalOpen(true);
   };
 
-  // Funktion zum Bereinigen des HTML-Texts
-  const cleanHtmlContent = (htmlContent) => {
-    // Temporäres div-Element erstellen
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = htmlContent;
-    
-    // Text extrahieren und Formatierungen entfernen
-    let cleanText = '';
-    const processNode = (node) => {
-      if (node.nodeType === Node.TEXT_NODE) {
-        cleanText += node.textContent;
-      } else if (node.nodeType === Node.ELEMENT_NODE) {
-        if (node.tagName === 'P' || node.tagName === 'DIV') {
-          if (cleanText && !cleanText.endsWith('\n')) {
-            cleanText += '\n';
-          }
-        }
-        node.childNodes.forEach(processNode);
-        if (node.tagName === 'P' || node.tagName === 'DIV') {
-          if (!cleanText.endsWith('\n')) {
-            cleanText += '\n';
-          }
-        }
-      }
-    };
-    
-    processNode(tempDiv);
-    return cleanText.trim();
-  };
-
   const handleDocsExport = async () => {
     try {
-      const cleanContent = cleanHtmlContent(currentContent);
+      // Formatiere den HTML-Content
+      const htmlContent = formatExportContent({
+        analysis: value ? value : currentContent
+      });
+      
       const response = await submitForm({ 
-        text: cleanContent,
+        text: htmlContent,
         documentType: documentType
       });
       
@@ -94,6 +69,12 @@ const ExportToDocument = ({ content: initialContent }) => {
     } catch (err) {
       console.error('Fehler beim Exportieren zu Grünerator Docs:', err);
     }
+  };
+
+  const handleNewExport = async () => {
+    setHasExistingDoc(false);
+    setDocURL('');
+    await handleDocsExport();
   };
 
   const handleCopyDocsLink = () => {
@@ -134,9 +115,14 @@ const ExportToDocument = ({ content: initialContent }) => {
                   {isCopied ? <IoCheckmark size={20} /> : <IoCopyOutline size={20} />}
                 </button>
               </div>
-              <button onClick={handleOpenLink} className="open-button">
-                <IoOpenOutline size={20} /> Link öffnen
-              </button>
+              <div className="button-group">
+                <button onClick={handleOpenLink} className="open-button">
+                  <IoOpenOutline size={20} /> Bestehendes Dokument öffnen
+                </button>
+                <button onClick={handleNewExport} className="export-action-button">
+                  <IoDocumentOutline size={20} /> Als neues Dokument exportieren
+                </button>
+              </div>
             </>
           ) : (
             <>
