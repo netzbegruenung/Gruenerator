@@ -1,7 +1,7 @@
 //header.js
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { PiFileText, PiNewspaper, PiInstagramLogo, PiCaretDown, PiMicrophone, PiSun, PiMoon, PiBook, PiImage, PiPaintBrush, PiMagicWand } from 'react-icons/pi';
+import { PiFileText, PiNewspaper, PiInstagramLogo, PiCaretDown, PiMicrophone, PiSun, PiMoon, PiBook, PiImage, PiPaintBrush, PiMagicWand, PiMagnifyingGlass } from 'react-icons/pi';
 import NavMenu from './NavMenu';
 import useDarkMode from '../../hooks/useDarkMode';
 import useAccessibility from '../../hooks/useAccessibility';
@@ -108,25 +108,12 @@ const Header = () => {
                                 Sharepics & Grafik <PiCaretDown className={activeDropdown === 'grafik' ? 'open' : ''} aria-hidden="true" />
                             </span>
                             <ul className={`header-dropdown-content ${activeDropdown === 'grafik' ? 'show' : ''}`} aria-label="Sharepics & Grafik Untermenü">
-                                <li><Link to="/vorlagen" onClick={() => handleLinkClick('/vorlagen', 'Canva-Vorlagen')}><PiPaintBrush aria-hidden="true" /> Canva-Vorlagen</Link></li>
-                                <li><Link to="/sharepic" onClick={() => handleLinkClick('/sharepic', 'Sharepic Grünerator')}><PiImage aria-hidden="true" /> Sharepic Grünerator</Link></li>
+                                <li><Link to="/vorlagen" onClick={() => handleLinkClick('/vorlagen', 'Canva-Vorlagen')}><PiPaintBrush className="nav-icon" aria-hidden="true" /> Canva-Vorlagen</Link></li>
+                                <li><Link to="/sharepic" onClick={() => handleLinkClick('/sharepic', 'Sharepic Grünerator')}><PiImage className="nav-icon" aria-hidden="true" /> Sharepic Grünerator</Link></li>
                             </ul>
                         </li>
-                        <li className="header-dropdown" 
-                            onMouseEnter={() => handleMouseEnter('gpts')} 
-                            onMouseLeave={handleMouseLeave}
-                            onKeyDown={(e) => handleKeyDown(e, 'gpts')}
-                            tabIndex="0"
-                            aria-haspopup="true"
-                            aria-expanded={activeDropdown === 'gpts'}
-                        >
-                            <span>
-                                GPTs für ChatGPT <PiCaretDown className={activeDropdown === 'gpts' ? 'open' : ''} aria-hidden="true" />
-                            </span>
-                            <ul className={`header-dropdown-content ${activeDropdown === 'gpts' ? 'show' : ''}`} aria-label="GPTs Untermenü">
-                                <li><a href="https://chat.openai.com/g/g-ZZwx8kZS3-grunerator-social-media" target="_blank" rel="noopener noreferrer" onClick={() => announce('Öffne externen Link: Social Media')}><PiInstagramLogo aria-hidden="true" /> Social Media</a></li>
-                                <li><a href="https://chatgpt.com/g/g-Npcb04iH7-grunerator-pressemitteilungen" target="_blank" rel="noopener noreferrer" onClick={() => announce('Öffne externen Link: Pressemitteilung')}><PiNewspaper aria-hidden="true" /> Pressemitteilung</a></li>
-                            </ul>
+                        <li>
+                            <Link to="/suche" onClick={() => handleLinkClick('/suche', 'Suche')}><PiMagnifyingGlass aria-hidden="true" /> Suche</Link>
                         </li>
                     </ul>
                 </nav>
