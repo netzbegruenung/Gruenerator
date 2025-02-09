@@ -32,26 +32,13 @@ const formatAnalysisText = (text) => {
   // Teile den Text in Absätze
   const paragraphs = text.split('\n\n');
   
+  // Füge Absätze nur für Text ohne HTML-Tags hinzu
   return paragraphs.map(paragraph => {
-    // Wenn der Absatz mit "- " beginnt, ist es eine Liste
-    if (paragraph.trim().split('\n').some(line => line.trim().startsWith('- '))) {
-      const items = paragraph
-        .split('\n')
-        .map(line => line.trim())
-        .filter(line => line.length > 0);
-      
-      // Erstelle eine HTML-Liste
-      const listItems = items.map(item => {
-        if (item.startsWith('- ')) {
-          return `<li>${item.substring(2)}</li>`;
-        }
-        return `<p>${item}</p>`;
-      }).join('');
-
-      return `<ul>${listItems}</ul>`;
+    // Wenn der Paragraph bereits HTML-Tags enthält, gib ihn unverändert zurück
+    if (paragraph.includes('<')) {
+      return paragraph;
     }
-    
-    // Normaler Absatz
+    // Ansonsten wickle ihn in p-Tags
     return `<p>${paragraph}</p>`;
   }).join('');
 };
@@ -61,6 +48,7 @@ const useSearch = () => {
   const [usedSources, setUsedSources] = useState([]);
   const [analysis, setAnalysis] = useState(null);
   const [error, setError] = useState(null);
+  const [sourceRecommendations, setSourceRecommendations] = useState([]);
   
   const { submitForm: submitSearch, loading: searchLoading } = useApiSubmit('search');
   const { submitForm: submitAnalysis, loading: analysisLoading } = useApiSubmit('analyze');
@@ -69,9 +57,10 @@ const useSearch = () => {
     setError(null);
     setAnalysis(null);
     setUsedSources([]);
+    setSourceRecommendations([]);
 
     try {
-      // 1. Tavily Suche
+      // 1. Tavily Suche (10 Ergebnisse)
       const searchData = await submitSearch({
         query,
         options: {
@@ -83,14 +72,17 @@ const useSearch = () => {
       if (searchData.status === 'success' && Array.isArray(searchData.results)) {
         setResults(searchData.results);
         
-        // 2. Claude Analyse
+        // 2. Claude Analyse (nur die ersten 6 Quellen)
         try {
-          const analysisResult = await submitAnalysis({ contents: searchData.results });
+          const analysisResult = await submitAnalysis({ 
+            contents: searchData.results.slice(0, 6) 
+          });
           setAnalysis(formatAnalysisText(analysisResult.analysis));
+          setSourceRecommendations(analysisResult.sourceRecommendations || []);
           
-          // 3. Finde genutzte Quellen
+          // 3. Finde genutzte Quellen (nur aus den ersten 6)
           const usedSourcesList = findUsedSources(
-            searchData.results, 
+            searchData.results.slice(0, 6), 
             analysisResult.analysis,
             analysisResult.claudeSourceTitles
           );
@@ -114,7 +106,8 @@ const useSearch = () => {
     analysis,
     loading: searchLoading || analysisLoading,
     error,
-    search
+    search,
+    sourceRecommendations
   };
 };
 
