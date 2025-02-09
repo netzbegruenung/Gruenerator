@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { PiNewspaper, PiInstagramLogo, PiFileText, PiArrowRight, PiMicrophone, PiBook, PiCaretDown, PiMagicWand } from 'react-icons/pi';
+import { GiHedgehog } from 'react-icons/gi';
 import { TypeAnimation } from 'react-type-animation';
 
 const Home = () => {
@@ -58,8 +59,8 @@ const Home = () => {
             <Link to="/antrag" aria-label="Zum Antragsgenerator"><PiFileText /> Antrag</Link>
             <Link to="/rede" aria-label="Zum Redengenerator"><PiMicrophone /> Rede</Link>
             <Link to="/universal" aria-label="Zum Universal Grünerator"><PiMagicWand /> Universal</Link>
-            <Link to="/btw-kompass" aria-label="Zum BTW Programm-Kompass"><PiBook /> BTW Kompass</Link>
             <Link to="/wahlprogramm" aria-label="Zum Wahlprogramm-Generator"><PiBook /> Wahlprogramm</Link>
+            <Link to="/gruene-jugend" aria-label="Zum Grüne Jugend Grünerator"><GiHedgehog /> Grüne Jugend</Link>
           </div>
           <a href="https://896ca129.sibforms.com/serve/MUIFAFnH3lov98jrw3d75u_DFByChA39XRS6JkBKqjTsN9gx0MxCvDn1FMnkvHLgzxEh1JBcEOiyHEkyzRC-XUO2DffKsVccZ4r7CCaYiugoiLf1a-yoTxDwoctxuzCsmDuodwrVwEwnofr7K42jQc-saIKeVuB_8UxrwS18QIaahZml1qMExNno2sEC7HyMy9Nz4f2f8-UJ4QmW" 
             target="_blank" 
