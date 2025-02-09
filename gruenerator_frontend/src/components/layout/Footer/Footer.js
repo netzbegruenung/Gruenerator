@@ -72,6 +72,7 @@ const Footer = () => {
                                     <li><Link to="/universal" onClick={() => announce('Navigation zum Universal Grünerator')}>Universal Grünerator</Link></li>
                                     <li><Link to="/wahlprogramm" onClick={() => announce('Navigation zur Wahlprogramm Seite')}>Wahlprogramm</Link></li>
                                     <li><Link to="/btw-kompass" onClick={() => announce('Navigation zum BTW Programm-Kompass')}>BTW Programm-Kompass</Link></li>
+                                    <li><Link to="/gruene-jugend" onClick={() => announce('Navigation zum Grüne Jugend Grünerator')}>Grüne Jugend</Link></li>
                                 </ul>
                             </div>
 
