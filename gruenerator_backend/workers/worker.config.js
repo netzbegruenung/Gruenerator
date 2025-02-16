@@ -1,16 +1,16 @@
 module.exports = {
     worker: {
-      // Anzahl der AI-Worker pro Server-Worker
-      workersPerNode: 4,
+      // Anzahl der AI-Worker: 1 normal, 4 im Produktionsmodus
+      workersPerNode: process.env.PRODUCTION_MODE === 'true' ? 4 : 1,
       
       // Timeout-Einstellungen
       requestTimeout: 120000, // 2 Minuten (120000ms)
       
       // Rate Limiting pro Worker
       rateLimit: {
-        maxRequests: 500,
+        maxRequests: process.env.PRODUCTION_MODE === 'true' ? 500 : 100,
         timeWindow: 60000, // 1 Minute
-        maxConcurrent: 25
+        maxConcurrent: process.env.PRODUCTION_MODE === 'true' ? 25 : 5
       },
       
       // Erweiterte Retry-Einstellungen
@@ -34,7 +34,7 @@ module.exports = {
     
     // Logging-Einstellungen
     logging: {
-      level:  'info',
+      level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
       aiRequests: true,
       performance: true
     }
