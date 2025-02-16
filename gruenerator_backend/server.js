@@ -212,7 +212,7 @@ if (cluster.isMaster) {
         ],
         fontSrc: ["'self'", "https://fonts.gstatic.com"],
         objectSrc: ["'none'"],
-        mediaSrc: ["'self'"],
+        mediaSrc: ["'self'", "blob:"],
         frameSrc: ["'none'"],
       },
     },
