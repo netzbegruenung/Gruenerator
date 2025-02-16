@@ -39,9 +39,13 @@ gruenerator_frontend/node_modules/.cache
 *.njsproj
 *.sln
 
-# Upload directories
-gruenerator_backend/uploads/transcriptions/
-gruenerator_backend/uploads/videos/
+# Upload directories - ignore contents but keep structure
+gruenerator_backend/uploads/transcriptions/*
+!gruenerator_backend/uploads/transcriptions/.gitkeep
+gruenerator_backend/uploads/videos/*
+!gruenerator_backend/uploads/videos/.gitkeep
+gruenerator_backend/uploads/exports/*
+!gruenerator_backend/uploads/exports/.gitkeep
 gruenerator_backend/uploads/*.zip
 gruenerator_backend/uploads/*.png
 gruenerator_backend/uploads/*.zip:Zone.Identifier
