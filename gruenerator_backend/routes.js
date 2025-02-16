@@ -22,6 +22,8 @@ const claudeUniversalRoute = require('./routes/claude_universal');
 const claudeGrueneJugendRoute = require('./routes/claude_gruene_jugend');
 const searchRouter = require('./routes/search/searchController');
 const searchAnalysisRouter = require('./routes/search/searchAnalysis');
+const subtitlerRouter = require('./routes/subtitler/subtitlerController');
+const subtitlerSocialRouter = require('./routes/subtitler/subtitlerSocialController');
 
 const withLazyLoading = (importFunc) => 
   lazy(() => 
@@ -59,6 +61,8 @@ function setupRoutes(app) {
   app.use('/api/claude_kandidat', claudeKandidatRoute);
   app.use('/api/claude_universal', claudeUniversalRoute);
   app.use('/api/claude_gruene_jugend', claudeGrueneJugendRoute);
+  app.use('/api/subtitler', subtitlerRouter);
+  app.use('/api/subtitler', subtitlerSocialRouter);
   
   // Suchrouten
   app.use('/api/search', searchRouter);
