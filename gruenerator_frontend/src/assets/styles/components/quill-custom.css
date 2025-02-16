@@ -6,7 +6,7 @@
     font-size: 1.2em;
     border: none !important;
     min-height: 200px !important;
-    overflow-y: auto !important;
+    overflow-y: hidden !important;
     border: none !important;
     color: var(--weiß);
     padding: 12px 0px !important;
@@ -33,8 +33,52 @@
 }
 
 @media (max-width: 768px) {
-    .editing-mode .ql-container {
-        padding: 0;
+    .base-container.editing-mode {
+        height: 100vh;
+        overflow: hidden;
+    }
+
+    .base-container.editing-mode .display-container {
+        height: 100vh;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .base-container.editing-mode .display-container .text-editor {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .base-container.editing-mode .display-container .ql-container {
+        flex: 1;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .base-container.editing-mode .display-container .ql-editor {
+        flex: 1;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch;
+        font-size: 14px !important;
+    }
+
+    .base-container.editing-mode .display-container .ql-toolbar.ql-snow {
+        padding: 10px 20px !important;
+        position: sticky;
+        top: 0;
+        background: var(--background-color);
+        z-index: 100;
+        border-bottom: 1px solid var(--hellgrau) !important;
+    }
+
+    .base-container.editing-mode .display-container .ql-toolbar.ql-snow button {
+        padding: 2px 4px;
+        width: 24px;
+        height: 20px;
     }
 }
 /* Entfernen der Umrandung für den Quill-Container */

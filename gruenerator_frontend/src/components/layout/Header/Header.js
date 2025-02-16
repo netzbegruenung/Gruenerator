@@ -1,7 +1,7 @@
 //header.js
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { PiFileText, PiNewspaper, PiInstagramLogo, PiCaretDown, PiMicrophone, PiSun, PiMoon, PiBook, PiImage, PiPaintBrush, PiMagicWand, PiMagnifyingGlass } from 'react-icons/pi';
+import { PiFileText, PiNewspaper, PiInstagramLogo, PiCaretDown, PiMicrophone, PiSun, PiMoon, PiBook, PiImage, PiPaintBrush, PiMagicWand, PiMagnifyingGlass, PiVideoCamera } from 'react-icons/pi';
 import { GiHedgehog } from 'react-icons/gi';
 import NavMenu from './NavMenu';
 import useDarkMode from '../../hooks/useDarkMode';
@@ -106,11 +106,12 @@ const Header = () => {
                             aria-expanded={activeDropdown === 'grafik'}
                         >
                             <span>
-                                Sharepics & Grafik <PiCaretDown className={activeDropdown === 'grafik' ? 'open' : ''} aria-hidden="true" />
+                                Bild und Video <PiCaretDown className={activeDropdown === 'grafik' ? 'open' : ''} aria-hidden="true" />
                             </span>
-                            <ul className={`header-dropdown-content ${activeDropdown === 'grafik' ? 'show' : ''}`} aria-label="Sharepics & Grafik Untermenü">
+                            <ul className={`header-dropdown-content ${activeDropdown === 'grafik' ? 'show' : ''}`} aria-label="Bild und Video Untermenü">
                                 <li><Link to="/vorlagen" onClick={() => handleLinkClick('/vorlagen', 'Canva-Vorlagen')}><PiPaintBrush className="nav-icon" aria-hidden="true" /> Canva-Vorlagen</Link></li>
                                 <li><Link to="/sharepic" onClick={() => handleLinkClick('/sharepic', 'Sharepic Grünerator')}><PiImage className="nav-icon" aria-hidden="true" /> Sharepic Grünerator</Link></li>
+                                <li><Link to="/reel" onClick={() => handleLinkClick('/reel', 'Reel Grünerator')}><PiVideoCamera className="nav-icon" aria-hidden="true" /> Reel Grünerator</Link></li>
                             </ul>
                         </li>
                         <li>
