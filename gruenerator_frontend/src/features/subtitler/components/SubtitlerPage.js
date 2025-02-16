@@ -28,6 +28,11 @@ const SubtitlerPage = () => {
     setError(null);
     
     try {
+      // Prüfe Videogröße
+      if (videoFile.size > 95 * 1024 * 1024) { // 95MB Limit
+        throw new Error('Das Video ist zu groß. Die maximale Größe beträgt 95MB.');
+      }
+
       const formData = new FormData();
       formData.append('video', videoFile);
       if (videoFile.metadata) {
