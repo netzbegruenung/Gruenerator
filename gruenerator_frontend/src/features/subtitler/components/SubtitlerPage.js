@@ -34,7 +34,7 @@ const SubtitlerPage = () => {
         formData.append('metadata', JSON.stringify(videoFile.metadata));
       }
 
-      const response = await apiClient.post('/api/subtitler/process', formData, {
+      const response = await apiClient.post('/subtitler/process', formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
