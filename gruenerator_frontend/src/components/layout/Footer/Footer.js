@@ -76,13 +76,14 @@ const Footer = () => {
                             </div>
 
                             <div className="footer-section">
-                                <h3>Tools & Grafik</h3>
+                                <h3>Bild und Video</h3>
                                 <ul>
                                     <li><Link to="/suche" onClick={() => announce('Navigation zur Suche')}>Suche</Link></li>
                                     <li><Link to="/antragscheck" onClick={() => announce('Navigation zur Antragscheck Seite')}>Antragscheck</Link></li>
                                     <li><Link to="/btw-kompass" onClick={() => announce('Navigation zum BTW Programm-Kompass')}>BTW Programm-Kompass</Link></li>
                                     <li><Link to="/vorlagen" onClick={() => announce('Navigation zur Vorlagen Seite')}>Canva-Vorlagen</Link></li>
                                     <li><Link to="/sharepic" onClick={() => announce('Navigation zum Sharepic Grünerator')}>Sharepic Grünerator</Link></li>
+                                    <li><Link to="/reel" onClick={() => announce('Navigation zum Reel Grünerator')}>Reel Grünerator</Link></li>
                                 </ul>
                             </div>
 
