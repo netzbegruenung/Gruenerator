@@ -43,6 +43,10 @@ if (cluster.isMaster) {
 } else {
   const app = express();
   
+  // Setze Express Limit
+  app.use(express.json({limit: '100mb'}));
+  app.use(express.raw({limit: '100mb'}));
+  
   // Worker-Pool für AI-Anfragen initialisieren
   const aiWorkerCount = process.env.PRODUCTION_MODE === 'true' ? 4 : 1;
   console.log(`Initializing AI worker pool with ${aiWorkerCount} workers`);
@@ -52,7 +56,7 @@ if (cluster.isMaster) {
   // Multer Konfiguration für Videouploads
   const videoUpload = multer({
     limits: {
-      fileSize: 75 * 1024 * 1024, // 75MB für Videos
+      fileSize: 100 * 1024 * 1024, // 100MB für Videos
     },
     fileFilter: (req, file, cb) => {
       // Erlaubte Video-Formate
@@ -81,7 +85,7 @@ if (cluster.isMaster) {
     if (error instanceof multer.MulterError) {
       if (error.code === 'LIMIT_FILE_SIZE') {
         return res.status(413).json({
-          error: 'Datei ist zu groß. Videos dürfen maximal 75MB groß sein.'
+          error: 'Datei ist zu groß. Videos dürfen maximal 100MB groß sein.'
         });
       }
     }
@@ -283,8 +287,8 @@ if (cluster.isMaster) {
   };
 
   // Optimierte Middleware-Stack
-  app.use(bodyParser.json({ limit: '32mb' }));
-  app.use(bodyParser.urlencoded({ limit: '32mb', extended: true }));
+  app.use(bodyParser.json({ limit: '105mb' }));
+  app.use(bodyParser.urlencoded({ limit: '105mb', extended: true }));
   
   // Logging nur für wichtige Requests
   app.use(morgan('combined', {
