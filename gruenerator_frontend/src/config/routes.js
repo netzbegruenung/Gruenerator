@@ -7,6 +7,7 @@ const Datenschutz = lazy(() => import('../components/pages/Impressum_Datenschutz
 const Impressum = lazy(() => import('../components/pages/Impressum_Datenschutz_Terms/Impressum'));
 const NotFound = lazy(() => import('../components/pages/NotFound'));
 const Search = lazy(() => import('../features/search/components/SearchPage'));
+const Reel = lazy(() => import('../features/subtitler/components/SubtitlerPage'));
 
 // Lazy loading für Grüneratoren Bundle
 export const GrueneratorenBundle = {
@@ -23,7 +24,8 @@ export const GrueneratorenBundle = {
   Wahlprogramm: lazy(() => import('../components/pages/Grüneratoren/Wahlprogramm')),
   Kandidat: lazy(() => import('../components/pages/Grüneratoren/Kandidatengenerator')),
   Search: Search,
-  Templates: TemplateGallery
+  Templates: TemplateGallery,
+  Reel: Reel
 };
 
 // Route Konfigurationen
@@ -43,6 +45,7 @@ export const routes = {
     { path: '/kandidat', component: GrueneratorenBundle.Kandidat, withForm: true },
     { path: '/vorlagen', component: GrueneratorenBundle.Templates },
     { path: '/suche', component: GrueneratorenBundle.Search, withForm: true },
+    { path: '/reel', component: GrueneratorenBundle.Reel },
     { path: '/datenschutz', component: Datenschutz },
     { path: '/impressum', component: Impressum },
     { path: '*', component: NotFound }

@@ -27,8 +27,12 @@ let aiWorkerPool;
 if (cluster.isMaster) {
   console.log(`Master ${process.pid} is running`);
 
+  // Bestimme Anzahl der Worker basierend auf Produktionsmodus
+  const workerCount = process.env.PRODUCTION_MODE === 'true' ? numCPUs : 1;
+  console.log(`Starting ${workerCount} workers (PRODUCTION_MODE: ${process.env.PRODUCTION_MODE})`);
+
   // Fork Workers
-  for (let i = 0; i < numCPUs; i++) {
+  for (let i = 0; i < workerCount; i++) {
     cluster.fork();
   }
 
@@ -40,7 +44,9 @@ if (cluster.isMaster) {
   const app = express();
   
   // Worker-Pool für AI-Anfragen initialisieren
-  aiWorkerPool = new AIWorkerPool(4);
+  const aiWorkerCount = process.env.PRODUCTION_MODE === 'true' ? 4 : 1;
+  console.log(`Initializing AI worker pool with ${aiWorkerCount} workers`);
+  aiWorkerPool = new AIWorkerPool(aiWorkerCount);
   app.locals.aiWorkerPool = aiWorkerPool;
 
   // Graceful Shutdown Handler
@@ -161,7 +167,8 @@ if (cluster.isMaster) {
       }
     },
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Range'],
+    exposedHeaders: ['Content-Range', 'Accept-Ranges', 'Content-Length', 'Content-Type'],
     credentials: true,
     optionsSuccessStatus: 204
   };
@@ -264,6 +271,24 @@ if (cluster.isMaster) {
     lastModified: true
   }));
 
+  // Statisches Verzeichnis für Video-Uploads
+  app.use('/uploads/exports', express.static(path.join(__dirname, 'uploads/exports'), {
+    setHeaders: (res, path, stat) => {
+      if (path.endsWith('.mov') || path.endsWith('.MOV')) {
+        res.set('Content-Type', 'video/quicktime');
+      } else if (path.endsWith('.mp4')) {
+        res.set('Content-Type', 'video/mp4');
+      }
+      res.set('Accept-Ranges', 'bytes');
+      res.set('Cross-Origin-Resource-Policy', 'cross-origin');
+      res.set('Access-Control-Allow-Origin', '*');
+      res.set('Cache-Control', 'no-cache');
+    }
+  }));
+
+  // Setup Routes nach den statischen Verzeichnissen
+  setupRoutes(app);
+
   // Root und Catch-all Routes
   app.get('/', (req, res) => {
     res.sendFile(path.join('/var/www/html', 'index.html'));
@@ -320,6 +345,13 @@ if (cluster.isMaster) {
         });
       }
     }
+    next();
+  });
+
+  // Timeout-Einstellungen für große Dateiübertragungen
+  app.use((req, res, next) => {
+    req.setTimeout(300000); // 5 Minuten
+    res.setTimeout(300000);
     next();
   });
 }

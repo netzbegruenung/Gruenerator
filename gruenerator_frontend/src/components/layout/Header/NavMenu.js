@@ -12,7 +12,8 @@ import {
   PiImage,
   PiPaintBrush,
   PiMagicWand,
-  PiMagnifyingGlass
+  PiMagnifyingGlass,
+  PiVideoCamera
 } from 'react-icons/pi';
 import { GiHedgehog } from 'react-icons/gi';
 import { CSSTransition } from 'react-transition-group';
@@ -119,7 +120,7 @@ const NavMenu = ({ open, onClose }) => {
           aria-haspopup="true"
           aria-expanded={activeDropdown === 'grafik'}
         >
-          Sharepics & Grafik 
+          Bild und Video 
           {activeDropdown === 'grafik' ? 
             <PiCaretUp className="nav-icon dropdown-icon" aria-hidden="true" /> : 
             <PiCaretDown className="nav-icon dropdown-icon" aria-hidden="true" />
@@ -132,9 +133,10 @@ const NavMenu = ({ open, onClose }) => {
           unmountOnExit
           nodeRef={nodeRefs.grafik}
         >
-          <ul className="nav-dropdown-content" ref={nodeRefs.grafik} aria-label="Sharepics & Grafik Untermenü">
+          <ul className="nav-dropdown-content" ref={nodeRefs.grafik} aria-label="Bild und Video Untermenü">
             <li><Link to="/vorlagen" onClick={() => handleLinkClick('/vorlagen', 'Canva-Vorlagen')}><PiPaintBrush className="nav-icon" aria-hidden="true" /> Canva-Vorlagen</Link></li>
             <li><Link to="/sharepic" onClick={() => handleLinkClick('/sharepic', 'Sharepic Grünerator')}><PiImage className="nav-icon" aria-hidden="true" /> Sharepic Grünerator</Link></li>
+            <li><Link to="/reel" onClick={() => handleLinkClick('/reel', 'Reel Grünerator')}><PiVideoCamera className="nav-icon" aria-hidden="true" /> Reel Grünerator</Link></li>
           </ul>
         </CSSTransition>
       </div>
