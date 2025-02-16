@@ -1,0 +1,230 @@
+@import '../../../assets/styles/common/variables.css';
+
+.success-screen {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+  padding: 2rem;
+}
+
+.success-content {
+  display: flex;
+  flex-direction: column;
+  text-align: center;
+  background-color: var(--background-color-alt);
+  padding: 3rem;
+  border-radius: 8px;
+  max-width: 1200px;
+  width: 100%;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.success-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: var(--klee);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40px;
+  color: white;
+  margin: 0 auto 20px;
+  transition: all 0.3s ease-in-out;
+}
+
+.success-icon.loading {
+  background: var(--klee);
+}
+
+.success-icon:not(.loading) {
+  animation: scaleIn 0.3s ease-out;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: white;
+}
+
+.success-icon.loading .spinner {
+  animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.social-text-loading {
+  margin-top: 20px;
+  text-align: center;
+}
+
+.social-text-loading .spinner {
+  margin: 10px auto;
+  border-color: rgba(33, 150, 243, 0.3);
+  border-top-color: #2196F3;
+}
+
+.success-content h2 {
+  margin-bottom: 1rem;
+  color: var(--text-color);
+}
+
+.success-content p {
+  margin-bottom: 2rem;
+  color: var(--text-color-secondary);
+}
+
+.success-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  width: 100%;
+}
+
+.success-buttons .btn-primary {
+  width: 100%;
+  max-width: 300px;
+}
+
+.btn-primary, .btn-secondary {
+  padding: 0.8rem 1.5rem;
+  border-radius: 4px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.btn-primary {
+  background-color: var(--klee);
+  color: white;
+  border: none;
+}
+
+.btn-primary:hover {
+  background-color: var(--klee-dark);
+}
+
+.btn-secondary {
+  background-color: transparent;
+  color: var(--klee);
+  border: 2px solid var(--klee);
+}
+
+.btn-secondary:hover {
+  background-color: var(--klee-light);
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Responsive Design */
+@media (min-width: 1024px) {
+  .success-content {
+    flex-direction: row;
+    align-items: center;
+    gap: 3rem;
+    text-align: left;
+    min-height: 400px;
+  }
+
+  .success-main {
+    flex: 1;
+    max-width: 600px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+  }
+
+  .social-text-result {
+    flex: 1;
+    margin: 0;
+    min-width: 400px;
+    max-width: 600px;
+    align-self: stretch;
+  }
+}
+
+@media (max-width: 1023px) {
+  .success-content {
+    padding: 2rem;
+    margin: 1rem;
+  }
+  
+  .success-buttons {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .success-buttons .btn-primary {
+    width: 100%;
+  }
+}
+
+.error-message {
+  background-color: var(--error-light);
+  color: var(--error);
+  padding: 1rem;
+  border-radius: 4px;
+  margin: 1rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.social-text-result {
+  background-color: var(--background-color);
+  padding: 1.5rem;
+  border-radius: 4px;
+  text-align: left;
+}
+
+.social-text-result h3 {
+  color: var(--text-color);
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+}
+
+.social-text-result p {
+  color: var(--text-color);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  margin-bottom: 1rem;
+}
+
+.copy-button {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  background-color: var(--background-color-alt);
+  border: 1px solid var(--klee);
+  color: var(--klee);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+}
+
+.copy-button:hover {
+  background-color: var(--klee-light);
+}
+
+.copy-button:active {
+  transform: scale(0.98);
+} 
