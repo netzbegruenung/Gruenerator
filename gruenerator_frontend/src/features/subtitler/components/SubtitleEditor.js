@@ -77,7 +77,7 @@ const SubtitleEditor = ({ videoFile, subtitles, onExportSuccess, isExporting, on
 
       onExportSuccess();
 
-      const response = await apiClient.post('/api/subtitler/export', formData, {
+      const response = await apiClient.post('/subtitler/export', formData, {
         responseType: 'arraybuffer',
         headers: {
           'Content-Type': 'multipart/form-data'
@@ -138,7 +138,7 @@ const SubtitleEditor = ({ videoFile, subtitles, onExportSuccess, isExporting, on
 
   const handleDownloadSRT = async () => {
     try {
-      const response = await apiClient.post('/api/subtitler/download-srt', 
+      const response = await apiClient.post('/subtitler/download-srt', 
         { subtitles },
         { responseType: 'blob' }
       );
