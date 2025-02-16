@@ -108,7 +108,7 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }) => {
   return (
     <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
       <BaseForm
-        title="Grüne Jugend Generator"
+        title="Grüne Jugend"
         onSubmit={handleSubmit}
         loading={loading}
         success={success}
