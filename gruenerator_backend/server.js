@@ -49,6 +49,45 @@ if (cluster.isMaster) {
   aiWorkerPool = new AIWorkerPool(aiWorkerCount);
   app.locals.aiWorkerPool = aiWorkerPool;
 
+  // Multer Konfiguration für Videouploads
+  const videoUpload = multer({
+    limits: {
+      fileSize: 75 * 1024 * 1024, // 75MB für Videos
+    },
+    fileFilter: (req, file, cb) => {
+      // Erlaubte Video-Formate
+      const allowedMimes = ['video/mp4', 'video/quicktime', 'video/x-msvideo'];
+      if (allowedMimes.includes(file.mimetype)) {
+        cb(null, true);
+      } else {
+        cb(new Error('Ungültiges Dateiformat. Nur MP4, MOV und AVI sind erlaubt.'));
+      }
+    }
+  });
+
+  // Allgemeine Dateiupload-Konfiguration
+  const generalUpload = multer({
+    limits: {
+      fileSize: 10 * 1024 * 1024 // 10MB für andere Dateien
+    }
+  });
+
+  // Middleware für verschiedene Upload-Routen
+  app.use('/subtitler/process', videoUpload.single('video'));
+  app.use('/upload', generalUpload.single('file'));
+
+  // Fehlerbehandlung für zu große Dateien
+  app.use((error, req, res, next) => {
+    if (error instanceof multer.MulterError) {
+      if (error.code === 'LIMIT_FILE_SIZE') {
+        return res.status(413).json({
+          error: 'Datei ist zu groß. Videos dürfen maximal 75MB groß sein.'
+        });
+      }
+    }
+    next(error);
+  });
+
   // Graceful Shutdown Handler
   process.on('SIGTERM', async () => {
     console.log('Shutting down AI worker pool...');
