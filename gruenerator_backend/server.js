@@ -72,7 +72,7 @@ if (cluster.isMaster) {
   // Allgemeine Dateiupload-Konfiguration
   const generalUpload = multer({
     limits: {
-      fileSize: 10 * 1024 * 1024 // 10MB für andere Dateien
+      fileSize: 75 * 1024 * 1024 // 75MB für andere Dateien
     }
   });
 
