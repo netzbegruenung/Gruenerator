@@ -47,6 +47,12 @@ if (cluster.isMaster) {
   app.use(express.json({limit: '100mb'}));
   app.use(express.raw({limit: '100mb'}));
   
+  // Timeout-Einstellungen
+  app.use((req, res, next) => {
+    res.setTimeout(900000); // 15 Minuten
+    next();
+  });
+
   // Worker-Pool für AI-Anfragen initialisieren
   const aiWorkerCount = process.env.PRODUCTION_MODE === 'true' ? 4 : 1;
   console.log(`Initializing AI worker pool with ${aiWorkerCount} workers`);

@@ -96,21 +96,54 @@ async function getVideoMetadata(videoPath) {
 // Hilfsfunktion zum Extrahieren der Audio-Spur
 async function extractAudio(videoPath, outputPath) {
   try {
+    console.log('Starte Audio-Extraktion:', {
+      inputPath: videoPath,
+      outputPath: outputPath
+    });
+
+    // Prüfe ob Input-Datei existiert
+    if (!fs.existsSync(videoPath)) {
+      throw new Error(`Video-Datei nicht gefunden: ${videoPath}`);
+    }
+
     return new Promise((resolve, reject) => {
-      ffmpeg(videoPath)
+      const command = ffmpeg(videoPath)
         .toFormat('wav')
         .outputOptions([
-          '-vn',
-          '-acodec pcm_s16le',
-          '-ar 16000',
-          '-ac 1'
-        ])
+          '-vn',                // Entferne Video-Stream
+          '-acodec pcm_s16le',  // Audio-Codec
+          '-ar 16000',          // Sample Rate
+          '-ac 1',              // Mono
+          '-y'                  // Überschreibe Output-Datei
+        ]);
+
+      // Debug-Logging
+      command.on('start', (commandLine) => {
+        console.log('FFmpeg Befehl:', commandLine);
+      });
+
+      command.on('progress', (progress) => {
+        console.log('Fortschritt:', progress.percent?.toFixed(1) + '%');
+      });
+
+      command
         .save(outputPath)
-        .on('end', () => resolve(outputPath))
-        .on('error', (err) => reject(err));
+        .on('end', () => {
+          // Prüfe ob Output-Datei erstellt wurde
+          if (!fs.existsSync(outputPath)) {
+            reject(new Error('WAV-Datei wurde nicht erstellt'));
+            return;
+          }
+          console.log('Audio-Extraktion erfolgreich:', outputPath);
+          resolve(outputPath);
+        })
+        .on('error', (err) => {
+          console.error('FFmpeg Fehler:', err);
+          reject(err);
+        });
     });
   } catch (error) {
-    console.error('Fehler bei der Audio-Extraktion:', error);
+    console.error('Kritischer Fehler bei Audio-Extraktion:', error);
     throw error;
   }
 }
