@@ -27,9 +27,9 @@ let aiWorkerPool;
 if (cluster.isMaster) {
   console.log(`Master ${process.pid} is running`);
 
-  // Bestimme Anzahl der Worker basierend auf Produktionsmodus
-  const workerCount = process.env.PRODUCTION_MODE === 'true' ? numCPUs : 1;
-  console.log(`Starting ${workerCount} workers (PRODUCTION_MODE: ${process.env.PRODUCTION_MODE})`);
+  // Anzahl der Worker aus Umgebungsvariable lesen oder Standardwert verwenden
+  const workerCount = parseInt(process.env.WORKER_COUNT, 10) || 6;
+  console.log(`Starting ${workerCount} workers (WORKER_COUNT: ${workerCount})`);
 
   // Fork Workers
   for (let i = 0; i < workerCount; i++) {
@@ -54,7 +54,7 @@ if (cluster.isMaster) {
   });
 
   // Worker-Pool für AI-Anfragen initialisieren
-  const aiWorkerCount = process.env.PRODUCTION_MODE === 'true' ? 4 : 1;
+  const aiWorkerCount = parseInt(process.env.AI_WORKER_COUNT, 10) || 6;
   console.log(`Initializing AI worker pool with ${aiWorkerCount} workers`);
   aiWorkerPool = new AIWorkerPool(aiWorkerCount);
   app.locals.aiWorkerPool = aiWorkerPool;

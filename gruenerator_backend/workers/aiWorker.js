@@ -1,179 +1,10 @@
 const { parentPort } = require('worker_threads');
 const { Anthropic } = require('@anthropic-ai/sdk');
 const OpenAI = require('openai');
-const config = require('./worker.config');  // Config importieren
+const config = require('./worker.config');
 require('dotenv').config();
 
-class ConcurrentRequestManager {
-  constructor() {
-    this.queue = [];
-    this.activeRequests = new Set();
-    this.maxConcurrentRequests = config.worker.rateLimit.maxConcurrent;
-    this.rateLimit = {
-      requests: new Map(),
-      maxRequests: config.worker.rateLimit.maxRequests,
-      timeWindow: config.worker.rateLimit.timeWindow
-    };
-    this.retryConfig = {
-      maxRetries: config.worker.retry.maxRetries,
-      baseDelay: config.worker.retry.baseDelay,
-      maxDelay: config.worker.retry.maxDelay,
-      requestTimeout: config.worker.requestTimeout
-    };
-  }
-
-  async add(data) {
-    return new Promise((resolve, reject) => {
-      const request = { data, resolve, reject };
-      this.queue.push(request);
-      this.processQueue();
-    });
-  }
-
-  async processQueue() {
-    // Wenn zu viele aktive Requests, warte
-    if (this.activeRequests.size >= this.maxConcurrentRequests) {
-      return;
-    }
-
-    // Verarbeite alle wartenden Anfragen
-    while (this.queue.length > 0 && this.activeRequests.size < this.maxConcurrentRequests) {
-      if (!this.checkRateLimit()) {
-        // Warte und versuche später erneut
-        setTimeout(() => this.processQueue(), 100);
-        return;
-      }
-
-      const request = this.queue.shift();
-      const requestId = Date.now() + Math.random();
-      this.activeRequests.add(requestId);
-
-      this.processRequest(request, requestId)
-        .finally(() => {
-          this.activeRequests.delete(requestId);
-          this.processQueue(); // Verarbeite weitere Anfragen
-        });
-    }
-  }
-
-  async processRequest(request, requestId) {
-    let retryCount = 0;
-    let shouldUseBackup = request.data.useBackupProvider || false;
-    
-    while (true) {
-      try {
-        const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => {
-            reject(new Error('Request Timeout nach ' + this.retryConfig.requestTimeout/1000 + ' Sekunden'));
-          }, this.retryConfig.requestTimeout);
-        });
-
-        // Versuche zuerst mit dem primären Provider (Claude), falls nicht explizit Backup angefordert
-        let result;
-        if (!shouldUseBackup) {
-          result = await Promise.race([
-            processAIRequest({ ...request.data, useBackupProvider: false }),
-            timeoutPromise
-          ]);
-        } else {
-          // Verwende OpenAI als Backup
-          console.log(`[AI Worker] Verwende Backup-Provider nach ${retryCount} fehlgeschlagenen Versuchen`);
-          result = await Promise.race([
-            processAIRequest({ ...request.data, useBackupProvider: true }),
-            timeoutPromise
-          ]);
-        }
-
-        request.resolve(result);
-        return;
-        
-      } catch (error) {
-        console.error(`[AI Worker] Fehler bei Request ${requestId}:`, {
-          error: error.message,
-          retryCount,
-          isTimeout: error.message.includes('Timeout'),
-          usingBackup: shouldUseBackup
-        });
-
-        // Wenn wir noch nicht das Backup verwenden und die maximalen Versuche erreicht sind
-        if (!shouldUseBackup && retryCount >= this.retryConfig.maxRetries - 1) {
-          console.log('[AI Worker] Wechsel zu Backup-Provider nach erschöpften Wiederholungsversuchen');
-          shouldUseBackup = true;
-          retryCount = 0; // Reset retry counter für den Backup-Provider
-          continue; // Versuche es erneut mit dem Backup-Provider
-        }
-
-        // Wenn wir bereits das Backup verwenden und auch dort die max. Versuche erreicht sind
-        if (shouldUseBackup && retryCount >= this.retryConfig.maxRetries - 1) {
-          request.reject(error);
-          return;
-        }
-
-        // Normale Retry-Logik
-        if (this.shouldRetry(error, retryCount)) {
-          const delay = this.calculateBackoff(retryCount);
-          console.log(`Retry ${retryCount + 1} nach ${delay}ms für Request ${requestId}`);
-          await this.wait(delay);
-          retryCount++;
-        } else {
-          request.reject(error);
-          return;
-        }
-      }
-    }
-  }
-
-  checkRateLimit() {
-    const now = Date.now();
-    const windowStart = now - this.rateLimit.timeWindow;
-    
-    // Bereinige alte Einträge
-    for (const [timestamp] of this.rateLimit.requests) {
-      if (timestamp < windowStart) {
-        this.rateLimit.requests.delete(timestamp);
-      }
-    }
-
-    if (this.rateLimit.requests.size >= this.rateLimit.maxRequests) {
-      return false;
-    }
-
-    this.rateLimit.requests.set(now, true);
-    return true;
-  }
-
-  shouldRetry(error, retryCount) {
-    // Erweiterte Retry-Logik
-    return (
-      retryCount < this.retryConfig.maxRetries && 
-      (
-        error.status >= 500 || 
-        error.status === 429 ||
-        error.message.includes('Timeout') ||
-        error.message.includes('network') ||
-        error.code === 'ECONNRESET'
-      )
-    );
-  }
-
-  calculateBackoff(retryCount) {
-    // Exponentieller Backoff mit Jitter
-    const exponentialDelay = Math.min(
-      this.retryConfig.maxDelay,
-      this.retryConfig.baseDelay * Math.pow(2, retryCount)
-    );
-    
-    // Füge zufälligen Jitter hinzu (±25%)
-    const jitter = exponentialDelay * 0.25 * (Math.random() * 2 - 1);
-    return Math.floor(exponentialDelay + jitter);
-  }
-
-  wait(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  }
-}
-
-const requestManager = new ConcurrentRequestManager();
+// Create API clients
 const anthropic = new Anthropic({
   apiKey: process.env.CLAUDE_API_KEY
 });
@@ -182,26 +13,83 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
 
-async function processAIRequest(data, retryCount = 0) {
+// Process incoming messages with new message protocol
+parentPort.on('message', async (message) => {
+  const { type, requestId, data } = message;
+  
+  if (type !== 'request') {
+    console.warn(`[AI Worker] Received unknown message type: ${type}`);
+    return;
+  }
+  
+  console.log(`[AI Worker] Processing request ${requestId} of type ${data.type}`);
+  
+  try {
+    // Send progress update at 10%
+    sendProgress(requestId, 10);
+    
+    // Process the request
+    const result = await processAIRequest(requestId, data);
+    
+    // Validate result before sending
+    if (!result || !result.content || result.content.length === 0) {
+      throw new Error(`Empty or invalid result generated for request ${requestId}`);
+    }
+    
+    // Send back the successful result
+    parentPort.postMessage({
+      type: 'response',
+      requestId,
+      data: result
+    });
+    
+  } catch (error) {
+    console.error(`[AI Worker] Error processing request ${requestId}:`, error);
+    
+    // Send back the error
+    parentPort.postMessage({
+      type: 'error',
+      requestId,
+      error: error.message || 'Unknown error'
+    });
+  }
+});
+
+// Helper function to send progress updates
+function sendProgress(requestId, progress) {
+  try {
+    parentPort.postMessage({
+      type: 'progress',
+      requestId,
+      data: { progress }
+    });
+  } catch (e) {
+    // Ignore errors in progress reporting
+  }
+}
+
+// Main AI request processing function
+async function processAIRequest(requestId, data) {
   const { type, prompt, options = {}, systemPrompt, messages, useBackupProvider } = data;
   
   try {
     let result;
     if (useBackupProvider === true) {
-      console.log('[AI Worker] Using backup provider (OpenAI)');
-      result = await processWithOpenAI(data);
+      console.log(`[AI Worker] Using backup provider (OpenAI) for request ${requestId}`);
+      result = await processWithOpenAI(requestId, data);
     } else {
-      console.log('[AI Worker] Using primary provider (Claude)', { useBackupProvider });
+      console.log(`[AI Worker] Using primary provider (Claude) for request ${requestId} { useBackupProvider: false }`);
       
-      // Entferne betas aus den options
+      // Remove betas from options
       const { betas, ...cleanOptions } = options;
       
       const defaultConfig = {
-        model: "claude-3-5-sonnet-20240620",
+        model: "claude-3-7-sonnet-latest",
         max_tokens: 8000,
         temperature: 0.9
       };
-      // Typ-spezifische Konfigurationen
+      
+      // Type-specific configurations
       const typeConfigs = {
         'presse': {
           system: "Du bist ein erfahrener Pressesprecher...",
@@ -226,10 +114,14 @@ async function processAIRequest(data, retryCount = 0) {
         'text_adjustment': {
           system: "Du bist ein Experte für Textoptimierung...",
           temperature: 0.3
+        },
+        'antrag': {
+          system: "Du bist ein erfahrener Kommunalpolitiker von Bündnis 90/Die Grünen...",
+          temperature: 0.3
         }
       };
 
-      // Kombiniere Default-Config mit Typ-spezifischer Config und benutzerdefinierten Optionen
+      // Combine configs
       let requestConfig = {
         ...defaultConfig,
         ...(typeConfigs[type] || {}),
@@ -237,16 +129,14 @@ async function processAIRequest(data, retryCount = 0) {
         system: systemPrompt || (typeConfigs[type]?.system || defaultConfig.system)
       };
 
-      // Konfiguriere die Anfrage-Header
+      // Headers setup
       const headers = {};
-      
-      // Setze den PDF-Beta-Header nur für PDF-Anfragen
       if (type === 'antragsversteher' && betas?.includes('pdfs-2024-09-25')) {
         headers['anthropic-beta'] = 'pdfs-2024-09-25';
         console.log('[AI Worker] PDF Beta Header aktiviert');
       }
 
-      // Verwende die übergebenen Messages oder erstelle neue
+      // Message setup
       if (messages) {
         requestConfig.messages = messages;
       } else if (prompt) {
@@ -256,44 +146,72 @@ async function processAIRequest(data, retryCount = 0) {
         }];
       }
 
-      // Verwende Haupt-Timeout aus der Konfiguration
+      sendProgress(requestId, 30);
+      
+      // Make the API call with timeout
       const timeoutPromise = new Promise((_, reject) => {
         setTimeout(() => {
-          reject(new Error('Request Timeout nach ' + config.worker.requestTimeout/1000 + ' Sekunden'));
+          reject(new Error(`Request Timeout nach ${config.worker.requestTimeout/1000} Sekunden`));
         }, config.worker.requestTimeout);
       });
 
-      result = await Promise.race([
+      // Wait for Claude's response
+      const response = await Promise.race([
         anthropic.messages.create(requestConfig, { headers }),
         timeoutPromise
       ]);
       
-      // Strukturiere Claude-Response
+      sendProgress(requestId, 90);
+      
+      // Log and validate the response (crucial step)
+      const contentLength = response.content?.[0]?.text?.length || 0;
+      console.log(`[AI Worker] Claude Antwort erhalten für ${requestId}:`, {
+        type,
+        contentLength,
+        contentPreview: response.content?.[0]?.text?.substring(0, 100) + '...',
+        id: response.id || 'unknown'
+      });
+      
+      // Validate the response
+      if (!response.content || !response.content[0] || !response.content[0].text) {
+        throw new Error(`Invalid Claude response for request ${requestId}: missing content`);
+      }
+      
+      // Create the result object - ensure it's complete before returning
       result = {
-        content: result.content[0].text,
+        content: response.content[0].text,
         success: true,
         metadata: {
           provider: 'claude',
           timestamp: new Date().toISOString(),
           backupRequested: false,
+          requestId: requestId,
+          messageId: response.id,
           isPdfRequest: type === 'antragsversteher' && betas?.includes('pdfs-2024-09-25')
         }
       };
+      
+      // Double-check we have content before returning
+      if (!result.content || typeof result.content !== 'string' || result.content.length === 0) {
+        throw new Error(`Empty or invalid content in processed result for ${requestId}`);
+      }
     }
 
+    sendProgress(requestId, 100);
     return result;
 
   } catch (error) {
-    console.error(`AI Worker Error:`, error.message);
+    console.error(`[AI Worker] Error in processAIRequest for ${requestId}:`, error);
     throw error;
   }
 }
 
-async function processWithOpenAI(data) {
+async function processWithOpenAI(requestId, data) {
   const { prompt, systemPrompt, messages, type } = data;
   
   console.log('[AI Worker] OpenAI Request:', {
     type,
+    requestId,
     hasSystemPrompt: !!systemPrompt,
     messageCount: messages?.length || 1,
     model: 'gpt-4o-2024-08-06'
@@ -331,6 +249,8 @@ async function processWithOpenAI(data) {
   }
 
   try {
+    sendProgress(requestId, 50);
+    
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-2024-08-06',
       messages: openAIMessages,
@@ -338,6 +258,11 @@ async function processWithOpenAI(data) {
       max_tokens: 4000,
       response_format: type === 'social' ? { type: "json_object" } : undefined
     });
+
+    // Validate the response
+    if (!response.choices || !response.choices[0] || !response.choices[0].message || !response.choices[0].message.content) {
+      throw new Error(`Invalid OpenAI response for request ${requestId}`);
+    }
 
     // Strukturierte Response
     return {
@@ -347,7 +272,8 @@ async function processWithOpenAI(data) {
         provider: 'openai',
         timestamp: new Date().toISOString(),
         backupRequested: true,
-        type: type
+        type: type,
+        requestId
       }
     };
   } catch (error) {
@@ -355,15 +281,3 @@ async function processWithOpenAI(data) {
     throw new Error(`OpenAI Error: ${error.message}`);
   }
 }
-
-parentPort.on('message', async (data) => {
-  try {
-    const result = await requestManager.add(data);
-    parentPort.postMessage(result);
-  } catch (error) {
-    parentPort.postMessage({
-      success: false,
-      error: error.message
-    });
-  }
-});

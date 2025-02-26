@@ -65,7 +65,8 @@ const useSearch = () => {
         query,
         options: {
           search_depth: 'advanced',
-          max_results: 10
+          max_results: 10,
+          include_raw_content: true
         }
       });
       

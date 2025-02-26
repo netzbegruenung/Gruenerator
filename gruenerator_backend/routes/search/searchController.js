@@ -17,7 +17,7 @@ router.post('/', async (req, res) => {
     const searchOptions = {
       includeAnswer: options.search_depth || "advanced",
       maxResults: Math.min(options.max_results || 10, 10),  // Limit auf 10 Ergebnisse
-      include_raw_content: false  // Kein Raw Content mehr
+      include_raw_content: options.include_raw_content === true  // Raw Content basierend auf Parameter
     };
     
     console.log('\n=== TAVILY REQUEST START ===');
