@@ -3,7 +3,6 @@ import { useAntrag } from './useAntrag';
 import { useAntragContext } from './AntragContext';
 import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../../components/utils/constants';
 import BaseForm from '../../../components/common/BaseForm';
-import FeatureToggle from '../../../components/common/FeatureToggle';
 import PlatformContainer from '../../../components/common/PlatformContainer';
 import { HiGlobeAlt } from 'react-icons/hi';
 import { SEARCH_STATES } from './hooks/useAntragSearch';
@@ -74,6 +73,16 @@ export const AntragForm = () => {
         }}
         usePlatformContainers={true}
         disableAutoCollapse={true}
+        featureToggle={{
+          isActive: useWebSearch,
+          onToggle: setUseWebSearch,
+          label: "Webrecherche aktivieren",
+          icon: HiGlobeAlt,
+          description: "Aktiviere die automatische Webrecherche, um relevante Informationen zu deinem Antrag zu finden und einzubinden.",
+          isSearching: searchState === SEARCH_STATES.SEARCHING,
+          statusMessage: statusMessage
+        }}
+        useFeatureToggle={true}
       >
         <h3><label htmlFor="idee">{FORM_LABELS.IDEE}</label></h3>
         <input
@@ -102,18 +111,6 @@ export const AntragForm = () => {
           onChange={(e) => handleInputChange('gliederung', e.target.value)}
           placeholder={FORM_PLACEHOLDERS.GLIEDERUNG}
         />
-
-        <div className="feature-section">
-          <FeatureToggle
-            isActive={useWebSearch}
-            onToggle={setUseWebSearch}
-            label="Webrecherche aktivieren"
-            icon={HiGlobeAlt}
-            description="Aktiviere die automatische Webrecherche, um relevante Informationen zu deinem Antrag zu finden und einzubinden."
-            isSearching={searchState === SEARCH_STATES.SEARCHING}
-            statusMessage={statusMessage}
-          />
-        </div>
       </BaseForm>
       
       {/* Quellenanzeige unter dem Antrag */}
