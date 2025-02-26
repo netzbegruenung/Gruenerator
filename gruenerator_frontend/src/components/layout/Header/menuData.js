@@ -1,4 +1,4 @@
-import { PiFileText, PiNewspaper, PiMagicWand, PiImage, PiPaintBrush, PiVideoCamera } from 'react-icons/pi';
+import { PiFileText, PiNewspaper, PiMagicWand /* , PiImage, PiPaintBrush, PiVideoCamera */ } from 'react-icons/pi';
 import { GiHedgehog } from 'react-icons/gi';
 import PropTypes from 'prop-types';
 
