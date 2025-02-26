@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import BaseForm from '../../common/BaseForm';
 import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../utils/constants';
 import useApiSubmit from '../../hooks/useApiSubmit';
-import { useSharedContent } from '../../../hooks/useSharedContent';
+import { useSharedContent } from '../../hooks/useSharedContent';
 import StyledCheckbox from '../../common/AnimatedCheckbox';
 import { FormContext } from '../../utils/FormContext';
 import { useDynamicTextSize } from '../../utils/commonFunctions';

@@ -12,8 +12,9 @@ const Datenschutz = () => {
       <h2>Kurzzusammenfassung</h2>
       <p>
         <strong>Der <a href="https://gruenerator.de/">GRUENERATOR</a> erhebt keine Daten von Dir.
-        Die von Dir getätigten Eingaben werden jedoch im Hintergrund an
-        <a href="https://www.anthropic.com/">ANTHROPIC</a> weitergeleitet, dort verarbeitet
+        Die von Dir getätigten Eingaben werden im Hintergrund an
+        <a href="https://www.anthropic.com/">ANTHROPIC</a> weitergeleitet. Wenn Du die Suchfunktion des GRUENERATORs nutzt, 
+        werden Deine Suchanfragen zusätzlich an <a href="https://tavily.com/">TAVILY</a> weitergeleitet. Die Daten werden dort verarbeitet
         und für 28 Tage gespeichert. Bitte achte also darauf, dass Du keine
         personenbezogenen oder vertraulichen Daten eingibst.</strong>
       </p>
@@ -87,13 +88,16 @@ const Datenschutz = () => {
         Auftragsverarbeiter.
       </p>
       <p>
-        Darüber hinaus werden Deine Eingaben im Hintergrund an ANTHROPIC
-        weitergeleitet, dort verarbeitet und für 28 Tage gespeichert. Mit
+        Darüber hinaus werden Deine Eingaben im Hintergrund an ANTHROPIC weitergeleitet. 
+        Bei Nutzung der Suchfunktion werden Deine Suchanfragen zusätzlich an TAVILY
+        weitergeleitet. Die Daten werden dort verarbeitet und für 28 Tage gespeichert. Mit
         dem Absenden Deiner Eingabe sicherst Du zu, keine personenbezogenen
         oder vertraulichen Daten eingegeben zu haben und die
-        <a href="https://www.anthropic.com/legal/aup">Nutzungsbedingungen von Anthropic</a>, die Deine Daten
+        <a href="https://www.anthropic.com/legal/aup">Nutzungsbedingungen von Anthropic</a> sowie bei Nutzung der Suchfunktion die 
+        <a href="https://tavily.com/terms">Nutzungsbedingungen von Tavily</a>, die Deine Daten
         empfangen und verarbeiten, zu beachten. Weitere Informationen dazu sowie zu Deinen Rechten findest Du in der
-        <a href="https://www.anthropic.com/legal/privacy">Datenschutzerklärung von Anthropic</a>.
+        <a href="https://www.anthropic.com/legal/privacy">Datenschutzerklärung von Anthropic</a> und der
+        <a href="https://www.tavily.com/privacy">Datenschutzerklärung von Tavily</a>.
       </p>
 
       <h4>d. Wie lange werden die Daten gespeichert?</h4>

@@ -41,6 +41,8 @@ const BaseForm = ({
   hideDisplayContainer = false,
   usePlatformContainers = false,
   helpContent,
+  submitButtonProps = {},
+  disableAutoCollapse = false
 }) => {
   const {
     value,
@@ -73,15 +75,33 @@ const BaseForm = ({
     }
   }, [initialContent, updateValue]);
 
+  // Setze generatedContent in value, falls value leer ist
+  useEffect(() => {
+    if (generatedContent && !value) {
+      console.log('[BaseForm] Setze generatedContent in value:', generatedContent);
+      updateValue(generatedContent);
+    }
+    
+    // Wenn generatedContent aktualisiert wird und SUCHERGEBNIS oder ANTRAG enthält, aktualisiere auch value
+    if (generatedContent && 
+        (generatedContent.includes('SUCHERGEBNIS:') || generatedContent.includes('ANTRAG:')) && 
+        (!value || 
+         (!value.includes('SUCHERGEBNIS:') && !value.includes('ANTRAG:')) ||
+         (generatedContent.includes('ANTRAG:') && !value.includes('ANTRAG:')))) {
+      console.log('[BaseForm] Aktualisiere value mit generatedContent, da SUCHERGEBNIS oder ANTRAG enthalten ist');
+      updateValue(generatedContent);
+    }
+  }, [generatedContent, value, updateValue]);
+
   useEffect(() => {
     if (value && usePlatformContainers) {
-      const platformCount = (value.match(/(TWITTER|FACEBOOK|INSTAGRAM|LINKEDIN|ACTIONIDEAS|INSTAGRAM REEL):/g) || []).length;
+      const platformCount = (value.match(/(TWITTER|FACEBOOK|INSTAGRAM|LINKEDIN|ACTIONIDEAS|INSTAGRAM REEL|PRESSEMITTEILUNG|SUCHANFRAGE|SUCHERGEBNIS):/g) || []).length;
       setIsMultiPlatform(platformCount >= 2);
-      if (platformCount >= 2 && isFormVisible) {
+      if (platformCount >= 2 && isFormVisible && !disableAutoCollapse) {
         setIsFormVisible(false);
       }
     }
-  }, [value, usePlatformContainers]);
+  }, [value, usePlatformContainers, disableAutoCollapse]);
 
   const toggleForm = () => {
     setIsFormVisible(prev => !prev);
@@ -241,20 +261,50 @@ const BaseForm = ({
     }
 
     // Platform Container nur anzeigen wenn aktiviert
-    if (usePlatformContainers && value) {
+    if (usePlatformContainers) {
       console.log('[BaseForm] Prüfe Platform Container');
-      const hasPlatformHeaders = value.includes('TWITTER:') || 
-                                value.includes('FACEBOOK:') || 
-                                value.includes('INSTAGRAM:') || 
-                                value.includes('LINKEDIN:') || 
-                                value.includes('AKTIONSIDEEN:') || 
-                                value.includes('INSTAGRAM REEL:');
+      // Prüfe value ODER generatedContent auf Plattform-Header
+      const contentToCheck = value || generatedContent || '';
+      const hasPlatformHeaders = contentToCheck.includes('TWITTER:') || 
+                                contentToCheck.includes('FACEBOOK:') || 
+                                contentToCheck.includes('INSTAGRAM:') || 
+                                contentToCheck.includes('LINKEDIN:') || 
+                                contentToCheck.includes('AKTIONSIDEEN:') || 
+                                contentToCheck.includes('INSTAGRAM REEL:') ||
+                                contentToCheck.includes('PRESSEMITTEILUNG:') ||
+                                contentToCheck.includes('SUCHANFRAGE:') ||
+                                contentToCheck.includes('SUCHERGEBNIS:') ||
+                                contentToCheck.includes('ANTRAG:');
+
+      const hasMultiplePlatforms = contentToCheck.includes('---PLATFORM_BREAK---');
+      
+      console.log('[BaseForm] Content Check:', { 
+        hasPlatformHeaders, 
+        hasMultiplePlatforms, 
+        hasSuchergebnis: contentToCheck.includes('SUCHERGEBNIS:'),
+        hasAntrag: contentToCheck.includes('ANTRAG:'),
+        contentLength: contentToCheck.length
+      });
 
       if (hasPlatformHeaders) {
         console.log('[BaseForm] Zeige Platform Container');
+        // Verwende generatedContent als Fallback, wenn value leer ist
+        let displayContent = value || generatedContent;
+        
+        // Wenn wir mehrere Plattformen haben, stelle sicher, dass alle korrekt angezeigt werden
+        if (hasMultiplePlatforms) {
+          console.log('[BaseForm] Inhalt enthält multiple Plattformen (mit Platform Breaks)');
+          
+          // Stelle sicher, dass wir den aktuellsten Inhalt verwenden
+          if (generatedContent && generatedContent.length > displayContent.length) {
+            console.log('[BaseForm] Verwende generatedContent, da es mehr Inhalt hat');
+            displayContent = generatedContent;
+          }
+        }
+        
         return (
           <div className="generated-content-wrapper">
-            <PlatformContainer content={value} key={Date.now()} />
+            <PlatformContainer content={displayContent} key={Date.now()} />
           </div>
         );
       }
@@ -319,6 +369,7 @@ const BaseForm = ({
                 icon={<HiCog />}
                 className={`submit-button form-button ${showBackButton ? 'with-back-button' : ''}`}
                 ariaLabel={nextButtonText || 'Weiter'}
+                {...submitButtonProps}
               />
             </div>
           ) : (
@@ -327,10 +378,11 @@ const BaseForm = ({
                 onClick={onSubmit}
                 loading={loading}
                 success={success}
-                text="Grünerieren"
+                text={submitButtonProps.defaultText || "Grünerieren"}
                 icon={<HiCog />}
                 className="submit-button form-button"
                 ariaLabel="Generieren"
+                {...submitButtonProps}
               />
             </div>
           )}
@@ -430,7 +482,13 @@ BaseForm.propTypes = {
   helpContent: PropTypes.shape({
     content: PropTypes.string,
     tips: PropTypes.arrayOf(PropTypes.string)
-  })
+  }),
+  submitButtonProps: PropTypes.shape({
+    statusMessage: PropTypes.string,
+    showStatus: PropTypes.bool,
+    defaultText: PropTypes.string
+  }),
+  disableAutoCollapse: PropTypes.bool
 };
 
 export default BaseForm;
