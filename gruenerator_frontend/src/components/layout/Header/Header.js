@@ -95,8 +95,12 @@ const Header = () => {
                                 aria-haspopup="true"
                                 aria-expanded={activeDropdown === key}
                             >
-                                <span>
-                                    {menu.title} <PiCaretDown className={activeDropdown === key ? 'open' : ''} aria-hidden="true" />
+                                <span className="header-nav-item">
+                                    <span>{menu.title}</span>
+                                    <PiCaretDown 
+                                        className={activeDropdown === key ? 'open' : ''} 
+                                        aria-hidden="true" 
+                                    />
                                 </span>
                                 <ul className={`${menuStyles.dropdownContent.base} ${activeDropdown === key ? menuStyles.dropdownContent.show : ''}`} 
                                     aria-label={`${menu.title} Untermenü`}
@@ -106,7 +110,7 @@ const Header = () => {
                             </li>
                         ))}
                         <li className="header-search">
-                            <Link to="/suche" onClick={() => handleLinkClick('/suche', 'Suche')} className="header-search__link">
+                            <Link to="/suche" onClick={() => handleLinkClick('/suche', 'Suche')} className="header-nav-item">
                                 <span>Suche</span>
                                 <PiMagnifyingGlass aria-hidden="true" />
                             </Link>
