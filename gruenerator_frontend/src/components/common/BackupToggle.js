@@ -1,28 +1,17 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import '../../assets/styles/components/BackupToggle.css';
+import { HiServer } from 'react-icons/hi';
+import FeatureToggle from './FeatureToggle';
 
 const BackupToggle = ({ useBackupProvider, setUseBackupProvider }) => {
-  const handleToggle = () => {
-    const newValue = !useBackupProvider;
-    console.log('[BackupToggle] Toggling backup provider:', newValue);
-    setUseBackupProvider(newValue);
-  };
-
   return (
-    <div className="backup-toggle">
-      <label className="backup-switch">
-        <input
-          type="checkbox"
-          checked={useBackupProvider}
-          onChange={handleToggle}
-        />
-        <span className="backup-slider"></span>
-      </label>
-      <span className="backup-label">
-        BackUp-Grünerator (ChatGPT) {useBackupProvider ? 'aktiv' : 'inaktiv'}
-      </span>
-    </div>
+    <FeatureToggle
+      isActive={useBackupProvider}
+      onToggle={setUseBackupProvider}
+      label="BackUp-Grünerator (ChatGPT)"
+      icon={HiServer}
+      className="backup-toggle"
+    />
   );
 };
 

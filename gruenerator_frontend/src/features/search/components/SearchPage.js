@@ -5,7 +5,7 @@ import useSearch from '../hooks/useSearch';
 import '../styles/SearchPage.css';
 import VerifyFeature from '../../../components/common/VerifyFeature';
 import ActionButtons from '../../../components/common/ActionButtons';
-import { formatExportContent } from '../../../utils/exportUtils';
+import { formatExportContent } from '../../../components/utils/exportUtils';
 
 const exampleQuestions = [
   {

@@ -35,8 +35,9 @@ export const menuItems = {
         icon: GiHedgehog
       }
     ]
-  },
-  grafik: {
+  }
+  /* Temporär ausgeblendet - wird später wieder aktiviert
+  ,grafik: {
     title: 'Bild und Video',
     items: [
       {
@@ -62,6 +63,7 @@ export const menuItems = {
       }
     ]
   }
+  */
 };
 
 // Gemeinsame Komponente für Menüeinträge
