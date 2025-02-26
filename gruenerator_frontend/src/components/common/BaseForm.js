@@ -15,7 +15,6 @@ import FormToggleButton from './FormToggleButton';
 import HelpDisplay from './HelpDisplay';
 import '../../assets/styles/components/form-toggle-button.css';
 import FeatureToggle from './FeatureToggle';
-import FormCollapseButton from './FormCollapseButton';
 
 // const BackupToggle = React.lazy(() => import('./BackupToggle'));
 
@@ -342,7 +341,7 @@ const BaseForm = ({
   return (
     <div className={baseContainerClasses}>
       {isMultiPlatform && (
-        <FormCollapseButton
+        <FormToggleButton
           isFormVisible={isFormVisible}
           toggleForm={toggleForm}
         />
