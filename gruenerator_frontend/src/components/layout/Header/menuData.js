@@ -1,4 +1,4 @@
-import { PiFileText, PiNewspaper, PiMagicWand /* , PiImage, PiPaintBrush, PiVideoCamera */ } from 'react-icons/pi';
+import { PiFileText, PiNewspaper, PiMagicWand, PiMagnifyingGlass /* , PiImage, PiPaintBrush, PiVideoCamera */ } from 'react-icons/pi';
 import { GiHedgehog } from 'react-icons/gi';
 import PropTypes from 'prop-types';
 
@@ -33,6 +33,18 @@ export const menuItems = {
         title: 'Grüne Jugend',
         description: 'Der Grünerator in jung',
         icon: GiHedgehog
+      }
+    ]
+  },
+  suche: {
+    title: 'Suche',
+    items: [
+      {
+        id: 'suche',
+        path: '/suche',
+        title: 'Suche',
+        description: 'Durchsuche alle Vorlagen und Texte',
+        icon: PiMagnifyingGlass
       }
     ]
   }
