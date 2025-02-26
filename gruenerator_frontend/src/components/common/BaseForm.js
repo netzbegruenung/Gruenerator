@@ -14,6 +14,8 @@ import PlatformContainer from './PlatformContainer';
 import FormToggleButton from './FormToggleButton';
 import HelpDisplay from './HelpDisplay';
 import '../../assets/styles/components/form-toggle-button.css';
+import FeatureToggle from './FeatureToggle';
+import FormCollapseButton from './FormCollapseButton';
 
 // const BackupToggle = React.lazy(() => import('./BackupToggle'));
 
@@ -31,8 +33,6 @@ const BaseForm = ({
   initialContent = '',
   alwaysEditing = false,
   hideEditButton = false,
-  // useBackupProvider,
-  // setUseBackupProvider,
   isMultiStep = false,
   onBack,
   showBackButton = false,
@@ -42,7 +42,9 @@ const BaseForm = ({
   usePlatformContainers = false,
   helpContent,
   submitButtonProps = {},
-  disableAutoCollapse = false
+  disableAutoCollapse = false,
+  featureToggle = null,
+  useFeatureToggle = false
 }) => {
   const {
     value,
@@ -337,71 +339,62 @@ const BaseForm = ({
     !isFormVisible ? 'form-hidden' : ''
   ].filter(Boolean).join(' ');
 
-  const renderFormContent = () => {
-    return (
-      <>
-        <div className={`form-content ${hasFormErrors ? 'has-errors' : ''}`}>
-          {children}
-          {/* {title !== "Grünerator Antragscheck" && title !== "Wahlprüfstein-Generator Bundestagswahl" && (
-            <Suspense fallback={<div>Lade...</div>}>
-              <BackupToggle 
-                useBackupProvider={useBackupProvider}
-                setUseBackupProvider={setUseBackupProvider}
-              />
-            </Suspense>
-          )} */}
-          {isMultiStep ? (
-            <div className={`button-container ${showBackButton ? 'form-buttons' : ''}`}>
-              {showBackButton && (
-                <button 
-                  type="button" 
-                  onClick={onBack} 
-                  className="back-button form-button"
-                >
-                  Zurück
-                </button>
-              )}
-              <SubmitButton
-                onClick={onSubmit}
-                loading={loading}
-                success={success}
-                text={nextButtonText || 'Weiter'}
-                icon={<HiCog />}
-                className={`submit-button form-button ${showBackButton ? 'with-back-button' : ''}`}
-                ariaLabel={nextButtonText || 'Weiter'}
-                {...submitButtonProps}
-              />
-            </div>
-          ) : (
-            <div className="button-container">
-              <SubmitButton
-                onClick={onSubmit}
-                loading={loading}
-                success={success}
-                text={submitButtonProps.defaultText || "Grünerieren"}
-                icon={<HiCog />}
-                className="submit-button form-button"
-                ariaLabel="Generieren"
-                {...submitButtonProps}
-              />
-            </div>
-          )}
-        </div>
-      </>
-    );
-  };
-
   return (
     <div className={baseContainerClasses}>
       {isMultiPlatform && (
-        <FormToggleButton
+        <FormCollapseButton
           isFormVisible={isFormVisible}
           toggleForm={toggleForm}
         />
       )}
       <div className={`form-container ${isFormVisible ? 'visible' : ''}`}>
         <form onSubmit={handleSubmit}>
-          {renderFormContent()}
+          <div className={`form-content ${hasFormErrors ? 'has-errors' : ''}`}>
+            <div className="form-inner">
+              {children}
+              {featureToggle && useFeatureToggle && (
+                <div className="feature-section">
+                  <FeatureToggle {...featureToggle} className="form-feature-toggle" />
+                </div>
+              )}
+            </div>
+            {isMultiStep ? (
+              <div className={`button-container ${showBackButton ? 'form-buttons' : ''}`}>
+                {showBackButton && (
+                  <button 
+                    type="button" 
+                    onClick={onBack} 
+                    className="back-button form-button"
+                  >
+                    Zurück
+                  </button>
+                )}
+                <SubmitButton
+                  onClick={onSubmit}
+                  loading={loading}
+                  success={success}
+                  text={nextButtonText || 'Weiter'}
+                  icon={<HiCog />}
+                  className={`submit-button form-button ${showBackButton ? 'with-back-button' : ''}`}
+                  ariaLabel={nextButtonText || 'Weiter'}
+                  {...submitButtonProps}
+                />
+              </div>
+            ) : (
+              <div className="button-container">
+                <SubmitButton
+                  onClick={onSubmit}
+                  loading={loading}
+                  success={success}
+                  text={submitButtonProps.defaultText || "Grünerieren"}
+                  icon={<HiCog />}
+                  className="submit-button form-button"
+                  ariaLabel="Generieren"
+                  {...submitButtonProps}
+                />
+              </div>
+            )}
+          </div>
         </form>
       </div>
       {!hideDisplayContainer && (
@@ -488,7 +481,17 @@ BaseForm.propTypes = {
     showStatus: PropTypes.bool,
     defaultText: PropTypes.string
   }),
-  disableAutoCollapse: PropTypes.bool
+  disableAutoCollapse: PropTypes.bool,
+  featureToggle: PropTypes.shape({
+    isActive: PropTypes.bool,
+    onToggle: PropTypes.func,
+    label: PropTypes.string,
+    icon: PropTypes.elementType,
+    description: PropTypes.string,
+    isSearching: PropTypes.bool,
+    statusMessage: PropTypes.string
+  }),
+  useFeatureToggle: PropTypes.bool
 };
 
 export default BaseForm;
