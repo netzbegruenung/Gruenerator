@@ -36,7 +36,13 @@ const useApiSubmit = (endpoint) => {
       console.log('[useApiSubmit] Response Keys:', Object.keys(response));
 
       // Spezielle Behandlung für verschiedene Endpoints
-      if (endpoint === '/dreizeilen_claude' || endpoint === 'dreizeilen_claude') {
+      if (endpoint === 'claude/search-query') {
+        console.log('[useApiSubmit] Processing search query response:', response);
+        if (response && response.content) {
+          setSuccess(true);
+          return response;
+        }
+      } else if (endpoint === '/dreizeilen_claude' || endpoint === 'dreizeilen_claude') {
         console.log('[useApiSubmit] Processing dreizeilen_claude response:', {
           hasMainSlogan: !!response?.mainSlogan,
           hasAlternatives: !!response?.alternatives,
@@ -67,9 +73,26 @@ const useApiSubmit = (endpoint) => {
           return response;
         }
       } else if (endpoint === 'search') {
-        if (response && response.status === 'success' && Array.isArray(response.results)) {
+        console.log('[useApiSubmit] Verarbeite Suchantwort:', response);
+        // Überprüfe verschiedene mögliche Antwortstrukturen
+        if (response && (Array.isArray(response.results) || Array.isArray(response))) {
           setSuccess(true);
           return response;
+        }
+      } else if (endpoint === 'claude/antrag' || endpoint === 'claude/antrag-simple') {
+        console.log('[useApiSubmit] Processing antrag response:', response);
+        if (response) {
+          // Prüfe auf verschiedene mögliche Antwortstrukturen
+          if (response.content) {
+            setSuccess(true);
+            return response.content;
+          } else if (response.metadata && response.metadata.content) {
+            setSuccess(true);
+            return response.metadata.content;
+          } else if (typeof response === 'string') {
+            setSuccess(true);
+            return response;
+          }
         }
       } else if (endpoint === 'analyze') {
         if (response && response.status === 'success' && response.analysis) {

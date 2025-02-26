@@ -1,4 +1,5 @@
 import { lazy } from 'react';
+import { PresseSocialGenerator } from '../../../features/texte/presse';
 
 const PRELOAD_DELAY = 2000; 
 const withImmedatePreloading = (importFunc) => {
@@ -16,23 +17,23 @@ const withImmedatePreloading = (importFunc) => {
 
 export const GrueneratorenBundle = {
   Antrag: withImmedatePreloading(() => import('./Antragsgenerator')),
-  Pressemitteilung: withImmedatePreloading(() => import('./Pressemitteilung')),
-  SocialMedia: withImmedatePreloading(() => import('./SocialMediaGenerator')),
+  PresseSocial: PresseSocialGenerator,
   Sharepic: withImmedatePreloading(() => import('./Sharepicgenerator')),
-  Rede: withImmedatePreloading(() => import('./Redengenerator')),
-  Wahlprogramm: withImmedatePreloading(() => import('./Wahlprogramm')),
+  Rede: withImmedatePreloading(() => import('../../../features/texte/universal/UniversalTextGenerator')),
+  Wahlprogramm: withImmedatePreloading(() => import('../../../features/texte/universal/UniversalTextGenerator')),
   Antragsversteher: withImmedatePreloading(() => import('./Antragsversteher')),
-  WahlpruefsteinThueringen: withImmedatePreloading(() => import('./WahlpruefsteinThueringen')),
   Kandidat: withImmedatePreloading(() => import('./Kandidatengenerator'))
 };
 
 // Nur häufig genutzte Module vorladen
-const CRITICAL_MODULES = ['SocialMedia', 'Pressemitteilung'];
+const CRITICAL_MODULES = ['PresseSocial'];
 
 export const preloadCriticalModules = () => {
   setTimeout(() => {
     CRITICAL_MODULES.forEach(module => {
-      GrueneratorenBundle[module].preload();
+      if (GrueneratorenBundle[module].preload) {
+        GrueneratorenBundle[module].preload();
+      }
     });
   }, PRELOAD_DELAY);
 };
@@ -42,6 +43,8 @@ preloadCriticalModules();
 
 export const preloadAllGrueneratoren = () => {
   Object.values(GrueneratorenBundle).forEach(component => {
-    component.preload();
+    if (component.preload) {
+      component.preload();
+    }
   });
 };
