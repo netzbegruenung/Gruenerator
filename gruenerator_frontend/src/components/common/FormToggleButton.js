@@ -1,35 +1,40 @@
 import React from 'react';
-import ReactDOM from 'react-dom';
 import PropTypes from 'prop-types';
-import { HiChevronLeft, HiChevronRight } from 'react-icons/hi';
+import { HiSearch } from 'react-icons/hi';
 import { useContext } from 'react';
 import { FormContext } from '../utils/FormContext';
 
-const FormToggleButton = ({ isFormVisible, toggleForm }) => {
+const FormToggleButton = ({ isEnabled, onToggle, className }) => {
   const { isEditing } = useContext(FormContext);
 
-  // Wenn der Editor aktiv ist, rendere nichts
   if (isEditing) return null;
 
-  const button = (
-    <button
-      className={`form-toggle-button ${isFormVisible ? 'form-visible' : ''}`}
-      onClick={toggleForm}
-      aria-label={isFormVisible ? 'Formular ausblenden' : 'Formular einblenden'}
-    >
-      {isFormVisible ? <HiChevronLeft size={24} /> : <HiChevronRight size={24} />}
-    </button>
-  );
-
-  return ReactDOM.createPortal(
-    button,
-    document.body
+  return (
+    <div className={`feature-toggle antrag-feature-toggle ${className || ''}`}>
+      <label className="feature-switch">
+        <input
+          type="checkbox"
+          checked={isEnabled}
+          onChange={onToggle}
+          aria-label="Webrecherche aktivieren"
+        />
+        <span className="feature-slider"></span>
+      </label>
+      <div className="feature-label">
+        <HiSearch className="feature-icon" />
+        Webrecherche aktivieren
+      </div>
+      <div className="feature-description">
+        Aktiviere die automatische Webrecherche, um relevante Informationen zu deinem Antrag zu finden und einzubinden.
+      </div>
+    </div>
   );
 };
 
 FormToggleButton.propTypes = {
-  isFormVisible: PropTypes.bool.isRequired,
-  toggleForm: PropTypes.func.isRequired
+  isEnabled: PropTypes.bool.isRequired,
+  onToggle: PropTypes.func.isRequired,
+  className: PropTypes.string
 };
 
 export default FormToggleButton; 
