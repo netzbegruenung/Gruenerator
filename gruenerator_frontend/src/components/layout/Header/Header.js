@@ -1,11 +1,11 @@
 //header.js
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { PiFileText, PiNewspaper, PiInstagramLogo, PiCaretDown, PiMicrophone, PiSun, PiMoon, PiBook, PiImage, PiPaintBrush, PiMagicWand, PiMagnifyingGlass, PiVideoCamera } from 'react-icons/pi';
-import { GiHedgehog } from 'react-icons/gi';
+import { PiCaretDown, PiSun, PiMoon, PiMagnifyingGlass } from 'react-icons/pi';
 import NavMenu from './NavMenu';
 import useDarkMode from '../../hooks/useDarkMode';
 import useAccessibility from '../../hooks/useAccessibility';
+import { menuItems, MenuItem, menuStyles, handleMenuInteraction } from './menuData';
 
 const Header = () => {
     const [menuActive, setMenuActive] = useState(false);
@@ -17,7 +17,6 @@ const Header = () => {
     useEffect(() => {
         const headerElements = headerRef.current.querySelectorAll('a, button, .header-dropdown > span');
         const cleanup = setupKeyboardNav(Array.from(headerElements));
-
         return cleanup;
     }, [setupKeyboardNav]);
 
@@ -39,15 +38,25 @@ const Header = () => {
     };
 
     const handleKeyDown = (event, dropdown) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
+        handleMenuInteraction(event, 'keydown', () => {
             setActiveDropdown(activeDropdown === dropdown ? null : dropdown);
             announce(activeDropdown === dropdown ? `${dropdown} Untermenü geschlossen` : `${dropdown} Untermenü geöffnet`);
-        }
+        });
     };
 
     const handleLinkClick = (path, label) => {
         announce(`Navigation zu ${label}`);
+    };
+
+    const renderDropdownContent = (menuType) => {
+        const menu = menuItems[menuType];
+        return menu.items.map(item => (
+            <li key={item.id}>
+                <Link to={item.path} onClick={() => handleLinkClick(item.path, item.title)}>
+                    <MenuItem item={item} />
+                </Link>
+            </li>
+        ));
     };
 
     return (
@@ -76,46 +85,30 @@ const Header = () => {
                 </label>
                 <nav className={`header-nav ${menuActive ? 'active' : ''}`} id="nav" aria-label="Hauptnavigation">
                     <ul>
-                        <li className="header-dropdown" 
-                            onMouseEnter={() => handleMouseEnter('texte')} 
-                            onMouseLeave={handleMouseLeave}
-                            onKeyDown={(e) => handleKeyDown(e, 'texte')}
-                            tabIndex="0"
-                            aria-haspopup="true"
-                            aria-expanded={activeDropdown === 'texte'}
-                        >
-                            <span>
-                                Texte <PiCaretDown className={activeDropdown === 'texte' ? 'open' : ''} aria-hidden="true" />
-                            </span>
-                            <ul className={`header-dropdown-content ${activeDropdown === 'texte' ? 'show' : ''}`} aria-label="Texte Untermenü">
-                                <li><Link to="/antrag" onClick={() => handleLinkClick('/antragsgenerator', 'Anträge')}><PiFileText aria-hidden="true" /> Anträge</Link></li>
-                                <li><Link to="/pressemitteilung" onClick={() => handleLinkClick('/pressemitteilung', 'Pressemitteilungen')}><PiNewspaper aria-hidden="true" /> Pressemitteilungen</Link></li>
-                                <li><Link to="/socialmedia" onClick={() => handleLinkClick('/socialmedia', 'Social Media')}><PiInstagramLogo aria-hidden="true" /> Social Media</Link></li>
-                                <li><Link to="/rede" onClick={() => handleLinkClick('/rede', 'Politische Rede')}><PiMicrophone aria-hidden="true" /> Politische Rede</Link></li>
-                                <li><Link to="/universal" onClick={() => handleLinkClick('/universal', 'Universal')}><PiMagicWand aria-hidden="true" /> Universal</Link></li>
-                                <li><Link to="/wahlprogramm" onClick={() => handleLinkClick('/wahlprogramm', 'Wahlprogramm')}><PiBook aria-hidden="true" /> Wahlprogramm</Link></li>
-                                <li><Link to="/gruene-jugend" onClick={() => handleLinkClick('/gruene-jugend', 'Grüne Jugend')}><GiHedgehog aria-hidden="true" /> Grüne Jugend</Link></li>
-                            </ul>
-                        </li>
-                        <li className="header-dropdown" 
-                            onMouseEnter={() => handleMouseEnter('grafik')} 
-                            onMouseLeave={handleMouseLeave}
-                            onKeyDown={(e) => handleKeyDown(e, 'grafik')}
-                            tabIndex="0"
-                            aria-haspopup="true"
-                            aria-expanded={activeDropdown === 'grafik'}
-                        >
-                            <span>
-                                Bild und Video <PiCaretDown className={activeDropdown === 'grafik' ? 'open' : ''} aria-hidden="true" />
-                            </span>
-                            <ul className={`header-dropdown-content ${activeDropdown === 'grafik' ? 'show' : ''}`} aria-label="Bild und Video Untermenü">
-                                <li><Link to="/vorlagen" onClick={() => handleLinkClick('/vorlagen', 'Canva-Vorlagen')}><PiPaintBrush className="nav-icon" aria-hidden="true" /> Canva-Vorlagen</Link></li>
-                                <li><Link to="/sharepic" onClick={() => handleLinkClick('/sharepic', 'Sharepic Grünerator')}><PiImage className="nav-icon" aria-hidden="true" /> Sharepic Grünerator</Link></li>
-                                <li><Link to="/reel" onClick={() => handleLinkClick('/reel', 'Reel Grünerator')}><PiVideoCamera className="nav-icon" aria-hidden="true" /> Reel Grünerator</Link></li>
-                            </ul>
-                        </li>
+                        {Object.entries(menuItems).map(([key, menu]) => (
+                            <li key={key} 
+                                className="header-dropdown"
+                                onMouseEnter={() => handleMouseEnter(key)}
+                                onMouseLeave={handleMouseLeave}
+                                onKeyDown={(e) => handleKeyDown(e, key)}
+                                tabIndex="0"
+                                aria-haspopup="true"
+                                aria-expanded={activeDropdown === key}
+                            >
+                                <span>
+                                    {menu.title} <PiCaretDown className={activeDropdown === key ? 'open' : ''} aria-hidden="true" />
+                                </span>
+                                <ul className={`${menuStyles.dropdownContent.base} ${activeDropdown === key ? menuStyles.dropdownContent.show : ''}`} 
+                                    aria-label={`${menu.title} Untermenü`}
+                                >
+                                    {renderDropdownContent(key)}
+                                </ul>
+                            </li>
+                        ))}
                         <li>
-                            <Link to="/suche" onClick={() => handleLinkClick('/suche', 'Suche')}>Suche <PiMagnifyingGlass className="search-icon" aria-hidden="true" /></Link>
+                            <Link to="/suche" onClick={() => handleLinkClick('/suche', 'Suche')}>
+                                Suche <PiMagnifyingGlass className="search-icon" aria-hidden="true" />
+                            </Link>
                         </li>
                     </ul>
                 </nav>

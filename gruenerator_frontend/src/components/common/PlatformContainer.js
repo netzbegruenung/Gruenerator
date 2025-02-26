@@ -1,6 +1,6 @@
 import React, { useContext, useState } from 'react';
 import PropTypes from 'prop-types';
-import { FaTwitter, FaFacebook, FaInstagram, FaLinkedin, FaTiktok, FaWhatsapp, FaLightbulb, FaVideo } from 'react-icons/fa';
+import { FaTwitter, FaFacebook, FaInstagram, FaLinkedin, FaTiktok, FaWhatsapp, FaLightbulb, FaVideo, FaNewspaper, FaSearch, FaList, FaFileAlt, FaBookmark } from 'react-icons/fa';
 import { IoCopyOutline, IoCheckmarkOutline } from "react-icons/io5";
 import { FormContext } from '../utils/FormContext';
 import { copyPlainText } from '../utils/commonFunctions';
@@ -54,6 +54,36 @@ const PLATFORM_CONFIG = {
     icon: FaVideo,
     color: '#E1306C',
     copyText: 'Reel-Text kopieren'
+  },
+  'PRESSEMITTEILUNG': {
+    displayName: 'Pressemitteilung',
+    icon: FaNewspaper,
+    color: '#2E7D32',
+    copyText: 'Pressemitteilung kopieren'
+  },
+  'SUCHANFRAGE': {
+    displayName: 'Suchanfrage',
+    icon: FaSearch,
+    color: '#FF9800',
+    copyText: 'Suchanfrage kopieren'
+  },
+  'SUCHERGEBNIS': {
+    displayName: 'Suchergebnisse',
+    icon: FaList,
+    color: '#4285F4',
+    copyText: 'Suchergebnisse kopieren'
+  },
+  'ANTRAG': {
+    displayName: 'Antrag',
+    icon: FaFileAlt,
+    color: '#388E3C',
+    copyText: 'Antrag kopieren'
+  },
+  'QUELLEN': {
+    displayName: 'Quellen',
+    icon: FaBookmark,
+    color: '#607D8B',
+    copyText: 'Quellen kopieren'
   }
 };
 
@@ -84,19 +114,66 @@ const PlatformContainer = ({ content }) => {
   const renderPlatformSections = () => {
     if (!content) return null;
 
+    // Entferne HTML-Tags und bereinige den Text
     const cleanContent = cleanHtmlButKeepLinebreaks(content);
-    const matches = [...cleanContent.matchAll(/(TWITTER|FACEBOOK|INSTAGRAM|LINKEDIN|TIKTOK|MESSENGER|ACTIONIDEAS|INSTAGRAM REEL):\s*/g)];
+    console.log('[PlatformContainer] Bereinigter Inhalt:', cleanContent.substring(0, 100) + '...');
     
-    if (matches.length === 0) return cleanContent;
-    if (matches.length === 1) return renderSinglePlatform(cleanContent, matches[0]);
+    // Prüfe, ob der Inhalt durch Platform Breaks getrennt ist
+    if (cleanContent.includes('---PLATFORM_BREAK---')) {
+      console.log('[PlatformContainer] Platform Breaks gefunden, teile Inhalt auf');
+      const sections = cleanContent.split('---PLATFORM_BREAK---');
+      console.log('[PlatformContainer] Anzahl der Abschnitte nach Aufteilung:', sections.length);
+      
+      return (
+        <div className="platforms-container">
+          {sections.map((section, idx) => {
+            if (!section.trim()) return null;
+            
+            // Suche nach Plattform-Markierungen
+            const platformMatch = section.match(/(TWITTER|FACEBOOK|INSTAGRAM|LINKEDIN|TIKTOK|MESSENGER|ACTIONIDEAS|INSTAGRAM REEL|PRESSEMITTEILUNG|SUCHANFRAGE|SUCHERGEBNIS|ANTRAG|QUELLEN):\s*/);
+            
+            if (platformMatch) {
+              const platform = platformMatch[1];
+              console.log(`[PlatformContainer] Plattform in Abschnitt ${idx} gefunden:`, platform);
+              const sectionContent = section.slice(platformMatch.index + platformMatch[0].length).trim();
+              return renderPlatformCard(platform, sectionContent, idx);
+            } else {
+              // Falls keine Plattform erkannt wurde, zeige den Inhalt ohne Formatierung
+              console.log(`[PlatformContainer] Keine Plattform in Abschnitt ${idx} gefunden`);
+              return <div key={idx} className="plain-content">{section}</div>;
+            }
+          })}
+        </div>
+      );
+    }
+    
+    // Falls keine Platform Breaks vorhanden sind, verwende die bestehende Methode
+    const matches = [...cleanContent.matchAll(/(TWITTER|FACEBOOK|INSTAGRAM|LINKEDIN|TIKTOK|MESSENGER|ACTIONIDEAS|INSTAGRAM REEL|PRESSEMITTEILUNG|SUCHANFRAGE|SUCHERGEBNIS|ANTRAG|QUELLEN):\s*/g)];
+    console.log('[PlatformContainer] Gefundene Platform-Header:', matches);
+    
+    // Explizit nach SUCHERGEBNIS und ANTRAG suchen
+    const hasSuchergebnis = cleanContent.includes('SUCHERGEBNIS:');
+    const hasAntrag = cleanContent.includes('ANTRAG:');
+    console.log('[PlatformContainer] Hat SUCHERGEBNIS-Header:', hasSuchergebnis);
+    console.log('[PlatformContainer] Hat ANTRAG-Header:', hasAntrag);
+    
+    if (matches.length === 0) {
+      console.log('[PlatformContainer] Keine Platform-Header gefunden, zeige den Inhalt direkt an');
+      return cleanContent;
+    }
+    if (matches.length === 1) {
+      console.log('[PlatformContainer] Ein Platform-Header gefunden:', matches[0][1]);
+      return renderSinglePlatform(cleanContent, matches[0]);
+    }
 
+    console.log('[PlatformContainer] Mehrere Platform-Header gefunden:', matches.length);
     const sections = matches.map((match, index) => {
       const start = match.index + match[0].length;
       const end = index < matches.length - 1 ? matches[index + 1].index : cleanContent.length;
       const platform = match[1];
       const sectionContent = cleanContent.slice(start, end).trim();
       
-      return renderPlatformCard(platform, sectionContent);
+      return renderPlatformCard(platform, sectionContent, index);
     });
 
     return <div className="platforms-container">{sections}</div>;
@@ -106,16 +183,21 @@ const PlatformContainer = ({ content }) => {
     const platform = match[1];
     const sectionContent = content.slice(match.index + match[0].length).trim();
     
-    return renderPlatformCard(platform, sectionContent);
+    return renderPlatformCard(platform, sectionContent, 0);
   };
 
-  const renderPlatformCard = (platform, content) => {
-    const config = PLATFORM_CONFIG[platform];
+  const renderPlatformCard = (platform, content, key) => {
+    const config = PLATFORM_CONFIG[platform] || {
+      displayName: platform,
+      icon: FaSearch,
+      color: '#757575',
+      copyText: 'Inhalt kopieren'
+    };
     const Icon = config.icon;
     const isCopied = copiedPlatform === content;
 
     return (
-      <div key={platform} className="platform-content">
+      <div key={`${platform}-${key}`} className="platform-content">
         <div className="platform-header">
           <div className="platform-title">
             <div className="platform-icon" style={{ color: config.color }}>

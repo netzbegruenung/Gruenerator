@@ -7,7 +7,7 @@ import '../../assets/styles/components/exportToDocument.css';
 import { useLocation } from 'react-router-dom';
 import { useUnmount } from 'react-use';
 import { FormContext } from '../utils/FormContext';
-import { formatExportContent } from '../../utils/exportUtils';
+import { formatExportContent } from '../utils/exportUtils';
 
 const ExportToDocument = ({ content: initialContent }) => {
   const location = useLocation();

@@ -89,24 +89,26 @@
     margin: 0 20px;
 }
 
-.header-nav ul li a,
-.header-nav ul li span {
-    text-decoration: none;
-    border-radius: 8px;
+.header-nav > ul > li > a,
+.header-nav > ul > li > span {
     color: var(--font-color-h);
-    font-size: 1.2em;
+    font-size: 1em;
     font-family: 'PT Sans', Arial, sans-serif;
     font-weight: bold;
-    padding: 10px;
-    display: block;
+    text-decoration: none;
     transition: color 0.3s ease, background-color 0.3s ease;
-    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 0.5rem 0.8rem;
+    border-radius: 0.5rem;
+    position: relative;
 }
 
-.header-nav ul li a:hover,
-.header-nav ul li span:hover {
+.header-nav > ul > li > a:hover,
+.header-nav > ul > li > span:hover {
     color: var(--font-color-h);
-    background-color:var(--background-color-alt);
+    background-color: var(--background-color-alt);
 }
 
 /* Dropdown content styling */
@@ -114,18 +116,19 @@
     display: none;
     position: absolute;
     background-color: var(--background-color);
-    min-width: 200px;
+    min-width: 280px;
     box-shadow: 0 6px 8px rgba(0, 0, 0, 0.1);
     z-index: 1;
-    padding: 10px;
-    border-radius: 8px;
+    padding: 0.5rem;
+    border-radius: 12px;
     opacity: 0;
     transform: translateY(-10px) translateX(-50%);
     transition: opacity 0.3s ease, transform 0.3s ease;
     flex-direction: column;
     justify-content: center;
     left: 50%;
-    pointer-events: none;  /* Disable pointer events when hidden */
+    pointer-events: none;
+    gap: 0.25rem;
 }
 
 .header-dropdown:hover .header-dropdown-content,
@@ -137,26 +140,25 @@
 }
 
 .header-dropdown-content li {
-    list-style: none;
-    padding: 12px;
-    text-align: left;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    text-decoration: none;
-    transition: color 0.3s ease, background-color 0.3s ease;
-    color: var(--font-color-h);
     width: 100%;
+    margin: 0.2rem 0;
+    padding: 0;
 }
 
+.header-dropdown-content a {
+    padding: 0;
+    width: 100%;
+    display: block; /* Änderung zu block */
+}
+
+/* Dropdown-Links ohne Padding-Animation */
 .header-dropdown-content li a {
-    font-family: 'PT Sans', Arial, sans-serif;
-    font-weight: bold;
-    color: var (--font-color-h);
-    text-decoration: none;
+    padding: 0.6rem 0.8rem;
+    transition: color 0.3s ease, background-color 0.3s ease;
+    border-radius: 0.5rem;
+    width: 100%;
     display: flex;
     align-items: center;
-    transition: color 0.3s ease, background-color 0.3s ease;
 }
 
 .header-dropdown-content li a svg {
@@ -425,14 +427,14 @@ input:not(:checked) + .slider .icon.moon {
         margin-right: 45px;
     }
 
-    .header-nav ul li a {
+    .header-nav ul li a,
+    .header-nav ul li span {
         color: var(--font-color-h);
         font-size: 1.2em;
         font-family: 'PT Sans', Arial, sans-serif;
         font-weight: bold;
         text-decoration: none;
         transition: color 0.3s ease, background-color 0.3s ease;
-        padding-right: 10px;
         display: flex;
         align-items: center;
         gap: 5px;
@@ -498,4 +500,81 @@ input:not(:checked) + .slider .icon.moon {
     display: flex;
     align-items: center;
     gap: 8px;
+}
+
+.menu-item-content {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    padding: 1rem 1.2rem;
+    transition: background-color 0.2s ease;
+    border-radius: 0.5rem;
+    width: 100%;
+    margin: 0;
+    gap: 1.2rem;
+}
+
+.menu-item-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 2rem;
+    height: 2rem;
+    color: var(--text-secondary);
+}
+
+.menu-item-icon svg {
+    width: 1.8rem;
+    height: 1.8rem;
+    transition: color 0.2s ease;
+}
+
+.menu-item-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    flex: 1;
+    margin: 0;
+    padding: 0;
+}
+
+/* Hover-Effekte */
+.menu-item-content:hover {
+    background-color: var(--hover-bg);
+}
+
+.menu-item-content:hover .menu-item-title,
+.menu-item-content:hover .menu-item-icon {
+    color: var(--primary);
+}
+
+/* Mobile Anpassungen */
+.nav-menu .menu-item-content {
+    padding: 0.9rem 1.2rem;
+    border-radius: 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+/* Dark Mode Anpassungen */
+[data-theme='dark'] .menu-item-content:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Spezifische Menü-Item Styles */
+.header-dropdown-content .menu-item-content .menu-item-header .menu-item-title {
+    font-family: 'GrueneType', Arial, sans-serif;
+    font-weight: normal;
+    font-size: 0.95em !important;
+    color: var(--text-primary);
+    margin: 0;
+    line-height: 1.2;
+}
+
+.header-dropdown-content .menu-item-content .menu-item-header .menu-item-description {
+    font-family: 'PT Sans', Arial, sans-serif;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin: 0;
+    line-height: 1.4;
 }
