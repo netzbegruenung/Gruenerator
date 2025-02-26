@@ -85,7 +85,7 @@ const Header = () => {
                 </label>
                 <nav className={`header-nav ${menuActive ? 'active' : ''}`} id="nav" aria-label="Hauptnavigation">
                     <ul>
-                        {Object.entries(menuItems).map(([key, menu]) => (
+                        {Object.entries(menuItems).filter(([key]) => key !== 'suche').map(([key, menu]) => (
                             <li key={key} 
                                 className="header-dropdown"
                                 onMouseEnter={() => handleMouseEnter(key)}
@@ -105,9 +105,10 @@ const Header = () => {
                                 </ul>
                             </li>
                         ))}
-                        <li>
-                            <Link to="/suche" onClick={() => handleLinkClick('/suche', 'Suche')}>
-                                Suche <PiMagnifyingGlass className="search-icon" aria-hidden="true" />
+                        <li className="header-search">
+                            <Link to="/suche" onClick={() => handleLinkClick('/suche', 'Suche')} className="header-search__link">
+                                <span>Suche</span>
+                                <PiMagnifyingGlass aria-hidden="true" />
                             </Link>
                         </li>
                     </ul>
