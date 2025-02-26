@@ -7,14 +7,15 @@ const FeatureToggle = ({
   onToggle, 
   label, 
   icon: Icon, 
-  description
+  description,
+  className
 }) => {
   const handleToggle = () => {
     onToggle(!isActive);
   };
 
   return (
-    <div className="feature-toggle">
+    <div className={`feature-toggle ${className || ''}`}>
       <div className="feature-header">
         <label className="feature-switch">
           <input
@@ -43,7 +44,8 @@ FeatureToggle.propTypes = {
   onToggle: PropTypes.func.isRequired,
   label: PropTypes.string.isRequired,
   icon: PropTypes.elementType.isRequired,
-  description: PropTypes.string.isRequired
+  description: PropTypes.string.isRequired,
+  className: PropTypes.string
 };
 
 export default FeatureToggle; 
