@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { PiNewspaper, PiFileText, PiArrowRight, PiCaretDown, PiMagicWand, PiVideoCamera, PiMagnifyingGlass } from 'react-icons/pi';
+import { PiNewspaper, PiFileText, PiArrowRight, PiCaretDown, PiMagicWand, PiMagnifyingGlass /* , PiVideoCamera */ } from 'react-icons/pi';
 import { GiHedgehog } from 'react-icons/gi';
 import { TypeAnimation } from 'react-type-animation';
 
