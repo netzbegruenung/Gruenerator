@@ -56,7 +56,7 @@ export const AntragForm = () => {
   };
 
   return (
-    <>
+    <div className="container with-header">
       <BaseForm
         title="Grünerator für Anträge"
         onSubmit={handleSubmit}
@@ -120,6 +120,6 @@ export const AntragForm = () => {
           <PlatformContainer content={`QUELLEN: \n\n${displayedSources}`} />
         </div>
       )}
-    </>
+    </div>
   );
 }; 
