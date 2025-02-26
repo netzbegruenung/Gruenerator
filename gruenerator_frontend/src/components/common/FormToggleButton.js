@@ -1,40 +1,29 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import { HiSearch } from 'react-icons/hi';
+import { HiChevronLeft } from 'react-icons/hi';
 import { useContext } from 'react';
 import { FormContext } from '../utils/FormContext';
 
-const FormToggleButton = ({ isEnabled, onToggle, className }) => {
+const FormCollapseButton = ({ isFormVisible, toggleForm }) => {
   const { isEditing } = useContext(FormContext);
 
   if (isEditing) return null;
 
   return (
-    <div className={`feature-toggle antrag-feature-toggle ${className || ''}`}>
-      <label className="feature-switch">
-        <input
-          type="checkbox"
-          checked={isEnabled}
-          onChange={onToggle}
-          aria-label="Webrecherche aktivieren"
-        />
-        <span className="feature-slider"></span>
-      </label>
-      <div className="feature-label">
-        <HiSearch className="feature-icon" />
-        Webrecherche aktivieren
-      </div>
-      <div className="feature-description">
-        Aktiviere die automatische Webrecherche, um relevante Informationen zu deinem Antrag zu finden und einzubinden.
-      </div>
-    </div>
+    <button 
+      className="form-collapse-button"
+      onClick={toggleForm}
+      aria-label={isFormVisible ? "Formular ausblenden" : "Formular einblenden"}
+      title={isFormVisible ? "Formular ausblenden" : "Formular einblenden"}
+    >
+      <HiChevronLeft className={`form-collapse-icon ${!isFormVisible ? 'collapsed' : ''}`} />
+    </button>
   );
 };
 
-FormToggleButton.propTypes = {
-  isEnabled: PropTypes.bool.isRequired,
-  onToggle: PropTypes.func.isRequired,
-  className: PropTypes.string
+FormCollapseButton.propTypes = {
+  isFormVisible: PropTypes.bool.isRequired,
+  toggleForm: PropTypes.func.isRequired
 };
 
-export default FormToggleButton; 
+export default FormCollapseButton; 
