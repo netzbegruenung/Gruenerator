@@ -66,11 +66,8 @@ const Footer = () => {
                                 <h3>Texte</h3>
                                 <ul>
                                     <li><Link to="/antrag" onClick={() => announce('Navigation zur Anträge Seite')}>Anträge</Link></li>
-                                    <li><Link to="/pressemitteilung" onClick={() => announce('Navigation zur Pressemitteilung Seite')}>Pressemitteilung</Link></li>
-                                    <li><Link to="/socialmedia" onClick={() => announce('Navigation zur Social Media Seite')}>Social Media</Link></li>
-                                    <li><Link to="/rede" onClick={() => announce('Navigation zur Politische Rede Seite')}>Politische Rede</Link></li>
+                                    <li><Link to="/presse-social" onClick={() => announce('Navigation zur Presse & Social Media Seite')}>Presse & Social Media</Link></li>
                                     <li><Link to="/universal" onClick={() => announce('Navigation zum Universal Grünerator')}>Universal Grünerator</Link></li>
-                                    <li><Link to="/wahlprogramm" onClick={() => announce('Navigation zur Wahlprogramm Seite')}>Wahlprogramm</Link></li>
                                     <li><Link to="/gruene-jugend" onClick={() => announce('Navigation zum Grüne Jugend Grünerator')}>Grüne Jugend</Link></li>
                                 </ul>
                             </div>
@@ -81,9 +78,11 @@ const Footer = () => {
                                     <li><Link to="/suche" onClick={() => announce('Navigation zur Suche')}>Suche</Link></li>
                                     <li><Link to="/antragscheck" onClick={() => announce('Navigation zur Antragscheck Seite')}>Antragscheck</Link></li>
                                     <li><Link to="/btw-kompass" onClick={() => announce('Navigation zum BTW Programm-Kompass')}>BTW Programm-Kompass</Link></li>
+                                    {/* Temporär ausgeblendet - wird später wieder aktiviert
                                     <li><Link to="/vorlagen" onClick={() => announce('Navigation zur Vorlagen Seite')}>Canva-Vorlagen</Link></li>
                                     <li><Link to="/sharepic" onClick={() => announce('Navigation zum Sharepic Grünerator')}>Sharepic Grünerator</Link></li>
                                     <li><Link to="/reel" onClick={() => announce('Navigation zum Reel Grünerator')}>Reel Grünerator</Link></li>
+                                    */}
                                 </ul>
                             </div>
 

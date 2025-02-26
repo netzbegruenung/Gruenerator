@@ -55,15 +55,18 @@
     gap: 15px;
 }
 
-.link-buttons {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
+.primary-buttons,
+.secondary-buttons {
+    display: flex;
+    flex-wrap: nowrap;
     gap: 15px;
     width: 100%;
 }
 
 .link-buttons a,
 .link-buttons button {
+    flex: 1;
+    min-width: 150px;
     color: var(--font-color);
     font-size: 1.1em;
     text-decoration: none;
@@ -116,11 +119,10 @@
     display: none;
     opacity: 0;
     transition: opacity 0.3s ease;
-    grid-template-columns: repeat(5, 1fr) !important;
 }
 
 .secondary-buttons.show {
-    display: grid;
+    display: flex;
     opacity: 1;
 }
 
@@ -157,12 +159,12 @@
     }
 
     .link-buttons {
-        grid-template-columns: 1fr;
+        flex-direction: column;
         max-width: 400px;
     }
 
     .secondary-buttons {
-        display: grid;
+        display: flex;
         opacity: 1;
     }
 
@@ -172,8 +174,8 @@
 
     .link-buttons a,
     .link-buttons button {
-        justify-content: flex-start;
-        padding-left: 25px;
+        max-width: none;
+        width: 100%;
     }
 
     .link-buttons a svg,
@@ -267,9 +269,19 @@
         gap: 0.5rem;
     }
 
-    .link-buttons a {
-        padding: 0.9rem;
-        font-size: 1em;
+    .link-buttons a,
+    .link-buttons button {
+        max-width: calc(33.33% - 10px);
+    }
+
+    .primary-buttons,
+    .secondary-buttons {
+        gap: 10px;
+    }
+
+    .link-buttons a,
+    .link-buttons button {
+        padding: 15px;
     }
 }
 
@@ -280,8 +292,6 @@
 }
 
 @media (max-width: 768px) {
-
-
     .animated-heading {
         align-items: flex-start;
     }
@@ -305,19 +315,14 @@
     }
 
     .link-buttons {
-        grid-template-columns: 1fr;
-        width: 100%;
-        max-width: 100%;
-        gap: 0.75rem;
+        flex-direction: column;
+        max-width: 400px;
     }
 
     .link-buttons a,
     .link-buttons button {
-        padding: 1rem 1.5rem;
-        font-size: 1.1em;
-        border-radius: 10px;
+        max-width: none;
         width: 100%;
-        justify-content: flex-start;
     }
 
     .sections-container {
@@ -365,6 +370,19 @@
     .newsletter-button.mobile-only {
         padding: 0.875rem 1.25rem;
         font-size: 1em;
+    }
+
+    .primary-buttons,
+    .secondary-buttons {
+        flex-direction: column;
+        max-width: 400px;
+    }
+
+    .link-buttons a,
+    .link-buttons button {
+        width: 100%;
+        justify-content: flex-start;
+        padding-left: 25px;
     }
 }
 

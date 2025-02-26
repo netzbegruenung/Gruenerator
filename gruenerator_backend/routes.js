@@ -1,11 +1,9 @@
 //routes.js
-const claudeRoute = require('./routes/claude');
-const claudePresseRoute = require('./routes/claude_presse');
+const claudeRoute = require('./routes/claude/index');
 const claudeSocialRoute = require('./routes/claude_social');
 const claudeRedeRoute = require('./routes/claude_rede');
 const antragsversteherRoute = require('./routes/claude_antragsversteher');
 const pdfExtractionRoute = require('./routes/pdf-text-extraction');
-const wahlpruefsteinThueringenRoute = require('./routes/wahlpruefsteinthueringen');
 const wahlpruefsteinBundestagswahlRoute = require('./routes/wahlpruefsteinbundestagswahl');
 const sharepicDreizeilenCanvasRoute = require('./routes/sharepic/sharepic_canvas/dreizeilen_canvas'); 
 const zitatSharepicCanvasRoute = require('./routes/sharepic/sharepic_canvas/zitat_canvas');
@@ -41,12 +39,10 @@ const withLazyLoading = (importFunc) =>
 
 function setupRoutes(app) {
   app.use('/api/claude', claudeRoute);
-  app.use('/api/claude_presse', claudePresseRoute);
   app.use('/api/claude_social', claudeSocialRoute);
   app.use('/api/claude_rede', claudeRedeRoute);
   app.use('/api/antragsversteher', antragsversteherRoute);
   app.use('/api/pdf-extraction', pdfExtractionRoute);
-  app.use('/api/wahlpruefsteinthueringen', wahlpruefsteinThueringenRoute);
   app.use('/api/wahlpruefsteinbundestagswahl', wahlpruefsteinBundestagswahlRoute);
   app.use('/api/dreizeilen_canvas', sharepicDreizeilenCanvasRoute);
   app.use('/api/zitat_canvas', zitatSharepicCanvasRoute);

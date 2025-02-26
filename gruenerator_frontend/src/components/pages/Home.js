@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { PiNewspaper, PiInstagramLogo, PiFileText, PiArrowRight, PiMicrophone, PiBook, PiCaretDown, PiMagicWand } from 'react-icons/pi';
+import { PiNewspaper, PiFileText, PiArrowRight, PiCaretDown, PiMagicWand, PiVideoCamera, PiMagnifyingGlass } from 'react-icons/pi';
 import { GiHedgehog } from 'react-icons/gi';
 import { TypeAnimation } from 'react-type-animation';
 
@@ -37,8 +37,8 @@ const Home = () => {
         <p>Mit dem Grünerator kannst du schnell und kostenlos einen Vorschlag für Grüne Inhalte deiner Wahl erhalten. Alle Eingaben werden von Anthropic verarbeitet. Bitte gib daher keine privaten Daten ein.</p>
         <div className="link-buttons-container">
           <div className="link-buttons primary-buttons">
-            <Link to="/pressemitteilung" aria-label="Zur Pressemitteilung erstellen"><PiNewspaper /> Pressemitteilung</Link>
-            <Link to="/socialmedia" aria-label="Zum Social-Media-Generator"><PiInstagramLogo /> Social Media</Link>
+            <Link to="/presse-social" aria-label="Zum Presse & Social Media Generator"><PiNewspaper /> Presse & Social Media</Link>
+            <Link to="/antrag" aria-label="Zum Antragsgenerator"><PiFileText /> Antrag</Link>
             <button 
               onClick={() => setShowMore(!showMore)} 
               className={`more-button ${showMore ? 'active' : ''}`}
@@ -56,11 +56,12 @@ const Home = () => {
             </a>
           </div>
           <div className={`link-buttons secondary-buttons ${showMore ? 'show' : ''}`}>
-            <Link to="/antrag" aria-label="Zum Antragsgenerator"><PiFileText /> Antrag</Link>
-            <Link to="/rede" aria-label="Zum Redengenerator"><PiMicrophone /> Rede</Link>
             <Link to="/universal" aria-label="Zum Universal Grünerator"><PiMagicWand /> Universal</Link>
-            <Link to="/wahlprogramm" aria-label="Zum Wahlprogramm-Generator"><PiBook /> Wahlprogramm</Link>
             <Link to="/gruene-jugend" aria-label="Zum Grüne Jugend Grünerator"><GiHedgehog /> Grüne Jugend</Link>
+            {/* Temporär ausgeblendet - wird später wieder aktiviert
+            <Link to="/reel" aria-label="Zum Reel Grünerator"><PiVideoCamera /> Reel</Link>
+            */}
+            <Link to="/suche" aria-label="Zur Suche"><PiMagnifyingGlass /> Suche</Link>
           </div>
           <a href="https://896ca129.sibforms.com/serve/MUIFAFnH3lov98jrw3d75u_DFByChA39XRS6JkBKqjTsN9gx0MxCvDn1FMnkvHLgzxEh1JBcEOiyHEkyzRC-XUO2DffKsVccZ4r7CCaYiugoiLf1a-yoTxDwoctxuzCsmDuodwrVwEwnofr7K42jQc-saIKeVuB_8UxrwS18QIaahZml1qMExNno2sEC7HyMy9Nz4f2f8-UJ4QmW" 
             target="_blank" 
