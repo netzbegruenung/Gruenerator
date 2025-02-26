@@ -10,7 +10,7 @@ export const menuItems = {
         id: 'antrag',
         path: '/antrag',
         title: 'Anträge',
-        description: 'Anträge für Kommunalparlamente und co',
+        description: 'Anträge für Kommunalparlamente & Co.',
         icon: PiFileText
       },
       {
@@ -24,7 +24,7 @@ export const menuItems = {
         id: 'universal',
         path: '/universal',
         title: 'Universal',
-        description: 'Wahlprogramme, Reden oder freie Textformen.',
+        description: 'Wahlprogramme, Reden oder freie Textformen',
         icon: PiMagicWand
       },
       {
@@ -70,7 +70,7 @@ export const menuItems = {
         id: 'reel',
         path: '/reel',
         title: 'Reel Grünerator',
-        description: 'Automatitsche Untertitel und Captions',
+        description: 'Automatische Untertitel für Videos',
         icon: PiVideoCamera
       }
     ]

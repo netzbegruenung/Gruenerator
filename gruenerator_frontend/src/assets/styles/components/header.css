@@ -90,11 +90,13 @@
 }
 
 .header-nav > ul > li > a,
-.header-nav > ul > li > span {
+.header-nav > ul > li > span,
+.header-search__link,
+.header-dropdown-trigger {
     color: var(--font-color-h);
-    font-size: 1em;
+    font-size: 0.95em;
     font-family: 'PT Sans', Arial, sans-serif;
-    font-weight: bold;
+    font-weight: normal;
     text-decoration: none;
     transition: color 0.3s ease, background-color 0.3s ease;
     display: flex;
@@ -106,7 +108,8 @@
 }
 
 .header-nav > ul > li > a:hover,
-.header-nav > ul > li > span:hover {
+.header-nav > ul > li > span:hover,
+.header-dropdown-trigger:hover {
     color: var(--font-color-h);
     background-color: var(--background-color-alt);
 }
@@ -188,6 +191,12 @@
 .header-dropdown span svg.open {
     transform: rotate(180deg);
     transition: transform 0.3s ease;
+}
+
+.header-search__link span {
+    font-size: inherit;
+    font-weight: inherit;
+    font-family: inherit;
 }
 
 @media (max-width: 768px) {
@@ -430,7 +439,7 @@ input:not(:checked) + .slider .icon.moon {
     .header-nav ul li a,
     .header-nav ul li span {
         color: var(--font-color-h);
-        font-size: 1.2em;
+        font-size: 1.1em;
         font-family: 'PT Sans', Arial, sans-serif;
         font-weight: bold;
         text-decoration: none;
@@ -475,7 +484,7 @@ input:not(:checked) + .slider .icon.moon {
         align-items: center;
         gap: 5px;
         color: var(--font-color-h);
-        font-size: 1.2em;
+        font-size: 1.1em;
         font-family: 'PT Sans', Arial, sans-serif;
         font-weight: bold;
         text-decoration: none;
@@ -577,4 +586,44 @@ input:not(:checked) + .slider .icon.moon {
     color: var(--text-secondary);
     margin: 0;
     line-height: 1.4;
+}
+
+.header-dropdown-trigger {
+    cursor: pointer;
+}
+
+.header-dropdown-trigger svg {
+    transition: transform 0.3s ease;
+}
+
+.header-dropdown-trigger svg.open {
+    transform: rotate(180deg);
+}
+
+/* Gemeinsame Basis-Klasse für Navigation Items */
+.header-nav-item {
+    color: var(--font-color-h);
+    font-size: 0.95em;
+    font-family: 'PT Sans', Arial, sans-serif;
+    font-weight: normal;
+    text-decoration: none;
+    transition: color 0.3s ease, background-color 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 0.5rem 0.8rem;
+    border-radius: 0.5rem;
+    position: relative;
+    cursor: pointer;
+}
+
+.header-nav-item:hover {
+    color: var(--font-color-h);
+    background-color: var(--background-color-alt);
+}
+
+/* Spezifisch für Dropdown-Icons */
+.header-dropdown .header-nav-item svg.open {
+    transform: rotate(180deg);
+    transition: transform 0.3s ease;
 }
