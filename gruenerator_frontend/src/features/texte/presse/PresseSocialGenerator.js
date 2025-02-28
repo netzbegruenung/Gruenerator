@@ -8,6 +8,7 @@ import { FormContext } from '../../../components/utils/FormContext';
 import { useDynamicTextSize } from '../../../components/utils/commonFunctions';
 import { useSharedContent } from '../../../components/hooks/useSharedContent';
 import { usePresseSocialForm } from './hooks';
+import ErrorBoundary from '../../../components/ErrorBoundary';
 
 const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   const { initialContent } = useSharedContent();
@@ -121,23 +122,25 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   );
 
   return (
-    <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
-      <BaseForm
-        title="Presse- & Social Media Grünerator"
-        onSubmit={handleSubmit}
-        loading={loading}
-        success={success}
-        error={error}
-        generatedContent={socialMediaContent}
-        textSize={textSize}
-        onGeneratedContentChange={handleGeneratedContentChange}
-        useBackupProvider={useBackupProvider}
-        setUseBackupProvider={setUseBackupProvider}
-        usePlatformContainers={true}
-      >
-        {renderFormInputs()}
-      </BaseForm>
-    </div>
+    <ErrorBoundary>
+      <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
+        <BaseForm
+          title="Presse- & Social Media Grünerator"
+          onSubmit={handleSubmit}
+          loading={loading}
+          success={success}
+          error={error}
+          generatedContent={socialMediaContent}
+          textSize={textSize}
+          onGeneratedContentChange={handleGeneratedContentChange}
+          useBackupProvider={useBackupProvider}
+          setUseBackupProvider={setUseBackupProvider}
+          usePlatformContainers={true}
+        >
+          {renderFormInputs()}
+        </BaseForm>
+      </div>
+    </ErrorBoundary>
   );
 };
 

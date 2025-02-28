@@ -7,6 +7,7 @@ import { useSharedContent } from '../../hooks/useSharedContent';
 import StyledCheckbox from '../../common/AnimatedCheckbox';
 import { FormContext } from '../../utils/FormContext';
 import { useDynamicTextSize } from '../../utils/commonFunctions';
+import ErrorBoundary from '../../ErrorBoundary';
 
 const GrueneJugendGenerator = ({ showHeaderFooter = true }) => {
   const { initialContent } = useSharedContent();
@@ -106,23 +107,25 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }) => {
   );
 
   return (
-    <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
-      <BaseForm
-        title="Grüne Jugend"
-        onSubmit={handleSubmit}
-        loading={loading}
-        success={success}
-        error={error}
-        generatedContent={socialMediaContent}
-        textSize={textSize}
-        onGeneratedContentChange={handleGeneratedContentChange}
-        useBackupProvider={useBackupProvider}
-        setUseBackupProvider={setUseBackupProvider}
-        usePlatformContainers={true}
-      >
-        {renderFormInputs()}
-      </BaseForm>
-    </div>
+    <ErrorBoundary>
+      <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
+        <BaseForm
+          title="Grüne Jugend"
+          onSubmit={handleSubmit}
+          loading={loading}
+          success={success}
+          error={error}
+          generatedContent={socialMediaContent}
+          textSize={textSize}
+          onGeneratedContentChange={handleGeneratedContentChange}
+          useBackupProvider={useBackupProvider}
+          setUseBackupProvider={setUseBackupProvider}
+          usePlatformContainers={true}
+        >
+          {renderFormInputs()}
+        </BaseForm>
+      </div>
+    </ErrorBoundary>
   );
 };
 
