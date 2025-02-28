@@ -4,6 +4,7 @@ import SearchBar from './SearchBar';
 import useSearch from '../hooks/useSearch';
 import '../styles/SearchPage.css';
 import ActionButtons from '../../../components/common/ActionButtons';
+import ErrorBoundary from '../../../components/ErrorBoundary';
 import { formatExportContent } from '../../../components/utils/exportUtils';
 
 const exampleQuestions = [
@@ -115,65 +116,67 @@ const SearchPage = () => {
   );
 
   return (
-    <div className="search-page-container">
-      <div className="search-header">
-        <h1>Gruugo</h1>
-        <p className="search-subtitle">KI-Suche des Grünerators</p>
-      </div>
-      
-      <SearchBar 
-        onSearch={handleSearch} 
-        loading={loading} 
-        value={searchQuery}
-        onChange={setSearchQuery}
-      />
-      
-      {error && (
-        <div className="search-error">
-          {error}
+    <ErrorBoundary>
+      <div className="search-page-container">
+        <div className="search-header">
+          <h1>Gruugo</h1>
+          <p className="search-subtitle">KI-Suche des Grünerators</p>
         </div>
-      )}
+        
+        <SearchBar 
+          onSearch={handleSearch} 
+          loading={loading} 
+          value={searchQuery}
+          onChange={setSearchQuery}
+        />
+        
+        {error && (
+          <div className="search-error">
+            {error}
+          </div>
+        )}
 
-      {analysis && (
-        <>
-          <div className="analysis-container">
-            <div className="analysis-actions">
-              <ActionButtons
-                content={formatExportContent({
-                  analysis,
-                  sourceRecommendations,
-                  unusedSources: results
-                })}
-                onEdit={() => {}}
-                isEditing={false}
-                allowEditing={false}
-                hideEditButton={true}
-                showExport={true}
-              />
+        {analysis && (
+          <>
+            <div className="analysis-container">
+              <div className="analysis-actions">
+                <ActionButtons
+                  content={formatExportContent({
+                    analysis,
+                    sourceRecommendations,
+                    unusedSources: results
+                  })}
+                  onEdit={() => {}}
+                  isEditing={false}
+                  allowEditing={false}
+                  hideEditButton={true}
+                  showExport={true}
+                />
+              </div>
+              <div className="analysis-content" dangerouslySetInnerHTML={{ __html: analysis }} />
             </div>
-            <div className="analysis-content" dangerouslySetInnerHTML={{ __html: analysis }} />
-          </div>
-          
-          <div className="sources-section">
-            {usedSources.length > 0 && (
-              <SourceList 
-                sources={usedSources} 
-                title="Verwendete Quellen"
-                recommendations={sourceRecommendations}
-              />
-            )}
+            
+            <div className="sources-section">
+              {usedSources.length > 0 && (
+                <SourceList 
+                  sources={usedSources} 
+                  title="Verwendete Quellen"
+                  recommendations={sourceRecommendations}
+                />
+              )}
 
-            {unusedSources.length > 0 && (
-              <SourceList 
-                sources={unusedSources} 
-                title="Ergänzende Informationen"
-                recommendations={sourceRecommendations}
-              />
-            )}
-          </div>
-        </>
-      )}
-    </div>
+              {unusedSources.length > 0 && (
+                <SourceList 
+                  sources={unusedSources} 
+                  title="Ergänzende Informationen"
+                  recommendations={sourceRecommendations}
+                />
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    </ErrorBoundary>
   );
 };
 

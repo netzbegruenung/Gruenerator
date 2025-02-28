@@ -8,6 +8,7 @@ import { useDynamicTextSize } from '../../../components/utils/commonFunctions';
 import useApiSubmit from '../../../components/hooks/useApiSubmit';
 import BaseForm from '../../../components/common/BaseForm';
 import { FormContext } from '../../../components/utils/FormContext';
+import ErrorBoundary from '../../../components/ErrorBoundary';
 import TextTypeSelector, { TEXT_TYPES, TEXT_TYPE_TITLES } from './components/TextTypeSelector';
 import RedeForm from './RedeForm';
 import WahlprogrammForm from './WahlprogrammForm';
@@ -65,24 +66,26 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
   };
 
   return (
-    <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
-      <BaseForm
-        title={TEXT_TYPE_TITLES[selectedType]}
-        loading={loading}
-        success={success}
-        error={error}
-        generatedContent={generatedContent}
-        textSize={textSize}
-        onGeneratedContentChange={handleGeneratedContentChange}
-        onSubmit={handleSubmit}
-      >
-        <TextTypeSelector 
-          selectedType={selectedType}
-          onTypeChange={setSelectedType}
-        />
-        {renderForm()}
-      </BaseForm>
-    </div>
+    <ErrorBoundary>
+      <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
+        <BaseForm
+          title={TEXT_TYPE_TITLES[selectedType]}
+          loading={loading}
+          success={success}
+          error={error}
+          generatedContent={generatedContent}
+          textSize={textSize}
+          onGeneratedContentChange={handleGeneratedContentChange}
+          onSubmit={handleSubmit}
+        >
+          <TextTypeSelector 
+            selectedType={selectedType}
+            onTypeChange={setSelectedType}
+          />
+          {renderForm()}
+        </BaseForm>
+      </div>
+    </ErrorBoundary>
   );
 };
 
