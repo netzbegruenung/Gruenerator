@@ -5,21 +5,22 @@ const router = express.Router();
  * Endpunkt zum Generieren eines Antrags mit oder ohne Websuche-Ergebnisse
  */
 router.post('/antrag', async (req, res) => {
-  const { idee, details, gliederung, searchResults, useWebSearch, useBackupProvider } = req.body;
+  const { idee, details, gliederung, searchResults, useWebSearch, useBackupProvider, customPrompt } = req.body;
 
   try {
     // Logging der Anfrage (ohne vollständige Suchergebnisse)
     console.log('Antrag-Anfrage erhalten:', {
       idee: idee?.substring(0, 50) + (idee?.length > 50 ? '...' : ''),
       useWebSearch,
-      searchResultsCount: searchResults?.length || 0
+      searchResultsCount: searchResults?.length || 0,
+      hasCustomPrompt: !!customPrompt
     });
 
-    // Validiere nur die Idee als Pflichtfeld
-    if (!idee) {
+    // Validiere die Eingabedaten
+    if (!customPrompt && !idee) {
       return res.status(400).json({ 
         error: 'Fehlende Eingabedaten',
-        details: 'Idee ist erforderlich'
+        details: 'Idee oder ein benutzerdefinierter Prompt ist erforderlich'
       });
     }
 
@@ -36,9 +37,31 @@ Inhalt: ${result.content}`;
     // Anthropic-Standard: Kurzer, klarer systemPrompt
     const systemPrompt = 'Du bist ein erfahrener Kommunalpolitiker von Bündnis 90/Die Grünen. Deine Aufgabe ist es, präzise und professionelle politische Anträge zu verfassen.';
 
-    // Anthropic-Standard: Klarer, strukturierter userContent ohne überflüssige Formatierung
-    const userContent = useWebSearch 
-      ? `Erstelle einen kommunalpolitischen Antrag zum Thema "${idee}"${gliederung ? ` für die Gliederung "${gliederung}"` : ''}${details ? ` mit folgenden Details: "${details}"` : ''}.
+    // Erstelle den Benutzerinhalt basierend auf dem Vorhandensein eines benutzerdefinierten Prompts
+    let userContent;
+    
+    if (customPrompt) {
+      // Bei benutzerdefiniertem Prompt diesen verwenden, aber mit Standardinformationen ergänzen
+      userContent = `Benutzerdefinierter Prompt: ${customPrompt}
+
+Zusätzliche Informationen (falls relevant):
+${idee ? `- Antragsidee: ${idee}` : ''}
+${gliederung ? `- Gliederung: ${gliederung}` : ''}
+${details ? `- Details: ${details}` : ''}
+
+Der Antrag muss folgende Struktur haben:
+1. Betreff: Eine prägnante Überschrift
+2. Antragstext: Konkrete Beschlussvorschläge
+3. Begründung: Warum der Antrag wichtig ist`;
+
+      // Wenn Websuche-Ergebnisse vorhanden sind, füge sie hinzu
+      if (useWebSearch && searchResultsText) {
+        userContent += `\n\nHier sind relevante Rechercheergebnisse:\n\n${searchResultsText}`;
+      }
+    } else {
+      // Standardinhalt ohne benutzerdefinierten Prompt
+      userContent = useWebSearch 
+        ? `Erstelle einen kommunalpolitischen Antrag zum Thema "${idee}"${gliederung ? ` für die Gliederung "${gliederung}"` : ''}${details ? ` mit folgenden Details: "${details}"` : ''}.
 
 Hier sind relevante Rechercheergebnisse:
 
@@ -48,12 +71,13 @@ Der Antrag muss folgende Struktur haben:
 1. Betreff: Eine prägnante Überschrift
 2. Antragstext: Konkrete Beschlussvorschläge
 3. Begründung: Warum der Antrag wichtig ist, untermauert durch die Rechercheergebnisse`
-      : `Erstelle einen kommunalpolitischen Antrag zum Thema "${idee}"${gliederung ? ` für die Gliederung "${gliederung}"` : ''}${details ? ` mit folgenden Details: "${details}"` : ''}.
+        : `Erstelle einen kommunalpolitischen Antrag zum Thema "${idee}"${gliederung ? ` für die Gliederung "${gliederung}"` : ''}${details ? ` mit folgenden Details: "${details}"` : ''}.
 
 Der Antrag muss folgende Struktur haben:
 1. Betreff: Eine prägnante Überschrift
 2. Antragstext: Konkrete Beschlussvorschläge
 3. Begründung: Warum der Antrag wichtig ist`;
+    }
 
     console.log('Sende Anfrage an Claude mit Prompt-Länge:', userContent.length);
     
