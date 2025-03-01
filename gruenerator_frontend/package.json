@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@lottiefiles/dotlottie-react": "^0.13.0",
     "@testing-library/react": "^16.0.1",
     "axios": "^1.7.2",
     "browser-image-compression": "^2.0.2",

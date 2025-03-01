@@ -9,6 +9,8 @@ import SuspenseWrapper from './components/common/SuspenseWrapper';
 import RouteComponent from './components/routing/RouteComponent';
 import { routes } from './config/routes';
 import { AuthProvider } from './components/utils/AuthContext';
+import LogLevelSelector from './components/common/LogLevelSelector';
+import logger from './utils/logger';
 
 // Lazy loading für Popups
 const PopupNutzungsbedingungen = lazy(() => import('./components/Popups/popup_nutzungsbedingungen'));
@@ -18,7 +20,7 @@ const WelcomePopup = lazy(() => import('./components/Popups/popup_welcome'));
 const RouteLogger = () => {
   const location = useLocation();
   useEffect(() => {
-    console.log('Route geändert:', {
+    logger.debug('Router', 'Route geändert', {
       pathname: location.pathname,
       isNoHeaderFooter: location.pathname.includes('-no-header-footer'),
       search: location.search
@@ -33,7 +35,7 @@ function App() {
   const [darkMode, toggleDarkMode] = useDarkMode();
 
   useEffect(() => {
-    console.log('Verfügbare no-header-footer Routen:', 
+    logger.debug('App', 'Verfügbare no-header-footer Routen', 
       routes.noHeaderFooter.map(route => route.path)
     );
   }, []);
@@ -115,7 +117,7 @@ function App() {
 
               {/* No-Header-Footer Routen */}
               {routes.noHeaderFooter.map(({ path }) => {
-                console.log('Registriere no-header-footer Route:', path);
+                logger.debug('App', 'Registriere no-header-footer Route', path);
                 return (
                   <Route
                     key={path}
@@ -132,6 +134,9 @@ function App() {
                 );
               })}
             </Routes>
+            
+            {/* Log-Level Selector für Entwicklungsmodus */}
+            <LogLevelSelector />
           </SuspenseWrapper>
         </Router>
       </AuthProvider>
