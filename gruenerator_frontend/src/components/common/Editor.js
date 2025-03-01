@@ -56,6 +56,9 @@ const Editor = React.memo(({ setEditorInstance = () => {} }) => {
   console.log('[Editor] isEditing Status:', isEditing);
   console.log('[Editor] isAdjusting Status:', isAdjusting);
   console.log('[Editor] activePlatform:', activePlatform);
+  console.log('[Editor] value:', value);
+  console.log('[Editor] value Typ:', typeof value);
+  console.log('[Editor] value Länge:', value ? value.length : 0);
 
   const quillRef = useRef(null);
   const prevLocalValue = useRef('');
