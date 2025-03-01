@@ -1,0 +1,129 @@
+/* YouRecording.css - Styling für die Sprachaufnahme-Funktionalität */
+
+/* Sprachaufnahme-Komponente */
+.voice-recorder-wrapper {
+  width: 100%;
+  min-height: 120px;
+  background-color: var(--background-color-alt);
+  border: 1px solid var(--hover-color-alt);
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.voice-recorder-cancel {
+  margin-top: 16px;
+  padding: 8px 16px;
+  background-color: transparent;
+  border: 1px solid var(--hover-color-alt);
+  border-radius: 8px;
+  color: var(--font-color);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.voice-recorder-cancel:hover {
+  background-color: var(--hover-color-alt);
+}
+
+.voice-recording-indicator {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 80px;
+  height: 80px;
+  z-index: 2;
+  opacity: 0.8;
+}
+
+.you-submit-button.recording {
+  background-color: var(--rot);
+}
+
+.you-submit-button.recording:hover {
+  background-color: var(--rot);
+  filter: brightness(0.9);
+}
+
+/* Fullscreen recording mode */
+.recording-fullscreen-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: var(--background-color-alt);
+  border-radius: 12px;
+  z-index: 3;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.recording-fullscreen-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.recording-animation-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.recording-lottie {
+  width: 120px;
+  height: 120px;
+}
+
+.recording-status, .recording-timestamps {
+  display: none;
+}
+
+.recording-stop-button {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  background-color: var(--rot);
+  color: var(--weiß);
+  border: none;
+  border-radius: 8px;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+  z-index: 4;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.recording-stop-button:hover {
+  background-color: var(--rot);
+  filter: brightness(0.9);
+  transform: scale(1.05);
+}
+
+.recording-stop-button svg {
+  color: var(--weiß);
+  font-size: 20px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Dark mode adjustments */
+[data-theme="dark"] .voice-recorder-toggle svg {
+  color: var(--klee);
+} 
