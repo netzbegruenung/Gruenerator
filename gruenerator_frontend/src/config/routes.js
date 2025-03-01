@@ -2,6 +2,7 @@ import { lazy } from 'react';
 import TemplateGallery from '../features/templates';
 import UniversalTextGenerator from '../features/texte/universal/UniversalTextGenerator';
 import AntragPage from '../features/texte/antrag/AntragPage';
+import { YouPage } from '../features/you';
 
 // Lazy loading für statische Seiten
 const Home = lazy(() => import('../components/pages/Home'));
@@ -26,7 +27,8 @@ export const GrueneratorenBundle = {
   Kandidat: lazy(() => import('../components/pages/Grüneratoren/Kandidatengenerator')),
   Search: Search,
   Templates: TemplateGallery,
-  Reel: Reel
+  Reel: Reel,
+  You: YouPage
 };
 
 // Route Konfigurationen
@@ -44,6 +46,7 @@ const standardRoutes = [
   { path: '/vorlagen', component: GrueneratorenBundle.Templates },
   { path: '/suche', component: GrueneratorenBundle.Search, withForm: true },
   { path: '/reel', component: GrueneratorenBundle.Reel },
+  { path: '/you', component: GrueneratorenBundle.You, withForm: true },
   { path: '/datenschutz', component: Datenschutz },
   { path: '/impressum', component: Impressum },
   { path: '*', component: NotFound }
