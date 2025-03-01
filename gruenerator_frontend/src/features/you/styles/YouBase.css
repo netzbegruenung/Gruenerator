@@ -1,0 +1,179 @@
+/* YouBase.css - Grundlegendes Layout und Container */
+
+.you-page-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+  padding: 20px;
+  background-color: var(--background-color);
+  transition: background-color 0.3s ease;
+}
+
+/* Anpassungen für den Bearbeitungsmodus */
+.you-page-container.base-container.editing-mode {
+  max-width: 100%;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 20px;
+  gap: 0;
+  margin-top: 80px; /* Abstand nach oben für Desktop-Modus */
+}
+
+.you-content-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 900px; /* Breiter für Word-ähnliches Layout */
+  margin: 0 auto;
+  transition: margin 0.3s ease;
+}
+
+/* Entfernen der empty-state Klasse, da wir jetzt ein festes Layout haben */
+.you-content-wrapper.empty-state {
+  margin-top: 20vh; /* Nur den oberen Abstand anpassen */
+}
+
+/* Im Bearbeitungsmodus den Abstand entfernen */
+.base-container.editing-mode .you-content-wrapper {
+  margin-top: 0;
+}
+
+/* Neuer Container für den Input-Bereich */
+.you-input-section {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 30px; /* Abstand zum Ergebnisbereich */
+}
+
+/* Neuer Container für den Ergebnisbereich */
+.you-result-section {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Anpassungen für den Bearbeitungsmodus */
+.you-result-section.display-container {
+  flex: 1;
+  max-width: 816px;
+  width: 816px;
+  margin: 0 auto;
+  min-height: calc(100vh - 120px); /* Angepasst für den Header-Abstand */
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  padding: 0;
+  position: relative;
+}
+
+/* Editor-Container für die Bearbeitung */
+.editor-container {
+  width: 100%;
+  margin-top: 20px;
+  margin-bottom: 20px;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Anpassungen für den Editor innerhalb der YouPage */
+.editor-container .text-editor {
+  background-color: var(--background-color-alt);
+  border-radius: 8px;
+}
+
+.editor-container .ql-toolbar {
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  background-color: var(--background-color);
+  border-color: var(--hover-color-alt);
+}
+
+.editor-container .ql-container {
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+  border-color: var(--hover-color-alt);
+  min-height: 200px;
+}
+
+.you-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 16px;
+  text-align: center;
+  width: 100%;
+}
+
+.you-header h1 {
+  font-size: 28px;
+  color: var(--font-color-h);
+  margin: 0;
+  letter-spacing: -0.5px;
+  line-height: 1.2;
+  opacity: 0.85;
+}
+
+.you-subtitle {
+  font-size: 20px;
+  color: var(--font-color);
+  margin: 12px 0 0 0;
+  opacity: 0.8;
+  font-weight: normal;
+}
+
+.you-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 20px 0;
+  gap: 12px;
+  color: var(--font-color);
+}
+
+/* Dark Mode Anpassungen */
+[data-theme="dark"] .you-page-container {
+  background-color: var(--background-color);
+}
+
+[data-theme="dark"] .you-header h1 {
+  color: var(--sand);
+}
+
+/* Dark Mode Anpassungen für den Editor */
+[data-theme="dark"] .editor-container .ql-toolbar {
+  background-color: var(--background-color-alt);
+  border-color: var(--hover-color);
+}
+
+[data-theme="dark"] .editor-container .ql-container {
+  background-color: var(--background-color);
+  border-color: var(--hover-color);
+  color: var(--font-color);
+}
+
+/* Mobile Anpassungen */
+@media (max-width: 768px) {
+  .you-page-container.base-container.editing-mode {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    padding: 0;
+    margin: 0; /* Kein Abstand im mobilen Modus */
+    z-index: 1000;
+    background-color: var(--background-color);
+  }
+
+  .you-result-section.display-container {
+    border-radius: 0;
+    box-shadow: none;
+    width: 100%;
+    max-width: 100%;
+    height: 100vh;
+  }
+} 

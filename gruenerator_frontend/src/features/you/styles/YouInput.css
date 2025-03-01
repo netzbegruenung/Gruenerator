@@ -1,0 +1,150 @@
+/* YouInput.css - Styling für Eingabefeld, Submit-Button und Beispiele */
+
+.you-input-container {
+  width: 100%;
+  max-width: 750px;
+  margin: 0 auto;
+  position: relative;
+}
+
+.you-input-field {
+  width: 100%;
+  min-height: 120px;
+  max-height: none;
+  padding: 20px 50px 20px 20px;
+  padding-bottom: 60px;
+  background-color: var(--background-color-alt);
+  border: 1px solid var(--hover-color-alt);
+  border-radius: 12px;
+  color: var(--font-color);
+  font-size: 16px;
+  line-height: 1.5;
+  resize: none;
+  overflow-y: hidden;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease, height 0.2s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.you-input-field:focus {
+  outline: none;
+  border-color: var(--klee);
+  box-shadow: 0 0 0 2px rgba(0, 137, 57, 0.2);
+}
+
+.you-input-field::placeholder {
+  color: var(--font-color);
+  opacity: 0.6;
+}
+
+/* Inline-Beispiele im Eingabefeld */
+.inline-examples {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  display: flex;
+  gap: 8px;
+  z-index: 2;
+}
+
+.inline-example {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--hover-color-alt);
+  border-radius: 16px;
+  color: var(--font-color);
+  background-color: var(--background-color);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.8rem;
+  opacity: 0.8;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.inline-example:hover {
+  background-color: var(--hover-color-alt);
+  opacity: 1;
+  transform: translateY(-1px);
+}
+
+.inline-example span:first-child {
+  font-size: 14px;
+}
+
+.you-submit-button {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  background-color: var(--klee);
+  color: var(--weiß);
+  border: none;
+  border-radius: 8px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  z-index: 2;
+}
+
+.you-submit-button:hover {
+  background-color: var(--tanne);
+}
+
+.you-submit-button:disabled {
+  background-color: var(--background-color-alt);
+  cursor: not-allowed;
+}
+
+.you-submit-button svg {
+  color: var(--weiß);
+  font-size: 16px;
+}
+
+/* Beispiel-Fragen im Stil der SearchPage */
+.example-questions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+  justify-content: center;
+  width: 100%;
+  max-width: 750px;
+  margin: 24px auto;
+}
+
+.example-question {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border: 1px solid var(--hover-color-alt);
+  border-radius: 20px;
+  color: var(--font-color);
+  background-color: var(--background-color-alt);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.9rem;
+}
+
+.example-question:hover {
+  background-color: var(--hover-color-alt);
+}
+
+.example-question span:first-child {
+  font-size: 16px;
+}
+
+/* Dark Mode Anpassungen */
+[data-theme="dark"] .you-input-field,
+[data-theme="dark"] .you-response-container {
+  background-color: var(--hover-color-alt);
+}
+
+[data-theme="dark"] .inline-example {
+  background-color: var(--background-color);
+  border-color: var(--hover-color);
+} 
