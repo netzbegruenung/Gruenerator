@@ -87,8 +87,13 @@ const platformGuidelines = {
 };
 
 router.post('/', async (req, res) => {
-  const { thema, details, platforms = [], was, wie, zitatgeber, pressekontakt, useBackupProvider } = req.body;
-  console.log('[claude_social] Anfrage erhalten:', { thema, details, platforms });
+  const { thema, details, platforms = [], was, wie, zitatgeber, pressekontakt, useBackupProvider, customPrompt } = req.body;
+  console.log('[claude_social] Anfrage erhalten:', { 
+    thema, 
+    details, 
+    platforms,
+    hasCustomPrompt: !!customPrompt
+  });
 
   try {
     console.log('[claude_social] Starte AI Worker Request');
@@ -110,12 +115,24 @@ Schreibe in folgendem Stil, Sprachstil und Tonfall:
 Achte bei der Umsetzung dieses Stils auf Klarheit, Präzision und eine ausgewogene Struktur deiner Sätze, um eine formale und objektive Darstellung der Informationen zu gewährleisten.`;
     }
 
-    const result = await req.app.locals.aiWorkerPool.processRequest({
-      type: 'social',
-      systemPrompt,
-      messages: [{
-        role: 'user',
-        content: `
+    // Erstelle den Benutzerinhalt basierend auf dem Vorhandensein eines benutzerdefinierten Prompts
+    let userContent;
+    
+    if (customPrompt) {
+      // Bei benutzerdefiniertem Prompt diesen verwenden, aber mit Plattforminformationen ergänzen
+      userContent = `
+Benutzerdefinierter Prompt: ${customPrompt}
+
+Erstelle Inhalte für folgende Plattformen: ${platforms.join(', ')}
+
+${platforms.map(platform => {
+  if (platform === 'pressemitteilung') return '';
+  const upperPlatform = platform === 'reelScript' ? 'INSTAGRAM REEL' : platform.toUpperCase();
+  return `${upperPlatform}: Maximale Länge: ${platformGuidelines[platform].maxLength} Zeichen. Stil: ${platformGuidelines[platform].style} Fokus: ${platformGuidelines[platform].focus}`;
+}).filter(Boolean).join('\n')}`;
+    } else {
+      // Standardinhalt ohne benutzerdefinierten Prompt
+      userContent = `
         Thema: ${thema}
 Details: ${details}
 Plattformen: ${platforms.join(', ')}
@@ -140,7 +157,15 @@ ${platforms.includes('pressemitteilung') ? '' : `Jeder Beitrag sollte:
 4. Emojis und Hashtags passend zur Plattform verwenden.
 5. Themen wie Klimaschutz, soziale Gerechtigkeit und Vielfalt betonen.
 6. Aktuelle Positionen der Grünen Partei einbeziehen.
-7. Bei Bedarf auf weiterführende Informationen verweisen (z.B. Webseite).`}`
+7. Bei Bedarf auf weiterführende Informationen verweisen (z.B. Webseite).`}`;
+    }
+
+    const result = await req.app.locals.aiWorkerPool.processRequest({
+      type: 'social',
+      systemPrompt,
+      messages: [{
+        role: 'user',
+        content: userContent
       }],
       options: {
         model: "claude-3-5-sonnet-20240620",

@@ -310,7 +310,7 @@ if (cluster.isMaster) {
   // Cache für statische Dateien
   app.use(cacheMiddleware);
 
-  // Routes Setup
+  // Routen einrichten
   setupRoutes(app);
 
   // Optimierte statische Datei-Auslieferung
@@ -335,8 +335,32 @@ if (cluster.isMaster) {
     }
   }));
 
-  // Setup Routes nach den statischen Verzeichnissen
-  setupRoutes(app);
+  // Middleware für AI-Anfragen
+  app.use('/api/*', async (req, res, next) => {
+    if (req.method === 'POST' && req.path.includes('claude')) {
+      try {
+        const result = await aiWorkerPool.processRequest({
+          type: req.path.split('/')[2], // Extrahiert den Typ aus dem Pfad
+          ...req.body
+        });
+        return res.json(result);
+      } catch (error) {
+        console.error('AI Request Error:', error);
+        return res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    }
+    next();
+  });
+
+  // Timeout-Einstellungen für große Dateiübertragungen
+  app.use((req, res, next) => {
+    req.setTimeout(300000); // 5 Minuten
+    res.setTimeout(300000);
+    next();
+  });
 
   // Root und Catch-all Routes
   app.get('/', (req, res) => {
@@ -375,32 +399,5 @@ if (cluster.isMaster) {
 
   server.listen(port, host, () => {
     logger.info(`Worker ${process.pid} started - Server running at http://${host}:${port}`);
-  });
-
-  // Middleware für AI-Anfragen
-  app.use('/api/*', async (req, res, next) => {
-    if (req.method === 'POST' && req.path.includes('claude')) {
-      try {
-        const result = await aiWorkerPool.processRequest({
-          type: req.path.split('/')[2], // Extrahiert den Typ aus dem Pfad
-          ...req.body
-        });
-        return res.json(result);
-      } catch (error) {
-        console.error('AI Request Error:', error);
-        return res.status(500).json({
-          success: false,
-          error: error.message
-        });
-      }
-    }
-    next();
-  });
-
-  // Timeout-Einstellungen für große Dateiübertragungen
-  app.use((req, res, next) => {
-    req.setTimeout(300000); // 5 Minuten
-    res.setTimeout(300000);
-    next();
   });
 }
