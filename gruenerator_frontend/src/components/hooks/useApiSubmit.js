@@ -103,6 +103,15 @@ const useApiSubmit = (endpoint) => {
             claudeSourceTitles: response.claudeSourceTitles || []
           };
         }
+      } else if (endpoint === 'you') {
+        console.log('[useApiSubmit] Processing you response:', response);
+        if (response && response.category) {
+          setSuccess(true);
+          return {
+            category: response.category,
+            originalPrompt: response.originalPrompt || ''
+          };
+        }
       } else {
         // Standard AI-Response-Behandlung
         if (response && response.content) {

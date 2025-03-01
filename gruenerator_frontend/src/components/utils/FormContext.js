@@ -117,6 +117,8 @@ export const FormProvider = ({
 
   const setGeneratedContent = useCallback((content) => {
     console.log('Setze generierten Inhalt:', content);
+    console.log('Setze generierten Inhalt Typ:', typeof content);
+    console.log('Setze generierten Inhalt JSON:', JSON.stringify(content));
     setValue(content);
   }, []);
 
