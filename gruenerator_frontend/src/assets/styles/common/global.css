@@ -1,5 +1,6 @@
 @import url('./variables.css');
 @import url('./typography.css');
+@import url('../components/spinner.css');
 
 *, *:before, *:after { box-sizing: inherit; }
 html { box-sizing: border-box; }
