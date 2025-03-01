@@ -93,6 +93,15 @@
     transform: translateX(0);
 }
 
+/* Neue Regel für form-hidden */
+.base-container.form-hidden .form-container {
+    flex: 0 0 0;
+    max-width: 0;
+    padding: 0;
+    overflow: hidden;
+    transform: translateX(-350px);
+}
+
 .base-container.multi-platform .display-container {
     flex: 1;
     max-width: 100%;
