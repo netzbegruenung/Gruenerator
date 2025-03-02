@@ -4,6 +4,7 @@ import PropTypes from 'prop-types';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import useVoiceRecorder from '../../voice/hooks/useVoiceRecorder';
 import useYouProcessor from '../hooks/useYouProcessor';
+import useEditorLayout from '../hooks/useEditorLayout';
 import Spinner from '../../../components/common/Spinner';
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 // Nur die Hauptdatei importieren, die dann die anderen CSS-Dateien importiert
@@ -45,28 +46,34 @@ const ErrorFallback = (error) => {
 };
 
 // Extrahierte Komponente für Beispiele
-const InlineExamples = ({ onExampleClick }) => (
-  <div className="inline-examples">
-    {EXAMPLES.map((example, index) => (
-      <button
-        key={index}
-        className="inline-example"
-        onClick={(e) => {
-          e.preventDefault(); // Verhindert das Absenden des Formulars
-          onExampleClick(example.fullPrompt);
-        }}
-        title={example.fullPrompt}
-        type="button" // Explizit als Button-Typ definieren, nicht als Submit
-      >
-        <span>{example.icon}</span>
-        <span>{example.text}</span>
-      </button>
-    ))}
-  </div>
-);
+const InlineExamples = ({ onExampleClick, shouldShow }) => {
+  // Wenn shouldShow false ist, zeige keine Beispiele an
+  if (!shouldShow) return null;
+  
+  return (
+    <div className="inline-examples">
+      {EXAMPLES.map((example, index) => (
+        <button
+          key={index}
+          className="inline-example"
+          onClick={(e) => {
+            e.preventDefault(); // Verhindert das Absenden des Formulars
+            onExampleClick(example.fullPrompt);
+          }}
+          title={example.fullPrompt}
+          type="button" // Explizit als Button-Typ definieren, nicht als Submit
+        >
+          <span>{example.icon}</span>
+          <span>{example.text}</span>
+        </button>
+      ))}
+    </div>
+  );
+};
 
 InlineExamples.propTypes = {
-  onExampleClick: PropTypes.func.isRequired
+  onExampleClick: PropTypes.func.isRequired,
+  shouldShow: PropTypes.bool
 };
 
 // Extrahierte Komponente für die Aufnahme-Overlay
@@ -103,6 +110,7 @@ const YouPage = () => {
   const [prompt, setPrompt] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [socialMediaContent, setSocialMediaContent] = useState('');
+  const [isMobile, setIsMobile] = useState(false);
   const textareaRef = useRef(null);
   
   // You-Processor Hook für die Verarbeitung der Anfragen
@@ -134,6 +142,24 @@ const YouPage = () => {
     updateValue, 
     toggleEditMode
   } = useContext(FormContext);
+
+  // Überprüfe, ob es sich um ein mobiles Gerät handelt
+  useEffect(() => {
+    const checkIfMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    
+    // Initial prüfen
+    checkIfMobile();
+    
+    // Event-Listener für Größenänderungen
+    window.addEventListener('resize', checkIfMobile);
+    
+    // Cleanup
+    return () => {
+      window.removeEventListener('resize', checkIfMobile);
+    };
+  }, []);
 
   // Log für das result
   useEffect(() => {
@@ -244,16 +270,23 @@ const YouPage = () => {
   // Bestimme, ob wir uns im leeren Zustand befinden
   const isEmptyState = !socialMediaContent;
 
+  // Bestimme, ob die Beispiele angezeigt werden sollen
+  // Auf Mobilgeräten: nur anzeigen, wenn kein Text eingegeben wurde
+  const shouldShowExamples = !isProcessing && !socialMediaContent && (!isMobile || !prompt.trim());
+
   // Bestimme die CSS-Klassen für den Container basierend auf dem Bearbeitungsmodus
   // Im Bearbeitungsmodus verwenden wir die with-header-Klasse nicht, da wir den Abstand direkt in der CSS definieren
   const containerClasses = `you-page-container ${!isEmptyState && !isEditing ? 'with-header' : ''} ${isEditing ? 'base-container editing-mode' : ''}`;
   const contentWrapperClasses = `you-content-wrapper ${isEmptyState ? 'empty-state' : ''}`;
   const resultSectionClasses = `you-result-section ${isEditing ? 'display-container' : ''}`;
 
+  // Verwende den useEditorLayout-Hook für mobile Anpassungen
+  const { getEditorContainerStyle, getMainContainerStyle } = useEditorLayout(isMobile, isEditing);
+
   return (
     <ErrorBoundary fallback={ErrorFallback}>
-      <div className={containerClasses}>
-        <div className={contentWrapperClasses}>
+      <div className={containerClasses} style={getMainContainerStyle()}>
+        <div className={contentWrapperClasses} style={getEditorContainerStyle()}>
           {/* Input-Bereich (nur anzeigen, wenn nicht im Bearbeitungsmodus) */}
           {!isEditing && (
             <div className="you-input-section">
@@ -272,9 +305,10 @@ const YouPage = () => {
                   disabled={isProcessing}
                 />
                 
-                {!isProcessing && !socialMediaContent && (
-                  <InlineExamples onExampleClick={handleExampleClick} />
-                )}
+                <InlineExamples 
+                  onExampleClick={handleExampleClick} 
+                  shouldShow={shouldShowExamples}
+                />
                 
                 {/* Fullscreen Recording Overlay als eigene Komponente */}
                 <RecordingOverlay 

@@ -283,6 +283,56 @@
 }
 
 @media (max-width: 768px) {
+  /* Style für SVG-Elemente in Toolbar-Buttons */
+  .ql-snow.ql-toolbar button svg,
+  .ql-snow .ql-toolbar button svg {
+    width: 18px !important;
+    height: 18px !important;
+    stroke-width: 2px !important; /* Dickere Linien für bessere Sichtbarkeit */
+    transform: scale(1.2) !important; /* Leicht vergrößern */
+  }
+  
+  /* Verbesserte Button-Styles für Touch-Geräte */
+  .ql-snow.ql-toolbar button,
+  .ql-snow .ql-toolbar button {
+    padding: 6px !important;
+    margin: 0 2px !important;
+    min-width: 32px !important;
+    min-height: 32px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  
+  /* Verbesserte Abstände zwischen Button-Gruppen */
+  .ql-snow.ql-toolbar .ql-formats,
+  .ql-snow .ql-toolbar .ql-formats {
+    margin-right: 6px !important;
+    margin-bottom: 6px !important;
+  }
+
+  .text-editor .ql-toolbar.ql-snow {
+    display: flex !important;
+    padding: 4px !important; /* Reduzierte Polsterung */
+    position: sticky;
+    top: 0;
+    background: var(--background-color);
+    z-index: 100;
+    border-bottom: 1px solid var(--hellgrau) !important;
+    flex-wrap: wrap;
+    justify-content: space-between;
+  }
+  
+  .text-editor .ql-toolbar.ql-snow .ql-formats {
+    margin-right: 3px; /* Reduzierter Abstand */
+    margin-bottom: 3px; /* Reduzierter Abstand */
+  }
+  
+  .text-editor .ql-toolbar.ql-snow button {
+    padding: 2px 3px; /* Reduzierte Polsterung */
+    width: 26px; /* Leicht reduzierte Breite */
+    height: 26px; /* Leicht reduzierte Höhe */
+  }
 
   .adjust-form {
     flex-direction: column;
@@ -334,6 +384,7 @@
   .custom-context-menu {
     display: none !important;
   }
+
 }
 
 /* Emoji Button Styles */
