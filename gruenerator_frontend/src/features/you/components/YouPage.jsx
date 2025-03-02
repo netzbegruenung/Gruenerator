@@ -221,6 +221,64 @@ const YouPage = () => {
     }
   };
 
+  // Funktion zum Umschalten zwischen Mikrofon und Submit-Button
+  const renderSubmitOrMicButton = () => {
+    // Wenn wir aufnehmen, zeige den Stop-Button
+    if (isRecording) {
+      return (
+        <button
+          type="button"
+          className="you-submit-button recording"
+          onClick={stopRecording}
+          aria-label="Aufnahme stoppen"
+        >
+          <FaStop />
+        </button>
+      );
+    }
+    
+    // Wenn wir verarbeiten (Sprache oder Text), zeige den Spinner
+    if (isVoiceProcessing || isProcessing) {
+      return (
+        <button
+          type="button"
+          className="you-submit-button"
+          disabled={true}
+          aria-label="Verarbeitung läuft"
+        >
+          <Spinner size="small" white withBackground />
+        </button>
+      );
+    }
+    
+    // Wenn Text eingegeben wurde, zeige den Submit-Button
+    if (prompt.trim()) {
+      return (
+        <button
+          type="submit"
+          className="you-submit-button"
+          disabled={isProcessing || isVoiceProcessing}
+          aria-label="Absenden"
+        >
+          <FaArrowUp />
+        </button>
+      );
+    }
+    
+    // Standardfall: Zeige den Mikrofon-Button
+    return (
+      <button
+        type="button"
+        className="you-submit-button"
+        onClick={startRecording}
+        disabled={isProcessing || isVoiceProcessing}
+        aria-label="Sprachaufnahme"
+      >
+        <FaMicrophone />
+      </button>
+    );
+  };
+
   const handleReset = () => {
     setPrompt('');
     setSocialMediaContent('');
@@ -316,21 +374,8 @@ const YouPage = () => {
                   stopRecording={stopRecording} 
                 />
                 
-                <button
-                  type={prompt.trim() ? "submit" : "button"}
-                  className={`you-submit-button ${isRecording ? 'recording' : ''}`}
-                  disabled={isProcessing || isVoiceProcessing || !prompt.trim()}
-                  aria-label={isRecording ? "Aufnahme stoppen" : (prompt.trim() ? "Absenden" : "Sprachaufnahme")}
-                  onClick={!prompt.trim() || isRecording ? (isRecording ? stopRecording : startRecording) : undefined}
-                >
-                  {isRecording ? (
-                    <FaStop />
-                  ) : isVoiceProcessing || isProcessing ? (
-                    <Spinner size="small" white withBackground />
-                  ) : (
-                    prompt.trim() ? <FaArrowUp /> : <FaMicrophone />
-                  )}
-                </button>
+                {/* Dynamischer Button: Mikrofon oder Submit */}
+                {renderSubmitOrMicButton()}
               </form>
 
               {getError() && (
