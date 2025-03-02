@@ -1,5 +1,9 @@
 /* YouBase.css - Grundlegendes Layout und Container */
 
+:root {
+  --editor-top-offset: 0px;
+}
+
 .you-page-container {
   display: flex;
   flex-direction: column;
@@ -169,11 +173,18 @@
     background-color: var(--background-color);
   }
 
+  /* Anpassung für den Editor-Container */
+  .base-container.editing-mode .you-content-wrapper {
+    padding-top: var(--editor-top-offset);
+    box-sizing: border-box;
+  }
+  
   .you-result-section.display-container {
     border-radius: 0;
     box-shadow: none;
     width: 100%;
     max-width: 100%;
-    height: 100vh;
+    height: calc(100vh - var(--editor-top-offset));
+    overflow-y: auto; /* Ermöglicht Scrollen im Container */
   }
 } 

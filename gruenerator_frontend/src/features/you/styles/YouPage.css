@@ -322,11 +322,7 @@
 /* Mobile Anpassungen */
 @media (max-width: 768px) {
   .you-page-container {
-    padding: 16px;
-  }
-
-  .you-content-wrapper {
-    width: calc(100% - 32px);
+    padding: 12px;
   }
 
   .you-header {
@@ -334,7 +330,7 @@
   }
 
   .you-header h1 {
-    font-size: 24px;
+    font-size: 22px;
   }
 
   .you-input-container,
@@ -343,16 +339,59 @@
   }
 
   .you-input-field {
-    min-height: 100px;
+    min-height: 150px;
+    font-size: 16px;
+    padding: 16px 16px 70px 16px;
   }
 
   .you-response-container {
-    padding: 20px;
+    padding: 16px;
   }
   
   .inline-examples {
-    flex-direction: column;
+    flex-direction: row;
+    flex-wrap: wrap;
     gap: 6px;
+  }
+  
+  .inline-example {
+    padding: 4px 8px;
+    font-size: 0.7rem;
+  }
+  
+  .inline-example span:first-child {
+    font-size: 12px;
+  }
+  
+  /* Verstecke Examples, wenn Text eingegeben wurde */
+  .you-input-field:not(:placeholder-shown) ~ .inline-examples {
+    display: none;
+  }
+  
+  /* Größerer Submit-Button auf Mobilgeräten */
+  .you-submit-button {
+    width: 42px;
+    height: 42px;
+    bottom: 14px;
+    right: 14px;
+  }
+  
+  .you-submit-button svg {
+    font-size: 18px;
+  }
+  
+  /* Anpassungen für Ergebnisbereich */
+  .you-result-container {
+    padding: 16px;
+  }
+  
+  .you-result-content {
+    font-size: 15px;
+  }
+  
+  .you-reset-button {
+    padding: 6px 12px;
+    font-size: 14px;
   }
 }
 
@@ -485,7 +524,7 @@
   color: var(--klee);
 }
 
-/* Mobile Anpassungen */
+/* Mobile Anpassungen für Sprachaufnahme */
 @media (max-width: 768px) {
   .voice-recorder-toggle svg {
     font-size: 28px;
@@ -498,5 +537,21 @@
   .voice-recording-indicator {
     width: 80px;
     height: 80px;
+  }
+  
+  .recording-lottie {
+    width: 100px;
+    height: 100px;
+  }
+  
+  .recording-stop-button {
+    width: 52px;
+    height: 52px;
+    bottom: 14px;
+    right: 14px;
+  }
+  
+  .recording-stop-button svg {
+    font-size: 22px;
   }
 } 
