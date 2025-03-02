@@ -19,6 +19,9 @@ const Datenschutz = () => {
         personenbezogenen oder vertraulichen Daten eingibst.</strong>
       </p>
       <p>
+        <strong>Wenn Du die Sprachaufnahme-Funktion nutzt, werden Deine Sprachnachrichten ausschließlich auf unserem Server mit Whisper transkribiert und nicht an Dritte weitergegeben. Die Audiodaten werden nur für die Transkription verwendet und nach Abschluss des Vorgangs gelöscht. Die transkribierten Texte werden ebenfalls nicht dauerhaft gespeichert. Sie werden weder von Menschen angehört noch zu Trainingszwecken genutzt.</strong>
+      </p>
+      <p>
         Ausführliche Informationen zur Datenschutzerklärung und Deinen Rechten
         findest Du unten auf dieser Seite. Weiterführende Informationen dazu,
         wie ANTHROPIC Deine Eingaben verarbeitet und behandelt, findest Du in
@@ -99,6 +102,9 @@ const Datenschutz = () => {
         <a href="https://www.anthropic.com/legal/privacy">Datenschutzerklärung von Anthropic</a> und der
         <a href="https://www.tavily.com/privacy">Datenschutzerklärung von Tavily</a>.
       </p>
+      <p>
+        Wenn Du die Sprachaufnahme-Funktion nutzt, werden Deine Audiodaten ausschließlich auf unseren eigenen Servern verarbeitet. Für die Transkription verwenden wir Whisper, eine Spracherkennungstechnologie, die lokal auf unserem Server läuft. Die Audiodaten werden nicht an externe Dienste weitergeleitet, nicht von Menschen angehört und nicht zu Trainingszwecken verwendet. Nach erfolgreicher Transkription werden die Audiodaten umgehend gelöscht. Auch die transkribierten Texte werden nicht dauerhaft gespeichert, sondern nur temporär für die aktuelle Sitzung verwendet.
+      </p>
 
       <h4>d. Wie lange werden die Daten gespeichert?</h4>
       <p>
@@ -115,6 +121,7 @@ const Datenschutz = () => {
           <li>Von Ihnen erstellte Inhalte (z.B. Texte, Entwürfe)</li>
           <li>Metadaten zu diesen Inhalten (z.B. Erstellungsdatum, Änderungsdatum)</li>
           <li>Eindeutige Identifikatoren für Ihre Inhalte</li>
+          <li>Transkribierte Texte aus Sprachaufnahmen werden nicht dauerhaft gespeichert, sondern nur temporär für die aktuelle Sitzung verwendet</li>
         </ul>
       </p>
 
