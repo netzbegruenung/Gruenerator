@@ -5,6 +5,7 @@ import { EditorToolbar } from './EditorToolbar';
 import 'react-quill/dist/quill.snow.css';
 import { FormContext } from '../utils/FormContext';
 import { applyHighlightWithAnimation } from '../utils/highlightUtils';
+import { enableMobileEditorScrolling } from '../utils/mobileEditorScrolling';
 
 const QuillWrapper = React.forwardRef((props, ref) => (
   <ReactQuill
@@ -229,6 +230,12 @@ const Editor = React.memo(({ setEditorInstance = () => {} }) => {
       }
     }
   }, [isEditing, isAdjusting]);
+
+  // Verwenden der externen Funktion für mobiles Scrolling
+  useEffect(() => {
+    // Die Funktion gibt eine Cleanup-Funktion zurück, die React automatisch aufruft
+    return enableMobileEditorScrolling(quillRef, isEditing);
+  }, [isEditing, quillRef]);
 
   const applyAdjustment = useCallback((newText, keepFormatting = true) => {
     const quill = quillRef.current?.getEditor();

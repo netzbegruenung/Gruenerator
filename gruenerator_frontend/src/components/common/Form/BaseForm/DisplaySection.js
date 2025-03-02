@@ -6,7 +6,6 @@ import { HiCog } from "react-icons/hi";
 import { BUTTON_LABELS, ARIA_LABELS } from '../constants';
 import ContentRenderer from './ContentRenderer';
 import ErrorDisplay from './ErrorDisplay';
-import logger from '../../../../utils/logger';
 
 /**
  * Komponente für den Anzeigebereich des Formulars
@@ -41,18 +40,6 @@ const DisplaySection = ({
   handleToggleEditMode,
   getExportableContent
 }) => {
-  logger.info('DisplaySection', 'Rendering', {
-    title,
-    error,
-    valueLength: value?.length || 0,
-    generatedContentType: typeof generatedContent,
-    generatedContentLength: typeof generatedContent === 'string' ? generatedContent?.length || 0 : 'nicht-string',
-    isEditing,
-    allowEditing,
-    hideEditButton,
-    usePlatformContainers
-  });
-
   const [generatePostLoading, setGeneratePostLoading] = React.useState(false);
 
   const handleGeneratePost = React.useCallback(async () => {
@@ -62,26 +49,14 @@ const DisplaySection = ({
     try {
       await onGeneratePost();
     } catch (error) {
-      logger.error('DisplaySection', 'Generate post error', error);
+      // Fehlerbehandlung ohne Logger
     } finally {
       setGeneratePostLoading(false);
     }
   }, [onGeneratePost]);
 
   const exportableContent = React.useMemo(() => {
-    const content = getExportableContent(generatedContent, value);
-    
-    logger.group('DisplaySection', 'Exportable Content Info', () => {
-      logger.debug('DisplaySection', 'Exportable content Typ', typeof content);
-      logger.debug('DisplaySection', 'Exportable content Länge', 
-                  typeof content === 'string' ? content?.length || 0 : 'nicht-string');
-      logger.debug('DisplaySection', 'generatedContent Typ', typeof generatedContent);
-      logger.debug('DisplaySection', 'generatedContent Länge', 
-                  typeof generatedContent === 'string' ? generatedContent?.length || 0 : 'nicht-string');
-      logger.debug('DisplaySection', 'value Länge', value?.length || 0);
-    });
-    
-    return content;
+    return getExportableContent(generatedContent, value);
   }, [getExportableContent, generatedContent, value]);
 
   return (
