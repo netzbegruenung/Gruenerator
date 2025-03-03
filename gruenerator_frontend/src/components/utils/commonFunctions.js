@@ -254,38 +254,3 @@ export const copyFormattedContent = (content, onSuccess, onError) => {
     }
   }
 };
-
-// Neue Funktion für automatisches Scrollen
-export const useAutoScroll = (content, isMobile) => {
-  useEffect(() => {
-    // Prüft ob Content existiert und sich geändert hat
-    const hasContent = content?.content && (
-      // Für normale BaseForm (String content)
-      (typeof content.content === 'string' && content.content.length > 0) ||
-      // Für BaseForm_social (Object content)
-      (typeof content.content === 'object' && 
-       (Array.isArray(content.content) ? 
-         content.content.length > 0 : 
-         Object.keys(content.content).length > 0))
-    );
-    
-    const shouldScroll = hasContent && content.changed;
-
-    if (isMobile && shouldScroll) {
-      const displayContainer = document.querySelector('.display-container');
-      if (displayContainer) {
-        setTimeout(() => {
-          // Berechne Position mit Offset
-          const headerHeight = 60; // Ungefähre Höhe des Headers
-          const containerRect = displayContainer.getBoundingClientRect();
-          const offsetPosition = containerRect.top + window.pageYOffset - headerHeight;
-
-          window.scrollTo({
-            top: offsetPosition,
-            behavior: 'smooth'
-          });
-        }, 300);
-      }
-    }
-  }, [content, isMobile]);
-};

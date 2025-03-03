@@ -3,9 +3,9 @@ import PropTypes from 'prop-types';
 import { Tooltip } from 'react-tooltip';
 import FormToggleButton from '../../FormToggleButton';
 import useAccessibility from '../../../hooks/useAccessibility';
-import { useAutoScroll } from '../../../utils/commonFunctions';
 import { addAriaLabelsToElements, enhanceFocusVisibility } from '../../../utils/accessibilityHelpers';
-import { BUTTON_LABELS } from '../constants';
+import { BUTTON_LABELS } from '../../../utils/constants';
+import { scrollToGeneratedContent } from '../../../utils/scrollToContent';
 
 // Importiere die neuen Komponenten
 import FormSection from './FormSection';
@@ -58,7 +58,7 @@ const BaseForm = ({
     isFormVisible,
     isMultiPlatform,
     toggleForm,
-    contentChanged,
+    //contentChanged,
     checkMultiPlatform,
     markContentChanged,
     resetContentChanged
@@ -101,9 +101,6 @@ const BaseForm = ({
     markContentChanged(!!value);
   }, [value, markContentChanged]);
 
-  // Auto-Scroll bei Inhaltsänderungen
-  useAutoScroll({ content: value, changed: contentChanged }, isMobileView);
-
   // Zurücksetzen von Inhaltsänderungen beim Scrollen
   useEffect(() => {
     const handleScroll = () => {
@@ -138,6 +135,18 @@ const BaseForm = ({
       setupKeyboardNav(interactiveElements);
     }
   }, [setupKeyboardNav, generatedContent]);
+
+  // Scrolle zum generierten Inhalt auf mobilen Geräten
+  useEffect(() => {
+    // Nur ausführen, wenn generierter Inhalt vorhanden ist
+    if (generatedContent) {
+      // Scrolle zum Inhalt und erhalte Cleanup-Funktion
+      const cleanupScrolling = scrollToGeneratedContent(true);
+      
+      // Cleanup beim Unmount
+      return cleanupScrolling;
+    }
+  }, [generatedContent]);
 
   // Berechne den Anzeigetitel
   const displayTitle = getDisplayTitle(title, isEditing, generatedContent);
