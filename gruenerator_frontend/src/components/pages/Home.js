@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { PiNewspaper, PiFileText, PiArrowRight, PiCaretDown, PiMagicWand, PiMagnifyingGlass /* , PiVideoCamera */ } from 'react-icons/pi';
+import { PiNewspaper, PiFileText, PiArrowRight, PiCaretDown, PiMagicWand, PiMagnifyingGlass, PiVideoCamera } from 'react-icons/pi';
 import { GiHedgehog } from 'react-icons/gi';
 import { TypeAnimation } from 'react-type-animation';
 
@@ -58,9 +58,7 @@ const Home = () => {
           <div className={`link-buttons secondary-buttons ${showMore ? 'show' : ''}`}>
             <Link to="/universal" aria-label="Zum Universal Grünerator"><PiMagicWand /> Universal</Link>
             <Link to="/gruene-jugend" aria-label="Zum Grüne Jugend Grünerator"><GiHedgehog /> Grüne Jugend</Link>
-            {/* Temporär ausgeblendet - wird später wieder aktiviert
             <Link to="/reel" aria-label="Zum Reel Grünerator"><PiVideoCamera /> Reel</Link>
-            */}
             <Link to="/suche" aria-label="Zur Suche"><PiMagnifyingGlass /> Suche</Link>
           </div>
           <a href="https://896ca129.sibforms.com/serve/MUIFAFnH3lov98jrw3d75u_DFByChA39XRS6JkBKqjTsN9gx0MxCvDn1FMnkvHLgzxEh1JBcEOiyHEkyzRC-XUO2DffKsVccZ4r7CCaYiugoiLf1a-yoTxDwoctxuzCsmDuodwrVwEwnofr7K42jQc-saIKeVuB_8UxrwS18QIaahZml1qMExNno2sEC7HyMy9Nz4f2f8-UJ4QmW" 

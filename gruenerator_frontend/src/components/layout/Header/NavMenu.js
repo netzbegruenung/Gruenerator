@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { PiCaretDown, PiCaretUp, PiMagnifyingGlass } from 'react-icons/pi';
+import { PiCaretDown, PiCaretUp } from 'react-icons/pi';
 import { CSSTransition } from 'react-transition-group';
 import useAccessibility from '../../hooks/useAccessibility';
-import { menuItems, handleMenuInteraction } from './menuData';
+import { menuItems, directMenuItems, handleMenuInteraction } from './menuData';
 
 const MenuItem = ({ icon: Icon, title, description, path, onClick, isTopLevel = false }) => (
   <div className={`menu-item ${isTopLevel ? 'menu-item--top-level' : ''}`}>
@@ -93,7 +93,7 @@ const NavMenu = ({ open, onClose }) => {
       ref={navMenuRef} 
       aria-label="Mobile Navigation"
     >
-      {Object.entries(menuItems).filter(([key]) => key !== 'suche').map(([key, menu]) => (
+      {Object.entries(menuItems).map(([key, menu]) => (
         <div key={key} className="nav-menu__dropdown">
           <span 
             onClick={() => handleDropdownClick(key)}
@@ -133,11 +133,19 @@ const NavMenu = ({ open, onClose }) => {
         </div>
       ))}
       <MenuItem
-        icon={PiMagnifyingGlass}
-        title="Suche"
-        description="Durchsuche alle Vorlagen und Texte"
-        path="/suche"
-        onClick={() => handleLinkClick('/suche', 'Suche')}
+        icon={directMenuItems.suche.icon}
+        title={directMenuItems.suche.title}
+        description={directMenuItems.suche.description}
+        path={directMenuItems.suche.path}
+        onClick={() => handleLinkClick(directMenuItems.suche.path, directMenuItems.suche.title)}
+        isTopLevel={true}
+      />
+      <MenuItem
+        icon={directMenuItems.reel.icon}
+        title={directMenuItems.reel.title}
+        description={directMenuItems.reel.description}
+        path={directMenuItems.reel.path}
+        onClick={() => handleLinkClick(directMenuItems.reel.path, directMenuItems.reel.title)}
         isTopLevel={true}
       />
     </nav>
