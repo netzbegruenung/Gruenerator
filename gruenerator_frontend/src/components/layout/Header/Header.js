@@ -1,11 +1,11 @@
 //header.js
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { PiCaretDown, PiSun, PiMoon, PiMagnifyingGlass } from 'react-icons/pi';
+import { PiCaretDown, PiSun, PiMoon } from 'react-icons/pi';
 import NavMenu from './NavMenu';
 import useDarkMode from '../../hooks/useDarkMode';
 import useAccessibility from '../../hooks/useAccessibility';
-import { menuItems, MenuItem, menuStyles, handleMenuInteraction } from './menuData';
+import { menuItems, directMenuItems, MenuItem, menuStyles, handleMenuInteraction } from './menuData';
 
 const Header = () => {
     const [menuActive, setMenuActive] = useState(false);
@@ -85,7 +85,7 @@ const Header = () => {
                 </label>
                 <nav className={`header-nav ${menuActive ? 'active' : ''}`} id="nav" aria-label="Hauptnavigation">
                     <ul>
-                        {Object.entries(menuItems).filter(([key]) => key !== 'suche').map(([key, menu]) => (
+                        {Object.entries(menuItems).map(([key, menu]) => (
                             <li key={key} 
                                 className="header-dropdown"
                                 onMouseEnter={() => handleMouseEnter(key)}
@@ -110,9 +110,15 @@ const Header = () => {
                             </li>
                         ))}
                         <li className="header-search">
-                            <Link to="/suche" onClick={() => handleLinkClick('/suche', 'Suche')} className="header-nav-item">
-                                <span>Suche</span>
-                                <PiMagnifyingGlass aria-hidden="true" />
+                            <Link to={directMenuItems.suche.path} onClick={() => handleLinkClick(directMenuItems.suche.path, directMenuItems.suche.title)} className="header-nav-item">
+                                <span>{directMenuItems.suche.title}</span>
+                                <directMenuItems.suche.icon aria-hidden="true" />
+                            </Link>
+                        </li>
+                        <li className="header-search">
+                            <Link to={directMenuItems.reel.path} onClick={() => handleLinkClick(directMenuItems.reel.path, directMenuItems.reel.title)} className="header-nav-item">
+                                <span>{directMenuItems.reel.title}</span>
+                                <directMenuItems.reel.icon aria-hidden="true" />
                             </Link>
                         </li>
                     </ul>
