@@ -101,7 +101,6 @@ ${chapterText}
 Bitte beantworte nun folgende Frage: ${question}`
             }],
             options: {
-                model: "claude-3-5-sonnet-20240620",
                 max_tokens: 8000,
                 temperature: 0.7
             },
