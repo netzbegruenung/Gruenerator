@@ -237,19 +237,10 @@ EditorToolbarComponent.propTypes = {
   selectedText: PropTypes.string.isRequired,
   isAdjusting: PropTypes.bool.isRequired,
   onConfirmAdjustment: PropTypes.func.isRequired,
-  quillRef: PropTypes.object.isRequired,
-  highlightedRange: PropTypes.shape({
-    index: PropTypes.number.isRequired,
-    length: PropTypes.number.isRequired,
-  }),
   onAiAdjustment: PropTypes.func.isRequired,
   originalSelectedText: PropTypes.string.isRequired,
   onRejectAdjustment: PropTypes.func.isRequired,
   isEditing: PropTypes.bool.isRequired,
-};
-
-EditorToolbarComponent.defaultProps = {
-  highlightedRange: null,
 };
 
 export const EditorToolbar = React.memo(EditorToolbarComponent);
