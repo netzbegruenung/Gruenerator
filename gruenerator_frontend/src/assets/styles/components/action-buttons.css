@@ -1,0 +1,79 @@
+/* Action Buttons Container */
+.content-actions,
+.platform-actions,
+.display-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Basis Action Button Style */
+.action-button {
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--font-color-h);
+  transition: all 0.2s ease;
+  border-radius: 4px;
+}
+
+.action-button:hover {
+  background-color: var(--button-hover-color);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Platform Container spezifische Styles */
+.platform-actions .action-button:hover {
+  background-color: var(--button-hover-color);
+}
+
+.action-button:active {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.action-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Icon Größen */
+.action-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Tooltip Anpassungen */
+.action-button[data-tooltip-id] {
+  position: relative;
+}
+
+/* Dark Mode */
+[data-theme="dark"] .platform-content.editing .platform-header .action-button {
+  color: var(--weiß);
+}
+
+[data-theme="dark"] .platform-content.editing .platform-header .action-button:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Mobile Anpassungen */
+@media (max-width: 768px) {
+  .content-actions,
+  .platform-actions,
+  .display-actions {
+    gap: 5px;
+  }
+
+  .action-button {
+    padding: 6px;
+  }
+
+  .action-button svg {
+    width: 14px;
+    height: 14px;
+  }
+} 

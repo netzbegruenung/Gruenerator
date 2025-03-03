@@ -8,13 +8,13 @@ router.post('/', async (req, res) => {
   try {
     console.log('[Zitat-Claude API] Preparing request to Claude API');
     const prompt = thema && details
-      ? `Erstelle ein Zitat zum Thema "${thema}" basierend auf folgenden Details: ${details}. Ist unter Details kein Inhalt, nimm nur das Thema.`
-      : `Optimiere folgendes Zitat: "${quote}" - ${name}`;
+      ? `Erstelle 4 verschiedene Zitate zum Thema "${thema}" basierend auf folgenden Details: ${details}. Ist unter Details kein Inhalt, nimm nur das Thema. Gib die Zitate in einem JSON-Array zurück, wobei jedes Objekt ein "quote" Feld hat.`
+      : `Optimiere folgendes Zitat: "${quote}" und erstelle 3 weitere Varianten. Gib die Zitate in einem JSON-Array zurück, wobei jedes Objekt ein "quote" Feld hat.`;
 
     console.log('[Zitat-Claude API] Sending request to Claude API with prompt:', prompt);
     const result = await req.app.locals.aiWorkerPool.processRequest({
       type: 'zitat',
-      systemPrompt: "Du bist ein erfahrener Social-Media-Manager für Bündnis 90/Die Grünen. Deine Aufgabe ist es, ein prägnantes und aussagekräftige Zitat mit maximal 140 Zeichen im STil von Bündnis 90/Die Grünen zu erstellen.",
+      systemPrompt: "Du bist ein erfahrener Social-Media-Manager für Bündnis 90/Die Grünen. Deine Aufgabe ist es, prägnante und aussagekräftige Zitate mit maximal 140 Zeichen im Stil von Bündnis 90/Die Grünen zu erstellen. Gib die Zitate immer als JSON-Array zurück.",
       messages: [{ 
         role: "user", 
         content: prompt 
@@ -27,18 +27,45 @@ router.post('/', async (req, res) => {
       useBackupProvider
     });
 
-    console.log('[Zitat-Claude API] Received reasponse from Claude API:', result);
+    console.log('[Zitat-Claude API] Received response from Claude API:', result);
 
     if (result.success) {
       const textContent = result.content;
       console.log('[Zitat-Claude API] Processed text content:', textContent);
       
-      // Extrahiere Zitat (ohne Anführungszeichen und einleitende Sätze)
-      const extractedQuote = textContent.replace(/^.*?["„]|[""]$/g, '').trim();
+      // Versuche JSON zu parsen
+      let quotes = [];
+      try {
+        // Extrahiere JSON aus der Antwort
+        const jsonMatch = textContent.match(/\[.*\]/s);
+        if (jsonMatch) {
+          quotes = JSON.parse(jsonMatch[0]);
+        } else {
+          // Fallback: Extrahiere einzelne Zitate
+          quotes = textContent
+            .split(/\d+\./)
+            .map(q => q.trim())
+            .filter(q => q)
+            .map(q => ({
+              quote: q.replace(/^.*?["„]|[""]$/g, '').trim()
+            }));
+        }
+      } catch (error) {
+        console.error('[Zitat-Claude API] Error parsing quotes:', error);
+        // Fallback: Verwende das erste gefundene Zitat
+        const extractedQuote = textContent
+          .replace(/^.*?["„]|[""]$/g, '')
+          .replace(/^(Hier ist ein (mögliches )?Zitat|Ein Zitat).*?:/i, '')
+          .trim();
+        quotes = [{ quote: extractedQuote }];
+      }
+      
+      // Stelle sicher, dass wir maximal 4 Zitate haben
+      quotes = quotes.slice(0, 4);
       
       const resultObj = {
-        quote: extractedQuote,
-        name: 'Bündnis 90/Die Grünen'
+        alternatives: quotes,
+        quote: quotes[0].quote
       };
       
       console.log('[Zitat-Claude API] Sending response:', resultObj);

@@ -1,0 +1,93 @@
+/* YouResults.css - Styling für die Ergebnisanzeige */
+
+/* Überschreiben der display-container Breite speziell für die YouPage */
+.you-page-container .display-container {
+  flex: 1 1 100% !important;
+  max-width: 100% !important;
+  width: 100% !important;
+}
+
+/* Ursprüngliche Styles */
+.you-response-container {
+  width: 100%;
+  max-width: 900px; /* Breiter für Word-ähnliches Layout */
+  margin: 0 auto 20px;
+  padding: 35px 50px; /* Mehr horizontalen Innenabstand für Word-ähnliches Layout */
+  background-color: var(--background-color-alt);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  position: relative;
+}
+
+.you-response-content {
+  color: var(--font-color);
+  line-height: 1.8;
+  font-size: 16px;
+  text-align: justify;
+  hyphens: auto;
+  white-space: pre-wrap;
+}
+
+.you-response-category {
+  font-size: 14px;
+  color: var(--font-color);
+  opacity: 0.7;
+  margin-bottom: 12px;
+}
+
+/* Ergebnis-Container für die verarbeitete Anfrage */
+.you-result-container {
+  width: 100%;
+  max-width: 900px; /* Breiter für Word-ähnliches Layout */
+  margin: 0 auto 20px;
+  padding: 35px 50px; /* Mehr horizontalen Innenabstand für Word-ähnliches Layout */
+  background-color: var(--background-color-alt);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-height: none; /* Entfernen der Höhenbegrenzung */
+  overflow-y: visible; /* Kein Scrolling mehr nötig */
+}
+
+.you-result-content {
+  color: var(--font-color);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  hyphens: auto;
+  font-size: 16px;
+}
+
+/* Styling für den Ergebnistitel */
+.you-result-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--font-color-h);
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--hover-color-alt);
+}
+
+/* Word-ähnliches Papier-Styling */
+.you-result-paper {
+  background-color: var(--weiß);
+  border-radius: 2px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 30px 40px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* Dark Mode Anpassungen */
+[data-theme="dark"] .you-response-container,
+[data-theme="dark"] .you-result-container {
+  background-color: var(--hover-color-alt);
+}
+
+[data-theme="dark"] .you-result-paper {
+  background-color: var(--background-color-alt);
+} 

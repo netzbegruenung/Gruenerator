@@ -8,9 +8,11 @@ export const SHAREPIC_TYPES = {
 
 // Form Steps
 export const FORM_STEPS = {
-  INPUT: 0,
-  PREVIEW: 1,
-  RESULT: 2
+  WELCOME: 'welcome',
+  TYPE_SELECT: 'type_select',
+  INPUT: 'input',
+  PREVIEW: 'preview',
+  RESULT: 'result'
 };
 
 // Font Sizes
@@ -43,6 +45,7 @@ export const VALIDATION_MESSAGES = {
 export const BUTTON_LABELS = {
   GENERATE_TEXT: 'Text Grünerieren',
   GENERATE_IMAGE: 'Bild Grünerieren',
+  GENERATE_IMAGE_MOBILE: 'Grünerieren',
   MODIFY_IMAGE: 'Bild anpassen',
   UPLOAD_FILE: 'Datei hochladen',
   SUBMIT: 'Grünerieren',
@@ -271,9 +274,10 @@ export const HEADER_TEXT = {
   },
   DROPDOWN_ITEMS: {
     GRUENERATOREN: [
+      { LINK: '/universal', TEXT: 'Universal Grünerator', ICON: 'PiMagicWand' },
       { LINK: '/antragsgenerator', TEXT: 'Anträge', ICON: 'PiFileText' },
       { LINK: '/pressemitteilung', TEXT: 'Pressemitteilungen', ICON: 'PiNewspaper' },
-      { LINK: '/socialmedia', TEXT: 'Social Media', ICON: 'PiChatsCircle' },
+      { LINK: '/socialmedia', TEXT: 'Social Media', ICON: 'PiInstagramLogo' },
       { LINK: '/rede', TEXT: 'Politische Rede', ICON: 'PiMicrophone' },
       { LINK: '/antragsversteher', TEXT: 'Antrags-Erklärer', ICON: 'PiLightbulb' }
     ],

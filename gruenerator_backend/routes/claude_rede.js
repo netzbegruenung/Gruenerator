@@ -2,12 +2,11 @@ const express = require('express');
 const router = express.Router();
 
 router.post('/', async (req, res) => {
-  const { rolle, thema, Zielgruppe, schwerpunkte, redezeit, useBackupProvider } = req.body;
+  const { rolle, thema, Zielgruppe, schwerpunkte, redezeit, useBackupProvider, customPrompt } = req.body;
 
   try {
-    const result = await req.app.locals.aiWorkerPool.processRequest({
-      type: 'rede',
-      systemPrompt: `Sie sind damit beauftragt, eine politische Rede für ein Mitglied von Bündnis 90/Die Grünen zu schreiben. Ihr Ziel ist es, eine überzeugende und mitreißende Rede zu erstellen, die den Werten und Positionen der Partei entspricht und das gegebene Thema behandelt. 
+    // Systemanweisung für die Redenerstellung
+    const systemPrompt = `Sie sind damit beauftragt, eine politische Rede für ein Mitglied von Bündnis 90/Die Grünen zu schreiben. Ihr Ziel ist es, eine überzeugende und mitreißende Rede zu erstellen, die den Werten und Positionen der Partei entspricht und das gegebene Thema behandelt. 
 
 Geben Sie vor der rede an: 1. 2-3 Unterschiedliche Ideen für den Einstieg, dann 2-3 Kernargumente, dann 2-3 gute Ideen für ein Ende. Gib dem Redner 2-3 Tipps, worauf er bei dieser rede und diesem thema achten muss, um zu überzeugen.
 Schreibe anschließend eine Rede.
@@ -30,17 +29,38 @@ Befolgen Sie diese Richtlinien, um die Rede zu verfassen:
  - Gehen Sie respektvoll, aber bestimmt auf mögliche Gegenargumente ein.
 
 5. Abschluss:
- - Enden Sie mit einer starken, inspirierenden Botschaft, die die Hauptpunkte verstärkt und das Publikum motiviert, die Position des redners zu unterstützen oder Maßnahmen zu ergreifen.`,
-      prompt: `-\n\n`, // Minimaler Prompt, da alle Infos im System Prompt
+ - Enden Sie mit einer starken, inspirierenden Botschaft, die die Hauptpunkte verstärkt und das Publikum motiviert, die Position des redners zu unterstützen oder Maßnahmen zu ergreifen.`;
+
+    // Erstelle den Benutzerinhalt basierend auf dem Vorhandensein eines benutzerdefinierten Prompts
+    let userContent;
+    
+    if (customPrompt) {
+      // Bei benutzerdefiniertem Prompt diesen verwenden, aber mit Redeinformationen ergänzen
+      userContent = `Benutzerdefinierter Prompt: ${customPrompt}
+
+Zusätzliche Informationen zur Rede:
+- Rolle/Position des Redners: ${rolle || 'Nicht angegeben'}
+- Spezifisches Thema oder Anlass der Rede: ${thema || 'Nicht angegeben'}
+- Zielgruppe: ${Zielgruppe || 'Nicht angegeben'}
+- Besondere Schwerpunkte oder lokale Aspekte: ${schwerpunkte || 'Nicht angegeben'}
+- Gewünschte Redezeit (in Minuten): ${redezeit || 'Nicht angegeben'}`;
+    } else {
+      // Standardinhalt ohne benutzerdefinierten Prompt
+      userContent = `Rolle/Position des Redners: ${rolle}
+Spezifisches Thema oder Anlass der Rede: ${thema}
+Zielgruppe: ${Zielgruppe}
+Besondere Schwerpunkte oder lokale Aspekte: ${schwerpunkte}
+Gewünschte Redezeit (in Minuten): ${redezeit}`;
+    }
+
+    const result = await req.app.locals.aiWorkerPool.processRequest({
+      type: 'rede',
+      systemPrompt,
       messages: [{
         role: "user",
         content: [{
           type: "text",
-          text: `Rolle/Position des Redners: ${rolle}
-Spezifisches Thema oder Anlass der Rede: ${thema}
-Zielgruppe: ${Zielgruppe}
-Besondere Schwerpunkte oder lokale Aspekte: ${schwerpunkte}
-Gewünschte Redezeit (in Minuten): ${redezeit}`
+          text: userContent
         }]
       }],
       options: {

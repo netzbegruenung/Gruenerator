@@ -1,0 +1,24 @@
+.content-wrapper {
+  min-height: calc(100vh - 160px);
+  margin-top: 80px;
+  margin-bottom: 80px;
+  display: flex;
+  flex-direction: column;
+}
+
+.content-wrapper.no-header-footer {
+  min-height: 100vh;
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+main {
+  flex: 1;
+  position: relative;
+} 

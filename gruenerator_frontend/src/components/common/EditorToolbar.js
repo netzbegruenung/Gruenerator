@@ -3,7 +3,6 @@ import PropTypes from 'prop-types';
 import { HiCog } from 'react-icons/hi';
 import { FaUndo, FaRedo } from 'react-icons/fa';
 import { FormContext } from '../utils/FormContext';
-import CustomContextMenu from './CustomContextMenu';
 import { useMediaQuery } from 'react-responsive';
 
 const CustomUndo = React.memo(() => {
@@ -41,8 +40,6 @@ const EditorToolbarComponent = ({
   const adjustContainerRef = useRef(null);
   const inputRef = useRef(null);
   const isInitialClickRef = useRef(false);
-  const [showCustomMenu, setShowCustomMenu] = useState(false);
-  const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   const [isProcessingAdjustment, setIsProcessingAdjustment] = useState(false);
 
   const handleKeyDown = useCallback((e) => {
@@ -91,52 +88,6 @@ const EditorToolbarComponent = ({
     onAiAdjustment(false);
   }, [onConfirmAdjustment, onAiAdjustment]);
 
-  const handleContextMenu = useCallback((e) => {
-    e.preventDefault();
-    const selection = window.getSelection();
-    if (selection.toString().trim()) {
-      const range = selection.getRangeAt(0);
-      const rect = range.getBoundingClientRect();
-      
-      let x = e.clientX;
-      let y = e.clientY;
-
-      if (window.innerHeight - rect.bottom > 100) {
-        y = rect.bottom + window.scrollY;
-      } else {
-        y = rect.top + window.scrollY - 40;
-      }
-
-      if (x + 200 > window.innerWidth) {
-        x = window.innerWidth - 220;
-      }
-
-      setMenuPosition({ x, y });
-      setShowCustomMenu(true);
-    }
-  }, []);
-
-  const handleCloseCustomMenu = useCallback(() => {
-    setShowCustomMenu(false);
-  }, []);
-
-  const handleCustomMenuClick = useCallback((e) => {
-    e.stopPropagation();
-    handleAdjustClick(e);
-    setShowCustomMenu(false);
-  }, [handleAdjustClick]);
-
-  useEffect(() => {
-    const editorElement = document.querySelector('.ql-editor');
-    if (editorElement) {
-      editorElement.addEventListener('contextmenu', handleContextMenu);
-    }
-    return () => {
-      if (editorElement) {
-        editorElement.removeEventListener('contextmenu', handleContextMenu);
-      }
-    };
-  }, [handleContextMenu]);
 
   useEffect(() => {
   }, [isAdjusting]);
@@ -277,13 +228,6 @@ const EditorToolbarComponent = ({
         )}
       </div>
       {!isMobile && error && <p className="error-message">Error: {error}</p>}
-      {!isMobile && showCustomMenu && (
-        <CustomContextMenu
-          position={menuPosition}
-          onClose={handleCloseCustomMenu}
-          onAdjustClick={handleCustomMenuClick}
-        />
-      )}
     </div>
   );
 };
@@ -293,19 +237,10 @@ EditorToolbarComponent.propTypes = {
   selectedText: PropTypes.string.isRequired,
   isAdjusting: PropTypes.bool.isRequired,
   onConfirmAdjustment: PropTypes.func.isRequired,
-  quillRef: PropTypes.object.isRequired,
-  highlightedRange: PropTypes.shape({
-    index: PropTypes.number.isRequired,
-    length: PropTypes.number.isRequired,
-  }),
   onAiAdjustment: PropTypes.func.isRequired,
   originalSelectedText: PropTypes.string.isRequired,
   onRejectAdjustment: PropTypes.func.isRequired,
   isEditing: PropTypes.bool.isRequired,
-};
-
-EditorToolbarComponent.defaultProps = {
-  highlightedRange: null,
 };
 
 export const EditorToolbar = React.memo(EditorToolbarComponent);

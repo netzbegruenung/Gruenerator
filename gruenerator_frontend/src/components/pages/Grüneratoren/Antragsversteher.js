@@ -3,17 +3,11 @@ import PropTypes from 'prop-types';
 import axios from 'axios';
 import { FiUpload, FiFile, FiX } from 'react-icons/fi';
 import ErrorBoundary from '../../ErrorBoundary';
-import '../../../assets/styles/common/variables.css';
-import '../../../assets/styles/common/global.css';
-import '../../../assets/styles/components/button.css';
-import '../../../assets/styles/pages/baseform.css';
-import '../../../assets/styles/pages/antragsversteher.css';  // Neue Import-Zeile hinzufügen
 import { useDynamicTextSize } from '../../utils/commonFunctions';
 import BaseForm from '../../common/BaseForm';
 import { BUTTON_LABELS } from '../../utils/constants';
 import { FormContext } from '../../utils/FormContext';
 import AnimatedCheckbox from '../../common/AnimatedCheckbox';
-import '../../../assets/styles/components/animatedcheckbox.css';
 
 const Antragsversteher = ({ showHeaderFooter = true }) => {
   const [loading, setLoading] = useState(false);
