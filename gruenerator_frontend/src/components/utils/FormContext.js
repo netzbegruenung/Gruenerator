@@ -15,6 +15,7 @@ export const FormProvider = ({
 }) => {
   const [value, setValue] = useState(initialGeneratedContent);
   const [isEditing, setIsEditing] = useState(initialEditingMode);
+  console.log('[FormContext] Initial isEditing Status:', initialEditingMode);
   const [isAdjusting, setIsAdjusting] = useState(false);
   const [aiAdjustment, setAiAdjustment] = useState(null);
   const [selectedText, setSelectedText] = useState('');
@@ -116,6 +117,8 @@ export const FormProvider = ({
 
   const setGeneratedContent = useCallback((content) => {
     console.log('Setze generierten Inhalt:', content);
+    console.log('Setze generierten Inhalt Typ:', typeof content);
+    console.log('Setze generierten Inhalt JSON:', JSON.stringify(content));
     setValue(content);
   }, []);
 
@@ -193,13 +196,14 @@ export const FormProvider = ({
   }, [originalContent, setValue, quillRef, removeAllHighlights]);
 
   const toggleEditMode = useCallback(() => {
-    console.log('Toggling edit mode');
+    console.log('[FormContext] Toggle Edit Mode - Vorher:', isEditing);
     setIsEditing(prevState => {
+      const newState = !prevState;
+      console.log('[FormContext] Toggle Edit Mode - Nachher:', newState);
       if (prevState) {
         setValue(value);
       }
-      console.log('New isEditing state:', !prevState);
-      return !prevState;
+      return newState;
     });
   }, [value]);
 
@@ -313,6 +317,10 @@ export const FormProvider = ({
     isApplyingAdjustment,
     hasContent,
   ]);
+
+  useEffect(() => {
+    console.log('[FormContext] isEditing Status geändert:', isEditing);
+  }, [isEditing]);
 
   return (
     <FormContext.Provider value={contextValue}>

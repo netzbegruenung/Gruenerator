@@ -1,0 +1,109 @@
+.feature-toggle {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  margin: 25px 0;
+  padding: 16px;
+  border-radius: 8px;
+  background-color: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.3s ease;
+}
+
+.feature-toggle:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.feature-section {
+  margin: 20px 0;
+}
+
+.feature-header {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.feature-description {
+  margin: 12px 0 0 58px;
+  font-size: 0.9rem;
+  color: var(--sand);
+  line-height: 1.5;
+  opacity: 0.9;
+}
+
+.feature-switch {
+  position: relative;
+  display: inline-block;
+  width: 46px;
+  height: 22px;
+  margin-right: 12px;
+  flex-shrink: 0;
+}
+
+.feature-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.feature-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(255, 255, 255, 0.1);
+  transition: .3s;
+  border-radius: 22px;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.feature-slider:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 3px;
+  bottom: 3px;
+  background-color: var(--sand);
+  transition: .3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 50%;
+}
+
+input:checked + .feature-slider {
+  background: linear-gradient(45deg, var(--klee), var(--grashalm));
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+input:checked + .feature-slider:before {
+  transform: translateX(24px);
+  background-color: var(--weiß);
+}
+
+.feature-label {
+  display: flex;
+  align-items: center;
+  font-size: 0.9rem;
+  color: var(--sand);
+  font-weight: 400;
+  flex-grow: 1;
+}
+
+.feature-icon {
+  margin-right: 8px;
+  font-size: 1.1rem;
+  color: var(--grashalm);
+  transition: color 0.3s ease;
+}
+
+input:checked ~ .feature-label .feature-icon {
+  color: var(--klee);
+}
+
+/* Sicherstellen, dass der Toggle mit dem form-container ausgeblendet wird */
+.form-container:not(.visible) .form-feature-toggle {
+  display: none !important;
+} 

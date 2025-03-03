@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import PropTypes from 'prop-types';
-import { FiUpload } from 'react-icons/fi';
+import { FaUpload } from 'react-icons/fa';
 
 const FileUpload = ({ loading, file, handleChange, error, allowedTypes, selectedUnsplashImage, isCompact }) => {
   const fileInputRef = useRef(null);
@@ -34,14 +34,12 @@ const FileUpload = ({ loading, file, handleChange, error, allowedTypes, selected
     }
     
     if (file) {
-      // Kürze den Dateinamen, wenn er zu lang ist
-      const fileName = file.name ? (file.name.length > 20 
-        ? file.name.substring(0, 17) + '...' 
-        : file.name) : 'Unbekannte Datei';
+      const fileName = file.name || 'Datei';
+      const displayName = fileName.length > 20 ? fileName.substring(0, 17) + '...' : fileName;
       return (
         <>
-          <FiUpload size={20} />
-          <span className="file-name">{fileName}</span>
+          <FaUpload />
+          <span>{displayName}</span>
         </>
       );
     }
@@ -49,7 +47,7 @@ const FileUpload = ({ loading, file, handleChange, error, allowedTypes, selected
     if (selectedUnsplashImage) {
       return (
         <>
-          <FiUpload size={20} />
+          <FaUpload />
           <span>Unsplash: {selectedUnsplashImage.photographerName}</span>
         </>
       );
@@ -57,33 +55,31 @@ const FileUpload = ({ loading, file, handleChange, error, allowedTypes, selected
 
     return (
       <>
-        <FiUpload size={20} />
+        <FaUpload />
         <span>Datei auswählen</span>
       </>
     );
   };
 
   return (
-    <div className={`file-upload-container ${isCompact ? 'compact' : ''}`}>
-      <div className={`file-input-wrapper ${loading ? 'loading' : ''}`}>
-        <input
-          id="fileUpload"
-          type="file"
-          name="fileUpload"
-          onChange={onFileChange}
-          accept={Array.isArray(allowedTypes) && allowedTypes.length > 0 ? allowedTypes.join(',') : 'image/*'}
-          ref={fileInputRef}
-          style={{ display: 'none' }}
-        />
-        <label 
-          htmlFor="fileUpload" 
-          className="file-input-text" 
-          onClick={handleClick}
-          aria-label={isCompact ? "Datei hochladen" : undefined}
-        >
-          {renderContent()}
-        </label>
-      </div>
+    <div className={`button-wrapper ${isCompact ? 'compact' : ''}`}>
+      <input
+        id="fileUpload"
+        type="file"
+        name="fileUpload"
+        onChange={onFileChange}
+        accept={Array.isArray(allowedTypes) && allowedTypes.length > 0 ? allowedTypes.join(',') : 'image/*'}
+        ref={fileInputRef}
+        style={{ display: 'none' }}
+      />
+      <label 
+        htmlFor="fileUpload" 
+        className={`file-input-text ${loading ? 'loading' : ''}`}
+        onClick={handleClick}
+        aria-label={isCompact ? "Datei hochladen" : undefined}
+      >
+        {renderContent()}
+      </label>
       {!isCompact && error && <div className="error-message">{error}</div>}
     </div>
   );

@@ -1,5 +1,6 @@
 @import url('./variables.css');
 @import url('./typography.css');
+@import url('../components/spinner.css');
 
 *, *:before, *:after { box-sizing: inherit; }
 html { box-sizing: border-box; }
@@ -15,7 +16,7 @@ html {
 
 body {
     background-color: var(--background-color);
-    color: var(--text-color);
+    color: var(--font-color);
     transition: background-color 0.5s, color 0.5s;
     min-height: 100%;
 }
@@ -45,6 +46,7 @@ button {
 
 .with-header {
     margin-top: 80px; 
+    margin-bottom: 20px;
 }
 
 @media (max-width: 768px) {

@@ -27,8 +27,12 @@ let aiWorkerPool;
 if (cluster.isMaster) {
   console.log(`Master ${process.pid} is running`);
 
+  // Anzahl der Worker aus Umgebungsvariable lesen oder Standardwert verwenden
+  const workerCount = parseInt(process.env.WORKER_COUNT, 10) || 6;
+  console.log(`Starting ${workerCount} workers (WORKER_COUNT: ${workerCount})`);
+
   // Fork Workers
-  for (let i = 0; i < numCPUs; i++) {
+  for (let i = 0; i < workerCount; i++) {
     cluster.fork();
   }
 
@@ -39,9 +43,60 @@ if (cluster.isMaster) {
 } else {
   const app = express();
   
+  // Setze Express Limit
+  app.use(express.json({limit: '100mb'}));
+  app.use(express.raw({limit: '100mb'}));
+  
+  // Timeout-Einstellungen
+  app.use((req, res, next) => {
+    res.setTimeout(900000); // 15 Minuten
+    next();
+  });
+
   // Worker-Pool für AI-Anfragen initialisieren
-  aiWorkerPool = new AIWorkerPool(4);
+  const aiWorkerCount = parseInt(process.env.AI_WORKER_COUNT, 10) || 6;
+  console.log(`Initializing AI worker pool with ${aiWorkerCount} workers`);
+  aiWorkerPool = new AIWorkerPool(aiWorkerCount);
   app.locals.aiWorkerPool = aiWorkerPool;
+
+  // Multer Konfiguration für Videouploads
+  const videoUpload = multer({
+    limits: {
+      fileSize: 100 * 1024 * 1024, // 100MB für Videos
+    },
+    fileFilter: (req, file, cb) => {
+      // Erlaubte Video-Formate
+      const allowedMimes = ['video/mp4', 'video/quicktime', 'video/x-msvideo'];
+      if (allowedMimes.includes(file.mimetype)) {
+        cb(null, true);
+      } else {
+        cb(new Error('Ungültiges Dateiformat. Nur MP4, MOV und AVI sind erlaubt.'));
+      }
+    }
+  });
+
+  // Allgemeine Dateiupload-Konfiguration
+  const generalUpload = multer({
+    limits: {
+      fileSize: 75 * 1024 * 1024 // 75MB für andere Dateien
+    }
+  });
+
+  // Middleware für verschiedene Upload-Routen
+  app.use('/subtitler/process', videoUpload.single('video'));
+  app.use('/upload', generalUpload.single('file'));
+
+  // Fehlerbehandlung für zu große Dateien
+  app.use((error, req, res, next) => {
+    if (error instanceof multer.MulterError) {
+      if (error.code === 'LIMIT_FILE_SIZE') {
+        return res.status(413).json({
+          error: 'Datei ist zu groß. Videos dürfen maximal 100MB groß sein.'
+        });
+      }
+    }
+    next(error);
+  });
 
   // Graceful Shutdown Handler
   process.on('SIGTERM', async () => {
@@ -130,16 +185,27 @@ if (cluster.isMaster) {
     'https://www.beta.gruenerator.de',
     'https://gruenerator-test.netzbegruenung.verdigado.net',
     'https://www.gruenerator-test.netzbegruenung.verdigado.net',
-    'https://grüenerator-test.de',
-    'https://www.grüenerator-test.de',
-    'https://grüenerator.netzbegrünung.verdigado.net',
-    'https://www.grüenerator.netzbegrünung.verdigado.net',
-    'https://grüenerator.de',
-    'https://www.grüenerator.de',
-    'https://beta.grüenerator.de',
-    'https://www.beta.grüenerator.de',
-    'https://grüenerator-test.netzbegrünung.verdigado.net',
-    'https://www.grüenerator-test.netzbegrünung.verdigado.net'
+    'https://xn--grenerator-test-4pb.de',
+    'https://www.xn--grenerator-test-4pb.de',
+    'https://xn--grenerator-z2a.xn--netzbegrnung-dfb.verdigado.net',
+    'https://www.xn--grenerator-z2a.xn--netzbegrnung-dfb.verdigado.net',
+    'https://xn--grenerator-z2a.de',
+    'https://www.xn--grenerator-z2a.de',
+    'https://beta.xn--grenerator-z2a.de',
+    'https://www.beta.xn--grenerator-z2a.de',
+    'https://xn--grenerator-test-4pb.xn--netzbegrnung-dfb.verdigado.net',
+    'https://www.xn--grenerator-test-4pb.xn--netzbegrnung-dfb.verdigado.net',
+    'http://localhost:3000',
+    'https://localhost:3000',
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:3001',
+    'https://www.gruenerator-test.netzbegruenung.verdigado.net',
+    'https://www.gruenerator-test.de',
+    'https://www.gruenerator.de',
+    'https://www.gruenerator.netzbegruenung.verdigado.net',
+    'https://www.xn--grenerator-z2a.xn--netzbegrnung-dfb.verdigado.net',
+    'https://www.xn--grenerator-test-4pb.xn--netzbegrnung-dfb.verdigado.net',
+
   ];
 
   const corsOptions = {
@@ -151,7 +217,8 @@ if (cluster.isMaster) {
       }
     },
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Range'],
+    exposedHeaders: ['Content-Range', 'Accept-Ranges', 'Content-Length', 'Content-Type'],
     credentials: true,
     optionsSuccessStatus: 204
   };
@@ -169,6 +236,7 @@ if (cluster.isMaster) {
         styleSrc: ["'self'", "'unsafe-inline'"],
         imgSrc: ["'self'", "data:", "blob:", "https://*.unsplash.com"],
         connectSrc: [
+
           "'self'",
           // Alle Subdomains von gruenerator.de (HTTP & HTTPS, falls lokal noch HTTP gebraucht wird)
           "http://*.gruenerator.de",
@@ -187,7 +255,7 @@ if (cluster.isMaster) {
         ],
         fontSrc: ["'self'", "https://fonts.gstatic.com"],
         objectSrc: ["'none'"],
-        mediaSrc: ["'self'"],
+        mediaSrc: ["'self'", "blob:"],
         frameSrc: ["'none'"],
       },
     },
@@ -220,8 +288,10 @@ if (cluster.isMaster) {
   };
 
   // Optimierte Middleware-Stack
-  app.use(bodyParser.json({ limit: '32mb' }));
-  app.use(bodyParser.urlencoded({ limit: '32mb', extended: true }));
+
+  app.use(bodyParser.json({ limit: '105mb' }));
+  app.use(bodyParser.urlencoded({ limit: '105mb', extended: true }));
+
   
   // Logging nur für wichtige Requests
   app.use(morgan('combined', {
@@ -237,7 +307,7 @@ if (cluster.isMaster) {
   // Cache für statische Dateien
   app.use(cacheMiddleware);
 
-  // Routes Setup
+  // Routen einrichten
   setupRoutes(app);
 
   // Optimierte statische Datei-Auslieferung
@@ -246,6 +316,48 @@ if (cluster.isMaster) {
     etag: true,
     lastModified: true
   }));
+
+  // Statisches Verzeichnis für Video-Uploads
+  app.use('/uploads/exports', express.static(path.join(__dirname, 'uploads/exports'), {
+    setHeaders: (res, path, stat) => {
+      if (path.endsWith('.mov') || path.endsWith('.MOV')) {
+        res.set('Content-Type', 'video/quicktime');
+      } else if (path.endsWith('.mp4')) {
+        res.set('Content-Type', 'video/mp4');
+      }
+      res.set('Accept-Ranges', 'bytes');
+      res.set('Cross-Origin-Resource-Policy', 'cross-origin');
+      res.set('Access-Control-Allow-Origin', '*');
+      res.set('Cache-Control', 'no-cache');
+    }
+  }));
+
+  // Middleware für AI-Anfragen
+  app.use('/api/*', async (req, res, next) => {
+    if (req.method === 'POST' && req.path.includes('claude')) {
+      try {
+        const result = await aiWorkerPool.processRequest({
+          type: req.path.split('/')[2], // Extrahiert den Typ aus dem Pfad
+          ...req.body
+        });
+        return res.json(result);
+      } catch (error) {
+        console.error('AI Request Error:', error);
+        return res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    }
+    next();
+  });
+
+  // Timeout-Einstellungen für große Dateiübertragungen
+  app.use((req, res, next) => {
+    req.setTimeout(300000); // 5 Minuten
+    res.setTimeout(300000);
+    next();
+  });
 
   // Root und Catch-all Routes
   app.get('/', (req, res) => {
@@ -284,25 +396,5 @@ if (cluster.isMaster) {
 
   server.listen(port, host, () => {
     logger.info(`Worker ${process.pid} started - Server running at http://${host}:${port}`);
-  });
-
-  // Middleware für AI-Anfragen
-  app.use('/api/*', async (req, res, next) => {
-    if (req.method === 'POST' && req.path.includes('claude')) {
-      try {
-        const result = await aiWorkerPool.processRequest({
-          type: req.path.split('/')[2], // Extrahiert den Typ aus dem Pfad
-          ...req.body
-        });
-        return res.json(result);
-      } catch (error) {
-        console.error('AI Request Error:', error);
-        return res.status(500).json({
-          success: false,
-          error: error.message
-        });
-      }
-    }
-    next();
   });
 }
