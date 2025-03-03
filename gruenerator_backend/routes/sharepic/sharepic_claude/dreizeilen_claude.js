@@ -99,7 +99,6 @@ Zeile 3: ${line3}
         content: xmlPrompt
       }],
       options: {
-        model: "claude-3-5-sonnet-20240620",
         max_tokens: 4000,
         temperature: 1.0
       },
