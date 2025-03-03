@@ -5,7 +5,6 @@ import FormToggleButton from '../../FormToggleButton';
 import useAccessibility from '../../../hooks/useAccessibility';
 import { addAriaLabelsToElements, enhanceFocusVisibility } from '../../../utils/accessibilityHelpers';
 import { BUTTON_LABELS } from '../../../utils/constants';
-import { scrollToGeneratedContent } from '../../../utils/scrollToContent';
 
 // Importiere die neuen Komponenten
 import FormSection from './FormSection';
@@ -135,18 +134,6 @@ const BaseForm = ({
       setupKeyboardNav(interactiveElements);
     }
   }, [setupKeyboardNav, generatedContent]);
-
-  // Scrolle zum generierten Inhalt auf mobilen Geräten
-  useEffect(() => {
-    // Nur ausführen, wenn generierter Inhalt vorhanden ist
-    if (generatedContent) {
-      // Scrolle zum Inhalt und erhalte Cleanup-Funktion
-      const cleanupScrolling = scrollToGeneratedContent(true);
-      
-      // Cleanup beim Unmount
-      return cleanupScrolling;
-    }
-  }, [generatedContent]);
 
   // Berechne den Anzeigetitel
   const displayTitle = getDisplayTitle(title, isEditing, generatedContent);
