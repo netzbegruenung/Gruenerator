@@ -1,6 +1,24 @@
-import { PiFileText, PiNewspaper, PiMagicWand, PiMagnifyingGlass /* , PiImage, PiPaintBrush, PiVideoCamera */ } from 'react-icons/pi';
+import { PiFileText, PiNewspaper, PiMagicWand, PiMagnifyingGlass, PiVideoCamera } from 'react-icons/pi';
 import { GiHedgehog } from 'react-icons/gi';
 import PropTypes from 'prop-types';
+
+// Direkte Menüpunkte ohne Dropdown
+export const directMenuItems = {
+  suche: {
+    id: 'suche',
+    path: '/suche',
+    title: 'Suche',
+    description: 'Durchsuche alle Vorlagen und Texte',
+    icon: PiMagnifyingGlass
+  },
+  reel: {
+    id: 'reel',
+    path: '/reel',
+    title: 'Reel',
+    description: 'Automatische Untertitel für Videos',
+    icon: PiVideoCamera
+  }
+};
 
 export const menuItems = {
   texte: {
@@ -35,18 +53,6 @@ export const menuItems = {
         icon: GiHedgehog
       }
     ]
-  },
-  suche: {
-    title: 'Suche',
-    items: [
-      {
-        id: 'suche',
-        path: '/suche',
-        title: 'Suche',
-        description: 'Durchsuche alle Vorlagen und Texte',
-        icon: PiMagnifyingGlass
-      }
-    ]
   }
   /* Temporär ausgeblendet - wird später wieder aktiviert
   ,grafik: {
@@ -65,13 +71,6 @@ export const menuItems = {
         title: 'Sharepic Grünerator',
         description: 'Erstelle ansprechende Sharepics für Social Media',
         icon: PiImage
-      },
-      {
-        id: 'reel',
-        path: '/reel',
-        title: 'Reel Grünerator',
-        description: 'Automatische Untertitel für Videos',
-        icon: PiVideoCamera
       }
     ]
   }
