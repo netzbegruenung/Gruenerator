@@ -9,7 +9,9 @@ if (!ETHERPAD_API_KEY) {
 
 const etherpadApi = axios.create({
   baseURL: ETHERPAD_API_URL,
-  params: { apikey: ETHERPAD_API_KEY }
+  headers: {
+    'Content-Type': 'application/x-www-form-urlencoded'
+  }
 });
 
 const ETHERPAD_FRONTEND_URL = process.env.ETHERPAD_FRONTEND_URL || 'https://gruenera.uber.space';
@@ -38,16 +40,21 @@ exports.createPadWithText = async (padId, text, documentType) => {
       `${formattedDocType}-${padId}` : 
       padId;
 
-
     // Erstelle Pad
-    await etherpadApi.get('/api/1.2.15/createPad', {
-      params: { padID: formattedPadId }
+    await etherpadApi.post('/api/1.2.15/createPad', null, {
+      params: { 
+        apikey: ETHERPAD_API_KEY,
+        padID: formattedPadId 
+      }
     });
     
-    // Setze Text
-    await etherpadApi.get('/api/1.2.15/setText', {
-      params: { padID: formattedPadId, text }
-    });
+    // Setze HTML
+    const formData = new URLSearchParams();
+    formData.append('apikey', ETHERPAD_API_KEY);
+    formData.append('padID', formattedPadId);
+    formData.append('html', text);
+    
+    await etherpadApi.post('/api/1.2.15/setHTML', formData);
     
     // Generiere URL
     const padURL = `${ETHERPAD_FRONTEND_URL}/p/${formattedPadId}`;

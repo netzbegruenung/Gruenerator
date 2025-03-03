@@ -1,23 +1,30 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import ReactDOM from 'react-dom';
 import PropTypes from 'prop-types';
 import useApiSubmit from '../hooks/useApiSubmit';
-import { IoDocumentOutline, IoCopyOutline, IoOpenOutline, IoCloseOutline } from "react-icons/io5";
+import { IoDocumentOutline, IoCopyOutline, IoOpenOutline, IoCloseOutline, IoPeopleOutline, IoFlashOutline, IoLinkOutline, IoCheckmark } from "react-icons/io5";
 import '../../assets/styles/components/exportToDocument.css';
 import { useLocation } from 'react-router-dom';
 import { useUnmount } from 'react-use';
+import { FormContext } from '../utils/FormContext';
+import { formatExportContent } from '../utils/exportUtils';
 
-const ExportToDocument = ({ content, ...props }) => {
+const ExportToDocument = ({ content: initialContent }) => {
   const location = useLocation();
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [padURL, setPadURL] = useState('');
-  const [hasExistingPad, setHasExistingPad] = useState(false);
+  const [docURL, setDocURL] = useState('');
+  const [hasExistingDoc, setHasExistingDoc] = useState(false);
   const { submitForm, loading, error } = useApiSubmit('etherpad/create');
+  const { value } = useContext(FormContext);
+  const [isCopied, setIsCopied] = useState(false);
+
+  // Verwende den aktuellen Wert aus dem Context oder den initial Content
+  const currentContent = value || initialContent;
 
   // Cleanup beim Unmount (Seitenwechsel, Neuladen, etc.)
   useUnmount(() => {
-    setHasExistingPad(false);
-    setPadURL('');
+    setHasExistingDoc(false);
+    setDocURL('');
   });
 
   // Funktion zur Bestimmung des Dokumenttyps basierend auf der Route
@@ -36,70 +43,51 @@ const ExportToDocument = ({ content, ...props }) => {
 
   // Beim Öffnen des Modals prüfen wir den Status neu
   const handleExport = () => {
-    if (padURL) {
-      setHasExistingPad(true);
+    if (docURL) {
+      setHasExistingDoc(true);
     }
     setIsModalOpen(true);
   };
 
-  // Funktion zum Bereinigen des HTML-Texts
-  const cleanHtmlContent = (htmlContent) => {
-    // Temporäres div-Element erstellen
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = htmlContent;
-    
-    // Text extrahieren und Formatierungen entfernen
-    let cleanText = '';
-    const processNode = (node) => {
-      if (node.nodeType === Node.TEXT_NODE) {
-        cleanText += node.textContent;
-      } else if (node.nodeType === Node.ELEMENT_NODE) {
-        if (node.tagName === 'P' || node.tagName === 'DIV') {
-          if (cleanText && !cleanText.endsWith('\n')) {
-            cleanText += '\n';
-          }
-        }
-        node.childNodes.forEach(processNode);
-        if (node.tagName === 'P' || node.tagName === 'DIV') {
-          if (!cleanText.endsWith('\n')) {
-            cleanText += '\n';
-          }
-        }
-      }
-    };
-    
-    processNode(tempDiv);
-    return cleanText.trim();
-  };
-
-  const handleEtherpadExport = async () => {
+  const handleDocsExport = async () => {
     try {
-      const cleanContent = cleanHtmlContent(content);
+      // Formatiere den HTML-Content
+      const htmlContent = formatExportContent({
+        analysis: value ? value : currentContent
+      });
+      
       const response = await submitForm({ 
-        text: cleanContent,
+        text: htmlContent,
         documentType: documentType
       });
       
       if (response && response.padURL) {
-        setPadURL(response.padURL);
+        setDocURL(response.padURL);
       } else {
-        throw new Error('Keine gültige Pad-URL erhalten');
+        throw new Error('Keine gültige Docs-URL erhalten');
       }
     } catch (err) {
-      console.error('Fehler beim Exportieren zu Grünerator Office:', err);
+      console.error('Fehler beim Exportieren zu Grünerator Docs:', err);
     }
   };
 
-  const handleCopyCollaborateLink = () => {
-    navigator.clipboard.writeText(padURL).then(() => {
-      alert('Office-Link wurde in deine Zwischenablage kopiert!');
+  const handleNewExport = async () => {
+    setHasExistingDoc(false);
+    setDocURL('');
+    await handleDocsExport();
+  };
+
+  const handleCopyDocsLink = () => {
+    navigator.clipboard.writeText(docURL).then(() => {
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
     }).catch(err => {
-      console.error('Fehler beim Kopieren des Office-Links:', err);
+      console.error('Fehler beim Kopieren des Docs-Links:', err);
     });
   };
 
   const handleOpenLink = () => {
-    window.open(padURL, '_blank');
+    window.open(docURL, '_blank');
   };
 
   const handleCloseModal = () => {
@@ -114,41 +102,71 @@ const ExportToDocument = ({ content, ...props }) => {
           <button className="close-button" onClick={handleCloseModal}>
             <IoCloseOutline size={24} />
           </button>
-          <h2 id="export-modal-title">Grünerator Collaborate Export</h2>
-          {hasExistingPad ? (
+          <h2 id="export-modal-title">Mit Grünerator Docs freigeben</h2>
+          {hasExistingDoc ? (
             <>
-              <p>Für diese {documentType} existiert bereits ein Collaborate-Link:</p>
+              <p>Für {documentType === 'Antrag' || documentType === 'Social Media Post' ? 'diesen' : 'diese'} {documentType} existiert bereits ein Link zur gemeinsamen Bearbeitung:</p>
               <div className="url-container">
-                <input type="text" value={padURL} readOnly className="url-input" />
-                <button onClick={handleCopyCollaborateLink} className="copy-collaborate-link-button">
-                  <IoCopyOutline size={20} />
+                <input type="text" value={docURL} readOnly className="url-input" />
+                <button 
+                  onClick={handleCopyDocsLink} 
+                  className={`copy-docs-link-button ${isCopied ? 'copied' : ''}`}
+                >
+                  {isCopied ? <IoCheckmark size={20} /> : <IoCopyOutline size={20} />}
                 </button>
               </div>
-              <button onClick={handleOpenLink} className="open-button">
-                <IoOpenOutline size={20} /> Link öffnen
-              </button>
+              <div className="button-group">
+                <button onClick={handleOpenLink} className="open-button">
+                  <IoOpenOutline size={20} /> Bestehendes Dokument öffnen
+                </button>
+                <button onClick={handleNewExport} className="export-action-button">
+                  <IoDocumentOutline size={20} /> Als neues Dokument exportieren
+                </button>
+              </div>
             </>
           ) : (
             <>
-              {!padURL ? (
+              {!docURL ? (
                 <>
-                  <p>Möchtest du diese {documentType} in Grünerator Collaborate exportieren?</p>
-                  <p>Grünerator Collaborate ermöglicht die gemeinsame Textbearbeitung in Echtzeit. Mehrere Personen können gleichzeitig an einem Dokument arbeiten. Änderungen sind sofort für alle sichtbar, und das Dokument ist einfach über einen Link zugänglich. Perfekt für Brainstorming, gemeinsames Schreiben oder schnelle Zusammenarbeit an Texten.</p>
+                  <p>Möchtest du {documentType === 'Antrag' || documentType === 'Social Media Post' ? 'diesen' : 'diese'} {documentType} mit anderen gemeinsam bearbeiten?</p>
+                  <div className="explanation-box">
+                    <p>Mit Grünerator Docs kannst du:</p>
+                    <ul>
+                      <li>
+                        <IoPeopleOutline size={18} />
+                        <span>Texte in Echtzeit gemeinsam bearbeiten</span>
+                      </li>
+                      <li>
+                        <IoFlashOutline size={18} />
+                        <span>Änderungen sofort für alle sichtbar machen</span>
+                      </li>
+                      <li>
+                        <IoLinkOutline size={18} />
+                        <span>Einfach per Link zusammenarbeiten</span>
+                      </li>
+                    </ul>
+                    <div className="info-note">
+                      <p>Hinweis: Der Link ist öffentlich, enthält aber einen Sicherheitsschlüssel und ist schwer zu erraten. Teile ihn dennoch nur mit Personen, denen du vertraust.</p>
+                    </div>
+                  </div>
                   <button 
-                    onClick={handleEtherpadExport} 
+                    onClick={handleDocsExport} 
                     disabled={loading}
                     className="export-action-button"
                   >
-                    {loading ? 'Wird exportiert...' : `${documentType} zu Grünerator Collaborate exportieren`}
+                    {loading ? 'Wird exportiert...' : 'Jetzt freigeben'}
                   </button>
                 </>
               ) : (
                 <>
-                  <p>Deine {documentType} wurde erfolgreich exportiert. Hier ist dein Collaborate-Link:</p>
+                  <p>{documentType === 'Antrag' || documentType === 'Social Media Post' ? 'Dein' : 'Deine'} {documentType} wurde erfolgreich freigegeben. Hier ist dein Link:</p>
                   <div className="url-container">
-                    <input type="text" value={padURL} readOnly className="url-input" />
-                    <button onClick={handleCopyCollaborateLink} className="copy-collaborate-link-button">
-                      <IoCopyOutline size={20} />
+                    <input type="text" value={docURL} readOnly className="url-input" />
+                    <button 
+                      onClick={handleCopyDocsLink} 
+                      className={`copy-docs-link-button ${isCopied ? 'copied' : ''}`}
+                    >
+                      {isCopied ? <IoCheckmark size={20} /> : <IoCopyOutline size={20} />}
                     </button>
                   </div>
                   <button onClick={handleOpenLink} className="open-button">
@@ -171,7 +189,8 @@ const ExportToDocument = ({ content, ...props }) => {
         onClick={handleExport}
         className="action-button"
         aria-label="Als Dokument exportieren"
-        {...props}
+        data-tooltip-id="action-tooltip"
+        data-tooltip-content="Docs Export"
       >
         <IoDocumentOutline size={16} />
       </button>

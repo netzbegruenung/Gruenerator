@@ -9,16 +9,17 @@ import {
 
 export const FontSizeControl = ({ fontSize, onControlChange }) => (
   <div className="font-size-control">
-    <span>{IMAGE_MODIFICATION.LABELS.FONT_SIZE}</span>
-    {IMAGE_MODIFICATION.FONT_SIZE.OPTIONS.map(option => (
-      <button 
-        key={option.label}
-        onClick={() => onControlChange('fontSize', option.value)} 
-        className={fontSize === option.value ? 'active' : ''}
-      >
-        {option.label}
-      </button>
-    ))}
+    <div className="font-size-buttons">
+      {IMAGE_MODIFICATION.FONT_SIZE.OPTIONS.map(option => (
+        <button 
+          key={option.label}
+          onClick={() => onControlChange('fontSize', option.value)} 
+          className={fontSize === option.value ? 'active' : ''}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
   </div>
 );
 
@@ -46,7 +47,6 @@ export const BalkenOffsetControl = ({ balkenOffset, onControlChange }) => {
     <div className="balken-offset-control">
       {Array.isArray(balkenOffset) && balkenOffset.map((offset, index) => (
         <div key={index} className="balken-offset-control-item">
-          <label>Zeile {index + 1}</label>
           <div className="balken-offset-buttons">
             <button onClick={(e) => {
               console.log('Left button clicked for index:', index); // Debugging
@@ -80,12 +80,12 @@ BalkenOffsetControl.propTypes = {
 BalkenOffsetControl.defaultProps = {
   balkenOffset: SHAREPIC_GENERATOR.DEFAULT_BALKEN_OFFSET,
 };
+
 export const ColorSchemeControl = ({ colorScheme, onControlChange }) => {
   return (
     <div className="color-scheme-control">
-      <div className="color-scheme-images">
+      <div className="color-scheme-grid">
         {IMAGE_MODIFICATION.COLOR_SCHEMES.map((scheme, index) => (
-        
           <button 
             key={index}
             className={`color-scheme-option ${JSON.stringify(colorScheme) === JSON.stringify(scheme.colors) ? 'active' : ''}`}
@@ -137,7 +137,9 @@ const CrossControlBase = ({ title, description, offset, onOffsetChange, step }) 
       <div className="cross-grid">
         <button onClick={() => handleMove('up')} className="cross-button up"><FaChevronUp /></button>
         <button onClick={() => handleMove('left')} className="cross-button left"><FaChevronLeft /></button>
-        <div className="offset-display"></div>
+        <div className="offset-display">
+          <span className="offset-value">{`${offset[0]},${offset[1]}`}</span>
+        </div>
         <button onClick={() => handleMove('right')} className="cross-button right"><FaChevronRight /></button>
         <button onClick={() => handleMove('down')} className="cross-button down"><FaChevronDown /></button>
       </div>
@@ -185,7 +187,6 @@ SonnenblumenControl.propTypes = {
 
 export const CreditControl = ({ credit, onControlChange }) => (
   <div className="credit-control">
-    <label htmlFor="credit">{IMAGE_MODIFICATION.LABELS.CREDIT}</label>
     <input
       type="text"
       id="credit"

@@ -98,11 +98,12 @@ async function addTextToImage(uploadedImageBuffer, processedText, validatedParam
 
     // Berechne die Positionen und Dimensionen der Textbalken
     const balkenHeight = fontSize * params.BALKEN_HEIGHT_FACTOR;
-    const totalBalkenHeight = balkenHeight * processedText.length;
-    let startY = (canvasHeight - totalBalkenHeight) / 2 + 80; // Erhöhter Offset nach unten
+    const activeTextLines = processedText.filter(line => line.text);
+    const totalBalkenHeight = balkenHeight * activeTextLines.length;
+    let startY = (canvasHeight - totalBalkenHeight) / 2 + 80;
     startY = Math.max(startY, 100);
 
-    const balkenPositions = processedText.map((line, index) => {
+    const balkenPositions = activeTextLines.map((line, index) => {
       const textWidth = ctx.measureText(line.text).width;
       const padding = fontSize * params.TEXT_PADDING_FACTOR;
       const rectWidth = Math.min(textWidth + padding * 2 + 20, canvasWidth - 20);
@@ -144,6 +145,24 @@ async function addTextToImage(uploadedImageBuffer, processedText, validatedParam
 
     let sunflowerX, sunflowerY;
     const sunflowerOverlap = sunflowerSize * params.SUNFLOWER_OVERLAP_FACTOR;
+    
+    // Referenzpunkt je nach Anzahl der Balken
+    const referenceY = activeTextLines.length === 2 ? 
+      balkenPositions[1].y + balkenHeight - sunflowerSize * 0.6 : 
+      textBlockBottom - sunflowerSize * 0.6;
+
+    // X-Position je nach Anzahl der Balken
+    const getReferenceX = (position) => {
+      if (activeTextLines.length === 2) {
+        const balken = balkenPositions[1];
+        return position.includes('Right') ? 
+          balken.x + balken.width - sunflowerSize * 0.7 : 
+          balken.x - sunflowerSize * 0.3;
+      }
+      return position.includes('Right') ? 
+        textBlockRight - sunflowerSize * 0.6 : 
+        textBlockLeft - sunflowerSize * 0.4;
+    };
 
     switch (sunflowerPosition) {
       case 'topLeft':
@@ -155,13 +174,21 @@ async function addTextToImage(uploadedImageBuffer, processedText, validatedParam
         sunflowerY = textBlockTop - sunflowerSize * 0.4;
         break;
       case 'bottomLeft':
-        sunflowerX = textBlockLeft - sunflowerSize * 0.4;
-        sunflowerY = textBlockBottom - sunflowerSize * 0.6;
+        if (activeTextLines.length === 2) {
+          sunflowerX = balkenPositions[1].x - sunflowerSize * 0.3;
+        } else {
+          sunflowerX = textBlockLeft - sunflowerSize * 0.4;
+        }
+        sunflowerY = referenceY;
         break;
       case 'bottomRight':
       default:
-        sunflowerX = textBlockRight - sunflowerSize * 0.6;
-        sunflowerY = textBlockBottom - sunflowerSize * 0.6;
+        if (activeTextLines.length === 2) {
+          sunflowerX = balkenPositions[1].x + balkenPositions[1].width - sunflowerSize * 0.5;
+        } else {
+          sunflowerX = textBlockRight - sunflowerSize * 0.6;
+        }
+        sunflowerY = referenceY;
         break;
     }
 
@@ -180,10 +207,10 @@ async function addTextToImage(uploadedImageBuffer, processedText, validatedParam
       const { background, text } = colors[index];
 
       const points = [
-        { x: x, y: y },
-        { x: x + width - (height * Math.tan(12 * Math.PI / 180)) / 2, y: y },
-        { x: x + width + (height * Math.tan(12 * Math.PI / 180)) / 2, y: y + height },
-        { x: x + (height * Math.tan(12 * Math.PI / 180)) / 2, y: y + height }
+        { x: x, y: y + height },
+        { x: x + width - (height * Math.tan(12 * Math.PI / 180)) / 2, y: y + height },
+        { x: x + width + (height * Math.tan(12 * Math.PI / 180)) / 2, y: y },
+        { x: x + (height * Math.tan(12 * Math.PI / 180)) / 2, y: y }
       ];
 
       ctx.fillStyle = background;
@@ -198,7 +225,7 @@ async function addTextToImage(uploadedImageBuffer, processedText, validatedParam
       ctx.fillStyle = text;
       const textX = x + width / 2;
       const textY = y + height / 2;
-      ctx.fillText(processedText[index].text, textX, textY);
+      ctx.fillText(activeTextLines[index].text, textX, textY);
 
       console.log(`Balken ${index} drawn at: x=${x}, y=${y}, width=${width}, height=${height}`);
     });

@@ -28,6 +28,16 @@ export const ROUTE_RELATIONSHIPS = {
       immediate: ['Antrag'],
       delayed: ['Pressemitteilung'],
       styles: ['typography', 'baseform']
+    },
+    '/wahlprogramm': {
+      immediate: ['WahlpruefsteinBundestagswahl'],
+      delayed: ['WahlpruefsteinThueringen'],
+      styles: ['typography', 'baseform']
+    },
+    '/wahlpruefstein-bundestagswahl': {
+      immediate: ['Wahlprogramm'],
+      delayed: ['WahlpruefsteinThueringen'],
+      styles: ['typography', 'baseform']
     }
   };
 

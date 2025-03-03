@@ -1,0 +1,91 @@
+/* Imports der aufgeteilten CSS-Dateien */
+@import './YouBase.css';
+@import './YouInput.css';
+@import './YouRecording.css';
+@import './YouResults.css';
+@import './YouResponsive.css';
+/* Import der BaseForm-Styles für den Bearbeitungsmodus */
+@import '../../../assets/styles/pages/baseform.css';
+
+/* Grundlegende Styles, die nicht in die anderen Dateien passen */
+.you-error {
+  margin-top: 20px;
+  padding: 12px 16px;
+  background-color: rgba(255, 241, 122, 0.2);
+  border: 1px solid var(--sonne);
+  border-radius: 8px;
+  color: var(--font-color);
+  text-align: center;
+  max-width: 750px;
+  width: 100%;
+}
+
+.you-reset-button {
+  padding: 8px 16px;
+  background-color: var(--background-color);
+  border: 1px solid var(--hover-color-alt);
+  border-radius: 6px;
+  color: var(--font-color);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  align-self: flex-end;
+  margin-top: 10px;
+}
+
+.you-reset-button:hover {
+  background-color: var(--hover-color-alt);
+}
+
+.you-reset-button.mt-3 {
+  margin-top: 12px;
+}
+
+.you-reset-button-container {
+  width: 100%;
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.you-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 20px 0;
+  gap: 12px;
+  color: var(--font-color);
+}
+
+/* Beispiel-Fragen im Stil der SearchPage */
+.example-questions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+  justify-content: center;
+  width: 100%;
+  max-width: 750px;
+  margin: 24px auto;
+}
+
+.example-question {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border: 1px solid var(--hover-color-alt);
+  border-radius: 20px;
+  color: var(--font-color);
+  background-color: var(--background-color-alt);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.9rem;
+}
+
+.example-question:hover {
+  background-color: var(--hover-color-alt);
+}
+
+.example-question span:first-child {
+  font-size: 16px;
+}
