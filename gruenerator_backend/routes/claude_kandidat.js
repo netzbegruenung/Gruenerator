@@ -75,7 +75,6 @@ Wichtig:
 
 Gib NUR die JSON-Datei zurück, ohne weitere Erklärungen.`,
       options: {
-        model: "claude-3-sonnet-20240229",
         max_tokens: 2000,
         temperature: 0.7
       },
