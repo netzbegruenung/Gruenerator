@@ -7,7 +7,7 @@ const Datenschutz = () => {
   return (
     <div className="page-container">
       <h1>Datenschutzerklärung</h1>
-      <p>Stand: 29. Mai 2024</p>
+      <p>Stand: 03. März 2025</p>
       
       <h2>Kurzzusammenfassung</h2>
       <p>
@@ -19,7 +19,7 @@ const Datenschutz = () => {
         personenbezogenen oder vertraulichen Daten eingibst.</strong>
       </p>
       <p>
-        <strong>Wenn Du die Sprachaufnahme-Funktion nutzt, werden Deine Sprachnachrichten ausschließlich auf unserem Server mit Whisper transkribiert und nicht an Dritte weitergegeben. Die Audiodaten werden nur für die Transkription verwendet und nach Abschluss des Vorgangs gelöscht. Die transkribierten Texte werden ebenfalls nicht dauerhaft gespeichert. Sie werden weder von Menschen angehört noch zu Trainingszwecken genutzt.</strong>
+        <strong>Wenn Du die Sprachaufnahme-Funktion oder den Reel-Grünerator nutzt, werden Deine Audio- und Videodaten ausschließlich auf unserem Server mit Whisper und FFmpeg verarbeitet und nicht an Dritte weitergegeben. Die Audio- und Videodaten werden nur für die Verarbeitung verwendet und direkt nach Abschluss des Vorgangs gelöscht. Die verarbeiteten Daten werden ebenfalls nicht dauerhaft gespeichert. Sie werden weder von Menschen angehört/angesehen noch zu Trainingszwecken genutzt.</strong>
       </p>
       <p>
         Ausführliche Informationen zur Datenschutzerklärung und Deinen Rechten
@@ -40,7 +40,7 @@ const Datenschutz = () => {
       </p>
 
       <h2 id="nutzungsbedingungen">Nutzungsbedingungen</h2>
-            <p>
+      <p>
         Die von Dir getätigten Eingaben werden im Hintergrund an ANTHROPIC
         weitergeleitet, dort verarbeitet und für 28 Tage gespeichert. Mit dem
         Absenden Deiner Eingabe sicherst Du zu, keine personenbezogenen oder
@@ -78,6 +78,20 @@ const Datenschutz = () => {
         ermöglichen.
       </p>
 
+      <h3>Verarbeitung von Video- und Audiodaten</h3>
+      <p>
+        Wenn Du den Reel-Grünerator oder die Sprachaufnahme-Funktion nutzt, werden Deine hochgeladenen Video- und Audiodaten wie folgt verarbeitet:
+        <ul>
+          <li>Die Daten werden ausschließlich auf unseren eigenen Servern verarbeitet</li>
+          <li>Für die Verarbeitung verwenden wir Whisper (Spracherkennung) und FFmpeg (Videobearbeitung)</li>
+          <li>Die Daten werden nicht an externe Dienste weitergeleitet</li>
+          <li>Die Original-Dateien werden direkt nach der Verarbeitung gelöscht</li>
+          <li>Die verarbeiteten Daten werden nicht dauerhaft gespeichert</li>
+          <li>Es erfolgt keine manuelle Sichtung oder Anhörung der Daten</li>
+          <li>Die Daten werden nicht zu Trainingszwecken verwendet</li>
+        </ul>
+      </p>
+
       <h4>b. Auf welcher Rechtsgrundlage werden diese Daten verarbeitet?</h4>
       <p>
         Die Daten werden auf der Grundlage <a href="https://dejure.org/gesetze/DSGVO/6.html">des Art. 6 Abs. 1 Buchstabe f
@@ -102,9 +116,6 @@ const Datenschutz = () => {
         <a href="https://www.anthropic.com/legal/privacy">Datenschutzerklärung von Anthropic</a> und der
         <a href="https://www.tavily.com/privacy">Datenschutzerklärung von Tavily</a>.
       </p>
-      <p>
-        Wenn Du die Sprachaufnahme-Funktion nutzt, werden Deine Audiodaten ausschließlich auf unseren eigenen Servern verarbeitet. Für die Transkription verwenden wir Whisper, eine Spracherkennungstechnologie, die lokal auf unserem Server läuft. Die Audiodaten werden nicht an externe Dienste weitergeleitet, nicht von Menschen angehört und nicht zu Trainingszwecken verwendet. Nach erfolgreicher Transkription werden die Audiodaten umgehend gelöscht. Auch die transkribierten Texte werden nicht dauerhaft gespeichert, sondern nur temporär für die aktuelle Sitzung verwendet.
-      </p>
 
       <h4>d. Wie lange werden die Daten gespeichert?</h4>
       <p>
@@ -116,13 +127,7 @@ const Datenschutz = () => {
 
       <h3>Art der gespeicherten Daten</h3>
       <p>
-        Folgende Daten werden in Supabase gespeichert:
-        <ul>
-          <li>Von Ihnen erstellte Inhalte (z.B. Texte, Entwürfe)</li>
-          <li>Metadaten zu diesen Inhalten (z.B. Erstellungsdatum, Änderungsdatum)</li>
-          <li>Eindeutige Identifikatoren für Ihre Inhalte</li>
-          <li>Transkribierte Texte aus Sprachaufnahmen werden nicht dauerhaft gespeichert, sondern nur temporär für die aktuelle Sitzung verwendet</li>
-        </ul>
+        Sie haben das Recht auf Auskunft, Berichtigung, Löschung und Einschränkung der Verarbeitung Ihrer gespeicherten Daten. Zur Ausübung dieser Rechte können Sie sich jederzeit an uns wenden.
       </p>
 
       <h3>Zweck der Datenspeicherung</h3>
@@ -143,11 +148,6 @@ const Datenschutz = () => {
       <h3>Rechtsgrundlage</h3>
       <p>
         Die Verarbeitung Ihrer Daten in Supabase erfolgt auf Grundlage von Art. 6 Abs. 1 lit. b DSGVO (Vertragserfüllung bzw. Durchführung vorvertraglicher Maßnahmen) sowie Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an der effizienten und sicheren Bereitstellung unserer Dienste).
-      </p>
-
-      <h3>Ihre Rechte</h3>
-      <p>
-        Sie haben das Recht auf Auskunft, Berichtigung, Löschung und Einschränkung der Verarbeitung Ihrer in Supabase gespeicherten Daten. Zur Ausübung dieser Rechte können Sie sich jederzeit an uns wenden.
       </p>
 
       <h3>3. Betroffenenrechte</h3>
