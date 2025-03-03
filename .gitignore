@@ -37,3 +37,4 @@ gruenerator_frontend/node_modules/.cache
 *.ntvs*
 *.njsproj
 *.sln
+.cursor/
