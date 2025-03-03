@@ -430,7 +430,6 @@ const Editor = React.memo(({ setEditorInstance = () => {} }) => {
         onAdjustText={adjustText}
         isAdjusting={isAdjusting}
         onConfirmAdjustment={onConfirmAdjustment}
-        highlightedRange={highlightedRange}
         onAiAdjustment={handleAiAdjustmentLocal}
         showAdjustButton={showAdjustButton}
         selectedText={selectedText}
