@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import '../../assets/styles/common/variables.css';
 import '../../assets/styles/common/global.css';
 import '../../assets/styles/components/button.css';
@@ -6,13 +7,19 @@ import '../../assets/styles/components/popup.css';
 
 const PopupNutzungsbedingungen = () => {
   const [visible, setVisible] = useState(false);
+  const location = useLocation();
+
+  // Prüfen, ob wir uns in einer Route ohne Header und Footer befinden
+  const isNoHeaderFooterRoute = location.pathname.includes('-no-header-footer');
 
   useEffect(() => {
+    // Popup nur anzeigen, wenn wir nicht in einer Route ohne Header und Footer sind
+    // und die Nutzungsbedingungen noch nicht akzeptiert wurden
     const hasAccepted = localStorage.getItem('termsAccepted');
-    if (!hasAccepted) {
+    if (!hasAccepted && !isNoHeaderFooterRoute) {
       setVisible(true);
     }
-  }, []);
+  }, [isNoHeaderFooterRoute]);
 
   const handleAccept = () => {
     localStorage.setItem('termsAccepted', 'true');
