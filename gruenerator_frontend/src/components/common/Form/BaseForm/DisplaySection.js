@@ -60,7 +60,7 @@ const DisplaySection = ({
   }, [getExportableContent, generatedContent, value]);
 
   return (
-    <div className="display-container">
+    <div className="display-container" id="display-section-container">
       <div className="display-header">
         <h3>{title}</h3>
         {generatedContent && (
