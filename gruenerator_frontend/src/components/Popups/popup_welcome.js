@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import '../../assets/styles/components/welcome-popup.css';
 
 const WelcomePopup = () => {
   const [isVisible, setIsVisible] = useState(() => {
@@ -15,60 +16,77 @@ const WelcomePopup = () => {
     window.open('https://896ca129.sibforms.com/serve/MUIFAFnH3lov98jrw3d75u_DFByChA39XRS6JkBKqjTsN9gx0MxCvDn1FMnkvHLgzxEh1JBcEOiyHEkyzRC-XUO2DffKsVccZ4r7CCaYiugoiLf1a-yoTxDwoctxuzCsmDuodwrVwEwnofr7K42jQc-saIKeVuB_8UxrwS18QIaahZml1qMExNno2sEC7HyMy9Nz4f2f8-UJ4QmW', '_blank');
   };
 
+  const handleCardClick = (url) => {
+    window.open(url, '_blank');
+  };
+
   if (!isVisible) {
     return null;
   }
 
   return (
-    <div className="welcome-popup-overlay">
-      <div className="welcome-popup">
-        <h1>Willkommen im Jahr 2025! 🎉</h1>
-        <div className="welcome-content">
-          <section className="feature-section">
-            <h2>Neue Features</h2>
-            <div className="feature-grid">
-              <div className="feature-card">
-                <span className="feature-emoji">🎨</span>
-                <h3>KI-Sharepics</h3>
-                <p>
-                  Erstelle professionelle Sharepics mit KI-Unterstützung.
-                  Beta-Version für Fax-Abonnenten.
-                </p>
-              </div>
-              <div className="feature-card">
-                <span className="feature-emoji">📱</span>
-                <h3>Canva Vorlagen</h3>
-                <p>
-                  Professionelle Vorlagen für Social Media und Print.
-                  Beta-Version für Newsletter-Abonnenten.
-                </p>
-              </div>
-              <div className="feature-card">
-                <span className="feature-emoji">✨</span>
-                <h3>Neues Design</h3>
-                <p>
-                  Moderner Look, bessere Übersicht und neue Startseite.
-                </p>
-              </div>
+    <div className="welcome-2025-overlay">
+      <div className="welcome-2025-modal">
+        <h2 className="welcome-2025-title">Das neue Grünerator-Update ist da</h2>
+        <div className="welcome-2025-content">
+          <p className="welcome-2025-intro">Entdecke die neuen Features:</p>
+          <div className="welcome-2025-grid">
+            <div 
+              className="welcome-2025-card welcome-2025-card-clickable"
+              onClick={() => handleCardClick('/reel')}
+            >
+              <span className="welcome-2025-emoji">🎬</span>
+              <h3>Reel-Grünerator</h3>
+              <p>
+                Erstelle tolle Reels mit automatischen Untertiteln
+              </p>
             </div>
-          </section>
-          <p className="beta-info">
-            Beta-Features werden zeitnah für alle freigeschaltet
-          </p>
+            <div 
+              className="welcome-2025-card welcome-2025-card-clickable"
+              onClick={() => handleCardClick('/suche')}
+            >
+              <span className="welcome-2025-emoji">🔍</span>
+              <h3>Gruugo-Suche</h3>
+              <p>
+                Finde schnell Infos zu grünen Themen mit KI!
+              </p>
+            </div>
+            <div 
+              className="welcome-2025-card welcome-2025-card-clickable"
+              onClick={() => handleCardClick('/universal')}
+            >
+              <span className="welcome-2025-emoji">📝</span>
+              <h3>Neue Grüneratoren</h3>
+              <p>
+                Universal-Tool mit Reden & Wahlprogrammen + Grüne Jugend
+              </p>
+            </div>
+            <div className="welcome-2025-card">
+              <span className="welcome-2025-emoji">✨</span>
+              <h3>Neues Design</h3>
+              <p>
+                Frischer Look & schnellere Textgenerierung
+              </p>
+            </div>
+          </div>
         </div>
         
-        <div className="welcome-button-container">
+        <p className="welcome-2025-exclusive-note">
+          Diese Features waren zunächst exklusiv für unsere Fax-Abonnenten verfügbar. Jetzt für alle zugänglich!
+        </p>
+        
+        <div className="welcome-2025-buttons">
           <button
             onClick={handleNewsletterClick}
-            className="welcome-button newsletter-button"
+            className="welcome-2025-button welcome-2025-button-primary"
           >
-            Newsletter abonnieren
+            Newsletter
           </button>
           <button
             onClick={handleCloseWelcomePopup}
-            className="welcome-button later-button"
+            className="welcome-2025-button welcome-2025-button-secondary"
           >
-            Später und zum Grünerator
+            Los geht&apos;s!
           </button>
         </div>
       </div>
