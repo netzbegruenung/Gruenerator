@@ -64,7 +64,6 @@ Gewünschte Redezeit (in Minuten): ${redezeit}`;
         }]
       }],
       options: {
-        model: "claude-3-5-sonnet-20240620",
         max_tokens: 4000,
         temperature: 0.3
       },
