@@ -1,8 +1,13 @@
 import React, { useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import '../../assets/styles/components/welcome-popup.css';
 
 const WelcomePopup = () => {
+  const location = useLocation();
+  const isNoHeaderFooterRoute = location.pathname.includes('-no-header-footer');
+
   const [isVisible, setIsVisible] = useState(() => {
+    if (isNoHeaderFooterRoute) return false;
     return !localStorage.getItem('popupShown2024');
   });
 
