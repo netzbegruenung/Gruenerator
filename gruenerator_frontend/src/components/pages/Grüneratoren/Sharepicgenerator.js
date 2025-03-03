@@ -1,13 +1,18 @@
 // SharepicGeneratorneu
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
-import { SharepicGeneratorProvider, useSharepicGeneratorContext } from '../../utils/Sharepic/SharepicGeneratorContext';
-import { useSharepicGeneration } from '../../hooks/sharepic/useSharepicGeneration';
-import { useSharepicRendering } from '../../hooks/sharepic/useSharepicRendering';
-import BaseForm from '../../common/BaseForm-Sharepic';
+import { SharepicGeneratorProvider, useSharepicGeneratorContext } from '../../../features/sharepic/core/utils/SharepicGeneratorContext';
+import { useSharepicGeneration } from '../../../features/sharepic/core/hooks/useSharepicGeneration';
+import { useSharepicRendering } from '../../../features/sharepic/core/hooks/useSharepicRendering';
+import BaseForm from '../../../features/sharepic/core/components/BaseForm-Sharepic';
+import WelcomePage from '../../common/WelcomePage';
 import ErrorBoundary from '../../ErrorBoundary';
-import { useGenerateSocialPost } from '../../hooks/useGenerateSocialPost';
-import { processImageForUpload } from '../../utils/imageCompression';
+import { processImageForUpload } from '../../../components/utils/imageCompression';
+import HelpDisplay from '../../common/HelpDisplay';
+import VerifyFeature from '../../common/VerifyFeature';
+import { SloganAlternativesDisplay } from '../../../features/sharepic/core/components/SloganAlternatives';
+import '../../../assets/styles/components/slogan-alternatives.css';
+import SharepicTypeSelector from '../../../features/sharepic/core/components/SharepicTypeSelector';
 
 import { 
   FORM_STEPS, 
@@ -16,55 +21,72 @@ import {
   ERROR_MESSAGES, 
 } from '../../utils/constants';
 
+const getHelpContent = (step, showingAlternatives = false) => {
+  switch (step) {
+    case FORM_STEPS.INPUT:
+      return {
+        title: "Thema des Sharepics",
+        content: "Beschreibe dein Thema und gib Details an. Die KI wird dir passende Textvorschläge generieren.",
+        tips: [
+          "Je konkreter dein Thema, desto besser die generierten Texte",
+          "Füge Details hinzu, um die Texte noch spezifischer zu machen",
+          "KI fügt automatisch einen Suchbegriff für ein passendes Unsplash-Hintergrundbild hinzu"
+        ]
+      };
+    case FORM_STEPS.PREVIEW:
+      return {
+        title: showingAlternatives ? "Text auswählen" : "Bild- und Sloganauswahl",
+        content: showingAlternatives 
+          ? "Wähle einen passenden Text für dein Sharepic aus."
+          : "Wähle ein passendes Bild für dein Sharepic aus und passe den Text an.",
+        tips: showingAlternatives 
+          ? [] 
+          : [
+              "Tippe auf den Unsplash-Button, um ein passendes Bild aus der Unsplash-Bibliothek zu finden",
+              "Lade das Unsplash-Bild herunter und dann hier hoch, um es zu verwenden",
+              "Klicke auf 'Alternativen anzeigen', um weitere Textvorschläge zu sehen",
+              "Du kannst den Text in den Eingabefeldern weiter anpassen"
+            ]
+      };
+    default:
+      return null;
+  }
+};
+
 function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
+  const [hasSeenWelcome, setHasSeenWelcome] = useState(() => {
+    return localStorage.getItem('hasSeenSharepicWelcome') === 'true';
+  });
+
   const { 
     state, 
     setFile,
     setError, 
     updateFormData, 
-    handleUnsplashSearch, 
-    fetchFullSizeImage, 
-    triggerDownload,
     modifyImage,
     setLottieVisible, 
-
+    setAlternatives,
+    selectSlogan
   } = useSharepicGeneratorContext();
 
   const { generateText, generateImage, loading: generationLoading, error: generationError } = useSharepicGeneration();
 
   const { renderFormFields } = useSharepicRendering();
-  const [errors, setErrors] = useState({}); 
-  const [searchQuery, setSearchQuery] = useState('');
+  const [errors, setErrors] = useState({});
+  const [showAlternatives, setShowAlternatives] = useState(false);
 
-  const { generatePost, loading: generatePostLoading, error: generatePostError } = useGenerateSocialPost();
-const [generatedPosts, setGeneratedPosts] = useState({});
-const [platforms, setPlatforms] = useState({
-  facebook: false,
-  instagram: false,
-  twitter: false,
-  linkedin: false,
-  actionIdeas: false
-});
-
-const handlePlatformChange = useCallback((platform) => {
-  setPlatforms(prev => ({ ...prev, [platform]: !prev[platform] }));
-}, []);
-
-const handleGeneratePost = useCallback(async () => {
-  const selectedPlatforms = Object.keys(platforms).filter(key => platforms[key] && key !== 'actionIdeas');
-  const includeActionIdeas = platforms.actionIdeas;
-  
-  try {
-    const newPosts = await generatePost(state.formData.thema, state.formData.details, selectedPlatforms, includeActionIdeas);
-    if (newPosts) {
-      setGeneratedPosts(newPosts);
-      updateFormData({ generatedPosts: newPosts });
+  useEffect(() => {
+    if (hasSeenWelcome && state.currentStep === FORM_STEPS.WELCOME) {
+      updateFormData({ currentStep: FORM_STEPS.TYPE_SELECT });
     }
-  } catch (error) {
-    console.error('Fehler beim Generieren der Posts:', error);
-    // Hier könnten Sie einen Fehlerzustand setzen oder eine Benachrichtigung anzeigen
-  }
-}, [generatePost, state.formData, platforms, updateFormData]);
+  }, [hasSeenWelcome, state.currentStep, updateFormData]);
+
+  useEffect(() => {
+    if (!hasSeenWelcome) {
+      localStorage.setItem('hasSeenSharepicWelcome', 'true');
+      setHasSeenWelcome(true);
+    }
+  }, [hasSeenWelcome]);
 
   const validateForm = useCallback((formData) => {
     const newErrors = {};
@@ -75,27 +97,16 @@ const handleGeneratePost = useCallback(async () => {
     return Object.keys(newErrors).length === 0;
   }, []);
 
-  useEffect(() => {
-    console.log('SharepicGenerator: Current step:', state.currentStep);
-    console.log('SharepicGenerator: Generated image src:', state.generatedImageSrc);
-    console.log('SharepicGenerator: Form data:', state.formData);
-  }, [state.currentStep, state.generatedImageSrc, state.formData]);
-
-  const handleUnsplashSelect = useCallback((selectedImage) => {
-    console.log('Selected Unsplash image:', selectedImage);
-    updateFormData({ selectedImage });
-  }, [updateFormData]);
-
   const handleChange = useCallback((e) => {
     const { name, value } = e.target;
     updateFormData({ [name]: value });
   }, [updateFormData]);
 
   const handleFormSubmit = useCallback(async (event) => {
-    console.log(SHAREPIC_GENERATOR.LOG_MESSAGES.FORM_SUBMISSION_STARTED);
     if (event) event.preventDefault();
     
     updateFormData({ loading: true });
+    setError(''); // Reset error state
     
     try {
       if (!validateForm(state.formData)) {
@@ -103,90 +114,87 @@ const handleGeneratePost = useCallback(async () => {
       }
   
       if (state.currentStep === FORM_STEPS.INPUT) {
-        console.log(SHAREPIC_GENERATOR.LOG_MESSAGES.GENERATING_TEXT, state.currentStep);
-        setLottieVisible(true); // Lottie sichtbar machen
+        setLottieVisible(true);
         const result = await generateText(state.formData.type, { 
           thema: state.formData.thema, 
-          details: state.formData.details 
+          details: state.formData.details,
+          quote: state.formData.quote,
+          name: state.formData.name
         });
         
         if (!result) throw new Error(ERROR_MESSAGES.NO_TEXT_DATA);
         
-        console.log(SHAREPIC_GENERATOR.LOG_MESSAGES.TEXT_GENERATED);
-        await updateFormData({ 
-          ...result, 
-          type: state.formData.type, 
-          currentStep: FORM_STEPS.PREVIEW 
-        });
-        console.log(SHAREPIC_GENERATOR.LOG_MESSAGES.FORM_DATA_UPDATED, FORM_STEPS.PREVIEW);
-  
-  
-      } else if (state.currentStep === FORM_STEPS.PREVIEW) {
-        let fileToUse = state.file;
-        
-        try {
-          if (!fileToUse && state.selectedImage) {
-            const fullSizeImage = await fetchFullSizeImage(state.selectedImage.fullImageUrl);
-            fileToUse = await processImageForUpload(fullSizeImage);
-            await updateFormData({ uploadedImage: fileToUse });
-            await triggerDownload(state.selectedImage.downloadLocation);
-          } else if (state.file) {
-            fileToUse = await processImageForUpload(state.file);
-            await updateFormData({ uploadedImage: fileToUse });
-          }
-
-          if (!fileToUse) {
-            throw new Error("Bitte wählen Sie ein Bild aus");
-          }
-
-          const imageResult = await generateImage({ 
+        if (state.formData.type === 'Zitat') {
+          await updateFormData({ 
             ...state.formData,
-            image: fileToUse
+            quote: result.quote,
+            name: result.name || state.formData.name,
+            currentStep: FORM_STEPS.PREVIEW,
+            sloganAlternatives: result.alternatives || []
           });
-
-          if (!imageResult) {
-            throw new Error("Keine Bilddaten empfangen");
-          }
-
+          setAlternatives(result.alternatives || []);
+        } else {
           await updateFormData({ 
-            generatedImageSrc: imageResult, 
-            currentStep: FORM_STEPS.RESULT
+            ...result.mainSlogan,
+            type: state.formData.type, 
+            currentStep: FORM_STEPS.PREVIEW,
+            searchTerms: result.searchTerms,
+            sloganAlternatives: result.alternatives || []
           });
-
-        } catch (error) {
-          console.error('Error in image processing:', error);
-          setError(error.message);
-          throw error;
+          setAlternatives(result.alternatives || []);
         }
+      } else if (state.currentStep === FORM_STEPS.PREVIEW) {
+        if (!state.file) {
+          setError("Bitte wählen Sie ein Bild aus");
+          return;
+        }
+
+        const imageResult = await generateImage({ 
+          ...state.formData,
+          image: state.file
+        });
+
+        if (!imageResult) {
+          throw new Error("Keine Bilddaten empfangen");
+        }
+
+        await updateFormData({ 
+          generatedImageSrc: imageResult, 
+          currentStep: FORM_STEPS.RESULT
+        });
       } else if (state.currentStep === FORM_STEPS.RESULT) {
-        const { fontSize, balkenOffset, colorScheme, credit } = state.formData;
-        try {
-          console.log(SHAREPIC_GENERATOR.LOG_MESSAGES.MODIFYING_IMAGE, { fontSize, balkenOffset, colorScheme });
-          const modifiedImage = await modifyImage({ fontSize, balkenOffset, colorScheme, credit });
-          console.log(SHAREPIC_GENERATOR.LOG_MESSAGES.IMAGE_MODIFIED);
-          
-          if (!modifiedImage) {
-            throw new Error(ERROR_MESSAGES.NO_MODIFIED_IMAGE_DATA);
-          }
-          
-          await updateFormData({ 
-            generatedImageSrc: modifiedImage,
-            fontSize,
-            balkenOffset,
-            colorScheme,
-            credit
-          });
-        } catch (error) {
-          console.error('Error in modifyImage:', error);
-          setError(`${ERROR_MESSAGES.NETWORK_ERROR}: ${error.message}`);
+        const { fontSize, balkenOffset, colorScheme, credit, uploadedImage, image } = state.formData;
+        const imageToUse = uploadedImage || image || state.file;
+        
+        if (!imageToUse) {
+          throw new Error("Kein Bild zum Modifizieren gefunden");
         }
+
+        const modifiedImage = await modifyImage({ 
+          fontSize, 
+          balkenOffset, 
+          colorScheme, 
+          credit,
+          image: imageToUse
+        });
+        
+        if (!modifiedImage) {
+          throw new Error(ERROR_MESSAGES.NO_MODIFIED_IMAGE_DATA);
+        }
+        
+        await updateFormData({ 
+          generatedImageSrc: modifiedImage,
+          fontSize,
+          balkenOffset,
+          colorScheme,
+          credit,
+          image: imageToUse
+        });
       }
     } catch (error) {
-      console.error('Error in form submission:', error);
       setError(error.message);
     } finally {
       updateFormData({ loading: false });
-
     }
   }, [
     state.currentStep, 
@@ -200,18 +208,13 @@ const handleGeneratePost = useCallback(async () => {
     setLottieVisible,
     state.file,
     state.selectedImage,
-    fetchFullSizeImage,
     processImageForUpload,
-    triggerDownload
+    setAlternatives,
+    showAlternatives
   ]);
 
   useEffect(() => {
-    console.log('SharepicGenerator state update:', {
-      currentStep: state.currentStep,
-      isSubmitting: state.isSubmitting,
-      currentSubmittingStep: state.currentSubmittingStep,
-      isLottieVisible: state.isLottieVisible,
-    });
+    // Entferne den gesamten Effekt, da er nur für Logging verwendet wurde
   }, [state.currentStep, state.isSubmitting, state.currentSubmittingStep, state.isLottieVisible]);
   
   const handleBack = useCallback(() => {
@@ -237,49 +240,31 @@ const handleGeneratePost = useCallback(async () => {
   const handleFileChange = useCallback(async (selectedFile) => {
     try {
       if (selectedFile) {
-        console.log('Verarbeite neue Datei:', selectedFile);
-        setFile(selectedFile); // Zuerst die Originaldatei setzen
-        
-        // Dann die Datei verarbeiten
+        setFile(selectedFile);
         const processedFile = await processImageForUpload(selectedFile);
-        updateFormData({ 
-          uploadedImage: processedFile,
-          selectedImage: null // Unsplash-Auswahl zurücksetzen
-        });
         
-        console.log('Bild erfolgreich verarbeitet:', {
-          originalSize: selectedFile.size,
-          processedSize: processedFile.size,
-          type: processedFile.type
+        const imageFile = processedFile instanceof File ? processedFile : 
+          new File([processedFile], selectedFile.name || 'image.jpg', { 
+            type: processedFile.type || 'image/jpeg' 
+          });
+
+        updateFormData({ 
+          uploadedImage: imageFile,
+          image: imageFile
         });
       }
     } catch (error) {
-      console.error('Fehler bei der Bildverarbeitung:', error);
       setError(`Fehler bei der Bildverarbeitung: ${error.message}`);
     }
   }, [setFile, updateFormData, setError]);
   
 
   useEffect(() => {
-    console.log('SharepicGenerator: Current step:', state.currentStep);
-    console.log('SharepicGenerator: Form data:', state.formData);
-  }, [state.currentStep, state.generatedImageSrc, state.formData]);
+    // Entferne den gesamten Effekt, da er nur für Logging verwendet wurde
+  }, [state.file, state.formData.uploadedImage, state.selectedImage, state.currentStep, state.error]);
   
-  useEffect(() => {
-    if (state.currentStep === FORM_STEPS.PREVIEW && state.formData.searchTerms?.length > 0) {
-      const newQuery = state.formData.searchTerms.join(' ');
-      if (newQuery !== searchQuery) {
-        setSearchQuery(newQuery);
-        handleUnsplashSearch(newQuery);
-      }
-    }
-  }, [state.currentStep, state.formData.searchTerms, searchQuery, handleUnsplashSearch]);
-
   const handleControlChange = useCallback((name, value) => {
-    console.log(`Handling control change: ${name}`, value);
     if (name === 'balkenOffset' && !Array.isArray(value)) {
-      console.warn('Invalid balkenOffset value:', value);
-      // Verwende den aktuellen Wert oder einen Standardwert
       value = Array.isArray(state.formData.balkenOffset) 
         ? state.formData.balkenOffset 
         : SHAREPIC_GENERATOR.DEFAULT_BALKEN_OFFSET;
@@ -287,17 +272,28 @@ const handleGeneratePost = useCallback(async () => {
     updateFormData({ [name]: value });
   }, [state.formData.balkenOffset, updateFormData]);
 
-  const submitButtonText = useMemo(() => 
-    state.currentStep === FORM_STEPS.INPUT ? BUTTON_LABELS.GENERATE_TEXT :
-    state.currentStep === FORM_STEPS.PREVIEW ? BUTTON_LABELS.GENERATE_IMAGE :
-    BUTTON_LABELS.MODIFY_IMAGE,
-  [state.currentStep]);
+  const submitButtonText = useMemo(() => {
+    const isMobile = window.innerWidth <= 768;
+    return state.currentStep === FORM_STEPS.INPUT ? BUTTON_LABELS.GENERATE_TEXT :
+    state.currentStep === FORM_STEPS.PREVIEW ? (isMobile ? BUTTON_LABELS.GENERATE_IMAGE_MOBILE : BUTTON_LABELS.GENERATE_IMAGE) :
+    BUTTON_LABELS.MODIFY_IMAGE;
+  }, [state.currentStep]);
 
   const memoizedFormFields = useMemo(() => {
-    console.log('Rendering memoizedFormFields for step:', state.currentStep);
     const fields = renderFormFields(state.currentStep, state.formData, handleChange, errors);
     return fields;
-  }, [state.currentStep, state.formData, handleChange, errors, renderFormFields]);
+  }, [state.currentStep, state.formData, handleChange, errors]);
+
+  const handleSloganSelect = useCallback((selected) => {
+    if (state.formData.type === 'Zitat') {
+      updateFormData({
+        ...state.formData,
+        quote: selected.quote
+      });
+    } else {
+      selectSlogan(selected);
+    }
+  }, [state.formData.type, updateFormData, selectSlogan]);
 
   const fileUploadProps = {
     loading: state.loading,
@@ -305,63 +301,123 @@ const handleGeneratePost = useCallback(async () => {
     handleChange: handleFileChange,
     error: state.error,
     allowedTypes: SHAREPIC_GENERATOR.ALLOWED_FILE_TYPES,
-    selectedUnsplashImage: state.selectedImage,
+    alternativesButtonProps: {
+      isExpanded: showAlternatives,
+      onClick: () => {
+        setShowAlternatives(!showAlternatives);
+      },
+      onSloganSelect: handleSloganSelect
+    }
   };
 
-  useEffect(() => {
-    console.log('SharepicGenerator Zustand:', {
-      file: state.file,
-      uploadedImage: state.formData.uploadedImage,
-      selectedImage: state.selectedImage,
-      currentStep: state.currentStep,
-      error: state.error
+  const helpContent = getHelpContent(state.currentStep, showAlternatives);
+  const helpDisplay = helpContent ? (
+    <HelpDisplay
+      content={helpContent.content}
+      tips={helpContent.tips}
+    />
+  ) : null;
+
+  const displayContent = useMemo(() => {
+    if (state.currentStep === FORM_STEPS.PREVIEW) {
+      return (
+        <>
+          {helpDisplay}
+          {showAlternatives && (
+            <SloganAlternativesDisplay
+              currentSlogan={
+                state.formData.type === 'Zitat'
+                  ? { quote: state.formData.quote }
+                  : {
+                      line1: state.formData.line1,
+                      line2: state.formData.line2,
+                      line3: state.formData.line3
+                    }
+              }
+              alternatives={state.formData.sloganAlternatives}
+              onSloganSelect={handleSloganSelect}
+            />
+          )}
+        </>
+      );
+    }
+    return helpDisplay;
+  }, [state.currentStep, state.formData, helpDisplay, showAlternatives, handleSloganSelect]);
+
+  const handleTypeSelect = useCallback((selectedType) => {
+    updateFormData({ 
+      type: selectedType,
+      currentStep: FORM_STEPS.INPUT 
     });
-  }, [state.file, state.formData.uploadedImage, state.selectedImage, state.currentStep, state.error]);
+  }, [updateFormData]);
+
+  if (state.currentStep === FORM_STEPS.WELCOME && !hasSeenWelcome) {
+    return (
+      <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
+        <WelcomePage
+          title="Sharepic-Grünerator"
+          description="Erstelle professionelle Sharepics für Social Media. Die KI hilft dir dabei, deine Botschaft optimal zu präsentieren."
+          stepsTitle="In drei Schritten zu deinem Sharepic"
+          steps={[
+            {
+              title: "Thema & Text",
+              description: "Gib dein Thema ein und lass die KI einen passenden Text generieren."
+            },
+            {
+              title: "Bild auswählen",
+              description: "Wähle ein passendes Bild aus oder lade dein eigenes hoch."
+            },
+            {
+              title: "Design anpassen",
+              description: "Passe Farben und Schriftgröße deinen Wünschen an."
+            }
+          ]}
+          onStart={() => updateFormData({ currentStep: FORM_STEPS.TYPE_SELECT })}
+        />
+      </div>
+    );
+  }
+
+  if (state.currentStep === FORM_STEPS.TYPE_SELECT) {
+    return <SharepicTypeSelector onTypeSelect={handleTypeSelect} />;
+  }
 
   return (
     <ErrorBoundary>
-      <div
-        className={`container ${showHeaderFooter ? 'with-header' : ''} ${darkMode ? 'dark-mode' : ''}`}
-        role="main"
-        aria-label="Sharepic Generator"
-      >
-       <BaseForm
-    title={SHAREPIC_GENERATOR.TITLE}
-    onSubmit={handleFormSubmit}
-    onBack={handleBack}
-    loading={state.loading || generationLoading}
-    error={state.error || generationError}
-    generatedContent={state.generatedImageSrc}
-    useDownloadButton={state.currentStep === FORM_STEPS.RESULT}
-    showBackButton={state.currentStep > FORM_STEPS.INPUT}
-    submitButtonText={submitButtonText}
-    isSharepicGenerator={true}
-    onUnsplashSearch={handleUnsplashSearch}
-    currentStep={state.currentStep}
-    isLottieVisible={state.isLottieVisible}    
-    onUnsplashSelect={handleUnsplashSelect}
-    formErrors={errors}
-    isSubmitting={state.isSubmitting}
-    currentSubmittingStep={state.currentSubmittingStep}
-    credit={state.formData.credit}
-    onGeneratePost={handleGeneratePost}
-    generatePostLoading={generatePostLoading}
-    generatePostError={generatePostError}
-    generatedPosts={generatedPosts}
-    platforms={platforms}
-    onPlatformChange={handlePlatformChange}
-    includeActionIdeas={platforms.actionIdeas}
-    fileUploadProps={fileUploadProps}
-    fontSize={state.formData.fontSize || SHAREPIC_GENERATOR.DEFAULT_FONT_SIZE}
-  balkenOffset={state.formData.balkenOffset || SHAREPIC_GENERATOR.DEFAULT_BALKEN_OFFSET}
-  colorScheme={state.formData.colorScheme || SHAREPIC_GENERATOR.DEFAULT_COLOR_SCHEME}
-  balkenGruppenOffset={state.formData.balkenGruppenOffset || [0, 0]}
-        sunflowerOffset={state.formData.sunflowerOffset || [0, 0]}
-        onControlChange={handleControlChange}
+      <VerifyFeature feature="sharepic">
+        <div
+          className={`container ${showHeaderFooter ? 'with-header' : ''} ${darkMode ? 'dark-mode' : ''}`}
+          role="main"
+          aria-label="Sharepic Generator"
         >
-    {memoizedFormFields}
-  </BaseForm>
-      </div>
+          <BaseForm
+            title={helpContent ? helpContent.title : SHAREPIC_GENERATOR.TITLE}
+            onSubmit={handleFormSubmit}
+            onBack={handleBack}
+            loading={state.loading || generationLoading}
+            error={state.error || generationError}
+            generatedContent={state.generatedImageSrc || displayContent}
+            useDownloadButton={state.currentStep === FORM_STEPS.RESULT}
+            showBackButton={state.currentStep > FORM_STEPS.INPUT}
+            submitButtonText={submitButtonText}
+            currentStep={state.currentStep}
+            isLottieVisible={state.isLottieVisible}    
+            formErrors={errors}
+            isSubmitting={state.isSubmitting}
+            currentSubmittingStep={state.currentSubmittingStep}
+            credit={state.formData.credit}
+            fileUploadProps={fileUploadProps}
+            fontSize={state.formData.fontSize || SHAREPIC_GENERATOR.DEFAULT_FONT_SIZE}
+            balkenOffset={state.formData.balkenOffset || SHAREPIC_GENERATOR.DEFAULT_BALKEN_OFFSET}
+            colorScheme={state.formData.colorScheme || SHAREPIC_GENERATOR.DEFAULT_COLOR_SCHEME}
+            balkenGruppenOffset={state.formData.balkenGruppenOffset || [0, 0]}
+            sunflowerOffset={state.formData.sunflowerOffset || [0, 0]}
+            onControlChange={handleControlChange}
+          >
+            {memoizedFormFields}
+          </BaseForm>
+        </div>
+      </VerifyFeature>
     </ErrorBoundary>
   );
 

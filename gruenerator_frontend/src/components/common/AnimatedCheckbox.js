@@ -1,5 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
+import '../../assets/styles/components/animatedcheckbox.css';
 
 const StyledCheckbox = ({ id, checked, onChange, label }) => {
   const checkboxId = id || `checkbox-${Math.random().toString(36).substr(2, 9)}`;

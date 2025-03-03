@@ -1,13 +1,11 @@
 //header.js
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { PiFileText, PiNewspaper, PiChatsCircle, PiCaretDown, PiMicrophone, PiSun, PiMoon, PiLightbulb, PiBook } from 'react-icons/pi';
-import '../../../assets/styles/common/variables.css';
-import '../../../assets/styles/common/global.css';
-import '../../../assets/styles/components/header.css';
+import { PiCaretDown, PiSun, PiMoon } from 'react-icons/pi';
 import NavMenu from './NavMenu';
 import useDarkMode from '../../hooks/useDarkMode';
 import useAccessibility from '../../hooks/useAccessibility';
+import { menuItems, directMenuItems, MenuItem, menuStyles, handleMenuInteraction } from './menuData';
 
 const Header = () => {
     const [menuActive, setMenuActive] = useState(false);
@@ -19,7 +17,6 @@ const Header = () => {
     useEffect(() => {
         const headerElements = headerRef.current.querySelectorAll('a, button, .header-dropdown > span');
         const cleanup = setupKeyboardNav(Array.from(headerElements));
-
         return cleanup;
     }, [setupKeyboardNav]);
 
@@ -41,15 +38,25 @@ const Header = () => {
     };
 
     const handleKeyDown = (event, dropdown) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
+        handleMenuInteraction(event, 'keydown', () => {
             setActiveDropdown(activeDropdown === dropdown ? null : dropdown);
             announce(activeDropdown === dropdown ? `${dropdown} Untermenü geschlossen` : `${dropdown} Untermenü geöffnet`);
-        }
+        });
     };
 
     const handleLinkClick = (path, label) => {
         announce(`Navigation zu ${label}`);
+    };
+
+    const renderDropdownContent = (menuType) => {
+        const menu = menuItems[menuType];
+        return menu.items.map(item => (
+            <li key={item.id}>
+                <Link to={item.path} onClick={() => handleLinkClick(item.path, item.title)}>
+                    <MenuItem item={item} />
+                </Link>
+            </li>
+        ));
     };
 
     return (
@@ -78,43 +85,42 @@ const Header = () => {
                 </label>
                 <nav className={`header-nav ${menuActive ? 'active' : ''}`} id="nav" aria-label="Hauptnavigation">
                     <ul>
-                        <li className="header-dropdown" 
-                            onMouseEnter={() => handleMouseEnter('grueneratoren')} 
-                            onMouseLeave={handleMouseLeave}
-                            onKeyDown={(e) => handleKeyDown(e, 'grueneratoren')}
-                            tabIndex="0"
-                            aria-haspopup="true"
-                            aria-expanded={activeDropdown === 'grueneratoren'}
-                        >
-                            <span>
-                                Grüneratoren <PiCaretDown className={activeDropdown === 'grueneratoren' ? 'open' : ''} aria-hidden="true" />
-                            </span>
-                            <ul className={`header-dropdown-content ${activeDropdown === 'grueneratoren' ? 'show' : ''}`} aria-label="Grüneratoren Untermenü">
-                                <li><Link to="/antrag" onClick={() => handleLinkClick('/antragsgenerator', 'Anträge')}><PiFileText aria-hidden="true" /> Anträge</Link></li>
-                                <li><Link to="/pressemitteilung" onClick={() => handleLinkClick('/pressemitteilung', 'Pressemitteilungen')}><PiNewspaper aria-hidden="true" /> Pressemitteilungen</Link></li>
-                                <li><Link to="/socialmedia" onClick={() => handleLinkClick('/socialmedia', 'Social Media')}><PiChatsCircle aria-hidden="true" /> Social Media</Link></li>
-                                <li><Link to="/rede" onClick={() => handleLinkClick('/rede', 'Politische Rede')}><PiMicrophone aria-hidden="true" /> Politische Rede</Link></li>
-                                <li><Link to="/antragscheck" onClick={() => handleLinkClick('/antragscheck', 'Antrag checken')}><PiLightbulb aria-hidden="true" /> Antrag checken</Link></li>
-                                <li><Link to="/wahlprogramm" onClick={() => handleLinkClick('/wahlprogramm', 'Wahlprogramm')}><PiBook aria-hidden="true" /> Wahlprogramm</Link></li>
-                            </ul>
+                        {Object.entries(menuItems).map(([key, menu]) => (
+                            <li key={key} 
+                                className="header-dropdown"
+                                onMouseEnter={() => handleMouseEnter(key)}
+                                onMouseLeave={handleMouseLeave}
+                                onKeyDown={(e) => handleKeyDown(e, key)}
+                                tabIndex="0"
+                                aria-haspopup="true"
+                                aria-expanded={activeDropdown === key}
+                            >
+                                <span className="header-nav-item">
+                                    <span>{menu.title}</span>
+                                    <PiCaretDown 
+                                        className={activeDropdown === key ? 'open' : ''} 
+                                        aria-hidden="true" 
+                                    />
+                                </span>
+                                <ul className={`${menuStyles.dropdownContent.base} ${activeDropdown === key ? menuStyles.dropdownContent.show : ''}`} 
+                                    aria-label={`${menu.title} Untermenü`}
+                                >
+                                    {renderDropdownContent(key)}
+                                </ul>
+                            </li>
+                        ))}
+                        <li className="header-search">
+                            <Link to={directMenuItems.suche.path} onClick={() => handleLinkClick(directMenuItems.suche.path, directMenuItems.suche.title)} className="header-nav-item">
+                                <span>{directMenuItems.suche.title}</span>
+                                <directMenuItems.suche.icon aria-hidden="true" />
+                            </Link>
                         </li>
-                        <li className="header-dropdown" 
-                            onMouseEnter={() => handleMouseEnter('gpts')} 
-                            onMouseLeave={handleMouseLeave}
-                            onKeyDown={(e) => handleKeyDown(e, 'gpts')}
-                            tabIndex="0"
-                            aria-haspopup="true"
-                            aria-expanded={activeDropdown === 'gpts'}
-                        >
-                            <span>
-                                GPTs für ChatGPT <PiCaretDown className={activeDropdown === 'gpts' ? 'open' : ''} aria-hidden="true" />
-                            </span>
-                            <ul className={`header-dropdown-content ${activeDropdown === 'gpts' ? 'show' : ''}`} aria-label="GPTs Untermenü">
-                                <li><a href="https://chat.openai.com/g/g-ZZwx8kZS3-grunerator-social-media" target="_blank" rel="noopener noreferrer" onClick={() => announce('Öffne externen Link: Social Media')}><PiChatsCircle aria-hidden="true" /> Social Media</a></li>
-                                <li><a href="https://chatgpt.com/g/g-Npcb04iH7-grunerator-pressemitteilungen " target="_blank" rel="noopener noreferrer" onClick={() => announce('Öffne externen Link: Pressemitteilung')}><PiNewspaper aria-hidden="true" /> Pressemitteilung</a></li>
-                            </ul>
+                        <li className="header-search">
+                            <Link to={directMenuItems.reel.path} onClick={() => handleLinkClick(directMenuItems.reel.path, directMenuItems.reel.title)} className="header-nav-item">
+                                <span>{directMenuItems.reel.title}</span>
+                                <directMenuItems.reel.icon aria-hidden="true" />
+                            </Link>
                         </li>
-
                     </ul>
                 </nav>
                 <NavMenu open={menuActive} onClose={handleNavMenuClose} />

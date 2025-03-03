@@ -76,3 +76,6 @@ typings/
 
 # DynamoDB Local files
 .dynamodb/
+
+# Audio files
+uploads/voice/*.wav

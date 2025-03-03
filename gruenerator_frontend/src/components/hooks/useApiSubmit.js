@@ -31,18 +31,31 @@ const useApiSubmit = (endpoint) => {
 
       const response = await processText(endpoint, requestData);
       
-      console.log('[useApiSubmit] Response Details:', {
-        hasContent: !!response.content,
-        provider: response.metadata?.provider,
-        backupRequested: response.metadata?.backupRequested,
-        timestamp: response.metadata?.timestamp
-      });
+      console.log('[useApiSubmit] Full API Response:', response);
+      console.log('[useApiSubmit] Response Type:', typeof response);
+      console.log('[useApiSubmit] Response Keys:', Object.keys(response));
 
       // Spezielle Behandlung für verschiedene Endpoints
-      if (endpoint === '/claude_social') {
+      if (endpoint === 'claude/search-query') {
+        console.log('[useApiSubmit] Processing search query response:', response);
         if (response && response.content) {
           setSuccess(true);
-          return response; // Gebe komplette Response für Social Media zurück
+          return response;
+        }
+      } else if (endpoint === '/dreizeilen_claude' || endpoint === 'dreizeilen_claude') {
+        console.log('[useApiSubmit] Processing dreizeilen_claude response:', {
+          hasMainSlogan: !!response?.mainSlogan,
+          hasAlternatives: !!response?.alternatives,
+          mainSloganType: typeof response?.mainSlogan,
+          alternativesType: typeof response?.alternatives
+        });
+        if (response && 
+            typeof response === 'object' && 
+            response.mainSlogan && 
+            response.alternatives && 
+            Array.isArray(response.alternatives)) {
+          setSuccess(true);
+          return response;
         }
       } else if (endpoint.includes('etherpad')) {
         if (response && response.padURL) {
@@ -53,6 +66,51 @@ const useApiSubmit = (endpoint) => {
         if (response && response.suggestions && response.suggestions.length > 0) {
           setSuccess(true);
           return response.suggestions[0];
+        }
+      } else if (endpoint === 'zitat_claude') {
+        if (response && response.quote) {
+          setSuccess(true);
+          return response;
+        }
+      } else if (endpoint === 'search') {
+        console.log('[useApiSubmit] Verarbeite Suchantwort:', response);
+        // Überprüfe verschiedene mögliche Antwortstrukturen
+        if (response && (Array.isArray(response.results) || Array.isArray(response))) {
+          setSuccess(true);
+          return response;
+        }
+      } else if (endpoint === 'claude/antrag' || endpoint === 'claude/antrag-simple') {
+        console.log('[useApiSubmit] Processing antrag response:', response);
+        if (response) {
+          // Prüfe auf verschiedene mögliche Antwortstrukturen
+          if (response.content) {
+            setSuccess(true);
+            return response.content;
+          } else if (response.metadata && response.metadata.content) {
+            setSuccess(true);
+            return response.metadata.content;
+          } else if (typeof response === 'string') {
+            setSuccess(true);
+            return response;
+          }
+        }
+      } else if (endpoint === 'analyze') {
+        if (response && response.status === 'success' && response.analysis) {
+          setSuccess(true);
+          return {
+            analysis: response.analysis,
+            sourceRecommendations: response.sourceRecommendations || [],
+            claudeSourceTitles: response.claudeSourceTitles || []
+          };
+        }
+      } else if (endpoint === 'you') {
+        console.log('[useApiSubmit] Processing you response:', response);
+        if (response && response.category) {
+          setSuccess(true);
+          return {
+            category: response.category,
+            originalPrompt: response.originalPrompt || ''
+          };
         }
       } else {
         // Standard AI-Response-Behandlung

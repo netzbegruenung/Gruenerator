@@ -1,0 +1,66 @@
+/* YouResponsive.css - Responsive Anpassungen für alle Komponenten */
+
+/* Mobile Anpassungen */
+@media (max-width: 768px) {
+  .you-page-container {
+    padding: 16px;
+  }
+
+  .you-content-wrapper {
+    width: calc(100% - 32px);
+    margin-top: 40px; /* Weniger Abstand auf mobilen Geräten */
+  }
+  
+  .you-content-wrapper.empty-state {
+    margin-top: 10vh; /* Weniger Abstand auf mobilen Geräten */
+  }
+
+  .you-header {
+    margin-bottom: 12px;
+  }
+
+  .you-header h1 {
+    font-size: 24px;
+  }
+
+  .you-input-container,
+  .you-response-container,
+  .you-result-container {
+    max-width: 100%;
+  }
+
+  .you-input-field {
+    min-height: 200px;
+  }
+
+  .you-response-container,
+  .you-result-container {
+    padding: 20px;
+  }
+  
+  .you-result-paper {
+    padding: 20px;
+  }
+  
+  .you-input-section {
+    margin-bottom: 20px;
+  }
+  
+  .inline-examples {
+    flex-direction: column;
+    gap: 6px;
+  }
+  
+  .voice-recorder-toggle svg {
+    font-size: 28px;
+  }
+  
+  .voice-recorder-toggle span {
+    font-size: 14px;
+  }
+  
+  .voice-recording-indicator {
+    width: 80px;
+    height: 80px;
+  }
+} 
