@@ -5,6 +5,7 @@ import SuccessScreen from './SuccessScreen';
 import apiClient from '../../../components/utils/apiClient';
 import useSocialTextGenerator from '../hooks/useSocialTextGenerator';
 import { FaVideo, FaFileVideo, FaRuler, FaClock } from 'react-icons/fa';
+import ErrorBoundary from '../../../components/ErrorBoundary';
 import '../styles/subtitler.css';
 import '../styles/ConfirmSection.css';
 
@@ -87,103 +88,105 @@ const SubtitlerPage = () => {
   }, [resetSocialText]);
 
   return (
-    <div className="subtitler-container container with-header">
-      {(step === 'upload' || step === 'confirm') && (
-        <h1 className="subtitler-title">Reel-Grünerator</h1>
-      )}
-      
-      {error && (
-        <div className="error-message">
-          {error}
-          <button className="btn-secondary" onClick={() => setError(null)}>
-            Schließen
-          </button>
-        </div>
-      )}
-
-      <div className="subtitler-content">
-        {step === 'upload' && (
-          <VideoUploader 
-            onUpload={handleVideoSelect} 
-            isProcessing={isProcessing} 
-          />
+    <ErrorBoundary>
+      <div className="subtitler-container container with-header">
+        {(step === 'upload' || step === 'confirm') && (
+          <h1 className="subtitler-title">Reel-Grünerator</h1>
         )}
-
-        {step === 'confirm' && (
-          <div className={`confirm-section ${isExiting ? 'exit' : ''}`}>
-            <h3>
-              <FaVideo />
-              Dein ausgewähltes Video
-            </h3>
-            <div className="video-info">
-              <p data-label="Name">
-                <FaFileVideo />
-                <span className="info-content">{videoFile.name}</span>
-              </p>
-              <p data-label="Größe">
-                <FaRuler />
-                <span className="info-content">{(videoFile.size / 1024 / 1024).toFixed(2)} MB</span>
-              </p>
-              {videoFile.metadata && (
-                <>
-                  <p data-label="Länge">
-                    <FaClock />
-                    <span className="info-content">{Math.round(videoFile.metadata.duration)} Sekunden</span>
-                  </p>
-                  <p data-label="Auflösung">
-                    <FaRuler />
-                    <span className="info-content">{videoFile.metadata.width}x{videoFile.metadata.height}</span>
-                  </p>
-                </>
-              )}
-            </div>
-            <div className="confirm-buttons">
-              <button 
-                className="btn-primary"
-                onClick={handleVideoConfirm}
-                disabled={isProcessing}
-              >
-                {isProcessing ? (
-                  <div className="button-loading-content">
-                    <div className="button-spinner" />
-                    <span>Verarbeite...</span>
-                  </div>
-                ) : (
-                  'Video verarbeiten'
-                )}
-              </button>
-              <button 
-                className="btn-secondary"
-                onClick={handleReset}
-                disabled={isProcessing}
-              >
-                Anderes Video auswählen
-              </button>
-            </div>
+        
+        {error && (
+          <div className="error-message">
+            {error}
+            <button className="btn-secondary" onClick={() => setError(null)}>
+              Schließen
+            </button>
           </div>
         )}
 
-        {step === 'edit' && (
-          <SubtitleEditor
-            videoFile={videoFile}
-            subtitles={subtitles}
-            onExportSuccess={handleExport}
-            onExportComplete={handleExportComplete}
-            isExporting={isExporting || isGenerating}
-          />
-        )}
+        <div className="subtitler-content">
+          {step === 'upload' && (
+            <VideoUploader 
+              onUpload={handleVideoSelect} 
+              isProcessing={isProcessing} 
+            />
+          )}
 
-        {step === 'success' && (
-          <SuccessScreen 
-            onReset={handleReset}
-            isLoading={isExporting}
-            socialText={socialText}
-            isGeneratingSocial={isGenerating}
-            socialError={socialError}
-          />
-        )}
+          {step === 'confirm' && (
+            <div className={`confirm-section ${isExiting ? 'exit' : ''}`}>
+              <h3>
+                <FaVideo />
+                Dein ausgewähltes Video
+              </h3>
+              <div className="video-info">
+                <p data-label="Name">
+                  <FaFileVideo />
+                  <span className="info-content">{videoFile.name}</span>
+                </p>
+                <p data-label="Größe">
+                  <FaRuler />
+                  <span className="info-content">{(videoFile.size / 1024 / 1024).toFixed(2)} MB</span>
+                </p>
+                {videoFile.metadata && (
+                  <>
+                    <p data-label="Länge">
+                      <FaClock />
+                      <span className="info-content">{Math.round(videoFile.metadata.duration)} Sekunden</span>
+                    </p>
+                    <p data-label="Auflösung">
+                      <FaRuler />
+                      <span className="info-content">{videoFile.metadata.width}x{videoFile.metadata.height}</span>
+                    </p>
+                  </>
+                )}
+              </div>
+              <div className="confirm-buttons">
+                <button 
+                  className="btn-primary"
+                  onClick={handleVideoConfirm}
+                  disabled={isProcessing}
+                >
+                  {isProcessing ? (
+                    <div className="button-loading-content">
+                      <div className="button-spinner" />
+                      <span>Verarbeite...</span>
+                    </div>
+                  ) : (
+                    'Video verarbeiten'
+                  )}
+                </button>
+                <button 
+                  className="btn-secondary"
+                  onClick={handleReset}
+                  disabled={isProcessing}
+                >
+                  Anderes Video auswählen
+                </button>
+              </div>
+            </div>
+          )}
+
+          {step === 'edit' && (
+            <SubtitleEditor
+              videoFile={videoFile}
+              subtitles={subtitles}
+              onExportSuccess={handleExport}
+              onExportComplete={handleExportComplete}
+              isExporting={isExporting || isGenerating}
+            />
+          )}
+
+          {step === 'success' && (
+            <SuccessScreen 
+              onReset={handleReset}
+              isLoading={isExporting}
+              socialText={socialText}
+              isGeneratingSocial={isGenerating}
+              socialError={socialError}
+            />
+          )}
+        </div>
       </div>
-    </div>
+    </ErrorBoundary>
   );
 };
 

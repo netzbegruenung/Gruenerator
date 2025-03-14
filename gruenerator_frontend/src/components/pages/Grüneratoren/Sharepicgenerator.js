@@ -431,7 +431,9 @@ SharepicGeneratorContent.propTypes = {
 export default function SharepicGenerator(props) {
   return (
     <SharepicGeneratorProvider>
-      <SharepicGeneratorContent {...props} />
+      <ErrorBoundary>
+        <SharepicGeneratorContent {...props} />
+      </ErrorBoundary>
     </SharepicGeneratorProvider>
   );
 }
