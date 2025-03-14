@@ -3,6 +3,9 @@ import TemplateGallery from '../features/templates';
 import UniversalTextGenerator from '../features/texte/universal/UniversalTextGenerator';
 import AntragPage from '../features/texte/antrag/AntragPage';
 import { YouPage } from '../features/you';
+// Temporär auskommentiert, bis die Datei existiert oder der Pfad korrigiert ist
+// import LinkTreeRoutes from '../features/linktree/LinkTreeRoutes';
+import CampaignPage from '../features/campaigns';
 
 // Lazy loading für statische Seiten
 const Home = lazy(() => import('../components/pages/Home'));
@@ -28,7 +31,8 @@ export const GrueneratorenBundle = {
   Search: Search,
   Templates: TemplateGallery,
   Reel: Reel,
-  You: YouPage
+  You: YouPage,
+  Campaign: CampaignPage
 };
 
 // Route Konfigurationen
@@ -47,6 +51,8 @@ const standardRoutes = [
   { path: '/suche', component: GrueneratorenBundle.Search, withForm: true },
   { path: '/reel', component: GrueneratorenBundle.Reel },
   { path: '/you', component: GrueneratorenBundle.You, withForm: true },
+  { path: '/kampagne', component: GrueneratorenBundle.Campaign },
+  { path: '/linktree/*', component: GrueneratorenBundle.LinkTree, showHeaderFooter: false },
   { path: '/datenschutz', component: Datenschutz },
   { path: '/impressum', component: Impressum },
   { path: '*', component: NotFound }
@@ -63,7 +69,7 @@ const specialRoutes = [
 
 // Hilfsfunktion zum Erstellen der No-Header-Footer-Variante
 const createNoHeaderFooterRoute = (route) => {
-  // Nur die 404-Route ausschließen
+  // Nur die 404-Route und Linktree-Route ausschließen
   if (route.path === '*') return null;
   
   const noHeaderPath = route.path === '/' 
