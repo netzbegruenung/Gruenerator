@@ -537,3 +537,45 @@
     font-size: 1.2em;
   }
 }
+
+.copy-button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  background-color: var(--tanne);
+  color: white;
+  cursor: pointer;
+  font-size: 16px;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.copy-button-compact {
+  padding: 8px;
+  width: 36px;
+  height: 36px;
+  border-radius: 4px;
+  background-color: transparent;
+  color: var(--klee);
+  border: 1px solid var(--klee);
+}
+
+.copy-button-compact:hover {
+  background-color: rgba(0, 137, 57, 0.1);
+}
+
+.copy-button-compact.copied {
+  background-color: var(--klee);
+  color: white;
+}
+
+.copy-icon {
+  font-size: 18px;
+}
+
+.copy-button:not(.copy-button-compact) .copy-icon {
+  margin-right: 8px;
+}
