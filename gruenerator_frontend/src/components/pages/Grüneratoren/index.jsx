@@ -1,5 +1,6 @@
 import { lazy } from 'react';
-import { PresseSocialGenerator } from '../../../features/texte/presse';
+// Statischen Import entfernen
+// import { PresseSocialGenerator } from '../../../features/texte/presse';
 
 const PRELOAD_DELAY = 2000; 
 const withImmedatePreloading = (importFunc) => {
@@ -17,7 +18,7 @@ const withImmedatePreloading = (importFunc) => {
 
 export const GrueneratorenBundle = {
   Antrag: withImmedatePreloading(() => import('./Antragsgenerator')),
-  PresseSocial: PresseSocialGenerator,
+  PresseSocial: withImmedatePreloading(() => import('../../../features/texte/presse/PresseSocialGenerator')),
   Sharepic: withImmedatePreloading(() => import('./Sharepicgenerator')),
   Rede: withImmedatePreloading(() => import('../../../features/texte/universal/UniversalTextGenerator')),
   Wahlprogramm: withImmedatePreloading(() => import('../../../features/texte/universal/UniversalTextGenerator')),

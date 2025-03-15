@@ -241,9 +241,9 @@ if (cluster.isMaster) {
           // Alle Subdomains von gruenerator.de (HTTP & HTTPS, falls lokal noch HTTP gebraucht wird)
           "http://*.gruenerator.de",
           "https://*.gruenerator.de",
-          // Umlaut-Domain grüenerator.de + Subdomains
-          "http://*.grünerator.de",
-          "https://*.grünerator.de",
+          // Umlaut-Domain grüenerator.de + Subdomains (Punycode-kodiert)
+          "http://*.xn--grnerator-z2a.de",
+          "https://*.xn--grnerator-z2a.de",
           // Weiterhin lokale Entwicklungs-URLs
           "http://localhost:*",
           "http://127.0.0.1:*",

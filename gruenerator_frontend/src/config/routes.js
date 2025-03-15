@@ -1,11 +1,12 @@
 import { lazy } from 'react';
-import TemplateGallery from '../features/templates';
-import UniversalTextGenerator from '../features/texte/universal/UniversalTextGenerator';
-import AntragPage from '../features/texte/antrag/AntragPage';
-import { YouPage } from '../features/you';
+// Statische Importe in dynamische umwandeln
+const TemplateGallery = lazy(() => import('../features/templates'));
+const UniversalTextGenerator = lazy(() => import('../features/texte/universal/UniversalTextGenerator'));
+const AntragPage = lazy(() => import('../features/texte/antrag/AntragPage'));
+const YouPage = lazy(() => import('../features/you'));
 // Temporär auskommentiert, bis die Datei existiert oder der Pfad korrigiert ist
 // import LinkTreeRoutes from '../features/linktree/LinkTreeRoutes';
-import CampaignPage from '../features/campaigns';
+const CampaignPage = lazy(() => import('../features/campaigns'));
 
 // Lazy loading für statische Seiten
 const Home = lazy(() => import('../components/pages/Home'));
