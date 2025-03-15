@@ -56,9 +56,47 @@ export default defineConfig(({ command }) => ({
         assetFileNames: 'assets/[name].[hash][extname]',
         entryFileNames: 'js/[name].[hash].js',
         chunkFileNames: 'js/[name].[hash].js',
-        manualChunks: {
-          react: ['react', 'react-dom'],
-          router: ['react-router-dom']
+        manualChunks: (id) => {
+          // Vendor-Chunks für häufig verwendete Bibliotheken
+          if (id.includes('node_modules')) {
+            if (id.includes('react') || id.includes('scheduler') || id.includes('prop-types')) {
+              return 'vendor-react';
+            }
+            if (id.includes('react-router')) {
+              return 'vendor-router';
+            }
+            if (id.includes('lottie') || id.includes('animation')) {
+              return 'vendor-animation';
+            }
+            if (id.includes('axios') || id.includes('query')) {
+              return 'vendor-data';
+            }
+            if (id.includes('redux') || id.includes('zustand') || id.includes('recoil')) {
+              return 'vendor-state';
+            }
+            // Alle anderen node_modules in einen gemeinsamen Chunk
+            return 'vendor-common';
+          }
+          
+          // Feature-basierte Chunks für Anwendungscode
+          if (id.includes('/features/texte/')) {
+            return 'feature-texte';
+          }
+          if (id.includes('/features/sharepic/') || id.includes('/features/subtitler/')) {
+            return 'feature-media';
+          }
+          if (id.includes('/features/voice/') || id.includes('/features/universal/')) {
+            return 'feature-ai';
+          }
+          if (id.includes('/features/templates/') || id.includes('/features/campaigns/')) {
+            return 'feature-templates';
+          }
+          if (id.includes('/features/search/') || id.includes('/features/you/')) {
+            return 'feature-user';
+          }
+          if (id.includes('/components/common/') || id.includes('/components/utils/')) {
+            return 'common-components';
+          }
         }
       }
     },
