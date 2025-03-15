@@ -1,7 +1,7 @@
 import axios from 'axios';
 import useApiSubmit from '../../../components/hooks/useApiSubmit';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 // Hilfsfunktion zur Extraktion des Inhalts aus der Antwort
 const extractContent = (response) => {
