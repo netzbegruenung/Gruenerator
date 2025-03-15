@@ -9,7 +9,6 @@ import SuspenseWrapper from './components/common/SuspenseWrapper';
 import RouteComponent from './components/routing/RouteComponent';
 import { routes } from './config/routes';
 import { AuthProvider } from './components/utils/AuthContext';
-import LogLevelSelector from './components/common/LogLevelSelector';
 import logger from './utils/logger';
 
 // Lazy loading für Popups
@@ -134,9 +133,6 @@ function App() {
                 );
               })}
             </Routes>
-            
-            {/* Log-Level Selector für Entwicklungsmodus */}
-            <LogLevelSelector />
           </SuspenseWrapper>
         </Router>
       </AuthProvider>
