@@ -323,10 +323,87 @@ if (cluster.isMaster) {
     try {
       const files = fs.readdirSync(staticFilesPath);
       logger.info(`Files in static directory: ${files.slice(0, 10).join(', ')}${files.length > 10 ? '...' : ''}`);
+      
+      // Prüfe auch den Assets-Ordner
+      const assetsPath = path.join(staticFilesPath, 'assets');
+      if (fs.existsSync(assetsPath)) {
+        const assetFiles = fs.readdirSync(assetsPath);
+        logger.info(`Files in assets directory: ${assetFiles.slice(0, 10).join(', ')}${assetFiles.length > 10 ? '...' : ''}`);
+      } else {
+        logger.error(`Assets directory does not exist: ${assetsPath}`);
+      }
     } catch (err) {
       logger.error(`Error reading static files directory: ${err.message}`);
     }
   }
+  
+  // Spezielle Middleware für Assets-Verzeichnis
+  app.use('/assets', (req, res, next) => {
+    const requestPath = req.path;
+    const assetPath = path.join(staticFilesPath, 'assets', requestPath);
+    
+    logger.info(`Asset request: /assets${requestPath}`);
+    logger.info(`Looking for asset at: ${assetPath}`);
+    
+    if (fs.existsSync(assetPath)) {
+      logger.info(`Asset found: ${assetPath}`);
+      return res.sendFile(assetPath);
+    } else {
+      logger.error(`Asset not found: ${assetPath}`);
+      // Versuche es ohne Unterverzeichnis
+      const directAssetPath = path.join(staticFilesPath, 'assets', path.basename(requestPath));
+      logger.info(`Trying direct asset path: ${directAssetPath}`);
+      
+      if (fs.existsSync(directAssetPath)) {
+        logger.info(`Asset found at direct path: ${directAssetPath}`);
+        return res.sendFile(directAssetPath);
+      }
+    }
+    next();
+  });
+  
+  // Spezielle Middleware für die problematischen Dateien
+  const problematicFiles = [
+    '/assets/index-DMmUFKVp.css',
+    '/assets/vendor-CPnJIadx.js',
+    '/assets/PTSans-Regular-BprM7otv.woff2',
+    '/assets/GrueneType-CVNaQvhn.woff2',
+    '/assets/index-BP0deexn.js'
+  ];
+  
+  problematicFiles.forEach(file => {
+    app.get(file, (req, res, next) => {
+      logger.info(`Problematic file requested: ${file}`);
+      
+      // Extrahiere den Dateinamen ohne Pfad
+      const fileName = path.basename(file);
+      
+      // Suche die Datei im Assets-Verzeichnis
+      const assetsDir = path.join(staticFilesPath, 'assets');
+      
+      if (fs.existsSync(assetsDir)) {
+        try {
+          const files = fs.readdirSync(assetsDir);
+          logger.info(`Looking for ${fileName} in assets directory`);
+          
+          // Suche nach der Datei oder einer ähnlichen Datei
+          const matchingFile = files.find(f => f === fileName || f.includes(fileName.split('-')[0]));
+          
+          if (matchingFile) {
+            const filePath = path.join(assetsDir, matchingFile);
+            logger.info(`Found matching file: ${filePath}`);
+            return res.sendFile(filePath);
+          } else {
+            logger.error(`No matching file found for ${fileName}`);
+          }
+        } catch (err) {
+          logger.error(`Error reading assets directory: ${err.message}`);
+        }
+      }
+      
+      next();
+    });
+  });
   
   app.use(express.static(staticFilesPath, {
     maxAge: '1d', // Browser-Cache für 1 Tag
@@ -426,7 +503,23 @@ if (cluster.isMaster) {
       // Prüfe, ob die Datei existiert
       if (fs.existsSync(filePath)) {
         logger.info(`index.html exists at: ${filePath}`);
-        res.sendFile(filePath);
+        
+        // Lese die index.html und passe die Asset-Pfade an
+        fs.readFile(filePath, 'utf8', (err, data) => {
+          if (err) {
+            logger.error(`Error reading index.html: ${err.message}`);
+            return next(err);
+          }
+          
+          // Logge die ursprünglichen Asset-Pfade
+          const assetMatches = data.match(/src="([^"]+)"|href="([^"]+)"/g);
+          if (assetMatches) {
+            logger.info(`Original asset references in index.html: ${assetMatches.slice(0, 10).join(', ')}${assetMatches.length > 10 ? '...' : ''}`);
+          }
+          
+          // Sende die unveränderte Datei
+          res.send(data);
+        });
       } else {
         logger.error(`Index-Datei nicht gefunden: ${filePath}`);
         throw new Error(`Index-Datei nicht gefunden: ${filePath}`);
@@ -442,14 +535,38 @@ if (cluster.isMaster) {
       // Logge alle Anfragen, die nicht von statischen Dateien bedient werden
       logger.info(`Catch-all route accessed for: ${req.path}`);
       
-      const filePath = path.join(staticFilesPath, 'index.html');
+      // Prüfe, ob es sich um eine HTML-Anfrage handelt (Browser)
+      const acceptHeader = req.headers.accept || '';
+      const wantsHtml = acceptHeader.includes('text/html');
       
-      // Prüfe, ob die Datei existiert
-      if (fs.existsSync(filePath)) {
-        res.sendFile(filePath);
+      if (wantsHtml) {
+        const filePath = path.join(staticFilesPath, 'index.html');
+        
+        // Prüfe, ob die Datei existiert
+        if (fs.existsSync(filePath)) {
+          // Lese die index.html und passe die Asset-Pfade an
+          fs.readFile(filePath, 'utf8', (err, data) => {
+            if (err) {
+              logger.error(`Error reading index.html: ${err.message}`);
+              return next(err);
+            }
+            
+            // Logge die ursprünglichen Asset-Pfade
+            const assetMatches = data.match(/src="([^"]+)"|href="([^"]+)"/g);
+            if (assetMatches) {
+              logger.info(`Original asset references in index.html: ${assetMatches.slice(0, 10).join(', ')}${assetMatches.length > 10 ? '...' : ''}`);
+            }
+            
+            // Sende die unveränderte Datei
+            res.send(data);
+          });
+        } else {
+          logger.error(`Index-Datei nicht gefunden: ${filePath}`);
+          throw new Error(`Index-Datei nicht gefunden: ${filePath}`);
+        }
       } else {
-        logger.error(`Index-Datei nicht gefunden: ${filePath}`);
-        throw new Error(`Index-Datei nicht gefunden: ${filePath}`);
+        // Für nicht-HTML-Anfragen (z.B. API-Anfragen) weitermachen
+        next();
       }
     } catch (err) {
       logger.error(`Error in catch-all route: ${err.message}`);
