@@ -335,6 +335,17 @@ if (cluster.isMaster) {
     setHeaders: (res, filePath) => {
       // Logge Zugriffe auf statische Dateien
       logger.info(`Static file requested: ${filePath}`);
+      
+      // Detailliertere Logs für Debugging
+      const requestedPath = res.req.originalUrl;
+      logger.info(`Original request URL: ${requestedPath}`);
+      
+      // Prüfe, ob die Datei existiert
+      const fullPath = path.join(staticFilesPath, requestedPath);
+      if (!fs.existsSync(fullPath)) {
+        logger.error(`File not found: ${fullPath}`);
+        logger.info(`Checking if file exists in assets directory: ${path.join(staticFilesPath, 'assets', path.basename(requestedPath))}`);
+      }
     }
   }));
 
@@ -377,6 +388,32 @@ if (cluster.isMaster) {
   app.use((req, res, next) => {
     req.setTimeout(300000); // 5 Minuten
     res.setTimeout(300000);
+    next();
+  });
+
+  // Füge einen Middleware vor der Catch-all Route hinzu, um 404-Fehler zu loggen
+  app.use((req, res, next) => {
+    // Nur für statische Dateianfragen
+    if (req.method === 'GET' && !req.path.startsWith('/api/')) {
+      const requestPath = req.path;
+      
+      // Prüfe auf typische Asset-Pfade
+      if (requestPath.match(/\.(js|css|woff2|png|jpg|svg|ico)$/)) {
+        logger.info(`Asset request detected: ${requestPath}`);
+        
+        // Prüfe verschiedene mögliche Pfade
+        const possiblePaths = [
+          path.join(staticFilesPath, requestPath),
+          path.join(staticFilesPath, requestPath.replace(/^\/assets\//, 'assets/')),
+          path.join(staticFilesPath, 'assets', path.basename(requestPath))
+        ];
+        
+        logger.info(`Checking possible paths for: ${requestPath}`);
+        possiblePaths.forEach(p => {
+          logger.info(`Checking path: ${p} - Exists: ${fs.existsSync(p)}`);
+        });
+      }
+    }
     next();
   });
 
