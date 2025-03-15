@@ -11,8 +11,9 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
-  // Optimierungen für den Build-Prozess
+  // Build-Ausgabeverzeichnis auf "build" ändern
   build: {
+    outDir: 'build',
     // Chunk-Größe optimieren
     chunkSizeWarningLimit: 1000,
     // Bessere Code-Splitting-Strategie
