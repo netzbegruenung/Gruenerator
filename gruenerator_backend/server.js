@@ -311,7 +311,7 @@ if (cluster.isMaster) {
   setupRoutes(app);
 
   // Optimierte statische Datei-Auslieferung
-  app.use(express.static('/var/www/html', {
+  app.use(express.static(path.join(__dirname, '../gruenerator_frontend/dist'), {
     maxAge: '1d', // Browser-Cache für 1 Tag
     etag: true,
     lastModified: true
@@ -360,12 +360,36 @@ if (cluster.isMaster) {
   });
 
   // Root und Catch-all Routes
-  app.get('/', (req, res) => {
-    res.sendFile(path.join('/var/www/html', 'index.html'));
+  app.get('/', (req, res, next) => {
+    try {
+      const filePath = path.join(__dirname, '../gruenerator_frontend/dist', 'index.html');
+      
+      // Prüfe, ob die Datei existiert
+      if (fs.existsSync(filePath)) {
+        res.sendFile(filePath);
+      } else {
+        logger.error(`Index-Datei nicht gefunden: ${filePath}`);
+        throw new Error(`Index-Datei nicht gefunden: ${filePath}`);
+      }
+    } catch (err) {
+      next(err); // Fehler an den Error Handler weiterleiten
+    }
   });
 
-  app.get('*', (req, res) => {
-    res.sendFile(path.join('/var/www/html', 'index.html'));
+  app.get('*', (req, res, next) => {
+    try {
+      const filePath = path.join(__dirname, '../gruenerator_frontend/dist', 'index.html');
+      
+      // Prüfe, ob die Datei existiert
+      if (fs.existsSync(filePath)) {
+        res.sendFile(filePath);
+      } else {
+        logger.error(`Index-Datei nicht gefunden: ${filePath}`);
+        throw new Error(`Index-Datei nicht gefunden: ${filePath}`);
+      }
+    } catch (err) {
+      next(err); // Fehler an den Error Handler weiterleiten
+    }
   });
 
   // Error Handler
@@ -385,16 +409,30 @@ if (cluster.isMaster) {
     // Bestimme, ob wir in der Entwicklungsumgebung sind
     const isDevelopment = process.env.NODE_ENV === 'development';
     
+    // Prüfe auf spezifische Fehlertypen
+    let errorMessage = 'Bitte versuchen Sie es später erneut';
+    
+    if (err.message && err.message.includes('Index-Datei nicht gefunden')) {
+      errorMessage = 'Die Anwendung konnte nicht geladen werden. Bitte kontaktieren Sie den Administrator.';
+    } else if (err.code === 'ENOENT') {
+      errorMessage = 'Eine benötigte Datei wurde nicht gefunden.';
+    } else if (err.code === 'EACCES') {
+      errorMessage = 'Zugriffsfehler beim Lesen einer Datei.';
+    }
+    
     // Sende eine strukturierte Fehlerantwort
     res.status(500).json({
       success: false,
       error: 'Ein Serverfehler ist aufgetreten',
-      message: isDevelopment ? err.message : 'Bitte versuchen Sie es später erneut',
+      message: isDevelopment ? err.message : errorMessage,
       // Nur in der Entwicklungsumgebung den Stack senden
       stack: isDevelopment ? err.stack : undefined,
       // Eine eindeutige Fehler-ID für die Fehlersuche
       errorId: `${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      // Zusätzliche Informationen für die Fehlersuche
+      errorCode: err.code,
+      errorType: err.name
     });
   });
 
