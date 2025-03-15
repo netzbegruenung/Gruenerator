@@ -104,7 +104,45 @@ export const processText = async (endpoint, formData) => {
 
 const handleApiError = (error) => {
   if (error.response) {
-    console.error('API Error:', error.response.data);
+    // Strukturierte Fehlerinformationen aus dem Backend extrahieren
+    const errorData = error.response.data;
+    
+    // Detailliertes Logging des Fehlers
+    console.error('API Error:', {
+      status: error.response.status,
+      data: errorData,
+      url: error.config?.url,
+      method: error.config?.method
+    });
+    
+    // Prüfe auf die neue strukturierte Fehlerantwort
+    if (error.response.status === 500 && typeof errorData === 'object') {
+      // Erstelle einen benutzerfreundlichen Fehler mit den Informationen aus dem Backend
+      const friendlyError = new Error(errorData.message || 'Ein Serverfehler ist aufgetreten');
+      friendlyError.name = 'ServerError';
+      friendlyError.originalError = error;
+      friendlyError.errorId = errorData.errorId;
+      friendlyError.timestamp = errorData.timestamp;
+      
+      // Werfe den Fehler, damit er von der ErrorBoundary aufgefangen werden kann
+      throw friendlyError;
+    }
+    
+    // Alte Prüfung auf "Something broke!" für Abwärtskompatibilität
+    if (error.response.status === 500 && 
+        (error.response.data === 'Something broke!' || 
+         (typeof error.response.data === 'object' && error.response.data.error === 'Something broke!'))) {
+      
+      console.error('Kritischer Server-Fehler: "Something broke!" erkannt');
+      
+      // Erstelle einen benutzerfreundlichen Fehler
+      const friendlyError = new Error('Ein kritischer Serverfehler ist aufgetreten. Bitte versuchen Sie es später erneut.');
+      friendlyError.name = 'ServerError';
+      friendlyError.originalError = error;
+      
+      // Werfe den Fehler, damit er von der ErrorBoundary aufgefangen werden kann
+      throw friendlyError;
+    }
   } else if (error.request) {
     console.error('No response received:', error.request);
   } else {
