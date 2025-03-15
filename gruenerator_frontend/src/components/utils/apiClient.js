@@ -123,6 +123,17 @@ const handleApiError = (error) => {
       friendlyError.originalError = error;
       friendlyError.errorId = errorData.errorId;
       friendlyError.timestamp = errorData.timestamp;
+      friendlyError.errorCode = errorData.errorCode;
+      friendlyError.errorType = errorData.errorType;
+      
+      // Spezifische Fehlermeldungen basierend auf dem Fehlercode
+      if (errorData.errorCode === 'ENOENT') {
+        friendlyError.message = 'Eine benötigte Datei wurde nicht gefunden. Bitte kontaktieren Sie den Administrator.';
+      } else if (errorData.errorCode === 'EACCES') {
+        friendlyError.message = 'Zugriffsfehler beim Lesen einer Datei. Bitte kontaktieren Sie den Administrator.';
+      } else if (errorData.message && errorData.message.includes('Index-Datei nicht gefunden')) {
+        friendlyError.message = 'Die Anwendung konnte nicht geladen werden. Bitte kontaktieren Sie den Administrator.';
+      }
       
       // Werfe den Fehler, damit er von der ErrorBoundary aufgefangen werden kann
       throw friendlyError;
@@ -145,8 +156,20 @@ const handleApiError = (error) => {
     }
   } else if (error.request) {
     console.error('No response received:', error.request);
+    
+    // Netzwerkfehler behandeln
+    const friendlyError = new Error('Keine Antwort vom Server erhalten. Bitte überprüfen Sie Ihre Internetverbindung.');
+    friendlyError.name = 'NetworkError';
+    friendlyError.originalError = error;
+    throw friendlyError;
   } else {
     console.error('Error setting up request:', error.message);
+    
+    // Allgemeiner Fehler
+    const friendlyError = new Error('Fehler bei der Anfrage: ' + error.message);
+    friendlyError.name = 'RequestError';
+    friendlyError.originalError = error;
+    throw friendlyError;
   }
 };
 
