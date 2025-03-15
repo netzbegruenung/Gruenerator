@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 
 const AuthContext = createContext();
-const VERIFY_PASSWORD = process.env.REACT_APP_VERIFY_PASSWORD;
+const VERIFY_PASSWORD = import.meta.env.VITE_VERIFY_PASSWORD;
 const STORAGE_KEY = 'verifiedFeatures';
 const EXPIRY_TIME = 7 * 24 * 60 * 60 * 1000; // 7 Tage in Millisekunden
 
