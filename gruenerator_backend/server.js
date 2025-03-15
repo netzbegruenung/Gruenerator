@@ -311,10 +311,31 @@ if (cluster.isMaster) {
   setupRoutes(app);
 
   // Optimierte statische Datei-Auslieferung
-  app.use(express.static(path.join(__dirname, '../gruenerator_frontend/dist'), {
+  const staticFilesPath = path.join(__dirname, '../gruenerator_frontend/dist');
+  logger.info(`Serving static files from: ${staticFilesPath}`);
+  
+  // Überprüfe, ob das Verzeichnis existiert
+  if (!fs.existsSync(staticFilesPath)) {
+    logger.error(`Static files directory does not exist: ${staticFilesPath}`);
+  } else {
+    logger.info(`Static files directory exists: ${staticFilesPath}`);
+    // Liste einige Dateien im Verzeichnis auf
+    try {
+      const files = fs.readdirSync(staticFilesPath);
+      logger.info(`Files in static directory: ${files.slice(0, 10).join(', ')}${files.length > 10 ? '...' : ''}`);
+    } catch (err) {
+      logger.error(`Error reading static files directory: ${err.message}`);
+    }
+  }
+  
+  app.use(express.static(staticFilesPath, {
     maxAge: '1d', // Browser-Cache für 1 Tag
     etag: true,
-    lastModified: true
+    lastModified: true,
+    setHeaders: (res, filePath) => {
+      // Logge Zugriffe auf statische Dateien
+      logger.info(`Static file requested: ${filePath}`);
+    }
   }));
 
   // Statisches Verzeichnis für Video-Uploads
@@ -362,23 +383,29 @@ if (cluster.isMaster) {
   // Root und Catch-all Routes
   app.get('/', (req, res, next) => {
     try {
-      const filePath = path.join(__dirname, '../gruenerator_frontend/dist', 'index.html');
+      const filePath = path.join(staticFilesPath, 'index.html');
+      logger.info(`Serving index.html from: ${filePath}`);
       
       // Prüfe, ob die Datei existiert
       if (fs.existsSync(filePath)) {
+        logger.info(`index.html exists at: ${filePath}`);
         res.sendFile(filePath);
       } else {
         logger.error(`Index-Datei nicht gefunden: ${filePath}`);
         throw new Error(`Index-Datei nicht gefunden: ${filePath}`);
       }
     } catch (err) {
+      logger.error(`Error serving index.html: ${err.message}`);
       next(err); // Fehler an den Error Handler weiterleiten
     }
   });
 
   app.get('*', (req, res, next) => {
     try {
-      const filePath = path.join(__dirname, '../gruenerator_frontend/dist', 'index.html');
+      // Logge alle Anfragen, die nicht von statischen Dateien bedient werden
+      logger.info(`Catch-all route accessed for: ${req.path}`);
+      
+      const filePath = path.join(staticFilesPath, 'index.html');
       
       // Prüfe, ob die Datei existiert
       if (fs.existsSync(filePath)) {
@@ -388,11 +415,12 @@ if (cluster.isMaster) {
         throw new Error(`Index-Datei nicht gefunden: ${filePath}`);
       }
     } catch (err) {
+      logger.error(`Error in catch-all route: ${err.message}`);
       next(err); // Fehler an den Error Handler weiterleiten
     }
   });
 
-  // Error Handler
+  // Error Handler mit verbessertem Logging
   app.use((err, req, res, next) => {
     // Detailliertes Logging des Fehlers
     logger.error({
@@ -403,6 +431,8 @@ if (cluster.isMaster) {
       method: req.method,
       ip: req.ip,
       headers: req.headers,
+      query: req.query,
+      params: req.params,
       timestamp: new Date().toISOString()
     });
 
