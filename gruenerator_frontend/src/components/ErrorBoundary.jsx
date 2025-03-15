@@ -31,7 +31,9 @@ class ErrorBoundary extends React.Component {
         message: error.message || 'Ein unerwarteter Serverfehler ist aufgetreten.',
         details: error.originalError ? `Original: ${error.originalError.message}` : '',
         errorId: error.errorId,
-        timestamp: error.timestamp
+        timestamp: error.timestamp,
+        errorCode: error.originalError?.response?.data?.errorCode,
+        errorType: error.originalError?.response?.data?.errorType
       };
     }
     
@@ -52,6 +54,25 @@ class ErrorBoundary extends React.Component {
     };
   }
 
+  // Versuche, den Fehler zu beheben
+  handleTryFix = () => {
+    // Lösche den Cache
+    if (window.caches) {
+      caches.keys().then(cacheNames => {
+        cacheNames.forEach(cacheName => {
+          caches.delete(cacheName);
+        });
+      });
+    }
+    
+    // Lösche lokale Speicherdaten, die Probleme verursachen könnten
+    localStorage.removeItem('termsAccepted');
+    localStorage.removeItem('popupShown2024');
+    
+    // Seite neu laden
+    window.location.reload(true); // true erzwingt ein Neuladen vom Server
+  };
+
   render() {
     if (this.state.hasError) {
       const errorMessage = this.getErrorMessage();
@@ -66,6 +87,8 @@ class ErrorBoundary extends React.Component {
             <p className="error-id">
               Fehler-ID: {errorMessage.errorId}
               {errorMessage.timestamp && ` (${new Date(errorMessage.timestamp).toLocaleString()})`}
+              {errorMessage.errorCode && ` | Code: ${errorMessage.errorCode}`}
+              {errorMessage.errorType && ` | Typ: ${errorMessage.errorType}`}
             </p>
           )}
           
@@ -79,11 +102,17 @@ class ErrorBoundary extends React.Component {
             </details>
           )}
           
-          {this.props.fallback ? (
-            this.props.fallback(this.state.error, this.state.errorInfo)
-          ) : (
-            <button onClick={() => window.location.reload()}>Seite neu laden</button>
-          )}
+          <div className="error-actions">
+            {this.props.fallback ? (
+              this.props.fallback(this.state.error, this.state.errorInfo)
+            ) : (
+              <>
+                <button onClick={() => window.location.reload()}>Seite neu laden</button>
+                <button onClick={this.handleTryFix}>Fehler beheben versuchen</button>
+                <a href="/" className="button">Zur Startseite</a>
+              </>
+            )}
+          </div>
         </div>
       );
     }
