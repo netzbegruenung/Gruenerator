@@ -337,94 +337,55 @@ if (cluster.isMaster) {
     }
   }
   
-  // Spezielle Middleware für Assets-Verzeichnis
+  // Direkte Lösung: Stelle Assets-Verzeichnis explizit bereit
   app.use('/assets', (req, res, next) => {
-    const requestPath = req.path;
-    const assetPath = path.join(staticFilesPath, 'assets', requestPath);
+    const requestedFile = req.path;
+    const fullPath = path.join(staticFilesPath, 'assets', requestedFile);
     
-    logger.info(`Asset request: /assets${requestPath}`);
-    logger.info(`Looking for asset at: ${assetPath}`);
+    console.log(`[ASSET] Zugriff auf: /assets${requestedFile}`);
     
-    if (fs.existsSync(assetPath)) {
-      logger.info(`Asset found: ${assetPath}`);
-      return res.sendFile(assetPath);
+    if (fs.existsSync(fullPath)) {
+      console.log(`[ASSET] Datei gefunden: ${fullPath}`);
+      return express.static(path.join(staticFilesPath, 'assets'))(req, res, next);
     } else {
-      logger.error(`Asset not found: ${assetPath}`);
-      // Versuche es ohne Unterverzeichnis
-      const directAssetPath = path.join(staticFilesPath, 'assets', path.basename(requestPath));
-      logger.info(`Trying direct asset path: ${directAssetPath}`);
+      console.log(`[ASSET] Datei nicht gefunden: ${fullPath}`);
       
-      if (fs.existsSync(directAssetPath)) {
-        logger.info(`Asset found at direct path: ${directAssetPath}`);
-        return res.sendFile(directAssetPath);
+      // Versuche, die Datei ohne Unterverzeichnisse zu finden
+      const baseName = path.basename(requestedFile);
+      const alternativePath = path.join(staticFilesPath, 'assets', baseName);
+      
+      if (fs.existsSync(alternativePath)) {
+        console.log(`[ASSET] Alternative Datei gefunden: ${alternativePath}`);
+        res.sendFile(alternativePath);
+      } else {
+        console.log(`[ASSET] Keine alternative Datei gefunden für: ${baseName}`);
+        next();
       }
     }
-    next();
   });
   
-  // Spezielle Middleware für die problematischen Dateien
-  const problematicFiles = [
-    '/assets/index-DMmUFKVp.css',
-    '/assets/vendor-CPnJIadx.js',
-    '/assets/PTSans-Regular-BprM7otv.woff2',
-    '/assets/GrueneType-CVNaQvhn.woff2',
-    '/assets/index-BP0deexn.js'
-  ];
-  
-  problematicFiles.forEach(file => {
-    app.get(file, (req, res, next) => {
-      logger.info(`Problematic file requested: ${file}`);
+  // Stelle das Hauptverzeichnis bereit
+  app.use((req, res, next) => {
+    // Nur für statische Dateien, nicht für API-Anfragen oder HTML-Seiten
+    if (req.method === 'GET' && !req.path.startsWith('/api/') && req.path !== '/' && !req.path.match(/\.html$/)) {
+      const requestedFile = req.path;
+      const fullPath = path.join(staticFilesPath, requestedFile);
       
-      // Extrahiere den Dateinamen ohne Pfad
-      const fileName = path.basename(file);
+      console.log(`[STATIC] Zugriff auf: ${requestedFile}`);
       
-      // Suche die Datei im Assets-Verzeichnis
-      const assetsDir = path.join(staticFilesPath, 'assets');
-      
-      if (fs.existsSync(assetsDir)) {
-        try {
-          const files = fs.readdirSync(assetsDir);
-          logger.info(`Looking for ${fileName} in assets directory`);
-          
-          // Suche nach der Datei oder einer ähnlichen Datei
-          const matchingFile = files.find(f => f === fileName || f.includes(fileName.split('-')[0]));
-          
-          if (matchingFile) {
-            const filePath = path.join(assetsDir, matchingFile);
-            logger.info(`Found matching file: ${filePath}`);
-            return res.sendFile(filePath);
-          } else {
-            logger.error(`No matching file found for ${fileName}`);
-          }
-        } catch (err) {
-          logger.error(`Error reading assets directory: ${err.message}`);
-        }
-      }
-      
-      next();
-    });
-  });
-  
-  app.use(express.static(staticFilesPath, {
-    maxAge: '1d', // Browser-Cache für 1 Tag
-    etag: true,
-    lastModified: true,
-    setHeaders: (res, filePath) => {
-      // Logge Zugriffe auf statische Dateien
-      logger.info(`Static file requested: ${filePath}`);
-      
-      // Detailliertere Logs für Debugging
-      const requestedPath = res.req.originalUrl;
-      logger.info(`Original request URL: ${requestedPath}`);
-      
-      // Prüfe, ob die Datei existiert
-      const fullPath = path.join(staticFilesPath, requestedPath);
-      if (!fs.existsSync(fullPath)) {
-        logger.error(`File not found: ${fullPath}`);
-        logger.info(`Checking if file exists in assets directory: ${path.join(staticFilesPath, 'assets', path.basename(requestedPath))}`);
+      if (fs.existsSync(fullPath)) {
+        console.log(`[STATIC] Datei gefunden: ${fullPath}`);
+      } else {
+        console.log(`[STATIC] Datei nicht gefunden: ${fullPath}`);
       }
     }
-  }));
+    
+    return express.static(staticFilesPath, {
+      maxAge: '1d',
+      etag: true,
+      lastModified: true
+    })(req, res, next);
+  });
 
   // Statisches Verzeichnis für Video-Uploads
   app.use('/uploads/exports', express.static(path.join(__dirname, 'uploads/exports'), {
@@ -477,18 +438,6 @@ if (cluster.isMaster) {
       // Prüfe auf typische Asset-Pfade
       if (requestPath.match(/\.(js|css|woff2|png|jpg|svg|ico)$/)) {
         logger.info(`Asset request detected: ${requestPath}`);
-        
-        // Prüfe verschiedene mögliche Pfade
-        const possiblePaths = [
-          path.join(staticFilesPath, requestPath),
-          path.join(staticFilesPath, requestPath.replace(/^\/assets\//, 'assets/')),
-          path.join(staticFilesPath, 'assets', path.basename(requestPath))
-        ];
-        
-        logger.info(`Checking possible paths for: ${requestPath}`);
-        possiblePaths.forEach(p => {
-          logger.info(`Checking path: ${p} - Exists: ${fs.existsSync(p)}`);
-        });
       }
     }
     next();
@@ -503,23 +452,7 @@ if (cluster.isMaster) {
       // Prüfe, ob die Datei existiert
       if (fs.existsSync(filePath)) {
         logger.info(`index.html exists at: ${filePath}`);
-        
-        // Lese die index.html und passe die Asset-Pfade an
-        fs.readFile(filePath, 'utf8', (err, data) => {
-          if (err) {
-            logger.error(`Error reading index.html: ${err.message}`);
-            return next(err);
-          }
-          
-          // Logge die ursprünglichen Asset-Pfade
-          const assetMatches = data.match(/src="([^"]+)"|href="([^"]+)"/g);
-          if (assetMatches) {
-            logger.info(`Original asset references in index.html: ${assetMatches.slice(0, 10).join(', ')}${assetMatches.length > 10 ? '...' : ''}`);
-          }
-          
-          // Sende die unveränderte Datei
-          res.send(data);
-        });
+        res.sendFile(filePath);
       } else {
         logger.error(`Index-Datei nicht gefunden: ${filePath}`);
         throw new Error(`Index-Datei nicht gefunden: ${filePath}`);
@@ -535,38 +468,14 @@ if (cluster.isMaster) {
       // Logge alle Anfragen, die nicht von statischen Dateien bedient werden
       logger.info(`Catch-all route accessed for: ${req.path}`);
       
-      // Prüfe, ob es sich um eine HTML-Anfrage handelt (Browser)
-      const acceptHeader = req.headers.accept || '';
-      const wantsHtml = acceptHeader.includes('text/html');
+      const filePath = path.join(staticFilesPath, 'index.html');
       
-      if (wantsHtml) {
-        const filePath = path.join(staticFilesPath, 'index.html');
-        
-        // Prüfe, ob die Datei existiert
-        if (fs.existsSync(filePath)) {
-          // Lese die index.html und passe die Asset-Pfade an
-          fs.readFile(filePath, 'utf8', (err, data) => {
-            if (err) {
-              logger.error(`Error reading index.html: ${err.message}`);
-              return next(err);
-            }
-            
-            // Logge die ursprünglichen Asset-Pfade
-            const assetMatches = data.match(/src="([^"]+)"|href="([^"]+)"/g);
-            if (assetMatches) {
-              logger.info(`Original asset references in index.html: ${assetMatches.slice(0, 10).join(', ')}${assetMatches.length > 10 ? '...' : ''}`);
-            }
-            
-            // Sende die unveränderte Datei
-            res.send(data);
-          });
-        } else {
-          logger.error(`Index-Datei nicht gefunden: ${filePath}`);
-          throw new Error(`Index-Datei nicht gefunden: ${filePath}`);
-        }
+      // Prüfe, ob die Datei existiert
+      if (fs.existsSync(filePath)) {
+        res.sendFile(filePath);
       } else {
-        // Für nicht-HTML-Anfragen (z.B. API-Anfragen) weitermachen
-        next();
+        logger.error(`Index-Datei nicht gefunden: ${filePath}`);
+        throw new Error(`Index-Datei nicht gefunden: ${filePath}`);
       }
     } catch (err) {
       logger.error(`Error in catch-all route: ${err.message}`);
