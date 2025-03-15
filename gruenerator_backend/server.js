@@ -370,8 +370,32 @@ if (cluster.isMaster) {
 
   // Error Handler
   app.use((err, req, res, next) => {
-    logger.error(err.stack);
-    res.status(500).send('Something broke!');
+    // Detailliertes Logging des Fehlers
+    logger.error({
+      message: 'Server-Fehler aufgetreten',
+      error: err.message,
+      stack: err.stack,
+      path: req.path,
+      method: req.method,
+      ip: req.ip,
+      headers: req.headers,
+      timestamp: new Date().toISOString()
+    });
+
+    // Bestimme, ob wir in der Entwicklungsumgebung sind
+    const isDevelopment = process.env.NODE_ENV === 'development';
+    
+    // Sende eine strukturierte Fehlerantwort
+    res.status(500).json({
+      success: false,
+      error: 'Ein Serverfehler ist aufgetreten',
+      message: isDevelopment ? err.message : 'Bitte versuchen Sie es später erneut',
+      // Nur in der Entwicklungsumgebung den Stack senden
+      stack: isDevelopment ? err.stack : undefined,
+      // Eine eindeutige Fehler-ID für die Fehlersuche
+      errorId: `${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      timestamp: new Date().toISOString()
+    });
   });
 
   // Ändere die Server-Konfiguration
