@@ -3,9 +3,9 @@ import PropTypes from 'prop-types';
 import ReactQuill from 'react-quill';
 import { EditorToolbar } from './EditorToolbar';
 import 'react-quill/dist/quill.snow.css';
-import { FormContext } from '../utils/FormContext';
-import { applyHighlightWithAnimation } from '../utils/highlightUtils';
-import { enableMobileEditorScrolling } from '../utils/mobileEditorScrolling';
+import { FormContext } from '../../utils/FormContext';
+import { applyHighlightWithAnimation } from '../../utils/highlightUtils';
+import { enableMobileEditorScrolling } from '../../utils/mobileEditorScrolling';
 
 const QuillWrapper = React.forwardRef((props, ref) => (
   <ReactQuill
@@ -126,11 +126,39 @@ const Editor = React.memo(({ setEditorInstance = () => {} }) => {
 
   useEffect(() => {
     if (setEditorInstance) {
+      console.log('[Editor] Initialisiere Editor-Instanz:', {
+        hasQuillRef: !!quillRef.current,
+        hasEditor: !!quillRef.current?.getEditor(),
+        editorMethods: quillRef.current?.getEditor() ? Object.keys(quillRef.current.getEditor()) : []
+      });
+      
       setEditorInstance({
         setContent: setEditorContent,
-        getHtmlContent: () => quillRef.current?.root.innerHTML,
-        getDelta: () => quillRef.current?.getEditor().getContents(),
-        focus: () => quillRef.current?.getEditor().focus(),
+        getHtmlContent: () => {
+          const editor = quillRef.current?.getEditor();
+          console.log('[Editor] getHtmlContent aufgerufen:', {
+            hasEditor: !!editor,
+            hasRoot: editor ? !!editor.root : false,
+            innerHTML: editor?.root?.innerHTML?.substring(0, 50) + '...'
+          });
+          return editor?.root.innerHTML;
+        },
+        getDelta: () => {
+          const editor = quillRef.current?.getEditor();
+          console.log('[Editor] getDelta aufgerufen:', {
+            hasEditor: !!editor,
+            hasGetContents: editor ? typeof editor.getContents === 'function' : false
+          });
+          return editor?.getContents();
+        },
+        focus: () => {
+          const editor = quillRef.current?.getEditor();
+          console.log('[Editor] focus aufgerufen:', {
+            hasEditor: !!editor,
+            hasFocus: editor ? typeof editor.focus === 'function' : false
+          });
+          editor?.focus();
+        },
       });
     }
   }, [setEditorInstance, setEditorContent]);
@@ -240,13 +268,36 @@ const Editor = React.memo(({ setEditorInstance = () => {} }) => {
   const applyAdjustment = useCallback((newText, keepFormatting = true) => {
     const quill = quillRef.current?.getEditor();
     if (quill && highlightedRange) {
+      console.log('=== AI Adjustment Debug ===');
+      console.log('1. Received Text:', newText);
+
+      // HTML-Tags entfernen falls vorhanden
+      const cleanText = newText.replace(/&lt;/g, '<')
+                              .replace(/&gt;/g, '>')
+                              .replace(/<[^>]*>/g, '')
+                              .trim();
+      
+      console.log('2. Cleaned Text:', cleanText);
+
+      // Alten Text löschen
       quill.deleteText(highlightedRange.index, highlightedRange.length);
-      quill.insertText(highlightedRange.index, newText, keepFormatting ? {
+      console.log('3. After Delete:', quill.root.innerHTML);
+
+      // Text einfügen und formatieren in einem Schritt
+      quill.insertText(highlightedRange.index, cleanText, {
         'color': '#000000',
         'background': '#e6ffe6'
-      } : {});
-      quill.setSelection(highlightedRange.index + newText.length, 0);
+      });
+      
+      console.log('4. After Insert:', quill.root.innerHTML);
+
+      // Cursor ans Ende setzen
+      quill.setSelection(highlightedRange.index + cleanText.length, 0);
+      
+      // Update Content
       const updatedContent = quill.root.innerHTML;
+      console.log('5. Final Content:', updatedContent);
+
       setLocalValue(updatedContent);
       updateValue(updatedContent);
     }
@@ -254,6 +305,11 @@ const Editor = React.memo(({ setEditorInstance = () => {} }) => {
 
   useEffect(() => {
     if (newSelectedText && highlightedRange) {
+      console.log('=== Adjustment Trigger ===', {
+        newSelectedText,
+        highlightedRange,
+        currentEditorContent: quillRef.current?.getEditor()?.root.innerHTML
+      });
       applyAdjustment(newSelectedText);
     }
   }, [newSelectedText, highlightedRange, applyAdjustment]);
@@ -437,7 +493,7 @@ const Editor = React.memo(({ setEditorInstance = () => {} }) => {
         newSelectedText={newSelectedText}
         onRejectAdjustment={handleRejectAdjustment}
         isEditing={isEditing}
-        showConfirmation={!!newSelectedText}
+        showAdjustmentConfirmation={!!newSelectedText && isAdjusting}
         removeAllHighlights={removeAllHighlights}
         originalContent={originalContent}
       />
