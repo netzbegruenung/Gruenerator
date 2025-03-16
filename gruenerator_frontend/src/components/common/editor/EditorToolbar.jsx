@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback, useContext } from 'rea
 import PropTypes from 'prop-types';
 import { HiCog } from 'react-icons/hi';
 import { FaUndo, FaRedo } from 'react-icons/fa';
-import { FormContext } from '../utils/FormContext';
+import { FormContext } from '../../utils/FormContext';
 import { useMediaQuery } from 'react-responsive';
 
 const CustomUndo = React.memo(() => {
@@ -32,11 +32,12 @@ const EditorToolbarComponent = ({
   originalSelectedText,
   onRejectAdjustment,
   isEditing,
+  showAdjustmentConfirmation = false,
 }) => {
   const { adjustText, error, setError, isApplyingAdjustment } = useContext(FormContext);
 
   const [adjustmentText, setAdjustmentText] = useState('');
-  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(showAdjustmentConfirmation);
   const adjustContainerRef = useRef(null);
   const inputRef = useRef(null);
   const isInitialClickRef = useRef(false);
@@ -88,6 +89,9 @@ const EditorToolbarComponent = ({
     onAiAdjustment(false);
   }, [onConfirmAdjustment, onAiAdjustment]);
 
+  useEffect(() => {
+    setShowConfirmation(showAdjustmentConfirmation);
+  }, [showAdjustmentConfirmation]);
 
   useEffect(() => {
   }, [isAdjusting]);
@@ -241,6 +245,7 @@ EditorToolbarComponent.propTypes = {
   originalSelectedText: PropTypes.string.isRequired,
   onRejectAdjustment: PropTypes.func.isRequired,
   isEditing: PropTypes.bool.isRequired,
+  showAdjustmentConfirmation: PropTypes.bool,
 };
 
 export const EditorToolbar = React.memo(EditorToolbarComponent);

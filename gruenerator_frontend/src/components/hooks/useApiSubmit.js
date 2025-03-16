@@ -67,6 +67,11 @@ const useApiSubmit = (endpoint) => {
           setSuccess(true);
           return response.suggestions[0];
         }
+      } else if (endpoint === '/claude_chat') {
+        if (response) {
+          setSuccess(true);
+          return response;
+        }
       } else if (endpoint === 'zitat_claude') {
         if (response && response.quote) {
           setSuccess(true);

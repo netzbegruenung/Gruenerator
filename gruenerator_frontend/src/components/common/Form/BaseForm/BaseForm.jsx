@@ -9,6 +9,7 @@ import { BUTTON_LABELS } from '../../../utils/constants';
 // Importiere die neuen Komponenten
 import FormSection from './FormSection';
 import DisplaySection from './DisplaySection';
+import EditorChat from '../../editor/EditorChat';
 
 // Importiere die neuen Hooks
 import { useFormState, useContentManagement, useErrorHandling, useResponsive } from '../hooks';
@@ -159,22 +160,26 @@ const BaseForm = ({
           toggleForm={handleToggleForm}
         />
       )}
-      <FormSection
-        onSubmit={onSubmit}
-        loading={loading}
-        success={success}
-        formErrors={formErrors}
-        isFormVisible={isFormVisible}
-        isMultiStep={isMultiStep}
-        onBack={onBack}
-        showBackButton={showBackButton}
-        nextButtonText={nextButtonText}
-        submitButtonProps={submitButtonProps}
-        featureToggle={featureToggle}
-        useFeatureToggle={useFeatureToggle}
-      >
-        {children}
-      </FormSection>
+      {isEditing ? (
+        <EditorChat isEditing={isEditing} />
+      ) : (
+        <FormSection
+          onSubmit={onSubmit}
+          loading={loading}
+          success={success}
+          formErrors={formErrors}
+          isFormVisible={isFormVisible}
+          isMultiStep={isMultiStep}
+          onBack={onBack}
+          showBackButton={showBackButton}
+          nextButtonText={nextButtonText}
+          submitButtonProps={submitButtonProps}
+          featureToggle={featureToggle}
+          useFeatureToggle={useFeatureToggle}
+        >
+          {children}
+        </FormSection>
+      )}
       {!hideDisplayContainer && (
         <DisplaySection
           title={displayTitle}
