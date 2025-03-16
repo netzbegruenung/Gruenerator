@@ -27,7 +27,6 @@ const useContentManagement = (initialContent = '') => {
 
     // Wenn value leer ist, setze generatedContent
     if (!value) {
-      console.log('[useContentManagement] Setze generatedContent in value:', generatedContent);
       updateValue(generatedContent);
       return;
     }

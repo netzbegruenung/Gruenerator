@@ -1,6 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import Editor from '../../Editor';
+import Editor from '../../editor/Editor';
 import PlatformContainer from '../../PlatformContainer';
 import HelpDisplay from '../../HelpDisplay';
 import { isReactElement, hasPlatformHeaders } from '../utils/contentUtils';
