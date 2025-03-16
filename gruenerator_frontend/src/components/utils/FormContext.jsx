@@ -238,6 +238,20 @@ export const FormProvider = ({
     }
   }, [quillRef]);
 
+  const handleAiResponse = useCallback(async (response) => {
+    if (response.textAdjustment) {
+      setIsAdjusting(true);
+      setHighlightedRange({
+        index: response.textAdjustment.range.index,
+        length: response.textAdjustment.range.length
+      });
+      setNewSelectedText(response.textAdjustment.newText);
+      setOriginalContent(value);
+      handleAiAdjustment(true, response.textAdjustment.newText);
+    }
+    return response.response;
+  }, [handleAiAdjustment, setHighlightedRange, setNewSelectedText, setIsAdjusting, value, setOriginalContent]);
+
   const contextValue = useMemo(() => ({
     value,
     setValue: debouncedSetValue,
@@ -282,6 +296,8 @@ export const FormProvider = ({
     isApplyingAdjustment,
     setIsApplyingAdjustment,
     hasContent,
+    quillRef,
+    handleAiResponse
   }), [
     value,
     debouncedSetValue,
@@ -316,6 +332,8 @@ export const FormProvider = ({
     clearAllHighlights,
     isApplyingAdjustment,
     hasContent,
+    quillRef,
+    handleAiResponse
   ]);
 
   useEffect(() => {
@@ -335,5 +353,3 @@ FormProvider.propTypes = {
   initialEditingMode: PropTypes.bool,
   originalLinkData: PropTypes.object,
 };
-
-export default FormProvider;

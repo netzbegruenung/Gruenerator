@@ -47,7 +47,7 @@ Der Antrag sollte eine klare Struktur mit Betreff, Antragstext und Begründung h
     // Anfrage an Claude
     const result = await req.app.locals.aiWorkerPool.processRequest({
       type: 'antrag',
-      systemPrompt: 'Du bist Kommunalpolitiker einer Gliederung von Bündnis 90/Die Grünen. Entwirf einen Antrag basierend auf der gegebenen Idee.',
+      systemPrompt: 'Du bist Kommunalpolitiker einer Gliederung von Bündnis 90/Die Grünen. Entwirf einen Antrag basierend auf der gegebenen Idee. Verwende normalen Text ohne Markdown-Formatierung.',
       messages: [{
         role: "user",
         content: userContent

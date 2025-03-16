@@ -2,6 +2,7 @@
 const claudeRoute = require('./routes/claude/index');
 const claudeSocialRoute = require('./routes/claude_social');
 const claudeRedeRoute = require('./routes/claude_rede');
+const claudeChatRoute = require('./routes/claude_chat');
 const antragsversteherRoute = require('./routes/claude_antragsversteher');
 const pdfExtractionRoute = require('./routes/pdf-text-extraction');
 const wahlpruefsteinBundestagswahlRoute = require('./routes/wahlpruefsteinbundestagswahl');
@@ -43,6 +44,7 @@ function setupRoutes(app) {
   app.use('/api/claude', claudeRoute);
   app.use('/api/claude_social', claudeSocialRoute);
   app.use('/api/claude_rede', claudeRedeRoute);
+  app.use('/api/claude_chat', claudeChatRoute);
   app.use('/api/antragsversteher', antragsversteherRoute);
   app.use('/api/pdf-extraction', pdfExtractionRoute);
   app.use('/api/wahlpruefsteinbundestagswahl', wahlpruefsteinBundestagswahlRoute);
