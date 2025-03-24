@@ -15,8 +15,7 @@ export default defineConfig(({ command }) => ({
   esbuild: {
     loader: 'jsx',
     include: /src\/.*\.jsx?$/,
-    exclude: [],
-    jsxInject: `import React from 'react'`
+    exclude: []
   },
 
   resolve: {
