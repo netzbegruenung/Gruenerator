@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
-import './CampaignDashboard.css';
 import templateData from '../../templates/utils/templates.json';
 import FilesSection from './FilesSection';
 import TextsSection from './TextsSection';

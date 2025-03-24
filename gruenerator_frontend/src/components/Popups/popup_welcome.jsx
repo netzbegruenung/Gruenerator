@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import '../../assets/styles/components/welcome-popup.css';
-
 const WelcomePopup = () => {
   const location = useLocation();
   const isNoHeaderFooterRoute = location.pathname.includes('-no-header-footer');

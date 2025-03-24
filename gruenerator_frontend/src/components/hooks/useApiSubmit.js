@@ -68,7 +68,38 @@ const useApiSubmit = (endpoint) => {
           return response.suggestions[0];
         }
       } else if (endpoint === '/claude_chat') {
-        if (response) {
+        if (response && response.response) {
+          // Wenn textAdjustment vorhanden ist, validiere dessen Struktur
+          if (response.textAdjustment) {
+            const { type, newText } = response.textAdjustment;
+            
+            // Nur full oder selected Typen erlauben
+            if (!type || !newText || (type !== 'full' && type !== 'selected')) {
+              throw new Error(`Ungültiger Anpassungstyp: ${type || 'unbekannt'}`);
+            }
+            
+            // Debugging-Ausgabe für newText
+            console.log('[useApiSubmit] textAdjustment.newText:', newText?.substring(0, 50) + '...');
+            
+            // Füge Standardwerte für context und punctuation hinzu falls nicht vorhanden
+            if (!response.textAdjustment.context) {
+              response.textAdjustment.context = {
+                beforeContext: '',
+                text: type === 'selected' ? 
+                      response.textAdjustment.selectedText || '' : 
+                      response.fullText || '',
+                afterContext: ''
+              };
+            }
+            if (!response.textAdjustment.punctuation) {
+              response.textAdjustment.punctuation = {
+                startsWithPunctuation: false,
+                endsWithPunctuation: false,
+                type: 'phrase'
+              };
+            }
+          }
+          
           setSuccess(true);
           return response;
         }

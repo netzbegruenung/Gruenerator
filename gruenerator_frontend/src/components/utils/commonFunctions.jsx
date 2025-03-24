@@ -254,3 +254,35 @@ export const copyFormattedContent = (content, onSuccess, onError) => {
     }
   }
 };
+
+export const formatQuillContent = (content) => {
+  // Prüfe ob es sich um einen Suchseiten-Export handelt
+  if (typeof content === 'object' && content.analysis) {
+    return content.analysis;
+  }
+
+  // Temporäres Element für die Formatierung
+  const tempElement = document.createElement('div');
+  tempElement.innerHTML = content;
+
+  // Formatiere Block-Elemente
+  const blockElements = tempElement.querySelectorAll('p, div, li, h1, h2, h3, h4, h5, h6, blockquote');
+  blockElements.forEach(element => {
+    // Fügt Zeilenumbrüche nach Block-Elementen ein
+    element.insertAdjacentHTML('afterend', '\n');
+    
+    // Spezielle Behandlung für Listenelemente
+    if (element.tagName === 'LI') {
+      element.insertAdjacentHTML('beforebegin', '• ');
+    }
+  });
+
+  // Doppelte Zeilenumbrüche für bessere Lesbarkeit
+  const lists = tempElement.querySelectorAll('ul, ol');
+  lists.forEach(list => {
+    list.insertAdjacentHTML('afterend', '\n');
+  });
+
+  // Erhalte die HTML-Struktur
+  return tempElement.innerHTML;
+};

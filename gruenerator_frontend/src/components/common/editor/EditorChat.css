@@ -144,11 +144,26 @@
   cursor: not-allowed;
 }
 
+.selected-text-display {
+  font-size: 0.75rem;
+  color: #666;
+  margin: 8px 12px;
+  padding: 8px 12px;
+  background: var(--sand);
+  border-radius: 4px;
+  white-space: pre-wrap;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  line-height: 1.4;
+  max-height: 5.6em;
+  max-width: calc(100% - 24px);
+  border: 1px solid var(--hellgrau);
+  word-break: break-word;
+}
+
 @media (max-width: 768px) {
   .editor-chat {
-    width: 100%;
-    height: 400px;
-    position: static;
-    margin-bottom: 1rem;
+    display: none;
   }
 } 

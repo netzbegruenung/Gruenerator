@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { useAuth } from '../utils/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import '../../assets/styles/components/verify.css';
-
 const EyeIcon = ({ closed }) => (
   <svg 
     width="20" 

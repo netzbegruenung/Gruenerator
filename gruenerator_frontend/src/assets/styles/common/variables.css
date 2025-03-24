@@ -16,6 +16,7 @@
 
     /* Light Mode (Standard) */
     --background-color: white;
+    --background-color-pure: white;
     --background-color-alt: var(--backgroundgruen);
     --background-color-sand: var(--sand);
     --hover-color-alt: #e5f1eb;
@@ -40,6 +41,7 @@
 /* Dark Mode */
 [data-theme="dark"] {
     --background-color: #222;
+    --background-color-pure: #232323;
     --background-color-alt: #343434;
     --background-color-sand: #343434;
     --hover-color-alt: #3d3d3d;
@@ -65,6 +67,7 @@
 @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
         --background-color: #222;
+        --background-color-pure: #232323;
         --background-color-alt: #343434;
         --background-color-sand: var(--dunkelgruen);
         --hover-color-alt: #3d3d3d;
@@ -113,9 +116,7 @@ button {
     margin-bottom: 20px;
 }
 
-.with-header {
-    margin-top: 80px; 
-}
+
 
 @media (max-width: 768px) {
     .container {
@@ -124,7 +125,4 @@ button {
         margin-bottom: 0px;
     }
 
-    .container.with-header {
-        margin-top: 80px; /* Fügt den oberen Abstand nur hinzu, wenn der Header vorhanden ist */
-    }
 }

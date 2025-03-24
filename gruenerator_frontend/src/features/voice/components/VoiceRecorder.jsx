@@ -5,9 +5,6 @@ import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 import useVoiceRecorder from '../hooks/useVoiceRecorder';
 import Spinner from '../../../components/common/Spinner';
 import ErrorBoundary from '../../../components/ErrorBoundary';
-import '../styles/VoiceRecorder.css';
-import '../../../assets/styles/components/spinner.css';
-
 const VoiceRecorder = ({ onTranscriptionComplete }) => {
   const {
     isRecording,

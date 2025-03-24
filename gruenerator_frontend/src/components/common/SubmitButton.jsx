@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
 import Lottie from 'react-lottie-player';
+import Spinner from './Spinner';
 
 let lottie_checkmark;
 try {
@@ -79,18 +80,14 @@ const SubmitButton = ({
 
     return (
       <div className="submit-button__content">
-        {icon && <span className={`submit-button__icon ${loading ? 'submit-button__icon--loading' : ''}`}>{icon}</span>}
+        {icon && !loading && <span className="submit-button__icon">{icon}</span>}
         {!loading && <span>{text}</span>}
         {loading && (
           <>
             <span className="submit-button__loading-spinner">
-              <svg className="spinner" viewBox="0 0 50 50">
-                <circle className="path" cx="25" cy="25" r="20" fill="none" strokeWidth="5"></circle>
-              </svg>
+              <Spinner size="small" />
             </span>
-            {showStatus && statusMessage && (
-              <span className="submit-button__status">{statusMessage}</span>
-            )}
+            <span>{statusMessage && showStatus ? statusMessage : text}</span>
           </>
         )}
       </div>

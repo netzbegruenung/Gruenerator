@@ -8,10 +8,6 @@ import UnsplashButton from './UnsplashButton';
 import { useSharepicGeneratorContext } from '../utils/SharepicGeneratorContext';
 import AdvancedEditingSection from '../../dreizeilen/components/AdvancedEditingSection';
 import HelpDisplay from '../../../../components/common/HelpDisplay';
-import '../../../../assets/styles/pages/baseform.css';
-import '../../../../assets/styles/components/button.css';
-import '../../../../assets/styles/components/sharepic.css';
-import '../../../../assets/styles/components/advanced-editing.css';
 import FormErrors from '../../../../components/common/FormErrors';
 
 import { 
