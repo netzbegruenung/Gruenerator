@@ -17,6 +17,9 @@ build
 .env.test.local
 .env.production.local
 .cursorrules
+CLAUDE.md
+.editorconfig
+
 
 # Logs
 npm-debug.log*
@@ -49,3 +52,6 @@ gruenerator_backend/uploads/exports/*
 gruenerator_backend/uploads/*.zip
 gruenerator_backend/uploads/*.png
 gruenerator_backend/uploads/*.zip:Zone.Identifier
+
+#claudecode files
+CLAUDE.md

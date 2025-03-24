@@ -1,10 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import '../../assets/styles/common/variables.css';
-import '../../assets/styles/common/global.css';
-import '../../assets/styles/components/button.css';
-import '../../assets/styles/components/popup.css';
-
 const PopupNutzungsbedingungen = () => {
   const [visible, setVisible] = useState(false);
   const location = useLocation();

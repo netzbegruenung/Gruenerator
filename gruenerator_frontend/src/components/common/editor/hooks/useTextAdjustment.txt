@@ -1,0 +1,120 @@
+//import { useCallback, useEffect } from 'react';
+
+/*  
+const useTextAdjustment = (
+  quillRef, 
+  highlightedRange, 
+  isAdjusting, 
+  adjustmentText, 
+  aiAdjustment, 
+  updateValue, 
+  setLocalValue,
+  applyNewTextHighlight,
+  originalContent,
+  setIsAdjusting,
+  setAdjustmentText,
+  setOriginalContent,
+  setAiAdjustment,
+  setShowConfirmationContainer,
+  removeAllHighlights
+) => {
+  const applyAdjustment = useCallback((newText) => {
+    const quill = quillRef.current?.getEditor();
+    if (!quill) return;
+    console.log('[useTextAdjustment] applyAdjustment');
+    
+    removeAllHighlights(quill);
+    setLocalValue(quill.root.innerHTML);
+  }, [quillRef, removeAllHighlights, setLocalValue]);
+
+  const rejectAdjustment = useCallback(() => {
+    const quill = quillRef.current?.getEditor();
+    
+    console.log('[TextAdjustment] Adjustment rejected');
+    console.log('[TextAdjustment] Type:', aiAdjustment?.type, 'Range:', !!highlightedRange);
+    
+    // Prüfe zuerst direkt auf den Typ, unabhängig von anderen Bedingungen
+    if (aiAdjustment?.type === 'full' && quill) {
+      console.log('[TextAdjustment] Verarbeite full type rejection');
+      const length = quill.getLength();
+      console.log('[TextAdjustment] Editor getLength():', length);
+      quill.deleteText(0, length, 'api');
+      
+      if (originalContent) {
+        quill.insertText(0, originalContent, 'api');
+        updateValue(quill.root.innerHTML);
+      }
+    } else if (highlightedRange && quill) {
+      console.log('[TextAdjustment] Verarbeite selected type rejection');
+      quill.deleteText(highlightedRange.index, highlightedRange.length, 'api');
+      
+      if (originalContent) {
+        quill.insertText(highlightedRange.index, originalContent, 'api');
+        setLocalValue(quill.root.innerHTML);
+      }
+    } else {
+      console.warn('[TextAdjustment] Konnte weder full noch selected type verarbeiten');
+    }
+    
+    // States immer zurücksetzen
+    setIsAdjusting(false);
+    setAdjustmentText('');
+    setOriginalContent('');
+    setAiAdjustment(null);
+    setShowConfirmationContainer(false);
+    removeAllHighlights();
+    
+    console.log('[useTextAdjustment] rejectAdjustment abgeschlossen');
+  }, [
+    originalContent, 
+    updateValue, 
+    quillRef, 
+    aiAdjustment?.type, 
+    highlightedRange,
+    setIsAdjusting,
+    setAdjustmentText,
+    setOriginalContent,
+    setAiAdjustment,
+    setShowConfirmationContainer,
+    removeAllHighlights
+  ]);
+
+  // Effekt für die Anwendung von Anpassungen
+  useEffect(() => {
+    if (adjustmentText && highlightedRange) {
+      applyAdjustment(adjustmentText);
+    } else if (adjustmentText && aiAdjustment?.type === 'full') {
+      const quill = quillRef.current?.getEditor();
+      if (quill) {
+        console.log('[useTextAdjustment] Wende full-type Anpassung an', {
+          adjustmentTextLength: adjustmentText.length,
+          aiAdjustmentType: aiAdjustment?.type,
+          quillValid: !!quill
+        });
+        
+        // Nur Text ersetzen - originalContent wurde bereits beim Absenden gespeichert
+        quill.setText(adjustmentText);
+        
+        // Neue Zeile: Wende die grüne Hervorhebung auf den gesamten Text an
+        applyNewTextHighlight(quill, 0, adjustmentText.length);
+        
+        // Lokalen Wert aktualisieren, aber noch nicht den Hauptwert
+        setLocalValue(quill.root.innerHTML);
+      }
+    }
+  }, [
+    adjustmentText, 
+    highlightedRange, 
+    applyAdjustment, 
+    aiAdjustment, 
+    quillRef, 
+    setLocalValue
+  ]);
+
+  return {
+    applyAdjustment,
+    rejectAdjustment
+  };
+};
+
+export default useTextAdjustment; */

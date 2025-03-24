@@ -3,7 +3,6 @@ import ReactDOM from 'react-dom';
 import PropTypes from 'prop-types';
 import useApiSubmit from '../hooks/useApiSubmit';
 import { IoDocumentOutline, IoCopyOutline, IoOpenOutline, IoCloseOutline, IoPeopleOutline, IoFlashOutline, IoLinkOutline, IoCheckmark } from "react-icons/io5";
-import '../../assets/styles/components/exportToDocument.css';
 import { useLocation } from 'react-router-dom';
 import { useUnmount } from 'react-use';
 import { FormContext } from '../utils/FormContext';

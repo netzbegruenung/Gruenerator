@@ -1,7 +1,5 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import '../../../../assets/styles/components/form-select.css';
-
 export const TEXT_TYPES = {
   REDE: 'rede',
   WAHLPROGRAMM: 'wahlprogramm',

@@ -1,0 +1,5 @@
+{
+  "devDependencies": {
+    "replace-in-file": "^8.3.0"
+  }
+}

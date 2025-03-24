@@ -8,6 +8,9 @@ const router = express.Router();
 router.post('/', async (req, res) => {
   const { prompt, useBackupProvider } = req.body;
 
+  // Aktuelles Datum ermitteln
+  const currentDate = new Date().toISOString().split('T')[0];
+
   try {
     // Logging der Anfrage
     console.log('You-Anfrage erhalten:', {
@@ -40,6 +43,8 @@ Deine Aufgabe ist es, Anfragen zu analysieren und zu kategorisieren, damit sie v
 3. "wahlprogramm" - für Wahlprogramm-Kapitel
 4. "rede" - für politische Reden
 5. "universal" - für allgemeine Anfragen, die in keine der anderen Kategorien passen
+
+Aktuelles Datum: ${currentDate}
 
 Gib nur den Kategorienamen zurück, ohne weitere Erklärungen.
 

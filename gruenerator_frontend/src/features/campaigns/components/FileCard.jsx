@@ -1,7 +1,5 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import './FileCard.css';
-
 const FileCard = ({ file }) => {
   // Funktion zum Bestimmen der Farbe basierend auf dem Dateityp
   const getFileTypeColor = (fileType) => {

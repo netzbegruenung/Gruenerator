@@ -1,9 +1,5 @@
 import React, { useState, useCallback, useContext, useRef } from 'react';
 import PropTypes from 'prop-types';
-import '../../../assets/styles/common/variables.css';
-import '../../../assets/styles/common/global.css';
-import '../../../assets/styles/components/button.css';
-import '../../../assets/styles/pages/baseform.css';
 import { useDynamicTextSize } from '../../../components/utils/commonFunctions';
 import useApiSubmit from '../../../components/hooks/useApiSubmit';
 import BaseForm from '../../../components/common/BaseForm';

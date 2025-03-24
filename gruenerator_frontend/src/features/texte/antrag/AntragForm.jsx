@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useContext } from 'react';
 import { useAntrag } from './useAntrag';
 import { useAntragContext } from './AntragContext';
 import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../../components/utils/constants';
@@ -6,7 +6,7 @@ import BaseForm from '../../../components/common/BaseForm';
 import PlatformContainer from '../../../components/common/PlatformContainer';
 import { HiGlobeAlt } from 'react-icons/hi';
 import { SEARCH_STATES } from './hooks/useAntragSearch';
-import './styles/antrag-form.css';
+import { FormContext } from '../../../components/utils/FormContext';
 
 export const AntragForm = () => {
   const {
@@ -27,6 +27,8 @@ export const AntragForm = () => {
     displayedSources
   } = useAntragContext();
 
+  const { setGeneratedContent } = useContext(FormContext);
+
   const handleSubmit = async () => {
     try {
       await generateAntrag();
@@ -39,7 +41,8 @@ export const AntragForm = () => {
   const handleGeneratedContentChange = useCallback((content) => {
     console.log('[AntragForm] Generierter Inhalt geändert:', content ? content.substring(0, 100) + '...' : 'leer');
     setGeneratedAntrag(content);
-  }, [setGeneratedAntrag]);
+    setGeneratedContent(content); // Aktualisiere auch den FormContext
+  }, [setGeneratedAntrag, setGeneratedContent]);
 
   // Vereinfachter Button-Text
   const getButtonText = () => {

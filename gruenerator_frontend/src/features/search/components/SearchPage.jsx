@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import SearchBar from './SearchBar';
 import useSearch from '../hooks/useSearch';
-import '../styles/SearchPage.css';
 import ActionButtons from '../../../components/common/ActionButtons';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import { formatExportContent } from '../../../components/utils/exportUtils';

@@ -1,6 +1,5 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import './TextCard.css';
 import CopyButton from '../../../components/common/CopyButton';
 
 const TextCard = ({ text }) => {
