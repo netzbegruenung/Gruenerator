@@ -310,81 +310,42 @@ if (cluster.isMaster) {
   // Routen einrichten
   setupRoutes(app);
 
-  // Optimierte statische Datei-Auslieferung
+  // Optimierte statische Datei-Auslieferung für Vite
   const staticFilesPath = path.join(__dirname, '../gruenerator_frontend/build');
-  logger.info(`Serving static files from: ${staticFilesPath}`);
   
-  // Überprüfe, ob das Verzeichnis existiert
-  if (!fs.existsSync(staticFilesPath)) {
-    logger.error(`Static files directory does not exist: ${staticFilesPath}`);
-  } else {
-    logger.info(`Static files directory exists: ${staticFilesPath}`);
-    // Liste einige Dateien im Verzeichnis auf
-    try {
-      const files = fs.readdirSync(staticFilesPath);
-      logger.info(`Files in static directory: ${files.slice(0, 10).join(', ')}${files.length > 10 ? '...' : ''}`);
-      
-      // Prüfe auch den Assets-Ordner
-      const assetsPath = path.join(staticFilesPath, 'assets');
-      if (fs.existsSync(assetsPath)) {
-        const assetFiles = fs.readdirSync(assetsPath);
-        logger.info(`Files in assets directory: ${assetFiles.slice(0, 10).join(', ')}${assetFiles.length > 10 ? '...' : ''}`);
-      } else {
-        logger.error(`Assets directory does not exist: ${assetsPath}`);
-      }
-    } catch (err) {
-      logger.error(`Error reading static files directory: ${err.message}`);
+  // API-Routen zuerst
+  setupRoutes(app);
+
+  // Statische Assets mit spezifischer Struktur
+  app.use('/assets', express.static(path.join(staticFilesPath, 'assets'), {
+    maxAge: '1d',
+    etag: true,
+    immutable: true // Hash im Dateinamen erlaubt immutable caching
+  }));
+
+  // Andere statische Dateien im Root
+  app.use(express.static(staticFilesPath, {
+    maxAge: '1d',
+    etag: true,
+    // Nur echte Dateien servieren, keine Verzeichnisse
+    index: false,
+    // Explizite Dateiendungen für statische Dateien
+    extensions: ['html', 'js', 'css', 'png', 'jpg', 'gif', 'svg', 'ico']
+  }));
+
+  // SPA-Routing: Alle anderen Anfragen zu index.html
+  app.get('*', (req, res, next) => {
+    // API-Routen ignorieren
+    if (req.path.startsWith('/api/')) {
+      return next();
     }
-  }
-  
-  // Direkte Lösung: Stelle Assets-Verzeichnis explizit bereit
-  app.use('/assets', (req, res, next) => {
-    const requestedFile = req.path;
-    const fullPath = path.join(staticFilesPath, 'assets', requestedFile);
     
-    console.log(`[ASSET] Zugriff auf: /assets${requestedFile}`);
-    
-    if (fs.existsSync(fullPath)) {
-      console.log(`[ASSET] Datei gefunden: ${fullPath}`);
-      return express.static(path.join(staticFilesPath, 'assets'))(req, res, next);
+    const indexPath = path.join(staticFilesPath, 'index.html');
+    if (fs.existsSync(indexPath)) {
+      res.sendFile(indexPath);
     } else {
-      console.log(`[ASSET] Datei nicht gefunden: ${fullPath}`);
-      
-      // Versuche, die Datei ohne Unterverzeichnisse zu finden
-      const baseName = path.basename(requestedFile);
-      const alternativePath = path.join(staticFilesPath, 'assets', baseName);
-      
-      if (fs.existsSync(alternativePath)) {
-        console.log(`[ASSET] Alternative Datei gefunden: ${alternativePath}`);
-        res.sendFile(alternativePath);
-      } else {
-        console.log(`[ASSET] Keine alternative Datei gefunden für: ${baseName}`);
-        next();
-      }
+      next(new Error('index.html nicht gefunden'));
     }
-  });
-  
-  // Stelle das Hauptverzeichnis bereit
-  app.use((req, res, next) => {
-    // Nur für statische Dateien, nicht für API-Anfragen oder HTML-Seiten
-    if (req.method === 'GET' && !req.path.startsWith('/api/') && req.path !== '/' && !req.path.match(/\.html$/)) {
-      const requestedFile = req.path;
-      const fullPath = path.join(staticFilesPath, requestedFile);
-      
-      console.log(`[STATIC] Zugriff auf: ${requestedFile}`);
-      
-      if (fs.existsSync(fullPath)) {
-        console.log(`[STATIC] Datei gefunden: ${fullPath}`);
-      } else {
-        console.log(`[STATIC] Datei nicht gefunden: ${fullPath}`);
-      }
-    }
-    
-    return express.static(staticFilesPath, {
-      maxAge: '1d',
-      etag: true,
-      lastModified: true
-    })(req, res, next);
   });
 
   // Statisches Verzeichnis für Video-Uploads

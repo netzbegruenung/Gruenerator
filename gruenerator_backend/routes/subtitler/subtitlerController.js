@@ -126,6 +126,7 @@ function convertToSRT(subtitles) {
 
 // Route für Video-Upload und Verarbeitung
 router.post('/process', upload.single('video'), async (req, res) => {
+  console.log('=== SUBTITLER START ===');
   console.log('Upload-Anfrage empfangen');
   
   try {
@@ -147,8 +148,8 @@ router.post('/process', upload.single('video'), async (req, res) => {
     }
 
     // Extrahiere die gewünschte Transkriptionsmethode
-    const transcriptionMethod = req.query.method || 'openai'; // Default ist OpenAI
-    console.log('Verwende Transkriptionsmethode:', transcriptionMethod);
+    const transcriptionMethod = 'openai'; // Immer OpenAI verwenden
+    console.log('Transkription: OpenAI');
 
     // Log Upload-Metadaten
     const uploadMetadata = req.body.metadata ? JSON.parse(req.body.metadata) : {};
