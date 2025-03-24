@@ -11,6 +11,7 @@ async function transcribeWithOpenAI(filePath) {
     console.log(`Sende Audio an OpenAI (${fileSizeMB} MB): ${filePath}`);
     
     const audioFile = fs.createReadStream(filePath);
+    console.log('OpenAI Whisper wird verwendet');
     const transcription = await client.audio.transcriptions.create({
       model: "whisper-1",
       file: audioFile,
