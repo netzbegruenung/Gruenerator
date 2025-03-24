@@ -1,8 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import { SHAREPIC_TYPES } from '../../../../components/utils/constants';
-import '../../../../assets/styles/components/sharepic-type-selector.css';
-
 const SharepicTypeSelector = ({ onTypeSelect }) => {
   return (
     <div className="type-selector-screen">

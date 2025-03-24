@@ -1,0 +1,24 @@
+.empty-editor-container.with-header {
+    padding-top: 180px;
+}
+
+.empty-editor-container .base-container {
+    max-width: 100%;
+    padding: 0 20px;
+    margin: 0 auto;
+}
+
+.empty-editor-container .base-container.editing-mode {
+    display: flex;
+    justify-content: center;
+    min-height: calc(100vh - 140px);
+}
+
+.empty-editor-container .display-container {
+    max-width: 816px;
+    width: 100%;
+    background: var(--background-color-pure);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    border-radius: 8px;
+    padding: 25px;
+} 

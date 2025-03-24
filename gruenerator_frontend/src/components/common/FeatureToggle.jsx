@@ -1,7 +1,5 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import '../../assets/styles/components/FeatureToggle.css';
-
 const FeatureToggle = ({ 
   isActive, 
   onToggle, 

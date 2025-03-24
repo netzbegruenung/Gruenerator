@@ -1,7 +1,5 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import '../styles/SearchResults.css';
-
 const SearchResults = ({ results, loading }) => {
   if (loading) {
     return (

@@ -1,6 +1,4 @@
 import React from 'react';
-import './Grueneratoren.css';
-
 const Grueneratoren = () => {
   const handleButtonClick = (generatorName) => {
     console.log(`Grünerator "${generatorName}" wurde geklickt`);

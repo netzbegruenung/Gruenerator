@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import { IoCopyOutline, IoPencil, IoCheckmarkOutline } from "react-icons/io5";
+import { FaRegEye, FaRegEyeSlash } from "react-icons/fa6";
 import { copyFormattedContent } from '../utils/commonFunctions';
 import ExportToDocument from './ExportToDocument';
 
@@ -12,6 +13,8 @@ const ActionButtons = ({
   hideEditButton = false,
   className = 'display-actions',
   showExport = false,
+  onToggleFocusMode,
+  isFocusMode = false,
 }) => {
   const [copyIcon, setCopyIcon] = useState(<IoCopyOutline size={16} />);
 
@@ -34,31 +37,46 @@ const ActionButtons = ({
     <div className={className}>
       {content && (
         <>
+          {!isFocusMode && (
+            <>
+              <button
+                onClick={handleCopyToClipboard}
+                className="action-button"
+                aria-label="Kopieren"
+                {...(!isMobileView && {
+                  'data-tooltip-id': "action-tooltip",
+                  'data-tooltip-content': "Kopieren"
+                })}
+              >
+                {copyIcon}
+              </button>
+              {showExport && <ExportToDocument content={content} />}
+              {allowEditing && !hideEditButton && (
+                <button
+                  onClick={onEdit}
+                  className="action-button"
+                  aria-label={isEditing ? "Bearbeiten beenden" : "Bearbeiten"}
+                  {...(!isMobileView && {
+                    'data-tooltip-id': "action-tooltip",
+                    'data-tooltip-content': isEditing ? "Bearbeiten beenden" : "Bearbeiten"
+                  })}
+                >
+                  <IoPencil size={16} />
+                </button>
+              )}
+            </>
+          )}
           <button
-            onClick={handleCopyToClipboard}
+            onClick={onToggleFocusMode}
             className="action-button"
-            aria-label="Kopieren"
+            aria-label={isFocusMode ? "Fokus-Modus beenden" : "Fokus-Modus"}
             {...(!isMobileView && {
               'data-tooltip-id': "action-tooltip",
-              'data-tooltip-content': "Kopieren"
+              'data-tooltip-content': isFocusMode ? "Fokus-Modus beenden" : "Fokus-Modus"
             })}
           >
-            {copyIcon}
+            {isFocusMode ? <FaRegEyeSlash size={16} /> : <FaRegEye size={16} />}
           </button>
-          {showExport && <ExportToDocument content={content} />}
-          {allowEditing && !hideEditButton && (
-            <button
-              onClick={onEdit}
-              className="action-button"
-              aria-label={isEditing ? "Bearbeiten beenden" : "Bearbeiten"}
-              {...(!isMobileView && {
-                'data-tooltip-id': "action-tooltip",
-                'data-tooltip-content': isEditing ? "Bearbeiten beenden" : "Bearbeiten"
-              })}
-            >
-              <IoPencil size={16} />
-            </button>
-          )}
         </>
       )}
     </div>
@@ -73,6 +91,8 @@ ActionButtons.propTypes = {
   hideEditButton: PropTypes.bool,
   className: PropTypes.string,
   showExport: PropTypes.bool,
+  onToggleFocusMode: PropTypes.func.isRequired,
+  isFocusMode: PropTypes.bool,
 };
 
 export default ActionButtons; 

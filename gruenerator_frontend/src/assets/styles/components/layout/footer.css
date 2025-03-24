@@ -1,5 +1,4 @@
-@import url('../common/variables.css');
-@import url('../common/global.css');
+
 
 .footer {
     background-color: var(--dunkelgruen);
@@ -283,4 +282,9 @@
     .footer-bottom p {
         font-size: 0.85em;
     }
+
+    .skip-link {
+        display: none;
+    }
+
 }

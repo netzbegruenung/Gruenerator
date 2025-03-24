@@ -318,4 +318,10 @@
 
 .video-info p[data-label] {
   margin-bottom: 0.75rem;
+}
+
+/* Spezifische Anpassung für den Subtitler Button-Spinner */
+.subtitler-container .button-spinner {
+  border-color: var(--weiß);
+  border-top-color: transparent;
 } 

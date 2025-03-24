@@ -1,0 +1,190 @@
+/* editor-ai-tools.css - Styles für die AI-Tools im Editor */
+
+/* "Text mit AI anpassen" Button */
+.ql-adjust-text.custom-button {
+    display: flex;
+    align-items: center;
+    padding: 6px 10px;
+    color: var(--font-color-h);
+    background-color: transparent;
+    border: 1px solid var(--hellgrau);
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.ql-adjust-text.custom-button:hover {
+    color: var(--klee);
+}
+
+.ql-adjust-text.custom-button .adjust-icon,
+.ql-adjust-text.custom-button .adjust-text {
+    transition: color 0.3s ease;
+}
+
+.ql-adjust-text.custom-button:hover .adjust-icon,
+.ql-adjust-text.custom-button:hover .adjust-text {
+    color: var(--klee);
+}
+
+.adjust-content {
+    display: flex;
+    align-items: center;
+}
+
+.adjust-icon {
+    margin-right: 6px;
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    transition: filter 0.3s ease;
+}
+
+.adjust-text {
+    display: inline-block;
+    white-space: nowrap;
+}
+
+/* Anpassungscontainer */
+.adjust-container {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 1000;
+    background-color: white;
+    border: 1px solid var(--hellgrau);
+    border-radius: 3px;
+    padding: 10px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    width: 300px;
+}
+
+.adjust-form {
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+/* Eingabefeld für die AI-Anpassung */
+.adjust-input {
+    font-family: 'PT Sans', Arial, sans-serif;
+    width: 100%;
+    padding: 10px;
+    border: none;
+    border-radius: 4px;
+    box-sizing: border-box;
+    font-size: 0.9em;
+    outline: none;
+    color: #333;
+    background-color: var(--weiß);
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    margin-top: 15px;
+    margin-bottom: 15px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.adjust-input:focus {
+    border: 2px solid var(--grashalm);
+    padding: 8px;
+    box-shadow: 0 0 0 2px rgba(var(--klee-rgb), 0.2);
+}
+
+/* Buttons für die AI-Anpassung */
+.adjust-submit, .cancel-adjust {
+    padding: 6px 10px;
+    background-color: var(--klee);
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    margin-left: 4px;
+}
+
+.adjust-submit:hover, .cancel-adjust:hover {
+    background-color: var(--grashalm);
+}
+
+.cancel-adjust {
+    position: absolute;
+    right: 5px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 18px;
+    color: var(--font-color-h);
+}
+
+.adjust-submit {
+    background-color: var(--klee);
+    color: var(--font-color-h);
+    border: none;
+    border-radius: 3px;
+    padding: 6px 12px;
+    cursor: pointer;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.adjust-submit .icon,
+.adjust-submit .loading-icon {
+    font-size: 16px;
+}
+
+.adjust-submit.loading .loading-icon {
+    animation: spin 1s linear infinite;
+}
+
+/* Bestätigungscontainer */
+.confirmation-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    color: var(--font-color);
+    border-radius: 4px;
+}
+
+.confirmation-container p {
+    margin: 0;
+    font-weight: bold;
+}
+
+.confirmation-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+.confirm-adjust, .reject-adjust {
+    padding: 5px 10px;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.confirm-adjust {
+    background-color: var(--klee);
+    color: var(--font-color-h);
+}
+
+.reject-adjust {
+    background-color: var(--sand);
+    color: var(--tanne);
+}
+
+.confirm-adjust:hover, .reject-adjust:hover {
+    opacity: 0.8;
+}
+
+/* Entfernen des "Vorschläge werden geladen" Textes */
+.loading-text {
+    display: none;
+} 

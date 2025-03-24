@@ -1,0 +1,107 @@
+/* editor-toolbar.css - Styles für die Quill Editor Toolbar */
+
+/* Grundlegende Toolbar-Stile */
+.text-editor .ql-toolbar.ql-snow {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    border: none;
+    color: var(--tanne);
+    padding: 5px 0px;
+}
+
+.ql-toolbar.ql-snow .ql-formats {
+    margin-right: 15px;
+}
+
+/* Toolbar-Buttons */
+.ql-toolbar.ql-snow button, .ql-snow.ql-toolbar button, .ql-snow .ql-toolbar button {
+    color: var(--font-color-h) !important;
+    border: none;
+    background: none;
+    cursor: pointer;
+    padding: 5px 5px;
+    width: 28px;
+    height: 28px;
+    transition: color 0.3s ease;
+}
+
+.ql-snow.ql-toolbar button:hover, .ql-snow .ql-toolbar button:hover, .ql-snow.ql-toolbar button:focus, .ql-snow .ql-toolbar button:focus, .ql-snow.ql-toolbar button.ql-active, .ql-snow .ql-toolbar button.ql-active, .ql-snow.ql-toolbar .ql-picker-label:hover, .ql-snow .ql-toolbar .ql-picker-label:hover, .ql-snow.ql-toolbar .ql-picker-label.ql-active, .ql-snow .ql-toolbar .ql-picker-label.ql-active, .ql-snow.ql-toolbar .ql-picker-item:hover, .ql-snow .ql-toolbar .ql-picker-item:hover, .ql-snow.ql-toolbar .ql-picker-item.ql-selected, .ql-snow .ql-toolbar .ql-picker-item.ql-selected 
+{
+    color: var(--font-color-h) !important;
+}
+
+.ql-toolbar.ql-snow button:hover,
+.ql-toolbar.ql-snow button:focus,
+.ql-toolbar.ql-snow button.ql-active {
+    color: var(--klee);
+}
+
+/* SVG-Stile für Toolbar-Icons */
+.ql-toolbar .ql-stroke {
+    stroke: var(--font-color-h) !important;
+    fill: none;
+
+}
+
+.ql-toolbar .ql-fill {
+    fill: var(--font-color-h) !important;
+    fill: none;
+
+}
+
+.ql-toolbar .ql-stroke-miter {
+    stroke: var(--font-color-h) !important;
+    fill: none;
+
+}
+
+.ql-toolbar .ql-stroke:hover, .ql-toolbar .ql-stroke-miter:hover, .ql-toolbar .ql-fill:hover {
+    fill: var(--klee) !important;
+}
+
+/* Hover- und Active-Zustände für Icons */
+.ql-toolbar button:hover .ql-stroke,
+.ql-toolbar button.ql-active .ql-stroke {
+    stroke: var(--klee);
+}
+
+.ql-toolbar button:hover .ql-fill,
+.ql-toolbar button.ql-active .ql-fill {
+    fill: var(--klee);
+}
+
+/* Read-only Modus - Toolbar verstecken */
+.editor-toolbar-wrapper.read-only .ql-toolbar {
+    display: none;
+}
+
+/* Emoji Button Styles */
+.ql-snow .ql-emoji {
+    width: 24px;
+    height: 24px;
+}
+
+/* Emoji Picker Container */
+.ql-emoji-list {
+    background: var(--weiß);
+    border: 1px solid var(--hellgrau);
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+/* Emoji Categories */
+.ql-emoji-list .emoji-categories {
+    border-bottom: 1px solid var(--hellgrau);
+}
+
+/* Individual Emojis */
+.ql-emoji-list .emoji-item {
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+}
+
+.ql-emoji-list .emoji-item:hover {
+    background-color: var(--sand);
+} 
