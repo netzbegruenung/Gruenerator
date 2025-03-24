@@ -117,23 +117,30 @@ async function transcribeVideo(videoPath, method = 'openai', language = 'de') {
     if (method === 'local') {
       return await transcribeVideoLocal(videoPath, language);
     } else {
-      // Extrahiere optimierte Audio für OpenAI Whisper
+      console.log('Starte OpenAI Transkription');
       const outputDir = path.join(__dirname, '../../../uploads/transcriptions');
       await fs.mkdir(outputDir, { recursive: true });
       const audioPath = path.join(outputDir, `audio_${Date.now()}.mp3`);
+      
+      // Extrahiere Audio
       await extractAudio(videoPath, audioPath);
       
+      // Transkribiere mit OpenAI
       const rawText = await transcribeWithOpenAI(audioPath);
       
-      // Cleanup Audio-Datei nach Transkription
+      // Cleanup
       try {
         await fs.unlink(audioPath);
         console.log('Temporäre Audio-Datei gelöscht:', audioPath);
       } catch (err) {
         console.warn('Konnte temporäre Audio-Datei nicht löschen:', err);
       }
+
+      if (!rawText) {
+        throw new Error('Keine Transkription von OpenAI erhalten');
+      }
       
-      // Konvertiere OpenAI Text in das gleiche Format wie lokale Whisper Ausgabe
+      // Konvertiere Text in Segmente
       const words = rawText.split(' ');
       const wordsPerSegment = 10;
       const segments = [];
@@ -141,7 +148,7 @@ async function transcribeVideo(videoPath, method = 'openai', language = 'de') {
       
       for (let i = 0; i < words.length; i += wordsPerSegment) {
         const segmentWords = words.slice(i, i + wordsPerSegment);
-        const duration = 3; // Ungefähre Dauer pro Segment in Sekunden
+        const duration = 3;
         
         const startTime = currentTime;
         const endTime = currentTime + duration;
@@ -157,7 +164,8 @@ async function transcribeVideo(videoPath, method = 'openai', language = 'de') {
         
         segments.push(`${formattedStart} - ${formattedEnd}\n${segmentWords.join(' ')}`);
       }
-      
+
+      console.log('OpenAI Transkription abgeschlossen');
       return segments.join('\n\n');
     }
   } catch (error) {
