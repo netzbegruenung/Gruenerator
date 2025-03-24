@@ -1,6 +1,5 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import './FilesSection.css';
 import FileCard from './FileCard';
 
 const FilesSection = ({ files, className }) => {

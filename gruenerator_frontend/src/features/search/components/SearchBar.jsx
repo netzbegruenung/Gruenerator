@@ -1,8 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import { FaSearch } from 'react-icons/fa';
-import '../styles/SearchBar.css';
-
 const exampleQuestions = [
   {
     icon: '🚲',

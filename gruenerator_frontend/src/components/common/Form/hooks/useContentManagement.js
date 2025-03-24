@@ -11,7 +11,9 @@ const useContentManagement = (initialContent = '') => {
     value,
     updateValue,
     isEditing,
-    toggleEditMode
+    toggleEditMode,
+    setWelcomeMessage,
+    welcomeMessage
   } = useContext(FormContext);
 
   // Setze initialContent in value, falls vorhanden
@@ -25,21 +27,39 @@ const useContentManagement = (initialContent = '') => {
   const updateWithGeneratedContent = (generatedContent) => {
     if (!generatedContent) return;
 
-    // Wenn value leer ist, setze generatedContent
-    if (!value) {
-      updateValue(generatedContent);
+    // Prüfe, ob generatedContent ein Objekt mit content und welcomeMessage ist
+    if (typeof generatedContent === 'object' && 'content' in generatedContent) {
+      // Extrahiere Content und Welcome Message
+      const { content, welcomeMessage: newWelcomeMessage } = generatedContent;
+      
+      // Setze den Content
+      if (content && (!value || shouldUpdateValue(content))) {
+        updateValue(content);
+      }
+      
+      // Setze die Welcome Message, falls vorhanden
+      if (newWelcomeMessage) {
+        setWelcomeMessage(newWelcomeMessage);
+      }
+      
       return;
     }
-    
-    // Wenn generatedContent SUCHERGEBNIS oder ANTRAG enthält, aktualisiere auch value
-    if (generatedContent && 
-        (generatedContent.includes('SUCHERGEBNIS:') || generatedContent.includes('ANTRAG:')) && 
-        (!value || 
-         (!value.includes('SUCHERGEBNIS:') && !value.includes('ANTRAG:')) ||
-         (generatedContent.includes('ANTRAG:') && !value.includes('ANTRAG:')))) {
-      console.log('[useContentManagement] Aktualisiere value mit generatedContent, da SUCHERGEBNIS oder ANTRAG enthalten ist');
+
+    // Wenn value leer ist, setze generatedContent
+    if (!value || shouldUpdateValue(generatedContent)) {
       updateValue(generatedContent);
     }
+  };
+  
+  // Hilfsfunktion, die prüft, ob value aktualisiert werden sollte
+  const shouldUpdateValue = (newContent) => {
+    // Wenn newContent SUCHERGEBNIS oder ANTRAG enthält, während value diese nicht enthält
+    return (
+      (newContent.includes('SUCHERGEBNIS:') || newContent.includes('ANTRAG:')) && 
+      (!value || 
+       (!value.includes('SUCHERGEBNIS:') && !value.includes('ANTRAG:')) ||
+       (newContent.includes('ANTRAG:') && !value.includes('ANTRAG:')))
+    );
   };
 
   // Funktion zum Umschalten des Bearbeitungsmodus
@@ -51,7 +71,9 @@ const useContentManagement = (initialContent = '') => {
   // Funktion zum Abrufen des exportierbaren Inhalts
   const getExportableContent = (generatedContent) => {
     if (generatedContent) {
-      return typeof generatedContent === 'string' ? generatedContent : generatedContent?.content || '';
+      return typeof generatedContent === 'string' 
+        ? generatedContent 
+        : generatedContent?.content || '';
     }
     return value || '';
   };
@@ -62,7 +84,8 @@ const useContentManagement = (initialContent = '') => {
     isEditing,
     updateWithGeneratedContent,
     handleToggleEditMode,
-    getExportableContent
+    getExportableContent,
+    welcomeMessage
   };
 };
 

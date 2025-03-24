@@ -6,6 +6,9 @@ const router = express.Router();
  */
 router.post('/', async (req, res) => {
   const { idee, details, gliederung, useBackupProvider, customPrompt } = req.body;
+  
+  // Aktuelles Datum ermitteln
+  const currentDate = new Date().toISOString().split('T')[0];
 
   try {
     // Logging der Anfrage
@@ -31,6 +34,8 @@ router.post('/', async (req, res) => {
       // Bei benutzerdefiniertem Prompt diesen verwenden, aber mit Standardinformationen ergänzen
       userContent = `Benutzerdefinierter Prompt: ${customPrompt}
 
+Aktuelles Datum: ${currentDate}
+
 Zusätzliche Informationen (falls relevant):
 ${idee ? `- Antragsidee: ${idee}` : ''}
 ${gliederung ? `- Gliederung: ${gliederung}` : ''}
@@ -41,7 +46,8 @@ Der Antrag sollte eine klare Struktur mit Betreff, Antragstext und Begründung h
       // Standardinhalt ohne benutzerdefinierten Prompt
       userContent = `Idee: ${idee}` + 
                    (details ? `, Details: ${details}` : '') + 
-                   (gliederung ? `, Gliederungsname: ${gliederung}` : '');
+                   (gliederung ? `, Gliederungsname: ${gliederung}` : '') +
+                   `\n\nAktuelles Datum: ${currentDate}`;
     }
     
     // Anfrage an Claude

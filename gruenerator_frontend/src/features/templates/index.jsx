@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import '../../assets/styles/pages/template-gallery.css';
 import templateData from './utils/templates.json';
 import TemplateCard from './components/TemplateCard';
 import ErrorBoundary from '../../components/ErrorBoundary';

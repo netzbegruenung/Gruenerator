@@ -1,8 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { FaHome } from 'react-icons/fa';
-import '../../assets/styles/pages/notfound.css';
-
 const NotFound = () => {
   return (
     <div className="not-found-container">

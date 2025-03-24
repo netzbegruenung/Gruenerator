@@ -1,6 +1,5 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import './TemplatesSection.css';
 import TemplateCard from '../../templates/components/TemplateCard';
 import { Link } from 'react-router-dom';
 

@@ -1,7 +1,5 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import '../../assets/styles/components/help.css';
-
 const HelpDisplay = ({ content, tips }) => {
   return (
     <div className="help-display">
