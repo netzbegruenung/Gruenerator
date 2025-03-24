@@ -1,7 +1,5 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import '../../assets/styles/components/welcome.css';
-
 const WelcomePage = ({ title, description, steps, onStart, stepsTitle }) => {
   const handleStart = () => {
     const welcomeScreen = document.querySelector('.welcome-screen');

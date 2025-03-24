@@ -6,13 +6,13 @@ import useAccessibility from '../../../hooks/useAccessibility';
 import { addAriaLabelsToElements, enhanceFocusVisibility } from '../../../utils/accessibilityHelpers';
 import { BUTTON_LABELS } from '../../../utils/constants';
 
-// Importiere die neuen Komponenten
+// Importiere die Komponenten
 import FormSection from './FormSection';
 import DisplaySection from './DisplaySection';
 import EditorChat from '../../editor/EditorChat';
 
 // Importiere die neuen Hooks
-import { useFormState, useContentManagement, useErrorHandling, useResponsive } from '../hooks';
+import { useFormState, useContentManagement, useErrorHandling, useResponsive, useFocusMode } from '../hooks';
 
 // Importiere die Utility-Funktionen
 import { getBaseContainerClasses } from '../utils/classNameUtils';
@@ -58,7 +58,6 @@ const BaseForm = ({
     isFormVisible,
     isMultiPlatform,
     toggleForm,
-    //contentChanged,
     checkMultiPlatform,
     markContentChanged,
     resetContentChanged
@@ -76,6 +75,11 @@ const BaseForm = ({
     isMobileView,
     getDisplayTitle
   } = useResponsive();
+
+  const {
+    isFocusMode,
+    handleToggleFocusMode
+  } = useFocusMode();
 
   const { setupKeyboardNav } = useAccessibility();
 
@@ -145,7 +149,8 @@ const BaseForm = ({
     title,
     generatedContent,
     isMultiPlatform,
-    isFormVisible
+    isFormVisible,
+    isFocusMode
   });
 
   const handleToggleForm = () => {
@@ -154,50 +159,52 @@ const BaseForm = ({
 
   return (
     <div className={baseContainerClasses}>
-      {isMultiPlatform && (
+      {!isFocusMode && isMultiPlatform && (
         <FormToggleButton
           isFormVisible={isFormVisible}
           toggleForm={handleToggleForm}
         />
       )}
-      {isEditing ? (
-        <EditorChat isEditing={isEditing} />
-      ) : (
-        <FormSection
-          onSubmit={onSubmit}
-          loading={loading}
-          success={success}
-          formErrors={formErrors}
-          isFormVisible={isFormVisible}
-          isMultiStep={isMultiStep}
-          onBack={onBack}
-          showBackButton={showBackButton}
-          nextButtonText={nextButtonText}
-          submitButtonProps={submitButtonProps}
-          featureToggle={featureToggle}
-          useFeatureToggle={useFeatureToggle}
-        >
-          {children}
-        </FormSection>
+      {!isFocusMode && (
+        isEditing ? (
+          <EditorChat isEditing={isEditing} />
+        ) : (
+          <FormSection
+            onSubmit={onSubmit}
+            loading={loading}
+            success={success}
+            formErrors={formErrors}
+            isFormVisible={isFormVisible}
+            isMultiStep={isMultiStep}
+            onBack={onBack}
+            showBackButton={showBackButton}
+            nextButtonText={nextButtonText}
+            submitButtonProps={submitButtonProps}
+            featureToggle={featureToggle}
+            useFeatureToggle={useFeatureToggle}
+          >
+            {children}
+          </FormSection>
+        )
       )}
-      {!hideDisplayContainer && (
-        <DisplaySection
-          title={displayTitle}
-          error={errorState || propError}
-          value={value}
-          generatedContent={generatedContent}
-          isEditing={isEditing}
-          allowEditing={allowEditing}
-          hideEditButton={hideEditButton}
-          usePlatformContainers={usePlatformContainers}
-          helpContent={helpContent}
-          generatedPost={generatedPost}
-          onGeneratePost={onGeneratePost}
-          handleToggleEditMode={handleToggleEditMode}
-          getExportableContent={getExportableContent}
-        />
-      )}
-      {!isMobileView && (
+      <DisplaySection
+        title={displayTitle}
+        error={errorState || propError}
+        value={value}
+        generatedContent={generatedContent}
+        isEditing={isEditing}
+        allowEditing={allowEditing}
+        hideEditButton={hideEditButton}
+        usePlatformContainers={usePlatformContainers}
+        helpContent={helpContent}
+        generatedPost={generatedPost}
+        onGeneratePost={onGeneratePost}
+        handleToggleEditMode={handleToggleEditMode}
+        getExportableContent={getExportableContent}
+        onToggleFocusMode={handleToggleFocusMode}
+        isFocusMode={isFocusMode}
+      />
+      {!isMobileView && !isFocusMode && (
         <Tooltip id="action-tooltip" place="bottom" />
       )}
     </div>

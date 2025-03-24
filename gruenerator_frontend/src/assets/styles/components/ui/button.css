@@ -1,6 +1,5 @@
 /* buttons.css */
-@import url('../common/variables.css');
-@import url('../common/typography.css');
+;
 
 :root {
   --button-padding: 10px 20px;
@@ -164,6 +163,10 @@
   background-color: var(--success-color, #28a745);
 }
 
+.submit-button--with-status {
+  min-width: 180px;
+}
+
 .submit-button:disabled {
   opacity: 0.7;
   cursor: not-allowed;
@@ -204,8 +207,10 @@
   margin-right: 8px;
 }
 
-.submit-button__icon--loading {
-  animation: spin 2s linear infinite;
+.submit-button__status {
+  margin-left: 6px;
+  font-size: 0.9em;
+  white-space: nowrap;
 }
 
 .file-input-wrapper input[type="file"] {
@@ -578,4 +583,17 @@
 
 .copy-button:not(.copy-button-compact) .copy-icon {
   margin-right: 8px;
+}
+
+.submit-button__loading-spinner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 8px;
+}
+
+.submit-button__loading-spinner .spinner-small {
+  width: 14px;
+  height: 14px;
+  border-width: 2px;
 }

@@ -1,13 +1,15 @@
 //header.js
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useContext } from 'react';
 import { Link } from 'react-router-dom';
 import { PiCaretDown, PiSun, PiMoon } from 'react-icons/pi';
 import NavMenu from './NavMenu';
 import useDarkMode from '../../hooks/useDarkMode';
 import useAccessibility from '../../hooks/useAccessibility';
 import { menuItems, directMenuItems, MenuItem, menuStyles, handleMenuInteraction } from './menuData';
+import { FormContext } from '../../utils/FormContext';
 
 const Header = () => {
+    const { isEditing } = useContext(FormContext);
     const [menuActive, setMenuActive] = useState(false);
     const [activeDropdown, setActiveDropdown] = useState(null);
     const [darkMode, toggleDarkMode] = useDarkMode();
@@ -58,6 +60,8 @@ const Header = () => {
             </li>
         ));
     };
+
+    if (isEditing) return null;
 
     return (
         <header className="header" ref={headerRef}>

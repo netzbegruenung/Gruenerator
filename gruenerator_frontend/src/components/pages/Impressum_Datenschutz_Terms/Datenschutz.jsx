@@ -1,8 +1,4 @@
 import React from 'react';
-import '../../../assets/styles/common/variables.css';
-import '../../../assets/styles/common/global.css';
-import '../../../assets/styles/pages/Impressum_datenschutz.css';
-
 const Datenschutz = () => {
   return (
     <div className="page-container">
@@ -14,9 +10,9 @@ const Datenschutz = () => {
         <strong>Der <a href="https://gruenerator.de/">GRUENERATOR</a> erhebt keine Daten von Dir.
         Die von Dir getätigten Eingaben werden im Hintergrund an
         <a href="https://www.anthropic.com/">ANTHROPIC</a> weitergeleitet. Wenn Du die Suchfunktion des GRUENERATORs nutzt, 
-        werden Deine Suchanfragen zusätzlich an <a href="https://tavily.com/">TAVILY</a> weitergeleitet. Die Daten werden dort verarbeitet
+        werden Deine Suchanfragen zusätzlich an <a href="https://tavily.com/">TAVILY</a> weitergeleitet. Bei Nutzung der Sprachverarbeitung werden deine Audiodaten an OpenAI in den USA weitergeleitet. Die Daten werden dort verarbeitet
         und für 28 Tage gespeichert. Bitte achte also darauf, dass Du keine
-        personenbezogenen oder vertraulichen Daten eingibst.</strong>
+        personenbezogenen oder vertraulichen Daten eingibst oder sprichst.</strong>
       </p>
       <p>
         <strong>Wenn Du die Sprachaufnahme-Funktion oder den Reel-Grünerator nutzt, werden Deine Audio- und Videodaten ausschließlich auf unserem Server mit Whisper und FFmpeg verarbeitet und nicht an Dritte weitergegeben. Die Audio- und Videodaten werden nur für die Verarbeitung verwendet und direkt nach Abschluss des Vorgangs gelöscht. Die verarbeiteten Daten werden ebenfalls nicht dauerhaft gespeichert. Sie werden weder von Menschen angehört/angesehen noch zu Trainingszwecken genutzt.</strong>
@@ -92,6 +88,19 @@ const Datenschutz = () => {
         </ul>
       </p>
 
+      <p>
+        Wenn Du die Sprachverarbeitung nutzt, werden deine Audiodaten zusätzlich wie folgt verarbeitet:
+        <ul>
+          <li>Die Audiodaten werden zur Transkription an OpenAI in den USA übermittelt</li>
+          <li>Die Verarbeitung erfolgt durch OpenAI's Whisper-API</li>
+          <li>Die Daten werden bei OpenAI für 28 Tage gespeichert</li>
+          <li>OpenAI verwendet die Daten nicht zum Training ihrer Modelle</li>
+          <li>Die Datenübermittlung erfolgt auf Grundlage des EU-US Data Privacy Framework</li>
+          <li>Nach der Verarbeitung werden die lokalen Kopien der Audiodaten sofort gelöscht</li>
+          <li>Die generierten Transkripte werden nur temporär gespeichert</li>
+        </ul>
+      </p>
+
       <h4>b. Auf welcher Rechtsgrundlage werden diese Daten verarbeitet?</h4>
       <p>
         Die Daten werden auf der Grundlage <a href="https://dejure.org/gesetze/DSGVO/6.html">des Art. 6 Abs. 1 Buchstabe f
@@ -155,6 +164,16 @@ const Datenschutz = () => {
       <p>
         Du kannst Auskunft nach <a href="https://dejure.org/gesetze/DSGVO/15.html">Art. 15
         DS-GVO</a> über Deine personenbezogenen Daten verlangen, die wir verarbeiten.
+      </p>
+
+      <p>
+        Bezüglich der Verarbeitung von Sprachdaten durch OpenAI haben Sie das Recht:
+        <ul>
+          <li>Auskunft über die verarbeiteten Daten zu erhalten</li>
+          <li>Die Löschung der Daten vor Ablauf der 28-Tage-Frist zu verlangen</li>
+          <li>Der Verarbeitung zu widersprechen</li>
+          <li>Ihre Einwilligung jederzeit zu widerrufen</li>
+        </ul>
       </p>
 
       <h4>b. Recht auf Widerspruch</h4>
@@ -277,6 +296,18 @@ const Datenschutz = () => {
         vorliegenden Angemessenheitsbeschlüssen können dem Informationsangebot
         der EU-Kommission entnommen werden.
       </p>
+
+      <p>
+        Für die Übermittlung von Audiodaten an OpenAI (USA) gilt:
+        <ul>
+          <li>Die Übermittlung erfolgt auf Basis des EU-US Data Privacy Framework</li>
+          <li>OpenAI Ireland Limited ist der verantwortliche Vertragspartner für EU-Nutzer</li>
+          <li>Es besteht ein Datenverarbeitungsvertrag (DPA) gemäß Art. 28 DSGVO</li>
+          <li>Technische und organisatorische Maßnahmen zum Schutz der Daten sind vertraglich festgelegt</li>
+          <li>Die Speicherdauer bei OpenAI ist auf 28 Tage begrenzt</li>
+        </ul>
+      </p>
+
       <p>
         EU-US Trans-Atlantic Data Privacy Framework: Im Rahmen des sogenannten
         Data Privacy Framework (DPF) hat die EU-Kommission das Datenschutzniveau

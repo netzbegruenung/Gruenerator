@@ -8,7 +8,8 @@ export const getBaseContainerClasses = ({
   title,
   generatedContent,
   isMultiPlatform,
-  isFormVisible
+  isFormVisible,
+  isFocusMode
 }) => {
   const classes = [
     'base-container',
@@ -18,7 +19,8 @@ export const getBaseContainerClasses = ({
       typeof generatedContent === 'string' ? generatedContent.length > 0 : generatedContent?.content?.length > 0
     ) ? 'has-generated-content' : '',
     isMultiPlatform ? 'multi-platform' : '',
-    isMultiPlatform && !isFormVisible ? 'form-hidden' : ''
+    isMultiPlatform && !isFormVisible ? 'form-hidden' : '',
+    isFocusMode ? 'focus-mode' : ''
   ];
 
   return classes.filter(Boolean).join(' ');

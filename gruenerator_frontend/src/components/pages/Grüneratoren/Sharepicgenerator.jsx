@@ -11,7 +11,6 @@ import { processImageForUpload } from '../../../components/utils/imageCompressio
 import HelpDisplay from '../../common/HelpDisplay';
 import VerifyFeature from '../../common/VerifyFeature';
 import { SloganAlternativesDisplay } from '../../../features/sharepic/core/components/SloganAlternatives';
-import '../../../assets/styles/components/slogan-alternatives.css';
 import SharepicTypeSelector from '../../../features/sharepic/core/components/SharepicTypeSelector';
 
 import { 

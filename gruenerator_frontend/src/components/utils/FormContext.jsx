@@ -1,9 +1,9 @@
-import React, { createContext, useState, useCallback, useMemo, useEffect } from 'react';
+import React, { createContext, useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
 import debounce from 'lodash.debounce';
 import useApiSubmit from '../hooks/useApiSubmit';
-import { removeAllHighlights } from '../utils/highlightUtils';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigationWarning } from '../common/editor/hooks';
+import { removeAllHighlights, applyNewTextHighlight } from '../common/editor/utils';
 
 export const FormContext = createContext();
 
@@ -15,14 +15,13 @@ export const FormProvider = ({
 }) => {
   const [value, setValue] = useState(initialGeneratedContent);
   const [isEditing, setIsEditing] = useState(initialEditingMode);
-  console.log('[FormContext] Initial isEditing Status:', initialEditingMode);
   const [isAdjusting, setIsAdjusting] = useState(false);
   const [aiAdjustment, setAiAdjustment] = useState(null);
   const [selectedText, setSelectedText] = useState('');
   const [highlightedRange, setHighlightedRange] = useState(null);
   const [syncStatus, setSyncStatus] = useState('synced');
   const [originalSelectedText, setOriginalSelectedText] = useState('');
-  const [newSelectedText, setNewSelectedText] = useState('');
+  const [adjustmentText, setAdjustmentText] = useState('');
   const [quillRef, setQuillRef] = useState(() => ({ current: null }));
   const { submitForm, loading, error } = useApiSubmit('/claude_text_adjustment');
   const [originalContent, setOriginalContent] = useState('');
@@ -30,73 +29,11 @@ export const FormProvider = ({
   const [linkData, setLinkData] = useState(originalLinkData);
   const [isApplyingAdjustment, setIsApplyingAdjustment] = useState(false);
   const [hasContent, setHasContent] = useState(false);
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  useEffect(() => {
-    if (quillRef.current) {
-      const quill = quillRef.current.getEditor();
-      setQuillRef({ current: quill });
-    }
-  }, [setQuillRef]);
-
-  useEffect(() => {
-    setHasContent(!!value);
-  }, [value]);
-
-  useEffect(() => {
-    const handleBeforeUnload = (e) => {
-      if (hasContent) {
-        const message = 'Wenn Sie diese Seite verlassen, gehen Ihre Änderungen verloren. Möchten Sie die Seite wirklich verlassen?';
-        e.preventDefault();
-        e.returnValue = message;
-        return message;
-      }
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-    };
-  }, [hasContent]);
-
-  useEffect(() => {
-    if (!hasContent) return;
-
-    const unlisten = navigate((to) => {
-      if (to.pathname === location.pathname) return true;
-
-      const userConfirmed = window.confirm(
-        'Wenn Sie diese Seite verlassen, gehen Ihre Änderungen verloren. Möchten Sie die Seite wirklich verlassen?'
-      );
-
-      if (userConfirmed) {
-        setValue('');
-        setHasContent(false);
-        return true;
-      }
-      
-      return false;
-    });
-
-    return () => unlisten?.();
-  }, [hasContent, location.pathname, navigate]);
-
-  useEffect(() => {
-    setValue('');
-    setHasContent(false);
-    setIsEditing(false);
-    setIsAdjusting(false);
-    setAiAdjustment(null);
-    setSelectedText('');
-    setHighlightedRange(null);
-    setSyncStatus('synced');
-  }, [location.pathname]);
+  const [adjustmentError, setAdjustmentError] = useState(null);
+  const [showConfirmationContainer, setShowConfirmationContainer] = useState(false);
 
   const debouncedSetValue = useMemo(() => 
     debounce((newValue) => {
-      console.log('debouncedSetValue ausgeführt:', newValue);
       setValue(newValue);
       setSyncStatus('synced');
     }, 2000), 
@@ -109,22 +46,46 @@ export const FormProvider = ({
   []);
 
   const updateValue = useCallback((newValue) => {
-    console.log('updateValue aufgerufen:', newValue);
     setValue(newValue);
     setSyncStatus('syncing');
     debouncedSetSyncStatus();
   }, [debouncedSetSyncStatus]);
 
+  // Platzhalter-Funktionen, die durch Editor überschrieben werden
+  const applyAdjustment = useCallback(() => {
+    console.log('[FormContext] applyAdjustment wurde aufgerufen, aber es gibt noch keine Implementierung');
+  }, []);
+
+  const rejectAdjustment = useCallback(() => {
+    console.log('[FormContext] rejectAdjustment wurde aufgerufen, aber es gibt noch keine Implementierung');
+  }, []);
+
+  useEffect(() => {
+    if (initialEditingMode) {
+      setIsEditing(true);
+    }
+  }, [initialEditingMode]);
+
+  useEffect(() => {
+    if (quillRef.current) {
+      const quill = quillRef.current.getEditor();
+      setQuillRef({ current: quill });
+    }
+  }, [setQuillRef]);
+
+  useEffect(() => {
+    setHasContent(!!value);
+  }, [value]);
+  
+  // Navigationswarnungen mit dem Hook verwalten
+  useNavigationWarning(hasContent);
+
   const setGeneratedContent = useCallback((content) => {
-    console.log('Setze generierten Inhalt:', content);
-    console.log('Setze generierten Inhalt Typ:', typeof content);
-    console.log('Setze generierten Inhalt JSON:', JSON.stringify(content));
     setValue(content);
   }, []);
 
   const handleEdit = useCallback(() => {
     setIsEditing(true);
-    console.log('Bearbeitung gestartet');
   }, []);
 
   const handleSave = useCallback((newContent) => {
@@ -132,105 +93,91 @@ export const FormProvider = ({
       setValue(newContent);
     }
     setIsEditing(false);
-    console.log('Änderungen gespeichert und Bearbeitung beendet');
   }, []);
 
   const handleCancel = useCallback(() => {
     setIsEditing(false);
-    console.log('Bearbeitung abgebrochen');
   }, []);
 
   const setQuillInstance = useCallback((quillEditor) => {
     setQuillRef({ current: quillEditor });
   }, []);
 
-  const applyAdjustmentToEditor = useCallback((newText) => {
-    if (quillRef.current && highlightedRange) {
-      const quill = quillRef.current.getEditor();
-      quill.deleteText(highlightedRange.index, highlightedRange.length);
-      quill.insertText(highlightedRange.index, newText);
-      quill.setSelection(highlightedRange.index + newText.length, 0);
-      updateValue(quill.root.innerHTML);
-    }
-  }, [highlightedRange, updateValue]);
-
   const handleAiAdjustment = useCallback((adjustmentOrState, selectedText) => {
+    console.log('[FormContext] handleAiAdjustment', adjustmentOrState, selectedText);
     if (typeof adjustmentOrState === 'boolean') {
       setIsAdjusting(adjustmentOrState);
       setIsApplyingAdjustment(false);
       if (adjustmentOrState) {
-        setOriginalSelectedText(selectedText);
+        if (selectedText) {
+          setOriginalSelectedText(selectedText);
+        }
+        setShowConfirmationContainer(false);
       } else {
-        setNewSelectedText('');
+        setAdjustmentText('');
         setOriginalSelectedText('');
         setHighlightedRange(null);
+        setShowConfirmationContainer(false);
       }
     } else if (typeof adjustmentOrState === 'string') {
-      setNewSelectedText(adjustmentOrState);
+      setAdjustmentText(adjustmentOrState);
+      setIsApplyingAdjustment(false);
+      setShowConfirmationContainer(true);
+    } else if (typeof adjustmentOrState === 'object' && adjustmentOrState?.type) {
+      // Behandle verschiedene Typen
+      setAiAdjustment(adjustmentOrState);
+      setAdjustmentText(adjustmentOrState.newText);
+      setIsApplyingAdjustment(false);
+      setShowConfirmationContainer(true);
+    }
+  }, []);
+
+  const handleConfirmAdjustment = useCallback(async () => {
+    console.log('[FormContext] handleConfirmAdjustment', adjustmentText);
+    if (!adjustmentText) return;
+    
+    setIsApplyingAdjustment(true);
+    try {
+      if (aiAdjustment?.type === 'full') {
+        const quill = quillRef.current?.getEditor();
+        if (quill) {
+          // Statt applyAdjustment direkt Text setzen und Wert aktualisieren
+          quill.setText(adjustmentText);
+          updateValue(quill.root.innerHTML);
+        }
+      } else if (aiAdjustment?.type === 'selected' && highlightedRange) {
+        const quill = quillRef.current?.getEditor();
+        if (quill && highlightedRange) {
+          // Text im markierten Bereich ersetzen
+          quill.deleteText(highlightedRange.index, highlightedRange.length, 'api');
+          quill.insertText(highlightedRange.index, adjustmentText, 'api');
+          updateValue(quill.root.innerHTML);
+        }
+      }
+
+      // States zurücksetzen
+      setIsAdjusting(false);
+      setIsApplyingAdjustment(false);
+      setAdjustmentText('');
+      setOriginalSelectedText('');
+      setHighlightedRange(null);
+      setAiAdjustment(null);
+      setShowConfirmationContainer(false);
+    } catch (error) {
+      console.error('[FormContext] Error during adjustment:', error);
+      setAdjustmentError('Fehler beim Anwenden der Änderungen');
+      setTimeout(() => setAdjustmentError(null), 3000);
+    } finally {
       setIsApplyingAdjustment(false);
     }
-  }, [setIsAdjusting, setIsApplyingAdjustment, setOriginalSelectedText, setNewSelectedText, setHighlightedRange]);
-
-  const handleAcceptAdjustment = useCallback(() => {
-    console.log('KI-Anpassung akzeptiert');
-    setIsAdjusting(false);
-    setIsApplyingAdjustment(false);
-    setNewSelectedText('');
-    setOriginalSelectedText('');
-    setHighlightedRange(null);
-  }, [setIsAdjusting, setIsApplyingAdjustment, setNewSelectedText, setOriginalSelectedText, setHighlightedRange]);
-
-  const handleRejectAdjustment = useCallback(() => {
-    console.log('KI-Anpassung abgelehnt');
-    setIsAdjusting(false);
-    if (originalContent) {
-      setValue(originalContent);
-      if (quillRef.current) {
-        const quill = quillRef.current.getEditor();
-        quill.root.innerHTML = originalContent;
-      }
-    }
-    setNewSelectedText('');
-    setOriginalContent('');
-    removeAllHighlights();
-  }, [originalContent, setValue, quillRef, removeAllHighlights]);
-
-  const toggleEditMode = useCallback(() => {
-    console.log('[FormContext] Toggle Edit Mode - Vorher:', isEditing);
-    setIsEditing(prevState => {
-      const newState = !prevState;
-      console.log('[FormContext] Toggle Edit Mode - Nachher:', newState);
-      if (prevState) {
-        setValue(value);
-      }
-      return newState;
-    });
-  }, [value]);
-
-  const adjustText = useCallback(async (adjustmentText, textToAdjust) => {
-    try {
-      console.log('Sende Anpassungsanfrage:', { adjustmentText, textToAdjust, fullText: value });
-      const result = await submitForm({ 
-        originalText: textToAdjust, 
-        modification: adjustmentText,
-        fullText: value
-      });
-      
-      console.log('API-Antwort:', result);
-      if (result) {
-        setNewSelectedText(result);
-        console.log('Neuer Text gesetzt:', result);
-        await new Promise(resolve => setTimeout(resolve, 100));
-        return true;
-      }
-      
-      console.error('Keine gültigen Vorschläge in der API-Antwort');
-      return false;
-    } catch (error) {
-      console.error('Fehler bei der Textanpassung:', error);
-      return false;
-    }
-  }, [submitForm, setNewSelectedText, value]);
+  }, [
+    adjustmentText,
+    aiAdjustment,
+    highlightedRange,
+    quillRef,
+    updateValue,
+    setAdjustmentError
+  ]);
 
   const clearAllHighlights = useCallback(() => {
     if (quillRef.current) {
@@ -239,22 +186,65 @@ export const FormProvider = ({
   }, [quillRef]);
 
   const handleAiResponse = useCallback(async (response) => {
+    console.log('[FormContext] handleAiResponse', response);
     if (response.textAdjustment) {
-      setIsAdjusting(true);
-      setHighlightedRange({
-        index: response.textAdjustment.range.index,
-        length: response.textAdjustment.range.length
+      // Text-bezogene States zuerst
+      setAdjustmentText(response.textAdjustment.newText);
+      
+      // Bei selected wird originalContent beim Markieren gesetzt
+      // Bei full wird originalContent beim Absenden der Anfrage in useClaudeResponse gesetzt
+      
+      setAiAdjustment({
+        ...response.textAdjustment,
+        type: response.textAdjustment.type
       });
-      setNewSelectedText(response.textAdjustment.newText);
-      setOriginalContent(value);
-      handleAiAdjustment(true, response.textAdjustment.newText);
+      
+      if (response.textAdjustment.type === 'selected') {
+        // Bei selected type nutzen wir die existierende Selection
+        if (highlightedRange) {
+          setHighlightedRange(highlightedRange); // Behalte existierende Selection
+        } else {
+          console.error('[FormContext] Markierter Bereich nicht gefunden für selected type');
+          setAdjustmentError('Markierter Text konnte nicht gefunden werden');
+          setTimeout(() => setAdjustmentError(null), 3000);
+          return;
+        }
+      } else if (response.textAdjustment.type === 'full') {
+        // Für full-type muss nichts gesucht werden, da gesamter Text ersetzt wird
+        // Range-Information auf gesamten Text setzen
+      } else {
+        setAdjustmentError('Nicht unterstützter Anpassungstyp');
+        setTimeout(() => setAdjustmentError(null), 3000);
+        return;
+      }
+      
+      // UI-States zuletzt
+      setIsAdjusting(true);
+      setShowConfirmationContainer(true);
     }
     return response.response;
-  }, [handleAiAdjustment, setHighlightedRange, setNewSelectedText, setIsAdjusting, value, setOriginalContent]);
+  }, [value, highlightedRange]);
+
+  // Cleanup Effect
+  useEffect(() => {
+    if (!isAdjusting) {
+      removeAllHighlights();
+      setAdjustmentError(null);
+      setAdjustmentText('');
+      setOriginalContent('');
+      setAiAdjustment(null);
+    }
+  }, [isAdjusting]);
+
+  const toggleEditMode = useCallback(() => {
+    setIsEditing(prev => !prev);
+  }, []);
 
   const contextValue = useMemo(() => ({
     value,
     setValue: debouncedSetValue,
+    showConfirmationContainer,
+    setShowConfirmationContainer,
     updateValue,
     setGeneratedContent,
     isEditing,
@@ -267,7 +257,7 @@ export const FormProvider = ({
     aiAdjustment,
     setAiAdjustment,
     handleAiAdjustment,
-    handleAcceptAdjustment,
+    handleConfirmAdjustment,
     selectedText,
     setSelectedText,
     highlightedRange,
@@ -277,13 +267,9 @@ export const FormProvider = ({
     toggleEditMode,
     originalSelectedText,
     setOriginalSelectedText,
-    newSelectedText,
-    setNewSelectedText,
-    handleRejectAdjustment,
-    adjustText,
-    loading,
-    error,
-    applyAdjustmentToEditor,
+    adjustmentText,
+    setAdjustmentText,
+    handleRejectAdjustment: rejectAdjustment,
     originalContent,
     setOriginalContent,
     removeAllHighlights,
@@ -297,10 +283,14 @@ export const FormProvider = ({
     setIsApplyingAdjustment,
     hasContent,
     quillRef,
-    handleAiResponse
+    handleAiResponse,
+    adjustmentError,
+    setAdjustmentError
   }), [
     value,
     debouncedSetValue,
+    showConfirmationContainer,
+    setShowConfirmationContainer,
     updateValue,
     setGeneratedContent,
     isEditing,
@@ -309,19 +299,15 @@ export const FormProvider = ({
     handleCancel,
     isAdjusting,
     aiAdjustment,
-    handleAcceptAdjustment,
+    handleConfirmAdjustment,
     selectedText,
     highlightedRange,
     syncStatus,
     setSyncStatus,
     toggleEditMode,
     originalSelectedText,
-    newSelectedText,
-    handleRejectAdjustment,
-    adjustText,
-    loading,
-    error,
-    applyAdjustmentToEditor,
+    adjustmentText,
+    rejectAdjustment,
     originalContent,
     setOriginalContent,
     removeAllHighlights,
@@ -333,16 +319,19 @@ export const FormProvider = ({
     isApplyingAdjustment,
     hasContent,
     quillRef,
-    handleAiResponse
+    handleAiResponse,
+    adjustmentError,
+    setAdjustmentError
   ]);
-
-  useEffect(() => {
-    console.log('[FormContext] isEditing Status geändert:', isEditing);
-  }, [isEditing]);
 
   return (
     <FormContext.Provider value={contextValue}>
       {children}
+      {adjustmentError && (
+        <div className="adjustment-error">
+          Fehler: {adjustmentError}
+        </div>
+      )}
     </FormContext.Provider>
   );
 };

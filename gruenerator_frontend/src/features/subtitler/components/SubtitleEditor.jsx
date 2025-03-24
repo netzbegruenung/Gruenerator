@@ -1,8 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import apiClient from '../../../components/utils/apiClient';
-import '../styles/SubtitleEditor.css';
-
 const SubtitleEditor = ({ videoFile, subtitles, onExportSuccess, isExporting, onExportComplete }) => {
   const videoRef = useRef(null);
   const [videoUrl, setVideoUrl] = useState(null);

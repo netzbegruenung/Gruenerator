@@ -2,8 +2,6 @@ import React, { useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { useDropzone } from 'react-dropzone';
 import { FaUpload, FaVideo } from 'react-icons/fa';
-import '../styles/VideoUploader.css';
-
 const VideoUploader = ({ onUpload, isProcessing = false }) => {
   const getVideoMetadata = (file) => {
     return new Promise((resolve) => {
