@@ -88,6 +88,10 @@ const platformGuidelines = {
 
 router.post('/', async (req, res) => {
   const { thema, details, platforms = [], was, wie, zitatgeber, pressekontakt, useBackupProvider, customPrompt } = req.body;
+  
+  // Aktuelles Datum ermitteln
+  const currentDate = new Date().toISOString().split('T')[0];
+  
   console.log('[claude_social] Anfrage erhalten:', { 
     thema, 
     details, 
@@ -123,6 +127,8 @@ Achte bei der Umsetzung dieses Stils auf Klarheit, Präzision und eine ausgewoge
       userContent = `
 Benutzerdefinierter Prompt: ${customPrompt}
 
+Aktuelles Datum: ${currentDate}
+
 Erstelle Inhalte für folgende Plattformen: ${platforms.join(', ')}
 
 ${platforms.map(platform => {
@@ -136,6 +142,7 @@ ${platforms.map(platform => {
         Thema: ${thema}
 Details: ${details}
 Plattformen: ${platforms.join(', ')}
+Aktuelles Datum: ${currentDate}
 ${platforms.includes('pressemitteilung') ? `
 Was: ${was}
 Wie: ${wie}

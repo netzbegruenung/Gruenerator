@@ -1,6 +1,5 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import './TextsSection.css';
 import TextCard from './TextCard';
 
 const TextsSection = ({ texts, className }) => {

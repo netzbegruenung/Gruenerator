@@ -5,9 +5,6 @@ import HelpDisplay from '../../common/HelpDisplay';
 import { useDynamicTextSize } from '../../utils/commonFunctions';
 import useApiSubmit from '../../hooks/useApiSubmit';
 import { FormContext } from '../../utils/FormContext';
-import '../../../assets/styles/pages/baseform.css';
-import '../../../assets/styles/components/welcome.css';
-import '../../../assets/styles/components/help.css';
 import WelcomePage from '../../common/WelcomePage';
 
 const STEPS = {

@@ -1,0 +1,188 @@
+.focus-mode-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: var(--background-color);
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  overflow-y: auto;
+  padding: 40px 20px;
+}
+
+.focus-mode-container {
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+  background-color: var(--background-color-pure);
+  min-height: calc(100vh - 80px);
+  position: relative;
+  border-radius: 8px;
+  box-shadow: var(--shadow-xl);
+  overflow: hidden;
+}
+
+.focus-mode-header {
+  position: sticky;
+  top: 0;
+  display: flex;
+  justify-content: flex-end;
+  padding: 20px;
+  background-color: var(--background-color-pure);
+  z-index: 10;
+  border-bottom: var(--border-subtle);
+  border-radius: 8px 8px 0 0;
+}
+
+.focus-mode-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background-color: var(--dunkelgruen);
+  border: none;
+  border-radius: 50%;
+  font-size: 24px;
+  cursor: pointer;
+  color: var(--weiß);
+  transition: all 0.3s ease;
+  box-shadow: var(--shadow-sm);
+}
+
+.focus-mode-close:hover {
+  background-color: var(--grashalm);
+  transform: scale(1.1);
+}
+
+.focus-mode-close span {
+  display: block;
+  line-height: 1;
+  transform: translateY(-2px);
+}
+
+.focus-mode-content {
+  font-size: 18px;
+  line-height: 1.8;
+  color: var(--font-color);
+  padding: 40px 60px;
+  font-family: 'PT Serif', Georgia, serif;
+  max-width: 680px;
+  margin: 0 auto;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Quill-spezifische Formatierung */
+.focus-mode-content p {
+  margin-bottom: 1.5em;
+  color: var(--font-color);
+}
+
+.focus-mode-content h1,
+.focus-mode-content h2,
+.focus-mode-content h3,
+.focus-mode-content h4 {
+  margin-top: 1.5em;
+  margin-bottom: 0.8em;
+  color: var(--font-color-h);
+  line-height: 1.3;
+}
+
+.focus-mode-content h1 { font-size: 2em; }
+.focus-mode-content h2 { font-size: 1.5em; }
+.focus-mode-content h3 { font-size: 1.25em; }
+.focus-mode-content h4 { font-size: 1.1em; }
+
+.focus-mode-content ul,
+.focus-mode-content ol {
+  margin: 0 0 1.5em 0;
+  padding-left: 2em;
+  color: var(--font-color);
+}
+
+.focus-mode-content li {
+  margin-bottom: 0.5em;
+  color: var(--font-color);
+}
+
+.focus-mode-content blockquote {
+  margin: 1.5em 0;
+  padding-left: 1.5em;
+  border-left: 4px solid var(--grashalm);
+  font-style: italic;
+  color: var(--font-color);
+  opacity: 0.9;
+}
+
+.focus-mode-content a {
+  color: var(--link-color);
+  text-decoration: none;
+}
+
+.focus-mode-content a:hover {
+  text-decoration: underline;
+  color: var(--grashalm);
+}
+
+/* Quill-spezifische Klassen */
+.focus-mode-content .ql-align-center {
+  text-align: center;
+}
+
+.focus-mode-content .ql-align-right {
+  text-align: right;
+}
+
+.focus-mode-content .ql-align-justify {
+  text-align: justify;
+}
+
+/* Code-Block Styling */
+.focus-mode-content pre,
+.focus-mode-content code {
+  background-color: var(--background-color-alt);
+  border-radius: 4px;
+  padding: 0.2em 0.4em;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 0.9em;
+}
+
+.focus-mode-content pre {
+  padding: 1em;
+  overflow-x: auto;
+  margin: 1.5em 0;
+}
+
+.focus-mode-content pre code {
+  background-color: transparent;
+  padding: 0;
+}
+
+@media (max-width: 768px) {
+  .focus-mode-overlay {
+    display: none !important;
+  }
+
+  .focus-mode-container {
+    min-height: 100vh;
+    border-radius: 0;
+  }
+
+  .focus-mode-header {
+    border-radius: 0;
+  }
+  
+  .focus-mode-content {
+    padding: 20px;
+    font-size: 16px;
+  }
+  
+  .focus-mode-close {
+    width: 36px;
+    height: 36px;
+    font-size: 20px;
+  }
+} 

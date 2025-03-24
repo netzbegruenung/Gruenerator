@@ -69,6 +69,7 @@ const Footer = () => {
                                     <li><Link to="/presse-social" onClick={() => announce('Navigation zur Presse & Social Media Seite')}>Presse & Social Media</Link></li>
                                     <li><Link to="/universal" onClick={() => announce('Navigation zum Universal Grünerator')}>Universal Grünerator</Link></li>
                                     <li><Link to="/gruene-jugend" onClick={() => announce('Navigation zum Grüne Jugend Grünerator')}>Grüne Jugend</Link></li>
+                                    <li><Link to="/editor" onClick={() => announce('Navigation zum Leeren Editor')}>Leerer Editor</Link></li>
                                 </ul>
                             </div>
 

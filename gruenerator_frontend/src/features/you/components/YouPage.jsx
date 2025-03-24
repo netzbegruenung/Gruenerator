@@ -8,9 +8,6 @@ import useEditorLayout from '../hooks/useEditorLayout';
 import Spinner from '../../../components/common/Spinner';
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 // Nur die Hauptdatei importieren, die dann die anderen CSS-Dateien importiert
-import '../styles/YouPage.css';
-import '../../../assets/styles/components/spinner.css';
-import '../../../assets/styles/common/global.css';
 // Import der DisplaySection-Komponente
 import DisplaySection from '../../../components/common/Form/BaseForm/DisplaySection';
 // Import des FormContext

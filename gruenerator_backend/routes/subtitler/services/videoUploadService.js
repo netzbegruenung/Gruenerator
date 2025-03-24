@@ -108,12 +108,12 @@ async function extractAudio(videoPath, outputPath) {
 
     return new Promise((resolve, reject) => {
       const command = ffmpeg(videoPath)
-        .toFormat('wav')
         .outputOptions([
           '-vn',                // Entferne Video-Stream
-          '-acodec pcm_s16le',  // Audio-Codec
-          '-ar 16000',          // Sample Rate
-          '-ac 1',              // Mono
+          '-ar 16000',          // Sample Rate auf 16kHz (optimiert für Whisper)
+          '-ac 1',              // Mono (Whisper verwendet nur einen Kanal)
+          '-c:a libmp3lame',    // MP3-Codec für bessere Kompression
+          '-q:a 4',             // Gute Qualität, aber kleinere Dateigröße (0-9, niedriger ist besser)
           '-y'                  // Überschreibe Output-Datei
         ]);
 
@@ -131,10 +131,15 @@ async function extractAudio(videoPath, outputPath) {
         .on('end', () => {
           // Prüfe ob Output-Datei erstellt wurde
           if (!fs.existsSync(outputPath)) {
-            reject(new Error('WAV-Datei wurde nicht erstellt'));
+            reject(new Error('Audio-Datei wurde nicht erstellt'));
             return;
           }
-          console.log('Audio-Extraktion erfolgreich:', outputPath);
+          
+          // Protokolliere Dateigröße
+          const stats = fs.statSync(outputPath);
+          const fileSizeMB = (stats.size / (1024 * 1024)).toFixed(2);
+          console.log(`Audio-Extraktion erfolgreich: ${outputPath} (${fileSizeMB} MB)`);
+          
           resolve(outputPath);
         })
         .on('error', (err) => {

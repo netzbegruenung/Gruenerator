@@ -1,10 +1,4 @@
 import React from 'react';
-import '../../../assets/styles/common/variables.css';
-import '../../../assets/styles/common/global.css';
-import '../../../assets/styles/pages/Impressum_datenschutz.css';
-
-
-
 const Impressum = () => {
   return (
     <div className="page-container">
