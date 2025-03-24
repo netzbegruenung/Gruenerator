@@ -4,7 +4,7 @@ import { FaTwitter, FaFacebook, FaInstagram, FaLinkedin, FaTiktok, FaWhatsapp, F
 import { IoCopyOutline, IoCheckmarkOutline } from "react-icons/io5";
 import { FormContext } from '../utils/FormContext';
 import { copyPlainText } from '../utils/commonFunctions';
-import Editor from './Editor';
+import Editor from './editor/Editor';
 
 const PLATFORM_CONFIG = {
   'TWITTER': {

@@ -23,6 +23,8 @@ import ErrorDisplay from './ErrorDisplay';
  * @param {Function} props.onGeneratePost - Funktion zum Generieren eines Posts
  * @param {Function} props.handleToggleEditMode - Funktion zum Umschalten des Bearbeitungsmodus
  * @param {Function} props.getExportableContent - Funktion zum Abrufen des exportierbaren Inhalts
+ * @param {Function} props.onToggleFocusMode - Funktion zum Umschalten des Fokus-Modus
+ * @param {boolean} props.isFocusMode - Gibt an, ob der Fokus-Modus aktiv ist
  * @returns {JSX.Element} Display-Sektion
  */
 const DisplaySection = ({
@@ -38,7 +40,9 @@ const DisplaySection = ({
   generatedPost,
   onGeneratePost,
   handleToggleEditMode,
-  getExportableContent
+  getExportableContent,
+  onToggleFocusMode,
+  isFocusMode
 }) => {
   const [generatePostLoading, setGeneratePostLoading] = React.useState(false);
 
@@ -63,16 +67,16 @@ const DisplaySection = ({
     <div className="display-container" id="display-section-container">
       <div className="display-header">
         <h3>{title}</h3>
-        {generatedContent && (
           <ActionButtons 
-            content={exportableContent}
+          content={value}
             onEdit={handleToggleEditMode}
             isEditing={isEditing}
             allowEditing={allowEditing}
             hideEditButton={hideEditButton}
             showExport={true}
+          onToggleFocusMode={onToggleFocusMode}
+          isFocusMode={isFocusMode}
           />
-        )}
       </div>
       <div className="display-content" style={{ fontSize: '16px' }}>
         <ErrorDisplay error={error} />
@@ -109,8 +113,9 @@ DisplaySection.propTypes = {
   value: PropTypes.string,
   generatedContent: PropTypes.oneOfType([
     PropTypes.string,
-    PropTypes.object,
-    PropTypes.element
+    PropTypes.shape({
+      content: PropTypes.string
+    })
   ]),
   isEditing: PropTypes.bool.isRequired,
   allowEditing: PropTypes.bool,
@@ -123,7 +128,9 @@ DisplaySection.propTypes = {
   generatedPost: PropTypes.string,
   onGeneratePost: PropTypes.func,
   handleToggleEditMode: PropTypes.func.isRequired,
-  getExportableContent: PropTypes.func.isRequired
+  getExportableContent: PropTypes.func.isRequired,
+  onToggleFocusMode: PropTypes.func.isRequired,
+  isFocusMode: PropTypes.bool
 };
 
 DisplaySection.defaultProps = {

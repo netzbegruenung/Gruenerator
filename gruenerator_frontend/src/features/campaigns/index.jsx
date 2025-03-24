@@ -1,5 +1,4 @@
 import React from 'react';
-import './components/CampaignPage.css';
 import CampaignDashboard from './components/CampaignDashboard';
 
 const CampaignPage = () => {

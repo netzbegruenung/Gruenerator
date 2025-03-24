@@ -311,7 +311,7 @@ if (cluster.isMaster) {
   setupRoutes(app);
 
   // Optimierte statische Datei-Auslieferung
-  const staticFilesPath = path.join(__dirname, '../gruenerator_frontend/dist');
+  const staticFilesPath = path.join(__dirname, '../gruenerator_frontend/build');
   logger.info(`Serving static files from: ${staticFilesPath}`);
   
   // Überprüfe, ob das Verzeichnis existiert

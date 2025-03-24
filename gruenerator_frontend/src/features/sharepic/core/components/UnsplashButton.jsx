@@ -1,8 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import { FaUnsplash } from 'react-icons/fa';
-import '../../../../assets/styles/components/sharepic.css';
-
 const UnsplashButton = ({ searchTerms }) => {
   const handleUnsplashClick = () => {
     if (!searchTerms || searchTerms.length === 0) return;

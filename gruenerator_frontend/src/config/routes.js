@@ -4,6 +4,7 @@ const TemplateGallery = lazy(() => import('../features/templates'));
 const UniversalTextGenerator = lazy(() => import('../features/texte/universal/UniversalTextGenerator'));
 const AntragPage = lazy(() => import('../features/texte/antrag/AntragPage'));
 const YouPage = lazy(() => import('../features/you'));
+const EmptyEditor = lazy(() => import('../features/texte/editor/EmptyEditor'));
 // Temporär auskommentiert, bis die Datei existiert oder der Pfad korrigiert ist
 // import LinkTreeRoutes from '../features/linktree/LinkTreeRoutes';
 const CampaignPage = lazy(() => import('../features/campaigns'));
@@ -33,7 +34,8 @@ export const GrueneratorenBundle = {
   Templates: TemplateGallery,
   Reel: Reel,
   You: YouPage,
-  Campaign: CampaignPage
+  Campaign: CampaignPage,
+  EmptyEditor: EmptyEditor
 };
 
 // Route Konfigurationen
@@ -53,6 +55,7 @@ const standardRoutes = [
   { path: '/reel', component: GrueneratorenBundle.Reel },
   { path: '/you', component: GrueneratorenBundle.You, withForm: true },
   { path: '/kampagne', component: GrueneratorenBundle.Campaign },
+  { path: '/editor', component: GrueneratorenBundle.EmptyEditor, withForm: true },
   { path: '/linktree/*', component: GrueneratorenBundle.LinkTree, showHeaderFooter: false },
   { path: '/datenschutz', component: Datenschutz },
   { path: '/impressum', component: Impressum },

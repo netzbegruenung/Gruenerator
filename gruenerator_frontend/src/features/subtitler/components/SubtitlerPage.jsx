@@ -6,9 +6,6 @@ import apiClient from '../../../components/utils/apiClient';
 import useSocialTextGenerator from '../hooks/useSocialTextGenerator';
 import { FaVideo, FaFileVideo, FaRuler, FaClock } from 'react-icons/fa';
 import ErrorBoundary from '../../../components/ErrorBoundary';
-import '../styles/subtitler.css';
-import '../styles/ConfirmSection.css';
-
 const SubtitlerPage = () => {
   const [step, setStep] = useState('upload'); // upload, edit, success
   const [videoFile, setVideoFile] = useState(null);
@@ -29,8 +26,7 @@ const SubtitlerPage = () => {
     setError(null);
     
     try {
-      // Prüfe Videogröße
-      if (videoFile.size > 95 * 1024 * 1024) { // 95MB Limit
+      if (videoFile.size > 95 * 1024 * 1024) {
         throw new Error('Das Video ist zu groß. Die maximale Größe beträgt 95MB.');
       }
 
@@ -139,6 +135,9 @@ const SubtitlerPage = () => {
                   </>
                 )}
               </div>
+              <p className="ai-notice">
+                Die Verarbeitung erfolgt mit OpenAI in den USA. Bitte beachte unsere <a href="/datenschutz">Datenschutzerklärung</a> bezüglich der Verarbeitung deiner Daten.
+              </p>
               <div className="confirm-buttons">
                 <button 
                   className="btn-primary"

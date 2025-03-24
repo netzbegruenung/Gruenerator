@@ -3,8 +3,6 @@ import PropTypes from 'prop-types';
 import { HiChevronLeft } from 'react-icons/hi';
 import { useContext } from 'react';
 import { FormContext } from '../utils/FormContext';
-import '../../assets/styles/components/form-toggle-button.css';
-
 const FormCollapseButton = ({ isFormVisible, toggleForm }) => {
   const { isEditing } = useContext(FormContext);
 

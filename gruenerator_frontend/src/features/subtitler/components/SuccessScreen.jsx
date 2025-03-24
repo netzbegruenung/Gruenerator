@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import CopyButton from '../../../components/common/CopyButton';
-import '../styles/SuccessScreen.css';
-
 const SuccessScreen = ({ onReset, isLoading, socialText }) => {
   const [showSpinner, setShowSpinner] = useState(isLoading);
 

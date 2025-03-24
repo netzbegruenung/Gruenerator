@@ -1,72 +1,117 @@
-/* Reset und Basis-Styles */
-@import './common/reset.css';
-@import './common/variables.css';
-@import './common/typography.css';
-@import './common/global.css';
-@import './common/shared-components.css';
-@import './components/action-buttons.css';
+/* Common Styles */
+@import url('./common/reset.css');
+@import url('./common/variables.css');
+@import url('./common/typography.css');
+@import url('./common/global.css');
+@import url('./common/shared-components.css');
 
-/* Komponenten */
-@import './components/button.css';
-@import './components/header.css';
-@import './components/footer.css';
-@import './components/navmenu.css';
-@import './components/editor.css';
-@import './components/sharepic.css';
-@import './components/advanced-editing.css';
-@import './components/image-slider.css';
-@import './components/popup.css';
-@import './components/tooltip.css';
-@import './components/quill-custom.css';
-@import './components/linksave.css';
-@import './components/exportToDocument.css';
-@import './components/BackupToggle.css';
-@import './components/welcome.css';
-@import './components/help.css';
-@import './components/platform-container.css';
-@import './components/animatedcheckbox.css';
+/* Layout Styles */
+@import url('./layout.css');
 
-/* Seiten-spezifische Styles */
-@import './pages/baseform.css';
-@import './pages/template-gallery.css';
-@import './pages/antragsversteher.css';
-@import './pages/Startseitenstyle.css';
-@import './pages/Impressum_datenschutz.css';
+/* Layout Component Styles */
+@import url('./components/layout/footer.css');
+@import url('./components/layout/header.css');
+@import url('./components/layout/navmenu.css');
+@import url('./components/layout/platform-container.css');
 
-/* Basis-Styles */
-body {
-  font-family: 'PT Sans', Arial, sans-serif !important;
-  margin: 0;
-  padding: 0;
-  min-height: 100vh;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
+/* UI Component Styles */
+@import url('./components/ui/button.css');
+@import url('./components/ui/spinner.css');
+@import url('./components/ui/image-slider.css');
+@import url('./components/ui/quote-form.css');
+@import url('./components/ui/animatedcheckbox.css');
+@import url('./components/ui/form-select.css');
+@import url('./components/ui/form-toggle-button.css');
+@import url('./components/ui/FeatureToggle.css');
+@import url('./components/ui/LogLevelSelector.css');
+@import url('./components/ui/BackupToggle.css');
+@import url('./components/ui/tooltip.css');
+@import url('../../components/common/editor/EditorChat.css');
+
+/* Action Component Styles */
+@import url('./components/actions/slogan-alternatives.css');
+@import url('./components/actions/exportToDocument.css');
+@import url('./components/actions/verify.css');
+@import url('./components/actions/action-buttons.css');
+@import url('./components/actions/advanced-editing.css');
+@import url('./components/actions/linksave.css');
+
+/* Popup Component Styles */
+@import url('./components/popups/welcome.css');
+@import url('./components/popups/help.css');
+@import url('./components/popups/welcome-popup.css');
+@import url('./components/popups/popup.css');
+
+/* Editor Component Styles */
+@import url('./components/editor/editor-content.css');
+@import url('./components/editor/editor-responsive.css');
+@import url('./components/editor/editor.css');
+@import url('./components/editor/editor-ai-tools.css');
+@import url('./components/editor/editor-toolbar.css');
+@import url('./components/editor/editor-base.css');
+
+/* Sharepic Component Styles */
+@import url('./components/sharepic/sharepic.css');
+@import url('./components/sharepic/sharepic-type-selector.css');
+
+/* Page Styles */
+@import url('./pages/baseform.css');
+@import url('./pages/campaign.css');
+@import url('./pages/Startseitenstyle.css');
+@import url('./pages/antragsversteher.css');
+@import url('./pages/notfound.css');
+@import url('./pages/template-gallery.css');
+@import url('./pages/Impressum_datenschutz.css');
+
+/* Features Styles */
+
+/* Features - Subtitler */
+@import url('../../features/subtitler/styles/subtitler.css');
+@import url('../../features/subtitler/styles/ConfirmSection.css');
+@import url('../../features/subtitler/styles/SubtitleEditor.css');
+@import url('../../features/subtitler/styles/SuccessScreen.css');
+@import url('../../features/subtitler/styles/VideoUploader.css');
+
+/* Features - Search */
+@import url('../../features/search/styles/SearchBar.css');
+@import url('../../features/search/styles/SearchPage.css');
+@import url('../../features/search/styles/SearchResults.css');
+
+/* Features - Voice */
+@import url('../../features/voice/styles/VoiceRecorder.css');
+
+/* Features - Campaigns */
+@import url('../../features/campaigns/components/CampaignPage.css');
+@import url('../../features/campaigns/components/CampaignDashboard.css');
+@import url('../../features/campaigns/components/Grueneratoren.css');
+@import url('../../features/campaigns/components/TemplatesSection.css');
+@import url('../../features/campaigns/components/FileCard.css');
+@import url('../../features/campaigns/components/TextsSection.css');
+@import url('../../features/campaigns/components/FilesSection.css');
+@import url('../../features/campaigns/components/TextCard.css');
+
+/* Features - You */
+@import url('../../features/you/styles/YouPage.css');
+@import url('../../features/you/styles/YouBase.css');
+@import url('../../features/you/styles/YouInput.css');
+@import url('../../features/you/styles/YouResults.css');
+@import url('../../features/you/styles/YouRecording.css');
+@import url('../../features/you/styles/YouResponsive.css');
+
+/* Features - Texte */
+@import url('../../features/texte/editor/EmptyEditor.css');
+@import url('../../features/texte/antrag/styles/antrag-form.css');
+
+/* Root-Level Styles */
+:root {
+  /* Theme variables werden bereits in variables.css definiert */
 }
 
-/* Globale Styles */
-* {
-  font-family: inherit;
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+/* Globale dark/light-mode Switching-Klassen */
+body.dark-mode {
+  /* Diese Einstellungen werden bereits in global.css definiert */
 }
 
-img {
-  max-width: 100%;
-  height: auto;
-  display: block;
-}
-
-a {
-  text-decoration: none;
-  color: inherit;
-}
-
-button,
-input,
-select,
-textarea {
-  font: inherit;
-  color: inherit;
+body.light-mode {
+  /* Diese Einstellungen werden bereits in global.css definiert */
 }
