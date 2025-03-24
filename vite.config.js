@@ -49,13 +49,24 @@ export default defineConfig(({ command }) => ({
   },
 
   build: {
+    outDir: 'build',
     chunkSizeWarningLimit: 1500,
-    assetsInlineLimit: 4096, // Optimierte Asset-Größe
+    assetsInlineLimit: 4096,
     rollupOptions: {
       output: {
-        assetFileNames: 'assets/[name].[hash][extname]',
-        entryFileNames: 'js/[name].[hash].js',
-        chunkFileNames: 'js/[name].[hash].js',
+        assetFileNames: (assetInfo) => {
+          // Gruppiere Assets nach Typ in Unterordner
+          const extType = assetInfo.name.split('.').pop();
+          if (/png|jpe?g|svg|gif|tiff|bmp|ico/i.test(extType)) {
+            return `assets/images/[name].[hash][extname]`;
+          }
+          if (/css/i.test(extType)) {
+            return `assets/css/[name].[hash][extname]`;
+          }
+          return `assets/[name].[hash][extname]`;
+        },
+        entryFileNames: 'assets/js/[name].[hash].js',
+        chunkFileNames: 'assets/js/[name].[hash].js',
         manualChunks: (id) => {
           // Vendor-Chunks für häufig verwendete Bibliotheken
           if (id.includes('node_modules')) {
