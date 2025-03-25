@@ -81,6 +81,13 @@
   color: var(--text-color-secondary);
 }
 
+@media (max-width: 768px) {
+  .success-content p {
+    font-size: 1.2rem;
+    margin-bottom: 1.5rem;
+  }
+}
+
 .success-buttons {
   display: flex;
   gap: 1rem;
@@ -173,6 +180,7 @@
 
   .success-buttons .btn-primary {
     width: 100%;
+    margin-bottom: 20px;
   }
 }
 
@@ -208,6 +216,14 @@
   margin-bottom: 1rem;
 }
 
+@media (max-width: 768px) {
+  .social-text-result p {
+    font-size: 0.9rem;
+    line-height: 1.4;
+    margin-bottom: 0.8rem;
+  }
+}
+
 .copy-button {
   display: flex;
   align-items: center;
@@ -219,6 +235,12 @@
   cursor: pointer;
   font-size: 0.9rem;
   transition: all 0.2s ease;
+}
+
+@media (max-width: 768px) {
+  .success-screen .copy-button {
+    font-size: 0.6rem;
+  }
 }
 
 .copy-button:hover {
