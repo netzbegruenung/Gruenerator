@@ -149,11 +149,6 @@ router.post('/process', upload.single('video'), async (req, res) => {
       mimetype: req.file.mimetype
     });
 
-    // Prüfe Videogröße
-    if (req.file.size > 95 * 1024 * 1024) { // 95MB Limit
-      throw new Error('Das Video ist zu groß. Die maximale Größe beträgt 95MB.');
-    }
-
     // Extrahiere die gewünschte Transkriptionsmethode
     const transcriptionMethod = 'openai'; // Immer OpenAI verwenden
     console.log('Transkription: OpenAI');
