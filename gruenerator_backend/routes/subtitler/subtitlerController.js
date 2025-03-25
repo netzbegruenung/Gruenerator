@@ -22,7 +22,7 @@ async function checkFont() {
 }
 
 // Hilfsfunktion zum intelligenten Aufteilen von Text
-function splitLongText(text, maxLength = 30) {
+function splitLongText(text, maxLength = 50) {
   // Entferne überflüssige Leerzeichen und Backslashes
   text = text.trim().replace(/\s+/g, ' ').replace(/\\/g, '');
   
@@ -35,21 +35,29 @@ function splitLongText(text, maxLength = 30) {
   let secondLine = [];
   let currentLength = 0;
 
-  // Erste Zeile füllen
-  for (const word of words) {
-    const newLength = currentLength + word.length + (currentLength > 0 ? 1 : 0);
-    if (newLength <= maxLength) {
-      firstLine.push(word);
-      currentLength = newLength;
-    } else {
-      break;
+  // Berechne die optimale Aufteilung
+  const totalLength = words.reduce((sum, word) => sum + word.length + 1, 0) - 1;
+  
+  // Wenn der Text nur wenig über maxLength ist, teile bei der Hälfte
+  if (totalLength <= maxLength * 1.5) {
+    const midPoint = Math.floor(words.length / 2);
+    firstLine = words.slice(0, midPoint);
+    secondLine = words.slice(midPoint);
+  } else {
+    // Bei sehr langen Texten, fülle die erste Zeile bis maxLength
+    for (const word of words) {
+      const newLength = currentLength + word.length + (currentLength > 0 ? 1 : 0);
+      if (newLength <= maxLength) {
+        firstLine.push(word);
+        currentLength = newLength;
+      } else {
+        break;
+      }
     }
+    secondLine = words.slice(firstLine.length);
   }
 
-  // Restliche Wörter in die zweite Zeile
-  secondLine = words.slice(firstLine.length);
-
-  // Zweite Zeile kürzen falls nötig
+  // Wenn die zweite Zeile zu lang ist, kürzen
   let secondLineText = secondLine.join(' ');
   if (secondLineText.length > maxLength) {
     let currentLength = 0;
@@ -66,7 +74,6 @@ function splitLongText(text, maxLength = 30) {
     secondLineText = secondLine.join(' ');
   }
 
-  // Nutze einfachen Backslash für den Zeilenumbruch
   return firstLine.join(' ') + '\n' + secondLineText;
 }
 
@@ -293,7 +300,7 @@ router.post('/export', upload.single('video'), async (req, res) => {
           
           const line1Filter = `drawtext=text='${line1}':` +
             `fontfile='${FONT_PATH}':` +
-            `fontsize=72:` +
+            `fontsize=48:` +
             `fontcolor=white:` +
             `box=1:` +
             `boxcolor=black@0.8:` +
@@ -305,13 +312,13 @@ router.post('/export', upload.single('video'), async (req, res) => {
           const line2Filter = line2 ? 
             `,drawtext=text='${line2}':` +
             `fontfile='${FONT_PATH}':` +
-            `fontsize=72:` +
+            `fontsize=48:` +
             `fontcolor=white:` +
             `box=1:` +
             `boxcolor=black@0.8:` +
             `boxborderw=8:` +
             `x=(w-text_w)/2:` +
-            `y=${yPos}+80:` +  // Zweite Zeile 80 Pixel unter der ersten
+            `y=${yPos}+60:` +  // Zweite Zeile 60 Pixel unter der ersten
             `enable='between(t,${segment.startTime},${segment.endTime})'` : '';
             
           return line1Filter + line2Filter;
