@@ -81,8 +81,8 @@ if (cluster.isMaster) {
   const app = express();
   
   // Setze Express Limit
-  app.use(express.json({limit: '100mb'}));
-  app.use(express.raw({limit: '100mb'}));
+  app.use(express.json({limit: '150mb'}));
+  app.use(express.raw({limit: '150mb'}));
   
   // Timeout-Einstellungen
   app.use((req, res, next) => {
@@ -99,7 +99,7 @@ if (cluster.isMaster) {
   // Multer Konfiguration für Videouploads
   const videoUpload = multer({
     limits: {
-      fileSize: 100 * 1024 * 1024, // 100MB für Videos
+      fileSize: 150 * 1024 * 1024, // 150MB für Videos
     },
     fileFilter: (req, file, cb) => {
       // Erlaubte Video-Formate
@@ -128,7 +128,7 @@ if (cluster.isMaster) {
     if (error instanceof multer.MulterError) {
       if (error.code === 'LIMIT_FILE_SIZE') {
         return res.status(413).json({
-          error: 'Datei ist zu groß. Videos dürfen maximal 100MB groß sein.'
+          error: 'Datei ist zu groß. Videos dürfen maximal 150MB groß sein.'
         });
       }
     }
