@@ -4,6 +4,9 @@ const router = express.Router();
 router.post('/', async (req, res) => {
   const { textForm, sprache, thema, details, useBackupProvider, customPrompt } = req.body;
 
+  // Aktuelles Datum ermitteln
+  const currentDate = new Date().toISOString().split('T')[0];
+
   // Wenn ein benutzerdefinierter Prompt vorhanden ist, sind die anderen Felder optional
   if (!customPrompt && (!textForm || !sprache || !thema)) {
     return res.status(400).json({ 
@@ -29,6 +32,8 @@ Achte besonders auf:
       // Bei benutzerdefiniertem Prompt diesen verwenden, aber mit Standardinformationen ergänzen
       userContent = `Benutzerdefinierter Prompt: ${customPrompt}
 
+Aktuelles Datum: ${currentDate}
+
 Zusätzliche Informationen (falls relevant):
 ${textForm ? `- Textform: ${textForm}` : ''}
 ${sprache ? `- Stil/Sprache: ${sprache}` : ''}
@@ -53,6 +58,8 @@ ${thema}
 ${details ? `<details>
 ${details}
 </details>` : ''}
+
+Aktuelles Datum: ${currentDate}
 
 Passe Struktur, Länge und Aufbau an die gewählte Textform an. Der Text soll im angegebenen Stil verfasst sein und dabei authentisch und überzeugend wirken.`;
     }

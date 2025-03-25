@@ -1,0 +1,48 @@
+/* Imports */
+
+
+/* Help Content Styles */
+.help-display {
+  background-color: var(--background-color-alt);
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+  color: var(--text-color);
+}
+
+.help-content {
+  font-size: 1em;
+  line-height: 1.5;
+}
+
+.help-content h4 {
+  margin-top: 15px;
+  margin-bottom: 10px;
+  color: var(--text-color);
+}
+
+.help-content ul {
+  list-style-type: none;
+  padding-left: 0;
+  margin: 0;
+}
+
+.help-content li {
+  margin-bottom: 8px;
+  padding-left: 20px;
+  position: relative;
+}
+
+.help-content li::before {
+  content: "•";
+  position: absolute;
+  left: 0;
+  color: var(--grashalm);
+}
+
+/* Mobile Styles */
+@media (max-width: 768px) {
+  .help-content {
+    padding: 0px;
+  }
+} 

@@ -1,0 +1,124 @@
+.campaign-dashboard {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 1.5rem;
+  margin-top: 2rem;
+}
+
+.dashboard-section {
+  background-color: var(--background-color);
+  border-radius: 12px;
+  padding: 1.75rem;
+  box-shadow: var(--shadow-md);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border: var(--border-subtle);
+}
+
+.dashboard-section:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-lg);
+}
+
+.dashboard-section h2 {
+  color: var(--font-color-h);
+  margin-bottom: 1.25rem;
+  font-size: 1.5rem;
+  font-weight: 600;
+  position: relative;
+  padding-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+}
+
+.dashboard-section h2::before {
+  content: '';
+  display: inline-block;
+  width: 4px;
+  height: 1.2em;
+  background-color: var(--klee);
+  margin-right: 0.75rem;
+  border-radius: 2px;
+}
+
+.files-section {
+  grid-column: span 12;
+}
+
+.texts-section {
+  grid-column: span 4;
+}
+
+.grueneratoren-container {
+  grid-column: span 8;
+}
+
+.templates-section {
+  grid-column: span 12;
+  padding: 1.5rem !important;
+}
+
+/* Spezifische Anpassungen für die Templates-Section im Kampagnen-Grünerator */
+.templates-section h2 {
+  font-size: 1.3rem !important;
+  margin-bottom: 1rem !important;
+}
+
+.campaign-error {
+  grid-column: span 12;
+  padding: 2rem;
+  text-align: center;
+  color: #e53935;
+  background-color: rgba(229, 57, 53, 0.05);
+  border-radius: 8px;
+  font-weight: 500;
+}
+
+/* Animation for hover effects */
+@keyframes gentle-float {
+  0% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+.dashboard-section:hover {
+  animation: gentle-float 3s ease infinite;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 1200px) {
+  .texts-section {
+    grid-column: span 5;
+  }
+  
+  .grueneratoren-container {
+    grid-column: span 7;
+  }
+}
+
+@media (max-width: 992px) {
+  .texts-section,
+  .grueneratoren-container,
+  .templates-section {
+    grid-column: span 12;
+  }
+}
+
+@media (max-width: 768px) {
+  .campaign-dashboard {
+    gap: 1rem;
+  }
+  
+  .dashboard-section {
+    padding: 1.25rem;
+  }
+  
+  .dashboard-section h2 {
+    font-size: 1.3rem;
+  }
+} 
