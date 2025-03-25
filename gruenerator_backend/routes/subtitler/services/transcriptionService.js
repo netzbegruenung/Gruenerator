@@ -116,7 +116,6 @@ async function transcribeVideoLocal(videoPath, language = 'de') {
 // Neue Hauptfunktion die beide Methoden unterstützt
 async function transcribeVideo(videoPath, method = 'openai', language = 'de') {
   try {
-    // Immer OpenAI verwenden
     console.log('Starte OpenAI Transkription');
     const outputDir = path.join(__dirname, '../../../uploads/transcriptions');
     await fs.mkdir(outputDir, { recursive: true });
@@ -126,7 +125,7 @@ async function transcribeVideo(videoPath, method = 'openai', language = 'de') {
     await extractAudio(videoPath, audioPath);
     
     // Transkribiere mit OpenAI
-    const rawText = await transcribeWithOpenAI(audioPath);
+    const transcription = await transcribeWithOpenAI(audioPath);
     
     // Cleanup
     try {
@@ -136,37 +135,20 @@ async function transcribeVideo(videoPath, method = 'openai', language = 'de') {
       console.warn('Konnte temporäre Audio-Datei nicht löschen:', err);
     }
 
-    if (!rawText) {
+    if (!transcription) {
       throw new Error('Keine Transkription von OpenAI erhalten');
     }
-    
-    // Konvertiere Text in Segmente
-    const words = rawText.split(' ');
-    const wordsPerSegment = 10;
-    const segments = [];
-    let currentTime = 0;
-    
-    for (let i = 0; i < words.length; i += wordsPerSegment) {
-      const segmentWords = words.slice(i, i + wordsPerSegment);
-      const duration = 3;
-      
-      const startTime = currentTime;
-      const endTime = currentTime + duration;
-      currentTime = endTime;
-      
-      const startMin = Math.floor(startTime / 60);
-      const startSec = Math.round(startTime % 60);
-      const endMin = Math.floor(endTime / 60);
-      const endSec = Math.round(endTime % 60);
-      
-      const formattedStart = `${startMin}:${startSec.toString().padStart(2, '0')}`;
-      const formattedEnd = `${endMin}:${endSec.toString().padStart(2, '0')}`;
-      
-      segments.push(`${formattedStart} - ${formattedEnd}\n${segmentWords.join(' ')}`);
-    }
 
-    console.log('OpenAI Transkription abgeschlossen');
-    return segments.join('\n\n');
+    // Log nur die wichtigsten Segment-Infos
+    const segments = transcription.split('\n\n');
+    console.log('Transkription Details:');
+    console.log('Anzahl Segmente:', segments.length);
+    console.log('Alle Segmente:');
+    segments.forEach((segment, index) => {
+      console.log(`\nSegment ${index + 1}:\n${segment}`);
+    });
+
+    return transcription;
   } catch (error) {
     console.error(`Fehler bei der Transkription:`, error);
     throw error;
