@@ -1,8 +1,13 @@
 import { lazy } from 'react';
-import TemplateGallery from '../features/templates';
-import UniversalTextGenerator from '../features/texte/universal/UniversalTextGenerator';
-import AntragPage from '../features/texte/antrag/AntragPage';
-import { YouPage } from '../features/you';
+// Statische Importe in dynamische umwandeln
+const TemplateGallery = lazy(() => import('../features/templates'));
+const UniversalTextGenerator = lazy(() => import('../features/texte/universal/UniversalTextGenerator'));
+const AntragPage = lazy(() => import('../features/texte/antrag/AntragPage'));
+const YouPage = lazy(() => import('../features/you'));
+const EmptyEditor = lazy(() => import('../features/texte/editor/EmptyEditor'));
+// Temporär auskommentiert, bis die Datei existiert oder der Pfad korrigiert ist
+// import LinkTreeRoutes from '../features/linktree/LinkTreeRoutes';
+const CampaignPage = lazy(() => import('../features/campaigns'));
 
 // Lazy loading für statische Seiten
 const Home = lazy(() => import('../components/pages/Home'));
@@ -28,7 +33,9 @@ export const GrueneratorenBundle = {
   Search: Search,
   Templates: TemplateGallery,
   Reel: Reel,
-  You: YouPage
+  You: YouPage,
+  Campaign: CampaignPage,
+  EmptyEditor: EmptyEditor
 };
 
 // Route Konfigurationen
@@ -47,6 +54,9 @@ const standardRoutes = [
   { path: '/suche', component: GrueneratorenBundle.Search, withForm: true },
   { path: '/reel', component: GrueneratorenBundle.Reel },
   { path: '/you', component: GrueneratorenBundle.You, withForm: true },
+  { path: '/kampagne', component: GrueneratorenBundle.Campaign },
+  { path: '/editor', component: GrueneratorenBundle.EmptyEditor, withForm: true },
+  { path: '/linktree/*', component: GrueneratorenBundle.LinkTree, showHeaderFooter: false },
   { path: '/datenschutz', component: Datenschutz },
   { path: '/impressum', component: Impressum },
   { path: '*', component: NotFound }
@@ -63,7 +73,7 @@ const specialRoutes = [
 
 // Hilfsfunktion zum Erstellen der No-Header-Footer-Variante
 const createNoHeaderFooterRoute = (route) => {
-  // Nur die 404-Route ausschließen
+  // Nur die 404-Route und Linktree-Route ausschließen
   if (route.path === '*') return null;
   
   const noHeaderPath = route.path === '/' 

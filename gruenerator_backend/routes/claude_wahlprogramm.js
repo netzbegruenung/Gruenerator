@@ -4,11 +4,16 @@ const router = express.Router();
 router.post('/', async (req, res) => {
   const { thema, details, zeichenanzahl, useBackupProvider } = req.body;
 
+  // Aktuelles Datum ermitteln
+  const currentDate = new Date().toISOString().split('T')[0];
+
   try {
     const result = await req.app.locals.aiWorkerPool.processRequest({
       type: 'wahlprogramm',
       systemPrompt: 'Du bist Schreiber des Wahlprogramms einer Gliederung von Bündnis 90/Die Grünen.',
       prompt: `Erstelle ein Kapitel für ein Wahlprogramm zum Thema ${thema} im Stil des vorliegenden Dokuments.
+
+Aktuelles Datum: ${currentDate}
 
 Berücksichtige dabei folgende Details und Schwerpunkte:
 ${details}

@@ -6,6 +6,9 @@ const router = express.Router();
  */
 router.post('/antrag', async (req, res) => {
   const { idee, details, gliederung, searchResults, useWebSearch, useBackupProvider, customPrompt } = req.body;
+  
+  // Aktuelles Datum ermitteln
+  const currentDate = new Date().toISOString().split('T')[0];
 
   try {
     // Logging der Anfrage (ohne vollständige Suchergebnisse)
@@ -44,6 +47,8 @@ Inhalt: ${result.content}`;
       // Bei benutzerdefiniertem Prompt diesen verwenden, aber mit Standardinformationen ergänzen
       userContent = `Benutzerdefinierter Prompt: ${customPrompt}
 
+Aktuelles Datum: ${currentDate}
+
 Zusätzliche Informationen (falls relevant):
 ${idee ? `- Antragsidee: ${idee}` : ''}
 ${gliederung ? `- Gliederung: ${gliederung}` : ''}
@@ -63,6 +68,8 @@ Der Antrag muss folgende Struktur haben:
       userContent = useWebSearch 
         ? `Erstelle einen kommunalpolitischen Antrag zum Thema "${idee}"${gliederung ? ` für die Gliederung "${gliederung}"` : ''}${details ? ` mit folgenden Details: "${details}"` : ''}.
 
+Aktuelles Datum: ${currentDate}
+
 Hier sind relevante Rechercheergebnisse:
 
 ${searchResultsText}
@@ -72,6 +79,8 @@ Der Antrag muss folgende Struktur haben:
 2. Antragstext: Konkrete Beschlussvorschläge
 3. Begründung: Warum der Antrag wichtig ist, untermauert durch die Rechercheergebnisse`
         : `Erstelle einen kommunalpolitischen Antrag zum Thema "${idee}"${gliederung ? ` für die Gliederung "${gliederung}"` : ''}${details ? ` mit folgenden Details: "${details}"` : ''}.
+
+Aktuelles Datum: ${currentDate}
 
 Der Antrag muss folgende Struktur haben:
 1. Betreff: Eine prägnante Überschrift

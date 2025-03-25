@@ -126,6 +126,7 @@ function convertToSRT(subtitles) {
 
 // Route für Video-Upload und Verarbeitung
 router.post('/process', upload.single('video'), async (req, res) => {
+  console.log('=== SUBTITLER START ===');
   console.log('Upload-Anfrage empfangen');
   
   try {
@@ -141,18 +142,28 @@ router.post('/process', upload.single('video'), async (req, res) => {
       mimetype: req.file.mimetype
     });
 
+    // Prüfe Videogröße
+    if (req.file.size > 95 * 1024 * 1024) { // 95MB Limit
+      throw new Error('Das Video ist zu groß. Die maximale Größe beträgt 95MB.');
+    }
+
+    // Extrahiere die gewünschte Transkriptionsmethode
+    const transcriptionMethod = 'openai'; // Immer OpenAI verwenden
+    console.log('Transkription: OpenAI');
+
     // Log Upload-Metadaten
     const uploadMetadata = req.body.metadata ? JSON.parse(req.body.metadata) : {};
     console.log('Upload-Info:', {
       größe: `${(req.file.size / 1024 / 1024).toFixed(2)}MB`,
       format: req.file.mimetype,
       clientDimensionen: uploadMetadata.width && uploadMetadata.height ? 
-        `${uploadMetadata.width}x${uploadMetadata.height}` : 'unbekannt'
+        `${uploadMetadata.width}x${uploadMetadata.height}` : 'unbekannt',
+      transkriptionsmethode: transcriptionMethod
     });
 
     console.log('Starte Transkription...');
-    // Starte Transkription
-    const subtitles = await transcribeVideo(req.file.path);
+    // Starte Transkription mit der gewählten Methode
+    const subtitles = await transcribeVideo(req.file.path, transcriptionMethod);
     
     if (!subtitles) {
       console.error('Keine Untertitel generiert');

@@ -104,6 +104,15 @@
   margin-top: 1rem;
 }
 
+.ai-notice {
+  color: var(--font-color);
+  font-size: 0.9rem;
+  opacity: 0.8;
+  margin: 1rem 0;
+  text-align: center;
+  font-style: italic;
+}
+
 .spinner {
   width: 48px;
   height: 48px;
@@ -135,10 +144,6 @@
 [data-theme="dark"] {
   .upload-container {
     background-color: var(--background-color-alt);
-  }
-
-  .dropzone {
-    background-color: var(--background-color);
   }
 
   .upload-icon-container {
