@@ -18,6 +18,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.21.1",
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
+    "@supabase/supabase-js": "^2.49.1",
     "@tavily/core": "^0.0.3",
     "axios": "^1.7.2",
     "body-parser": "^1.20.2",

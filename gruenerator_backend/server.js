@@ -36,9 +36,46 @@ if (cluster.isMaster) {
     cluster.fork();
   }
 
+  // Verbesserte Worker-Exit-Behandlung
   cluster.on('exit', (worker, code, signal) => {
-    console.log(`Worker ${worker.process.pid} died`);
-    cluster.fork();
+    console.log(`Worker ${worker.process.pid} died with code ${code} and signal ${signal}`);
+    // Nur neue Worker starten, wenn es kein geplanter Shutdown war
+    if (!worker.exitedAfterDisconnect) {
+      console.log('Starting new worker...');
+      cluster.fork();
+    }
+  });
+
+  // Koordinierte Shutdown-Sequenz für den Master
+  process.on('SIGTERM', async () => {
+    console.log('Master received SIGTERM, initiating graceful shutdown...');
+    
+    // Benachrichtige alle Worker über den bevorstehenden Shutdown
+    const workers = Object.values(cluster.workers);
+    await Promise.all(workers.map(worker => {
+      return new Promise((resolve) => {
+        worker.send({ type: 'shutdown' });
+        worker.on('message', (msg) => {
+          if (msg.type === 'shutdown-complete') {
+            console.log(`Worker ${worker.process.pid} shutdown complete`);
+            resolve();
+          }
+        });
+      });
+    }));
+
+    // Warte auf Worker-Beendigung
+    await Promise.all(workers.map(worker => {
+      return new Promise((resolve) => {
+        worker.on('exit', () => {
+          console.log(`Worker ${worker.process.pid} exited`);
+          resolve();
+        });
+      });
+    }));
+
+    console.log('All workers shut down successfully');
+    process.exit(0);
   });
 } else {
   const app = express();
@@ -98,16 +135,55 @@ if (cluster.isMaster) {
     next(error);
   });
 
-  // Graceful Shutdown Handler
-  process.on('SIGTERM', async () => {
-    console.log('Shutting down AI worker pool...');
-    if (aiWorkerPool) {
-      await aiWorkerPool.shutdown();
+  // Verbesserte Graceful Shutdown Handler für Worker
+  process.on('message', async (msg) => {
+    if (msg.type === 'shutdown') {
+      console.log(`Worker ${process.pid} received shutdown signal`);
+      
+      try {
+        // Beende AI Worker Pool
+        if (aiWorkerPool) {
+          console.log('Shutting down AI worker pool...');
+          await aiWorkerPool.shutdown();
+        }
+
+        // Schließe Redis-Verbindung
+        if (redisClient) {
+          console.log('Closing Redis connection...');
+          await redisClient.quit();
+        }
+
+        // Schließe den Server
+        server.close(() => {
+          console.log(`Worker ${process.pid} server closed`);
+          process.send({ type: 'shutdown-complete' });
+          process.exit(0);
+        });
+      } catch (error) {
+        console.error(`Error during worker ${process.pid} shutdown:`, error);
+        process.exit(1);
+      }
     }
-    server.close(() => {
-      console.log('Server beendet');
-      process.exit(0);
-    });
+  });
+
+  // Fallback für direkte SIGTERM-Signale
+  process.on('SIGTERM', async () => {
+    console.log(`Worker ${process.pid} received SIGTERM`);
+    try {
+      if (aiWorkerPool) {
+        await aiWorkerPool.shutdown();
+      }
+      if (redisClient) {
+        await redisClient.quit();
+      }
+      server.close(() => {
+        console.log(`Worker ${process.pid} server closed`);
+        process.exit(0);
+      });
+    } catch (error) {
+      console.error(`Error during worker ${process.pid} shutdown:`, error);
+      process.exit(1);
+    }
   });
 
   // Redis Client Setup
@@ -241,9 +317,9 @@ if (cluster.isMaster) {
           // Alle Subdomains von gruenerator.de (HTTP & HTTPS, falls lokal noch HTTP gebraucht wird)
           "http://*.gruenerator.de",
           "https://*.gruenerator.de",
-          // Umlaut-Domain grüenerator.de + Subdomains
-          "http://*.grünerator.de",
-          "https://*.grünerator.de",
+          // Umlaut-Domain grüenerator.de + Subdomains (Punycode-kodiert)
+          "http://*.xn--grnerator-z2a.de",
+          "https://*.xn--grnerator-z2a.de",
           // Weiterhin lokale Entwicklungs-URLs
           "http://localhost:*",
           "http://127.0.0.1:*",
@@ -310,12 +386,43 @@ if (cluster.isMaster) {
   // Routen einrichten
   setupRoutes(app);
 
-  // Optimierte statische Datei-Auslieferung
-  app.use(express.static('/var/www/html', {
-    maxAge: '1d', // Browser-Cache für 1 Tag
+  // Optimierte statische Datei-Auslieferung für Vite
+  const staticFilesPath = path.join(__dirname, '../gruenerator_frontend/build');
+  
+  // API-Routen zuerst
+  setupRoutes(app);
+
+  // Statische Assets mit spezifischer Struktur
+  app.use('/assets', express.static(path.join(staticFilesPath, 'assets'), {
+    maxAge: '1d',
     etag: true,
-    lastModified: true
+    immutable: true // Hash im Dateinamen erlaubt immutable caching
   }));
+
+  // Andere statische Dateien im Root
+  app.use(express.static(staticFilesPath, {
+    maxAge: '1d',
+    etag: true,
+    // Nur echte Dateien servieren, keine Verzeichnisse
+    index: false,
+    // Explizite Dateiendungen für statische Dateien
+    extensions: ['html', 'js', 'css', 'png', 'jpg', 'gif', 'svg', 'ico']
+  }));
+
+  // SPA-Routing: Alle anderen Anfragen zu index.html
+  app.get('*', (req, res, next) => {
+    // API-Routen ignorieren
+    if (req.path.startsWith('/api/')) {
+      return next();
+    }
+    
+    const indexPath = path.join(staticFilesPath, 'index.html');
+    if (fs.existsSync(indexPath)) {
+      res.sendFile(indexPath);
+    } else {
+      next(new Error('index.html nicht gefunden'));
+    }
+  });
 
   // Statisches Verzeichnis für Video-Uploads
   app.use('/uploads/exports', express.static(path.join(__dirname, 'uploads/exports'), {
@@ -359,19 +466,104 @@ if (cluster.isMaster) {
     next();
   });
 
+  // Füge einen Middleware vor der Catch-all Route hinzu, um 404-Fehler zu loggen
+  app.use((req, res, next) => {
+    // Nur für statische Dateianfragen
+    if (req.method === 'GET' && !req.path.startsWith('/api/')) {
+      const requestPath = req.path;
+      
+      // Prüfe auf typische Asset-Pfade
+      if (requestPath.match(/\.(js|css|woff2|png|jpg|svg|ico)$/)) {
+        logger.info(`Asset request detected: ${requestPath}`);
+      }
+    }
+    next();
+  });
+
   // Root und Catch-all Routes
-  app.get('/', (req, res) => {
-    res.sendFile(path.join('/var/www/html', 'index.html'));
+  app.get('/', (req, res, next) => {
+    try {
+      const filePath = path.join(staticFilesPath, 'index.html');
+      logger.info(`Serving index.html from: ${filePath}`);
+      
+      // Prüfe, ob die Datei existiert
+      if (fs.existsSync(filePath)) {
+        logger.info(`index.html exists at: ${filePath}`);
+        res.sendFile(filePath);
+      } else {
+        logger.error(`Index-Datei nicht gefunden: ${filePath}`);
+        throw new Error(`Index-Datei nicht gefunden: ${filePath}`);
+      }
+    } catch (err) {
+      logger.error(`Error serving index.html: ${err.message}`);
+      next(err); // Fehler an den Error Handler weiterleiten
+    }
   });
 
-  app.get('*', (req, res) => {
-    res.sendFile(path.join('/var/www/html', 'index.html'));
+  app.get('*', (req, res, next) => {
+    try {
+      // Logge alle Anfragen, die nicht von statischen Dateien bedient werden
+      logger.info(`Catch-all route accessed for: ${req.path}`);
+      
+      const filePath = path.join(staticFilesPath, 'index.html');
+      
+      // Prüfe, ob die Datei existiert
+      if (fs.existsSync(filePath)) {
+        res.sendFile(filePath);
+      } else {
+        logger.error(`Index-Datei nicht gefunden: ${filePath}`);
+        throw new Error(`Index-Datei nicht gefunden: ${filePath}`);
+      }
+    } catch (err) {
+      logger.error(`Error in catch-all route: ${err.message}`);
+      next(err); // Fehler an den Error Handler weiterleiten
+    }
   });
 
-  // Error Handler
+  // Error Handler mit verbessertem Logging
   app.use((err, req, res, next) => {
-    logger.error(err.stack);
-    res.status(500).send('Something broke!');
+    // Detailliertes Logging des Fehlers
+    logger.error({
+      message: 'Server-Fehler aufgetreten',
+      error: err.message,
+      stack: err.stack,
+      path: req.path,
+      method: req.method,
+      ip: req.ip,
+      headers: req.headers,
+      query: req.query,
+      params: req.params,
+      timestamp: new Date().toISOString()
+    });
+
+    // Bestimme, ob wir in der Entwicklungsumgebung sind
+    const isDevelopment = process.env.NODE_ENV === 'development';
+    
+    // Prüfe auf spezifische Fehlertypen
+    let errorMessage = 'Bitte versuchen Sie es später erneut';
+    
+    if (err.message && err.message.includes('Index-Datei nicht gefunden')) {
+      errorMessage = 'Die Anwendung konnte nicht geladen werden. Bitte kontaktieren Sie den Administrator.';
+    } else if (err.code === 'ENOENT') {
+      errorMessage = 'Eine benötigte Datei wurde nicht gefunden.';
+    } else if (err.code === 'EACCES') {
+      errorMessage = 'Zugriffsfehler beim Lesen einer Datei.';
+    }
+    
+    // Sende eine strukturierte Fehlerantwort
+    res.status(500).json({
+      success: false,
+      error: 'Ein Serverfehler ist aufgetreten',
+      message: isDevelopment ? err.message : errorMessage,
+      // Nur in der Entwicklungsumgebung den Stack senden
+      stack: isDevelopment ? err.stack : undefined,
+      // Eine eindeutige Fehler-ID für die Fehlersuche
+      errorId: `${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      timestamp: new Date().toISOString(),
+      // Zusätzliche Informationen für die Fehlersuche
+      errorCode: err.code,
+      errorType: err.name
+    });
   });
 
   // Ändere die Server-Konfiguration

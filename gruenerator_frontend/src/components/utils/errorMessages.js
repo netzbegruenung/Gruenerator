@@ -1,144 +1,111 @@
-import PropTypes from 'prop-types';
-import React from 'react';
+export const getErrorMessage = (error) => {
+  // Fehlertyp und Info ermitteln
+  let errorType;
+  
+  // Prüfe auf spezifische Fehlermeldungen
+  if (typeof error === 'string' && error.includes('Something broke!')) {
+    return {
+      title: 'Serverfehler',
+      message: 'Ein unerwarteter Fehler ist auf dem Server aufgetreten. Bitte versuchen Sie es später erneut.',
+      details: 'Backend-Fehler: Something broke!'
+    };
+  }
+  
+  // Fehlertyp bestimmen
+  if (error?.isAxiosError) {
+    // Axios Fehler
+    errorType = error.response?.status || error.code || 'ERR_NETWORK';
+  } else if (error?.error?.type) {
+    // Anthropic API Fehler
+    errorType = error.error.type;
+  } else if (error?.code) {
+    // Anwendungsspezifische Fehler
+    errorType = error.code;
+  } else if (typeof error === 'string') {
+    // String-Fehler
+    return {
+      title: 'Fehler',
+      message: error,
+      details: error
+    };
+  } else {
+    // Fallback
+    errorType = 'default';
+  }
 
-const errorMessages = {
-    // HTTP Status Code Errors
+  // Fehlermeldungen nach Typ
+  const errorMessages = {
+    // HTTP Status Codes
     400: {
-        title: 'Ungültige Anfrage',
-        message: 'Die Anfrage konnte nicht verarbeitet werden. Bitte überprüfen Sie Ihre Eingaben und versuchen Sie es erneut.'
+      title: 'Ungültige Anfrage',
+      message: 'Die Anfrage konnte nicht verarbeitet werden. Bitte überprüfen Sie Ihre Eingaben und versuchen Sie es erneut.'
     },
     401: {
-        title: 'Authentifizierungsfehler',
-        message: 'Es gibt ein Problem mit der API-Authentifizierung. Bitte versuchen Sie es später erneut.'
+      title: 'Authentifizierungsfehler',
+      message: 'Es gibt ein Problem mit der API-Authentifizierung. Bitte versuchen Sie es später erneut.'
     },
     403: {
-        title: 'Zugriff verweigert',
-        message: 'Keine Berechtigung für diese Aktion. Bitte versuchen Sie es später erneut.'
+      title: 'Zugriff verweigert',
+      message: 'Keine Berechtigung für diese Aktion. Bitte versuchen Sie es später erneut.'
     },
     404: {
-        title: 'Nicht gefunden',
-        message: 'Die angeforderte Ressource konnte nicht gefunden werden. Bitte versuchen Sie es später erneut.'
+      title: 'Nicht gefunden',
+      message: 'Die angeforderte Ressource konnte nicht gefunden werden. Bitte versuchen Sie es später erneut.'
     },
     413: {
-        title: 'Anfrage zu groß',
-        message: 'Ihre Eingabe ist zu umfangreich. Bitte kürzen Sie Ihren Text und versuchen Sie es erneut.'
+      title: 'Anfrage zu groß',
+      message: 'Ihre Eingabe ist zu umfangreich. Bitte kürzen Sie Ihren Text und versuchen Sie es erneut.'
     },
     429: {
-        title: 'Anfragelimit erreicht',
-        message: 'Es wurden zu viele Anfragen gestellt. Bitte warten Sie einen Moment und versuchen Sie es dann erneut.'
+      title: 'Anfragelimit erreicht',
+      message: 'Es wurden zu viele Anfragen gestellt. Bitte warten Sie einen Moment und versuchen Sie es dann erneut.'
     },
     500: {
-        title: 'KI-Dienst nicht verfügbar',
-        message: 'Ein unerwarteter Fehler ist in der KI aufgetreten. Bitte versuchen Sie es später erneut.'
+      title: 'KI-Dienst nicht verfügbar',
+      message: 'Ein unerwarteter Fehler ist in der KI aufgetreten. Bitte versuchen Sie es später erneut.'
+    },
+    502: {
+      title: 'Server nicht erreichbar',
+      message: 'Der Server ist derzeit nicht erreichbar. Bitte versuchen Sie es später erneut.'
+    },
+    503: {
+      title: 'Service nicht verfügbar',
+      message: 'Der Dienst ist vorübergehend nicht verfügbar. Bitte versuchen Sie es später erneut.'
+    },
+    504: {
+      title: 'Gateway Timeout',
+      message: 'Der Server reagiert nicht. Bitte versuchen Sie es später erneut.'
     },
     529: {
-        title: 'System überlastet',
-        message: 'Der KI-Dienst ist derzeit überlastet. Bitte versuchen Sie es in einigen Minuten erneut.'
+      title: 'System überlastet',
+      message: 'Der KI-Dienst ist derzeit überlastet. Bitte versuchen Sie es in einigen Minuten erneut.'
     },
 
     // Axios Error Codes
-    'ERR_NETWORK': {
-        title: 'Netzwerkfehler',
-        message: 'Keine Verbindung zum Server möglich. Bitte überprüfen Sie Ihre Internetverbindung.'
+    ERR_NETWORK: {
+      title: 'Netzwerkfehler',
+      message: 'Keine Verbindung zum Server möglich. Bitte überprüfen Sie Ihre Internetverbindung.'
     },
-    'ERR_BAD_REQUEST': {
-        title: 'Fehlerhafte Anfrage',
-        message: 'Die Anfrage konnte nicht verarbeitet werden. Bitte überprüfen Sie Ihre Eingaben.'
+    ERR_BAD_REQUEST: {
+      title: 'Fehlerhafte Anfrage',
+      message: 'Die Anfrage konnte nicht verarbeitet werden. Bitte überprüfen Sie Ihre Eingaben.'
     },
-    'ERR_BAD_RESPONSE': {
-        title: 'Ungültige Serverantwort',
-        message: 'Der Server hat eine ungültige Antwort gesendet. Bitte versuchen Sie es später erneut.'
+    ERR_BAD_RESPONSE: {
+      title: 'Ungültige Serverantwort',
+      message: 'Der Server hat eine ungültige Antwort gesendet. Bitte versuchen Sie es später erneut.'
     },
-    'ERR_TIMEOUT': {
-        title: 'Zeitüberschreitung',
-        message: 'Die Anfrage hat zu lange gedauert. Bitte versuchen Sie es später erneut.'
+    ERR_TIMEOUT: {
+      title: 'Zeitüberschreitung',
+      message: 'Die Anfrage hat zu lange gedauert. Bitte versuchen Sie es später erneut.'
     },
 
-    // Default
+    // Fallback für unbekannte Fehler
     default: {
-        title: 'Unerwarteter Fehler',
-        message: 'Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.'
-    },
-
-    // Network error direkt in die Hauptfehlermeldungen aufnehmen
-    'network_error': {
-        title: 'Verbindungsfehler',
-        message: 'Die Verbindung zum Server konnte nicht hergestellt werden. Bitte überprüfen Sie Ihre Internetverbindung und versuchen Sie es erneut.'
+      title: 'Unerwarteter Fehler',
+      message: 'Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.'
     }
-};
+  };
 
-const getErrorMessage = (error) => {
-    // Erweiterte Fehlertyp-Extraktion
-    let errorType;
-    
-    // Prüfe zuerst auf Axios-Fehler
-    if (error?.isAxiosError) {
-        errorType = error.response?.status || error.code || 'network_error';
-    } else if (error?.error?.type) {
-        // Anthropic API Fehler
-        errorType = error.error.type;
-    } else if (typeof error === 'string') {
-        return {
-            title: 'Fehler',
-            message: error
-        };
-    } else {
-        errorType = 'default';
-    }
-
-    // Direkt errorMessages verwenden, keine Kopie mehr nötig
-    const errorInfo = errorMessages[errorType] || errorMessages.default;
-
-    console.log('[getErrorMessage] Fehlertyp:', errorType); // Logging hinzufügen
-    console.log('[getErrorMessage] Fehlerinfo:', errorInfo); // Logging hinzufügen
-
-    return {
-        title: errorInfo.title,
-        message: errorInfo.message,
-        details: error?.response?.data || error?.error?.message || error?.message,
-        requestId: error?.headers?.['request-id'] || error?.response?.headers?.['request-id'],
-        status: error?.response?.status
-    };
-};
-
-const ErrorDisplay = ({ error, className = '' }) => {
-  console.log('[ErrorDisplay] Rendering with error:', error);  // Debug-Log
-
-  if (!error) {
-    console.log('[ErrorDisplay] No error provided');
-    return null;
-  }
-
-  // Sicherstellen, dass wir die richtigen Eigenschaften haben
-  const errorTitle = error.title || 'Unerwarteter Fehler';
-  const errorMessage = error.message || 'Ein unbekannter Fehler ist aufgetreten';
-  
-  return (
-    <div className={`error-display ${className}`} role="alert">
-      <h4>{errorTitle}</h4>
-      <p>{errorMessage}</p>
-      {(error.details || error.status || error.requestId) && (
-        <details>
-          <summary>Technische Details</summary>
-          {error.details && <p>Details: {error.details}</p>}
-          {error.status && <p>Status: {error.status}</p>}
-          {error.requestId && <p>Request ID: {error.requestId}</p>}
-        </details>
-      )}
-    </div>
-  );
-};
-
-ErrorDisplay.propTypes = {
-    error: PropTypes.shape({
-        title: PropTypes.string.isRequired,
-        message: PropTypes.string.isRequired,
-        details: PropTypes.string,
-        requestId: PropTypes.string,
-        status: PropTypes.number
-    }).isRequired,
-    className: PropTypes.string
-};
-
-// Export als Standardexport
-export { errorMessages, getErrorMessage, ErrorDisplay };
+  // Fehlermeldung zurückgeben
+  return errorMessages[errorType] || errorMessages.default;
+}; 

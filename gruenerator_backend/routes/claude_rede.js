@@ -4,6 +4,9 @@ const router = express.Router();
 router.post('/', async (req, res) => {
   const { rolle, thema, Zielgruppe, schwerpunkte, redezeit, useBackupProvider, customPrompt } = req.body;
 
+  // Aktuelles Datum ermitteln
+  const currentDate = new Date().toISOString().split('T')[0];
+
   try {
     // Systemanweisung für die Redenerstellung
     const systemPrompt = `Sie sind damit beauftragt, eine politische Rede für ein Mitglied von Bündnis 90/Die Grünen zu schreiben. Ihr Ziel ist es, eine überzeugende und mitreißende Rede zu erstellen, die den Werten und Positionen der Partei entspricht und das gegebene Thema behandelt. 
@@ -38,6 +41,8 @@ Befolgen Sie diese Richtlinien, um die Rede zu verfassen:
       // Bei benutzerdefiniertem Prompt diesen verwenden, aber mit Redeinformationen ergänzen
       userContent = `Benutzerdefinierter Prompt: ${customPrompt}
 
+Aktuelles Datum: ${currentDate}
+
 Zusätzliche Informationen zur Rede:
 - Rolle/Position des Redners: ${rolle || 'Nicht angegeben'}
 - Spezifisches Thema oder Anlass der Rede: ${thema || 'Nicht angegeben'}
@@ -50,7 +55,8 @@ Zusätzliche Informationen zur Rede:
 Spezifisches Thema oder Anlass der Rede: ${thema}
 Zielgruppe: ${Zielgruppe}
 Besondere Schwerpunkte oder lokale Aspekte: ${schwerpunkte}
-Gewünschte Redezeit (in Minuten): ${redezeit}`;
+Gewünschte Redezeit (in Minuten): ${redezeit}
+Aktuelles Datum: ${currentDate}`;
     }
 
     const result = await req.app.locals.aiWorkerPool.processRequest({
