@@ -15,6 +15,7 @@ function parseTimestamp(timestamp) {
 }
 
 // Hilfsfunktion zum Ausführen von Whisper
+/*
 async function transcribeVideoLocal(videoPath, language = 'de') {
   try {
     const outputDir = path.join(__dirname, '../../../uploads/transcriptions');
@@ -110,71 +111,68 @@ async function transcribeVideoLocal(videoPath, language = 'de') {
     throw error;
   }
 }
+*/
 
 // Neue Hauptfunktion die beide Methoden unterstützt
 async function transcribeVideo(videoPath, method = 'openai', language = 'de') {
   try {
-    if (method === 'local') {
-      return await transcribeVideoLocal(videoPath, language);
-    } else {
-      console.log('Starte OpenAI Transkription');
-      const outputDir = path.join(__dirname, '../../../uploads/transcriptions');
-      await fs.mkdir(outputDir, { recursive: true });
-      const audioPath = path.join(outputDir, `audio_${Date.now()}.mp3`);
-      
-      // Extrahiere Audio
-      await extractAudio(videoPath, audioPath);
-      
-      // Transkribiere mit OpenAI
-      const rawText = await transcribeWithOpenAI(audioPath);
-      
-      // Cleanup
-      try {
-        await fs.unlink(audioPath);
-        console.log('Temporäre Audio-Datei gelöscht:', audioPath);
-      } catch (err) {
-        console.warn('Konnte temporäre Audio-Datei nicht löschen:', err);
-      }
-
-      if (!rawText) {
-        throw new Error('Keine Transkription von OpenAI erhalten');
-      }
-      
-      // Konvertiere Text in Segmente
-      const words = rawText.split(' ');
-      const wordsPerSegment = 10;
-      const segments = [];
-      let currentTime = 0;
-      
-      for (let i = 0; i < words.length; i += wordsPerSegment) {
-        const segmentWords = words.slice(i, i + wordsPerSegment);
-        const duration = 3;
-        
-        const startTime = currentTime;
-        const endTime = currentTime + duration;
-        currentTime = endTime;
-        
-        const startMin = Math.floor(startTime / 60);
-        const startSec = Math.round(startTime % 60);
-        const endMin = Math.floor(endTime / 60);
-        const endSec = Math.round(endTime % 60);
-        
-        const formattedStart = `${startMin}:${startSec.toString().padStart(2, '0')}`;
-        const formattedEnd = `${endMin}:${endSec.toString().padStart(2, '0')}`;
-        
-        segments.push(`${formattedStart} - ${formattedEnd}\n${segmentWords.join(' ')}`);
-      }
-
-      console.log('OpenAI Transkription abgeschlossen');
-      return segments.join('\n\n');
+    // Immer OpenAI verwenden
+    console.log('Starte OpenAI Transkription');
+    const outputDir = path.join(__dirname, '../../../uploads/transcriptions');
+    await fs.mkdir(outputDir, { recursive: true });
+    const audioPath = path.join(outputDir, `audio_${Date.now()}.mp3`);
+    
+    // Extrahiere Audio
+    await extractAudio(videoPath, audioPath);
+    
+    // Transkribiere mit OpenAI
+    const rawText = await transcribeWithOpenAI(audioPath);
+    
+    // Cleanup
+    try {
+      await fs.unlink(audioPath);
+      console.log('Temporäre Audio-Datei gelöscht:', audioPath);
+    } catch (err) {
+      console.warn('Konnte temporäre Audio-Datei nicht löschen:', err);
     }
+
+    if (!rawText) {
+      throw new Error('Keine Transkription von OpenAI erhalten');
+    }
+    
+    // Konvertiere Text in Segmente
+    const words = rawText.split(' ');
+    const wordsPerSegment = 10;
+    const segments = [];
+    let currentTime = 0;
+    
+    for (let i = 0; i < words.length; i += wordsPerSegment) {
+      const segmentWords = words.slice(i, i + wordsPerSegment);
+      const duration = 3;
+      
+      const startTime = currentTime;
+      const endTime = currentTime + duration;
+      currentTime = endTime;
+      
+      const startMin = Math.floor(startTime / 60);
+      const startSec = Math.round(startTime % 60);
+      const endMin = Math.floor(endTime / 60);
+      const endSec = Math.round(endTime % 60);
+      
+      const formattedStart = `${startMin}:${startSec.toString().padStart(2, '0')}`;
+      const formattedEnd = `${endMin}:${endSec.toString().padStart(2, '0')}`;
+      
+      segments.push(`${formattedStart} - ${formattedEnd}\n${segmentWords.join(' ')}`);
+    }
+
+    console.log('OpenAI Transkription abgeschlossen');
+    return segments.join('\n\n');
   } catch (error) {
-    console.error(`Fehler bei der Transkription (${method}):`, error);
+    console.error(`Fehler bei der Transkription:`, error);
     throw error;
   }
 }
 
 module.exports = {
-  transcribeVideo,
-  transcribeVideoLocal
+  transcribeVideo
 }; 
