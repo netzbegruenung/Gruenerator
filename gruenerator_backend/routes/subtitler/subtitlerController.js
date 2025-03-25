@@ -224,6 +224,57 @@ router.post('/export', upload.single('video'), async (req, res) => {
     outputPath = path.join(outputDir, `subtitled_${Date.now()}${path.extname(req.file.originalname)}`);
     console.log('Ausgabepfad:', outputPath);
 
+    // Berechne Schriftgröße basierend auf der Videoauflösung
+    const baseFontSize = 48; // Basis-Schriftgröße für 1080p
+    const minFontSize = 16;  // Minimum für kleine Videos
+    const maxFontSize = 48;  // Maximum für große Videos
+    
+    // Bestimme die relevante Dimension basierend auf der Video-Orientierung
+    const isVertical = metadata.width < metadata.height;
+    const referenceDimension = isVertical ? metadata.width : metadata.height;
+    
+    // Berechne Schriftgröße basierend auf der Referenzdimension
+    // Angepasste Prozentsätze für verschiedene Auflösungen
+    let percentage;
+    if (referenceDimension >= 1920) { // Full HD und größer
+      percentage = isVertical ? 0.046 : 0.038; // 4.6% der Breite / 3.8% der Höhe
+    } else if (referenceDimension >= 1080) { // HD
+      percentage = isVertical ? 0.04 : 0.03; // 4% der Breite / 3% der Höhe
+    } else { // Kleinere Auflösungen
+      percentage = isVertical ? 0.035 : 0.03; // 3.5% der Breite / 3% der Höhe
+    }
+    
+    const fontSize = Math.max(minFontSize, Math.min(maxFontSize, Math.floor(referenceDimension * percentage)));
+
+    // Berechne den Zeilenabstand mit Hybrid-Ansatz
+    const minSpacing = 40; // Minimaler Abstand in Pixeln
+    const maxSpacing = fontSize * 1.25;
+    const spacing = Math.max(minSpacing, Math.min(maxSpacing, fontSize * (1.5 + (1 - fontSize/48))));
+
+    // Log die Berechnung
+    console.log('Schriftgrößenberechnung:', {
+      videoDimensionen: `${metadata.width}x${metadata.height}`,
+      orientierung: isVertical ? 'vertikal' : 'horizontal',
+      referenzDimension: referenceDimension,
+      auflösungskategorie: referenceDimension >= 1920 ? 'Full HD+' : 
+                          referenceDimension >= 1080 ? 'HD' : 'SD',
+      prozent: `${(percentage * 100).toFixed(1)}%`,
+      berechneteGröße: `${fontSize}px (${(fontSize/referenceDimension*100).toFixed(1)}% der ${isVertical ? 'Breite' : 'Höhe'})`,
+      zeilenabstand: {
+        minimal: `${minSpacing}px`,
+        maximal: `${maxSpacing.toFixed(1)}px`,
+        berechnet: `${spacing.toFixed(1)}px`,
+        verhältnis: `${(spacing/fontSize).toFixed(2)}x`,
+        details: {
+          basisFaktor: '1.5',
+          skalierungsFaktor: `${(1 - fontSize/48).toFixed(3)}`,
+          berechnungsformel: `max(${minSpacing}, min(${maxSpacing.toFixed(1)}, ${fontSize} * (1.5 + ${(1 - fontSize/48).toFixed(3)})))`,
+          verwendeterWert: spacing === minSpacing ? 'minimal' : 
+                          spacing === maxSpacing ? 'maximal' : 'berechnet'
+        }
+      }
+    });
+
     // Verbesserte Verarbeitung der Untertitel-Segmente
     const segments = req.body.subtitles
       .split(/\n(?=\d+:\d{2}\s*-\s*\d+:\d{2})/)
@@ -300,7 +351,7 @@ router.post('/export', upload.single('video'), async (req, res) => {
           
           const line1Filter = `drawtext=text='${line1}':` +
             `fontfile='${FONT_PATH}':` +
-            `fontsize=48:` +
+            `fontsize=${fontSize}:` +
             `fontcolor=white:` +
             `box=1:` +
             `boxcolor=black@0.8:` +
@@ -312,13 +363,13 @@ router.post('/export', upload.single('video'), async (req, res) => {
           const line2Filter = line2 ? 
             `,drawtext=text='${line2}':` +
             `fontfile='${FONT_PATH}':` +
-            `fontsize=48:` +
+            `fontsize=${fontSize}:` +
             `fontcolor=white:` +
             `box=1:` +
             `boxcolor=black@0.8:` +
             `boxborderw=8:` +
             `x=(w-text_w)/2:` +
-            `y=${yPos}+60:` +  // Zweite Zeile 60 Pixel unter der ersten
+            `y=${yPos}+${spacing}:` +  // Verwende den berechneten Abstand
             `enable='between(t,${segment.startTime},${segment.endTime})'` : '';
             
           return line1Filter + line2Filter;
@@ -335,8 +386,39 @@ router.post('/export', upload.single('video'), async (req, res) => {
           console.log('Video-Metadaten:', {
             rotation: metadata.rotation,
             codec: metadata.originalFormat?.codec,
-            dimensions: `${metadata.width}x${metadata.height}`
+            dimensions: `${metadata.width}x${metadata.height}`,
+            schriftgröße: `${fontSize}px (${(fontSize/metadata.height*100).toFixed(1)}% der Höhe)`
           });
+          
+          // Logge den kompletten Filter-String für die erste Zeile
+          const firstSegment = segments[0];
+          if (firstSegment) {
+            const escapedText = escapeFFmpegText(firstSegment.text);
+            const [line1] = escapedText.split('\\n');
+            const isVertical = metadata.rotation === '90' || metadata.rotation === '270';
+            const yPos = isVertical ? 'h*0.7' : 'h*0.7';
+            
+            const line1Filter = `drawtext=text='${line1}':` +
+              `fontfile='${FONT_PATH}':` +
+              `fontsize=${fontSize}:` +
+              `fontcolor=white:` +
+              `box=1:` +
+              `boxcolor=black@0.8:` +
+              `boxborderw=8:` +
+              `x=(w-text_w)/2:` +
+              `y=${yPos}:` +
+              `enable='between(t,${firstSegment.startTime},${firstSegment.endTime})'`;
+              
+            console.log('FFmpeg Filter Details:', {
+              filterString: line1Filter,
+              text: line1,
+              fontSize,
+              boxborderw: 8,
+              yPosition: yPos,
+              startTime: firstSegment.startTime,
+              endTime: firstSegment.endTime
+            });
+          }
         })
         .on('progress', progress => console.log('Fortschritt:', progress.percent ? `${progress.percent.toFixed(1)}%` : 'Verarbeite...'))
         .on('error', (err) => {

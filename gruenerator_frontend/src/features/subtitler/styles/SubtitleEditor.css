@@ -69,6 +69,23 @@
   resize: vertical;
 }
 
+@media (max-width: 768px) {
+  
+  
+  .segment-text {
+    min-height: auto;
+    height: auto;
+    overflow: hidden;
+    resize: none;
+    display: block;
+    box-sizing: border-box;
+  }
+  
+  .subtitle-segment {
+    overflow: visible;
+  }
+}
+
 .segment-text:focus {
   outline: none;
   border-color: var(--tanne);
