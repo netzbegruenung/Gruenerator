@@ -7,6 +7,11 @@ const SubtitleEditor = ({ videoFile, subtitles, onExportSuccess, isExporting, on
   const [editableSubtitles, setEditableSubtitles] = useState([]);
   const [error, setError] = useState(null);
 
+  const adjustTextareaHeight = (element) => {
+    element.style.height = 'auto';
+    element.style.height = element.scrollHeight + 'px';
+  };
+
   useEffect(() => {
     if (videoFile) {
       const url = URL.createObjectURL(videoFile);
@@ -40,12 +45,23 @@ const SubtitleEditor = ({ videoFile, subtitles, onExportSuccess, isExporting, on
     }
   }, [subtitles]);
 
-  const handleSubtitleEdit = (id, newText) => {
+  useEffect(() => {
+    if (window.innerWidth <= 768) {
+      const textareas = document.querySelectorAll('.segment-text');
+      textareas.forEach(adjustTextareaHeight);
+    }
+  }, [editableSubtitles]);
+
+  const handleSubtitleEdit = (id, newText, event) => {
     setEditableSubtitles(prev => 
       prev.map(segment => 
         segment.id === id ? { ...segment, text: newText } : segment
       )
     );
+    
+    if (window.innerWidth <= 768) {
+      adjustTextareaHeight(event.target);
+    }
   };
 
   const formatTime = (seconds) => {
@@ -191,9 +207,9 @@ const SubtitleEditor = ({ videoFile, subtitles, onExportSuccess, isExporting, on
                 </div>
                 <textarea
                   value={segment.text}
-                  onChange={(e) => handleSubtitleEdit(segment.id, e.target.value)}
+                  onChange={(e) => handleSubtitleEdit(segment.id, e.target.value, e)}
                   className="segment-text"
-                  rows={2}
+                  rows={window.innerWidth <= 768 ? undefined : 2}
                 />
               </div>
             ))}

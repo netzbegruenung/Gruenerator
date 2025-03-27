@@ -3,6 +3,14 @@
   grid-template-columns: repeat(12, 1fr);
   gap: 1.5rem;
   margin-top: 2rem;
+  width: 100%;
+}
+
+.bottom-row {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 1.5rem;
+  grid-column: span 12;
 }
 
 .dashboard-section {
@@ -40,24 +48,21 @@
   border-radius: 2px;
 }
 
-.files-section {
+/* Grid Layout Definitionen */
+.texts-section {
   grid-column: span 12;
 }
 
-.texts-section {
-  grid-column: span 4;
+.files-section,
+.templates-section {
+  grid-column: span 6;
 }
 
 .grueneratoren-container {
-  grid-column: span 8;
+  display: none;
 }
 
-.templates-section {
-  grid-column: span 12;
-  padding: 1.5rem !important;
-}
-
-/* Spezifische Anpassungen für die Templates-Section im Kampagnen-Grünerator */
+/* Spezifische Anpassungen für die Templates-Section */
 .templates-section h2 {
   font-size: 1.3rem !important;
   margin-bottom: 1rem !important;
@@ -92,18 +97,20 @@
 
 /* Responsive Adjustments */
 @media (max-width: 1200px) {
-  .texts-section {
-    grid-column: span 5;
-  }
-  
-  .grueneratoren-container {
-    grid-column: span 7;
+  .files-section,
+  .templates-section {
+    grid-column: span 6;
   }
 }
 
 @media (max-width: 992px) {
-  .texts-section,
-  .grueneratoren-container,
+  .bottom-row {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+  
+  .files-section,
   .templates-section {
     grid-column: span 12;
   }
