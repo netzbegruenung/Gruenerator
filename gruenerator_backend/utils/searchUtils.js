@@ -42,7 +42,8 @@ class TavilyService {
         search_depth: options.searchDepth || searchConfig.defaultSearchOptions.searchDepth,
         max_results: options.maxResults || searchConfig.defaultSearchOptions.maxResults,
         include_domains: options.includeDomains || searchConfig.defaultSearchOptions.includeDomains,
-        exclude_domains: options.excludeDomains || searchConfig.defaultSearchOptions.excludeDomains
+        exclude_domains: options.excludeDomains || searchConfig.defaultSearchOptions.excludeDomains,
+        include_answer: options.includeAnswer
       });
 
       if (!response) {
