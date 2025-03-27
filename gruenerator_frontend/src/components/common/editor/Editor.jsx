@@ -35,8 +35,6 @@ const Editor = React.memo(({ setEditorInstance = () => {} }) => {
     reelScriptValue,
     actionIdeasValue,
     handleAiAdjustment,
-    handleConfirmAdjustment,
-    handleRejectAdjustment,
     selectedText,
     setSelectedText,
     highlightedRange,
@@ -51,8 +49,7 @@ const Editor = React.memo(({ setEditorInstance = () => {} }) => {
     aiAdjustment,
     setIsAdjusting,
     setAdjustmentText,
-    setAiAdjustment,
-    setShowConfirmationContainer
+    setAiAdjustment
   } = useContext(FormContext);
 
   const quillRef = useRef(null);
@@ -144,7 +141,6 @@ const Editor = React.memo(({ setEditorInstance = () => {} }) => {
     setAdjustmentText('');
     setOriginalContent('');
     setAiAdjustment(null);
-    setShowConfirmationContainer(false);
     highlighting.removeAllHighlights();
     
     console.log('[useTextAdjustment] rejectAdjustment abgeschlossen');
@@ -158,44 +154,28 @@ const Editor = React.memo(({ setEditorInstance = () => {} }) => {
     setAdjustmentText,
     setOriginalContent,
     setAiAdjustment,
-    setShowConfirmationContainer,
     highlighting.removeAllHighlights
   ]);
 
   // Effekt für die Anwendung von Anpassungen (aus useTextAdjustment)
   useEffect(() => {
-    if (adjustmentText && highlightedRange) {
-      console.log('[useEffect] Anpassung für selected-type erkannt');
-      applyAdjustment(adjustmentText);
-    } else if (adjustmentText && aiAdjustment?.type === 'full') {
-      console.log('[useEffect] Anpassung für full-type erkannt');
-      const quill = quillRef.current?.getEditor();
-      if (quill) {
-        console.log('[useTextAdjustment] Wende full-type Anpassung an', {
-          adjustmentTextLength: adjustmentText.length,
-          aiAdjustmentType: aiAdjustment?.type,
-          quillValid: !!quill
-        });
-        
-        // Nur Text ersetzen - originalContent wurde bereits beim Absenden gespeichert
-        quill.setText(adjustmentText);
-        
-        // Neue Zeile: Wende die grüne Hervorhebung auf den gesamten Text an
-        highlighting.applyNewTextHighlight(quill, 0, adjustmentText.length);
-        
-        // Lokalen Wert aktualisieren, aber noch nicht den Hauptwert
-        setLocalValue(quill.root.innerHTML);
+    if (adjustmentText) {
+      if (highlightedRange) {
+        applyAdjustment(adjustmentText);
+      } else if (aiAdjustment?.type === 'full') {
+        const quill = quillRef.current?.getEditor();
+        if (quill) {
+          quill.setText(adjustmentText);
+          highlighting.applyNewTextHighlight(quill, 0, adjustmentText.length);
+          setLocalValue(quill.root.innerHTML);
+        }
       }
+      // Direkt zurücksetzen nach Anwendung
+      setIsAdjusting(false);
+      setAdjustmentText('');
+      setAiAdjustment(null);
     }
-  }, [
-    adjustmentText, 
-    highlightedRange, 
-    applyAdjustment, 
-    aiAdjustment, 
-    quillRef, 
-    setLocalValue,
-    highlighting.applyNewTextHighlight
-  ]);
+  }, [adjustmentText, highlightedRange, aiAdjustment]);
 
   // Geschützte Headers
   useProtectedHeaders(quillRef, updateValue, localValue, setLocalValue, isEditing);
@@ -279,11 +259,7 @@ const Editor = React.memo(({ setEditorInstance = () => {} }) => {
         isAdjusting={isAdjusting}
         showAdjustButton={showAdjustButton}
         selectedText={selectedText}
-        originalSelectedText={selectedText}
-        newSelectedText={adjustmentText}
-        onRejectAdjustment={rejectAdjustment}
         isEditing={isEditing}
-        showAdjustmentConfirmation={!!adjustmentText && isAdjusting}
         removeAllHighlights={highlighting.removeAllHighlights}
         originalContent={originalContent}
       />
