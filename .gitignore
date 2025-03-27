@@ -55,3 +55,6 @@ gruenerator_backend/uploads/*.zip:Zone.Identifier
 
 #claudecode files
 CLAUDE.md
+
+.cursor
+

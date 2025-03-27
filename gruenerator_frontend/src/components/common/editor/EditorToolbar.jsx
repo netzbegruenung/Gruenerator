@@ -23,12 +23,14 @@ const CustomRedo = React.memo(() => {
 CustomRedo.displayName = "CustomRedo";
 
 const EditorToolbarComponent = ({ 
-  showAdjustButton, 
-  selectedText, 
+  readOnly, 
+  onAdjustText, 
   isAdjusting,
-  originalSelectedText,
-  onRejectAdjustment,
+  showAdjustButton, 
+  selectedText,
   isEditing,
+  removeAllHighlights,
+  originalContent
 }) => {
   const { 
     adjustText, 
@@ -104,31 +106,7 @@ const EditorToolbarComponent = ({
         </span>
         {!isMobile && isAdjusting && (
           <span className="ql-formats adjust-text-container adjusting">
-            {showConfirmationContainer && (
-              <div className="confirmation-container">
-                <p>Anpassung annehmen?</p>
-                <div className="confirmation-buttons">
-                  <button 
-                    onClick={handleConfirm} 
-                    className="confirm-adjust" 
-                    aria-label="Accept Adjustment"
-                    disabled={isApplyingAdjustment}
-                  >
-                    {isApplyingAdjustment ? '...' : '✓'}
-                  </button>
-                  <button 
-                    onClick={() => {
-                      onRejectAdjustment();
-                      setAdjustmentText('');
-                    }}
-                    className="reject-adjust" 
-                    aria-label="Reject Adjustment"
-                  >
-                    ✗
-                  </button>
-                </div>
-              </div>
-            )}
+            {/* Bestätigungscontainer entfernt */}
           </span>
         )}
       </div>
@@ -138,12 +116,14 @@ const EditorToolbarComponent = ({
 };
 
 EditorToolbarComponent.propTypes = {
+  readOnly: PropTypes.bool.isRequired,
+  onAdjustText: PropTypes.func.isRequired,
+  isAdjusting: PropTypes.bool.isRequired,
   showAdjustButton: PropTypes.bool.isRequired,
   selectedText: PropTypes.string.isRequired,
-  isAdjusting: PropTypes.bool.isRequired,
-  originalSelectedText: PropTypes.string.isRequired,
-  onRejectAdjustment: PropTypes.func.isRequired,
   isEditing: PropTypes.bool.isRequired,
+  removeAllHighlights: PropTypes.func.isRequired,
+  originalContent: PropTypes.string.isRequired
 };
 
 export const EditorToolbar = React.memo(EditorToolbarComponent);

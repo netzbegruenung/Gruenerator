@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import templateData from './utils/templates.json';
 import TemplateCard from './components/TemplateCard';
 import ErrorBoundary from '../../components/ErrorBoundary';
+import { templatesSupabase } from '../../components/utils/templatesSupabaseClient';
+import { templateService } from '../../components/utils/templateService';
 
 const TemplateGallery = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -11,16 +13,23 @@ const TemplateGallery = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    try {
-      setTemplates(templateData.templates);
-      setCategories([
-        { id: 'all', label: 'Alle' },
-        ...templateData.categories
-      ]);
-    } catch (err) {
-      setError('Fehler beim Laden der Templates');
-      console.error('Error loading templates:', err);
+    async function loadTemplatesAndCategories() {
+      try {
+        const templatesData = await templateService.getTemplates();
+        setTemplates(templatesData);
+        
+        const categoriesData = await templateService.getCategories();
+        setCategories([
+          { id: 'all', label: 'Alle' },
+          ...categoriesData
+        ]);
+      } catch (err) {
+        setError('Fehler beim Laden der Templates');
+        console.error('Error loading templates:', err);
+      }
     }
+    
+    loadTemplatesAndCategories();
   }, []);
 
   const filteredTemplates = templates.filter(template => {
