@@ -68,40 +68,49 @@ const useApiSubmit = (endpoint) => {
           return response.suggestions[0];
         }
       } else if (endpoint === '/claude_chat') {
-        if (response && response.response) {
-          // Wenn textAdjustment vorhanden ist, validiere dessen Struktur
-          if (response.textAdjustment) {
-            const { type, newText } = response.textAdjustment;
-            
-            // Nur full oder selected Typen erlauben
-            if (!type || !newText || (type !== 'full' && type !== 'selected')) {
-              throw new Error(`Ungültiger Anpassungstyp: ${type || 'unbekannt'}`);
-            }
-            
-            // Debugging-Ausgabe für newText
-            console.log('[useApiSubmit] textAdjustment.newText:', newText?.substring(0, 50) + '...');
-            
-            // Füge Standardwerte für context und punctuation hinzu falls nicht vorhanden
-            if (!response.textAdjustment.context) {
-              response.textAdjustment.context = {
-                beforeContext: '',
-                text: type === 'selected' ? 
-                      response.textAdjustment.selectedText || '' : 
-                      response.fullText || '',
-                afterContext: ''
-              };
-            }
-            if (!response.textAdjustment.punctuation) {
-              response.textAdjustment.punctuation = {
-                startsWithPunctuation: false,
-                endsWithPunctuation: false,
-                type: 'phrase'
-              };
-            }
+        if (response && (response.response || response.responseType === 'searchResults')) {
+          // Wenn es sich um Suchergebnisse handelt
+          if (response.responseType === 'searchResults' && Array.isArray(response.messages)) {
+            setSuccess(true);
+            return response;
           }
           
-          setSuccess(true);
-          return response;
+          // Bestehende Logik für Edit/Think-Modus
+          if (response.response) {
+            // Wenn textAdjustment vorhanden ist, validiere dessen Struktur
+            if (response.textAdjustment) {
+              const { type, newText } = response.textAdjustment;
+              
+              // Nur full oder selected Typen erlauben
+              if (!type || !newText || (type !== 'full' && type !== 'selected')) {
+                throw new Error(`Ungültiger Anpassungstyp: ${type || 'unbekannt'}`);
+              }
+              
+              // Debugging-Ausgabe für newText
+              console.log('[useApiSubmit] textAdjustment.newText:', newText?.substring(0, 50) + '...');
+              
+              // Füge Standardwerte für context und punctuation hinzu falls nicht vorhanden
+              if (!response.textAdjustment.context) {
+                response.textAdjustment.context = {
+                  beforeContext: '',
+                  text: type === 'selected' ? 
+                        response.textAdjustment.selectedText || '' : 
+                        response.fullText || '',
+                  afterContext: ''
+                };
+              }
+              if (!response.textAdjustment.punctuation) {
+                response.textAdjustment.punctuation = {
+                  startsWithPunctuation: false,
+                  endsWithPunctuation: false,
+                  type: 'phrase'
+                };
+              }
+            }
+            
+            setSuccess(true);
+            return response;
+          }
         }
       } else if (endpoint === 'zitat_claude') {
         if (response && response.quote) {
