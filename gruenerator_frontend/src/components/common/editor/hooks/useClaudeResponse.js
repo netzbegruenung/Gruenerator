@@ -1,9 +1,9 @@
-import { useContext } from 'react';
+import { useContext, useCallback } from 'react';
 import { FormContext } from '../../../utils/FormContext';
 import useApiSubmit from '../../../hooks/useApiSubmit';
 
 export const useClaudeResponse = () => {
-  const { handleAiResponse, quillRef, setOriginalContent, value } = useContext(FormContext);
+  const { handleAiResponse, quillRef, setOriginalContent, value, setIsAdjusting } = useContext(FormContext);
   const { submitForm } = useApiSubmit('/claude_chat');
 
   const getEditorContent = () => {
@@ -21,7 +21,12 @@ export const useClaudeResponse = () => {
     throw new Error('Editor nicht gefunden');
   };
 
-  const processClaudeRequest = async (message, selectedText = null) => {
+  const processClaudeRequest = useCallback(async (
+    message, 
+    selectedText = null, 
+    mode = 'edit',
+    chatHistory = null // Neuer Parameter
+  ) => {
     try {
       // Validiere Eingaben vor API-Aufruf
       if (!message?.trim()) {
@@ -44,8 +49,8 @@ export const useClaudeResponse = () => {
         throw new Error('Der markierte Text ist ungültig');
       }
 
-      // Für full-type (selectedText ist null) speichern wir den Originalinhalt hier
-      if (selectedText === null) {
+      // Im Edit-Modus speichern wir den Originalinhalt für mögliche Änderungen
+      if (mode === 'edit' && selectedText === null) {
         // Den tatsächlichen HTML-Inhalt des Editors speichern:
         if (quillRef.current?.getEditor()) {
           setOriginalContent(quillRef.current.getEditor().root.innerHTML);
@@ -59,21 +64,39 @@ export const useClaudeResponse = () => {
       const requestData = {
         message: message.trim(),
         currentText: plainText.trim(),
-        ...(selectedText && { selectedText: selectedText.trim() })
+        ...(selectedText && { selectedText: selectedText.trim() }),
+        ...(chatHistory && { chatHistory: chatHistory }), // Chathistorie hinzufügen
+        mode
       };
 
+      console.log('[useClaudeResponse] Anfrage mit Modus:', mode);
+
       try {
-        const response = await submitForm(requestData);
-        
-        // Stelle sicher, dass der Typ entweder "selected" oder "full" ist
-        if (response.textAdjustment && 
-            response.textAdjustment.type !== 'selected' && 
-            response.textAdjustment.type !== 'full') {
-          throw new Error('Nicht unterstützter Anpassungstyp: ' + response.textAdjustment.type);
+        // Je nach Modus unterschiedlich verarbeiten
+        if (mode === 'edit') {
+          // Im Edit-Modus wie bisher den Anpassungsprozess starten
+          setIsAdjusting(true);
+          const response = await submitForm(requestData);
+          
+          // Stelle sicher, dass der Typ entweder "selected" oder "full" ist
+          if (response.textAdjustment && 
+              response.textAdjustment.type !== 'selected' && 
+              response.textAdjustment.type !== 'full') {
+            throw new Error('Nicht unterstützter Anpassungstyp: ' + response.textAdjustment.type);
+          }
+          
+          await handleAiResponse(response);
+          setIsAdjusting(false);
+          return response.response;
+        } else if (mode === 'search') {
+          // Im Search-Modus das gesamte Response-Objekt zurückgeben
+          const response = await submitForm(requestData);
+          return response; // Gibt das vollständige Objekt zurück
+        } else {
+          // Im Think-Modus nur die Antwort zurückgeben ohne Textänderungen
+          const response = await submitForm(requestData);
+          return response.response;
         }
-        
-        await handleAiResponse(response);
-        return response.response;
       } catch (error) {
         // Behandle API-spezifische Fehler
         if (error.response?.data?.code === 'VALIDATION_ERROR') {
@@ -90,7 +113,7 @@ export const useClaudeResponse = () => {
       });
       throw error;
     }
-  };
+  }, [quillRef, value, setOriginalContent, submitForm, handleAiResponse, setIsAdjusting]);
 
   return { processClaudeRequest, getEditorContent };
 }; 
