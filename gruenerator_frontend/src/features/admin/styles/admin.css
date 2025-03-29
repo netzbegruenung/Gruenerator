@@ -1,0 +1,37 @@
+/* Admin-Bereich anpassen */
+.RaLayout-appFrame {
+  background-color: var(--background-color);
+}
+
+.RaAppBar-root {
+  background-color: var(--tanne) !important;
+  color: white !important;
+}
+
+.RaMenuItemLink-active {
+  background-color: var(--klee) !important;
+}
+
+.RaMenuItemLink-icon {
+  color: var(--grashalm) !important;
+}
+
+/* Tabellen und Listen formatieren */
+.RaDatagrid-root {
+  background-color: var(--background-color-pure);
+  box-shadow: var(--shadow-md);
+  border: var(--border-subtle);
+}
+
+.RaDatagrid-headerCell {
+  color: var(--font-color-h);
+  font-weight: bold;
+}
+
+/* Formulare */
+.RaSimpleForm-root {
+  background-color: var(--background-color-pure);
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: var(--shadow-md);
+} 
