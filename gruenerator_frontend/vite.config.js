@@ -28,9 +28,9 @@ export default defineConfig(({ command }) => ({
 
   optimizeDeps: {
     esbuildOptions: {
-      loader: {
-        '.js': 'jsx'
-      }
+      // loader: {             // <-- Auskommentiert
+      //   '.js': 'jsx'
+      // }
     },
     include: ['react', 'react-dom']
   },
@@ -55,9 +55,15 @@ export default defineConfig(({ command }) => ({
         entryFileNames: 'assets/js/[name].[hash].js',
         chunkFileNames: 'assets/js/[name].[hash].js',
         manualChunks: (id) => {
+          // Separate React core libraries
+          if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/')) {
+            return 'vendor-react';
+          }
+          // Catch-all for other node_modules
           if (id.includes('node_modules')) {
             return 'vendor';
           }
+          // Keep app code logic (can be refined further if needed)
           if (id.includes('/features/') || id.includes('/components/')) {
             return 'app';
           }
