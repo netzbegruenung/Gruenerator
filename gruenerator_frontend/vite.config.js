@@ -37,6 +37,7 @@ export default defineConfig(({ command }) => ({
 
   build: {
     outDir: 'build',
+    sourcemap: true,
     chunkSizeWarningLimit: 1500,
     assetsInlineLimit: 4096,
     rollupOptions: {
