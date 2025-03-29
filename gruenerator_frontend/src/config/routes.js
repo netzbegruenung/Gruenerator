@@ -11,7 +11,7 @@ const CampaignPage = lazy(() => import('../features/campaigns'));
 const WebinarCampaign = lazy(() => import('../features/campaigns/components/WebinarCampaign'));
 
 // Admin-Bereich
-const AdminApp = lazy(() => import('../features/admin'));
+// const AdminApp = lazy(() => import('../features/admin'));
 
 // Lazy loading für statische Seiten
 const Home = lazy(() => import('../components/pages/Home'));
@@ -41,7 +41,7 @@ export const GrueneratorenBundle = {
   Campaign: CampaignPage,
   Webinar: WebinarCampaign,
   EmptyEditor: EmptyEditor,
-  Admin: AdminApp
+  // Admin: AdminApp // Temporarily commented out
 };
 
 // Route Konfigurationen
@@ -63,8 +63,7 @@ const standardRoutes = [
   { path: '/kampagne', component: GrueneratorenBundle.Campaign },
   { path: '/webinare', component: GrueneratorenBundle.Webinar },
   { path: '/editor', component: GrueneratorenBundle.EmptyEditor, withForm: true },
-  { path: '/linktree/*', component: GrueneratorenBundle.LinkTree, showHeaderFooter: false },
-  { path: '/admin/*', component: GrueneratorenBundle.Admin, showHeaderFooter: false },
+  // { path: '/linktree/*', component: GrueneratorenBundle.LinkTree, showHeaderFooter: false }, // Temporarily commented out
   { path: '/datenschutz', component: Datenschutz },
   { path: '/impressum', component: Impressum },
   { path: '*', component: NotFound }

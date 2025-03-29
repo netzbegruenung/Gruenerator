@@ -193,27 +193,6 @@ if (cluster.isMaster) {
 
   redisClient.on('error', (err) => console.log('Redis Client Error', err));
 
-  // Setup logger mit Performance-Optimierungen
-  const logger = winston.createLogger({
-    level: process.env.LOG_LEVEL || 'info',
-    format: winston.format.combine(
-      winston.format.timestamp(),
-      winston.format.json()
-    ),
-    transports: [
-      new winston.transports.Console({
-        handleExceptions: true,
-        format: winston.format.simple()
-      }),
-      new winston.transports.File({ 
-        filename: 'error.log', 
-        level: 'error',
-        maxsize: 5242880, // 5MB
-        maxFiles: 5,
-      })
-    ]
-  });
-
   const port = process.env.PORT || 3001;
   const host = process.env.HOST || "127.0.0.1";
 
@@ -374,7 +353,7 @@ if (cluster.isMaster) {
     skip: function (req, res) {
       return req.url.includes('/api/') && req.method === 'POST' || res.statusCode < 400;
     },
-    stream: { write: message => logger.info(message.trim()) }
+    stream: { write: message => {} }
   }));
 
   // Rate Limiting
@@ -469,14 +448,6 @@ if (cluster.isMaster) {
   // Füge einen Middleware vor der Catch-all Route hinzu, um 404-Fehler zu loggen
   app.use((req, res, next) => {
     // Nur für statische Dateianfragen
-    if (req.method === 'GET' && !req.path.startsWith('/api/')) {
-      const requestPath = req.path;
-      
-      // Prüfe auf typische Asset-Pfade
-      if (requestPath.match(/\.(js|css|woff2|png|jpg|svg|ico)$/)) {
-        logger.info(`Asset request detected: ${requestPath}`);
-      }
-    }
     next();
   });
 
@@ -484,58 +455,35 @@ if (cluster.isMaster) {
   app.get('/', (req, res, next) => {
     try {
       const filePath = path.join(staticFilesPath, 'index.html');
-      logger.info(`Serving index.html from: ${filePath}`);
       
       // Prüfe, ob die Datei existiert
       if (fs.existsSync(filePath)) {
-        logger.info(`index.html exists at: ${filePath}`);
         res.sendFile(filePath);
       } else {
-        logger.error(`Index-Datei nicht gefunden: ${filePath}`);
         throw new Error(`Index-Datei nicht gefunden: ${filePath}`);
       }
     } catch (err) {
-      logger.error(`Error serving index.html: ${err.message}`);
       next(err); // Fehler an den Error Handler weiterleiten
     }
   });
 
   app.get('*', (req, res, next) => {
     try {
-      // Logge alle Anfragen, die nicht von statischen Dateien bedient werden
-      logger.info(`Catch-all route accessed for: ${req.path}`);
-      
       const filePath = path.join(staticFilesPath, 'index.html');
       
       // Prüfe, ob die Datei existiert
       if (fs.existsSync(filePath)) {
         res.sendFile(filePath);
       } else {
-        logger.error(`Index-Datei nicht gefunden: ${filePath}`);
         throw new Error(`Index-Datei nicht gefunden: ${filePath}`);
       }
     } catch (err) {
-      logger.error(`Error in catch-all route: ${err.message}`);
       next(err); // Fehler an den Error Handler weiterleiten
     }
   });
 
-  // Error Handler mit verbessertem Logging
+  // Error Handler 
   app.use((err, req, res, next) => {
-    // Detailliertes Logging des Fehlers
-    logger.error({
-      message: 'Server-Fehler aufgetreten',
-      error: err.message,
-      stack: err.stack,
-      path: req.path,
-      method: req.method,
-      ip: req.ip,
-      headers: req.headers,
-      query: req.query,
-      params: req.params,
-      timestamp: new Date().toISOString()
-    });
-
     // Bestimme, ob wir in der Entwicklungsumgebung sind
     const isDevelopment = process.env.NODE_ENV === 'development';
     
@@ -587,6 +535,6 @@ if (cluster.isMaster) {
   });
 
   server.listen(port, host, () => {
-    logger.info(`Worker ${process.pid} started - Server running at http://${host}:${port}`);
+    console.log(`Worker ${process.pid} started - Server running at http://${host}:${port}`);
   });
 }

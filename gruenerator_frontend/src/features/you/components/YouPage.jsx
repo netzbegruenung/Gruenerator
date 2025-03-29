@@ -12,8 +12,6 @@ import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 import DisplaySection from '../../../components/common/Form/BaseForm/DisplaySection';
 // Import des FormContext
 import { FormContext } from '../../../components/utils/FormContext';
-// Import des Loggers
-import logger from '../../../utils/logger';
 
 // Beispiele für Prompts mit kurzen Titeln und vollständigen Prompts
 const EXAMPLES = [
@@ -160,18 +158,7 @@ const YouPage = () => {
 
   // Log für das result
   useEffect(() => {
-    logger.group('YouPage', 'Result Update', () => {
-      logger.debug('YouPage', 'Result Typ', typeof result);
-      logger.debug('YouPage', 'Result vorhanden', !!result);
-      logger.debug('YouPage', 'Result Länge', typeof result === 'string' ? result?.length || 0 : 'nicht-string');
-      logger.debug('YouPage', 'SocialMediaContent vor Update Länge', socialMediaContent?.length || 0);
-    });
-    
-    // Wenn ein Ergebnis vorliegt, setze es in den State und den FormContext
     if (result) {
-      logger.info('YouPage', 'Setze result in socialMediaContent und FormContext', {
-        resultLength: typeof result === 'string' ? result.length : 'nicht-string'
-      });
       setSocialMediaContent(result);
       setGeneratedContent(result);
       updateValue(result);
@@ -295,12 +282,6 @@ const YouPage = () => {
 
   // Funktion zum Abrufen des exportierbaren Inhalts
   const getExportableContent = (content, value) => {
-    logger.debug('YouPage', 'getExportableContent aufgerufen', { 
-      contentType: typeof content,
-      contentLength: typeof content === 'string' ? content?.length || 0 : 'nicht-string',
-      valueLength: value?.length || 0
-    });
-    
     // Wenn content ein String ist, direkt zurückgeben
     if (content && typeof content === 'string') {
       return content;
