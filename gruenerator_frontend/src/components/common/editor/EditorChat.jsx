@@ -10,8 +10,22 @@ import EditorChatHeader from './EditorChatHeader';
 const EditorChat = ({ isEditing }) => {
   const [message, setMessage] = useState('');
   const [chatMode, setChatMode] = useState('edit');
-  const { value, selectedText } = useContext(FormContext);
-  const { processClaudeRequest } = useClaudeResponse();
+  const { 
+    value, 
+    selectedText, 
+    handleAiResponse, 
+    quillRef, 
+    setOriginalContent, 
+    setIsAdjusting 
+  } = useContext(FormContext);
+  
+  const { processClaudeRequest } = useClaudeResponse({
+    handleAiResponse,
+    quillRef,
+    setOriginalContent,
+    value,
+    setIsAdjusting
+  });
   const [isInitialTyping, setIsInitialTyping] = useState(true);
   const [chatHistory, setChatHistory] = useState([
     { 

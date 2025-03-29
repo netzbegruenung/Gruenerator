@@ -1,9 +1,7 @@
-import { useContext, useCallback } from 'react';
-import { FormContext } from '../../../utils/FormContext';
+import { useCallback } from 'react';
 import useApiSubmit from '../../../hooks/useApiSubmit';
 
-export const useClaudeResponse = () => {
-  const { handleAiResponse, quillRef, setOriginalContent, value, setIsAdjusting } = useContext(FormContext);
+export const useClaudeResponse = ({ handleAiResponse, quillRef, setOriginalContent, value, setIsAdjusting }) => {
   const { submitForm } = useApiSubmit('/claude_chat');
 
   const getEditorContent = () => {
