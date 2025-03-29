@@ -12,11 +12,14 @@ export default defineConfig(({ command }) => ({
     })
   ],
 
+  // Entferne oder kommentiere den gesamten esbuild-Block aus
+  /*
   esbuild: {
     loader: 'jsx',
     include: /src\/.*\.jsx?$/,
     exclude: []
   },
+  */
 
   resolve: {
     alias: {
