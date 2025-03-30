@@ -112,6 +112,11 @@ const useApiSubmit = (endpoint) => {
             return response;
           }
         }
+      } else if (endpoint === '/claude_think') {
+        if (response && response.response) {
+          setSuccess(true);
+          return response;
+        }
       } else if (endpoint === 'zitat_claude') {
         if (response && response.quote) {
           setSuccess(true);
