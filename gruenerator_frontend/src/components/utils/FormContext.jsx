@@ -30,7 +30,6 @@ export const FormProvider = ({
   const [isApplyingAdjustment, setIsApplyingAdjustment] = useState(false);
   const [hasContent, setHasContent] = useState(false);
   const [adjustmentError, setAdjustmentError] = useState(null);
-  const [showConfirmationContainer, setShowConfirmationContainer] = useState(false);
 
   const debouncedSetValue = useMemo(() => 
     debounce((newValue) => {
@@ -112,23 +111,19 @@ export const FormProvider = ({
         if (selectedText) {
           setOriginalSelectedText(selectedText);
         }
-        setShowConfirmationContainer(false);
       } else {
         setAdjustmentText('');
         setOriginalSelectedText('');
         setHighlightedRange(null);
-        setShowConfirmationContainer(false);
       }
     } else if (typeof adjustmentOrState === 'string') {
       setAdjustmentText(adjustmentOrState);
       setIsApplyingAdjustment(false);
-      setShowConfirmationContainer(true);
     } else if (typeof adjustmentOrState === 'object' && adjustmentOrState?.type) {
       // Behandle verschiedene Typen
       setAiAdjustment(adjustmentOrState);
       setAdjustmentText(adjustmentOrState.newText);
       setIsApplyingAdjustment(false);
-      setShowConfirmationContainer(true);
     }
   }, []);
 
@@ -162,7 +157,6 @@ export const FormProvider = ({
       setOriginalSelectedText('');
       setHighlightedRange(null);
       setAiAdjustment(null);
-      setShowConfirmationContainer(false);
     } catch (error) {
       console.error('[FormContext] Error during adjustment:', error);
       setAdjustmentError('Fehler beim Anwenden der Änderungen');
@@ -186,44 +180,18 @@ export const FormProvider = ({
   }, [quillRef]);
 
   const handleAiResponse = useCallback(async (response) => {
-    console.log('[FormContext] handleAiResponse', response);
     if (response.textAdjustment) {
-      // Text-bezogene States zuerst
       setAdjustmentText(response.textAdjustment.newText);
-      
-      // Bei selected wird originalContent beim Markieren gesetzt
-      // Bei full wird originalContent beim Absenden der Anfrage in useClaudeResponse gesetzt
-      
       setAiAdjustment({
         ...response.textAdjustment,
         type: response.textAdjustment.type
       });
       
-      if (response.textAdjustment.type === 'selected') {
-        // Bei selected type nutzen wir die existierende Selection
-        if (highlightedRange) {
-          setHighlightedRange(highlightedRange); // Behalte existierende Selection
-        } else {
-          console.error('[FormContext] Markierter Bereich nicht gefunden für selected type');
-          setAdjustmentError('Markierter Text konnte nicht gefunden werden');
-          setTimeout(() => setAdjustmentError(null), 3000);
-          return;
-        }
-      } else if (response.textAdjustment.type === 'full') {
-        // Für full-type muss nichts gesucht werden, da gesamter Text ersetzt wird
-        // Range-Information auf gesamten Text setzen
-      } else {
-        setAdjustmentError('Nicht unterstützter Anpassungstyp');
-        setTimeout(() => setAdjustmentError(null), 3000);
-        return;
-      }
-      
-      // UI-States zuletzt
-      setIsAdjusting(true);
-      setShowConfirmationContainer(true);
+      // Direkt handleConfirmAdjustment aufrufen statt auf Bestätigung zu warten
+      handleConfirmAdjustment();
     }
     return response.response;
-  }, [value, highlightedRange]);
+  }, [handleConfirmAdjustment]);
 
   // Cleanup Effect
   useEffect(() => {
@@ -243,8 +211,6 @@ export const FormProvider = ({
   const contextValue = useMemo(() => ({
     value,
     setValue: debouncedSetValue,
-    showConfirmationContainer,
-    setShowConfirmationContainer,
     updateValue,
     setGeneratedContent,
     isEditing,
@@ -257,7 +223,6 @@ export const FormProvider = ({
     aiAdjustment,
     setAiAdjustment,
     handleAiAdjustment,
-    handleConfirmAdjustment,
     selectedText,
     setSelectedText,
     highlightedRange,
@@ -269,7 +234,6 @@ export const FormProvider = ({
     setOriginalSelectedText,
     adjustmentText,
     setAdjustmentText,
-    handleRejectAdjustment: rejectAdjustment,
     originalContent,
     setOriginalContent,
     removeAllHighlights,
@@ -289,8 +253,6 @@ export const FormProvider = ({
   }), [
     value,
     debouncedSetValue,
-    showConfirmationContainer,
-    setShowConfirmationContainer,
     updateValue,
     setGeneratedContent,
     isEditing,
