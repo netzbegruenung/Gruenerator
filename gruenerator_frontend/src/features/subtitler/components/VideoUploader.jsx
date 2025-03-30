@@ -84,6 +84,9 @@ const VideoUploader = ({ onUpload, isProcessing = false }) => {
                   <div className="upload-formats">
                     Unterstützte Formate: MP4, MOV, AVI, MKV
                   </div>
+                  <div className="upload-limit">
+                    Maximale Dateigröße: 100MB 
+                  </div>
                 </div>
               </>
             )}
