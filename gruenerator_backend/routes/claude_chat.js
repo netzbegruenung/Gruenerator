@@ -1,8 +1,9 @@
 const express = require('express');
 const router = express.Router();
+const { tavilyService } = require('../utils/searchUtils');
 
 router.post('/', async (req, res) => {
-  const { message, currentText, selectedText } = req.body;
+  const { message, currentText, selectedText, chatHistory, mode = 'edit' } = req.body;
 
   // Validierung mit detaillierten Fehlermeldungen
   const validationErrors = {};
@@ -50,49 +51,127 @@ router.post('/', async (req, res) => {
   };
 
   try {
+    // Wenn im Search-Modus, führe Tavily-Suche durch
+    if (mode === 'search') {
+      try {
+        const searchResults = await tavilyService.search(message, {
+          includeAnswer: "advanced"
+        });
+
+        // Erstelle ein Array von Nachrichten
+        const messages = [];
+
+        // Füge die Advanced Answer hinzu, wenn vorhanden
+        if (searchResults.answer) {
+          messages.push({
+            type: 'answer',
+            content: searchResults.answer
+          });
+        }
+
+        // Füge die Links als separate Nachrichten hinzu
+        if (searchResults.results) {
+          searchResults.results.forEach(result => {
+            messages.push({
+              type: 'link',
+              title: result.title,
+              url: result.url
+            });
+          });
+        }
+
+        return res.json({
+          responseType: 'searchResults',
+          messages: messages
+        });
+      } catch (searchError) {
+        throw new Error(`Fehler bei der Suche: ${searchError.message}`);
+      }
+    }
+
     // Nur selectedText für den Prompt verwenden, wenn es wirklich existiert
     const isSelectedMode = selectedText !== undefined && selectedText !== null && selectedText.trim().length > 0;
     
+    // Unterschiedliche Prompts für Edit- und Think-Modus
+    let systemPrompt, userPrompt;
+    
+    if (mode === 'think') {
+      systemPrompt = "Du bist ein hilfreicher Assistent von Bündnis 90/Die Grünen, der Nutzern Feedback, Tipps und Hilfreiche Anmerkungen zu ihrem Text gibt.";
+      userPrompt = isSelectedMode ? 
+        `${chatHistory ? 'Bisherige Konversation:\n' + chatHistory + '\n\n' : ''}Hier ist der aktuelle Text: "${currentText}"
+        
+        Du hast diesen Abschnitt markiert: "${selectedText}"
+
+        Nutzer*innen-Frage: ${message}
+
+        Gib eine hilfreiche und konstruktive Antwort. Verwende gendergerechte Sprache und gib bei guten Ideen positives Feedback. Wichtig: Deine Antwort darf maximal 1.000 Zeichen lang sein.` :
+        `${chatHistory ? 'Bisherige Konversation:\n' + chatHistory + '\n\n' : ''}Hier ist der Text: "${currentText}"
+
+        Nutzer*innen-Frage: ${message}
+
+        Gib eine hilfreiche und konstruktive Antwort direkt an die fragende Person. Verwende die Du-Form, gendergerechte Sprache und gib bei guten Ideen positives Feedback. Formuliere deine Antwort ohne Markdown, in einfachem Text. Behalte dabei die grünen Werte im Blick. Wichtig: Deine Antwort darf maximal 1.000 Zeichen lang sein.`;
+    } else {
+      // Standard-Edit-Modus
+      systemPrompt = "Du bist ein präziser Textbearbeitungs-Assistent von Bündnis 90/Die Grünen.";
+      userPrompt = isSelectedMode ? 
+        `${chatHistory ? 'Bisherige Konversation:\n' + chatHistory + '\n\n' : ''}Hier ist der aktuelle Text: "${currentText}"
+        
+        Zu bearbeitender Abschnitt: "${selectedText}"
+
+        Änderungswunsch von Nutzer*in: ${message}
+
+        Bearbeite den Text im Sinne grüner Werte und gendergerechter Sprache. 
+        Wichtig: Deine Antwort darf maximal 1.000 Zeichen lang sein.
+
+        Antworte im vorgegebenen JSON-Format:
+        {
+          "response": "Erkläre die Änderungen persönlich in der Du-Form",
+          "textAdjustment": {
+            "type": "selected",
+            "newText": "der neue Text"
+          }
+        }` :
+        `${chatHistory ? 'Bisherige Konversation:\n' + chatHistory + '\n\n' : ''}Hier ist der Text: "${currentText}"
+
+        Änderungswunsch von Nutzer*in: ${message}
+
+        Bearbeite den Text im Sinne grüner Werte und gendergerechter Sprache. 
+        Wichtig: Deine Antwort darf maximal 1.000 Zeichen lang sein.
+
+        Antworte im vorgegebenen JSON-Format:
+        {
+          "response": "Erkläre die Änderungen persönlich in der Du-Form, ohne Markdown",
+          "textAdjustment": {
+            "type": "full",
+            "oldText": null,
+            "newText": "der neue Text"
+          }
+        }`;
+    }
+
     const result = await req.app.locals.aiWorkerPool.processRequest({
       type: 'text_adjustment',
-      systemPrompt: "Du bist ein präziser Textbearbeitungs-Assistent.",
+      systemPrompt,
       messages: [
         {
           role: "user",
-          content: isSelectedMode ? 
-            `Aktueller Text: "${currentText}"
-            
-            Markierter Text: "${selectedText}"
-
-            Benutzer: ${message}
-
-            Antworte in diesem Format:
-            {
-              "response": "Deine kurze Erklärung was du geändert hast",
-              "textAdjustment": {
-                "type": "selected",
-                "newText": "der neue Text der den markierten Text ersetzen soll"
-              }
-            }` :
-            `Aktueller Text: "${currentText}"
-
-            Benutzer: ${message}
-
-            Antworte in diesem Format:
-            {
-              "response": "Deine kurze Erklärung was du geändert hast",
-              "textAdjustment": {
-                "type": "full",
-                "oldText": null,
-                "newText": "der komplette neue Text"
-              }
-            }`
+          content: userPrompt
         }
       ]
     });
 
     if (result.success) {
       try {
+        // Im Think-Modus erwarten wir keinen JSON-Response
+        if (mode === 'think') {
+          return res.json({
+            response: result.content,
+            // Dummy-Werte für Kompatibilität
+            textAdjustment: null
+          });
+        }
+        
+        // Im Edit-Modus wie bisher
         const parsedResponse = typeof result.content === 'string' 
           ? JSON.parse(result.content.replace(/```json\n|\n```/g, '')) 
           : result.content;

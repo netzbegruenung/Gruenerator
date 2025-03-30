@@ -55,7 +55,6 @@
 @import url('./components/sharepic/sharepic-type-selector.css');
 
 /* Page Styles */
-@import url('./pages/baseform.css');
 @import url('./pages/campaign.css');
 @import url('./pages/Startseitenstyle.css');
 @import url('./pages/antragsversteher.css');
@@ -101,17 +100,3 @@
 /* Features - Texte */
 @import url('../../features/texte/editor/EmptyEditor.css');
 @import url('../../features/texte/antrag/styles/antrag-form.css');
-
-/* Root-Level Styles */
-:root {
-  /* Theme variables werden bereits in variables.css definiert */
-}
-
-/* Globale dark/light-mode Switching-Klassen */
-body.dark-mode {
-  /* Diese Einstellungen werden bereits in global.css definiert */
-}
-
-body.light-mode {
-  /* Diese Einstellungen werden bereits in global.css definiert */
-}
