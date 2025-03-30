@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 const WelcomePopup = () => {
   const location = useLocation();
@@ -23,12 +23,20 @@ const WelcomePopup = () => {
     window.open(url, '_blank');
   };
 
+  // Function to handle clicks outside the modal (on the overlay)
+  const handleOverlayClick = (e) => {
+    // Check if the click is directly on the overlay and if screen width is mobile
+    if (e.target === e.currentTarget && window.innerWidth <= 768) {
+      handleCloseWelcomePopup(e);
+    }
+  };
+
   if (!isVisible) {
     return null;
   }
 
   return (
-    <div className="welcome-2025-overlay">
+    <div className="welcome-2025-overlay" onClick={handleOverlayClick}>
       <div className="welcome-2025-modal">
         <h2 className="welcome-2025-title">Das neue Grünerator-Update ist da</h2>
         <div className="welcome-2025-content">
