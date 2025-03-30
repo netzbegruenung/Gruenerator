@@ -1,5 +1,4 @@
-/* Imports */
-
+/* Imports
 
 /* Grundlegende Container-Struktur */
 .base-container {
@@ -101,13 +100,15 @@
     transform: translateX(0);
 }
 
-/* Neue Regel für form-hidden */
-.base-container.form-hidden .form-container {
-    flex: 0 0 0;
-    max-width: 0;
+/* Neue Regel für form-hidden mit erhöhter Spezifität */
+.base-container.has-generated-content.multi-platform.form-hidden .form-container {
+    flex: 0 0 0 !important;
+    max-width: 0 !important;
     padding: 0;
     overflow: hidden;
     transform: translateX(-350px);
+    opacity: 0;
+    visibility: hidden;
 }
 
 .base-container.multi-platform .display-container {
@@ -402,4 +403,21 @@
     border-radius: 0;
     background-color: var(--background-color-pure);
     padding: 40px;
+}
+
+/* Display Container zentrieren wenn Form versteckt ist */
+.base-container.has-generated-content.form-hidden .display-container {
+    flex: 0 0 100%;
+    max-width: 900px;
+    width: 100%;
+    margin: 0 auto;
+}
+
+/* Höhere Spezifität für isediting mit multi-platform */
+.base-container.editing-mode.has-generated-content.form-hidden .display-container,
+.base-container.editing-mode.has-generated-content.form-hidden.multi-platform .display-container {
+    flex: 0 0 100% !important;
+    max-width: 65% !important;
+    width: 100%;
+    margin: 0 auto;
 }

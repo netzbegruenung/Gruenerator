@@ -8,6 +8,10 @@ const EmptyEditor = lazy(() => import('../features/texte/editor/EmptyEditor'));
 // Temporär auskommentiert, bis die Datei existiert oder der Pfad korrigiert ist
 // import LinkTreeRoutes from '../features/linktree/LinkTreeRoutes';
 const CampaignPage = lazy(() => import('../features/campaigns'));
+const WebinarCampaign = lazy(() => import('../features/campaigns/components/WebinarCampaign'));
+
+// Admin-Bereich
+const AdminApp = lazy(() => import('../features/admin'));
 
 // Lazy loading für statische Seiten
 const Home = lazy(() => import('../components/pages/Home'));
@@ -35,7 +39,9 @@ export const GrueneratorenBundle = {
   Reel: Reel,
   You: YouPage,
   Campaign: CampaignPage,
-  EmptyEditor: EmptyEditor
+  Webinar: WebinarCampaign,
+  EmptyEditor: EmptyEditor,
+  Admin: AdminApp
 };
 
 // Route Konfigurationen
@@ -55,8 +61,10 @@ const standardRoutes = [
   { path: '/reel', component: GrueneratorenBundle.Reel },
   { path: '/you', component: GrueneratorenBundle.You, withForm: true },
   { path: '/kampagne', component: GrueneratorenBundle.Campaign },
+  { path: '/webinare', component: GrueneratorenBundle.Webinar },
   { path: '/editor', component: GrueneratorenBundle.EmptyEditor, withForm: true },
-  { path: '/linktree/*', component: GrueneratorenBundle.LinkTree, showHeaderFooter: false },
+  // { path: '/linktree/*', component: GrueneratorenBundle.LinkTree, showHeaderFooter: false }, // Temporarily commented out
+  { path: '/admin/*', component: GrueneratorenBundle.Admin, showHeaderFooter: false },
   { path: '/datenschutz', component: Datenschutz },
   { path: '/impressum', component: Impressum },
   { path: '*', component: NotFound }

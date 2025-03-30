@@ -53,7 +53,6 @@ const DisplaySection = ({
     try {
       await onGeneratePost();
     } catch (error) {
-      // Fehlerbehandlung ohne Logger
     } finally {
       setGeneratePostLoading(false);
     }

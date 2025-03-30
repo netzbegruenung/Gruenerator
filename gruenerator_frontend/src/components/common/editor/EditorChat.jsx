@@ -1,14 +1,31 @@
-import React, { useState, useCallback, useContext, useEffect } from 'react';
+import React, { useState, useCallback, useContext, useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { FormContext } from '../../utils/FormContext';
 import { TbRobot } from "react-icons/tb";
 import { useClaudeResponse } from './hooks/useClaudeResponse';
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
+import EditorChatHeader from './EditorChatHeader';
+
 
 const EditorChat = ({ isEditing }) => {
   const [message, setMessage] = useState('');
-  const { value, selectedText } = useContext(FormContext);
-  const { processClaudeRequest } = useClaudeResponse();
+  const [chatMode, setChatMode] = useState('edit');
+  const { 
+    value, 
+    selectedText, 
+    handleAiResponse, 
+    quillRef, 
+    setOriginalContent, 
+    setIsAdjusting 
+  } = useContext(FormContext);
+  
+  const { processClaudeRequest } = useClaudeResponse({
+    handleAiResponse,
+    quillRef,
+    setOriginalContent,
+    value,
+    setIsAdjusting
+  });
   const [isInitialTyping, setIsInitialTyping] = useState(true);
   const [chatHistory, setChatHistory] = useState([
     { 
@@ -17,6 +34,11 @@ const EditorChat = ({ isEditing }) => {
     }
   ]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const chatContainerRef = useRef(null);
+  // Eine Referenz für den letzten Nachrichtenindex
+  const lastMessageIndexRef = useRef(0);
+  // Referenz für das Scroll-Timeout
+  const scrollTimeoutRef = useRef(null);
 
   // useEffect mit verzögerter Hinzufügung und Prüfung, ob der Text bereits existiert
   useEffect(() => {
@@ -38,19 +60,48 @@ const EditorChat = ({ isEditing }) => {
     return () => clearTimeout(timer);
   }, []);
 
+  // Aktualisierter useEffect für sanftes Scrollen
+  useEffect(() => {
+    // Nur prüfen, wenn neue Nachrichten hinzugefügt wurden
+    if (chatHistory.length > lastMessageIndexRef.current) {
+      const lastMessage = chatHistory[chatHistory.length - 1];
+      
+      // Nur scrollen wenn es eine Systemnachricht ist und wenn wir mehr als 2 Nachrichten haben
+      if ((lastMessage.type === 'assistant' || lastMessage.type === 'error') && chatHistory.length > 2) {
+        // Vorheriges Timeout löschen, wenn mehrere Nachrichten schnell kommen
+        if (scrollTimeoutRef.current) {
+          clearTimeout(scrollTimeoutRef.current);
+        }
+        
+        // Neues Timeout setzen
+        scrollTimeoutRef.current = setTimeout(() => {
+          // Bestimme die erste neue Nachricht seit dem letzten Zustand
+          const firstNewMessageIndex = lastMessageIndexRef.current;
+          const messageElements = document.querySelectorAll('.chat-message');
+          
+          // Überprüfen ob wir Elemente haben und das Element für die erste neue Nachricht existiert
+          if (messageElements.length > firstNewMessageIndex) {
+            const firstNewElement = messageElements[firstNewMessageIndex];
+            
+            // Sanft zur ersten neuen Nachricht scrollen
+            firstNewElement.scrollIntoView({ 
+              behavior: 'smooth', 
+              block: 'start'
+            });
+          }
+          
+          scrollTimeoutRef.current = null;
+        }, 200);
+      }
+    }
+    
+    // Aktuelle Nachrichtenanzahl speichern
+    lastMessageIndexRef.current = chatHistory.length;
+  }, [chatHistory]);
+
   const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
     if (!message.trim() || isProcessing) return;
-
-    const editorElement = document.querySelector('.ql-editor');
-    if (!editorElement) {
-      setChatHistory(prev => [
-        ...prev,
-        { type: 'user', content: message },
-        { type: 'error', content: 'Editor nicht gefunden. Bitte laden Sie die Seite neu.' }
-      ]);
-      return;
-    }
 
     setIsProcessing(true);
     try {
@@ -58,14 +109,43 @@ const EditorChat = ({ isEditing }) => {
         ? selectedText 
         : null;
 
-      const chatMessage = await processClaudeRequest(message, textToProcess);
+      const formattedChatHistory = chatHistory.map(msg => 
+        `${msg.type === 'assistant' ? 'Assistent: ' : 'Nutzer: '}${msg.content}`
+      ).join('\n');
       
-      setChatHistory(prev => [
-        ...prev, 
-        { type: 'user', content: message },
-        { type: 'assistant', content: chatMessage }
-      ]);
+      const response = await processClaudeRequest(
+        message, 
+        textToProcess, 
+        chatMode, 
+        formattedChatHistory
+      );
+
+      // Füge die Nutzernachricht hinzu
+      const newChatHistory = [...chatHistory, { type: 'user', content: message }];
+
+      // Verarbeite die Antwort basierend auf dem Typ
+      if (response && typeof response === 'object' && response.responseType === 'searchResults' && Array.isArray(response.messages)) {
+        // Füge jede Nachricht einzeln zur Chat-Historie hinzu
+        response.messages.forEach(msg => {
+          if (msg.type === 'answer') {
+            newChatHistory.push({ 
+              type: 'assistant', 
+              content: msg.content 
+            });
+          } else if (msg.type === 'link') {
+            newChatHistory.push({ 
+              type: 'assistant', 
+              content: msg.title,
+              url: msg.url  // URL als separate Eigenschaft speichern
+            });
+          }
+        });
+      } else {
+        // Standardverarbeitung für Edit/Think-Modus
+        newChatHistory.push({ type: 'assistant', content: response });
+      }
       
+      setChatHistory(newChatHistory);
       setMessage('');
     } catch (error) {
       console.error('Error in chat:', error);
@@ -77,20 +157,24 @@ const EditorChat = ({ isEditing }) => {
     } finally {
       setIsProcessing(false);
     }
-  }, [message, isProcessing, processClaudeRequest, selectedText]);
+  }, [message, isProcessing, processClaudeRequest, selectedText, chatMode, chatHistory]);
 
   if (!isEditing) return null;
 
   return (
     <div className="editor-chat">
-      <div className="editor-chat-header">
-        <h3>Editor Chat</h3>
-      </div>
-      <div className="editor-chat-messages">
+      <EditorChatHeader currentMode={chatMode} onModeChange={setChatMode} />
+      <div className="editor-chat-messages" ref={chatContainerRef}>
         {chatHistory.map((msg, index) => (
           <div key={index} className={`chat-message ${msg.type}`}>
             {msg.type === 'assistant' && <TbRobot className="assistant-icon" />}
-            {msg.content}
+            {msg.url ? (
+              <a href={msg.url} target="_blank" rel="noopener noreferrer">
+                {msg.content}
+              </a>
+            ) : (
+              msg.content
+            )}
           </div>
         ))}
         {isInitialTyping && (
@@ -107,7 +191,7 @@ const EditorChat = ({ isEditing }) => {
       </div>
       {selectedText && selectedText.trim() && (
         <div className="selected-text-display">
-          „{selectedText}“
+          „{selectedText}"
         </div>
       )}
       <form onSubmit={handleSubmit} className="editor-chat-input">
@@ -115,9 +199,17 @@ const EditorChat = ({ isEditing }) => {
           type="text"
           value={message}
           onChange={(e) => setMessage(e.target.value)}
-          placeholder={selectedText && selectedText.trim() 
-            ? "Textabschnitt anpassen..." 
-            : "Ganzen Text anpassen..."}
+          placeholder={
+            chatMode === 'edit'
+              ? (selectedText && selectedText.trim() 
+                ? "Textabschnitt anpassen..." 
+                : "Ganzen Text anpassen...")
+              : chatMode === 'think'
+                ? (selectedText && selectedText.trim()
+                  ? "Frage zum Textabschnitt..."
+                  : "Frage zum Text...")
+                : "Suchbegriff eingeben..."
+          }
           disabled={isProcessing}
         />
         <button type="submit" disabled={isProcessing || !message.trim()}>
