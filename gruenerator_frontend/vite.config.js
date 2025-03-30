@@ -57,6 +57,7 @@ export default defineConfig(({ command }) => ({
         },
         entryFileNames: 'assets/js/[name].[hash].js',
         chunkFileNames: 'assets/js/[name].[hash].js',
+        /* // <-- Comment start
         manualChunks: (id) => {
           // Separate React core libraries
           if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/')) {
@@ -71,6 +72,7 @@ export default defineConfig(({ command }) => ({
             return 'app';
           }
         }
+        */ // <-- Comment end
       }
     }
   },
