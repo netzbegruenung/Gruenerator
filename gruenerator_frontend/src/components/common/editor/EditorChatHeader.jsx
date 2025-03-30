@@ -29,6 +29,7 @@ const EditorChatHeader = ({ currentMode, onModeChange }) => {
         >
           <TbPencil />
         </button>
+        {/*
         <button 
           className={`mode-button ${currentMode === 'think' ? 'active' : ''}`}
           onClick={() => onModeChange('think')}
@@ -36,6 +37,7 @@ const EditorChatHeader = ({ currentMode, onModeChange }) => {
         >
           <TbBrain />
         </button>
+        */}
         <button 
           className={`mode-button ${currentMode === 'search' ? 'active' : ''}`}
           onClick={() => onModeChange('search')}
