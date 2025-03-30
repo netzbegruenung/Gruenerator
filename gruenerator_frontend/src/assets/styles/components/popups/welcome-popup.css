@@ -13,6 +13,7 @@
   backdrop-filter: blur(5px);
   padding: 1rem;
   box-sizing: border-box;
+  overflow-y: auto;
 }
 
 .welcome-2025-modal {
@@ -23,6 +24,7 @@
   max-width: 44rem;
   width: 100%;
   animation: welcome2025FadeIn 0.5s ease-out;
+  margin: auto;
 }
 
 @keyframes welcome2025FadeIn {
@@ -197,6 +199,14 @@
   .welcome-2025-modal {
     padding: 1rem;
     max-width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  
+  .welcome-2025-overlay {
+    align-items: flex-start;
+    padding-top: 5vh;
+    padding-bottom: 5vh;
   }
   
   .welcome-2025-card {
