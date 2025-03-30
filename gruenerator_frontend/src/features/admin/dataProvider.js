@@ -1,17 +1,36 @@
 import { supabaseDataProvider } from 'ra-supabase-core';
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  import.meta.env.VITE_TEMPLATES_SUPABASE_URL,
-  import.meta.env.VITE_TEMPLATES_SUPABASE_ANON_KEY
-);
+const supabaseUrl = import.meta.env.VITE_TEMPLATES_SUPABASE_URL;
+const supabaseKey = import.meta.env.VITE_TEMPLATES_SUPABASE_ANON_KEY;
 
-// Basis-DataProvider erstellen
-const baseDataProvider = supabaseDataProvider({
-  instanceUrl: import.meta.env.VITE_TEMPLATES_SUPABASE_URL,
-  apiKey: import.meta.env.VITE_TEMPLATES_SUPABASE_ANON_KEY,
-  supabaseClient: supabase
-});
+let supabase = null;
+let baseDataProvider = null;
+
+if (supabaseUrl && supabaseKey) {
+  supabase = createClient(supabaseUrl, supabaseKey);
+
+  // Basis-DataProvider erstellen
+  baseDataProvider = supabaseDataProvider({
+    instanceUrl: supabaseUrl,
+    apiKey: supabaseKey,
+    supabaseClient: supabase
+  });
+} else {
+  console.warn('Template Supabase environment variables not found. Admin data provider functionality will be disabled.');
+  // Erstelle einen Dummy-DataProvider, der leere/fehlerhafte Antworten gibt
+  baseDataProvider = {
+    getList: () => Promise.resolve({ data: [], total: 0 }),
+    getOne: () => Promise.reject(new Error('Supabase client not configured')),
+    getMany: () => Promise.resolve({ data: [] }),
+    getManyReference: () => Promise.resolve({ data: [], total: 0 }),
+    create: () => Promise.reject(new Error('Supabase client not configured')),
+    update: () => Promise.reject(new Error('Supabase client not configured')),
+    updateMany: () => Promise.resolve({ data: [] }),
+    delete: () => Promise.reject(new Error('Supabase client not configured')),
+    deleteMany: () => Promise.resolve({ data: [] }),
+  };
+}
 
 // Hilfsfunktion zum Konvertieren der Frontend-Daten für die Datenbank
 const convertTemplateInput = (data) => {
@@ -21,11 +40,16 @@ const convertTemplateInput = (data) => {
 };
 
 // Erweiterter DataProvider
+// Beachte: Die benutzerdefinierten Methoden funktionieren nur, wenn baseDataProvider nicht der Dummy ist.
+// Wir müssen in jeder benutzerdefinierten Methode prüfen, ob supabase initialisiert ist.
 export const dataProvider = {
-  ...baseDataProvider,
+  ...baseDataProvider, // Startet mit dem echten oder dem Dummy-Provider
 
   // Überschreibe die getOne-Methode
   getOne: async (resource, params) => {
+    // Wenn der Client nicht konfiguriert ist, nutze die Dummy-Implementierung
+    if (!supabase) return baseDataProvider.getOne(resource, params);
+
     if (resource === 'templates') {
       // Template mit allen Relationen laden
       const { data, error } = await supabase
@@ -67,12 +91,15 @@ export const dataProvider = {
       };
     }
     
-    // Standardverhalten für andere Ressourcen
+    // Standardverhalten (vom echten baseDataProvider)
     return baseDataProvider.getOne(resource, params);
   },
   
   // Überschreibe die update-Methode
   update: async (resource, params) => {
+    // Wenn der Client nicht konfiguriert ist, nutze die Dummy-Implementierung
+    if (!supabase) return baseDataProvider.update(resource, params);
+    
     if (resource === 'templates') {
       const { category_ids, ...data } = params.data;
       
@@ -115,12 +142,15 @@ export const dataProvider = {
       };
     }
     
-    // Standardverhalten für andere Ressourcen
+    // Standardverhalten (vom echten baseDataProvider)
     return baseDataProvider.update(resource, params);
   },
   
   // Überschreibe die create-Methode
   create: async (resource, params) => {
+    // Wenn der Client nicht konfiguriert ist, nutze die Dummy-Implementierung
+    if (!supabase) return baseDataProvider.create(resource, params);
+    
     if (resource === 'templates') {
       const { category_ids, ...data } = params.data;
       
@@ -153,12 +183,15 @@ export const dataProvider = {
       };
     }
     
-    // Standardverhalten für andere Ressourcen
+    // Standardverhalten (vom echten baseDataProvider)
     return baseDataProvider.create(resource, params);
   },
   
   // Überschreibe die getList-Methode
   getList: async (resource, params) => {
+    // Wenn der Client nicht konfiguriert ist, nutze die Dummy-Implementierung
+    if (!supabase) return baseDataProvider.getList(resource, params);
+    
     if (resource === 'templates') {
       // Basisimplementierung aufrufen
       const response = await baseDataProvider.getList(resource, params);
@@ -186,7 +219,7 @@ export const dataProvider = {
       };
     }
     
-    // Standardverhalten für andere Ressourcen
+    // Standardverhalten (vom echten baseDataProvider)
     return baseDataProvider.getList(resource, params);
   }
 }; 
