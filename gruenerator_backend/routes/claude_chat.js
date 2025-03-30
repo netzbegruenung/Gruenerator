@@ -54,8 +54,14 @@ router.post('/', async (req, res) => {
     // Wenn im Search-Modus, führe Tavily-Suche durch
     if (mode === 'search') {
       try {
-        const searchResults = await tavilyService.search(message, {
-          includeAnswer: "advanced"
+        // Append "antworte auf deutsch" to the user's message for the search query
+        const searchQuery = `${message} antworte auf deutsch`;
+        console.log(`[claude_chat] Modified search query: ${searchQuery}`); // Log the modified query
+
+        // Pass the modified query and maxResults option
+        const searchResults = await tavilyService.search(searchQuery, { // Use searchQuery here
+          includeAnswer: "advanced",
+          maxResults: 5
         });
 
         // Erstelle ein Array von Nachrichten
@@ -162,28 +168,34 @@ router.post('/', async (req, res) => {
 
     if (result.success) {
       try {
-        // Im Think-Modus erwarten wir keinen JSON-Response
+        // Immediately check the mode *before* attempting any parsing
         if (mode === 'think') {
+          // Directly return the AI's content as the response.
+          // Ensure 'response' is a string, even if AI accidentally returned JSON.
+          // Set textAdjustment explicitly to null for 'think' mode.
+          console.log('[claude_chat] Handling think mode response.'); // Added log for clarity
           return res.json({
-            response: result.content,
-            // Dummy-Werte für Kompatibilität
+            response: typeof result.content === 'string' ? result.content : JSON.stringify(result.content),
             textAdjustment: null
           });
         }
-        
-        // Im Edit-Modus wie bisher
-        const parsedResponse = typeof result.content === 'string' 
-          ? JSON.parse(result.content.replace(/```json\n|\n```/g, '')) 
+
+        // --- Code below this line is now only executed if mode is NOT 'think' ---
+
+        // Attempt to parse the response as JSON (expected for 'edit' mode)
+        const parsedResponse = typeof result.content === 'string'
+          ? JSON.parse(result.content.replace(/```json\n|\n```/g, ''))
           : result.content;
 
         if (!parsedResponse.response || !parsedResponse.textAdjustment) {
-          throw new Error('Ungültiges Antwortformat');
+          // Throw error if essential parts for edit mode are missing
+          throw new Error('Invalid response format for edit mode');
         }
 
-        console.log('Claude Raw Response:', {
+        console.log('[claude_chat] Handling edit mode response. Claude Raw Response:', { // Added log for clarity
           responseType: typeof parsedResponse.response,
           textAdjustmentType: parsedResponse.textAdjustment.type,
-          newTextLength: parsedResponse.textAdjustment.newText.length,
+          newTextLength: parsedResponse.textAdjustment.newText?.length, // Added safe navigation
           selectedTextPresent: !!selectedText
         });
 
@@ -199,22 +211,24 @@ router.post('/', async (req, res) => {
               index: 0,
               length: currentText.length
             },
-            context: parsedResponse.textAdjustment.type === 'selected' && selectedText ? 
+            context: parsedResponse.textAdjustment.type === 'selected' && selectedText ?
               getTextWithContext(currentText, currentText.indexOf(selectedText)) :
               { beforeContext: '', text: currentText, afterContext: '' },
-            punctuation: analyzePunctuation(parsedResponse.textAdjustment.type === 'selected' && selectedText ? 
+            punctuation: analyzePunctuation(parsedResponse.textAdjustment.type === 'selected' && selectedText ?
               selectedText : currentText)
           },
           fullText: currentText
         };
 
-        console.log('Claude Antwort:', response);
+        console.log('[claude_chat] Constructed edit mode response:', response); // Changed log message
         res.json(response);
       } catch (parseError) {
-        res.status(400).json({ 
-          error: 'JSON Parse Error',
+         // Catch JSON parse errors or other errors during response processing
+        res.status(400).json({
+          error: 'Error processing AI response', // Generalized error message
           details: parseError.message,
-          content: result.content
+          content: result.content,
+          mode: mode // Include mode in error response
         });
       }
     } else {
