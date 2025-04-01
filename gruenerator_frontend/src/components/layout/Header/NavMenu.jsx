@@ -140,6 +140,7 @@ const NavMenu = ({ open, onClose }) => {
         onClick={() => handleLinkClick(directMenuItems.suche.path, directMenuItems.suche.title)}
         isTopLevel={true}
       />
+      {/* Reel MenuItem vorübergehend auskommentiert
       <MenuItem
         icon={directMenuItems.reel.icon}
         title={directMenuItems.reel.title}
@@ -148,6 +149,7 @@ const NavMenu = ({ open, onClose }) => {
         onClick={() => handleLinkClick(directMenuItems.reel.path, directMenuItems.reel.title)}
         isTopLevel={true}
       />
+      */}
     </nav>
   );
 };

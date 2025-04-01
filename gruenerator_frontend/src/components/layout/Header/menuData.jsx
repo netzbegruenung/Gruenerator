@@ -11,6 +11,7 @@ export const directMenuItems = {
     description: 'Durchsuche alle Vorlagen und Texte',
     icon: PiMagnifyingGlass
   },
+  /* Reel Link vorübergehend auskommentiert 
   reel: {
     id: 'reel',
     path: '/reel',
@@ -18,6 +19,7 @@ export const directMenuItems = {
     description: 'Automatische Untertitel für Videos',
     icon: PiVideoCamera
   }
+  */
 };
 
 export const menuItems = {
