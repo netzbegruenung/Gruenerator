@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import debounce from 'lodash.debounce';
 import useApiSubmit from '../hooks/useApiSubmit';
 import { useNavigationWarning } from '../common/editor/hooks';
-import { removeAllHighlights, applyNewTextHighlight } from '../common/editor/utils';
+import { removeAllHighlights } from '../common/editor/utils/highlightUtils';
 
 export const FormContext = createContext();
 
@@ -22,7 +22,12 @@ export const FormProvider = ({
   const [syncStatus, setSyncStatus] = useState('synced');
   const [originalSelectedText, setOriginalSelectedText] = useState('');
   const [adjustmentText, setAdjustmentText] = useState('');
-  const [quillRef, setQuillRef] = useState(() => ({ current: null }));
+  const [quillInstance, setQuillInstanceInternal] = useState(null);
+  const quillRef = useRef(null);
+  const setQuillRefCallback = useCallback((instance) => {
+    quillRef.current = instance;
+    setQuillInstanceInternal(instance);
+  }, []);
   const { submitForm, loading, error } = useApiSubmit('/claude_text_adjustment');
   const [originalContent, setOriginalContent] = useState('');
   const [linkName, setLinkName] = useState('');
@@ -45,6 +50,7 @@ export const FormProvider = ({
   []);
 
   const updateValue = useCallback((newValue) => {
+    console.log('[FormContext] updateValue called. New value length:', newValue?.length);
     setValue(newValue);
     setSyncStatus('syncing');
     debouncedSetSyncStatus();
@@ -66,13 +72,6 @@ export const FormProvider = ({
   }, [initialEditingMode]);
 
   useEffect(() => {
-    if (quillRef.current) {
-      const quill = quillRef.current.getEditor();
-      setQuillRef({ current: quill });
-    }
-  }, [setQuillRef]);
-
-  useEffect(() => {
     setHasContent(!!value);
   }, [value]);
   
@@ -80,27 +79,35 @@ export const FormProvider = ({
   useNavigationWarning(hasContent);
 
   const setGeneratedContent = useCallback((content) => {
+    console.log('[FormContext] setGeneratedContent called. Content length:', content?.length);
     setValue(content);
   }, []);
 
   const handleEdit = useCallback(() => {
+    console.log('[FormContext] handleEdit called. Setting isEditing to true.');
     setIsEditing(true);
   }, []);
 
   const handleSave = useCallback((newContent) => {
     if (newContent !== undefined) {
+      console.log('[FormContext] handleSave called with new content. Length:', newContent?.length);
       setValue(newContent);
+    } else {
+       console.log('[FormContext] handleSave called without new content.');
     }
+    console.log('[FormContext] Setting isEditing to false in handleSave.');
     setIsEditing(false);
   }, []);
 
   const handleCancel = useCallback(() => {
+    console.log('[FormContext] handleCancel called. Setting isEditing to false.');
     setIsEditing(false);
   }, []);
 
   const setQuillInstance = useCallback((quillEditor) => {
-    setQuillRef({ current: quillEditor });
-  }, []);
+    console.log('[FormContext] setQuillInstance called with:', quillEditor);
+    setQuillRefCallback(quillEditor);
+  }, [setQuillRefCallback]);
 
   const handleAiAdjustment = useCallback((adjustmentOrState, selectedText) => {
     console.log('[FormContext] handleAiAdjustment', adjustmentOrState, selectedText);
@@ -132,18 +139,16 @@ export const FormProvider = ({
     if (!adjustmentText) return;
     
     setIsApplyingAdjustment(true);
+    const quill = quillRef.current;
     try {
       if (aiAdjustment?.type === 'full') {
-        const quill = quillRef.current?.getEditor();
         if (quill) {
-          // Statt applyAdjustment direkt Text setzen und Wert aktualisieren
-          quill.setText(adjustmentText);
+          const delta = quill.clipboard.convert(adjustmentText);
+          quill.setContents(delta, 'api');
           updateValue(quill.root.innerHTML);
         }
       } else if (aiAdjustment?.type === 'selected' && highlightedRange) {
-        const quill = quillRef.current?.getEditor();
         if (quill && highlightedRange) {
-          // Text im markierten Bereich ersetzen
           quill.deleteText(highlightedRange.index, highlightedRange.length, 'api');
           quill.insertText(highlightedRange.index, adjustmentText, 'api');
           updateValue(quill.root.innerHTML);
@@ -168,16 +173,20 @@ export const FormProvider = ({
     adjustmentText,
     aiAdjustment,
     highlightedRange,
-    quillRef,
     updateValue,
     setAdjustmentError
   ]);
 
   const clearAllHighlights = useCallback(() => {
-    if (quillRef.current) {
-      removeAllHighlights(quillRef.current.getEditor());
+    const quill = quillRef.current;
+    if (quill) {
+      try {
+        removeAllHighlights(quill);
+      } catch(err) {
+        console.error("Error calling removeAllHighlights:", err);
+      }
     }
-  }, [quillRef]);
+  }, []);
 
   const handleAiResponse = useCallback(async (response) => {
     if (response.textAdjustment) {
@@ -196,16 +205,20 @@ export const FormProvider = ({
   // Cleanup Effect
   useEffect(() => {
     if (!isAdjusting) {
-      removeAllHighlights();
+      clearAllHighlights();
       setAdjustmentError(null);
       setAdjustmentText('');
       setOriginalContent('');
       setAiAdjustment(null);
     }
-  }, [isAdjusting]);
+  }, [isAdjusting, clearAllHighlights]);
 
   const toggleEditMode = useCallback(() => {
-    setIsEditing(prev => !prev);
+    console.log('[FormContext] toggleEditMode called.');
+    setIsEditing(prev => {
+      console.log(`[FormContext] Changing isEditing from ${prev} to ${!prev}.`);
+      return !prev;
+    });
   }, []);
 
   const contextValue = useMemo(() => ({
@@ -234,6 +247,8 @@ export const FormProvider = ({
     setOriginalSelectedText,
     adjustmentText,
     setAdjustmentText,
+    handleConfirmAdjustment,
+    rejectAdjustment,
     originalContent,
     setOriginalContent,
     removeAllHighlights,
@@ -246,7 +261,7 @@ export const FormProvider = ({
     isApplyingAdjustment,
     setIsApplyingAdjustment,
     hasContent,
-    quillRef,
+    quillRef: quillRef,
     handleAiResponse,
     adjustmentError,
     setAdjustmentError
@@ -280,10 +295,10 @@ export const FormProvider = ({
     clearAllHighlights,
     isApplyingAdjustment,
     hasContent,
-    quillRef,
     handleAiResponse,
     adjustmentError,
-    setAdjustmentError
+    setAdjustmentError,
+    handleAiAdjustment
   ]);
 
   return (
@@ -304,3 +319,11 @@ FormProvider.propTypes = {
   initialEditingMode: PropTypes.bool,
   originalLinkData: PropTypes.object,
 };
+
+function safeRemoveAllHighlights(quillInstance) {
+  if (quillInstance && typeof removeAllHighlights === 'function') {
+    removeAllHighlights(quillInstance);
+  } else {
+    console.warn('removeAllHighlights function not available or quillInstance is null');
+  }
+}
