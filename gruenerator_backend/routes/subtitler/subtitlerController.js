@@ -4,8 +4,9 @@ const path = require('path');
 const fs = require('fs');
 const fsPromises = fs.promises;
 const ffmpeg = require('fluent-ffmpeg');
-const { upload, getVideoMetadata, cleanupFiles } = require('./services/videoUploadService');
+const { getVideoMetadata, cleanupFiles } = require('./services/videoUploadService');
 const { transcribeVideo } = require('./services/transcriptionService');
+const { getFilePathFromUploadId, checkFileExists } = require('./services/tusService');
 
 // Font-Konfiguration
 const FONT_PATH = path.resolve(__dirname, '../../public/fonts/GrueneType.ttf');
@@ -131,81 +132,165 @@ function convertToSRT(subtitles) {
     .join('\n');
 }
 
+// Simple in-memory store for processing status and results
+const processingJobs = new Map(); // Stores { status: 'processing'/'complete'/'error', data: subtitles/errorMessage }
+
 // Route für Video-Upload und Verarbeitung
-router.post('/process', upload.single('video'), async (req, res) => {
-  console.log('=== SUBTITLER START ===');
-  console.log('Upload-Anfrage empfangen');
-  
+router.post('/process', async (req, res) => {
+  console.log('=== SUBTITLER PROCESS START ===');
+  const { uploadId } = req.body; // Expect uploadId in request body
+  let videoPath = null;
+  let tempAudioPath = null; // Keep track of temp audio file
+
+  if (!uploadId) {
+    console.error('Keine Upload-ID im Request gefunden');
+    return res.status(400).json({ error: 'Keine Upload-ID gefunden' });
+  }
+
+  console.log(`Verarbeitungsanfrage für Upload-ID erhalten: ${uploadId}`);
+  processingJobs.set(uploadId, { status: 'processing' }); // Set initial status
+
   try {
-    if (!req.file) {
-      console.error('Keine Datei im Request gefunden');
-      return res.status(400).json({ error: 'Keine Video-Datei gefunden' });
+    videoPath = getFilePathFromUploadId(uploadId);
+    console.log(`Abgeleiteter Videopfad: ${videoPath}`);
+
+    const fileExists = await checkFileExists(videoPath);
+    if (!fileExists) {
+        console.error(`Video-Datei für Upload-ID nicht gefunden: ${uploadId} am Pfad: ${videoPath}`);
+        processingJobs.set(uploadId, { status: 'error', data: 'Zugehörige Video-Datei nicht gefunden.' });
+        return res.status(404).json({ error: 'Zugehörige Video-Datei nicht gefunden.' });
     }
 
-    console.log('Datei empfangen:', {
-      originalname: req.file.originalname,
-      größe: `${(req.file.size / 1024 / 1024).toFixed(2)}MB`,
-      pfad: req.file.path,
-      mimetype: req.file.mimetype
+    // Log basic info (size/format might need ffprobe if not in tus metadata)
+    // We can get metadata after confirming file exists
+    const fileStats = await fsPromises.stat(videoPath);
+     console.log('Datei gefunden:', {
+      uploadId: uploadId,
+      pfad: videoPath,
+      größe: `${(fileStats.size / 1024 / 1024).toFixed(2)}MB`
     });
+    
+    // Get metadata for logging (optional)
+    try {
+        const metadata = await getVideoMetadata(videoPath);
+        console.log('Video Metadaten:', metadata);
+    } catch (metaError) {
+        console.warn('Konnte Metadaten nicht lesen:', metaError.message);
+    }
 
     // Extrahiere die gewünschte Transkriptionsmethode
     const transcriptionMethod = 'openai'; // Immer OpenAI verwenden
     console.log('Transkription: OpenAI');
 
-    // Log Upload-Metadaten
-    const uploadMetadata = req.body.metadata ? JSON.parse(req.body.metadata) : {};
-    console.log('Upload-Info:', {
-      größe: `${(req.file.size / 1024 / 1024).toFixed(2)}MB`,
-      format: req.file.mimetype,
-      clientDimensionen: uploadMetadata.width && uploadMetadata.height ? 
-        `${uploadMetadata.width}x${uploadMetadata.height}` : 'unbekannt',
-      transkriptionsmethode: transcriptionMethod
-    });
-
     console.log('Starte Transkription...');
-    // Starte Transkription mit der gewählten Methode
-    const subtitles = await transcribeVideo(req.file.path, transcriptionMethod);
     
-    if (!subtitles) {
-      console.error('Keine Untertitel generiert');
-      throw new Error('Keine Untertitel generiert');
-    }
+    // Run transcription asynchronously (don't wait here)
+    transcribeVideo(videoPath, transcriptionMethod)
+      .then(subtitles => {
+        if (!subtitles) {
+          console.error(`Keine Untertitel generiert für Upload-ID: ${uploadId}`);
+          throw new Error('Keine Untertitel generiert');
+        }
+        console.log(`Transkription erfolgreich für Upload-ID: ${uploadId}`);
+        processingJobs.set(uploadId, { status: 'complete', data: subtitles });
+        // No cleanup here, depends on user exporting or maybe a timeout later
+      })
+      .catch(error => {
+        console.error(`Fehler bei der asynchronen Verarbeitung für Upload-ID ${uploadId}:`, error);
+        processingJobs.set(uploadId, { status: 'error', data: error.message || 'Fehler bei der Verarbeitung.' });
+         // Optionally cleanup the source file if processing failed critically
+         // cleanupFiles(videoPath).catch(e => console.error('Cleanup failed after error:', e));
+      });
 
-    console.log('Sende Antwort an Client');
-    res.json({ success: true, subtitles });
+    // Respond immediately that processing has started
+    res.status(202).json({ 
+        success: true, 
+        status: 'processing', 
+        message: 'Video-Verarbeitung gestartet.',
+        uploadId: uploadId 
+    });
 
   } catch (error) {
-    console.error('Fehler bei der Verarbeitung:', error);
-    res.status(500).json({
-      error: 'Fehler bei der Verarbeitung des Videos',
-      details: error.message
-    });
-  } finally {
-    if (req.file?.path) {
-      console.log('Cleanup temporäre Dateien');
-      await cleanupFiles(req.file.path);
+    console.error(`Schwerwiegender Fehler beim Start der Verarbeitung für ${uploadId}:`, error);
+    processingJobs.set(uploadId, { status: 'error', data: error.message || 'Fehler beim Start der Verarbeitung.' });
+    // Ensure response is sent even if error occurs before async part
+     if (!res.headersSent) {
+        res.status(500).json({
+            error: 'Fehler beim Start der Verarbeitung des Videos',
+            details: error.message
+        });
+     }
+     // Cleanup if file was identified but process start failed
+     if (videoPath) {
+        // await cleanupFiles(videoPath); // Decide on cleanup strategy
+     }
+  } 
+  // No finally block for cleanup here, as processing runs in background
+});
+
+// Route to get processing status and results
+router.get('/result/:uploadId', (req, res) => {
+    const { uploadId } = req.params;
+    const job = processingJobs.get(uploadId);
+
+    if (!job) {
+        return res.status(404).json({ status: 'not_found', error: 'Kein Job für diese ID gefunden.' });
     }
-  }
+
+    console.log(`Statusabfrage für Job ${uploadId}: ${job.status}`);
+
+    switch (job.status) {
+        case 'processing':
+            return res.status(200).json({ status: 'processing' });
+        case 'complete':
+            return res.status(200).json({ status: 'complete', subtitles: job.data });
+        case 'error':
+            return res.status(200).json({ status: 'error', error: job.data }); // Send error message back
+        default:
+            // Should not happen
+            return res.status(500).json({ status: 'unknown', error: 'Unbekannter Job-Status.' });
+    }
 });
 
 // Route zum Herunterladen des fertigen Videos
-router.post('/export', upload.single('video'), async (req, res) => {
+router.post('/export', async (req, res) => {
+  // Expect uploadId and subtitles in body
+  const { uploadId, subtitles } = req.body; 
   let inputPath = null;
   let outputPath = null;
+  let originalFilename = 'video.mp4'; // Default filename
+
+  if (!uploadId || !subtitles) {
+    return res.status(400).json({ error: 'Upload-ID und Untertitel werden benötigt' });
+  }
 
   try {
-    if (!req.file || !req.body.subtitles) {
-      return res.status(400).json({ error: 'Video und Untertitel werden benötigt' });
+    inputPath = getFilePathFromUploadId(uploadId);
+    const fileExists = await checkFileExists(inputPath);
+     if (!fileExists) {
+        console.error(`Video-Datei für Export nicht gefunden: ${uploadId} am Pfad: ${inputPath}`);
+        return res.status(404).json({ error: 'Zugehörige Video-Datei für Export nicht gefunden.' });
     }
-
-    inputPath = req.file.path;
-    await checkFont();
-    const metadata = await getVideoMetadata(inputPath);
     
-    // Log Export-Metadaten
+    // Try to get original filename from Tus metadata store (if implemented in tusService)
+    // This is a placeholder - tusService needs to expose a way to get metadata
+    // const tusMetadata = await getTusMetadata(uploadId); // Fictional function
+    // if (tusMetadata?.originalName) {
+    //     originalFilename = tusMetadata.originalName;
+    // } else {
+         // Fallback: Use uploadId or a generic name if metadata isn't available
+         originalFilename = `video_${uploadId}.mp4`; // Example fallback
+    // }
+
+
+    await checkFont(); // Font check remains the same
+    const metadata = await getVideoMetadata(inputPath); // Get metadata from the actual file
+    
+    // Log Export-Metadaten (using file size from stats)
+    const fileStats = await fsPromises.stat(inputPath);
     console.log('Export-Info:', {
-      inputGröße: `${(req.file.size / 1024 / 1024).toFixed(2)}MB`,
+      uploadId: uploadId,
+      inputGröße: `${(fileStats.size / 1024 / 1024).toFixed(2)}MB`,
       dimensionen: `${metadata.width}x${metadata.height}`,
       rotation: metadata.rotation || 'keine'
     });
@@ -216,7 +301,9 @@ router.post('/export', upload.single('video'), async (req, res) => {
     const outputDir = path.join(__dirname, '../../uploads/exports');
     await fsPromises.mkdir(outputDir, { recursive: true });
     
-    outputPath = path.join(outputDir, `subtitled_${Date.now()}${path.extname(req.file.originalname)}`);
+    // Use original filename (or fallback) for output
+    const outputBaseName = path.basename(originalFilename, path.extname(originalFilename));
+    outputPath = path.join(outputDir, `subtitled_${outputBaseName}_${Date.now()}${path.extname(originalFilename)}`);
     console.log('Ausgabepfad:', outputPath);
 
     // Berechne Schriftgröße basierend auf der Videoauflösung
@@ -271,7 +358,7 @@ router.post('/export', upload.single('video'), async (req, res) => {
     });
 
     // Verbesserte Verarbeitung der Untertitel-Segmente
-    const segments = req.body.subtitles
+    const segments = subtitles
       .split(/\n(?=\d+:\d{2}\s*-\s*\d+:\d{2})/)
       .map(block => {
         const lines = block.trim().split('\n');
@@ -438,7 +525,7 @@ router.post('/export', upload.single('video'), async (req, res) => {
     // Headers für Download
     res.setHeader('Content-Type', 'video/mp4');
     res.setHeader('Content-Length', fileSize);
-    res.setHeader('Content-Disposition', `attachment; filename="subtitled_${req.file.originalname}"`);
+    res.setHeader('Content-Disposition', `attachment; filename="subtitled_${originalFilename}"`);
     
     // Sende die Datei
     const fileStream = fs.createReadStream(outputPath);
