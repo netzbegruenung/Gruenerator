@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import templateData from './utils/templates.json';
 import TemplateCard from './components/TemplateCard';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import { templatesSupabase } from '../../components/utils/templatesSupabaseClient';
