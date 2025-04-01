@@ -9,8 +9,8 @@ export const PROTECTED_HEADERS = [
 
 export const EDITOR_FORMATS = [
   'header', 'bold', 'italic', 'underline', 'strike', 'blockquote',
-  'list', 'bullet', 'indent', 'link', 'image', 'code-block',
-  'script', 'align', 'color', 'background', 'clean', 'protected'
+  'list', 'indent', 'link', 'image', 'code-block',
+  'script', 'align', 'color', 'background'
 ];
 
 export const EDITOR_MODULES = {
