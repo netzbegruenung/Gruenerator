@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import PropTypes from 'prop-types';
 import { useDropzone } from 'react-dropzone';
-import { FaUpload, FaVideo } from 'react-icons/fa';
+import { FaUpload, FaTimes } from 'react-icons/fa';
 import * as tus from 'tus-js-client';
 
 // Lese die Basis-URL aus der Vite Umgebungsvariable
@@ -10,7 +10,12 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 //const TUS_UPLOAD_ENDPOINT = API_BASE_URL.endsWith('/api') 
   //? `${API_BASE_URL}/subtitler/upload` 
   //: `${API_BASE_URL}/api/subtitler/upload`; // Füge /api hinzu, falls es fehlt
-const TUS_UPLOAD_ENDPOINT = 'https://gruenerator.de/api/subtitler/upload';
+const TUS_UPLOAD_ENDPOINT = 'https://gruenerator.de/api/subtitler/upload'.replace('http://', 'https://');
+
+// Ensure HTTPS is used
+if (!TUS_UPLOAD_ENDPOINT.startsWith('https://')) {
+  console.error('[VideoUploader] Upload endpoint must use HTTPS');
+}
 
 console.log('Using Tus Endpoint:', TUS_UPLOAD_ENDPOINT); // Debugging
 
@@ -59,6 +64,9 @@ const VideoUploader = ({ onUpload, isProcessing = false }) => {
       const upload = new tus.Upload(file, {
         endpoint: TUS_UPLOAD_ENDPOINT,
         retryDelays: [0, 3000, 5000, 10000, 20000],
+        forcedSSL: true,
+        forceHTTPS: true,
+        protocol: 'https',
         metadata: {
           filename: file.name,
           filetype: file.type
@@ -74,7 +82,9 @@ const VideoUploader = ({ onUpload, isProcessing = false }) => {
         },
         onSuccess: () => {
           const uploadUrl = upload.url;
-          const uploadId = uploadUrl.split('/').pop();
+          // Ensure the URL uses HTTPS
+          const secureUploadUrl = uploadUrl.replace('http://', 'https://');
+          const uploadId = secureUploadUrl.split('/').pop();
           
           setIsUploading(false);
           setUploadProgress(100);
@@ -157,10 +167,11 @@ const VideoUploader = ({ onUpload, isProcessing = false }) => {
                   {isDragActive ? (
                     <FaUpload className="upload-icon pulsing" />
                   ) : (
-                    <FaVideo className="upload-icon" />
+                    <FaTimes className="upload-icon" style={{ color: '#dc3545' }} />
                   )}
                 </div>
                 <div className="upload-text">
+                  {/* 
                   <h3>
                     {isDragActive
                       ? 'Video hier ablegen'
@@ -178,6 +189,10 @@ const VideoUploader = ({ onUpload, isProcessing = false }) => {
                   </div>
                   <div className="upload-limit">
                     Maximale Dateigröße: 500MB 
+                  </div>
+                  */}
+                  <div className="upload-info" style={{marginTop: '10px', fontSize: '0.9em', color: 'gray'}}>
+                    Hinweis: Der Reel Grünerator wird gerade überarbeitet und ist bald wieder verfügbar.
                   </div>
                 </div>
               </>
