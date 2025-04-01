@@ -8,6 +8,8 @@ import EditorChatHeader from './EditorChatHeader';
 
 
 const EditorChat = ({ isEditing }) => {
+  console.log('[EditorChat] Mounting or Re-rendering...');
+
   const [message, setMessage] = useState('');
   const [chatMode, setChatMode] = useState('edit');
   const { 
@@ -18,6 +20,11 @@ const EditorChat = ({ isEditing }) => {
     setOriginalContent, 
     setIsAdjusting 
   } = useContext(FormContext);
+  
+  // Log context values received by EditorChat
+  console.log(`[EditorChat] Value from context: ${value?.substring(0, 50)}... (Length: ${value?.length})`);
+  console.log(`[EditorChat] SelectedText from context: ${selectedText}`);
+  console.log(`[EditorChat] quillRef from context:`, quillRef?.current); // Log the current ref value
   
   const { processClaudeRequest } = useClaudeResponse({
     handleAiResponse,
@@ -59,6 +66,16 @@ const EditorChat = ({ isEditing }) => {
     }, 2000);
     return () => clearTimeout(timer);
   }, []);
+
+  // Log attempts to access quillRef (example, adapt if used elsewhere)
+  useEffect(() => {
+    if (quillRef?.current) {
+      console.log('[EditorChat] quillRef.current accessed and exists:', quillRef.current);
+    } else {
+      console.log('[EditorChat] quillRef.current accessed but is null or undefined.');
+    }
+    // Add dependencies if quillRef is used in other effects
+  }, [quillRef]);
 
   // Aktualisierter useEffect für sanftes Scrollen
   useEffect(() => {
@@ -161,6 +178,7 @@ const EditorChat = ({ isEditing }) => {
 
   if (!isEditing) return null;
 
+  console.log('[EditorChat] Rendering UI.');
   return (
     <div className="editor-chat">
       <EditorChatHeader currentMode={chatMode} onModeChange={setChatMode} />
