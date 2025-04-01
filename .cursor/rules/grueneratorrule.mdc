@@ -1,6 +1,0 @@
----
-description: 
-globs: 
-alwaysApply: true
----
-Es handelt sich um eine react app die mit vite arbeitet. Die App ist in Gruenerator_frontend und gruenerator_backend eingeteilt, wobei das backend mit node und express arbeitet. Im frontend arbeiten wir mehrheitlich mit .jsx dateien. Wir arbeiten nach React Standards und best practices und möglichst modular. Die ANzeigelogik ist im common ordner enthalten, bevor du neu gesta

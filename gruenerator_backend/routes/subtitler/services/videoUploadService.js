@@ -1,4 +1,3 @@
-const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const fsPromises = fs.promises;
@@ -7,50 +6,7 @@ const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
 
 ffmpeg.setFfmpegPath(ffmpegPath);
 
-// Konfiguriere Multer für Video-Upload
-const storage = multer.diskStorage({
-  destination: async function (req, file, cb) {
-    const uploadDir = path.join(__dirname, '../../../uploads/videos');
-    try {
-      await fsPromises.mkdir(uploadDir, { recursive: true });
-      console.log('Upload-Verzeichnis bereit:', uploadDir);
-      cb(null, uploadDir);
-    } catch (error) {
-      console.error('Fehler beim Erstellen des Upload-Verzeichnisses:', error);
-      cb(error);
-    }
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const filename = uniqueSuffix + path.extname(file.originalname);
-    console.log('Generiere Dateiname:', filename);
-    cb(null, filename);
-  }
-});
-
-const upload = multer({
-  storage: storage,
-  limits: {
-    fileSize: 150 * 1024 * 1024, // 150MB Limit
-  },
-  fileFilter: (req, file, cb) => {
-    const allowedTypes = ['.mp4', '.mov', '.avi', '.mkv'];
-    const ext = path.extname(file.originalname).toLowerCase();
-    console.log('Prüfe Dateityp:', {
-      originalname: file.originalname,
-      extension: ext,
-      mimetype: file.mimetype
-    });
-    if (allowedTypes.includes(ext)) {
-      cb(null, true);
-    } else {
-      console.error('Nicht unterstütztes Format:', ext);
-      cb(new Error('Nicht unterstütztes Dateiformat'));
-    }
-  }
-});
-
-// Funktion zum Erkennen der Video-Eigenschaften
+// Function to get video metadata (remains unchanged)
 async function getVideoMetadata(videoPath) {
   return new Promise((resolve, reject) => {
     ffmpeg.ffprobe(videoPath, (err, metadata) => {
@@ -66,11 +22,11 @@ async function getVideoMetadata(videoPath) {
         return;
       }
 
-      // Bestimme die tatsächliche Orientierung
+      // Determine actual orientation
       const rotation = videoStream.tags?.rotate || '0';
       const isVertical = rotation === '90' || rotation === '270';
       
-      // Wenn das Video vertikal ist, tauschen wir Breite und Höhe
+      // Swap width and height if vertical
       const width = isVertical ? videoStream.height : videoStream.width;
       const height = isVertical ? videoStream.width : videoStream.height;
 
@@ -93,7 +49,7 @@ async function getVideoMetadata(videoPath) {
   });
 }
 
-// Hilfsfunktion zum Extrahieren der Audio-Spur
+// Helper function to extract audio track (remains unchanged)
 async function extractAudio(videoPath, outputPath) {
   try {
     console.log('Starte Audio-Extraktion:', {
@@ -101,7 +57,7 @@ async function extractAudio(videoPath, outputPath) {
       outputPath: outputPath
     });
 
-    // Prüfe ob Input-Datei existiert
+    // Check if input file exists
     if (!fs.existsSync(videoPath)) {
       throw new Error(`Video-Datei nicht gefunden: ${videoPath}`);
     }
@@ -109,15 +65,15 @@ async function extractAudio(videoPath, outputPath) {
     return new Promise((resolve, reject) => {
       const command = ffmpeg(videoPath)
         .outputOptions([
-          '-vn',                // Entferne Video-Stream
-          '-ar 16000',          // Sample Rate auf 16kHz (optimiert für Whisper)
-          '-ac 1',              // Mono (Whisper verwendet nur einen Kanal)
-          '-c:a libmp3lame',    // MP3-Codec für bessere Kompression
-          '-q:a 4',             // Gute Qualität, aber kleinere Dateigröße (0-9, niedriger ist besser)
-          '-y'                  // Überschreibe Output-Datei
+          '-vn',                // Remove video stream
+          '-ar 16000',          // Sample rate to 16kHz (optimized for Whisper)
+          '-ac 1',              // Mono (Whisper uses one channel)
+          '-c:a libmp3lame',    // MP3 codec for better compression
+          '-q:a 4',             // Good quality, smaller file size (0-9, lower is better)
+          '-y'                  // Overwrite output file
         ]);
 
-      // Debug-Logging
+      // Debug logging
       command.on('start', (commandLine) => {
         console.log('FFmpeg Befehl:', commandLine);
       });
@@ -129,13 +85,13 @@ async function extractAudio(videoPath, outputPath) {
       command
         .save(outputPath)
         .on('end', () => {
-          // Prüfe ob Output-Datei erstellt wurde
+          // Check if output file was created
           if (!fs.existsSync(outputPath)) {
             reject(new Error('Audio-Datei wurde nicht erstellt'));
             return;
           }
           
-          // Protokolliere Dateigröße
+          // Log file size
           const stats = fs.statSync(outputPath);
           const fileSizeMB = (stats.size / (1024 * 1024)).toFixed(2);
           console.log(`Audio-Extraktion erfolgreich: ${outputPath} (${fileSizeMB} MB)`);
@@ -153,22 +109,24 @@ async function extractAudio(videoPath, outputPath) {
   }
 }
 
-// Cleanup-Funktion für temporäre Dateien
+// Cleanup function for temporary files (remains unchanged)
 async function cleanupFiles(...filePaths) {
   for (const filePath of filePaths) {
     try {
-      if (filePath) {
+      if (filePath && await fsPromises.stat(filePath).catch(() => false)) { // Check if file exists before unlinking
         await fsPromises.unlink(filePath);
         console.log('Temporäre Datei gelöscht:', filePath);
       }
     } catch (err) {
-      console.warn('Fehler beim Löschen der temporären Datei:', err);
+      // Log only if it's not a 'file not found' error, which is expected if cleanup runs multiple times
+      if (err.code !== 'ENOENT') { 
+        console.warn('Fehler beim Löschen der temporären Datei:', filePath, err);
+      }
     }
   }
 }
 
 module.exports = {
-  upload,
   getVideoMetadata,
   extractAudio,
   cleanupFiles
