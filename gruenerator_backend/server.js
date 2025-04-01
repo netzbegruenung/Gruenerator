@@ -272,8 +272,28 @@ if (cluster.isMaster) {
       }
     },
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Range'],
-    exposedHeaders: ['Content-Range', 'Accept-Ranges', 'Content-Length', 'Content-Type'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'Range',
+      // Add TUS specific headers
+      'Upload-Length',
+      'Upload-Offset',
+      'Tus-Resumable',
+      'Upload-Metadata',
+      'Upload-Defer-Length', // If using defer length extension
+      'Upload-Concat' // If using concatenation extension
+    ],
+    exposedHeaders: [
+      'Content-Range',
+      'Accept-Ranges',
+      'Content-Length',
+      'Content-Type',
+      // Add TUS specific headers
+      'Upload-Offset',
+      'Location', // URL of the created upload
+      'Tus-Resumable'
+    ],
     credentials: true,
     optionsSuccessStatus: 204
   };

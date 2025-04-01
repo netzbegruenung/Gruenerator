@@ -1,7 +1,7 @@
 import React from 'react';
 import { Admin, Resource } from 'react-admin';
-import { dataProvider } from './dataProvider';
-import { authProvider } from './authProvider';
+import { dataProvider } from './dataProvider.jsx';
+import { authProvider } from './authProvider.jsx';
 
 // Dashboard-Komponenten
 import DashboardHome from './components/Dashboard/DashboardHome';
