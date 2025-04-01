@@ -6,7 +6,7 @@ const useProtectedHeaders = (quillRef, updateValue, localValue, setLocalValue, i
 
   useEffect(() => {
     if (quillRef.current) {
-      const quill = quillRef.current.getEditor();
+      const quill = quillRef.current;
       let lastProtectedHeaders = {};
       
       // Initial geschützte Header speichern
@@ -52,10 +52,12 @@ const useProtectedHeaders = (quillRef, updateValue, localValue, setLocalValue, i
                 
                 // Header wiederherstellen
                 quill.deleteText(start, line.length);
-                quill.insertText(start, originalHeader, {
-                  'color': '#000000',
-                  'background': '#f0f0f0'
-                });
+                // Temporarily remove inline styles to test restoration in Quill 2.0
+                // quill.insertText(start, originalHeader, {
+                //   'color': '#000000',
+                //   'background': '#f0f0f0'
+                // });
+                quill.insertText(start, originalHeader); // Insert without formatting for testing
                 existingHeaders.add(originalHeader.trim().toUpperCase());
               }
             }

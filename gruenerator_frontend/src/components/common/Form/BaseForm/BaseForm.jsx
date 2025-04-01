@@ -10,6 +10,7 @@ import { BUTTON_LABELS } from '../../../utils/constants';
 import FormSection from './FormSection';
 import DisplaySection from './DisplaySection';
 import EditorChat from '../../editor/EditorChat';
+import Editor from '../../editor/Editor';
 
 // Importiere die neuen Hooks
 import { useFormState, useContentManagement, useErrorHandling, useResponsive, useFocusMode } from '../hooks';
@@ -118,6 +119,7 @@ const BaseForm = ({
   // Setze alwaysEditing
   useEffect(() => {
     if (alwaysEditing && !isEditing) {
+      console.log('[BaseForm] Forcing edit mode due to alwaysEditing prop.');
       handleToggleEditMode();
     }
   }, [alwaysEditing, isEditing, handleToggleEditMode]);
@@ -154,8 +156,13 @@ const BaseForm = ({
   });
 
   const handleToggleForm = () => {
+    console.log('[BaseForm] handleToggleForm called.');
     toggleForm();
   };
+
+  console.log(`[BaseForm] Rendering. isEditing: ${isEditing}, isFormVisible: ${isFormVisible}, isFocusMode: ${isFocusMode}`);
+  // Log context value before render decision
+  console.log(`[BaseForm] Value from useContentManagement before render: ${value?.substring(0, 50)}... (Length: ${value?.length})`);
 
   return (
     <div className={baseContainerClasses}>
@@ -167,7 +174,9 @@ const BaseForm = ({
       )}
       {!isFocusMode && (
         isEditing ? (
-          <EditorChat isEditing={isEditing} />
+          <>
+            <EditorChat isEditing={isEditing} />
+          </>
         ) : (
           <FormSection
             onSubmit={onSubmit}
@@ -183,6 +192,7 @@ const BaseForm = ({
             featureToggle={featureToggle}
             useFeatureToggle={useFeatureToggle}
           >
+            {console.log('[BaseForm] Rendering FormSection content.')}
             {children}
           </FormSection>
         )
