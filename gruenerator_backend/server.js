@@ -260,7 +260,7 @@ if (cluster.isMaster) {
     'https://www.gruenerator.netzbegruenung.verdigado.net',
     'https://www.xn--grenerator-z2a.xn--netzbegrnung-dfb.verdigado.net',
     'https://www.xn--grenerator-test-4pb.xn--netzbegrnung-dfb.verdigado.net',
-
+    'http://gruenerator.de',
   ];
 
   const corsOptions = {
