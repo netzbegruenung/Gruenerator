@@ -43,6 +43,7 @@ export const TemplateEdit = () => (
       <StyledTextInput source="title" />
       <StyledTextInput source="description" multiline rows={4} />
       <StyledTextInput source="canvaurl" label="Canva URL" />
+      <StyledTextInput source="thumbnailurl" label="Thumbnail URL" />
       <ReferenceArrayInput source="category_ids" reference="categories">
         <SelectArrayInput optionText="label" />
       </ReferenceArrayInput>
@@ -62,6 +63,7 @@ export const TemplateCreate = () => (
       <StyledTextInput source="title" />
       <StyledTextInput source="description" multiline rows={4} />
       <StyledTextInput source="canvaurl" label="Canva URL" />
+      <StyledTextInput source="thumbnailurl" label="Thumbnail URL" />
       <ReferenceArrayInput source="category_ids" reference="categories">
         <SelectArrayInput optionText="label" />
       </ReferenceArrayInput>
