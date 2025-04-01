@@ -16,7 +16,7 @@ const useTextHighlighting = (
   isAdjusting
 ) => {
   const handleSelection = useCallback((range) => {
-    const editor = quillRef.current?.getEditor();
+    const editor = quillRef.current;
     if (!editor) return;
 
     if (range && range.length > 0 && !isAdjusting) {
@@ -39,11 +39,11 @@ const useTextHighlighting = (
   }, [handleSelection]);
   
   const removeAllHighlights = useCallback((editor) => {
-    removeHighlights(editor || quillRef.current?.getEditor());
+    removeHighlights(editor || quillRef.current);
   }, [quillRef]);
 
   const applyNewTextHighlight = useCallback((editor, index, length) => {
-    applyNewHighlight(editor || quillRef.current?.getEditor(), index, length);
+    applyNewHighlight(editor || quillRef.current, index, length);
   }, [quillRef]);
 
   return {
@@ -52,10 +52,10 @@ const useTextHighlighting = (
     removeAllHighlights,
     applyNewTextHighlight,
     applyHighlightWithAnimation: useCallback((editor, index, length) => {
-      applyHighlightWithAnimation(editor || quillRef.current?.getEditor(), index, length);
+      applyHighlightWithAnimation(editor || quillRef.current, index, length);
     }, [quillRef]),
     applyAdjustmentHighlight: useCallback((editor, index, length, keepFormatting) => {
-      applyAdjustment(editor || quillRef.current?.getEditor(), index, length, keepFormatting);
+      applyAdjustment(editor || quillRef.current, index, length, keepFormatting);
     }, [quillRef])
   };
 };
