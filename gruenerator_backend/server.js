@@ -81,8 +81,8 @@ if (cluster.isMaster) {
   const app = express();
   
   // Setze Express Limit
-  app.use(express.json({limit: '150mb'}));
-  app.use(express.raw({limit: '150mb'}));
+  app.use(express.json({limit: '500'}));
+  app.use(express.raw({limit: '500'}));
   
   // Timeout-Einstellungen
   app.use((req, res, next) => {
@@ -291,7 +291,7 @@ if (cluster.isMaster) {
       'Content-Type',
       // Add TUS specific headers
       'Upload-Offset',
-      'Location', // URL of the created upload
+      'Location',
       'Tus-Resumable'
     ],
     credentials: true,
