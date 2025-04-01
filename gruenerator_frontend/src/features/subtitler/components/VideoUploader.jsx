@@ -7,9 +7,10 @@ import * as tus from 'tus-js-client';
 // Lese die Basis-URL aus der Vite Umgebungsvariable
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'; 
 // Stelle sicher, dass die Basis-URL /api enthält und hänge den spezifischen Pfad an
-const TUS_UPLOAD_ENDPOINT = API_BASE_URL.endsWith('/api') 
-  ? `${API_BASE_URL}/subtitler/upload` 
-  : `${API_BASE_URL}/api/subtitler/upload`; // Füge /api hinzu, falls es fehlt
+//const TUS_UPLOAD_ENDPOINT = API_BASE_URL.endsWith('/api') 
+  //? `${API_BASE_URL}/subtitler/upload` 
+  //: `${API_BASE_URL}/api/subtitler/upload`; // Füge /api hinzu, falls es fehlt
+const TUS_UPLOAD_ENDPOINT = 'https://gruenerator.de/api/subtitler/upload';
 
 console.log('Using Tus Endpoint:', TUS_UPLOAD_ENDPOINT); // Debugging
 
