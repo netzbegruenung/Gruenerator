@@ -29,6 +29,9 @@ const SubtitlerPage = () => {
       uploadId: fileWithMetadata.uploadId
     });
 
+    // Ensure uploadId URL uses HTTPS
+    const uploadId = fileWithMetadata.uploadId.replace('http://', 'https://');
+    
     // Speichere das originale File-Objekt
     const originalFile = new File([fileWithMetadata], fileWithMetadata.name, {
       type: fileWithMetadata.type
@@ -37,7 +40,7 @@ const SubtitlerPage = () => {
 
     // Speichere Upload-Info separat
     setUploadInfo({
-      uploadId: fileWithMetadata.uploadId,
+      uploadId: uploadId,
       metadata: fileWithMetadata.metadata,
       name: fileWithMetadata.name,
       size: fileWithMetadata.size,
