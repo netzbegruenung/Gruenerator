@@ -25,22 +25,10 @@ const searchAnalysisRouter = require('./routes/search/searchAnalysis');
 const subtitlerRouter = require('./routes/subtitler/subtitlerController');
 const subtitlerSocialRouter = require('./routes/subtitler/subtitlerSocialController');
 const voiceRouter = require('./routes/voice/voiceController');
-
-const withLazyLoading = (importFunc) => 
-  lazy(() => 
-    importFunc()
-      .then(module => {
-        // Simuliere Ladezeit im Development
-        if (process.env.NODE_ENV === 'development') {
-          return new Promise(resolve => 
-            setTimeout(() => resolve(module), 1000)
-          );
-        }
-        return module;
-      })
-  );
+const { tusServer } = require('./routes/subtitler/services/tusService');
 
 function setupRoutes(app) {
+  app.use('/api/subtitler/upload', tusServer.handle.bind(tusServer));
   app.use('/api/claude', claudeRoute);
   app.use('/api/claude_social', claudeSocialRoute);
   app.use('/api/claude_rede', claudeRedeRoute);
@@ -62,11 +50,11 @@ function setupRoutes(app) {
   app.use('/api/claude_universal', claudeUniversalRoute);
   app.use('/api/claude_gruene_jugend', claudeGrueneJugendRoute);
   app.use('/api/you', claudeYouRoute);
+
   app.use('/api/subtitler', subtitlerRouter);
   app.use('/api/subtitler', subtitlerSocialRouter);
   app.use('/api/voice', voiceRouter);
   
-  // Suchrouten
   app.use('/api/search', searchRouter);
   app.use('/api/analyze', searchAnalysisRouter);
 }
