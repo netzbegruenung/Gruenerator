@@ -8,7 +8,7 @@
 export const enableMobileEditorScrolling = (quillRef, isEditing) => {
   function applyMobileScrolling() {
     if (quillRef.current) {
-      const editor = quillRef.current.getEditor();
+      const editor = quillRef.current;
       if (editor && editor.root) {
         // Prüfen, ob es ein mobiles Gerät ist (max-width: 768px)
         const isMobile = window.matchMedia('(max-width: 768px)').matches;

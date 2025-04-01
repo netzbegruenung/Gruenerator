@@ -116,13 +116,10 @@ const PlatformContainer = ({ content }) => {
 
     // Entferne HTML-Tags und bereinige den Text
     const cleanContent = cleanHtmlButKeepLinebreaks(content);
-    console.log('[PlatformContainer] Bereinigter Inhalt:', cleanContent.substring(0, 100) + '...');
     
     // Prüfe, ob der Inhalt durch Platform Breaks getrennt ist
     if (cleanContent.includes('---PLATFORM_BREAK---')) {
-      console.log('[PlatformContainer] Platform Breaks gefunden, teile Inhalt auf');
       const sections = cleanContent.split('---PLATFORM_BREAK---');
-      console.log('[PlatformContainer] Anzahl der Abschnitte nach Aufteilung:', sections.length);
       
       return (
         <div className="platforms-container">
@@ -134,12 +131,10 @@ const PlatformContainer = ({ content }) => {
             
             if (platformMatch) {
               const platform = platformMatch[1];
-              console.log(`[PlatformContainer] Plattform in Abschnitt ${idx} gefunden:`, platform);
               const sectionContent = section.slice(platformMatch.index + platformMatch[0].length).trim();
               return renderPlatformCard(platform, sectionContent, idx);
             } else {
               // Falls keine Plattform erkannt wurde, zeige den Inhalt ohne Formatierung
-              console.log(`[PlatformContainer] Keine Plattform in Abschnitt ${idx} gefunden`);
               return <div key={idx} className="plain-content">{section}</div>;
             }
           })}
@@ -149,24 +144,18 @@ const PlatformContainer = ({ content }) => {
     
     // Falls keine Platform Breaks vorhanden sind, verwende die bestehende Methode
     const matches = [...cleanContent.matchAll(/(TWITTER|FACEBOOK|INSTAGRAM|LINKEDIN|TIKTOK|MESSENGER|ACTIONIDEAS|INSTAGRAM REEL|PRESSEMITTEILUNG|SUCHANFRAGE|SUCHERGEBNIS|ANTRAG|QUELLEN):\s*/g)];
-    console.log('[PlatformContainer] Gefundene Platform-Header:', matches);
     
     // Explizit nach SUCHERGEBNIS und ANTRAG suchen
     const hasSuchergebnis = cleanContent.includes('SUCHERGEBNIS:');
     const hasAntrag = cleanContent.includes('ANTRAG:');
-    console.log('[PlatformContainer] Hat SUCHERGEBNIS-Header:', hasSuchergebnis);
-    console.log('[PlatformContainer] Hat ANTRAG-Header:', hasAntrag);
     
     if (matches.length === 0) {
-      console.log('[PlatformContainer] Keine Platform-Header gefunden, zeige den Inhalt direkt an');
       return cleanContent;
     }
     if (matches.length === 1) {
-      console.log('[PlatformContainer] Ein Platform-Header gefunden:', matches[0][1]);
       return renderSinglePlatform(cleanContent, matches[0]);
     }
 
-    console.log('[PlatformContainer] Mehrere Platform-Header gefunden:', matches.length);
     const sections = matches.map((match, index) => {
       const start = match.index + match[0].length;
       const end = index < matches.length - 1 ? matches[index + 1].index : cleanContent.length;
