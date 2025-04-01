@@ -57,9 +57,9 @@ gruenerator_backend/uploads/*.zip:Zone.Identifier
 # Temporarily ignore admin feature
 # gruenerator_frontend/src/features/admin/
 
-#claudecode files
+#claudecode & cursor files
 CLAUDE.md
-
 .cursor
 
+#scripts
 scripts
