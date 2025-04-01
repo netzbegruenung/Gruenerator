@@ -119,12 +119,14 @@ const Header = () => {
                                 <directMenuItems.suche.icon aria-hidden="true" />
                             </Link>
                         </li>
+                        {/* Reel Link vorübergehend auskommentiert 
                         <li className="header-search">
                             <Link to={directMenuItems.reel.path} onClick={() => handleLinkClick(directMenuItems.reel.path, directMenuItems.reel.title)} className="header-nav-item">
                                 <span>{directMenuItems.reel.title}</span>
                                 <directMenuItems.reel.icon aria-hidden="true" />
                             </Link>
                         </li>
+                        */}
                     </ul>
                 </nav>
                 <NavMenu open={menuActive} onClose={handleNavMenuClose} />
