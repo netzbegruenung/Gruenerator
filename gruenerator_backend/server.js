@@ -81,8 +81,8 @@ if (cluster.isMaster) {
   const app = express();
   
   // Setze Express Limit
-  app.use(express.json({limit: '500'}));
-  app.use(express.raw({limit: '500'}));
+  app.use(express.json({limit: '105mb'}));
+  app.use(express.raw({limit: '105mb'}));
   
   // Timeout-Einstellungen
   app.use((req, res, next) => {
