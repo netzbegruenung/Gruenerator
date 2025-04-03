@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const { HTML_FORMATTING_INSTRUCTIONS } = require('../utils/promptUtils');
 
 router.post('/', async (req, res) => {
   const { textForm, sprache, thema, details, useBackupProvider, customPrompt } = req.body;
@@ -38,7 +39,9 @@ Zusätzliche Informationen (falls relevant):
 ${textForm ? `- Textform: ${textForm}` : ''}
 ${sprache ? `- Stil/Sprache: ${sprache}` : ''}
 ${thema ? `- Thema: ${thema}` : ''}
-${details ? `- Details: ${details}` : ''}`;
+${details ? `- Details: ${details}` : ''}
+
+${HTML_FORMATTING_INSTRUCTIONS}`;
     } else {
       // Standardinhalt ohne benutzerdefinierten Prompt
       userContent = `Erstelle einen Text mit folgenden Anforderungen:
@@ -61,7 +64,9 @@ ${details}
 
 Aktuelles Datum: ${currentDate}
 
-Passe Struktur, Länge und Aufbau an die gewählte Textform an. Der Text soll im angegebenen Stil verfasst sein und dabei authentisch und überzeugend wirken.`;
+Passe Struktur, Länge und Aufbau an die gewählte Textform an. Der Text soll im angegebenen Stil verfasst sein und dabei authentisch und überzeugend wirken.
+
+${HTML_FORMATTING_INSTRUCTIONS}`;
     }
 
     const result = await req.app.locals.aiWorkerPool.processRequest({

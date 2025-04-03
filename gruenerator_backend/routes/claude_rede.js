@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const { HTML_FORMATTING_INSTRUCTIONS } = require('../utils/promptUtils');
 
 router.post('/', async (req, res) => {
   const { rolle, thema, Zielgruppe, schwerpunkte, redezeit, useBackupProvider, customPrompt } = req.body;
@@ -13,6 +14,8 @@ router.post('/', async (req, res) => {
 
 Geben Sie vor der rede an: 1. 2-3 Unterschiedliche Ideen für den Einstieg, dann 2-3 Kernargumente, dann 2-3 gute Ideen für ein Ende. Gib dem Redner 2-3 Tipps, worauf er bei dieser rede und diesem thema achten muss, um zu überzeugen.
 Schreibe anschließend eine Rede.
+
+${HTML_FORMATTING_INSTRUCTIONS}
 
 Befolgen Sie diese Richtlinien, um die Rede zu verfassen:
 
