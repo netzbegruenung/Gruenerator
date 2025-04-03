@@ -9,12 +9,12 @@
     padding-left: 0 !important;
     padding-right: 0 !important;
     padding-bottom: 40px;
-    min-height: calc(100vh - 42px);
+    height: auto;
     -webkit-user-select: text;
     user-select: text;
     border: none !important;
     overflow-x: hidden;
-    overflow-y: auto !important;
+    overflow-y: visible;
 }
 
 .ql-editor:focus {
@@ -59,7 +59,17 @@
 .ql-editor ol, 
 .ql-editor ul, 
 .ql-editor pre, 
-.ql-editor blockquote, 
+.ql-editor blockquote {
+    color: var(--font-color);
+    font-size: 1em !important;
+    font-family: 'PT Sans', Arial, sans-serif;
+}
+
+/* Add margin-bottom specifically for p elements */
+.ql-editor p {
+    margin-bottom: 1em !important; /* Standard paragraph spacing */
+}
+
 .ql-editor h1, 
 .ql-editor h2, 
 .ql-editor h3, 
@@ -67,8 +77,9 @@
 .ql-editor h5, 
 .ql-editor h6 {
     color: var(--font-color);
-    font-size: 1em !important;
-    font-family: 'PT Sans', Arial, sans-serif;
+    font-family: 'GrueneType', Arial, sans-serif;
+    font-weight: normal;
+    font-size: 1.5em !important;
 }
 
 /* Container-Styles */
@@ -121,4 +132,76 @@
     box-shadow: 0 2px 5px rgba(0,0,0,0.2);
     z-index: 1000;
     animation: slideIn 0.3s ease-out;
+}
+
+/* Style für die H2 Überschrift - wird zum VISUELLEN Container-Kopf */
+.ql-editor h2:has(+ .platform-section) { 
+    margin: 2rem 0 0 0; /* Abstand nach oben, kein Abstand nach unten */
+    padding: 1rem 1.5rem 1rem 1.5rem !important; /* Padding für Text innerhalb des "Kopfes" */
+    background-color: var(--background-color); /* Hintergrund wie Container */
+    border: var(--border-subtle); /* Rand wie Container */
+    border-bottom: none; /* Explizit keinen unteren Rand (Trennstrich entfernt) */
+    border-top-left-radius: 8px; /* Obere Ecken runden */
+    border-top-right-radius: 8px;
+    box-shadow: var(--shadow-sm); /* Schatten für den Start des Blocks */
+    font-family: 'GrueneType', Arial, sans-serif;
+    font-weight: normal;
+    font-size: 1.5em !important;
+    color: var(--font-color-h);
+}
+
+/* Add margin-bottom for h2 elements not followed by a platform-section */
+.ql-editor h2:not(:has(+ .platform-section)) {
+    margin-bottom: 1rem;
+}
+
+/* Platform Container Styles */
+/* Base style: Definiert die Fortsetzung des Containers */
+.ql-editor .platform-section {
+    background-color: var(--background-color); /* Gleicher Hintergrund */
+    border-left: var(--border-subtle); /* Nur linker Rand */
+    border-right: var(--border-subtle); /* Nur rechter Rand */
+    border-top: none;
+    border-bottom: none;
+    border-radius: 0; /* Keine Rundungen */
+    padding: 0.5rem 1.5rem; /* Vertikales Padding, Seiten wie H2 */
+    margin: 0;
+    box-shadow: none; /* Kein Schatten mehr hier */
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    margin-bottom: 0;
+    padding-bottom: 0.5rem; /* Nur oberes/seitliches Padding */
+}
+
+/* Style für die *letzte* platform-section (Abschluss) */
+.ql-editor .platform-section:not(:has(+ .platform-section)) {
+    border-bottom: var(--border-subtle);
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem; /* Padding unten wiederherstellen */
+}
+
+/* Inhalt innerhalb der Platform Container */
+.ql-editor .platform-section p:last-child,
+.ql-editor .platform-section ul:last-child,
+.ql-editor .platform-section ol:last-child {
+    margin-bottom: 0; /* Verhindert extra Abstand im letzten Element */
+}
+
+/* Vorherige Regeln für platform-spezifische H2 Farben */
+/*
+.ql-editor .platform-section[data-platform="FACEBOOK"] h2 { ... }
+.ql-editor .platform-section[data-platform="INSTAGRAM"] h2 { ... }
+...
+*/
+
+/* ... Restliche Stile ... */
+
+/* Added style for editing mode */
+.base-container.editing-mode .ql-editor {
+    overflow-y: auto !important;
+    /* Define a height or max-height for scrolling in edit mode */
+    max-height: 75vh; /* Example: Limit height to 75% of viewport height */
+    min-height: 200px; /* Ensure a minimum height even when empty */
 } 

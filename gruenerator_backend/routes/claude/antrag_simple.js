@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const { HTML_FORMATTING_INSTRUCTIONS } = require('../../utils/promptUtils');
 
 /**
  * Vereinfachter Endpunkt zum Generieren eines Antrags ohne Websuche
@@ -41,13 +42,16 @@ ${idee ? `- Antragsidee: ${idee}` : ''}
 ${gliederung ? `- Gliederung: ${gliederung}` : ''}
 ${details ? `- Details: ${details}` : ''}
 
-Der Antrag sollte eine klare Struktur mit Betreff, Antragstext und Begründung haben.`;
+Der Antrag sollte eine klare Struktur mit Betreff, Antragstext und Begründung haben.
+
+${HTML_FORMATTING_INSTRUCTIONS}`;
     } else {
       // Standardinhalt ohne benutzerdefinierten Prompt
       userContent = `Idee: ${idee}` + 
                    (details ? `, Details: ${details}` : '') + 
                    (gliederung ? `, Gliederungsname: ${gliederung}` : '') +
-                   `\n\nAktuelles Datum: ${currentDate}`;
+                   `\n\nAktuelles Datum: ${currentDate}` +
+                   `\n\n${HTML_FORMATTING_INSTRUCTIONS}`;
     }
     
     // Anfrage an Claude
@@ -59,7 +63,6 @@ Der Antrag sollte eine klare Struktur mit Betreff, Antragstext und Begründung h
         content: userContent
       }],
       options: {
-        max_tokens: 4000,
         temperature: 0.3
       },
       useBackupProvider

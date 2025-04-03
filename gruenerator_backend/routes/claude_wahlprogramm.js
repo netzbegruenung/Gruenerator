@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const { HTML_FORMATTING_INSTRUCTIONS } = require('../utils/promptUtils');
 
 router.post('/', async (req, res) => {
   const { thema, details, zeichenanzahl, useBackupProvider } = req.body;
@@ -35,7 +36,9 @@ Beachte zusätzlich diese sprachlichen Aspekte:
 - Verbindende Elemente
 - Konkrete Beispiele
 - Starke Verben
-- Abwechslungsreicher Satzbau`,
+- Abwechslungsreicher Satzbau
+
+${HTML_FORMATTING_INSTRUCTIONS}`,
       options: {
         max_tokens: 4000,
         temperature: 0.3
