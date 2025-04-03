@@ -1,90 +1,11 @@
 const express = require('express');
 const router = express.Router();
-
-const platformGuidelines = {
-  facebook: {
-    maxLength: 600,
-    style: "Casual and conversational. Use emojis sparingly.",
-    focus: "Community engagement, longer-form content, visual storytelling.",
-    additionalGuidelines: `
-      - Use a personal, direct tone ("you").
-      - Friendly and relaxed style encouraging discussions.
-      - Include visual elements to support the text.
-      - Use emojis and hashtags sparingly.
-      - End the post with a clear call to action.
-    `
-  },
-  instagram: {
-    maxLength: 600,
-    style: "Visual, fun, and snappy. Heavy use of emojis and hashtags.",
-    focus: "Visual appeal, lifestyle content, behind-the-scenes glimpses.",
-    additionalGuidelines: `
-      - Use plenty of emojis to visually emphasize emotions and messages.
-      - Keep paragraphs short and scannable.
-      - Share clear, engaging political messages that resonate emotionally.
-      - Use hashtags strategically to increase reach.
-      - End the post with a call to action or a question.
-    `
-  },
-  twitter: {
-    maxLength: 280,
-    style: "Concise and witty. Use hashtags strategically.",
-    focus: "Real-time updates, quick facts, calls-to-action.",
-    additionalGuidelines: `
-      - Use clear, direct language with no unnecessary elaboration.
-      - Present clear political positions on current issues.
-      - Use a direct tone to engage the reader.
-      - Use hashtags strategically but avoid overuse .
-      - Sparing use of emojis.
-      - Start with a hook or clear statement.
-      - End the post with a call to action or a question.
-    `
-  },
-  linkedin: {
-    maxLength: 600,
-    style: "Professional yet approachable. Minimal use of emojis.",
-    focus: "policy discussions, professional development.",
-    additionalGuidelines: `
-      - Maintain a professional but approachable tone.
-      - Share insights and analyses on current topics or trends.
-      - Highlight the connection between politics and professional growth.
-      - Use emojis sparingly and limit excessive hashtag use.
-      - End the post with a call to action or a question geared towards professional engagement.
-    `
-  },
-  reelScript: {
-    maxLength: 1000,
-    style: "Einfach, authentisch und direkt",
-    focus: "Klare Botschaft mit minimalen technischen Anforderungen.",
-    additionalGuidelines: `
-      - Skript für 90 Sekunden Sprechzeit
-      - Maximal 2-3 einfache Schnitte/Szenen
-      - [Szenenanweisungen] sollten mit Smartphone und ohne spezielle Ausrüstung umsetzbar sein
-      - Struktur:
-        * Einstieg/Hook (20s): Eine Szene, direkt in die Kamera sprechen
-        * Hauptteil (50s): Optional 1-2 einfache Einblendungen von Bilderm, Videos, Fakten oder Zahlen
-        * Abschluss (20s): Wieder direkt in die Kamera, Call-to-Action
-      - Natürliche, authentische Sprache wie in einem persönlichen Gespräch
-      - Text sollte auch ohne visuelle Elemente funktionieren
-      - Einblendungen nur für wichtige Zahlen oder Kernbotschaften verwenden
-    `
-  },
-  actionIdeas: {
-    maxLength: 1000,
-    style: "Konkret und umsetzbar",
-    focus: "Praktische Aktionen für Ortsverbände",
-    additionalGuidelines: `
-      - 2-3 konkrete Aktionsideen
-      - Mit wenig Budget umsetzbar
-      - Aufmerksamkeit erregen
-      - Zum Mitmachen einladen
-      - Die grüne Botschaft transportieren
-      - Klare Handlungsanweisungen
-      - Materialanforderungen auflisten
-      - Zeitaufwand einschätzen
-    `
-  }
-};
+// Importiere die ausgelagerten Konstanten
+const {
+  HTML_FORMATTING_INSTRUCTIONS,
+  PLATFORM_SPECIFIC_GUIDELINES,
+  PLATFORM_HEADER_STRUCTURE_INSTRUCTIONS
+} = require('../utils/promptUtils');
 
 router.post('/', async (req, res) => {
   const { thema, details, platforms = [], was, wie, zitatgeber, pressekontakt, useBackupProvider, customPrompt } = req.body;
@@ -102,9 +23,13 @@ router.post('/', async (req, res) => {
   try {
     console.log('[claude_social] Starte AI Worker Request');
 
-    let systemPrompt = 'Du bist Social Media Manager für Bündnis 90/Die Grünen. Erstelle Vorschläge für Social-Media-Beiträge für die angegebenen Plattformen und passe den Inhalt und Stil an jede Plattform an. Formatiere deine Antwort als Text mit Überschriften für die verschiedenen Plattformen. WICHTIG: Jede Plattform muss mit einem eigenen Header in Großbuchstaben und einem Doppelpunkt beginnen, z.B. "TWITTER:" oder "INSTAGRAM:".';
+    let systemPrompt = `Du bist Social Media Manager für Bündnis 90/Die Grünen. Erstelle Vorschläge für Social-Media-Beiträge für die angegebenen Plattformen.
 
-    // Wenn Pressemitteilung ausgewählt ist, füge den Pressemitteilungs-Prompt hinzu
+${PLATFORM_HEADER_STRUCTURE_INSTRUCTIONS}
+
+${HTML_FORMATTING_INSTRUCTIONS}`;
+
+    // Füge den spezifischen Pressemitteilungs-Prompt hinzu, falls benötigt
     if (platforms.includes('pressemitteilung')) {
       systemPrompt += `
 
@@ -134,7 +59,8 @@ Erstelle Inhalte für folgende Plattformen: ${platforms.join(', ')}
 ${platforms.map(platform => {
   if (platform === 'pressemitteilung') return '';
   const upperPlatform = platform === 'reelScript' ? 'INSTAGRAM REEL' : platform.toUpperCase();
-  return `${upperPlatform}: Maximale Länge: ${platformGuidelines[platform].maxLength} Zeichen. Stil: ${platformGuidelines[platform].style} Fokus: ${platformGuidelines[platform].focus}`;
+  const guidelines = PLATFORM_SPECIFIC_GUIDELINES[platform] || {};
+  return `${upperPlatform}: Maximale Länge: ${guidelines.maxLength || 'N/A'} Zeichen. Stil: ${guidelines.style || 'N/A'} Fokus: ${guidelines.focus || 'N/A'}`;
 }).filter(Boolean).join('\n')}`;
     } else {
       // Standardinhalt ohne benutzerdefinierten Prompt
@@ -154,7 +80,8 @@ Erstelle einen maßgeschneiderten Social-Media-Beitrag für jede ausgewählte Pl
 ${platforms.map(platform => {
   if (platform === 'pressemitteilung') return '';
   const upperPlatform = platform === 'reelScript' ? 'INSTAGRAM REEL' : platform.toUpperCase();
-  return `${upperPlatform}: Maximale Länge: ${platformGuidelines[platform].maxLength} Zeichen. Stil: ${platformGuidelines[platform].style} Fokus: ${platformGuidelines[platform].focus} Zusätzliche Richtlinien: ${platformGuidelines[platform].additionalGuidelines}`;
+  const guidelines = PLATFORM_SPECIFIC_GUIDELINES[platform] || {};
+  return `${upperPlatform}: Maximale Länge: ${guidelines.maxLength || 'N/A'} Zeichen. Stil: ${guidelines.style || 'N/A'} Fokus: ${guidelines.focus || 'N/A'} Zusätzliche Richtlinien: ${guidelines.additionalGuidelines || ''}`;
 }).filter(Boolean).join('\n')}
 
 ${platforms.includes('pressemitteilung') ? '' : `Jeder Beitrag sollte:

@@ -1,4 +1,4 @@
-import { useEffect, useContext } from 'react';
+import { useEffect, useContext, useCallback } from 'react';
 import { FormContext } from '../context';
 
 /**
@@ -11,7 +11,8 @@ const useContentManagement = (initialContent = '') => {
     value,
     updateValue,
     isEditing,
-    toggleEditMode,
+    handleSave,
+    handleEdit,
     setWelcomeMessage,
     welcomeMessage
   } = useContext(FormContext);
@@ -62,11 +63,19 @@ const useContentManagement = (initialContent = '') => {
     );
   };
 
-  // Funktion zum Umschalten des Bearbeitungsmodus
-  const handleToggleEditMode = () => {
-    console.log('[useContentManagement] Toggle Edit Mode aufgerufen');
-    toggleEditMode();
-  };
+  // Funktion zum Umschalten des Bearbeitungsmodus (mit Auto-Save)
+  const handleToggleEditMode = useCallback(() => {
+    console.log(`[useContentManagement] handleToggleEditMode called. Current isEditing: ${isEditing}`);
+    if (isEditing) {
+      // Wenn aktuell bearbeitet wird -> Speichern und Modus beenden
+      console.log('[useContentManagement] Calling handleSave() from context.');
+      handleSave(); 
+    } else {
+      // Wenn aktuell nicht bearbeitet wird -> Modus starten
+      console.log('[useContentManagement] Calling handleEdit() from context.');
+      handleEdit();
+    }
+  }, [isEditing, handleSave, handleEdit]);
 
   // Funktion zum Abrufen des exportierbaren Inhalts
   const getExportableContent = (generatedContent) => {
