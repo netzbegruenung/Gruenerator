@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { tavilyService } = require('../utils/searchUtils');
+const { HTML_FORMATTING_INSTRUCTIONS } = require('../utils/promptUtils');
 
 router.post('/', async (req, res) => {
   const { message, currentText, selectedText, chatHistory, mode = 'edit' } = req.body;
@@ -131,10 +132,10 @@ router.post('/', async (req, res) => {
 
         Antworte im vorgegebenen JSON-Format:
         {
-          "response": "Erkläre die Änderungen persönlich in der Du-Form",
+          "response": "Erkläre die Änderungen persönlich in der Du-Form, ohne Markdown oder HTML",
           "textAdjustment": {
             "type": "selected",
-            "newText": "der neue Text"
+            "newText": "der neue Text (${HTML_FORMATTING_INSTRUCTIONS})"
           }
         }` :
         `${chatHistory ? 'Bisherige Konversation:\n' + chatHistory + '\n\n' : ''}Hier ist der Text: "${currentText}"
@@ -146,11 +147,11 @@ router.post('/', async (req, res) => {
 
         Antworte im vorgegebenen JSON-Format:
         {
-          "response": "Erkläre die Änderungen persönlich in der Du-Form, ohne Markdown",
+          "response": "Erkläre die Änderungen persönlich in der Du-Form, ohne Markdown oder HTML",
           "textAdjustment": {
             "type": "full",
             "oldText": null,
-            "newText": "der neue Text"
+            "newText": "der neue Text (${HTML_FORMATTING_INSTRUCTIONS})"
           }
         }`;
     }
