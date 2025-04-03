@@ -276,8 +276,7 @@ export const useAntrag = () => {
         const content = await simpleAntragSubmit.submitForm(formData);
         
         if (content) {
-          const formattedAntrag = formatAntragContent(content);
-          setGeneratedAntrag(formattedAntrag); 
+          setGeneratedAntrag(content); 
           // FormContext wird über AntragForm.handleGeneratedContentChange aktualisiert
         }
         
@@ -295,7 +294,6 @@ export const useAntrag = () => {
     simpleAntragSubmit,
     generateSearchQueryOnly,
     setGeneratedAntrag,
-    formatAntragContent,
     setLoading, 
     setError
   ]);
