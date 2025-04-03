@@ -3,23 +3,6 @@ import PropTypes from 'prop-types';
 import Quill from 'quill';
 import 'quill/dist/quill.snow.css';
 
-// Import and register Quill formats
-import QuillList from 'quill/formats/list';
-import QuillBlockquote from 'quill/formats/blockquote';
-import QuillHeader from 'quill/formats/header';
-import QuillIndent from 'quill/formats/indent';
-import { AlignAttribute, AlignStyle } from 'quill/formats/align';
-import QuillCodeBlock from 'quill/formats/code';
-
-// Register formats
-Quill.register(QuillList);
-Quill.register(QuillBlockquote);
-Quill.register(QuillHeader);
-Quill.register(QuillIndent);
-Quill.register(AlignAttribute);
-Quill.register(AlignStyle);
-Quill.register(QuillCodeBlock);
-
 import { EditorToolbar } from './EditorToolbar';
 import { FormContext } from '../../utils/FormContext';
 import { enableMobileEditorScrolling } from '../../utils/mobileEditorScrolling';
@@ -27,10 +10,12 @@ import {
   EDITOR_FORMATS,
   EDITOR_MODULES
 } from './utils/constants';
+import PlatformSectionBlot from './utils/PlatformSectionBlot';
 import {
   useTextHighlighting,
-  useProtectedHeaders
 } from './hooks';
+
+Quill.register(PlatformSectionBlot);
 
 const Editor = React.memo(({ setEditorInstance = () => {} }) => {
   const {
@@ -107,6 +92,7 @@ const Editor = React.memo(({ setEditorInstance = () => {} }) => {
       isProgrammaticChange.current = true;
       try {
         console.log('[Editor] Pasting HTML. Content type:', typeof localValue, 'Content starts with:', localValue?.substring(0, 50));
+        console.log('[Editor] HTML content to be pasted (dangerouslyPasteHTML):', localValue);
         quill.setContents([], 'api'); // Clear existing content
         quill.clipboard.dangerouslyPasteHTML(0, localValue || '', 'api');
         console.log('[Editor] HTML content pasted successfully');
@@ -132,26 +118,33 @@ const Editor = React.memo(({ setEditorInstance = () => {} }) => {
     const quill = quillRef.current;
     if (!quill) return;
 
+    // If the change comes from the user, Quill handles the visual update internally.
+    // We don't need to update React state (localValue or context) on every keystroke.
+    if (source === 'user') {
+      // console.log('[Editor] User typing. handleChange does nothing.');
+      return; // Exit early for user input
+    }
+
+    // --- Code below only runs for non-user ('api', 'silent') changes ---
+
     const currentContent = quill.root.innerHTML;
-    console.log(`[Editor] handleChange fired. Source: ${source}, Content length: ${currentContent?.length}`);
+    console.log(`[Editor] handleChange fired for non-user source: ${source}, Content length: ${currentContent?.length}`);
 
+    // Keep logic for handling programmatic empty content or other API changes if needed
     if (currentContent === '<p><br></p>') {
-      console.log('[Editor] handleChange detected empty content.');
-      if (source !== 'user') {
-        console.log('[Editor] handleChange blocked update for empty content with non-user source.');
-        return;
-      }
-      console.log('[Editor] handleChange allowing update for empty content because source is user.');
+      console.log('[Editor] handleChange detected empty content from non-user source.');
+      // Decide if you need to block or allow this for 'api' source
     }
 
-    setLocalValue(currentContent);
-    if (isEditing && source === 'user') {
-      console.log('[Editor] handleChange updating context value.');
-      updateValue(currentContent);
-    } else {
-      console.log(`[Editor] handleChange did NOT update context. isEditing: ${isEditing}, source: ${source}`);
-    }
-  }, [isEditing, updateValue]);
+    // Update localValue only for non-user changes, if still needed.
+    // If localValue is solely derived from context props, this might be removable too.
+    console.log(`[Editor] handleChange updating localValue because source is '${source}'`);
+    console.log('[Editor] handleChange: Skipping setLocalValue for non-user source for testing.');
+
+    // Context update logic is removed from here. It will happen on save.
+
+  // Dependencies might change based on whether setLocalValue is kept/removed
+  }, []);
 
   const setEditorContent = useCallback((content, format = 'html') => {
     console.log(`[Editor] setEditorContent called. Format: ${format}, Content length: ${content?.length ?? 'undefined'}`);
@@ -162,32 +155,30 @@ const Editor = React.memo(({ setEditorInstance = () => {} }) => {
       try {
         if (format === 'html') {
           console.log('[Editor] Using HTML format for content. Content starts with:', content?.substring(0, 50));
-          // const delta = editor.clipboard.convert(content); // Old method for Quill 1.x
-          // console.log('[Editor] HTML conversion successful. Delta:', delta); 
-          // editor.setContents(delta, 'silent');
+          console.log('[Editor] HTML content to be pasted via setEditorContent (dangerouslyPasteHTML):', content);
           
           // New method for Quill 2.x
-          editor.clipboard.dangerouslyPasteHTML(0, content, 'api');
-          console.log('[Editor] Pasted HTML content using dangerouslyPasteHTML.');
+          editor.setContents([], 'api'); // Clear first
+          editor.clipboard.dangerouslyPasteHTML(0, content || '', 'api');
+          console.log('[Editor] Pasted HTML content using dangerouslyPasteHTML via setEditorContent.');
         } else {
           console.log('[Editor] Using TEXT format for content.');
-          editor.setText(content, 'silent');
+          editor.setText(content || '', 'silent');
         }
-        setLocalValue(content);
-        console.log('[Editor] Content set successfully.');
+        console.log('[Editor] Content set successfully via setEditorContent.');
       } catch (error) {
         console.error("[Editor] Error setting content:", error);
+        console.log('[Editor] HTML that failed:', content);
         console.log('[Editor] Falling back to setText due to error.');
-        editor.setText(content, 'silent');
-        setLocalValue(content);
+        editor.setText(content || '', 'silent');
       } finally {
-        console.log('[Editor] Resetting isProgrammaticChange flag.');
+        console.log('[Editor] Resetting isProgrammaticChange flag in setEditorContent.');
         setTimeout(() => { isProgrammaticChange.current = false; }, 0);
       }
     } else {
       console.warn('[Editor] setEditorContent called but Quill instance is not available yet.');
     }
-  }, [setLocalValue]);
+  }, []);
 
   const getEditorInterface = useCallback(() => ({
     setContent: setEditorContent,
@@ -224,6 +215,7 @@ const Editor = React.memo(({ setEditorInstance = () => {} }) => {
         if (localValue) {
           console.log('[Editor] Setting initial content during Quill initialization using dangerouslyPasteHTML.');
           console.log('[Editor] Initial content starts with:', localValue.substring(0, 50));
+          console.log('[Editor] Initial HTML content to be pasted:', localValue);
           try {
             // Clear potential placeholder before pasting
             quillInstance.setContents([], 'api'); 
@@ -253,7 +245,7 @@ const Editor = React.memo(({ setEditorInstance = () => {} }) => {
         console.error('[Editor] Error during Quill initialization:', error);
       }
     }
-  }, []);
+  }, [formats, modules, handleChange]);
 
   useEffect(() => {
     if (quillRef.current) {
@@ -289,18 +281,16 @@ const Editor = React.memo(({ setEditorInstance = () => {} }) => {
       quill.deleteText(highlightedRange.index, highlightedRange.length, 'api');
       quill.insertText(highlightedRange.index, newText, 'api');
       highlighting.applyNewTextHighlight(quill, highlightedRange.index, newText.length);
-      setLocalValue(quill.root.innerHTML);
       setTimeout(() => { isProgrammaticChange.current = false; }, 0);
     } else {
       console.log('[TextAdjustment] Applying full-text adjustment');
       
       isProgrammaticChange.current = true;
-      quill.setText(newText || '', 'api');
-      highlighting.applyNewTextHighlight(quill, 0, newText.length);
-      setLocalValue(quill.root.innerHTML);
+      setEditorContent(newText, 'html');
+      highlighting.applyNewTextHighlight(quill, 0, newText?.length || 0);
       setTimeout(() => { isProgrammaticChange.current = false; }, 0);
     }
-  }, [quillRef, highlightedRange, highlighting, setLocalValue]);
+  }, [quillRef, highlightedRange, highlighting, setEditorContent /*setLocalValue*/]);
 
   const rejectAdjustment = useCallback(() => {
     const quill = quillRef.current;
@@ -308,18 +298,11 @@ const Editor = React.memo(({ setEditorInstance = () => {} }) => {
     console.log('[TextAdjustment] Type:', aiAdjustment?.type, 'Range:', !!highlightedRange);
     
     isProgrammaticChange.current = true;
-    if (aiAdjustment?.type === 'full' && quill) {
-      console.log('[TextAdjustment] Processing full type rejection');
+    if (originalContent !== undefined) {
+      console.log('[TextAdjustment] Restoring original content using setEditorContent.');
       setEditorContent(originalContent || '', 'html');
-    } else if (highlightedRange && quill && originalContent) {
-      console.log('[TextAdjustment] Processing selected type rejection');
-      quill.deleteText(highlightedRange.index, highlightedRange.length, 'api');
-      setEditorContent(originalContent, 'html');
-      setLocalValue(quill.root.innerHTML);
     } else {
-      console.warn('[TextAdjustment] Could not process rejection: Missing info or quill instance.');
-      
-      if (quill) setLocalValue(quill.root.innerHTML);
+        console.warn('[TextAdjustment] Cannot reject: Original content is missing.');
     }
 
     setIsAdjusting(false);
@@ -338,15 +321,12 @@ const Editor = React.memo(({ setEditorInstance = () => {} }) => {
   }, [
     originalContent,
     quillRef,
-    aiAdjustment?.type,
-    highlightedRange,
     setIsAdjusting,
     setAdjustmentText,
     setOriginalContent,
     setAiAdjustment,
     highlighting,
     setEditorContent,
-    setLocalValue,
     setSelectedText,
     setHighlightedRange
   ]);
@@ -361,9 +341,7 @@ const Editor = React.memo(({ setEditorInstance = () => {} }) => {
        setOriginalContent('');
        setAiAdjustment(null);
     }
-  }, [adjustmentText, aiAdjustment?.type]);
-
-  useProtectedHeaders(quillRef, updateValue, localValue, setLocalValue, isEditing);
+  }, [adjustmentText, aiAdjustment?.type, applyAdjustment, setIsAdjusting, setAdjustmentText, setOriginalContent, setAiAdjustment]);
 
   useEffect(() => {
     let contentToSet = value;
@@ -377,24 +355,30 @@ const Editor = React.memo(({ setEditorInstance = () => {} }) => {
         actionIdeas: actionIdeasValue
       }[activePlatform] || '';
     }
+
      const quill = quillRef.current;
-     if (quill && (contentToSet !== localValue || quill.getLength() <= 1)) {
-        console.log("[Editor] Syncing editor content due to external change OR empty editor", {
-          platform: activePlatform,
-          newContentLength: contentToSet?.length ?? 'undefined',
-          currentLocalValueLength: localValue?.length ?? 'undefined',
-          valuesDiffer: contentToSet !== localValue,
-          isQuillEmpty: quill.getLength() <= 1
-        });
-        if (contentToSet !== localValue) {
-          setEditorContent(contentToSet, 'html');
-        } else if (quill.getLength() <= 1 && contentToSet) {
-          console.log("[Editor] Quill reported empty, but content exists. Forcing setEditorContent.");
+     if (quill) {
+        const currentQuillHTML = quill.root.innerHTML;
+        const isQuillEffectivelyEmpty = currentQuillHTML === '<p><br></p>';
+        const needsUpdate = contentToSet !== currentQuillHTML;
+
+        if (needsUpdate) {
+          console.log("[Editor] Syncing editor content due to external change.", {
+            platform: activePlatform,
+            newContentLength: contentToSet?.length ?? 'undefined',
+            currentQuillContentLength: currentQuillHTML?.length ?? 'undefined',
+            isQuillEmpty: isQuillEffectivelyEmpty
+          });
+          console.log("[Editor] Content source before sync:", { activePlatform, value, facebookValue /*... add others if needed */});
+          console.log("[Editor] Content to be set via sync:", contentToSet?.substring(0, 100) + "...");
           setEditorContent(contentToSet, 'html');
         } else {
-           console.log("[Editor] Skipping setEditorContent as values are the same and Quill is not reporting empty.");
+           console.log("[Editor] Skipping content sync as Quill content matches target content.");
         }
-    }
+     } else {
+       console.log("[Editor] Skipping content sync: Quill not ready.");
+     }
+
   }, [
     value,
     activePlatform,
@@ -404,6 +388,7 @@ const Editor = React.memo(({ setEditorInstance = () => {} }) => {
     linkedinValue,
     reelScriptValue,
     actionIdeasValue,
+    setEditorContent
   ]);
 
   useEffect(() => {
@@ -415,7 +400,6 @@ const Editor = React.memo(({ setEditorInstance = () => {} }) => {
     if (quill) {
        console.log('[Editor] Adding selection-change handler.');
        const selectionHandler = (range, oldRange, source) => {
-         console.log(`[Editor] Selection change. Source: ${source}, Range: ${JSON.stringify(range)}`);
          if (source === 'user') {
            highlighting.handleSelectionChange(range, oldRange, source);
            setShowAdjustButton(range && range.length > 0 && isEditing && !isAdjusting);
@@ -424,7 +408,9 @@ const Editor = React.memo(({ setEditorInstance = () => {} }) => {
       quill.on('selection-change', selectionHandler);
       return () => {
         console.log('[Editor] Removing selection-change handler.');
-        quill.off('selection-change', selectionHandler);
+        if (quillRef.current) {
+           quillRef.current.off('selection-change', selectionHandler);
+        }
       };
     }
   }, [highlighting, isEditing, isAdjusting]);
@@ -436,15 +422,18 @@ const Editor = React.memo(({ setEditorInstance = () => {} }) => {
        const editorRoot = quill.root;
        const handleTouchEnd = () => {
          setTimeout(() => {
-            const range = quill.getSelection();
+           const currentQuill = quillRef.current;
+           if (!currentQuill) return; 
+           
+            const range = currentQuill.getSelection();
             if (range && range.length > 0) {
                 highlighting.handleSelection(range);
-                 highlighting.applyHighlightWithAnimation(quill, range.index, range.length);
+                 highlighting.applyHighlightWithAnimation(currentQuill, range.index, range.length);
                 setShowAdjustButton(isEditing && !isAdjusting);
             } else if (range?.length === 0) {
                  setSelectedText('');
                 setHighlightedRange(null);
-                highlighting.removeAllHighlights(quill);
+                highlighting.removeAllHighlights(currentQuill);
                 setShowAdjustButton(false);
             }
         }, 100);
@@ -453,7 +442,9 @@ const Editor = React.memo(({ setEditorInstance = () => {} }) => {
        console.log('[Editor] Touchend handler added.');
        return () => {
          console.log('[Editor] Removing touchend handler.');
-         editorRoot.removeEventListener('touchend', handleTouchEnd);
+         if (editorRoot && editorRoot.isConnected) {
+             editorRoot.removeEventListener('touchend', handleTouchEnd);
+         }
        };
      }
    }, [
@@ -482,7 +473,6 @@ const Editor = React.memo(({ setEditorInstance = () => {} }) => {
         originalContent={originalContent}
       />
       <div ref={editorRef} style={{ minHeight: '200px', border: '1px solid #ccc' }} />
-      {console.log('[Editor] Rendering. isEditing:', isEditing, 'isAdjusting:', isAdjusting)}
       {error && <p className="error-message">Error: {error}</p>}
     </div>
   );

@@ -52,9 +52,8 @@ export const FormProvider = ({
   const updateValue = useCallback((newValue) => {
     console.log('[FormContext] updateValue called. New value length:', newValue?.length);
     setValue(newValue);
-    setSyncStatus('syncing');
-    debouncedSetSyncStatus();
-  }, [debouncedSetSyncStatus]);
+    setSyncStatus('synced');
+  }, []);
 
   // Platzhalter-Funktionen, die durch Editor überschrieben werden
   const applyAdjustment = useCallback(() => {
@@ -88,21 +87,28 @@ export const FormProvider = ({
     setIsEditing(true);
   }, []);
 
-  const handleSave = useCallback((newContent) => {
-    if (newContent !== undefined) {
-      console.log('[FormContext] handleSave called with new content. Length:', newContent?.length);
-      setValue(newContent);
+  const handleSave = useCallback(() => {
+    const quill = quillRef.current;
+    if (quill) {
+      const currentContent = quill.root.innerHTML;
+      console.log('[FormContext] handleSave: Reading content from Quill. Length:', currentContent?.length);
+      setValue(currentContent);
+      setSyncStatus('synced');
     } else {
-       console.log('[FormContext] handleSave called without new content.');
+      console.warn('[FormContext] handleSave: Quill instance not found. Cannot save content.');
     }
     console.log('[FormContext] Setting isEditing to false in handleSave.');
     setIsEditing(false);
-  }, []);
+  }, [setValue, setIsEditing, setSyncStatus]);
 
   const handleCancel = useCallback(() => {
+    const quill = quillRef.current;
+    if (quill && value !== quill.root.innerHTML) {
+      console.log('[FormContext] handleCancel: Reverting editor content to last saved state.');
+    }
     console.log('[FormContext] handleCancel called. Setting isEditing to false.');
     setIsEditing(false);
-  }, []);
+  }, [value, setIsEditing]);
 
   const setQuillInstance = useCallback((quillEditor) => {
     console.log('[FormContext] setQuillInstance called with:', quillEditor);
@@ -223,7 +229,7 @@ export const FormProvider = ({
 
   const contextValue = useMemo(() => ({
     value,
-    setValue: debouncedSetValue,
+    setValue,
     updateValue,
     setGeneratedContent,
     isEditing,
@@ -267,7 +273,7 @@ export const FormProvider = ({
     setAdjustmentError
   }), [
     value,
-    debouncedSetValue,
+    setValue,
     updateValue,
     setGeneratedContent,
     isEditing,
