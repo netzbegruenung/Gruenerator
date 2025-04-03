@@ -29,7 +29,7 @@
     }
 
     /* Editor-Anpassungen */
-    .ql-editor,
+    /* Only apply overflow scroll in editing mode on mobile */
     .base-container.editing-mode .display-container .ql-editor {
         flex: 1;
         overflow-y: auto !important;
