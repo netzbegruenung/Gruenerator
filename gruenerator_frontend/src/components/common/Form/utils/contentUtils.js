@@ -46,47 +46,4 @@ export const getBaseContainerClasses = ({
  */
 export const isReactElement = (content) => {
   return React.isValidElement(content);
-};
-
-/**
- * Prüft, ob der Inhalt Plattform-Header enthält
- * @param {string} content - Zu prüfender Inhalt
- * @returns {boolean} True, wenn Plattform-Header gefunden wurden
- */
-export const hasPlatformHeaders = (content) => {
-  if (!content) return false;
-  
-  const platformHeaders = [
-    'TWITTER:',
-    'FACEBOOK:',
-    'INSTAGRAM:',
-    'LINKEDIN:',
-    'AKTIONSIDEEN:',
-    'INSTAGRAM REEL:',
-    'PRESSEMITTEILUNG:',
-    'SUCHANFRAGE:',
-    'SUCHERGEBNIS:',
-    'ANTRAG:'
-  ];
-  
-  return platformHeaders.some(header => content.includes(header));
-};
-
-/**
- * Prüft, ob der Inhalt mehrere Plattformen enthält
- * @param {string} content - Zu prüfender Inhalt
- * @returns {boolean} True, wenn mehrere Plattformen gefunden wurden
- */
-export const hasMultiplePlatforms = (content) => {
-  if (!content) return false;
-  
-  // Prüfe auf explizite Plattform-Breaks
-  if (content.includes('---PLATFORM_BREAK---')) {
-    return true;
-  }
-  
-  // Zähle die Plattform-Header
-  const platformCount = (content.match(/(TWITTER|FACEBOOK|INSTAGRAM|LINKEDIN|ACTIONIDEAS|INSTAGRAM REEL|PRESSEMITTEILUNG|SUCHANFRAGE|SUCHERGEBNIS|ANTRAG):/g) || []).length;
-  
-  return platformCount >= 2;
 }; 
