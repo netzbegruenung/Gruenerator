@@ -17,6 +17,7 @@ const multer = require('multer');
 const axios = require('axios');
 const { setupRoutes } = require('./routes');
 const AIWorkerPool = require('./workers/aiWorkerPool.js');
+const { tusServer } = require('./routes/subtitler/services/tusService.js');
 
 // Load environment variables
 dotenv.config();
@@ -381,6 +382,17 @@ if (cluster.isMaster) {
 
   // Cache für statische Dateien
   app.use(cacheMiddleware);
+
+  // === TUS Upload Handler ===
+  // WICHTIG: Muss VOR setupRoutes und VOR den statischen Fallbacks stehen!
+  const tusUploadPath = '/api/subtitler/upload'; // Pfad aus tusService.js
+  app.all(tusUploadPath + '*', (req, res) => { // .all() für alle Methoden, '*' für Upload-IDs
+    // Leite die Anfrage an den tusServer weiter
+    // Der tusServer kümmert sich intern um die verschiedenen HTTP-Methoden (POST, HEAD, PATCH etc.)
+    console.log(`[Server] Routing request for ${req.method} ${req.url} to tusServer`); // Logging hinzufügen
+    tusServer.handle(req, res);
+  });
+  // === Ende TUS Upload Handler ===
 
   // Routen einrichten
   setupRoutes(app);

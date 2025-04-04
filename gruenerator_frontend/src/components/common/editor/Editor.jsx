@@ -15,6 +15,7 @@ import {
   useTextHighlighting,
 } from './hooks';
 
+// Register Quill modules ONCE, before any editor instance is created
 Quill.register(PlatformSectionBlot);
 
 const Editor = React.memo(({ setEditorInstance = () => {} }) => {

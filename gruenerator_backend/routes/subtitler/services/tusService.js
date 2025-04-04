@@ -17,12 +17,15 @@ const TUS_UPLOAD_PATH = path.join(__dirname, '../../../uploads/tus-temp');
   }
 })();
 
+console.log('[tusService] Initializing Tus Server configuration...'); // Log hinzufügen oder beibehalten
+
 // Konfiguriere Tus Server
 const tusServer = new Server({
   path: '/api/subtitler/upload',
   datastore: new FileStore({ directory: TUS_UPLOAD_PATH }),
   // Erlaube große Dateien (z.B. 500MB)
   maxSize: 500 * 1024 * 1024,
+  respectForwardedHeaders: true,
 });
 
 // Event Handler für abgeschlossene Uploads
