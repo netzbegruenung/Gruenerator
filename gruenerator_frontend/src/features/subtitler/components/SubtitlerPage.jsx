@@ -1,8 +1,8 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
+import axios from 'axios'; // Import axios
 import VideoUploader from './VideoUploader';
 import SubtitleEditor from './SubtitleEditor';
 import SuccessScreen from './SuccessScreen';
-import apiClient from '../../../components/utils/apiClient';
 import useSocialTextGenerator from '../hooks/useSocialTextGenerator';
 import { FaVideo, FaFileVideo, FaRuler, FaClock } from 'react-icons/fa';
 import ErrorBoundary from '../../../components/ErrorBoundary';
@@ -20,18 +20,11 @@ const SubtitlerPage = () => {
 
   const pollingIntervalRef = useRef(null); // Ref für Polling Interval
 
-  const handleVideoSelect = (fileWithMetadata) => {
-    console.log('[SubtitlerPage] Received file from VideoUploader:', {
-      name: fileWithMetadata.name,
-      size: fileWithMetadata.size,
-      type: fileWithMetadata.type,
-      metadata: fileWithMetadata.metadata,
-      uploadId: fileWithMetadata.uploadId
-    });
+  // Dynamically set baseURL based on environment
+  const isDevelopment = import.meta.env.VITE_APP_ENV === 'development';
+  const baseURL = isDevelopment ? 'http://localhost:3001/api' : `${window.location.origin}/api`;
 
-    // Ensure uploadId URL uses HTTPS
-    const uploadId = fileWithMetadata.uploadId.replace('http://', 'https://');
-    
+  const handleVideoSelect = (fileWithMetadata) => {
     // Speichere das originale File-Objekt
     const originalFile = new File([fileWithMetadata], fileWithMetadata.name, {
       type: fileWithMetadata.type
@@ -40,7 +33,7 @@ const SubtitlerPage = () => {
 
     // Speichere Upload-Info separat
     setUploadInfo({
-      uploadId: uploadId,
+      uploadId: fileWithMetadata.uploadId,
       metadata: fileWithMetadata.metadata,
       name: fileWithMetadata.name,
       size: fileWithMetadata.size,
@@ -55,23 +48,23 @@ const SubtitlerPage = () => {
     setIsProcessing(true); // Set processing true to show spinner and trigger polling
     
     try {
-      console.log('[SubtitlerPage] Starting video processing request with uploadId:', uploadInfo.uploadId);
 
       if (!uploadInfo?.uploadId) {
         throw new Error('Keine Upload-ID gefunden');
       }
 
-      // Start processing request
-      const response = await apiClient.post('/subtitler/process', { 
+      // Start processing request - Verwende axios direkt mit baseURL
+      const response = await axios.post(`${baseURL}/subtitler/process`, { 
         uploadId: uploadInfo.uploadId 
+      }, {
+        // Header oder andere Axios-Konfigurationen könnten hier nötig sein
+        // Beachte: Interceptors von apiClient (z.B. Auth Token) werden hier NICHT angewendet
+        timeout: 900000 // Beispiel: Timeout manuell setzen, falls benötigt
       });
-
-      console.log('[SubtitlerPage] Process initiation response:', response.data);
 
       // Check if backend accepted the request (Status 202 with status 'processing')
       if (response.status === 202 && response.data?.status === 'processing') {
         // Processing started successfully, polling will be handled by useEffect
-        console.log('[SubtitlerPage] Backend confirmed processing started. Polling will begin.');
       } else {
         // Unexpected response from /process endpoint
         throw new Error(response.data?.message || 'Unerwartete Antwort vom Server beim Start der Verarbeitung.');
@@ -90,18 +83,17 @@ const SubtitlerPage = () => {
     // Only poll if we are processing and have an uploadId
     if (isProcessing && uploadInfo?.uploadId) {
       const currentUploadId = uploadInfo.uploadId;
-      console.log(`[SubtitlerPage] Starting polling for uploadId: ${currentUploadId}`);
 
       pollingIntervalRef.current = setInterval(async () => {
         try {
-          console.log(`[SubtitlerPage] Polling status for ${currentUploadId}...`);
-          const resultResponse = await apiClient.get(`/subtitler/result/${currentUploadId}`);
+          // Verwende axios direkt mit baseURL
+          const resultResponse = await axios.get(`${baseURL}/subtitler/result/${currentUploadId}`, {
+              // Header oder andere Axios-Konfigurationen könnten hier nötig sein
+              // Beachte: Interceptors von apiClient (z.B. Auth Token) werden hier NICHT angewendet
+          });
           const { status, subtitles: fetchedSubtitles, error: jobError } = resultResponse.data;
 
-          console.log(`[SubtitlerPage] Polling response for ${currentUploadId}:`, resultResponse.data);
-
           if (status === 'complete') {
-            console.log(`[SubtitlerPage] Processing complete for ${currentUploadId}. Subtitles received.`);
             clearInterval(pollingIntervalRef.current);
             setSubtitles(fetchedSubtitles);
             setIsProcessing(false);
@@ -111,11 +103,8 @@ const SubtitlerPage = () => {
             clearInterval(pollingIntervalRef.current);
             setError(jobError || 'Ein Fehler ist während der Verarbeitung aufgetreten.');
             setIsProcessing(false);
-             // Optional: Reset step? Oder Fehlermeldung im Confirm-Screen anzeigen lassen?
-             // setStep('confirm'); // oder 'upload'
           } else if (status === 'processing') {
             // Still processing, continue polling
-            console.log(`[SubtitlerPage] Still processing ${currentUploadId}...`);
           } else if (status === 'not_found') {
              console.error(`[SubtitlerPage] Job not found for ${currentUploadId}. Stopping polling.`);
              clearInterval(pollingIntervalRef.current);
@@ -133,21 +122,18 @@ const SubtitlerPage = () => {
 
       // Cleanup function to clear interval when component unmounts or dependencies change
       return () => {
-        console.log(`[SubtitlerPage] Cleaning up polling interval for ${currentUploadId}`);
         clearInterval(pollingIntervalRef.current);
       };
     }
 
     // Cleanup if isProcessing becomes false before interval is set (e.g. error in handleVideoConfirm)
     if (!isProcessing && pollingIntervalRef.current) {
-       console.log('[SubtitlerPage] Cleaning up polling interval due to isProcessing becoming false.');
        clearInterval(pollingIntervalRef.current);
     }
 
   }, [isProcessing, uploadInfo?.uploadId]); // Dependencies: run effect when isProcessing or uploadId changes
 
   const handleExport = useCallback(async () => {
-    console.log('[SubtitlerPage] Starting export with subtitles:', subtitles);
     setIsExporting(true);
     try {
       await generateSocialText(subtitles);
