@@ -4,20 +4,20 @@ import { useDropzone } from 'react-dropzone';
 import { FaUpload, FaTimes } from 'react-icons/fa';
 import * as tus from 'tus-js-client';
 
-// Lese die Basis-URL aus der Vite Umgebungsvariable
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'; 
-// Stelle sicher, dass die Basis-URL /api enthält und hänge den spezifischen Pfad an
-//const TUS_UPLOAD_ENDPOINT = API_BASE_URL.endsWith('/api') 
-  //? `${API_BASE_URL}/subtitler/upload` 
-  //: `${API_BASE_URL}/api/subtitler/upload`; // Füge /api hinzu, falls es fehlt
-const TUS_UPLOAD_ENDPOINT = 'https://gruenerator.de/api/subtitler/upload'.replace('http://', 'https://');
+// Dynamischer TUS Upload Endpoint basierend auf der Umgebung
+// const isDevelopment = import.meta.env.MODE === 'development'; // Old check using MODE
+const isDevelopment = import.meta.env.VITE_APP_ENV === 'development'; // Use explicit env variable
+const TUS_UPLOAD_ENDPOINT = isDevelopment
+  ? 'http://localhost:3001/api/subtitler/upload' // Dein lokaler Backend-Port
+  : 'https://gruenerator.de/api/subtitler/upload'; // Produktions-URL
 
-// Ensure HTTPS is used
-if (!TUS_UPLOAD_ENDPOINT.startsWith('https://')) {
-  console.error('[VideoUploader] Upload endpoint must use HTTPS');
+// Ensure HTTPS is used for production endpoint
+if (!isDevelopment && !TUS_UPLOAD_ENDPOINT.startsWith('https://')) {
+  console.error('[VideoUploader] Production upload endpoint must use HTTPS');
+  // Potenziell einen Fehler werfen oder einen Fallback setzen
 }
 
-console.log('Using Tus Endpoint:', TUS_UPLOAD_ENDPOINT); // Debugging
+console.log(`[VideoUploader] Using Tus Endpoint (VITE_APP_ENV: ${import.meta.env.VITE_APP_ENV || 'not set'}):`, TUS_UPLOAD_ENDPOINT);
 
 const VideoUploader = ({ onUpload, isProcessing = false }) => {
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -64,9 +64,6 @@ const VideoUploader = ({ onUpload, isProcessing = false }) => {
       const upload = new tus.Upload(file, {
         endpoint: TUS_UPLOAD_ENDPOINT,
         retryDelays: [0, 3000, 5000, 10000, 20000],
-        forcedSSL: true,
-        forceHTTPS: true,
-        protocol: 'https',
         metadata: {
           filename: file.name,
           filetype: file.type

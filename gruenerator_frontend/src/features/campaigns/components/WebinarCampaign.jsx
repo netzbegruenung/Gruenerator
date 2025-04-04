@@ -1,7 +1,23 @@
 import React from 'react';
 import CampaignDashboard from './CampaignDashboard';
+// Remove AboutSection import and its CSS
+// import AboutSection from './AboutSection';
+import './AboutSection.css';
 
 const WebinarCampaign = () => {
+
+  // Define person data separately for clarity before merging
+  const personDataExample = {
+      name: "Moritz Wallraf",
+      bio: "Moritz ist Experte für digitale Kommunikation und hilft grünen Initiativen, ihre Botschaften effektiv zu verbreiten. Bei Fragen zum Grünerator oder zur Öffentlichkeitsarbeit steht er gerne zur Verfügung.",
+      imageUrl: "https://avatars.githubusercontent.com/u/101432780?v=4", 
+      contact: {
+          showForm: true,
+          title: "Frage an Moritz?",
+          buttonText: "Nachricht senden"
+      }
+  };
+
   const webinarData = {
     title: "Grünerator Webinare",
     description: "Hier findest du alle Materialien für unsere Webinar-Kampagne. Nutze die Vorlagen und Texte für eine erfolgreiche Bewerbung deiner Webinare.",
@@ -9,7 +25,6 @@ const WebinarCampaign = () => {
     showGrueneratoren: false,
     showTemplates: true,
     showStandardTemplates: false,
-    // Dateien wie PDFs, Docs etc.
     files: [
       {
         title: "Webinar Checkliste",
@@ -24,7 +39,6 @@ const WebinarCampaign = () => {
         url: "#"
       }
     ],
-    // Separate Canva-Vorlagen
     externalTemplates: [
       { 
         title: "Canva Vorlage - Webinar Ratsarbeit", 
@@ -50,8 +64,23 @@ const WebinarCampaign = () => {
         title: "Einladung Webinar Grünerator Ratsarbeit", 
         content: "🌱 Webinar: Grünerator für die Ratsarbeit\n\nWann: [DATUM]\nWo: Online\n\nEntdecke den GRÜNERATOR: Dein smarter Assistent für die Ratsarbeit!\n\nDu möchtest Anträge präzise prüfen oder Reden effizient vorbereiten? Der Grünerator macht's möglich! In unserem Webinar zeigen wir dir, wie du das KI-Tool optimal einsetzt, um deine Ratsarbeit effizienter und zielgerichteter zu gestalten.\n\nEgal ob für Anträge, Reden oder Wahlprogramme – der Grünerator ist dein digitaler Partner für die Ratsarbeit.\n\nJetzt anmelden: [LINK]\n\n#Grünerator #Ratsarbeit #Webinar" 
       }
-    ]
+    ],
+    personData: personDataExample
   };
+
+  // Example data for the AboutSection - moved into webinarData above
+  /*
+  const personDataExample = {
+      name: "Moritz Wallraf",
+      bio: "Moritz ist Experte für digitale Kommunikation und hilft grünen Initiativen, ihre Botschaften effektiv zu verbreiten. Bei Fragen zum Grünerator oder zur Öffentlichkeitsarbeit steht er gerne zur Verfügung.",
+      imageUrl: "https://avatars.githubusercontent.com/u/101432780?v=4", 
+      contact: {
+          showForm: true, 
+          title: "Frage an Moritz?", 
+          buttonText: "Nachricht senden"
+      }
+  };
+  */
 
   return (
     <div className="container with-header campaign-container">
@@ -61,6 +90,8 @@ const WebinarCampaign = () => {
           <p className="campaign-description">{webinarData.description}</p>
         </div>
         <CampaignDashboard campaignData={webinarData} />
+        {/* Remove direct rendering of AboutSection */}
+        {/* <AboutSection personData={personDataExample} /> */}
       </div>
     </div>
   );
