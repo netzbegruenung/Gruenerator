@@ -198,8 +198,8 @@ router.post('/process', async (req, res) => {
       .catch(error => {
         console.error(`Fehler bei der asynchronen Verarbeitung für Upload-ID ${uploadId}:`, error);
         processingJobs.set(uploadId, { status: 'error', data: error.message || 'Fehler bei der Verarbeitung.' });
-         // Optionally cleanup the source file if processing failed critically
-         // cleanupFiles(videoPath).catch(e => console.error('Cleanup failed after error:', e));
+        // Cleanup the source file if processing failed critically
+        cleanupFiles(videoPath).catch(e => console.error('Cleanup failed after error:', e));
       });
 
     // Respond immediately that processing has started
