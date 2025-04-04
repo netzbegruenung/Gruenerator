@@ -10,15 +10,19 @@ const CampaignDashboard = ({ campaignData }) => {
   const [templates, setTemplates] = useState([]);
   const [error, setError] = useState(null);
 
+  const { personData, texts, files, externalTemplates, showTemplates, showGrueneratoren, showStandardTemplates, campaignTag } = campaignData;
+
+  console.log('DEBUG - personData in CampaignDashboard:', personData);
+
   useEffect(() => {
     try {
       // Filter Templates nach dem Kampagnen-Tag
       let filteredTemplates = [];
       
-      if (campaignData.showStandardTemplates !== false) {
+      if (showStandardTemplates !== false) {
         filteredTemplates = templateData.templates.filter(template => 
           template.tags.some(tag => 
-            tag.toLowerCase().includes(campaignData.campaignTag.toLowerCase())
+            tag.toLowerCase().includes(campaignTag.toLowerCase())
           ) || 
           template.category.includes("wahlen")
         );
@@ -29,7 +33,7 @@ const CampaignDashboard = ({ campaignData }) => {
       setError('Fehler beim Laden der Templates');
       console.error('Error loading templates:', err);
     }
-  }, [campaignData.campaignTag, campaignData.showStandardTemplates]);
+  }, [campaignTag, showStandardTemplates]);
 
   if (error) {
     return <div className="campaign-error">{error}</div>;
@@ -37,19 +41,19 @@ const CampaignDashboard = ({ campaignData }) => {
 
   return (
     <div className="campaign-dashboard">
-      <TextsSection texts={campaignData.texts} className="texts-section" />
+      <TextsSection texts={texts} className="texts-section" />
       <div className="bottom-row">
-        <FilesSection files={campaignData.files} className="files-section" />
-        {campaignData.showTemplates !== false && (
+        <FilesSection files={files} className="files-section" />
+        {showTemplates !== false && (
           <TemplatesSection 
             templates={templates} 
-            externalTemplates={campaignData.externalTemplates || []}
-            showStandardTemplates={campaignData.showStandardTemplates}
+            externalTemplates={externalTemplates || []}
+            showStandardTemplates={showStandardTemplates}
             className="templates-section" 
           />
         )}
       </div>
-      {campaignData.showGrueneratoren !== false && (
+      {showGrueneratoren !== false && (
         <div className="grueneratoren-container">
           <Grueneratoren />
         </div>
@@ -66,7 +70,17 @@ CampaignDashboard.propTypes = {
     showGrueneratoren: PropTypes.bool,
     showTemplates: PropTypes.bool,
     showStandardTemplates: PropTypes.bool,
-    externalTemplates: PropTypes.array
+    externalTemplates: PropTypes.array,
+    personData: PropTypes.shape({
+        name: PropTypes.string,
+        bio: PropTypes.string,
+        imageUrl: PropTypes.string,
+        contact: PropTypes.shape({
+            showForm: PropTypes.bool,
+            title: PropTypes.string,
+            buttonText: PropTypes.string
+        })
+    })
   }).isRequired
 };
 
