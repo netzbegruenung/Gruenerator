@@ -64,6 +64,7 @@ const VideoUploader = ({ onUpload, isProcessing = false }) => {
       const upload = new tus.Upload(file, {
         endpoint: TUS_UPLOAD_ENDPOINT,
         retryDelays: [0, 3000, 5000, 10000, 20000],
+        chunkSize: 5 * 1024 * 1024, // 5MB chunks
         metadata: {
           filename: file.name,
           filetype: file.type
