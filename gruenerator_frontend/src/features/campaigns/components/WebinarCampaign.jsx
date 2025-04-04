@@ -1,22 +1,8 @@
 import React from 'react';
 import CampaignDashboard from './CampaignDashboard';
-// Remove AboutSection import and its CSS
-// import AboutSection from './AboutSection';
-import './AboutSection.css';
+
 
 const WebinarCampaign = () => {
-
-  // Define person data separately for clarity before merging
-  const personDataExample = {
-      name: "Moritz Wallraf",
-      bio: "Moritz ist Experte für digitale Kommunikation und hilft grünen Initiativen, ihre Botschaften effektiv zu verbreiten. Bei Fragen zum Grünerator oder zur Öffentlichkeitsarbeit steht er gerne zur Verfügung.",
-      imageUrl: "https://avatars.githubusercontent.com/u/101432780?v=4", 
-      contact: {
-          showForm: true,
-          title: "Frage an Moritz?",
-          buttonText: "Nachricht senden"
-      }
-  };
 
   const webinarData = {
     title: "Grünerator Webinare",
@@ -68,20 +54,6 @@ const WebinarCampaign = () => {
     personData: personDataExample
   };
 
-  // Example data for the AboutSection - moved into webinarData above
-  /*
-  const personDataExample = {
-      name: "Moritz Wallraf",
-      bio: "Moritz ist Experte für digitale Kommunikation und hilft grünen Initiativen, ihre Botschaften effektiv zu verbreiten. Bei Fragen zum Grünerator oder zur Öffentlichkeitsarbeit steht er gerne zur Verfügung.",
-      imageUrl: "https://avatars.githubusercontent.com/u/101432780?v=4", 
-      contact: {
-          showForm: true, 
-          title: "Frage an Moritz?", 
-          buttonText: "Nachricht senden"
-      }
-  };
-  */
-
   return (
     <div className="container with-header campaign-container">
       <div className="campaign-page">
@@ -90,8 +62,6 @@ const WebinarCampaign = () => {
           <p className="campaign-description">{webinarData.description}</p>
         </div>
         <CampaignDashboard campaignData={webinarData} />
-        {/* Remove direct rendering of AboutSection */}
-        {/* <AboutSection personData={personDataExample} /> */}
       </div>
     </div>
   );
