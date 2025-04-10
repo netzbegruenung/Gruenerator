@@ -25,6 +25,7 @@ const searchAnalysisRouter = require('./routes/search/searchAnalysis');
 const subtitlerRouter = require('./routes/subtitler/subtitlerController');
 const subtitlerSocialRouter = require('./routes/subtitler/subtitlerSocialController');
 const voiceRouter = require('./routes/voice/voiceController');
+const customGeneratorRoute = require('./routes/custom_generator');
 const { tusServer } = require('./routes/subtitler/services/tusService');
 
 function setupRoutes(app) {
@@ -50,6 +51,7 @@ function setupRoutes(app) {
   app.use('/api/claude_universal', claudeUniversalRoute);
   app.use('/api/claude_gruene_jugend', claudeGrueneJugendRoute);
   app.use('/api/you', claudeYouRoute);
+  app.use('/api/custom_generator', customGeneratorRoute);
 
   app.use('/api/subtitler', subtitlerRouter);
   app.use('/api/subtitler', subtitlerSocialRouter);

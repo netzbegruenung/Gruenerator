@@ -24,22 +24,28 @@ const SubtitlerPage = () => {
   const isDevelopment = import.meta.env.VITE_APP_ENV === 'development';
   const baseURL = isDevelopment ? 'http://localhost:3001/api' : `${window.location.origin}/api`;
 
-  const handleVideoSelect = (fileWithMetadata) => {
-    // Speichere das originale File-Objekt
-    const originalFile = new File([fileWithMetadata], fileWithMetadata.name, {
-      type: fileWithMetadata.type
-    });
-    setOriginalVideoFile(originalFile);
-
-    // Speichere Upload-Info separat
+  const handleUploadComplete = (uploadData) => { 
+    // Überprüfe, ob ein gültiges File-Objekt übergeben wurde
+    if (uploadData.originalFile instanceof File) {
+      // Speichere das originale File-Objekt direkt
+      setOriginalVideoFile(uploadData.originalFile);
+      console.log('[SubtitlerPage] Original video file stored:', uploadData.originalFile);
+    } else {
+      console.error("[SubtitlerPage] Did not receive a valid File object in uploadData", uploadData);
+      setError("Fehler beim Empfangen der Videodatei vom Uploader.");
+      setStep('upload'); // Gehe zurück zum Upload-Schritt
+      return; 
+    }
+  
+    // Speichere andere Upload-Infos separat
     setUploadInfo({
-      uploadId: fileWithMetadata.uploadId,
-      metadata: fileWithMetadata.metadata,
-      name: fileWithMetadata.name,
-      size: fileWithMetadata.size,
-      type: fileWithMetadata.type
+      uploadId: uploadData.uploadId,
+      metadata: uploadData.metadata,
+      name: uploadData.name,
+      size: uploadData.size,
+      type: uploadData.type
     });
-
+  
     setStep('confirm');
   };
 
@@ -187,7 +193,7 @@ const SubtitlerPage = () => {
         <div className="subtitler-content">
           {step === 'upload' && (
             <VideoUploader 
-              onUpload={handleVideoSelect} 
+              onUpload={handleUploadComplete}
               isProcessing={isProcessing} 
             />
           )}

@@ -27,6 +27,7 @@
 @import url('./components/ui/BackupToggle.css');
 @import url('./components/ui/tooltip.css');
 @import url('../../components/common/editor/EditorChat.css');
+@import url('./components/ui/success-screen.css');
 
 /* Action Component Styles */
 @import url('./components/actions/slogan-alternatives.css');
@@ -55,7 +56,6 @@
 @import url('./components/sharepic/sharepic-type-selector.css');
 
 /* Page Styles */
-@import url('./pages/campaign.css');
 @import url('./pages/Startseitenstyle.css');
 @import url('./pages/antragsversteher.css');
 @import url('./pages/notfound.css');
@@ -88,6 +88,8 @@
 @import url('../../features/campaigns/components/TextsSection.css');
 @import url('../../features/campaigns/components/FilesSection.css');
 @import url('../../features/campaigns/components/TextCard.css');
+@import url('../../features/campaigns/styles/AboutSection.css');
+@import url('../../features/campaigns/styles/ContactFormSection.css');
 
 /* Features - You */
 @import url('../../features/you/styles/YouPage.css');
@@ -96,6 +98,10 @@
 @import url('../../features/you/styles/YouResults.css');
 @import url('../../features/you/styles/YouRecording.css');
 @import url('../../features/you/styles/YouResponsive.css');
+
+/* Features - Custom Generator */
+@import url('./components/custom-generator/create-custom-generator.css');
+@import url('./components/custom-generator/field-editor-assistant.css');
 
 /* Features - Texte */
 @import url('../../features/texte/editor/EmptyEditor.css');

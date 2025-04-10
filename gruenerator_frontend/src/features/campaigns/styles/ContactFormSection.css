@@ -1,0 +1,73 @@
+/* Styles for the Contact Form Section */
+.contact-form-section {
+    background-color: var(--background-color); /* Use defined background color */
+    border-radius: var(--spacing-xsmall); /* Use defined spacing for radius */
+    padding: var(--spacing-large);
+    box-shadow: var(--shadow-md); /* Use defined medium shadow */
+    /* margin-top: var(--spacing-large); */ /* Remove margin, handled by wrapper */
+}
+
+/* H2 styling is now inherited from .dashboard-section h2 in CampaignDashboard.css */
+
+/* Add margin-top to the form itself to space it from the heading */
+.contact-form {
+    margin-top: var(--spacing-medium);
+}
+
+.contact-form .form-group {
+    margin-bottom: 15px; /* Adjust spacing similar to baseform */
+}
+
+.contact-form label {
+    display: block;
+    margin-bottom: 5px; /* Smaller margin before input */
+    font-weight: bold;
+    color: var(--font-color); /* Use theme font color */
+}
+
+.contact-form input[type="text"],
+.contact-form input[type="email"],
+.contact-form textarea {
+    width: 100%;
+    padding: 10px;
+    border: none; /* Remove border like in baseform */
+    border-radius: 4px; /* Use border-radius from baseform */
+    box-sizing: border-box; /* Ensure padding doesn't add to width */
+    font-size: 0.9em; /* Use font-size from baseform */
+    background-color: var(--background-color-alt); /* Use alt background for contrast */
+    color: var(--font-color); /* Use theme font color */
+    transition: box-shadow 0.3s ease, background-color 0.3s ease; /* Add transition */
+}
+
+/* Add focus style similar to baseform */
+.contact-form input[type="text"]:focus,
+.contact-form input[type="email"]:focus,
+.contact-form textarea:focus {
+    outline: none; /* Remove default outline */
+    border: 2px solid var(--grashalm); /* Add border on focus */
+    padding: 8px; /* Adjust padding to account for border */
+    box-shadow: 0 0 5px rgba(81, 163, 37, 0.5); /* Optional: Add a subtle shadow */
+}
+
+.contact-form textarea {
+    min-height: 100px; /* Provide ample space for messages */
+    resize: vertical; /* Allow vertical resizing */
+}
+
+/* Remove custom button styles - use general button classes */
+/*
+.contact-submit-button {
+    background-color: var(--button-primary-bg-color);
+    color: var(--button-primary-text-color);
+    border: none;
+    padding: var(--button-padding-vertical) var(--button-padding-horizontal);
+    border-radius: var(--button-border-radius);
+    cursor: pointer;
+    font-size: 1em;
+    transition: background-color 0.2s ease;
+}
+
+.contact-submit-button:hover {
+    background-color: var(--button-primary-hover-bg-color);
+}
+*/ 

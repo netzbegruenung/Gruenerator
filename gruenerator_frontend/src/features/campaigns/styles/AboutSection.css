@@ -1,0 +1,66 @@
+/* Diese Klasse wird jetzt in CampaignDashboard.css definiert und gestyled */
+/* .about-section {
+    margin-top: 40px;
+    padding: 20px;
+    border-top: var(--border-subtle);
+    background-color: var(--background-color-alt);
+    border-radius: 8px;
+    width: 100%; 
+    box-sizing: border-box;
+  } */
+  
+  /* Überschriften-Styling wird von .dashboard-section h2 übernommen, kann aber hier überschrieben werden, falls nötig */
+  /* .about-section h2 {
+    margin-bottom: 20px;
+    font-size: 1.5rem;
+    color: var(--font-color-h);
+  } */
+  
+  .about-content {
+    display: flex;
+    align-items: flex-start; /* Bilder und Text oben ausrichten */
+    gap: 20px; /* Abstand zwischen Bild und Text */
+  }
+  
+  .about-image {
+    width: 150px; /* Feste Breite für das Bild */
+    height: 150px;
+    object-fit: cover; /* Bild zuschneiden, nicht verzerren */
+    border-radius: 50%; /* Rundes Bild */
+    /* Nutze Hintergrundfarbe für den Rand oder eine spezifische Rahmenfarbe */
+    border: 3px solid var(--background-color-pure);
+    /* Nutze Schattenvariable */
+    box-shadow: var(--shadow-md);
+  }
+  
+  .about-text {
+    flex: 1; /* Text nimmt restlichen Platz ein */
+  }
+  
+  .about-text p {
+    margin: 0;
+    line-height: 1.6;
+    /* Nutze Standard-Textfarbe aus Variablen */
+    color: var(--font-color);
+  }
+  
+  /* Responsive Anpassungen (optional) */
+  @media (max-width: 768px) {
+    .about-content {
+      flex-direction: column; /* Untereinander auf kleinen Bildschirmen */
+      align-items: center; /* Zentrieren */
+      text-align: center;
+    }
+  
+    .about-image {
+      margin-bottom: 15px;
+    }
+  } 
+
+/* Further adjustments for very narrow screens */
+@media (max-width: 480px) {
+  .about-image {
+    width: 120px; 
+    height: 120px;
+  }
+} 
