@@ -1,0 +1,64 @@
+/* gruenerator_frontend/src/assets/styles/components/common/success-screen.css */
+.success-screen-container {
+  border: var(--border-subtle); /* Use existing border style */
+  border-radius: 8px;
+  padding: var(--spacing-large, 24px);
+  margin-top: var(--spacing-large, 24px);
+  text-align: center;
+  background-color: rgba(var(--klee-rgb), 0.1); /* Subtle success background */
+  border-color: var(--klee); /* Success border color */
+  animation: fadeIn 0.5s ease-out; /* Simple fade-in */
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.success-icon {
+  font-size: 2.5rem; /* Larger icon */
+  color: var(--klee); /* Success color */
+  margin-bottom: var(--spacing-medium, 16px);
+}
+
+.success-title {
+  color: var(--font-color-h); /* Heading color */
+  margin-bottom: var(--spacing-small, 8px);
+  font-weight: 600;
+}
+
+.success-message-content {
+  color: var(--font-color); /* Standard text color */
+  margin-bottom: var(--spacing-large, 24px);
+  white-space: pre-wrap; /* Respect line breaks if message is preformatted */
+  word-wrap: break-word;
+  text-align: left; /* Align message text left for readability */
+  background-color: var(--background-color); /* Optional: background for contrast */
+  padding: var(--spacing-medium, 16px);
+  border-radius: 6px;
+  border: var(--border-subtle);
+}
+
+.success-actions {
+  display: flex;
+  justify-content: center; /* Center buttons */
+  gap: var(--spacing-medium, 16px); /* Space between buttons */
+  margin-top: var(--spacing-medium, 16px); /* Add some space above actions */
+}
+
+/* Ensure buttons within actions use standard styling */
+.success-actions .button {
+  /* Inherit button styles or define specific overrides if needed */
+}
+
+.success-actions .button-secondary {
+    /* Example: Ensure secondary buttons look correct */
+    /* background-color: transparent; */
+    /* border-color: var(--klee); */
+    /* color: var(--klee); */
+}
+
+/* .success-actions .button-secondary:hover { */
+    /* background-color: var(--klee); */
+    /* color: var(--weiß); */
+/* } */

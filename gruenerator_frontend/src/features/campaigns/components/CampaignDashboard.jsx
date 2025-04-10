@@ -5,12 +5,14 @@ import FilesSection from './FilesSection';
 import TextsSection from './TextsSection';
 import TemplatesSection from './TemplatesSection';
 import Grueneratoren from './Grueneratoren';
+import AboutSection from './AboutSection';
+import ContactFormSection from './ContactFormSection';
 
 const CampaignDashboard = ({ campaignData }) => {
   const [templates, setTemplates] = useState([]);
   const [error, setError] = useState(null);
 
-  const { personData, texts, files, externalTemplates, showTemplates, showGrueneratoren, showStandardTemplates, campaignTag } = campaignData;
+  const { personData, texts, files, externalTemplates, showTemplates, showGrueneratoren, showStandardTemplates, campaignTag, contact: contactData } = campaignData;
 
   console.log('DEBUG - personData in CampaignDashboard:', personData);
 
@@ -58,6 +60,13 @@ const CampaignDashboard = ({ campaignData }) => {
           <Grueneratoren />
         </div>
       )}
+      {/* Wrapper div for About and Contact sections */}
+      <div className="about-contact-wrapper">
+        <AboutSection personData={personData} className="dashboard-section" />
+        {contactData && contactData.showForm && (
+          <ContactFormSection contactData={contactData} className="dashboard-section" />
+        )}
+      </div>
     </div>
   );
 };
@@ -80,6 +89,11 @@ CampaignDashboard.propTypes = {
             title: PropTypes.string,
             buttonText: PropTypes.string
         })
+    }),
+    contact: PropTypes.shape({
+        showForm: PropTypes.bool,
+        title: PropTypes.string,
+        buttonText: PropTypes.string
     })
   }).isRequired
 };

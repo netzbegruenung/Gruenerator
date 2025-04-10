@@ -47,7 +47,8 @@ const BaseForm = ({
   submitButtonProps = {},
   disableAutoCollapse = false,
   featureToggle = null,
-  useFeatureToggle = false
+  useFeatureToggle = false,
+  showNextButton = true
 }) => {
   // Verwende die neuen Hooks
   const {
@@ -191,6 +192,7 @@ const BaseForm = ({
             submitButtonProps={submitButtonProps}
             featureToggle={featureToggle}
             useFeatureToggle={useFeatureToggle}
+            showSubmitButton={showNextButton}
           >
             {console.log('[BaseForm] Rendering FormSection content.')}
             {children}
@@ -268,7 +270,12 @@ BaseForm.propTypes = {
     isSearching: PropTypes.bool,
     statusMessage: PropTypes.string
   }),
-  useFeatureToggle: PropTypes.bool
+  useFeatureToggle: PropTypes.bool,
+  showNextButton: PropTypes.bool
+};
+
+BaseForm.defaultProps = {
+  showNextButton: true
 };
 
 export default BaseForm; 

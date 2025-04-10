@@ -597,3 +597,28 @@
   height: 14px;
   border-width: 2px;
 }
+
+/* Primary Button Style */
+.button.button-primary {
+  background-color: var(--tanne);
+  color: var(--weiß);
+}
+
+.button.button-primary:hover {
+  background-color: var(--klee);
+}
+
+/* New Button Style: Tanne background with white border */
+.btn.btn-tanne-bordered {
+    background-color: var(--tanne, #006A4E); /* Tanne background */
+    border: 2px solid var(--weiß, #ffffff); /* White border */
+    border-radius: 10px;
+    color: var(--weiß, #ffffff); /* White text */
+    padding: 10px 20px;
+}
+
+.btn.btn-tanne-bordered:hover {
+    background-color: var(--klee, #008939); /* Klee on hover */
+    border-color: var(--weiß, #ffffff);
+    color: var(--weiß, #ffffff);
+}
