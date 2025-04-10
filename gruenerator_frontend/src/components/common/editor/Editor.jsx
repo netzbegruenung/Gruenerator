@@ -204,7 +204,12 @@ const Editor = React.memo(({ setEditorInstance = () => {} }) => {
         console.log('[Editor] Available Quill modules:', Object.keys(modules));
         
         const quillInstance = new Quill(editorRef.current, {
-          modules: modules,
+          modules: {
+            ...modules,
+            toolbar: {
+              container: '#toolbar',
+            }
+          },
           formats: formats,
           theme: 'snow',
           placeholder: isEditing ? 'Start writing...' : '',
