@@ -9,6 +9,7 @@ import SuspenseWrapper from './components/common/SuspenseWrapper';
 import RouteComponent from './components/routing/RouteComponent';
 import { routes } from './config/routes';
 import { AuthProvider } from './components/utils/AuthContext';
+import CustomGeneratorPage from './features/generators/CustomGeneratorPage';
 // Lazy loading für Popups
 const PopupNutzungsbedingungen = lazy(() => import('./components/Popups/popup_nutzungsbedingungen'));
 const WelcomePopup = lazy(() => import('./components/Popups/popup_welcome'));
@@ -123,6 +124,8 @@ function App() {
                   />
                 );
               })}
+
+              <Route path="/generator/:slug" element={<CustomGeneratorPage />} />
             </Routes>
           </SuspenseWrapper>
         </Router>

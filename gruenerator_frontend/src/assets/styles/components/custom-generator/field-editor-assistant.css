@@ -1,0 +1,234 @@
+/* FieldEditorAssistant Specific Styles */
+
+.field-editor-assistant {
+    border: none;
+}
+
+.field-editor-assistant h5 {
+    color: var(--font-color-h, var(--sand)); /* Heading color */
+    margin-top: 20px;
+    margin-bottom: var(--spacing-medium, 16px);
+    font-weight: 600; /* Slightly bolder heading */
+}
+
+/* Enhance form group spacing */
+.field-editor-assistant .form-group {
+    margin-bottom: var(--spacing-medium, 16px);
+}
+
+/* Consistent label styling */
+
+
+/* Input field styling */
+.field-editor-assistant input[type="text"] {
+    /* Match baseform input styling */
+    background-color: var(--weiß); /* Light background */
+    color: #333; /* Dark text */
+    border: none; /* No initial border */
+    border-radius: 4px;
+    padding: 10px; /* Consistent padding with baseform */
+    width: 100%; /* Ensure full width */
+    box-sizing: border-box; /* Include padding in width */
+    font-size: 0.9em; /* Match baseform font-size */
+    transition: border-color 0.2s ease, padding 0.2s ease; /* Adjusted transition */
+}
+
+.field-editor-assistant input[type="text"]:focus {
+    /* Match baseform focus */
+    border: 2px solid var(--grashalm, #8ABD24);
+    padding: 8px; /* Adjust padding on focus like baseform */
+    box-shadow: none; /* Remove box-shadow used before */
+    outline: none;
+}
+
+/* --- START: Type Selector Button Group Styling --- */
+.type-selector-container {
+    display: flex; /* Arrange buttons horizontally */
+    border-radius: 6px; /* Rounded corners for the container */
+    overflow: hidden; /* Ensure children conform to rounded corners */
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.3)); /* Subtle border around the group */
+    width: fit-content; /* Adjust container width to content */
+    padding-top: 10px;
+    gap: 10px;
+}
+
+.type-selector-button {
+    flex: 1; /* Distribute space equally */
+    padding: var(--spacing-small, 12px) var(--spacing-medium, 16px);
+    border: none; /* Remove individual button borders */
+    background-color: transparent; /* Default transparent background */
+    color: var(--font-color, var(--sand));
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease;
+    text-align: center;
+    border-radius: 0; /* Remove individual rounding */
+    font-weight: 500;
+}
+
+/* Add a subtle separator between buttons */
+.type-selector-button:not(:last-child) {
+    border-right: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.3)); 
+}
+
+.type-selector-button:hover {
+    background-color: rgba(var(--weiß-rgb, 255, 255, 255), 0.05);
+}
+
+.type-selector-button.active {
+    background-color: var(--klee, #8ABD24) !important; 
+    font-weight: 600;
+}
+/* --- END: Type Selector Button Group Styling --- */
+
+/* Radio and Checkbox specific adjustments */
+.field-editor-assistant .form-check {
+    padding-left: 0; /* Reset bootstrap padding */
+    margin-bottom: var(--spacing-small, 12px);
+}
+
+.field-editor-assistant .form-check-input {
+    margin-right: var(--spacing-xsmall, 8px);
+    vertical-align: middle; /* Align better with label */
+    margin-top: 0; /* Reset default */
+    width: 1em; /* Consistent size */
+    height: 1em;
+}
+
+.field-editor-assistant .form-check-label {
+    display: inline; /* Allow label next to input */
+    margin-bottom: 0;
+    vertical-align: middle;
+}
+
+/* Style for the code display */
+.field-editor-assistant code {
+    background-color: var(--anthrazit, #222);
+    color: var(--font-color, var(--sand));
+    padding: var(--spacing-xxsmall, 4px) var(--spacing-xsmall, 8px);
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 0.9em;
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.1));
+}
+
+/* Help text styling */
+.field-editor-assistant .help-text {
+    /* Match baseform help text */
+    font-size: 0.9em;
+    color: var(--weiß);
+    opacity: 1; /* Removed opacity for consistency */
+    margin-top: var(--spacing-xsmall, 8px);
+}
+
+/* Error message styling */
+.field-editor-assistant .alert-danger {
+    background-color: rgba(var(--sonne-rgb, 255, 241, 122), 0.1);
+    border: 1px solid var(--sonne, #FFF17A);
+    color: var(--sonne, #FFF17A);
+    border-radius: 4px;
+    padding: var(--spacing-small, 12px);
+    margin-bottom: var(--spacing-medium, 16px);
+}
+
+/* Button styling */
+.field-editor-assistant .btn {
+    /* Base style similar to btn-tanne-bordered */
+    background-color: var(--tanne, #006A4E);
+    border: 2px solid var(--weiß, #ffffff);
+    color: var(--weiß, #ffffff);
+    padding: 10px 20px; /* Match tanne-bordered */
+    border-radius: 10px; /* Match tanne-bordered */
+    font-weight: 600;
+    transition: background-color 0.2s ease, transform 0.1s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.field-editor-assistant .btn:hover {
+    /* Hover style similar to btn-tanne-bordered */
+    background-color: var(--klee, #008939);
+    border-color: var(--weiß, #ffffff);
+    color: var(--weiß, #ffffff);
+}
+
+.field-editor-assistant .btn:active {
+    transform: translateY(1px);
+}
+
+/* Specific button types override the base style */
+.field-editor-assistant .btn-primary {
+    background-color: var(--klee, #008939);
+    border-color: var(--klee, #008939);
+    color: var(--weiß, #ffffff);
+}
+
+.field-editor-assistant .btn-primary:hover {
+    border-color: var(--sand);
+}
+
+.field-editor-assistant .btn-secondary {
+    /* Style for Cancel/secondary buttons */
+    background-color: transparent;
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.3));
+    color: var(--font-color, var(--sand));
+}
+
+.field-editor-assistant .btn-secondary:hover {
+    background-color: rgba(var(--weiß-rgb, 255, 255, 255), 0.1);
+    border-color: var(--weiß);
+    color: var(--weiß);
+}
+
+/* --- START: Toggle Switch Styling --- */
+.toggle-switch-group {
+    display: flex;
+    align-items: center;
+    justify-content: space-between; /* Place label and switch on opposite ends */
+    margin-bottom: var(--spacing-large, 24px); /* Add more space below */
+}
+
+.toggle-switch-group .form-check-label {
+    margin-bottom: 0; /* Remove bottom margin from label */
+    margin-right: var(--spacing-medium, 16px); /* Add space between label and switch */
+    display: inline; /* Ensure label is inline */
+}
+
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 50px; /* Width of the switch */
+    height: 28px; /* Height of the switch */
+    background-color: var(--border-subtle, rgba(255, 255, 255, 0.2)); /* Default background (off state) */
+    border-radius: 14px; /* Fully rounded */
+    cursor: pointer;
+    border: none;
+    padding: 0;
+    transition: background-color 0.3s ease;
+}
+
+.toggle-switch-thumb {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 22px; /* Size of the thumb */
+    height: 22px;
+    background-color: var(--weiß, #ffffff);
+    border-radius: 50%; /* Circular thumb */
+    transition: transform 0.3s ease;
+}
+
+/* Checked state styling */
+.toggle-switch.checked {
+    background-color: var(--grashalm, #8ABD24); /* Background color when on */
+}
+
+.toggle-switch.checked .toggle-switch-thumb {
+    transform: translateX(22px); /* Move thumb to the right */
+}
+/* --- END: Toggle Switch Styling --- */
+
+/* Action Button Container Styling */
+.field-editor-assistant .action-button-container {
+    display: flex;
+    justify-content: center; /* Center buttons horizontally */
+    gap: var(--spacing-medium, 16px); /* Add space between buttons */
+    margin-top: var(--spacing-large, 24px); /* Add some space above the buttons */
+}

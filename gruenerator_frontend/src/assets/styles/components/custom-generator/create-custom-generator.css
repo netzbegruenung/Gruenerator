@@ -1,0 +1,159 @@
+ h3 {
+    color: var(--font-color-h); /* Add heading color */
+    font-weight: 600; /* Add semi-bold weight */
+    margin-bottom: 0 !important;
+    margin-top: 20px;
+    text-align: left;
+}
+
+/* Style for the list of fields (using bootstrap list-group classes) */
+/* Apply container styling similar to FieldEditorAssistant to the list group */
+.list-group {
+    border-radius: 8px; /* Consistent rounding */
+    padding: var(--spacing-small, 16px); /* Add some padding */
+    box-shadow: var(--shadow-md, 0 4px 12px rgba(0, 0, 0, 0.4)); /* Add subtle shadow */
+    margin-bottom: 20px;
+    margin-top: 20px;
+  }
+
+.list-group-item {
+    background-color: transparent; /* Make items inherit background */
+    /* border-color: rgba(var(--weiß-rgb, 255, 255, 255), 0.1); /* Subtle border */
+    border: none; /* Remove individual borders */
+    color: var(--weiß); /* Ensure text is white */
+    padding: var(--spacing-medium, 16px); /* Adjust padding */
+}
+
+/* Remove border from the last item */
+.list-group-item:last-child {
+    border-bottom: none;
+}
+
+.list-group-item strong {
+    color: var(--sand); /* Highlight the label */
+}
+
+.list-group-item code {
+    background-color: rgba(0,0,0,0.2);
+    padding: 0.1em 0.4em;
+    border-radius: 3px;
+    font-size: 0.85em;
+}
+
+.list-group-item .btn-sm {
+    padding: 0.25rem 0.5rem; 
+    font-size: 0.875rem;
+}
+
+.list-group-item .btn-outline-secondary {
+    color: var(--sand); 
+    border-color: var(--sand);
+    padding: 0.25rem 0.5rem; /* Bootstrap default */
+
+}
+
+.list-group-item .btn-outline-secondary:hover {
+    background-color: var(--sand);
+    color: var(--dunkelgruen);
+}
+
+.list-group-item .btn-outline-danger {
+    color: var(--sonne); /* Use warning color for danger */
+    border-color: var(--sonne);
+}
+
+.list-group-item .btn-outline-danger:hover {
+    background-color: var(--sonne);
+    color: var(--anthrazit);
+}
+
+/* Add Field Button Style removed as Bootstrap class is now used */
+
+/* Style for the Add Field Button */
+.add-field-button {
+  /* Add margin top to separate from the list */
+  margin-top: var(--spacing-large, 24px);
+  /* Based on .button.button-primary from button.css */
+  display: inline-flex; 
+  align-items: center;
+  justify-content: center;
+  padding: var(--button-padding, 0.375rem 0.75rem); /* Use variable or fallback */
+  border: none;
+  border-radius: var(--button-border-radius, 0.25rem); /* Use variable or fallback */
+  font-size: var(--button-font-size, 1rem); /* Use variable or fallback */
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--weiß);
+  background-color: var(--tanne); /* Primary button color */
+  text-align: center;
+  text-decoration: none;
+  vertical-align: middle;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color var(--button-transition, 0.15s ease-in-out), transform var(--button-transition, 0.15s ease-in-out);
+}
+
+.add-field-button:hover {
+  background-color: var(--klee); /* Primary button hover color */
+  transform: scale(1.01); /* Add subtle hover effect */
+}
+
+.add-field-button:active {
+    transform: scale(0.98); /* Add active effect */
+}
+
+/* --- Styles for the Review Step --- */
+
+.review-container {
+    padding: var(--spacing-large, 24px);
+    margin-top: var(--spacing-large, 24px);
+    border: var(--border-subtle);
+    border-radius: 8px;
+    /* Optional: background-color: var(--background-color-alt); */
+}
+
+.review-section {
+    margin-bottom: var(--spacing-large, 24px);
+}
+
+.review-section:last-child {
+    margin-bottom: 0;
+}
+
+.review-section h4 {
+    color: var(--font-color-h);
+    margin-bottom: var(--spacing-medium, 16px);
+    font-weight: 600;
+}
+
+/* p elements within review-section will inherit text color */
+
+/* Prompt Display specific styles */
+.review-prompt-display {
+    padding: var(--spacing-medium, 16px);
+    border-radius: 6px;
+    border: var(--border-subtle);
+    background-color: var(--background-color); /* Use main background for contrast if container has alt bg */
+    white-space: pre-wrap; /* Ensure line breaks are respected */
+    word-wrap: break-word; /* Ensure long words break */
+    color: var(--font-color); /* Ensure correct text color */
+    font-family: monospace; /* Ensure monospace font */
+    font-size: 0.9em; /* Slightly smaller font size */
+}
+
+/* Optional: Adjust background for prompt if container has no background */
+/*
+[data-theme="dark"] .review-prompt-display {
+    background-color: var(--anthrazit); 
+}
+[data-theme="light"] .review-prompt-display {
+    background-color: rgba(0, 0, 0, 0.03); 
+}
+*/
+
+/* Controls for adding a new field */
+.add-field-controls {
+    margin-top: var(--spacing-large, 24px); /* Add space above the add button/message */
+}
+
+/* Placeholder for other styles specific to this page if needed */ 
