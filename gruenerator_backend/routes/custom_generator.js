@@ -7,11 +7,23 @@ const supabaseUrl = process.env.VITE_YOU_SUPABASE_URL;
 const supabaseKey = process.env.VITE_YOU_SUPABASE_ANON_KEY;
 
 // Erstelle Supabase Client
-const youSupabase = createClient(supabaseUrl, supabaseKey);
+let youSupabase;
+if (supabaseUrl && supabaseKey) {
+  youSupabase = createClient(supabaseUrl, supabaseKey);
+} else {
+  console.error("Supabase URL or Key is missing. Custom generator functionality will be disabled.");
+  // Optional: Handle the absence of Supabase client, e.g., disable related routes or functionality.
+}
 
 router.post('/', async (req, res) => {
   const { slug, formData } = req.body;
   
+  // Check if Supabase client is initialized
+  if (!youSupabase) {
+    console.error('[custom_generator] Supabase client not initialized.');
+    return res.status(503).json({ error: 'Custom generator service is currently unavailable due to configuration issues.' });
+  }
+
   try {
     console.log('[custom_generator] Anfrage erhalten:', { slug, formData });
 
