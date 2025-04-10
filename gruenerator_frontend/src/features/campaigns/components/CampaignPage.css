@@ -3,6 +3,9 @@
   background-color: var(--background-color);
   color: var(--font-color);
   min-height: calc(100vh - 100px);
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+  box-sizing: border-box;
 }
 
 .campaign-header {
@@ -59,11 +62,6 @@
   margin: 0 auto;
   line-height: 1.6;
   color: var(--font-color);
-}
-
-/* Anpassungen für Container */
-.container .campaign-page {
-  padding: 0;
 }
 
 .campaign-container {

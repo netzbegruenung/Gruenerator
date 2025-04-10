@@ -36,6 +36,14 @@
     --shadow-lg: 0 6px 16px rgba(0, 0, 0, 0.12);
     --shadow-xl: 0 8px 24px rgba(0, 0, 0, 0.15);
     --border-subtle: 1px solid rgba(0, 0, 0, 0.03);
+    /* Spacing Variables */
+    --spacing-xxsmall: 4px;
+    --spacing-xsmall: 8px;
+    --spacing-small: 12px;
+    --spacing-medium: 16px;
+    --spacing-large: 24px;
+    --spacing-xlarge: 32px;
+    --spacing-xxlarge: 48px;
 }
 
 /* Dark Mode */
@@ -116,13 +124,10 @@ button {
     margin-bottom: 20px;
 }
 
-
-
 @media (max-width: 768px) {
     .container {
         flex-direction: column;
         margin-top: 0; /* Entfernt den oberen Abstand in der mobilen Ansicht */
         margin-bottom: 0px;
     }
-
 }
