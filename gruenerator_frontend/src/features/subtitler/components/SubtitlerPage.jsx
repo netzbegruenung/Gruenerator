@@ -6,6 +6,12 @@ import SuccessScreen from './SuccessScreen';
 import useSocialTextGenerator from '../hooks/useSocialTextGenerator';
 import { FaVideo, FaFileVideo, FaRuler, FaClock } from 'react-icons/fa';
 import ErrorBoundary from '../../../components/ErrorBoundary';
+import MaintenanceNotice from '../../../components/common/MaintenanceNotice'; // Import the MaintenanceNotice component
+
+// --- Maintenance Flag ---
+// Set to true to enable maintenance mode for this page
+const IS_SUBTITLER_UNDER_MAINTENANCE = true;
+// ------------------------
 
 const SubtitlerPage = () => {
   const [step, setStep] = useState('upload');
@@ -177,105 +183,112 @@ const SubtitlerPage = () => {
   return (
     <ErrorBoundary>
       <div className="subtitler-container container with-header">
-        {(step === 'upload' || step === 'confirm') && (
-          <h1 className="subtitler-title">Reel-Grünerator</h1>
-        )}
-        
-        {error && (
-          <div className="error-message">
-            {error}
-            <button className="btn-secondary" onClick={() => setError(null)}>
-              Schließen
-            </button>
-          </div>
-        )}
+        {/* Check for maintenance mode first */}
+        {IS_SUBTITLER_UNDER_MAINTENANCE ? (
+          <MaintenanceNotice featureName="Reel-Grünerator" />
+        ) : (
+          <>
+            {(step === 'upload' || step === 'confirm') && (
+              <h1 className="subtitler-title">Reel-Grünerator</h1>
+            )}
+            
+            {error && (
+              <div className="error-message">
+                {error}
+                <button className="btn-secondary" onClick={() => setError(null)}>
+                  Schließen
+                </button>
+              </div>
+            )}
 
-        <div className="subtitler-content">
-          {step === 'upload' && (
-            <VideoUploader 
-              onUpload={handleUploadComplete}
-              isProcessing={isProcessing} 
-            />
-          )}
+            <div className="subtitler-content">
+              {step === 'upload' && (
+                <VideoUploader 
+                  onUpload={handleUploadComplete}
+                  isProcessing={isProcessing} 
+                />
+              )}
 
-          {step === 'confirm' && uploadInfo && (
-            <div className={`confirm-section ${isExiting ? 'exit' : ''}`}>
-              <h3>
-                <FaVideo />
-                Dein ausgewähltes Video
-              </h3>
-              <div className="video-info">
-                <p data-label="Name">
-                  <FaFileVideo />
-                  <span className="info-content">{uploadInfo.name}</span>
-                </p>
-                <p data-label="Größe">
-                  <FaRuler />
-                  <span className="info-content">{(uploadInfo.size / 1024 / 1024).toFixed(2)} MB</span>
-                </p>
-                {uploadInfo.metadata && (
-                  <>
-                    <p data-label="Länge">
-                      <FaClock />
-                      <span className="info-content">{Math.round(uploadInfo.metadata.duration)} Sekunden</span>
+              {step === 'confirm' && uploadInfo && (
+                <div className={`confirm-section ${isExiting ? 'exit' : ''}`}>
+                  <h3>
+                    <FaVideo />
+                    Dein ausgewähltes Video
+                  </h3>
+                  <div className="video-info">
+                    <p data-label="Name">
+                      <FaFileVideo />
+                      <span className="info-content">{uploadInfo.name}</span>
                     </p>
-                    <p data-label="Auflösung">
+                    <p data-label="Größe">
                       <FaRuler />
-                      <span className="info-content">{uploadInfo.metadata.width}x{uploadInfo.metadata.height}</span>
+                      <span className="info-content">{(uploadInfo.size / 1024 / 1024).toFixed(2)} MB</span>
                     </p>
-                  </>
-                )}
-              </div>
-              <p className="ai-notice">
-                Die Verarbeitung erfolgt mit OpenAI in den USA. Bitte beachte unsere <a href="/datenschutz">Datenschutzerklärung</a> bezüglich der Verarbeitung deiner Daten.
-              </p>
-              <div className="confirm-buttons">
-                <button 
-                  className="btn-primary"
-                  onClick={handleVideoConfirm}
-                  disabled={isProcessing}
-                >
-                  {isProcessing ? (
-                    <div className="button-loading-content">
-                      <div className="button-spinner" />
-                      <span>Verarbeite...</span>
-                    </div>
-                  ) : (
-                    'Video verarbeiten'
-                  )}
-                </button>
-                <button 
-                  className="btn-secondary"
-                  onClick={handleReset}
-                  disabled={isProcessing}
-                >
-                  Anderes Video auswählen
-                </button>
-              </div>
+                    {uploadInfo.metadata && (
+                      <>
+                        <p data-label="Länge">
+                          <FaClock />
+                          <span className="info-content">{Math.round(uploadInfo.metadata.duration)} Sekunden</span>
+                        </p>
+                        <p data-label="Auflösung">
+                          <FaRuler />
+                          <span className="info-content">{uploadInfo.metadata.width}x{uploadInfo.metadata.height}</span>
+                        </p>
+                      </>
+                    )}
+                  </div>
+                  <p className="ai-notice">
+                    Die Verarbeitung erfolgt mit OpenAI in den USA. Bitte beachte unsere <a href="/datenschutz">Datenschutzerklärung</a> bezüglich der Verarbeitung deiner Daten.
+                  </p>
+                  <div className="confirm-buttons">
+                    <button 
+                      className="btn-primary"
+                      onClick={handleVideoConfirm}
+                      disabled={isProcessing}
+                    >
+                      {isProcessing ? (
+                        <div className="button-loading-content">
+                          <div className="button-spinner" />
+                          <span>Verarbeite...</span>
+                        </div>
+                      ) : (
+                        'Video verarbeiten'
+                      )}
+                    </button>
+                    <button 
+                      className="btn-secondary"
+                      onClick={handleReset}
+                      disabled={isProcessing}
+                    >
+                      Anderes Video auswählen
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {step === 'edit' && (
+                <SubtitleEditor
+                  videoFile={originalVideoFile}
+                  subtitles={subtitles}
+                  uploadId={uploadInfo?.uploadId}
+                  onExportSuccess={handleExport}
+                  onExportComplete={handleExportComplete}
+                  isExporting={isExporting || isGenerating}
+                />
+              )}
+
+              {step === 'success' && (
+                <SuccessScreen 
+                  onReset={handleReset}
+                  isLoading={isExporting}
+                  socialText={socialText}
+                  isGeneratingSocial={isGenerating}
+                  socialError={socialError}
+                />
+              )}
             </div>
-          )}
-
-          {step === 'edit' && (
-            <SubtitleEditor
-              videoFile={originalVideoFile}
-              subtitles={subtitles}
-              uploadId={uploadInfo?.uploadId}
-              onExportSuccess={handleExport}
-              onExportComplete={handleExportComplete}
-              isExporting={isExporting || isGenerating}
-            />
-          )}
-
-          {step === 'success' && (
-            <SuccessScreen 
-              onReset={handleReset}
-              isLoading={isExporting}
-              socialText={socialText}
-              isGeneratingSocial={isGenerating}
-              socialError={socialError}
-            />
-          )}
-        </div>
+          </>
+        )}
       </div>
     </ErrorBoundary>
   );
