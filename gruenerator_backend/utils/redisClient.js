@@ -9,6 +9,10 @@
             process.exit(1); 
         }
 
+        // Log the URL being used (mask password for security)
+        const maskedUrl = redisUrl.replace(/:\/\/(.*:)?(.*)@/, '://<user>:<password>@');
+        console.log(`Versuche Verbindung mit Redis: ${maskedUrl}`);
+
         // createClient verwendet automatisch TLS, wenn die URL mit rediss:// beginnt
         const client = createClient({
             url: redisUrl
@@ -20,7 +24,8 @@
 
         // Verbindungsversuch beim Start (asynchron)
         client.connect().catch(err => {
-            console.error('Fehler beim initialen Verbinden mit Redis:', err);
+            // Log the specific connection error
+            console.error(`Fehler beim initialen Verbinden mit Redis (${maskedUrl}):`, err.message);
             // Optional: Prozess beenden, wenn Verbindung kritisch ist
             // process.exit(1); 
         });
