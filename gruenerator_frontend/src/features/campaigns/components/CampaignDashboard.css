@@ -58,6 +58,12 @@
   grid-column: span 6;
 }
 
+/* Definiere, dass AboutSection und ContactFormSection die volle Breite einnehmen */
+.about-section,
+.contact-form-section { 
+  grid-column: span 12; 
+}
+
 .grueneratoren-container {
   display: none;
 }
@@ -127,5 +133,48 @@
   
   .dashboard-section h2 {
     font-size: 1.3rem;
+  }
+}
+
+/* Add styles for the wrapper */
+.about-contact-wrapper {
+  display: flex;
+  gap: 20px; /* Adjust the gap as needed */
+  margin-top: 40px; /* Or use existing variables/styles */
+  grid-column: span 12; /* Make the wrapper span the full grid width */
+  /* Apply card styles to the wrapper */
+  background-color: var(--background-color-alt);
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: var(--shadow-sm); /* Optional: add shadow */
+}
+
+/* Remove card styles from individual sections and set flex basis */
+.about-contact-wrapper > .dashboard-section {
+  /* Remove individual card styling */
+  /* background-color: var(--background-color-alt); */
+  /* padding: 20px; */
+  /* border-radius: 8px; */
+  /* box-shadow: var(--shadow-sm); */
+}
+
+/* Set width distribution */
+.about-contact-wrapper > .dashboard-section:first-child {
+  flex: 1; /* Set equal flex basis */
+}
+
+.about-contact-wrapper > .dashboard-section:last-child {
+  flex: 1; /* Set equal flex basis */
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .about-contact-wrapper {
+    flex-direction: column;
+  }
+  /* Reset flex basis for column layout if needed */
+  .about-contact-wrapper > .dashboard-section:first-child,
+  .about-contact-wrapper > .dashboard-section:last-child {
+    flex: initial; /* Reset flex property */
   }
 } 

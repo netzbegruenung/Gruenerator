@@ -5,6 +5,9 @@ const UniversalTextGenerator = lazy(() => import('../features/texte/universal/Un
 const AntragPage = lazy(() => import('../features/texte/antrag/AntragPage'));
 const YouPage = lazy(() => import('../features/you'));
 const EmptyEditor = lazy(() => import('../features/texte/editor/EmptyEditor'));
+const CustomGeneratorPage = lazy(() => import('../features/generators/CustomGeneratorPage'));
+// Import der neuen Seite zum Erstellen von Generatoren
+const CreateCustomGeneratorPage = lazy(() => import('../features/generators/CreateCustomGeneratorPage'));
 // Temporär auskommentiert, bis die Datei existiert oder der Pfad korrigiert ist
 // import LinkTreeRoutes from '../features/linktree/LinkTreeRoutes';
 const CampaignPage = lazy(() => import('../features/campaigns'));
@@ -41,7 +44,9 @@ export const GrueneratorenBundle = {
   Campaign: CampaignPage,
   Webinar: WebinarCampaign,
   EmptyEditor: EmptyEditor,
-  Admin: AdminApp
+  Admin: AdminApp,
+  CustomGenerator: CustomGeneratorPage,
+  CreateCustomGenerator: CreateCustomGeneratorPage
 };
 
 // Route Konfigurationen
@@ -63,7 +68,8 @@ const standardRoutes = [
   { path: '/kampagne', component: GrueneratorenBundle.Campaign },
   { path: '/webinare', component: GrueneratorenBundle.Webinar },
   { path: '/editor', component: GrueneratorenBundle.EmptyEditor, withForm: true },
-  // { path: '/linktree/*', component: GrueneratorenBundle.LinkTree, showHeaderFooter: false }, // Temporarily commented out
+  { path: '/generator/:slug', component: GrueneratorenBundle.CustomGenerator, withForm: true },
+  { path: '/create-generator', component: GrueneratorenBundle.CreateCustomGenerator, withForm: true },
   { path: '/admin/*', component: GrueneratorenBundle.Admin, showHeaderFooter: false },
   { path: '/datenschutz', component: Datenschutz },
   { path: '/impressum', component: Impressum },
