@@ -80,24 +80,30 @@ const VideoUploader = ({ onUpload, isProcessing = false }) => {
         },
         onSuccess: () => {
           const uploadUrl = upload.url;
-          // Ensure the URL uses HTTPS
-          const secureUploadUrl = uploadUrl.replace('http://', 'https://');
+          // Ensure the URL uses HTTPS if needed (logic might need adjustment based on actual URLs)
+          const secureUploadUrl = uploadUrl.startsWith('http://localhost') ? uploadUrl : uploadUrl.replace('http://', 'https://'); 
           const uploadId = secureUploadUrl.split('/').pop();
           
           setIsUploading(false);
           setUploadProgress(100);
           
-          const fileWithMetadata = {
-            ...file,
+          // 'upload.file' enthält das originale File-Objekt, das an new tus.Upload übergeben wurde
+          const originalFile = upload.file; 
+          
+          // Stelle sicher, dass Metadaten vom vorherigen Schritt vorhanden sind
+          const metadataFromFile = file.metadata || {}; 
+
+          const uploadData = {
+            originalFile: originalFile, // Das wichtige File-Objekt
             uploadId,
-            metadata: file.metadata,
-            name: file.name,
-            size: file.size,
-            type: file.type
+            metadata: metadataFromFile, // Verwende die extrahierten Metadaten
+            name: originalFile.name,
+            size: originalFile.size,
+            type: originalFile.type
           };
           
-          console.log('[VideoUploader] Upload complete. Passing file to parent:', fileWithMetadata);
-          onUpload(fileWithMetadata);
+          console.log('[VideoUploader] Upload complete. Passing data to parent:', uploadData);
+          onUpload(uploadData); // Übergibt das Objekt mit originalFile
         }
       });
 
@@ -162,14 +168,9 @@ const VideoUploader = ({ onUpload, isProcessing = false }) => {
             ) : (
               <>
                 <div className="upload-icon-container">
-                  {isDragActive ? (
-                    <FaUpload className="upload-icon pulsing" />
-                  ) : (
-                    <FaTimes className="upload-icon" style={{ color: '#dc3545' }} />
-                  )}
+                  <FaUpload className={`upload-icon ${isDragActive ? 'pulsing' : ''}`} />
                 </div>
                 <div className="upload-text">
-                  {/* 
                   <h3>
                     {isDragActive
                       ? 'Video hier ablegen'
@@ -187,10 +188,6 @@ const VideoUploader = ({ onUpload, isProcessing = false }) => {
                   </div>
                   <div className="upload-limit">
                     Maximale Dateigröße: 500MB 
-                  </div>
-                  */}
-                  <div className="upload-info" style={{marginTop: '10px', fontSize: '0.9em', color: 'gray'}}>
-                    Hinweis: Der Reel Grünerator wird gerade überarbeitet und ist bald wieder verfügbar.
                   </div>
                 </div>
               </>

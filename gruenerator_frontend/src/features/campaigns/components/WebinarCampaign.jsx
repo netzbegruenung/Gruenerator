@@ -4,6 +4,20 @@ import CampaignDashboard from './CampaignDashboard';
 
 const WebinarCampaign = () => {
 
+  // Example person data
+  const personDataExample = {
+    name: "Moritz Wasserek",
+    bio: "Moritz ist der Entwickler hinter dem Grünerator und Experte für digitale Werkzeuge in der politischen Arbeit. Er freut sich darauf, Ihnen die Möglichkeiten des Grünerators näherzubringen.",
+    imageUrl: "/images/moritz_wasserek.jpg" // Example path, adjust as needed
+  };
+
+  // Example contact data
+  const contactDataExample = {
+    showForm: true,
+    title: "Kontaktiere Moritz",
+    buttonText: "Nachricht senden"
+  };
+
   const webinarData = {
     title: "Grünerator Webinare",
     description: "Hier findest du alle Materialien für unsere Webinar-Kampagne. Nutze die Vorlagen und Texte für eine erfolgreiche Bewerbung deiner Webinare.",
@@ -51,7 +65,8 @@ const WebinarCampaign = () => {
         content: "🌱 Webinar: Grünerator für die Ratsarbeit\n\nWann: [DATUM]\nWo: Online\n\nEntdecke den GRÜNERATOR: Dein smarter Assistent für die Ratsarbeit!\n\nDu möchtest Anträge präzise prüfen oder Reden effizient vorbereiten? Der Grünerator macht's möglich! In unserem Webinar zeigen wir dir, wie du das KI-Tool optimal einsetzt, um deine Ratsarbeit effizienter und zielgerichteter zu gestalten.\n\nEgal ob für Anträge, Reden oder Wahlprogramme – der Grünerator ist dein digitaler Partner für die Ratsarbeit.\n\nJetzt anmelden: [LINK]\n\n#Grünerator #Ratsarbeit #Webinar" 
       }
     ],
-    personData: personDataExample
+    personData: personDataExample,
+    contact: contactDataExample
   };
 
   return (

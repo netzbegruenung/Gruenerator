@@ -22,6 +22,7 @@ import { hasFormErrors } from '../utils/errorUtils';
  * @param {Object} props.featureToggle - Props für den Feature-Toggle
  * @param {boolean} props.useFeatureToggle - Soll der Feature-Toggle verwendet werden
  * @param {node} props.children - Kindelemente
+ * @param {boolean} props.showSubmitButton - Soll der Submit-Button angezeigt werden
  * @returns {JSX.Element} Formular-Sektion
  */
 const FormSection = ({
@@ -37,7 +38,8 @@ const FormSection = ({
   submitButtonProps = {},
   featureToggle,
   useFeatureToggle,
-  children
+  children,
+  showSubmitButton = true
 }) => {
   const formContainerClasses = getFormContainerClasses(isFormVisible);
   const formContentClasses = getFormContentClasses(hasFormErrors(formErrors));
@@ -76,29 +78,33 @@ const FormSection = ({
                   Zurück
                 </button>
               )}
-              <SubmitButton
-                onClick={onSubmit}
-                loading={loading}
-                success={success}
-                text={nextButtonText || 'Weiter'}
-                icon={<HiCog />}
-                className={submitButtonClasses}
-                ariaLabel={nextButtonText || 'Weiter'}
-                {...submitButtonProps}
-              />
+              {showSubmitButton && (
+                <SubmitButton
+                  onClick={onSubmit}
+                  loading={loading}
+                  success={success}
+                  text={nextButtonText || 'Weiter'}
+                  icon={<HiCog />}
+                  className={submitButtonClasses}
+                  ariaLabel={nextButtonText || 'Weiter'}
+                  {...submitButtonProps}
+                />
+              )}
             </div>
           ) : (
             <div className="button-container">
-              <SubmitButton
-                onClick={onSubmit}
-                loading={loading}
-                success={success}
-                text={submitButtonProps.defaultText || "Grünerieren"}
-                icon={<HiCog />}
-                className="submit-button form-button"
-                ariaLabel="Generieren"
-                {...submitButtonProps}
-              />
+              {showSubmitButton && (
+                <SubmitButton
+                  onClick={onSubmit}
+                  loading={loading}
+                  success={success}
+                  text={submitButtonProps.defaultText || "Grünerieren"}
+                  icon={<HiCog />}
+                  className="submit-button form-button"
+                  ariaLabel="Generieren"
+                  {...submitButtonProps}
+                />
+              )}
             </div>
           )}
         </div>
@@ -132,13 +138,15 @@ FormSection.propTypes = {
     statusMessage: PropTypes.string
   }),
   useFeatureToggle: PropTypes.bool,
-  children: PropTypes.node.isRequired
+  children: PropTypes.node.isRequired,
+  showSubmitButton: PropTypes.bool
 };
 
 FormSection.defaultProps = {
   isMultiStep: false,
   showBackButton: false,
-  useFeatureToggle: false
+  useFeatureToggle: false,
+  showSubmitButton: true
 };
 
 export default FormSection; 
