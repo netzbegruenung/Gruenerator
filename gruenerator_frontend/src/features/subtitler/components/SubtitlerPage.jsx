@@ -10,7 +10,7 @@ import MaintenanceNotice from '../../../components/common/MaintenanceNotice'; //
 
 // --- Maintenance Flag ---
 // Set to true to enable maintenance mode for this page
-const IS_SUBTITLER_UNDER_MAINTENANCE = true;
+const IS_SUBTITLER_UNDER_MAINTENANCE = false;
 // ------------------------
 
 const SubtitlerPage = () => {
