@@ -9,10 +9,16 @@ const supabaseKey = process.env.VITE_YOU_SUPABASE_ANON_KEY;
 // Erstelle Supabase Client
 let youSupabase;
 if (supabaseUrl && supabaseKey) {
-  youSupabase = createClient(supabaseUrl, supabaseKey);
+  try {
+    youSupabase = createClient(supabaseUrl, supabaseKey);
+    console.log('[custom_generator] Supabase client initialized successfully.'); // Optional: Add success log
+  } catch (error) {
+    console.error(\`[custom_generator] Failed to initialize Supabase client: ${error.message}. Invalid URL provided?\`, { supabaseUrlProvided: supabaseUrl });
+    youSupabase = null; // Ensure youSupabase is null if initialization fails
+  }
 } else {
-  console.error("Supabase URL or Key is missing. Custom generator functionality will be disabled.");
-  // Optional: Handle the absence of Supabase client, e.g., disable related routes or functionality.
+  console.error("[custom_generator] Supabase URL or Key is missing. Custom generator functionality will be disabled.");
+  // youSupabase is already undefined/null here, so no change needed
 }
 
 router.post('/', async (req, res) => {
