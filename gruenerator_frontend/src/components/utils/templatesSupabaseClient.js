@@ -8,9 +8,15 @@ const supabaseKey = import.meta.env.VITE_TEMPLATES_SUPABASE_ANON_KEY;
 // Erstelle den Supabase Client für Templates nur, wenn Variablen vorhanden sind
 let templatesSupabase = null;
 if (supabaseUrl && supabaseKey) {
-  templatesSupabase = createClient(supabaseUrl, supabaseKey);
+  try {
+    templatesSupabase = createClient(supabaseUrl, supabaseKey);
+    console.log('[templatesSupabase] Client initialized successfully.'); // Optional success log
+  } catch (error) {
+    console.error(`[templatesSupabase] Failed to initialize client: ${error.message}. Invalid URL?`, { urlProvided: supabaseUrl });
+    templatesSupabase = null; // Ensure client is null on error
+  }
 } else {
-  console.warn('Template Supabase environment variables not found. Template functionality will be disabled.');
+  console.warn('[templatesSupabase] Environment variables not found. Functionality will be disabled.');
 }
 
 // Exportiere den möglicherweise nullen Client (Benutzer sollten prüfen)

@@ -8,16 +8,25 @@ let supabase = null;
 let baseDataProvider = null;
 
 if (supabaseUrl && supabaseKey) {
-  supabase = createClient(supabaseUrl, supabaseKey);
+  try {
+    supabase = createClient(supabaseUrl, supabaseKey);
+    console.log('[dataProvider] Supabase client initialized successfully.');
+    
+    // Basis-DataProvider erstellen
+    baseDataProvider = supabaseDataProvider({
+      instanceUrl: supabaseUrl,
+      apiKey: supabaseKey,
+      supabaseClient: supabase
+    });
+  } catch (error) {
+    console.error(`[dataProvider] Failed to initialize Supabase client: ${error.message}. Invalid URL?`, { urlProvided: supabaseUrl });
+    supabase = null; // Explicitly set to null on error
+  }
+} 
 
-  // Basis-DataProvider erstellen
-  baseDataProvider = supabaseDataProvider({
-    instanceUrl: supabaseUrl,
-    apiKey: supabaseKey,
-    supabaseClient: supabase
-  });
-} else {
-  console.warn('Template Supabase environment variables not found. Admin data provider functionality will be disabled.');
+// Wenn die Initialisierung fehlschlug (oder Vars fehlten), setze Dummy-Provider
+if (!baseDataProvider) {
+  console.warn('[dataProvider] Supabase environment variables missing, invalid, or client initialization failed. Admin data provider functionality will be disabled.');
   // Erstelle einen Dummy-DataProvider, der leere/fehlerhafte Antworten gibt
   baseDataProvider = {
     getList: () => Promise.resolve({ data: [], total: 0 }),
