@@ -8,9 +8,15 @@ const supabaseKey = import.meta.env.VITE_YOU_SUPABASE_ANON_KEY;
 // Erstelle den Supabase Client für YOU nur, wenn Variablen vorhanden sind
 let youSupabase = null;
 if (supabaseUrl && supabaseKey) {
-  youSupabase = createClient(supabaseUrl, supabaseKey);
+  try {
+    youSupabase = createClient(supabaseUrl, supabaseKey);
+    console.log('[youSupabase] Client initialized successfully.'); // Optional success log
+  } catch (error) {
+    console.error(`[youSupabase] Failed to initialize client: ${error.message}. Invalid URL?`, { urlProvided: supabaseUrl });
+    youSupabase = null; // Ensure client is null on error
+  }
 } else {
-  console.warn('YOU Supabase environment variables not found. Custom generator functionality will be disabled.');
+  console.warn('[youSupabase] Environment variables not found. Functionality will be disabled.');
 }
 
 // Exportiere den möglicherweise nullen Client
