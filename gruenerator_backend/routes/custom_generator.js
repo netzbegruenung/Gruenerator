@@ -13,7 +13,7 @@ if (supabaseUrl && supabaseKey) {
     youSupabase = createClient(supabaseUrl, supabaseKey);
     console.log('[custom_generator] Supabase client initialized successfully.'); // Optional: Add success log
   } catch (error) {
-    console.error(\`[custom_generator] Failed to initialize Supabase client: ${error.message}. Invalid URL provided?\`, { supabaseUrlProvided: supabaseUrl });
+    console.error(`[custom_generator] Failed to initialize Supabase client: ${error.message}. Invalid URL provided?`, { supabaseUrlProvided: supabaseUrl });
     youSupabase = null; // Ensure youSupabase is null if initialization fails
   }
 } else {
