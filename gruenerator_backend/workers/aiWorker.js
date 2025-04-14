@@ -118,6 +118,9 @@ async function processAIRequest(requestId, data) {
         'antrag': {
           system: "Du bist ein erfahrener Kommunalpolitiker von Bündnis 90/Die Grünen...",
           temperature: 0.3
+        },
+        'generator_config': {
+          temperature: 0.5
         }
       };
 
@@ -244,7 +247,13 @@ async function processWithOpenAI(requestId, data) {
       openAIMessages.push({ role: 'system', content: systemPrompt });
     }
     if (messages) {
-      openAIMessages.push(...messages);
+      // Simple message structure expected for generator_config
+      messages.forEach(msg => {
+        openAIMessages.push({
+          role: msg.role,
+          content: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content) // Ensure content is string
+        });
+      });
     }
   }
 
@@ -256,7 +265,7 @@ async function processWithOpenAI(requestId, data) {
       messages: openAIMessages,
       temperature: 0.9,
       max_tokens: 4000,
-      response_format: type === 'social' ? { type: "json_object" } : undefined
+      response_format: (type === 'social' || type === 'generator_config') ? { type: "json_object" } : undefined
     });
 
     // Validate the response

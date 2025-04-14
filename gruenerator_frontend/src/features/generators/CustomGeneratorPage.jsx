@@ -118,9 +118,6 @@ const CustomGeneratorPage = ({ showHeaderFooter = true }) => {
           {!generatedContent && (
             <>
              {renderFormInputs()}
-             <button type="submit" className="button button-primary" disabled={submitLoading}>
-                {submitLoading ? 'Generiere...' : 'Generieren'}
-             </button>
             </>
           )}
 

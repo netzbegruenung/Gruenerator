@@ -54,7 +54,7 @@ export default defineConfig(({ command }) => ({
       overlay: false
     },
     watch: {
-      usePolling: false
+      usePolling: true
     }
   }
 })) 

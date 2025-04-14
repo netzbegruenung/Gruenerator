@@ -3,9 +3,8 @@
 
 /* Help Content Styles */
 .help-display {
-  background-color: var(--background-color-alt);
   border-radius: 8px;
-  padding: 20px;
+  padding-top: 20px;
   margin-bottom: 20px;
   color: var(--text-color);
 }
