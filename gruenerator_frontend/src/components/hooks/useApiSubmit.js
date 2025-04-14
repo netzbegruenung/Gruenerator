@@ -162,6 +162,29 @@ const useApiSubmit = (endpoint) => {
             originalPrompt: response.originalPrompt || ''
           };
         }
+      } else if (endpoint === '/generate_generator_config') {
+        console.log('[useApiSubmit] Processing generator_config response:', response);
+        if (response && 
+            typeof response === 'object' &&
+            typeof response.name === 'string' &&
+            typeof response.slug === 'string' &&
+            Array.isArray(response.fields) &&
+            typeof response.prompt === 'string' &&
+            response.fields.every(field => 
+                typeof field === 'object' && 
+                field !== null && 
+                typeof field.label === 'string' &&
+                typeof field.name === 'string' &&
+                (field.type === 'text' || field.type === 'textarea') &&
+                typeof field.required === 'boolean'
+            )
+        ) {
+            setSuccess(true);
+            return response;
+        } else {
+            console.error('[useApiSubmit] Invalid structure for /generate_generator_config:', response);
+            throw new Error('Ungültige Struktur für Generator-Konfiguration von der API erhalten.');
+        }
       } else {
         // Standard AI-Response-Behandlung
         if (response && response.content) {

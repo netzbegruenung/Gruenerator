@@ -63,10 +63,8 @@
 }
 
 .form-buttons {
-  flex: 1;
   width: 100%;
   min-width: 0;
-  max-width: calc(50% - 10px);
 }
 
 .back-button .form-button {
@@ -80,12 +78,11 @@
 }
 
 .form-button{
-  width: 100%;
+  flex: 1;
+  border-radius: var(--button-border-radius);
 }
 
 .back-button {
-  flex: 0 0 auto;
-  min-width: fit-content;
   background-color: var(--weiß);
   color: #333;
 }
