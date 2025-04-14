@@ -156,4 +156,79 @@
     margin-top: var(--spacing-large, 24px); /* Add space above the add button/message */
 }
 
-/* Placeholder for other styles specific to this page if needed */ 
+/* Placeholder for other styles specific to this page if needed */
+
+/* --- Styles for New Mode Selection Cards --- */
+.mode-selection-container {
+    display: flex;
+    gap: var(--spacing-large, 24px); /* Space between cards */
+    margin-bottom: var(--spacing-xlarge, 32px); /* Space below the cards */
+    justify-content: center; /* Center cards if they don't fill width */
+    flex-wrap: wrap; /* Allow cards to wrap on smaller screens */
+}
+
+.mode-card {
+    flex: 1; /* Allow cards to grow */
+    min-width: 250px; /* Minimum width before wrapping */
+    max-width: 400px; /* Optional: Max width for very large screens */
+    padding: var(--spacing-large, 24px);
+    border: 2px solid var(--border-subtle); /* Use subtle border by default */
+    border-radius: var(--border-radius-large, 8px);
+    background-color: transparent; /* Start transparent or use a subtle tint */
+    /* background-color: rgba(var(--tanne-rgb, 0, 85, 56), 0.05); /* Very subtle tint */
+    box-shadow: var(--shadow-sm); /* Subtle shadow */
+    cursor: pointer;
+    transition: transform 0.2s ease-in-out, border-color 0.2s ease-in-out, background-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    text-align: center;
+    position: relative; /* For potential future additions like checkmarks */
+}
+
+.mode-card:hover {
+    transform: translateY(-4px); /* Slight lift effect */
+    border-color: var(--sand); /* Highlight border on hover */
+    box-shadow: var(--shadow-md); /* Increase shadow on hover */
+}
+
+/* Style for the selected card */
+.mode-card.selected {
+    border-color: var(--tanne); /* Prominent border color */
+    background-color: rgba(var(--tanne-rgb, 0, 85, 56), 0.1); /* Tint background */
+    box-shadow: var(--shadow-md); /* Keep shadow consistent */
+}
+
+/* Add focus style for accessibility */
+.mode-card:focus-visible {
+    outline: 2px solid var(--himmel); /* Clear focus indicator */
+    outline-offset: 2px;
+}
+
+.mode-card__icon {
+    font-size: 2rem; /* Adjust icon size as needed */
+    margin-bottom: var(--spacing-medium, 16px);
+    /* You might want to style specific icons differently if needed */
+}
+
+.mode-card__title {
+    color: var(--font-color-h); /* Use heading color */
+    font-weight: 600;
+    font-size: 1.25rem; /* Slightly larger title */
+    margin-bottom: var(--spacing-small, 12px);
+}
+
+.mode-card__description {
+    color: var(--font-color); /* Standard text color */
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+/* Remove old mode selection box styles */
+/* --- Styles for Mode Selection --- */
+/* .mode-selection-box { ... } REMOVED */
+/* .mode-selection-box h4 { ... } REMOVED */
+/* .mode-selection-box .form-check { ... } REMOVED */
+/* .mode-selection-box .form-check:last-child { ... } REMOVED */
+/* .mode-selection-box .form-check:hover { ... } REMOVED */
+/* .mode-selection-box .form-check-input { ... } REMOVED */
+/* .mode-selection-box .form-check-input:checked { ... } REMOVED */
+/* .mode-selection-box .form-check-input:focus { ... } REMOVED */
+/* .mode-selection-box .form-check-label { ... } REMOVED */ 
