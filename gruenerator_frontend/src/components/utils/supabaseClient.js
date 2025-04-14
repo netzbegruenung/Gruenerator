@@ -5,16 +5,36 @@ import { handleError } from './errorHandling';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// Prüfe ob die Umgebungsvariablen vorhanden sind
-if (!supabaseUrl || !supabaseKey) {
-  console.error('Supabase Umgebungsvariablen nicht gefunden. Bitte .env Datei prüfen.');
+// Versuche, den Supabase Client zu erstellen
+let supabaseInstance = null;
+
+if (supabaseUrl && supabaseKey) {
+  try {
+    supabaseInstance = createClient(supabaseUrl, supabaseKey);
+    console.log('[supabaseClient] Client initialized successfully.');
+  } catch (error) {
+    console.error(`[supabaseClient] Failed to initialize client: ${error.message}. Invalid URL?`, { urlProvided: supabaseUrl });
+    // supabaseInstance bleibt null
+  }
+} else {
+  console.error('[supabaseClient] Supabase environment variables not found. Check .env file. Functionality will be disabled.');
 }
 
-// Erstelle und exportiere den Supabase Client
-export const supabase = createClient(supabaseUrl, supabaseKey);
+// Exportiere die (möglicherweise null) Supabase-Instanz
+export const supabase = supabaseInstance;
 
 // Hilfsfunktionen für häufige Datenbankoperationen
 export const supabaseUtils = {
+  // Check if supabase client is initialized before making calls
+  _getClient() {
+    if (!supabase) {
+      const errorMsg = 'Supabase client is not initialized. Check environment variables and logs.';
+      console.error(errorMsg);
+      throw new Error(errorMsg);
+    }
+    return supabase;
+  },
+
   /**
    * Generische Funktion zum Abrufen von Daten aus einer Tabelle
    * @param {string} table - Tabellenname
@@ -22,8 +42,9 @@ export const supabaseUtils = {
    * @returns {Promise} - Promise mit den Daten oder Error
    */
   async fetchData(table, options = {}) {
+    const client = this._getClient(); // Get client or throw error
     try {
-      let query = supabase.from(table).select(options.select || '*');
+      let query = client.from(table).select(options.select || '*');
       
       if (options.filter) {
         query = query.filter(options.filter.column, options.filter.operator, options.filter.value);
@@ -54,8 +75,9 @@ export const supabaseUtils = {
    * @returns {Promise} - Promise mit den gespeicherten Daten oder Error
    */
   async insertData(table, data) {
+    const client = this._getClient(); // Get client or throw error
     try {
-      const { data: result, error } = await supabase
+      const { data: result, error } = await client
         .from(table)
         .insert(data)
         .select();
