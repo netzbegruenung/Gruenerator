@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { createClient } = require('@supabase/supabase-js');
+const { HTML_FORMATTING_INSTRUCTIONS } = require('../utils/promptUtils.js');
 
 // Supabase Konfiguration
 const supabaseUrl = process.env.VITE_YOU_SUPABASE_URL;
@@ -52,6 +53,9 @@ router.post('/', async (req, res) => {
     Object.entries(formData).forEach(([key, value]) => {
       processedPrompt = processedPrompt.replace(new RegExp(`{{${key}}}`, 'g'), value);
     });
+
+    // Append HTML formatting instructions
+    processedPrompt += `\n\n${HTML_FORMATTING_INSTRUCTIONS}`;
 
     console.log('[custom_generator] Verarbeiteter Prompt:', processedPrompt);
 

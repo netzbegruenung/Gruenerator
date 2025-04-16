@@ -1,0 +1,243 @@
+.generator-start-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 160px);
+  padding: 40px 20px;
+  background-color: var(--background-color-pure);
+  margin-left: auto;
+  margin-right: auto;
+  width: fit-content;
+}
+
+.start-screen-content {
+  max-width: 700px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  width: 100%;
+}
+
+.generator-start-screen h1 {
+  font-size: 2.8rem;
+  color: var(--font-color-h);
+  margin-bottom: 15px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: left;
+}
+
+.generator-start-screen .subtitle {
+  font-size: 1.2rem;
+  color: var(--font-color);
+  margin-bottom: 40px;
+  max-width: 100%;
+  line-height: 1.5;
+  text-align: left;
+}
+
+/* New styles for the input wrapper */
+.input-wrapper {
+  display: flex;
+  flex-direction: column;
+  position: relative; /* Needed for potential future absolute positioning inside, though not used now */
+  width: 100%;
+  border-radius: 12px;
+  background-color: var(--background-color-pure);
+  box-shadow: var(--shadow-md);
+  transition: all 0.2s ease;
+  margin-bottom: 25px; /* Keep the original margin */
+  overflow: hidden; /* Hide anything that might stick out */
+}
+
+.input-wrapper:focus-within {
+  outline: 2px solid var(--link-color);
+  outline-offset: 2px;
+  box-shadow: var(--shadow-lg);
+}
+
+.input-wrapper.error-input {
+  outline: 2px solid var(--sonne);
+  outline-offset: 2px;
+}
+
+/* Modified styles for the textarea itself */
+.description-input {
+  flex-grow: 1; /* Take up available space */
+  width: 100%;
+  padding: 20px; /* Keep padding, adjusted by dynamic padding-bottom */
+  font-size: 1.1rem;
+  border: none; /* Remove border */
+  border-radius: 0; /* Remove radius, wrapper has it */
+  background-color: transparent; /* Make transparent */
+  box-shadow: none; /* Remove shadow */
+  resize: none; /* Disable manual resize */
+  line-height: 1.6;
+  color: var(--font-color);
+  margin-bottom: 0; /* Remove original margin */
+  outline: none; /* Remove default outline */
+}
+
+/* Remove focus/error styles from textarea, handled by wrapper */
+.description-input:focus,
+.description-input.error-input {
+  outline: none;
+  box-shadow: none;
+}
+
+.description-input::placeholder {
+  color: var(--font-color);
+  opacity: 0.7;
+}
+
+/* Container for example prompts inside the wrapper */
+.example-prompts-container {
+  padding: 0 15px 10px 15px; /* Padding around the examples */
+  align-self: flex-end; /* Move to the right */
+  margin-top: -10px; /* Slightly overlap textarea bottom padding if needed, adjust as necessary */
+}
+
+/* Styles for Example Prompts */
+.example-prompts {
+  display: flex;
+  flex-wrap: wrap; /* Allow buttons to wrap on smaller screens */
+  gap: 10px;
+  margin-bottom: 20px; /* Space below examples */
+  width: 100%;
+}
+
+.example-prompt-button {
+  background-color: var(--hintergrund-hell);
+  border: 1px solid var(--hintergrund-mittel);
+  border-radius: 20px; /* Pill shape */
+  padding: 8px 15px;
+  font-size: 0.9rem;
+  color: var(--font-color);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+  text-align: left;
+  white-space: nowrap; /* Prevent text wrapping inside button */
+}
+
+.example-prompt-button span:first-child {
+  font-size: 1.1em; /* Make icon slightly larger */
+}
+
+.example-prompt-button:hover {
+  background-color: var(--hintergrund-mittel);
+  border-color: var(--hintergrund-dunkel);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.example-prompt-button:focus {
+  outline: 2px solid var(--link-color);
+  outline-offset: 2px;
+}
+/* End of Styles for Example Prompts */
+
+.generate-button {
+  padding: 18px 40px;
+  font-size: 1.2rem;
+  margin-top: 15px;
+  min-width: 280px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  border-radius: 8px;
+  background-color: var(--tanne);
+  color: var(--sand);
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 500;
+  align-self: center;
+  box-shadow: var(--shadow-md);
+}
+
+.generate-button:hover:not(:disabled) {
+  background-color: var(--dunkelgruen-alt);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-lg);
+}
+
+.manual-setup-link {
+  margin-top: 30px;
+  font-size: 1rem;
+  color: var(--link-color);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+  transition: color 0.2s ease;
+  padding: 8px 16px;
+  align-self: center;
+}
+
+.manual-setup-link:hover:not(:disabled) {
+  color: var(--klee);
+}
+
+.error-message {
+  color: var(--sonne);
+  margin: -15px 0 20px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  align-self: flex-start;
+}
+
+.loading-spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 3px solid color-mix(in srgb, var(--sand) 30%, transparent);
+  border-radius: 50%;
+  border-top-color: var(--sand);
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 768px) {
+  .generator-start-screen {
+    padding: 20px 15px;
+    min-height: calc(100vh - 120px);
+  }
+
+  .generator-start-screen h1 {
+    font-size: 2rem;
+  }
+
+  .generator-start-screen .subtitle {
+    font-size: 1rem;
+    margin-bottom: 30px;
+    max-width: 95%;
+  }
+
+  .description-input {
+    padding: 15px;
+    font-size: 1rem;
+  }
+
+  .generate-button {
+    padding: 15px 25px;
+    font-size: 1.1rem;
+    width: 100%;
+    min-width: unset;
+  }
+
+  .manual-setup-link {
+    margin-top: 25px;
+    font-size: 0.9rem;
+  }
+} 
