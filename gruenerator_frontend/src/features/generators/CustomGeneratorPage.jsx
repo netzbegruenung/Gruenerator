@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { useParams } from 'react-router-dom';
 import BaseForm from '../../components/common/BaseForm';
 import { youSupabaseUtils } from '../../components/utils/youSupabaseClient';
 import useApiSubmit from '../../components/hooks/useApiSubmit';
 import ErrorBoundary from '../../components/ErrorBoundary';
-import SuccessScreen from '../../components/common/SuccessScreen';
+import '../../assets/styles/components/custom-generator/custom-generator-page.css';
+import { FormContext } from '../../components/utils/FormContext';
 
 const CustomGeneratorPage = ({ showHeaderFooter = true }) => {
   const { slug } = useParams();
@@ -13,13 +14,16 @@ const CustomGeneratorPage = ({ showHeaderFooter = true }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { submitForm, loading: submitLoading, success, resetSuccess, error: submitError } = useApiSubmit('/custom_generator');
-  const [generatedContent, setGeneratedContent] = useState('');
+  const [localGeneratedContent, setLocalGeneratedContent] = useState('');
+  const { setGeneratedContent } = useContext(FormContext);
 
   useEffect(() => {
     const fetchGeneratorConfig = async () => {
       if (!slug) return;
       setLoading(true);
       setError(null);
+      setLocalGeneratedContent('');
+      setGeneratedContent('');
       try {
         const data = await youSupabaseUtils.fetchData('custom_generators', {
           filter: { column: 'slug', operator: 'eq', value: slug },
@@ -28,10 +32,9 @@ const CustomGeneratorPage = ({ showHeaderFooter = true }) => {
 
         if (data && data.length > 0) {
           setGeneratorConfig(data[0]);
-          // Initialisiere formData mit leeren Werten für alle Felder
           const initialFormData = {};
           data[0].form_schema.fields.forEach(field => {
-            initialFormData[field.name] = '';
+            initialFormData[field.name] = field.defaultValue || '';
           });
           setFormData(initialFormData);
         } else {
@@ -62,13 +65,27 @@ const CustomGeneratorPage = ({ showHeaderFooter = true }) => {
         formData
       });
       
-      if (response) {
-        setGeneratedContent(response);
+      const content = response?.content || (typeof response === 'string' ? response : '');
+      
+      if (content) {
+        setLocalGeneratedContent(content);
+        setGeneratedContent(content);
         setTimeout(resetSuccess, 3000);
+      } else {
+        setLocalGeneratedContent('');
+        setGeneratedContent('');
       }
     } catch (err) {
       console.error('Fehler bei der Generierung:', err);
+      setLocalGeneratedContent('');
+      setGeneratedContent('');
     }
+  };
+
+  const handleReset = () => {
+    setLocalGeneratedContent('');
+    setGeneratedContent('');
+    resetSuccess();
   };
 
   if (loading) return <div>Lade...</div>;
@@ -79,7 +96,7 @@ const CustomGeneratorPage = ({ showHeaderFooter = true }) => {
     <>
       {generatorConfig.form_schema.fields.map((field) => (
         <div key={field.name} className="form-field">
-          <h2><label htmlFor={field.name}>{field.label}</label></h2>
+          <label htmlFor={field.name}><h3>{field.label}</h3></label>
           {field.type === 'textarea' ? (
             <textarea
               id={field.name}
@@ -107,40 +124,24 @@ const CustomGeneratorPage = ({ showHeaderFooter = true }) => {
 
   return (
     <ErrorBoundary>
-      <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
+      <div className={`custom-generator-page-container container ${showHeaderFooter ? 'with-header' : ''}`}>
         <BaseForm
+          title={generatorConfig.name || generatorConfig.title}
           onSubmit={handleSubmit}
           loading={submitLoading}
           success={success}
           error={submitError}
+          generatedContent={localGeneratedContent}
+          onReset={handleReset}
+          showResetButton={!!localGeneratedContent || Object.values(formData).some(v => v !== '')}
+          headerContent={
+            <div className="generator-header">
+              {generatorConfig.title && <h2 className="generator-title">{generatorConfig.title}</h2>}
+              {generatorConfig.description && <p className="generator-description">{generatorConfig.description}</p>}
+            </div>
+          }
         >
-          <h3>{generatorConfig.name}</h3>
-          {!generatedContent && (
-            <>
-             {renderFormInputs()}
-            </>
-          )}
-
-          {generatedContent && (
-            <SuccessScreen
-              title="Ergebnis"
-              message={<pre>{generatedContent}</pre>}
-            >
-              <button
-                className="button button-secondary"
-                onClick={() => navigator.clipboard.writeText(generatedContent)}
-              >
-                Kopieren
-              </button>
-              <button
-                className="button button-secondary"
-                onClick={() => { setGeneratedContent(''); resetSuccess(); }}
-              >
-                Neu generieren
-              </button>
-            </SuccessScreen>
-          )}
-
+          {renderFormInputs()}
         </BaseForm>
       </div>
     </ErrorBoundary>
