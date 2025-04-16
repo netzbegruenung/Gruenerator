@@ -48,7 +48,8 @@ const BaseForm = ({
   disableAutoCollapse = false,
   featureToggle = null,
   useFeatureToggle = false,
-  showNextButton = true
+  showNextButton = true,
+  headerContent
 }) => {
   // Verwende die neuen Hooks
   const {
@@ -166,60 +167,63 @@ const BaseForm = ({
   console.log(`[BaseForm] Value from useContentManagement before render: ${value?.substring(0, 50)}... (Length: ${value?.length})`);
 
   return (
-    <div className={baseContainerClasses}>
-      {!isFocusMode && isMultiPlatform && (
-        <FormToggleButton
-          isFormVisible={isFormVisible}
-          toggleForm={handleToggleForm}
-        />
-      )}
-      {!isFocusMode && (
-        isEditing ? (
-          <>
-            <EditorChat isEditing={isEditing} />
-          </>
-        ) : (
-          <FormSection
-            onSubmit={onSubmit}
-            loading={loading}
-            success={success}
-            formErrors={formErrors}
+    <>
+      { !isEditing && headerContent }
+      <div className={baseContainerClasses}>
+        {!isFocusMode && isMultiPlatform && (
+          <FormToggleButton
             isFormVisible={isFormVisible}
-            isMultiStep={isMultiStep}
-            onBack={onBack}
-            showBackButton={showBackButton}
-            nextButtonText={nextButtonText}
-            submitButtonProps={submitButtonProps}
-            featureToggle={featureToggle}
-            useFeatureToggle={useFeatureToggle}
-            showSubmitButton={showNextButton}
-          >
-            {console.log('[BaseForm] Rendering FormSection content.')}
-            {children}
-          </FormSection>
-        )
-      )}
-      <DisplaySection
-        title={displayTitle}
-        error={errorState || propError}
-        value={value}
-        generatedContent={generatedContent}
-        isEditing={isEditing}
-        allowEditing={allowEditing}
-        hideEditButton={hideEditButton}
-        usePlatformContainers={usePlatformContainers}
-        helpContent={helpContent}
-        generatedPost={generatedPost}
-        onGeneratePost={onGeneratePost}
-        handleToggleEditMode={handleToggleEditMode}
-        getExportableContent={getExportableContent}
-        onToggleFocusMode={handleToggleFocusMode}
-        isFocusMode={isFocusMode}
-      />
-      {!isMobileView && !isFocusMode && (
-        <Tooltip id="action-tooltip" place="bottom" />
-      )}
-    </div>
+            toggleForm={handleToggleForm}
+          />
+        )}
+        {!isFocusMode && (
+          isEditing ? (
+            <>
+              <EditorChat isEditing={isEditing} />
+            </>
+          ) : (
+            <FormSection
+              onSubmit={onSubmit}
+              loading={loading}
+              success={success}
+              formErrors={formErrors}
+              isFormVisible={isFormVisible}
+              isMultiStep={isMultiStep}
+              onBack={onBack}
+              showBackButton={showBackButton}
+              nextButtonText={nextButtonText}
+              submitButtonProps={submitButtonProps}
+              featureToggle={featureToggle}
+              useFeatureToggle={useFeatureToggle}
+              showSubmitButton={showNextButton}
+            >
+              {console.log('[BaseForm] Rendering FormSection content.')}
+              {children}
+            </FormSection>
+          )
+        )}
+        <DisplaySection
+          title={displayTitle}
+          error={errorState || propError}
+          value={value}
+          generatedContent={generatedContent}
+          isEditing={isEditing}
+          allowEditing={allowEditing}
+          hideEditButton={hideEditButton}
+          usePlatformContainers={usePlatformContainers}
+          helpContent={helpContent}
+          generatedPost={generatedPost}
+          onGeneratePost={onGeneratePost}
+          handleToggleEditMode={handleToggleEditMode}
+          getExportableContent={getExportableContent}
+          onToggleFocusMode={handleToggleFocusMode}
+          isFocusMode={isFocusMode}
+        />
+        {!isMobileView && !isFocusMode && (
+          <Tooltip id="action-tooltip" place="bottom" />
+        )}
+      </div>
+    </>
   );
 };
 
@@ -271,7 +275,8 @@ BaseForm.propTypes = {
     statusMessage: PropTypes.string
   }),
   useFeatureToggle: PropTypes.bool,
-  showNextButton: PropTypes.bool
+  showNextButton: PropTypes.bool,
+  headerContent: PropTypes.node
 };
 
 BaseForm.defaultProps = {
