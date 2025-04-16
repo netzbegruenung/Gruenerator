@@ -1,7 +1,5 @@
 const express = require('express');
 const router = express.Router();
-const { createClient } = require('@supabase/supabase-js'); // Assuming Supabase might be needed later for slug checks, etc.
-const { HTML_FORMATTING_INSTRUCTIONS } = require('../utils/promptUtils'); // Include if needed for prompt formatting
 
 // Helper function to generate the sanitized name (similar to frontend)
 const generateSanitizedName = (label) => {
@@ -29,40 +27,39 @@ router.post('/', async (req, res) => {
   }
 
   try {
-    const systemPrompt = `Du bist ein Assistent, der dabei hilft, Konfigurationen für einen benutzerdefinierten Textgenerator zu erstellen.
-Basierend auf der Beschreibung des Benutzers sollst du eine JSON-Struktur generieren, die Folgendes enthält:
+    // Simplified system prompt
+    const systemPrompt = `Du bist ein Assistent, der JSON-Konfigurationen für Textgeneratoren erstellt.`;
+
+    // Detailed instructions moved to the user message
+    const userContent = `Erstelle eine Generator-Konfiguration für folgende Beschreibung:
+\"${description}\"
+
+Deine Antwort muss ausschließlich ein valides JSON-Objekt sein, ohne Erklärungen davor oder danach. Das JSON-Objekt muss folgende Schlüssel enthalten:
 1.  \`name\`: Ein kurzer, aussagekräftiger Name für den Generator (string).
 2.  \`slug\`: Ein URL-freundlicher Bezeichner (nur Kleinbuchstaben, Zahlen, Bindestriche) (string).
-3.  \`fields\`: Ein Array von Formularfeld-Objekten (max. 5). Jedes Objekt muss enthalten:
-    *   \`label\`: Der Text, der dem Benutzer im Formular angezeigt wird (string).
-    *   \`name\`: Ein technischer Name (nur Kleinbuchstaben, Zahlen, Unterstriche), automatisch vom Label abgeleitet (string).
-    *   \`type\`: Entweder 'text' (für kurze Eingaben) oder 'textarea' (für längere Eingaben) (string). Wähle basierend auf dem Label sinnvoll aus.
-    *   \`required\`: Ob das Feld ausgefüllt werden muss (boolean). Leite ab, ob das Feld essenziell erscheint.
-    *   \`placeholder\`: Optionaler Hilfetext im Feld (string).
-4.  \`prompt\`: Die Kernanweisung für die spätere KI-Generierung, die die vom Benutzer ausgefüllten Felder verwenden wird. Formuliere einen klaren Auftrag. Verwende KEINE Platzhalter wie {{feldname}} im Prompt selbst, die werden später automatisch hinzugefügt. (string).
+3.  \`fields\`: Ein Array von Formularfeld-Objekten (maximal 5). Jedes Feld-Objekt muss enthalten:
+    *   \`label\`: Der sichtbare Feldname (string).
+    *   \`name\`: Technischer Name (Kleinbuchstaben, Zahlen, Unterstriche), vom Label abgeleitet (string).
+    *   \`type\`: 'text' oder 'textarea' (string).
+    *   \`required\`: true oder false (boolean).
+    *   \`placeholder\`: Optionaler Hilfetext (string).
+    *   Beispiel: { "label": "Thema", "name": "thema", "type": "text", "required": true, "placeholder": "z.B. Klimawandel" }
+4.  \`prompt\`: Die Kernanweisung für die spätere KI-Generierung. Formuliere einen klaren Auftrag. Die Platzhalter für die Felder (z.B. {{thema}}) werden später hinzugefügt, nenne sie hier NICHT. (string).
+5.  \`title\`: Ein ansprechender Titel für die Generator-Webseite (string).
+6.  \`description\`: Eine kurze Erklärung (1-2 Sätze), was der Generator tut (string).
 
-Gib deine Antwort ausschließlich als valides JSON-Objekt zurück, ohne zusätzliche Erklärungen oder Formatierungen davor oder danach.
-Stelle sicher, dass der 'slug' nur Kleinbuchstaben, Zahlen und Bindestriche enthält.
-Stelle sicher, dass der 'name' jedes Feldes korrekt vom 'label' abgeleitet wird (Kleinbuchstaben, Unterstriche statt Leerzeichen, keine Sonderzeichen).
-Limitiere die Anzahl der Felder auf maximal 5.
-
-Beispiel für ein Feld-Objekt:
-{ "label": "Thema des Artikels", "name": "thema_des_artikels", "type": "text", "required": true, "placeholder": "z.B. Klimawandel" }
-`;
-
-    const userContent = `Erstelle eine Generator-Konfiguration für folgende Beschreibung:
-${description}
+Beachte:
+*   Der 'slug' darf nur Kleinbuchstaben, Zahlen und Bindestriche enthalten.
+*   Der 'name' jedes Feldes muss korrekt vom 'label' abgeleitet werden (Kleinbuchstaben, Unterstriche statt Leerzeichen, keine Sonderzeichen).
+*   Maximal 5 Felder definieren.
 `;
 
     const result = await req.app.locals.aiWorkerPool.processRequest({
       type: 'generator_config', // Use a specific type
-      systemPrompt,
-      messages: [{ role: "user", content: userContent }],
+      systemPrompt, // Use the new short system prompt
+      messages: [{ role: "user", content: userContent }], // Use the new detailed user content
       options: {
-        max_tokens: 2000, // Adjust as needed
         temperature: 0.5, // Moderate temperature for structured output
-        // IMPORTANT: Request JSON output if the model supports it directly
-        // For OpenAI (used as backup or primary):
       },
       useBackupProvider: useBackupProvider || false // Default to primary provider
     });
@@ -87,10 +84,18 @@ ${description}
     if (!config.name || typeof config.name !== 'string' || config.name.trim() === '') {
         throw new Error('Name fehlt oder ist ungültig.');
     }
-     if (!config.slug || typeof config.slug !== 'string' || config.slug.trim() === '') {
+    if (!config.title || typeof config.title !== 'string' || config.title.trim() === '') {
+        console.warn('[generator_configurator] Title missing or invalid from AI, using Name as fallback.');
+        config.title = config.name; // Use name as fallback title
+    }
+    if (!config.description || typeof config.description !== 'string' || config.description.trim() === '') {
+        console.warn('[generator_configurator] Description missing or invalid from AI, providing a default.');
+        config.description = `Ein Generator für: ${config.name}`; // Provide a generic description
+    }
+    if (!config.slug || typeof config.slug !== 'string' || config.slug.trim() === '') {
         throw new Error('Slug fehlt oder ist ungültig.');
     }
-     if (!config.prompt || typeof config.prompt !== 'string' || config.prompt.trim() === '') {
+    if (!config.prompt || typeof config.prompt !== 'string' || config.prompt.trim() === '') {
         throw new Error('Prompt fehlt oder ist ungültig.');
     }
     if (!Array.isArray(config.fields)) {
