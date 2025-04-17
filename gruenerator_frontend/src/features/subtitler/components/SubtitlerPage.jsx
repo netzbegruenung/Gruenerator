@@ -16,13 +16,14 @@ const IS_SUBTITLER_UNDER_MAINTENANCE = false;
 const SubtitlerPage = () => {
   const [step, setStep] = useState('upload');
   const [originalVideoFile, setOriginalVideoFile] = useState(null); // Original File-Objekt
-  const [uploadInfo, setUploadInfo] = useState(null); // Upload-ID und Metadaten
+  const [uploadInfo, setUploadInfo] = useState(null); // Upload-ID, Metadaten und Präferenz
   const [subtitles, setSubtitles] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState(null);
   const [isExiting, setIsExiting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const { socialText, isGenerating, error: socialError, generateSocialText, reset: resetSocialText } = useSocialTextGenerator();
+  const [subtitlePreference, setSubtitlePreference] = useState('short'); // Default auf 'short' geändert
 
   const pollingIntervalRef = useRef(null); // Ref für Polling Interval
 
@@ -49,7 +50,7 @@ const SubtitlerPage = () => {
       metadata: uploadData.metadata,
       name: uploadData.name,
       size: uploadData.size,
-      type: uploadData.type
+      type: uploadData.type,
     });
   
     setStep('confirm');
@@ -67,7 +68,8 @@ const SubtitlerPage = () => {
 
       // Start processing request - Verwende axios direkt mit baseURL
       const response = await axios.post(`${baseURL}/subtitler/process`, { 
-        uploadId: uploadInfo.uploadId 
+        uploadId: uploadInfo.uploadId, 
+        subtitlePreference: subtitlePreference // Send local state preference
       }, {
         // Header oder andere Axios-Konfigurationen könnten hier nötig sein
         // Beachte: Interceptors von apiClient (z.B. Auth Token) werden hier NICHT angewendet
@@ -180,6 +182,12 @@ const SubtitlerPage = () => {
     }, 300);
   }, [resetSocialText]);
 
+  // Function to go back to the editor without resetting everything
+  const handleEditAgain = useCallback(() => {
+    setStep('edit');
+    // No reset of other states like videoFile, subtitles, etc.
+  }, []);
+
   return (
     <ErrorBoundary>
       <div className="subtitler-container container with-header">
@@ -240,6 +248,46 @@ const SubtitlerPage = () => {
                   <p className="ai-notice">
                     Die Verarbeitung erfolgt mit OpenAI in den USA. Bitte beachte unsere <a href="/datenschutz">Datenschutzerklärung</a> bezüglich der Verarbeitung deiner Daten.
                   </p>
+                  
+                  {/* Add Subtitle Preference Selection here */}
+                  <div className={`subtitle-preference-selector confirm-section-preference ${isProcessing ? 'disabled' : ''}`}>
+                    <h4>Untertitellänge wählen:</h4>
+                    <div className="preference-options tiles">
+                      {/* Short Option */}
+                      <label htmlFor="short-subtitles-confirm" className="preference-tile">
+                        <input 
+                          type="radio" 
+                          id="short-subtitles-confirm" 
+                          name="subtitlePreferenceConfirm" 
+                          value="short" 
+                          checked={subtitlePreference === 'short'} 
+                          onChange={(e) => setSubtitlePreference(e.target.value)}
+                          disabled={isProcessing}
+                          className="preference-tile-radio"
+                        />
+                        <div className="preference-tile-content">
+                          Kurz (Empfohlen)
+                        </div>
+                      </label>
+                      {/* Standard Option */}
+                      <label htmlFor="standard-subtitles-confirm" className="preference-tile">
+                        <input 
+                          type="radio" 
+                          id="standard-subtitles-confirm" 
+                          name="subtitlePreferenceConfirm" 
+                          value="standard" 
+                          checked={subtitlePreference === 'standard'} 
+                          onChange={(e) => setSubtitlePreference(e.target.value)}
+                          disabled={isProcessing}
+                          className="preference-tile-radio"
+                        />
+                         <div className="preference-tile-content">
+                           Standard (Ausführlicher)
+                         </div>
+                      </label>
+                    </div>
+                  </div>
+
                   <div className="confirm-buttons">
                     <button 
                       className="btn-primary"
@@ -280,6 +328,7 @@ const SubtitlerPage = () => {
               {step === 'success' && (
                 <SuccessScreen 
                   onReset={handleReset}
+                  onEditAgain={handleEditAgain}
                   isLoading={isExporting}
                   socialText={socialText}
                   isGeneratingSocial={isGenerating}
