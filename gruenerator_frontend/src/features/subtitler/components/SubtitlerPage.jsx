@@ -4,9 +4,11 @@ import VideoUploader from './VideoUploader';
 import SubtitleEditor from './SubtitleEditor';
 import SuccessScreen from './SuccessScreen';
 import useSocialTextGenerator from '../hooks/useSocialTextGenerator';
-import { FaVideo, FaFileVideo, FaRuler, FaClock } from 'react-icons/fa';
+import { FaVideo, FaFileVideo, FaRuler, FaClock, FaUserCog } from 'react-icons/fa';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import MaintenanceNotice from '../../../components/common/MaintenanceNotice'; // Import the MaintenanceNotice component
+import FeatureToggle from '../../../components/common/FeatureToggle'; // Import FeatureToggle
+import '../styles/SubtitlerPage.css'; // CSS für den Schalter (neu)
 
 // --- Maintenance Flag ---
 // Set to true to enable maintenance mode for this page
@@ -24,6 +26,7 @@ const SubtitlerPage = () => {
   const [isExporting, setIsExporting] = useState(false);
   const { socialText, isGenerating, error: socialError, generateSocialText, reset: resetSocialText } = useSocialTextGenerator();
   const [subtitlePreference, setSubtitlePreference] = useState('short'); // Default auf 'short' geändert
+  const [isProModeActive, setIsProModeActive] = useState(false);
 
   const pollingIntervalRef = useRef(null); // Ref für Polling Interval
 
@@ -188,6 +191,11 @@ const SubtitlerPage = () => {
     // No reset of other states like videoFile, subtitles, etc.
   }, []);
 
+  // Funktion zum Umschalten des Profi-Modus (erwartet jetzt den neuen Wert)
+  const toggleProMode = useCallback((newIsActive) => {
+    setIsProModeActive(newIsActive);
+  }, []);
+
   return (
     <ErrorBoundary>
       <div className="subtitler-container container with-header">
@@ -223,25 +231,29 @@ const SubtitlerPage = () => {
                     <FaVideo />
                     Dein ausgewähltes Video
                   </h3>
-                  <div className="video-info">
-                    <p data-label="Name">
-                      <FaFileVideo />
-                      <span className="info-content">{uploadInfo.name}</span>
-                    </p>
-                    <p data-label="Größe">
-                      <FaRuler />
-                      <span className="info-content">{(uploadInfo.size / 1024 / 1024).toFixed(2)} MB</span>
-                    </p>
+                  <div className="VideoInfo">
+                    <div className="VideoInfo__Item">
+                      <span className="VideoInfo__Label">Name</span>
+                      <span className="VideoInfo__Icon"><FaFileVideo /></span>
+                      <span className="VideoInfo__Content">{uploadInfo.name}</span>
+                    </div>
+                    <div className="VideoInfo__Item">
+                      <span className="VideoInfo__Label">Größe</span>
+                      <span className="VideoInfo__Icon"><FaRuler /></span>
+                      <span className="VideoInfo__Content">{(uploadInfo.size / 1024 / 1024).toFixed(2)} MB</span>
+                    </div>
                     {uploadInfo.metadata && (
                       <>
-                        <p data-label="Länge">
-                          <FaClock />
-                          <span className="info-content">{Math.round(uploadInfo.metadata.duration)} Sekunden</span>
-                        </p>
-                        <p data-label="Auflösung">
-                          <FaRuler />
-                          <span className="info-content">{uploadInfo.metadata.width}x{uploadInfo.metadata.height}</span>
-                        </p>
+                        <div className="VideoInfo__Item">
+                          <span className="VideoInfo__Label">Länge</span>
+                          <span className="VideoInfo__Icon"><FaClock /></span>
+                          <span className="VideoInfo__Content">{Math.round(uploadInfo.metadata.duration)} Sekunden</span>
+                        </div>
+                        <div className="VideoInfo__Item">
+                          <span className="VideoInfo__Label">Auflösung</span>
+                          <span className="VideoInfo__Icon"><FaRuler /></span>
+                          <span className="VideoInfo__Content">{uploadInfo.metadata.width}x{uploadInfo.metadata.height}</span>
+                        </div>
                       </>
                     )}
                   </div>
@@ -315,14 +327,27 @@ const SubtitlerPage = () => {
               )}
 
               {step === 'edit' && (
-                <SubtitleEditor
-                  videoFile={originalVideoFile}
-                  subtitles={subtitles}
-                  uploadId={uploadInfo?.uploadId}
-                  onExportSuccess={handleExport}
-                  onExportComplete={handleExportComplete}
-                  isExporting={isExporting || isGenerating}
-                />
+                <>
+                  {/* Profi-Modus Schalter */}
+                  <FeatureToggle
+                    isActive={isProModeActive}
+                    onToggle={toggleProMode} // Übergibt direkt den neuen booleschen Wert
+                    label="Profi-Modus"
+                    icon={FaUserCog} // Passendes Icon für Einstellungen/Profi
+                    description="Zeiten bearbeiten und Segmente löschen (auf eigene Gefahr)."
+                    className="subtitler-pro-toggle" // Eigene Klasse für spezifisches Styling falls nötig
+                  />
+                   {isProModeActive && <p className="pro-mode-warning">Achtung: Änderungen an Zeiten oder das Löschen von Segmenten kann die Synchronisation beeinträchtigen.</p>}
+
+                  <SubtitleEditor
+                    videoFile={originalVideoFile}
+                    subtitles={subtitles}
+                    uploadId={uploadInfo?.uploadId}
+                    onExportSuccess={handleExport}
+                    onExportComplete={handleExportComplete}
+                    isExporting={isExporting || isGenerating}
+                  />
+                </>
               )}
 
               {step === 'success' && (
