@@ -67,7 +67,7 @@ const VideoUploader = ({ onUpload, isProcessing = false }) => {
         chunkSize: 5 * 1024 * 1024, // 5MB chunks
         metadata: {
           filename: file.name,
-          filetype: file.type
+          filetype: file.type,
         },
         onError: (error) => {
           console.error(`[VideoUploader] Upload Fehler zu ${TUS_UPLOAD_ENDPOINT}:`, error);
@@ -99,7 +99,7 @@ const VideoUploader = ({ onUpload, isProcessing = false }) => {
             metadata: metadataFromFile, // Verwende die extrahierten Metadaten
             name: originalFile.name,
             size: originalFile.size,
-            type: originalFile.type
+            type: originalFile.type,
           };
           
           console.log('[VideoUploader] Upload complete. Passing data to parent:', uploadData);

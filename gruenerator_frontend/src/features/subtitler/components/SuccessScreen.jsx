@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import CopyButton from '../../../components/common/CopyButton';
-const SuccessScreen = ({ onReset, isLoading, socialText }) => {
+const SuccessScreen = ({ onReset, onEditAgain, isLoading, socialText }) => {
   const [showSpinner, setShowSpinner] = useState(isLoading);
 
   useEffect(() => {
@@ -40,6 +40,12 @@ const SuccessScreen = ({ onReset, isLoading, socialText }) => {
               >
                 Neues Video verarbeiten
               </button>
+              <button 
+                className="btn-secondary"
+                onClick={onEditAgain}
+              >
+                Zurück zur Bearbeitung
+              </button>
             </div>
           )}
         </div>
@@ -56,6 +62,7 @@ const SuccessScreen = ({ onReset, isLoading, socialText }) => {
 
 SuccessScreen.propTypes = {
   onReset: PropTypes.func.isRequired,
+  onEditAgain: PropTypes.func.isRequired,
   isLoading: PropTypes.bool,
   socialText: PropTypes.string.isRequired
 };
