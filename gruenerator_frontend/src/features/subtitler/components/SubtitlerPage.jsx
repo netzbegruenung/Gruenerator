@@ -8,7 +8,6 @@ import { FaVideo, FaFileVideo, FaRuler, FaClock, FaUserCog } from 'react-icons/f
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import MaintenanceNotice from '../../../components/common/MaintenanceNotice'; // Import the MaintenanceNotice component
 import FeatureToggle from '../../../components/common/FeatureToggle'; // Import FeatureToggle
-import '../styles/SubtitlerPage.css'; // CSS für den Schalter (neu)
 
 // --- Maintenance Flag ---
 // Set to true to enable maintenance mode for this page
