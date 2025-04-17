@@ -2,8 +2,9 @@ const path = require('path');
 const fs = require('fs').promises;
 const fsSync = require('fs');
 const { nodewhisper } = require('nodejs-whisper');
-const { transcribeWithOpenAI } = require('./openAIService');
+const { transcribeWithOpenAI, formatSegmentsToText } = require('./openAIService');
 const { extractAudio } = require('./videoUploadService');
+const { generateShortSubtitlesViaAI } = require('./shortSubtitleGeneratorService');
 
 // Hilfsfunktion zum Parsen der Zeitstempel
 function parseTimestamp(timestamp) {
@@ -13,6 +14,77 @@ function parseTimestamp(timestamp) {
   const [_, hours, minutes, seconds, ms] = match;
   return (parseInt(hours) * 3600 + parseInt(minutes) * 60 + parseInt(seconds) + parseInt(ms) / 1000);
 }
+
+// Helper function to create short subtitles from word timestamps
+/*
+function createShortSubtitlesFromWords(fullText, wordTimestamps, maxWordsPerSegment = 5, maxDurationPerSegment = 3) {
+  if (!wordTimestamps || wordTimestamps.length === 0) {
+    console.warn("[transcriptionService] Empty or invalid word timestamps provided.");
+    return "";
+  }
+
+  // Log raw word timestamps received from OpenAI
+  console.log("[transcriptionService] Raw word timestamps:", JSON.stringify(wordTimestamps, null, 2));
+
+  const segments = [];
+  let currentSegmentWords = [];
+  let currentSegmentStart = wordTimestamps[0].start;
+
+  wordTimestamps.forEach((word, index) => {
+    const potentialSegmentDuration = word.end - currentSegmentStart;
+
+    // Add word to current segment if constraints are met
+    if (currentSegmentWords.length < maxWordsPerSegment && potentialSegmentDuration <= maxDurationPerSegment) {
+      currentSegmentWords.push(word.word);
+    } else {
+      // Finalize the previous segment
+      const segmentText = currentSegmentWords.join(' ');
+      const segmentEnd = index > 0 ? wordTimestamps[index - 1].end : word.end; // Use previous word's end time
+      const segmentDuration = segmentEnd - currentSegmentStart;
+
+      // Log potential segment before duration check
+      console.log(`[transcriptionService] Potential segment: "${segmentText}", Duration: ${segmentDuration.toFixed(3)}s`);
+
+      // Ensure segment duration is reasonable (e.g., >= 0.5s)
+      if (segmentDuration >= 0.5) {
+         segments.push({ start: currentSegmentStart, end: segmentEnd, text: segmentText });
+      } else {
+         // Log discarded segment
+         console.log(`[transcriptionService] DISCARDED segment (too short): "${segmentText}", Duration: ${segmentDuration.toFixed(3)}s`);
+      }
+
+      // Start a new segment with the current word
+      currentSegmentWords = [word.word];
+      currentSegmentStart = word.start;
+    }
+
+    // Handle the last segment
+    if (index === wordTimestamps.length - 1 && currentSegmentWords.length > 0) {
+      const segmentText = currentSegmentWords.join(' ');
+      const segmentEnd = word.end;
+      const segmentDuration = segmentEnd - currentSegmentStart;
+
+      // Log potential last segment before duration check
+      console.log(`[transcriptionService] Potential last segment: "${segmentText}", Duration: ${segmentDuration.toFixed(3)}s`);
+
+      if (segmentDuration >= 0.5) {
+          segments.push({ start: currentSegmentStart, end: segmentEnd, text: segmentText });
+      } else {
+          // Log discarded last segment
+          console.log(`[transcriptionService] DISCARDED last segment (too short): "${segmentText}", Duration: ${segmentDuration.toFixed(3)}s`);
+      }
+    }
+  });
+
+  // Log the final list of segments after filtering
+  console.log("[transcriptionService] Final accepted segments:", JSON.stringify(segments, null, 2));
+
+  // Format the created segments using the existing helper from openAIService
+  const formattedText = formatSegmentsToText(segments);
+  console.log(`[transcriptionService] Created ${segments.length} final short segments from words.`);
+  return formattedText;
+}
+*/
 
 // Hilfsfunktion zum Ausführen von Whisper
 /*
@@ -113,10 +185,10 @@ async function transcribeVideoLocal(videoPath, language = 'de') {
 }
 */
 
-// Neue Hauptfunktion die beide Methoden unterstützt
-async function transcribeVideo(videoPath, method = 'openai', language = 'de') {
+// Updated main function to handle subtitle preference and accept aiWorkerPool
+async function transcribeVideo(videoPath, subtitlePreference = 'standard', aiWorkerPool, language = 'de') {
   try {
-    console.log('Starte OpenAI Transkription');
+    console.log(`Starte OpenAI Transkription (Präferenz: ${subtitlePreference})`);
     const outputDir = path.join(__dirname, '../../../uploads/transcriptions');
     await fs.mkdir(outputDir, { recursive: true });
     const audioPath = path.join(outputDir, `audio_${Date.now()}.mp3`);
@@ -124,8 +196,31 @@ async function transcribeVideo(videoPath, method = 'openai', language = 'de') {
     // Extrahiere Audio
     await extractAudio(videoPath, audioPath);
     
-    // Transkribiere mit OpenAI
-    const transcription = await transcribeWithOpenAI(audioPath);
+    let finalTranscription = null;
+
+    if (subtitlePreference === 'short') {
+        console.log("[transcriptionService] Requesting word timestamps from OpenAI.");
+        // Request word timestamps for short subtitles
+        const transcriptionResult = await transcribeWithOpenAI(audioPath, true); // Request segments and words
+        
+        if (!transcriptionResult || typeof transcriptionResult.text !== 'string') {
+            throw new Error('Invalid transcription data received from OpenAI');
+        }
+        console.log(`[transcriptionService] Received raw text: ${transcriptionResult.text.substring(0, 100)}...`); // Log raw text
+
+        // Use Claude service to generate short segments from raw text
+        console.log("[transcriptionService] Generating short subtitles with Claude...");
+        finalTranscription = await generateShortSubtitlesViaAI(transcriptionResult.text, transcriptionResult.words, aiWorkerPool);
+
+    } else {
+        console.log("[transcriptionService] Requesting standard segment timestamps from OpenAI.");
+        // Request standard segment timestamps
+        const transcriptionResult = await transcribeWithOpenAI(audioPath, false); // Request segments only
+        if (!transcriptionResult || typeof transcriptionResult.text !== 'string') {
+            throw new Error('Invalid segment data received from OpenAI');
+        }
+        finalTranscription = transcriptionResult.text; // Use the formatted segments directly
+    }
     
     // Cleanup
     try {
@@ -135,22 +230,27 @@ async function transcribeVideo(videoPath, method = 'openai', language = 'de') {
       console.warn('Konnte temporäre Audio-Datei nicht löschen:', err);
     }
 
-    if (!transcription) {
-      throw new Error('Keine Transkription von OpenAI erhalten');
+    if (!finalTranscription) {
+      throw new Error('Keine Transkription von OpenAI erhalten oder verarbeitet');
     }
 
-    // Log nur die wichtigsten Segment-Infos
-    const segments = transcription.split('\n\n');
-    console.log('Transkription Details:');
+    // Log segment details (works for both short and standard as it splits by \n\n)
+    const segments = finalTranscription.split('\n\n');
+    console.log('Finale Transkription Details:');
     console.log('Anzahl Segmente:', segments.length);
-    console.log('Alle Segmente:');
-    segments.forEach((segment, index) => {
-      console.log(`\nSegment ${index + 1}:\n${segment}`);
-    });
+    // Optional: Log all segments (can be verbose)
+    // segments.forEach((segment, index) => {
+    //   console.log(`\nSegment ${index + 1}:\n${segment}`);
+    // });
 
-    return transcription;
+    return finalTranscription;
   } catch (error) {
-    console.error(`Fehler bei der Transkription:`, error);
+    console.error(`Fehler bei der Transkription (Präferenz: ${subtitlePreference}):`, error);
+    // Cleanup audio file even if transcription failed mid-process
+    const audioPath = path.join(__dirname, '../../../uploads/transcriptions', `audio_${Date.now()}.mp3`); // Reconstruct path (less ideal)
+     try { 
+        if (fsSync.existsSync(audioPath)) { await fs.unlink(audioPath); } 
+     } catch (cleanupErr) { /* ignore */ }
     throw error;
   }
 }

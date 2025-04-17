@@ -69,6 +69,13 @@ const cleanupTusUploads = async (maxAgeHours = 24) => {
   }
 };
 
+// Start cleanup immediately on server start
+cleanupTusUploads();
+
+// Schedule cleanup every 24 hours
+const cleanupInterval = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+setInterval(cleanupTusUploads, cleanupInterval);
+
 module.exports = {
   tusServer,
   getFilePathFromUploadId,
