@@ -24,77 +24,75 @@ async function checkFont() {
 }
 
 // Hilfsfunktion zum intelligenten Aufteilen von Text
-function splitLongText(text, maxLength = 50) {
+function splitLongText(text, avgLength = 30, maxLength = 50) {
   // Entferne überflüssige Leerzeichen und Backslashes
   text = text.trim().replace(/\s+/g, ' ').replace(/\\/g, '');
-  
-  if (text.length <= maxLength) {
+
+  // Berechne dynamischen Schwellenwert basierend auf avgLength
+  const dynamicMaxLength = Math.max(
+    25, // Minimaler Schwellenwert - geändert von 15
+    Math.min(
+      50, // Maximaler Schwellenwert
+      Math.floor(avgLength * 0.7) // Dynamischer Wert basierend auf avgLength (use factor 0.7 for earlier break)
+    )
+  );
+
+  // If text is short enough, return it as is
+  if (text.length <= dynamicMaxLength) {
     return text;
   }
 
   const words = text.split(' ');
-  let firstLine = [];
-  let secondLine = [];
+  const totalLength = text.length;
+  const targetSplitLength = totalLength / 2;
+
+  let bestSplitIndex = -1;
+  let minDiff = Infinity;
   let currentLength = 0;
 
-  // Berechne die optimale Aufteilung
-  const totalLength = words.reduce((sum, word) => sum + word.length + 1, 0) - 1;
-  
-  // Wenn der Text nur wenig über maxLength ist, teile bei der Hälfte
-  if (totalLength <= maxLength * 1.5) {
-    const midPoint = Math.floor(words.length / 2);
-    firstLine = words.slice(0, midPoint);
-    secondLine = words.slice(midPoint);
-  } else {
-    // Bei sehr langen Texten, fülle die erste Zeile bis maxLength
-    for (const word of words) {
-      const newLength = currentLength + word.length + (currentLength > 0 ? 1 : 0);
-      if (newLength <= maxLength) {
-        firstLine.push(word);
-        currentLength = newLength;
-      } else {
-        break;
-      }
+  // Find the word boundary closest to the middle of the text length
+  for (let i = 0; i < words.length - 1; i++) { // Iterate up to the second to last word
+    currentLength += words[i].length + (i > 0 ? 1 : 0); // Add 1 for space after the first word
+    const diff = Math.abs(currentLength - targetSplitLength);
+
+    if (diff < minDiff) {
+      minDiff = diff;
+      bestSplitIndex = i + 1; // Split *after* this word index
     }
-    secondLine = words.slice(firstLine.length);
   }
 
-  // Wenn die zweite Zeile zu lang ist, kürzen
-  let secondLineText = secondLine.join(' ');
-  if (secondLineText.length > maxLength) {
-    let currentLength = 0;
-    secondLine = [];
-    for (const word of secondLineText.split(' ')) {
-      const newLength = currentLength + word.length + (currentLength > 0 ? 1 : 0);
-      if (newLength <= maxLength) {
-        secondLine.push(word);
-        currentLength = newLength;
-      } else {
-        break;
-      }
-    }
-    secondLineText = secondLine.join(' ');
+  // If no suitable split point found (e.g., very short words), or only one word, default to splitting after the first word if possible
+  if (bestSplitIndex === -1 && words.length > 1) {
+      bestSplitIndex = 1;
+  } else if (bestSplitIndex === -1) {
+      // Cannot split (only one word, or some edge case)
+      return text; 
   }
 
-  return firstLine.join(' ') + '\n' + secondLineText;
+
+  const firstLine = words.slice(0, bestSplitIndex).join(' ');
+  const secondLine = words.slice(bestSplitIndex).join(' ');
+
+  // Never truncate the second line
+  return firstLine + '\n' + secondLine;
 }
 
 // Hilfsfunktion zum Escapen von Text für FFmpeg
-function escapeFFmpegText(text) {
+function escapeFFmpegText(text, avgLength = 30) {
   // Entferne zuerst alle Zeitstempel
   let cleanedText = text.replace(/\d{1,2}:\d{2}\s*-\s*\d{1,2}:\d{2}/g, '').trim();
   
-  // Teile lange Zeilen auf
-  cleanedText = splitLongText(cleanedText);
-  
-  // Escape spezielle Zeichen
+  // Teile lange Zeilen auf mit avgLength Parameter
+  cleanedText = splitLongText(cleanedText, avgLength);
+  // Escape special characters
   return cleanedText
-    .replace(/'/g, "'\\\\''")
-    .replace(/:/g, '\\\\:')
-    .replace(/-/g, '\\\\-')
-    .replace(/\./g, '\\\\.')
-    .replace(/,/g, '\\\\,')
-    .replace(/\n/g, '\\n')  // Konvertiere Zeilenumbrüche für FFmpeg
+    .replace(/'/g, "'\\''")
+    .replace(/:/g, '\\:')
+    .replace(/-/g, '\\-')
+    .replace(/\./g, '\\.')
+    .replace(/,/g, '\\,')
+    // .replace(/\n/g, '\n') // Removed: FFmpeg drawtext handles literal 
+
     .trim();
 }
 
@@ -136,7 +134,7 @@ function convertToSRT(subtitles) {
 // Route für Video-Upload und Verarbeitung
 router.post('/process', async (req, res) => {
   console.log('=== SUBTITLER PROCESS START ===');
-  const { uploadId } = req.body; // Expect uploadId in request body
+  const { uploadId, subtitlePreference = 'standard' } = req.body; // Expect uploadId and preference in request body, default to 'standard'
   let videoPath = null;
 
   if (!uploadId) {
@@ -196,13 +194,33 @@ router.post('/process', async (req, res) => {
     }
 
     // Extrahiere die gewünschte Transkriptionsmethode
-    const transcriptionMethod = 'openai'; // Immer OpenAI verwenden
-    console.log('Transkription: OpenAI');
+    // const transcriptionMethod = 'openai'; // Immer OpenAI verwenden - Wird nicht mehr direkt benötigt
+    // console.log('Transkription: OpenAI'); // Method wird implizit von transcribeVideo gehandhabt
+    console.log(`Untertitel Präferenz: ${subtitlePreference}`); // Log preference
 
     console.log('Starte Transkription...');
     
     // Run transcription asynchronously (don't wait here)
-    transcribeVideo(videoPath, transcriptionMethod)
+    // Korrigierter Aufruf: Übergebe subtitlePreference als zweiten Parameter und den aiWorkerPool
+    const aiWorkerPool = req.app.locals.aiWorkerPool; // Get pool from app locals
+    if (!aiWorkerPool) {
+        // Handle case where pool is not available
+        console.error(`[subtitlerController] AI Worker Pool not found in app locals for ${uploadId}. Cannot generate short subtitles if requested.`);
+        // Set error status or proceed without short subtitle capability
+         const errorPoolStatus = JSON.stringify({ status: 'error', data: 'AI Worker Pool nicht konfiguriert.' });
+         try {
+            await redisClient.set(`job:${uploadId}`, errorPoolStatus, { EX: 60 * 60 * 24 }); 
+            console.log(`[Upstash Redis] Status 'error' (AI Pool missing) für ${uploadId} gesetzt.`);
+        } catch (redisError) {
+             console.error(`[Upstash Redis] Fehler beim Setzen des 'AI Pool missing' Status für ${uploadId}:`, redisError);
+        }
+         if (!res.headersSent) {
+             return res.status(500).json({ error: 'Interner Konfigurationsfehler (AI Worker Pool).' });
+         }
+         return; // Stop further processing if pool is essential and missing
+    }
+    
+    transcribeVideo(videoPath, subtitlePreference, aiWorkerPool) // Pass the pool
       .then(async (subtitles) => {
         if (!subtitles) {
           console.error(`Keine Untertitel generiert für Upload-ID: ${uploadId}`);
@@ -384,51 +402,29 @@ router.post('/export', async (req, res) => {
     const maxSpacing = fontSize * 1.25;
     const spacing = Math.max(minSpacing, Math.min(maxSpacing, fontSize * (1.5 + (1 - fontSize/48))));
 
-    // Log die Berechnung
-    console.log('Schriftgrößenberechnung:', {
-      videoDimensionen: `${metadata.width}x${metadata.height}`,
-      orientierung: isVertical ? 'vertikal' : 'horizontal',
-      referenzDimension: referenceDimension,
-      auflösungskategorie: referenceDimension >= 1920 ? 'Full HD+' : 
-                          referenceDimension >= 1080 ? 'HD' : 'SD',
-      prozent: `${(percentage * 100).toFixed(1)}%`,
-      berechneteGröße: `${fontSize}px (${(fontSize/referenceDimension*100).toFixed(1)}% der ${isVertical ? 'Breite' : 'Höhe'})`,
-      zeilenabstand: {
-        minimal: `${minSpacing}px`,
-        maximal: `${maxSpacing.toFixed(1)}px`,
-        berechnet: `${spacing.toFixed(1)}px`,
-        verhältnis: `${(spacing/fontSize).toFixed(2)}x`,
-        details: {
-          basisFaktor: '1.5',
-          skalierungsFaktor: `${(1 - fontSize/48).toFixed(3)}`,
-          berechnungsformel: `max(${minSpacing}, min(${maxSpacing.toFixed(1)}, ${fontSize} * (1.5 + ${(1 - fontSize/48).toFixed(3)})))`,
-          verwendeterWert: spacing === minSpacing ? 'minimal' : 
-                          spacing === maxSpacing ? 'maximal' : 'berechnet'
-        }
-      }
-    });
-
     // Verbesserte Verarbeitung der Untertitel-Segmente
     const segments = subtitles
       .split(/\n(?=\d+:\d{2}\s*-\s*\d+:\d{2})/)
       .map(block => {
         const lines = block.trim().split('\n');
         const timeLine = lines[0].trim();
-        
+        // Unterstützt auch Stunden:SS - MM:SS
         const timeMatch = timeLine.match(/^(\d+):(\d{2})\s*-\s*(\d+):(\d{2})$/);
         if (!timeMatch) return null;
 
         const [_, startMin, startSec, endMin, endSec] = timeMatch;
-        const startTime = parseInt(startMin) * 60 + parseInt(startSec);
-        const endTime = parseInt(endMin) * 60 + parseInt(endSec);
-        
-        // Minimale Pause zwischen Segmenten (0.1 Sekunden)
-        const adjustedEndTime = endTime - 0.1;
+        // Millisekunden übernehmen, falls vorhanden
+        const startTime = (parseInt(startMin) * 60 + parseFloat(startSec)).toFixed(3);
+        const endTime = (parseInt(endMin) * 60 + parseFloat(endSec)).toFixed(3);
+
+        // Teile den Text in maximal zwei Zeilen
+        const text = lines.slice(1).join(' ').trim();
+        const formattedText = splitLongText(text);
 
         return {
-          startTime,
-          endTime: adjustedEndTime,
-          text: lines.slice(1).join(' ').trim()
+          startTime: parseFloat(startTime),
+          endTime: parseFloat(endTime),
+          text: formattedText.replace('\\n', '\n')
         };
       })
       .filter(Boolean)
@@ -439,24 +435,107 @@ router.post('/export', async (req, res) => {
       throw new Error('Keine Untertitel-Segmente gefunden');
     }
 
-    // Stelle sicher, dass die Segmente nahtlos aneinander anschließen
+    // Überlappungen ohne Puffer korrigieren
     for (let i = 0; i < segments.length - 1; i++) {
       if (segments[i].endTime > segments[i + 1].startTime) {
-        segments[i].endTime = segments[i + 1].startTime - 0.1;
+        segments[i].endTime = segments[i + 1].startTime;
       }
     }
+
+    // ---- Start: Calculate average segment length and scale factor ----
+    let totalChars = 0;
+    segments.forEach(segment => {
+      totalChars += segment.text.length;
+    });
+    const avgLength = segments.length > 0 ? totalChars / segments.length : 30; // Default to medium if no segments
+
+    const calculateScaleFactor = (avg) => {
+        const shortThreshold = 15;
+        const longThreshold = 45;
+        const minFactor = 0.9; // Scale down slightly for long text
+        const maxFactor = 1.15; // Scale up more for very short text
+
+        if (avg <= shortThreshold) {
+            return maxFactor;
+        } else if (avg >= longThreshold) {
+            return minFactor;
+        } else {
+            // Linear interpolation between thresholds
+            const range = longThreshold - shortThreshold;
+            const position = avg - shortThreshold;
+            const factor = maxFactor - ((maxFactor - minFactor) * (position / range));
+            return factor;
+        }
+    };
+
+    const scaleFactor = calculateScaleFactor(avgLength);
+
+    // Apply scale factor and clamp
+    const finalFontSize = Math.max(minFontSize, Math.min(maxFontSize, Math.floor(fontSize * scaleFactor)));
+    // Also scale maxSpacing when scaling up, keep minSpacing fixed
+    const scaledMaxSpacing = maxSpacing * (scaleFactor > 1 ? scaleFactor : 1);
+    const finalSpacing = Math.max(minSpacing, Math.min(scaledMaxSpacing, Math.floor(spacing * scaleFactor)));
+
+    // ---- End: Calculate average segment length and scale factor ----
+
+    // +++ Start Debug Logging for Spacing +++
+    console.log('Debug Spacing Calculation:', {
+      minSpacing,
+      maxSpacing,
+      scaledMaxSpacing,
+      spacing, // Original spacing before final calc
+      fontSize,
+      scaleFactor,
+      finalFontSize, // Used in filter
+      finalSpacing // Used in filter
+    });
+    // +++ End Debug Logging for Spacing +++
+
+    // Log die Berechnung (updated with final values)
+    console.log('Schriftgrößenberechnung:', {
+      videoDimensionen: `${metadata.width}x${metadata.height}`,
+      orientierung: isVertical ? 'vertikal' : 'horizontal',
+      referenzDimension: referenceDimension,
+      auflösungskategorie: referenceDimension >= 1920 ? 'Full HD+' : 
+                          referenceDimension >= 1080 ? 'HD' : 'SD',
+      prozent: `${(percentage * 100).toFixed(1)}%`,
+      berechneteGröße: `${fontSize}px`, // Original calculation
+      durchschnittlicheSegmentLänge: avgLength.toFixed(1),
+      skalierungsFaktor: scaleFactor.toFixed(2),
+      finaleSchriftgröße: `${finalFontSize}px (${(finalFontSize/referenceDimension*100).toFixed(1)}% der ${isVertical ? 'Breite' : 'Höhe'})`,
+      finalerZeilenabstand: {
+           minimal: `${minSpacing}px`,
+           maximal: `${scaledMaxSpacing.toFixed(1)}px`, // Show scaled max
+           berechnet: `${finalSpacing.toFixed(1)}px`,
+           verhältnis: `${(finalSpacing/finalFontSize).toFixed(2)}x`
+       }
+    });
 
     // FFmpeg-Verarbeitung
     await new Promise((resolve, reject) => {
       const command = ffmpeg(inputPath);
       
+      // ---- Start: Dynamically select preset based on input file size ----
+      const sizeThreshold = 100 * 1024 * 1024; // 100 MB in bytes
+      const inputFileSize = fileStats.size;
+      let chosenPreset;
+
+      if (inputFileSize > sizeThreshold) {
+        chosenPreset = 'veryfast'; 
+        console.log(`[FFmpeg Preset] Input size (${(inputFileSize / 1024 / 1024).toFixed(1)} MB) > 100 MB. Using preset: ${chosenPreset}`);
+      } else {
+        chosenPreset = 'medium';
+        console.log(`[FFmpeg Preset] Input size (${(inputFileSize / 1024 / 1024).toFixed(1)} MB) <= 100 MB. Using preset: ${chosenPreset}`);
+      }
+      // ---- End: Dynamically select preset ----
+
       // Setze Basis-Optionen
       const outputOptions = [
         '-y',
         // Verwende den originalen Codec wenn möglich, sonst H.264
         metadata.originalFormat?.codec === 'hevc' ? '-c:v hevc' : '-c:v libx264',
         // Qualitätseinstellungen
-        '-preset ultrafast',  // Schnellere Verarbeitung
+        `-preset ${chosenPreset}`,  // Use the dynamically chosen preset
         '-crf 23',           // Gute Qualität (0-51, niedriger ist besser)
         // Kopiere Audio ohne Neucodierung
         '-c:a copy',
@@ -471,48 +550,84 @@ router.post('/export', async (req, res) => {
 
       command.outputOptions(outputOptions);
 
-      // Erstelle Filter für Untertitel
+      // Erstelle Filter für Untertitel (using finalFontSize and finalSpacing)
       const filters = segments
-        .map(segment => {
-          const escapedText = escapeFFmpegText(segment.text);
-          const [line1, line2] = escapedText.split('\\n');
+        .map((segment, index) => {
+          // +++ Start Debug Logging per Segment +++
+          console.log(`\n--- Debug Segment ${index} ---`);
+          console.log('Original Text:', segment.text);
           
-          // Berechne Text-Position basierend auf tatsächlichen Dimensionen
+          const escapedText = escapeFFmpegText(segment.text, avgLength);
+          console.log('Escaped Text:', JSON.stringify(escapedText)); // Use JSON.stringify to see \n
+          const hasNewline = escapedText.includes('\n');
+          console.log('Has Newline:', hasNewline);
+          // +++ End Debug Logging per Segment +++
+          
           const isVertical = metadata.rotation === '90' || metadata.rotation === '270';
-          // Position auf ca. 70% der tatsächlichen Höhe (30% von unten)
-          const yPos = isVertical ? 'h*0.7' : 'h*0.7';
+          const yPosBase = isVertical ? 'h*0.7' : 'h*0.7'; // Basis-Y-Position
           
-          const line1Filter = `drawtext=text='${line1}':` +
-            `fontfile='${FONT_PATH}':` +
-            `fontsize=${fontSize}:` +
-            `fontcolor=white:` +
-            `box=1:` +
-            `boxcolor=black@0.8:` +
-            `boxborderw=8:` +
-            `x=(w-text_w)/2:` +
-            `y=${yPos}:` +
-            `enable='between(t,${segment.startTime},${segment.endTime})'`;
+          let filterString = '';
+
+          if (hasNewline) {
+            // Fall 1: Text wurde geteilt
+            const [line1, line2] = escapedText.split('\n');
             
-          const line2Filter = line2 ? 
-            `,drawtext=text='${line2}':` +
-            `fontfile='${FONT_PATH}':` +
-            `fontsize=${fontSize}:` +
-            `fontcolor=white:` +
-            `box=1:` +
-            `boxcolor=black@0.8:` +
-            `boxborderw=8:` +
-            `x=(w-text_w)/2:` +
-            `y=${yPos}+${spacing}:` +  // Verwende den berechneten Abstand
-            `enable='between(t,${segment.startTime},${segment.endTime})'` : '';
-            
-          return line1Filter + line2Filter;
+            const yPosLine1 = yPosBase;
+            const yPosLine2 = `${yPosBase}+${finalSpacing}`;
+            console.log('Calculated Y Pos:', { line1: yPosLine1, line2: yPosLine2 }); // Log Y positions
+
+            const line1Filter = `drawtext=text='${line1}':` +
+              `fontfile='${FONT_PATH}':` +
+              `fontsize=${finalFontSize}:` +
+              `fontcolor=white:` +
+              `box=1:` +
+              `boxcolor=black@0.8:` +
+              `boxborderw=8:` +
+              `x=(w-text_w)/2:` +
+              `y=${yPosLine1}:` + // Position Zeile 1
+              `enable='between(t,${segment.startTime},${segment.endTime})'`;
+
+            const line2Filter = `,drawtext=text='${line2}':` + // Komma als Trenner
+              `fontfile='${FONT_PATH}':` +
+              `fontsize=${finalFontSize}:` +
+              `fontcolor=white:` +
+              `box=1:` +
+              `boxcolor=black@0.8:` +
+              `boxborderw=8:` +
+              `x=(w-text_w)/2:` +
+              `y=${yPosLine2}:` + // Position Zeile 2
+              `enable='between(t,${segment.startTime},${segment.endTime})'`;
+
+            filterString = line1Filter + line2Filter;
+
+          } else {
+            // Fall 2: Text wurde NICHT geteilt (oder hatte ursprünglich keinen Umbruch)
+            const yPosLine1 = yPosBase;
+            console.log('Calculated Y Pos:', { line1: yPosLine1 }); // Log Y position
+
+            const line1Filter = `drawtext=text='${escapedText}':` + // Gesamter Text in line1
+              `fontfile='${FONT_PATH}':` +
+              `fontsize=${finalFontSize}:` +
+              `fontcolor=white:` +
+              `box=1:` +
+              `boxcolor=black@0.8:` +
+              `boxborderw=8:` +
+              `x=(w-text_w)/2:` +
+              `y=${yPosLine1}:` + // Zentriert positionieren (nur eine Zeile)
+              `enable='between(t,${segment.startTime},${segment.endTime})'`;
+
+            filterString = line1Filter;
+          }
+          console.log('Generated Filter String:', filterString);
+          console.log(`--- End Debug Segment ${index} ---\n`);
+          return filterString;
         })
-        .join(',');
+        .join(','); // Füge die einzelnen Filter-Strings zusammen
 
       // Wende Filter an
       command.videoFilters(filters);
 
-      // Debug-Logging
+      // Debug-Logging (Update to show final size if needed)
       command
         .on('start', cmd => {
           console.log('FFmpeg-Befehl:', cmd);
@@ -520,20 +635,22 @@ router.post('/export', async (req, res) => {
             rotation: metadata.rotation,
             codec: metadata.originalFormat?.codec,
             dimensions: `${metadata.width}x${metadata.height}`,
-            schriftgröße: `${fontSize}px (${(fontSize/metadata.height*100).toFixed(1)}% der Höhe)`
+            schriftgröße: `${finalFontSize}px (${(finalFontSize/referenceDimension*100).toFixed(1)}% der Höhe)`,
+            preset: chosenPreset // Log the chosen preset as well
           });
           
-          // Logge den kompletten Filter-String für die erste Zeile
+          // Logge den kompletten Filter-String für die erste Zeile (using finalFontSize)
           const firstSegment = segments[0];
           if (firstSegment) {
-            const escapedText = escapeFFmpegText(firstSegment.text);
-            const [line1] = escapedText.split('\\n');
-            const isVertical = metadata.rotation === '90' || metadata.rotation === '270';
-            const yPos = isVertical ? 'h*0.7' : 'h*0.7';
-            
-            const line1Filter = `drawtext=text='${line1}':` +
+              const escapedText = escapeFFmpegText(firstSegment.text, avgLength);
+              // Split directly on newline character
+              const [line1] = escapedText.split('\n'); 
+              const isVertical = metadata.rotation === '90' || metadata.rotation === '270';
+              const yPos = isVertical ? 'h*0.7' : 'h*0.7';
+              
+              const line1Filter = `drawtext=text='${line1}':` +
               `fontfile='${FONT_PATH}':` +
-              `fontsize=${fontSize}:` +
+              `fontsize=${finalFontSize}:` + // Use finalFontSize
               `fontcolor=white:` +
               `box=1:` +
               `boxcolor=black@0.8:` +
@@ -542,15 +659,15 @@ router.post('/export', async (req, res) => {
               `y=${yPos}:` +
               `enable='between(t,${firstSegment.startTime},${firstSegment.endTime})'`;
               
-            console.log('FFmpeg Filter Details:', {
-              filterString: line1Filter,
-              text: line1,
-              fontSize,
-              boxborderw: 8,
-              yPosition: yPos,
-              startTime: firstSegment.startTime,
-              endTime: firstSegment.endTime
-            });
+              console.log('FFmpeg Filter Details:', {
+                  filterString: line1Filter,
+                  text: line1,
+                  fontSize: finalFontSize, // Show finalFontSize
+                  boxborderw: 8,
+                  yPosition: yPos,
+                  startTime: firstSegment.startTime,
+                  endTime: firstSegment.endTime
+              });
           }
         })
         .on('progress', progress => console.log('Fortschritt:', progress.percent ? `${progress.percent.toFixed(1)}%` : 'Verarbeite...'))
