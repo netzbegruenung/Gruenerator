@@ -1,12 +1,149 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import apiClient from '../../../components/utils/apiClient';
+import '../styles/SubtitleEditor.css'; // Import CSS
+import { FaTrash } from 'react-icons/fa'; // Beispiel für Löschen-Icon
 
-const SubtitleEditor = ({ videoFile, subtitles, uploadId, onExportSuccess, isExporting, onExportComplete }) => {
+// Hilfsfunktion zum Formatieren von Sekunden in HH:MM:SS,ms
+const formatTime = (totalSeconds) => {
+  if (isNaN(totalSeconds) || totalSeconds < 0) return '00:00:00,000';
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = Math.floor(totalSeconds % 60);
+  const milliseconds = Math.round((totalSeconds - Math.floor(totalSeconds)) * 1000);
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')},${String(milliseconds).padStart(3, '0')}`;
+};
+
+// Hilfsfunktion zum Parsen von HH:MM:SS,ms in Sekunden
+const parseTime = (timeString) => {
+  if (!timeString || typeof timeString !== 'string') return 0;
+  const parts = timeString.split(/[:,]/);
+  if (parts.length !== 4) return 0; // Invalid format
+  const [hours, minutes, seconds, milliseconds] = parts.map(Number);
+  if ([hours, minutes, seconds, milliseconds].some(isNaN)) return 0; // Contains non-numeric parts
+  return hours * 3600 + minutes * 60 + seconds + milliseconds / 1000;
+};
+
+const SubtitleEditor = ({
+  videoFile,
+  initialSubtitles, // Umbenannt von subtitles zu initialSubtitles
+  uploadId,
+  onExportSuccess,
+  onExportComplete,
+  isExporting,
+  isProModeActive,    // Neuer Prop
+  onSubtitlesChange   // Neuer Prop
+}) => {
   const videoRef = useRef(null);
   const [videoUrl, setVideoUrl] = useState(null);
   const [editableSubtitles, setEditableSubtitles] = useState([]);
   const [error, setError] = useState(null);
+
+  // Lokalen State initialisieren/synchronisieren, wenn initialSubtitles sich ändern
+  useEffect(() => {
+    if (initialSubtitles) {
+      // Erstelle eine tiefe Kopie, um das Original nicht zu mutieren
+      try {
+          // Sicherstellen, dass initialSubtitles ein Array ist, bevor wir es parsen/stringifizieren
+          if (Array.isArray(initialSubtitles)) {
+            setEditableSubtitles(JSON.parse(JSON.stringify(initialSubtitles)));
+          } else {
+            console.warn("initialSubtitles is not an array:", initialSubtitles);
+            setEditableSubtitles([]);
+          }
+      } catch (error) {
+          console.error("Error deep copying initial subtitles:", error);
+          setEditableSubtitles([]); // Fallback auf leeres Array bei Fehler
+      }
+    } else {
+      setEditableSubtitles([]);
+    }
+  }, [initialSubtitles]);
+
+  // Handler für Textänderungen
+  const handleTextChange = useCallback((index, newText) => {
+    // Direkte Mutation vermeiden: Kopie erstellen
+    const updatedSubtitles = editableSubtitles.map((item, i) => {
+        if (i === index) {
+            return { ...item, text: newText };
+        }
+        return item;
+    });
+    setEditableSubtitles(updatedSubtitles);
+    onSubtitlesChange(updatedSubtitles); // Parent informieren
+  }, [editableSubtitles, onSubtitlesChange]);
+
+  // Handler für Zeitänderungen (nur im Profi-Modus)
+  const handleTimeChange = useCallback((index, type, newTimeString) => {
+     if (!isProModeActive) return; // Nur im Profi-Modus erlaubt
+
+     // Grundlegende Validierung des Formats
+     if (!/^\d{2}:\d{2}:\d{2},\d{3}$/.test(newTimeString)) {
+         console.warn("Ungültiges Zeitformat:", newTimeString);
+         // Optional: Visuelles Feedback an den User geben (z.B. Input rot färben)
+         return; 
+     }
+
+    const newTimeSeconds = parseTime(newTimeString);
+
+    // Direkte Mutation vermeiden
+    const updatedSubtitles = editableSubtitles.map((item, i) => {
+        if (i === index) {
+            const currentSegment = { ...item }; // Kopie des zu ändernden Segments
+            if (type === 'start') {
+                // Validierung: Startzeit < Endzeit
+                if (newTimeSeconds >= currentSegment.end) {
+                    console.warn("Startzeit kann nicht nach oder gleich der Endzeit sein.");
+                    // Optional: Feedback
+                    return item; // Keine Änderung vornehmen
+                }
+                currentSegment.start = newTimeSeconds;
+            } else if (type === 'end') {
+                 // Validierung: Endzeit > Startzeit
+                 if (newTimeSeconds <= currentSegment.start) {
+                    console.warn("Endzeit kann nicht vor oder gleich der Startzeit sein.");
+                    // Optional: Feedback
+                    return item; // Keine Änderung vornehmen
+                }
+                currentSegment.end = newTimeSeconds;
+            }
+            return currentSegment; // Geändertes Segment zurückgeben
+        }
+        return item; // Unverändertes Segment zurückgeben
+    });
+
+    // Nur updaten, wenn sich wirklich etwas geändert hat (Validierung war erfolgreich)
+    if (JSON.stringify(updatedSubtitles) !== JSON.stringify(editableSubtitles)) {
+        setEditableSubtitles(updatedSubtitles);
+        onSubtitlesChange(updatedSubtitles); // Parent informieren
+    }
+  }, [editableSubtitles, onSubtitlesChange, isProModeActive]);
+
+  // Handler zum Löschen eines Segments (nur im Profi-Modus)
+  const handleDeleteSegment = useCallback((index) => {
+     if (!isProModeActive) return; // Nur im Profi-Modus erlaubt
+
+    // Einfaches Löschen: Filtert das Segment am gegebenen Index heraus
+    const updatedSubtitles = editableSubtitles.filter((_, i) => i !== index);
+
+    setEditableSubtitles(updatedSubtitles);
+    onSubtitlesChange(updatedSubtitles); // Parent informieren
+  }, [editableSubtitles, onSubtitlesChange, isProModeActive]);
+
+  // Handler für den Export-Button (verwendet jetzt editableSubtitles)
+  const handleFinalExport = useCallback(() => {
+    // Rufe die Export-Funktion im Parent mit den bearbeiteten Untertiteln auf
+    onExportSuccess(editableSubtitles); 
+  }, [editableSubtitles, onExportSuccess]);
+  
+  // Funktion, um das Video zur Startzeit eines Segments zu springen
+  const handleTimeClick = (timeInSeconds) => {
+    if (videoRef.current) {
+      videoRef.current.currentTime = timeInSeconds;
+      // Optional: Video auch abspielen lassen
+      // videoRef.current.play(); 
+    }
+  };
 
   // Validiere Props und erstelle Video-URL
   useEffect(() => {
@@ -41,54 +178,8 @@ const SubtitleEditor = ({ videoFile, subtitles, uploadId, onExportSuccess, isExp
     }
   }, [videoFile]);
 
-  // Verarbeite Untertitel
-  useEffect(() => {
-    if (!subtitles) {
-      console.log('[SubtitleEditor] No subtitles provided');
-      return;
-    }
-
-    if (typeof subtitles !== 'string') {
-      console.error('[SubtitleEditor] Invalid subtitles type:', typeof subtitles);
-      setError('Ungültiges Untertitel-Format');
-      return;
-    }
-
-    try {
-      console.log('[SubtitleEditor] Processing subtitles:', subtitles);
-      
-      const segments = subtitles.split('\n\n')
-        .map((block, index) => {
-          const [timeLine, ...textLines] = block.split('\n');
-          const [timeRange] = timeLine.match(/(\d+:\d{2}) - (\d+:\d{2})/) || [];
-          if (!timeRange) {
-            console.warn('[SubtitleEditor] Invalid time range in block:', block);
-            return null;
-          }
-
-          const [startTime, endTime] = timeLine.split(' - ');
-          const [startMin, startSec] = startTime.split(':').map(Number);
-          const [endMin, endSec] = endTime.split(':').map(Number);
-
-          return {
-            id: index,
-            startTime: startMin * 60 + startSec,
-            endTime: endMin * 60 + endSec,
-            text: textLines.join('\n').trim()
-          };
-        })
-        .filter(Boolean);
-
-      console.log('[SubtitleEditor] Processed segments:', segments.length);
-      setEditableSubtitles(segments);
-    } catch (error) {
-      console.error('[SubtitleEditor] Error processing subtitles:', error);
-      setError('Fehler beim Verarbeiten der Untertitel');
-    }
-  }, [subtitles]);
-
   // Frühe Rückgabe bei fehlenden Props
-  if (!videoFile || !subtitles) {
+  if (!videoFile || !initialSubtitles) {
     console.log('[SubtitleEditor] Missing required props');
     return (
       <div className="subtitle-editor-container">
@@ -110,24 +201,6 @@ const SubtitleEditor = ({ videoFile, subtitles, uploadId, onExportSuccess, isExp
       textareas.forEach(adjustTextareaHeight);
     }
   }, [editableSubtitles]);
-
-  const handleSubtitleEdit = (id, newText, event) => {
-    setEditableSubtitles(prev => 
-      prev.map(segment => 
-        segment.id === id ? { ...segment, text: newText } : segment
-      )
-    );
-    
-    if (window.innerWidth <= 768) {
-      adjustTextareaHeight(event.target);
-    }
-  };
-
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
 
   const handleExport = async () => {
     if (!uploadId || !editableSubtitles.length) {
@@ -219,14 +292,14 @@ const SubtitleEditor = ({ videoFile, subtitles, uploadId, onExportSuccess, isExp
 
   const handleDownloadSRT = async () => {
     try {
-      console.log('[SubtitleEditor] Downloading SRT for original subtitles:', subtitles);
+      console.log('[SubtitleEditor] Downloading SRT for original subtitles:', initialSubtitles);
       
-      if (typeof subtitles !== 'string') {
+      if (typeof initialSubtitles !== 'string') {
         throw new Error('Ungültiges Format für SRT-Download.');
       }
 
       const response = await apiClient.post('/subtitler/download-srt', 
-        { subtitles },
+        { subtitles: initialSubtitles },
         { responseType: 'blob' }
       );
       
@@ -280,37 +353,84 @@ const SubtitleEditor = ({ videoFile, subtitles, uploadId, onExportSuccess, isExp
         <div className="subtitles-editor">
           <h3>Untertitel bearbeiten</h3>
           <div className="subtitles-list">
-            {editableSubtitles.map(segment => (
-              <div key={segment.id} className="subtitle-segment">
-                <div className="segment-time">
-                  {formatTime(segment.startTime)} - {formatTime(segment.endTime)}
+            {editableSubtitles && editableSubtitles.length > 0 ? (
+              editableSubtitles.map((segment, index) => (
+                <div key={segment.id || index} className="subtitle-segment"> {/* Use segment.id if available */} 
+                  <div className="segment-header">
+                     {isProModeActive ? (
+                        <div className="segment-time-inputs">
+                            <input
+                                type="text"
+                                className="segment-time-input"
+                                defaultValue={formatTime(segment.start)} // Use defaultValue for uncontrolled or manage state
+                                onBlur={(e) => handleTimeChange(index, 'start', e.target.value)} // Update on Blur
+                                onKeyDown={(e) => {if(e.key === 'Enter') e.target.blur()}} // Apply on Enter
+                                title="Startzeit (HH:MM:SS,ms)"
+                                pattern="\d{2}:\d{2}:\d{2},\d{3}" // Basic pattern validation
+                            />
+                            <span> - </span>
+                             <input
+                                type="text"
+                                className="segment-time-input"
+                                defaultValue={formatTime(segment.end)} // Use defaultValue for uncontrolled or manage state
+                                onBlur={(e) => handleTimeChange(index, 'end', e.target.value)} // Update on Blur
+                                onKeyDown={(e) => {if(e.key === 'Enter') e.target.blur()}} // Apply on Enter
+                                title="Endzeit (HH:MM:SS,ms)"
+                                pattern="\d{2}:\d{2}:\d{2},\d{3}" // Basic pattern validation
+                            />
+                        </div>
+                    ) : (
+                        // Bestehende Anzeige, jetzt klickbar
+                        <div 
+                          className="segment-time" 
+                          onClick={() => handleTimeClick(segment.start)} 
+                          title="Zum Video springen"
+                          role="button" // Accessibility
+                          tabIndex={0} // Accessibility
+                          onKeyDown={(e) => {if(e.key === 'Enter' || e.key === ' ') handleTimeClick(segment.start)}} // Accessibility
+                        >
+                           {formatTime(segment.start)} --> {formatTime(segment.end)}
+                        </div>
+                    )}
+                    {isProModeActive && (
+                       <button 
+                          className="delete-segment-button" 
+                          onClick={() => handleDeleteSegment(index)}
+                          title="Segment löschen"
+                          aria-label={`Segment ${index + 1} löschen`}
+                       >
+                          <FaTrash />
+                       </button>
+                    )}
+                  </div>
+                  <textarea
+                    className="segment-text"
+                    value={segment.text} // Controlled component
+                    onChange={(e) => handleTextChange(index, e.target.value)}
+                    rows={3} // Beispiel: Feste Zeilenanzahl, oder dynamisch
+                    aria-label={`Text für Segment ${index + 1}`}
+                  />
                 </div>
-                <textarea
-                  value={segment.text}
-                  onChange={(e) => handleSubtitleEdit(segment.id, e.target.value, e)}
-                  className="segment-text"
-                  rows={window.innerWidth <= 768 ? undefined : 2}
-                />
-              </div>
-            ))}
+              ))
+            ) : (
+              <p>Keine Untertitel zum Bearbeiten vorhanden oder sie werden noch geladen.</p> // Angepasster Text
+            )}
           </div>
         </div>
       </div>
 
       <div className="editor-controls">
-        <button 
+        <button
           className="btn-primary"
-          onClick={handleExport}
-          disabled={isExporting}
+          onClick={handleFinalExport} // Geänderten Handler verwenden
+          disabled={isExporting || !editableSubtitles || editableSubtitles.length === 0} // Disable if no subtitles
         >
           {isExporting ? (
             <div className="button-loading-content">
               <div className="button-spinner" />
-              <span>Video wird verarbeitet...</span>
+              <span>Exportiere...</span>
             </div>
-          ) : (
-            'Video mit Untertiteln herunterladen'
-          )}
+           ) : 'Untertitel exportieren & Beitrag erstellen'}
         </button>
         <button 
           className="btn-secondary"
@@ -319,6 +439,23 @@ const SubtitleEditor = ({ videoFile, subtitles, uploadId, onExportSuccess, isExp
         >
           Untertitel als SRT herunterladen
         </button>
+        {/* Optional: Knopf zum Zurücksetzen der Änderungen im Editor */} 
+        {/* 
+        {isProModeActive && (
+          <button 
+            className="btn-secondary"
+            onClick={() => {
+              if (initialSubtitles && Array.isArray(initialSubtitles)) {
+                  setEditableSubtitles(JSON.parse(JSON.stringify(initialSubtitles)));
+                  onSubtitlesChange(JSON.parse(JSON.stringify(initialSubtitles))); // Parent auch informieren
+              }
+            }}
+            title="Alle Änderungen in diesem Editor verwerfen"
+          >
+            Änderungen verwerfen
+          </button>
+        )}
+        */}
       </div>
     </div>
   );
@@ -326,11 +463,18 @@ const SubtitleEditor = ({ videoFile, subtitles, uploadId, onExportSuccess, isExp
 
 SubtitleEditor.propTypes = {
   videoFile: PropTypes.instanceOf(File),
-  subtitles: PropTypes.string.isRequired,
+  initialSubtitles: PropTypes.arrayOf(PropTypes.shape({
+    id: PropTypes.number.isRequired,
+    start: PropTypes.number.isRequired,
+    end: PropTypes.number.isRequired,
+    text: PropTypes.string.isRequired
+  })).isRequired,
   uploadId: PropTypes.string.isRequired,
   onExportSuccess: PropTypes.func.isRequired,
   isExporting: PropTypes.bool,
-  onExportComplete: PropTypes.func
+  onExportComplete: PropTypes.func,
+  isProModeActive: PropTypes.bool,
+  onSubtitlesChange: PropTypes.func
 };
 
 export default SubtitleEditor; 
