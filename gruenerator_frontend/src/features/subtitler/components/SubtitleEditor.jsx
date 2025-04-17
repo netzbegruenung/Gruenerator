@@ -389,7 +389,7 @@ const SubtitleEditor = ({
                           tabIndex={0} // Accessibility
                           onKeyDown={(e) => {if(e.key === 'Enter' || e.key === ' ') handleTimeClick(segment.start)}} // Accessibility
                         >
-                           {formatTime(segment.start)} --> {formatTime(segment.end)}
+                           {formatTime(segment.start)} {'-->'} {formatTime(segment.end)}
                         </div>
                     )}
                     {isProModeActive && (
