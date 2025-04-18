@@ -3,6 +3,42 @@ const { OpenAI } = require('openai');
 
 const client = new OpenAI();
 
+// Hilfsfunktion zum Formatieren von Segmenten in Text
+function formatSegmentsToText(segments) {
+  if (!Array.isArray(segments)) {
+    console.error('[openAIService] Invalid segments data for formatting:', segments);
+    return ''; // Return empty string or throw error
+  }
+  return segments
+    .map(segment => {
+      // Validate segment structure
+      if (typeof segment.start !== 'number' || typeof segment.end !== 'number' || typeof segment.text !== 'string') {
+        console.warn('[openAIService] Skipping invalid segment during formatting:', segment);
+        return null; // Skip invalid segments
+      }
+      const startMinutes = Math.floor(segment.start / 60);
+      const startSeconds = Math.floor(segment.start % 60);
+      const endMinutes = Math.floor(segment.end / 60);
+      const endSeconds = Math.floor(segment.end % 60);
+      
+      // Ensure start time is not greater than end time after rounding
+      const startTimeTotal = startMinutes * 60 + startSeconds;
+      let endTimeTotal = endMinutes * 60 + endSeconds;
+      if (startTimeTotal >= endTimeTotal) {
+         // If rounding makes end <= start, add 1 second to end time
+         // This handles cases where segments are very short
+         endTimeTotal = startTimeTotal + 1;
+         const correctedEndMinutes = Math.floor(endTimeTotal / 60);
+         const correctedEndSeconds = Math.floor(endTimeTotal % 60);
+         return `${startMinutes}:${String(startSeconds).padStart(2, '0')} - ${correctedEndMinutes}:${String(correctedEndSeconds).padStart(2, '0')}\n${segment.text.trim()}`;
+      }
+      
+      return `${startMinutes}:${String(startSeconds).padStart(2, '0')} - ${endMinutes}:${String(endSeconds).padStart(2, '0')}\n${segment.text.trim()}`;
+    })
+    .filter(Boolean) // Remove null entries from skipped segments
+    .join('\n\n');
+}
+
 // Hilfsfunktion zum Bereinigen überlappender Segmente
 function cleanupSegments(segments) {
   const cleanedSegments = [];
@@ -77,45 +113,57 @@ function createSegmentsFromWords(fullText, wordTimestamps, maxDuration = 4) {
     return segments;
 }
 
-async function transcribeWithOpenAI(filePath) {
+async function transcribeWithOpenAI(filePath, requestWordTimestamps = false) {
   try {
     // Log der Dateigröße vor dem Senden
     const stats = fs.statSync(filePath);
     const fileSizeMB = (stats.size / (1024 * 1024)).toFixed(2);
-    console.log(`Sende Audio an OpenAI (${fileSizeMB} MB): ${filePath}`);
+    console.log(`[openAIService] Sende Audio an OpenAI (${fileSizeMB} MB): ${filePath}`);
     
     const audioFile = fs.createReadStream(filePath);
-    console.log('OpenAI Whisper wird verwendet');
+    const granularity = requestWordTimestamps ? ["word"] : ["segment"];
+    console.log(`[openAIService] OpenAI Whisper wird verwendet mit Granularität: ${granularity}`);
+    
     const transcription = await client.audio.transcriptions.create({
       model: "whisper-1",
       file: audioFile,
       language: "de",
       response_format: "verbose_json",
-      timestamp_granularities: ["segment"],
+      timestamp_granularities: granularity,
       prompt: "Dies ist ein Instagram Reel. Erstelle kurze, prägnante Untertitel. Achte auf natürliche Satzpausen für die Segmentierung."
     });
     
-    console.log('Erhaltene Untertitel von OpenAI:', transcription);
+    console.log('[openAIService] Rohdaten von OpenAI erhalten.');
 
-    // Formatiere die Segmente in das gewünschte Format
-    const formattedText = transcription.segments
-      .map(segment => {
-        const startMinutes = Math.floor(segment.start / 60);
-        const startSeconds = Math.floor(segment.start % 60);
-        const endMinutes = Math.floor(segment.end / 60);
-        const endSeconds = Math.floor(segment.end % 60);
-        
-        return `${startMinutes}:${String(startSeconds).padStart(2, '0')} - ${endMinutes}:${String(endSeconds).padStart(2, '0')}\n${segment.text}`;
-      })
-      .join('\n\n');
-    
-    return formattedText;
+    if (requestWordTimestamps) {
+      // Gib das gesamte Objekt zurück, wenn Wort-Timestamps angefordert wurden
+      // Stelle sicher, dass die erwarteten Felder vorhanden sind
+      if (!transcription || typeof transcription.text !== 'string' || !Array.isArray(transcription.words)) {
+         console.error('[openAIService] Ungültige Antwort von OpenAI bei Anforderung von Wort-Timestamps:', transcription);
+         throw new Error('Ungültige Wort-Timestamp-Antwort von OpenAI');
+      }
+      console.log(`[openAIService] Gebe Wort-Timestamps zurück (Textlänge: ${transcription.text.length}, Wörter: ${transcription.words.length}).`);
+      return { text: transcription.text, words: transcription.words };
+    } else {
+      // Formatiere die Segmente in das gewünschte Textformat
+      if (!transcription || !Array.isArray(transcription.segments)) {
+        console.error('[openAIService] Ungültige Antwort von OpenAI bei Anforderung von Segment-Timestamps:', transcription);
+        throw new Error('Ungültige Segment-Timestamp-Antwort von OpenAI');
+      }
+      console.log(`[openAIService] Formatiere ${transcription.segments.length} Segmente.`);
+      const formattedText = formatSegmentsToText(transcription.segments);
+      // Ensure the return format is consistent with the word timestamp case
+      return { text: formattedText }; // Return an object with the text property
+    }
+
   } catch (error) {
-    console.error('OpenAI Transkriptionsfehler:', error);
-    throw error;
+    console.error('[openAIService] OpenAI Transkriptionsfehler:', error);
+    // Re-throw error damit der aufrufende Service es handhaben kann
+    throw error; 
   }
 }
 
 module.exports = {
-  transcribeWithOpenAI
+  transcribeWithOpenAI,
+  formatSegmentsToText // Exportiere die Formatierungsfunktion
 }; 

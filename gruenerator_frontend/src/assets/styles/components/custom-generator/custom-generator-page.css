@@ -1,0 +1,30 @@
+.generator-header {
+  width: 100%; /* Ensure header takes full width */
+  max-width: var(--container-max-width, 1200px); /* Match max-width of container */
+  box-sizing: border-box; /* Include padding/border in width */
+  margin-bottom: var(--spacing-large, 24px); /* Add space below the header */
+  padding: var(--spacing-medium, 16px); /* Add some padding */
+  border-radius: var(--border-radius-medium, 6px); /* Rounded corners */
+  border: 1px solid var(--border-subtle);
+}
+
+.generator-header .generator-title {
+  color: var(--font-color-h); /* Use heading color */
+  margin-bottom: var(--spacing-small, 12px); /* Space between title and description */
+  font-size: 1.8rem; /* Slightly larger title */
+  font-weight: 600;
+}
+
+.generator-header .generator-description {
+  color: var(--font-color); /* Standard text color */
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.custom-generator-page-container {
+  display: flex; /* Keep flexbox */
+  flex-direction: column; /* Stack children vertically */
+  align-items: center; /* Center children horizontally */
+  /* Override global.css justify-content if necessary */
+  justify-content: flex-start; /* Align items to the start vertically */
+} 

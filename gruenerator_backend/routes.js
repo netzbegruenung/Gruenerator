@@ -27,6 +27,7 @@ const subtitlerSocialRouter = require('./routes/subtitler/subtitlerSocialControl
 const voiceRouter = require('./routes/voice/voiceController');
 const customGeneratorRoute = require('./routes/custom_generator');
 const generatorConfiguratorRoute = require('./routes/generator_configurator');
+const claudeSubtitlesRoute = require('./routes/claude_subtitles');
 const { tusServer } = require('./routes/subtitler/services/tusService');
 
 function setupRoutes(app) {
@@ -54,6 +55,7 @@ function setupRoutes(app) {
   app.use('/api/you', claudeYouRoute);
   app.use('/api/custom_generator', customGeneratorRoute);
   app.use('/api/generate_generator_config', generatorConfiguratorRoute);
+  app.use('/api/claude/generate-short-subtitles', claudeSubtitlesRoute);
 
   app.use('/api/subtitler', subtitlerRouter);
   app.use('/api/subtitler', subtitlerSocialRouter);
