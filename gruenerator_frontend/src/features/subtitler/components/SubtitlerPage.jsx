@@ -328,15 +328,15 @@ const SubtitlerPage = () => {
               {step === 'edit' && (
                 <>
                   {/* Profi-Modus Schalter */}
-                  <FeatureToggle
+                  {/* <FeatureToggle
                     isActive={isProModeActive}
                     onToggle={toggleProMode} // Übergibt direkt den neuen booleschen Wert
                     label="Profi-Modus"
                     icon={FaUserCog} // Passendes Icon für Einstellungen/Profi
                     description="Zeiten bearbeiten und Segmente löschen (auf eigene Gefahr)."
                     className="subtitler-pro-toggle" // Eigene Klasse für spezifisches Styling falls nötig
-                  />
-                   {isProModeActive && <p className="pro-mode-warning">Achtung: Änderungen an Zeiten oder das Löschen von Segmenten kann die Synchronisation beeinträchtigen.</p>}
+                  /> */}
+                   {/* {isProModeActive && <p className="pro-mode-warning">Achtung: Änderungen an Zeiten oder das Löschen von Segmenten kann die Synchronisation beeinträchtigen.</p>} */}
 
                   <SubtitleEditor
                     videoFile={originalVideoFile}
