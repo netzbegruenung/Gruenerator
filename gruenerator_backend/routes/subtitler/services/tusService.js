@@ -55,6 +55,11 @@ const cleanupTusUploads = async (maxAgeHours = 24) => {
     const now = Date.now();
     
     for (const file of files) {
+      // Skip the .gitkeep file
+      if (file === '.gitkeep') {
+        continue;
+      }
+
       const filePath = path.join(TUS_UPLOAD_PATH, file);
       const stats = await fs.stat(filePath);
       const ageHours = (now - stats.mtime.getTime()) / (1000 * 60 * 60);
