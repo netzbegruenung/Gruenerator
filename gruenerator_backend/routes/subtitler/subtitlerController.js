@@ -537,8 +537,9 @@ router.post('/export', async (req, res) => {
         // Qualitätseinstellungen
         `-preset ${chosenPreset}`,  // Use the dynamically chosen preset
         '-crf 23',           // Gute Qualität (0-51, niedriger ist besser)
-        // Kopiere Audio ohne Neucodierung
-        '-c:a copy',
+        // Konvertiere Audio immer zu AAC für bessere Kompatibilität
+        '-c:a aac',          // Set audio codec to AAC
+        '-b:a 192k',         // Set audio bitrate to 192kbps
         // Optimiere für Streaming
         '-movflags faststart+frag_keyframe+empty_moov'
       ];
