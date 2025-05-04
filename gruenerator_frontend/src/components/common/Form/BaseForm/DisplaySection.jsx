@@ -25,6 +25,7 @@ import ErrorDisplay from './ErrorDisplay';
  * @param {Function} props.getExportableContent - Funktion zum Abrufen des exportierbaren Inhalts
  * @param {Function} props.onToggleFocusMode - Funktion zum Umschalten des Fokus-Modus
  * @param {boolean} props.isFocusMode - Gibt an, ob der Fokus-Modus aktiv ist
+ * @param {React.ReactNode} [props.displayActions=null] - Zusätzliche Aktionen, die unter dem Inhalt angezeigt werden sollen
  * @returns {JSX.Element} Display-Sektion
  */
 const DisplaySection = ({
@@ -42,7 +43,8 @@ const DisplaySection = ({
   handleToggleEditMode,
   getExportableContent,
   onToggleFocusMode,
-  isFocusMode
+  isFocusMode,
+  displayActions = null
 }) => {
   const [generatePostLoading, setGeneratePostLoading] = React.useState(false);
 
@@ -87,6 +89,12 @@ const DisplaySection = ({
           helpContent={helpContent}
         />
       </div>
+      {/* Render additional display actions if provided */}
+      {displayActions && (
+        <div className="display-action-section">
+          {displayActions}
+        </div>
+      )}
       {generatedPost && (
         <div className="generated-post-container">
           <p>{generatedPost}</p>
@@ -129,13 +137,15 @@ DisplaySection.propTypes = {
   handleToggleEditMode: PropTypes.func.isRequired,
   getExportableContent: PropTypes.func.isRequired,
   onToggleFocusMode: PropTypes.func.isRequired,
-  isFocusMode: PropTypes.bool
+  isFocusMode: PropTypes.bool,
+  displayActions: PropTypes.node
 };
 
 DisplaySection.defaultProps = {
   allowEditing: true,
   hideEditButton: false,
-  usePlatformContainers: false
+  usePlatformContainers: false,
+  displayActions: null
 };
 
 export default DisplaySection; 

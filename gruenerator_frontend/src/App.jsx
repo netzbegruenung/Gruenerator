@@ -9,10 +9,22 @@ import SuspenseWrapper from './components/common/SuspenseWrapper';
 import RouteComponent from './components/routing/RouteComponent';
 import { routes } from './config/routes';
 import { AuthProvider } from './components/utils/AuthContext';
+import SupabaseAuthProvider from './context/SupabaseAuthContext';
 import CustomGeneratorPage from './features/generators/CustomGeneratorPage';
-// Lazy loading für Popups
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 const PopupNutzungsbedingungen = lazy(() => import('./components/Popups/popup_nutzungsbedingungen'));
 const WelcomePopup = lazy(() => import('./components/Popups/popup_welcome'));
+
+// QueryClient Instanz erstellen
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 Minuten Cache
+      refetchOnWindowFocus: false, // Optional: Neu laden bei Fensterfokus deaktivieren
+    },
+  },
+});
 
 // Debug-Komponente für Route-Logging
 const RouteLogger = () => {
@@ -27,10 +39,6 @@ function App() {
   useScrollRestoration();
   const { setupKeyboardNav } = useAccessibility();
   const [darkMode, toggleDarkMode] = useDarkMode();
-
-  useEffect(() => {
-    // Keine Logger-Aufrufe
-  }, []);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -55,7 +63,6 @@ function App() {
   }, [darkMode]);
 
   useEffect(() => {
-    // Setze die Scroll-Position beim ersten Laden
     window.history.scrollRestoration = 'manual';
     window.scrollTo({
       top: 0,
@@ -67,68 +74,73 @@ function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>
-        <Router>
-          <ScrollToTop />
-          <RouteLogger />
-          <SuspenseWrapper>
-            <PopupNutzungsbedingungen />
-            <WelcomePopup />
-            <div id="aria-live-region" aria-live="polite" className="sr-only"></div>
-            
-            <Routes>
-              {/* Standard-Routen */}
-              {routes.standard.map(({ path }) => (
-                <Route
-                  key={path}
-                  path={path}
-                  element={
-                    <RouteComponent 
-                      path={path} 
-                      darkMode={darkMode} 
-                      toggleDarkMode={toggleDarkMode}
+        <QueryClientProvider client={queryClient}>
+          <SupabaseAuthProvider>
+            <Router>
+              <ScrollToTop />
+              <RouteLogger />
+              <SuspenseWrapper>
+                <PopupNutzungsbedingungen />
+                <WelcomePopup />
+                <div id="aria-live-region" aria-live="polite" className="sr-only"></div>
+                
+                <Routes>
+                  {/* Standard-Routen */}
+                  {routes.standard.map(({ path }) => (
+                    <Route
+                      key={path}
+                      path={path}
+                      element={
+                        <RouteComponent 
+                          path={path} 
+                          darkMode={darkMode} 
+                          toggleDarkMode={toggleDarkMode}
+                        />
+                      }
                     />
-                  }
-                />
-              ))}
+                  ))}
 
-              {/* Spezielle Routen */}
-              {routes.special.map(({ path }) => (
-                <Route
-                  key={path}
-                  path={path}
-                  element={
-                    <RouteComponent 
-                      path={path} 
-                      darkMode={darkMode} 
-                      toggleDarkMode={toggleDarkMode}
-                      isSpecial
+                  {/* Spezielle Routen */}
+                  {routes.special.map(({ path }) => (
+                    <Route
+                      key={path}
+                      path={path}
+                      element={
+                        <RouteComponent 
+                          path={path} 
+                          darkMode={darkMode} 
+                          toggleDarkMode={toggleDarkMode}
+                          isSpecial
+                        />
+                      }
                     />
-                  }
-                />
-              ))}
+                  ))}
 
-              {/* No-Header-Footer Routen */}
-              {routes.noHeaderFooter.map(({ path }) => {
-                return (
-                  <Route
-                    key={path}
-                    path={path}
-                    element={
-                      <RouteComponent 
-                        path={path} 
-                        darkMode={darkMode} 
-                        toggleDarkMode={toggleDarkMode}
-                        showHeaderFooter={false}
+                  {/* No-Header-Footer Routen */}
+                  {routes.noHeaderFooter.map(({ path }) => {
+                    return (
+                      <Route
+                        key={path}
+                        path={path}
+                        element={
+                          <RouteComponent 
+                            path={path} 
+                            darkMode={darkMode} 
+                            toggleDarkMode={toggleDarkMode}
+                            showHeaderFooter={false}
+                          />
+                        }
                       />
-                    }
-                  />
-                );
-              })}
+                    );
+                  })}
 
-              <Route path="/generator/:slug" element={<CustomGeneratorPage />} />
-            </Routes>
-          </SuspenseWrapper>
-        </Router>
+                  <Route path="/generator/:slug" element={<CustomGeneratorPage />} />
+                </Routes>
+              </SuspenseWrapper>
+            </Router>
+          </SupabaseAuthProvider>
+          <ReactQueryDevtools initialIsOpen={false} />
+        </QueryClientProvider>
       </AuthProvider>
     </ErrorBoundary>
   );

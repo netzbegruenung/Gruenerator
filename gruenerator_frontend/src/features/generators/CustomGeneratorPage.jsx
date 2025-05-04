@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { useParams } from 'react-router-dom';
 import BaseForm from '../../components/common/BaseForm';
-import { youSupabaseUtils } from '../../components/utils/youSupabaseClient';
+import { templatesSupabaseUtils } from '../../components/utils/templatesSupabaseClient';
 import useApiSubmit from '../../components/hooks/useApiSubmit';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import '../../assets/styles/components/custom-generator/custom-generator-page.css';
@@ -25,7 +25,7 @@ const CustomGeneratorPage = ({ showHeaderFooter = true }) => {
       setLocalGeneratedContent('');
       setGeneratedContent('');
       try {
-        const data = await youSupabaseUtils.fetchData('custom_generators', {
+        const data = await templatesSupabaseUtils.fetchData('custom_generators', {
           filter: { column: 'slug', operator: 'eq', value: slug },
           limit: 1
         });

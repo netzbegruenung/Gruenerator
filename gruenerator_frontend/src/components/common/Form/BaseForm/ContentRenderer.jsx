@@ -19,15 +19,8 @@ const ContentRenderer = ({
   isEditing,
   helpContent
 }) => {
-  console.log('[ContentRenderer] Rendering with:', { 
-    valueLength: value?.length, 
-    hasGeneratedContent: !!generatedContent, 
-    isEditing
-  });
-
   // Wenn kein Content vorhanden ist, zeige den HelpDisplay
   if (!value && !generatedContent) {
-    console.log('[ContentRenderer] No content available, showing HelpDisplay');
     return helpContent ? (
       <HelpDisplay
         content={helpContent.content}
@@ -38,12 +31,10 @@ const ContentRenderer = ({
 
   // Wenn generatedContent ein React-Element ist, direkt anzeigen
   if (isReactElement(generatedContent)) {
-    console.log('[ContentRenderer] Showing React element directly');
     return generatedContent;
   }
 
   // Standard Editor anzeigen (read-only wenn nicht im Bearbeitungsmodus)
-  console.log('[ContentRenderer] Showing Editor with value length:', value?.length);
   return (
     <div className="generated-content-wrapper">
       <Editor value={value || ''} />

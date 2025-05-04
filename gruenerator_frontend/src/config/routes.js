@@ -1,8 +1,12 @@
 import { lazy } from 'react';
 // Statische Importe in dynamische umwandeln
-const TemplateGallery = lazy(() => import('../features/templates'));
+const CanvaTemplateGallery = lazy(() => import('../features/templates/canva'));
 const UniversalTextGenerator = lazy(() => import('../features/texte/universal/UniversalTextGenerator'));
 const AntragPage = lazy(() => import('../features/texte/antrag/AntragPage'));
+// TODO: Eine Komponente zur Anzeige der Antragsliste erstellen und importieren
+// const AntraegeListe = lazy(() => import('../features/antraege/AntraegeListe')); 
+const AntraegeGallery = lazy(() => import('../features/templates/antraege/AntraegeGallery'));
+const AntragDetailPage = lazy(() => import('../features/templates/antraege/AntragDetailPage'));
 const YouPage = lazy(() => import('../features/you'));
 const EmptyEditor = lazy(() => import('../features/texte/editor/EmptyEditor'));
 const CustomGeneratorPage = lazy(() => import('../features/generators/CustomGeneratorPage'));
@@ -12,6 +16,20 @@ const CreateCustomGeneratorPage = lazy(() => import('../features/generators/Crea
 // import LinkTreeRoutes from '../features/linktree/LinkTreeRoutes';
 const CampaignPage = lazy(() => import('../features/campaigns'));
 const WebinarCampaign = lazy(() => import('../features/campaigns/components/WebinarCampaign'));
+
+// Auth-Komponenten importieren
+const LoginPage = lazy(() => import('../features/auth/pages/LoginPage'));
+const RegistrationPage = lazy(() => import('../features/auth/pages/RegistrationPage'));
+const RequestPasswordResetPage = lazy(() => import('../features/auth/pages/RequestPasswordResetPage'));
+const ResetPasswordPage = lazy(() => import('../features/auth/pages/ResetPasswordPage'));
+// Zusätzliche Auth-Komponenten importieren
+const EmailVerificationPage = lazy(() => import('../features/auth/pages/EmailVerificationPage'));
+const ConfirmEmailPage = lazy(() => import('../features/auth/pages/ConfirmEmailPage'));
+const ProfilePage = lazy(() => import('../features/auth/pages/ProfilePage'));
+const AccountDeletePage = lazy(() => import('../features/auth/pages/AccountDeletePage'));
+const SetupMFAPage = lazy(() => import('../features/auth/pages/SetupMFAPage'));
+const MFAVerificationPage = lazy(() => import('../features/auth/pages/MFAVerificationPage'));
+const OAuthCallbackPage = lazy(() => import('../features/auth/pages/OAuthCallbackPage'));
 
 // Admin-Bereich
 const AdminApp = lazy(() => import('../features/admin'));
@@ -38,7 +56,10 @@ export const GrueneratorenBundle = {
   Wahlprogramm: UniversalTextGenerator,
   Kandidat: lazy(() => import('../components/pages/Grüneratoren/Kandidatengenerator')),
   Search: Search,
-  Templates: TemplateGallery,
+  CanvaTemplates: CanvaTemplateGallery,
+  // AntraegeListe: AntraegeListe, // Platzhalter für die zukünftige Antragslisten-Komponente
+  AntraegeListe: AntraegeGallery,
+  AntragDetail: AntragDetailPage,
   Reel: Reel,
   You: YouPage,
   Campaign: CampaignPage,
@@ -61,7 +82,9 @@ const standardRoutes = [
   { path: '/rede', component: GrueneratorenBundle.Rede, withForm: true },
   { path: '/wahlprogramm', component: GrueneratorenBundle.Wahlprogramm, withForm: true },
   { path: '/kandidat', component: GrueneratorenBundle.Kandidat, withForm: true },
-  { path: '/vorlagen', component: GrueneratorenBundle.Templates },
+  { path: '/datenbank/canva', component: GrueneratorenBundle.CanvaTemplates },
+  { path: '/datenbank/antraege', component: GrueneratorenBundle.AntraegeListe },
+  { path: '/datenbank/antraege/:antragId', component: GrueneratorenBundle.AntragDetail },
   { path: '/suche', component: GrueneratorenBundle.Search, withForm: true },
   { path: '/reel', component: GrueneratorenBundle.Reel },
   { path: '/you', component: GrueneratorenBundle.You, withForm: true },
@@ -73,6 +96,19 @@ const standardRoutes = [
   { path: '/admin/*', component: GrueneratorenBundle.Admin, showHeaderFooter: false },
   { path: '/datenschutz', component: Datenschutz },
   { path: '/impressum', component: Impressum },
+  // Auth-Routen
+  { path: '/login', component: LoginPage },
+  { path: '/register', component: RegistrationPage },
+  { path: '/request-password-reset', component: RequestPasswordResetPage },
+  { path: '/reset-password', component: ResetPasswordPage },
+  // Zusätzliche Auth-Routen
+  { path: '/email-verification', component: EmailVerificationPage },
+  { path: '/confirm-email', component: ConfirmEmailPage },
+  { path: '/profile', component: ProfilePage },
+  { path: '/account-delete', component: AccountDeletePage },
+  { path: '/setup-mfa', component: SetupMFAPage },
+  { path: '/mfa-verification', component: MFAVerificationPage },
+  { path: '/oauth-callback', component: OAuthCallbackPage },
   { path: '*', component: NotFound }
 ];
 
