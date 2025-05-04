@@ -1,12 +1,16 @@
 //routes.js
-const claudeRoute = require('./routes/claude/index');
+const antraegeRouter = require('./routes/antraege/index'); // Import the consolidated Anträge router
+// const saveAntragRoute = require('./routes/antraege/saveAntrag');
+// const getMyAntraegeRouter = require('./routes/antraege/getMyAntraege');
+// const deleteAntragRouter = require('./routes/antraege/deleteAntrag');
+// const antragSimpleRoute = require('./routes/antraege/antrag_simple'); // REMOVED direct import/use
 const claudeSocialRoute = require('./routes/claude_social');
 const claudeRedeRoute = require('./routes/claude_rede');
 const claudeChatRoute = require('./routes/claude_chat');
 const antragsversteherRoute = require('./routes/claude_antragsversteher');
 const pdfExtractionRoute = require('./routes/pdf-text-extraction');
 const wahlpruefsteinBundestagswahlRoute = require('./routes/wahlpruefsteinbundestagswahl');
-const sharepicDreizeilenCanvasRoute = require('./routes/sharepic/sharepic_canvas/dreizeilen_canvas'); 
+const sharepicDreizeilenCanvasRoute = require('./routes/sharepic/sharepic_canvas/dreizeilen_canvas');
 const zitatSharepicCanvasRoute = require('./routes/sharepic/sharepic_canvas/zitat_canvas');
 const sharepicDreizeilenClaudeRoute = require('./routes/sharepic/sharepic_claude/dreizeilen_claude');
 const zitatSharepicClaudeRoute = require('./routes/sharepic/sharepic_claude/zitat_claude');
@@ -29,10 +33,19 @@ const customGeneratorRoute = require('./routes/custom_generator');
 const generatorConfiguratorRoute = require('./routes/generator_configurator');
 const claudeSubtitlesRoute = require('./routes/claude_subtitles');
 const { tusServer } = require('./routes/subtitler/services/tusService');
+const testBedrockRoutes = require('./routes/testBedrock'); // Import the new test route
 
 function setupRoutes(app) {
   app.use('/api/subtitler/upload', tusServer.handle.bind(tusServer));
-  app.use('/api/claude', claudeRoute);
+
+  // Use the single consolidated router for all /api/antraege paths
+  app.use('/api/antraege', antraegeRouter);
+
+  // Remove the separate app.use calls for the individual antraege routes
+  // app.use('/api/antraege/my', getMyAntraegeRouter);
+  // app.use('/api/antraege', deleteAntragRouter);
+  // app.use('/api/antrag-save', saveAntragRoute);
+
   app.use('/api/claude_social', claudeSocialRoute);
   app.use('/api/claude_rede', claudeRedeRoute);
   app.use('/api/claude_chat', claudeChatRoute);
@@ -46,7 +59,7 @@ function setupRoutes(app) {
   app.use('/api/ai-image-modification', aiImageModificationRouter);
   app.use('/api/imageupload', imageUploadRouter);
   app.use('/api/processText', processTextRouter);
-  app.use('/api/claude_text_adjustment', claudeTextAdjustmentRoute); 
+  app.use('/api/claude_text_adjustment', claudeTextAdjustmentRoute);
   app.use('/api/etherpad', etherpadRoute);
   app.use('/api/claude_wahlprogramm', claudeWahlprogrammRoute);
   app.use('/api/claude_kandidat', claudeKandidatRoute);
@@ -60,9 +73,12 @@ function setupRoutes(app) {
   app.use('/api/subtitler', subtitlerRouter);
   app.use('/api/subtitler', subtitlerSocialRouter);
   app.use('/api/voice', voiceRouter);
-  
+
   app.use('/api/search', searchRouter);
   app.use('/api/analyze', searchAnalysisRouter);
+
+  // Add the Bedrock test route
+  app.use('/api', testBedrockRoutes);
 }
 
 module.exports = { setupRoutes };

@@ -1,26 +1,26 @@
 import { createClient } from '@supabase/supabase-js';
 import { handleError } from './errorHandling';
 
-// Supabase Konfiguration aus Umgebungsvariablen
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// Use the same environment variables as templatesSupabaseClient
+const supabaseUrl = import.meta.env.VITE_TEMPLATES_SUPABASE_URL;
+const supabaseKey = import.meta.env.VITE_TEMPLATES_SUPABASE_ANON_KEY;
 
-// Versuche, den Supabase Client zu erstellen
+// Attempt to create the Supabase client
 let supabaseInstance = null;
 
 if (supabaseUrl && supabaseKey) {
   try {
     supabaseInstance = createClient(supabaseUrl, supabaseKey);
-    console.log('[supabaseClient] Client initialized successfully.');
+    // console.log('[supabaseClient] Client initialized successfully using template variables.');
   } catch (error) {
-    console.error(`[supabaseClient] Failed to initialize client: ${error.message}. Invalid URL?`, { urlProvided: supabaseUrl });
-    // supabaseInstance bleibt null
+    console.error(`[supabaseClient] Failed to initialize client using template variables: ${error.message}. Invalid URL?`, { urlProvided: supabaseUrl });
+    // supabaseInstance remains null
   }
 } else {
-  console.error('[supabaseClient] Supabase environment variables not found. Check .env file. Functionality will be disabled.');
+  console.error('[supabaseClient] Template Supabase environment variables (URL or Key) not found. Check .env file. Functionality will be disabled.');
 }
 
-// Exportiere die (möglicherweise null) Supabase-Instanz
+// Export the (potentially null) Supabase instance
 export const supabase = supabaseInstance;
 
 // Hilfsfunktionen für häufige Datenbankoperationen

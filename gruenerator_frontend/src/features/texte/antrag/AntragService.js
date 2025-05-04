@@ -1,10 +1,10 @@
 import useApiSubmit from '../../../components/hooks/useApiSubmit';
 
 export const useAntragService = () => {
-  const searchQuerySubmit = useApiSubmit('claude/search-query');
+  const searchQuerySubmit = useApiSubmit('antraege/search-query');
   const searchSubmit = useApiSubmit('search');
-  const antragSubmit = useApiSubmit('claude/antrag');
-  const simpleAntragSubmit = useApiSubmit('claude/antrag-simple');
+  const antragSubmit = useApiSubmit('antraege/antrag');
+  const simpleAntragSubmit = useApiSubmit('antraege/generate-simple');
   
 
   return {
@@ -17,7 +17,7 @@ export const useAntragService = () => {
 
 export const AntragService = {
   async generateSearchQuery(formData) {
-    const { submitForm } = useApiSubmit('claude/search-query');
+    const { submitForm } = useApiSubmit('antraege/search-query');
     return await submitForm(formData);
   },
 
@@ -29,7 +29,7 @@ export const AntragService = {
   },
 
   async generateAntrag(formData, searchResults) {
-    const { submitForm } = useApiSubmit('claude/antrag');
+    const { submitForm } = useApiSubmit('antraege/antrag');
     const payload = {
       ...formData,
       searchResults,
@@ -40,7 +40,7 @@ export const AntragService = {
   },
 
   async generateSimpleAntrag(formData) {
-    const { submitForm } = useApiSubmit('claude/antrag-simple');
+    const { submitForm } = useApiSubmit('antraege/generate-simple');
     const payload = {
       ...formData
     };

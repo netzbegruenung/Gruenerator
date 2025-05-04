@@ -4,6 +4,7 @@
 @import url('./common/typography.css');
 @import url('./common/global.css');
 @import url('./common/shared-components.css');
+@import url('./common/markdown-styles.css');
 
 /* Layout Styles */
 @import url('./layout.css');
@@ -11,6 +12,7 @@
 /* Layout Component Styles */
 @import url('./components/layout/footer.css');
 @import url('./components/layout/header.css');
+@import url('./components/layout/profile-dropdown.css');
 @import url('./components/layout/navmenu.css');
 @import url('./components/layout/platform-container.css');
 
@@ -28,6 +30,10 @@
 @import url('./components/ui/tooltip.css');
 @import url('../../components/common/editor/EditorChat.css');
 @import url('./components/ui/success-screen.css');
+@import url('./components/ui/SegmentedControl.css');
+@import url('./components/gallery-layout.css');
+@import url('../../components/common/KnowledgeSelector/style.css');
+
 
 /* Action Component Styles */
 @import url('./components/actions/slogan-alternatives.css');
@@ -42,6 +48,7 @@
 @import url('./components/popups/help.css');
 @import url('./components/popups/welcome-popup.css');
 @import url('./components/popups/popup.css');
+@import url('./components/popups/AntragSavePopup.css');
 
 /* Editor Component Styles */
 @import url('./components/editor/editor-content.css');
@@ -55,6 +62,10 @@
 @import url('./components/sharepic/sharepic.css');
 @import url('./components/sharepic/sharepic-type-selector.css');
 
+/* Auth Component Styles */
+@import url('./features/auth/auth.css');
+@import url('./features/auth/profile.css');
+
 /* Page Styles */
 @import url('./pages/Startseitenstyle.css');
 @import url('./pages/antragsversteher.css');
@@ -62,6 +73,7 @@
 @import url('./pages/template-gallery.css');
 @import url('./pages/Impressum_datenschutz.css');
 @import url('./pages/GeneratorStartScreen.css');
+@import url('./pages/AntragDetailPage.css');
 
 /* Features Styles */
 
@@ -106,4 +118,7 @@
 
 /* Features - Texte */
 @import url('../../features/texte/editor/EmptyEditor.css');
-@import url('../../features/texte/antrag/styles/antrag-form.css');
+/* @import url('../../features/texte/antrag/styles/antrag-form.css'); */
+
+/* Components - Antraege */
+@import './components/antraege/AntragEditForm.css';
