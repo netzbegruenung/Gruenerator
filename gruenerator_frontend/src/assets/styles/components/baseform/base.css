@@ -32,4 +32,27 @@
 
 .display-container h3 {
     margin-bottom: 8px;
-} 
+}
+
+/* Styling für Formular-Labels innerhalb von .form-field */
+.form-field label {
+  display: block; /* Sorgt dafür, dass das Label über dem Input steht */
+  margin-bottom: var(--spacing-xsmall); /* Fügt Abstand unter dem Label hinzu (8px) */
+  color: var(--font-color); /* Verwendet die themenabhängige Schriftfarbe */
+  /* Optional: font-weight: 500; oder Schriftgröße anpassen falls nötig */
+}
+
+/* Container for actions below the display content (e.g., Save button) */
+.display-action-section {
+  margin-top: var(--spacing-large); /* Space above the entire action section */
+  padding-top: var(--spacing-medium); /* Padding inside the section */
+  border-top: 1px solid var(--border-subtle); /* Optional: Visual separator */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start; /* Align content to the left */
+}
+
+/* Add specific margin-top to the wrapper containing the antrag save button and status */
+.display-action-section .save-action-element {
+    margin-top: var(--spacing-small); /* Add some space between the top border/padding and the button block */
+}

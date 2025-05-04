@@ -36,6 +36,12 @@ export const FormProvider = ({
   const [hasContent, setHasContent] = useState(false);
   const [adjustmentError, setAdjustmentError] = useState(null);
 
+  // Add State for Europa Mode
+  const [useEuropa, setUseEuropa] = useState(false);
+  
+  // Add state for knowledge entries
+  const [selectedKnowledge, setSelectedKnowledge] = useState([]);
+
   const debouncedSetValue = useMemo(() => 
     debounce((newValue) => {
       setValue(newValue);
@@ -139,6 +145,32 @@ export const FormProvider = ({
       setIsApplyingAdjustment(false);
     }
   }, []);
+
+  // Add function to handle knowledge selection
+  const handleKnowledgeSelection = useCallback((knowledge, knowledgeIdToRemove) => {
+    if (knowledgeIdToRemove) {
+      // Entfernen einer Wissenseinheit
+      setSelectedKnowledge(prev => prev.filter(item => item.id !== knowledgeIdToRemove));
+    } else if (knowledge) {
+      // Hinzufügen einer Wissenseinheit
+      setSelectedKnowledge(prev => [...prev, knowledge]);
+    }
+  }, []);
+
+  // Add function to clear all selected knowledge
+  const clearSelectedKnowledge = useCallback(() => {
+    setSelectedKnowledge([]);
+  }, []);
+
+  // Add function to get knowledge content for API requests
+  const getKnowledgeContent = useCallback(() => {
+    if (selectedKnowledge.length === 0) return null;
+    
+    // Kombiniere den Inhalt aller ausgewählten Wissenseinheiten
+    return selectedKnowledge.map(item => {
+      return `## ${item.title}\n${item.content}`;
+    }).join('\n\n');
+  }, [selectedKnowledge]);
 
   const handleConfirmAdjustment = useCallback(async () => {
     console.log('[FormContext] handleConfirmAdjustment', adjustmentText);
@@ -270,7 +302,15 @@ export const FormProvider = ({
     quillRef: quillRef,
     handleAiResponse,
     adjustmentError,
-    setAdjustmentError
+    setAdjustmentError,
+    // Add Europa Mode state and setter to context
+    useEuropa,
+    setUseEuropa,
+    // Add knowledge management
+    selectedKnowledge,
+    handleKnowledgeSelection,
+    clearSelectedKnowledge,
+    getKnowledgeContent
   }), [
     value,
     setValue,
@@ -304,7 +344,15 @@ export const FormProvider = ({
     handleAiResponse,
     adjustmentError,
     setAdjustmentError,
-    handleAiAdjustment
+    handleAiAdjustment,
+    // Add dependencies for Europa Mode
+    useEuropa,
+    setUseEuropa,
+    // Add dependencies for knowledge management
+    selectedKnowledge,
+    handleKnowledgeSelection,
+    clearSelectedKnowledge,
+    getKnowledgeContent
   ]);
 
   return (

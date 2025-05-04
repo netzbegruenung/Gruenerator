@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import BaseForm from '../../components/common/BaseForm';
-import { youSupabaseUtils } from '../../components/utils/youSupabaseClient';
+import { templatesSupabaseUtils } from '../../components/utils/templatesSupabaseClient';
 import { useNavigate } from 'react-router-dom';
 import FieldEditorAssistant from './components/FieldEditorAssistant';
 import { getCustomGeneratorHelpContent } from './constants/customGeneratorHelpContent';
@@ -301,8 +301,9 @@ const CreateCustomGeneratorPage = ({ showHeaderFooter = true }) => {
         contact_email: formData.contact_email
       };
 
-      await youSupabaseUtils.insertData('custom_generators', dataToSave);
+      await templatesSupabaseUtils.insertData('custom_generators', dataToSave);
       setCompletionData({ name: dataToSave.name, slug: dataToSave.slug });
+      navigate('/you/generators');
     } catch (err) {
       console.error("Error saving generator:", err);
       setError(`Fehler beim Speichern: ${err.message || 'Unbekannter Fehler'}`);
