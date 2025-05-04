@@ -47,7 +47,7 @@ export const useAntragSearch = () => {
   };
 
   // Nur die Suchanfrage generieren
-  const generateSearchQuery = useCallback(async (formData) => {
+  const generateSearchQuery = useCallback(async (formData, useEuropaMode = false) => {
     setError(null);
     setSearchState(SEARCH_STATES.GENERATING_QUERY);
     
@@ -57,12 +57,14 @@ export const useAntragSearch = () => {
         throw new Error('Bitte gib eine Idee ein');
       }
 
-      // Claude generiert die Suchanfrage
+      console.log('[useAntragSearch] Generiere Suchanfrage, Europa Mode:', useEuropaMode);
+
+      // Claude generiert die Suchanfrage - useEuropaMode übergeben
       const searchQueryResponse = await searchQuerySubmit.submitForm({
         idee: formData.idee,
         details: formData.details || '',
         gliederung: formData.gliederung || ''
-      });
+      }, false, useEuropaMode); // useBackup=false, useEuropa=useEuropaMode
 
       const cleanQuery = extractSearchQuery(searchQueryResponse);
       if (!cleanQuery) {
@@ -86,7 +88,7 @@ export const useAntragSearch = () => {
   }, [searchQuerySubmit]);
 
   // Suche durchführen mit der generierten Anfrage
-  const performSearch = useCallback(async (query) => {
+  const performSearch = useCallback(async (query, useEuropaMode = false) => {
     setError(null);
     setSearchState(SEARCH_STATES.SEARCHING);
     
@@ -95,9 +97,9 @@ export const useAntragSearch = () => {
         throw new Error('Keine Suchanfrage vorhanden');
       }
       
-      console.log('[useAntragSearch] Starte Suche mit Anfrage:', query);
+      console.log('[useAntragSearch] Starte Suche mit Anfrage:', query, 'Europa Mode:', useEuropaMode);
       
-      // Tavily-Suche mit 5 Ergebnissen und Inhalten
+      // Tavily-Suche mit 5 Ergebnissen und Inhalten - useEuropaMode übergeben
       const searchResponse = await searchSubmit.submitForm({
         query: query.trim(),
         options: {
@@ -105,7 +107,7 @@ export const useAntragSearch = () => {
           max_results: 5,
           include_raw_content: true
         }
-      });
+      }, false, useEuropaMode); // useBackup=false, useEuropa=useEuropaMode
 
       console.log('[useAntragSearch] Suchantwort erhalten:', searchResponse);
 

@@ -21,7 +21,7 @@ export default defineConfig(({ command }) => ({
   },
 
   optimizeDeps: {
-    include: ['react', 'react-dom', 'tus-js-client']
+    include: ['react', 'react-dom', 'tus-js-client', 'react-loading-skeleton']
   },
 
   build: {

@@ -2,6 +2,8 @@ import { useCallback, useState } from 'react';
 import { useAntragContext } from './AntragContext';
 import { useAntragService } from './AntragService';
 import { useAntragSearch, SEARCH_STATES } from './hooks/useAntragSearch';
+import apiClient from '../../../components/utils/apiClient'; // Import the configured axios client
+import { saveAntrag } from './antragSaveUtils';
 
 // Hilfsfunktion zur Normalisierung von Suchergebnissen
 const normalizeSearchResults = (results) => {
@@ -13,10 +15,15 @@ const normalizeSearchResults = (results) => {
 export const useAntrag = () => {
   const [searchState, setSearchState] = useState(SEARCH_STATES.IDLE);
   const [searchQuery, setSearchQuery] = useState('');
+  // Neue States für den Speicherprozess
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState(null); // { type: 'success' | 'error', message: string }
+
   const {
     formData,
     setFormData,
     useWebSearch,
+    generatedAntrag, // Füge generatedAntrag aus dem Context hinzu
     setGeneratedAntrag,
     setDisplayedSearchResults,
     setDisplayedSources,
@@ -102,7 +109,7 @@ export const useAntrag = () => {
   }, [setDisplayedSources]);
 
   // Generiere den Antrag mit den Suchergebnissen
-  const generateAntragWithSearchResults = useCallback(async (searchResults) => {
+  const generateAntragWithSearchResults = useCallback(async (searchResults, useEuropaMode = false) => {
     const normalizedResults = normalizeSearchResults(searchResults);
     
     if (normalizedResults.length === 0) {
@@ -115,7 +122,7 @@ export const useAntrag = () => {
     setSearchState(SEARCH_STATES.GENERATING_ANTRAG);
     
     try {
-      console.log('[useAntrag] Generiere Antrag mit Suchergebnissen:', normalizedResults);
+      console.log('[useAntrag] Generiere Antrag mit Suchergebnissen:', normalizedResults, 'Europa Mode:', useEuropaMode);
       
       const antragResponse = await antragSubmit.submitForm({
         idee: formData.idee,
@@ -123,7 +130,7 @@ export const useAntrag = () => {
         gliederung: formData.gliederung,
         searchResults: normalizedResults,
         useWebSearch: true
-      });
+      }, false, useEuropaMode);
       
       console.log('[useAntrag] Antwort vom Backend mit Websuche:', antragResponse);
       
@@ -158,10 +165,20 @@ export const useAntrag = () => {
     } finally {
       setLoading(false);
     }
-  }, [formData, antragSubmit, formatAntragContent, formatAndDisplaySources, setGeneratedAntrag, setLoading, setError, setDisplayedSearchResults, setDisplayedSources]);
+  }, [
+    formData, 
+    antragSubmit, 
+    formatAntragContent, 
+    formatAndDisplaySources, 
+    setGeneratedAntrag, 
+    setLoading, 
+    setError, 
+    setDisplayedSearchResults, 
+    setDisplayedSources
+  ]);
 
   // Durchführen der Suche
-  const executeSearch = useCallback(async (query) => {
+  const executeSearch = useCallback(async (query, useEuropaMode = false) => {
     if (!query) {
       throw new Error('Keine Suchanfrage vorhanden');
     }
@@ -171,8 +188,8 @@ export const useAntrag = () => {
     setSearchState(SEARCH_STATES.SEARCHING);
     
     try {
-      console.log('[useAntrag] Starte Suche für:', query);
-      const results = await performSearch(query);
+      console.log('[useAntrag] Starte Suche für:', query, 'Europa Mode:', useEuropaMode);
+      const results = await performSearch(query, useEuropaMode);
       
       // Suchergebnisse prüfen und dann direkt Antrag generieren
       if (results && results.results && Array.isArray(results.results)) {
@@ -181,7 +198,7 @@ export const useAntrag = () => {
         // Automatisch mit den Suchergebnissen den Antrag generieren
         try {
           console.log('[useAntrag] Starte automatisch Antragsgenerierung mit Suchergebnissen');
-          await generateAntragWithSearchResults(results.results);
+          await generateAntragWithSearchResults(results.results, useEuropaMode);
         } catch (antragError) {
           console.error('[useAntrag] Fehler bei automatischer Antragsgenerierung:', antragError);
           setError(antragError.message || 'Fehler bei der automatischen Antragsgenerierung');
@@ -201,17 +218,22 @@ export const useAntrag = () => {
     } finally {
       setLoading(false);
     }
-  }, [performSearch, formatAndDisplaySearchResults, setLoading, setError, generateAntragWithSearchResults]);
+  }, [
+    performSearch, 
+    setLoading, 
+    setError, 
+    generateAntragWithSearchResults
+  ]);
 
   // Generiere nur die Suchanfrage und starte dann die Suche
-  const generateSearchQueryOnly = useCallback(async () => {
+  const generateSearchQueryOnly = useCallback(async (useEuropaMode = false) => {
     setLoading(true);
     setError(null);
     setSearchState(SEARCH_STATES.GENERATING_QUERY);
     
     try {
-      console.log('[useAntrag] Generiere Suchanfrage mit Formdata:', formData);
-      const searchResponse = await generateSearchQuery(formData);
+      console.log('[useAntrag] Generiere Suchanfrage mit Formdata:', formData, 'Europa Mode:', useEuropaMode);
+      const searchResponse = await generateSearchQuery(formData, useEuropaMode);
       
       if (!searchResponse) {
         throw new Error('Keine Antwort bei Suchanfragengeneration erhalten');
@@ -235,7 +257,7 @@ export const useAntrag = () => {
       // Starte automatisch die Suche mit der generierten Anfrage
       try {
         console.log('[useAntrag] Starte automatische Suche mit Anfrage:', query);
-        await executeSearch(query);
+        await executeSearch(query, useEuropaMode);
       } catch (searchError) {
         console.error('[useAntrag] Fehler bei automatischer Suche:', searchError);
         setError(searchError.message || 'Fehler bei der automatischen Suche');
@@ -251,29 +273,47 @@ export const useAntrag = () => {
     } finally {
       setLoading(false);
     }
-  }, [formData, generateSearchQuery, formatAndDisplaySearchQuery, executeSearch, setLoading, setError, setDisplayedSources]);
+  }, [
+    formData, 
+    generateSearchQuery, 
+    formatAndDisplaySearchQuery, 
+    executeSearch,
+    setLoading, 
+    setError, 
+    setDisplayedSources
+  ]);
 
   // Hauptfunktion für die Antragsgenerierung
-  const generateAntrag = useCallback(async () => {
+  const generateAntrag = useCallback(async (useEuropaMode = false, customPrompt = null) => {
     if (useWebSearch) {
       // Suchanfrage generieren und automatisch weiterverarbeiten
-      console.log('[useAntrag] Starte automatisierten Prozess (Suchanfrage → Suche → Antrag)');
-      return generateSearchQueryOnly();
+      console.log('[useAntrag] Starte automatisierten Prozess (Suchanfrage → Suche → Antrag), Europa Mode:', useEuropaMode);
+      return generateSearchQueryOnly(useEuropaMode);
     } else {
       // Ohne Websuche - direkte Implementierung wie bei Antragsgenerator.js
       setLoading(true);
       setError(null);
       
       try {
-        console.log('[useAntrag] Starte vereinfachte Antragsgenerierung ohne Websuche');
+        console.log('[useAntrag] Starte vereinfachte Antragsgenerierung ohne Websuche, Europa Mode:', useEuropaMode);
         
         // Prüfe, ob idee vorhanden ist
-        if (!formData.idee) {
+        if (!formData.idee && !customPrompt) {
           throw new Error('Bitte gib eine Idee ein');
         }
         
+        // FormData erweitern mit benutzerdefinierten Anweisungen, falls vorhanden
+        const extendedFormData = {
+          ...formData
+        };
+        
+        if (customPrompt) {
+          extendedFormData.customPrompt = customPrompt;
+          console.log('[useAntrag] Benutzerdefinierter Prompt hinzugefügt');
+        }
+        
         // Vereinfacht: Direkt formData senden ohne Filterung
-        const content = await simpleAntragSubmit.submitForm(formData);
+        const content = await simpleAntragSubmit.submitForm(extendedFormData, false, useEuropaMode);
         
         if (content) {
           setGeneratedAntrag(content); 
@@ -284,6 +324,7 @@ export const useAntrag = () => {
       } catch (error) {
         console.error('[useAntrag] Fehler:', error);
         setError(error.message || 'Ein Fehler ist aufgetreten');
+        throw error;
       } finally {
         setLoading(false);
       }
@@ -313,11 +354,39 @@ export const useAntrag = () => {
       case SEARCH_STATES.GENERATING_ANTRAG:
         return 'Erstelle Antrag...';
       case SEARCH_STATES.ERROR:
-        return truncateErrorMessage(searchError || 'Fehler');
+        return truncateErrorMessage(searchError || antragSubmit.error || simpleAntragSubmit.error || 'Fehler');
       default:
         return '';
     }
   };
+
+  // Funktion zum Speichern des Antrags in der Datenbank via Backend API
+  const saveAntragToDb = useCallback(async (payload) => {
+    setIsSaving(true);
+    setSaveStatus(null);
+    console.log('[useAntrag] Calling external saveAntrag function...');
+
+    try {
+        // Call the imported saveAntrag function
+        const savedAntrag = await saveAntrag(payload);
+
+        // If saveAntrag resolves, it was successful
+        console.log('[useAntrag] External saveAntrag successful:', savedAntrag);
+        setSaveStatus({ type: 'success', message: `Antrag "${savedAntrag.title || 'Unbenannt'}" erfolgreich gespeichert!` });
+        setIsSaving(false);
+        return savedAntrag; // Return the saved data
+
+    } catch (error) {
+        // If saveAntrag throws an error, catch it here
+        console.error('[useAntrag] Error received from external saveAntrag:', error);
+        // Use the error message provided by the saveAntrag function
+        setSaveStatus({ type: 'error', message: error.message || 'Ein Fehler ist beim Speichern aufgetreten.' });
+        setIsSaving(false);
+        // Optionally re-throw or just handle via state
+        // throw error; // Depends if the caller needs to catch it further
+    }
+    // No finally block needed here for setIsSaving(false) as it's handled in try/catch
+  }, []); // Keep dependency array empty, as saveAntrag is imported and doesn't depend on hook state directly
 
   return {
     formData,
@@ -329,7 +398,11 @@ export const useAntrag = () => {
     searchResults: searchQueryResults,
     searchState,
     statusMessage: getStatusMessage(),
-    loading: loading,
-    error: searchError || antragSubmit.error
+    loading: loading || antragSubmit.loading || simpleAntragSubmit.loading,
+    error: searchError || antragSubmit.error || simpleAntragSubmit.error,
+    // Exportiere die neuen States und die Funktion
+    isSaving,
+    saveStatus,
+    saveAntragToDb
   };
 }; 
