@@ -25,19 +25,23 @@ export const templateService = {
   async getTemplates() {
     try {
       const { data, error } = await templatesSupabase
-        .from('templates')
+        .from('canva_templates')
         .select(`
           *, 
-          template_images(
+          canva_template_images!canva_template_images_template_id_fkey(
             id, url, alt, display_order 
           ),
-          template_categories (
-            categories (
-              id
+          template_to_categories!inner(
+            category_id,
+            template_categories (
+              id,
+              label
             )
           ),
-          template_tags (
-            tags (
+          template_to_tags!inner(
+            tag_id,
+            template_tags (
+              id,
               name
             )
           )
@@ -48,8 +52,8 @@ export const templateService = {
       
       // Transformiere die Daten in das im Frontend erwartete Format
       return data.map(template => {
-        const images = template.template_images 
-          ? template.template_images
+        const images = template.canva_template_images 
+          ? template.canva_template_images
               .sort((a, b) => a.display_order - b.display_order)
               .map(img => ({
                 ...img,
@@ -60,11 +64,25 @@ export const templateService = {
               .filter(img => img.url !== null) 
           : [];
 
+        // Extract category IDs from the join table structure
+        const categories = template.template_to_categories
+          ? template.template_to_categories
+              .filter(jtc => jtc.template_categories) // Ensure the nested category object exists
+              .map(jtc => jtc.template_categories.id) // Map to the category ID
+          : [];
+
+        // Extract tag names using the correct table name 'template_tags'
+        const tags = template.template_to_tags
+          ? template.template_to_tags
+              .filter(jtt => jtt.template_tags) // Check for the nested 'template_tags' object
+              .map(jtt => jtt.template_tags.name) // Map to the name within 'template_tags'
+          : [];
+
         return {
           ...template,
           images: images,
-          category: template.template_categories ? template.template_categories.map(tc => tc.categories.id) : [],
-          tags: template.template_tags ? template.template_tags.map(tt => tt.tags.name) : [],
+          category: categories, // Use the extracted category IDs
+          tags: tags,           // Use the extracted tag names
           canvaUrl: template.canvaurl // Ensure canvaUrl field name matches the database column name
         };
       });
@@ -82,51 +100,55 @@ export const templateService = {
   async getTemplatesByCategory(categoryId) {
     try {
       const { data, error } = await templatesSupabase
-        .from('template_categories')
+        .from('canva_templates')
         .select(`
-          templates (
-            *,
-            template_images (
-              id, url, alt, display_order
-            ),
-            template_categories (
-              categories (
-                id,
-                label
-              )
-            ),
-            template_tags (
-              tags (
-                name
-              )
-            )
+          *,
+          canva_template_images!canva_template_images_template_id_fkey(id, url, alt, display_order),
+          template_to_categories!inner(
+            category_id, 
+            template_categories(id, label)
+          ),
+          template_to_tags!inner(
+            tag_id, 
+            template_tags(id, name) // Use the correct table name 'template_tags'
           )
         `)
-        .eq('category_id', categoryId);
-      
+        .eq('template_to_categories.category_id', categoryId) 
+        .order('created_at', { ascending: false });
+
       if (error) throw error;
       
-      // Flache die Daten ab und transformiere sie
-      const templates = data.map(item => item.templates).filter(Boolean); // Filter out null/undefined templates if any
-      return templates.map(template => {
-         const images = template.template_images 
-          ? template.template_images
+      // Transform data (similar to getTemplates)
+      return data.map(template => {
+         const images = template.canva_template_images
+          ? template.canva_template_images
               .sort((a, b) => a.display_order - b.display_order)
               .map(img => ({
                 ...img,
-                // Generate the public URL from the relative path stored in img.url
                 url: getPublicImageUrl(img.url)
               }))
-              // Filter out images where URL generation failed
               .filter(img => img.url !== null)
+          : [];
+        
+        const categories = template.template_to_categories
+          ? template.template_to_categories
+              .filter(jtc => jtc.template_categories)
+              .map(jtc => jtc.template_categories.id)
+          : [];
+
+        // Extract tag names using the correct table name 'template_tags'
+        const tags = template.template_to_tags
+          ? template.template_to_tags
+              .filter(jtt => jtt.template_tags) // Check for the nested 'template_tags' object
+              .map(jtt => jtt.template_tags.name) // Map to the name within 'template_tags'
           : [];
 
         return {
           ...template,
           images: images,
-          category: template.template_categories ? template.template_categories.map(tc => tc.categories.id) : [],
-          tags: template.template_tags ? template.template_tags.map(tt => tt.tags.name) : [],
-          canvaUrl: template.canvaurl // Ensure canvaUrl field name matches the database column name
+          category: categories, 
+          tags: tags,
+          canvaUrl: template.canvaurl 
         };
       });
     } catch (error) {
@@ -143,7 +165,7 @@ export const templateService = {
     try {
       // Assuming categories table has 'id' and 'label' fields
       const { data, error } = await templatesSupabase
-        .from('categories')
+        .from('template_categories')
         .select('id, label') 
         .order('label', { ascending: true }); // Optional: order categories alphabetically
         

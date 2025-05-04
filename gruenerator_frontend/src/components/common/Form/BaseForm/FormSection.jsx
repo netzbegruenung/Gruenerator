@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import PropTypes from 'prop-types';
 import { HiCog } from "react-icons/hi";
 import SubmitButton from '../../SubmitButton';
 import FeatureToggle from '../../FeatureToggle';
 import { getFormContainerClasses, getFormContentClasses, getButtonContainerClasses, getSubmitButtonClasses } from '../utils/classNameUtils';
 import { hasFormErrors } from '../utils/errorUtils';
+import { FormContext } from '../../../utils/FormContext';
 
 /**
  * Komponente für den Eingabebereich des Formulars
@@ -23,6 +24,7 @@ import { hasFormErrors } from '../utils/errorUtils';
  * @param {boolean} props.useFeatureToggle - Soll der Feature-Toggle verwendet werden
  * @param {node} props.children - Kindelemente
  * @param {boolean} props.showSubmitButton - Soll der Submit-Button angezeigt werden
+ * @param {node} props.formNotice - Hinweis oder Information im Formular
  * @returns {JSX.Element} Formular-Sektion
  */
 const FormSection = ({
@@ -39,12 +41,14 @@ const FormSection = ({
   featureToggle,
   useFeatureToggle,
   children,
-  showSubmitButton = true
+  showSubmitButton = true,
+  formNotice = null
 }) => {
   const formContainerClasses = getFormContainerClasses(isFormVisible);
   const formContentClasses = getFormContentClasses(hasFormErrors(formErrors));
   const buttonContainerClasses = getButtonContainerClasses(showBackButton);
   const submitButtonClasses = getSubmitButtonClasses(showBackButton);
+  const { handleKnowledgeSelection } = useContext(FormContext);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -61,6 +65,14 @@ const FormSection = ({
         <div className={formContentClasses}>
           <div className="form-inner">
             {children}
+            
+            {/* Formular-Hinweis wird vor dem Feature-Toggle angezeigt */}
+            {formNotice && (
+              <div className="form-notice-container">
+                {formNotice}
+              </div>
+            )}
+            
             {featureToggle && useFeatureToggle && (
               <div className="feature-section">
                 <FeatureToggle {...featureToggle} className="form-feature-toggle" />
@@ -139,14 +151,16 @@ FormSection.propTypes = {
   }),
   useFeatureToggle: PropTypes.bool,
   children: PropTypes.node.isRequired,
-  showSubmitButton: PropTypes.bool
+  showSubmitButton: PropTypes.bool,
+  formNotice: PropTypes.node
 };
 
 FormSection.defaultProps = {
   isMultiStep: false,
   showBackButton: false,
   useFeatureToggle: false,
-  showSubmitButton: true
+  showSubmitButton: true,
+  formNotice: null
 };
 
 export default FormSection; 

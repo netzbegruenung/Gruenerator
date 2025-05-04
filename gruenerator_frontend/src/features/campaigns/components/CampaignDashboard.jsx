@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
-import templateData from '../../templates/utils/templates.json';
+import templateData from '../../templates/canva/utils/templates.json';
 import FilesSection from './FilesSection';
 import TextsSection from './TextsSection';
 import TemplatesSection from './TemplatesSection';

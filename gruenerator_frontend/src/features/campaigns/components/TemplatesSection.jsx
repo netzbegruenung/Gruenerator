@@ -1,6 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import TemplateCard from '../../templates/components/TemplateCard';
+import CanvaTemplateCard from '../../templates/canva/components/CanvaTemplateCard';
 import { Link } from 'react-router-dom';
 import './TemplatesSection.css';
 
@@ -48,7 +48,7 @@ const TemplatesSection = ({ templates, className, externalTemplates = [], showSt
                   template={template} 
                 />
               ) : (
-                <TemplateCard 
+                <CanvaTemplateCard 
                   key={template.id} 
                   template={template} 
                 />

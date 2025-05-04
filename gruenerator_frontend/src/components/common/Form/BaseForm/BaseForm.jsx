@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useContext } from 'react';
 import PropTypes from 'prop-types';
 import { Tooltip } from 'react-tooltip';
 import FormToggleButton from '../../FormToggleButton';
@@ -11,12 +11,20 @@ import FormSection from './FormSection';
 import DisplaySection from './DisplaySection';
 import EditorChat from '../../editor/EditorChat';
 import Editor from '../../editor/Editor';
+import KnowledgeSelector from '../../../common/KnowledgeSelector';
 
 // Importiere die neuen Hooks
 import { useFormState, useContentManagement, useErrorHandling, useResponsive, useFocusMode } from '../hooks';
+import useKnowledge from '../../../hooks/useKnowledge';
 
 // Importiere die Utility-Funktionen
 import { getBaseContainerClasses } from '../utils/classNameUtils';
+
+// Import FormContext
+import { FormContext } from '../../../utils/FormContext';
+
+// Import an icon for the toggle
+import { HiOutlineGlobeAlt } from 'react-icons/hi';
 
 /**
  * Basis-Formular-Komponente
@@ -46,11 +54,27 @@ const BaseForm = ({
   helpContent,
   submitButtonProps = {},
   disableAutoCollapse = false,
-  featureToggle = null,
-  useFeatureToggle = false,
   showNextButton = true,
-  headerContent
+  headerContent,
+  enableEuropaModeToggle = false,
+  displayActions = null,
+  formNotice = null,
+  enableKnowledgeSelector = false
 }) => {
+  // Get Europa Mode state from context
+  const { 
+    useEuropa, 
+    setUseEuropa,
+    selectedKnowledge,
+    handleKnowledgeSelection
+  } = useContext(FormContext);
+  
+  // Hook für die Verwaltung der Wissensbausteine
+  const {
+    availableKnowledge,
+    isLoading: isKnowledgeLoading
+  } = useKnowledge();
+
   // Verwende die neuen Hooks
   const {
     error: errorState,
@@ -121,7 +145,6 @@ const BaseForm = ({
   // Setze alwaysEditing
   useEffect(() => {
     if (alwaysEditing && !isEditing) {
-      console.log('[BaseForm] Forcing edit mode due to alwaysEditing prop.');
       handleToggleEditMode();
     }
   }, [alwaysEditing, isEditing, handleToggleEditMode]);
@@ -158,13 +181,18 @@ const BaseForm = ({
   });
 
   const handleToggleForm = () => {
-    console.log('[BaseForm] handleToggleForm called.');
     toggleForm();
   };
 
-  console.log(`[BaseForm] Rendering. isEditing: ${isEditing}, isFormVisible: ${isFormVisible}, isFocusMode: ${isFocusMode}`);
-  // Log context value before render decision
-  console.log(`[BaseForm] Value from useContentManagement before render: ${value?.substring(0, 50)}... (Length: ${value?.length})`);
+  // Define the feature toggle configuration using context state
+  const europaFeatureToggle = {
+    isActive: useEuropa,
+    onToggle: setUseEuropa,
+    label: "Europa-Modus (Mistral)",
+    icon: HiOutlineGlobeAlt, // Use the imported icon
+    description: "Verwendet das Mistral Large Modell anstelle von Claude für die Textgenerierung."
+    // Add optional status/searching props if needed later
+  };
 
   return (
     <>
@@ -193,12 +221,25 @@ const BaseForm = ({
               showBackButton={showBackButton}
               nextButtonText={nextButtonText}
               submitButtonProps={submitButtonProps}
-              featureToggle={featureToggle}
-              useFeatureToggle={useFeatureToggle}
+              featureToggle={europaFeatureToggle}
+              useFeatureToggle={enableEuropaModeToggle}
               showSubmitButton={showNextButton}
+              formNotice={formNotice}
             >
-              {console.log('[BaseForm] Rendering FormSection content.')}
               {children}
+              
+              {/* KnowledgeSelector einfügen, wenn aktiviert */}
+              {enableKnowledgeSelector && (
+                <div className="knowledge-selector-container">
+                  <h3>Persönliches Wissen</h3>
+                  <KnowledgeSelector 
+                    onSelect={handleKnowledgeSelection}
+                    selectedKnowledge={selectedKnowledge}
+                    availableKnowledge={availableKnowledge}
+                    isDisabled={isKnowledgeLoading || loading}
+                  />
+                </div>
+              )}
             </FormSection>
           )
         )}
@@ -218,6 +259,7 @@ const BaseForm = ({
           getExportableContent={getExportableContent}
           onToggleFocusMode={handleToggleFocusMode}
           isFocusMode={isFocusMode}
+          displayActions={displayActions}
         />
         {!isMobileView && !isFocusMode && (
           <Tooltip id="action-tooltip" place="bottom" />
@@ -265,22 +307,20 @@ BaseForm.propTypes = {
     defaultText: PropTypes.string
   }),
   disableAutoCollapse: PropTypes.bool,
-  featureToggle: PropTypes.shape({
-    isActive: PropTypes.bool,
-    onToggle: PropTypes.func,
-    label: PropTypes.string,
-    icon: PropTypes.elementType,
-    description: PropTypes.string,
-    isSearching: PropTypes.bool,
-    statusMessage: PropTypes.string
-  }),
-  useFeatureToggle: PropTypes.bool,
   showNextButton: PropTypes.bool,
-  headerContent: PropTypes.node
+  headerContent: PropTypes.node,
+  enableEuropaModeToggle: PropTypes.bool,
+  displayActions: PropTypes.node,
+  formNotice: PropTypes.node,
+  enableKnowledgeSelector: PropTypes.bool
 };
 
 BaseForm.defaultProps = {
-  showNextButton: true
+  showNextButton: true,
+  enableEuropaModeToggle: false,
+  displayActions: null,
+  formNotice: null,
+  enableKnowledgeSelector: false
 };
 
 export default BaseForm; 

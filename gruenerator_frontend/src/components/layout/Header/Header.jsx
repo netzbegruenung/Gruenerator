@@ -3,6 +3,8 @@ import React, { useState, useEffect, useRef, useContext } from 'react';
 import { Link } from 'react-router-dom';
 import { PiCaretDown, PiSun, PiMoon } from 'react-icons/pi';
 import NavMenu from './NavMenu';
+import ProfileButton from './ProfileButton';
+import ThemeToggleButton from './ThemeToggleButton';
 import useDarkMode from '../../hooks/useDarkMode';
 import useAccessibility from '../../hooks/useAccessibility';
 import { menuItems, directMenuItems, MenuItem, menuStyles, handleMenuInteraction } from './menuData';
@@ -130,14 +132,9 @@ const Header = () => {
                     </ul>
                 </nav>
                 <NavMenu open={menuActive} onClose={handleNavMenuClose} />
-                <div className="header-toggle">
-                    <label className="switch" aria-label={darkMode ? "Zum hellen Modus wechseln" : "Zum dunklen Modus wechseln"}>
-                        <input type="checkbox" checked={darkMode} onChange={toggleDarkMode} />
-                        <span className="slider round">
-                            <PiSun className="icon sun" aria-hidden="true" />
-                            <PiMoon className="icon moon" aria-hidden="true" />
-                        </span>
-                    </label>
+                <div className="header-actions">
+                  <ProfileButton />
+                  <ThemeToggleButton darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
                 </div>
             </div>
         </header>

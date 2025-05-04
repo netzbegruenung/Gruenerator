@@ -1,41 +1,22 @@
 const express = require('express');
 const router = express.Router();
-const { createClient } = require('@supabase/supabase-js');
 const { HTML_FORMATTING_INSTRUCTIONS } = require('../utils/promptUtils.js');
-
-// Supabase Konfiguration
-const supabaseUrl = process.env.VITE_YOU_SUPABASE_URL;
-const supabaseKey = process.env.VITE_YOU_SUPABASE_ANON_KEY;
-
-// Erstelle Supabase Client
-let youSupabase;
-if (supabaseUrl && supabaseKey) {
-  try {
-    youSupabase = createClient(supabaseUrl, supabaseKey);
-    console.log('[custom_generator] Supabase client initialized successfully.'); // Optional: Add success log
-  } catch (error) {
-    console.error(`[custom_generator] Failed to initialize Supabase client: ${error.message}. Invalid URL provided?`, { supabaseUrlProvided: supabaseUrl });
-    youSupabase = null; // Ensure youSupabase is null if initialization fails
-  }
-} else {
-  console.error("[custom_generator] Supabase URL or Key is missing. Custom generator functionality will be disabled.");
-  // youSupabase is already undefined/null here, so no change needed
-}
+const { supabaseService } = require('../utils/supabaseClient');
 
 router.post('/', async (req, res) => {
   const { slug, formData } = req.body;
   
-  // Check if Supabase client is initialized
-  if (!youSupabase) {
-    console.error('[custom_generator] Supabase client not initialized.');
-    return res.status(503).json({ error: 'Custom generator service is currently unavailable due to configuration issues.' });
+  // Check if the correct supabaseService client is initialized
+  if (!supabaseService) {
+    console.error('[custom_generator] Supabase service client not initialized.');
+    return res.status(503).json({ error: 'Custom generator service is currently unavailable due to configuration issues with the service client.' });
   }
 
   try {
     console.log('[custom_generator] Anfrage erhalten:', { slug, formData });
 
-    // Generator-Konfiguration aus Supabase abrufen
-    const { data: generators, error: fetchError } = await youSupabase
+    // Use supabaseService to fetch generator configuration
+    const { data: generators, error: fetchError } = await supabaseService
       .from('custom_generators')
       .select('*')
       .eq('slug', slug)
@@ -98,6 +79,31 @@ router.post('/', async (req, res) => {
       error: 'Fehler bei der Textgenerierung',
       details: error.message 
     });
+  }
+});
+
+// GET Route zum Abrufen aller benutzerdefinierten Generatoren
+router.get('/', async (req, res) => {
+  try {
+    // Prüfe, ob der Client initialisiert ist
+    if (!supabaseService) {
+      return res.status(500).json({ error: 'Supabase client not initialized. Check backend environment variables.' });
+    }
+
+    // Verwende den Anon-Client zum Abrufen der Daten
+    const { data: generators, error: fetchError } = await supabaseService
+      .from('custom_generators')
+      .select('id, name, slug, title, description'); // Wähle nur benötigte Felder
+
+    if (fetchError) {
+      console.error('Error fetching custom generators:', fetchError);
+      return res.status(500).json({ error: fetchError.message });
+    }
+
+    res.json(generators);
+  } catch (error) {
+    console.error('Unexpected error fetching custom generators:', error);
+    res.status(500).json({ error: 'An unexpected error occurred.' });
   }
 });
 

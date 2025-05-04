@@ -7,7 +7,7 @@ const useApiSubmit = (endpoint) => {
   const [error, setError] = useState('');
   const [retryCount, setRetryCount] = useState(0);
 
-  const submitForm = async (formData, useBackup = false) => {
+  const submitForm = async (formData, useBackup = false, useEuropa = false) => {
     setLoading(true);
     setSuccess(false);
     setError('');
@@ -17,6 +17,7 @@ const useApiSubmit = (endpoint) => {
       const requestData = {
         ...formData,
         useBackupProvider: useBackup,
+        useEuropaProvider: useEuropa,
         onRetry: (attempt, delay) => {
           setRetryCount(attempt);
           setError(`Verbindungsprobleme. Neuer Versuch in ${Math.round(delay/1000)} Sekunden... (Versuch ${attempt}/3)`);
@@ -25,6 +26,7 @@ const useApiSubmit = (endpoint) => {
       
       console.log(`[useApiSubmit] Submitting to ${endpoint}:`, {
         useBackup,
+        useEuropa,
         formData: requestData,
         endpoint
       });
