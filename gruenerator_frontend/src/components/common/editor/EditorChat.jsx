@@ -3,7 +3,6 @@ import PropTypes from 'prop-types';
 import { FormContext } from '../../utils/FormContext';
 import { TbRobot } from "react-icons/tb";
 import { useClaudeResponse } from './hooks/useClaudeResponse';
-import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 import EditorChatHeader from './EditorChatHeader';
 
 
@@ -198,12 +197,7 @@ const EditorChat = ({ isEditing }) => {
         {isInitialTyping && (
           <div className="chat-message assistant">
             <TbRobot className="assistant-icon" />
-            <DotLottieReact
-              src="https://lottie.host/04e97ff1-7ebe-4cc5-bcc4-982febcd8fed/LGkR9GEJ3D.lottie"
-              loop
-              autoplay
-              style={{ width: '32px', height: '32px' }}
-            />
+            <span>...</span>
           </div>
         )}
       </div>
@@ -232,12 +226,7 @@ const EditorChat = ({ isEditing }) => {
         />
         <button type="submit" disabled={isProcessing || !message.trim()}>
           {isProcessing ? (
-            <DotLottieReact
-              src="https://lottie.host/04e97ff1-7ebe-4cc5-bcc4-982febcd8fed/LGkR9GEJ3D.lottie"
-              loop
-              autoplay
-              style={{ width: '32px', height: '32px' }}
-            />
+            <span>...</span>
           ) : '➤'}
         </button>
       </form>
