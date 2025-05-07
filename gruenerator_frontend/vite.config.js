@@ -32,8 +32,7 @@ export default defineConfig(({ command }) => ({
         'react-icons',
         'lottie-web',
         '@mui/material',
-        '@mui/icons-material',
-        '@supabase/supabase-js'
+        '@mui/icons-material'
       ],
       maxParallelFileOps: 16,
       treeshake: { moduleSideEffects: false },
