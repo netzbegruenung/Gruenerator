@@ -39,7 +39,6 @@ const initialState = {
   error: null,
   loading: false,
   uploadedImage: null,
-  isLottieVisible: false,
   file: null,
 };
 
@@ -117,8 +116,6 @@ function sharepicGeneratorReducer(state, action) {
       return initialState;
     case 'SET_SEARCH_BAR_ACTIVE':
       return { ...state, isSearchBarActive: action.payload };
-    case 'SET_LOTTIE_VISIBLE': // Angepasste Case für Lottie
-      return { ...state, isLottieVisible: action.payload };
     case 'SET_FILE':
       return {
         ...state,
@@ -238,10 +235,6 @@ export function SharepicGeneratorProvider({ children }) {
     });
   }, []);
 
-  const setLottieVisible = useCallback((isVisible) => {
-    dispatch({ type: 'SET_LOTTIE_VISIBLE', payload: isVisible });
-  }, []);
-
   const setFile = useCallback((file) => {
     dispatch({ type: 'SET_FILE', payload: file });
   }, []);
@@ -358,7 +351,6 @@ export function SharepicGeneratorProvider({ children }) {
     modifyImage,
     updateCredit,
     updateImageModification,
-    setLottieVisible,
     setAlternatives,
     selectSlogan,
     SHAREPIC_TYPES,
@@ -379,9 +371,6 @@ export function SharepicGeneratorProvider({ children }) {
     modifyImage,
     updateImageModification,
     setSearchBarActive, 
-    setLottieVisible,
-    updateBalkenGruppenOffset,
-    updateSunflowerOffset,
     toggleAdvancedEditing,
     setAlternatives,
     selectSlogan,

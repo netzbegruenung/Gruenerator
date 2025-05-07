@@ -63,7 +63,6 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
     setError, 
     updateFormData, 
     modifyImage,
-    setLottieVisible, 
     setAlternatives,
     selectSlogan
   } = useSharepicGeneratorContext();
@@ -113,7 +112,6 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
       }
   
       if (state.currentStep === FORM_STEPS.INPUT) {
-        setLottieVisible(true);
         const result = await generateText(state.formData.type, { 
           thema: state.formData.thema, 
           details: state.formData.details,
@@ -204,17 +202,13 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
     modifyImage,
     updateFormData,
     setError,
-    setLottieVisible,
-    state.file,
-    state.selectedImage,
-    processImageForUpload,
     setAlternatives,
     showAlternatives
   ]);
 
   useEffect(() => {
     // Entferne den gesamten Effekt, da er nur für Logging verwendet wurde
-  }, [state.currentStep, state.isSubmitting, state.currentSubmittingStep, state.isLottieVisible]);
+  }, [state.currentStep, state.isSubmitting, state.currentSubmittingStep]);
   
   const handleBack = useCallback(() => {
     if (state.currentStep === FORM_STEPS.RESULT) {
@@ -400,7 +394,6 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
             showBackButton={state.currentStep > FORM_STEPS.INPUT}
             submitButtonText={submitButtonText}
             currentStep={state.currentStep}
-            isLottieVisible={state.isLottieVisible}    
             formErrors={errors}
             isSubmitting={state.isSubmitting}
             currentSubmittingStep={state.currentSubmittingStep}
