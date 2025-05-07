@@ -7,10 +7,10 @@ import PlatformContainer from '../../../components/common/PlatformContainer';
 import { HiGlobeAlt, HiOutlineGlobeAlt, HiSave, HiInformationCircle } from 'react-icons/hi';
 import { SEARCH_STATES } from './hooks/useAntragSearch';
 import { FormContext } from '../../../components/utils/FormContext';
-import FeatureToggle from '../../../components/common/FeatureToggle';
 import SubmitButton from '../../../components/common/SubmitButton';
 import AntragSavePopup from './components/AntragSavePopup';
 import { useSupabaseAuth } from '../../../context/SupabaseAuthContext';
+import { createFinalPrompt } from '../../../utils/promptUtils';
 
 export const AntragForm = () => {
   const { user } = useSupabaseAuth();
@@ -70,6 +70,11 @@ export const AntragForm = () => {
         if (data) {
           setCustomPrompt(data.custom_antrag_prompt || null);
           setIsCustomPromptActive(data.custom_antrag_prompt_active || false);
+          if (data.custom_antrag_prompt_active && data.custom_antrag_prompt) {
+             console.log('[AntragForm] Benutzerdefinierter Antrag-Prompt geladen und aktiv.');
+          } else if (data.custom_antrag_prompt) {
+             console.log('[AntragForm] Benutzerdefinierter Antrag-Prompt geladen, aber inaktiv.');
+          }
         }
       } catch (err) {
         console.error('Fehler beim Laden des benutzerdefinierten Prompts:', err);
@@ -87,7 +92,18 @@ export const AntragForm = () => {
       // Wissensbausteine hinzufügen, falls vorhanden
       const knowledgeContent = getKnowledgeContent();
       
-      await generateAntrag(useEuropa, activeCustomPrompt, knowledgeContent);
+      // Combine prompt and knowledge
+      const finalPrompt = createFinalPrompt(activeCustomPrompt, knowledgeContent);
+      
+      // Log the final combined prompt if it exists
+      if (finalPrompt) {
+        console.log('[AntragForm] Finaler kombinierter Prompt für generateAntrag:', finalPrompt.substring(0, 100) + '...');
+      } else {
+        console.log('[AntragForm] Kein benutzerdefinierter Prompt oder Wissen für generateAntrag vorhanden.');
+      }
+
+      // Pass only useEuropa and the combined prompt
+      await generateAntrag(useEuropa, finalPrompt);
     } catch (error) {
       console.error('[AntragForm] Fehler beim Generieren des Antrags:', error);
     }
@@ -173,11 +189,17 @@ export const AntragForm = () => {
 
   const userDisplayName = user?.displayName || (user?.user_metadata?.firstName && user?.user_metadata?.lastName ? `${user?.user_metadata?.firstName} ${user?.user_metadata?.lastName}`.trim() : user?.user_metadata?.email);
 
-  // Erstelle das Element für den Hinweis
-  const customPromptNotice = isCustomPromptActive && customPrompt ? (
+  // Erstelle das Element für den Hinweis - checkt jetzt auch Wissen
+  const customPromptNotice = (isCustomPromptActive && customPrompt) || getKnowledgeContent() ? (
     <div className="custom-prompt-notice">
       <HiInformationCircle className="info-icon" />
-      <span>Benutzerdefinierte Anweisungen sind aktiv.</span>
+      <span>
+        {isCustomPromptActive && customPrompt && getKnowledgeContent() 
+          ? 'Benutzerdefinierte Anweisungen & Wissen sind aktiv.' 
+          : isCustomPromptActive && customPrompt 
+          ? 'Benutzerdefinierte Anweisungen sind aktiv.'
+          : 'Ausgewähltes Wissen wird verwendet.'}
+      </span>
     </div>
   ) : null;
 
