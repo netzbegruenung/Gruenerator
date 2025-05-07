@@ -2,7 +2,6 @@ import { useCallback, useState } from 'react';
 import { useAntragContext } from './AntragContext';
 import { useAntragService } from './AntragService';
 import { useAntragSearch, SEARCH_STATES } from './hooks/useAntragSearch';
-import apiClient from '../../../components/utils/apiClient'; // Import the configured axios client
 import { saveAntrag } from './antragSaveUtils';
 
 // Hilfsfunktion zur Normalisierung von Suchergebnissen
@@ -18,6 +17,8 @@ export const useAntrag = () => {
   // Neue States für den Speicherprozess
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState(null); // { type: 'success' | 'error', message: string }
+  // State to hold the final prompt during web search operations
+  const [currentFinalPrompt, setCurrentFinalPrompt] = useState(null);
 
   const {
     formData,
@@ -124,13 +125,26 @@ export const useAntrag = () => {
     try {
       console.log('[useAntrag] Generiere Antrag mit Suchergebnissen:', normalizedResults, 'Europa Mode:', useEuropaMode);
       
-      const antragResponse = await antragSubmit.submitForm({
+      // Read the final prompt from state
+      const finalPromptForGeneration = currentFinalPrompt;
+      console.log('[useAntrag] Using final prompt from state for generation:', finalPromptForGeneration ? finalPromptForGeneration.substring(0, 50) + '...' : 'None');
+
+      // Prepare payload, include finalPrompt if it exists
+      const payload = {
         idee: formData.idee,
         details: formData.details,
         gliederung: formData.gliederung,
         searchResults: normalizedResults,
-        useWebSearch: true
-      }, false, useEuropaMode);
+        useWebSearch: true, // Indicate web search was used
+        ...(finalPromptForGeneration && { customPrompt: finalPromptForGeneration }) // Add final prompt as customPrompt
+      };
+
+      // Assuming antragSubmit needs adaptation or the backend handles the combined prompt
+      const antragResponse = await antragSubmit.submitForm(
+        payload,
+        false, // useBackupProvider - currently hardcoded, consider making dynamic
+        useEuropaMode
+      );
       
       console.log('[useAntrag] Antwort vom Backend mit Websuche:', antragResponse);
       
@@ -174,7 +188,8 @@ export const useAntrag = () => {
     setLoading, 
     setError, 
     setDisplayedSearchResults, 
-    setDisplayedSources
+    setDisplayedSources,
+    currentFinalPrompt
   ]);
 
   // Durchführen der Suche
@@ -198,6 +213,7 @@ export const useAntrag = () => {
         // Automatisch mit den Suchergebnissen den Antrag generieren
         try {
           console.log('[useAntrag] Starte automatisch Antragsgenerierung mit Suchergebnissen');
+          // No need to pass finalPrompt here, generateAntragWithSearchResults reads it from state
           await generateAntragWithSearchResults(results.results, useEuropaMode);
         } catch (antragError) {
           console.error('[useAntrag] Fehler bei automatischer Antragsgenerierung:', antragError);
@@ -226,14 +242,22 @@ export const useAntrag = () => {
   ]);
 
   // Generiere nur die Suchanfrage und starte dann die Suche
-  const generateSearchQueryOnly = useCallback(async (useEuropaMode = false) => {
+  const generateSearchQueryOnly = useCallback(async (useEuropaMode = false, finalPrompt = null) => {
     setLoading(true);
     setError(null);
     setSearchState(SEARCH_STATES.GENERATING_QUERY);
     
     try {
-      console.log('[useAntrag] Generiere Suchanfrage mit Formdata:', formData, 'Europa Mode:', useEuropaMode);
-      const searchResponse = await generateSearchQuery(formData, useEuropaMode);
+      console.log('[useAntrag] Generiere Suchanfrage mit Formdata:', formData, 'Europa Mode:', useEuropaMode, 'Final Prompt:', finalPrompt ? finalPrompt.substring(0,50)+'...' : 'None');
+      
+      // Prepare data for search query generation, including the final prompt
+      const searchQueryPayload = {
+        ...formData,
+        ...(finalPrompt && { customPrompt: finalPrompt }) // Add final prompt if exists
+      };
+      
+      // Generate search query using the payload
+      const searchResponse = await generateSearchQuery(searchQueryPayload, useEuropaMode);
       
       if (!searchResponse) {
         throw new Error('Keine Antwort bei Suchanfragengeneration erhalten');
@@ -257,6 +281,7 @@ export const useAntrag = () => {
       // Starte automatisch die Suche mit der generierten Anfrage
       try {
         console.log('[useAntrag] Starte automatische Suche mit Anfrage:', query);
+        // Pass finalPrompt down to executeSearch
         await executeSearch(query, useEuropaMode);
       } catch (searchError) {
         console.error('[useAntrag] Fehler bei automatischer Suche:', searchError);
@@ -284,11 +309,16 @@ export const useAntrag = () => {
   ]);
 
   // Hauptfunktion für die Antragsgenerierung
-  const generateAntrag = useCallback(async (useEuropaMode = false, customPrompt = null) => {
+  const generateAntrag = useCallback(async (useEuropaMode = false, finalPrompt = null) => {
+    // Store the final prompt in state for potential use in web search path
+    setCurrentFinalPrompt(finalPrompt);
+    console.log('[useAntrag] generateAntrag called. Final prompt stored in state.', finalPrompt ? finalPrompt.substring(0,50)+'...' : 'None');
+
     if (useWebSearch) {
       // Suchanfrage generieren und automatisch weiterverarbeiten
       console.log('[useAntrag] Starte automatisierten Prozess (Suchanfrage → Suche → Antrag), Europa Mode:', useEuropaMode);
-      return generateSearchQueryOnly(useEuropaMode);
+      // Pass the final prompt to the search query generation step
+      return generateSearchQueryOnly(useEuropaMode, finalPrompt);
     } else {
       // Ohne Websuche - direkte Implementierung wie bei Antragsgenerator.js
       setLoading(true);
@@ -298,18 +328,19 @@ export const useAntrag = () => {
         console.log('[useAntrag] Starte vereinfachte Antragsgenerierung ohne Websuche, Europa Mode:', useEuropaMode);
         
         // Prüfe, ob idee vorhanden ist
-        if (!formData.idee && !customPrompt) {
+        if (!formData.idee && !finalPrompt) {
           throw new Error('Bitte gib eine Idee ein');
         }
         
-        // FormData erweitern mit benutzerdefinierten Anweisungen, falls vorhanden
+        // FormData erweitern mit dem kombinierten Prompt, falls vorhanden
         const extendedFormData = {
           ...formData
         };
         
-        if (customPrompt) {
-          extendedFormData.customPrompt = customPrompt;
-          console.log('[useAntrag] Benutzerdefinierter Prompt hinzugefügt');
+        if (finalPrompt) {
+          // Add the combined prompt under the key the backend expects (e.g., customPrompt)
+          extendedFormData.customPrompt = finalPrompt;
+          console.log('[useAntrag] Kombinierter Prompt hinzugefügt zu extendedFormData');
         }
         
         // Vereinfacht: Direkt formData senden ohne Filterung

@@ -8,6 +8,7 @@ import { STEPS } from './constants/steps';
 import useApiSubmit from '../../components/hooks/useApiSubmit';
 import GeneratorStartScreen from './components/GeneratorStartScreen';
 import GeneratorCreationSuccessScreen from './components/GeneratorCreationSuccessScreen';
+import { useSupabaseAuth } from '../../context/SupabaseAuthContext';
 
 // Define steps
 const MODE_SELECTION = -1;
@@ -30,6 +31,7 @@ const CreateCustomGeneratorPage = ({ showHeaderFooter = true }) => {
   const [error, setError] = useState(null);
   const [completionData, setCompletionData] = useState(null);
   const navigate = useNavigate();
+  const { user } = useSupabaseAuth();
   
   const { 
     submitForm: submitAIGeneration, 
@@ -298,12 +300,12 @@ const CreateCustomGeneratorPage = ({ showHeaderFooter = true }) => {
         prompt: finalPrompt,
         title: formData.title,
         description: formData.description,
-        contact_email: formData.contact_email
+        contact_email: formData.contact_email,
+        user_id: user ? user.id : null
       };
 
       await templatesSupabaseUtils.insertData('custom_generators', dataToSave);
       setCompletionData({ name: dataToSave.name, slug: dataToSave.slug });
-      navigate('/you/generators');
     } catch (err) {
       console.error("Error saving generator:", err);
       setError(`Fehler beim Speichern: ${err.message || 'Unbekannter Fehler'}`);

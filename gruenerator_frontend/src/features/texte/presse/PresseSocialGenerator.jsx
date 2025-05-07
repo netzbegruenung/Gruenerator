@@ -11,6 +11,7 @@ import { usePresseSocialForm } from './hooks';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import { useSupabaseAuth } from '../../../context/SupabaseAuthContext';
 import { HiInformationCircle } from 'react-icons/hi';
+import { createFinalPrompt } from '../../../utils/promptUtils';
 
 const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   const { initialContent } = useSharedContent();
@@ -78,18 +79,19 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   const handleSubmit = useCallback(async () => {
     try {
       const formData = getFormData();
-
-      // Benutzerdefinierte Anweisungen hinzufügen, falls vorhanden und aktiviert
-      if (isCustomPromptActive && customPrompt) {
-        formData.customPrompt = customPrompt;
-        console.log('[PresseSocialGenerator] Benutzerdefinierter Prompt hinzugefügt');
-      }
-
-      // Wissensbausteine hinzufügen, falls vorhanden
       const knowledgeContent = getKnowledgeContent();
-      if (knowledgeContent) {
-        formData.knowledgeContent = knowledgeContent;
-        console.log('[PresseSocialGenerator] Wissensbausteine hinzugefügt');
+      const activeCustomPrompt = isCustomPromptActive ? customPrompt : null;
+
+      // Combine prompt and knowledge
+      const finalPrompt = createFinalPrompt(activeCustomPrompt, knowledgeContent);
+
+      // Remove individual fields if they exist from getFormData, add the final prompt
+      delete formData.customPrompt; 
+      delete formData.knowledgeContent;
+      
+      if (finalPrompt) {
+        formData.customPrompt = finalPrompt; // Use the expected field name for the combined prompt
+        console.log('[PresseSocialGenerator] Finaler kombinierter Prompt hinzugefügt zu formData.', finalPrompt.substring(0,100)+'...');
       }
 
       const content = await submitForm(formData, useBackupProvider);
@@ -108,11 +110,17 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
     setGeneratedContent(content);
   }, [setGeneratedContent]);
 
-  // Erstelle das Element für den Hinweis
-  const customPromptNotice = isCustomPromptActive && customPrompt ? (
+  // Erstelle das Element für den Hinweis - checkt jetzt auch Wissen
+  const customPromptNotice = (isCustomPromptActive && customPrompt) || getKnowledgeContent() ? (
     <div className="custom-prompt-notice">
       <HiInformationCircle className="info-icon" />
-      <span>Benutzerdefinierte Anweisungen sind aktiv.</span>
+      <span>
+        {isCustomPromptActive && customPrompt && getKnowledgeContent() 
+          ? 'Benutzerdefinierte Anweisungen & Wissen sind aktiv.' 
+          : isCustomPromptActive && customPrompt 
+          ? 'Benutzerdefinierte Anweisungen sind aktiv.'
+          : 'Ausgewähltes Wissen wird verwendet.'}
+      </span>
     </div>
   ) : null;
 
