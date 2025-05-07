@@ -16,6 +16,7 @@ const ResetPasswordPage = () => {
   const [tokenError, setTokenError] = useState(false);
   
   // Beim Laden der Komponente prüfen, ob der Access-Token in der URL vorhanden ist
+  /*
   useEffect(() => {
     // Der Parameter und Hash werden automatisch vom Supabase Client
     // beim Auth State Change verarbeitet, wir müssen nur prüfen ob ein Hash existiert
@@ -24,6 +25,7 @@ const ResetPasswordPage = () => {
       setTokenError(true);
     }
   }, []);
+  */
   
   const validatePassword = () => {
     if (password.length < 8) {
@@ -55,6 +57,7 @@ const ResetPasswordPage = () => {
         navigate('/login');
       }, 3000);
     } catch (err) {
+      console.error('Supabase error during password update:', err);
       let errorMessage = 'Passwort konnte nicht geändert werden. Bitte fordere einen neuen Link an.';
       
       if (err.message.includes('Invalid')) {

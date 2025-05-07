@@ -30,6 +30,8 @@ const AccountDeletePage = lazy(() => import('../features/auth/pages/AccountDelet
 const SetupMFAPage = lazy(() => import('../features/auth/pages/SetupMFAPage'));
 const MFAVerificationPage = lazy(() => import('../features/auth/pages/MFAVerificationPage'));
 const OAuthCallbackPage = lazy(() => import('../features/auth/pages/OAuthCallbackPage'));
+// Gruppen-Komponente importieren
+const JoinGroupPage = lazy(() => import('../features/groups/pages/JoinGroupPage'));
 
 // Admin-Bereich
 const AdminApp = lazy(() => import('../features/admin'));
@@ -109,6 +111,8 @@ const standardRoutes = [
   { path: '/setup-mfa', component: SetupMFAPage },
   { path: '/mfa-verification', component: MFAVerificationPage },
   { path: '/oauth-callback', component: OAuthCallbackPage },
+  // Gruppen-Route
+  { path: '/join-group/:joinToken', component: JoinGroupPage },
   { path: '*', component: NotFound }
 ];
 
