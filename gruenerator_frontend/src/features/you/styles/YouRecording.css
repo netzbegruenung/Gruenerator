@@ -78,11 +78,6 @@
   justify-content: center;
 }
 
-.recording-lottie {
-  width: 120px;
-  height: 120px;
-}
-
 .recording-status, .recording-timestamps {
   display: none;
 }
