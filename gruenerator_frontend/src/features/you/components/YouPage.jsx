@@ -6,7 +6,6 @@ import useVoiceRecorder from '../../voice/hooks/useVoiceRecorder';
 import useYouProcessor from '../hooks/useYouProcessor';
 import useEditorLayout from '../hooks/useEditorLayout';
 import Spinner from '../../../components/common/Spinner';
-import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 // Nur die Hauptdatei importieren, die dann die anderen CSS-Dateien importiert
 // Import der DisplaySection-Komponente
 import DisplaySection from '../../../components/common/Form/BaseForm/DisplaySection';
@@ -76,11 +75,7 @@ const RecordingOverlay = ({ isRecording, stopRecording }) => (
   <div className={`recording-fullscreen-overlay ${isRecording ? 'active' : ''}`}>
     <div className="recording-animation-container">
       <div className="recording-lottie">
-        <DotLottieReact
-          src="https://lottie.host/98c6e050-b8d2-47a6-80cf-a3aeea335afb/Yy69gKzW3d.lottie"
-          loop
-          autoplay
-        />
+        {/* Lottie Animation Removed */}
       </div>
     </div>
     

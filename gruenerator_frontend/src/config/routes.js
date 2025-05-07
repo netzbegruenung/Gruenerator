@@ -33,9 +33,6 @@ const OAuthCallbackPage = lazy(() => import('../features/auth/pages/OAuthCallbac
 // Gruppen-Komponente importieren
 const JoinGroupPage = lazy(() => import('../features/groups/pages/JoinGroupPage'));
 
-// Admin-Bereich
-const AdminApp = lazy(() => import('../features/admin'));
-
 // Lazy loading für statische Seiten
 const Home = lazy(() => import('../components/pages/Home'));
 const Datenschutz = lazy(() => import('../components/pages/Impressum_Datenschutz_Terms/Datenschutz'));
@@ -67,7 +64,6 @@ export const GrueneratorenBundle = {
   Campaign: CampaignPage,
   Webinar: WebinarCampaign,
   EmptyEditor: EmptyEditor,
-  Admin: AdminApp,
   CustomGenerator: CustomGeneratorPage,
   CreateCustomGenerator: CreateCustomGeneratorPage
 };
@@ -95,7 +91,6 @@ const standardRoutes = [
   { path: '/editor', component: GrueneratorenBundle.EmptyEditor, withForm: true },
   { path: '/generator/:slug', component: GrueneratorenBundle.CustomGenerator, withForm: true },
   { path: '/create-generator', component: GrueneratorenBundle.CreateCustomGenerator, withForm: true },
-  { path: '/admin/*', component: GrueneratorenBundle.Admin, showHeaderFooter: false },
   { path: '/datenschutz', component: Datenschutz },
   { path: '/impressum', component: Impressum },
   // Auth-Routen

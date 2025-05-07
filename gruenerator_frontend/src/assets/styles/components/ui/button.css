@@ -169,22 +169,6 @@
   cursor: not-allowed;
 }
 
-.submit-button__lottie-container {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.submit-button__lottie-animation {
-  width: 100%;
-  height: 100%;
-}
-
 .submit-button__content {
   display: flex;
   align-items: center;

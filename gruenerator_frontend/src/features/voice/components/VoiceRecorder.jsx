@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { FaMicrophone, FaStop, FaRedo } from 'react-icons/fa';
-import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 import useVoiceRecorder from '../hooks/useVoiceRecorder';
 import Spinner from '../../../components/common/Spinner';
 import ErrorBoundary from '../../../components/ErrorBoundary';
@@ -63,11 +62,6 @@ const VoiceRecorder = ({ onTranscriptionComplete }) => {
         
         {isRecording && (
           <div className="voice-recorder-animation">
-            <DotLottieReact
-              src="https://lottie.host/98c6e050-b8d2-47a6-80cf-a3aeea335afb/Yy69gKzW3d.lottie"
-              loop
-              autoplay
-            />
             <p className="voice-recorder-status">Aufnahme läuft...</p>
           </div>
         )}

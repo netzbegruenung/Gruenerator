@@ -1,14 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
-import Lottie from 'react-lottie-player';
 import Spinner from './Spinner';
-
-let lottie_checkmark;
-try {
-  lottie_checkmark = require('../../assets/lotties/lottie_checkmark1.json');
-} catch (error) {
-  console.error('Failed to import Lottie animation:', error);
-}
 
 const SubmitButton = ({ 
   onClick, 
@@ -22,7 +14,6 @@ const SubmitButton = ({
   statusMessage,
   showStatus = false
 }) => {
-  const [showLottie, setShowLottie] = useState(false);
   const [internalSuccess, setInternalSuccess] = useState(false);
   const timerRef = useRef(null);
   const buttonRef = useRef(null);
@@ -38,12 +29,10 @@ const SubmitButton = ({
   useEffect(() => {
     if (success && !internalSuccess) {
       setInternalSuccess(true);
-      setShowLottie(true);
     }
 
     if (internalSuccess) {
       timerRef.current = setTimeout(() => {
-        setShowLottie(false);
         setInternalSuccess(false);
       }, 3000);
     }
@@ -56,28 +45,15 @@ const SubmitButton = ({
   }, [success, internalSuccess]);
 
   const handleClick = (event) => {
-    if (!loading && !showLottie && onClick) {
+    if (!loading && !internalSuccess && onClick) {
       console.log('Button wurde geklickt, führe onClick aus');
       onClick(event);
     } else {
-      console.log('Button-Klick ignoriert. Loading:', loading, 'showLottie:', showLottie);
+      console.log('Button-Klick ignoriert. Loading:', loading, 'internalSuccess:', internalSuccess);
     }
   };
 
   const getButtonContent = () => {
-    if (showLottie && lottie_checkmark) {
-      return (
-        <div className="submit-button__lottie-container">
-          <Lottie
-            animationData={lottie_checkmark}
-            play
-            loop={false}
-            className="submit-button__lottie-animation"
-          />
-        </div>
-      );
-    }
-
     return (
       <div className="submit-button__content">
         {icon && !loading && <span className="submit-button__icon">{icon}</span>}
@@ -99,10 +75,10 @@ const SubmitButton = ({
       ref={buttonRef}
       type={type}
       onClick={handleClick}
-      className={`submit-button ${className} ${loading ? 'submit-button--loading' : ''} ${showLottie ? 'submit-button--success' : ''} ${showStatus ? 'submit-button--with-status' : ''}`}
+      className={`submit-button ${className} ${loading ? 'submit-button--loading' : ''} ${internalSuccess ? 'submit-button--success' : ''} ${showStatus ? 'submit-button--with-status' : ''}`}
       aria-busy={loading}
       aria-label={ariaLabel}
-      disabled={loading || showLottie}
+      disabled={loading || internalSuccess}
       style={{ width: '100%', height: buttonSize.height }}
     >
       {getButtonContent()}
