@@ -112,6 +112,9 @@
 @import url('../../features/you/styles/YouRecording.css');
 @import url('../../features/you/styles/YouResponsive.css');
 
+/* Features - Groups */
+@import url('../../features/groups/styles/groups.css');
+
 /* Features - Custom Generator */
 @import url('./components/custom-generator/create-custom-generator.css');
 @import url('./components/custom-generator/field-editor-assistant.css');

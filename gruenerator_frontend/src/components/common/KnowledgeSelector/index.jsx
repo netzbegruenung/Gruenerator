@@ -60,6 +60,7 @@ const KnowledgeSelector = ({
               className="remove-knowledge-btn"
               disabled={isDisabled}
               aria-label={`Wissen entfernen: ${item.title}`}
+              type="button"
             >
               <HiX />
             </button>
@@ -72,6 +73,7 @@ const KnowledgeSelector = ({
           className="add-knowledge-btn" 
           onClick={handleToggleDropdown} 
           disabled={isDisabled || unselectedKnowledge.length === 0}
+          type="button"
         >
           <HiPlus /> 
           <span>Wissen hinzufügen</span>

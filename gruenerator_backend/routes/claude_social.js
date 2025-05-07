@@ -8,7 +8,7 @@ const {
 } = require('../utils/promptUtils');
 
 router.post('/', async (req, res) => {
-  const { thema, details, platforms = [], was, wie, zitatgeber, pressekontakt, useBackupProvider, customPrompt, knowledgeContent } = req.body;
+  const { thema, details, platforms = [], was, wie, zitatgeber, pressekontakt, useBackupProvider, customPrompt } = req.body;
   
   // Aktuelles Datum ermitteln
   const currentDate = new Date().toISOString().split('T')[0];
@@ -18,7 +18,6 @@ router.post('/', async (req, res) => {
     details, 
     platforms,
     hasCustomPrompt: !!customPrompt,
-    hasKnowledgeContent: !!knowledgeContent
   });
 
   try {
@@ -48,12 +47,6 @@ Achte bei der Umsetzung dieses Stils auf Klarheit, Präzision und eine ausgewoge
     // Erstelle den Benutzerinhalt basierend auf dem Vorhandensein eines benutzerdefinierten Prompts
     let userContent;
     
-    // Füge zusätzliches Wissen hinzu, falls vorhanden
-    const knowledgeSection = knowledgeContent ? `
-# Zusätzliches Wissen zur Berücksichtigung:
-${knowledgeContent}
-` : '';
-    
     if (customPrompt) {
       // Bei benutzerdefiniertem Prompt diesen verwenden, aber mit Plattforminformationen ergänzen
       userContent = `
@@ -69,8 +62,7 @@ ${platforms.map(platform => {
   const guidelines = PLATFORM_SPECIFIC_GUIDELINES[platform] || {};
   return `${upperPlatform}: Maximale Länge: ${guidelines.maxLength || 'N/A'} Zeichen. Stil: ${guidelines.style || 'N/A'} Fokus: ${guidelines.focus || 'N/A'}`;
 }).filter(Boolean).join('\n')}
-
-${knowledgeSection}`;
+`;
     } else {
       // Standardinhalt ohne benutzerdefinierten Prompt
       userContent = `
@@ -101,8 +93,7 @@ ${platforms.includes('pressemitteilung') ? '' : `Jeder Beitrag sollte:
 5. Themen wie Klimaschutz, soziale Gerechtigkeit und Vielfalt betonen.
 6. Aktuelle Positionen der Grünen Partei einbeziehen.
 7. Bei Bedarf auf weiterführende Informationen verweisen (z.B. Webseite).`}
-
-${knowledgeSection}`;
+`;
     }
 
     const result = await req.app.locals.aiWorkerPool.processRequest({

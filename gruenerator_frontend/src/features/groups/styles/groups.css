@@ -1,0 +1,750 @@
+/* Gruppen-Styles
+=======================================*/
+
+/* Gruppen-Listcontainer */
+.groups-list-container {
+  padding: var(--spacing-medium);
+}
+
+.groups-list-container .loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: var(--spacing-xlarge);
+  flex-direction: column;
+  gap: var(--spacing-medium);
+}
+
+.no-groups-message {
+  text-align: center;
+  padding: var(--spacing-large);
+  background-color: var(--background-color-alt);
+  border-radius: var(--border-radius-medium);
+  margin: var(--spacing-large) 0;
+}
+
+.groups-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.group-item {
+  margin-bottom: var(--spacing-medium);
+}
+
+.group-item-button {
+  width: 100%;
+  background-color: var(--background-color-alt);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--border-radius-medium);
+  padding: var(--spacing-medium);
+  text-align: left;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.group-item-button:hover {
+  background-color: var(--background-color);
+  border-color: var(--button-background-color);
+}
+
+.group-item-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xsmall);
+}
+
+.group-name {
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.group-meta {
+  display: flex;
+  gap: var(--spacing-medium);
+  font-size: 0.9rem;
+  color: var(--font-color-subtle);
+}
+
+.group-role {
+  font-style: italic;
+}
+
+/* Neue Container-Klasse für die gesamte Gruppenansicht */
+.groups-container {
+  padding: var(--spacing-medium);
+}
+
+/* Layout für die gesamte Gruppen-Management-Seite (2-spaltig) */
+.groups-management-layout {
+  display: grid;
+  gap: var(--spacing-large);
+  align-items: flex-start;
+}
+
+/* Linke Spalte: Navigation Panel */
+.groups-navigation-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-large);
+  padding-right: var(--spacing-medium);
+  align-items: center;
+}
+
+/* Button zum Erstellen einer neuen Gruppe - Dezenteres Design */
+.create-new-group-button {
+  width: fit-content;
+  padding: var(--spacing-xsmall) var(--spacing-large);
+  background: transparent;
+  border: var(--border-subtle);
+  border-radius: 20px;
+  color: var(--font-color);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  font-size: 0.9rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--spacing-xsmall);
+  align-self: center;
+  margin-bottom: var(--spacing-small);
+}
+
+.create-new-group-button svg {
+  font-size: 1.2em;
+}
+
+.create-new-group-button:hover:not(:disabled) {
+  background-color: var(--background-color-alt);
+  border-color: var(--interactive-accent-color);
+  color: var(--interactive-accent-color);
+}
+
+.create-new-group-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  border-color: var(--border-color-disabled);
+  color: var(--font-color-disabled);
+}
+
+/* Container für die vertikalen Tabs */
+.groups-vertical-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-small);
+  width: 100%;
+  align-items: center;
+}
+
+/* Einzelne vertikale Tabs */
+.groups-vertical-tab {
+  width: fit-content;
+  max-width: 220px;
+  padding: var(--spacing-xsmall) var(--spacing-large);
+  background: var(--background-color);
+  border: var(--border-subtle);
+  border-radius: 20px;
+  color: var(--font-color);
+  cursor: pointer;
+  white-space: normal;
+  transition: all 0.2s ease;
+  font-size: 0.9rem;
+  font-weight: 500;
+  line-height: 1.3;
+  word-break: break-word;
+  hyphens: auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  text-align: left;
+  gap: var(--spacing-small);
+  margin-bottom: var(--spacing-small);
+}
+
+.groups-vertical-tab.active {
+  background: var(--background-color-alt);
+  border-color: var(--interactive-accent-color);
+  color: var(--interactive-accent-color);
+  font-weight: 600;
+}
+
+.groups-vertical-tab:hover:not(.active) {
+  background: var(--background-color-alt);
+  border-color: var(--interactive-accent-color);
+  color: var(--interactive-accent-color);
+}
+
+.groups-vertical-tab:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    background: var(--background-color-alt);
+    border-color: var(--border-color-disabled);
+    color: var(--font-color-disabled);
+}
+
+/* Rechte Spalte: Content Panel */
+.groups-content-panel {
+  min-width: 0;
+}
+
+/* Anpassungen für das Info-Panel, das jetzt im Content Panel ist */
+.group-info-panel {
+  margin-bottom: var(--spacing-xlarge);
+}
+
+.group-info-panel .profile-user-name {
+  font-size: 1.8rem !important;
+  margin-bottom: var(--spacing-xsmall) !important;
+}
+
+.group-info-panel .group-admin-status {
+  margin-bottom: var(--spacing-medium) !important;
+}
+
+.group-info-panel .gruppen-info {
+  margin-bottom: var(--spacing-large) !important;
+}
+
+/* Styles für das Erstellformular (wenn in der rechten Spalte) */
+.create-group-form-container .auth-form {
+  max-width: 100%;
+}
+
+.create-group-form-container .form-group-title {
+  font-size: 1.8rem;
+  margin-bottom: var(--spacing-medium);
+}
+
+.create-group-form-container p {
+  margin-bottom: var(--spacing-large);
+}
+
+/* Bestehende Styles für Gruppendetails (Formularfelder etc.) bleiben weitgehend gültig,
+   da sie sich innerhalb des .groups-content-panel befinden. 
+   Klassen wie .anweisungen-field, .knowledge-entry etc. sind weiterhin relevant.
+*/
+
+/* Responsive Anpassungen */
+@media (max-width: 768px) {
+  .groups-management-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .groups-navigation-panel {
+    padding-right: 0;
+    margin-bottom: var(--spacing-large);
+    align-items: stretch;
+  }
+
+  .create-new-group-button,
+  .groups-vertical-tab {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* Gruppe erstellen Formular */
+.create-group-container {
+  padding: var(--spacing-medium);
+}
+
+.create-group-header {
+  margin-bottom: var(--spacing-large);
+}
+
+.create-group-header h2 {
+  margin-top: 0;
+  margin-bottom: var(--spacing-small);
+}
+
+.create-group-form {
+  max-width: 600px;
+}
+
+.create-group-form .form-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--spacing-large);
+  gap: var(--spacing-medium);
+}
+
+/* Gruppendetailansicht */
+.group-detail-container {
+  padding: var(--spacing-medium);
+}
+
+.back-button {
+  background: none;
+  border: none;
+  color: var(--link-color);
+  cursor: pointer;
+  padding: var(--spacing-xsmall) 0;
+  font-size: 0.9rem;
+  margin-bottom: var(--spacing-small);
+}
+
+.back-button:hover {
+  text-decoration: underline;
+}
+
+.group-detail-header {
+  margin-bottom: var(--spacing-large);
+}
+
+.group-detail-header h2 {
+  margin: var(--spacing-small) 0;
+}
+
+.group-role-badge {
+  display: inline-block;
+  background-color: var(--klee);
+  color: var(--weiß);
+  font-size: 0.8rem;
+  padding: var(--spacing-xsmall) var(--spacing-small);
+  border-radius: var(--border-radius-small);
+  margin-top: var(--spacing-xsmall);
+}
+
+/* Gemeinsame Styles für Fehler- und Ladecontainer */
+.error-container,
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-medium);
+  padding: var(--spacing-xlarge);
+  text-align: center;
+}
+
+.group-admin-section {
+  margin-bottom: var(--spacing-xlarge);
+  padding: var(--spacing-medium);
+  background-color: var(--background-color-alt);
+  border-radius: var(--border-radius-medium);
+}
+
+.group-admin-section h3 {
+  margin-top: 0;
+}
+
+.join-link-container {
+  display: flex;
+  gap: var(--spacing-small);
+  margin-top: var(--spacing-medium);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.join-link-input {
+  flex: 1;
+  min-width: 250px;
+  padding: var(--spacing-small);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--border-radius-small);
+  background-color: var(--background-color-alt);
+  font-family: monospace;
+}
+
+.group-content-section {
+  margin-bottom: var(--spacing-xlarge);
+}
+
+.group-content-section h3 {
+  margin-top: 0;
+  margin-bottom: var(--spacing-small);
+}
+
+.group-content-section .help-text {
+  color: var(--font-color-subtle);
+  margin-bottom: var(--spacing-medium);
+}
+
+.anweisungen-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-small);
+}
+
+.toggle-container {
+  display: flex;
+  align-items: center;
+}
+
+.group-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-medium);
+  margin-top: var(--spacing-large);
+}
+
+.save-feedback {
+  padding: var(--spacing-small) var(--spacing-medium);
+  border-radius: var(--border-radius-small);
+}
+
+.save-feedback.success {
+  background-color: var(--klee);
+  color: var(--weiß);
+}
+
+.save-feedback.error {
+  background-color: var(--sonne);
+  color: var(--tanne);
+}
+
+/* Gruppe beitreten Seite */
+.join-group-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 70vh;
+  padding: var(--spacing-medium);
+}
+
+.join-group-card {
+  background-color: var(--background-color-alt);
+  border-radius: var(--border-radius-medium);
+  padding: var(--spacing-large);
+  max-width: 500px;
+  width: 100%;
+  box-shadow: var(--shadow-md);
+}
+
+.join-group-card h1 {
+  margin-top: 0;
+  margin-bottom: var(--spacing-medium);
+}
+
+.join-group-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-medium);
+  margin-top: var(--spacing-large);
+}
+
+/* Modal für Beitrittsdialog (ggf. später entfernen, falls nicht verwendet) */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background-color: var(--background-color);
+  border-radius: var(--border-radius-medium);
+  max-width: 500px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-medium);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.modal-header h3 {
+  margin: 0;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: var(--font-color-subtle);
+  line-height: 1;
+  padding: 0;
+}
+
+.close-button:hover {
+  color: var(--font-color);
+}
+
+.modal-body {
+  padding: var(--spacing-medium);
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-medium);
+  padding: var(--spacing-medium);
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* CSS-Klassen für Formularelemente und Layout-Hilfsklassen */
+.form-divider {
+  margin: var(--spacing-large) 0 var(--spacing-medium) 0;
+  border: none;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.form-divider-large {
+  margin: var(--spacing-xlarge) 0;
+  border: none;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.knowledge-entry {
+  margin-bottom: var(--spacing-large);
+}
+
+.knowledge-entry-bordered {
+  border-top: 1px solid var(--border-subtle);
+  padding-top: var(--spacing-large);
+}
+
+.knowledge-content-label {
+  margin-top: var(--spacing-small);
+  display: block;
+}
+
+.help-text {
+  color: var(--font-color-subtle);
+  margin-bottom: var(--spacing-medium);
+}
+
+.character-count {
+  text-align: right;
+  font-size: 0.8em;
+  margin-top: var(--spacing-xxsmall);
+}
+
+.anweisungen-actions {
+  margin-top: var(--spacing-large);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-medium);
+}
+
+/* Gruppenavatar Styling */
+.group-avatar .profile-avatar-placeholder {
+  background-color: var(--klee);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3.5rem;
+  color: white;
+  font-weight: bold;
+  letter-spacing: -2px;
+  transition: all 0.3s ease;
+}
+
+.group-avatar:hover .profile-avatar-placeholder {
+  background-color: var(--tanne);
+  transform: scale(1.05);
+}
+
+/* Gruppen-Info Panel Anpassungen */
+.gruppen-info {
+  margin-top: var(--spacing-medium);
+  line-height: 1.4;
+}
+
+/* Admin-Status Anzeige */
+.group-admin-status {
+  font-size: 0.9rem;
+  color: var(--font-color-subtle);
+  margin-bottom: var(--spacing-medium);
+}
+
+/* Einladungslink-Bereich im Info-Panel */
+.group-invite-section {
+  margin-top: var(--spacing-large);
+  padding-top: var(--spacing-medium);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.group-invite-section h3 {
+  font-size: 1.1rem;
+  margin-bottom: var(--spacing-small);
+  color: var(--font-color-h3);
+}
+
+/* Link-Aktionen (bereits responsiv durch Media Query oben) */
+.join-link-actions {
+  display: flex;
+  gap: var(--spacing-small);
+  margin-top: var(--spacing-small);
+  flex-wrap: wrap;
+}
+
+/* Styles for the group title and admin badge in GroupDetailView */
+.group-header-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--spacing-large);
+}
+
+.group-title-area {
+  flex-grow: 1;
+}
+
+.group-title-line {
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-small);
+}
+
+.group-title-line .profile-user-name {
+  margin-bottom: 0;
+}
+
+.admin-badge {
+  display: inline-block;
+  background-color: var(--klee);
+  color: var(--weiß);
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 3px var(--spacing-xsmall);
+  border-radius: var(--border-radius-small);
+  text-transform: uppercase;
+  line-height: 1.1;
+  align-self: center;
+}
+
+.group-membership-status {
+  font-size: 0.9rem;
+  color: var(--font-color-subtle);
+  margin-top: var(--spacing-xsmall);
+  margin-bottom: 0;
+}
+
+/* Style for the new copy join link button */
+.copy-join-link-button {
+  background-color: transparent;
+  color: var(--button-text-color, var(--font-color)); /* For text like "Kopiert!" and icon color if not overridden */
+  cursor: pointer;
+  display: inline-flex; 
+  border: var(--border-subtle);
+  transition: all 0.2s ease;
+  align-self: flex-start; 
+  margin-left: var(--spacing-medium); 
+  border-radius: 50%;
+  width: 36px; 
+  height: 36px; 
+  padding: 0; 
+  justify-content: center; 
+  align-items: center; 
+  border: 1px solid var(--border-subtle);
+  font-size: 0.9rem; /* Kept for "Kopiert!" text if it appears */
+  white-space: nowrap; /* Kept for "Kopiert!" text */
+}
+
+.copy-join-link-button:hover:not(:disabled) {
+  background-color: var(--button-hover-background-color, var(--background-color-alt));
+  border-color: var(--button-hover-border-color, var(--tanne));
+  color: var(--button-hover-text-color, var(--tanne));
+}
+
+.copy-join-link-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.copy-join-link-button svg {
+  font-size: 1.2em;
+  margin-right: 0;
+}
+
+/* Responsive adjustments for the header if needed */
+@media (max-width: 480px) {
+  .group-header-section {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .copy-join-link-button {
+    margin-left: 0;
+    margin-top: var(--spacing-small);
+    align-self: flex-start;
+  }
+} 
+
+/* Styling für den Gruppen-Übersicht-Tab
+========================================================================== */
+.group-overview-container .group-header-section {
+  /* Stellt sicher, dass der Titel des Übersicht-Tabs genügend Abstand zum folgenden Inhalt hat. */
+  margin-bottom: var(--spacing-large); 
+}
+
+/* Die Klasse .group-info-panel wird im Übersicht-Tab als Wrapper für den Header und den Inhalt verwendet.
+   Sie hat bereits einen margin-bottom: var(--spacing-xlarge);, der am Ende des Inhalts für Abstand sorgt. */
+
+.group-overview-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-large); /* Abstand zwischen den einzelnen .group-overview-section Elementen und dem .group-overview-cta */
+}
+
+.group-overview-section h3 {
+  font-size: 1.2rem; 
+  color: var(--font-color-h3, var(--tanne)); 
+  margin-bottom: var(--spacing-small); 
+  font-weight: 600;
+}
+
+.group-overview-section p,
+.group-overview-section ul {
+  line-height: 1.6;
+  color: var(--font-color); 
+  margin-bottom: var(--spacing-medium); 
+}
+
+/* Entfernt den unteren Rand vom letzten Element in einem Abschnitt, da der übergeordnete Container 'gap' verwendet. */
+.group-overview-section > *:last-child {
+  margin-bottom: 0;
+}
+
+.group-overview-section ul {
+  list-style-type: disc;
+  padding-left: var(--spacing-medium); /* Einrückung für Listenelemente */
+}
+
+.group-overview-section li {
+  margin-bottom: var(--spacing-xsmall); /* Abstand zwischen Listenelementen */
+}
+
+.group-overview-section li strong {
+  font-weight: 600;
+  /* Optional: Farbe für hervorgehobenen Text, falls gewünscht
+  color: var(--font-color-emphasis, var(--tanne)); 
+  */
+}
+
+.group-overview-cta {
+  margin-top: var(--spacing-medium); /* Etwas zusätzlicher Abstand nach oben, zusätzlich zum 'gap' des Parent-Containers */
+  padding-top: var(--spacing-large); /* Abstand über dem Inhalt des CTA-Bereichs */
+  border-top: 1px solid var(--border-subtle); /* Visuelle Trennlinie */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start; /* Richtet den Button linksbündig aus */
+  gap: var(--spacing-medium); /* Abstand zwischen dem Text und dem Button im CTA */
+}
+
+.group-overview-cta p {
+  margin-bottom: 0; /* Der 'gap' des Parent-Containers behandelt den Abstand */
+  color: var(--font-color); 
+  font-size: 1rem; 
+  line-height: 1.6;
+}
+
+/* Der Button im CTA (.profile-action-button.profile-primary-button) 
+   verwendet globale Stile und benötigt hier normalerweise keine spezifischen Anpassungen. */ 

@@ -1,6 +1,5 @@
 /* Profilseite Styling */
 
-/* Responsive Layout des Profil-Containers */
 .profile-container {
   max-width: 100%;
   margin: 0 auto;
@@ -31,6 +30,7 @@
 /* Profilseite Tabs Navigation */
 .profile-tabs {
   display: flex;
+  justify-content: center;
   border-bottom: 1px solid var(--border-subtle);
   margin-bottom: var(--spacing-large);
   overflow-x: auto;
@@ -74,8 +74,6 @@
 
   .profile-avatar-section {
     grid-column: 1;
-    position: sticky;
-    top: var(--spacing-large);
   }
 
   .profile-form-section {
@@ -169,8 +167,6 @@
   flex-wrap: wrap;
 }
 
-
-
 @media (min-width: 768px) {
   .profile-actions {
     flex-direction: row;
@@ -255,8 +251,6 @@
     font-size: 2.5rem;
   }
 }
-
-
 
 /* Placeholder styling for the list area */
 .antraege-list-placeholder {
