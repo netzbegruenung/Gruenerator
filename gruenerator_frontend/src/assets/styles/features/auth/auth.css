@@ -3,8 +3,10 @@
 /* Basis-Container für alle Auth-Seiten */
 .auth-container {
   max-width: 450px;
-  margin: 0 auto;
+  margin: auto;
   padding: var(--spacing-large) var(--spacing-medium);
+  margin-top: 50px;
+  margin-bottom: 50px;
   background-color: var(--background-color);
   border-radius: 8px;
   box-shadow: var(--shadow-md);
@@ -297,6 +299,56 @@
 
 .social-login-button:hover {
   background-color: var(--background-color-alt);
+}
+
+/* Styles for generic SSO buttons */
+.auth-sso-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-small);
+  width: 100%;
+  padding: var(--spacing-small);
+  margin-bottom: var(--spacing-small);
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  background-color: var(--background-color); /* Default background, will be overridden by specific SSO buttons */
+  color: var(--font-color); /* Default text color, will be overridden */
+  font-weight: normal;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.1s, border-color 0.2s;
+  text-decoration: none; /* Ensure no underline if it's an <a> tag styled as a button */
+}
+
+.auth-sso-button:hover {
+  background-color: var(--background-color-alt); /* Default hover, will be overridden */
+  border-color: var(--border-hover, var(--tanne));
+}
+
+.auth-sso-button:disabled {
+  background-color: #b0b0b0;
+  border-color: #b0b0b0;
+  color: var(--font-color-disabled, #757575);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.auth-sso-button:disabled:hover {
+  background-color: #b0b0b0; /* Keep disabled style on hover */
+  border-color: #b0b0b0;
+}
+
+/* Specific style for the Grünes Netz login button */
+.gruenes-netz-button {
+  background-color: var(--tanne);
+  color: var(--weiß);
+  border-color: var(--tanne); /* Ensure border matches background or is removed if not desired */
+}
+
+.gruenes-netz-button:hover:not(:disabled) {
+  background-color: var(--klee);
+  color: var(--weiß);
+  border-color: var(--klee);
 }
 
 /* Account Delete Page */

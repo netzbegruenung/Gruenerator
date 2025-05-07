@@ -35,7 +35,7 @@
     --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
     --shadow-lg: 0 6px 16px rgba(0, 0, 0, 0.12);
     --shadow-xl: 0 8px 24px rgba(0, 0, 0, 0.15);
-    --border-subtle: 1px solid rgba(0, 0, 0, 0.03);
+    --border-subtle: 1px solid rgba(0, 0, 0, 0.1);
     /* Spacing Variables */
     --spacing-xxsmall: 4px;
     --spacing-xsmall: 8px;
@@ -44,6 +44,11 @@
     --spacing-large: 24px;
     --spacing-xlarge: 32px;
     --spacing-xxlarge: 48px;
+
+    /* Custom variables for interactive elements and states */
+    --interactive-accent-color: var(--tanne);
+    --font-color-disabled: #a0a0a0;
+    --border-color-disabled: #dcdcdc;
 }
 
 /* Dark Mode */
@@ -56,7 +61,7 @@
     --font-color: var(--sand);
     --font-color-h: var(--sand);
     --font-color-h3: var(--sand);
-    --link-color: var(--tanne);
+    --link-color: var(--sand);
     --button-background-color: var(--tanne);
     --button-color: var(--sand);
     --button-color-hover: var(--klee);
@@ -68,7 +73,12 @@
     --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
     --shadow-lg: 0 6px 16px rgba(0, 0, 0, 0.5);
     --shadow-xl: 0 8px 24px rgba(0, 0, 0, 0.6);
-    --border-subtle: 1px solid rgba(255, 255, 255, 0.05);
+    --border-subtle: 1px solid rgba(255, 255, 255, 0.1);
+
+    /* Custom variables for interactive elements and states - Dark Mode */
+    --interactive-accent-color: var(--weiß);
+    --font-color-disabled: #777777;
+    --border-color-disabled: #555555;
 }
 
 /* Automatischer Dark Mode basierend auf Systemeinstellungen */
@@ -82,7 +92,7 @@
         --font-color: var(--sand);
         --font-color-h: var(--sand);
         --font-color-h3: var(--sand);
-        --link-color: lightblue;
+        --link-color: var(--sand);
         --button-background-color: var(--tanne);
         --button-color: var(--sand);
         --button-color-hover: var(--klee);
@@ -94,7 +104,12 @@
         --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
         --shadow-lg: 0 6px 16px rgba(0, 0, 0, 0.5);
         --shadow-xl: 0 8px 24px rgba(0, 0, 0, 0.6);
-        --border-subtle: 1px solid rgba(255, 255, 255, 0.05);
+        --border-subtle: 1px solid rgba(255, 255, 255, 0.1);
+
+        /* Custom variables for interactive elements and states - Auto Dark Mode */
+        --interactive-accent-color: var(--weiß);
+        --font-color-disabled: #777777;
+        --border-color-disabled: #555555;
     }
 }
 

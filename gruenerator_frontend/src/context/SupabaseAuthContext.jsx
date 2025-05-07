@@ -136,7 +136,8 @@ export const SupabaseAuthProvider = ({ children }) => {
     signup,
     logout,
     sendPasswordResetEmail,
-    updatePassword
+    updatePassword,
+    supabase: templatesSupabase
   };
 
   return (
