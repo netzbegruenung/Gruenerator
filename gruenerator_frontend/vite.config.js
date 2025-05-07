@@ -1,60 +1,69 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import path from 'path'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import path from 'node:path';
 
 export default defineConfig(({ command }) => ({
   plugins: [
-    react({
-      jsxRuntime: 'automatic',
-      babel: {
-        plugins: ['babel-plugin-macros']
-      }
-    })
+    react({ jsxRuntime: 'automatic', babel: { plugins: ['babel-plugin-macros'] } })
   ],
-
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),
       '~': path.resolve(__dirname, './')
-    },
-    extensions: ['.mjs', '.js', '.ts', '.jsx', '.tsx', '.json']
+    }
   },
-
   optimizeDeps: {
-    include: ['react', 'react-dom', 'tus-js-client', 'react-loading-skeleton']
+    exclude: ['react-icons', 'lottie-web'],
+    esbuildOptions: { target: 'es2020' }
   },
-
   build: {
-    outDir: 'build',
-    sourcemap: true,
+    target: 'es2020',
+    sourcemap: false,
+    minify: 'esbuild',
+    cssCodeSplit: true,
+    assetsInlineLimit: 1024,
     chunkSizeWarningLimit: 1500,
-    assetsInlineLimit: 4096,
+    outDir: 'build',
+    commonjsOptions: {
+      exclude: [/node_modules\/lottie-web/]
+    },
     rollupOptions: {
+      external: [
+        'react-icons',
+        'lottie-web',
+        '@mui/material',
+        '@mui/icons-material',
+        '@supabase/supabase-js'
+      ],
+      maxParallelFileOps: 16,
+      treeshake: { moduleSideEffects: false },
       output: {
-        assetFileNames: (assetInfo) => {
-          const extType = assetInfo.name.split('.').pop();
-          if (/png|jpe?g|svg|gif|tiff|bmp|ico/i.test(extType)) {
-            return `assets/images/[name].[hash][extname]`;
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('react')) return 'react';
+            if (id.includes('@mui')) return 'mui';
+            if (id.includes('@supabase')) return 'supabase';
           }
-          if (/css/i.test(extType)) {
-            return `assets/css/[name].[hash][extname]`;
-          }
-          return `assets/[name].[hash][extname]`;
         },
         entryFileNames: 'assets/js/[name].[hash].js',
-        chunkFileNames: 'assets/js/[name].[hash].js'
+        chunkFileNames: 'assets/js/[name].[hash].js',
+        assetFileNames(assetInfo) {
+          const ext = assetInfo.name.split('.').pop();
+          if (/png|jpe?g|svg|gif|tiff|bmp|ico/i.test(ext)) {
+            return 'assets/images/[name].[hash][extname]';
+          }
+          if (/css/i.test(ext)) {
+            return 'assets/css/[name].[hash][extname]';
+          }
+          return 'assets/[name].[hash][extname]';
+        }
       }
     }
   },
-
   server: {
     port: 3000,
     open: command === 'serve',
-    hmr: {
-      overlay: false
-    },
-    watch: {
-      usePolling: true
-    }
+    watch: { usePolling: true },
+    hmr: { overlay: false }
   }
-})) 
+}));
