@@ -50,7 +50,6 @@ const BaseForm = ({
   const { 
     state: { 
       currentStep, 
-      isLottieVisible, 
       generatedImageSrc,
       isAdvancedEditingOpen,
       formData,
@@ -69,9 +68,8 @@ const BaseForm = ({
       currentStep,
       isSubmitting,
       currentSubmittingStep,
-      isLottieVisible,
     });
-  }, [currentStep, isSubmitting, currentSubmittingStep, isLottieVisible]);
+  }, [currentStep, isSubmitting, currentSubmittingStep]);
 
   useEffect(() => {
     if (isAdvancedEditingOpen) {

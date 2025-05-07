@@ -13,7 +13,7 @@ export default defineConfig(({ command }) => ({
     }
   },
   optimizeDeps: {
-    exclude: ['react-icons', 'lottie-web'],
+    exclude: ['react-icons'],
     esbuildOptions: { target: 'es2020' }
   },
   build: {
@@ -25,14 +25,14 @@ export default defineConfig(({ command }) => ({
     chunkSizeWarningLimit: 1500,
     outDir: 'build',
     commonjsOptions: {
-      exclude: [/node_modules\/lottie-web/]
+      exclude: []
     },
     rollupOptions: {
       external: [
-        'react-icons',
-        'lottie-web',
-        '@mui/material',
-        '@mui/icons-material'
+        // Entfernen Sie hier die Bibliotheken, die Probleme verursachen
+        // 'react-icons',
+        // '@mui/material',
+        // '@mui/icons-material'
       ],
       maxParallelFileOps: 16,
       treeshake: { moduleSideEffects: false },
@@ -40,7 +40,6 @@ export default defineConfig(({ command }) => ({
         manualChunks(id) {
           if (id.includes('node_modules')) {
             if (id.includes('react')) return 'react';
-            if (id.includes('@mui')) return 'mui';
             if (id.includes('@supabase')) return 'supabase';
           }
         },
