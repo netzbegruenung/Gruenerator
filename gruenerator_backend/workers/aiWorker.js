@@ -92,19 +92,18 @@ async function processAIRequest(requestId, data) {
   const { type, prompt, options = {}, systemPrompt, messages, useBackupProvider, useEuropaProvider } = data;
 
   // Testweise Bedrock als Standard aktivieren
-  const effectiveOptions = { ...options, useBedrock: true };
+  // const effectiveOptions = { ...options, useBedrock: true };
+  const effectiveOptions = { ...options };
 
   try {
     let result;
     // Prüfe die Optionen mit dem (möglicherweise) überschriebenen useBedrock-Wert
-    // Check for Bedrock option first (using effectiveOptions)
     if (effectiveOptions.useBedrock === true) {
-      console.log(`[AI Worker] Using AWS Bedrock provider (defaulted for test) for request ${requestId}`);
+      console.log(`[AI Worker] Using AWS Bedrock provider for request ${requestId}`);
       sendProgress(requestId, 15);
       // Übergebe die ursprünglichen 'data', da processWithBedrock die Optionen ggf. intern neu prüft
       result = await processWithBedrock(requestId, { ...data, options: effectiveOptions });
-    }
-    else if (useEuropaProvider === true) {
+    } else if (useEuropaProvider === true) {
       console.log(`[AI Worker] Using Europa provider (Mistral) for request ${requestId}`);
       if (!mistral) {
         throw new Error('Mistral client not initialized. Check MISTRAL_API_KEY.');
