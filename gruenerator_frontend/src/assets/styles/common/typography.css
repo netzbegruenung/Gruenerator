@@ -1,4 +1,4 @@
-/* Import fonts */
+
 @font-face {
     font-family: 'PT Sans';
     src: url('../../fonts/PTSans-Regular.woff2') format('woff2'),
@@ -35,7 +35,7 @@
     font-display: swap;
 }
 
-/* Base styles */
+
 body {
     font-family: 'PT Sans', Arial, sans-serif;
     background-color: var(--background-color);

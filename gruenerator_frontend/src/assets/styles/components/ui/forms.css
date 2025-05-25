@@ -1,0 +1,13 @@
+.inline-validation-message {
+    font-size: 0.9em;
+    margin-bottom: 15px;
+    display: flex; /* Ensures proper block-level behavior for margins */
+    align-items: center; /* Vertically align icon and text */
+    /* Color will be typically applied by utility classes like .text-danger or .text-warning */
+}
+
+.validation-icon {
+    margin-right: 6px;
+    flex-shrink: 0; /* Prevent icon from shrinking */
+    /* vertical-align and display: inline-block are not needed for flex items */
+} 

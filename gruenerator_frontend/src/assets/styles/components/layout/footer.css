@@ -1,5 +1,3 @@
-
-
 .footer {
     background-color: var(--dunkelgruen);
     padding: 30px 0;
@@ -43,6 +41,7 @@
     margin-bottom: 15px;
     font-size: 1.2em;
     font-weight: bold;
+    text-align: center;
 }
 
 .footer-section ul {
@@ -137,7 +136,7 @@
     top: 0;
 }
 
-/* Extra Large Screens (≥1400px) */
+
 @media (min-width: 1400px) {
     .footer-container {
         max-width: 1320px;
@@ -157,14 +156,14 @@
     }
 }
 
-/* Large Screens (1200px - 1399px) */
+
 @media (max-width: 1399px) and (min-width: 1200px) {
     .footer-container {
         max-width: 1140px;
     }
 }
 
-/* Medium Large Screens (992px - 1199px) */
+
 @media (max-width: 1199px) and (min-width: 992px) {
     .footer-container {
         max-width: 960px;
@@ -184,7 +183,7 @@
     }
 }
 
-/* Medium Screens (768px - 991px) */
+
 @media (max-width: 991px) and (min-width: 768px) {
     .footer-container {
         max-width: 720px;
@@ -209,7 +208,7 @@
     }
 }
 
-/* Small Screens (576px - 767px) */
+
 @media (max-width: 767px) {
     .footer {
         padding: 25px 0;
@@ -243,7 +242,7 @@
 
 }
 
-/* Extra Small Screens (<576px) */
+
 @media (max-width: 575px) {
     .footer {
         padding: 20px 0;

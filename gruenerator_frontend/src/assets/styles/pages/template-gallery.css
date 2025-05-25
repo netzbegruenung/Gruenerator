@@ -1,4 +1,3 @@
-/* Template Gallery Styles */
 .template-gallery {
   max-width: 1200px;
   margin: 0 auto;
@@ -26,7 +25,7 @@
   text-align: center;
 }
 
-/* Suchleiste */
+
 .search-bar {
   max-width: 600px;
   margin: 0 auto 2rem;
@@ -48,7 +47,7 @@
   border-color: var(--tanne);
 }
 
-/* Kategorie-Filter */
+
 .category-filter {
   display: flex;
   flex-wrap: wrap;
@@ -80,7 +79,7 @@
   border-color: var(--tanne);
 }
 
-/* Template Grid */
+
 .template-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -88,27 +87,27 @@
   margin: 0 auto;
 }
 
-/* Template Cards */
+
 .template-card {
   display: flex;
   flex-direction: column;
   background: var(--background-color);
   border: 1px solid var(--button-background-color);
-  border-radius: 12px;
+  border-radius: 8px;
   overflow: hidden;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   height: 100%;
 }
 
 .template-card:hover {
-  transform: translateY(-4px);
+  transform: translateY(-3px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-/* Card Image */
+
 .template-card-image {
   position: relative;
-  padding-top: 75%; /* 4:3 Aspect Ratio */
+  padding-top: 75%; 
   overflow: hidden;
   background: var(--background-color);
 }
@@ -129,7 +128,7 @@
   height: 100% !important;
 }
 
-/* Loading State */
+
 .image-loading {
   position: absolute;
   top: 0;
@@ -157,7 +156,7 @@
   }
 }
 
-/* Error State */
+
 .placeholder-image {
   position: absolute;
   top: 0;
@@ -177,7 +176,7 @@
   object-fit: contain;
 }
 
-/* Card Content */
+
 .template-card-content {
   padding: 1.5rem;
   flex-grow: 1;
@@ -209,7 +208,7 @@
   flex-grow: 0 !important;
 }
 
-/* Card Actions */
+
 .template-actions {
   display: flex;
   justify-content: center;
@@ -252,7 +251,7 @@
   transform: translateY(-1px);
 }
 
-/* No Results Message */
+
 .no-results {
   grid-column: 1 / -1;
   text-align: center;
@@ -261,7 +260,7 @@
   font-size: 1.1rem;
 }
 
-/* Error State */
+
 .template-gallery-error {
   text-align: center;
   padding: 3rem;
@@ -269,7 +268,7 @@
   font-size: 1.1rem;
 }
 
-/* Responsive Design */
+
 @media (max-width: 1200px) {
   .template-grid {
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -304,7 +303,7 @@
   }
 }
 
-/* Dark Mode Spezifische Anpassungen */
+
 .dark-mode .template-card {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
@@ -376,7 +375,7 @@
   z-index: 2;
 }
 
-/* Dark Mode Anpassungen */
+
 .dark-mode .image-nav {
   background: rgba(255, 255, 255, 0.2);
 }

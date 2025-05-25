@@ -47,6 +47,7 @@ function sharepicGeneratorReducer(state, action) {
 
   switch (action.type) {
     case 'UPDATE_FORM_DATA': {
+      console.log('[Reducer] UPDATE_FORM_DATA. Current state.currentStep:', state.currentStep, 'Action payload:', JSON.stringify(action.payload));
       const updatedFormData = Object.keys(action.payload).reduce((acc, key) => {
         if (key === 'balkenOffset' && !Array.isArray(action.payload[key])) {
           console.warn('Invalid balkenOffset in UPDATE_FORM_DATA:', action.payload[key]);
@@ -57,6 +58,7 @@ function sharepicGeneratorReducer(state, action) {
         return acc;
       }, { ...state.formData });
     
+      console.log('[Reducer] UPDATE_FORM_DATA. New currentStep will be:', action.payload.currentStep !== undefined ? action.payload.currentStep : state.currentStep);
       return {
         ...state,
         formData: updatedFormData,
@@ -240,12 +242,13 @@ export function SharepicGeneratorProvider({ children }) {
   }, []);
 
   const updateFormData = useCallback((data) => {
-    console.log('SharepicGeneratorContext: Updating form data:', data);
+    console.log('[Context] updateFormData called with data:', JSON.stringify(data));
     const safeData = { ...data };
     if ('balkenOffset' in safeData && !Array.isArray(safeData.balkenOffset)) {
       console.warn('Invalid balkenOffset in updateFormData:', safeData.balkenOffset);
       delete safeData.balkenOffset; // Entferne ungültige Werte
     }
+    console.log('[Context] Dispatching UPDATE_FORM_DATA with payload:', JSON.stringify(safeData));
     dispatch({ type: 'UPDATE_FORM_DATA', payload: safeData });
   }, []);
 
@@ -341,6 +344,16 @@ export function SharepicGeneratorProvider({ children }) {
     dispatch({ type: 'SELECT_SLOGAN', payload: slogan });
   }, []);
 
+  const handleSloganSelect = useCallback((selected) => {
+    if (state.formData.type === 'Zitat') {
+      updateFormData({
+        quote: selected.quote
+      });
+    } else {
+      selectSlogan(selected);
+    }
+  }, [state.formData.type, updateFormData, selectSlogan]);
+
   const value = useMemo(() => ({
     state,
     setFile,
@@ -361,7 +374,8 @@ export function SharepicGeneratorProvider({ children }) {
     toggleAdvancedEditing,
     generateImage,
     generateQuote,
-    handleChange
+    handleChange,
+    handleSloganSelect
   }), [
     state,
     setFile,
@@ -376,7 +390,8 @@ export function SharepicGeneratorProvider({ children }) {
     selectSlogan,
     generateImage,
     generateQuote,
-    handleChange
+    handleChange,
+    handleSloganSelect
   ]);
 
   return (

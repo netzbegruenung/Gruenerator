@@ -1,4 +1,4 @@
-/* Advanced Editing Section */
+
 .advanced-editing-section {
     background: rgba(0, 0, 0, 0.1);
     border-radius: 8px;
@@ -21,7 +21,7 @@
     font-weight: 600;
 }
 
-/* Horizontales Grid Layout */
+
 .advanced-controls-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -36,7 +36,7 @@
     padding: 1rem;
 }
 
-/* Gemeinsame Styles für Beschreibungstexte */
+
 .control-item p,
 .cross-control p {
     color: var(--weiß);
@@ -45,7 +45,7 @@
     opacity: 0.9;
 }
 
-/* Cross Control Styles */
+
 .cross-control {
     display: flex;
     flex-direction: column;
@@ -120,7 +120,7 @@
     white-space: nowrap;
 }
 
-/* Balken Offset Control */
+
 .balken-offset-control {
     display: flex;
     flex-direction: column;
@@ -168,7 +168,7 @@
     font-size: 0.9em;
 }
 
-/* Media Queries */
+
 @media (max-width: 1200px) {
     .advanced-controls-grid {
         grid-template-columns: repeat(2, 1fr);

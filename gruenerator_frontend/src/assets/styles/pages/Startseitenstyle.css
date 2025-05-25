@@ -1,4 +1,4 @@
-/* Home Page Styles */
+
 .top-section {
     display: flex;
     flex-direction: column;
@@ -45,7 +45,7 @@
     align-self: flex-start;
 }
 
-/* Button Styles */
+
 .link-buttons-container {
     width: 100%;
     max-width: 1200px;
@@ -82,14 +82,14 @@
     cursor: pointer;
 }
 
-/* Icon Styles für alle Buttons */
+
 .link-buttons a svg,
 .link-buttons button svg {
     margin-right: 12px;
     font-size: 1.3em;
 }
 
-/* Spezielle Icon Styles für Newsletter und Mehr Button */
+
 .newsletter-button svg {
     margin-right: 0;
     margin-left: 10px;
@@ -201,7 +201,7 @@
     }
 }
 
-/* Sections Styles */
+
 .sections-container {
     padding: 3.75rem 0;
     background-color: var(--background-color-alt);
@@ -254,7 +254,7 @@
     transform: scale(1.02);
 }
 
-/* Responsive Styles */
+
 @media (max-width: 1024px) {
     .top-section {
         padding: 7.5rem 1.25rem 2.5rem;

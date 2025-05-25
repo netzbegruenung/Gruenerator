@@ -1,6 +1,6 @@
-/* editor-content.css - Styles für den Quill Editor Inhaltsbereich */
 
-/* Grundlegende Quill-Editor-Stile */
+
+
 .ql-editor {
     font-family: 'PT Sans', Arial, sans-serif;
     color: var(--font-color);
@@ -39,7 +39,7 @@
     border: none !important;
 }
 
-/* Größere Schrift im Fokus-Modus */
+
 .base-container.focus-mode .ql-editor {
     font-size: 1.5em;
     line-height: 1.6;
@@ -49,12 +49,12 @@
     border: none;
 }
 
-/* Farbe der Textauswahl */
+
 .ql-editor::selection {
     background-color: var(--sonne);
 }
 
-/* Typografie im Editor */
+
 .ql-editor p, 
 .ql-editor ol, 
 .ql-editor ul, 
@@ -65,9 +65,9 @@
     font-family: 'PT Sans', Arial, sans-serif;
 }
 
-/* Add margin-bottom specifically for p elements */
+
 .ql-editor p {
-    margin-bottom: 1em !important; /* Standard paragraph spacing */
+    margin-bottom: 1em !important; 
 }
 
 .ql-editor h1, 
@@ -82,13 +82,13 @@
     font-size: 1.5em !important;
 }
 
-/* Container-Styles */
+
 .ql-container.ql-snow {
     border: none;
     flex: 1;
 }
 
-/* Texthervorhebungs-Stile */
+
 .ql-editor .ql-bg-yellow {
     background-color: #ffff00;
     color: #000000;
@@ -99,7 +99,7 @@
     color: #000000;
 }
 
-/* Neue Klasse für den ausgewählten Text */
+
 .selected-text-display {
     font-size: 0.75rem;
     color: #666;
@@ -115,12 +115,12 @@
     line-height: 1.3;
 }
 
-/* Read-only Modus */
+
 .text-editor.read-only {
     border: 2px solid gray;
 }
 
-/* Fehlermeldung Styles */
+
 .adjustment-error {
     position: fixed;
     bottom: 20px;
@@ -134,74 +134,74 @@
     animation: slideIn 0.3s ease-out;
 }
 
-/* Style für die H2 Überschrift - wird zum VISUELLEN Container-Kopf */
+
 .ql-editor h2:has(+ .platform-section) { 
-    margin: 2rem 0 0 0; /* Abstand nach oben, kein Abstand nach unten */
-    padding: 1rem 1.5rem 1rem 1.5rem !important; /* Padding für Text innerhalb des "Kopfes" */
-    background-color: var(--background-color); /* Hintergrund wie Container */
-    border: var(--border-subtle); /* Rand wie Container */
-    border-bottom: none; /* Explizit keinen unteren Rand (Trennstrich entfernt) */
-    border-top-left-radius: 8px; /* Obere Ecken runden */
+    margin: 2rem 0 0 0; 
+    padding: 1rem 1.5rem 1rem 1.5rem !important; 
+    background-color: var(--background-color); 
+    border: var(--border-subtle); 
+    border-bottom: none; 
+    border-top-left-radius: 8px; 
     border-top-right-radius: 8px;
-    box-shadow: var(--shadow-sm); /* Schatten für den Start des Blocks */
+    box-shadow: var(--shadow-sm); 
     font-family: 'GrueneType', Arial, sans-serif;
     font-weight: normal;
     font-size: 1.5em !important;
     color: var(--font-color-h);
 }
 
-/* Add margin-bottom for h2 elements not followed by a platform-section */
+
 .ql-editor h2:not(:has(+ .platform-section)) {
     margin-bottom: 1rem;
 }
 
-/* Platform Container Styles */
-/* Base style: Definiert die Fortsetzung des Containers */
+
+
 .ql-editor .platform-section {
-    background-color: var(--background-color); /* Gleicher Hintergrund */
-    border-left: var(--border-subtle); /* Nur linker Rand */
-    border-right: var(--border-subtle); /* Nur rechter Rand */
+    background-color: var(--background-color); 
+    border-left: var(--border-subtle); 
+    border-right: var(--border-subtle); 
     border-top: none;
     border-bottom: none;
-    border-radius: 0; /* Keine Rundungen */
-    padding: 0.5rem 1.5rem; /* Vertikales Padding, Seiten wie H2 */
+    border-radius: 0; 
+    padding: 0.5rem 1.5rem; 
     margin: 0;
-    box-shadow: none; /* Kein Schatten mehr hier */
+    box-shadow: none; 
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;
     margin-bottom: 0;
-    padding-bottom: 0.5rem; /* Nur oberes/seitliches Padding */
+    padding-bottom: 0.5rem; 
 }
 
-/* Style für die *letzte* platform-section (Abschluss) */
+
 .ql-editor .platform-section:not(:has(+ .platform-section)) {
     border-bottom: var(--border-subtle);
     border-bottom-left-radius: 8px;
     border-bottom-right-radius: 8px;
     margin-bottom: 2rem;
-    padding-bottom: 1.5rem; /* Padding unten wiederherstellen */
+    padding-bottom: 1.5rem; 
 }
 
-/* Inhalt innerhalb der Platform Container */
+
 .ql-editor .platform-section p:last-child,
 .ql-editor .platform-section ul:last-child,
 .ql-editor .platform-section ol:last-child {
-    margin-bottom: 0; /* Verhindert extra Abstand im letzten Element */
+    margin-bottom: 0; 
 }
 
-/* Vorherige Regeln für platform-spezifische H2 Farben */
+
 /*
 .ql-editor .platform-section[data-platform="FACEBOOK"] h2 { ... }
 .ql-editor .platform-section[data-platform="INSTAGRAM"] h2 { ... }
 ...
 */
 
-/* ... Restliche Stile ... */
 
-/* Added style for editing mode */
+
+
 .base-container.editing-mode .ql-editor {
     overflow-y: auto !important;
-    /* Define a height or max-height for scrolling in edit mode */
-    max-height: 75vh; /* Example: Limit height to 75% of viewport height */
-    min-height: 200px; /* Ensure a minimum height even when empty */
+    
+    max-height: 75vh; 
+    min-height: 200px; 
 } 

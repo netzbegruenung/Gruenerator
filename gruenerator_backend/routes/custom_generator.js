@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { HTML_FORMATTING_INSTRUCTIONS } = require('../utils/promptUtils.js');
 const { supabaseService } = require('../utils/supabaseClient');
+const authMiddleware = require('../middleware/authMiddleware');
 
 router.post('/', async (req, res) => {
   const { slug, formData } = req.body;
@@ -104,6 +105,105 @@ router.get('/', async (req, res) => {
   } catch (error) {
     console.error('Unexpected error fetching custom generators:', error);
     res.status(500).json({ error: 'An unexpected error occurred.' });
+  }
+});
+
+// Neue Route zur Überprüfung der Slug-Verfügbarkeit
+router.get('/check-slug/:slug', async (req, res) => {
+  const { slug } = req.params;
+
+  if (!supabaseService) {
+    console.error('[custom_generator_check_slug] Supabase service client not initialized.');
+    return res.status(503).json({ error: 'Service is currently unavailable.' });
+  }
+
+  if (!slug || slug.trim() === '') {
+    return res.status(400).json({ error: 'Slug darf nicht leer sein.' });
+  }
+
+  try {
+    const { data, error } = await supabaseService
+      .from('custom_generators')
+      .select('slug')
+      .eq('slug', slug)
+      .maybeSingle(); // maybeSingle() ist gut, da es null zurückgibt, wenn nichts gefunden wird, anstatt eines Fehlers
+
+    if (error) {
+      console.error('[custom_generator_check_slug] Error fetching slug from Supabase:', error);
+      return res.status(500).json({ error: 'Fehler bei der Überprüfung des Slugs.' });
+    }
+
+    res.json({ exists: !!data }); // Gibt true zurück, wenn data ein Objekt ist (also existiert), sonst false
+
+  } catch (error) {
+    console.error('[custom_generator_check_slug] Unexpected error:', error);
+    res.status(500).json({ error: 'Ein unerwarteter Fehler ist aufgetreten.' });
+  }
+});
+
+// DELETE Route zum Löschen eines benutzerdefinierten Generators
+router.delete('/:id', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Nicht authentifiziert.' });
+    }
+
+    // Supabase client check is good
+    if (!supabaseService) {
+      console.error('[custom_generator_delete] Supabase service client not initialized.');
+      return res.status(500).json({ error: 'Custom generator service is currently unavailable.' });
+    }
+
+    // Prüfe zuerst, ob der Generator existiert und dem User gehört
+    const { data: generator, error: fetchError } = await supabaseService
+      .from('custom_generators')
+      .select('user_id')
+      .eq('id', id)
+      .single();
+
+    if (fetchError) {
+      console.error('[custom_generator_delete] Error fetching generator for ownership check:', fetchError);
+      if (fetchError.code === 'PGRST116') { // PGRST116: Searched for a single row, but found no rows
+        return res.status(404).json({ error: 'Generator nicht gefunden.' });
+      }
+      // anderer Supabase Fehler beim Holen der Daten
+      return res.status(500).json({ error: 'Fehler beim Überprüfen des Generators: ' + fetchError.message });
+    }
+
+    // Da .single() bei Nicht-Existenz einen Fehler wirft (PGRST116), ist ein expliziter `if (!generator)` Check hier
+    // eigentlich nicht mehr nötig, wenn fetchError.code === 'PGRST116' oben behandelt wird.
+    // Ein zusätzlicher Check schadet aber nicht, falls sich das Verhalten von .single() ändert oder `null` zurückgibt ohne Fehler.
+    if (!generator) {
+        console.warn('[custom_generator_delete] Generator object was null after fetch without PGRST116 error, responding 404.');
+        return res.status(404).json({ error: 'Generator nicht gefunden (unexpected state).' });
+    }
+
+    if (generator.user_id !== userId) {
+      console.warn(`[custom_generator_delete] User ${userId} attempted to delete generator ${id} owned by ${generator.user_id}`);
+      return res.status(403).json({ error: 'Keine Berechtigung zum Löschen dieses Generators.' });
+    }
+
+    // Lösche den Generator
+    const { error: deleteError } = await supabaseService
+      .from('custom_generators')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', userId); // Stellt sicher, dass der User nur eigene löscht
+
+    if (deleteError) {
+      console.error('[custom_generator_delete] Error deleting custom generator from Supabase:', deleteError);
+      return res.status(500).json({ error: 'Fehler beim Löschen des Generators: ' + deleteError.message });
+    }
+
+    console.log(`[custom_generator_delete] Generator ${id} successfully deleted by user ${userId}`);
+    res.status(204).send();
+
+  } catch (error) {
+    console.error('[custom_generator_delete] Unexpected error during delete operation:', error);
+    res.status(500).json({ error: 'Ein unerwarteter Fehler ist aufgetreten.', details: error.message });
   }
 });
 

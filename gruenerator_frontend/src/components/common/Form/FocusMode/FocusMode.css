@@ -75,7 +75,7 @@
   overflow-wrap: break-word;
 }
 
-/* Quill-spezifische Formatierung */
+
 .focus-mode-content p {
   margin-bottom: 1.5em;
   color: var(--font-color);
@@ -127,7 +127,7 @@
   color: var(--grashalm);
 }
 
-/* Quill-spezifische Klassen */
+
 .focus-mode-content .ql-align-center {
   text-align: center;
 }
@@ -140,7 +140,7 @@
   text-align: justify;
 }
 
-/* Code-Block Styling */
+
 .focus-mode-content pre,
 .focus-mode-content code {
   background-color: var(--background-color-alt);

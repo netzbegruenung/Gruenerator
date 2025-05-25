@@ -1,92 +1,48 @@
-/* KnowledgeSelector Styles */
 .knowledge-selector {
-  margin-top: var(--spacing-medium);
   position: relative;
   width: 100%;
-  margin-bottom: var(--spacing-medium);
+  margin-bottom: 8px;
 }
 
 .knowledge-selector-actions {
   display: flex;
-  justify-content: flex-start;
-  margin-top: var(--spacing-small);
+  margin-top: 4px;
 }
 
 .knowledge-add-button {
   display: flex;
   align-items: center;
-  background: none;
-  border: 1px solid var(--klee);
-  color: var(--font-color);
-  padding: var(--spacing-xsmall) var(--spacing-small);
-  border-radius: 4px;
-  font-size: 0.9rem;
+  padding: 4px 8px;
+  border: 1px solid #ccc;
   cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.knowledge-add-button:hover:not(.disabled) {
-  background-color: var(--klee);
-  color: var(--weiß);
+  font-size: 0.9rem; 
 }
 
 .knowledge-add-button.disabled {
   opacity: 0.5;
   cursor: not-allowed;
-  border-color: var(--border-subtle);
 }
 
 .knowledge-add-button .plus-icon {
-  margin-right: var(--spacing-xxsmall);
-  font-size: 1.2rem;
-}
-
-.knowledge-dropdown {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  width: 100%;
-  background-color: var(--background-color);
-  border: 1px solid var(--border-subtle);
-  border-radius: 4px;
-  box-shadow: var(--shadow-md);
-  z-index: 10;
-  max-height: 200px;
-  overflow-y: auto;
-  margin-top: var(--spacing-xsmall);
+  margin-right: 4px;
+  font-size: 1.2rem; 
 }
 
 .knowledge-item {
   display: flex;
   align-items: center;
-  padding: var(--spacing-small);
+  padding: 4px 8px;
   cursor: pointer;
-  transition: background-color 0.2s ease;
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid #eee;
 }
 
 .knowledge-item:last-child {
   border-bottom: none;
 }
 
-.knowledge-item:hover {
-  background-color: var(--background-color-alt);
-}
-
-.knowledge-item.selected {
-  background-color: var(--background-color-alt);
-  display: flex;
-  align-items: center;
-  padding: var(--spacing-small);
-  border-radius: 4px;
-  border: 1px solid var(--border-subtle);
-  margin-bottom: var(--spacing-xsmall);
-}
-
 .knowledge-icon {
-  color: var(--klee);
-  margin-right: var(--spacing-xsmall);
-  font-size: 1.2rem;
+  margin-right: 4px;
+  font-size: 1.2rem; 
   flex-shrink: 0;
 }
 
@@ -100,7 +56,7 @@
 .remove-knowledge-btn {
   background: none;
   border: none;
-  color: var(--font-color);
+  color: #333; 
   cursor: pointer;
   padding: 0;
   margin-left: auto;
@@ -109,12 +65,6 @@
   justify-content: center;
   font-size: 1em;
   opacity: 0.7;
-  transition: opacity 0.2s ease;
-}
-
-.remove-knowledge-btn:hover:not(:disabled) {
-  opacity: 1;
-  color: var(--color-error, red);
 }
 
 .remove-knowledge-btn:disabled {
@@ -125,44 +75,39 @@
 .selected-knowledge-container {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--spacing-xsmall);
-  margin-bottom: var(--spacing-small);
+  gap: 4px;
+  margin-bottom: 8px;
 }
 
 .selected-knowledge-container h4 {
   font-size: 0.9rem;
-  margin-bottom: var(--spacing-xsmall);
-  color: var(--font-color);
-  font-weight: normal;
+  margin-bottom: 4px;
+  font-weight: normal; 
 }
 
 .selected-knowledge-list {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-xsmall);
+  gap: 4px;
 }
 
 .no-knowledge {
-  padding: var(--spacing-medium);
+  padding: 8px;
   text-align: center;
-  color: var(--font-color);
   opacity: 0.7;
+  font-size: 0.9rem;
 }
 
 .knowledge-tag {
   display: flex;
   align-items: center;
-  background-color: var(--background-color-alt);
-  color: var(--font-color);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--border-radius-small);
-  padding: var(--spacing-xxsmall) var(--spacing-xsmall);
+  border: 1px solid #ccc;
+  padding: 2px 4px;
   font-size: 0.9em;
-  transition: background-color 0.2s ease;
 }
 
 .knowledge-tag span {
-  margin-right: var(--spacing-xsmall);
+  margin-right: 4px;
 }
 
 .knowledge-selector-controls {
@@ -172,69 +117,172 @@
 .add-knowledge-btn {
   display: inline-flex;
   align-items: center;
-  gap: var(--spacing-xsmall);
-  background-color: var(--button-background-color);
-  color: var(--button-text-color);
-  border: none;
-  padding: var(--spacing-xsmall) var(--spacing-small);
-  border-radius: var(--border-radius-medium);
+  gap: 4px;
+  border: 1px solid #ccc;
+  padding: 4px 8px;
   cursor: pointer;
-  transition: background-color 0.2s ease;
   font-size: 0.9em;
 }
 
-.add-knowledge-btn:hover:not(:disabled) {
-  background-color: var(--button-hover-color);
-}
-
 .add-knowledge-btn:disabled {
-  background-color: var(--button-disabled-background-color, #ccc);
-  color: var(--button-disabled-text-color, #666);
+  opacity: 0.6;
   cursor: not-allowed;
 }
 
 .add-knowledge-btn svg {
   width: 16px;
   height: 16px;
+  fill: currentColor;
 }
 
-.knowledge-dropdown {
+.custom-select-wrapper.add-knowledge-btn {
+  position: relative;
+  display: inline-flex;
+  min-width: 150px;
+  margin-top: 4px;
+  margin-bottom: 4px;
+}
+
+.custom-select-wrapper.add-knowledge-btn select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-color: white;
+  border: 1px solid #ccc;
+  padding: 4px 8px;
+  padding-right: 24px; 
+  font-size: inherit;
+  width: 100%;
+  cursor: pointer;
+  outline: none;
+}
+
+.custom-select-wrapper.add-knowledge-btn select:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.custom-select-wrapper.add-knowledge-btn .custom-select-arrow {
   position: absolute;
-  top: 100%;
-  left: 0;
-  background-color: var(--background-color);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--border-radius-medium);
-  box-shadow: var(--shadow-md);
-  padding: var(--spacing-xsmall) 0;
-  margin-top: var(--spacing-xxsmall);
-  z-index: 10;
-  max-height: 200px;
-  overflow-y: auto;
-  min-width: 200px;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  width: 16px; 
+  height: 16px;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 5px solid #333; 
 }
 
-.knowledge-dropdown ul {
+.knowledge-dropdown ul { 
   list-style: none;
   padding: 0;
   margin: 0;
+  border: 1px solid #ccc; 
+  background-color: white;
+  max-height: 200px;
+  overflow-y: auto;
 }
 
 .knowledge-dropdown li {
-  padding: var(--spacing-xsmall) var(--spacing-small);
+  padding: 4px 8px;
   cursor: pointer;
-  transition: background-color 0.2s ease;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  border-bottom: 1px solid #eee;
 }
-
-.knowledge-dropdown li:hover {
-  background-color: var(--background-color-alt);
+.knowledge-dropdown li:last-child {
+  border-bottom: none;
 }
 
 .disabled-message {
   font-size: 0.9em;
-  color: var(--font-color-muted, #666);
-  margin-top: var(--spacing-small);
+  opacity: 0.7;
+  margin-top: 4px;
+}
+
+.knowledge-source-config-container {
+  margin: 8px 0;
+  position: relative;
+}
+
+.knowledge-selector-heading {
+  font-size: 1rem; 
+  margin-bottom: 4px;
+  font-weight: bold; 
+}
+
+.knowledge-source-dropdown {
+  position: relative;
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.knowledge-source-select {
+  width: 100%;
+  padding: 4px 8px;
+  border: 1px solid #ccc;
+  background-color: white;
+  cursor: pointer;
+  font-size: 0.9rem;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  position: relative;
+  padding-right: 24px; 
+}
+
+.knowledge-source-select:focus {
+  outline: none;
+  border-color: #999; 
+}
+
+.knowledge-source-select option {
+  padding: 4px; 
+}
+
+.knowledge-source-select:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  background-color: #f0f0f0; 
+}
+
+.knowledge-source-dropdown-arrow {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  width: 0; 
+  height: 0; 
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 5px solid #333; 
+}
+
+.knowledge-source-select:disabled + .knowledge-source-dropdown-arrow {
+  border-top-color: #999; 
+}
+
+.knowledge-selector-display-only {
+  margin-top: 4px;
+}
+
+.knowledge-selector-display-only h4 {
+  font-size: 0.9rem;
+  font-weight: normal;
+  margin-bottom: 4px;
+}
+
+.loaded-knowledge-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.knowledge-tag-display {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #ccc;
+  padding: 2px 4px;
+  font-size: 0.85rem;
 } 

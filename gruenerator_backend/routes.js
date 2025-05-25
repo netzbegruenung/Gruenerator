@@ -34,6 +34,8 @@ const generatorConfiguratorRoute = require('./routes/generator_configurator');
 const claudeSubtitlesRoute = require('./routes/claude_subtitles');
 const { tusServer } = require('./routes/subtitler/services/tusService');
 const testBedrockRoutes = require('./routes/testBedrock'); // Import the new test route
+const collabEditorRouter = require('./routes/collabEditor'); // Import the new collab editor route
+const snapshottingRouter = require('./routes/internal/snapshottingController'); // Import the new snapshotting controller
 
 function setupRoutes(app) {
   app.use('/api/subtitler/upload', tusServer.handle.bind(tusServer));
@@ -79,6 +81,12 @@ function setupRoutes(app) {
 
   // Add the Bedrock test route
   app.use('/api', testBedrockRoutes);
+
+  // Add the Collab Editor route
+  app.use('/api/collab-editor', collabEditorRouter);
+
+  // Add internal routes like snapshotting trigger
+  app.use('/api/internal', snapshottingRouter);
 }
 
 module.exports = { setupRoutes };

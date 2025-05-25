@@ -204,14 +204,14 @@
   position: fixed;
   bottom: 0;
   width: 100%;
-  background-color: var(--background-color); /* Hintergrund ist weiß */
-  padding: 10px 20px; /* Padding links und rechts 20px */
+  background-color: var(--background-color); 
+  padding: 10px 20px; 
   box-shadow: 0 -2px 5px rgba(236, 214, 214, 0.3);
-  text-align: left; /* Text linksbündig */
+  text-align: left; 
   z-index: 1000;
   display: flex;
   align-items: center;
-  box-sizing: border-box; /* Sicherstellen, dass das Padding zur Gesamtbreite gehört */
+  box-sizing: border-box; 
 }
 
 .terms-text {
@@ -235,12 +235,12 @@
   display: flex;
   align-items: center;
   text-decoration: none;
-  margin-left: 20px; /* Abstand zwischen Text und Button */
+  margin-left: 20px; 
 }
 
 .button-terms:hover {
-  background-color: var(--dunkelgruen); /* Aktualisiert auf dunkelgrün beim Hover */
-  color: var(--weiß); /* Beibehaltung der Schriftfarbe */
+  background-color: var(--dunkelgruen); 
+  color: var(--weiß); 
 }
 
 @media (max-width: 768px) {

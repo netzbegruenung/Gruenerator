@@ -1,4 +1,4 @@
-/* gruenerator_frontend/src/components/common/MaintenanceNotice.module.css */
+
 .maintenanceContainer {
   display: flex;
   flex-direction: column;
@@ -12,7 +12,7 @@
   max-width: 600px;
   border: var(--border-subtle);
   box-shadow: var(--shadow-md);
-  min-height: 300px; /* Ensure it takes some space */
+  min-height: 300px; 
 }
 
 .maintenanceIcon {

@@ -7,16 +7,21 @@ import ProfileButton from './ProfileButton';
 import ThemeToggleButton from './ThemeToggleButton';
 import useDarkMode from '../../hooks/useDarkMode';
 import useAccessibility from '../../hooks/useAccessibility';
-import { menuItems, directMenuItems, MenuItem, menuStyles, handleMenuInteraction } from './menuData';
+import { getMenuItems, getDirectMenuItems, MenuItem, menuStyles, handleMenuInteraction } from './menuData';
 import { FormContext } from '../../utils/FormContext';
+import { BetaFeaturesContext } from '../../../context/BetaFeaturesContext';
 
 const Header = () => {
     const { isEditing } = useContext(FormContext);
+    const { sharepicBetaEnabled, databaseBetaEnabled } = useContext(BetaFeaturesContext);
     const [menuActive, setMenuActive] = useState(false);
     const [activeDropdown, setActiveDropdown] = useState(null);
     const [darkMode, toggleDarkMode] = useDarkMode();
     const { announce, setupKeyboardNav } = useAccessibility();
     const headerRef = useRef(null);
+
+    const menuItems = getMenuItems({ sharepicBetaEnabled, databaseBetaEnabled });
+    const directMenuItems = getDirectMenuItems({ sharepicBetaEnabled, databaseBetaEnabled });
 
     useEffect(() => {
         const headerElements = headerRef.current.querySelectorAll('a, button, .header-dropdown > span');
@@ -102,6 +107,8 @@ const Header = () => {
                                 aria-expanded={activeDropdown === key}
                             >
                                 <span className="header-nav-item">
+                                    {/* Icon for top-level item like Labor - REMOVED FOR CONSISTENCY */}
+                                    {/* {menu.icon && <menu.icon aria-hidden="true" />} */}
                                     <span>{menu.title}</span>
                                     <PiCaretDown 
                                         className={activeDropdown === key ? 'open' : ''} 
@@ -111,27 +118,26 @@ const Header = () => {
                                 <ul className={`${menuStyles.dropdownContent.base} ${activeDropdown === key ? menuStyles.dropdownContent.show : ''}`} 
                                     aria-label={`${menu.title} Untermenü`}
                                 >
-                                    {renderDropdownContent(key)}
+                                    {menu.items && menu.items.length > 0 && renderDropdownContent(key)}
                                 </ul>
                             </li>
                         ))}
-                        <li className="header-search">
-                            <Link to={directMenuItems.suche.path} onClick={() => handleLinkClick(directMenuItems.suche.path, directMenuItems.suche.title)} className="header-nav-item">
-                                <span>{directMenuItems.suche.title}</span>
-                                <directMenuItems.suche.icon aria-hidden="true" />
-                            </Link>
-                        </li>
-                        {/* Reel Link vorübergehend auskommentiert 
-                        <li className="header-search">
-                            <Link to={directMenuItems.reel.path} onClick={() => handleLinkClick(directMenuItems.reel.path, directMenuItems.reel.title)} className="header-nav-item">
-                                <span>{directMenuItems.reel.title}</span>
-                                <directMenuItems.reel.icon aria-hidden="true" />
-                            </Link>
-                        </li>
-                        */}
+                        {/* Render direct menu items like Suche */}
+                        {Object.values(directMenuItems).map(item => (
+                            <li key={item.id} className={`header-direct-item header-${item.id}`}>
+                                <Link to={item.path} onClick={() => handleLinkClick(item.path, item.title)} className="header-nav-item">
+                                    {/* Display icon for direct items - use class for styling */}
+                                    {item.icon && <item.icon aria-hidden="true" className="header-direct-item-icon" />}
+                                    <span>{item.title}</span>
+                                </Link>
+                            </li>
+                        ))}
                     </ul>
                 </nav>
-                <NavMenu open={menuActive} onClose={handleNavMenuClose} />
+                <NavMenu 
+                    open={menuActive} 
+                    onClose={handleNavMenuClose} 
+                />
                 <div className="header-actions">
                   <ProfileButton />
                   <ThemeToggleButton darkMode={darkMode} toggleDarkMode={toggleDarkMode} />

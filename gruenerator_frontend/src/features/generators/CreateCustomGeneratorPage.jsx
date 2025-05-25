@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import BaseForm from '../../components/common/BaseForm';
 import { templatesSupabaseUtils } from '../../components/utils/templatesSupabaseClient';
 import { useNavigate } from 'react-router-dom';
@@ -6,12 +6,16 @@ import FieldEditorAssistant from './components/FieldEditorAssistant';
 import { getCustomGeneratorHelpContent } from './constants/customGeneratorHelpContent';
 import { STEPS } from './constants/steps';
 import useApiSubmit from '../../components/hooks/useApiSubmit';
+import useDebounce from '../../components/hooks/useDebounce';
+import apiClient from '../../components/utils/apiClient';
 import GeneratorStartScreen from './components/GeneratorStartScreen';
 import GeneratorCreationSuccessScreen from './components/GeneratorCreationSuccessScreen';
 import { useSupabaseAuth } from '../../context/SupabaseAuthContext';
+import InlineValidationMessage from '../../components/common/UI/InlineValidationMessage';
 
 // Define steps
 const MODE_SELECTION = -1;
+const SLUG_CHECK_DELAY = 750; // Delay for slug check in ms
 
 const INITIAL_FORM_DATA = {
   name: '',
@@ -40,9 +44,54 @@ const CreateCustomGeneratorPage = ({ showHeaderFooter = true }) => {
     resetSuccess: resetAISuccess
   } = useApiSubmit('/generate_generator_config');
 
+  const debouncedSlug = useDebounce(formData.slug, SLUG_CHECK_DELAY);
+  const [isCheckingSlug, setIsCheckingSlug] = useState(false);
+  const [slugAvailabilityError, setSlugAvailabilityError] = useState(null);
+
   // State for managing the field editor assistant
   const [isEditingField, setIsEditingField] = useState(false);
   const [editingFieldIndex, setEditingFieldIndex] = useState(null);
+
+  // Set initial contact_email if user is logged in
+  useEffect(() => {
+    if (user && user.email) {
+      setFormData(prev => ({ ...prev, contact_email: user.email }));
+    }
+  }, [user]);
+
+  // Effect for checking slug availability
+  useEffect(() => {
+    const checkSlug = async () => {
+      if (!debouncedSlug || debouncedSlug.length < 3) {
+        setSlugAvailabilityError(null); // Clear error if slug is too short or empty
+        setIsCheckingSlug(false);
+        return;
+      }
+
+      setIsCheckingSlug(true);
+      setSlugAvailabilityError(null);
+      setError(null); // Clear general form error
+
+      try {
+        const response = await apiClient.get(`/custom_generator/check-slug/${debouncedSlug}`);
+        const data = response.data;
+
+        if (data.exists) {
+          setSlugAvailabilityError('Diese URL ist bereits vergeben. Bitte wähle eine andere.');
+        } else {
+          setSlugAvailabilityError(null);
+        }
+      } catch (err) {
+        console.error('[CreateCustomGeneratorPage] Slug check error:', err);
+        // Don't set a blocking error for network issues, allow user to proceed with caution
+        // Or, set a non-blocking warning: setSlugAvailabilityError('Slug-Prüfung fehlgeschlagen. Bitte versuchen Sie es später erneut.');
+      } finally {
+        setIsCheckingSlug(false);
+      }
+    };
+
+    checkSlug();
+  }, [debouncedSlug]);
 
   // Handler for simple form inputs (name, slug, prompt)
   const handleInputChange = (e) => {
@@ -54,6 +103,7 @@ const CreateCustomGeneratorPage = ({ showHeaderFooter = true }) => {
         .toLowerCase()
         .replace(/\s+/g, '-')
         .replace(/[^a-z0-9-]/g, '');
+      setSlugAvailabilityError(null); // Reset slug error on manual slug change
     }
 
     setFormData(prev => ({ ...prev, [name]: processedValue }));
@@ -186,6 +236,14 @@ const CreateCustomGeneratorPage = ({ showHeaderFooter = true }) => {
           setError('Der URL-Pfad darf nur Kleinbuchstaben, Zahlen und Bindestriche enthalten.');
           return false;
         }
+        if (slugAvailabilityError) {
+          setError(slugAvailabilityError);
+          return false;
+        }
+        if (isCheckingSlug) {
+          setError('Die Verfügbarkeit des URL-Pfads wird noch geprüft...');
+          return false;
+        }
         if (!formData.title) {
           setError('Der Titel darf nicht leer sein.');
           return false;
@@ -206,14 +264,6 @@ const CreateCustomGeneratorPage = ({ showHeaderFooter = true }) => {
       case STEPS.PROMPT:
         if (!formData.prompt) {
           setError('Die Prompt-Vorlage darf nicht leer sein.');
-          return false;
-        }
-        if (!formData.contact_email) {
-          setError('Die E-Mail für Rückfragen darf nicht leer sein.');
-          return false;
-        }
-        if (!emailRegex.test(formData.contact_email)) {
-          setError('Bitte geben Sie eine gültige E-Mail-Adresse ein.');
           return false;
         }
         return true;
@@ -290,6 +340,12 @@ const CreateCustomGeneratorPage = ({ showHeaderFooter = true }) => {
     setIsGeneratingWithAI(true);
     setError(null);
     try {
+      if (!user || !user.id || !user.email) {
+        setError("Benutzerinformationen sind unvollständig. Bitte stelle sicher, dass du angemeldet bist und dein Profil eine E-Mail-Adresse enthält.");
+        setIsGeneratingWithAI(false);
+        return;
+      }
+
       const placeholderString = formData.fields.map(field => `{{${field.name}}}`).join(', ');
       const finalPrompt = `${formData.prompt.trim()}\n\nDer Benutzer stellt dir die folgenden Variablen zur Verfügung: ${placeholderString}`;
       const formSchema = { fields: formData.fields };
@@ -300,8 +356,8 @@ const CreateCustomGeneratorPage = ({ showHeaderFooter = true }) => {
         prompt: finalPrompt,
         title: formData.title,
         description: formData.description,
-        contact_email: formData.contact_email,
-        user_id: user ? user.id : null
+        contact_email: user.email,
+        user_id: user.id
       };
 
       await templatesSupabaseUtils.insertData('custom_generators', dataToSave);
@@ -338,8 +394,9 @@ const CreateCustomGeneratorPage = ({ showHeaderFooter = true }) => {
             </div>
             <div className="form-group">
               <h3><label htmlFor="slug">URL-Pfad</label></h3>
-              <input type="text" id="slug" name="slug" className="form-control" value={formData.slug} onChange={handleInputChange} placeholder="z.B. social-media-post" pattern="^[a-z0-9-]+$" required />
-              <small className="help-text">Wird Teil der URL: /generator/{formData.slug || '...'}</small>
+              <input type="text" id="slug" name="slug" className={`form-control ${slugAvailabilityError ? 'error-input' : ''}`} value={formData.slug} onChange={handleInputChange} placeholder="z.B. social-media-post" pattern="^[a-z0-9-]+$" required />
+              {isCheckingSlug && <small className="help-text text-info">Prüfe Verfügbarkeit...</small>}
+              <InlineValidationMessage message={slugAvailabilityError} type="error" />
             </div>
             <div className="form-group">
               <h3><label htmlFor="title">Titel</label></h3>
@@ -401,11 +458,6 @@ const CreateCustomGeneratorPage = ({ showHeaderFooter = true }) => {
             <h3>Prompt definieren</h3>
             <div className="form-group">
               <textarea id="prompt" name="prompt" className="form-control" rows={10} value={formData.prompt} onChange={handleInputChange} placeholder="Beispiel: Erstelle einen kurzen Social-Media-Post..." required />
-            </div>
-            <div className="form-group">
-              <h3><label htmlFor="contact_email">E-Mail für Rückfragen</label></h3>
-              <input type="email" id="contact_email" name="contact_email" className="form-control" value={formData.contact_email} onChange={handleInputChange} placeholder="Deine E-Mail für technische Rückfragen (wird nicht öffentlich angezeigt)" required />
-              <small className="help-text">Wird benötigt, falls es Probleme mit dem Generator gibt.</small>
             </div>
           </>
         );

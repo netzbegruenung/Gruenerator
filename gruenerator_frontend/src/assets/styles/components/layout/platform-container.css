@@ -1,4 +1,4 @@
-/* Platform Container Styles */
+
 .platform-container {
   position: relative;
   margin-bottom: 1rem;
@@ -82,7 +82,7 @@
   line-height: 1.6;
 }
 
-/* Grid Layout für mehrere Plattformen */
+
 .platforms-container {
   display: grid;
   grid-template-columns: 1fr;
@@ -90,7 +90,7 @@
   width: 100%;
 }
 
-/* Mobile Anpassungen */
+
 @media (max-width: 768px) {
   .platform-content {
     padding: 0;

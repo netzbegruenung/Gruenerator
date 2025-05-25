@@ -1,4 +1,4 @@
-/* Custom Prompt Notice */
+
 .custom-prompt-notice {
   display: flex;
   align-items: center;
@@ -20,7 +20,7 @@
   color: var(--font-color);
 }
 
-/* Container für Formular-Hinweise */
+
 .form-notice-container {
   margin: var(--spacing-large) 0 var(--spacing-medium) 0;
 } 

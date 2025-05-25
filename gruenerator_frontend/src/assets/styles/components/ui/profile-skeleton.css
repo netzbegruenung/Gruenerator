@@ -1,0 +1,157 @@
+/* Profile Tab Skeleton Styles */
+.profile-skeleton-container {
+  width: 100%;
+  padding: var(--spacing-medium);
+}
+
+/* Gemeinsame Basis für alle Skeleton-Elemente */
+.profile-skeleton-container [class^="profile-skeleton-"] {
+  background: linear-gradient(90deg, 
+    var(--background-color-alt) 0%, 
+    var(--background-color) 20%,
+    var(--background-color-alt) 40%
+  );
+  background-size: 1000px 100%;
+  border-radius: var(--spacing-xxsmall);
+  overflow: hidden;
+}
+
+/* Default Skeleton */
+.profile-skeleton-header {
+  height: 2.5rem;
+  width: 60%;
+  margin-bottom: var(--spacing-large);
+}
+
+.profile-skeleton-block {
+  height: 1.25rem;
+  margin-bottom: var(--spacing-medium);
+}
+
+.profile-skeleton-block:nth-child(1) {
+  width: 100%;
+}
+
+.profile-skeleton-block:nth-child(2) {
+  width: 90%;
+}
+
+.profile-skeleton-block:nth-child(3) {
+  width: 75%;
+}
+
+/* List Skeleton */
+.profile-skeleton-list-item {
+  display: flex;
+  justify-content: space-between;
+  padding: var(--spacing-medium);
+  border-radius: var(--spacing-xxsmall);
+  margin-bottom: var(--spacing-small);
+  align-items: center;
+}
+
+.profile-skeleton-item-content {
+  flex: 1;
+}
+
+.profile-skeleton-title {
+  height: 1.5rem;
+  width: 60%;
+  margin-bottom: var(--spacing-small);
+  background-color: var(--background-color-alt);
+  border-radius: var(--spacing-xxsmall);
+}
+
+.profile-skeleton-meta {
+  height: 0.875rem;
+  width: 40%;
+  background-color: var(--background-color-alt);
+  border-radius: var(--spacing-xxsmall);
+}
+
+.profile-skeleton-actions {
+  display: flex;
+  gap: var(--spacing-small);
+}
+
+.profile-skeleton-button {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background-color: var(--background-color-alt);
+}
+
+/* Form Skeleton */
+.profile-skeleton-form-title {
+  height: 2rem;
+  width: 50%;
+  margin-bottom: var(--spacing-large);
+}
+
+.profile-skeleton-form-group {
+  margin-bottom: var(--spacing-medium);
+}
+
+.profile-skeleton-label {
+  height: 1rem;
+  width: 30%;
+  margin-bottom: var(--spacing-small);
+}
+
+.profile-skeleton-input {
+  height: 2.5rem;
+  width: 100%;
+  border-radius: var(--spacing-xxsmall);
+}
+
+.profile-skeleton-form-actions {
+  margin-top: var(--spacing-large);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.profile-skeleton-button-primary {
+  height: 2.5rem;
+  width: 10rem;
+  border-radius: var(--spacing-xxsmall);
+}
+
+/* Tabs Skeleton */
+.profile-skeleton-tabs {
+  display: flex;
+  flex-direction: column;
+}
+
+.profile-skeleton-tabs-navigation {
+  display: flex;
+  gap: var(--spacing-small);
+  margin-bottom: var(--spacing-medium);
+}
+
+.profile-skeleton-tab {
+  height: 2.5rem;
+  width: 8rem;
+  border-radius: var(--spacing-xxsmall);
+}
+
+.profile-skeleton-tabs-panel {
+  height: 20rem;
+  width: 100%;
+  border-radius: var(--spacing-xxsmall);
+}
+
+/* Responsive Anpassungen */
+@media (max-width: 768px) {
+  .profile-skeleton-header,
+  .profile-skeleton-form-title {
+    width: 80%;
+  }
+  
+  .profile-skeleton-title {
+    width: 80%;
+  }
+  
+  .profile-skeleton-button-primary {
+    width: 100%;
+  }
+} 

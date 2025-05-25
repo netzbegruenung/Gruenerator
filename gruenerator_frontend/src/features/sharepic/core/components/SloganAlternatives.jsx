@@ -1,8 +1,11 @@
-import React from 'react';
+import React, { useRef, forwardRef } from 'react';
 import PropTypes from 'prop-types';
 import { CSSTransition } from 'react-transition-group';
 
-export const SloganAlternativesButton = ({ isExpanded, onClick }) => {
+export const SloganAlternativesButton = forwardRef(({ isExpanded, onClick }, ref) => {
+  const showButtonRef = useRef(null);
+  const hideButtonRef = useRef(null);
+
   const handleClick = (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -10,14 +13,16 @@ export const SloganAlternativesButton = ({ isExpanded, onClick }) => {
   };
 
   return (
-    <div className="alternatives-button-wrapper">
+    <div className="alternatives-button-wrapper" ref={ref}>
       <CSSTransition
+        nodeRef={showButtonRef}
         in={!isExpanded}
         timeout={300}
         classNames="alternatives-fade"
         unmountOnExit
       >
-        <button 
+        <button
+          ref={showButtonRef}
           type="button"
           className="alternatives-button"
           onClick={handleClick}
@@ -29,12 +34,14 @@ export const SloganAlternativesButton = ({ isExpanded, onClick }) => {
       </CSSTransition>
 
       <CSSTransition
+        nodeRef={hideButtonRef}
         in={isExpanded}
         timeout={300}
         classNames="alternatives-fade"
         unmountOnExit
       >
-        <button 
+        <button
+          ref={hideButtonRef}
           type="button"
           className="alternatives-button"
           onClick={handleClick}
@@ -46,7 +53,9 @@ export const SloganAlternativesButton = ({ isExpanded, onClick }) => {
       </CSSTransition>
     </div>
   );
-};
+});
+
+SloganAlternativesButton.displayName = 'SloganAlternativesButton';
 
 SloganAlternativesButton.propTypes = {
   isExpanded: PropTypes.bool.isRequired,

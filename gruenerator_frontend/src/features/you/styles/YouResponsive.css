@@ -1,6 +1,6 @@
-/* YouResponsive.css - Responsive Anpassungen für alle Komponenten */
 
-/* Mobile Anpassungen */
+
+
 @media (max-width: 768px) {
   .you-page-container {
     padding: 16px;
@@ -8,11 +8,11 @@
 
   .you-content-wrapper {
     width: calc(100% - 32px);
-    margin-top: 40px; /* Weniger Abstand auf mobilen Geräten */
+    margin-top: 40px; 
   }
   
   .you-content-wrapper.empty-state {
-    margin-top: 10vh; /* Weniger Abstand auf mobilen Geräten */
+    margin-top: 10vh; 
   }
 
   .you-header {

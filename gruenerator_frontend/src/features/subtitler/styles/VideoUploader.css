@@ -148,7 +148,7 @@
   }
 }
 
-/* Dark Mode Support */
+
 [data-theme="dark"] {
   .upload-container {
     background-color: var(--background-color-alt);
@@ -164,7 +164,7 @@
   }
 }
 
-/* Responsive Design */
+
 @media (max-width: 768px) {
   .upload-container {
     padding: 1rem;
@@ -212,7 +212,7 @@
   }
 }
 
-/* Styles for Subtitle Preference Selector */
+
 .subtitle-preference-selector {
   margin-top: 1.5rem;
   padding: 1rem;
@@ -246,7 +246,7 @@
   accent-color: var(--tanne);
 }
 
-/* Tile Styling for Preference Options */
+
 .preference-options.tiles {
   flex-direction: row;
   gap: 1rem;
@@ -290,7 +290,7 @@
   gap: 0.25rem;
 }
 
-/* Style the tile when the hidden radio is checked */
+
 .preference-tile-radio:checked + .preference-tile-content {
 }
 .preference-tile-radio:checked + .preference-tile-content::before {
@@ -306,7 +306,7 @@
 }
 
 
-/* Dark Mode for Selector */
+
 [data-theme="dark"] .subtitle-preference-selector {
   background-color: var(--background-color-alt);
 }
@@ -315,7 +315,7 @@
   accent-color: var(--klee);
 }
 
-/* Styling for Upload Progress */
+
 .upload-progress-container {
   width: 80%;
   max-width: 300px;

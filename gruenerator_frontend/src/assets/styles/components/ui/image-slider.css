@@ -13,7 +13,7 @@
   height: 100%;
 }
 
-/* Anpassungen für react-image-gallery */
+
 .image-gallery {
   width: 100%;
   height: 100%;
@@ -47,7 +47,7 @@
   width: auto;
 }
 
-/* Navigation Buttons */
+
 .image-gallery-left-nav,
 .image-gallery-right-nav {
   opacity: 0;
@@ -71,7 +71,7 @@
   opacity: 1;
 }
 
-/* Bullets */
+
 .image-gallery-bullets {
   bottom: 10px;
 }
@@ -95,7 +95,7 @@
   transform: scale(1.2);
 }
 
-/* Loading State */
+
 .image-loading {
   position: absolute;
   top: 0;
@@ -123,7 +123,7 @@
   }
 }
 
-/* Fullscreen Mode */
+
 .image-gallery.fullscreen-modal {
   background: rgba(0, 0, 0, 0.9);
   padding: 40px;
@@ -140,7 +140,7 @@
   margin: 0 auto;
 }
 
-/* Mobile Anpassungen */
+
 @media (max-width: 768px) {
   .image-gallery-left-nav,
   .image-gallery-right-nav {
@@ -154,10 +154,10 @@
   }
 }
 
-/* Aspect Ratio für die Karten */
+
 .template-card-image {
   position: relative;
-  padding-top: 75%; /* 4:3 Aspect Ratio */
+  padding-top: 75%; 
   overflow: hidden;
 }
 

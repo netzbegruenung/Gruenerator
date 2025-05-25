@@ -12,10 +12,11 @@ import ErrorBoundary from '../../../components/ErrorBoundary';
 import { useSupabaseAuth } from '../../../context/SupabaseAuthContext';
 import { HiInformationCircle } from 'react-icons/hi';
 import { createFinalPrompt } from '../../../utils/promptUtils';
+import useGroupDetails from '../../groups/hooks/useGroupDetails';
 
 const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   const { initialContent } = useSharedContent();
-  const { user } = useSupabaseAuth();
+  const { user, deutschlandmodus } = useSupabaseAuth();
   
   const {
     thema,
@@ -34,95 +35,183 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   const [socialMediaContent, setSocialMediaContent] = useState('');
   const textSize = useDynamicTextSize(socialMediaContent, 1.2, 0.8, [1000, 2000]);
   const { submitForm, loading, success, resetSuccess, error } = useApiSubmit('/claude_social');
-  const { setGeneratedContent, getKnowledgeContent } = useContext(FormContext);
+  const { 
+    setGeneratedContent, 
+    getKnowledgeContent,
+    knowledgeSourceConfig
+  } = useContext(FormContext);
   const [useBackupProvider, setUseBackupProvider] = useState(false);
-  const [customPrompt, setCustomPrompt] = useState(null);
-  const [isCustomPromptActive, setIsCustomPromptActive] = useState(false);
+  const [userCustomSocialPrompt, setUserCustomSocialPrompt] = useState(null);
+  const [isUserCustomSocialPromptActive, setIsUserCustomSocialPromptActive] = useState(false);
 
-  // Benutzeranweisungen aus dem Profil laden
   useEffect(() => {
-    const loadCustomPrompt = async () => {
+    const loadUserCustomSocialPrompt = async () => {
       if (!user) return;
       
       try {
         const module = await import('../../../components/utils/templatesSupabaseClient');
         if (!module.templatesSupabase) {
-          console.warn('Templates Supabase client not available for fetching custom prompt.');
+          console.warn('Templates Supabase client not available for fetching user custom social prompt.');
           return;
         }
         
         const { templatesSupabase } = module;
         
-        const { data, error } = await templatesSupabase
+        const { data, error: fetchError } = await templatesSupabase
           .from('profiles')
-          .select('custom_social_prompt, custom_social_prompt_active')
+          .select('custom_social_prompt')
           .eq('id', user.id)
           .single();
         
-        if (error) {
-          console.error('Fehler beim Laden des benutzerdefinierten Prompts:', error);
+        if (fetchError) {
+          console.error('Error loading user custom social prompt:', fetchError);
           return;
         }
         
         if (data) {
-          setCustomPrompt(data.custom_social_prompt || null);
-          setIsCustomPromptActive(data.custom_social_prompt_active || false);
+          setUserCustomSocialPrompt(data.custom_social_prompt || null);
         }
       } catch (err) {
-        console.error('Fehler beim Laden des benutzerdefinierten Prompts:', err);
+        console.error('Error loading user custom social prompt:', err);
       }
     };
     
-    loadCustomPrompt();
+    loadUserCustomSocialPrompt();
   }, [user]);
+
+  const { data: groupDetailsData, isLoading: isLoadingGroupDetails } = useGroupDetails(
+    knowledgeSourceConfig.type === 'group' ? knowledgeSourceConfig.id : null,
+    knowledgeSourceConfig.type === 'group'
+  );
 
   const handleSubmit = useCallback(async () => {
     try {
-      const formData = getFormData();
+      const formDataToSubmit = getFormData();
+      let activeInstructionsText = null;
+      let areInstructionsActive = false;
+
+      if (knowledgeSourceConfig.type === 'user') {
+        activeInstructionsText = userCustomSocialPrompt;
+        areInstructionsActive = isUserCustomSocialPromptActive;
+      } else if (knowledgeSourceConfig.type === 'group' && groupDetailsData?.instructions) {
+        activeInstructionsText = groupDetailsData.instructions.custom_social_prompt;
+        areInstructionsActive = !!groupDetailsData.instructions.custom_social_prompt;
+      }
+      
       const knowledgeContent = getKnowledgeContent();
-      const activeCustomPrompt = isCustomPromptActive ? customPrompt : null;
+      const finalPrompt = createFinalPrompt(areInstructionsActive ? activeInstructionsText : null, knowledgeContent);
 
-      // Combine prompt and knowledge
-      const finalPrompt = createFinalPrompt(activeCustomPrompt, knowledgeContent);
-
-      // Remove individual fields if they exist from getFormData, add the final prompt
-      delete formData.customPrompt; 
-      delete formData.knowledgeContent;
+      delete formDataToSubmit.customPrompt; 
+      delete formDataToSubmit.knowledgeContent;
       
       if (finalPrompt) {
-        formData.customPrompt = finalPrompt; // Use the expected field name for the combined prompt
-        console.log('[PresseSocialGenerator] Finaler kombinierter Prompt hinzugefügt zu formData.', finalPrompt.substring(0,100)+'...');
+        formDataToSubmit.customPrompt = finalPrompt; 
+        console.log('[PresseSocialGenerator] Final combined prompt added to formData.', finalPrompt.substring(0,100)+'...');
+      } else {
+        console.log('[PresseSocialGenerator] No custom prompt or knowledge for generation.');
       }
 
-      const content = await submitForm(formData, useBackupProvider);
+      const content = await submitForm(formDataToSubmit, useBackupProvider);
       if (content) {
         setSocialMediaContent(content);
         setGeneratedContent(content);
         setTimeout(resetSuccess, 3000);
       }
-    } catch (error) {
-      // Error handling
+    } catch (submitError) {
+      console.error('[PresseSocialGenerator] Error submitting form:', submitError);
     }
-  }, [getFormData, submitForm, resetSuccess, setGeneratedContent, useBackupProvider, isCustomPromptActive, customPrompt, getKnowledgeContent]);
+  }, [
+    getFormData, 
+    submitForm, 
+    resetSuccess, 
+    setGeneratedContent, 
+    useBackupProvider, 
+    knowledgeSourceConfig,
+    userCustomSocialPrompt,
+    isUserCustomSocialPromptActive,
+    groupDetailsData,
+    getKnowledgeContent
+  ]);
 
   const handleGeneratedContentChange = useCallback((content) => {
     setSocialMediaContent(content);
     setGeneratedContent(content);
   }, [setGeneratedContent]);
 
-  // Erstelle das Element für den Hinweis - checkt jetzt auch Wissen
-  const customPromptNotice = (isCustomPromptActive && customPrompt) || getKnowledgeContent() ? (
-    <div className="custom-prompt-notice">
-      <HiInformationCircle className="info-icon" />
-      <span>
-        {isCustomPromptActive && customPrompt && getKnowledgeContent() 
-          ? 'Benutzerdefinierte Anweisungen & Wissen sind aktiv.' 
-          : isCustomPromptActive && customPrompt 
-          ? 'Benutzerdefinierte Anweisungen sind aktiv.'
-          : 'Ausgewähltes Wissen wird verwendet.'}
-      </span>
-    </div>
-  ) : null;
+  const formNoticeElement = (() => {
+    if (knowledgeSourceConfig.type === 'group' && isLoadingGroupDetails) {
+      return (
+        <div className="custom-prompt-notice">
+          <HiInformationCircle className="info-icon" />
+          <span>Lade Gruppenanweisungen & Wissen...</span>
+        </div>
+      );
+    }
+
+    let noticeParts = [];
+    let activeInstructionsTextForNotice = null;
+    let areInstructionsActiveForNotice = false;
+    let instructionsAvailableForNotice = false;
+    let sourceNameForNotice = "";
+
+    if (knowledgeSourceConfig.type === 'user') {
+      sourceNameForNotice = "Persönliche";
+      activeInstructionsTextForNotice = userCustomSocialPrompt;
+      areInstructionsActiveForNotice = isUserCustomSocialPromptActive && userCustomSocialPrompt;
+      instructionsAvailableForNotice = !!userCustomSocialPrompt;
+      if (areInstructionsActiveForNotice) {
+        noticeParts.push(`${sourceNameForNotice} Anweisungen`);
+      } else if (instructionsAvailableForNotice) {
+        noticeParts.push(`${sourceNameForNotice} Anweisungen (inaktiv)`);
+      }
+    } else if (knowledgeSourceConfig.type === 'group') {
+      sourceNameForNotice = knowledgeSourceConfig.name || 'Gruppe';
+      if (groupDetailsData?.instructions) {
+        activeInstructionsTextForNotice = groupDetailsData.instructions.custom_social_prompt;
+        areInstructionsActiveForNotice = !!groupDetailsData.instructions.custom_social_prompt;
+        instructionsAvailableForNotice = !!groupDetailsData.instructions.custom_social_prompt;
+        if (areInstructionsActiveForNotice) {
+          noticeParts.push(`Anweisungen der Gruppe "${sourceNameForNotice}"`);
+        } else if (instructionsAvailableForNotice) {
+          noticeParts.push(`Anweisungen der Gruppe "${sourceNameForNotice}" (inaktiv)`);
+        }
+      }
+    }
+
+    const hasLoadedKnowledge = knowledgeSourceConfig.loadedKnowledgeItems && knowledgeSourceConfig.loadedKnowledgeItems.length > 0;
+
+    if (knowledgeSourceConfig.type !== 'neutral' && hasLoadedKnowledge) {
+      if (knowledgeSourceConfig.type === 'user') {
+        noticeParts.push('gesamtes persönliches Wissen');
+      } else if (knowledgeSourceConfig.type === 'group') {
+        noticeParts.push(`gesamtes Wissen der Gruppe "${sourceNameForNotice}"`);
+      }
+    }
+    
+    if (deutschlandmodus === true) {
+      noticeParts.push("Deutschlandmodus (AWS) aktiv");
+    }
+
+    if (noticeParts.length === 0 && knowledgeSourceConfig.type === 'neutral') {
+      return (
+        <div className="custom-prompt-notice neutral-notice">
+          <HiInformationCircle className="info-icon" />
+          <span>Standardmodus aktiv. Keine spezifischen Anweisungen, Wissen oder Deutschlandmodus ausgewählt.</span>
+        </div>
+      );
+    }
+
+    if (noticeParts.length === 0) return null;
+
+    const fullNoticeText = noticeParts.join('. ');
+
+    return (
+      <div className="custom-prompt-notice">
+        <HiInformationCircle className="info-icon" />
+        <span>{fullNoticeText}.</span>
+      </div>
+    );
+  })();
 
   const renderFormInputs = () => (
     <>
@@ -138,15 +227,15 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
       />
 
       <h3><label htmlFor="details">{FORM_LABELS.DETAILS}</label></h3>
-      <textarea
-        id="details"
-        name="details"
-        style={{ height: '120px' }}
-        placeholder={FORM_PLACEHOLDERS.DETAILS}
-        value={details}
-        onChange={(e) => setDetails(e.target.value)}
-        aria-required="true"
-      />
+                <textarea
+            id="details"
+            name="details"
+            className="form-textarea-large"
+            placeholder={FORM_PLACEHOLDERS.DETAILS}
+            value={details}
+            onChange={(e) => setDetails(e.target.value)}
+            aria-required="true"
+          />
 
       <h3>Plattformen & Formate</h3>
       <div className="platform-checkboxes">
@@ -209,7 +298,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
           useBackupProvider={useBackupProvider}
           setUseBackupProvider={setUseBackupProvider}
           usePlatformContainers={true}
-          formNotice={customPromptNotice}
+          formNotice={formNoticeElement}
           enableKnowledgeSelector={true}
         >
           {renderFormInputs()}

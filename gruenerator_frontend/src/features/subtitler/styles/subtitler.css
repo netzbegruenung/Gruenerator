@@ -9,7 +9,7 @@
   font-display: swap;
 }
 
-/* Container Styles */
+
 .subtitler-container {
   display: flex;
   flex-direction: column;
@@ -34,7 +34,7 @@
   width: 100%;
 }
 
-/* Error Message Styles */
+
 .error-message {
   background-color: #fde8e8;
   border: 1px solid #f8b4b4;
@@ -54,7 +54,7 @@
   color: #f8b4b4;
 }
 
-/* Video Uploader Styles */
+
 .video-uploader {
   width: 100%;
   max-width: 600px;
@@ -96,7 +96,7 @@
   max-width: 400px;
 }
 
-/* Editor Layout Styles */
+
 .subtitle-editor-container {
   width: 100%;
 }
@@ -179,7 +179,7 @@
   margin-top: 2rem;
 }
 
-/* Loading Spinner */
+
 .spinner {
   width: 40px;
   height: 40px;
@@ -209,7 +209,7 @@
   100% { transform: rotate(360deg); }
 }
 
-/* Button Styles */
+
 .btn-primary {
   background-color: var(--tanne);
   color: white;
@@ -259,7 +259,7 @@
   cursor: not-allowed;
 }
 
-/* Dark Mode Support */
+
 [data-theme="dark"] {
   .video-info,
   .segment-text {
@@ -276,7 +276,7 @@
   }
 }
 
-/* Responsive Design */
+
 @media (max-width: 1024px) {
   .editor-layout {
     grid-template-columns: 1fr;
@@ -320,7 +320,7 @@
   margin-bottom: 0.75rem;
 }
 
-/* Spezifische Anpassung für den Subtitler Button-Spinner */
+
 .subtitler-container .button-spinner {
   border-color: var(--weiß);
   border-top-color: transparent;
