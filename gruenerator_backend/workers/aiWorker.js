@@ -118,8 +118,8 @@ async function processAIRequest(requestId, data) {
       console.log(`[AI Worker] Using primary provider (Claude) for request ${requestId} { useBackupProvider: false, useEuropaProvider: false }`);
       sendProgress(requestId, 15);
       
-      // Remove betas from options
-      const { betas, ...cleanOptions } = effectiveOptions;
+      // Remove internal flags and betas from options before sending to Claude
+      const { useBedrock, useBackupProvider, useEuropaProvider, betas, ...apiOptions } = effectiveOptions;
       
       const defaultConfig = {
         model: "claude-3-7-sonnet-latest",
@@ -166,7 +166,7 @@ async function processAIRequest(requestId, data) {
       let requestConfig = {
         ...defaultConfig,
         ...(typeConfigs[type] || {}),
-        ...cleanOptions,
+        ...apiOptions, // Use the cleaned options
         system: systemPrompt || (typeConfigs[type]?.system || defaultConfig.system)
       };
 
@@ -216,12 +216,24 @@ async function processAIRequest(requestId, data) {
       
       // Validate the response
       if (!response.content || !response.content[0] || !response.content[0].text) {
-        throw new Error(`Invalid Claude response for request ${requestId}: missing content`);
+        // If stop_reason is tool_use, content[0].text might be empty, which is valid.
+        // We need to check if there's content OR tool_calls.
+        if (response.stop_reason !== 'tool_use' && (!response.content || !response.content[0] || typeof response.content[0].text !== 'string')) {
+          throw new Error(`Invalid Claude response for request ${requestId}: missing textual content when not using tools`);
+        }
+        if (response.stop_reason === 'tool_use' && (!response.tool_calls || response.tool_calls.length === 0)) {
+          throw new Error(`Invalid Claude response for request ${requestId}: tool_use indicated but no tool_calls provided.`);
+        }
       }
       
+      const textualContent = response.content?.find(block => block.type === 'text')?.text || null;
+
       // Create the result object - ensure it's complete before returning
       result = {
-        content: response.content[0].text,
+        content: textualContent, // Textual part, null if no text block
+        stop_reason: response.stop_reason,
+        tool_calls: response.tool_calls, // Will be present if stop_reason is 'tool_use'
+        raw_content_blocks: response.content, // Full content blocks from Claude
         success: true,
         metadata: {
           provider: 'claude',
@@ -235,7 +247,7 @@ async function processAIRequest(requestId, data) {
       };
       
       // Double-check we have content before returning
-      if (!result.content || typeof result.content !== 'string' || result.content.length === 0) {
+      if (!result.content && result.stop_reason !== 'tool_use' && (typeof result.content !== 'string' || result.content.length === 0)) {
         throw new Error(`Empty or invalid content in processed result for ${requestId}`);
       }
     }

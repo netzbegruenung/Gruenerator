@@ -1,6 +1,6 @@
 
 
-/* Modal Stil */
+
 .modal {
     position: fixed;
     top: 0;
@@ -91,7 +91,7 @@
     font-style: italic;
 }
 
-/* Close-Button Stil (das X im Modal) */
+
 .close-button {
     position: absolute;
     top: 1rem;
@@ -205,7 +205,7 @@
     border-radius: 6px;
 }
 
-/* Mobile Optimierungen */
+
 @media (max-width: 768px) {
     .modal {
         padding: 1rem;
@@ -254,7 +254,7 @@
     }
 }
 
-/* Zusätzliche Anpassungen für sehr kleine Bildschirme */
+
 @media (max-width: 360px) {
     .modal-content {
         padding: 15px;
@@ -275,7 +275,7 @@
     }
 }
 
-/* Landscape-Modus Optimierungen */
+
 @media (max-height: 700px) and (orientation: landscape) {
     .modal-content {
         padding: 1.5rem;

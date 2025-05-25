@@ -1,6 +1,6 @@
 
 
-/* Grundlegende Container-Struktur */
+
 .sharepic-base-container {
     display: flex;
     width: 100%;
@@ -13,7 +13,7 @@
     transition: all 0.3s ease-in-out;
 }
 
-/* Formular-Container */
+
 .sharepic-base-container .form-container {
     flex: 1 1 50%;
     max-width: 50%;
@@ -26,7 +26,7 @@
     transition: all 0.3s ease-in-out;
 }
 
-/* Display-Container */
+
 .sharepic-base-container .display-container {
     flex: 1 1 50%;
     max-width: 50%;
@@ -39,7 +39,7 @@
     transition: padding 0.3s ease-in-out;
 }
 
-/* Result Step Proportionen */
+
 .sharepic-base-container.result-step .form-container {
     flex: 0 0 65%;
     max-width: 65%;
@@ -52,7 +52,7 @@
     width: 35%;
 }
 
-/* Image Modification Controls */
+
 .image-modification-controls {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -67,7 +67,7 @@
     gap: 1.5rem;
 }
 
-/* Gruppierungen */
+
 .textzeilen-group,
 .absender-group,
 .color-controls,
@@ -81,7 +81,7 @@
     gap: 1rem;
 }
 
-/* Einheitliche Überschriften */
+
 .textzeilen-group h3,
 .absender-group h3,
 .color-controls h3,
@@ -93,7 +93,7 @@
     font-weight: 600;
 }
 
-/* Einheitliche Beschreibungstexte */
+
 .textzeilen-group p,
 .absender-group p,
 .color-controls p,
@@ -106,14 +106,14 @@
     line-height: 1.4;
 }
 
-/* Einheitliche Abstände für Controls */
+
 .color-scheme-control,
 .font-size-control,
 .credit-control {
     margin-top: 0.5rem;
 }
 
-/* Color Scheme Control */
+
 .color-scheme-control {
     width: 100%;
 }
@@ -157,7 +157,7 @@
     transform: scale(0.98);
 }
 
-/* Font Size Control */
+
 .font-size-control {
     margin: 0;
 }
@@ -186,7 +186,7 @@
     background-color: var(--klee);
 }
 
-/* Credit Control */
+
 .credit-control input {
     width: 100%;
     padding: 0.75rem;
@@ -224,14 +224,14 @@
     background-color: var(--grashalm);
 }
 
-/* Form Controls */
+
 .sharepic-form-container h3,
 .sharepic-form-container h4 {
     color: var(--weiß);
     margin-bottom: 0;
 }
 
-/* Advanced Editing */
+
 .sharepic-advanced-editing-button-container {
     margin: 2rem 0;
     width: 100%;
@@ -252,7 +252,7 @@
     transition: all 0.3s ease;
 }
 
-/* Media Queries */
+
 @media (max-width: 1024px) {
     .sharepic-image-modification-controls {
         grid-template-columns: 1fr;
@@ -278,14 +278,14 @@
         padding: 16px;
     }
 
-    /* Spezielle Anpassungen für den Result-Step */
+    
     .sharepic-base-container.result-step {
         display: flex;
         flex-direction: column;
     }
 
     .sharepic-base-container.result-step .display-container {
-        order: -1; /* Bringt den Display-Container nach oben */
+        order: -1; 
     }
 
     .sharepic-base-container.result-step .form-container {
@@ -363,7 +363,7 @@
         font-size: 0.9em;
     }
 
-    /* Sticky Preview im mobilen Layout */
+    
     .sticky-sharepic-container {
         position: sticky;
         top: 0;
@@ -381,28 +381,28 @@
         border-radius: 4px;
     }
 
-    /* Verbesserte Input-Felder für Touch */
+    
     input[type="text"],
     textarea {
-        font-size: 16px; /* Verhindert Zoom auf iOS */
+        font-size: 16px; 
         padding: 0.75rem;
     }
 
-    /* Bessere Touch-Targets */
+    
     button,
     .button-wrapper {
         min-height: 44px;
     }
 }
 
-/* Animations */
+
 @media (prefers-reduced-motion: reduce) {
     .sharepic-base-container * {
         transition: none !important;
     }
 }
 
-/* Button Container */
+
 .button-container {
     display: flex;
     gap: 1rem;
@@ -425,7 +425,7 @@
     justify-content: center;
 }
 
-/* Unsplash Button */
+
 .sharepic-unsplash-search-button {
     padding: 0.5rem 1rem;
     background-color: var(--tanne);

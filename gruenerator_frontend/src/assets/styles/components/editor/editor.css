@@ -1,18 +1,18 @@
-/* editor.css - Hauptdatei für den Quill Editor */
 
-/* Importieren der modularen CSS-Dateien */
+
+
 @import 'editor-base.css';
 @import 'editor-content.css';
 @import 'editor-toolbar.css';
 @import 'editor-ai-tools.css';
 @import 'editor-responsive.css';
 
-/* Grundlegende Container-Struktur */
+
 .text-editor {
     position: relative;
     display: flex;
     flex-direction: column;
-    height: 100vh;  /* Volle Höhe nutzen */
+    height: 100vh;  
     overflow-x: hidden;
 }
 

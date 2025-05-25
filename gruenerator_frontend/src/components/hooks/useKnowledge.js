@@ -1,5 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useSupabaseAuth } from '../../context/SupabaseAuthContext';
+import { useQuery } from '@tanstack/react-query';
+import { templatesSupabase as supabase } from '../utils/templatesSupabaseClient'; // Direct import
+
+const EMPTY_ARRAY = []; // Stable empty array reference
 
 /**
  * Hook für die Verwaltung von Wissenseinheiten
@@ -7,49 +11,38 @@ import { useSupabaseAuth } from '../../context/SupabaseAuthContext';
  */
 const useKnowledge = () => {
   const { user } = useSupabaseAuth();
-  const [availableKnowledge, setAvailableKnowledge] = useState([]);
+  // selectedKnowledge bleibt client-seitiger State
   const [selectedKnowledge, setSelectedKnowledge] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
 
-  // Laden der verfügbaren Wissenseinheiten
-  const loadAvailableKnowledge = useCallback(async () => {
-    if (!user) return;
-    
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      const module = await import('../utils/templatesSupabaseClient');
-      if (!module.templatesSupabase) {
-        throw new Error('Templates Supabase client not available');
-      }
-      
-      const { templatesSupabase } = module;
-      
-      // Lade die Wissenseinheiten des Benutzers
-      const { data, error } = await templatesSupabase
-        .from('user_knowledge')
-        .select('*')
-        .eq('user_id', user.id);
-      
-      if (error) throw error;
-      
-      setAvailableKnowledge(data || []);
-    } catch (err) {
-      console.error('Fehler beim Laden der Wissenseinheiten:', err);
-      setError('Wissenseinheiten konnten nicht geladen werden');
-    } finally {
-      setIsLoading(false);
+  const fetchUserKnowledge = async () => {
+    if (!user) {
+      return EMPTY_ARRAY; // Return stable empty array if user is not available
     }
-  }, [user]);
+    const { data, error } = await supabase
+      .from('user_knowledge')
+      .select('*')
+      .eq('user_id', user.id);
 
-  // Effekt zum Laden der Wissenseinheiten beim ersten Rendering
-  useEffect(() => {
-    if (user) {
-      loadAvailableKnowledge();
+    if (error) {
+      console.error('Fehler beim Laden der Wissenseinheiten:', error);
+      throw new Error('Wissenseinheiten konnten nicht geladen werden');
     }
-  }, [user, loadAvailableKnowledge]);
+    return data || EMPTY_ARRAY; // Ensure stable array reference if data is null/undefined
+  };
+
+  const { 
+    data: availableKnowledgeData, 
+    isLoading, 
+    error, 
+    refetch: refreshKnowledge 
+  } = useQuery({
+    queryKey: ['userKnowledge', user?.id], 
+    queryFn: fetchUserKnowledge,
+    enabled: !!user, // Only run query if user is available
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    cacheTime: 15 * 60 * 1000, // 15 minutes
+    refetchOnWindowFocus: false,
+  });
 
   // Hinzufügen oder Entfernen einer Wissenseinheit
   const handleKnowledgeSelection = useCallback((knowledge, knowledgeIdToRemove) => {
@@ -71,21 +64,20 @@ const useKnowledge = () => {
   const getKnowledgeContent = useCallback(() => {
     if (selectedKnowledge.length === 0) return null;
     
-    // Kombiniere den Inhalt aller ausgewählten Wissenseinheiten
     return selectedKnowledge.map(item => {
       return `## ${item.title}\n${item.content}`;
     }).join('\n\n');
   }, [selectedKnowledge]);
 
   return {
-    availableKnowledge,
+    availableKnowledge: availableKnowledgeData ?? EMPTY_ARRAY, // Use nullish coalescing for stable empty array
     selectedKnowledge,
     isLoading,
     error,
     handleKnowledgeSelection,
     clearSelectedKnowledge,
     getKnowledgeContent,
-    refreshKnowledge: loadAvailableKnowledge
+    refreshKnowledge
   };
 };
 

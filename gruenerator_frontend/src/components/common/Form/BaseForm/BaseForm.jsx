@@ -1,10 +1,11 @@
-import React, { useEffect, useContext } from 'react';
+import React, { useEffect, useContext, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { Tooltip } from 'react-tooltip';
 import FormToggleButton from '../../FormToggleButton';
 import useAccessibility from '../../../hooks/useAccessibility';
 import { addAriaLabelsToElements, enhanceFocusVisibility } from '../../../utils/accessibilityHelpers';
 import { BUTTON_LABELS } from '../../../utils/constants';
+import FocusTrap from 'focus-trap-react';
 
 // Importiere die Komponenten
 import FormSection from './FormSection';
@@ -16,6 +17,7 @@ import KnowledgeSelector from '../../../common/KnowledgeSelector';
 // Importiere die neuen Hooks
 import { useFormState, useContentManagement, useErrorHandling, useResponsive, useFocusMode } from '../hooks';
 import useKnowledge from '../../../hooks/useKnowledge';
+import useGroups from '../../../../features/groups/hooks/useGroups';
 
 // Importiere die Utility-Funktionen
 import { getBaseContainerClasses } from '../utils/classNameUtils';
@@ -24,7 +26,7 @@ import { getBaseContainerClasses } from '../utils/classNameUtils';
 import { FormContext } from '../../../utils/FormContext';
 
 // Import an icon for the toggle
-import { HiOutlineGlobeAlt } from 'react-icons/hi';
+import { HiOutlineGlobeAlt, HiChevronDown } from 'react-icons/hi';
 
 /**
  * Basis-Formular-Komponente
@@ -65,15 +67,19 @@ const BaseForm = ({
   const { 
     useEuropa, 
     setUseEuropa,
-    selectedKnowledge,
-    handleKnowledgeSelection
+    knowledgeSourceConfig,
+    setKnowledgeSourceConfig
   } = useContext(FormContext);
   
-  // Hook für die Verwaltung der Wissensbausteine
-  const {
-    availableKnowledge,
-    isLoading: isKnowledgeLoading
-  } = useKnowledge();
+  // Hook zum Laden der Gruppen des Benutzers
+  const { userGroups: groups, isLoadingGroups, errorGroups: groupsError } = useGroups();
+
+  const formSectionRef = useRef(null);
+  const displaySectionRef = useRef(null);
+
+  useEffect(() => {
+    // console.log('[BaseForm] useEffect - Data from useGroups - isLoadingGroups:', isLoadingGroups, 'groupsError:', groupsError, 'groups:', groups);
+  }, [groups, isLoadingGroups, groupsError]);
 
   // Verwende die neuen Hooks
   const {
@@ -206,44 +212,82 @@ const BaseForm = ({
         )}
         {!isFocusMode && (
           isEditing ? (
-            <>
-              <EditorChat isEditing={isEditing} />
-            </>
+            <FocusTrap active={isEditing}>
+              <div ref={displaySectionRef}>
+                <EditorChat isEditing={isEditing} />
+                {/* Der Editor selbst wird innerhalb von DisplaySection gerendert,
+                    wenn isEditing true ist. DisplaySection benötigt dann den Ref. */}
+              </div>
+            </FocusTrap>
           ) : (
-            <FormSection
-              onSubmit={onSubmit}
-              loading={loading}
-              success={success}
-              formErrors={formErrors}
-              isFormVisible={isFormVisible}
-              isMultiStep={isMultiStep}
-              onBack={onBack}
-              showBackButton={showBackButton}
-              nextButtonText={nextButtonText}
-              submitButtonProps={submitButtonProps}
-              featureToggle={europaFeatureToggle}
-              useFeatureToggle={enableEuropaModeToggle}
-              showSubmitButton={showNextButton}
-              formNotice={formNotice}
-            >
-              {children}
-              
-              {/* KnowledgeSelector einfügen, wenn aktiviert */}
-              {enableKnowledgeSelector && (
-                <div className="knowledge-selector-container">
-                  <h3>Persönliches Wissen</h3>
-                  <KnowledgeSelector 
-                    onSelect={handleKnowledgeSelection}
-                    selectedKnowledge={selectedKnowledge}
-                    availableKnowledge={availableKnowledge}
-                    isDisabled={isKnowledgeLoading || loading}
-                  />
-                </div>
-              )}
-            </FormSection>
+            <FocusTrap active={isFormVisible && !isEditing && !isFocusMode}>
+              <div ref={formSectionRef}> {/* This div receives the ref and is trapped */}
+                <FormSection
+                  onSubmit={onSubmit}
+                  loading={loading}
+                  success={success}
+                  formErrors={formErrors}
+                  isFormVisible={isFormVisible}
+                  isMultiStep={isMultiStep}
+                  onBack={onBack}
+                  showBackButton={showBackButton}
+                  nextButtonText={nextButtonText}
+                  submitButtonProps={submitButtonProps}
+                  featureToggle={europaFeatureToggle}
+                  useFeatureToggle={enableEuropaModeToggle}
+                  showSubmitButton={showNextButton}
+                  formNotice={formNotice}
+                >
+                  {children}
+                  
+                  {/* Auswahl für Wissens-/Anweisungsquelle */} 
+                  {enableKnowledgeSelector && (
+                    <div className="knowledge-source-config-container">
+                      <h3 className="knowledge-selector-heading">Anweisungen & Wissensquelle</h3>
+                      <div className="knowledge-source-dropdown">
+                        <select 
+                          className="knowledge-source-select"
+                          value={knowledgeSourceConfig.type === 'group' ? `group-${knowledgeSourceConfig.id}` : knowledgeSourceConfig.type}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === 'neutral') {
+                              setKnowledgeSourceConfig({ type: 'neutral', id: null, name: 'Neutral' });
+                            } else if (value === 'user') {
+                              setKnowledgeSourceConfig({ type: 'user', id: null, name: 'Meine Anweisungen & Wissen' });
+                            } else if (value.startsWith('group-')) {
+                              const groupId = value.substring("group-".length);
+                              const selectedGroup = groups.find(g => g.id === groupId);
+                              if (selectedGroup) {
+                                setKnowledgeSourceConfig({ type: 'group', id: selectedGroup.id, name: selectedGroup.name });
+                              }
+                            }
+                          }}
+                          disabled={isLoadingGroups}
+                        >
+                          <option value="neutral">Neutral</option>
+                          <option value="user">Meine Anweisungen & Wissen</option>
+                          {isLoadingGroups && <option disabled>Lade Gruppen...</option>}
+                          {!isLoadingGroups && groupsError && (
+                            <>
+                              <option disabled>Fehler beim Laden der Gruppen</option>
+                            </>
+                          )}
+                          {!isLoadingGroups && !groupsError && groups && groups.map(group => (
+                            <option key={group.id} value={`group-${group.id}`}>{group.name} Anweisungen & Wissen</option>
+                          ))}
+                        </select>
+                        <HiChevronDown className="knowledge-source-dropdown-arrow" />
+                      </div>
+                      <KnowledgeSelector />
+                    </div>
+                  )}
+                </FormSection> {/* FormSection ends here, inside the div */}
+              </div> {/* The div being trapped by FocusTrap ends here */}
+            </FocusTrap> // FocusTrap for FormSection ends here
           )
         )}
         <DisplaySection
+          ref={displaySectionRef} // Ref hier weiterleiten für den Editor-Fall
           title={displayTitle}
           error={errorState || propError}
           value={value}

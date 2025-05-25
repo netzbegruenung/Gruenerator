@@ -65,7 +65,10 @@ class AIWorkerPool {
       console.log(`[AIWorkerPool] Successful response for request ${requestId} (${data.content?.length || 0} chars)`);
       resolve({
         content: data.content,
-        success: true,
+        stop_reason: data.stop_reason,
+        tool_calls: data.tool_calls,
+        raw_content_blocks: data.raw_content_blocks,
+        success: data.success,
         metadata: {
           ...data.metadata,
           workerIndex,

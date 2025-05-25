@@ -1,11 +1,13 @@
-import React from 'react';
+import React, { forwardRef } from 'react';
 import PropTypes from 'prop-types';
+import { v4 as uuidv4 } from 'uuid';
 import ActionButtons from '../../ActionButtons';
 import SubmitButton from '../../SubmitButton';
-import { HiCog } from "react-icons/hi";
+import { HiCog, HiOutlineUsers } from "react-icons/hi";
 import { BUTTON_LABELS, ARIA_LABELS } from '../constants';
 import ContentRenderer from './ContentRenderer';
 import ErrorDisplay from './ErrorDisplay';
+import apiClient from '../../../utils/apiClient';
 
 /**
  * Komponente für den Anzeigebereich des Formulars
@@ -28,7 +30,7 @@ import ErrorDisplay from './ErrorDisplay';
  * @param {React.ReactNode} [props.displayActions=null] - Zusätzliche Aktionen, die unter dem Inhalt angezeigt werden sollen
  * @returns {JSX.Element} Display-Sektion
  */
-const DisplaySection = ({
+const DisplaySection = forwardRef(({
   title,
   error,
   value,
@@ -45,8 +47,9 @@ const DisplaySection = ({
   onToggleFocusMode,
   isFocusMode,
   displayActions = null
-}) => {
+}, ref) => {
   const [generatePostLoading, setGeneratePostLoading] = React.useState(false);
+  const [collabLoading, setCollabLoading] = React.useState(false);
 
   const handleGeneratePost = React.useCallback(async () => {
     if (!onGeneratePost) return;
@@ -64,8 +67,33 @@ const DisplaySection = ({
     return getExportableContent(generatedContent, value);
   }, [getExportableContent, generatedContent, value]);
 
+  const handleOpenCollabEditor = async () => {
+    if (!exportableContent) {
+      console.warn("Kein Inhalt zum kollaborativen Bearbeiten vorhanden.");
+      return;
+    }
+    setCollabLoading(true);
+    const documentId = uuidv4();
+    console.log("[DisplaySection] Generated Document ID:", documentId);
+    console.log("[DisplaySection] Content to send:", exportableContent.substring(0,100) + "...");
+
+    try {
+      const response = await apiClient.post('/collab-editor/init-doc', { 
+        documentId: documentId, 
+        content: exportableContent 
+      });
+
+      console.log("[DisplaySection] Kollaboratives Dokument erfolgreich initialisiert über apiClient.");
+      window.open(`/editor/collab/${documentId}`, '_blank');
+    } catch (error) {
+      console.error("[DisplaySection] Fehler beim Initialisieren des kollaborativen Dokuments (via apiClient):", error.message || error);
+    } finally {
+      setCollabLoading(false);
+    }
+  };
+
   return (
-    <div className="display-container" id="display-section-container">
+    <div className="display-container" id="display-section-container" ref={ref}>
       <div className="display-header">
         <h3>{title}</h3>
           <ActionButtons 
@@ -110,9 +138,22 @@ const DisplaySection = ({
           </div>
         </div>
       )}
+      {/* Button für kollaborativen Editor */} 
+      {allowEditing && exportableContent && !isEditing && (
+        <div className="button-container" style={{ marginTop: '10px' }}>
+           <SubmitButton
+            onClick={handleOpenCollabEditor}
+            loading={collabLoading}
+            text="Kollaborativ bearbeiten"
+            icon={<HiOutlineUsers />}
+            className="collab-edit-button form-button"
+            ariaLabel="Kollaborativ bearbeiten"
+          />
+        </div>
+      )}
     </div>
   );
-};
+});
 
 DisplaySection.propTypes = {
   title: PropTypes.string.isRequired,
@@ -147,5 +188,7 @@ DisplaySection.defaultProps = {
   usePlatformContainers: false,
   displayActions: null
 };
+
+DisplaySection.displayName = 'DisplaySection';
 
 export default DisplaySection; 

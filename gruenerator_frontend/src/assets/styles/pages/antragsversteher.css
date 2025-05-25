@@ -1,4 +1,4 @@
-/* Grundlegendes Layout */
+
 .antragsversteher-container {
     display: flex;
     flex-direction: column;
@@ -12,7 +12,7 @@
     gap: 20px;
 }
 
-/* Form Container */
+
 .antragsversteher-container .form-container {
     max-width: 700px;
     margin: 0 auto;
@@ -32,7 +32,7 @@
     line-height: 1.4;
 }
 
-/* File Upload Styles */
+
 .file-upload-area {
     position: relative;
     border: 2px dashed var(--sand);
@@ -72,7 +72,7 @@
     font-weight: bold;
 }
 
-/* Reset Button */
+
 .file-reset-button {
     position: absolute;
     top: 10px;
@@ -101,12 +101,12 @@
     box-shadow: 0 0 0 2px var(--sand);
 }
 
-/* Display Container Styles */
+
 .antragsversteher-container .display-container {
     display: none;
 }
 
-/* Styles wenn Content vorhanden ist */
+
 .antragsversteher-container.has-content {
     flex-direction: row;
 }
@@ -151,7 +151,7 @@
     color: var(--sand);
 }
 
-/* Error States */
+
 .antragsversteher-container .error-message {
     color: var(--error-color);
     margin-top: 10px;
@@ -162,14 +162,14 @@
     transition: opacity 0.3s ease;
 }
 
-/* Loading States */
+
 .antragsversteher-container .loading-indicator {
     color: var(--sand);
     text-align: center;
     margin: 10px 0;
 }
 
-/* Mobile Anpassungen */
+
 @media (max-width: 768px) {
     .antragsversteher-container,
     .antragsversteher-container.has-content {
@@ -204,7 +204,7 @@
     }
 }
 
-/* Reset Button */
+
 .file-reset-button {
     position: absolute;
     top: 10px;
@@ -294,7 +294,7 @@
   color: var(--weiß);
 }
 
-/* Checkbox Anpassungen */
+
 .antragsversteher-container .checkbox-with-text .checkbox-wrapper-28 label {
   border: none;
   padding: 20px;
@@ -312,7 +312,7 @@
   }
 
 
-/* Mobile Anpassungen für Checkbox Container */
+
 @media (max-width: 768px) {
   .privacy-checkbox-container,
   .terms-checkbox-container {

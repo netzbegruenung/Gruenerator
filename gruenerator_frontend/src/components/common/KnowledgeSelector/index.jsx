@@ -1,120 +1,54 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useContext } from 'react';
 import PropTypes from 'prop-types';
-import { HiPlus, HiX, HiChevronDown, HiChevronUp } from 'react-icons/hi';
+import { FormContext } from '../../utils/FormContext';
 import './style.css';
+// Removed: import { HiPlus, HiX } from 'react-icons/hi';
+// Removed: import useKnowledge from '../../hooks/useKnowledge';
 
 /**
- * Komponente zur Auswahl von Wissensbausteinen.
+ * KnowledgeSelector-Komponente zur Anzeige des aktuell ausgewählten Wissens.
+ * Das Wissen wird zentral im FormContext basierend auf der Auswahl in BaseForm verwaltet.
  */
-const KnowledgeSelector = ({ 
-  onSelect, 
-  selectedKnowledge = [], 
-  availableKnowledge = [], 
-  isDisabled = false 
-}) => {
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const dropdownRef = useRef(null);
+const KnowledgeSelector = () => {
+  const { knowledgeSourceConfig } = useContext(FormContext);
+  const { type: sourceType, name: sourceName, loadedKnowledgeItems } = knowledgeSourceConfig || {};
 
-  const handleToggleDropdown = useCallback(() => {
-    if (isDisabled) return;
-    setIsDropdownOpen(prev => !prev);
-  }, [isDisabled]);
+  // Removed: useKnowledge hook call and related state/handlers for local selection
+  // (availableKnowledge, selectedKnowledge, isLoading, handleKnowledgeSelection, clearSelectedKnowledge)
 
-  const handleAddKnowledge = useCallback((knowledge) => {
-    if (isDisabled) return;
-    onSelect(knowledge, null);
-    setIsDropdownOpen(false); // Close dropdown after selection
-  }, [onSelect, isDisabled]);
-
-  const handleRemoveKnowledge = useCallback((knowledgeId) => {
-    if (isDisabled) return;
-    onSelect(null, knowledgeId);
-  }, [onSelect, isDisabled]);
-
-  // Filter available knowledge to show only unselected items
-  const unselectedKnowledge = availableKnowledge.filter(
-    available => !selectedKnowledge.some(selected => selected.id === available.id)
-  );
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsDropdownOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
+  if (sourceType === 'neutral' || !loadedKnowledgeItems || loadedKnowledgeItems.length === 0) {
+    return (
+      <div className="knowledge-selector-display-only">
+        {/* Optional: Display a message if nothing is loaded, or render nothing.
+            For now, rendering nothing to keep it clean if no knowledge is active.
+            If a message is preferred, it could be:
+            <p className="no-knowledge">Kein spezifisches Wissen für die aktuelle Auswahl geladen.</p> 
+        */}
+      </div>
+    );
+  }
 
   return (
-    <div className="knowledge-selector">
-      <div className="selected-knowledge-container">
-        {selectedKnowledge.map(item => (
-          <div key={item.id} className="knowledge-tag">
-            <span>{item.title}</span>
-            <button 
-              onClick={() => handleRemoveKnowledge(item.id)} 
-              className="remove-knowledge-btn"
-              disabled={isDisabled}
-              aria-label={`Wissen entfernen: ${item.title}`}
-              type="button"
-            >
-              <HiX />
-            </button>
-          </div>
-        ))}
-      </div>
-
-      <div className="knowledge-selector-controls" ref={dropdownRef}>
-        <button 
-          className="add-knowledge-btn" 
-          onClick={handleToggleDropdown} 
-          disabled={isDisabled || unselectedKnowledge.length === 0}
-          type="button"
-        >
-          <HiPlus /> 
-          <span>Wissen hinzufügen</span>
-          {isDropdownOpen ? <HiChevronUp /> : <HiChevronDown />}
-        </button>
-        
-        {isDropdownOpen && unselectedKnowledge.length > 0 && (
-          <div className="knowledge-dropdown">
-            <ul>
-              {unselectedKnowledge.map(item => (
-                <li key={item.id} onClick={() => handleAddKnowledge(item)}>
-                  {item.title}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
-
-      {isDisabled && <p className="disabled-message">Laden...</p>}
+    <div className="knowledge-selector-display-only">
+      {/* Removed heading, as the source selection is now above in BaseForm */}
+      {/* <h4>Wissen aus Quelle: {sourceName || sourceType}</h4> */}
+      {loadedKnowledgeItems && loadedKnowledgeItems.length > 0 && (
+        <div className="loaded-knowledge-container">
+          {loadedKnowledgeItems.map((item) => (
+            <span key={item.id || item.title} className="knowledge-tag-display">
+              {item.title}
+            </span>
+          ))}
+        </div>
+      )}
+      {/* Removed UI elements for adding/selecting knowledge, as this is now handled in BaseForm */}
     </div>
   );
 };
 
 KnowledgeSelector.propTypes = {
-  /** Funktion, die bei Auswahl/Abwahl aufgerufen wird. (knowledgeToAdd, knowledgeIdToRemove) */
-  onSelect: PropTypes.func.isRequired,
-  /** Array der aktuell ausgewählten Wissens-Objekte */
-  selectedKnowledge: PropTypes.arrayOf(PropTypes.shape({
-    id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
-    title: PropTypes.string.isRequired,
-    content: PropTypes.string
-  })),
-  /** Array aller verfügbaren Wissens-Objekte */
-  availableKnowledge: PropTypes.arrayOf(PropTypes.shape({
-    id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
-    title: PropTypes.string.isRequired,
-    content: PropTypes.string
-  })),
-  /** Ob die Komponente deaktiviert ist (z.B. während des Ladens) */
-  isDisabled: PropTypes.bool
+  // Props like enableKnowledgeSelector, onKnowledgeUpdate, etc., are removed
+  // as the component is now a passive display driven by FormContext.
 };
 
 export default KnowledgeSelector; 

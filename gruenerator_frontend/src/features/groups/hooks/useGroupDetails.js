@@ -25,7 +25,7 @@ const cleanKnowledgeEntry = (entry) => {
 /**
  * Hook for managing group details including instructions and knowledge
  */
-const useGroupDetails = (groupId) => {
+const useGroupDetails = (groupId, { isActive } = {}) => {
   const { user } = useSupabaseAuth();
   const [templatesSupabase, setTemplatesSupabase] = useState(null);
   const queryClient = useQueryClient();
@@ -33,8 +33,6 @@ const useGroupDetails = (groupId) => {
   // Local states for editing
   const [customAntragPrompt, setCustomAntragPrompt] = useState('');
   const [customSocialPrompt, setCustomSocialPrompt] = useState('');
-  const [isAntragPromptActive, setIsAntragPromptActive] = useState(false);
-  const [isSocialPromptActive, setIsSocialPromptActive] = useState(false);
   const [knowledgeEntries, setKnowledgeEntries] = useState([]);
   const [groupInfo, setGroupInfo] = useState(null);
   const [joinToken, setJoinToken] = useState('');
@@ -95,7 +93,7 @@ const useGroupDetails = (groupId) => {
     // 3. Fetch instructions
     const { data: instructions, error: instructionsError } = await templatesSupabase
       .from('group_instructions')
-      .select('*')
+      .select('group_id, custom_antrag_prompt, custom_social_prompt')
       .eq('group_id', groupId)
       .single();
 
@@ -136,7 +134,7 @@ const useGroupDetails = (groupId) => {
   } = useQuery({
     queryKey: groupDetailsQueryKey,
     queryFn: fetchGroupDetailsFn,
-    enabled: !!user?.id && !!templatesSupabase && !!groupId,
+    enabled: !!user?.id && !!templatesSupabase && !!groupId && isActive !== false,
     staleTime: 5 * 60 * 1000,
     cacheTime: 15 * 60 * 1000,
     refetchOnWindowFocus: false
@@ -152,8 +150,6 @@ const useGroupDetails = (groupId) => {
     
     setCustomAntragPrompt(queryData.instructions.custom_antrag_prompt || '');
     setCustomSocialPrompt(queryData.instructions.custom_social_prompt || '');
-    setIsAntragPromptActive(queryData.instructions.custom_antrag_prompt_active || false);
-    setIsSocialPromptActive(queryData.instructions.custom_social_prompt_active || false);
 
     // Initialize knowledge entries with placeholders
     const existingEntries = queryData.knowledge.map(entry => ({ ...entry, isNew: false }));
@@ -179,9 +175,8 @@ const useGroupDetails = (groupId) => {
 
     // Compare instructions
     if (customAntragPrompt !== (queryData.instructions.custom_antrag_prompt || '') ||
-        customSocialPrompt !== (queryData.instructions.custom_social_prompt || '') ||
-        isAntragPromptActive !== (queryData.instructions.custom_antrag_prompt_active || false) ||
-        isSocialPromptActive !== (queryData.instructions.custom_social_prompt_active || false)) {
+        customSocialPrompt !== (queryData.instructions.custom_social_prompt || '')
+      ) {
       changed = true;
     }
 
@@ -218,8 +213,6 @@ const useGroupDetails = (groupId) => {
   }, [
     customAntragPrompt,
     customSocialPrompt,
-    isAntragPromptActive,
-    isSocialPromptActive,
     knowledgeEntries,
     queryData,
     isLoadingDetails
@@ -231,8 +224,6 @@ const useGroupDetails = (groupId) => {
     
     if (field === 'customAntragPrompt') setCustomAntragPrompt(value);
     else if (field === 'customSocialPrompt') setCustomSocialPrompt(value);
-    else if (field === 'isAntragPromptActive') setIsAntragPromptActive(value);
-    else if (field === 'isSocialPromptActive') setIsSocialPromptActive(value);
   }, []);
 
   const handleKnowledgeChange = useCallback((id, field, value) => {
@@ -272,16 +263,6 @@ const useGroupDetails = (groupId) => {
     
     if (customSocialPrompt !== (queryData.instructions.custom_social_prompt || '')) {
       instructionsUpdatePayload.custom_social_prompt = customSocialPrompt;
-      instructionsChanged = true;
-    }
-    
-    if (isAntragPromptActive !== (queryData.instructions.custom_antrag_prompt_active || false)) {
-      instructionsUpdatePayload.custom_antrag_prompt_active = isAntragPromptActive;
-      instructionsChanged = true;
-    }
-    
-    if (isSocialPromptActive !== (queryData.instructions.custom_social_prompt_active || false)) {
-      instructionsUpdatePayload.custom_social_prompt_active = isSocialPromptActive;
       instructionsChanged = true;
     }
 
@@ -458,8 +439,6 @@ const useGroupDetails = (groupId) => {
     // Local state
     customAntragPrompt,
     customSocialPrompt,
-    isAntragPromptActive,
-    isSocialPromptActive,
     knowledgeEntries,
     
     // Handlers

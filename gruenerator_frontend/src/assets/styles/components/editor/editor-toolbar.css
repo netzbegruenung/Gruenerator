@@ -1,6 +1,6 @@
-/* editor-toolbar.css - Styles für die Quill Editor Toolbar */
 
-/* Grundlegende Toolbar-Stile */
+
+
 .text-editor .ql-toolbar.ql-snow {
     position: sticky;
     top: 0;
@@ -14,7 +14,7 @@
     margin-right: 15px;
 }
 
-/* Toolbar-Buttons */
+
 .ql-toolbar.ql-snow button, .ql-snow.ql-toolbar button, .ql-snow .ql-toolbar button {
     color: var(--font-color-h) !important;
     border: none;
@@ -37,7 +37,7 @@
     color: var(--klee);
 }
 
-/* SVG-Stile für Toolbar-Icons */
+
 .ql-toolbar .ql-stroke {
     stroke: var(--font-color-h) !important;
     fill: none;
@@ -60,7 +60,7 @@
     fill: var(--klee) !important;
 }
 
-/* Hover- und Active-Zustände für Icons */
+
 .ql-toolbar button:hover .ql-stroke,
 .ql-toolbar button.ql-active .ql-stroke {
     stroke: var(--klee);
@@ -71,18 +71,18 @@
     fill: var(--klee);
 }
 
-/* Read-only Modus - Toolbar verstecken */
+
 .editor-toolbar-wrapper.read-only .ql-toolbar {
     display: none;
 }
 
-/* Emoji Button Styles */
+
 .ql-snow .ql-emoji {
     width: 24px;
     height: 24px;
 }
 
-/* Emoji Picker Container */
+
 .ql-emoji-list {
     background: var(--weiß);
     border: 1px solid var(--hellgrau);
@@ -90,12 +90,12 @@
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
-/* Emoji Categories */
+
 .ql-emoji-list .emoji-categories {
     border-bottom: 1px solid var(--hellgrau);
 }
 
-/* Individual Emojis */
+
 .ql-emoji-list .emoji-item {
     cursor: pointer;
     padding: 4px;

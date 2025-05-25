@@ -138,7 +138,7 @@
   }
 }
 
-/* Responsive Design */
+
 @media (min-width: 1024px) {
   .success-content {
     flex-direction: row;

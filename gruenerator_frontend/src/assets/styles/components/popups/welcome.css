@@ -1,7 +1,7 @@
-/* Imports */
 
 
-/* Welcome Screen */
+
+
 .welcome-screen {
   min-height: calc(100vh - 300px);
   width: 100%;
@@ -190,14 +190,14 @@
   background: linear-gradient(135deg, var(--tanne) -50%, var(--klee) 150%);
 }
 
-/* Tablet Styles */
+
 @media (max-width: 1024px) {
   .welcome-content {
     padding: clamp(25px, 4vw, 30px);
   }
 }
 
-/* Mobile Styles */
+
 @media (max-width: 768px) {
   .welcome-screen {
     padding: 15px;
@@ -218,7 +218,7 @@
   }
 }
 
-/* Small Mobile Styles */
+
 @media (max-width: 480px) {
   .welcome-screen {
     padding: 10px;
@@ -233,7 +233,7 @@
   }
 }
 
-/* Landscape Mode */
+
 @media (max-height: 600px) and (orientation: landscape) {
   .welcome-screen {
     min-height: auto;
@@ -245,7 +245,7 @@
   }
 }
 
-/* Animation Styles */
+
 .welcome-screen.fade-out {
   opacity: 0;
   pointer-events: none;
@@ -257,7 +257,7 @@
   transform: translateY(-20px);
 }
 
-/* BaseForm Transition */
+
 .welcome-screen .base-container {
   opacity: 0;
   transform: translateY(20px);

@@ -1,4 +1,4 @@
-/* Formular-Container */
+
 .form-container {
     flex: 1 1 50%;
     max-width: 50%;
@@ -11,7 +11,7 @@
     transition: all 0.3s ease-in-out;
 }
 
-/* Anzeige-Container */
+
 .display-container {
     flex: 1 1 50%;
     max-width: 50%;
@@ -25,7 +25,7 @@
     transition: padding 0.3s ease-in-out;
 }
 
-/* Anpassung wenn Content generiert wurde */
+
 .base-container.has-generated-content:not(.focus-mode) {
     padding: 0 px;
 }
@@ -42,7 +42,7 @@
     transition: padding 0.3s ease-in-out;
 }
 
-/* Generierter Inhalt */
+
 .generated-content-wrapper {
     flex: 1;
     display: flex;
@@ -50,7 +50,7 @@
     min-height: 0;
 }
 
-/* Header Styles */
+
 .display-header {
     display: flex;
     justify-content: space-between;

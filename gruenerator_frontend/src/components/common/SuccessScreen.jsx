@@ -1,13 +1,13 @@
 // gruenerator_frontend/src/components/common/SuccessScreen.jsx
 import React from 'react';
 import PropTypes from 'prop-types';
+import AnimatedCheckmark from './AnimatedCheckmark'; // Import der neuen Komponente
 
 const SuccessScreen = ({ title, message, children }) => {
   return (
     <div className="success-screen-container">
       <div className="success-icon">
-        {/* Optional: Add an SVG or icon font checkmark here */}
-        <span>✔️</span> {/* Simple checkmark for now */}
+        <AnimatedCheckmark /> {/* Verwendung der animierten Haken-Komponente */}
       </div>
       {title && <h3 className="success-title">{title}</h3>}
       {message && <div className="success-message-content">{message}</div>}
