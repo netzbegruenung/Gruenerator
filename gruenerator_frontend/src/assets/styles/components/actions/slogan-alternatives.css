@@ -1,4 +1,4 @@
-/* Slogan Alternatives Styles */
+
 
 .slogan-alternatives {
   position: relative;
@@ -74,7 +74,7 @@
   margin: 0.25rem 0;
 }
 
-/* Button Styles */
+
 .alternatives-button-wrapper {
   position: relative;
   height: 42px;
@@ -110,30 +110,26 @@
   transform: translateY(0);
 }
 
-/* Animation für das Ein- und Ausblenden */
+
 .alternatives-fade-enter {
   opacity: 0;
-  transform: translateY(-20px);
 }
 
 .alternatives-fade-enter-active {
   opacity: 1;
-  transform: translateY(0);
-  transition: opacity 200ms ease-in-out, transform 200ms ease-in-out;
+  transition: opacity 300ms;
 }
 
 .alternatives-fade-exit {
   opacity: 1;
-  transform: translateY(0);
 }
 
 .alternatives-fade-exit-active {
   opacity: 0;
-  transform: translateY(20px);
-  transition: opacity 200ms ease-in-out, transform 200ms ease-in-out;
+  transition: opacity 300ms;
 }
 
-/* Mobile Anpassungen */
+
 @media (max-width: 768px) {
   .slogan-alternatives {
     padding: 1rem;

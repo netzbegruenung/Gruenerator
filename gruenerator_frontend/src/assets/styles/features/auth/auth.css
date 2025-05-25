@@ -1,6 +1,3 @@
-/* Auth Komponenten Styling */
-
-/* Basis-Container für alle Auth-Seiten */
 .auth-container {
   max-width: 450px;
   margin: auto;
@@ -12,7 +9,7 @@
   box-shadow: var(--shadow-md);
 }
 
-/* Header für Auth-Seiten */
+
 .auth-header {
   margin-bottom: var(--spacing-large);
   text-align: center;
@@ -35,18 +32,17 @@
   margin-top: 0;
 }
 
-/* Loading Container für Spinner */
+
 .loading-container {
   display: flex;
   justify-content: center;
   padding: 2rem;
 }
 
-/* Formulare in Auth-Seiten */
+
 .auth-form {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-medium);
 }
 
 .auth-form label {
@@ -55,17 +51,24 @@
   color: var(--font-color);
 }
 
-/* Adjusted padding to use var(--spacing-extra-small) */
+
 .auth-form .form-input,
 .auth-form .form-select,
 .auth-form .form-textarea {
   width: 100%;
-  padding: var(--spacing-small); /* Reverted to original padding */
   border: 1px solid var(--border-subtle);
   border-radius: 4px;
   background-color: var(--background-color-alt);
   color: var(--font-color);
   transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.auth-form .form-textarea {
+  padding: var(--spacing-small);
+  font-family: inherit;
+  font-size: 0.95rem;
+  min-height: 80px;
+  resize: vertical;
 }
 
 .auth-form .form-input:focus,
@@ -85,6 +88,7 @@
   opacity: 0.8;
   font-size: 0.85rem;
   margin-top: var(--spacing-xxsmall);
+  margin-bottom: 0;
 }
 
 .auth-form .error-message {
@@ -93,7 +97,7 @@
   margin-top: var(--spacing-xxsmall);
 }
 
-/* Buttons in Auth-Seiten */
+
 .auth-submit-button {
   background-color: var(--tanne);
   color: white;
@@ -123,7 +127,7 @@
   text-decoration: none;
 }
 
-/* Links in Auth-Seiten */
+
 .auth-links {
   margin-top: var(--spacing-large);
   text-align: center;
@@ -149,7 +153,7 @@
   text-decoration: underline;
 }
 
-/* Nachrichtenboxen (Erfolg/Fehler) */
+
 .auth-success-message {
   background-color: rgba(var(--klee-rgb), 0.1);
   border-left: 4px solid var(--klee);
@@ -174,7 +178,7 @@
   border-radius: 4px;
 }
 
-/* Logout Button */
+
 .logout-button {
   background-color: transparent;
   color: var(--font-color);
@@ -190,7 +194,7 @@
   color: var(--tanne);
 }
 
-/* MFA Seite */
+
 .mfa-qr-container {
   background-color: white;
   padding: var(--spacing-medium);
@@ -256,7 +260,7 @@
   cursor: pointer;
 }
 
-/* Social Login */
+
 .social-login-buttons {
   width: 100%;
 }
@@ -301,7 +305,7 @@
   background-color: var(--background-color-alt);
 }
 
-/* Styles for generic SSO buttons */
+
 .auth-sso-button {
   display: flex;
   align-items: center;
@@ -312,16 +316,16 @@
   margin-bottom: var(--spacing-small);
   border: 1px solid var(--border-subtle);
   border-radius: 4px;
-  background-color: var(--background-color); /* Default background, will be overridden by specific SSO buttons */
-  color: var(--font-color); /* Default text color, will be overridden */
+  background-color: var(--background-color); 
+  color: var(--font-color); 
   font-weight: normal;
   cursor: pointer;
   transition: background-color 0.2s, transform 0.1s, border-color 0.2s;
-  text-decoration: none; /* Ensure no underline if it's an <a> tag styled as a button */
+  text-decoration: none; 
 }
 
 .auth-sso-button:hover {
-  background-color: var(--background-color-alt); /* Default hover, will be overridden */
+  background-color: var(--background-color-alt); 
   border-color: var(--border-hover, var(--tanne));
 }
 
@@ -334,15 +338,15 @@
 }
 
 .auth-sso-button:disabled:hover {
-  background-color: #b0b0b0; /* Keep disabled style on hover */
+  background-color: #b0b0b0; 
   border-color: #b0b0b0;
 }
 
-/* Specific style for the Grünes Netz login button */
+
 .gruenes-netz-button {
   background-color: var(--tanne);
   color: var(--weiß);
-  border-color: var(--tanne); /* Ensure border matches background or is removed if not desired */
+  border-color: var(--tanne); 
 }
 
 .gruenes-netz-button:hover:not(:disabled) {
@@ -351,7 +355,7 @@
   border-color: var(--klee);
 }
 
-/* Account Delete Page */
+
 .delete-account-warning {
   color: #ff4d4d;
   margin-top: 0;
@@ -365,7 +369,7 @@
   background-color: #e03c3c;
 }
 
-/* Media Queries für Responsive Design */
+
 @media (max-width: 480px) {
   .auth-container {
     padding: var(--spacing-medium) var(--spacing-small);
@@ -375,7 +379,7 @@
   }
 }
 
-/* Profil Label Button (Moved from components/auth.css, potentially used elsewhere) */
+
 .profile-label-button {
   border: 1px solid var(--border-subtle);
   border-radius: 4px;

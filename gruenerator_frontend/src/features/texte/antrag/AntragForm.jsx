@@ -11,9 +11,10 @@ import SubmitButton from '../../../components/common/SubmitButton';
 import AntragSavePopup from './components/AntragSavePopup';
 import { useSupabaseAuth } from '../../../context/SupabaseAuthContext';
 import { createFinalPrompt } from '../../../utils/promptUtils';
+import useGroupDetails from '../../groups/hooks/useGroupDetails';
 
 export const AntragForm = () => {
-  const { user } = useSupabaseAuth();
+  const { user, deutschlandmodus } = useSupabaseAuth();
   
   const {
     formData,
@@ -36,81 +37,87 @@ export const AntragForm = () => {
     displayedSources
   } = useAntragContext();
 
-  const { setGeneratedContent, useEuropa, setUseEuropa, getKnowledgeContent } = useContext(FormContext);
+  const { 
+    setGeneratedContent, 
+    useEuropa, 
+    setUseEuropa, 
+    getKnowledgeContent,
+    knowledgeSourceConfig
+  } = useContext(FormContext);
 
   const [isSavePopupOpen, setIsSavePopupOpen] = useState(false);
-  const [customPrompt, setCustomPrompt] = useState(null);
-  const [isCustomPromptActive, setIsCustomPromptActive] = useState(false);
+  const [userCustomAntragPrompt, setUserCustomAntragPrompt] = useState(null);
+  const [isUserCustomAntragPromptActive, setIsUserCustomAntragPromptActive] = useState(false);
 
-  // Benutzeranweisungen aus dem Profil laden
   useEffect(() => {
-    const loadCustomPrompt = async () => {
+    const loadUserCustomPrompt = async () => {
       if (!user) return;
       
       try {
         const module = await import('../../../components/utils/templatesSupabaseClient');
         if (!module.templatesSupabase) {
-          console.warn('Templates Supabase client not available for fetching custom prompt.');
+          console.warn('Templates Supabase client not available for fetching user custom prompt.');
           return;
         }
         
         const { templatesSupabase } = module;
         
-        const { data, error } = await templatesSupabase
+        const { data, error: fetchError } = await templatesSupabase
           .from('profiles')
-          .select('custom_antrag_prompt, custom_antrag_prompt_active')
+          .select('custom_antrag_prompt')
           .eq('id', user.id)
           .single();
         
-        if (error) {
-          console.error('Fehler beim Laden des benutzerdefinierten Prompts:', error);
+        if (fetchError) {
+          console.error('Error loading user custom antrag prompt:', fetchError);
           return;
         }
         
         if (data) {
-          setCustomPrompt(data.custom_antrag_prompt || null);
-          setIsCustomPromptActive(data.custom_antrag_prompt_active || false);
-          if (data.custom_antrag_prompt_active && data.custom_antrag_prompt) {
-             console.log('[AntragForm] Benutzerdefinierter Antrag-Prompt geladen und aktiv.');
-          } else if (data.custom_antrag_prompt) {
-             console.log('[AntragForm] Benutzerdefinierter Antrag-Prompt geladen, aber inaktiv.');
-          }
+          setUserCustomAntragPrompt(data.custom_antrag_prompt || null);
         }
       } catch (err) {
-        console.error('Fehler beim Laden des benutzerdefinierten Prompts:', err);
+        console.error('Error loading user custom antrag prompt:', err);
       }
     };
     
-    loadCustomPrompt();
+    loadUserCustomPrompt();
   }, [user]);
+
+  const { data: groupDetailsData, isLoading: isLoadingGroupDetails } = useGroupDetails(
+    knowledgeSourceConfig.type === 'group' ? knowledgeSourceConfig.id : null,
+    knowledgeSourceConfig.type === 'group'
+  );
 
   const handleSubmit = async () => {
     try {
-      // Benutzerdefinierte Anweisungen hinzufügen, falls vorhanden und aktiviert
-      const activeCustomPrompt = isCustomPromptActive && customPrompt ? customPrompt : null;
+      let activeInstructionsText = null;
+      let areInstructionsActive = false;
+
+      if (knowledgeSourceConfig.type === 'user') {
+        activeInstructionsText = userCustomAntragPrompt;
+        areInstructionsActive = isUserCustomAntragPromptActive;
+      } else if (knowledgeSourceConfig.type === 'group' && groupDetailsData?.instructions) {
+        activeInstructionsText = groupDetailsData.instructions.custom_antrag_prompt;
+        areInstructionsActive = !!groupDetailsData.instructions.custom_antrag_prompt;
+      }
       
-      // Wissensbausteine hinzufügen, falls vorhanden
       const knowledgeContent = getKnowledgeContent();
+      const finalPrompt = createFinalPrompt(areInstructionsActive ? activeInstructionsText : null, knowledgeContent);
       
-      // Combine prompt and knowledge
-      const finalPrompt = createFinalPrompt(activeCustomPrompt, knowledgeContent);
-      
-      // Log the final combined prompt if it exists
       if (finalPrompt) {
-        console.log('[AntragForm] Finaler kombinierter Prompt für generateAntrag:', finalPrompt.substring(0, 100) + '...');
+        console.log('[AntragForm] Final combined prompt for generateAntrag:', finalPrompt.substring(0, 100) + '...');
       } else {
-        console.log('[AntragForm] Kein benutzerdefinierter Prompt oder Wissen für generateAntrag vorhanden.');
+        console.log('[AntragForm] No custom prompt or knowledge for generateAntrag.');
       }
 
-      // Pass only useEuropa and the combined prompt
       await generateAntrag(useEuropa, finalPrompt);
-    } catch (error) {
-      console.error('[AntragForm] Fehler beim Generieren des Antrags:', error);
+    } catch (submitError) {
+      console.error('[AntragForm] Error submitting antrag:', submitError);
     }
   };
 
   const handleGeneratedContentChange = useCallback((content) => {
-    console.log('[AntragForm] Generierter Inhalt geändert:', content ? content.substring(0, 100) + '...' : 'leer');
     setGeneratedAntrag(content);
     setGeneratedContent(content);
   }, [setGeneratedAntrag, setGeneratedContent]);
@@ -129,14 +136,11 @@ export const AntragForm = () => {
   };
 
   const handleSaveToDb = async () => {
-    console.log('[AntragForm] Open save popup...');
     setIsSavePopupOpen(true);
   };
 
   const handleConfirmSave = async (popupData) => {
-    console.log('[AntragForm] Saving Antrag to DB with data from popup:', popupData);
     setIsSavePopupOpen(false);
-
     try {
       const payload = {
         title: formData.idee || 'Unbenannter Antrag',
@@ -144,13 +148,9 @@ export const AntragForm = () => {
         gliederung: formData.gliederung || '',
         ...popupData,
       };
-
-      console.log('[AntragForm] Final payload being sent:', payload);
-
       await saveAntragToDb(payload);
-      console.log('[AntragForm] Antrag erfolgreich gespeichert.');
     } catch (saveError) {
-      console.error('[AntragForm] Fehler beim finalen Speichern des Antrags:', saveError);
+      console.error('[AntragForm] Error during final save of antrag:', saveError);
     }
   };
 
@@ -162,46 +162,102 @@ export const AntragForm = () => {
       description: "Verwendet das Mistral Large Modell statt Claude."
   };
 
-  // Create the save action element conditionally
   const saveActionElement = generatedAntrag && generatedAntrag.trim() !== '' ? (
-    <div className="save-action-element"> {/* Optional wrapper for specific styling */}
+    <div className="save-action-element">
       <SubmitButton
-        onClick={handleSaveToDb} // Use the function from useAntrag
-        loading={isSaving} // Use the loading state from useAntrag
-        text="Antrag in Supabase speichern" // More precise name
+        onClick={handleSaveToDb}
+        loading={isSaving}
+        text="Antrag in Supabase speichern"
         icon={<HiSave />}
         disabled={isSaving}
-        className="antrag-save-button" // Renamed class for specificity
-        ariaLabel="Antrag in Supabase speichern" // More precise name
-        type="button" // IMPORTANT: Prevents triggering form onSubmit
+        className="antrag-save-button"
+        ariaLabel="Antrag in Supabase speichern"
+        type="button"
       />
-      {saveStatus && ( // Use the status message from useAntrag
-        <p style={{ 
-            color: saveStatus.type === 'error' ? 'var(--color-error, red)' : 'var(--color-success, green)', 
-            marginTop: 'var(--spacing-small)',
-            fontSize: '0.9em' // Optional: Smaller font for status
-        }}>
+      {saveStatus && (
+        <p className={`status-message-container ${saveStatus.type}`}>
           {saveStatus.message}
         </p>
       )}
     </div>
-  ) : null; // If no Antrag is generated, pass null
+  ) : null;
 
   const userDisplayName = user?.displayName || (user?.user_metadata?.firstName && user?.user_metadata?.lastName ? `${user?.user_metadata?.firstName} ${user?.user_metadata?.lastName}`.trim() : user?.user_metadata?.email);
 
-  // Erstelle das Element für den Hinweis - checkt jetzt auch Wissen
-  const customPromptNotice = (isCustomPromptActive && customPrompt) || getKnowledgeContent() ? (
-    <div className="custom-prompt-notice">
-      <HiInformationCircle className="info-icon" />
-      <span>
-        {isCustomPromptActive && customPrompt && getKnowledgeContent() 
-          ? 'Benutzerdefinierte Anweisungen & Wissen sind aktiv.' 
-          : isCustomPromptActive && customPrompt 
-          ? 'Benutzerdefinierte Anweisungen sind aktiv.'
-          : 'Ausgewähltes Wissen wird verwendet.'}
-      </span>
-    </div>
-  ) : null;
+  const formNoticeElement = (() => {
+    if (knowledgeSourceConfig.type === 'group' && isLoadingGroupDetails) {
+      return (
+        <div className="custom-prompt-notice">
+          <HiInformationCircle className="info-icon" />
+          <span>Lade Gruppenanweisungen & Wissen...</span>
+        </div>
+      );
+    }
+
+    let noticeParts = [];
+    let activeInstructionsTextForNotice = null;
+    let areInstructionsActiveForNotice = false;
+    let instructionsAvailableForNotice = false;
+    let sourceNameForNotice = "";
+
+    if (knowledgeSourceConfig.type === 'user') {
+      sourceNameForNotice = "Persönliche";
+      activeInstructionsTextForNotice = userCustomAntragPrompt;
+      areInstructionsActiveForNotice = isUserCustomAntragPromptActive && userCustomAntragPrompt;
+      instructionsAvailableForNotice = !!userCustomAntragPrompt;
+      if (areInstructionsActiveForNotice) {
+        noticeParts.push(`${sourceNameForNotice} Anweisungen`);
+      } else if (instructionsAvailableForNotice) {
+        noticeParts.push(`${sourceNameForNotice} Anweisungen (inaktiv)`);
+      }
+    } else if (knowledgeSourceConfig.type === 'group') {
+      sourceNameForNotice = knowledgeSourceConfig.name || 'Gruppe';
+      if (groupDetailsData?.instructions) {
+        activeInstructionsTextForNotice = groupDetailsData.instructions.custom_antrag_prompt;
+        areInstructionsActiveForNotice = !!groupDetailsData.instructions.custom_antrag_prompt;
+        instructionsAvailableForNotice = !!groupDetailsData.instructions.custom_antrag_prompt;
+        if (areInstructionsActiveForNotice) {
+          noticeParts.push(`Anweisungen der Gruppe "${sourceNameForNotice}"`);
+        } else if (instructionsAvailableForNotice) {
+          noticeParts.push(`Anweisungen der Gruppe "${sourceNameForNotice}" (inaktiv)`);
+        }
+      }
+    }
+
+    const hasLoadedKnowledge = knowledgeSourceConfig.loadedKnowledgeItems && knowledgeSourceConfig.loadedKnowledgeItems.length > 0;
+
+    if (knowledgeSourceConfig.type !== 'neutral' && hasLoadedKnowledge) {
+      if (knowledgeSourceConfig.type === 'user') {
+        noticeParts.push('gesamtes persönliches Wissen');
+      } else if (knowledgeSourceConfig.type === 'group') {
+        noticeParts.push(`gesamtes Wissen der Gruppe "${sourceNameForNotice}"`);
+      }
+    }
+
+    if (deutschlandmodus === true) {
+      noticeParts.push("Deutschlandmodus (AWS) aktiv");
+    }
+
+    if (noticeParts.length === 0 && knowledgeSourceConfig.type === 'neutral') {
+      return (
+        <div className="custom-prompt-notice neutral-notice">
+          <HiInformationCircle className="info-icon" />
+          <span>Standardmodus aktiv. Keine spezifischen Anweisungen, Wissen oder Deutschlandmodus ausgewählt.</span>
+        </div>
+      );
+    }
+    
+    if (noticeParts.length === 0) return null;
+
+    const fullNoticeText = noticeParts.join('. ');
+
+    return (
+      <div className="custom-prompt-notice">
+        <HiInformationCircle className="info-icon" />
+        <span>{fullNoticeText}.</span>
+      </div>
+    );
+  })();
 
   return (
     <div className="container with-header">
@@ -232,7 +288,7 @@ export const AntragForm = () => {
         }}
         useFeatureToggle={true}
         displayActions={saveActionElement}
-        formNotice={customPromptNotice}
+        formNotice={formNoticeElement}
         enableEuropaModeToggle={true}
         enableKnowledgeSelector={true}
       >
@@ -252,7 +308,7 @@ export const AntragForm = () => {
           value={formData.details}
           onChange={(e) => handleInputChange('details', e.target.value)}
           placeholder={FORM_PLACEHOLDERS.DETAILS}
-          style={{ height: '120px' }}
+          className="form-textarea-large"
         />
 
         <h3><label htmlFor="gliederung">{FORM_LABELS.GLIEDERUNG}</label></h3>

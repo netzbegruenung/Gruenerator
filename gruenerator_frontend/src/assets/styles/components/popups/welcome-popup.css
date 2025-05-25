@@ -1,4 +1,4 @@
-/* Eigenständige Styles für das neue Welcome-Popup */
+
 .welcome-2025-overlay {
   position: fixed;
   top: 0;
@@ -179,7 +179,7 @@
   background-color: var(--background-color-alt);
 }
 
-/* Dark Mode Anpassungen */
+
 [data-theme="dark"] .welcome-2025-button-secondary {
   color: var(--font-color);
   border-color: var(--font-color);
@@ -189,7 +189,7 @@
   color: var(--font-color);
 }
 
-/* Responsive Anpassungen */
+
 @media (max-width: 768px) {
   .welcome-2025-grid {
     grid-template-columns: 1fr;
@@ -231,7 +231,7 @@
   }
 }
 
-/* Extra kleine Bildschirme */
+
 @media (max-width: 360px) {
   .welcome-2025-title {
     font-size: 1.1rem;

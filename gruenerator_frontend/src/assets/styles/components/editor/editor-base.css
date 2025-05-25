@@ -1,14 +1,14 @@
-/* editor-base.css - Grundlegende Editor-Struktur und gemeinsame Stile */
 
-/* Grundlegende Container-Struktur */
+
+
 .text-editor {
     position: relative;
     display: flex;
     flex-direction: column;
-    height: 100vh;  /* Volle Höhe nutzen */
+    height: 100vh;  
 }
 
-/* Positionierung für den Editor-Inhalt */
+
 .generated-content-wrapper {
     position: relative;
 }
@@ -18,7 +18,7 @@
     flex-grow: 1;
 }
 
-/* Animation für Elemente */
+
 @keyframes slideIn {
     from {
         transform: translateY(100%);
@@ -35,7 +35,7 @@
     100% { transform: rotate(360deg); }
 }
 
-/* Allgemeine Transitions */
+
 .ql-adjust-text.custom-button,
 .adjust-form,
 .confirmation-container {

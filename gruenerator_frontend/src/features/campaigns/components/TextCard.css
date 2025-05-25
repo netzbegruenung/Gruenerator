@@ -28,7 +28,7 @@
   justify-content: center;
   border-radius: 8px;
   flex-shrink: 0;
-  color: #1e88e5; /* Blau */
+  color: #1e88e5; 
   background-color: rgba(30, 136, 229, 0.08);
 }
 
@@ -64,23 +64,23 @@
   word-break: break-word;
 }
 
-/* Styling for the expand/collapse button */
+
 .expand-toggle-button {
   background: none;
   border: none;
   color: var(--link-color);
   cursor: pointer;
   font-size: 0.8rem;
-  padding: 0.25rem 0; /* Add some padding */
-  margin-top: 0.5rem; /* Space above the button */
-  text-align: left; /* Align text to the left */
-  align-self: flex-start; /* Ensure it stays left-aligned within flex container */
+  padding: 0.25rem 0; 
+  margin-top: 0.5rem; 
+  text-align: left; 
+  align-self: flex-start; 
   transition: color 0.2s ease;
 }
 
 .expand-toggle-button:hover {
   text-decoration: underline;
-  color: var(--klee); /* Use a theme color for hover */
+  color: var(--klee); 
 }
 
 .text-card .copy-button-compact {

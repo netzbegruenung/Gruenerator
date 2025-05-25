@@ -1,7 +1,10 @@
-import { useState } from 'react';
+import { useState, useContext } from 'react';
 import { processText } from '../utils/apiClient';
+import { SupabaseAuthContext } from '../../context/SupabaseAuthContext';
 
 const useApiSubmit = (endpoint) => {
+  const { deutschlandmodus } = useContext(SupabaseAuthContext);
+
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
@@ -14,10 +17,19 @@ const useApiSubmit = (endpoint) => {
     setRetryCount(0);
 
     try {
+      // Log the context value right before using it
+      console.log('[useApiSubmit] Checking deutschlandmodus from context inside submitForm:', deutschlandmodus);
+
+      const useBedrock = deutschlandmodus === true;
+      
+      const effectiveUseBackup = useBackup && !useBedrock;
+      const effectiveUseEuropa = useEuropa && !useBedrock;
+
       const requestData = {
         ...formData,
-        useBackupProvider: useBackup,
-        useEuropaProvider: useEuropa,
+        useBedrock: useBedrock,
+        useBackupProvider: effectiveUseBackup,
+        useEuropaProvider: effectiveUseEuropa,
         onRetry: (attempt, delay) => {
           setRetryCount(attempt);
           setError(`Verbindungsprobleme. Neuer Versuch in ${Math.round(delay/1000)} Sekunden... (Versuch ${attempt}/3)`);
@@ -27,6 +39,7 @@ const useApiSubmit = (endpoint) => {
       console.log(`[useApiSubmit] Submitting to ${endpoint}:`, {
         useBackup,
         useEuropa,
+        useBedrock,
         formData: requestData,
         endpoint
       });

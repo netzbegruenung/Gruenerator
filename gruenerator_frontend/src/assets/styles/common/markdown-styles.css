@@ -1,12 +1,12 @@
-/* Styles for Markdown content rendered within .antrag-text-content */
+
 
 .antrag-text-content {
-  /* Basic container setup if needed, mostly handled by AntragDetailView.css */
-  line-height: 1.6; /* Consistent line height */
+  
+  line-height: 1.6; 
 }
 
-/* --- Headings --- */
-/* Use variables and styles defined in typography.css where possible */
+
+
 .antrag-text-content h1,
 .antrag-text-content h2,
 .antrag-text-content h3,
@@ -14,32 +14,32 @@
 .antrag-text-content h5,
 .antrag-text-content h6 {
   font-family: 'GrueneType', Arial, sans-serif;
-  color: var(--font-color-h); /* Use heading color variable */
+  color: var(--font-color-h); 
   margin-top: var(--spacing-large);
   margin-bottom: var(--spacing-medium);
   line-height: 1.3;
 }
 
-/* Specific sizes matching typography.css (adjust if needed) */
+
 .antrag-text-content h1 { font-size: 2rem; font-weight: 600; }
 .antrag-text-content h2 { font-size: 1.5rem; font-weight: 600; }
-.antrag-text-content h3 { font-size: 1.25rem; font-weight: 600; color: var(--font-color-h3); } /* Use h3 color */
+.antrag-text-content h3 { font-size: 1.25rem; font-weight: 600; color: var(--font-color-h3); } 
 .antrag-text-content h4 { font-size: 1.1rem; font-weight: 600; }
 .antrag-text-content h5 { font-size: 1rem; font-weight: 600; }
 .antrag-text-content h6 { font-size: 0.9rem; font-weight: 600; }
 
-/* --- Paragraphs --- */
+
 .antrag-text-content p {
-  margin-bottom: var(--spacing-medium); /* Space between paragraphs */
-  color: var(--font-color); /* Use standard text color */
+  margin-bottom: var(--spacing-medium); 
+  color: var(--font-color); 
 }
 
-/* --- Lists --- */
+
 .antrag-text-content ul,
 .antrag-text-content ol {
-  margin-left: var(--spacing-large); /* Indentation */
+  margin-left: var(--spacing-large); 
   margin-bottom: var(--spacing-medium);
-  padding-left: 0; /* Remove browser default padding */
+  padding-left: 0; 
 }
 
 .antrag-text-content li {
@@ -47,23 +47,23 @@
 }
 
 .antrag-text-content ul {
-  list-style-type: disc; /* Standard bullet points */
+  list-style-type: disc; 
 }
 
 .antrag-text-content ol {
-  list-style-type: decimal; /* Standard numbers */
+  list-style-type: decimal; 
 }
 
-/* Nested lists indentation */
+
 .antrag-text-content ul ul,
 .antrag-text-content ul ol,
 .antrag-text-content ol ul,
 .antrag-text-content ol ol {
   margin-left: var(--spacing-medium);
-  margin-bottom: 0; /* Less space for nested items */
+  margin-bottom: 0; 
 }
 
-/* --- Inline Elements --- */
+
 .antrag-text-content strong {
   font-weight: bold;
 }
@@ -88,7 +88,7 @@
   font-size: 0.9em;
 }
 
-/* --- Block Elements --- */
+
 .antrag-text-content pre {
   background-color: var(--background-color-alt);
   padding: var(--spacing-medium);
@@ -110,7 +110,7 @@
   margin-right: 0;
   padding-left: var(--spacing-medium);
   border-left: 4px solid var(--border-subtle);
-  color: var(--font-color); /* Adjust if needed */
+  color: var(--font-color); 
   font-style: italic;
   margin-bottom: var(--spacing-medium);
 }

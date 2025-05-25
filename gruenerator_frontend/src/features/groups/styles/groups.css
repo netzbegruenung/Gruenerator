@@ -1,7 +1,7 @@
 /* Gruppen-Styles
 =======================================*/
 
-/* Gruppen-Listcontainer */
+
 .groups-list-container {
   padding: var(--spacing-medium);
 }
@@ -71,19 +71,19 @@
   font-style: italic;
 }
 
-/* Neue Container-Klasse für die gesamte Gruppenansicht */
+
 .groups-container {
   padding: var(--spacing-medium);
 }
 
-/* Layout für die gesamte Gruppen-Management-Seite (2-spaltig) */
+
 .groups-management-layout {
   display: grid;
   gap: var(--spacing-large);
   align-items: flex-start;
 }
 
-/* Linke Spalte: Navigation Panel */
+
 .groups-navigation-panel {
   display: flex;
   flex-direction: column;
@@ -92,7 +92,7 @@
   align-items: center;
 }
 
-/* Button zum Erstellen einer neuen Gruppe - Dezenteres Design */
+
 .create-new-group-button {
   width: fit-content;
   padding: var(--spacing-xsmall) var(--spacing-large);
@@ -130,16 +130,15 @@
   color: var(--font-color-disabled);
 }
 
-/* Container für die vertikalen Tabs */
-.groups-vertical-tabs {
+
+.groups-vertical-navigation {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-small);
   width: 100%;
   align-items: center;
 }
 
-/* Einzelne vertikale Tabs */
+
 .groups-vertical-tab {
   width: fit-content;
   max-width: 220px;
@@ -185,12 +184,12 @@
     color: var(--font-color-disabled);
 }
 
-/* Rechte Spalte: Content Panel */
+
 .groups-content-panel {
   min-width: 0;
 }
 
-/* Anpassungen für das Info-Panel, das jetzt im Content Panel ist */
+
 .group-info-panel {
   margin-bottom: var(--spacing-xlarge);
 }
@@ -208,7 +207,7 @@
   margin-bottom: var(--spacing-large) !important;
 }
 
-/* Styles für das Erstellformular (wenn in der rechten Spalte) */
+
 .create-group-form-container .auth-form {
   max-width: 100%;
 }
@@ -227,26 +226,56 @@
    Klassen wie .anweisungen-field, .knowledge-entry etc. sind weiterhin relevant.
 */
 
-/* Responsive Anpassungen */
+
 @media (max-width: 768px) {
   .groups-management-layout {
     grid-template-columns: 1fr;
   }
 
   .groups-navigation-panel {
+    display: flex;
     padding-right: 0;
     margin-bottom: var(--spacing-large);
-    align-items: stretch;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: var(--spacing-xsmall);
+  }
+
+  
+  .groups-vertical-navigation {
+    display: flex;
+    flex-direction: row; 
+    flex-wrap: wrap; 
+    justify-content: flex-start; 
+    align-items: center; 
+    gap: var(--spacing-xsmall) var(--spacing-small); 
+    width: 100%; 
+  }
+
+  .groups-vertical-tabs {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: auto;
+    align-items: flex-start;
   }
 
   .create-new-group-button,
   .groups-vertical-tab {
-    width: 100%;
-    justify-content: center;
+    width: fit-content;
+    text-align: center;
+    padding-left: var(--spacing-medium);
+    padding-right: var(--spacing-medium);
+    margin: calc(var(--spacing-xxxsmall) / 2) var(--spacing-xsmall); 
+    max-width: 200px;
+    flex-grow: 0;
+    flex-shrink: 0;
   }
 }
 
-/* Gruppe erstellen Formular */
+
 .create-group-container {
   padding: var(--spacing-medium);
 }
@@ -271,7 +300,7 @@
   gap: var(--spacing-medium);
 }
 
-/* Gruppendetailansicht */
+
 .group-detail-container {
   padding: var(--spacing-medium);
 }
@@ -308,7 +337,7 @@
   margin-top: var(--spacing-xsmall);
 }
 
-/* Gemeinsame Styles für Fehler- und Ladecontainer */
+
 .error-container,
 .loading-container {
   display: flex;
@@ -397,7 +426,7 @@
   color: var(--tanne);
 }
 
-/* Gruppe beitreten Seite */
+
 .join-group-container {
   display: flex;
   justify-content: center;
@@ -427,7 +456,7 @@
   margin-top: var(--spacing-large);
 }
 
-/* Modal für Beitrittsdialog (ggf. später entfernen, falls nicht verwendet) */
+
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -488,7 +517,7 @@
   border-top: 1px solid var(--border-subtle);
 }
 
-/* CSS-Klassen für Formularelemente und Layout-Hilfsklassen */
+
 .form-divider {
   margin: var(--spacing-large) 0 var(--spacing-medium) 0;
   border: none;
@@ -501,6 +530,8 @@
   border-top: 1px solid var(--border-subtle);
 }
 
+/* Die folgenden Klassen werden jetzt aus profile.css verwendet und können hier entfernt werden */
+/*
 .knowledge-entry {
   margin-bottom: var(--spacing-large);
 }
@@ -532,8 +563,10 @@
   align-items: center;
   gap: var(--spacing-medium);
 }
+*/
 
-/* Gruppenavatar Styling */
+/* Gruppenpezifische Styles beibehalten */
+
 .group-avatar .profile-avatar-placeholder {
   background-color: var(--klee);
   display: flex;
@@ -551,20 +584,20 @@
   transform: scale(1.05);
 }
 
-/* Gruppen-Info Panel Anpassungen */
+
 .gruppen-info {
   margin-top: var(--spacing-medium);
   line-height: 1.4;
 }
 
-/* Admin-Status Anzeige */
+
 .group-admin-status {
   font-size: 0.9rem;
   color: var(--font-color-subtle);
   margin-bottom: var(--spacing-medium);
 }
 
-/* Einladungslink-Bereich im Info-Panel */
+
 .group-invite-section {
   margin-top: var(--spacing-large);
   padding-top: var(--spacing-medium);
@@ -577,7 +610,7 @@
   color: var(--font-color-h3);
 }
 
-/* Link-Aktionen (bereits responsiv durch Media Query oben) */
+
 .join-link-actions {
   display: flex;
   gap: var(--spacing-small);
@@ -585,7 +618,7 @@
   flex-wrap: wrap;
 }
 
-/* Styles for the group title and admin badge in GroupDetailView */
+
 .group-header-section {
   display: flex;
   justify-content: space-between;
@@ -627,10 +660,10 @@
   margin-bottom: 0;
 }
 
-/* Style for the new copy join link button */
+
 .copy-join-link-button {
   background-color: transparent;
-  color: var(--button-text-color, var(--font-color)); /* For text like "Kopiert!" and icon color if not overridden */
+  color: var(--button-text-color, var(--font-color)); 
   cursor: pointer;
   display: inline-flex; 
   border: var(--border-subtle);
@@ -644,8 +677,8 @@
   justify-content: center; 
   align-items: center; 
   border: 1px solid var(--border-subtle);
-  font-size: 0.9rem; /* Kept for "Kopiert!" text if it appears */
-  white-space: nowrap; /* Kept for "Kopiert!" text */
+  font-size: 0.9rem; 
+  white-space: nowrap; 
 }
 
 .copy-join-link-button:hover:not(:disabled) {
@@ -664,7 +697,7 @@
   margin-right: 0;
 }
 
-/* Responsive adjustments for the header if needed */
+
 @media (max-width: 480px) {
   .group-header-section {
     flex-direction: column;
@@ -681,23 +714,20 @@
 /* Styling für den Gruppen-Übersicht-Tab
 ========================================================================== */
 .group-overview-container .group-header-section {
-  /* Stellt sicher, dass der Titel des Übersicht-Tabs genügend Abstand zum folgenden Inhalt hat. */
+  
   margin-bottom: var(--spacing-large); 
 }
-
-/* Die Klasse .group-info-panel wird im Übersicht-Tab als Wrapper für den Header und den Inhalt verwendet.
-   Sie hat bereits einen margin-bottom: var(--spacing-xlarge);, der am Ende des Inhalts für Abstand sorgt. */
 
 .group-overview-content {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-large); /* Abstand zwischen den einzelnen .group-overview-section Elementen und dem .group-overview-cta */
+  gap: var(--spacing-small); 
 }
 
 .group-overview-section h3 {
   font-size: 1.2rem; 
-  color: var(--font-color-h3, var(--tanne)); 
-  margin-bottom: var(--spacing-small); 
+  margin-bottom: var(--spacing-small) !important; 
+  margin-top: 0;
   font-weight: 600;
 }
 
@@ -708,18 +738,18 @@
   margin-bottom: var(--spacing-medium); 
 }
 
-/* Entfernt den unteren Rand vom letzten Element in einem Abschnitt, da der übergeordnete Container 'gap' verwendet. */
+
 .group-overview-section > *:last-child {
   margin-bottom: 0;
 }
 
 .group-overview-section ul {
   list-style-type: disc;
-  padding-left: var(--spacing-medium); /* Einrückung für Listenelemente */
+  padding-left: var(--spacing-medium); 
 }
 
 .group-overview-section li {
-  margin-bottom: var(--spacing-xsmall); /* Abstand zwischen Listenelementen */
+  margin-bottom: var(--spacing-xsmall); 
 }
 
 .group-overview-section li strong {
@@ -729,18 +759,12 @@
   */
 }
 
-.group-overview-cta {
-  margin-top: var(--spacing-medium); /* Etwas zusätzlicher Abstand nach oben, zusätzlich zum 'gap' des Parent-Containers */
-  padding-top: var(--spacing-large); /* Abstand über dem Inhalt des CTA-Bereichs */
-  border-top: 1px solid var(--border-subtle); /* Visuelle Trennlinie */
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start; /* Richtet den Button linksbündig aus */
-  gap: var(--spacing-medium); /* Abstand zwischen dem Text und dem Button im CTA */
+.group-overview-cta {  
+  gap: var(--spacing-medium); 
 }
 
 .group-overview-cta p {
-  margin-bottom: 0; /* Der 'gap' des Parent-Containers behandelt den Abstand */
+  margin-bottom:1rem; 
   color: var(--font-color); 
   font-size: 1rem; 
   line-height: 1.6;

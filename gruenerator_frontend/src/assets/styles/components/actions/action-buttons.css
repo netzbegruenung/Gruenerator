@@ -1,4 +1,4 @@
-/* Action Buttons Container */
+
 .content-actions,
 .platform-actions,
 .display-actions {
@@ -7,7 +7,7 @@
   align-items: center;
 }
 
-/* Basis Action Button Style */
+
 .action-button {
   background-color: transparent;
   border: none;
@@ -26,7 +26,7 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-/* Platform Container spezifische Styles */
+
 .platform-actions .action-button:hover {
   background-color: var(--button-hover-color);
 }
@@ -40,18 +40,18 @@
   cursor: not-allowed;
 }
 
-/* Icon Größen */
+
 .action-button svg {
   width: 16px;
   height: 16px;
 }
 
-/* Tooltip Anpassungen */
+
 .action-button[data-tooltip-id] {
   position: relative;
 }
 
-/* Dark Mode */
+
 [data-theme="dark"] .platform-content.editing .platform-header .action-button {
   color: var(--weiß);
 }
@@ -60,7 +60,7 @@
   background-color: rgba(255, 255, 255, 0.2);
 }
 
-/* Mobile Anpassungen */
+
 @media (max-width: 768px) {
   .content-actions,
   .platform-actions,

@@ -1,5 +1,3 @@
-/* Profilseite Styling */
-
 .profile-container {
   max-width: 100%;
   margin: 0 auto;
@@ -9,7 +7,7 @@
   box-shadow: var(--shadow-md);
 }
 
-/* Profil Header */
+
 .profile-header {
   margin-bottom: var(--spacing-large);
   text-align: center;
@@ -27,26 +25,37 @@
   margin: 0 auto;
 }
 
-/* Profilseite Tabs Navigation */
+
 .profile-tabs {
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
   border-bottom: 1px solid var(--border-subtle);
   margin-bottom: var(--spacing-large);
   overflow-x: auto;
+  padding-bottom: var(--spacing-xsmall);
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.profile-tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .profile-tab {
   padding: var(--spacing-small) var(--spacing-medium);
   background: none;
   border: none;
-  border-bottom: 2px solid transparent;
-  color: var(--font-color);
   cursor: pointer;
   white-space: nowrap;
   transition: all 0.2s ease;
+  flex-shrink: 0;
+  position: relative;
+  overflow: visible;
 }
 
+/* Entfernung der alten Stile für aktive und hover Zustände, 
+   da diese nun über motion.div gesteuert werden */
+/* 
 .profile-tab.active {
   border-bottom: 2px solid var(--tanne);
   color: var(--tanne);
@@ -56,16 +65,28 @@
 .profile-tab:hover:not(.active) {
   border-bottom: 2px solid var(--border-subtle);
   background-color: var(--background-color-alt);
+} 
+*/
+
+/* Neuer Stil für die animierte Unterstreichung */
+.tab-underline {
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: var(--tanne);
+  border-radius: 1px;
 }
 
-/* Profilinhalt Wrapper */
+
 .profile-content {
   display: grid;
   grid-gap: var(--spacing-large);
   margin-top: var(--spacing-medium);
 }
 
-/* Desktop-Layout: Grid mit zwei Spalten */
+
 @media (min-width: 768px) {
   .profile-content {
     grid-template-columns: 320px 1fr;
@@ -86,9 +107,51 @@
   .antraege-section .profile-form-section {
     grid-column: 2;
   }
+  
+  
+  .profile-tabs {
+    justify-content: center;
+  }
 }
 
-/* Avatar-Bereich */
+
+@media (max-width: 767px) {
+  .profile-container {
+    padding: var(--spacing-medium);
+    box-shadow: none;
+    border-radius: 0;
+  }
+  
+  .profile-tabs {
+    padding-left: 0;
+    padding-right: 0;
+    margin-left: calc(-1 * var(--spacing-medium));
+    margin-right: calc(-1 * var(--spacing-medium));
+    padding-left: var(--spacing-medium);
+    padding-right: var(--spacing-medium);
+  }
+  
+  .profile-tab {
+    padding: var(--spacing-small) var(--spacing-small);
+    font-size: 0.9rem;
+  }
+  
+  .profile-form-section,
+  .profile-avatar-section {
+    padding: var(--spacing-medium);
+  }
+  
+  .profile-avatar {
+    width: 120px;
+    height: 120px;
+  }
+  
+  .profile-avatar-placeholder {
+    font-size: 2.5rem;
+  }
+}
+
+
 .profile-avatar-section {
   display: flex;
   flex-direction: column;
@@ -143,7 +206,7 @@
   margin-bottom: var(--spacing-medium);
 }
 
-/* Formular-Bereich */
+
 .profile-form-section {
   background-color: var(--background-color);
   border-radius: 8px;
@@ -157,9 +220,10 @@
 
 .profile-form-section label {
   font-weight: bold;
+  margin-top: var(--spacing-xsmall);
 }
 
-/* Profilaktionen Container für Buttons und Links */
+
 .profile-actions {
   display: flex;
   gap: var(--spacing-medium);
@@ -215,44 +279,16 @@
   background-color: rgba(255, 77, 77, 0.1);
 }
 
-/* Formular-Gruppen für bessere Organisation */
-.form-group {
-  margin-bottom: var(--spacing-large);
-}
-
 .form-group-title {
   font-size: 1.1rem;
   font-weight: bold;
-  margin-bottom: var(--spacing-medium);
+  margin-bottom: var(--spacing-xsmall);
   padding-bottom: var(--spacing-xsmall);
   border-bottom: 1px solid var(--border-subtle);
   color: var(--font-color-h3);
 }
 
-/* Responive Anpassungen */
-@media (max-width: 767px) {
-  .profile-container {
-    padding: var(--spacing-medium);
-    box-shadow: none;
-    border-radius: 0;
-  }
-  
-  .profile-form-section,
-  .profile-avatar-section {
-    padding: var(--spacing-medium);
-  }
-  
-  .profile-avatar {
-    width: 120px;
-    height: 120px;
-  }
-  
-  .profile-avatar-placeholder {
-    font-size: 2.5rem;
-  }
-}
 
-/* Placeholder styling for the list area */
 .antraege-list-placeholder {
   margin-top: var(--spacing-medium);
   padding: var(--spacing-large);
@@ -271,7 +307,7 @@
   margin-bottom: var(--spacing-medium);
 }
 
-/* Styles for the actual Anträge List (to be used later) */
+
 .antraege-list {
   list-style: none;
   padding: 0;
@@ -290,7 +326,7 @@
   border-bottom: none;
 }
 
-/* Styling für den anklickbaren Link im Antrag-Item */
+
 .antrag-item-link {
   flex-grow: 1;
   text-decoration: none;
@@ -348,7 +384,7 @@
   cursor: not-allowed;
 }
 
-/* Styles für Anweisungen & Wissen Tab */
+
 .anweisungen-info {
   margin-top: var(--spacing-medium);
   font-size: 0.9rem;
@@ -368,16 +404,12 @@
 }
 
 .anweisungen-textarea {
-  width: 100%;
-  min-height: 150px;
-  border: 1px solid var(--border-subtle);
-  border-radius: 4px;
-  font-family: inherit;
-  font-size: 0.95rem;
-  resize: vertical;
+  /* Wir entfernen doppelte Eigenschaften, die bereits in .form-textarea definiert sind */
+  overflow-y: auto;
+  transition: height 0.2s ease;
 }
 
-/* Toggle-Switch Styles */
+
 .toggle-container {
   position: relative;
   display: inline-block;
@@ -432,4 +464,120 @@
 .toggle-text {
   margin-left: var(--spacing-medium);
   font-weight: 500;
-} 
+}
+
+/* Ergänzung für alle Textinputs und Textareas in der Profilseite */
+.profile-container input[type="text"],
+.profile-container input[type="email"],
+.profile-container input[type="password"],
+.profile-container input[type="url"] {
+  height: 38px;
+  padding: var(--spacing-xsmall) var(--spacing-small);
+}
+
+/* Styling für automatische Erweiterung der Textfelder */
+.auto-expand-textarea {
+  overflow: hidden;
+}
+
+.centered-loading {
+  padding: var(--spacing-large);
+  text-align: center;
+}
+
+.error-message-container {
+  margin-bottom: var(--spacing-medium);
+}
+
+.section-divider {
+  margin: var(--spacing-xlarge) 0;
+  border: none;
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* Klassen für Knowledge Entries */
+.knowledge-entry {
+  margin-bottom: var(--spacing-xsmall);
+}
+
+.knowledge-entry-bordered {
+  border-top: 1px solid var(--border-subtle);
+
+}
+
+.knowledge-content-label {
+  margin-top: var(--spacing-small);
+  display: block;
+}
+
+.character-count {
+  text-align: right;
+  font-size: 0.8em;
+  margin-top: var(--spacing-xxsmall);
+}
+
+/* Aktionsbereich für Buttons */
+.profile-actions-container {
+  margin-top: var(--spacing-large);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-medium);
+}
+
+/* Gruppen-spezifische Klassen */
+.gruppen-info {
+  margin-bottom: var(--spacing-large);
+}
+
+.group-delete-button {
+  margin-left: var(--spacing-medium);
+}
+
+.icon-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.danger {
+  color: #ff4d4d;
+  background-color: transparent;
+}
+
+/* Nachrichtenbereich für Erfolg/Fehler */
+.profile-message-area {
+  padding: var(--spacing-small) 0;
+}
+
+/* Stile für Tab-Ladebereich */
+.profile-tab-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-large);
+  gap: var(--spacing-medium);
+}
+
+.labor-tab-external-link {
+  margin-top: var(--spacing-medium);
+  display: inline-flex;
+  align-items: center;
+}
+
+.labor-tab-title {
+  text-transform: capitalize;
+  margin-bottom: var(--spacing-medium);
+}
+
+.labor-tab-help-text {
+  margin-bottom: var(--spacing-large);
+}
+
+.labor-tab-checkbox-container {
+  /* Container für Checkboxen im Labor Tab */
+}
+
+.labor-tab-external-link-icon {
+  margin-left: var(--spacing-xxsmall);
+}

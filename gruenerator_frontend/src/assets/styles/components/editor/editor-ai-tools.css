@@ -1,6 +1,6 @@
-/* editor-ai-tools.css - Styles für die AI-Tools im Editor */
 
-/* "Text mit AI anpassen" Button */
+
+
 .ql-adjust-text.custom-button {
     display: flex;
     align-items: center;
@@ -46,7 +46,7 @@
     white-space: nowrap;
 }
 
-/* Anpassungscontainer */
+
 .adjust-container {
     position: absolute;
     top: 100%;
@@ -66,7 +66,7 @@
     width: 100%;
 }
 
-/* Eingabefeld für die AI-Anpassung */
+
 .adjust-input {
     font-family: 'PT Sans', Arial, sans-serif;
     width: 100%;
@@ -92,7 +92,7 @@
     box-shadow: 0 0 0 2px rgba(var(--klee-rgb), 0.2);
 }
 
-/* Buttons für die AI-Anpassung */
+
 .adjust-submit, .cancel-adjust {
     padding: 6px 10px;
     background-color: var(--klee);
@@ -142,7 +142,7 @@
     animation: spin 1s linear infinite;
 }
 
-/* Bestätigungscontainer */
+
 .confirmation-container {
     display: flex;
     align-items: center;
@@ -184,7 +184,7 @@
     opacity: 0.8;
 }
 
-/* Entfernen des "Vorschläge werden geladen" Textes */
+
 .loading-text {
     display: none;
 } 

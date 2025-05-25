@@ -1,4 +1,4 @@
-/* Collapse Button Styles */
+
 .form-collapse-button {
   position: absolute;
   left: 10px;
@@ -33,7 +33,7 @@
   transform: rotate(180deg);
 }
 
-/* Mobile Anpassungen */
+
 @media (max-width: 768px) {
   .form-collapse-button {
     position: fixed;

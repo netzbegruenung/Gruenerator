@@ -40,7 +40,15 @@ const RouteComponent = ({
     return null;
   }
 
-  const CachedComponent = useRouteCache(route.component);
+  let ComponentToRender;
+  // Überprüfen, ob es sich um die CollabEditor-Route handelt
+  // Der genaue Pfadstring muss mit dem in routes.js übereinstimmen
+  if (route.path === '/editor/collab/:documentId') {
+    console.log('[RouteComponent] Umgehe useRouteCache für CollabEditorPage');
+    ComponentToRender = route.component; // Direkt die lazy Komponente verwenden
+  } else {
+    ComponentToRender = useRouteCache(route.component);
+  }
 
   return (
     <AppProviders 
@@ -54,8 +62,8 @@ const RouteComponent = ({
         showHeaderFooter={showHeaderFooter}
       >
         <div>
-          <Suspense fallback={null}>
-            <CachedComponent 
+          <Suspense fallback={<div />}>
+            <ComponentToRender 
               key={path}
               darkMode={darkMode}
               showHeaderFooter={showHeaderFooter}

@@ -1,22 +1,20 @@
-/* Common Styles */
 @import url('./common/reset.css');
 @import url('./common/variables.css');
 @import url('./common/typography.css');
 @import url('./common/global.css');
-@import url('./common/shared-components.css');
 @import url('./common/markdown-styles.css');
 
-/* Layout Styles */
+
 @import url('./layout.css');
 
-/* Layout Component Styles */
+
 @import url('./components/layout/footer.css');
 @import url('./components/layout/header.css');
 @import url('./components/layout/profile-dropdown.css');
 @import url('./components/layout/navmenu.css');
 @import url('./components/layout/platform-container.css');
 
-/* UI Component Styles */
+
 @import url('./components/ui/button.css');
 @import url('./components/ui/spinner.css');
 @import url('./components/ui/image-slider.css');
@@ -28,14 +26,21 @@
 @import url('./components/ui/LogLevelSelector.css');
 @import url('./components/ui/BackupToggle.css');
 @import url('./components/ui/tooltip.css');
+@import url('./components/ui/forms.css');
+@import url('./components/ui/profile-skeleton.css');
 @import url('../../components/common/editor/EditorChat.css');
 @import url('./components/ui/success-screen.css');
 @import url('./components/ui/SegmentedControl.css');
 @import url('./components/gallery-layout.css');
+@import url('./components/SearchBar.css');
+@import url('./components/gallery-content-type.css');
 @import url('../../components/common/KnowledgeSelector/style.css');
+@import url('./components/ui/react-select.css');
+@import url('./components/error-boundary.css');
+@import url('./components/ui/TypingIndicator.css');
 
 
-/* Action Component Styles */
+
 @import url('./components/actions/slogan-alternatives.css');
 @import url('./components/actions/exportToDocument.css');
 @import url('./components/actions/verify.css');
@@ -43,14 +48,14 @@
 @import url('./components/actions/advanced-editing.css');
 @import url('./components/actions/linksave.css');
 
-/* Popup Component Styles */
+
 @import url('./components/popups/welcome.css');
 @import url('./components/popups/help.css');
 @import url('./components/popups/welcome-popup.css');
 @import url('./components/popups/popup.css');
 @import url('./components/popups/AntragSavePopup.css');
 
-/* Editor Component Styles */
+
 @import url('./components/editor/editor-content.css');
 @import url('./components/editor/editor-responsive.css');
 @import url('./components/editor/editor.css');
@@ -58,15 +63,16 @@
 @import url('./components/editor/editor-toolbar.css');
 @import url('./components/editor/editor-base.css');
 
-/* Sharepic Component Styles */
+
 @import url('./components/sharepic/sharepic.css');
 @import url('./components/sharepic/sharepic-type-selector.css');
 
-/* Auth Component Styles */
+
 @import url('./features/auth/auth.css');
 @import url('./features/auth/profile.css');
+@import url('./features/auth/profile-bubbles.css');
 
-/* Page Styles */
+
 @import url('./pages/Startseitenstyle.css');
 @import url('./pages/antragsversteher.css');
 @import url('./pages/notfound.css');
@@ -75,24 +81,24 @@
 @import url('./pages/GeneratorStartScreen.css');
 @import url('./pages/AntragDetailPage.css');
 
-/* Features Styles */
 
-/* Features - Subtitler */
+
+
 @import url('../../features/subtitler/styles/subtitler.css');
 @import url('../../features/subtitler/styles/ConfirmSection.css');
 @import url('../../features/subtitler/styles/SubtitleEditor.css');
 @import url('../../features/subtitler/styles/SuccessScreen.css');
 @import url('../../features/subtitler/styles/VideoUploader.css');
 
-/* Features - Search */
-@import url('../../features/search/styles/SearchBar.css');
+
 @import url('../../features/search/styles/SearchPage.css');
 @import url('../../features/search/styles/SearchResults.css');
+@import url('../../features/search/styles/SearchBarStyles.css');
 
-/* Features - Voice */
+
 @import url('../../features/voice/styles/VoiceRecorder.css');
 
-/* Features - Campaigns */
+
 @import url('../../features/campaigns/components/CampaignPage.css');
 @import url('../../features/campaigns/components/CampaignDashboard.css');
 @import url('../../features/campaigns/components/Grueneratoren.css');
@@ -104,7 +110,7 @@
 @import url('../../features/campaigns/styles/AboutSection.css');
 @import url('../../features/campaigns/styles/ContactFormSection.css');
 
-/* Features - You */
+
 @import url('../../features/you/styles/YouPage.css');
 @import url('../../features/you/styles/YouBase.css');
 @import url('../../features/you/styles/YouInput.css');
@@ -112,16 +118,19 @@
 @import url('../../features/you/styles/YouRecording.css');
 @import url('../../features/you/styles/YouResponsive.css');
 
-/* Features - Groups */
+
 @import url('../../features/groups/styles/groups.css');
 
-/* Features - Custom Generator */
+
 @import url('./components/custom-generator/create-custom-generator.css');
 @import url('./components/custom-generator/field-editor-assistant.css');
+@import url('../../features/generators/styles/custom-generators-tab.css');
 
-/* Features - Texte */
+
 @import url('../../features/texte/editor/EmptyEditor.css');
-/* @import url('../../features/texte/antrag/styles/antrag-form.css'); */
 
-/* Components - Antraege */
+
+
 @import './components/antraege/AntragEditForm.css';
+
+@import url('./pages/collab-editor.css');

@@ -1,4 +1,4 @@
-import React, { useContext } from 'react';
+import React, { useContext, forwardRef } from 'react';
 import PropTypes from 'prop-types';
 import { HiCog } from "react-icons/hi";
 import SubmitButton from '../../SubmitButton';
@@ -27,7 +27,7 @@ import { FormContext } from '../../../utils/FormContext';
  * @param {node} props.formNotice - Hinweis oder Information im Formular
  * @returns {JSX.Element} Formular-Sektion
  */
-const FormSection = ({
+const FormSection = forwardRef(({
   onSubmit,
   loading,
   success,
@@ -43,7 +43,7 @@ const FormSection = ({
   children,
   showSubmitButton = true,
   formNotice = null
-}) => {
+}, ref) => {
   const formContainerClasses = getFormContainerClasses(isFormVisible);
   const formContentClasses = getFormContentClasses(hasFormErrors(formErrors));
   const buttonContainerClasses = getButtonContainerClasses(showBackButton);
@@ -60,18 +60,11 @@ const FormSection = ({
   };
 
   return (
-    <div className={formContainerClasses}>
+    <div className={formContainerClasses} ref={ref}>
       <form onSubmit={handleSubmit}>
         <div className={formContentClasses}>
           <div className="form-inner">
             {children}
-            
-            {/* Formular-Hinweis wird vor dem Feature-Toggle angezeigt */}
-            {formNotice && (
-              <div className="form-notice-container">
-                {formNotice}
-              </div>
-            )}
             
             {featureToggle && useFeatureToggle && (
               <div className="feature-section">
@@ -123,7 +116,7 @@ const FormSection = ({
       </form>
     </div>
   );
-};
+});
 
 FormSection.propTypes = {
   onSubmit: PropTypes.func.isRequired,
@@ -162,5 +155,7 @@ FormSection.defaultProps = {
   showSubmitButton: true,
   formNotice: null
 };
+
+FormSection.displayName = 'FormSection';
 
 export default FormSection; 

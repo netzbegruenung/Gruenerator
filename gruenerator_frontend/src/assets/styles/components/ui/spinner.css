@@ -3,13 +3,13 @@
  * Diese Datei sollte in allen Komponenten importiert werden, die einen Spinner verwenden
  */
 
-/* Basis-Spinner */
+
 .spinner {
   border-radius: 50%;
   animation: spinner-rotate 1s linear infinite;
 }
 
-/* Standard-Spinner (mittelgroß) */
+
 .spinner-medium {
   width: 30px;
   height: 30px;
@@ -17,7 +17,7 @@
   border-top-color: var(--font-color-h, #005538);
 }
 
-/* Kleiner Spinner (für Buttons) */
+
 .spinner-small {
   width: 16px;
   height: 16px;
@@ -25,7 +25,7 @@
   border-top-color: var(--font-color-h, #005538);
 }
 
-/* Großer Spinner */
+
 .spinner-large {
   width: 40px;
   height: 40px;
@@ -33,13 +33,13 @@
   border-top-color: var(--font-color-h, #005538);
 }
 
-/* Spinner mit weißer Farbe (für dunkle Hintergründe) */
+
 .spinner-white {
   border-color: rgba(255, 255, 255, 0.3);
   border-top-color: white;
 }
 
-/* Spinner mit grünem Hintergrund */
+
 .spinner-with-background {
   display: flex;
   align-items: center;
@@ -52,13 +52,13 @@
   margin: 0;
 }
 
-/* Dunkles Design */
+
 [data-theme="dark"] .spinner {
   border-color: rgba(255, 255, 255, 0.1);
   border-top-color: var(--font-color-h, #005538);
 }
 
-/* Animation für den Spinner */
+
 @keyframes spinner-rotate {
   to {
     transform: rotate(360deg);

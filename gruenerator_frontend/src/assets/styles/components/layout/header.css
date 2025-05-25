@@ -30,13 +30,13 @@
     margin-right: 20px;
 }
 
-/* Hamburger menu styling */
+
 .header-menu-checkbox {
     display: none;
 }
 
 .header-menu-label {
-    display: none; /* This will be changed in the media query */
+    display: none; 
     position: absolute;
     top: 50%;
     right: 30px;
@@ -67,7 +67,7 @@
     transform: rotate(-45deg) translate(5px, -5px);
 }
 
-/* Navigation styling */
+
 .header-nav {
     display: flex;
     align-items: center;
@@ -112,7 +112,7 @@
     background-color: var(--background-color-alt);
 }
 
-/* Dropdown content styling */
+
 .header-dropdown-content {
     display: none;
     position: absolute;
@@ -137,7 +137,7 @@
     display: flex;
     opacity: 1;
     transform: translateX(-50%) translateY(0);
-    pointer-events: auto;  /* Enable pointer events when visible */
+    pointer-events: auto;  
 }
 
 .header-dropdown-content li {
@@ -149,10 +149,10 @@
 .header-dropdown-content a {
     padding: 0;
     width: 100%;
-    display: block; /* Änderung zu block */
+    display: block; 
 }
 
-/* Dropdown-Links ohne Padding-Animation */
+
 .header-dropdown-content li a {
     padding: 0.6rem 0.8rem;
     transition: color 0.3s ease, background-color 0.3s ease;
@@ -292,8 +292,8 @@
 .switch {
     position: relative;
     display: inline-block;
-    width: 50px; /* Etwas kleiner */
-    height: 26px; /* Etwas kleiner */
+    width: 50px; 
+    height: 26px; 
     margin-right: 15px;
 }
 
@@ -318,8 +318,8 @@
 .slider:before {
     position: absolute;
     content: "";
-    height: 20px; /* Angepasst an die neue Höhe */
-    width: 20px; /* Angepasst an die neue Höhe */
+    height: 20px; 
+    width: 20px; 
     left: 3px;
     bottom: 3px;
     background-color: white;
@@ -328,11 +328,11 @@
 }
 
 input:checked + .slider {
-    background-color: var(--font-color-h); /* Verwendung der font-color-h-Farbe */
+    background-color: var(--font-color-h); 
 }
 
 input:checked + .slider:before {
-    transform: translateX(24px); /* Angepasst an die neue Breite */
+    transform: translateX(24px); 
 }
 
 .slider .icon {
@@ -341,7 +341,7 @@ input:checked + .slider:before {
     transform: translateY(-50%);
     transition: .4s;
     color: #333;
-    font-size: 16px; /* Etwas kleinere Icons */
+    font-size: 16px; 
 }
 
 .slider .icon.sun {
@@ -362,17 +362,17 @@ input:not(:checked) + .slider .icon.moon {
 
 @media (max-width: 950px) and (min-width: 769px) {
     .header-nav ul li {
-      margin: 0 10px; /* Reduzierter Abstand zwischen Menüpunkten */
+      margin: 0 10px; 
     }
     
     .header-nav ul li a,
     .header-nav ul li span {
-      font-size: 1em; /* Kleinere Schriftgröße */
+      font-size: 1em; 
       padding: 0px;
     }
     
     .header-toggle {
-      margin-left: 10px; /* Geringerer Abstand zum letzten Menüpunkt */
+      margin-left: 10px; 
     }
     
     .switch {
@@ -382,7 +382,7 @@ input:not(:checked) + .slider .icon.moon {
   }
   
   @media (max-width: 900px) {
-    /* Hier könnte das mobile Menü früher aktiviert werden */
+    
     .header-nav {
       display: none;
     }
@@ -546,7 +546,7 @@ input:not(:checked) + .slider .icon.moon {
     padding: 0;
 }
 
-/* Hover-Effekte */
+
 .menu-item-content:hover {
     background-color: var(--hover-bg);
 }
@@ -556,19 +556,19 @@ input:not(:checked) + .slider .icon.moon {
     color: var(--primary);
 }
 
-/* Mobile Anpassungen */
+
 .nav-menu .menu-item-content {
     padding: 0.9rem 1.2rem;
     border-radius: 0;
     border-bottom: 1px solid var(--border-color);
 }
 
-/* Dark Mode Anpassungen */
+
 [data-theme='dark'] .menu-item-content:hover {
     background-color: rgba(255, 255, 255, 0.05);
 }
 
-/* Spezifische Menü-Item Styles */
+
 .header-dropdown-content .menu-item-content .menu-item-header .menu-item-title {
     font-family: 'GrueneType', Arial, sans-serif;
     font-weight: normal;
@@ -598,7 +598,7 @@ input:not(:checked) + .slider .icon.moon {
     transform: rotate(180deg);
 }
 
-/* Gemeinsame Basis-Klasse für Navigation Items */
+
 .header-nav-item {
     color: var(--font-color-h);
     font-size: 0.95em;
@@ -620,20 +620,20 @@ input:not(:checked) + .slider .icon.moon {
     background-color: var(--background-color-alt);
 }
 
-/* Spezifisch für Dropdown-Icons */
+
 .header-dropdown .header-nav-item svg.open {
     transform: rotate(180deg);
     transition: transform 0.3s ease;
 }
 
-/* Header Actions Container */
+
 .header-actions {
   display: flex;
   align-items: center;
   gap: var(--spacing-small);
 }
 
-/* Theme Toggle Button */
+
 .theme-toggle-button {
   width: 40px;
   height: 40px;
@@ -695,18 +695,24 @@ input:not(:checked) + .slider .icon.moon {
   transform: rotate(0) scale(1);
 }
 
-/* Media Queries */
+
 @media (max-width: 768px) {
   .header-toggle {
     display: none;
   }
   
   .header-actions {
-    margin-right: 60px; /* Platz für Hamburger-Menü */
+    margin-right: 60px; 
+  }
+
+  
+  .header-actions .theme-toggle-button,
+  .header-actions .profile-label-button {
+    display: none;
   }
 }
 
-/* Icon Größenanpassung für einheitliche Größe */
+
 .profile-icon {
   font-size: 1.4rem;
   color: var(--font-color-h);
@@ -729,4 +735,10 @@ input:not(:checked) + .slider .icon.moon {
   border-color: var(--klee);
   transform: scale(1.05);
   background-color: var(--background-color-alt);
+}
+
+/* Style for icons within direct header items (e.g., Suche Icon) */
+.header-direct-item-icon {
+    margin-right: 8px;
+    font-size: 1.1em; /* Or inherit, or specific size */
 }
