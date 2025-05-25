@@ -170,7 +170,7 @@
   margin-top: 2rem;
 }
 
-/* Dark Mode Support */
+
 [data-theme="dark"] {
   .segment-text {
     background-color: var(--background-color-alt);
@@ -203,7 +203,7 @@
   }
 }
 
-/* Responsive Design */
+
 @media (max-width: 1024px) {
   .editor-layout {
     grid-template-columns: 1fr;

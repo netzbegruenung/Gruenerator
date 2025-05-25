@@ -89,5 +89,60 @@ export const templatesSupabaseUtils = {
       // Re-throw Supabase errors or errors from handleError
       throw error;
     }
+  },
+
+  /**
+   * Funktion zum Aktualisieren von Daten in einer Tabelle
+   * @param {string} table - Tabellenname
+   * @param {Object} data - Zu aktualisierende Daten
+   * @param {Object} match - Bedingung zum Identifizieren der zu aktualisierenden Datensätze (z.B. { id: recordId })
+   * @returns {Promise} - Promise mit den aktualisierten Daten oder Error
+   */
+  async updateData(table, data, match) {
+    if (!templatesSupabase) {
+      const errorMsg = 'Template Supabase client is not initialized. Check environment variables.';
+      console.error(errorMsg);
+      return Promise.reject(new Error(errorMsg));
+    }
+    try {
+      const { data: result, error } = await templatesSupabase
+        .from(table)
+        .update(data)
+        .match(match)
+        .select();
+
+      if (error) throw error;
+      return result;
+    } catch (error) {
+      handleError(error, `Error updating data in ${table}`);
+      throw error;
+    }
+  },
+
+  /**
+   * Funktion zum Löschen von Daten aus einer Tabelle
+   * @param {string} table - Tabellenname
+   * @param {Object} match - Bedingung zum Identifizieren der zu löschenden Datensätze (z.B. { id: recordId })
+   * @returns {Promise} - Promise mit den gelöschten Daten (kann je nach Supabase-Einstellung variieren) oder Error
+   */
+  async deleteData(table, match) {
+    if (!templatesSupabase) {
+      const errorMsg = 'Template Supabase client is not initialized. Check environment variables.';
+      console.error(errorMsg);
+      return Promise.reject(new Error(errorMsg));
+    }
+    try {
+      const { data: result, error } = await templatesSupabase
+        .from(table)
+        .delete()
+        .match(match)
+        .select(); // select() after delete might return the deleted records or an empty array depending on RLS and settings
+
+      if (error) throw error;
+      return result;
+    } catch (error) {
+      handleError(error, `Error deleting data from ${table}`);
+      throw error;
+    }
   }
 }; 

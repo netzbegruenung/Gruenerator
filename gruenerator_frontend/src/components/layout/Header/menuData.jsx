@@ -1,82 +1,108 @@
-import { PiFileText, PiNewspaper, PiMagicWand, PiMagnifyingGlass, PiVideoCamera, PiPencilSimple } from 'react-icons/pi';
+import { PiFileText, PiNewspaper, PiMagicWand, PiMagnifyingGlass, PiVideoCamera, PiPencilSimple, PiImageSquare, PiArchive, PiFlask } from 'react-icons/pi';
 import { GiHedgehog } from 'react-icons/gi';
 import PropTypes from 'prop-types';
 
-// Direkte Menüpunkte ohne Dropdown
-export const directMenuItems = {
-  suche: {
-    id: 'suche',
-    path: '/suche',
-    title: 'Suche',
-    description: 'Durchsuche alle Vorlagen und Texte',
-    icon: PiMagnifyingGlass
-  },
-  /* Reel Link vorübergehend auskommentiert 
-  reel: {
-    id: 'reel',
-    path: '/reel',
-    title: 'Reel',
-    description: 'Automatische Untertitel für Videos',
-    icon: PiVideoCamera
-  }
-  */
+// Direkte Menüpunkte ohne Dropdown (z.B. Suche)
+export const getDirectMenuItems = (betaFeatures = {}) => {
+  const items = {
+    suche: {
+      id: 'suche',
+      path: '/suche',
+      title: 'Suche',
+      description: 'Durchsuche alle Vorlagen und Texte',
+      icon: PiMagnifyingGlass
+    },
+  };
+  // Dynamische direkte Links wurden hier entfernt, da sie jetzt unter "Labor" gruppiert werden.
+  return items;
 };
 
-export const menuItems = {
-  texte: {
-    title: 'Texte',
-    items: [
-      {
-        id: 'antrag',
-        path: '/antrag',
-        title: 'Anträge',
-        description: 'Anträge für Kommunalparlamente & Co.',
-        icon: PiFileText
-      },
-      {
-        id: 'presse-social',
-        path: '/presse-social',
-        title: 'Presse & Social Media',
-        description: 'Pressemitteilungen und Social-Media-Posts',
-        icon: PiNewspaper
-      },
-      {
-        id: 'universal',
-        path: '/universal',
-        title: 'Universal',
-        description: 'Wahlprogramme, Reden oder freie Textformen',
-        icon: PiMagicWand
-      },
-      {
-        id: 'gruene-jugend',
-        path: '/gruene-jugend',
-        title: 'Grüne Jugend',
-        description: 'Der Grünerator in jung',
-        icon: GiHedgehog
-      }
-    ]
+// Funktion zur Generierung der Hauptmenüstruktur inkl. dynamischem "Labor"-Menü
+export const getMenuItems = (betaFeatures = {}) => {
+  const staticMenuItems = {
+    texte: {
+      title: 'Texte',
+      items: [
+        {
+          id: 'antrag',
+          path: '/antrag',
+          title: 'Anträge',
+          description: 'Anträge für Kommunalparlamente & Co.',
+          icon: PiFileText
+        },
+        {
+          id: 'presse-social',
+          path: '/presse-social',
+          title: 'Presse & Social Media',
+          description: 'Pressemitteilungen und Social-Media-Posts',
+          icon: PiNewspaper
+        },
+        {
+          id: 'universal',
+          path: '/universal',
+          title: 'Universal',
+          description: 'Wahlprogramme, Reden oder freie Textformen',
+          icon: PiMagicWand
+        },
+        {
+          id: 'gruene-jugend',
+          path: '/gruene-jugend',
+          title: 'Grüne Jugend',
+          description: 'Der Grünerator in jung',
+          icon: GiHedgehog
+        }
+      ]
+    }
+    /* Temporär ausgeblendet - Grafik
+    ,grafik: {
+      title: 'Bild und Video',
+      items: [
+        {
+          id: 'vorlagen',
+          path: '/vorlagen',
+          title: 'Canva-Vorlagen',
+          description: 'Professionelle Design-Vorlagen für Canva',
+          icon: PiPaintBrush // PiPaintBrush müsste ggf. importiert werden
+        },
+        // Sharepic wird jetzt unter Labor verwaltet, wenn aktiv
+      ]
+    }
+    */
+  };
+
+  const laborItems = [];
+  if (betaFeatures.sharepicBetaEnabled) {
+    laborItems.push({
+      id: 'sharepic',
+      path: '/sharepic',
+      title: 'Sharepics',
+      description: 'Erstelle Sharepics für Social Media',
+      icon: PiImageSquare 
+    });
   }
-  /* Temporär ausgeblendet - wird später wieder aktiviert
-  ,grafik: {
-    title: 'Bild und Video',
-    items: [
-      {
-        id: 'vorlagen',
-        path: '/vorlagen',
-        title: 'Canva-Vorlagen',
-        description: 'Professionelle Design-Vorlagen für Canva',
-        icon: PiPaintBrush
-      },
-      {
-        id: 'sharepic',
-        path: '/sharepic',
-        title: 'Sharepic Grünerator',
-        description: 'Erstelle ansprechende Sharepics für Social Media',
-        icon: PiImage
-      }
-    ]
+
+  if (betaFeatures.databaseBetaEnabled) {
+    laborItems.push({
+      id: 'datenbank',
+      path: '/datenbank',
+      title: 'Datenbank',
+      description: 'Texte, Vorlagen und Anträge finden',
+      icon: PiArchive
+    });
   }
-  */
+
+  if (laborItems.length > 0) {
+    return {
+      ...staticMenuItems,
+      labor: {
+        title: 'Labor',
+        icon: PiFlask, // Icon für den Top-Level "Labor" Eintrag
+        items: laborItems
+      }
+    };
+  }
+
+  return staticMenuItems;
 };
 
 // Gemeinsame Komponente für Menüeinträge

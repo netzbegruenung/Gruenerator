@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { HiOutlineTrash, HiPlus, HiLink, HiInformationCircle } from 'react-icons/hi';
 import Spinner from '../../../../components/common/Spinner';
 import TextInput from '../../../../components/common/Form/Input/TextInput';
@@ -6,6 +6,9 @@ import GroupList from '../../../../features/groups/components/GroupList';
 import useGroups from '../../../../features/groups/hooks/useGroups';
 import useGroupDetails from '../../../../features/groups/hooks/useGroupDetails';
 import { useSupabaseAuth } from '../../../../context/SupabaseAuthContext';
+import { autoResizeTextarea } from '../../pages/ProfilePage';
+import ProfileTabSkeleton from '../../../../components/common/UI/ProfileTabSkeleton';
+import { motion } from "motion/react";
 
 // Hilfsfunktion für Gruppen-Initialen
 const getGroupInitials = (groupName) => {
@@ -27,7 +30,8 @@ const GroupDetailView = ({
     templatesSupabase, // Pass down for useGroupDetails
     onBackToList, // This might be handled by the parent tab now
     onSuccessMessage, 
-    onErrorMessage
+    onErrorMessage,
+    isActive  // Füge isActive hinzu, um es an useGroupDetails weiterzugeben
 }) => {
     const { user } = useSupabaseAuth(); // Needed for useGroupDetails indirectly?
     const { 
@@ -36,8 +40,6 @@ const GroupDetailView = ({
         isAdmin, 
         customAntragPrompt, 
         customSocialPrompt, 
-        isAntragPromptActive, 
-        isSocialPromptActive,
         knowledgeEntries, 
         handleInstructionsChange, 
         handleKnowledgeChange, 
@@ -56,17 +58,22 @@ const GroupDetailView = ({
         errorDetails,
         hasUnsavedChanges,
         MAX_CONTENT_LENGTH: GROUP_MAX_CONTENT_LENGTH 
-    } = useGroupDetails(groupId, { enabled: !!groupId && !!templatesSupabase }); // Enable based on props
+    } = useGroupDetails(groupId, { isActive }); // Gib isActive als Option an useGroupDetails weiter
     const { 
         deleteGroup, 
         isDeletingGroup, 
         // isDeleteGroupError, // wird bereits von onErrorMessage behandelt
         // deleteGroupError 
-    } = useGroups(); // Get the delete function
+    } = useGroups({ isActive }); // Get the delete function
 
     const [showJoinLink, setShowJoinLink] = useState(false);
     const [joinLinkCopied, setJoinLinkCopied] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+    // Refs für die Textareas
+    const antragTextareaRef = useRef(null);
+    const socialTextareaRef = useRef(null);
+    const knowledgeTextareaRefs = useRef({});
 
     // Effect for save/delete feedback within this component
     useEffect(() => {
@@ -86,6 +93,20 @@ const GroupDetailView = ({
         // return () => clearTimeout(timer); // Parent handles clearing
       }, [isSaveSuccess, isSaveError, saveError, isDeleteKnowledgeError, deleteKnowledgeError, onSuccessMessage, onErrorMessage]);
 
+    // Effekt zur Anwendung der autoResize-Funktion
+    useEffect(() => {
+        if (antragTextareaRef.current) {
+            autoResizeTextarea(antragTextareaRef.current);
+        }
+        if (socialTextareaRef.current) {
+            autoResizeTextarea(socialTextareaRef.current);
+        }
+        
+        // Für alle Wissens-Textareas
+        Object.values(knowledgeTextareaRefs.current).forEach(ref => {
+            if (ref) autoResizeTextarea(ref);
+        });
+    }, [customAntragPrompt, customSocialPrompt, knowledgeEntries]);
 
     const getJoinUrl = () => {
         if (!joinToken) return '';
@@ -104,10 +125,7 @@ const GroupDetailView = ({
 
     if (isLoadingDetails) {
         return (
-            <div className="loading-container" style={{padding: 'var(--spacing-large)'}}>
-                <Spinner size="large" />
-                <p>Lade Gruppendetails...</p>
-            </div>
+            <ProfileTabSkeleton type="default" itemCount={5} />
         );
     }
 
@@ -117,14 +135,6 @@ const GroupDetailView = ({
                 <div className="auth-error-message">
                     Fehler beim Laden der Gruppendetails: {errorDetails?.message || 'Unbekannter Fehler'}
                 </div>
-                {/* Back button might be less relevant here if navigation is always present on left */}
-                {/* <button
-                    onClick={onBackToList}
-                    className="profile-action-button"
-                    type="button"
-                >
-                    Zurück zur Gruppenliste 
-                </button> */}
             </>
         );
     }
@@ -160,7 +170,12 @@ const GroupDetailView = ({
     };
 
     return (
-        <div className="group-detail-cards-layout">
+        <motion.div 
+            className="group-detail-cards-layout"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+        >
             <div className="group-content-card"> {/* First card for info */}
                 <div className="group-info-panel"> 
                     <div className="group-header-section"> 
@@ -191,7 +206,7 @@ const GroupDetailView = ({
                             </button>
                         )}
                     </div>
-                    <div className="anweisungen-info gruppen-info" style={{ marginBottom: 'var(--spacing-large)' }}>
+                    <div className="anweisungen-info gruppen-info">
                         <p>
                             Diese Gruppe ermöglicht die gemeinsame Nutzung von Anweisungen und Wissen für den Grünerator.
                             Als Admin kannst du die Einstellungen unten bearbeiten und Mitglieder einladen, indem du rechts auf den Link-Button klickst und den kopierten Link verschickst.
@@ -204,63 +219,42 @@ const GroupDetailView = ({
                 <div className="auth-form">
                     <div className="form-group">
                         <div className="form-group-title">Gruppenanweisungen</div>
-                        <p className="help-text">
-                            Diese Anweisungen gelten für alle Gruppenmitglieder. Nur Admins können sie bearbeiten.
-                        </p>
 
                         <div className="form-field-wrapper anweisungen-field">
                             <div className="anweisungen-header">
                                 <label htmlFor={`groupCustomAntragPrompt-${groupId}`}>Anweisungen für Anträge:</label>
-                                <div className="toggle-container">
-                                    <input
-                                        type="checkbox"
-                                        id={`groupAntragToggle-${groupId}`}
-                                        className="toggle-input"
-                                        checked={isAntragPromptActive ?? false}
-                                        onChange={(e) => handleInstructionsChange?.('isAntragPromptActive', e.target.checked)}
-                                        disabled={!isAdmin || isSaving}
-                                    />
-                                    <label htmlFor={`groupAntragToggle-${groupId}`} className="toggle-label">
-                                        <span className="toggle-text">{isAntragPromptActive ? 'Aktiv' : 'Inaktiv'}</span>
-                                    </label>
-                                </div>
                             </div>
                             <textarea
                                 id={`groupCustomAntragPrompt-${groupId}`}
-                                className="form-textarea anweisungen-textarea"
+                                className="form-textarea anweisungen-textarea auto-expand-textarea"
                                 value={customAntragPrompt ?? ''}
-                                onChange={(e) => handleInstructionsChange?.('customAntragPrompt', e.target.value)}
+                                onChange={(e) => {
+                                    handleInstructionsChange?.('customAntragPrompt', e.target.value);
+                                    autoResizeTextarea(e.target);
+                                }}
                                 placeholder="Gib hier Anweisungen für die Erstellung von Anträgen ein..."
-                                rows={6}
+                                rows={4}
                                 disabled={!isAdmin || isSaving}
+                                ref={antragTextareaRef}
                             />
                         </div>
 
                         <div className="form-field-wrapper anweisungen-field">
                             <div className="anweisungen-header">
                                 <label htmlFor={`groupCustomSocialPrompt-${groupId}`}>Anweisungen für Social Media & Presse:</label>
-                                <div className="toggle-container">
-                                    <input
-                                        type="checkbox"
-                                        id={`groupSocialToggle-${groupId}`}
-                                        className="toggle-input"
-                                        checked={isSocialPromptActive ?? false}
-                                        onChange={(e) => handleInstructionsChange?.('isSocialPromptActive', e.target.checked)}
-                                        disabled={!isAdmin || isSaving}
-                                    />
-                                    <label htmlFor={`groupSocialToggle-${groupId}`} className="toggle-label">
-                                        <span className="toggle-text">{isSocialPromptActive ? 'Aktiv' : 'Inaktiv'}</span>
-                                    </label>
-                                </div>
                             </div>
                             <textarea
                                 id={`groupCustomSocialPrompt-${groupId}`}
-                                className="form-textarea anweisungen-textarea"
+                                className="form-textarea anweisungen-textarea auto-expand-textarea"
                                 value={customSocialPrompt ?? ''}
-                                onChange={(e) => handleInstructionsChange?.('customSocialPrompt', e.target.value)}
+                                onChange={(e) => {
+                                    handleInstructionsChange?.('customSocialPrompt', e.target.value);
+                                    autoResizeTextarea(e.target);
+                                }}
                                 placeholder="Gib hier Anweisungen für die Erstellung von Social Media Inhalten ein..."
-                                rows={6}
+                                rows={4}
                                 disabled={!isAdmin || isSaving}
+                                ref={socialTextareaRef}
                             />
                         </div>
                     </div>
@@ -305,13 +299,17 @@ const GroupDetailView = ({
                                     <label htmlFor={`group-knowledge-content-${entry.id || `new-${index}`}`} className="knowledge-content-label">Inhalt:</label>
                                     <textarea
                                         id={`group-knowledge-content-${entry.id || `new-${index}`}`}
-                                        className="form-textarea anweisungen-textarea"
+                                        className="form-textarea anweisungen-textarea auto-expand-textarea"
                                         value={entry.content ?? ''}
-                                        onChange={(e) => handleKnowledgeChange?.(entry.id, 'content', e.target.value)}
+                                        onChange={(e) => {
+                                            handleKnowledgeChange?.(entry.id, 'content', e.target.value);
+                                            autoResizeTextarea(e.target);
+                                        }}
                                         placeholder="Füge hier den Wissensinhalt ein..."
-                                        rows={6}
+                                        rows={3}
                                         maxLength={GROUP_MAX_CONTENT_LENGTH ?? 1000}
                                         disabled={!isAdmin || isSaving || isDeletingKnowledge}
+                                        ref={(el) => knowledgeTextareaRefs.current[entry.id || `new-${index}`] = el}
                                     />
                                     <p className="help-text character-count">
                                         {(entry.content?.length || 0)} / {GROUP_MAX_CONTENT_LENGTH ?? 1000} Zeichen
@@ -322,7 +320,7 @@ const GroupDetailView = ({
                     </div>
 
                     {isAdmin && (
-                        <div className="profile-actions anweisungen-actions">
+                        <div className="profile-actions profile-actions-container">
                             <button
                                 type="button"
                                 className="profile-action-button profile-primary-button"
@@ -335,10 +333,9 @@ const GroupDetailView = ({
                             {isAdmin && (
                                 <button
                                     type="button"
-                                    className="profile-action-button profile-danger-button"
+                                    className="profile-action-button profile-danger-button group-delete-button"
                                     onClick={handleDeleteGroup}
                                     disabled={isDeletingGroup || isSaving}
-                                    style={{marginLeft: 'var(--spacing-medium)'}} // Add some space
                                 >
                                     {isDeletingGroup ? <Spinner size="small" /> : 'Gruppe löschen'}
                                 </button>
@@ -368,12 +365,12 @@ const GroupDetailView = ({
                     </div>
                 </div>
             )}
-        </div>
+        </motion.div>
     );
 };
 
 // Main component for the Groups Management Tab
-const GroupsManagementTab = ({ user, templatesSupabase, onSuccessMessage, onErrorMessage }) => {
+const GroupsManagementTab = ({ user, templatesSupabase, onSuccessMessage, onErrorMessage, isActive }) => {
     const [selectedGroupId, setSelectedGroupId] = useState(null);
     const [groupView, setGroupView] = useState('overview'); // Änderung von 'list' zu 'overview'
     const [newGroupName, setNewGroupName] = useState('');
@@ -391,7 +388,7 @@ const GroupsManagementTab = ({ user, templatesSupabase, onSuccessMessage, onErro
         isDeleteGroupSuccess, 
         deleteGroupError: rawDeleteGroupError, // use raw error to avoid conflict
         isDeletingGroup, // to potentially disable UI elements in parent
-    } = useGroups();
+    } = useGroups({ isActive }); // Füge isActive hinzu, um die Queries zu steuern
 
     // Handle Group Creation Submit
     const handleCreateGroupSubmit = (e) => {
@@ -491,7 +488,12 @@ const GroupsManagementTab = ({ user, templatesSupabase, onSuccessMessage, onErro
 
     // Render Overview Tab
     const renderOverviewTab = () => (
-        <div className="group-overview-container">
+        <motion.div 
+            className="group-overview-container"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+        >
             <div className="group-content-card">
                 <div className="group-info-panel">
                     <div className="group-header-section">
@@ -564,7 +566,7 @@ const GroupsManagementTab = ({ user, templatesSupabase, onSuccessMessage, onErro
                     </div>
                 </div>
             </div>
-        </div>
+        </motion.div>
     );
 
     // Render Navigation Panel (Left Column)
@@ -609,10 +611,7 @@ const GroupsManagementTab = ({ user, templatesSupabase, onSuccessMessage, onErro
     const renderContentPanel = () => {
         if (isLoadingGroups) {
             return (
-                <div className="loading-container" style={{padding: 'var(--spacing-xlarge)'}}>
-                    <Spinner size="large" />
-                    <p>Lade Gruppen...</p>
-                </div>
+                <ProfileTabSkeleton type={groupView === 'form' ? 'form' : 'default'} itemCount={5} />
             );
         }
 
@@ -630,7 +629,12 @@ const GroupsManagementTab = ({ user, templatesSupabase, onSuccessMessage, onErro
 
         if (groupView === 'create') {
             return (
-                <div className="create-group-form-container">
+                <motion.div 
+                    className="create-group-form-container"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.3 }}
+                >
                     {/* Removed profile-avatar-section and profile-form-section wrappers */}
                     <form className="auth-form" onSubmit={handleCreateGroupSubmit}>
                         <div className="form-group">
@@ -673,7 +677,7 @@ const GroupsManagementTab = ({ user, templatesSupabase, onSuccessMessage, onErro
                             </button>
                         </div>
                     </form>
-                </div>
+                </motion.div>
             );
         }
 
@@ -685,6 +689,7 @@ const GroupsManagementTab = ({ user, templatesSupabase, onSuccessMessage, onErro
                     // onBackToList is removed as navigation is persistent
                     onSuccessMessage={onSuccessMessage} // Pass down for internal feedback
                     onErrorMessage={onErrorMessage}   // Pass down for internal feedback
+                    isActive={isActive} // Weitergabe der isActive-Prop an die untergeordnete Komponente
                 />
             );
         }

@@ -134,7 +134,7 @@
   justify-content: center;
 }
 
-/* Styling für den KI-Beschreibung-Generier-Link */
+
 .antrag-save-popup-content .ai-description-link {
   text-decoration: none;
   color: var(--color-primary, #46962b);

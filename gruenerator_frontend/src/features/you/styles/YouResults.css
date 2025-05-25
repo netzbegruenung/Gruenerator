@@ -1,18 +1,18 @@
-/* YouResults.css - Styling für die Ergebnisanzeige */
 
-/* Überschreiben der display-container Breite speziell für die YouPage */
+
+
 .you-page-container .display-container {
   flex: 1 1 100% !important;
   max-width: 100% !important;
   width: 100% !important;
 }
 
-/* Ursprüngliche Styles */
+
 .you-response-container {
   width: 100%;
-  max-width: 900px; /* Breiter für Word-ähnliches Layout */
+  max-width: 900px; 
   margin: 0 auto 20px;
-  padding: 35px 50px; /* Mehr horizontalen Innenabstand für Word-ähnliches Layout */
+  padding: 35px 50px; 
   background-color: var(--background-color-alt);
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -35,12 +35,12 @@
   margin-bottom: 12px;
 }
 
-/* Ergebnis-Container für die verarbeitete Anfrage */
+
 .you-result-container {
   width: 100%;
-  max-width: 900px; /* Breiter für Word-ähnliches Layout */
+  max-width: 900px; 
   margin: 0 auto 20px;
-  padding: 35px 50px; /* Mehr horizontalen Innenabstand für Word-ähnliches Layout */
+  padding: 35px 50px; 
   background-color: var(--background-color-alt);
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -48,8 +48,8 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
-  max-height: none; /* Entfernen der Höhenbegrenzung */
-  overflow-y: visible; /* Kein Scrolling mehr nötig */
+  max-height: none; 
+  overflow-y: visible; 
 }
 
 .you-result-content {
@@ -62,7 +62,7 @@
   font-size: 16px;
 }
 
-/* Styling für den Ergebnistitel */
+
 .you-result-title {
   font-size: 18px;
   font-weight: 600;
@@ -72,7 +72,7 @@
   border-bottom: 1px solid var(--hover-color-alt);
 }
 
-/* Word-ähnliches Papier-Styling */
+
 .you-result-paper {
   background-color: var(--weiß);
   border-radius: 2px;
@@ -82,7 +82,7 @@
   width: 100%;
 }
 
-/* Dark Mode Anpassungen */
+
 [data-theme="dark"] .you-response-container,
 [data-theme="dark"] .you-result-container {
   background-color: var(--hover-color-alt);

@@ -5,7 +5,7 @@ import { useQueryClient, useQuery, useMutation } from '@tanstack/react-query';
 /**
  * Hook for managing user groups
  */
-const useGroups = () => {
+const useGroups = ({ isActive } = {}) => {
   const { user } = useSupabaseAuth();
   const [templatesSupabase, setTemplatesSupabase] = useState(null);
   const queryClient = useQueryClient();
@@ -18,9 +18,9 @@ const useGroups = () => {
         const module = await import('../../../components/utils/templatesSupabaseClient');
         if (isMounted && module.templatesSupabase) {
           setTemplatesSupabase(module.templatesSupabase);
+        } else if (isMounted) {
         }
       } catch (error) {
-        console.error('Error loading Supabase client:', error);
       }
     };
     loadSupabaseClient();
@@ -51,7 +51,7 @@ const useGroups = () => {
 
     const groupIds = memberships.map(m => m.group_id);
     
-    const { data: groups, error: groupsError } = await templatesSupabase
+    const { data: groupsData, error: groupsError } = await templatesSupabase
       .from('groups')
       .select('id, name, created_at, created_by')
       .in('id', groupIds);
@@ -61,16 +61,17 @@ const useGroups = () => {
     }
 
     // Combine group and membership data
-    return groups.map(group => ({
+    const combinedGroups = groupsData.map(group => ({
       ...group,
       role: memberships.find(m => m.group_id === group.id)?.role || 'member',
       isAdmin: group.created_by === user.id || 
               memberships.find(m => m.group_id === group.id)?.role === 'admin'
     }));
+    return combinedGroups;
   };
 
   const {
-    data: userGroups,
+    data: queryUserGroups,
     isLoading: isLoadingGroups,
     isFetching: isFetchingGroups,
     isError: isErrorGroups,
@@ -79,11 +80,15 @@ const useGroups = () => {
   } = useQuery({
     queryKey: groupsQueryKey,
     queryFn: fetchGroupsFn,
-    enabled: !!user?.id && !!templatesSupabase,
+    enabled: !!user?.id && !!templatesSupabase && isActive !== false,
     staleTime: 5 * 60 * 1000, // 5 minutes
     cacheTime: 15 * 60 * 1000, // 15 minutes
     refetchOnWindowFocus: false,
   });
+
+  // Sicherstellen, dass immer eine neue Array-Referenz zurückgegeben wird, wenn sich die Daten ändern
+  // und um ein stabiles leeres Array zurückzugeben, wenn keine Daten vorhanden sind oder geladen werden.
+  const userGroups = queryUserGroups ? [...queryUserGroups] : [];
 
   // Create a new group
   const createGroupMutationFn = async (groupName) => {
@@ -328,8 +333,6 @@ const useGroups = () => {
     mutationFn: deleteGroupMutationFn,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: groupsQueryKey });
-      // Optionally, could also invalidate specific group details if they are cached elsewhere
-      // queryClient.invalidateQueries(['groupDetails', deletedGroupId]);
     }
   });
 

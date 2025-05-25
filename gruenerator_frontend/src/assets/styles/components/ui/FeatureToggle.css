@@ -103,7 +103,7 @@ input:checked ~ .feature-label .feature-icon {
   color: var(--klee);
 }
 
-/* Sicherstellen, dass der Toggle mit dem form-container ausgeblendet wird */
+
 .form-container:not(.visible) .form-feature-toggle {
   display: none !important;
 } 

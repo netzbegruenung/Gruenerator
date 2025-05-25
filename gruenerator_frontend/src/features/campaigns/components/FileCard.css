@@ -19,7 +19,7 @@
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
 }
 
-/* Dateityp-spezifische Farben für Icons */
+
 .file-icon {
   font-size: 1.8rem;
   width: 45px;
@@ -32,28 +32,28 @@
 }
 
 .file-type-pdf .file-icon {
-  color: #e53935; /* Rot für PDF */
+  color: #e53935; 
   background-color: rgba(229, 57, 53, 0.08);
 }
 
 .file-type-excel .file-icon {
-  color: #43a047; /* Grün für Excel */
+  color: #43a047; 
   background-color: rgba(67, 160, 71, 0.08);
 }
 
 .file-type-word .file-icon {
-  color: #1e88e5; /* Blau für Word */
+  color: #1e88e5; 
   background-color: rgba(30, 136, 229, 0.08);
 }
 
 .file-type-default .file-icon {
-  color: #757575; /* Grau für andere Dateitypen */
+  color: #757575; 
   background-color: rgba(117, 117, 117, 0.08);
 }
 
 .file-info {
   flex: 1;
-  min-width: 0; /* Verhindert Überlauf bei langen Texten */
+  min-width: 0; 
 }
 
 .file-info h3 {

@@ -48,7 +48,7 @@
   border-radius: 2px;
 }
 
-/* Grid Layout Definitionen */
+
 .texts-section {
   grid-column: span 12;
 }
@@ -58,7 +58,7 @@
   grid-column: span 6;
 }
 
-/* Definiere, dass AboutSection und ContactFormSection die volle Breite einnehmen */
+
 .about-section,
 .contact-form-section { 
   grid-column: span 12; 
@@ -68,7 +68,7 @@
   display: none;
 }
 
-/* Spezifische Anpassungen für die Templates-Section */
+
 .templates-section h2 {
   font-size: 1.3rem !important;
   margin-bottom: 1rem !important;
@@ -84,7 +84,7 @@
   font-weight: 500;
 }
 
-/* Animation for hover effects */
+
 @keyframes gentle-float {
   0% {
     transform: translateY(0);
@@ -101,7 +101,7 @@
   animation: gentle-float 3s ease infinite;
 }
 
-/* Responsive Adjustments */
+
 @media (max-width: 1200px) {
   .files-section,
   .templates-section {
@@ -136,45 +136,45 @@
   }
 }
 
-/* Add styles for the wrapper */
+
 .about-contact-wrapper {
   display: flex;
-  gap: 20px; /* Adjust the gap as needed */
-  margin-top: 40px; /* Or use existing variables/styles */
-  grid-column: span 12; /* Make the wrapper span the full grid width */
-  /* Apply card styles to the wrapper */
+  gap: 20px; 
+  margin-top: 40px; 
+  grid-column: span 12; 
+  
   background-color: var(--background-color-alt);
   padding: 20px;
   border-radius: 8px;
-  box-shadow: var(--shadow-sm); /* Optional: add shadow */
+  box-shadow: var(--shadow-sm); 
 }
 
-/* Remove card styles from individual sections and set flex basis */
+
 .about-contact-wrapper > .dashboard-section {
-  /* Remove individual card styling */
-  /* background-color: var(--background-color-alt); */
-  /* padding: 20px; */
-  /* border-radius: 8px; */
-  /* box-shadow: var(--shadow-sm); */
+  
+  
+  
+  
+  
 }
 
-/* Set width distribution */
+
 .about-contact-wrapper > .dashboard-section:first-child {
-  flex: 1; /* Set equal flex basis */
+  flex: 1; 
 }
 
 .about-contact-wrapper > .dashboard-section:last-child {
-  flex: 1; /* Set equal flex basis */
+  flex: 1; 
 }
 
-/* Responsive adjustments */
+
 @media (max-width: 768px) {
   .about-contact-wrapper {
     flex-direction: column;
   }
-  /* Reset flex basis for column layout if needed */
+  
   .about-contact-wrapper > .dashboard-section:first-child,
   .about-contact-wrapper > .dashboard-section:last-child {
-    flex: initial; /* Reset flex property */
+    flex: initial; 
   }
 } 

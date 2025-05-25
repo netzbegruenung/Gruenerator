@@ -1,4 +1,4 @@
-/* YouInput.css - Styling für Eingabefeld, Submit-Button und Beispiele */
+
 
 .you-input-container {
   width: 100%;
@@ -39,7 +39,7 @@
   opacity: 0.6;
 }
 
-/* Inline-Beispiele im Eingabefeld */
+
 .inline-examples {
   position: absolute;
   bottom: 16px;
@@ -107,7 +107,7 @@
   font-size: 16px;
 }
 
-/* Beispiel-Fragen im Stil der SearchPage */
+
 .example-questions {
   display: flex;
   gap: 8px;
@@ -141,7 +141,7 @@
   font-size: 16px;
 }
 
-/* Dark Mode Anpassungen */
+
 [data-theme="dark"] .you-input-field,
 [data-theme="dark"] .you-response-container {
   background-color: var(--hover-color-alt);

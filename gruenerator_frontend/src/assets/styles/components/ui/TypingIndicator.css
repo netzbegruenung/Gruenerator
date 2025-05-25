@@ -1,0 +1,18 @@
+.typing-indicator {
+  display: flex;
+  align-items: center;
+  padding-top: 10px; /* Ensure vertical alignment with icon */
+  padding-bottom: 10px; /* Ensure vertical alignment with icon */
+}
+
+/* The .assistant-icon is styled globally in EditorChat.css for .chat-message.assistant */
+/* We can add specific adjustments if needed, but it should inherit positioning */
+
+.typing-dot {
+  width: 8px;
+  height: 8px;
+  background-color: var(--font-color); /* Use theme variable */
+  border-radius: 50%;
+  display: inline-block;
+  margin: 0 2px; /* Adjust spacing between dots */
+} 

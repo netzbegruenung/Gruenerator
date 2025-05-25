@@ -24,14 +24,20 @@ const CanvaTemplateCard = ({ template }) => {
     if (!isFeatureVerified('templates')) {
       setShowVerify(true);
     } else {
-      window.open(template.canvaUrl, '_blank');
+      window.open(template.canva_url, '_blank');
     }
   };
 
-  const sliderImages = template.images.map(image => ({
-    url: image.url,
-    alt: image.alt
-  }));
+  const sliderImages = Array.isArray(template.images) && template.images.length > 0 
+    ? template.images.map(image => ({ 
+        url: image.url, 
+        alt: image.alt || template.title || 'Template Bild'
+      })) 
+    : [{ url: template.thumbnail_url, alt: template.title || 'Template Vorschau' }];
+  
+  if (sliderImages.length === 0 || !sliderImages[0].url) {
+      sliderImages[0] = { url: "/assets/images/placeholder-image.svg", alt: "Kein Bild verfügbar" };
+  }
 
   return (
     <>
@@ -62,10 +68,10 @@ const CanvaTemplateCard = ({ template }) => {
         <div className="template-card-content">
           <h3>{template.title}</h3>
           <p>{template.description}</p>
-          <p className="template-credit">Von: {template.credit}</p>
+          <p className="template-credit">Von: {template.credit || 'Unbekannt'}</p>
           <div className="template-actions">
             <a 
-              href={template.canvaUrl}
+              href={template.canva_url}
               onClick={handleCanvaClick}
               className="canva-button"
               aria-label={`${template.title} in Canva öffnen`}
@@ -81,7 +87,7 @@ const CanvaTemplateCard = ({ template }) => {
             feature="templates"
             onVerified={() => {
               setShowVerify(false);
-              window.open(template.canvaUrl, '_blank');
+              window.open(template.canva_url, '_blank');
             }}
             onCancel={() => setShowVerify(false)}
           >
@@ -98,15 +104,22 @@ CanvaTemplateCard.propTypes = {
   template: PropTypes.shape({
     id: PropTypes.string.isRequired,
     title: PropTypes.string.isRequired,
-    description: PropTypes.string.isRequired,
-    category: PropTypes.arrayOf(PropTypes.string).isRequired,
+    description: PropTypes.string,
+    categories: PropTypes.arrayOf(PropTypes.shape({
+      id: PropTypes.string.isRequired,
+      label: PropTypes.string.isRequired,
+    })),
     images: PropTypes.arrayOf(PropTypes.shape({
       url: PropTypes.string.isRequired,
-      alt: PropTypes.string.isRequired
-    })).isRequired,
-    canvaUrl: PropTypes.string.isRequired,
-    tags: PropTypes.arrayOf(PropTypes.string).isRequired,
-    credit: PropTypes.string.isRequired
+      alt: PropTypes.string,
+    })),
+    canva_url: PropTypes.string.isRequired,
+    tags: PropTypes.arrayOf(PropTypes.shape({
+        id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+        name: PropTypes.string.isRequired,
+    })),
+    credit: PropTypes.string,
+    thumbnail_url: PropTypes.string,
   }).isRequired
 };
 

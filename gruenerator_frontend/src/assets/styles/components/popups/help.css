@@ -1,7 +1,7 @@
-/* Imports */
 
 
-/* Help Content Styles */
+
+
 .help-display {
   border-radius: 8px;
   padding-top: 20px;
@@ -39,7 +39,7 @@
   color: var(--grashalm);
 }
 
-/* Mobile Styles */
+
 @media (max-width: 768px) {
   .help-content {
     padding: 0px;

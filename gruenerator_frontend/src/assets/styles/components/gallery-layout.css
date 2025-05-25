@@ -1,16 +1,14 @@
-/* Generic Gallery Layout Styles */
 .gallery-layout {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 2rem 2rem 2rem 2rem; /* Example padding, adjust as needed */
+  padding: 2rem 2rem 2rem 2rem; 
 }
 
 .gallery-header {
-  margin-bottom: 2rem; /* Adjusted margin */
+  margin-bottom: 2rem; 
   text-align: center;
 }
 
-/* Generic styles for elements within header (like h1, p) might be needed */
 .gallery-header h1 {
   font-size: 2rem;
   font-weight: 600;
@@ -27,98 +25,33 @@
   text-align: center;
 }
 
-/* New wrapper for search controls */
 .gallery-search-controls {
   display: flex;
-  flex-wrap: wrap; /* Allow wrapping on smaller screens */
-  align-items: flex-start; /* Align items to the top */
+  flex-wrap: wrap; 
+  align-items: flex-start; 
   justify-content: center;
-  gap: var(--spacing-large); /* Space between search and slider */
-  max-width: 900px; /* Adjust max-width to accommodate both */
+  gap: var(--spacing-large); 
+  max-width: 900px;
   margin: 0 auto 2rem;
 }
 
-.gallery-search {
-  max-width: 600px;
-  margin: 0; /* Remove auto margin, handled by flex container */
-  flex-grow: 1; /* Allow search bar to take available space */
-  flex-basis: 400px; /* Give it a base size */
-  min-width: 250px; /* Prevent it from becoming too small */
-}
-
-/* New container for input and selector */
-.search-bar-container {
+.gallery-main-searchbar-section {
   display: flex;
-  align-items: center;
+  justify-content: center;
   width: 100%;
-  border: 2px solid var(--button-background-color);
-  border-radius: 8px;
-  background: var(--background-color);
-  padding: 0; /* Remove padding, apply to input/selector if needed */
-  transition: border-color 0.2s ease;
+  margin-bottom: var(--spacing-xlarge);
+  padding: 0 var(--spacing-medium);
+  box-sizing: border-box;
 }
 
-/* Adjust input styles to fit inside the container */
-.gallery-search-input {
-  flex-grow: 1; /* Take available space */
-  padding: 1rem; /* Keep original padding */
-  font-size: 1rem;
-  border: none; /* Border is now on the container */
-  border-radius: 0; /* No radius needed inside */
-  background: transparent; /* Use container background */
-  color: var(--font-color);
-  outline: none; /* Remove default focus outline */
-  width: auto; /* Override potential 100% width */
-  height: auto; /* Let padding define height */
-  box-sizing: border-box; /* Include padding in height calculation */
-  line-height: normal; /* Ensure consistent line height */
+.gallery-content-type-selector-section {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  margin-bottom: var(--spacing-large);
+  padding: 0 var(--spacing-medium);
+  box-sizing: border-box;
 }
-
-/* Adjust focus state for the container */
-.search-bar-container:focus-within {
-  border-color: var(--tanne); /* Highlight container on focus */
-}
-
-/* Style the selector to integrate smoothly */
-.search-bar-container .search-depth-selector {
-  flex-shrink: 0; /* Prevent selector from shrinking */
-  margin-right: 0.5rem; /* Add some space before the selector */
-  height: 100%; /* Make selector take full container height */
-  display: flex; /* Align button vertically */
-  align-items: center; /* Center button vertically */
-}
-
-.search-bar-container .search-depth-selector .selector-button {
-  border: none; /* Remove border */
-  background: transparent; /* Transparent background */
-  /* Match vertical padding of the input roughly */
-  padding: 1rem 0.8rem; /* Match Input Padding-Top/Bottom */
-  border-radius: 0; /* No radius */
-  color: var(--font-color); /* Match input text color */
-  min-width: auto; /* Adjust min-width */
-  height: 100%; /* Button should fill selector height */
-  box-sizing: border-box; /* Include padding in height */
-  display: flex; /* Ensure button content is flex */
-  align-items: center; /* Vertically center button content */
-  font-size: 0.9rem; /* Keep font size distinct or match input (1rem) */
-}
-
-.search-bar-container .search-depth-selector .selector-button:hover {
-  background: var(--background-color-alt); /* Subtle hover */
-}
-
-.search-bar-container .search-depth-selector .selector-button:focus {
-  box-shadow: none; /* Remove focus shadow, container handles focus */
-  outline: none;
-}
-
-/* Keep original input focus styles if needed, but applied to container */
-/*
-.gallery-search-input:focus {
-  outline: none;
-  border-color: var(--tanne); *//* Example focus color *//*
-}
-*/
 
 .gallery-filter {
   margin-bottom: 3rem;
@@ -126,7 +59,6 @@
   justify-content: center;
 }
 
-/* Apply flex properties to the actual button container */
 .gallery-category-filter {
   display: flex;
   flex-wrap: wrap;
@@ -134,7 +66,6 @@
   justify-content: center;
 }
 
-/* Styles for category buttons */
 .gallery-category-filter .category-button {
   padding: 0.75rem 1.5rem;
   font-size: 0.95rem;
@@ -155,17 +86,16 @@
 .gallery-category-filter .category-button.active {
   background: var(--background-color-alt);
   color: var(--font-color);
-  border-color: var(--tanne); /* Example active color */
+  border-color: var(--tanne); 
 }
 
 .gallery-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); /* Example grid setup */
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); 
   gap: 2rem;
   margin: 0 auto;
 }
 
-/* Add styles for potential 'no-results' or 'error' messages within the grid */
 .gallery-grid .no-results {
   grid-column: 1 / -1;
   text-align: center;
@@ -174,7 +104,6 @@
   font-size: 1.1rem;
 }
 
-/* Responsive Design Adjustments */
 @media (max-width: 1200px) {
   .gallery-grid {
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -201,9 +130,8 @@
   }
 }
 
-/* Specific styles for AntragCard */
 .gallery-item-card.antrag-card {
-  border: 1px solid #ccc; /* Example border */
+  border: 1px solid #ccc; 
   border-radius: 8px;
   padding: 1rem;
   background: var(--background-color);
@@ -211,36 +139,36 @@
   display: flex;        
   flex-direction: column; 
   justify-content: space-between; 
-  transition: transform 0.2s ease, box-shadow 0.2s ease; /* Add hover effect */
+  transition: transform 0.2s ease, box-shadow 0.2s ease; 
 }
 
 .gallery-item-card.antrag-card:hover {
   transform: translateY(-3px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); /* Example shadow */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); 
 }
 
 .antrag-card-title {
   margin-top: 0;
   margin-bottom: 0.5rem !important;
   color: var(--font-color-h);
-  font-size: 1.1rem; /* Adjust as needed */
+  font-size: 1.1rem; 
   font-weight: 600;
 }
 
 .antrag-card-tags {
-  margin-bottom: 1rem; /* Increased from 0.75rem */
-  line-height: 1.4; /* Improve spacing for wrapped tags */
+  margin-bottom: 1rem; 
+  line-height: 1.4; 
 }
 
 .antrag-card-tag {
   display: inline-block; 
   background-color: var(--background-color-alt); 
-  color: var(--font-color); /* Use theme color */
+  color: var(--font-color); 
   font-size: 0.8rem;
-  padding: 0.2rem 0.6rem; /* Slightly more padding */
+  padding: 0.2rem 0.6rem; 
   border-radius: 4px; 
   margin-right: 0.4rem; 
-  margin-bottom: 0.4rem; /* Spacing when tags wrap */
+  margin-bottom: 0.4rem; 
   font-weight: 500;
 }
 
@@ -248,17 +176,82 @@
   font-size: 0.8em;
   color: var(--tanne);
   margin-left: 0.2rem; 
-  display: inline-block; /* Ensure it aligns with tags */
-  vertical-align: bottom; /* Align with bottom of tags */
-  padding-bottom: 0.4rem; /* Align with tags */
+  display: inline-block; 
+  vertical-align: bottom; 
+  padding-bottom: 0.4rem; 
 }
 
 .antrag-card-date {
   font-size: 0.8em;
   color: #666;
-  margin-top: auto; /* Pushes to bottom */
+  margin-top: auto; 
   margin-bottom: 0;
-  padding-top: 0.75rem; /* Increased from 0.5rem */
-  border-top: 1px solid var(--background-color-alt); /* Optional separator */
-  text-align: right; /* Align date to the right */
+  padding-top: 0.75rem; 
+  border-top: 1px solid var(--background-color-alt); 
+  text-align: right; 
+}
+
+.search-bar-container .search-depth-selector {
+  flex-shrink: 0; 
+  margin-right: 0.5rem; 
+  height: 100%; 
+  display: flex; 
+  align-items: center; 
+}
+
+.search-bar-container .search-depth-selector .selector-button {
+  border: none; 
+  background: transparent; 
+  
+  padding: 1rem 0.8rem; 
+  border-radius: 0; 
+  color: var(--font-color); 
+  min-width: auto; 
+  height: 100%; 
+  box-sizing: border-box; 
+  display: flex; 
+  align-items: center; 
+  font-size: 0.9rem; 
+}
+
+.search-bar-container .search-depth-selector .selector-button:hover {
+  background: var(--background-color-alt); 
+}
+
+.search-bar-container .search-depth-selector .selector-button:focus {
+  box-shadow: none; 
+  outline: none;
+}
+
+/* Styling für CategoryFilter innerhalb von AdvancedSearchOptions */
+.advanced-search-options .search-option-group .gallery-category-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem; /* Etwas weniger Abstand als im Hauptfilter */
+  justify-content: flex-start; /* Links ausrichten innerhalb der Options */
+  padding-top: 0.5rem;
+}
+
+.advanced-search-options .category-button {
+  padding: 0.5rem 1rem; /* Kleinere Buttons */
+  font-size: 0.85rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 15px; /* Kleinere Radien */
+  background: var(--background-color);
+  color: var(--font-color);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+
+.advanced-search-options .category-button:hover {
+  background: var(--background-color-alt);
+  border-color: var(--tanne);
+  transform: translateY(-1px);
+}
+
+.advanced-search-options .category-button.active {
+  background: var(--tanne);
+  color: var(--weiß);
+  border-color: var(--tanne);
 }
