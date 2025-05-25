@@ -6,7 +6,8 @@ const { HTML_FORMATTING_INSTRUCTIONS } = require('../../utils/promptUtils');
  * Vereinfachter Endpunkt zum Generieren eines Antrags ohne Websuche
  */
 router.post('/', async (req, res) => {
-  const { idee, details, gliederung, useBackupProvider, useEuropaProvider, customPrompt } = req.body;
+  // Extract useBedrock along with other flags
+  const { idee, details, gliederung, useBackupProvider, useEuropaProvider, useBedrock, customPrompt } = req.body;
   
   // Aktuelles Datum ermitteln
   const currentDate = new Date().toISOString().split('T')[0];
@@ -15,7 +16,8 @@ router.post('/', async (req, res) => {
     // Logging der Anfrage
     console.log('Einfache Antrag-Anfrage erhalten:', {
       idee: idee?.substring(0, 50) + (idee?.length > 50 ? '...' : ''),
-      hasCustomPrompt: !!customPrompt
+      hasCustomPrompt: !!customPrompt,
+      useBedrock: useBedrock
     });
 
     // Validiere die Eingabedaten
@@ -63,7 +65,8 @@ ${HTML_FORMATTING_INSTRUCTIONS}`;
         content: userContent
       }],
       options: {
-        temperature: 0.3
+        temperature: 0.3,
+        useBedrock: useBedrock
       },
       useBackupProvider,
       useEuropaProvider

@@ -111,8 +111,67 @@ Beispiel der EXAKTEN Struktur:
 </div>
 `;
 
+const MARKDOWN_CHAT_INSTRUCTIONS = `
+**Formatierung und Stil der Chat-Antwort:**
+Bitte formatiere deine Antwort als Markdown und beachte folgende Punkte für einen natürlichen Chat-Verlauf:
+
+1.  **Schreibe wie ein Mensch in einem Messenger (z.B. Signal, WhatsApp):**
+    *   Formuliere kurze, prägnante Nachrichtenblöcke.
+    *   Jeder Block sollte idealerweise nur wenige Sätze (z.B. 2-5 Sätze) umfassen und einen abgeschlossenen Gedanken oder eine klare Information enthalten.
+    *   Vermeide lange, verschachtelte Sätze. Bevorzuge einfache und direkte Sprache.
+
+2.  **Natürliche Aufteilung mit '%%%MSG_SPLIT%%%':**
+    *   Wenn deine gesamte Antwort mehrere solcher kurzen Gedankengänge oder Informationsblöcke enthält, trenne diese bitte mit dem speziellen Trenner \`%%%MSG_SPLIT%%%\`
+        Jeder so getrennte Teil wird als eigene Chat-Nachricht angezeigt.
+    *   Setze den Trenner dort, wo ein natürlicher Übergang zu einer neuen Nachricht sinnvoll ist. Teile keine Sätze oder unmittelbare Gedankengänge.
+    *   Beispiel:
+        "Hallo! Das ist der erste Gedanke. Er ist kurz und bündig.
+        %%%MSG_SPLIT%%%
+        Hier kommt der zweite Punkt. Auch dieser ist leicht verständlich.
+        %%%MSG_SPLIT%%%
+        Und das ist eine abschließende Bemerkung."
+
+3.  **Qualität vor strikter Kürze:**
+    *   Das Ziel sind gut lesbare, natürliche Chat-Nachrichten.
+    *   Wenn ein Gedanke für die Klarheit etwas mehr Länge benötigt, ist das in Ordnung. Eine etwas längere, aber kohärente Nachricht ist besser als ein unnatürlicher Schnitt.
+    *   Verwende den Trenner \`%%%MSG_SPLIT%%%\` nur, wenn es wirklich thematische oder logische Pausen gibt, die eine neue Nachricht rechtfertigen.
+        Wenn deine Antwort von Natur aus kurz ist und keine Aufteilung benötigt, verwende den Trenner nicht.
+
+4.  **Markdown-Nutzung:**
+    *   Verwende Markdown für Hervorhebungen (Fett, Kursiv), Listen und ggf. sehr einfache Überschriften (z.B. \`###\`), um die Lesbarkeit zu verbessern.
+    *   KEIN HTML in dieser Chat-Antwort verwenden.
+`;
+
+const JSON_OUTPUT_FORMATTING_INSTRUCTIONS = `
+**WICHTIG: JSON Formatierungsregeln für die Antwort:**
+Du MUSST deine Antwort im folgenden JSON-Format geben. Stelle absolut sicher, dass das JSON valide ist.
+Alle String-Werte innerhalb des JSON, insbesondere die Felder "response" und "newText", müssen korrekt escaped sein.
+Das bedeutet:
+- Zeilenumbrüche müssen als die zwei Zeichen '\\\\n' (Backslash gefolgt von n) dargestellt werden.
+- Anführungszeichen (" innerhalb von Strings müssen als '\\\\\\\"' (Backslash gefolgt von Anführungszeichen) escaped werden.
+- Tabulatoren müssen als '\\\\t' (Backslash gefolgt von t) escaped werden.
+- Backslashes (\\\\) müssen als '\\\\\\\\' (doppelter Backslash) escaped werden.
+- Andere Steuerzeichen sollten ebenfalls gemäß JSON-Standard escaped werden (z.B. \\\\b, \\\\f, \\\\r).
+
+Beispiel für einen korrekt escapten String-Wert innerhalb des JSON:
+"Dies ist Zeile 1.\\\\nDies ist Zeile 2 mit einem \\\\\\\"Zitat\\\\\\\" und einem Backslash \\\\\\\\.\"
+
+Das JSON-Objekt muss folgende Struktur haben:
+{
+  "response": "Hier deine Erklärung der Änderungen oder deine Antwort, formatiert für die Chat-Anzeige gemäß ${MARKDOWN_CHAT_INSTRUCTIONS}. Der eigentliche bearbeitete Text gehört NICHT hierher, sondern ausschließlich in das Feld 'newText'. (Achte auf korrektes Escaping für JSON, z.B. Zeilenumbrüche als \\\\n)",
+  "textAdjustment": {
+    "type": "selected", // oder "full", je nach Anwendungsfall
+    "newText": "Hier der neue oder angepasste Text, exakt so, wie er im Editor erscheinen soll. Für reinen Text mit Zeilenumbrüchen (z.B. Gedichte) stelle sicher, dass Zeilenumbrüche korrekt als \\\\n im JSON-String escaped sind. Für Rich-Text-Inhalte können (${HTML_FORMATTING_INSTRUCTIONS}) relevant sein. (Achte auf korrektes Escaping für JSON)"
+    // "oldText": null, // nur bei type "full" relevant
+  }
+}
+Stelle sicher, dass die Platzhalter ${MARKDOWN_CHAT_INSTRUCTIONS} und ${HTML_FORMATTING_INSTRUCTIONS} NICHT in deiner finalen JSON-Antwort enthalten sind, sondern dass du deren Anweisungen für den Inhalt der jeweiligen Felder befolgst.
+`;
+
 module.exports = {
   HTML_FORMATTING_INSTRUCTIONS,
   PLATFORM_SPECIFIC_GUIDELINES,
-  PLATFORM_HEADER_STRUCTURE_INSTRUCTIONS
+  PLATFORM_HEADER_STRUCTURE_INSTRUCTIONS,
+  MARKDOWN_CHAT_INSTRUCTIONS,
+  JSON_OUTPUT_FORMATTING_INSTRUCTIONS
 }; 

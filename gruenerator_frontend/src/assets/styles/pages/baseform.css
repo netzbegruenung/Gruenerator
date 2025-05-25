@@ -1,6 +1,3 @@
-/* Imports
-
-/* Grundlegende Container-Struktur */
 .base-container {
     display: flex;
     width: 100%;
@@ -13,7 +10,8 @@
     transition: all 0.3s ease-in-out;
 }
 
-/* Edit Mode */
+
+
 .base-container.editing-mode {
     max-width: 100%;
     justify-content: center;
@@ -25,12 +23,12 @@
     background-color: var(--background-color);
 }
 
-/* Neue Regel um with-header Margin im editing-mode zu überschreiben */
+
 .with-header .base-container.editing-mode {
     margin-top: 0;
 }
 
-/* Formular-Container */
+
 .form-container {
     flex: 1 1 50%;
     max-width: 50%;
@@ -47,7 +45,7 @@
     color: var(--weiß) !important;
 }
 
-/* Anzeige-Container */
+
 .display-container {
     flex: 1 1 50%;
     max-width: 50%;
@@ -61,7 +59,7 @@
     transition: padding 0.3s ease-in-out;
 }
 
-/* Anpassung wenn Content generiert wurde */
+
 .base-container.has-generated-content:not(.focus-mode) {
     padding: 0 px;
 }
@@ -78,7 +76,7 @@
     transition: padding 0.3s ease-in-out;
 }
 
-/* Multi-Platform Anpassungen */
+
 .base-container.multi-platform:not(.focus-mode) {
     max-width: 100%;
     padding: 0 40px;
@@ -100,7 +98,7 @@
     transform: translateX(0);
 }
 
-/* Neue Regel für form-hidden mit erhöhter Spezifität */
+
 .base-container.has-generated-content.multi-platform.form-hidden .form-container {
     flex: 0 0 0 !important;
     max-width: 0 !important;
@@ -117,7 +115,7 @@
     transition: all 0.3s ease-out;
 }
 
-/* Anzeige-Container */
+
 .base-container.editing-mode .display-container {
     flex: 1;
     max-width: 900px;
@@ -142,7 +140,7 @@
     height: auto;
 }
 
-/* Spezifische Anpassungen für den Antragsversteher */
+
 .antragsversteher-base .form-container {
     flex: 1 1 25%;
     max-width: 25%;
@@ -153,7 +151,7 @@
     max-width: 75%;
 }
 
-/* Generierter Inhalt */
+
 .generated-content-wrapper {
     flex: 1;
     display: flex;
@@ -161,7 +159,7 @@
     min-height: 0;
 }
 
-/* Header Styles */
+
 .display-header {
     display: flex;
     justify-content: space-between;
@@ -170,7 +168,7 @@
     transition: all 0.3s ease-in-out;
 }
 
-/* Überschriften */
+
 .form-container h3, .display-container h3, .sidebar h2 {
     margin-top: 0;
     text-align: left;
@@ -189,7 +187,7 @@
     margin-bottom: 8px;
 }
 
-/* Formular-Eingabefelder */
+
 .form-container input, .form-container textarea, .form-container select,
 .sidebar input, .sidebar textarea, .sidebar select {
     font-family: 'PT Sans', Arial, sans-serif;
@@ -224,7 +222,7 @@
     padding: 8px;
 }
 
-/* Fehlermeldungen */
+
 .form-container input.error-input,
 .form-container textarea.error-input,
 .form-container select.error-input,
@@ -234,7 +232,7 @@
     border: 2px solid var(--sonne);
 }
 
-/* Media Queries */
+
 @media (max-width: 1024px) {
     .base-container.multi-platform .platforms-container {
         grid-template-columns: 1fr;
@@ -278,7 +276,7 @@
         width: 100%;
     }
 
-    /* Überschreibe alle Container-Layouts für Mobilgeräte */
+    
     .base-container.has-generated-content:not(.focus-mode),
     .base-container.multi-platform:not(.focus-mode),
     .base-container.editing-mode:not(.focus-mode) {
@@ -294,7 +292,7 @@
         width: 100%;
     }
 
-    /* Multi-Platform Mobile Override */
+    
     .base-container.multi-platform {
         padding: 10px;
     }
@@ -323,7 +321,7 @@
         width: 100%;
     }
 
-    /* Form Elements Mobile */
+    
     .form-container input,
     .form-container textarea,
     .form-container select {
@@ -338,7 +336,7 @@
         padding: 20px 0;
     }
 
-    /* Editor Mode Mobile */
+    
     .base-container.editing-mode {
         padding: 0;
         margin: 0;
@@ -361,23 +359,23 @@
         padding: 15px;
     }
     
-    /* Chat im Editor-Modus auf Mobilgeräten ausblenden */
+    
     .base-container.editing-mode .editor-chat {
         display: none;
     }
 
-    /* Fokus Mode auf mobilen Geräten ausblenden */
+    
     .focus-mode-button {
         display: none !important;
     }
     
-    /* Alle weiteren Focus-Mode Elemente ausblenden */
+    
     .focus-mode-overlay {
         display: none !important;
     }
 }
 
-/* Fokus Mode */
+
 .base-container.focus-mode {
     max-width: 100%;
     justify-content: center;
@@ -405,7 +403,7 @@
     padding: 40px;
 }
 
-/* Display Container zentrieren wenn Form versteckt ist */
+
 .base-container.has-generated-content.form-hidden .display-container {
     flex: 0 0 100%;
     max-width: 900px;
@@ -413,7 +411,7 @@
     margin: 0 auto;
 }
 
-/* Höhere Spezifität für isediting mit multi-platform */
+
 .base-container.editing-mode.has-generated-content.form-hidden .display-container,
 .base-container.editing-mode.has-generated-content.form-hidden.multi-platform .display-container {
     flex: 0 0 100% !important;

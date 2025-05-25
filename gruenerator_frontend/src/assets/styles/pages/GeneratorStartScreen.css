@@ -38,18 +38,18 @@
   text-align: left;
 }
 
-/* New styles for the input wrapper */
+
 .input-wrapper {
   display: flex;
   flex-direction: column;
-  position: relative; /* Needed for potential future absolute positioning inside, though not used now */
+  position: relative; 
   width: 100%;
   border-radius: 12px;
   background-color: var(--background-color-pure);
   box-shadow: var(--shadow-md);
   transition: all 0.2s ease;
-  margin-bottom: 25px; /* Keep the original margin */
-  overflow: hidden; /* Hide anything that might stick out */
+  margin-bottom: 25px; 
+  overflow: hidden; 
 }
 
 .input-wrapper:focus-within {
@@ -63,24 +63,24 @@
   outline-offset: 2px;
 }
 
-/* Modified styles for the textarea itself */
+
 .description-input {
-  flex-grow: 1; /* Take up available space */
+  flex-grow: 1; 
   width: 100%;
-  padding: 20px; /* Keep padding, adjusted by dynamic padding-bottom */
+  padding: 20px; 
   font-size: 1.1rem;
-  border: none; /* Remove border */
-  border-radius: 0; /* Remove radius, wrapper has it */
-  background-color: transparent; /* Make transparent */
-  box-shadow: none; /* Remove shadow */
-  resize: none; /* Disable manual resize */
+  border: none; 
+  border-radius: 0; 
+  background-color: transparent; 
+  box-shadow: none; 
+  resize: none; 
   line-height: 1.6;
   color: var(--font-color);
-  margin-bottom: 0; /* Remove original margin */
-  outline: none; /* Remove default outline */
+  margin-bottom: 0; 
+  outline: none; 
 }
 
-/* Remove focus/error styles from textarea, handled by wrapper */
+
 .description-input:focus,
 .description-input.error-input {
   outline: none;
@@ -92,26 +92,26 @@
   opacity: 0.7;
 }
 
-/* Container for example prompts inside the wrapper */
+
 .example-prompts-container {
-  padding: 0 15px 10px 15px; /* Padding around the examples */
-  align-self: flex-end; /* Move to the right */
-  margin-top: -10px; /* Slightly overlap textarea bottom padding if needed, adjust as necessary */
+  padding: 0 15px 10px 15px; 
+  align-self: flex-end; 
+  margin-top: -10px; 
 }
 
-/* Styles for Example Prompts */
+
 .example-prompts {
   display: flex;
-  flex-wrap: wrap; /* Allow buttons to wrap on smaller screens */
+  flex-wrap: wrap; 
   gap: 10px;
-  margin-bottom: 20px; /* Space below examples */
+  margin-bottom: 20px; 
   width: 100%;
 }
 
 .example-prompt-button {
   background-color: var(--hintergrund-hell);
   border: 1px solid var(--hintergrund-mittel);
-  border-radius: 20px; /* Pill shape */
+  border-radius: 20px; 
   padding: 8px 15px;
   font-size: 0.9rem;
   color: var(--font-color);
@@ -121,11 +121,11 @@
   gap: 6px;
   transition: all 0.2s ease;
   text-align: left;
-  white-space: nowrap; /* Prevent text wrapping inside button */
+  white-space: nowrap; 
 }
 
 .example-prompt-button span:first-child {
-  font-size: 1.1em; /* Make icon slightly larger */
+  font-size: 1.1em; 
 }
 
 .example-prompt-button:hover {
@@ -139,7 +139,7 @@
   outline: 2px solid var(--link-color);
   outline-offset: 2px;
 }
-/* End of Styles for Example Prompts */
+
 
 .generate-button {
   padding: 18px 40px;

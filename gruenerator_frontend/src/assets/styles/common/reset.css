@@ -1,4 +1,4 @@
-/* Reset Styles */
+
 html {
   box-sizing: border-box;
   font-size: 16px;
@@ -35,7 +35,7 @@ img {
   height: auto;
 }
 
-/* Form Reset */
+
 button,
 input,
 select,
@@ -46,7 +46,7 @@ textarea {
   line-height: inherit;
 }
 
-/* Remove default button styles */
+
 button {
   border: none;
   background: none;
@@ -54,7 +54,7 @@ button {
   cursor: pointer;
 }
 
-/* Remove default link styles */
+
 a {
   text-decoration: none;
   color: inherit;

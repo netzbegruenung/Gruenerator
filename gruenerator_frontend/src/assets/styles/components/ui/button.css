@@ -1,4 +1,4 @@
-/* buttons.css */
+
 ;
 
 :root {
@@ -122,7 +122,7 @@
   cursor: pointer;
   transition: background-color 0.3s, transform 0.3s;
   border-radius: var(--button-border-radius);
-  padding: 10px 15px; /* Vernünftiges Padding hinzugefügt */
+  padding: 10px 15px; 
   background-color: var(--tanne);
   color: var(--weiß);
   border: 2px solid var(--weiß);
@@ -139,7 +139,7 @@
   transform: scale(1.01);
 }
 
-/*submitbutton*/
+
 
 .submit-button {
   position: relative;
@@ -289,7 +289,7 @@
   .image-search-button,
   .file-input-wrapper {
     font-size: 0.85em;
-    padding: 8px 16px; /* Reduziertes Padding für mobile Geräte */
+    padding: 8px 16px; 
   }
 
   .download-button {
@@ -298,7 +298,7 @@
   }
 }
 
-/* Gemeinsame Styles für FileUpload, UnsplashButton und AlternativesButton */
+
 .file-input-text,
 .unsplash-search-button,
 .show-alternatives-button {
@@ -348,7 +348,7 @@
   }
 }
 
-/* Action Buttons Container (für die drei Buttons in einer Reihe) */
+
 .action-buttons {
   display: flex;
   gap: 1rem;
@@ -410,7 +410,7 @@
   }
 }
 
-/* Spezifische Styles für Slogan-Alternative Buttons */
+
 .alternatives-button-wrapper {
   position: relative;
   flex: 1;
@@ -446,7 +446,7 @@
   transform: scale(1.01);
 }
 
-/* Button Fade Transition */
+
 .button-fade-enter {
   opacity: 0;
   transform: translateY(-10px);
@@ -481,7 +481,7 @@
   }
 }
 
-/* Sharepic Download Button */
+
 .sharepic-download-button {
   width: 100%;
   height: 42px;
@@ -579,7 +579,7 @@
   border-width: 2px;
 }
 
-/* Primary Button Style */
+
 .button.button-primary {
   background-color: var(--tanne);
   color: var(--weiß);
@@ -589,17 +589,17 @@
   background-color: var(--klee);
 }
 
-/* New Button Style: Tanne background with white border */
+
 .btn.btn-tanne-bordered {
-    background-color: var(--tanne, #006A4E); /* Tanne background */
-    border: 2px solid var(--weiß, #ffffff); /* White border */
+    background-color: var(--tanne, #006A4E); 
+    border: 2px solid var(--weiß, #ffffff); 
     border-radius: 10px;
-    color: var(--weiß, #ffffff); /* White text */
+    color: var(--weiß, #ffffff); 
     padding: 10px 20px;
 }
 
 .btn.btn-tanne-bordered:hover {
-    background-color: var(--klee, #008939); /* Klee on hover */
+    background-color: var(--klee, #008939); 
     border-color: var(--weiß, #ffffff);
     color: var(--weiß, #ffffff);
 }

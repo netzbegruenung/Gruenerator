@@ -1,4 +1,4 @@
-/* Basis-Styling für react-tooltip */
+
 #action-tooltip {
     background-color: var(--dunkelgruen) !important;
     color: white !important;
@@ -9,7 +9,7 @@
     opacity: 1 !important;
   }
   
-  /* Pfeil-Styling - jetzt für bottom position */
+  
   #action-tooltip.react-tooltip::before {
     border-bottom-color: var(--grau) !important;
     border-top-color: transparent !important;

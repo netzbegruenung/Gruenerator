@@ -11,6 +11,7 @@ html {
     -moz-osx-font-smoothing: grayscale;
     font-size-adjust: 100%;
     -webkit-tap-highlight-color: transparent;
+    overflow: auto;
 }
 
 body {

@@ -10,6 +10,7 @@ import RouteComponent from './components/routing/RouteComponent';
 import { routes } from './config/routes';
 import { AuthProvider } from './components/utils/AuthContext';
 import SupabaseAuthProvider from './context/SupabaseAuthContext';
+import { BetaFeaturesProvider } from './context/BetaFeaturesContext';
 import CustomGeneratorPage from './features/generators/CustomGeneratorPage';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
@@ -76,49 +77,18 @@ function App() {
       <AuthProvider>
         <QueryClientProvider client={queryClient}>
           <SupabaseAuthProvider>
-            <Router>
-              <ScrollToTop />
-              <RouteLogger />
-              <SuspenseWrapper>
-                <PopupNutzungsbedingungen />
-                <WelcomePopup />
-                <div id="aria-live-region" aria-live="polite" className="sr-only"></div>
-                
-                <Routes>
-                  {/* Standard-Routen */}
-                  {routes.standard.map(({ path }) => (
-                    <Route
-                      key={path}
-                      path={path}
-                      element={
-                        <RouteComponent 
-                          path={path} 
-                          darkMode={darkMode} 
-                          toggleDarkMode={toggleDarkMode}
-                        />
-                      }
-                    />
-                  ))}
-
-                  {/* Spezielle Routen */}
-                  {routes.special.map(({ path }) => (
-                    <Route
-                      key={path}
-                      path={path}
-                      element={
-                        <RouteComponent 
-                          path={path} 
-                          darkMode={darkMode} 
-                          toggleDarkMode={toggleDarkMode}
-                          isSpecial
-                        />
-                      }
-                    />
-                  ))}
-
-                  {/* No-Header-Footer Routen */}
-                  {routes.noHeaderFooter.map(({ path }) => {
-                    return (
+            <BetaFeaturesProvider>
+              <Router>
+                <ScrollToTop />
+                <RouteLogger />
+                <SuspenseWrapper>
+                  <PopupNutzungsbedingungen />
+                  <WelcomePopup />
+                  <div id="aria-live-region" aria-live="polite" className="sr-only"></div>
+                  
+                  <Routes>
+                    {/* Standard-Routen */}
+                    {routes.standard.map(({ path }) => (
                       <Route
                         key={path}
                         path={path}
@@ -127,17 +97,50 @@ function App() {
                             path={path} 
                             darkMode={darkMode} 
                             toggleDarkMode={toggleDarkMode}
-                            showHeaderFooter={false}
                           />
                         }
                       />
-                    );
-                  })}
+                    ))}
 
-                  <Route path="/generator/:slug" element={<CustomGeneratorPage />} />
-                </Routes>
-              </SuspenseWrapper>
-            </Router>
+                    {/* Spezielle Routen */}
+                    {routes.special.map(({ path }) => (
+                      <Route
+                        key={path}
+                        path={path}
+                        element={
+                          <RouteComponent 
+                            path={path} 
+                            darkMode={darkMode} 
+                            toggleDarkMode={toggleDarkMode}
+                            isSpecial
+                          />
+                        }
+                      />
+                    ))}
+
+                    {/* No-Header-Footer Routen */}
+                    {routes.noHeaderFooter.map(({ path }) => {
+                      return (
+                        <Route
+                          key={path}
+                          path={path}
+                          element={
+                            <RouteComponent 
+                              path={path} 
+                              darkMode={darkMode} 
+                              toggleDarkMode={toggleDarkMode}
+                              showHeaderFooter={false}
+                            />
+                          }
+                        />
+                      );
+                    })}
+
+                    <Route path="/generator/:slug" element={<CustomGeneratorPage />} />
+                  </Routes>
+                </SuspenseWrapper>
+              </Router>
+            </BetaFeaturesProvider>
           </SupabaseAuthProvider>
           <ReactQueryDevtools initialIsOpen={false} />
         </QueryClientProvider>

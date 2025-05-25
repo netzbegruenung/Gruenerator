@@ -1,20 +1,20 @@
-/* --- Base Layout for the Detail Page --- */
+
 .antrag-detail-page-wrapper {
-    padding: var(--spacing-xlarge) var(--spacing-medium); /* Vertical and horizontal padding */
-    background-color: var(--background-color); /* Standard page background */
-    min-height: calc(100vh - var(--header-height, 60px) - var(--footer-height, 60px)); /* Example: Fill viewport height minus header/footer */
+    padding: var(--spacing-xlarge) var(--spacing-medium); 
+    background-color: var(--background-color); 
+    min-height: calc(100vh - var(--header-height, 60px) - var(--footer-height, 60px)); 
     display: flex;
-    justify-content: center; /* Center the container */
+    justify-content: center; 
   }
   
   .antrag-detail-page-container {
-    max-width: 960px; /* Max width for content readability */
+    max-width: 960px; 
     width: 100%;
     color: var(--font-color);
-    /* Removed box-shadow, border-radius, overflow from modal */
+    
   }
   
-  /* Loading and Error States */
+  
   .antrag-detail-loading,
   .antrag-detail-error {
     display: flex;
@@ -22,11 +22,11 @@
     align-items: center;
     justify-content: center;
     text-align: center;
-    min-height: 300px; /* Ensure some height */
+    min-height: 300px; 
     gap: var(--spacing-medium);
   }
   .antrag-detail-error h2 {
-    color: var(--error-color, var(--error)); /* Use error color */
+    color: var(--error-color, var(--error)); 
     margin: 0;
   }
   .antrag-detail-error a {
@@ -34,15 +34,15 @@
       text-decoration: underline;
   }
   
-  /* --- 1. Header Section --- */
+  
   .antrag-detail-page-header {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
     gap: var(--spacing-large);
-    margin-bottom: var(--spacing-small); /* Reduced margin, tags follow directly */
+    margin-bottom: var(--spacing-small); 
     padding-bottom: 0;
-    /* Kein border-bottom mehr */
+    
   }
   
   .header-content {
@@ -63,33 +63,33 @@
     padding-bottom: var(--spacing-small);
   }
   
-  /* Angepasster kürzerer Unterstrich */
+  
   .antrag-detail-page-header h1::after {
       content: '';
       position: absolute;
       bottom: 0px;
-      left: 0; /* Beginnt linksbündig */
-      width: 80px; /* Kürzere, feste Breite (anpassen nach Geschmack) */
-      /* Oder prozentual: width: 30%; */
-      height: 4px; /* Etwas dicker vielleicht? */
+      left: 0; 
+      width: 80px; 
+      
+      height: 4px; 
       background-color: var(--klee);
       border-radius: 2px;
   }
   
-  /* --- 2. Tags Section Styling (Moved below Header) --- */
+  
   .antrag-detail-page-tags {
-    margin-bottom: var(--spacing-xlarge); /* Space before Description/Meta block */
-    /* Remove styles specific to being the third column */
-    /* padding: var(--spacing-small); */
-    /* background-color: transparent; */
-    /* border: none; */
+    margin-bottom: var(--spacing-xlarge); 
+    
+    
+    
+    
   }
   .antrag-detail-page-tags .tags-list {
     display: flex;
     flex-wrap: wrap;
     gap: var(--spacing-xsmall);
   }
-  /* Tag chip styling remains the same */
+  
   .tag-chip {
     display: inline-block;
     padding: var(--spacing-xxsmall) var(--spacing-small);
@@ -101,25 +101,25 @@
     white-space: nowrap;
   }
   
-  /* --- 3. Main Info Wrapper (Description & Meta) --- */
+  
   .antrag-detail-main-info {
     display: flex;
-    flex-direction: column; /* Stack on mobile by default */
-    gap: var(--spacing-large); /* Gap between description and meta on mobile */
-    margin-bottom: var(--spacing-xlarge); /* Space before content */
+    flex-direction: column; 
+    gap: var(--spacing-large); 
+    margin-bottom: var(--spacing-xlarge); 
   }
   
-  /* --- Description Box Styling --- */
+  
   .antrag-detail-description-box {
     padding: var(--spacing-medium);
-    background-color: var(--background-color-alt); /* Give it a background */
+    background-color: var(--background-color-alt); 
     border-radius: var(--spacing-small);
     border: 1px solid var(--border-subtle);
-    /* Optional: Add border-left like previous description style */
-    /* border-left: 4px solid var(--tanne); */
-    /* padding-left: var(--spacing-large); */ /* Adjust padding if border-left is used */
+    
+    
+     
   }
-  /* Optional: Styling for a heading inside the box */
+  
   /*
   .antrag-detail-description-box .description-box-heading {
       margin-top: 0;
@@ -130,34 +130,34 @@
   }
   */
   .antrag-detail-description-box p {
-    margin: 0; /* Remove default paragraph margin */
-    font-size: 0.95em; /* Slightly smaller text? */
+    margin: 0; 
+    font-size: 0.95em; 
     line-height: 1.6;
     color: var(--font-color);
-    /* Keep font-weight normal unless specified */
+    
   }
   
   
-  /* --- Meta Section (Positioned by Wrapper) --- */
+  
   .antrag-detail-page-meta {
-    /* Styling remains largely the same (padding, background, border, grid) */
-    /* Remove margin-bottom if set previously, handled by wrapper gap/margin */
+    
+    
     padding: var(--spacing-medium);
     background-color: var(--background-color-alt);
     border-radius: var(--spacing-small);
     border: 1px solid var(--border-subtle);
-     /* Grid styles remain */
+     
      display: grid;
      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-     gap: var(--spacing-large); /* Increased gap between meta items for clarity */
+     gap: var(--spacing-large); 
   }
   
-  /* Meta Item styles adjusted for vertical stacking */
+  
   .meta-item {
     display: flex;
-    flex-direction: column;   /* CHANGE: Stack label and value vertically */
-    /* align-items: baseline; */ /* REMOVE: Not needed for column layout */
-    gap: var(--spacing-xxsmall); /* CHANGE: Controls vertical gap */
+    flex-direction: column;   
+     
+    gap: var(--spacing-xxsmall); 
   }
   
   .meta-label {
@@ -167,7 +167,7 @@
     opacity: 0.8;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    /* flex-shrink: 0; */ /* REMOVE: Not needed for column layout */
+     
   }
   
   .meta-value {
@@ -182,95 +182,95 @@
     text-decoration: underline;
   }
   
-  /* --- Desktop Layout for Main Info Wrapper (Now 2 Columns) --- */
-  @media (min-width: 992px) { /* Adjust breakpoint as needed */
+  
+  @media (min-width: 992px) { 
     .antrag-detail-main-info {
-      flex-direction: row; /* Side-by-side */
-      align-items: stretch; /* Keep boxes same height */
+      flex-direction: row; 
+      align-items: stretch; 
       gap: var(--spacing-xlarge);
     }
   
     .antrag-detail-description-box {
-      /* Adjust flex for 2 columns, e.g., 40% */
+      
       flex: 1 1 40%;
       min-width: 300px;
     }
   
     .antrag-detail-page-meta {
-      /* Adjust flex for 2 columns, e.g., 60% */
+      
       flex: 1 1 60%;
       min-width: 350px;
-      /* Maybe adjust grid gap slightly for desktop if needed */
-      /* gap: var(--spacing-xlarge); */
+      
+      
     }
   }
   
   
-  /* --- 4. Content Section (Antragstext) --- */
+  
   .antrag-detail-page-content {
-    margin-bottom: var(--spacing-xxlarge); /* Extra space at the bottom */
-    max-width: 75ch; /* Apply max-width here */
-    margin-left: auto; /* Center the whole section */
-    margin-right: auto; /* Center the whole section */
+    margin-bottom: var(--spacing-xxlarge); 
+    max-width: 75ch; 
+    margin-left: auto; 
+    margin-right: auto; 
   }
   
   .antrag-detail-page-content h2 {
-    /* Use h2 styles from typography.css */
-    margin-top: 0; /* No extra top margin needed */
-    margin-bottom: var(--spacing-large); /* Space before content */
+    
+    margin-top: 0; 
+    margin-bottom: var(--spacing-large); 
     color: var(--font-color-h);
-    border-bottom: 2px solid var(--tanne); /* Underline heading */
+    border-bottom: 2px solid var(--tanne); 
     padding-bottom: var(--spacing-small);
-    display: inline-block; /* Keep this to ensure border only spans text */
+    display: inline-block; 
   }
   
-  /* Styling for the Markdown content itself */
+  
   .markdown-content {
-    line-height: 1.7; /* Improved readability - OK */
-    color: var(--font-color); /* OK */
-    font-family: 'PT Sans', Arial, sans-serif; /* Ensure PT Sans is used */
-    font-size: 1rem; /* Set base font size (e.g., 16px) for consistency */
-    /* Remove max-width and margin-left/right as parent now handles centering */
+    line-height: 1.7; 
+    color: var(--font-color); 
+    font-family: 'PT Sans', Arial, sans-serif; 
+    font-size: 1rem; 
+    
   }
   
-  /* Basic Markdown Element Styling (can be extended) */
+  
   .markdown-content p,
   .markdown-content ul,
   .markdown-content ol,
   .markdown-content blockquote {
-      margin-bottom: var(--spacing-medium); /* OK */
+      margin-bottom: var(--spacing-medium); 
   }
   .markdown-content h1, .markdown-content h2, .markdown-content h3,
   .markdown-content h4, .markdown-content h5, .markdown-content h6 {
-      margin-top: var(--spacing-xlarge); /* More space above headings */
+      margin-top: var(--spacing-xlarge); 
       margin-bottom: var(--spacing-small) !important;
-      color: var(--font-color-h); /* Use heading color */
+      color: var(--font-color-h); 
       line-height: 1.3;
-      font-family: 'PT Sans', Arial, sans-serif; /* Use PT Sans for headings within markdown */
-      font-weight: bold; /* Make headings bold */
-      /* Override global font sizes with relative ones for hierarchy */
+      font-family: 'PT Sans', Arial, sans-serif; 
+      font-weight: bold; 
+      
   }
-  /* Relative font sizes for headings within markdown */
-  .markdown-content h1 { font-size: 1.8em; } /* Adjust values as needed */
+  
+  .markdown-content h1 { font-size: 1.8em; } 
   .markdown-content h2 { font-size: 1.5em; }
   .markdown-content h3 { font-size: 1.3em; }
   .markdown-content h4 { font-size: 1.1em; }
-  .markdown-content h5 { font-size: 1em; } /* Same size as base, but bold */
-  .markdown-content h6 { font-size: 0.9em; color: var(--font-color); } /* Smaller, maybe normal text color */
+  .markdown-content h5 { font-size: 1em; } 
+  .markdown-content h6 { font-size: 0.9em; color: var(--font-color); } 
   
   .markdown-content a {
-      color: var(--link-color); /* OK */
-      text-decoration: underline; /* OK */
+      color: var(--link-color); 
+      text-decoration: underline; 
   }
   .markdown-content a:hover {
-      text-decoration: none; /* OK */
+      text-decoration: none; 
   }
   .markdown-content code {
       background-color: var(--background-color-alt);
       padding: 0.2em 0.4em;
       border-radius: 3px;
       font-family: monospace;
-      font-size: 0.95em; /* Slightly larger */
+      font-size: 0.95em; 
       border: 1px solid var(--border-subtle);
   }
   .markdown-content pre {
@@ -279,15 +279,15 @@
       border-radius: 4px;
       overflow-x: auto;
       font-family: monospace;
-      font-size: 0.95em; /* Slightly larger */
+      font-size: 0.95em; 
       border: 1px solid var(--border-subtle);
-      line-height: 1.5; /* Increased line height for code blocks */
+      line-height: 1.5; 
   }
   .markdown-content pre code {
       padding: 0;
       background-color: transparent;
       border: none;
-      font-size: inherit; /* Inherit size from pre */
+      font-size: inherit; 
   }
   .markdown-content blockquote {
       border-left: 4px solid var(--border-subtle);
@@ -295,29 +295,29 @@
       color: var(--font-color);
       opacity: 0.9;
       font-style: italic;
-      margin-left: 0; /* Ensure no double indentation */
+      margin-left: 0; 
       margin-right: 0;
   }
   .markdown-content ul, .markdown-content ol {
-      padding-left: var(--spacing-large); /* Indent lists - OK */
+      padding-left: var(--spacing-large); 
   }
   .markdown-content li {
-      margin-bottom: var(--spacing-xsmall); /* OK */
+      margin-bottom: var(--spacing-xsmall); 
   }
   
-  /* Optional: Anpassung für kleinere Screens, falls die Body-Größe zu stark beeinflusst */
+  
   @media (max-width: 768px) {
      .markdown-content {
-         font-size: 1.05rem; /* Adjust base size for mobile if needed */
-         max-width: none; /* Allow full width on mobile */
+         font-size: 1.05rem; 
+         max-width: none; 
      }
-     /* Adjust heading sizes for mobile if needed */
+     
      .markdown-content h1 { font-size: 1.6em; }
      .markdown-content h2 { font-size: 1.4em; }
      .markdown-content h3 { font-size: 1.2em; }
   }
   
-  /* --- Footer Link --- */
+  
   .antrag-detail-page-footer {
       margin-top: var(--spacing-xxlarge);
       padding-top: var(--spacing-large);
@@ -337,7 +337,7 @@
       text-decoration: underline;
   }
   
-  /* --- Action Buttons for Edit Mode --- */
+  
   .antrag-detail-actions {
     display: flex;
     justify-content: flex-end;
@@ -345,34 +345,34 @@
     margin-bottom: var(--spacing-large);
   }
   
-  /* --- Responsive adjustments --- */
+  
   @media (max-width: 767px) {
     .antrag-detail-page-wrapper {
-      padding: var(--spacing-large) var(--spacing-small); /* Reduce padding on small screens */
+      padding: var(--spacing-large) var(--spacing-small); 
     }
   
     .antrag-detail-page-header {
-      flex-direction: column; /* Stack header content */
+      flex-direction: column; 
       align-items: flex-start;
       gap: var(--spacing-medium);
-      border-bottom: none; /* Remove border on mobile? Optional */
+      border-bottom: none; 
       margin-bottom: var(--spacing-large);
     }
   
     .status-badge {
-       margin-top: 0; /* Reset margin */
+       margin-top: 0; 
     }
   
     .antrag-detail-page-meta {
-      grid-template-columns: 1fr; /* Stack meta items */
-      gap: var(--spacing-medium); /* Adjust gap */
+      grid-template-columns: 1fr; 
+      gap: var(--spacing-medium); 
       padding: var(--spacing-medium);
       margin-bottom: var(--spacing-large);
     }
   
     .antrag-detail-page-description {
         padding: var(--spacing-medium);
-        padding-left: var(--spacing-large); /* Keep left padding for border */
+        padding-left: var(--spacing-large); 
         margin-bottom: var(--spacing-large);
     }
   

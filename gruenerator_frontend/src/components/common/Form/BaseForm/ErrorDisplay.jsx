@@ -14,7 +14,7 @@ const ErrorDisplay = ({ error }) => {
   const errorMessage = getErrorMessage(error);
 
   return (
-    <p role="alert" aria-live="assertive" className="error-message">
+    <p role="alert" aria-live="assertive" className="form-error-message">
       {errorMessage}
     </p>
   );

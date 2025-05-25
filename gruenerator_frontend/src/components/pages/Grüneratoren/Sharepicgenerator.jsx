@@ -19,6 +19,8 @@ import {
   SHAREPIC_GENERATOR, 
   ERROR_MESSAGES, 
 } from '../../utils/constants';
+import { useSupabaseAuth } from '../../../context/SupabaseAuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const getHelpContent = (step, showingAlternatives = false) => {
   switch (step) {
@@ -72,6 +74,15 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
   const { renderFormFields } = useSharepicRendering();
   const [errors, setErrors] = useState({});
   const [showAlternatives, setShowAlternatives] = useState(false);
+
+  const { user, loading: authLoading } = useSupabaseAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      navigate('/');
+    }
+  }, [authLoading, user, navigate]);
 
   useEffect(() => {
     if (hasSeenWelcome && state.currentStep === FORM_STEPS.WELCOME) {
@@ -278,9 +289,10 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
   }, [state.currentStep, state.formData, handleChange, errors]);
 
   const handleSloganSelect = useCallback((selected) => {
+    console.log('[SharepicGenerator] handleSloganSelect called. Type:', state.formData.type, 'Selected Slogan:', JSON.stringify(selected));
     if (state.formData.type === 'Zitat') {
+      console.log('[SharepicGenerator] Quote slogan selected. Current state.formData from closure:', JSON.stringify(state.formData));
       updateFormData({
-        ...state.formData,
         quote: selected.quote
       });
     } else {
@@ -344,6 +356,10 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
     });
   }, [updateFormData]);
 
+  if (authLoading) {
+    return <div className="container">Lade Authentifizierung...</div>; // Or a more sophisticated loading spinner
+  }
+
   if (state.currentStep === FORM_STEPS.WELCOME && !hasSeenWelcome) {
     return (
       <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
@@ -377,39 +393,37 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
 
   return (
     <ErrorBoundary>
-      <VerifyFeature feature="sharepic">
-        <div
-          className={`container ${showHeaderFooter ? 'with-header' : ''} ${darkMode ? 'dark-mode' : ''}`}
-          role="main"
-          aria-label="Sharepic Generator"
+      <div
+        className={`container ${showHeaderFooter ? 'with-header' : ''} ${darkMode ? 'dark-mode' : ''}`}
+        role="main"
+        aria-label="Sharepic Generator"
+      >
+        <BaseForm
+          title={helpContent ? helpContent.title : SHAREPIC_GENERATOR.TITLE}
+          onSubmit={handleFormSubmit}
+          onBack={handleBack}
+          loading={state.loading || generationLoading}
+          error={state.error || generationError}
+          generatedContent={state.generatedImageSrc || displayContent}
+          useDownloadButton={state.currentStep === FORM_STEPS.RESULT}
+          showBackButton={state.currentStep > FORM_STEPS.INPUT}
+          submitButtonText={submitButtonText}
+          currentStep={state.currentStep}
+          formErrors={errors}
+          isSubmitting={state.isSubmitting}
+          currentSubmittingStep={state.currentSubmittingStep}
+          credit={state.formData.credit}
+          fileUploadProps={fileUploadProps}
+          fontSize={state.formData.fontSize || SHAREPIC_GENERATOR.DEFAULT_FONT_SIZE}
+          balkenOffset={state.formData.balkenOffset || SHAREPIC_GENERATOR.DEFAULT_BALKEN_OFFSET}
+          colorScheme={state.formData.colorScheme || SHAREPIC_GENERATOR.DEFAULT_COLOR_SCHEME}
+          balkenGruppenOffset={state.formData.balkenGruppenOffset || [0, 0]}
+          sunflowerOffset={state.formData.sunflowerOffset || [0, 0]}
+          onControlChange={handleControlChange}
         >
-          <BaseForm
-            title={helpContent ? helpContent.title : SHAREPIC_GENERATOR.TITLE}
-            onSubmit={handleFormSubmit}
-            onBack={handleBack}
-            loading={state.loading || generationLoading}
-            error={state.error || generationError}
-            generatedContent={state.generatedImageSrc || displayContent}
-            useDownloadButton={state.currentStep === FORM_STEPS.RESULT}
-            showBackButton={state.currentStep > FORM_STEPS.INPUT}
-            submitButtonText={submitButtonText}
-            currentStep={state.currentStep}
-            formErrors={errors}
-            isSubmitting={state.isSubmitting}
-            currentSubmittingStep={state.currentSubmittingStep}
-            credit={state.formData.credit}
-            fileUploadProps={fileUploadProps}
-            fontSize={state.formData.fontSize || SHAREPIC_GENERATOR.DEFAULT_FONT_SIZE}
-            balkenOffset={state.formData.balkenOffset || SHAREPIC_GENERATOR.DEFAULT_BALKEN_OFFSET}
-            colorScheme={state.formData.colorScheme || SHAREPIC_GENERATOR.DEFAULT_COLOR_SCHEME}
-            balkenGruppenOffset={state.formData.balkenGruppenOffset || [0, 0]}
-            sunflowerOffset={state.formData.sunflowerOffset || [0, 0]}
-            onControlChange={handleControlChange}
-          >
-            {memoizedFormFields}
-          </BaseForm>
-        </div>
-      </VerifyFeature>
+          {memoizedFormFields}
+        </BaseForm>
+      </div>
     </ErrorBoundary>
   );
 

@@ -1,7 +1,15 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import PropTypes from 'prop-types';
+import { motion } from 'motion/react';
+
 const StyledCheckbox = ({ id, checked, onChange, label }) => {
   const checkboxId = id || `checkbox-${Math.random().toString(36).substr(2, 9)}`;
+  const hasInteracted = useRef(false);
+
+  const handleChange = (e) => {
+    hasInteracted.current = true;
+    onChange(e);
+  };
 
   return (
     <div className="checkbox-wrapper-28">
@@ -9,20 +17,43 @@ const StyledCheckbox = ({ id, checked, onChange, label }) => {
         id={checkboxId}
         type="checkbox"
         checked={checked}
-        onChange={onChange}
+        onChange={handleChange}
         className="promoted-input-checkbox"
       />
       <label htmlFor={checkboxId}>
-        <svg xmlns="http://www.w3.org/2000/svg" className="checkbox-svg" viewBox="0 0 24 24">
-          <path 
+        <motion.svg 
+          xmlns="http://www.w3.org/2000/svg" 
+          className="checkbox-svg" 
+          viewBox="0 0 24 24"
+          initial={{ scale: 0.8, opacity: 0, rotate: 0, y: "-50%" }}
+          animate={{ 
+            scale: 0.8, 
+            opacity: checked ? 1 : 0,
+            rotate: checked ? 3 : 0,
+            y: "-50%"
+          }}
+          transition={{ 
+            type: "spring", 
+            stiffness: 300, 
+            damping: 20 
+          }}
+        >
+          <motion.path 
             fill="none" 
             stroke="currentColor" 
             strokeWidth="3"
             strokeLinecap="round"
             strokeLinejoin="round"
             d="M1.73 12.91l6.37 6.37L22.79 4.59"
+            initial={{ pathLength: checked ? 1 : 0 }}
+            animate={{ pathLength: checked ? 1 : 0 }}
+            transition={{ 
+              duration: hasInteracted.current ? 0.3 : 0,
+              ease: "easeOut",
+              delay: checked && hasInteracted.current ? 0.1 : 0
+            }}
           />
-        </svg>
+        </motion.svg>
         <span className="checkbox-label">{label}</span>
       </label>
     </div>

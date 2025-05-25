@@ -169,7 +169,7 @@
   background-color: #e9ecef;
 }
 
-/* Sperrzustand Styling */
+
 .verify-box.locked .verify-input {
   border-color: #d32f2f;
   background-color: rgba(211, 47, 47, 0.05);
@@ -180,7 +180,7 @@
   cursor: not-allowed;
 }
 
-/* Fortschrittsanzeige für verbleibende Versuche */
+
 .verify-attempts {
   display: flex;
   gap: 0.5rem;
@@ -204,7 +204,7 @@
   background-color: #d32f2f;
 }
 
-/* Dark Mode Anpassungen für neue Elemente */
+
 [data-theme="dark"] .attempt-dot {
   background-color: var(--background-color);
 }
@@ -221,7 +221,7 @@
   background-color: rgba(211, 47, 47, 0.1);
 }
 
-/* Neue Sicherheitsfunktionen */
+
 .verify-attempts {
   display: flex;
   gap: 0.5rem;

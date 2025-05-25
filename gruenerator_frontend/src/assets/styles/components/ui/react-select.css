@@ -1,0 +1,157 @@
+/* Styles for react-select component */
+
+/* Overall container */
+.react-select__control {
+  background-color: var(--background-color) !important;
+  border: var(--border-subtle) !important;
+  border-radius: 4px !important;
+  box-shadow: none !important; 
+  min-height: 38px !important; 
+  padding: var(--spacing-xxsmall) var(--spacing-xsmall) !important; 
+  transition: border-color 0.2s ease !important;
+}
+
+.react-select__control--is-focused {
+  border-color: var(--tanne) !important;
+  box-shadow: 0 0 0 1px var(--tanne) !important; /* Focus ring like other inputs */
+}
+
+.react-select__control--menu-is-open {
+  border-bottom-left-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+}
+
+/* Placeholder text */
+.react-select__placeholder {
+  color: var(--font-color-subtle) !important;
+  margin-left: 2px !important;
+  margin-right: 2px !important;
+  font-size: 1rem; /* Match other input placeholder font-size */
+}
+
+/* Input field itself */
+.react-select__input-container {
+  color: var(--font-color) !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+.react-select__input {
+  color: var(--font-color) !important;
+  font-size: 1rem; /* Match other input font-size */
+}
+
+
+/* Value container - holds selected value(s) and input */
+.react-select__value-container {
+  padding: 0 var(--spacing-xxsmall) !important; /* Reduced padding within the control */
+}
+
+/* Single selected value */
+.react-select__single-value {
+  color: var(--font-color) !important;
+  margin-left: 2px !important;
+  margin-right: 2px !important;
+  font-size: 1rem; /* Match other input font-size */
+}
+
+/* Multi-value selected items (tags) */
+.react-select__multi-value {
+  background-color: var(--background-color-alt) !important;
+  border-radius: 3px !important;
+  color: var(--font-color) !important;
+  margin: 2px var(--spacing-xxsmall) 2px 0 !important;
+  padding: 2px var(--spacing-xxsmall) !important; /* Slightly smaller padding for tags */
+}
+
+.react-select__multi-value__label {
+  color: var(--font-color) !important;
+  font-size: 0.85rem !important; /* Slightly smaller font for tags */
+  padding: 2px !important; /* Adjust padding as needed */
+  padding-right: 2px !important;
+}
+
+.react-select__multi-value__remove {
+  color: var(--font-color-subtle) !important;
+  border-radius: 0 3px 3px 0 !important; /* Keep consistent rounding */
+  padding-left: 3px !important;
+  padding-right: 3px !important;
+}
+
+.react-select__multi-value__remove:hover {
+  background-color: var(--error-bg-color, #ffebee) !important; /* Use a variable or a subtle error indication */
+  color: var(--error-color, red) !important;
+}
+
+/* Dropdown menu */
+.react-select__menu {
+  background-color: var(--background-color) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-top: none !important; /* Control already has top border */
+  border-radius: 0 0 4px 4px !important; /* Match control rounding */
+  box-shadow: var(--shadow-md) !important;
+  margin-top: -1px !important; /* Overlap with control bottom border */
+  z-index: 1001 !important; /* Ensure it's above other elements like sticky headers */
+}
+
+.react-select__menu-list {
+  padding: var(--spacing-xsmall) 0 !important; /* Overall padding for the list */
+}
+
+/* Individual options in the dropdown */
+.react-select__option {
+  background-color: var(--background-color) !important;
+  color: var(--font-color) !important;
+  padding: var(--spacing-small) var(--spacing-medium) !important; /* Comfortable padding for options */
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+}
+
+.react-select__option--is-selected {
+  background-color: var(--tanne) !important;
+  color: white !important;
+  font-weight: bold;
+}
+.react-select__option--is-selected:hover {
+   background-color: var(--tanne) !important; /* Keep selected color on hover */
+}
+
+
+.react-select__option--is-focused {
+  background-color: var(--background-color-alt) !important;
+  color: var(--font-color) !important;
+}
+
+/* No options message */
+.react-select__menu-notice--no-options {
+  color: var(--font-color-subtle) !important;
+  padding: var(--spacing-small) var(--spacing-medium) !important;
+  text-align: center;
+}
+
+/* Dropdown indicators (arrow) */
+.react-select__indicator-separator {
+  background-color: var(--border-subtle) !important;
+  margin: var(--spacing-xsmall) 0 !important; /* Vertical margin for separator */
+}
+
+.react-select__dropdown-indicator {
+  color: var(--font-color-subtle) !important;
+  padding: var(--spacing-xsmall) !important;
+}
+.react-select__dropdown-indicator:hover {
+  color: var(--font-color) !important;
+}
+
+.react-select__clear-indicator {
+  color: var(--font-color-subtle) !important;
+  padding: var(--spacing-xsmall) !important;
+}
+.react-select__clear-indicator:hover {
+  color: var(--error-color, red) !important;
+}
+
+/* Loading indicator */
+.react-select__loading-indicator span {
+  background-color: var(--font-color-subtle) !important; /* Color of the dots */
+} 

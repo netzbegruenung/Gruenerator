@@ -1,7 +1,7 @@
-/* editor-responsive.css - Responsive Designs für den Editor */
+
 
 @media (max-width: 768px) {
-    /* Container-Anpassungen für den mobilen Bearbeitungsmodus */
+    
     .base-container.editing-mode {
         height: 100vh;
         overflow: hidden;
@@ -28,8 +28,8 @@
         flex-direction: column;
     }
 
-    /* Editor-Anpassungen */
-    /* Only apply overflow scroll in editing mode on mobile */
+    
+    
     .base-container.editing-mode .display-container .ql-editor {
         flex: 1;
         overflow-y: auto !important;
@@ -42,7 +42,7 @@
         padding: 0;
     }
 
-    /* Toolbar-Anpassungen */
+    
     .text-editor .ql-toolbar.ql-snow {
         display: flex !important;
         padding: 4px !important;
@@ -66,7 +66,7 @@
         height: 26px;
     }
     
-    /* Style für SVG-Elemente in Toolbar-Buttons */
+    
     .ql-snow.ql-toolbar button svg,
     .ql-snow .ql-toolbar button svg {
         width: 18px !important;
@@ -75,7 +75,7 @@
         transform: scale(1.2) !important;
     }
     
-    /* Verbesserte Button-Styles für Touch-Geräte */
+    
     .ql-snow.ql-toolbar button,
     .ql-snow .ql-toolbar button {
         padding: 6px !important;
@@ -87,14 +87,14 @@
         justify-content: center !important;
     }
     
-    /* Verbesserte Abstände zwischen Button-Gruppen */
+    
     .ql-snow.ql-toolbar .ql-formats,
     .ql-snow .ql-toolbar .ql-formats {
         margin-right: 6px !important;
         margin-bottom: 6px !important;
     }
 
-    /* Anpassungen für die AI-Tools */
+    
     .adjust-form {
         flex-direction: column;
         align-items: stretch;
@@ -128,7 +128,7 @@
         justify-content: center;
     }
 
-    /* Ausblenden der AI-Anpassungsfeatures auf mobilen Geräten */
+    
     .ql-adjust-text.custom-button,
     .adjust-form,
     .confirmation-container,
@@ -136,7 +136,7 @@
         display: none !important;
     }
 
-    /* Ausblenden der Toolbar im Lesemodus */
+    
     .editor-toolbar-wrapper.read-only .ql-toolbar.ql-snow {
         display: none !important;
     }

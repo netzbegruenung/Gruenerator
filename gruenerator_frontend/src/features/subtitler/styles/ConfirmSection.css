@@ -136,7 +136,7 @@
   }
 }
 
-/* Dark Mode Support */
+
 [data-theme="dark"] {
   .confirm-section {
     background-color: var(--background-color-alt);
@@ -151,7 +151,7 @@
   }
 }
 
-/* Responsive Design */
+
 @media (max-width: 768px) {
   .confirm-section {
     padding: 1.5rem;

@@ -1,13 +1,13 @@
 /* Profile Dropdown Component Styles
    Enthält Styling für den Profil-Button und das Dropdown-Menü im Header */
 
-/* Profile Button Container */
+
 .profile-button-container {
   position: relative;
   margin-left: var(--spacing-small);
 }
 
-/* Base Profile Button */
+
 .profile-button {
   background: none;
   border: none;
@@ -18,7 +18,7 @@
   justify-content: center;
 }
 
-/* Profile Button Styling */
+
 .profile-label-button {
   border: 1px solid var(--border-subtle);
   border-radius: 50%;
@@ -43,7 +43,7 @@
   color: var(--font-color-h);
 }
 
-/* Loading State */
+
 .profile-button-loading {
   width: 40px;
   height: 40px;
@@ -69,7 +69,7 @@
   to { transform: rotate(360deg); }
 }
 
-/* Login Button Style */
+
 .login-button {
   display: flex;
   align-items: center;
@@ -89,7 +89,7 @@
   font-size: 1.2rem;
 }
 
-/* Profile Dropdown */
+
 .profile-dropdown {
   position: absolute;
   top: 55px;
@@ -114,7 +114,7 @@
   }
 }
 
-/* Profile Dropdown Header */
+
 .profile-dropdown-header {
   padding: var(--spacing-medium);
   border-bottom: 1px solid var(--border-subtle);
@@ -159,7 +159,7 @@
   margin-bottom: var(--spacing-xsmall);
 }
 
-/* Profile Dropdown Links Section */
+
 .profile-dropdown-links {
   padding: var(--spacing-small) 0;
 }
@@ -199,9 +199,9 @@
   color: #e74c3c;
 }
 
-/* Media Queries for Responsive Design */
+
 @media (max-width: 768px) {
   .profile-button-container {
-    margin-right: 60px; /* Platz für Hamburger-Menü */
+    margin-right: 60px; 
   }
 } 

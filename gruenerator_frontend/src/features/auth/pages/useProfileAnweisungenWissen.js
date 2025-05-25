@@ -23,7 +23,7 @@ const cleanKnowledgeEntry = (entry) => {
     return cleaned;
 };
 
-export const useProfileAnweisungenWissen = () => {
+export const useProfileAnweisungenWissen = ({ isActive }) => {
   const { user } = useSupabaseAuth();
   const [templatesSupabase, setTemplatesSupabase] = useState(null);
   const queryClient = useQueryClient(); // Get query client instance
@@ -31,8 +31,6 @@ export const useProfileAnweisungenWissen = () => {
   // Local states for user edits - these remain essential
   const [customAntragPrompt, setCustomAntragPrompt] = useState('');
   const [customSocialPrompt, setCustomSocialPrompt] = useState('');
-  const [isAntragPromptActive, setIsAntragPromptActive] = useState(false);
-  const [isSocialPromptActive, setIsSocialPromptActive] = useState(false);
   const [knowledgeEntries, setKnowledgeEntries] = useState([]); // Local editable state
 
   const initialDataLoaded = useRef(false); // Track if initial data has been set to local state
@@ -75,7 +73,7 @@ export const useProfileAnweisungenWissen = () => {
       // Fetch Anweisungen (from profiles)
       const { data: profileData, error: profileError } = await templatesSupabase
         .from('profiles')
-        .select('custom_antrag_prompt, custom_social_prompt, custom_antrag_prompt_active, custom_social_prompt_active')
+        .select('custom_antrag_prompt, custom_social_prompt')
         .eq('id', user.id)
         .single();
 
@@ -99,8 +97,6 @@ export const useProfileAnweisungenWissen = () => {
     return {
       antragPrompt: profileData?.custom_antrag_prompt || '',
       socialPrompt: profileData?.custom_social_prompt || '',
-      antragActive: profileData?.custom_antrag_prompt_active || false,
-      socialActive: profileData?.custom_social_prompt_active || false,
       knowledge: knowledgeData || []
     };
   };
@@ -116,7 +112,7 @@ export const useProfileAnweisungenWissen = () => {
     {
       queryKey: queryKey, 
       queryFn: fetchAnweisungenWissenFn, 
-      enabled: !!user?.id && !!templatesSupabase, // Only run query when user and client are available
+      enabled: !!user?.id && !!templatesSupabase && isActive, // Use isActive here
       staleTime: 5 * 60 * 1000, // Data is considered fresh for 5 minutes
       cacheTime: 15 * 60 * 1000, // Keep data in cache for 15 minutes after inactive
       refetchOnWindowFocus: false, // Optional: disable refetch on focus
@@ -132,8 +128,6 @@ export const useProfileAnweisungenWissen = () => {
       console.log("[RQ Effect] Initializing/Resetting local state from query data.");
       setCustomAntragPrompt(queryData.antragPrompt);
       setCustomSocialPrompt(queryData.socialPrompt);
-      setIsAntragPromptActive(queryData.antragActive);
-      setIsSocialPromptActive(queryData.socialActive);
 
       // Initialize knowledge entries with placeholders
       const existingEntries = queryData.knowledge.map(entry => ({ ...entry, isNew: false }));
@@ -157,9 +151,8 @@ export const useProfileAnweisungenWissen = () => {
     let changed = false;
     // Compare Anweisungen
     if (customAntragPrompt !== queryData.antragPrompt ||
-        customSocialPrompt !== queryData.socialPrompt ||
-        isAntragPromptActive !== queryData.antragActive ||
-        isSocialPromptActive !== queryData.socialActive) {
+        customSocialPrompt !== queryData.socialPrompt
+      ) {
       changed = true;
     }
 
@@ -195,8 +188,6 @@ export const useProfileAnweisungenWissen = () => {
   }, [
       customAntragPrompt, 
       customSocialPrompt, 
-      isAntragPromptActive, 
-      isSocialPromptActive, 
       knowledgeEntries, 
       queryData, // Depends on fetched data for comparison
       isLoadingQuery, // Don't run while loading
@@ -208,8 +199,6 @@ export const useProfileAnweisungenWissen = () => {
     if (!initialDataLoaded.current) return; // Prevent changes before init
     if (field === 'customAntragPrompt') setCustomAntragPrompt(value);
     else if (field === 'customSocialPrompt') setCustomSocialPrompt(value);
-    else if (field === 'isAntragPromptActive') setIsAntragPromptActive(value);
-    else if (field === 'isSocialPromptActive') setIsSocialPromptActive(value);
   }, []);
 
   const handleKnowledgeChange = useCallback((id, field, value) => {
@@ -242,14 +231,6 @@ export const useProfileAnweisungenWissen = () => {
       }
     if (customSocialPrompt !== queryData.socialPrompt) {
         profileUpdatePayload.custom_social_prompt = customSocialPrompt;
-        anweisungenChanged = true;
-      }
-    if (isAntragPromptActive !== queryData.antragActive) {
-        profileUpdatePayload.custom_antrag_prompt_active = isAntragPromptActive;
-        anweisungenChanged = true;
-      }
-    if (isSocialPromptActive !== queryData.socialActive) {
-        profileUpdatePayload.custom_social_prompt_active = isSocialPromptActive;
         anweisungenChanged = true;
       }
 
@@ -438,8 +419,6 @@ export const useProfileAnweisungenWissen = () => {
       // Local state for forms
       customAntragPrompt,
       customSocialPrompt,
-      isAntragPromptActive,
-      isSocialPromptActive,
       knowledgeEntries,
       
       // Input handlers

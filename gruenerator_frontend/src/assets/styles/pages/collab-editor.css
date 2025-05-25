@@ -1,0 +1,405 @@
+.collab-editor-page html, body {
+  overflow: hidden; /* Prevent scrolling on the main page when collab editor is active */
+}
+
+/* CollabEditor Hauptstyles */
+
+/* 
+ * Layout-Container 
+ */
+.collab-editor-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: var(--background-color-pure);
+  z-index: 1500;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.collab-editor-content {
+  flex-grow: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Ladestatus und Fehlermeldungen */
+.collab-editor-loading,
+.collab-editor-error {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  padding: var(--spacing-medium);
+}
+
+.collab-editor-error {
+  color: var(--error-red);
+}
+
+/* 
+ * Header-Bereich 
+ */
+.collab-editor-header {
+  padding: var(--spacing-medium);
+  border-bottom: var(--border-subtle);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  /* Default to light mode styles */
+  background-color: var(--weiß); 
+  height: 60px;
+  color: var(--tanne); /* Icon color for light mode */
+  box-shadow: var(--shadow-sm);
+}
+
+[data-theme="dark"] .collab-editor-header {
+  background-color: var(--tanne);
+  color: var(--sand); /* Icon color for dark mode */
+  border-bottom-color: var(--anthrazit); /* Darker border for dark mode */
+}
+
+.collab-editor-logo {
+  font-size: 1.5rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  margin-left: var(--spacing-small);
+  font-family: 'GrueneType', Arial, sans-serif;
+  /* Default to light mode styles */
+  color: var(--tanne);
+}
+
+[data-theme="dark"] .collab-editor-logo {
+  color: var(--sand);
+}
+
+.collab-editor-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xsmall);
+}
+
+.collab-editor-button {
+  background-color: transparent;
+  /* color is inherited from .collab-editor-header */
+  color: inherit; /* WAR var(--weiß): Icons immer weiß im Light Mode -> geändert zu inherit */
+  border: none;
+  padding: var(--spacing-xxsmall); /* Adjusted padding for icon-only */
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center; /* Center icon */
+  font-size: 0.9em; /* Remains for consistency, might not affect icons directly */
+  transition: background-color 0.2s ease, color 0.2s ease;
+  width: 36px; /* Explicit width for a consistent size */
+  height: 36px; /* Explicit height for a consistent size */
+}
+
+.collab-editor-button:hover:not(.collab-editor-button-disabled) {
+  /* Light mode hover */
+  background-color: var(--sand); /* Light background hover for light mode */
+  color: var(--tanne); /* NEU: Icon Farbe im Hover anpassen, falls gewünscht, oder weiß lassen */
+}
+
+[data-theme="dark"] .collab-editor-button:hover:not(.collab-editor-button-disabled) {
+  /* Dark mode hover */
+  background-color: var(--dunkelgrau); /* Darker background hover for dark mode */
+}
+
+.collab-editor-button-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.collab-editor-button-success {
+  background-color: var(--klee);
+  color: var(--weiß); /* Ensure icon is white on klee background */
+}
+
+.collab-editor-button-success:hover:not(.collab-editor-button-disabled) {
+  background-color: var(--tanne); /* Darker green for hover on success */
+  color: var(--weiß);
+}
+
+/* Ensure correct hover for success button in dark mode */
+[data-theme="dark"] .collab-editor-button-success {
+  background-color: var(--klee);
+  color: var(--weiß);
+}
+
+[data-theme="dark"] .collab-editor-button-success:hover:not(.collab-editor-button-disabled) {
+  background-color: var(--grashalm); /* Lighter green for hover on success in dark mode */
+  color: var(--anthrazit);
+}
+
+/* 
+ * Hauptinhalt mit Editor und Chat 
+ */
+.collab-editor-main-content {
+  display: flex;
+  flex-grow: 1;
+  height: 100%;
+}
+
+/* Chatbereich */
+.collab-editor-chat-column {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+/* CollabEditor spezifische Anpassungen für EditorChat */
+.collab-editor-chat-column .editor-chat-header {
+  display: none;
+}
+
+.collab-editor-chat-column .editor-chat-input {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  background-color: var(--background-color-alt);
+}
+
+/* Modus-Selektor Styles */
+.collab-editor-chat-column .chat-mode-selector {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+}
+
+/* Modus-Buttons */
+.collab-editor-chat-column .mode-button {
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  padding: 6px;
+  color: var(--font-color);
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+}
+
+.collab-editor-chat-column .mode-button:hover {
+  background: var(--background-color);
+}
+
+.collab-editor-chat-column .editor-chat-input input {
+  flex: 1;
+  min-width: 0;
+}
+
+.collab-editor-chat-column .editor-chat-input button {
+  flex-shrink: 0;
+}
+
+/* Editor-Bereich */
+.collab-editor-quill-column {
+  flex: 2;
+  padding: 0 0 var(--spacing-medium) var(--spacing-medium);
+}
+
+/* Quill-Editor Anpassungen */
+.collab-editor-quill {
+  height: 100%;
+  overflow-x: hidden !important;
+}
+
+.collab-editor-quill .ql-editor {
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  height: 100%;
+  padding-right: var(--spacing-medium) !important;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb-color) var(--scrollbar-track-color);
+}
+
+.collab-editor-quill .ql-editor::-webkit-scrollbar {
+  width: 8px;
+}
+
+.collab-editor-quill .ql-editor::-webkit-scrollbar-track {
+  background: var(--scrollbar-track-color);
+  border-radius: 10px;
+}
+
+.collab-editor-quill .ql-editor::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb-color);
+  border-radius: 10px;
+}
+
+.collab-editor-quill .ql-editor::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scrollbar-thumb-hover-color);
+}
+
+/* Quill bubbles anpassen */
+.collab-editor-quill .ql-bubble .ql-tooltip {
+  background-color: var(--background-color-alt);
+  color: var(--font-color);
+  border: var(--border-subtle);
+  box-shadow: var(--shadow-md);
+}
+
+.collab-editor-quill .ql-bubble .ql-tooltip-arrow {
+  border-color: var(--background-color-alt) transparent transparent;
+}
+
+/* Responsive Anpassungen */
+@media (max-width: 768px) {
+  .collab-editor-main-content {
+    flex-direction: column;
+  }
+
+  .collab-editor-chat-column {
+    flex: none;
+    height: 300px;
+    border-right: none;
+    border-bottom: var(--border-subtle);
+  }
+
+  .collab-editor-quill-column {
+    flex: 1;
+  }
+  
+  .collab-editor-header {
+    flex-direction: column;
+    height: auto;
+    padding: var(--spacing-xsmall);
+    gap: var(--spacing-xsmall);
+  }
+  
+  .collab-editor-actions {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .collab-editor-chat-column .editor-chat-input {
+    flex-grow: 1;
+  }
+
+  .collab-editor-chat-column .chat-mode-selector {
+    margin-right: var(--spacing-xsmall);
+  }
+}
+
+/* Animation für Texthervorhebungen (aus highlightUtils.js) */
+@keyframes highlight-pulse {
+  0% { background-color: rgba(255, 255, 0, 0.7); }
+  50% { background-color: rgba(255, 255, 0, 0.3); }
+  100% { background-color: rgba(255, 255, 0, 0.7); }
+}
+
+.highlight-animation {
+  animation: highlight-pulse 2s ease-in-out 3;
+}
+
+/* Verbindungsstatus - DOT */
+.collab-editor-status-indicator {
+  display: flex;
+  align-items: center;
+}
+
+.connection-dot {
+  width: 10px; /* Small dot */
+  height: 10px; /* Small dot */
+  border-radius: 50%;
+  transition: background-color 0.3s ease;
+}
+
+.connection-status-connected {
+  background-color: var(--klee); /* Green for connected */
+}
+
+.connection-status-connecting {
+  background-color: var(--himmel); /* Blue for connecting */
+}
+
+.connection-status-disconnected {
+  background-color: var(--error-red); /* Red for disconnected */
+}
+
+/* Barrierefreiheit - Fokus-Styles */
+.collab-editor-quill:focus-visible {
+  outline: 2px solid var(--interactive-accent-color);
+  outline-offset: 2px;
+}
+
+/* Füge spezielle Styles für den EditorChat im Collab-Editor hinzu */
+.collab-editor-chat-column .editor-chat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  height: 100%;
+  width: 100%;
+  max-width: none;
+}
+
+.collab-editor-chat-column .editor-chat-messages {
+  flex: 1;
+  overflow-y: auto !important; 
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Skeleton Loader Styles */
+/* Die Klassen .skeleton-chat-column, .skeleton-quill-column und .skeleton-line werden direkt für die Skeleton-Elemente verwendet. 
+   Ihre Basis-Stylings (Breite, Höhe, Hintergrund) sind hier definiert oder sollten hier sein, falls spezifische Skeleton-Stylings benötigt werden, 
+   die von den echten Komponenten abweichen. Die Pulse-Animation wird in der Komponente definiert.
+*/
+
+.skeleton-chat-column {
+  /* Behält die Breite des echten Chat-Fensters für Konsistenz oder definieren Sie sie hier, falls abweichend. */
+  /* Beispiel: width: 300px; */
+  background-color: var(--grey-light);
+  border-radius: var(--border-radius-medium);
+  /* opacity wird durch die Animation gesteuert */
+}
+
+.skeleton-quill-column {
+  /* Behält die Flexibilität des echten Quill-Bereichs */
+  /* Beispiel: flex-grow: 1; */
+  background-color: var(--grey-light);
+  border-radius: var(--border-radius-medium);
+  padding: 20px; /* Padding wie im echten .collab-editor-quill-column oder .skeleton-quill-column anpassen */
+  /* opacity wird durch die Animation gesteuert */
+  display: flex;
+  flex-direction: column;
+  gap: 10px; /* Abstand zwischen den Linien */
+}
+
+.skeleton-line {
+  height: 20px;
+  background-color: var(--grey-medium);
+  border-radius: var(--border-radius-small);
+  /* opacity wird durch die Animation gesteuert */
+}
+
+/* Ensure existing styles are not overwritten if they are below this block */
+
+.collab-header-right-group { /* New group for all controls on the right */
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-medium); /* Adjust gap between button group and status dot as needed */
+}
+
+/* Removed .collab-editor-status as text is no longer displayed */
+/* .collab-editor-status {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+} */

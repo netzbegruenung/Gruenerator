@@ -10,11 +10,6 @@ const PageLayout = ({ children, darkMode, toggleDarkMode, showHeaderFooter = tru
   const [showFooter, setShowFooter] = useState(false);
 
   useEffect(() => {
-    console.log('PageLayout Debug:', {
-      showHeaderFooter,
-      darkMode,
-      hasChildren: !!children
-    });
   }, [showHeaderFooter, darkMode, children]);
 
   useEffect(() => {
@@ -36,7 +31,6 @@ const PageLayout = ({ children, darkMode, toggleDarkMode, showHeaderFooter = tru
   }, []);
 
   if (!showHeaderFooter) {
-    console.log('Rendere no-header-footer Layout');
     return <main className="content-wrapper no-header-footer">{children}</main>;
   }
 

@@ -54,25 +54,6 @@ class ErrorBoundary extends React.Component {
     };
   }
 
-  // Versuche, den Fehler zu beheben
-  handleTryFix = () => {
-    // Lösche den Cache
-    if (window.caches) {
-      caches.keys().then(cacheNames => {
-        cacheNames.forEach(cacheName => {
-          caches.delete(cacheName);
-        });
-      });
-    }
-    
-    // Lösche lokale Speicherdaten, die Probleme verursachen könnten
-    localStorage.removeItem('termsAccepted');
-    localStorage.removeItem('popupShown2024');
-    
-    // Seite neu laden
-    window.location.reload(true); // true erzwingt ein Neuladen vom Server
-  };
-
   render() {
     if (this.state.hasError) {
       const errorMessage = this.getErrorMessage();
@@ -108,7 +89,6 @@ class ErrorBoundary extends React.Component {
             ) : (
               <>
                 <button onClick={() => window.location.reload()}>Seite neu laden</button>
-                <button onClick={this.handleTryFix}>Fehler beheben versuchen</button>
                 <a href="/" className="button">Zur Startseite</a>
               </>
             )}

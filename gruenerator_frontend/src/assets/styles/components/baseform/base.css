@@ -1,4 +1,3 @@
-/* Grundlegende Container-Struktur */
 .base-container {
     display: flex;
     width: 100%;
@@ -15,7 +14,7 @@
     color: var(--weiß) !important;
 }
 
-/* Überschriften */
+
 .form-container h3, .display-container h3, .sidebar h2 {
     margin-top: 0;
     text-align: left;
@@ -34,25 +33,53 @@
     margin-bottom: 8px;
 }
 
-/* Styling für Formular-Labels innerhalb von .form-field */
+
 .form-field label {
-  display: block; /* Sorgt dafür, dass das Label über dem Input steht */
-  margin-bottom: var(--spacing-xsmall); /* Fügt Abstand unter dem Label hinzu (8px) */
-  color: var(--font-color); /* Verwendet die themenabhängige Schriftfarbe */
-  /* Optional: font-weight: 500; oder Schriftgröße anpassen falls nötig */
+  display: block; 
+  margin-bottom: var(--spacing-xsmall); 
+  color: var(--font-color); 
+  
 }
 
-/* Container for actions below the display content (e.g., Save button) */
+
 .display-action-section {
-  margin-top: var(--spacing-large); /* Space above the entire action section */
-  padding-top: var(--spacing-medium); /* Padding inside the section */
-  border-top: 1px solid var(--border-subtle); /* Optional: Visual separator */
+  margin-top: var(--spacing-large); 
+  padding-top: var(--spacing-medium); 
+  border-top: 1px solid var(--border-subtle); 
   display: flex;
   flex-direction: column;
-  align-items: flex-start; /* Align content to the left */
+  align-items: flex-start; 
 }
 
-/* Add specific margin-top to the wrapper containing the antrag save button and status */
+
 .display-action-section .save-action-element {
-    margin-top: var(--spacing-small); /* Add some space between the top border/padding and the button block */
+    margin-top: var(--spacing-medium); 
 }
+
+
+.save-action-element .antrag-save-button {
+    margin-top: var(--spacing-small);
+}
+
+/* Style for general error messages displayed by BaseForm/DisplaySection */
+.display-content .form-error-message {
+    color: var(--error-red, #D32F2F); /* Fallback to a strong red */
+    background-color: var(--error-background-light, #FFEBEE); /* Light reddish background */
+    border: 1px solid var(--error-red-border, #E57373);
+    border-radius: var(--border-radius-small, 4px);
+    padding: var(--spacing-small, 8px) var(--spacing-medium, 12px);
+    margin-top: var(--spacing-medium, 16px);
+    margin-bottom: var(--spacing-medium, 16px);
+    font-weight: 500; /* Make text slightly bolder */
+    display: flex; /* To align icon and text if an icon is added later via JS/React */
+    align-items: center; /* To align icon and text */
+}
+
+/* Optional: If you want to add a specific icon via CSS (less flexible than React icon) */
+/*
+.form-error-message::before {
+    content: '⚠️'; 
+    margin-right: 8px;
+    font-size: 1.2em;
+}
+*/
