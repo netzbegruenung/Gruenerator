@@ -159,6 +159,10 @@ async function processAIRequest(requestId, data) {
         },
         'generator_config': {
           temperature: 0.5
+        },
+        'you_with_tools': {
+          system: "Du bist ein intelligenter Assistent für politische Inhalte von Bündnis 90/Die Grünen.",
+          temperature: 0.7
         }
       };
 
@@ -185,6 +189,12 @@ async function processAIRequest(requestId, data) {
           role: "user",
           content: prompt
         }];
+      }
+
+      // Tools setup for you_with_tools type
+      if (type === 'you_with_tools' && apiOptions.tools) {
+        requestConfig.tools = apiOptions.tools;
+        console.log(`[AI Worker] Tools aktiviert für ${requestId}:`, apiOptions.tools.length);
       }
 
       sendProgress(requestId, 30);

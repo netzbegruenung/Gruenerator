@@ -16,6 +16,7 @@ const getInitialState = (key, defaultValue) => {
 export const BetaFeaturesProvider = ({ children }) => {
   const [sharepicBetaEnabled, setSharepicBetaEnabledState] = useState(() => getInitialState('sharepicBetaEnabled', false));
   const [databaseBetaEnabled, setDatabaseBetaEnabledState] = useState(() => getInitialState('databaseBetaEnabled', false));
+  const [youBetaEnabled, setYouBetaEnabledState] = useState(() => getInitialState('youBetaEnabled', false));
   // Add more beta features here as needed
 
   const setSharepicBetaEnabled = useCallback((value) => {
@@ -36,6 +37,15 @@ export const BetaFeaturesProvider = ({ children }) => {
     }
   }, []);
 
+  const setYouBetaEnabled = useCallback((value) => {
+    setYouBetaEnabledState(value);
+    try {
+      window.localStorage.setItem('youBetaEnabled', JSON.stringify(value));
+    } catch (error) {
+      console.warn('Error writing youBetaEnabled to localStorage:', error);
+    }
+  }, []);
+
   // Check admin access and auto-disable features user can't access
   useEffect(() => {
     const checkAndUpdateFeatureAccess = async () => {
@@ -51,6 +61,17 @@ export const BetaFeaturesProvider = ({ children }) => {
           setDatabaseBetaEnabled(false);
         }
 
+        // Check you feature access
+        const { data: canAccessYou, error: youError } = await templatesSupabase
+          .rpc('can_access_beta_feature', { feature_name: 'you' });
+        
+        if (youError) {
+          console.warn('Error checking you access:', youError);
+        } else if (!canAccessYou && youBetaEnabled) {
+          console.log('Auto-disabling you feature due to lack of access');
+          setYouBetaEnabled(false);
+        }
+
         // Sharepic is public, so no check needed - always allowed
         
       } catch (error) {
@@ -62,7 +83,7 @@ export const BetaFeaturesProvider = ({ children }) => {
     if (templatesSupabase) {
       checkAndUpdateFeatureAccess();
     }
-  }, [databaseBetaEnabled, setDatabaseBetaEnabled]);
+  }, [databaseBetaEnabled, setDatabaseBetaEnabled, youBetaEnabled, setYouBetaEnabled]);
 
   // Effect to listen for storage changes from other tabs (optional but good for UX)
   useEffect(() => {
@@ -72,6 +93,9 @@ export const BetaFeaturesProvider = ({ children }) => {
       }
       if (event.key === 'databaseBetaEnabled') {
         setDatabaseBetaEnabledState(event.newValue ? JSON.parse(event.newValue) : false);
+      }
+      if (event.key === 'youBetaEnabled') {
+        setYouBetaEnabledState(event.newValue ? JSON.parse(event.newValue) : false);
       }
     };
 
@@ -87,7 +111,9 @@ export const BetaFeaturesProvider = ({ children }) => {
       sharepicBetaEnabled, 
       setSharepicBetaEnabled,
       databaseBetaEnabled,
-      setDatabaseBetaEnabled
+      setDatabaseBetaEnabled,
+      youBetaEnabled,
+      setYouBetaEnabled
       // Add more features here
     }}>
       {children}

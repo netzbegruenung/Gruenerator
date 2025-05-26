@@ -33,6 +33,24 @@ const SubtitlerPage = () => {
   const isDevelopment = import.meta.env.VITE_APP_ENV === 'development';
   const baseURL = isDevelopment ? 'http://localhost:3001/api' : `${window.location.origin}/api`;
 
+  // Cleanup effect for tab close detection
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (uploadInfo?.uploadId) {
+        console.log(`[SubtitlerPage] Sending cleanup beacon for uploadId: ${uploadInfo.uploadId}`);
+        // Use beacon API for reliable cleanup signal even when tab is closing
+        navigator.sendBeacon(`${baseURL}/subtitler/cleanup/${uploadInfo.uploadId}`);
+      }
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    // Cleanup function
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [uploadInfo?.uploadId, baseURL]);
+
   const handleUploadComplete = (uploadData) => { 
     // Überprüfe, ob ein gültiges File-Objekt übergeben wurde
     if (uploadData.originalFile instanceof File) {
@@ -102,8 +120,9 @@ const SubtitlerPage = () => {
 
       pollingIntervalRef.current = setInterval(async () => {
         try {
-          // Verwende axios direkt mit baseURL
+          // Verwende axios direkt mit baseURL und füge subtitlePreference als Query-Parameter hinzu
           const resultResponse = await axios.get(`${baseURL}/subtitler/result/${currentUploadId}`, {
+              params: { subtitlePreference }, // Send preference as query parameter
               // Header oder andere Axios-Konfigurationen könnten hier nötig sein
               // Beachte: Interceptors von apiClient (z.B. Auth Token) werden hier NICHT angewendet
           });
@@ -166,6 +185,13 @@ const SubtitlerPage = () => {
 
   const handleReset = useCallback(() => {
     setIsExiting(true);
+    
+    // Send cleanup signal before reset
+    if (uploadInfo?.uploadId) {
+      console.log(`[SubtitlerPage] Manual cleanup on reset for uploadId: ${uploadInfo.uploadId}`);
+      navigator.sendBeacon(`${baseURL}/subtitler/cleanup/${uploadInfo.uploadId}`);
+    }
+    
     // Clear any active polling interval on reset
     if (pollingIntervalRef.current) {
       clearInterval(pollingIntervalRef.current);
@@ -182,7 +208,7 @@ const SubtitlerPage = () => {
       setIsProcessing(false); // Ensure processing is false
       resetSocialText();
     }, 300);
-  }, [resetSocialText]);
+  }, [resetSocialText, uploadInfo?.uploadId, baseURL]);
 
   // Function to go back to the editor without resetting everything
   const handleEditAgain = useCallback(() => {

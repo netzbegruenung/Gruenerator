@@ -594,6 +594,8 @@ const ProfilePage = () => {
               setSharepicBeta={(value) => updateUserBetaFeatures('sharepic', value)}
               anweisungenBeta={getBetaFeatureState('anweisungen')}
               setAnweisungenBeta={(value) => updateUserBetaFeatures('anweisungen', value)}
+              youBeta={getBetaFeatureState('you')}
+              setYouBeta={(value) => updateUserBetaFeatures('you', value)}
             />
           )}
         </Suspense>
