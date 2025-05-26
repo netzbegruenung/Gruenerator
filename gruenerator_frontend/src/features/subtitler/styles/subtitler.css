@@ -310,10 +310,6 @@
     width: 100%;
   }
 
-  .success-content {
-    padding: 2rem;
-    margin: 1rem;
-  }
 }
 
 .video-info p[data-label] {

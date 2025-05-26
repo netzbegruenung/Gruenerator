@@ -79,29 +79,7 @@ const SubtitlePreview = ({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const handleDownloadSRT = async () => {
-    try {
-      const response = await apiClient.post('/api/subtitler/download-srt', 
-        { subtitles: subtitles },
-        { responseType: 'blob' }
-      );
-      
-      const filename = videoFile ? 
-        `${videoFile.name.split('.')[0]}_untertitel.srt` : 
-        'untertitel.srt';
-      
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('Fehler beim Herunterladen der SRT-Datei:', error);
-    }
-  };
+
 
   return (
     <div className="subtitle-preview">
@@ -150,13 +128,6 @@ const SubtitlePreview = ({
               disabled={isExporting}
             >
               {isExporting ? 'Exportiere...' : 'Video mit Untertiteln herunterladen'}
-            </button>
-            <button 
-              className="btn-secondary"
-              onClick={handleDownloadSRT}
-              disabled={isExporting}
-            >
-              Untertitel als SRT herunterladen
             </button>
           </div>
         </div>

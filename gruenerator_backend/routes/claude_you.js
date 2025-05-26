@@ -1,24 +1,23 @@
 const express = require('express');
 const router = express.Router();
 
+// Import der neuen Tool-Klassen
+const { YouToolExecutor } = require('../utils/youToolExecutor');
+const { YouConversationManager } = require('../utils/youConversationManager');
+
 /**
- * Endpunkt für das Grünerator U Feature
- * Analysiert den Prompt und ordnet ihn einer passenden Kategorie zu
+ * Endpunkt für das Grünerator You Feature mit Tool Use
+ * Verwendet Claude mit Tools um direkt die passenden Backend-Services aufzurufen
  */
 router.post('/', async (req, res) => {
   const { prompt, useBackupProvider } = req.body;
 
-  // Aktuelles Datum ermitteln
-  const currentDate = new Date().toISOString().split('T')[0];
-
   try {
-    // Logging der Anfrage
-    console.log('You-Anfrage erhalten:', {
+    console.log('You-Anfrage mit Tool Use erhalten:', {
       promptLength: prompt?.length || 0,
       promptPreview: prompt?.substring(0, 50) + (prompt?.length > 50 ? '...' : '')
     });
 
-    // Validiere den Prompt
     if (!prompt || prompt.trim().length === 0) {
       return res.status(400).json({ 
         error: 'Fehlende Eingabedaten',
@@ -26,56 +25,30 @@ router.post('/', async (req, res) => {
       });
     }
 
-    // Systemanweisung für die Kategorisierung
-    const systemPrompt = `Du bist ein Assistent für politische Inhalte von Bündnis 90/Die Grünen. 
-Deine Aufgabe ist es, Anfragen zu analysieren und zu kategorisieren, damit sie vom passenden Spezialmodell bearbeitet werden können.`;
+    // Initialize tool executor and conversation manager
+    const toolExecutor = new YouToolExecutor();
+    const conversationManager = new YouConversationManager(
+      req.app.locals.aiWorkerPool, 
+      toolExecutor
+    );
+    
+    // Set request context for tool execution
+    conversationManager.req = req;
 
-    // Anfrage an Claude zur Kategorisierung
-    const categorizationResult = await req.app.locals.aiWorkerPool.processRequest({
-      type: 'you_categorization',
-      systemPrompt,
-      messages: [
-        {
-          role: "user",
-          content: `Analysiere die folgende Anfrage und ordne sie einer der folgenden Kategorien zu:
-1. "social" - für Social Media und Pressetexte
-2. "antrag" - für kommunalpolitische Anträge
-3. "wahlprogramm" - für Wahlprogramm-Kapitel
-4. "rede" - für politische Reden
-5. "universal" - für allgemeine Anfragen, die in keine der anderen Kategorien passen
-
-Aktuelles Datum: ${currentDate}
-
-Gib nur den Kategorienamen zurück, ohne weitere Erklärungen.
-
-Anfrage: "${prompt}"`
-        }
-      ],
-      options: {
-        model: "claude-3-7-sonnet-latest",
-        max_tokens: 50,
-        temperature: 0.1
-      },
+    // Process the conversation with tool use
+    const result = await conversationManager.processConversation(
+      prompt, 
       useBackupProvider
-    });
+    );
 
-    if (!categorizationResult.success) {
-      console.error('Fehler bei der Kategorisierung:', categorizationResult.error);
-      throw new Error(categorizationResult.error);
-    }
-
-    // Extrahiere die Kategorie (entferne Anführungszeichen und Leerzeichen)
-    const category = categorizationResult.content.trim().toLowerCase().replace(/["']/g, '');
-    console.log('Erkannte Kategorie:', category);
-
-    // Sende die Kategorie und den ursprünglichen Prompt zurück
-    res.json({ 
-      category: category,
-      originalPrompt: prompt
+    res.json({
+      content: result.content,
+      metadata: result.metadata,
+      success: true
     });
     
   } catch (error) {
-    console.error('Fehler bei der You-Anfrage:', error);
+    console.error('Fehler bei der You-Anfrage mit Tool Use:', error);
     res.status(500).json({ 
       error: 'Fehler bei der Verarbeitung der Anfrage',
       details: error.message
