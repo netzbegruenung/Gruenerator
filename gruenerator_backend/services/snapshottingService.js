@@ -1,17 +1,14 @@
-const { createClient } = require('@supabase/supabase-js');
+const { supabaseService } = require('../utils/supabaseClient');
 const Y = require('yjs');
 const pako = require('pako');
 
-// Initialize Supabase client
-// Ensure SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set in your .env file
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY; // Use service role key for backend operations
+// Use the already configured Supabase service client
+const supabase = supabaseService;
 
-if (!supabaseUrl || !supabaseKey) {
-  console.error('Supabase URL or Service Role Key is not defined in environment variables.');
-  // Potentially throw an error or handle this case يناير 
+if (!supabase) {
+  console.error('Supabase service client is not initialized. Check environment variables.');
+  throw new Error('Supabase service client is required for snapshotting service.');
 }
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Define snapshotting constants directly in the code
 const SNAPSHOT_INTERVAL_HOURS = 24; // Default to 24 hours

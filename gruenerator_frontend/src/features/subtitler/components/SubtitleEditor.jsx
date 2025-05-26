@@ -217,36 +217,7 @@ const SubtitleEditor = ({ videoFile, subtitles, uploadId, onExportSuccess, isExp
     }
   };
 
-  const handleDownloadSRT = async () => {
-    try {
-      console.log('[SubtitleEditor] Downloading SRT for original subtitles:', subtitles);
-      
-      if (typeof subtitles !== 'string') {
-        throw new Error('Ungültiges Format für SRT-Download.');
-      }
 
-      const response = await apiClient.post('/subtitler/download-srt', 
-        { subtitles },
-        { responseType: 'blob' }
-      );
-      
-      const filename = videoFile ? 
-        `${videoFile.name.split('.')[0]}_untertitel.srt` : 
-        'untertitel.srt';
-      
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('[SubtitleEditor] SRT download error:', error);
-      setError('Fehler beim Herunterladen der SRT-Datei: ' + (error.response?.data?.error || error.message));
-    }
-  };
 
   return (
     <div className="subtitle-editor-container">
@@ -311,13 +282,6 @@ const SubtitleEditor = ({ videoFile, subtitles, uploadId, onExportSuccess, isExp
           ) : (
             'Video mit Untertiteln herunterladen'
           )}
-        </button>
-        <button 
-          className="btn-secondary"
-          onClick={handleDownloadSRT}
-          disabled={isExporting}
-        >
-          Untertitel als SRT herunterladen
         </button>
       </div>
     </div>

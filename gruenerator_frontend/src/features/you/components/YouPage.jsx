@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useContext } from 'react';
-import { FaArrowUp, FaMicrophone, FaStop } from 'react-icons/fa';
+import { FaArrowUp, FaMicrophone, FaStop, FaPaperPlane } from 'react-icons/fa';
 import PropTypes from 'prop-types';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import useVoiceRecorder from '../../voice/hooks/useVoiceRecorder';
@@ -178,6 +178,9 @@ const YouPage = () => {
     e.preventDefault();
     if (!prompt.trim() || isProcessing) return;
     
+    // Reset errors before starting new request
+    resetProcessor();
+    
     // Verarbeite den Prompt mit dem Hook
     const content = await processPrompt(prompt);
     if (content) {
@@ -202,6 +205,8 @@ const YouPage = () => {
 
   // Funktion zum Umschalten zwischen Mikrofon und Submit-Button
   const renderSubmitOrMicButton = () => {
+    // Voice functionality temporarily disabled
+    /*
     // Wenn wir aufnehmen, zeige den Stop-Button
     if (isRecording) {
       return (
@@ -215,6 +220,7 @@ const YouPage = () => {
         </button>
       );
     }
+    */
     
     // Wenn wir verarbeiten (Sprache oder Text), zeige den Spinner
     if (isVoiceProcessing || isProcessing) {
@@ -225,7 +231,7 @@ const YouPage = () => {
           disabled={true}
           aria-label="Verarbeitung läuft"
         >
-          <Spinner size="small" white withBackground />
+          <Spinner size="small" white />
         </button>
       );
     }
@@ -239,11 +245,24 @@ const YouPage = () => {
           disabled={isProcessing || isVoiceProcessing}
           aria-label="Absenden"
         >
-          <FaArrowUp />
+          <FaPaperPlane />
         </button>
       );
     }
     
+    // Standardfall: Zeige den Submit-Button (statt Mikrofon)
+    return (
+      <button
+        type="submit"
+        className="you-submit-button"
+        disabled={isProcessing || isVoiceProcessing || !prompt.trim()}
+        aria-label="Absenden"
+      >
+        <FaPaperPlane />
+      </button>
+    );
+    
+    /*
     // Standardfall: Zeige den Mikrofon-Button
     return (
       <button
@@ -256,6 +275,7 @@ const YouPage = () => {
         <FaMicrophone />
       </button>
     );
+    */
   };
 
   const handleReset = () => {

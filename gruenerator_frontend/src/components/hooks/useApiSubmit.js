@@ -144,7 +144,7 @@ const useApiSubmit = (endpoint) => {
           setSuccess(true);
           return response;
         }
-      } else if (endpoint === 'claude/antrag' || endpoint === 'claude/antrag-simple') {
+      } else if (endpoint === 'claude/antrag' || endpoint === 'claude/antrag-simple' || endpoint === 'antraege/generate-simple') {
         console.log('[useApiSubmit] Processing antrag response:', response);
         if (response) {
           // Prüfe auf verschiedene mögliche Antwortstrukturen
