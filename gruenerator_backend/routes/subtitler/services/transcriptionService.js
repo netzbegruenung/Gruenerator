@@ -188,7 +188,8 @@ async function transcribeVideoLocal(videoPath, language = 'de') {
 // Updated main function to handle subtitle preference and accept aiWorkerPool
 async function transcribeVideo(videoPath, subtitlePreference = 'standard', aiWorkerPool, language = 'de') {
   try {
-    console.log(`Starte OpenAI Transkription (Präferenz: ${subtitlePreference})`);
+    console.log(`[transcriptionService] Transkription Start - Präferenz: ${subtitlePreference}`);
+    
     const outputDir = path.join(__dirname, '../../../uploads/transcriptions');
     await fs.mkdir(outputDir, { recursive: true });
     const audioPath = path.join(outputDir, `audio_${Date.now()}.mp3`);
@@ -197,60 +198,55 @@ async function transcribeVideo(videoPath, subtitlePreference = 'standard', aiWor
     await extractAudio(videoPath, audioPath);
     
     let finalTranscription = null;
-
+    
     if (subtitlePreference === 'short') {
-        console.log("[transcriptionService] Requesting word timestamps from OpenAI.");
-        // Request word timestamps for short subtitles
-        const transcriptionResult = await transcribeWithOpenAI(audioPath, true); // Request segments and words
+        console.log("[transcriptionService] Requesting word timestamps from OpenAI");
+        const transcriptionResult = await transcribeWithOpenAI(audioPath, true);
         
         if (!transcriptionResult || typeof transcriptionResult.text !== 'string') {
             throw new Error('Invalid transcription data received from OpenAI');
         }
-        console.log(`[transcriptionService] Received raw text: ${transcriptionResult.text.substring(0, 100)}...`); // Log raw text
-
+        
+        console.log(`[transcriptionService] OpenAI Wörter: ${transcriptionResult.words?.length || 0}, Text: ${transcriptionResult.text.length} chars`);
+        
         // Use Claude service to generate short segments from raw text
-        console.log("[transcriptionService] Generating short subtitles with Claude...");
         finalTranscription = await generateShortSubtitlesViaAI(transcriptionResult.text, transcriptionResult.words, aiWorkerPool);
 
     } else {
-        console.log("[transcriptionService] Requesting standard segment timestamps from OpenAI.");
-        // Request standard segment timestamps
-        const transcriptionResult = await transcribeWithOpenAI(audioPath, false); // Request segments only
+        console.log("[transcriptionService] Requesting standard segments from OpenAI");
+        const transcriptionResult = await transcribeWithOpenAI(audioPath, false);
         if (!transcriptionResult || typeof transcriptionResult.text !== 'string') {
             throw new Error('Invalid segment data received from OpenAI');
         }
-        finalTranscription = transcriptionResult.text; // Use the formatted segments directly
+        finalTranscription = transcriptionResult.text;
     }
     
     // Cleanup
     try {
       await fs.unlink(audioPath);
-      console.log('Temporäre Audio-Datei gelöscht:', audioPath);
     } catch (err) {
-      console.warn('Konnte temporäre Audio-Datei nicht löschen:', err);
+      console.warn('Audio cleanup failed:', err.message);
     }
 
     if (!finalTranscription) {
       throw new Error('Keine Transkription von OpenAI erhalten oder verarbeitet');
     }
 
-    // Log segment details (works for both short and standard as it splits by \n\n)
+    // Log segment timing details for debugging
     const segments = finalTranscription.split('\n\n');
-    console.log('Finale Transkription Details:');
-    console.log('Anzahl Segmente:', segments.length);
-    // Optional: Log all segments (can be verbose)
-    // segments.forEach((segment, index) => {
-    //   console.log(`\nSegment ${index + 1}:\n${segment}`);
-    // });
+    console.log(`[transcriptionService] Finale Segmente: ${segments.length}`);
+    
+    // Log first 3 segments for timing analysis
+    segments.slice(0, 3).forEach((segment, index) => {
+      const lines = segment.split('\n');
+      if (lines.length >= 2) {
+        console.log(`[transcriptionService] Segment ${index}: ${lines[0]} | Text: "${lines[1].substring(0, 30)}..."`);
+      }
+    });
 
     return finalTranscription;
   } catch (error) {
-    console.error(`Fehler bei der Transkription (Präferenz: ${subtitlePreference}):`, error);
-    // Cleanup audio file even if transcription failed mid-process
-    const audioPath = path.join(__dirname, '../../../uploads/transcriptions', `audio_${Date.now()}.mp3`); // Reconstruct path (less ideal)
-     try { 
-        if (fsSync.existsSync(audioPath)) { await fs.unlink(audioPath); } 
-     } catch (cleanupErr) { /* ignore */ }
+    console.error(`[transcriptionService] Fehler (${subtitlePreference}):`, error.message);
     throw error;
   }
 }

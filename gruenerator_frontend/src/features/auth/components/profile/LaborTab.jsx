@@ -24,6 +24,8 @@ const LaborTab = ({
   setSharepicBeta,
   anweisungenBeta,
   setAnweisungenBeta,
+  youBeta,
+  setYouBeta,
 }) => {
   const [currentView, setCurrentView] = useState('deutschlandmodus');
   const [loading, setLoading] = useState(false);
@@ -37,6 +39,7 @@ const LaborTab = ({
     GENERATORS: 'generators',
     SHAREPIC: 'sharepic',
     ANWEISUNGEN: 'anweisungen',
+    YOU: 'you',
   };
 
   const ALL_FEATURES = [
@@ -46,6 +49,7 @@ const LaborTab = ({
     { key: BETA_VIEWS.DATABASE, label: 'Datenbank' },
     { key: BETA_VIEWS.GENERATORS, label: 'Grüneratoren' },
     { key: BETA_VIEWS.ANWEISUNGEN, label: 'Anweisungen & Wissen' },
+    { key: BETA_VIEWS.YOU, label: 'You Generator' },
   ];
 
   // Check which features are available for current user
@@ -96,6 +100,7 @@ const LaborTab = ({
         { key: BETA_VIEWS.GENERATORS, isActive: customGeneratorsBeta, setter: setCustomGeneratorsBeta, name: 'Grüneratoren' },
         { key: BETA_VIEWS.SHAREPIC, isActive: sharepicBeta, setter: setSharepicBeta, name: 'Sharepic' },
         { key: BETA_VIEWS.ANWEISUNGEN, isActive: anweisungenBeta, setter: setAnweisungenBeta, name: 'Anweisungen & Wissen' },
+        { key: BETA_VIEWS.YOU, isActive: youBeta, setter: setYouBeta, name: 'You Generator' },
       ];
 
       const deactivatedFeatures = [];
@@ -110,7 +115,7 @@ const LaborTab = ({
         onSuccessMessage(`Nicht verfügbare Features automatisch deaktiviert: ${deactivatedFeatures.join(', ')}`);
       }
     }
-  }, [availableFeatures, checkingFeatures, deutschlandmodusBeta, groupsBeta, databaseBeta, customGeneratorsBeta, sharepicBeta, anweisungenBeta]);
+  }, [availableFeatures, checkingFeatures, deutschlandmodusBeta, groupsBeta, databaseBeta, customGeneratorsBeta, sharepicBeta, anweisungenBeta, youBeta]);
 
   const handleViewChange = (view) => {
     setCurrentView(view);
@@ -238,6 +243,26 @@ const LaborTab = ({
               aria-label="Anweisungen & Wissen Beta-Test aktivieren"
             />
           </div>
+        );
+        break;
+      case BETA_VIEWS.YOU:
+        content = (
+          <>
+            <div className="labor-tab-checkbox-container">
+              <StyledCheckbox
+                id="you-beta"
+                label="You Generator anzeigen und Funktionalität aktivieren"
+                checked={youBeta}
+                onChange={() => handleBetaToggle(setYouBeta, youBeta, 'You Generator')}
+                aria-label="You Generator Beta-Test aktivieren"
+              />
+            </div>
+            {youBeta && (
+              <Link to="/you" className="profile-action-button profile-secondary-button labor-tab-external-link">
+                Zum You Generator <HiOutlineExternalLink className="labor-tab-external-link-icon"/>
+              </Link>
+            )}
+          </>
         );
         break;
       default:

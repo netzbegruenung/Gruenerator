@@ -13,15 +13,15 @@ import { BetaFeaturesContext } from '../../../context/BetaFeaturesContext';
 
 const Header = () => {
     const { isEditing } = useContext(FormContext);
-    const { sharepicBetaEnabled, databaseBetaEnabled } = useContext(BetaFeaturesContext);
+    const { sharepicBetaEnabled, databaseBetaEnabled, youBetaEnabled } = useContext(BetaFeaturesContext);
     const [menuActive, setMenuActive] = useState(false);
     const [activeDropdown, setActiveDropdown] = useState(null);
     const [darkMode, toggleDarkMode] = useDarkMode();
     const { announce, setupKeyboardNav } = useAccessibility();
     const headerRef = useRef(null);
 
-    const menuItems = getMenuItems({ sharepicBetaEnabled, databaseBetaEnabled });
-    const directMenuItems = getDirectMenuItems({ sharepicBetaEnabled, databaseBetaEnabled });
+    const menuItems = getMenuItems({ sharepicBetaEnabled, databaseBetaEnabled, youBetaEnabled });
+    const directMenuItems = getDirectMenuItems({ sharepicBetaEnabled, databaseBetaEnabled, youBetaEnabled });
 
     useEffect(() => {
         const headerElements = headerRef.current.querySelectorAll('a, button, .header-dropdown > span');

@@ -1,4 +1,4 @@
-import { PiFileText, PiNewspaper, PiMagicWand, PiMagnifyingGlass, PiVideoCamera, PiPencilSimple, PiImageSquare, PiArchive, PiFlask } from 'react-icons/pi';
+import { PiFileText, PiNewspaper, PiMagicWand, PiMagnifyingGlass, PiVideoCamera, PiPencilSimple, PiImageSquare, PiArchive, PiFlask, PiUser } from 'react-icons/pi';
 import { GiHedgehog } from 'react-icons/gi';
 import PropTypes from 'prop-types';
 
@@ -88,6 +88,16 @@ export const getMenuItems = (betaFeatures = {}) => {
       title: 'Datenbank',
       description: 'Texte, Vorlagen und Anträge finden',
       icon: PiArchive
+    });
+  }
+
+  if (betaFeatures.youBetaEnabled) {
+    laborItems.push({
+      id: 'you',
+      path: '/you',
+      title: 'You Generator',
+      description: 'Universeller KI-Assistent für alle Texte',
+      icon: PiUser
     });
   }
 

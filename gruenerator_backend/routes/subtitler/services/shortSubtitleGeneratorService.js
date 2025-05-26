@@ -15,35 +15,37 @@ async function generateShortSubtitlesViaAI(text, words, aiWorkerPool, useBackupP
     // Detailed instructions and data in the user message
     const userContent = `Deine Aufgabe ist es, aus einem gegebenen Volltext und den dazugehörigen Wort-Timestamps kurze, gut lesbare Untertitel-Segmente zu generieren.
 
+**KRITISCHE FORMATANFORDERUNGEN:**
+Du MUSST das Ergebnis EXAKT in diesem Format zurückgeben:
+
+MM:SS - MM:SS
+Segment Text 1
+
+MM:SS - MM:SS
+Segment Text 2
+
+MM:SS - MM:SS
+Segment Text 3
+
 **Richtlinien:**
 1.  **Segmentierung:** Erstelle Segmente, die natürlich klingen und logische Sinneinheiten bilden. Orientiere dich an den Wort-Timestamps, aber fasse Wörter sinnvoll zusammen.
-2.  **Kürze:** Jedes Segment darf maximal 40 Zeichen (inklusive Leerzeichen) enthalten. Wenn ein Satz länger ist, teile ihn sinnvoll auf mehrere Segmente auf.
-3.  **Timing:** Verwende die 'start'-Zeit des ersten Wortes und die 'end'-Zeit des letzten Wortes im Segment für die Zeitstempel. Die originalen Timestamps liegen in Sekunden vor. Stelle sicher, dass die Segmente nicht überlappen und einen minimalen Abstand von 0.1 Sekunden haben.
-4.  **Format:** Gib das Ergebnis EXAKT im folgenden Format zurück, wobei jedes Segment durch eine doppelte Leerzeile getrennt ist:
-    \`\`\`
-    MM:SS - MM:SS
-    Segment Text 1
+2.  **Kürze:** Jedes Segment darf maximal 40 Zeichen (inklusive Leerzeichen) enthalten. Wenn ein Satz länger ist, teile ihn sinnvoll auf mehrere Segmente auf. Priorisiere die genaue zeitliche Übereinstimmung mit dem gesprochenen Wort über das Erreichen der maximalen Zeichenlänge. Es ist besser, ein Segment etwas kürzer zu machen und dafür synchron zu sein, als es künstlich zu verlängern, um mehr Text unterzubringen.
+3.  **Timing-Präzision:**
+    - Die Startzeit des Segments sollte dem 'start'-Timestamp des ersten Wortes im Segment entsprechen.
+    - Die Endzeit des Segments sollte dem 'end'-Timestamp des letzten Wortes im Segment entsprechen. Das Ziel ist es, den Text anzuzeigen, solange er gesprochen wird, aber nicht unnötig darüber hinaus.
+4.  **Zeitformat MM:SS (für die Ausgabe):**
+    - Konvertiere die präzisen Start- und Endzeiten der Segmente (ursprünglich in Sekunden mit Dezimalstellen aus den Wort-Timestamps) in das MM:SS Format für die Ausgabe.
+    - Runde hierbei die Startsekunde des Segments IMMER AB (floor) zur nächsten vollen Sekunde.
+    - Runde die Endsekunde des Segments IMMER AUF (ceil) zur nächsten vollen Sekunde.
+    - Beispiel: Ein Segment, das laut Wort-Timestamps von 5.72s bis 8.18s geht.
+      - Start für Ausgabe: 5.72s wird zu 00:05.
+      - Ende für Ausgabe: 8.18s wird zu 00:09.
+      - Resultierender Zeitstempel: 00:05 - 00:09
 
-    MM:SS - MM:SS
-    Segment Text 2
-    \`\`\`
-    **Wichtige Schritte zur Zeitformatierung:**
-    a. Ermittle die Start- und Endzeit des Segments in Sekunden aus den Wort-Timestamps.
-    b. **Runde** die Startzeit auf die nächste ganze Sekunde **ab** (z.B. wird 5.7 zu 5).
-    c. **Runde** die Endzeit auf die nächste ganze Sekunde **auf** (z.B. wird 8.1 zu 9).
-    d. **Konvertiere** diese gerundeten Sekundenwerte in das Format \`MM:SS\`.
-       - \`SS\` sind die Sekunden (0-59), zweistellig mit führender Null (z.B. \`05\`, \`12\`).
-       - \`MM\` sind die vollen Minuten, zweistellig mit führender Null. Da die Videos kurz sind, wird dies meistens \`00\` sein.
-    e. **Beispiel:** Ein Segment dauert von Sekunde 5.7 bis 8.1.
-       - Startzeit gerundet: 5 Sekunden.
-       - Endzeit gerundet: 9 Sekunden.
-       - Formatierte Ausgabe: \`00:05 - 00:09\`
-    f. Der Text jedes Segments steht in einer eigenen Zeile direkt unter dem Zeitstempel.
-    g. Verwende keine zusätzliche Formatierung (wie HTML-Tags, Markdown etc.).
-5.  Satzzeichen: Behalte Satzzeichen (wie . , ? !) am Ende von Segmenten immer bei.
-6.  Worttrennung: Wörter dürfen am Ende oder Anfang eines Segments nicht getrennt werden, auch Begriffe mit Bindestrichen nicht. Jedes Wort muss vollständig in einem Segment enthalten sein.
-
-**Ziel:** Erstelle Untertitel, die schnell erfassbar sind und gut in einem vertikalen Reel-Format funktionieren. Die Zeitangaben müssen die tatsächliche Dauer in Sekunden korrekt widerspiegeln, formatiert als \`MM:SS\`.
+**AUSGABEFORMAT:**
+- Jedes Segment: Zeitstempel-Zeile, dann Text-Zeile, dann Leerzeile
+- Keine Anführungszeichen, keine Backticks, keine Markdown-Formatierung
+- Nur der reine Untertiteltext
 
 **Eingabedaten:**
 
@@ -57,9 +59,12 @@ Wort-Timestamps (JSON-Format):
 ${JSON.stringify(words, null, 2)}
 \`\`\`
 
-Bitte befolge die Anweisungen genau und gib nur den formatierten Untertiteltext zurück.`;
+Gib NUR den formatierten Untertiteltext zurück, ohne weitere Erklärungen.`;
 
-    console.log(`[ShortSubtitleGeneratorService] Anfrage an AI Worker Pool mit Textlänge ${text.length}, ${words.length} Wörtern.`);
+    console.log(`[ShortSubtitleGenerator] Anfrage an Claude: ${text.length} chars, ${words.length} Wörter`);
+    
+    // Log first few word timestamps for debugging
+    console.log(`[ShortSubtitleGenerator] Erste 3 Wort-Timestamps:`, words.slice(0, 3).map(w => `"${w.word}": ${w.start.toFixed(2)}s-${w.end.toFixed(2)}s`));
 
     try {
         const result = await aiWorkerPool.processRequest({
@@ -79,15 +84,25 @@ Bitte befolge die Anweisungen genau und gib nur den formatierten Untertiteltext 
         });
 
         if (!result.success) {
-            console.error(`[ShortSubtitleGeneratorService] Fehler von AI Worker Pool: ${result.error}`);
+            console.error(`[ShortSubtitleGenerator] AI Worker Fehler: ${result.error}`);
             throw new Error(result.error || 'Unbekannter Fehler vom AI Worker Pool');
         }
 
-        console.log(`[ShortSubtitleGeneratorService] Erfolgreiche Antwort vom AI Worker Pool erhalten. Länge: ${result.content?.length}`);
+        console.log(`[ShortSubtitleGenerator] Claude Antwort erhalten: ${result.content?.length} chars`);
+        
+        // Log first segment of Claude's response for timing verification
+        const firstSegment = result.content?.split('\n\n')[0];
+        if (firstSegment) {
+            const lines = firstSegment.split('\n');
+            if (lines.length >= 2) {
+                console.log(`[ShortSubtitleGenerator] Erstes Claude Segment: ${lines[0]} | "${lines[1]}"`);
+            }
+        }
+        
         return result.content.trim();
 
     } catch (error) {
-        console.error('[ShortSubtitleGeneratorService] Fehler bei der Kommunikation mit dem AI Worker Pool:', error);
+        console.error('[ShortSubtitleGenerator] AI Worker Kommunikationsfehler:', error.message);
         throw new Error(`Fehler bei der Erstellung der kurzen Untertitel durch AI: ${error.message}`);
     }
 }
