@@ -7,33 +7,33 @@ const ffmpeg = require('fluent-ffmpeg');
 const { getVideoMetadata, cleanupFiles } = require('./services/videoUploadService');
 const { transcribeVideo } = require('./services/transcriptionService');
 const { getFilePathFromUploadId, checkFileExists } = require('./services/tusService');
-const redisClient = require('../../utils/redisClient'); // Importiere den Redis-Client
+const redisClient = require('../../utils/redisClient'); // Import Redis client
 
-// Font-Konfiguration
+// Font configuration
 const FONT_PATH = path.resolve(__dirname, '../../public/fonts/GrueneType.ttf');
 
-// Überprüfe, ob die Font existiert
+// Check if the font exists
 async function checkFont() {
   try {
     await fsPromises.access(FONT_PATH);
-    console.log('GrueneType Font gefunden:', FONT_PATH);
+    console.log('GrueneType Font found:', FONT_PATH);
   } catch (err) {
-    console.error('Fehler beim Zugriff auf GrueneType Font:', err);
-    throw new Error('GrueneType Font nicht gefunden');
+    console.error('Error accessing GrueneType Font:', err);
+    throw new Error('GrueneType Font not found');
   }
 }
 
-// Hilfsfunktion zum intelligenten Aufteilen von Text
+// Helper function to intelligently split text
 function splitLongText(text, avgLength = 30, maxLength = 50) {
-  // Entferne überflüssige Leerzeichen und Backslashes
+  // Remove superfluous spaces and backslashes
   text = text.trim().replace(/\s+/g, ' ').replace(/\\/g, '');
 
-  // Berechne dynamischen Schwellenwert basierend auf avgLength
+  // Calculate dynamic threshold based on avgLength
   const dynamicMaxLength = Math.max(
-    25, // Minimaler Schwellenwert - geändert von 15
+    25, // Minimum threshold - changed from 15
     Math.min(
-      50, // Maximaler Schwellenwert
-      Math.floor(avgLength * 0.7) // Dynamischer Wert basierend auf avgLength (use factor 0.7 for earlier break)
+      50, // Maximum threshold
+      Math.floor(avgLength * 0.7) // Dynamic value based on avgLength (use factor 0.7 for earlier break)
     )
   );
 
@@ -77,14 +77,14 @@ function splitLongText(text, avgLength = 30, maxLength = 50) {
   return firstLine + '\n' + secondLine;
 }
 
-// Hilfsfunktion zum Escapen von Text für FFmpeg
+// Helper function to escape text for FFmpeg
 function escapeFFmpegText(text, avgLength = 30) {
-  // Entferne zuerst alle Zeitstempel
+  // First, remove all timestamps
   let cleanedText = text.replace(/\d{1,2}:\d{2}\s*-\s*\d{1,2}:\d{2}/g, '').trim();
   
-  // Teile lange Zeilen auf mit avgLength Parameter
+  // Split long lines using avgLength parameter
   cleanedText = splitLongText(cleanedText, avgLength);
-  // Escape special characters
+  // Escape special characters for FFmpeg
   return cleanedText
     .replace(/'/g, "'\\''")
     .replace(/:/g, '\\:')
@@ -96,42 +96,9 @@ function escapeFFmpegText(text, avgLength = 30) {
     .trim();
 }
 
-// Hilfsfunktion zum Konvertieren in SRT-Format
-function convertToSRT(subtitles) {
-  const segments = subtitles.split('\n\n')
-    .map(block => {
-      const [timeLine, ...textLines] = block.split('\n');
-      const [timeRange] = timeLine.match(/(\d+:\d{2}) - (\d+:\d{2})/) || [];
-      if (!timeRange) return null;
 
-      const [startTime, endTime] = timeLine.split(' - ');
-      const [startMin, startSec] = startTime.split(':').map(Number);
-      const [endMin, endSec] = endTime.split(':').map(Number);
 
-      // Konvertiere zu SRT-Zeitformat (HH:MM:SS,mmm)
-      const startSRT = `00:${startMin.toString().padStart(2, '0')}:${startSec.toString().padStart(2, '0')},000`;
-      const endSRT = `00:${endMin.toString().padStart(2, '0')}:${endSec.toString().padStart(2, '0')},000`;
-
-      // Teile den Text in maximal zwei Zeilen
-      const text = textLines.join(' ').trim();
-      const formattedText = splitLongText(text);
-
-      return {
-        startTime: startSRT,
-        endTime: endSRT,
-        text: formattedText.replace('\\n', '\n')
-      };
-    })
-    .filter(Boolean);
-
-  return segments
-    .map((segment, index) => {
-      return `${index + 1}\n${segment.startTime} --> ${segment.endTime}\n${segment.text}\n`;
-    })
-    .join('\n');
-}
-
-// Route für Video-Upload und Verarbeitung
+// Route for video upload and processing
 router.post('/process', async (req, res) => {
   console.log('=== SUBTITLER PROCESS START ===');
   const { uploadId, subtitlePreference = 'standard' } = req.body; // Expect uploadId and preference in request body, default to 'standard'
@@ -143,19 +110,29 @@ router.post('/process', async (req, res) => {
   }
 
   console.log(`Verarbeitungsanfrage für Upload-ID erhalten: ${uploadId}`);
+  console.log(`[subtitlerController] Request Body Debug:`, {
+    uploadId,
+    subtitlePreference,
+    subtitlePreferenceType: typeof subtitlePreference,
+    subtitlePreferenceLength: subtitlePreference?.length,
+    rawBody: JSON.stringify(req.body)
+  });
 
-  // Setze initialen Status in Redis mit TTL (z.B. 24 Stunden)
+  // Create unique Redis key with subtitlePreference
+  const jobKey = `job:${uploadId}:${subtitlePreference}`;
+  
+  // Set initial status in Redis with TTL (e.g., 24 hours)
   const initialStatus = JSON.stringify({ status: 'processing' });
   try {
-      await redisClient.set(`job:${uploadId}`, initialStatus, { EX: 60 * 60 * 24 }); // EX für Sekunden (24h)
-      console.log(`[Upstash Redis] Status 'processing' für ${uploadId} gesetzt.`);
+      await redisClient.set(jobKey, initialStatus, { EX: 60 * 60 * 24 }); // EX for seconds (24h)
+      console.log(`[Upstash Redis] Status 'processing' für ${jobKey} gesetzt.`);
   } catch (redisError) {
-      console.error(`[Upstash Redis] Fehler beim Setzen des initialen Status für ${uploadId}:`, redisError);
-      // Sende Fehlerantwort an Client, falls noch nicht geschehen
+      console.error(`[Upstash Redis] Fehler beim Setzen des initialen Status für ${jobKey}:`, redisError);
+      // Send error response to client if not already sent
        if (!res.headersSent) {
           return res.status(500).json({ error: 'Interner Serverfehler beim Start der Verarbeitung (Redis).' });
        }
-       // Breche weitere Verarbeitung ab, wenn Status nicht gesetzt werden konnte
+       // Abort further processing if status could not be set
        return; 
   }
 
@@ -166,19 +143,20 @@ router.post('/process', async (req, res) => {
     const fileExists = await checkFileExists(videoPath);
     if (!fileExists) {
         console.error(`Video-Datei für Upload-ID nicht gefunden: ${uploadId} am Pfad: ${videoPath}`);
-        // Setze Fehlerstatus in Redis
+        // Set error status in Redis
         const errorNotFoundStatus = JSON.stringify({ status: 'error', data: 'Zugehörige Video-Datei nicht gefunden.' });
         try {
-            await redisClient.set(`job:${uploadId}`, errorNotFoundStatus, { EX: 60 * 60 * 24 }); 
+            await redisClient.set(jobKey, errorNotFoundStatus, { EX: 60 * 60 * 24 }); 
         } catch (redisSetError) {
-             console.error(`[Upstash Redis] Fehler beim Setzen des 'file not found' Status für ${uploadId}:`, redisSetError);
+             console.error(`[Upstash Redis] Fehler beim Setzen des 'file not found' Status für ${jobKey}:`, redisSetError);
         }
         return res.status(404).json({ error: 'Zugehörige Video-Datei nicht gefunden.' });
     }
 
-    // Log basic info (size/format might need ffprobe if not in tus metadata)
-    // We can get metadata after confirming file exists
+    // Get file stats for logging
     const fileStats = await fsPromises.stat(videoPath);
+
+    // Log basic file info
      console.log('Datei gefunden:', {
       uploadId: uploadId,
       pfad: videoPath,
@@ -193,15 +171,13 @@ router.post('/process', async (req, res) => {
         console.warn('Konnte Metadaten nicht lesen:', metaError.message);
     }
 
-    // Extrahiere die gewünschte Transkriptionsmethode
-    // const transcriptionMethod = 'openai'; // Immer OpenAI verwenden - Wird nicht mehr direkt benötigt
-    // console.log('Transkription: OpenAI'); // Method wird implizit von transcribeVideo gehandhabt
-    console.log(`Untertitel Präferenz: ${subtitlePreference}`); // Log preference
+    // Subtitle preference is logged
+    console.log(`Untertitel Präferenz: ${subtitlePreference}`);
 
     console.log('Starte Transkription...');
     
-    // Run transcription asynchronously (don't wait here)
-    // Korrigierter Aufruf: Übergebe subtitlePreference als zweiten Parameter und den aiWorkerPool
+    // Run transcription asynchronously
+    // Corrected call: Pass subtitlePreference as the second parameter and the aiWorkerPool
     const aiWorkerPool = req.app.locals.aiWorkerPool; // Get pool from app locals
     if (!aiWorkerPool) {
         // Handle case where pool is not available
@@ -209,10 +185,10 @@ router.post('/process', async (req, res) => {
         // Set error status or proceed without short subtitle capability
          const errorPoolStatus = JSON.stringify({ status: 'error', data: 'AI Worker Pool nicht konfiguriert.' });
          try {
-            await redisClient.set(`job:${uploadId}`, errorPoolStatus, { EX: 60 * 60 * 24 }); 
-            console.log(`[Upstash Redis] Status 'error' (AI Pool missing) für ${uploadId} gesetzt.`);
+            await redisClient.set(jobKey, errorPoolStatus, { EX: 60 * 60 * 24 }); 
+            console.log(`[Upstash Redis] Status 'error' (AI Pool missing) für ${jobKey} gesetzt.`);
         } catch (redisError) {
-             console.error(`[Upstash Redis] Fehler beim Setzen des 'AI Pool missing' Status für ${uploadId}:`, redisError);
+             console.error(`[Upstash Redis] Fehler beim Setzen des 'AI Pool missing' Status für ${jobKey}:`, redisError);
         }
          if (!res.headersSent) {
              return res.status(500).json({ error: 'Interner Konfigurationsfehler (AI Worker Pool).' });
@@ -227,25 +203,25 @@ router.post('/process', async (req, res) => {
           throw new Error('Keine Untertitel generiert');
         }
         console.log(`Transkription erfolgreich für Upload-ID: ${uploadId}`);
-        // Setze 'complete' Status in Redis
+        // Setze 'complete' status in Redis
         const finalStatus = JSON.stringify({ status: 'complete', data: subtitles });
         try {
-            await redisClient.set(`job:${uploadId}`, finalStatus, { EX: 60 * 60 * 24 }); // TTL erneuern/setzen
-            console.log(`[Upstash Redis] Status 'complete' für ${uploadId} gesetzt.`);
+            await redisClient.set(jobKey, finalStatus, { EX: 60 * 60 * 24 }); // TTL erneuern/setzen
+            console.log(`[Upstash Redis] Status 'complete' für ${jobKey} gesetzt.`);
         } catch (redisError) {
-             console.error(`[Upstash Redis] Fehler beim Setzen des 'complete' Status für ${uploadId}:`, redisError);
+             console.error(`[Upstash Redis] Fehler beim Setzen des 'complete' Status für ${jobKey}:`, redisError);
              // Fehler loggen, aber fortfahren (Job bleibt evtl. 'processing')
         }
       })
       .catch(async (error) => {
         console.error(`Fehler bei der asynchronen Verarbeitung für Upload-ID ${uploadId}:`, error);
-        // Setze 'error' Status in Redis
+        // Setze 'error' status in Redis
         const errorStatus = JSON.stringify({ status: 'error', data: error.message || 'Fehler bei der Verarbeitung.' });
          try {
-            await redisClient.set(`job:${uploadId}`, errorStatus, { EX: 60 * 60 * 24 }); // TTL für Fehler setzen
-            console.log(`[Upstash Redis] Status 'error' für ${uploadId} gesetzt.`);
+            await redisClient.set(jobKey, errorStatus, { EX: 60 * 60 * 24 }); // TTL für Fehler setzen
+            console.log(`[Upstash Redis] Status 'error' für ${jobKey} gesetzt.`);
         } catch (redisError) {
-             console.error(`[Upstash Redis] Fehler beim Setzen des 'error' Status für ${uploadId}:`, redisError);
+             console.error(`[Upstash Redis] Fehler beim Setzen des 'error' Status für ${jobKey}:`, redisError);
         }
         // Cleanup the source file if processing failed critically
         cleanupFiles(videoPath).catch(e => console.error('Cleanup failed after error:', e));
@@ -265,11 +241,11 @@ router.post('/process', async (req, res) => {
     const criticalErrorStatus = JSON.stringify({ status: 'error', data: error.message || 'Fehler beim Start der Verarbeitung.' });
      try {
         // Prüfe, ob der Key schon existiert, bevor überschrieben wird (optional, aber sicherheitshalber)
-        // await redisClient.set(`job:${uploadId}`, criticalErrorStatus, { EX: 60 * 60 * 24, NX: true }); // NX = Nur setzen, wenn Key nicht existiert
-        await redisClient.set(`job:${uploadId}`, criticalErrorStatus, { EX: 60 * 60 * 24 }); // Überschreibt ggf. 'processing'
-        console.log(`[Upstash Redis] Status 'error' (critical) für ${uploadId} gesetzt.`);
+        // await redisClient.set(jobKey, criticalErrorStatus, { EX: 60 * 60 * 24, NX: true }); // NX = Nur setzen, wenn Key nicht existiert
+        await redisClient.set(jobKey, criticalErrorStatus, { EX: 60 * 60 * 24 }); // Überschreibt ggf. 'processing'
+        console.log(`[Upstash Redis] Status 'error' (critical) für ${jobKey} gesetzt.`);
     } catch (redisError) {
-         console.error(`[Upstash Redis] Fehler beim Setzen des 'critical error' Status für ${uploadId}:`, redisError);
+         console.error(`[Upstash Redis] Fehler beim Setzen des 'critical error' Status für ${jobKey}:`, redisError);
     }
     // Ensure response is sent even if error occurs before async part
      if (!res.headersSent) {
@@ -286,13 +262,15 @@ router.post('/process', async (req, res) => {
 // Route to get processing status and results
 router.get('/result/:uploadId', async (req, res) => {
     const { uploadId } = req.params;
+    const { subtitlePreference = 'standard' } = req.query; // Get preference from query params
+    const jobKey = `job:${uploadId}:${subtitlePreference}`;
     let jobDataString;
 
     try {
-        jobDataString = await redisClient.get(`job:${uploadId}`);
-        console.log(`[Upstash Redis] Status für ${uploadId} abgefragt. Rohdaten:`, jobDataString);
+        jobDataString = await redisClient.get(jobKey);
+        console.log(`[Upstash Redis] Status für ${jobKey} abgefragt. Rohdaten:`, jobDataString);
     } catch (redisError) {
-        console.error(`[Upstash Redis] Fehler beim Abrufen des Status für ${uploadId}:`, redisError);
+        console.error(`[Upstash Redis] Fehler beim Abrufen des Status für ${jobKey}:`, redisError);
         return res.status(500).json({ status: 'error', error: 'Interner Serverfehler beim Abrufen des Job-Status.' });
     }
 
@@ -302,7 +280,7 @@ router.get('/result/:uploadId', async (req, res) => {
 
     try {
         const job = JSON.parse(jobDataString);
-        console.log(`Statusabfrage für Job ${uploadId}: ${job.status}`);
+        console.log(`Statusabfrage für Job ${jobKey}: ${job.status}`);
 
         switch (job.status) {
             case 'processing':
@@ -312,13 +290,55 @@ router.get('/result/:uploadId', async (req, res) => {
             case 'error':
                 return res.status(200).json({ status: 'error', error: job.data });
             default:
-                console.error(`Unbekannter Job-Status in Redis für ${uploadId}:`, job.status);
+                console.error(`Unbekannter Job-Status in Redis für ${jobKey}:`, job.status);
                 return res.status(500).json({ status: 'unknown', error: 'Unbekannter Job-Status.' });
         }
     } catch (parseError) {
-        console.error(`Fehler beim Parsen der Redis-Daten für ${uploadId}:`, parseError, 'Daten:', jobDataString);
+        console.error(`Fehler beim Parsen der Redis-Daten für ${jobKey}:`, parseError, 'Daten:', jobDataString);
         return res.status(500).json({ status: 'error', error: 'Interner Fehler beim Lesen des Job-Status.' });
     }
+});
+
+// Route to get export progress
+router.get('/export-progress/:uploadId', async (req, res) => {
+    const { uploadId } = req.params;
+    
+    try {
+        const progressData = await redisClient.get(`export:${uploadId}`);
+        
+        if (!progressData) {
+            return res.status(404).json({ status: 'not_found' });
+        }
+        
+        const progress = JSON.parse(progressData);
+        return res.status(200).json(progress);
+        
+    } catch (error) {
+        console.error(`Fehler beim Abrufen des Export-Progress für ${uploadId}:`, error);
+        return res.status(500).json({ status: 'error', error: 'Fehler beim Abrufen des Progress' });
+    }
+});
+
+// Route for cleanup of uploaded files
+router.delete('/cleanup/:uploadId', async (req, res) => {
+  const { uploadId } = req.params;
+  
+  if (!uploadId) {
+    return res.status(400).json({ error: 'Upload-ID fehlt' });
+  }
+
+  try {
+    const inputPath = getFilePathFromUploadId(uploadId);
+    console.log(`[Cleanup] Manual cleanup requested for uploadId: ${uploadId}, path: ${inputPath}`);
+    
+    // Only cleanup input file, not output files (they are temporary anyway)
+    await cleanupFiles(inputPath);
+    
+    res.status(200).json({ success: true, message: 'Cleanup erfolgreich' });
+  } catch (error) {
+    console.error(`[Cleanup] Error during manual cleanup for ${uploadId}:`, error);
+    res.status(500).json({ error: 'Fehler beim Cleanup', details: error.message });
+  }
 });
 
 // Route zum Herunterladen des fertigen Videos
@@ -375,55 +395,90 @@ router.post('/export', async (req, res) => {
     outputPath = path.join(outputDir, `subtitled_${outputBaseName}_${Date.now()}${path.extname(originalFilename)}`);
     console.log('Ausgabepfad:', outputPath);
 
-    // Berechne Schriftgröße basierend auf der Videoauflösung
-    const baseFontSize = 48; // Basis-Schriftgröße für 1080p
-    const minFontSize = 16;  // Minimum für kleine Videos
-    const maxFontSize = 48;  // Maximum für große Videos
-    
-    // Bestimme die relevante Dimension basierend auf der Video-Orientierung
+    // Intelligent font size calculation for short subtitle segments
     const isVertical = metadata.width < metadata.height;
     const referenceDimension = isVertical ? metadata.width : metadata.height;
+    const totalPixels = metadata.width * metadata.height;
     
-    // Berechne Schriftgröße basierend auf der Referenzdimension
-    // Angepasste Prozentsätze für verschiedene Auflösungen
-    let percentage;
-    if (referenceDimension >= 1920) { // Full HD und größer
-      percentage = isVertical ? 0.046 : 0.038; // 4.6% der Breite / 3.8% der Höhe
-    } else if (referenceDimension >= 1080) { // HD
-      percentage = isVertical ? 0.04 : 0.03; // 4% der Breite / 3% der Höhe
-    } else { // Kleinere Auflösungen
-      percentage = isVertical ? 0.035 : 0.03; // 3.5% der Breite / 3% der Höhe
+    // Increased base values for better readability of short texts
+    let minFontSize, maxFontSize, basePercentage;
+    
+    if (referenceDimension >= 2160) { // 4K and higher
+      minFontSize = 80;  // +20px for short texts
+      maxFontSize = 180; // +40px for better visibility
+      basePercentage = isVertical ? 0.070 : 0.065; // +1.5% / +1.5%
+    } else if (referenceDimension >= 1440) { // 2K/1440p
+      minFontSize = 60;  // +15px
+      maxFontSize = 140; // +40px
+      basePercentage = isVertical ? 0.065 : 0.060; // +1.5% / +1.5%
+    } else if (referenceDimension >= 1080) { // FullHD
+      minFontSize = 45;  // +10px
+      maxFontSize = 100; // +25px
+      basePercentage = isVertical ? 0.060 : 0.055; // +1.5% / +1.3%
+    } else if (referenceDimension >= 720) { // HD
+      minFontSize = 35;  // +10px
+      maxFontSize = 70;  // +15px
+      basePercentage = isVertical ? 0.055 : 0.050; // +1.5% / +1.5%
+    } else { // SD and smaller
+      minFontSize = 24;  // +8px
+      maxFontSize = 50;  // +10px
+      basePercentage = isVertical ? 0.050 : 0.045; // +1.5% / +1.5%
     }
     
-    const fontSize = Math.max(minFontSize, Math.min(maxFontSize, Math.floor(referenceDimension * percentage)));
+    // Logarithmic adjustment for very high resolutions (amplified)
+    const pixelFactor = Math.log10(totalPixels / 2073600) * 0.15 + 1; // Increased from 0.1 to 0.15
+    const adjustedPercentage = basePercentage * Math.min(pixelFactor, 1.4); // Max 40% increase (instead of 30%)
+    
+    const fontSize = Math.max(minFontSize, Math.min(maxFontSize, Math.floor(referenceDimension * adjustedPercentage)));
 
-    // Berechne den Zeilenabstand mit Hybrid-Ansatz
-    const minSpacing = 40; // Minimaler Abstand in Pixeln
+    // Calculate line spacing with a hybrid approach
+    const minSpacing = 40; // Minimum spacing in pixels
     const maxSpacing = fontSize * 1.25;
     const spacing = Math.max(minSpacing, Math.min(maxSpacing, fontSize * (1.5 + (1 - fontSize/48))));
 
-    // Verbesserte Verarbeitung der Untertitel-Segmente
+    // Process subtitle segments
+    console.log('Raw subtitles input:', subtitles.substring(0, 200) + '...');
+    
     const segments = subtitles
-      .split(/\n(?=\d+:\d{2}\s*-\s*\d+:\d{2})/)
-      .map(block => {
+      .split('\n\n')
+      .map((block, index) => {
         const lines = block.trim().split('\n');
+        if (lines.length < 2) {
+          console.warn(`[subtitlerController] Skipping invalid block ${index}:`, block);
+          return null;
+        }
+        
         const timeLine = lines[0].trim();
-        // Unterstützt auch Stunden:SS - MM:SS
-        const timeMatch = timeLine.match(/^(\d+):(\d{2})\s*-\s*(\d+):(\d{2})$/);
-        if (!timeMatch) return null;
+        
+        // Unterstützt sowohl MM:SS als auch HH:MM:SS Format
+        const timeMatch = timeLine.match(/^(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})$/);
+        if (!timeMatch) {
+          console.warn(`[subtitlerController] Invalid time format in block ${index}:`, timeLine);
+          return null;
+        }
 
         const [_, startMin, startSec, endMin, endSec] = timeMatch;
-        // Millisekunden übernehmen, falls vorhanden
-        const startTime = (parseInt(startMin) * 60 + parseFloat(startSec)).toFixed(3);
-        const endTime = (parseInt(endMin) * 60 + parseFloat(endSec)).toFixed(3);
+        const startTime = parseInt(startMin) * 60 + parseInt(startSec);
+        const endTime = parseInt(endMin) * 60 + parseInt(endSec);
+        
+        // Validiere Zeitstempel
+        if (startTime >= endTime) {
+          console.warn(`[subtitlerController] Invalid time range in block ${index}: ${startTime} >= ${endTime}`);
+          return null;
+        }
 
         // Teile den Text in maximal zwei Zeilen
         const text = lines.slice(1).join(' ').trim();
+        if (!text) {
+          console.warn(`[subtitlerController] Empty text in block ${index}`);
+          return null;
+        }
+        
         const formattedText = splitLongText(text);
 
         return {
-          startTime: parseFloat(startTime),
-          endTime: parseFloat(endTime),
+          startTime,
+          endTime,
           text: formattedText.replace('\\n', '\n')
         };
       })
@@ -435,40 +490,61 @@ router.post('/export', async (req, res) => {
       throw new Error('Keine Untertitel-Segmente gefunden');
     }
 
-    // Überlappungen ohne Puffer korrigieren
-    for (let i = 0; i < segments.length - 1; i++) {
-      if (segments[i].endTime > segments[i + 1].startTime) {
-        segments[i].endTime = segments[i + 1].startTime;
-      }
-    }
+    console.log(`[subtitlerController] Parsed ${segments.length} segments. Erste 3:`,
+      segments.slice(0, 3).map((s, i) => `${i}: ${s.startTime}s-${s.endTime}s "${s.text.substring(0, 20)}..."`));
+    
+    // Logging for the segments that are now used (almost) directly from user input for FFmpeg
+    console.log(`[subtitlerController] Finale Segmente (User-Input priorisiert, keine Backend-Anpassungen):`,
+      segments.map((s, i) => `${i}: ${s.startTime.toFixed(2)}-${s.endTime.toFixed(2)}s (${(s.endTime - s.startTime).toFixed(2)}s)`));
+    
 
-    // ---- Start: Calculate average segment length and scale factor ----
+    // ---- Start: Calculate average segment length and enhanced scale factor ----
     let totalChars = 0;
+    let totalWords = 0;
     segments.forEach(segment => {
       totalChars += segment.text.length;
+      totalWords += segment.text.split(' ').length;
     });
-    const avgLength = segments.length > 0 ? totalChars / segments.length : 30; // Default to medium if no segments
+    const avgLength = segments.length > 0 ? totalChars / segments.length : 30;
+    const avgWords = segments.length > 0 ? totalWords / segments.length : 5;
 
-    const calculateScaleFactor = (avg) => {
-        const shortThreshold = 15;
-        const longThreshold = 45;
-        const minFactor = 0.9; // Scale down slightly for long text
-        const maxFactor = 1.15; // Scale up more for very short text
-
-        if (avg <= shortThreshold) {
-            return maxFactor;
-        } else if (avg >= longThreshold) {
-            return minFactor;
+    const calculateScaleFactor = (avgChars, avgWords) => {
+        // Verstärkte Skalierung für kurze Texte (typisch für Untertitel)
+        const shortCharThreshold = 20;  // Reduziert von 15
+        const longCharThreshold = 40;   // Reduziert von 45
+        const shortWordThreshold = 3;   // Sehr kurze Segmente
+        const longWordThreshold = 7;    // Längere Segmente
+        
+        // Basis-Faktoren für Textlänge (verstärkt)
+        let charFactor;
+        if (avgChars <= shortCharThreshold) {
+            charFactor = 1.35; // Erhöht von 1.15 auf 1.35 für sehr kurze Texte
+        } else if (avgChars >= longCharThreshold) {
+            charFactor = 0.95; // Leicht reduziert für lange Texte
         } else {
-            // Linear interpolation between thresholds
-            const range = longThreshold - shortThreshold;
-            const position = avg - shortThreshold;
-            const factor = maxFactor - ((maxFactor - minFactor) * (position / range));
-            return factor;
+            // Linear interpolation
+            const range = longCharThreshold - shortCharThreshold;
+            const position = avgChars - shortCharThreshold;
+            charFactor = 1.35 - ((1.35 - 0.95) * (position / range));
         }
+        
+        // Zusätzlicher Wort-basierter Faktor
+        let wordFactor;
+        if (avgWords <= shortWordThreshold) {
+            wordFactor = 1.25; // Bonus für sehr wenige Wörter
+        } else if (avgWords >= longWordThreshold) {
+            wordFactor = 0.95; // Leichte Reduktion für viele Wörter
+        } else {
+            const range = longWordThreshold - shortWordThreshold;
+            const position = avgWords - shortWordThreshold;
+            wordFactor = 1.25 - ((1.25 - 0.95) * (position / range));
+        }
+        
+        // Kombiniere beide Faktoren (gewichtet)
+        return (charFactor * 0.7) + (wordFactor * 0.3);
     };
 
-    const scaleFactor = calculateScaleFactor(avgLength);
+    const scaleFactor = calculateScaleFactor(avgLength, avgWords);
 
     // Apply scale factor and clamp
     const finalFontSize = Math.max(minFontSize, Math.min(maxFontSize, Math.floor(fontSize * scaleFactor)));
@@ -478,70 +554,96 @@ router.post('/export', async (req, res) => {
 
     // ---- End: Calculate average segment length and scale factor ----
 
-    // +++ Start Debug Logging for Spacing +++
-    console.log('Debug Spacing Calculation:', {
-      minSpacing,
-      maxSpacing,
-      scaledMaxSpacing,
-      spacing, // Original spacing before final calc
-      fontSize,
-      scaleFactor,
-      finalFontSize, // Used in filter
-      finalSpacing // Used in filter
-    });
-    // +++ End Debug Logging for Spacing +++
-
-    // Log die Berechnung (updated with final values)
-    console.log('Schriftgrößenberechnung:', {
+    // Log the extended calculation for short subtitles
+    console.log('Font calculation:', {
       videoDimensionen: `${metadata.width}x${metadata.height}`,
-      orientierung: isVertical ? 'vertikal' : 'horizontal',
-      referenzDimension: referenceDimension,
-      auflösungskategorie: referenceDimension >= 1920 ? 'Full HD+' : 
-                          referenceDimension >= 1080 ? 'HD' : 'SD',
-      prozent: `${(percentage * 100).toFixed(1)}%`,
-      berechneteGröße: `${fontSize}px`, // Original calculation
-      durchschnittlicheSegmentLänge: avgLength.toFixed(1),
-      skalierungsFaktor: scaleFactor.toFixed(2),
-      finaleSchriftgröße: `${finalFontSize}px (${(finalFontSize/referenceDimension*100).toFixed(1)}% der ${isVertical ? 'Breite' : 'Höhe'})`,
-      finalerZeilenabstand: {
-           minimal: `${minSpacing}px`,
-           maximal: `${scaledMaxSpacing.toFixed(1)}px`, // Show scaled max
-           berechnet: `${finalSpacing.toFixed(1)}px`,
-           verhältnis: `${(finalSpacing/finalFontSize).toFixed(2)}x`
-       }
+      avgTextLength: avgLength.toFixed(1),
+      scaleFactor: scaleFactor.toFixed(2),
+      finalFontSize: `${finalFontSize}px`,
+      finalSpacing: `${finalSpacing}px`
     });
 
     // FFmpeg-Verarbeitung
     await new Promise((resolve, reject) => {
       const command = ffmpeg(inputPath);
       
-      // ---- Start: Dynamically select preset based on input file size ----
-      const sizeThreshold = 100 * 1024 * 1024; // 100 MB in bytes
+      // ---- Start: Intelligent quality optimization ----
       const inputFileSize = fileStats.size;
-      let chosenPreset;
-
-      if (inputFileSize > sizeThreshold) {
-        chosenPreset = 'veryfast'; 
-        console.log(`[FFmpeg Preset] Input size (${(inputFileSize / 1024 / 1024).toFixed(1)} MB) > 100 MB. Using preset: ${chosenPreset}`);
-      } else {
-        chosenPreset = 'medium';
-        console.log(`[FFmpeg Preset] Input size (${(inputFileSize / 1024 / 1024).toFixed(1)} MB) <= 100 MB. Using preset: ${chosenPreset}`);
+      const fileSizeMB = inputFileSize / 1024 / 1024;
+      
+      // Resolution-based CRF values for optimal quality
+      let crf, preset, tune;
+      
+      if (referenceDimension >= 2160) { // 4K+
+        crf = 18; // Sehr hohe Qualität für 4K
+        preset = fileSizeMB > 200 ? 'fast' : 'slow';
+        tune = 'film';
+      } else if (referenceDimension >= 1440) { // 2K
+        crf = 19; // Hohe Qualität für 2K
+        preset = fileSizeMB > 150 ? 'fast' : 'slow';
+        tune = 'film';
+      } else if (referenceDimension >= 1080) { // FullHD
+        crf = 20; // Gute Qualität für FullHD
+        preset = fileSizeMB > 100 ? 'medium' : 'slow';
+        tune = 'film';
+      } else if (referenceDimension >= 720) { // HD
+        crf = 21; // Solide Qualität für HD
+        preset = fileSizeMB > 50 ? 'medium' : 'slower';
+        tune = 'film';
+      } else { // SD
+        crf = 22; // Erhaltung für niedrige Auflösungen
+        preset = 'slower'; // Mehr Zeit für bessere Kompression bei SD
+        tune = 'film';
       }
-      // ---- End: Dynamically select preset ----
+      
+      console.log(`[FFmpeg] ${referenceDimension}p, CRF: ${crf}, Preset: ${preset}`);
 
-      // Setze Basis-Optionen
+      // ---- Start: Audio preservation analysis ----
+      let audioCodec, audioBitrate;
+      const originalAudioCodec = metadata.originalFormat?.audioCodec;
+      const originalAudioBitrate = metadata.originalFormat?.audioBitrate;
+      
+      // Keep original audio if it's already AAC and has good quality
+      if (originalAudioCodec === 'aac' && originalAudioBitrate && originalAudioBitrate >= 128) {
+        audioCodec = 'copy'; // No re-encoding
+        audioBitrate = null;
+      } else {
+        // Resolution-based audio quality
+        audioCodec = 'aac';
+        if (referenceDimension >= 1440) {
+          audioBitrate = '256k'; // Higher quality for 2K+
+        } else if (referenceDimension >= 1080) {
+          audioBitrate = '192k'; // Standard for FullHD
+        } else {
+          audioBitrate = '128k'; // Sufficient for HD/SD
+        }
+      }
+      // ---- End: Audio preservation analysis ----
+
+      // Intelligent codec choice based on resolution and compatibility
+      let videoCodec;
+      if (referenceDimension >= 2160 && metadata.originalFormat?.codec === 'hevc') {
+        videoCodec = 'libx265'; // HEVC for 4K if original was also HEVC
+      } else {
+        videoCodec = 'libx264'; // H.264 for better compatibility
+      }
+
+      // Optimized output options
       const outputOptions = [
         '-y',
-        // Verwende den originalen Codec wenn möglich, sonst H.264
-        metadata.originalFormat?.codec === 'hevc' ? '-c:v hevc' : '-c:v libx264',
-        // Qualitätseinstellungen
-        `-preset ${chosenPreset}`,  // Use the dynamically chosen preset
-        '-crf 23',           // Gute Qualität (0-51, niedriger ist besser)
-        // Konvertiere Audio immer zu AAC für bessere Kompatibilität
-        '-c:a aac',          // Set audio codec to AAC
-        '-b:a 192k',         // Set audio bitrate to 192kbps
-        // Optimiere für Streaming
-        '-movflags faststart+frag_keyframe+empty_moov'
+        `-c:v ${videoCodec}`,
+        `-preset ${preset}`,
+        `-crf ${crf}`,
+        `-tune ${tune}`,
+        // Erweiterte H.264/H.265 Optimierungen
+        videoCodec === 'libx264' ? '-profile:v high' : '-profile:v main',
+        videoCodec === 'libx264' ? '-level 4.1' : '-level 4.0',
+        // Audio-Einstellungen
+        `-c:a ${audioCodec}`,
+        ...(audioBitrate ? [`-b:a ${audioBitrate}`] : []),
+        // Optimierte Container-Einstellungen
+        '-movflags +faststart',
+        '-avoid_negative_ts make_zero'
       ];
 
       // Setze Rotations-Metadaten
@@ -551,31 +653,23 @@ router.post('/export', async (req, res) => {
 
       command.outputOptions(outputOptions);
 
-      // Erstelle Filter für Untertitel (using finalFontSize and finalSpacing)
+      // Create filters for subtitles (using finalFontSize and finalSpacing)
       const filters = segments
         .map((segment, index) => {
-          // +++ Start Debug Logging per Segment +++
-          console.log(`\n--- Debug Segment ${index} ---`);
-          console.log('Original Text:', segment.text);
-          
           const escapedText = escapeFFmpegText(segment.text, avgLength);
-          console.log('Escaped Text:', JSON.stringify(escapedText)); // Use JSON.stringify to see \n
           const hasNewline = escapedText.includes('\n');
-          console.log('Has Newline:', hasNewline);
-          // +++ End Debug Logging per Segment +++
           
           const isVertical = metadata.rotation === '90' || metadata.rotation === '270';
-          const yPosBase = isVertical ? 'h*0.7' : 'h*0.7'; // Basis-Y-Position
+          const yPosBase = isVertical ? 'h*0.7' : 'h*0.7'; // Base Y-position
           
           let filterString = '';
 
           if (hasNewline) {
-            // Fall 1: Text wurde geteilt
+            // Case 1: Text was split
             const [line1, line2] = escapedText.split('\n');
             
             const yPosLine1 = yPosBase;
             const yPosLine2 = `${yPosBase}+${finalSpacing}`;
-            console.log('Calculated Y Pos:', { line1: yPosLine1, line2: yPosLine2 }); // Log Y positions
 
             const line1Filter = `drawtext=text='${line1}':` +
               `fontfile='${FONT_PATH}':` +
@@ -585,10 +679,10 @@ router.post('/export', async (req, res) => {
               `boxcolor=black@0.8:` +
               `boxborderw=8:` +
               `x=(w-text_w)/2:` +
-              `y=${yPosLine1}:` + // Position Zeile 1
+              `y=${yPosLine1}:` + // Position line 1
               `enable='between(t,${segment.startTime},${segment.endTime})'`;
 
-            const line2Filter = `,drawtext=text='${line2}':` + // Komma als Trenner
+            const line2Filter = `,drawtext=text='${line2}':` + // Comma as separator
               `fontfile='${FONT_PATH}':` +
               `fontsize=${finalFontSize}:` +
               `fontcolor=white:` +
@@ -596,17 +690,16 @@ router.post('/export', async (req, res) => {
               `boxcolor=black@0.8:` +
               `boxborderw=8:` +
               `x=(w-text_w)/2:` +
-              `y=${yPosLine2}:` + // Position Zeile 2
+              `y=${yPosLine2}:` + // Position line 2
               `enable='between(t,${segment.startTime},${segment.endTime})'`;
 
             filterString = line1Filter + line2Filter;
 
           } else {
-            // Fall 2: Text wurde NICHT geteilt (oder hatte ursprünglich keinen Umbruch)
+            // Case 2: Text was NOT split (or originally had no line break)
             const yPosLine1 = yPosBase;
-            console.log('Calculated Y Pos:', { line1: yPosLine1 }); // Log Y position
 
-            const line1Filter = `drawtext=text='${escapedText}':` + // Gesamter Text in line1
+            const line1Filter = `drawtext=text='${escapedText}':` + // Entire text in line1
               `fontfile='${FONT_PATH}':` +
               `fontsize=${finalFontSize}:` +
               `fontcolor=white:` +
@@ -614,13 +707,11 @@ router.post('/export', async (req, res) => {
               `boxcolor=black@0.8:` +
               `boxborderw=8:` +
               `x=(w-text_w)/2:` +
-              `y=${yPosLine1}:` + // Zentriert positionieren (nur eine Zeile)
+              `y=${yPosLine1}:` + // Center position (only one line)
               `enable='between(t,${segment.startTime},${segment.endTime})'`;
 
             filterString = line1Filter;
           }
-          console.log('Generated Filter String:', filterString);
-          console.log(`--- End Debug Segment ${index} ---\n`);
           return filterString;
         })
         .join(','); // Füge die einzelnen Filter-Strings zusammen
@@ -628,56 +719,44 @@ router.post('/export', async (req, res) => {
       // Wende Filter an
       command.videoFilters(filters);
 
-      // Debug-Logging (Update to show final size if needed)
+      // Debug-Logging für erste 2 Segmente
+      console.log(`[FFmpeg] Filter für erste 2 Segmente:`);
+      segments.slice(0, 2).forEach((segment, index) => {
+        console.log(`  Segment ${index}: t=${segment.startTime}-${segment.endTime}s, Text: "${segment.text.substring(0, 30)}..."`);
+      });
+
       command
         .on('start', cmd => {
-          console.log('FFmpeg-Befehl:', cmd);
-          console.log('Video-Metadaten:', {
-            rotation: metadata.rotation,
-            codec: metadata.originalFormat?.codec,
-            dimensions: `${metadata.width}x${metadata.height}`,
-            schriftgröße: `${finalFontSize}px (${(finalFontSize/referenceDimension*100).toFixed(1)}% der Höhe)`,
-            preset: chosenPreset // Log the chosen preset as well
-          });
+          console.log('[FFmpeg] Processing started');
+        })
+        .on('progress', async (progress) => {
+          const progressPercent = progress.percent ? Math.round(progress.percent) : 0;
+          console.log('Fortschritt:', `${progressPercent}%`);
           
-          // Logge den kompletten Filter-String für die erste Zeile (using finalFontSize)
-          const firstSegment = segments[0];
-          if (firstSegment) {
-              const escapedText = escapeFFmpegText(firstSegment.text, avgLength);
-              // Split directly on newline character
-              const [line1] = escapedText.split('\n'); 
-              const isVertical = metadata.rotation === '90' || metadata.rotation === '270';
-              const yPos = isVertical ? 'h*0.7' : 'h*0.7';
-              
-              const line1Filter = `drawtext=text='${line1}':` +
-              `fontfile='${FONT_PATH}':` +
-              `fontsize=${finalFontSize}:` + // Use finalFontSize
-              `fontcolor=white:` +
-              `box=1:` +
-              `boxcolor=black@0.8:` +
-              `boxborderw=8:` +
-              `x=(w-text_w)/2:` +
-              `y=${yPos}:` +
-              `enable='between(t,${firstSegment.startTime},${firstSegment.endTime})'`;
-              
-              console.log('FFmpeg Filter Details:', {
-                  filterString: line1Filter,
-                  text: line1,
-                  fontSize: finalFontSize, // Show finalFontSize
-                  boxborderw: 8,
-                  yPosition: yPos,
-                  startTime: firstSegment.startTime,
-                  endTime: firstSegment.endTime
-              });
+          // Speichere Progress in Redis
+          const progressData = {
+            status: 'exporting',
+            progress: progressPercent,
+            timeRemaining: progress.timemark
+          };
+          try {
+            await redisClient.set(`export:${uploadId}`, JSON.stringify(progressData), { EX: 60 * 60 });
+          } catch (redisError) {
+            console.warn('Redis Progress Update Fehler:', redisError.message);
           }
         })
-        .on('progress', progress => console.log('Fortschritt:', progress.percent ? `${progress.percent.toFixed(1)}%` : 'Verarbeite...'))
         .on('error', (err) => {
           console.error('FFmpeg Fehler:', err);
           reject(err);
         })
-        .on('end', () => {
+        .on('end', async () => {
           console.log('FFmpeg Verarbeitung abgeschlossen');
+          // Lösche Progress aus Redis
+          try {
+            await redisClient.del(`export:${uploadId}`);
+          } catch (redisError) {
+            console.warn('Redis Progress Cleanup Fehler:', redisError.message);
+          }
           resolve();
         });
 
@@ -700,9 +779,19 @@ router.post('/export', async (req, res) => {
     const fileStream = fs.createReadStream(outputPath);
     fileStream.pipe(res);
 
-    // Cleanup nach erfolgreichem Senden
+    // Cleanup nach erfolgreichem Senden - only output file, input file handled by session cleanup
     fileStream.on('end', async () => {
-      await cleanupFiles(inputPath, outputPath);
+      await cleanupFiles(null, outputPath); // Only cleanup output file
+      
+      // Schedule input file cleanup as fallback (30 minutes)
+      setTimeout(async () => {
+        try {
+          console.log(`[Cleanup] Fallback TTL cleanup for uploadId: ${uploadId}`);
+          await cleanupFiles(inputPath);
+        } catch (error) {
+          console.warn(`[Cleanup] Fallback cleanup failed for ${uploadId}:`, error.message);
+        }
+      }, 30 * 60 * 1000); // 30 minutes
     });
 
     // Error-Handling für den Stream
@@ -715,7 +804,7 @@ router.post('/export', async (req, res) => {
 
   } catch (error) {
     console.error('Export-Fehler:', error);
-    await cleanupFiles(inputPath, outputPath);
+    await cleanupFiles(null, outputPath); // Only cleanup output file on error
 
     if (!res.headersSent) {
       res.status(500).json({
@@ -723,31 +812,6 @@ router.post('/export', async (req, res) => {
         details: error.message
       });
     }
-  }
-});
-
-// Route zum Herunterladen der Untertitel als SRT
-router.post('/download-srt', (req, res) => {
-  try {
-    if (!req.body.subtitles) {
-      return res.status(400).json({ error: 'Keine Untertitel gefunden' });
-    }
-
-    const srtContent = convertToSRT(req.body.subtitles);
-    
-    // Setze Header für den Download
-    res.setHeader('Content-Type', 'text/plain');
-    res.setHeader('Content-Disposition', 'attachment; filename=subtitles.srt');
-    
-    // Sende die SRT-Datei
-    res.send(srtContent);
-
-  } catch (error) {
-    console.error('Fehler beim Erstellen der SRT-Datei:', error);
-    res.status(500).json({
-      error: 'Fehler beim Erstellen der SRT-Datei',
-      details: error.message
-    });
   }
 });
 
