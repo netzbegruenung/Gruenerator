@@ -259,7 +259,7 @@ const LaborTab = ({
             </div>
             {youBeta && (
               <Link to="/you" className="profile-action-button profile-secondary-button labor-tab-external-link">
-                Zum You Generator <HiOutlineExternalLink className="labor-tab-external-link-icon"/>
+                Zum You Grünerator <HiOutlineExternalLink className="labor-tab-external-link-icon"/>
               </Link>
             )}
           </>
