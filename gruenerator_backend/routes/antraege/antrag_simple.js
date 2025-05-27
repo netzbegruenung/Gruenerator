@@ -2,12 +2,24 @@ const express = require('express');
 const router = express.Router();
 const { HTML_FORMATTING_INSTRUCTIONS } = require('../../utils/promptUtils');
 
+// Web Search Tool Configuration
+const webSearchTool = {
+  type: "web_search_20250305",
+  name: "web_search",
+  max_uses: 3,
+  user_location: {
+    type: "approximate",
+    country: "DE",
+    timezone: "Europe/Berlin"
+  }
+};
+
 /**
- * Vereinfachter Endpunkt zum Generieren eines Antrags ohne Websuche
+ * Vereinfachter Endpunkt zum Generieren eines Antrags mit optionaler Websuche
  */
 router.post('/', async (req, res) => {
-  // Extract useBedrock along with other flags
-  const { idee, details, gliederung, useBackupProvider, useBedrock, customPrompt } = req.body;
+  // Extract useWebSearchTool along with other flags
+  const { idee, details, gliederung, useBackupProvider, useBedrock, customPrompt, useWebSearchTool } = req.body;
   
   // Aktuelles Datum ermitteln
   const currentDate = new Date().toISOString().split('T')[0];
@@ -17,7 +29,8 @@ router.post('/', async (req, res) => {
     console.log('Einfache Antrag-Anfrage erhalten:', {
       idee: idee?.substring(0, 50) + (idee?.length > 50 ? '...' : ''),
       hasCustomPrompt: !!customPrompt,
-      useBedrock: useBedrock
+      useBedrock: useBedrock,
+      useWebSearchTool: useWebSearchTool
     });
 
     // Validiere die Eingabedaten
@@ -28,7 +41,13 @@ router.post('/', async (req, res) => {
       });
     }
 
-    console.log('Sende vereinfachte Anfrage an Claude');
+    console.log('Sende vereinfachte Anfrage an Claude' + (useWebSearchTool ? ' mit Web Search Tool' : ''));
+    
+    // Configure tools and system prompt based on web search usage
+    const tools = useWebSearchTool ? [webSearchTool] : [];
+    const systemPrompt = useWebSearchTool 
+      ? 'Du bist ein erfahrener Kommunalpolitiker von Bündnis 90/Die Grünen. Nutze die Websuche, wenn du aktuelle Informationen oder Fakten für den Antrag benötigst. Zitiere deine Quellen im Antrag.'
+      : 'Du bist Kommunalpolitiker einer Gliederung von Bündnis 90/Die Grünen. Entwirf einen Antrag basierend auf der gegebenen Idee.';
     
     // Erstelle den Benutzerinhalt basierend auf dem Vorhandensein eines benutzerdefinierten Prompts
     let userContent;
@@ -49,21 +68,27 @@ Der Antrag sollte eine klare Struktur mit Betreff, Antragstext und Begründung h
 ${HTML_FORMATTING_INSTRUCTIONS}`;
     } else {
       // Standardinhalt ohne benutzerdefinierten Prompt
-      userContent = `Idee: ${idee}` + 
-                   (details ? `, Details: ${details}` : '') + 
-                   (gliederung ? `, Gliederungsname: ${gliederung}` : '') +
+      userContent = `Erstelle einen kommunalpolitischen Antrag zum Thema: ${idee}` + 
+                   (details ? `\n\nDetails: ${details}` : '') + 
+                   (gliederung ? `\n\nFür die Gliederung: ${gliederung}` : '') +
                    `\n\nAktuelles Datum: ${currentDate}` +
-                   `\n\n${HTML_FORMATTING_INSTRUCTIONS}`;
+                   `\n\nDer Antrag muss folgende Struktur haben:
+1. Betreff: Eine prägnante Überschrift
+2. Antragstext: Konkrete Beschlussvorschläge
+3. Begründung: Warum der Antrag wichtig ist
+
+${HTML_FORMATTING_INSTRUCTIONS}`;
     }
     
     // Anfrage an Claude
     const result = await req.app.locals.aiWorkerPool.processRequest({
       type: 'antrag',
-      systemPrompt: 'Du bist Kommunalpolitiker einer Gliederung von Bündnis 90/Die Grünen. Entwirf einen Antrag basierend auf der gegebenen Idee.',
+      systemPrompt,
       messages: [{
         role: "user",
         content: userContent
       }],
+      tools,
       options: {
         temperature: 0.3,
         useBedrock: useBedrock
@@ -76,10 +101,16 @@ ${HTML_FORMATTING_INSTRUCTIONS}`;
       throw new Error(result.error);
     }
     
-    res.json({ 
+    // Enhanced response with web search metadata
+    const responseData = {
       content: result.content,
-      metadata: result.metadata
-    });
+      metadata: {
+        ...result.metadata,
+        webSearchUsed: useWebSearchTool || false
+      }
+    };
+    
+    res.json(responseData);
   } catch (error) {
     console.error('Fehler bei der einfachen Antragserstellung:', error);
     res.status(500).json({ 

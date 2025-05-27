@@ -40,9 +40,6 @@ export const FormProvider = ({
   const [isApplyingAdjustment, setIsApplyingAdjustment] = useState(false);
   const [hasContent, setHasContent] = useState(false);
   const [adjustmentError, setAdjustmentError] = useState(null);
-
-  // Add State for Europa Mode
-  const [useEuropa, setUseEuropa] = useState(false);
   
   // State for knowledge source configuration
   const [knowledgeSourceConfig, setKnowledgeSourceConfigState] = useState(initialKnowledgeSourceConfig);
@@ -414,8 +411,6 @@ export const FormProvider = ({
     handleAiResponse, // Main AI response handler
     adjustmentError, 
     setAdjustmentError, // Pass setter
-    useEuropa, 
-    setUseEuropa,
     knowledgeSourceConfig, 
     setKnowledgeSourceConfig, 
     getKnowledgeContent
@@ -449,7 +444,6 @@ export const FormProvider = ({
     quillRef,
     handleAiResponse,
     adjustmentError, setAdjustmentError, // Added setter
-    useEuropa, setUseEuropa, // Added setter
     knowledgeSourceConfig, setKnowledgeSourceConfig, // Added setter
     getKnowledgeContent
   ]);
