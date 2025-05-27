@@ -4,7 +4,7 @@ import PropTypes from 'prop-types';
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false, error: null, errorInfo: null };
+    this.state = { hasError: false, error: null, errorInfo: null, copied: false };
   }
 
   static getDerivedStateFromError(error) {
@@ -20,6 +20,47 @@ class ErrorBoundary extends React.Component {
     console.error("Uncaught error:", error, errorInfo);
     // Hier könnte ein Aufruf zu einem Fehlerprotokollierungsdienst erfolgen
   }
+
+  copyErrorText = () => {
+    const { error, errorInfo } = this.state;
+    const errorMessage = this.getErrorMessage();
+    
+    let errorText = `Fehler: ${errorMessage.title}\n`;
+    errorText += `Nachricht: ${errorMessage.message}\n`;
+    
+    if (errorMessage.errorId) {
+      errorText += `Fehler-ID: ${errorMessage.errorId}\n`;
+    }
+    
+    if (errorMessage.timestamp) {
+      errorText += `Zeitstempel: ${new Date(errorMessage.timestamp).toLocaleString()}\n`;
+    }
+    
+    if (errorMessage.errorCode) {
+      errorText += `Fehlercode: ${errorMessage.errorCode}\n`;
+    }
+    
+    if (errorMessage.errorType) {
+      errorText += `Fehlertyp: ${errorMessage.errorType}\n`;
+    }
+    
+    if (errorMessage.details) {
+      errorText += `Details: ${errorMessage.details}\n`;
+    }
+    
+    if (errorInfo) {
+      errorText += `\nComponent Stack:\n${errorInfo.componentStack}`;
+    }
+    
+    navigator.clipboard.writeText(errorText).then(() => {
+      this.setState({ copied: true });
+      setTimeout(() => {
+        this.setState({ copied: false });
+      }, 2000);
+    }).catch(err => {
+      console.error('Fehler beim Kopieren:', err);
+    });
+  };
 
   getErrorMessage() {
     const { error } = this.state;
@@ -90,6 +131,12 @@ class ErrorBoundary extends React.Component {
               <>
                 <button onClick={() => window.location.reload()}>Seite neu laden</button>
                 <a href="/" className="button">Zur Startseite</a>
+                <button 
+                  onClick={this.copyErrorText}
+                  className={`copy-button ${this.state.copied ? 'copied' : ''}`}
+                >
+                  {this.state.copied ? 'Kopiert!' : 'Fehlertext kopieren'}
+                </button>
               </>
             )}
           </div>
