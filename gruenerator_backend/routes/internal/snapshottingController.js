@@ -1,5 +1,5 @@
 const express = require('express');
-const snapshottingService = require('../../services/snapshottingService'); // Import the service
+const snapshottingService = require('../../services/snapshottingService');
 
 const router = express.Router();
 
