@@ -59,7 +59,7 @@ export const useAntrag = () => {
     setDisplayedSources(sources);
   }, [setDisplayedSources]);
 
-  const generateAntrag = useCallback(async (finalPrompt = null, useEuropaMode = false) => {
+  const generateAntrag = useCallback(async (finalPrompt = null) => {
     if (useWebSearch) {
       setLoading(true);
       setError(null);
