@@ -95,7 +95,7 @@ export const getMenuItems = (betaFeatures = {}) => {
     laborItems.push({
       id: 'you',
       path: '/you',
-      title: 'You Generator',
+      title: 'You Grünerator',
       description: 'Universeller KI-Assistent für alle Texte',
       icon: PiUser
     });
