@@ -6,7 +6,7 @@ const fsPromises = fs.promises;
 const ffmpeg = require('fluent-ffmpeg');
 const { getVideoMetadata, cleanupFiles } = require('./services/videoUploadService');
 const { transcribeVideo } = require('./services/transcriptionService');
-const { getFilePathFromUploadId, checkFileExists } = require('./services/tusService');
+const { getFilePathFromUploadId, checkFileExists, markUploadAsProcessed, scheduleImmediateCleanup } = require('./services/tusService');
 const redisClient = require('../../utils/redisClient'); // Import Redis client
 
 // Font configuration
@@ -143,6 +143,10 @@ router.post('/process', async (req, res) => {
     const fileExists = await checkFileExists(videoPath);
     if (!fileExists) {
         console.error(`Video-Datei für Upload-ID nicht gefunden: ${uploadId} am Pfad: ${videoPath}`);
+        
+        // Plane sofortiges Cleanup für nicht existierende Dateien
+        scheduleImmediateCleanup(uploadId, 'file not found');
+        
         // Set error status in Redis
         const errorNotFoundStatus = JSON.stringify({ status: 'error', data: 'Zugehörige Video-Datei nicht gefunden.' });
         try {
@@ -203,6 +207,10 @@ router.post('/process', async (req, res) => {
           throw new Error('Keine Untertitel generiert');
         }
         console.log(`Transkription erfolgreich für Upload-ID: ${uploadId}`);
+        
+        // Markiere Upload als verarbeitet für intelligentes Cleanup
+        markUploadAsProcessed(uploadId);
+        
         // Setze 'complete' status in Redis
         const finalStatus = JSON.stringify({ status: 'complete', data: subtitles });
         try {
@@ -215,6 +223,10 @@ router.post('/process', async (req, res) => {
       })
       .catch(async (error) => {
         console.error(`Fehler bei der asynchronen Verarbeitung für Upload-ID ${uploadId}:`, error);
+        
+        // Bei Fehlern sofortiges Cleanup planen
+        scheduleImmediateCleanup(uploadId, 'transcription error');
+        
         // Setze 'error' status in Redis
         const errorStatus = JSON.stringify({ status: 'error', data: error.message || 'Fehler bei der Verarbeitung.' });
          try {
@@ -223,8 +235,6 @@ router.post('/process', async (req, res) => {
         } catch (redisError) {
              console.error(`[Upstash Redis] Fehler beim Setzen des 'error' Status für ${jobKey}:`, redisError);
         }
-        // Cleanup the source file if processing failed critically
-        cleanupFiles(videoPath).catch(e => console.error('Cleanup failed after error:', e));
       });
 
     // Respond immediately that processing has started
@@ -328,13 +338,12 @@ router.delete('/cleanup/:uploadId', async (req, res) => {
   }
 
   try {
-    const inputPath = getFilePathFromUploadId(uploadId);
-    console.log(`[Cleanup] Manual cleanup requested for uploadId: ${uploadId}, path: ${inputPath}`);
+    console.log(`[Cleanup] Manual cleanup requested for uploadId: ${uploadId}`);
     
-    // Only cleanup input file, not output files (they are temporary anyway)
-    await cleanupFiles(inputPath);
+    // Verwende die neue Cleanup-Funktion aus tusService
+    scheduleImmediateCleanup(uploadId, 'manual cleanup request');
     
-    res.status(200).json({ success: true, message: 'Cleanup erfolgreich' });
+    res.status(200).json({ success: true, message: 'Cleanup erfolgreich geplant' });
   } catch (error) {
     console.error(`[Cleanup] Error during manual cleanup for ${uploadId}:`, error);
     res.status(500).json({ error: 'Fehler beim Cleanup', details: error.message });
@@ -783,15 +792,8 @@ router.post('/export', async (req, res) => {
     fileStream.on('end', async () => {
       await cleanupFiles(null, outputPath); // Only cleanup output file
       
-      // Schedule input file cleanup as fallback (30 minutes)
-      setTimeout(async () => {
-        try {
-          console.log(`[Cleanup] Fallback TTL cleanup for uploadId: ${uploadId}`);
-          await cleanupFiles(inputPath);
-        } catch (error) {
-          console.warn(`[Cleanup] Fallback cleanup failed for ${uploadId}:`, error.message);
-        }
-      }, 30 * 60 * 1000); // 30 minutes
+      // TUS-Dateien werden jetzt automatisch durch das intelligente Cleanup-System verwaltet
+      console.log(`[Export] Export abgeschlossen für ${uploadId}, Output-Datei bereinigt`);
     });
 
     // Error-Handling für den Stream

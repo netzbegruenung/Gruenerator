@@ -39,17 +39,28 @@ const SubtitlerPage = () => {
       if (uploadInfo?.uploadId) {
         console.log(`[SubtitlerPage] Sending cleanup beacon for uploadId: ${uploadInfo.uploadId}`);
         // Use beacon API for reliable cleanup signal even when tab is closing
+        // Das neue Cleanup-System plant automatisch Cleanup, daher ist das als Backup gedacht
+        navigator.sendBeacon(`${baseURL}/subtitler/cleanup/${uploadInfo.uploadId}`);
+      }
+    };
+    
+    const handleVisibilityChange = () => {
+      // Zusätzlicher Cleanup-Trigger bei Tab-Wechsel (falls Upload läuft)
+      if (document.visibilityState === 'hidden' && isProcessing && uploadInfo?.uploadId) {
+        console.log(`[SubtitlerPage] Tab hidden during processing, sending cleanup signal for: ${uploadInfo.uploadId}`);
         navigator.sendBeacon(`${baseURL}/subtitler/cleanup/${uploadInfo.uploadId}`);
       }
     };
     
     window.addEventListener('beforeunload', handleBeforeUnload);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
     
     // Cleanup function
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [uploadInfo?.uploadId, baseURL]);
+  }, [uploadInfo?.uploadId, baseURL, isProcessing]);
 
   const handleUploadComplete = (uploadData) => { 
     // Überprüfe, ob ein gültiges File-Objekt übergeben wurde
@@ -186,10 +197,12 @@ const SubtitlerPage = () => {
   const handleReset = useCallback(() => {
     setIsExiting(true);
     
-    // Send cleanup signal before reset
+    // Send cleanup signal before reset (das neue System übernimmt automatisch)
     if (uploadInfo?.uploadId) {
       console.log(`[SubtitlerPage] Manual cleanup on reset for uploadId: ${uploadInfo.uploadId}`);
-      navigator.sendBeacon(`${baseURL}/subtitler/cleanup/${uploadInfo.uploadId}`);
+      // Sende Cleanup-Request, aber das neue System entscheidet über das Timing
+      fetch(`${baseURL}/subtitler/cleanup/${uploadInfo.uploadId}`, { method: 'DELETE' })
+        .catch(error => console.warn('[SubtitlerPage] Cleanup request failed:', error));
     }
     
     // Clear any active polling interval on reset
@@ -381,6 +394,7 @@ const SubtitlerPage = () => {
                   onEditAgain={handleEditAgain}
                   isLoading={isExporting}
                   socialText={socialText}
+                  uploadId={uploadInfo?.uploadId}
                   isGeneratingSocial={isGenerating}
                   socialError={socialError}
                 />

@@ -80,11 +80,30 @@
   cursor: pointer;
   text-decoration: none;
   font-size: 1em;
+  transition: all 0.2s ease;
 }
 
 .error-boundary .error-actions button:hover,
 .error-boundary .error-actions .button:hover {
   background-color: var(--button-hover-color);
+}
+
+.error-boundary .copy-button {
+  background-color: #6c757d;
+  color: white;
+}
+
+.error-boundary .copy-button:hover {
+  background-color: #5a6268;
+}
+
+.error-boundary .copy-button.copied {
+  background-color: #28a745;
+  color: white;
+}
+
+.error-boundary .copy-button.copied:hover {
+  background-color: #218838;
 }
 
 /* Minimal styling for links when they are not styled as buttons */
