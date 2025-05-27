@@ -1,41 +1,33 @@
 import useApiSubmit from '../../../components/hooks/useApiSubmit';
 
 export const useAntragService = () => {
-  const searchQuerySubmit = useApiSubmit('antraege/search-query');
-  const searchSubmit = useApiSubmit('search');
-  const antragSubmit = useApiSubmit('antraege/antrag');
   const simpleAntragSubmit = useApiSubmit('antraege/generate-simple');
   
-
   return {
-    searchQuerySubmit,
-    searchSubmit,
-    antragSubmit,
     simpleAntragSubmit
   };
 };
 
 export const AntragService = {
-  async generateSearchQuery(formData) {
-    const { submitForm } = useApiSubmit('antraege/search-query');
-    return await submitForm(formData);
-  },
-
-  async searchInformation(searchQuery) {
-    const { submitForm } = useApiSubmit('search');
-    const result = await submitForm({ query: searchQuery.trim() });
-    console.log('[AntragService] Search Response:', result);
+  async generateAntragWithWebSearch(formData) {
+    const { submitForm } = useApiSubmit('antraege/generate-simple');
+    const payload = {
+      ...formData,
+      useWebSearchTool: true
+    };
+    const result = await submitForm(payload);
+    console.log('[AntragService] Web Search Antrag Response:', result);
     return result;
   },
 
-  async generateAntrag(formData, searchResults) {
-    const { submitForm } = useApiSubmit('antraege/antrag');
+  async generateAntragClassic(formData) {
+    const { submitForm } = useApiSubmit('antraege/generate-simple');
     const payload = {
       ...formData,
-      searchResults,
+      useWebSearchTool: false
     };
     const result = await submitForm(payload);
-    console.log('[AntragService] Antrag Response:', result);
+    console.log('[AntragService] Classic Antrag Response:', result);
     return result;
   },
 

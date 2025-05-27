@@ -20,8 +20,8 @@ import { FormContext } from '../../../utils/FormContext';
  * @param {boolean} props.showBackButton - Soll der Zurück-Button angezeigt werden
  * @param {string} props.nextButtonText - Text für den Weiter-Button
  * @param {Object} props.submitButtonProps - Props für den Submit-Button
- * @param {Object} props.featureToggle - Props für den Feature-Toggle
- * @param {boolean} props.useFeatureToggle - Soll der Feature-Toggle verwendet werden
+ * @param {Object} props.webSearchFeatureToggle - Props für den Web Search Feature-Toggle
+ * @param {boolean} props.useWebSearchFeatureToggle - Soll der Web Search Feature-Toggle verwendet werden
  * @param {node} props.children - Kindelemente
  * @param {boolean} props.showSubmitButton - Soll der Submit-Button angezeigt werden
  * @param {node} props.formNotice - Hinweis oder Information im Formular
@@ -38,8 +38,8 @@ const FormSection = forwardRef(({
   showBackButton,
   nextButtonText,
   submitButtonProps = {},
-  featureToggle,
-  useFeatureToggle,
+  webSearchFeatureToggle,
+  useWebSearchFeatureToggle,
   children,
   showSubmitButton = true,
   formNotice = null
@@ -66,9 +66,9 @@ const FormSection = forwardRef(({
           <div className="form-inner">
             {children}
             
-            {featureToggle && useFeatureToggle && (
+            {webSearchFeatureToggle && useWebSearchFeatureToggle && (
               <div className="feature-section">
-                <FeatureToggle {...featureToggle} className="form-feature-toggle" />
+                <FeatureToggle {...webSearchFeatureToggle} className="form-feature-toggle" />
               </div>
             )}
           </div>
@@ -133,7 +133,7 @@ FormSection.propTypes = {
     showStatus: PropTypes.bool,
     defaultText: PropTypes.string
   }),
-  featureToggle: PropTypes.shape({
+  webSearchFeatureToggle: PropTypes.shape({
     isActive: PropTypes.bool,
     onToggle: PropTypes.func,
     label: PropTypes.string,
@@ -142,7 +142,7 @@ FormSection.propTypes = {
     isSearching: PropTypes.bool,
     statusMessage: PropTypes.string
   }),
-  useFeatureToggle: PropTypes.bool,
+  useWebSearchFeatureToggle: PropTypes.bool,
   children: PropTypes.node.isRequired,
   showSubmitButton: PropTypes.bool,
   formNotice: PropTypes.node
@@ -151,7 +151,7 @@ FormSection.propTypes = {
 FormSection.defaultProps = {
   isMultiStep: false,
   showBackButton: false,
-  useFeatureToggle: false,
+  useWebSearchFeatureToggle: false,
   showSubmitButton: true,
   formNotice: null
 };
