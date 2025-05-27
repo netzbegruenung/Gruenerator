@@ -207,68 +207,66 @@ const BaseForm = ({
               </div>
             </FocusTrap>
           ) : (
-            <FocusTrap active={isFormVisible && !isEditing && !isFocusMode}>
-              <FormSection
-                ref={formSectionRef}
-                onSubmit={onSubmit}
-                loading={loading}
-                success={success}
-                formErrors={formErrors}
-                isFormVisible={isFormVisible}
-                isMultiStep={isMultiStep}
-                onBack={onBack}
-                showBackButton={showBackButton}
-                nextButtonText={nextButtonText}
-                submitButtonProps={submitButtonProps}
-                webSearchFeatureToggle={webSearchFeatureToggle}
-                useWebSearchFeatureToggle={useWebSearchFeatureToggle}
-                showSubmitButton={showNextButton}
-                formNotice={formNotice}
-              >
-                {children}
-                
-                {enableKnowledgeSelector && (
-                  <div className="knowledge-source-config-container">
-                    <h3 className="knowledge-selector-heading">Anweisungen & Wissensquelle</h3>
-                    <div className="knowledge-source-dropdown">
-                      <select 
-                        className="knowledge-source-select"
-                        value={knowledgeSourceConfig.type === 'group' ? `group-${knowledgeSourceConfig.id}` : knowledgeSourceConfig.type}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          if (value === 'neutral') {
-                            setKnowledgeSourceConfig({ type: 'neutral', id: null, name: 'Neutral' });
-                          } else if (value === 'user') {
-                            setKnowledgeSourceConfig({ type: 'user', id: null, name: 'Meine Anweisungen & Wissen' });
-                          } else if (value.startsWith('group-')) {
-                            const groupId = value.substring("group-".length);
-                            const selectedGroup = groups.find(g => g.id === groupId);
-                            if (selectedGroup) {
-                              setKnowledgeSourceConfig({ type: 'group', id: selectedGroup.id, name: selectedGroup.name });
-                            }
+            <FormSection
+              ref={formSectionRef}
+              onSubmit={onSubmit}
+              loading={loading}
+              success={success}
+              formErrors={formErrors}
+              isFormVisible={isFormVisible}
+              isMultiStep={isMultiStep}
+              onBack={onBack}
+              showBackButton={showBackButton}
+              nextButtonText={nextButtonText}
+              submitButtonProps={submitButtonProps}
+              webSearchFeatureToggle={webSearchFeatureToggle}
+              useWebSearchFeatureToggle={useWebSearchFeatureToggle}
+              showSubmitButton={showNextButton}
+              formNotice={formNotice}
+            >
+              {children}
+              
+              {enableKnowledgeSelector && (
+                <div className="knowledge-source-config-container">
+                  <h3 className="knowledge-selector-heading">Anweisungen & Wissensquelle</h3>
+                  <div className="knowledge-source-dropdown">
+                    <select 
+                      className="knowledge-source-select"
+                      value={knowledgeSourceConfig.type === 'group' ? `group-${knowledgeSourceConfig.id}` : knowledgeSourceConfig.type}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (value === 'neutral') {
+                          setKnowledgeSourceConfig({ type: 'neutral', id: null, name: 'Neutral' });
+                        } else if (value === 'user') {
+                          setKnowledgeSourceConfig({ type: 'user', id: null, name: 'Meine Anweisungen & Wissen' });
+                        } else if (value.startsWith('group-')) {
+                          const groupId = value.substring("group-".length);
+                          const selectedGroup = groups.find(g => g.id === groupId);
+                          if (selectedGroup) {
+                            setKnowledgeSourceConfig({ type: 'group', id: selectedGroup.id, name: selectedGroup.name });
                           }
-                        }}
-                        disabled={isLoadingGroups}
-                      >
-                        <option value="neutral">Neutral</option>
-                        <option value="user">Meine Anweisungen & Wissen</option>
-                        {isLoadingGroups && <option disabled>Lade Gruppen...</option>}
-                        {!isLoadingGroups && groupsError && (
-                          <>
-                            <option disabled>Fehler beim Laden der Gruppen</option>
-                          </>
-                        )}
-                        {!isLoadingGroups && !groupsError && groups && groups.map(group => (
-                          <option key={group.id} value={`group-${group.id}`}>{group.name} Anweisungen & Wissen</option>
-                        ))}
-                      </select>
-                      <HiChevronDown className="knowledge-source-dropdown-arrow" />
-                    </div>
-                    <KnowledgeSelector />
+                        }
+                      }}
+                      disabled={isLoadingGroups}
+                    >
+                      <option value="neutral">Neutral</option>
+                      <option value="user">Meine Anweisungen & Wissen</option>
+                      {isLoadingGroups && <option disabled>Lade Gruppen...</option>}
+                      {!isLoadingGroups && groupsError && (
+                        <>
+                          <option disabled>Fehler beim Laden der Gruppen</option>
+                        </>
+                      )}
+                      {!isLoadingGroups && !groupsError && groups && groups.map(group => (
+                        <option key={group.id} value={`group-${group.id}`}>{group.name} Anweisungen & Wissen</option>
+                      ))}
+                    </select>
+                    <HiChevronDown className="knowledge-source-dropdown-arrow" />
                   </div>
-                )}
-              </FormSection>
-            </FocusTrap>
+                  <KnowledgeSelector />
+                </div>
+              )}
+            </FormSection>
           )
         )}
         <DisplaySection
