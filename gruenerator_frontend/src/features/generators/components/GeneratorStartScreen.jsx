@@ -108,7 +108,7 @@ const GeneratorStartScreen = ({
             minRows={2} // Set minimum rows instead of fixed rows or min-height
             value={aiDescription}
             onChange={(e) => onDescriptionChange(e.target.value)}
-            placeholder="Beispiel: Ein Generator für Social-Media-Posts über Radwege in meiner Stadt, der nach Zielgruppe und Anlass fragt..."
+            placeholder="Beispiel: Ein Grünerator für Social-Media-Posts über Radwege in meiner Stadt, der nach Zielgruppe und Anlass fragt..."
             aria-label="Beschreibung für den KI-Grünerator"
             aria-describedby={error ? "start-screen-error" : undefined}
             disabled={isLoading}

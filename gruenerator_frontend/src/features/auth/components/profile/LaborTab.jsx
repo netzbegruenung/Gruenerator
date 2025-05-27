@@ -218,7 +218,7 @@ const LaborTab = ({
             <div className="labor-tab-checkbox-container">
               <StyledCheckbox
                 id="sharepic-beta"
-                label="Link zum Sharepic-Generator anzeigen"
+                label="Link zum Sharepic-Grünerator anzeigen"
                 checked={sharepicBeta}
                 onChange={() => handleBetaToggle(setSharepicBeta, sharepicBeta, 'Sharepic Link')}
                 aria-label="Sharepic Link Beta-Test aktivieren"
@@ -251,10 +251,10 @@ const LaborTab = ({
             <div className="labor-tab-checkbox-container">
               <StyledCheckbox
                 id="you-beta"
-                label="You Generator anzeigen und Funktionalität aktivieren"
+                label="You Grünerator anzeigen und Funktionalität aktivieren"
                 checked={youBeta}
                 onChange={() => handleBetaToggle(setYouBeta, youBeta, 'You Generator')}
-                aria-label="You Generator Beta-Test aktivieren"
+                aria-label="You Grünerator Beta-Test aktivieren"
               />
             </div>
             {youBeta && (
