@@ -1,5 +1,3 @@
-
-
 .antrag-edit-form {
   display: flex;
   flex-direction: column;
@@ -199,4 +197,35 @@
   margin-top: var(--spacing-small);
   font-size: 0.9em;
   border-radius: 0 4px 4px 0;
+}
+
+.antrag-websearch-toggle {
+  margin: var(--spacing-medium) 0;
+  padding: var(--spacing-small);
+  border-radius: 6px;
+  background-color: var(--background-color-alt);
+}
+
+.antrag-websearch-toggle .feature-description {
+  color: var(--font-color);
+  opacity: 0.8;
+  font-size: 0.9em;
+}
+
+.antrag-sources {
+  margin-top: var(--spacing-large);
+  padding: var(--spacing-medium);
+  background-color: var(--background-color-alt);
+  border-radius: 6px;
+  border-left: 3px solid var(--klee);
+}
+
+.antrag-source-item {
+  margin-bottom: var(--spacing-small);
+  font-size: 0.9em;
+}
+
+.antrag-source-link {
+  color: var(--klee);
+  text-decoration: none;
 } 

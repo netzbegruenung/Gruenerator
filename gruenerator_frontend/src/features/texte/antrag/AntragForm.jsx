@@ -4,8 +4,7 @@ import { useAntragContext } from './AntragContext';
 import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../../components/utils/constants';
 import BaseForm from '../../../components/common/BaseForm';
 import PlatformContainer from '../../../components/common/PlatformContainer';
-import { HiGlobeAlt, HiOutlineGlobeAlt, HiSave, HiInformationCircle } from 'react-icons/hi';
-import { SEARCH_STATES } from './hooks/useAntragSearch';
+import { HiGlobeAlt, HiSave, HiInformationCircle } from 'react-icons/hi';
 import { FormContext } from '../../../components/utils/FormContext';
 import SubmitButton from '../../../components/common/SubmitButton';
 import AntragSavePopup from './components/AntragSavePopup';
@@ -20,13 +19,11 @@ export const AntragForm = () => {
     formData,
     handleInputChange,
     generateAntrag,
-    searchState,
-    statusMessage,
     loading,
-    error,
     isSaving,
     saveStatus,
-    saveAntragToDb
+    saveGeneratedAntrag,
+    resetSaveStatus
   } = useAntrag();
   
   const { 
@@ -39,8 +36,6 @@ export const AntragForm = () => {
 
   const { 
     setGeneratedContent, 
-    useEuropa, 
-    setUseEuropa, 
     getKnowledgeContent,
     knowledgeSourceConfig
   } = useContext(FormContext);
@@ -111,7 +106,7 @@ export const AntragForm = () => {
         console.log('[AntragForm] No custom prompt or knowledge for generateAntrag.');
       }
 
-      await generateAntrag(useEuropa, finalPrompt);
+      await generateAntrag(finalPrompt);
     } catch (submitError) {
       console.error('[AntragForm] Error submitting antrag:', submitError);
     }
@@ -124,13 +119,7 @@ export const AntragForm = () => {
 
   const getButtonText = () => {
     if (loading) {
-      if (searchState === SEARCH_STATES.GENERATING_QUERY) {
-        return "Recherchiere...";
-      } else if (searchState === SEARCH_STATES.SEARCHING) {
-        return "Recherchiere...";
-      } else if (searchState === SEARCH_STATES.GENERATING_ANTRAG) {
-        return "Antrag wird generiert...";
-      }
+      return "Antrag wird generiert...";
     }
     return "Antrag generieren";
   };
@@ -148,18 +137,10 @@ export const AntragForm = () => {
         gliederung: formData.gliederung || '',
         ...popupData,
       };
-      await saveAntragToDb(payload);
+      await saveGeneratedAntrag(payload);
     } catch (saveError) {
       console.error('[AntragForm] Error during final save of antrag:', saveError);
     }
-  };
-
-  const europaFeatureToggleConfig = {
-      isActive: useEuropa,
-      onToggle: setUseEuropa,
-      label: "Europa-Modus (Mistral)",
-      icon: HiOutlineGlobeAlt,
-      description: "Verwendet das Mistral Large Modell statt Claude."
   };
 
   const saveActionElement = generatedAntrag && generatedAntrag.trim() !== '' ? (
@@ -265,31 +246,26 @@ export const AntragForm = () => {
         title="Grünerator für Anträge"
         onSubmit={handleSubmit}
         loading={loading}
-        error={error}
         generatedContent={generatedAntrag}
         onGeneratedContentChange={handleGeneratedContentChange}
         allowEditing={true}
         submitButtonProps={{
-          statusMessage: loading ? statusMessage : '',
           showStatus: true,
           defaultText: getButtonText(),
           loading: loading
         }}
         usePlatformContainers={true}
         disableAutoCollapse={true}
-        featureToggle={{
+        webSearchFeatureToggle={{
           isActive: useWebSearch,
           onToggle: setUseWebSearch,
-          label: "Webrecherche aktivieren",
+          label: "Web Search verwenden",
           icon: HiGlobeAlt,
-          description: "Aktiviere die automatische Webrecherche, um relevante Informationen zu deinem Antrag zu finden und einzubinden.",
-          isSearching: searchState === SEARCH_STATES.SEARCHING,
-          statusMessage: statusMessage
+          description: "Nutzt aktuelle Informationen aus dem Web für fundiertere Anträge (Anthropic Web Search)."
         }}
-        useFeatureToggle={true}
+        useWebSearchFeatureToggle={true}
         displayActions={saveActionElement}
         formNotice={formNoticeElement}
-        enableEuropaModeToggle={true}
         enableKnowledgeSelector={true}
       >
         <h3><label htmlFor="idee">{FORM_LABELS.IDEE}</label></h3>

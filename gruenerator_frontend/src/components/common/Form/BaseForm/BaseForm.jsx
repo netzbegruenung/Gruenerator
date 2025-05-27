@@ -26,7 +26,7 @@ import { getBaseContainerClasses } from '../utils/classNameUtils';
 import { FormContext } from '../../../utils/FormContext';
 
 // Import an icon for the toggle
-import { HiOutlineGlobeAlt, HiChevronDown } from 'react-icons/hi';
+import { HiChevronDown } from 'react-icons/hi';
 
 /**
  * Basis-Formular-Komponente
@@ -58,15 +58,14 @@ const BaseForm = ({
   disableAutoCollapse = false,
   showNextButton = true,
   headerContent,
-  enableEuropaModeToggle = false,
+  webSearchFeatureToggle = null,
+  useWebSearchFeatureToggle = false,
   displayActions = null,
   formNotice = null,
   enableKnowledgeSelector = false
 }) => {
-  // Get Europa Mode state from context
+  // Get knowledge source config from context
   const { 
-    useEuropa, 
-    setUseEuropa,
     knowledgeSourceConfig,
     setKnowledgeSourceConfig
   } = useContext(FormContext);
@@ -190,16 +189,6 @@ const BaseForm = ({
     toggleForm();
   };
 
-  // Define the feature toggle configuration using context state
-  const europaFeatureToggle = {
-    isActive: useEuropa,
-    onToggle: setUseEuropa,
-    label: "Europa-Modus (Mistral)",
-    icon: HiOutlineGlobeAlt, // Use the imported icon
-    description: "Verwendet das Mistral Large Modell anstelle von Claude für die Textgenerierung."
-    // Add optional status/searching props if needed later
-  };
-
   return (
     <>
       { !isEditing && headerContent }
@@ -233,8 +222,8 @@ const BaseForm = ({
                   showBackButton={showBackButton}
                   nextButtonText={nextButtonText}
                   submitButtonProps={submitButtonProps}
-                  featureToggle={europaFeatureToggle}
-                  useFeatureToggle={enableEuropaModeToggle}
+                  webSearchFeatureToggle={webSearchFeatureToggle}
+                  useWebSearchFeatureToggle={useWebSearchFeatureToggle}
                   showSubmitButton={showNextButton}
                   formNotice={formNotice}
                 >
@@ -353,7 +342,16 @@ BaseForm.propTypes = {
   disableAutoCollapse: PropTypes.bool,
   showNextButton: PropTypes.bool,
   headerContent: PropTypes.node,
-  enableEuropaModeToggle: PropTypes.bool,
+  webSearchFeatureToggle: PropTypes.shape({
+    isActive: PropTypes.bool,
+    onToggle: PropTypes.func,
+    label: PropTypes.string,
+    icon: PropTypes.elementType,
+    description: PropTypes.string,
+    isSearching: PropTypes.bool,
+    statusMessage: PropTypes.string
+  }),
+  useWebSearchFeatureToggle: PropTypes.bool,
   displayActions: PropTypes.node,
   formNotice: PropTypes.node,
   enableKnowledgeSelector: PropTypes.bool
@@ -361,7 +359,8 @@ BaseForm.propTypes = {
 
 BaseForm.defaultProps = {
   showNextButton: true,
-  enableEuropaModeToggle: false,
+  webSearchFeatureToggle: null,
+  useWebSearchFeatureToggle: false,
   displayActions: null,
   formNotice: null,
   enableKnowledgeSelector: false
