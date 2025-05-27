@@ -164,7 +164,7 @@ const BaseForm = ({
   );
 
   const handleSocialMediaClick = useCallback(() => {
-    const url = new URL(window.location.origin + '/socialmedia');
+    const url = new URL(window.location.origin + '/presse-social');
     url.searchParams.append('thema', formData.thema || '');
     url.searchParams.append('details', formData.details || '');
     window.open(url.toString(), '_blank');
@@ -368,7 +368,6 @@ const BaseForm = ({
         }}>
           <div className={`form-content ${generatedContent ? 'with-generated-content' : ''}`}>
             {renderFormContent()}
-            {Object.keys(formErrors).length > 0 && <FormErrors errors={formErrors} />}
           </div>
           {currentStep === FORM_STEPS.RESULT && (
             <>
@@ -385,12 +384,13 @@ const BaseForm = ({
             </>
           )}
         </form>
-        {error && !Object.keys(formErrors).length && (
-          <p role="alert" aria-live="assertive" className="error-message">{error}</p>
-        )}
       </div>
       <div className="display-container">
         <h3>{helpContent?.title || title}</h3>
+        {error && (
+          <p role="alert" aria-live="assertive" className="error-message">{error}</p>
+        )}
+        {Object.keys(formErrors).length > 0 && <FormErrors errors={formErrors} />}
         {renderDisplayContent}
       </div>
     </div>

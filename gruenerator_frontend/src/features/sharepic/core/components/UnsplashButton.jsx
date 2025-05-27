@@ -15,6 +15,7 @@ const UnsplashButton = ({ searchTerms }) => {
 
   return (
     <button
+      type="button"
       onClick={handleUnsplashClick}
       disabled={!searchTerms || searchTerms.length === 0}
       className="unsplash-search-button"
