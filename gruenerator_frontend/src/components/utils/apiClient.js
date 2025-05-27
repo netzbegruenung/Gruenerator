@@ -95,7 +95,6 @@ export const processText = async (endpoint, formData) => {
     console.log('[apiClient] Sending request:', {
       endpoint,
       useBackupProvider: formData.useBackupProvider,
-      useEuropaProvider: formData.useEuropaProvider,
       hasSystemPrompt: !!formData.systemPrompt,
       type: formData.type,
       payloadKeys: Object.keys(formData).filter(k => k !== 'onRetry')
