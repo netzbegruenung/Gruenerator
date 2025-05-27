@@ -264,8 +264,6 @@ const CollabEditorPageContent = ({
       usePlatformContainers: false,
       knowledgeSourceConfig: { type: 'neutral', id: null, name: 'Neutral' },
       setKnowledgeSourceConfig: () => {},
-      useEuropa: false,
-      setUseEuropa: () => {},
     };
   }, [
     editorValue, ytext, ydoc, quillRef, // ydoc added
