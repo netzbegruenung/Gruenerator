@@ -1,7 +1,6 @@
 const { parentPort } = require('worker_threads');
 const { Anthropic } = require('@anthropic-ai/sdk');
 const OpenAI = require('openai');
-const { Mistral } = require('@mistralai/mistralai');
 const { InvokeModelCommand } = require("@aws-sdk/client-bedrock-runtime");
 const bedrockClient = require('./awsBedrockClient');
 const config = require('./worker.config');
@@ -15,21 +14,6 @@ const anthropic = new Anthropic({
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
-
-// Initialize Mistral client
-const mistralApiKey = process.env.MISTRAL_API_KEY;
-let mistral;
-if (mistralApiKey) {
-  try {
-    mistral = new Mistral({ apiKey: mistralApiKey });
-    console.log('[AI Worker] Mistral Client initialized.');
-  } catch (error) {
-     console.error('[AI Worker] Failed to initialize Mistral Client:', error);
-     mistral = null; // Ensure it's null if initialization fails
-  }
-} else {
-  console.warn('[AI Worker] MISTRAL_API_KEY not found in .env. Europa mode will not be available.');
-}
 
 // Process incoming messages with new message protocol
 parentPort.on('message', async (message) => {
@@ -89,7 +73,7 @@ function sendProgress(requestId, progress) {
 // Main AI request processing function
 async function processAIRequest(requestId, data) {
   // Destructure data, ensuring options exists
-  const { type, prompt, options = {}, systemPrompt, messages, useBackupProvider, useEuropaProvider } = data;
+  const { type, prompt, options = {}, systemPrompt, messages, useBackupProvider } = data;
 
   // Testweise Bedrock als Standard aktivieren
   // const effectiveOptions = { ...options, useBedrock: true };
@@ -103,23 +87,16 @@ async function processAIRequest(requestId, data) {
       sendProgress(requestId, 15);
       // Übergebe die ursprünglichen 'data', da processWithBedrock die Optionen ggf. intern neu prüft
       result = await processWithBedrock(requestId, { ...data, options: effectiveOptions });
-    } else if (useEuropaProvider === true) {
-      console.log(`[AI Worker] Using Europa provider (Mistral) for request ${requestId}`);
-      if (!mistral) {
-        throw new Error('Mistral client not initialized. Check MISTRAL_API_KEY.');
-      }
-      sendProgress(requestId, 15);
-      result = await processWithMistral(requestId, data);
     } else if (useBackupProvider === true) {
       console.log(`[AI Worker] Using backup provider (OpenAI) for request ${requestId}`);
       sendProgress(requestId, 15);
       result = await processWithOpenAI(requestId, data);
     } else {
-      console.log(`[AI Worker] Using primary provider (Claude) for request ${requestId} { useBackupProvider: false, useEuropaProvider: false }`);
+      console.log(`[AI Worker] Using primary provider (Claude) for request ${requestId} { useBackupProvider: false }`);
       sendProgress(requestId, 15);
       
       // Remove internal flags and betas from options before sending to Claude
-      const { useBedrock, useBackupProvider, useEuropaProvider, betas, ...apiOptions } = effectiveOptions;
+      const { useBedrock, useBackupProvider, betas, ...apiOptions } = effectiveOptions;
       
       const defaultConfig = {
         model: "claude-3-7-sonnet-latest",
@@ -350,101 +327,6 @@ async function processWithOpenAI(requestId, data) {
   } catch (error) {
     console.error('[AI Worker] OpenAI Error:', error);
     throw new Error(`OpenAI Error: ${error.message}`);
-  }
-}
-
-async function processWithMistral(requestId, data) {
-  const { prompt, systemPrompt, messages: inputMessages, type } = data;
-  const model = 'mistral-large-latest';
-
-  console.log('[AI Worker] Mistral Request:', {
-    type,
-    requestId,
-    hasSystemPrompt: !!systemPrompt,
-    messageCount: inputMessages?.length || (prompt ? 1 : 0),
-    model
-  });
-
-  const mistralMessages = [];
-
-  let combinedFirstMessageContent = '';
-  if (systemPrompt) {
-    combinedFirstMessageContent = systemPrompt + '\n---\n';
-  }
-
-  if (inputMessages && inputMessages.length > 0) {
-     inputMessages.forEach((msg, index) => {
-       let content = msg.content;
-       if (typeof content !== 'string') {
-         try {
-            content = JSON.stringify(content);
-            console.warn(`[AI Worker] Stringified non-string message content for Mistral. Role: ${msg.role}, Request ID: ${requestId}`);
-         } catch (e) {
-            console.error(`[AI Worker] Failed to stringify message content for Mistral. Role: ${msg.role}, Request ID: ${requestId}`);
-            content = '';
-         }
-       }
-
-       if (index === 0) {
-         content = combinedFirstMessageContent + content;
-       }
-
-       const role = (msg.role === 'assistant') ? 'assistant' : 'user';
-
-       mistralMessages.push({ role: role, content: content });
-     });
-  } else if (prompt) {
-    mistralMessages.push({ role: 'user', content: combinedFirstMessageContent + prompt });
-  } else {
-    throw new Error(`No messages or prompt provided for Mistral request ${requestId}`);
-  }
-
-  try {
-    sendProgress(requestId, 40);
-
-    const chatResponse = await mistral.chat.complete({
-      model: model,
-      messages: mistralMessages,
-    });
-
-    sendProgress(requestId, 90);
-
-    if (!chatResponse || !chatResponse.choices || chatResponse.choices.length === 0 || !chatResponse.choices[0].message || typeof chatResponse.choices[0].message.content !== 'string') {
-      console.error('[AI Worker] Invalid Mistral response structure:', JSON.stringify(chatResponse, null, 2));
-      throw new Error(`Invalid Mistral response structure for request ${requestId}`);
-    }
-
-    const responseContent = chatResponse.choices[0].message.content;
-
-    if (responseContent.length === 0) {
-        console.warn(`[AI Worker] Mistral returned empty content for request ${requestId}. Model: ${model}`);
-    }
-
-    console.log(`[AI Worker] Mistral response received for ${requestId}:`, {
-        type,
-        contentLength: responseContent.length,
-        contentPreview: responseContent.substring(0, 100) + '...',
-        id: chatResponse.id || 'N/A',
-        modelUsed: chatResponse.model || model
-    });
-
-    return {
-      content: responseContent,
-      success: true,
-      metadata: {
-        provider: 'mistral',
-        timestamp: new Date().toISOString(),
-        backupRequested: false,
-        europaRequested: true,
-        type: type,
-        requestId: requestId,
-        messageId: chatResponse.id || 'N/A',
-        modelUsed: chatResponse.model || model
-      }
-    };
-  } catch (error) {
-    console.error(`[AI Worker] Mistral API Error for request ${requestId}:`, error);
-    throw new Error(`Mistral API Error: ${error.message || 'Unknown error during Mistral API call'}`);
   }
 }
 

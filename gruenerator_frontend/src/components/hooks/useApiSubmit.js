@@ -10,7 +10,7 @@ const useApiSubmit = (endpoint) => {
   const [error, setError] = useState('');
   const [retryCount, setRetryCount] = useState(0);
 
-  const submitForm = async (formData, useBackup = false, useEuropa = false) => {
+  const submitForm = async (formData, useBackup = false) => {
     setLoading(true);
     setSuccess(false);
     setError('');
@@ -23,13 +23,11 @@ const useApiSubmit = (endpoint) => {
       const useBedrock = deutschlandmodus === true;
       
       const effectiveUseBackup = useBackup && !useBedrock;
-      const effectiveUseEuropa = useEuropa && !useBedrock;
 
       const requestData = {
         ...formData,
         useBedrock: useBedrock,
         useBackupProvider: effectiveUseBackup,
-        useEuropaProvider: effectiveUseEuropa,
         onRetry: (attempt, delay) => {
           setRetryCount(attempt);
           setError(`Verbindungsprobleme. Neuer Versuch in ${Math.round(delay/1000)} Sekunden... (Versuch ${attempt}/3)`);
@@ -38,7 +36,6 @@ const useApiSubmit = (endpoint) => {
       
       console.log(`[useApiSubmit] Submitting to ${endpoint}:`, {
         useBackup,
-        useEuropa,
         useBedrock,
         formData: requestData,
         endpoint
@@ -198,24 +195,25 @@ const useApiSubmit = (endpoint) => {
             return response;
         } else {
             console.error('[useApiSubmit] Invalid structure for /generate_generator_config:', response);
-            throw new Error('Ungültige Struktur für Generator-Konfiguration von der API erhalten.');
-        }
-      } else {
-        // Standard AI-Response-Behandlung
-        if (response && response.content) {
-          setSuccess(true);
-          return response.content;
+            throw new Error('Ungültiges JSON-Format in der generierten Konfiguration. Bitte versuche es erneut.');
         }
       }
 
-      throw new Error('Unerwartete Antwortstruktur von der API');
+      // Fallback für alle anderen Endpoints
+      console.log('[useApiSubmit] Fallback handling for endpoint:', endpoint);
+      if (response) {
+        setSuccess(true);
+        return response;
+      }
+
+      throw new Error('Leere Antwort von der KI erhalten.');
     } catch (error) {
-      console.error(`[useApiSubmit] Error:`, error);
-      setError(error.message);
+      console.error('[useApiSubmit] Submit error:', error);
+      setError(`${error.name || 'Fehler'}: ${error.message}`);
+      setSuccess(false);
       throw error;
     } finally {
       setLoading(false);
-      setRetryCount(0);
     }
   };
 
@@ -223,7 +221,22 @@ const useApiSubmit = (endpoint) => {
     setSuccess(false);
   };
 
-  return { submitForm, loading, success, resetSuccess, error, retryCount };
+  const resetState = () => {
+    setLoading(false);
+    setSuccess(false);
+    setError('');
+    setRetryCount(0);
+  };
+
+  return {
+    loading,
+    success,
+    error,
+    retryCount,
+    submitForm,
+    resetSuccess,
+    resetState
+  };
 };
 
 export default useApiSubmit;

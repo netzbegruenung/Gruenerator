@@ -7,7 +7,7 @@ const { HTML_FORMATTING_INSTRUCTIONS } = require('../../utils/promptUtils');
  */
 router.post('/', async (req, res) => {
   // Extract useBedrock along with other flags
-  const { idee, details, gliederung, useBackupProvider, useEuropaProvider, useBedrock, customPrompt } = req.body;
+  const { idee, details, gliederung, useBackupProvider, useBedrock, customPrompt } = req.body;
   
   // Aktuelles Datum ermitteln
   const currentDate = new Date().toISOString().split('T')[0];
@@ -68,8 +68,7 @@ ${HTML_FORMATTING_INSTRUCTIONS}`;
         temperature: 0.3,
         useBedrock: useBedrock
       },
-      useBackupProvider,
-      useEuropaProvider
+      useBackupProvider
     });
 
     if (!result.success) {
