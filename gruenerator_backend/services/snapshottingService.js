@@ -1,13 +1,27 @@
-const { supabaseService } = require('../utils/supabaseClient');
 const Y = require('yjs');
 const pako = require('pako');
 
-// Use the already configured Supabase service client
-const supabase = supabaseService;
+// Lazy loading of Supabase client
+let supabase = null;
+let supabaseInitialized = false;
 
-if (!supabase) {
-  console.error('Supabase service client is not initialized. Check environment variables.');
-  throw new Error('Supabase service client is required for snapshotting service.');
+function getSupabaseClient() {
+  if (!supabaseInitialized) {
+    try {
+      const { supabaseService } = require('../utils/supabaseClient');
+      if (!supabaseService) {
+        console.error('[SnapshottingService] Supabase service client is not initialized. Check environment variables.');
+        throw new Error('Supabase service client is required for snapshotting service.');
+      }
+      supabase = supabaseService;
+      console.log('[SnapshottingService] Supabase client loaded successfully.');
+    } catch (error) {
+      console.error('[SnapshottingService] Failed to initialize Supabase client:', error.message);
+      throw error;
+    }
+    supabaseInitialized = true;
+  }
+  return supabase;
 }
 
 // Define snapshotting constants directly in the code
@@ -23,7 +37,7 @@ async function identifyDocumentsForSnapshotting() {
   const documentIdsToSnapshot = new Set();
 
   // 1. Get all collaborative documents
-  const { data: allDocs, error: docsError } = await supabase
+  const { data: allDocs, error: docsError } = await getSupabaseClient()
     .from('collaborative_documents')
     .select('id, initial_content_provided, updated_at');
 
@@ -43,7 +57,7 @@ async function identifyDocumentsForSnapshotting() {
     const documentId = doc.id;
 
     // 2. Get the latest snapshot metadata for this document
-    const { data: snapshotMeta, error: metaError } = await supabase
+    const { data: snapshotMeta, error: metaError } = await getSupabaseClient()
       .from('yjs_document_snapshots')
       .select('created_at, snapshot_source_update_created_at')
       .eq('document_id', documentId)
@@ -65,7 +79,7 @@ async function identifyDocumentsForSnapshotting() {
       } else {
         // If no initial content, check if there are any updates at all. 
         // If yes, it means content was added and needs snapshotting.
-        const { count: anyUpdatesCount, error: anyUpdatesError } = await supabase
+        const { count: anyUpdatesCount, error: anyUpdatesError } = await getSupabaseClient()
             .from("yjs_document_updates")
             .select("*", { count: "exact", head: true })
             .eq("document_id", documentId)
@@ -83,7 +97,7 @@ async function identifyDocumentsForSnapshotting() {
         reason = `Last snapshot older than ${SNAPSHOT_INTERVAL_HOURS} hours.`;
         documentIdsToSnapshot.add(documentId);
       } else {
-        const { count: newUpdatesCount, error: countError } = await supabase
+        const { count: newUpdatesCount, error: countError } = await getSupabaseClient()
           .from('yjs_document_updates')
           .select('*', { count: 'exact', head: true })
           .eq('document_id', documentId)
@@ -118,7 +132,7 @@ async function createAndStoreSnapshot(documentId) {
   let snapshotLoaded = false;
 
   // 1. Load the latest snapshot, if any
-  const { data: latestSnapshot, error: snapshotError } = await supabase
+  const { data: latestSnapshot, error: snapshotError } = await getSupabaseClient()
     .from('yjs_document_snapshots')
     .select('snapshot_data, snapshot_source_update_created_at')
     .eq('document_id', documentId)
@@ -146,7 +160,7 @@ async function createAndStoreSnapshot(documentId) {
   }
 
   // 2. Load subsequent updates
-  const { data: updates, error: updatesError } = await supabase
+  const { data: updates, error: updatesError } = await getSupabaseClient()
     .from('yjs_document_updates')
     .select('update_data, created_at')
     .eq('document_id', documentId)
@@ -199,7 +213,7 @@ async function createAndStoreSnapshot(documentId) {
   const compressedSnapshot = pako.deflate(rawSnapshot);
 
   // 5. Store the new snapshot
-  const { error: storeError } = await supabase
+  const { error: storeError } = await getSupabaseClient()
     .from('yjs_document_snapshots')
     .upsert({
       document_id: documentId,
@@ -215,7 +229,7 @@ async function createAndStoreSnapshot(documentId) {
   console.log(`[SnapshottingService] Successfully stored snapshot for ${documentId}. Last update included: ${lastAppliedUpdateTimestamp}`);
 
   // 6. Perform Garbage Collection (delete old updates)
-  const { error: gcError } = await supabase
+  const { error: gcError } = await getSupabaseClient()
     .from('yjs_document_updates')
     .delete()
     .eq('document_id', documentId)
