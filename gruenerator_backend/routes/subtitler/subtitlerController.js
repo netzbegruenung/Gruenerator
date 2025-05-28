@@ -6,7 +6,7 @@ const fsPromises = fs.promises;
 const ffmpeg = require('fluent-ffmpeg');
 const { getVideoMetadata, cleanupFiles } = require('./services/videoUploadService');
 const { transcribeVideo } = require('./services/transcriptionService');
-const { getFilePathFromUploadId, checkFileExists, markUploadAsProcessed, scheduleImmediateCleanup } = require('./services/tusService');
+const { getFilePathFromUploadId, checkFileExists, markUploadAsProcessed, scheduleImmediateCleanup, getUploadStatus, getUploadTrackingStatus } = require('./services/tusService');
 const redisClient = require('../../utils/redisClient'); // Import Redis client
 
 // Font configuration
@@ -101,6 +101,7 @@ function escapeFFmpegText(text, avgLength = 30) {
 // Route for video upload and processing
 router.post('/process', async (req, res) => {
   console.log('=== SUBTITLER PROCESS START ===');
+  const processStartTime = Date.now();
   const { uploadId, subtitlePreference = 'standard' } = req.body; // Expect uploadId and preference in request body, default to 'standard'
   let videoPath = null;
 
@@ -110,6 +111,7 @@ router.post('/process', async (req, res) => {
   }
 
   console.log(`Verarbeitungsanfrage für Upload-ID erhalten: ${uploadId}`);
+  console.log(`[subtitlerController] DEBUG: Verarbeitung gestartet ${Date.now() - processStartTime}ms nach Process-Start`);
   console.log(`[subtitlerController] Request Body Debug:`, {
     uploadId,
     subtitlePreference,
@@ -140,9 +142,32 @@ router.post('/process', async (req, res) => {
     videoPath = getFilePathFromUploadId(uploadId);
     console.log(`Abgeleiteter Videopfad: ${videoPath}`);
 
+    // DEBUG: Upload-Status prüfen vor File-Check
+    const uploadStatus = await getUploadStatus(uploadId);
+    const trackingStatus = getUploadTrackingStatus(uploadId);
+    console.log(`[subtitlerController] DEBUG: Upload-Status für ${uploadId}:`, {
+      exists: uploadStatus.exists,
+      isComplete: uploadStatus.isComplete,
+      isIncomplete: uploadStatus.isIncomplete,
+      hasVideo: uploadStatus.hasVideo,
+      hasMetadata: uploadStatus.hasMetadata
+    });
+    console.log(`[subtitlerController] DEBUG: Upload-Tracking für ${uploadId}:`, trackingStatus);
+
     const fileExists = await checkFileExists(videoPath);
     if (!fileExists) {
         console.error(`Video-Datei für Upload-ID nicht gefunden: ${uploadId} am Pfad: ${videoPath}`);
+        
+        // DEBUG: Verzeichnis-Inhalt anzeigen
+        const tusDir = path.dirname(videoPath);
+        try {
+          const dirContents = await fsPromises.readdir(tusDir);
+          console.log(`[subtitlerController] DEBUG: TUS-Verzeichnis Inhalt (${tusDir}):`, dirContents.slice(0, 10)); // Nur erste 10 Dateien
+          const relatedFiles = dirContents.filter(f => f.includes(uploadId.substring(0, 8))); // Erste 8 Zeichen der Upload-ID
+          console.log(`[subtitlerController] DEBUG: Verwandte Dateien für ${uploadId.substring(0, 8)}:`, relatedFiles);
+        } catch (dirErr) {
+          console.error(`[subtitlerController] DEBUG: Fehler beim Lesen des TUS-Verzeichnisses:`, dirErr.message);
+        }
         
         // Plane sofortiges Cleanup für nicht existierende Dateien
         scheduleImmediateCleanup(uploadId, 'file not found');
