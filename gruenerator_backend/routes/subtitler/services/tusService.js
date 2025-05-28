@@ -15,6 +15,7 @@ const TUS_UPLOAD_PATH = path.join(__dirname, '../../../uploads/tus-temp');
 // Erweiterte Cleanup-Konfiguration
 const TUS_CLEANUP_CONFIG = {
   INCOMPLETE_UPLOAD_TTL: 30 * 60 * 1000, // 30 Minuten für unvollständige Uploads
+  COMPLETED_PENDING_TTL: 60 * 60 * 1000, // 1 Stunde für abgeschlossene aber noch nicht verarbeitete Uploads
   PROCESSED_FILE_TTL: 4 * 60 * 60 * 1000, // 4 Stunden für verarbeitete Dateien
   ORPHANED_METADATA_TTL: 15 * 60 * 1000, // 15 Minuten für verwaiste Metadaten
   CLEANUP_INTERVAL: 15 * 60 * 1000, // 15 Minuten normales Cleanup
@@ -148,8 +149,9 @@ tusServer.on('upload-create', (event) => {
 
 tusServer.on('upload-complete', (event) => {
   const uploadId = event.upload.id;
-  console.log(`[tusService] Upload abgeschlossen: ${uploadId}`);
-  markUploadAsProcessed(uploadId);
+  console.log(`[tusService] Upload abgeschlossen: ${uploadId} - bereit für Verarbeitung`);
+  // NICHT als processed markieren - das passiert erst nach erfolgreicher Transkription
+  // markUploadAsProcessed(uploadId); // <-- Diese Zeile entfernt
 });
 
 tusServer.on('upload-abort', (event) => {
@@ -201,6 +203,9 @@ const intelligentCleanup = async () => {
       } else if (status.isIncomplete && fileAge > TUS_CLEANUP_CONFIG.INCOMPLETE_UPLOAD_TTL) {
         shouldCleanup = true;
         reason = 'incomplete upload TTL';
+      } else if (status.isComplete && !processedUploads.has(uploadId) && fileAge > TUS_CLEANUP_CONFIG.COMPLETED_PENDING_TTL) {
+        shouldCleanup = true;
+        reason = 'completed but not processed TTL';
       } else if (processedUploads.has(uploadId) && fileAge > TUS_CLEANUP_CONFIG.PROCESSED_FILE_TTL) {
         shouldCleanup = true;
         reason = 'processed file TTL';
