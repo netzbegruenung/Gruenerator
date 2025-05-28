@@ -145,11 +145,21 @@ tusServer.on('upload-create', (event) => {
   const uploadId = event.upload.id;
   activeUploads.add(uploadId);
   console.log(`[tusService] Upload erstellt: ${uploadId}`);
+  console.log(`[tusService] Upload-Create Event Details:`, {
+    id: event.upload.id,
+    size: event.upload.size,
+    metadata: event.upload.metadata
+  });
 });
 
 tusServer.on('upload-complete', (event) => {
   const uploadId = event.upload.id;
   console.log(`[tusService] Upload abgeschlossen: ${uploadId} - bereit für Verarbeitung`);
+  console.log(`[tusService] Upload-Complete Event Details:`, {
+    id: event.upload.id,
+    size: event.upload.size,
+    metadata: event.upload.metadata
+  });
   
   // DEBUG: Prüfe sofort ob die Datei existiert
   setTimeout(async () => {
@@ -172,7 +182,7 @@ tusServer.on('upload-abort', (event) => {
 
 tusServer.on('upload-error', (event) => {
   const uploadId = event.upload.id;
-  console.log(`[tusService] Upload-Fehler: ${uploadId}`);
+  console.log(`[tusService] Upload-Fehler: ${uploadId}`, event.error || 'unknown error');
   scheduleImmediateCleanup(uploadId, 'upload error');
 });
 
