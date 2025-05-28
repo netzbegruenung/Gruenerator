@@ -150,6 +150,16 @@ tusServer.on('upload-create', (event) => {
 tusServer.on('upload-complete', (event) => {
   const uploadId = event.upload.id;
   console.log(`[tusService] Upload abgeschlossen: ${uploadId} - bereit für Verarbeitung`);
+  
+  // DEBUG: Prüfe sofort ob die Datei existiert
+  setTimeout(async () => {
+    const videoPath = path.join(TUS_UPLOAD_PATH, uploadId);
+    const exists = await fs.access(videoPath).then(() => true).catch(() => false);
+    console.log(`[tusService] DEBUG: Datei-Check nach Upload-Complete für ${uploadId}: ${exists ? 'EXISTS' : 'NOT_FOUND'} am Pfad: ${videoPath}`);
+    console.log(`[tusService] DEBUG: activeUploads.size=${activeUploads.size}, processedUploads.size=${processedUploads.size}`);
+    console.log(`[tusService] DEBUG: activeUploads.has(${uploadId})=${activeUploads.has(uploadId)}`);
+  }, 1000); // 1 Sekunde Verzögerung für File-System sync
+  
   // NICHT als processed markieren - das passiert erst nach erfolgreicher Transkription
   // markUploadAsProcessed(uploadId); // <-- Diese Zeile entfernt
 });
@@ -272,6 +282,18 @@ const checkFileExists = async (filePath) => {
   }
 };
 
+// DEBUG: Funktionen für Upload-Tracking Status
+const getUploadTrackingStatus = (uploadId) => {
+  return {
+    inActiveUploads: activeUploads.has(uploadId),
+    inProcessedUploads: processedUploads.has(uploadId),
+    activeUploadsCount: activeUploads.size,
+    processedUploadsCount: processedUploads.size,
+    activeUploadsList: Array.from(activeUploads).slice(0, 5), // Erste 5 für Debug
+    processedUploadsList: Array.from(processedUploads).slice(0, 5) // Erste 5 für Debug
+  };
+};
+
 // Legacy Cleanup-Funktion (vereinfacht, wird von intelligentCleanup ersetzt)
 const cleanupTusUploads = async (maxAgeHours = 24) => {
   console.log('[tusService] Legacy Cleanup aufgerufen - weitergeleitet an intelligentCleanup');
@@ -317,5 +339,6 @@ module.exports = {
   markUploadAsProcessed,
   scheduleImmediateCleanup,
   getUploadStatus,
-  cleanupUploadFiles
+  cleanupUploadFiles,
+  getUploadTrackingStatus
 };
