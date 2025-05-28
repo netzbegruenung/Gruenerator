@@ -46,7 +46,7 @@ router.post('/', async (req, res) => {
     // Configure tools and system prompt based on web search usage
     const tools = useWebSearchTool ? [webSearchTool] : [];
     const systemPrompt = useWebSearchTool 
-      ? 'Du bist ein erfahrener Kommunalpolitiker von Bündnis 90/Die Grünen. Nutze die Websuche, wenn du aktuelle Informationen oder Fakten für den Antrag benötigst. Zitiere deine Quellen im Antrag.'
+      ? 'Du bist ein erfahrener Kommunalpolitiker von Bündnis 90/Die Grünen. Nutze die Websuche, wenn du aktuelle Informationen oder Fakten für den Antrag benötigst. Zitiere deine Quellen im Antrag. WICHTIG: Gib nur den finalen deutschen Antrag aus, keine englischen Zwischenschritte oder Gedankengänge. Beginne direkt mit dem Antrag.'
       : 'Du bist Kommunalpolitiker einer Gliederung von Bündnis 90/Die Grünen. Entwirf einen Antrag basierend auf der gegebenen Idee.';
     
     // Erstelle den Benutzerinhalt basierend auf dem Vorhandensein eines benutzerdefinierten Prompts
@@ -65,6 +65,8 @@ ${details ? `- Details: ${details}` : ''}
 
 Der Antrag sollte eine klare Struktur mit Betreff, Antragstext und Begründung haben.
 
+WICHTIG: Antworte ausschließlich auf Deutsch. Gib nur den finalen Antrag aus, keine Zwischenschritte oder Erklärungen.
+
 ${HTML_FORMATTING_INSTRUCTIONS}`;
     } else {
       // Standardinhalt ohne benutzerdefinierten Prompt
@@ -76,6 +78,8 @@ ${HTML_FORMATTING_INSTRUCTIONS}`;
 1. Betreff: Eine prägnante Überschrift
 2. Antragstext: Konkrete Beschlussvorschläge
 3. Begründung: Warum der Antrag wichtig ist
+
+WICHTIG: Antworte ausschließlich auf Deutsch. Gib nur den finalen Antrag aus, keine Zwischenschritte oder Erklärungen.
 
 ${HTML_FORMATTING_INSTRUCTIONS}`;
     }

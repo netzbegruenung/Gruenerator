@@ -50,15 +50,22 @@ async function start() {
   const wss = new WebSocketServer({ server })
   console.log(`[Yjs Server] Instance ${instanceId} WebSocketServer initialized and attached to HTTP server.`);
 
-  // Temporarily comment out the setupWSConnection line
+  // Track active connections for proper cleanup
+  const connections = new Set();
+
   wss.on('connection', (conn, req) => {
     console.log(`[Yjs Server] Instance ${instanceId} New WebSocket connection received.`);
+    connections.add(conn);
+    
+    conn.on('close', () => {
+      connections.delete(conn);
+    });
+    
     // The documentName is usually extracted from req.url (e.g., /:documentName)
     // setupWSConnection from y-websocket typically handles this.
     // We rely on setupWSConnection to use the configured persistence provider.
     setupWSConnection(conn, req);
   });
-  // console.log(`[Yjs Server] Instance ${instanceId} Yjs setupWSConnection line is currently COMMENTED OUT.`);
 
   console.log(`[Yjs Server] Instance ${instanceId} Attempting to listen on ws://${host}:${port}`);
   server.listen(port, host, () =>
@@ -67,32 +74,118 @@ async function start() {
   console.log(`[Yjs Server] Instance ${instanceId} Called server.listen()`);
 
   // Graceful shutdown
-  const gracefulShutdown = () => {
+  const gracefulShutdown = async () => {
     console.log(`[Yjs Server] Instance ${instanceId} Received kill signal, shutting down gracefully...`);
-    if (wss) {
-      wss.close(() => { 
-        console.log(`[Yjs Server] Instance ${instanceId} WebSocket server closed.`);
+    
+    try {
+      // Close all active WebSocket connections
+      console.log(`[Yjs Server] Instance ${instanceId} Step 1: Closing ${connections.size} active connections...`);
+      connections.forEach((conn, index) => {
+        console.log(`[Yjs Server] Instance ${instanceId} Terminating connection ${index + 1}/${connections.size}`);
+        if (conn.readyState === conn.OPEN) {
+          conn.terminate();
+        }
+      });
+      console.log(`[Yjs Server] Instance ${instanceId} Step 1 completed: All connections terminated`);
+      
+      // Clean up persistence layer (clear all timeouts)
+      console.log(`[Yjs Server] Instance ${instanceId} Step 2: Starting persistence cleanup...`);
+      if (supabasePersistence.cleanup) {
+        await supabasePersistence.cleanup();
+        console.log(`[Yjs Server] Instance ${instanceId} Step 2 completed: Persistence cleanup finished`);
+      } else {
+        console.log(`[Yjs Server] Instance ${instanceId} Step 2 skipped: No cleanup function available`);
+      }
+      
+      // Close WebSocket server
+      console.log(`[Yjs Server] Instance ${instanceId} Step 3: Closing WebSocket server...`);
+      if (wss) {
+        await new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            console.error(`[Yjs Server] Instance ${instanceId} Step 3 timeout: WebSocket server close timed out`);
+            reject(new Error('WebSocket server close timeout'));
+          }, 5000);
+          
+          wss.close(() => { 
+            clearTimeout(timeout);
+            console.log(`[Yjs Server] Instance ${instanceId} Step 3 completed: WebSocket server closed`);
+            resolve();
+          });
+        });
+      } else {
+        console.log(`[Yjs Server] Instance ${instanceId} Step 3 skipped: No WebSocket server to close`);
+      }
+      
+      // Close HTTP server
+      console.log(`[Yjs Server] Instance ${instanceId} Step 4: Closing HTTP server...`);
+      await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          console.error(`[Yjs Server] Instance ${instanceId} Step 4 timeout: HTTP server close timed out`);
+          reject(new Error('HTTP server close timeout'));
+        }, 5000);
+        
         server.close(() => {
-          console.log(`[Yjs Server] Instance ${instanceId} HTTP server closed.`);
-          process.exit(0);
+          clearTimeout(timeout);
+          console.log(`[Yjs Server] Instance ${instanceId} Step 4 completed: HTTP server closed`);
+          resolve();
         });
       });
-    } else {
-      server.close(() => { 
-        console.log(`[Yjs Server] Instance ${instanceId} HTTP server closed (simplified shutdown).`);
-        process.exit(0);
-      });
-    }
-
-    // Force shutdown if graceful shutdown takes too long
-    setTimeout(() => {
-      console.error(`[Yjs Server] Instance ${instanceId} Could not close connections in time, forcefully shutting down`);
+      
+      console.log(`[Yjs Server] Instance ${instanceId} All shutdown steps completed successfully`);
+      
+    } catch (error) {
+      console.error(`[Yjs Server] Instance ${instanceId} Error during graceful shutdown:`, error);
+      console.log(`[Yjs Server] Instance ${instanceId} Forcing exit due to shutdown error`);
       process.exit(1);
-    }, 10000); // 10 seconds timeout
+    }
+    
+    console.log(`[Yjs Server] Instance ${instanceId} Graceful shutdown completed, exiting...`);
+    process.exit(0);
   };
 
-  process.on('SIGTERM', gracefulShutdown);
-  process.on('SIGINT', gracefulShutdown);
+  // Add timeout for graceful shutdown
+  let shutdownInProgress = false;
+  const forceShutdown = () => {
+    if (shutdownInProgress) {
+      console.error(`[Yjs Server] Instance ${instanceId} Forceful shutdown: Graceful shutdown took too long`);
+      process.exit(1);
+    }
+  };
+
+  const handleShutdown = async () => {
+    if (shutdownInProgress) {
+      console.log(`[Yjs Server] Instance ${instanceId} Shutdown already in progress, ignoring additional signal`);
+      return;
+    }
+    shutdownInProgress = true;
+    
+    // Set a timeout for forced shutdown
+    const forceTimeout = setTimeout(forceShutdown, 10000); // 10 seconds
+    console.log(`[Yjs Server] Instance ${instanceId} Force shutdown timeout set to 10 seconds`);
+    
+    try {
+      await gracefulShutdown();
+      clearTimeout(forceTimeout);
+    } catch (error) {
+      clearTimeout(forceTimeout);
+      console.error(`[Yjs Server] Instance ${instanceId} Graceful shutdown failed:`, error);
+      process.exit(1);
+    }
+  };
+
+  process.on('SIGTERM', handleShutdown);
+  process.on('SIGINT', handleShutdown);
+  
+  // Handle uncaught exceptions to prevent hanging
+  process.on('uncaughtException', (err) => {
+    console.error(`[Yjs Server] Instance ${instanceId} Uncaught exception:`, err);
+    process.exit(1);
+  });
+  
+  process.on('unhandledRejection', (reason, promise) => {
+    console.error(`[Yjs Server] Instance ${instanceId} Unhandled rejection at:`, promise, 'reason:', reason);
+    process.exit(1);
+  });
 }
 
 start()

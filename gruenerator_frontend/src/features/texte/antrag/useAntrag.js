@@ -72,7 +72,7 @@ export const useAntrag = () => {
         }
         
         const { AntragService } = await import('./AntragService');
-        const response = await AntragService.generateAntragWithWebSearch(extendedFormData);
+        const response = await AntragService.generateAntragWithWebSearch(extendedFormData, simpleAntragSubmit.submitForm);
         
         if (!response || !response.content) {
           throw new Error('Keine Antwort vom Web Search Service erhalten');
@@ -106,7 +106,7 @@ export const useAntrag = () => {
         }
         
         const { AntragService } = await import('./AntragService');
-        const response = await AntragService.generateAntragClassic(extendedFormData);
+        const response = await AntragService.generateAntragClassic(extendedFormData, simpleAntragSubmit.submitForm);
         
         if (!response || !response.content) {
           throw new Error('Keine Antwort erhalten');
@@ -125,7 +125,7 @@ export const useAntrag = () => {
         setLoading(false);
       }
     }
-  }, [formData, useWebSearch, formatAntragContent, setGeneratedAntrag, formatAndDisplaySources, setLoading, setError]);
+  }, [formData, useWebSearch, formatAntragContent, setGeneratedAntrag, formatAndDisplaySources, setLoading, setError, simpleAntragSubmit.submitForm]);
 
   const saveGeneratedAntrag = useCallback(async (antragData) => {
     if (!antragData || !antragData.title || !antragData.antragstext) {

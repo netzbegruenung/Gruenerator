@@ -38,6 +38,7 @@ const __dirname = dirname(__filename);
 
 // Globaler Worker-Pool für AI-Anfragen
 let aiWorkerPool;
+let masterShutdownInProgress = false;
 
 if (cluster.isMaster) {
   console.log(`Master ${process.pid} is running`);
@@ -55,45 +56,64 @@ if (cluster.isMaster) {
   cluster.on('exit', (worker, code, signal) => {
     console.log(`Worker ${worker.process.pid} died with code ${code} and signal ${signal}`);
     // Nur neue Worker starten, wenn es kein geplanter Shutdown war
-    if (!worker.exitedAfterDisconnect) {
+    if (!worker.exitedAfterDisconnect && !masterShutdownInProgress) {
       console.log('Starting new worker...');
       cluster.fork();
     }
   });
 
   // Koordinierte Shutdown-Sequenz für den Master
-  process.on('SIGTERM', async () => {
-    console.log('Master received SIGTERM, initiating graceful shutdown...');
+  const masterShutdown = async (signal) => {
+    if (masterShutdownInProgress) {
+      console.log(`Master shutdown already in progress, ignoring ${signal}`);
+      return;
+    }
+    masterShutdownInProgress = true;
+    
+    console.log(`Master received ${signal}, initiating graceful shutdown...`);
+    
+    // Disconnect alle Worker (verhindert neue Worker bei Exit)
+    const workers = Object.values(cluster.workers);
+    workers.forEach(worker => {
+      worker.disconnect();
+    });
     
     // Benachrichtige alle Worker über den bevorstehenden Shutdown
-    const workers = Object.values(cluster.workers);
-    await Promise.all(workers.map(worker => {
+    const shutdownPromises = workers.map(worker => {
       return new Promise((resolve) => {
+        const timeout = setTimeout(() => {
+          console.log(`Worker ${worker.process.pid} shutdown timeout, forcing kill`);
+          worker.kill('SIGKILL');
+          resolve();
+        }, 10000); // 10 Sekunden Timeout
+        
         worker.send({ type: 'shutdown' });
         worker.on('message', (msg) => {
           if (msg.type === 'shutdown-complete') {
+            clearTimeout(timeout);
             console.log(`Worker ${worker.process.pid} shutdown complete`);
             resolve();
           }
         });
-      });
-    }));
-
-    // Warte auf Worker-Beendigung
-    await Promise.all(workers.map(worker => {
-      return new Promise((resolve) => {
+        
         worker.on('exit', () => {
-          console.log(`Worker ${worker.process.pid} exited`);
+          clearTimeout(timeout);
           resolve();
         });
       });
-    }));
+    });
+
+    await Promise.all(shutdownPromises);
 
     console.log('All workers shut down successfully');
     process.exit(0);
-  });
+  };
+
+  process.on('SIGTERM', () => masterShutdown('SIGTERM'));
+  process.on('SIGINT', () => masterShutdown('SIGINT'));
 } else {
   const app = express();
+  let workerShutdownInProgress = false;
   
   // Setze Express Limit
   app.use(express.json({limit: '500mb'}));
@@ -152,7 +172,8 @@ if (cluster.isMaster) {
 
   // Verbesserte Graceful Shutdown Handler für Worker
   process.on('message', async (msg) => {
-    if (msg.type === 'shutdown') {
+    if (msg.type === 'shutdown' && !workerShutdownInProgress) {
+      workerShutdownInProgress = true;
       console.log(`Worker ${process.pid} received shutdown signal`);
       
       try {
@@ -162,8 +183,8 @@ if (cluster.isMaster) {
           await aiWorkerPool.shutdown();
         }
 
-        // Schließe Redis-Verbindung
-        if (redisClient) {
+        // Schließe Redis-Verbindung nur wenn sie offen ist
+        if (redisClient && redisClient.isOpen) {
           console.log('Closing Redis connection...');
           await redisClient.quit();
         }
@@ -171,24 +192,35 @@ if (cluster.isMaster) {
         // Schließe den Server
         server.close(() => {
           console.log(`Worker ${process.pid} server closed`);
-          process.send({ type: 'shutdown-complete' });
+          if (process.send) {
+            process.send({ type: 'shutdown-complete' });
+          }
           process.exit(0);
         });
       } catch (error) {
         console.error(`Error during worker ${process.pid} shutdown:`, error);
+        if (process.send) {
+          process.send({ type: 'shutdown-complete' });
+        }
         process.exit(1);
       }
     }
   });
 
-  // Fallback für direkte SIGTERM-Signale
-  process.on('SIGTERM', async () => {
-    console.log(`Worker ${process.pid} received SIGTERM`);
+  // Fallback für direkte Signal-Behandlung
+  const workerShutdown = async (signal) => {
+    if (workerShutdownInProgress) {
+      console.log(`Worker ${process.pid} shutdown already in progress, ignoring ${signal}`);
+      return;
+    }
+    workerShutdownInProgress = true;
+    
+    console.log(`Worker ${process.pid} received ${signal}`);
     try {
       if (aiWorkerPool) {
         await aiWorkerPool.shutdown();
       }
-      if (redisClient) {
+      if (redisClient && redisClient.isOpen) {
         await redisClient.quit();
       }
       server.close(() => {
@@ -199,7 +231,10 @@ if (cluster.isMaster) {
       console.error(`Error during worker ${process.pid} shutdown:`, error);
       process.exit(1);
     }
-  });
+  };
+
+  process.on('SIGTERM', () => workerShutdown('SIGTERM'));
+  process.on('SIGINT', () => workerShutdown('SIGINT'));
 
   // Redis Client Setup
   const redisClient = Redis.createClient({
