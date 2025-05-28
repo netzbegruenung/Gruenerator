@@ -15,7 +15,6 @@ const TUS_UPLOAD_PATH = path.join(__dirname, '../../../uploads/tus-temp');
 // Erweiterte Cleanup-Konfiguration
 const TUS_CLEANUP_CONFIG = {
   INCOMPLETE_UPLOAD_TTL: 30 * 60 * 1000, // 30 Minuten für unvollständige Uploads
-  COMPLETED_PENDING_TTL: 60 * 60 * 1000, // 1 Stunde für abgeschlossene aber noch nicht verarbeitete Uploads
   PROCESSED_FILE_TTL: 4 * 60 * 60 * 1000, // 4 Stunden für verarbeitete Dateien
   ORPHANED_METADATA_TTL: 15 * 60 * 1000, // 15 Minuten für verwaiste Metadaten
   CLEANUP_INTERVAL: 15 * 60 * 1000, // 15 Minuten normales Cleanup
@@ -145,33 +144,12 @@ tusServer.on('upload-create', (event) => {
   const uploadId = event.upload.id;
   activeUploads.add(uploadId);
   console.log(`[tusService] Upload erstellt: ${uploadId}`);
-  console.log(`[tusService] Upload-Create Event Details:`, {
-    id: event.upload.id,
-    size: event.upload.size,
-    metadata: event.upload.metadata
-  });
 });
 
 tusServer.on('upload-complete', (event) => {
   const uploadId = event.upload.id;
-  console.log(`[tusService] Upload abgeschlossen: ${uploadId} - bereit für Verarbeitung`);
-  console.log(`[tusService] Upload-Complete Event Details:`, {
-    id: event.upload.id,
-    size: event.upload.size,
-    metadata: event.upload.metadata
-  });
-  
-  // DEBUG: Prüfe sofort ob die Datei existiert
-  setTimeout(async () => {
-    const videoPath = path.join(TUS_UPLOAD_PATH, uploadId);
-    const exists = await fs.access(videoPath).then(() => true).catch(() => false);
-    console.log(`[tusService] DEBUG: Datei-Check nach Upload-Complete für ${uploadId}: ${exists ? 'EXISTS' : 'NOT_FOUND'} am Pfad: ${videoPath}`);
-    console.log(`[tusService] DEBUG: activeUploads.size=${activeUploads.size}, processedUploads.size=${processedUploads.size}`);
-    console.log(`[tusService] DEBUG: activeUploads.has(${uploadId})=${activeUploads.has(uploadId)}`);
-  }, 1000); // 1 Sekunde Verzögerung für File-System sync
-  
-  // NICHT als processed markieren - das passiert erst nach erfolgreicher Transkription
-  // markUploadAsProcessed(uploadId); // <-- Diese Zeile entfernt
+  console.log(`[tusService] Upload abgeschlossen: ${uploadId}`);
+  markUploadAsProcessed(uploadId);
 });
 
 tusServer.on('upload-abort', (event) => {
@@ -182,7 +160,7 @@ tusServer.on('upload-abort', (event) => {
 
 tusServer.on('upload-error', (event) => {
   const uploadId = event.upload.id;
-  console.log(`[tusService] Upload-Fehler: ${uploadId}`, event.error || 'unknown error');
+  console.log(`[tusService] Upload-Fehler: ${uploadId}`);
   scheduleImmediateCleanup(uploadId, 'upload error');
 });
 
@@ -223,9 +201,6 @@ const intelligentCleanup = async () => {
       } else if (status.isIncomplete && fileAge > TUS_CLEANUP_CONFIG.INCOMPLETE_UPLOAD_TTL) {
         shouldCleanup = true;
         reason = 'incomplete upload TTL';
-      } else if (status.isComplete && !processedUploads.has(uploadId) && fileAge > TUS_CLEANUP_CONFIG.COMPLETED_PENDING_TTL) {
-        shouldCleanup = true;
-        reason = 'completed but not processed TTL';
       } else if (processedUploads.has(uploadId) && fileAge > TUS_CLEANUP_CONFIG.PROCESSED_FILE_TTL) {
         shouldCleanup = true;
         reason = 'processed file TTL';
@@ -292,18 +267,6 @@ const checkFileExists = async (filePath) => {
   }
 };
 
-// DEBUG: Funktionen für Upload-Tracking Status
-const getUploadTrackingStatus = (uploadId) => {
-  return {
-    inActiveUploads: activeUploads.has(uploadId),
-    inProcessedUploads: processedUploads.has(uploadId),
-    activeUploadsCount: activeUploads.size,
-    processedUploadsCount: processedUploads.size,
-    activeUploadsList: Array.from(activeUploads).slice(0, 5), // Erste 5 für Debug
-    processedUploadsList: Array.from(processedUploads).slice(0, 5) // Erste 5 für Debug
-  };
-};
-
 // Legacy Cleanup-Funktion (vereinfacht, wird von intelligentCleanup ersetzt)
 const cleanupTusUploads = async (maxAgeHours = 24) => {
   console.log('[tusService] Legacy Cleanup aufgerufen - weitergeleitet an intelligentCleanup');
@@ -349,6 +312,5 @@ module.exports = {
   markUploadAsProcessed,
   scheduleImmediateCleanup,
   getUploadStatus,
-  cleanupUploadFiles,
-  getUploadTrackingStatus
+  cleanupUploadFiles
 };
