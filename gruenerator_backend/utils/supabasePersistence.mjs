@@ -144,5 +144,71 @@ export const supabasePersistence = {
     }
     debouncedUpdates.delete(documentId);
     return Promise.resolve();
+  },
+
+  // Cleanup function for graceful shutdown
+  cleanup: async () => {
+    const startTime = Date.now();
+    console.log(`[SupabasePersistence] Cleanup started. Processing ${debouncedUpdates.size} pending document updates...`);
+    
+    if (debouncedUpdates.size === 0) {
+      console.log(`[SupabasePersistence] No pending updates to process. Cleanup completed in ${Date.now() - startTime}ms`);
+      return;
+    }
+    
+    // Process all pending updates immediately
+    const cleanupPromises = [];
+    let totalTimeouts = 0;
+    let totalUpdates = 0;
+    
+    for (const [documentId, docDebounceState] of debouncedUpdates.entries()) {
+      console.log(`[SupabasePersistence] Processing document ${documentId}...`);
+      
+      if (docDebounceState.timeoutId) {
+        clearTimeout(docDebounceState.timeoutId);
+        totalTimeouts++;
+        console.log(`[SupabasePersistence] Cleared timeout for document ${documentId}`);
+      }
+      
+      if (docDebounceState.updates.length > 0) {
+        totalUpdates += docDebounceState.updates.length;
+        console.log(`[SupabasePersistence] Flushing ${docDebounceState.updates.length} pending updates for doc ${documentId}`);
+        const updatesToStore = [...docDebounceState.updates];
+        cleanupPromises.push(
+          writeUpdatesToDb(documentId, updatesToStore)
+            .then(() => console.log(`[SupabasePersistence] Successfully flushed updates for doc ${documentId}`))
+            .catch(err => console.error(`[SupabasePersistence] Failed to flush updates for doc ${documentId}:`, err))
+        );
+      } else {
+        console.log(`[SupabasePersistence] No pending updates for document ${documentId}`);
+      }
+    }
+    
+    console.log(`[SupabasePersistence] Cleared ${totalTimeouts} timeouts, processing ${totalUpdates} total updates across ${cleanupPromises.length} documents`);
+    
+    // Clear the map
+    debouncedUpdates.clear();
+    console.log(`[SupabasePersistence] Cleared debouncedUpdates map`);
+    
+    // Wait for all pending updates to be written
+    console.log(`[SupabasePersistence] Waiting for ${cleanupPromises.length} database operations to complete...`);
+    const results = await Promise.allSettled(cleanupPromises);
+    
+    const successful = results.filter(r => r.status === 'fulfilled').length;
+    const failed = results.filter(r => r.status === 'rejected').length;
+    
+    console.log(`[SupabasePersistence] Database operations completed: ${successful} successful, ${failed} failed`);
+    
+    if (failed > 0) {
+      console.error(`[SupabasePersistence] ${failed} database operations failed during cleanup`);
+      results.forEach((result, index) => {
+        if (result.status === 'rejected') {
+          console.error(`[SupabasePersistence] Failed operation ${index + 1}:`, result.reason);
+        }
+      });
+    }
+    
+    const duration = Date.now() - startTime;
+    console.log(`[SupabasePersistence] Cleanup completed successfully in ${duration}ms`);
   }
 }; 

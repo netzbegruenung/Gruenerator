@@ -4,16 +4,14 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { PiCaretDown, PiCaretUp } from 'react-icons/pi';
 import { CSSTransition } from 'react-transition-group';
 import useAccessibility from '../../hooks/useAccessibility';
-import { getMenuItems, getDirectMenuItems, handleMenuInteraction as commonHandleMenuInteraction } from './menuData';
-import ProfileButton from './ProfileButton';
-import ThemeToggleButton from './ThemeToggleButton';
+import { getMenuItems, getDirectMenuItems, getMobileOnlyMenuItems, handleMenuInteraction as commonHandleMenuInteraction } from './menuData';
 import { BetaFeaturesContext } from '../../../context/BetaFeaturesContext';
 
 const MenuItem = ({ icon: Icon, title, description, path, onClick, isTopLevel = false }) => (
   <div className={`menu-item ${isTopLevel ? 'menu-item--top-level' : ''}`}>
     <Link to={path} onClick={onClick} className="menu-item__link">
       <div className="menu-item__content">
-        {Icon && <Icon className="menu-item__icon" aria-hidden="true" />}
+        {!isTopLevel && Icon && <Icon className="menu-item__icon" aria-hidden="true" />}
         <div className="menu-item__text">
           <span className="menu-item__title">{title}</span>
           {description && (
@@ -34,17 +32,18 @@ MenuItem.propTypes = {
   isTopLevel: PropTypes.bool
 };
 
-const NavMenu = ({ open, onClose, darkMode, toggleDarkMode }) => {
+const NavMenu = ({ open, onClose }) => {
   const [activeDropdown, setActiveDropdown] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
-  const { announce, setupKeyboardNav } = useAccessibility();
+  const { announce } = useAccessibility();
   const navMenuRef = useRef(null);
   const { sharepicBetaEnabled, databaseBetaEnabled } = useContext(BetaFeaturesContext);
 
   const menuItems = getMenuItems({ sharepicBetaEnabled, databaseBetaEnabled });
   const directMenuItems = getDirectMenuItems({ sharepicBetaEnabled, databaseBetaEnabled });
-  const dynamicTopLevelItems = Object.values(directMenuItems);
+  const mobileOnlyItems = getMobileOnlyMenuItems();
+  const dynamicTopLevelItems = [...Object.values(directMenuItems), ...Object.values(mobileOnlyItems)];
 
   const nodeRefs = Object.keys(menuItems).reduce((acc, key) => {
     acc[key] = useRef(null);
@@ -52,18 +51,10 @@ const NavMenu = ({ open, onClose, darkMode, toggleDarkMode }) => {
   }, {});
 
   useEffect(() => {
-    if (open) {
+    if (onClose) {
       onClose();
     }
-  }, [location.pathname, onClose]);
-
-  useEffect(() => {
-    if (open && navMenuRef.current) {
-      const menuElements = navMenuRef.current.querySelectorAll('a, button, .nav-menu__dropdown-trigger');
-      const cleanup = setupKeyboardNav(Array.from(menuElements));
-      return cleanup;
-    }
-  }, [open, setupKeyboardNav]);
+  }, [location.pathname]);
 
   const handleDropdownClick = (dropdown) => {
     setActiveDropdown(activeDropdown === dropdown ? null : dropdown);
@@ -156,33 +147,13 @@ const NavMenu = ({ open, onClose, darkMode, toggleDarkMode }) => {
           isTopLevel={true}
         />
       ))}
-      
-      <div className="nav-menu__divider"></div>
-      <div className="nav-menu__item">
-        <div className="menu-item menu-item--top-level">
-          <div className="menu-item__content">
-            <div className="menu-item__text">
-              <span className="menu-item__title">Mein Konto</span>
-            </div>
-            <div className="menu-item__profile-wrapper">
-              <ProfileButton />
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      <div className="nav-menu__theme-toggle">
-        <ThemeToggleButton darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
-      </div>
     </nav>
   );
 };
 
 NavMenu.propTypes = {
   open: PropTypes.bool.isRequired,
-  onClose: PropTypes.func.isRequired,
-  darkMode: PropTypes.bool,
-  toggleDarkMode: PropTypes.func
+  onClose: PropTypes.func.isRequired
 };
 
 export default NavMenu;

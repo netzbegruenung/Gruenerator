@@ -8,6 +8,20 @@ const SubtitleEditor = ({ videoFile, subtitles, uploadId, onExportSuccess, isExp
   const [editableSubtitles, setEditableSubtitles] = useState([]);
   const [error, setError] = useState(null);
 
+  // Emoji detection function
+  const detectEmojis = (text) => {
+    // Unicode ranges for emojis
+    const emojiRegex = /[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F018}-\u{1F270}]|[\u{238C}-\u{2454}]|[\u{20D0}-\u{20FF}]|[\u{FE0F}]/gu;
+    return emojiRegex.test(text);
+  };
+
+  // Function to wrap emojis in spans for styling
+  const formatTextWithEmojis = (text) => {
+    const emojiRegex = /[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F018}-\u{1F270}]|[\u{238C}-\u{2454}]|[\u{20D0}-\u{20FF}]|[\u{FE0F}]/gu;
+    
+    return text.replace(emojiRegex, (emoji) => `<span class="emoji-transparent">${emoji}</span>`);
+  };
+
   // Validiere Props und erstelle Video-URL
   useEffect(() => {
     if (!videoFile) {
@@ -217,8 +231,6 @@ const SubtitleEditor = ({ videoFile, subtitles, uploadId, onExportSuccess, isExp
     }
   };
 
-
-
   return (
     <div className="subtitle-editor-container">
       {error && (
@@ -256,12 +268,23 @@ const SubtitleEditor = ({ videoFile, subtitles, uploadId, onExportSuccess, isExp
                 <div className="segment-time">
                   {formatTime(segment.startTime)} - {formatTime(segment.endTime)}
                 </div>
-                <textarea
-                  value={segment.text}
-                  onChange={(e) => handleSubtitleEdit(segment.id, e.target.value, e)}
-                  className="segment-text"
-                  rows={window.innerWidth <= 768 ? undefined : 2}
-                />
+                <div className="segment-text-container">
+                  <textarea
+                    value={segment.text}
+                    onChange={(e) => handleSubtitleEdit(segment.id, e.target.value, e)}
+                    className={`segment-text ${detectEmojis(segment.text) ? 'has-emojis' : ''}`}
+                    rows={window.innerWidth <= 768 ? undefined : 2}
+                  />
+                  {detectEmojis(segment.text) && (
+                    <div className="emoji-warning">
+                      ⚠️ Emojis werden im Video nicht angezeigt
+                    </div>
+                  )}
+                  <div 
+                    className="segment-text-preview"
+                    dangerouslySetInnerHTML={{ __html: formatTextWithEmojis(segment.text) }}
+                  />
+                </div>
               </div>
             ))}
           </div>

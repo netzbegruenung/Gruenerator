@@ -11,10 +11,23 @@ export const getDirectMenuItems = (betaFeatures = {}) => {
       title: 'Suche',
       description: 'Durchsuche alle Vorlagen und Texte',
       icon: PiMagnifyingGlass
-    },
+    }
   };
   // Dynamische direkte Links wurden hier entfernt, da sie jetzt unter "Labor" gruppiert werden.
   return items;
+};
+
+// Mobile-only Menüpunkte (nur im NavMenu angezeigt)
+export const getMobileOnlyMenuItems = () => {
+  return {
+    profile: {
+      id: 'profile',
+      path: '/profile',
+      title: 'Mein Konto',
+      description: 'Profil und Einstellungen verwalten',
+      icon: PiUser
+    }
+  };
 };
 
 // Funktion zur Generierung der Hauptmenüstruktur inkl. dynamischem "Labor"-Menü
@@ -106,7 +119,6 @@ export const getMenuItems = (betaFeatures = {}) => {
       ...staticMenuItems,
       labor: {
         title: 'Labor',
-        icon: PiFlask, // Icon für den Top-Level "Labor" Eintrag
         items: laborItems
       }
     };
