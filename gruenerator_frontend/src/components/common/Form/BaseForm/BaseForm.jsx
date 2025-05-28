@@ -25,6 +25,9 @@ import { getBaseContainerClasses } from '../utils/classNameUtils';
 // Import FormContext
 import { FormContext } from '../../../utils/FormContext';
 
+// Import BetaFeaturesContext
+import { BetaFeaturesContext } from '../../../../context/BetaFeaturesContext';
+
 // Import an icon for the toggle
 import { HiChevronDown } from 'react-icons/hi';
 
@@ -69,6 +72,9 @@ const BaseForm = ({
     knowledgeSourceConfig,
     setKnowledgeSourceConfig
   } = useContext(FormContext);
+  
+  // Get database beta feature status
+  const { databaseBetaEnabled } = useContext(BetaFeaturesContext);
   
   // Hook zum Laden der Gruppen des Benutzers
   const { userGroups: groups, isLoadingGroups, errorGroups: groupsError } = useGroups();
@@ -226,7 +232,7 @@ const BaseForm = ({
             >
               {children}
               
-              {enableKnowledgeSelector && (
+              {enableKnowledgeSelector && databaseBetaEnabled && (
                 <div className="knowledge-source-config-container">
                   <h3 className="knowledge-selector-heading">Anweisungen & Wissensquelle</h3>
                   <div className="knowledge-source-dropdown">

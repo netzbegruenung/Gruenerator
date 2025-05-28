@@ -140,6 +140,48 @@
   resize: vertical;
 }
 
+.segment-text-container {
+  position: relative;
+  width: 100%;
+}
+
+.segment-text.has-emojis {
+  border-left: 3px solid #ff9800;
+}
+
+.segment-text-preview {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  right: 0.5rem;
+  bottom: 0.5rem;
+  pointer-events: none;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: 1.5;
+  z-index: 1;
+  color: transparent;
+}
+
+.emoji-transparent {
+  opacity: 0.3;
+  color: var(--font-color);
+  background-color: rgba(255, 152, 0, 0.1);
+  padding: 0 2px;
+  border-radius: 2px;
+}
+
+.emoji-warning {
+  font-size: 0.8rem;
+  color: #ff9800;
+  margin-top: 0.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
 @media (max-width: 768px) {
   .subtitles-list {
     padding: 0.5rem;
@@ -159,6 +201,18 @@
     background-color: transparent;
     padding: 7px;
     margin-bottom: 5px;
+  }
+
+  .segment-text-preview {
+    top: 7px;
+    left: 7px;
+    right: 7px;
+    bottom: 7px;
+  }
+
+  .emoji-warning {
+    font-size: 0.75rem;
+    margin-top: 0.125rem;
   }
 }
 
@@ -205,6 +259,15 @@
   .delete-segment-button:hover {
     background-color: rgba(255, 107, 107, 0.15);
     color: #ff4d4d;
+  }
+
+  .emoji-transparent {
+    color: var(--font-color);
+    background-color: rgba(255, 152, 0, 0.15);
+  }
+
+  .emoji-warning {
+    color: #ffb74d;
   }
 }
 

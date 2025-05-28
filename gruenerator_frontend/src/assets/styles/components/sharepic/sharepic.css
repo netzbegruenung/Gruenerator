@@ -368,7 +368,6 @@
         position: sticky;
         top: 0;
         z-index: 10;
-        background: var(--background-color-alt);
         padding: 1rem;
         margin: -1rem;
         border-radius: 8px;
