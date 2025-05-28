@@ -3,21 +3,12 @@ import PropTypes from 'prop-types';
 import { useDropzone } from 'react-dropzone';
 import { FaUpload, FaTimes } from 'react-icons/fa';
 import * as tus from 'tus-js-client';
+import apiClient from '../../../components/utils/apiClient';
 
-// Dynamischer TUS Upload Endpoint basierend auf der Umgebung
-// const isDevelopment = import.meta.env.MODE === 'development'; // Old check using MODE
-const isDevelopment = import.meta.env.VITE_APP_ENV === 'development'; // Use explicit env variable
-const TUS_UPLOAD_ENDPOINT = isDevelopment
-  ? 'http://localhost:3001/api/subtitler/upload' // Dein lokaler Backend-Port
-  : 'https://gruenerator.de/api/subtitler/upload'; // Produktions-URL
+// Get base URL from apiClient instead of hardcoding
+const TUS_UPLOAD_ENDPOINT = `${apiClient.defaults.baseURL}/subtitler/upload`;
 
-// Ensure HTTPS is used for production endpoint
-if (!isDevelopment && !TUS_UPLOAD_ENDPOINT.startsWith('https://')) {
-  console.error('[VideoUploader] Production upload endpoint must use HTTPS');
-  // Potenziell einen Fehler werfen oder einen Fallback setzen
-}
-
-console.log(`[VideoUploader] Using Tus Endpoint (VITE_APP_ENV: ${import.meta.env.VITE_APP_ENV || 'not set'}):`, TUS_UPLOAD_ENDPOINT);
+console.log(`[VideoUploader] Using Tus Endpoint:`, TUS_UPLOAD_ENDPOINT);
 
 const VideoUploader = ({ onUpload, isProcessing = false }) => {
   const [uploadProgress, setUploadProgress] = useState(0);

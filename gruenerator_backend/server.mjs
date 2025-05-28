@@ -421,11 +421,6 @@ if (cluster.isMaster) {
   // Logging nur für wichtige Requests
   app.use(morgan('combined', {
     skip: function (req, res) {
-      // Log alle /api/subtitler Requests für Debugging
-      if (req.url.includes('/api/subtitler/')) {
-        console.log(`[Morgan] ${req.method} ${req.url} - ${req.get('User-Agent')?.substring(0, 50)}...`);
-        return false; // Nicht skippen, loggen
-      }
       return req.url.includes('/api/') && req.method === 'POST' || res.statusCode < 400;
     },
     stream: { write: message => {} }
@@ -441,19 +436,6 @@ if (cluster.isMaster) {
   // WICHTIG: Muss VOR setupRoutes und VOR den statischen Fallbacks stehen!
   const tusUploadPath = '/api/subtitler/upload'; // Pfad aus tusService.js
   app.all(tusUploadPath + '*', (req, res) => { // .all() für alle Methoden, '*' für Upload-IDs
-    // DEBUG: Detailliertes Request-Logging
-    console.log(`[Server] TUS Request: ${req.method} ${req.url}`);
-    console.log(`[Server] TUS Headers:`, {
-      'content-type': req.get('content-type'),
-      'upload-length': req.get('upload-length'),
-      'upload-offset': req.get('upload-offset'),
-      'tus-resumable': req.get('tus-resumable'),
-      'upload-metadata': req.get('upload-metadata'),
-      'origin': req.get('origin'),
-      'user-agent': req.get('user-agent')?.substring(0, 50) + '...'
-    });
-    console.log(`[Server] TUS Body size:`, req.get('content-length') || 'unknown');
-    
     // Leite die Anfrage an den tusServer weiter
     // Der tusServer kümmert sich intern um die verschiedenen HTTP-Methoden (POST, HEAD, PATCH etc.)
     console.log(`[Server] Routing request for ${req.method} ${req.url} to tusServer`); // Logging hinzufügen
