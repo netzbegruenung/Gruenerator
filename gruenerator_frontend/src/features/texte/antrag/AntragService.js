@@ -9,8 +9,7 @@ export const useAntragService = () => {
 };
 
 export const AntragService = {
-  async generateAntragWithWebSearch(formData) {
-    const { submitForm } = useApiSubmit('antraege/generate-simple');
+  async generateAntragWithWebSearch(formData, submitForm) {
     const payload = {
       ...formData,
       useWebSearchTool: true
@@ -20,8 +19,7 @@ export const AntragService = {
     return result;
   },
 
-  async generateAntragClassic(formData) {
-    const { submitForm } = useApiSubmit('antraege/generate-simple');
+  async generateAntragClassic(formData, submitForm) {
     const payload = {
       ...formData,
       useWebSearchTool: false
@@ -31,8 +29,7 @@ export const AntragService = {
     return result;
   },
 
-  async generateSimpleAntrag(formData) {
-    const { submitForm } = useApiSubmit('antraege/generate-simple');
+  async generateSimpleAntrag(formData, submitForm) {
     const payload = {
       ...formData
     };

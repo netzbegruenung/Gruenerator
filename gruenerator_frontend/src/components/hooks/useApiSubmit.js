@@ -147,13 +147,13 @@ const useApiSubmit = (endpoint) => {
           // Prüfe auf verschiedene mögliche Antwortstrukturen
           if (response.content) {
             setSuccess(true);
-            return response.content;
+            return response;
           } else if (response.metadata && response.metadata.content) {
             setSuccess(true);
-            return response.metadata.content;
+            return { content: response.metadata.content, metadata: response.metadata };
           } else if (typeof response === 'string') {
             setSuccess(true);
-            return response;
+            return { content: response };
           }
         }
       } else if (endpoint === 'analyze') {

@@ -259,9 +259,9 @@ export const AntragForm = () => {
         webSearchFeatureToggle={{
           isActive: useWebSearch,
           onToggle: setUseWebSearch,
-          label: "Web Search verwenden",
+          label: "Websuche verwenden",
           icon: HiGlobeAlt,
-          description: "Nutzt aktuelle Informationen aus dem Web für fundiertere Anträge (Anthropic Web Search)."
+          description: "Nutzt aktuelle Informationen aus dem Web."
         }}
         useWebSearchFeatureToggle={true}
         displayActions={saveActionElement}

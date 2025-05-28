@@ -249,6 +249,7 @@ const BaseForm = ({
       {formData.type !== 'Zitat' && (
         <div className="advanced-editing-button-container">
           <Button
+            type="button"
             text={isAdvancedEditingOpen ? "Erweiterte Bildbearbeitung schließen" : "Erweiterte Bildbearbeitung"}
             className={`advanced-editing-button ${isAdvancedEditingOpen ? 'open' : ''}`}
             onClick={toggleAdvancedEditing}

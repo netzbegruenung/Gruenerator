@@ -158,7 +158,7 @@ const LaborTab = ({
           <div className="labor-tab-checkbox-container">
             <StyledCheckbox
               id="deutschlandmodus-beta"
-              label="Deutschlandmodus aktivieren (KI-Anfragen über deutsche Server)"
+              label="Deutschlandmodus aktivieren"
               checked={deutschlandmodusBeta}
               onChange={() => handleBetaToggle(setDeutschlandmodusBeta, deutschlandmodusBeta, 'Deutschlandmodus')}
               aria-label="Deutschlandmodus Beta-Test aktivieren"
@@ -251,7 +251,7 @@ const LaborTab = ({
             <div className="labor-tab-checkbox-container">
               <StyledCheckbox
                 id="you-beta"
-                label="You Grünerator anzeigen und Funktionalität aktivieren"
+                label="You Grünerator aktivieren"
                 checked={youBeta}
                 onChange={() => handleBetaToggle(setYouBeta, youBeta, 'You Generator')}
                 aria-label="You Grünerator Beta-Test aktivieren"

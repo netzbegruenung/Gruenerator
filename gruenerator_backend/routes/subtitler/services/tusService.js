@@ -4,6 +4,11 @@ const { FileStore } = require('@tus/file-store');
 const path = require('path');
 const fs = require('fs').promises;
 
+// Singleton-Pattern um mehrfache Initialisierung zu verhindern
+let isInitialized = false;
+let cleanupIntervalId = null;
+let emergencyCleanupIntervalId = null;
+
 // Konfiguriere Tus Upload Verzeichnis
 const TUS_UPLOAD_PATH = path.join(__dirname, '../../../uploads/tus-temp');
 
@@ -269,29 +274,35 @@ const cleanupTusUploads = async (maxAgeHours = 24) => {
 };
 
 // Starte initiales Cleanup beim Server-Start
-console.log('[tusService] Starte initiales Cleanup...');
-intelligentCleanup();
+if (!isInitialized) {
+  console.log('[tusService] Starte initiales Cleanup...');
+  intelligentCleanup();
 
-// Plane regelmäßige Cleanup-Zyklen
-const cleanupIntervalId = setInterval(intelligentCleanup, TUS_CLEANUP_CONFIG.CLEANUP_INTERVAL);
-const emergencyCleanupIntervalId = setInterval(emergencyCleanup, TUS_CLEANUP_CONFIG.EMERGENCY_CLEANUP_INTERVAL);
+  // Plane regelmäßige Cleanup-Zyklen
+  cleanupIntervalId = setInterval(intelligentCleanup, TUS_CLEANUP_CONFIG.CLEANUP_INTERVAL);
+  emergencyCleanupIntervalId = setInterval(emergencyCleanup, TUS_CLEANUP_CONFIG.EMERGENCY_CLEANUP_INTERVAL);
 
-console.log(`[tusService] Cleanup-Intervalle konfiguriert:
+  console.log(`[tusService] Cleanup-Intervalle konfiguriert:
 - Intelligent: alle ${TUS_CLEANUP_CONFIG.CLEANUP_INTERVAL / 60000} Minuten
 - Emergency: alle ${TUS_CLEANUP_CONFIG.EMERGENCY_CLEANUP_INTERVAL / 60000} Minuten`);
 
-// Graceful Shutdown
-process.on('SIGTERM', () => {
-  console.log('[tusService] SIGTERM empfangen, stoppe Cleanup-Intervalle...');
-  clearInterval(cleanupIntervalId);
-  clearInterval(emergencyCleanupIntervalId);
-});
+  // Graceful Shutdown - nur einmal registrieren
+  const shutdownHandler = () => {
+    if (cleanupIntervalId) {
+      console.log('[tusService] Stoppe Cleanup-Intervalle...');
+      clearInterval(cleanupIntervalId);
+      clearInterval(emergencyCleanupIntervalId);
+      cleanupIntervalId = null;
+      emergencyCleanupIntervalId = null;
+    }
+  };
 
-process.on('SIGINT', () => {
-  console.log('[tusService] SIGINT empfangen, stoppe Cleanup-Intervalle...');
-  clearInterval(cleanupIntervalId);
-  clearInterval(emergencyCleanupIntervalId);
-});
+  process.on('SIGTERM', shutdownHandler);
+  process.on('SIGINT', shutdownHandler);
+  
+  isInitialized = true;
+  console.log('[tusService] Initialisierung abgeschlossen.');
+}
 
 module.exports = {
   tusServer,
