@@ -73,7 +73,7 @@ function setupRoutes(app) {
   app.use('/api/claude/generate-short-subtitles', claudeSubtitlesRoute);
 
   app.use('/api/subtitler', subtitlerRouter);
-  app.use('/api/subtitler', subtitlerSocialRouter);
+  app.use('/api/subtitler/social', subtitlerSocialRouter);
   app.use('/api/voice', voiceRouter);
 
   app.use('/api/search', searchRouter);
