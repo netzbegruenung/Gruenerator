@@ -3,7 +3,7 @@ import useApiSubmit from '../../../components/hooks/useApiSubmit';
 
 const useSocialTextGenerator = () => {
   const [socialText, setSocialText] = useState('');
-  const { submitForm, loading: isGenerating, error, resetSuccess } = useApiSubmit('/subtitler/generate-social');
+  const { submitForm, loading: isGenerating, error, resetSuccess } = useApiSubmit('/subtitler/social/generate-social');
 
   const generateSocialText = useCallback(async (subtitles) => {
     if (!subtitles) return;
