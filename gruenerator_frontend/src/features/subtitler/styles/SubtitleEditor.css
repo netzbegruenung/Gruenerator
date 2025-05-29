@@ -10,6 +10,8 @@
   align-items: center;
   margin-bottom: 1rem;
   padding: 0 0.5rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 .editor-header h3 {
@@ -87,6 +89,8 @@
   flex-direction: column;
   gap: 0.5rem;
   position: relative;
+  border: 1px solid var(--border-subtle);
+  transition: border-color 0.2s ease;
 }
 
 .segment-header {
@@ -100,13 +104,14 @@
 .segment-time {
   background-color: var(--tanne);
   color: white;
-  padding: 0.5rem;
+  padding: var(--spacing-small) var(--spacing-medium);
   border-radius: 4px;
   font-family: monospace;
   text-align: center;
   flex-grow: 1;
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+  user-select: none;
 }
 
 .segment-time:hover {
@@ -116,12 +121,12 @@
 .segment-time-inputs {
   display: flex;
   align-items: center;
-  gap: 0.3rem;
+  gap: var(--spacing-small);
   flex-grow: 1;
-  background-color: var(--background-color);
-  padding: 0.4rem 0.6rem;
+  background-color: var(--background-color-alt);
+  padding: var(--spacing-small) var(--spacing-medium);
   border-radius: 4px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--tanne);
 }
 
 .segment-time-inputs input.segment-time-input {
@@ -132,40 +137,40 @@
   color: var(--font-color);
   text-align: center;
   width: 90px;
-  padding: 0.1rem;
+  padding: var(--spacing-xxsmall);
   outline: none;
+  border-radius: 2px;
+  transition: background-color 0.2s ease;
 }
 
 .segment-time-inputs input.segment-time-input:focus {
-  background-color: var(--hover-color-alt);
-  border-radius: 2px;
+  background-color: var(--background-color);
+  box-shadow: 0 0 0 2px rgba(0, 85, 56, 0.2);
 }
 
 .segment-time-inputs span {
-  color: var(--font-color-light);
+  color: var(--font-color);
+  font-weight: bold;
 }
 
 .delete-segment-button {
   background: none;
   border: none;
-  color: var(--error-color);
+  color: #e74c3c;
   cursor: pointer;
-  padding: 0.3rem;
+  padding: var(--spacing-small);
   font-size: 1rem;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 4px;
-  transition: background-color 0.2s ease, color 0.2s ease;
+  transition: transform 0.1s ease;
+  min-width: 32px;
+  height: 32px;
 }
 
-.delete-segment-button:hover {
-  background-color: rgba(255, 0, 0, 0.1);
-  color: darkred;
-}
-
-.delete-segment-button svg {
-  display: block;
+.delete-segment-button:active {
+  transform: scale(0.95);
 }
 
 .segment-text {
@@ -241,6 +246,29 @@
     background-color: transparent;
     padding: 7px;
     margin-bottom: 5px;
+  }
+
+  .segment-header {
+    flex-direction: column;
+    gap: var(--spacing-xsmall);
+    align-items: stretch;
+  }
+
+  .segment-time, .segment-time-inputs {
+    margin-bottom: var(--spacing-xsmall);
+  }
+
+  .delete-segment-button {
+    align-self: flex-end;
+    margin-top: var(--spacing-xsmall);
+    font-size: 1.1rem;
+    min-width: 36px;
+    height: 36px;
+  }
+
+  .segment-time-inputs input.segment-time-input {
+    width: 80px;
+    font-size: 0.85em;
   }
 
   .segment-text-preview {
@@ -378,6 +406,12 @@
 
   .subtitle-segment {
     background-color: var(--background-color);
+    border-color: var(--border-subtle);
+  }
+
+  .subtitle-segment.segment-overlap {
+    border-left: 3px solid #ffb74d;
+    background-color: rgba(255, 183, 77, 0.03);
   }
 
   .segment-time-inputs {
@@ -391,15 +425,15 @@
 
   .segment-time-inputs input.segment-time-input:focus {
     background-color: var(--background-color);
+    box-shadow: 0 0 0 2px rgba(120, 200, 150, 0.3);
+  }
+
+  .segment-time-inputs span {
+    color: var(--font-color);
   }
 
   .delete-segment-button {
     color: #ff6b6b;
-  }
-
-  .delete-segment-button:hover {
-    background-color: rgba(255, 107, 107, 0.15);
-    color: #ff4d4d;
   }
 
   .emoji-transparent {
@@ -410,4 +444,27 @@
   .emoji-warning {
     color: #ffb74d;
   }
+
+  .segment-time.segment-time-overlap {
+    background-color: var(--tanne);
+    border-left: 3px solid #ffb74d;
+  }
+}
+
+.overlap-icon {
+  margin-left: var(--spacing-xxsmall);
+  font-size: 0.7rem;
+  opacity: 0.8;
+}
+
+.subtitle-segment.segment-overlap {
+  border-left: 3px solid #ff9800;
+  background-color: rgba(255, 152, 0, 0.02);
+}
+
+.segment-time.segment-time-overlap {
+  background-color: var(--tanne);
+  color: white;
+  border-left: 3px solid #ff9800;
+  position: relative;
 } 

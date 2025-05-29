@@ -13,7 +13,13 @@ async function generateShortSubtitlesViaAI(text, words, aiWorkerPool, useBackupP
     const systemPrompt = 'Du bist ein Experte für die Erstellung von prägnanten Untertiteln für Social-Media-Videos (Reels).';
 
     // Detailed instructions and data in the user message
-    const userContent = `Deine Aufgabe ist es, aus einem gegebenen Volltext und den dazugehörigen Wort-Timestamps kurze, gut lesbare Untertitel-Segmente zu generieren.
+    const userContent = `Deine Aufgabe ist es, aus einem gegebenen Volltext und den dazugehörigen Wort-Timestamps kurze, gut lesbare Untertitel-Segmente zu generieren. Stelle sicher, dass du ALLE Wörter aus den bereitgestellten Wort-Timestamps verarbeitest und Untertitel bis zum Zeitstempel des allerletzten Wortes generierst.
+
+**ABSOLUT KRITISCH - VOLLSTÄNDIGE VERARBEITUNG:**
+- Du MUSST alle bereitgestellten Wort-Timestamps verarbeiten
+- Deine Untertitel-Segmente müssen bis zum Zeitstempel des allerletzten Wortes in der JSON-Liste reichen
+- Überprüfe nach der Generierung, ob das letzte Segment wirklich dem letzten Wort-Timestamp entspricht
+- NIEMALS vorzeitig aufhören, auch wenn der Text lang ist
 
 **KRITISCHE FORMATANFORDERUNGEN:**
 Du MUSST das Ergebnis EXAKT in diesem Format zurückgeben:
@@ -28,7 +34,6 @@ MM:SS - MM:SS
 Segment Text 3
 
 **WICHTIGE ZEITBEGRENZUNG:**
-- Du darfst NUR Untertitel für tatsächlich gesprochene Wörter erzeugen
 - Orientiere dich STRIKT an den gegebenen Wort-Timestamps
 - Erzeuge KEINE Untertitel für Zeitbereiche ohne Wörter (z.B. Pausen, Applaus, Musik)
 - Das letzte Segment darf NICHT über den Zeitstempel des letzten Wortes hinausragen
@@ -74,8 +79,15 @@ Gib NUR den formatierten Untertiteltext zurück, ohne weitere Erklärungen.`;
 
     console.log(`[ShortSubtitleGenerator] Anfrage an Claude: ${text.length} chars, ${words.length} Wörter`);
     
-    // Log first few word timestamps for debugging
+    // Log first few and last few word timestamps for debugging
     console.log(`[ShortSubtitleGenerator] Erste 3 Wort-Timestamps:`, words.slice(0, 3).map(w => `"${w.word}": ${w.start.toFixed(2)}s-${w.end.toFixed(2)}s`));
+    if (words.length > 3) {
+      console.log(`[ShortSubtitleGenerator] Letzte 3 Wort-Timestamps:`, words.slice(-3).map(w => `"${w.word}": ${w.start.toFixed(2)}s-${w.end.toFixed(2)}s`));
+    }
+    // Log the approximate size of the prompt components
+    const userContentLength = userContent.length;
+    const systemPromptLength = systemPrompt.length;
+    console.log(`[ShortSubtitleGenerator] Ungefähre Prompt-Größe: System ${systemPromptLength} Zeichen, UserContent ${userContentLength} Zeichen (inkl. Text und Word-Timestamp-JSON)`);
 
     try {
         const result = await aiWorkerPool.processRequest({

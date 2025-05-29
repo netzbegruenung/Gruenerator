@@ -99,7 +99,7 @@ async function processAIRequest(requestId, data) {
       const { useBedrock, useBackupProvider, betas, ...apiOptions } = effectiveOptions;
       
       const defaultConfig = {
-        model: "claude-3-7-sonnet-latest",
+        model: "claude-sonnet-4-20250514",
         max_tokens: 8000,
         temperature: 0.9
       };
@@ -193,6 +193,10 @@ async function processAIRequest(requestId, data) {
       }
 
       sendProgress(requestId, 30);
+
+      // Log the size of the requestConfig being sent to Claude
+      const requestConfigString = JSON.stringify(requestConfig);
+      console.log(`[AI Worker] Größe der Anfragekonfiguration für Claude (Request ${requestId}): ${requestConfigString.length} Zeichen`);
       
       // Make the API call with timeout
       const timeoutPromise = new Promise((_, reject) => {
