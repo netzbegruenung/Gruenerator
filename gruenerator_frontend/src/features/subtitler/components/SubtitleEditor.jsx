@@ -1,9 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import PropTypes from 'prop-types';
+<<<<<<< HEAD
 import { motion, AnimatePresence } from 'motion/react';
 import apiClient from '../../../components/utils/apiClient';
 import LiveSubtitlePreview from './LiveSubtitlePreview';
 import ConfirmDeletePopup from '../../../components/common/ConfirmDeletePopup';
+=======
+import apiClient from '../../../components/utils/apiClient';
+import LiveSubtitlePreview from './LiveSubtitlePreview';
+>>>>>>> f2cbc8c2fcc3868bd014a17f22a2c2b04103dcf5
 
 const SubtitleEditor = ({ videoFile, subtitles, uploadId, onExportSuccess, isExporting, onExportComplete }) => {
   const videoRef = useRef(null);
@@ -12,9 +17,12 @@ const SubtitleEditor = ({ videoFile, subtitles, uploadId, onExportSuccess, isExp
   const [error, setError] = useState(null);
   const [currentTimeInSeconds, setCurrentTimeInSeconds] = useState(0);
   const [videoMetadata, setVideoMetadata] = useState(null);
+<<<<<<< HEAD
   const [editingTimeId, setEditingTimeId] = useState(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState({ isVisible: false, segmentId: null });
   const [overlappingSegments, setOverlappingSegments] = useState(new Set());
+=======
+>>>>>>> f2cbc8c2fcc3868bd014a17f22a2c2b04103dcf5
 
   // Emoji detection function
   const detectEmojis = (text) => {
@@ -80,6 +88,7 @@ const SubtitleEditor = ({ videoFile, subtitles, uploadId, onExportSuccess, isExp
       
       const segments = subtitles.split('\n\n')
         .map((block, index) => {
+<<<<<<< HEAD
           const lines = block.split('\n');
           if (lines.length < 2) {
             console.warn('[SubtitleEditor] Invalid block (not enough lines):', block);
@@ -129,6 +138,23 @@ const SubtitleEditor = ({ videoFile, subtitles, uploadId, onExportSuccess, isExp
             id: index,
             startTime: calculatedStartTime,
             endTime: calculatedEndTime,
+=======
+          const [timeLine, ...textLines] = block.split('\n');
+          const [timeRange] = timeLine.match(/(\d+:\d{2}) - (\d+:\d{2})/) || [];
+          if (!timeRange) {
+            console.warn('[SubtitleEditor] Invalid time range in block:', block);
+            return null;
+          }
+
+          const [startTime, endTime] = timeLine.split(' - ');
+          const [startMin, startSec] = startTime.split(':').map(Number);
+          const [endMin, endSec] = endTime.split(':').map(Number);
+
+          return {
+            id: index,
+            startTime: startMin * 60 + startSec,
+            endTime: endMin * 60 + endSec,
+>>>>>>> f2cbc8c2fcc3868bd014a17f22a2c2b04103dcf5
             text: textLines.join('\n').trim()
           };
         })
@@ -142,6 +168,7 @@ const SubtitleEditor = ({ videoFile, subtitles, uploadId, onExportSuccess, isExp
     }
   }, [subtitles]);
 
+<<<<<<< HEAD
   // Check for overlaps whenever subtitles change
   useEffect(() => {
     if (editableSubtitles.length > 0) {
@@ -150,6 +177,8 @@ const SubtitleEditor = ({ videoFile, subtitles, uploadId, onExportSuccess, isExp
     }
   }, [editableSubtitles]);
 
+=======
+>>>>>>> f2cbc8c2fcc3868bd014a17f22a2c2b04103dcf5
   // Handle video metadata loading
   const handleVideoLoadedMetadata = () => {
     if (videoRef.current) {
@@ -209,6 +238,7 @@ const SubtitleEditor = ({ videoFile, subtitles, uploadId, onExportSuccess, isExp
     }
   };
 
+<<<<<<< HEAD
   // Handler for editing timestamps
   const handleTimeEdit = (id, field, value) => {
     const [minutes, seconds] = value.split(':').map(Number);
@@ -263,6 +293,8 @@ const SubtitleEditor = ({ videoFile, subtitles, uploadId, onExportSuccess, isExp
     setEditingTimeId(editingTimeId === id ? null : id);
   };
 
+=======
+>>>>>>> f2cbc8c2fcc3868bd014a17f22a2c2b04103dcf5
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
@@ -357,6 +389,7 @@ const SubtitleEditor = ({ videoFile, subtitles, uploadId, onExportSuccess, isExp
     }
   };
 
+<<<<<<< HEAD
   // Function to detect overlapping segments
   const detectOverlaps = (segments) => {
     const overlaps = new Set();
@@ -377,6 +410,8 @@ const SubtitleEditor = ({ videoFile, subtitles, uploadId, onExportSuccess, isExp
     return overlaps;
   };
 
+=======
+>>>>>>> f2cbc8c2fcc3868bd014a17f22a2c2b04103dcf5
   return (
     <div className="subtitle-editor-container">
       {error && (
@@ -443,6 +478,7 @@ const SubtitleEditor = ({ videoFile, subtitles, uploadId, onExportSuccess, isExp
 
         <div className="subtitles-editor">
           <div className="subtitles-list">
+<<<<<<< HEAD
             <AnimatePresence>
               {editableSubtitles.map(segment => (
                 <motion.div 
@@ -517,6 +553,32 @@ const SubtitleEditor = ({ videoFile, subtitles, uploadId, onExportSuccess, isExp
                 </motion.div>
               ))}
             </AnimatePresence>
+=======
+            {editableSubtitles.map(segment => (
+              <div key={segment.id} className="subtitle-segment">
+                <div className="segment-time">
+                  {formatTime(segment.startTime)} - {formatTime(segment.endTime)}
+                </div>
+                <div className="segment-text-container">
+                  <textarea
+                    value={segment.text}
+                    onChange={(e) => handleSubtitleEdit(segment.id, e.target.value, e)}
+                    className={`segment-text ${detectEmojis(segment.text) ? 'has-emojis' : ''}`}
+                    rows={window.innerWidth <= 768 ? undefined : 2}
+                  />
+                  {detectEmojis(segment.text) && (
+                    <div className="emoji-warning">
+                      ⚠️ Emojis werden im Video nicht angezeigt
+                    </div>
+                  )}
+                  <div 
+                    className="segment-text-preview"
+                    dangerouslySetInnerHTML={{ __html: formatTextWithEmojis(segment.text) }}
+                  />
+                </div>
+              </div>
+            ))}
+>>>>>>> f2cbc8c2fcc3868bd014a17f22a2c2b04103dcf5
           </div>
         </div>
       </div>
@@ -537,6 +599,7 @@ const SubtitleEditor = ({ videoFile, subtitles, uploadId, onExportSuccess, isExp
           )}
         </button>
       </div>
+<<<<<<< HEAD
 
       {deleteConfirmation.isVisible && (
         <ConfirmDeletePopup
@@ -547,6 +610,8 @@ const SubtitleEditor = ({ videoFile, subtitles, uploadId, onExportSuccess, isExp
           message="Dieses Untertitel-Segment wird permanent entfernt. Diese Aktion kann nicht rückgängig gemacht werden."
         />
       )}
+=======
+>>>>>>> f2cbc8c2fcc3868bd014a17f22a2c2b04103dcf5
     </div>
   );
 };
