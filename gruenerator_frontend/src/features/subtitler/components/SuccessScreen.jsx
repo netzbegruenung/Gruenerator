@@ -52,24 +52,13 @@ const AnimatedCheckmark = () => {
 };
 
 const SuccessScreen = ({ onReset, onEditAgain, isLoading, socialText, uploadId }) => {
-  const [showSpinner, setShowSpinner] = useState(isLoading);
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
-    if (!isLoading) {
-      // Kurze Verzögerung, damit die Animation sauber beendet werden kann
-      const timer = setTimeout(() => {
-        setShowSpinner(false);
-      }, 300);
-      return () => clearTimeout(timer);
-    } else {
-      setShowSpinner(true);
+    if (!isLoading || !uploadId) {
+      setProgress(0); // Reset progress when not loading or no uploadId
+      return;
     }
-  }, [isLoading]);
-
-  // Progress Polling
-  useEffect(() => {
-    if (!isLoading || !uploadId) return;
 
     const pollProgress = async () => {
       try {
@@ -91,8 +80,8 @@ const SuccessScreen = ({ onReset, onEditAgain, isLoading, socialText, uploadId }
     <div className="success-screen">
       <div className="success-content">
         <div className="success-main">
-          <div className={`success-icon ${showSpinner ? 'loading' : ''}`}>
-            {showSpinner ? (
+          <div className={`success-icon ${isLoading ? 'loading' : ''}`}>
+            {isLoading ? (
               <div className="spinner" />
             ) : (
               <AnimatedCheckmark />
@@ -100,8 +89,8 @@ const SuccessScreen = ({ onReset, onEditAgain, isLoading, socialText, uploadId }
           </div>
           <h2>{isLoading ? 'Dein Video wird verarbeitet' : 'Dein Video wurde heruntergeladen'}</h2>
           <p>
-            {isLoading 
-              ? 'Während dein Video mit Untertiteln versehen wird, kannst du dir schon den generierten Beitragstext ansehen.' 
+            {isLoading
+              ? 'Während dein Video mit Untertiteln versehen wird, kannst du dir schon den generierten Beitragstext ansehen.'
               : 'Dein Video wurde erfolgreich mit Untertiteln versehen und heruntergeladen.'}
           </p>
           
