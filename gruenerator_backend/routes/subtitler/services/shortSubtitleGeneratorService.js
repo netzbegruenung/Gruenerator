@@ -39,18 +39,28 @@ Segment Text 3
 1.  **TIMING-PRÄZISION (HÖCHSTE PRIORITÄT):**
     - Die Startzeit des Segments MUSS dem 'start'-Timestamp des ersten Wortes entsprechen
     - Die Endzeit des Segments MUSS dem 'end'-Timestamp des letzten Wortes entsprechen
-    - NIEMALS Segmente über die tatsächlichen Wort-Zeiten hinaus verlängern
-    - Wenn zwischen Wörtern Pausen sind, erstelle separate Segmente
+    - **AUSNAHME - Lesezeit bei Redepausen:** Wenn nach einem Segment eine Redepause von 1-2 Sekunden folgt (keine neuen Wörter), verlängere das Segment um diese Pause für bessere Lesbarkeit
+    - NIEMALS Segmente über die tatsächlichen Wort-Zeiten hinaus verlängern (außer bei obiger Redepausen-Regel)
+    - Wenn zwischen Wörtern längere Pausen (>2s) sind, erstelle separate Segmente
 
-2.  **Segmentlänge:** Maximal 40 Zeichen pro Segment. Wenn nötig, teile mitten im Satz auf, um das Timing einzuhalten.
+2.  **0-SEKUNDEN-TIMESTAMPS VERMEIDEN:**
+    - NIEMALS Segmente mit identischer Start- und Endzeit erstellen (z.B. 1:41 - 1:41)
+    - Wenn ein Segment nach Rundung 0 Sekunden hätte, teile es in die benachbarten Segmente auf
+    - Priorisiere dabei die zeitliche Nähe zum tatsächlich gesprochenen Wort
 
-3.  **Zeitformat MM:SS (für die Ausgabe):**
-    - Runde Startsekunde IMMER AB (floor)
-    - Runde Endsekunde IMMER AUF (ceil)
-    - Beispiel: 5.72s bis 8.18s wird zu 00:05 - 00:09
-    - **ÜBERLAPPUNGSVERMEIDUNG:** Die gerundete Startzeit eines Segments muss GRÖSSER sein als die gerundete Endzeit des vorhergehenden Segments
+3.  **Segmentlänge:** Maximal 40 Zeichen pro Segment. Wenn nötig, teile mitten im Satz auf, um das Timing einzuhalten.
 
-4.  **Segmentierung:** Nur wenn das Timing stimmt, versuche sinnvolle Wortgruppen zu bilden
+4.  **Zeitformat MM:SS (für die Ausgabe) - ÜBERLAPPUNGSFREIE RUNDUNG:**
+    - Verwende die exakten Wort-Timestamps für die Segmentierung
+    - Für die MM:SS Ausgabe: Runde Startsekunde AB (floor), Endsekunde AUF (ceil)
+    - **KRITISCH: Überlappungsvermeidung beim Runden:**
+      - Wenn das gerundete Ende von Segment A (MM:SS) >= gerundeter Start von Segment B (MM:SS) ist, dann:
+      - Setze den Start von Segment B auf (Ende von Segment A + 1 Sekunde)
+      - Beispiel: Segment A endet bei 5.8s (gerundet 00:06), Segment B startet bei 5.9s (würde zu 00:05 gerundet)
+      - Lösung: Segment B startet in der Ausgabe bei 00:07 (00:06 + 1)
+    - So bleiben die Segmente zeitlich präzise zu den Wörtern, aber überlappen nicht in der Anzeige
+
+5.  **Segmentierung:** Nur wenn das Timing stimmt, versuche sinnvolle Wortgruppen zu bilden
 
 **AUSGABEFORMAT:**
 - Jedes Segment: Zeitstempel-Zeile, dann Text-Zeile, dann Leerzeile
