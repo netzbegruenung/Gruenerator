@@ -89,6 +89,7 @@
 @import url('../../features/subtitler/styles/SubtitleEditor.css');
 @import url('../../features/subtitler/styles/SuccessScreen.css');
 @import url('../../features/subtitler/styles/VideoUploader.css');
+@import url('../../features/subtitler/styles/live-subtitle-preview.css');
 
 
 @import url('../../features/search/styles/SearchPage.css');
