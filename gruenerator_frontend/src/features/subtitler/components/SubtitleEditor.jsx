@@ -80,21 +80,55 @@ const SubtitleEditor = ({ videoFile, subtitles, uploadId, onExportSuccess, isExp
       
       const segments = subtitles.split('\n\n')
         .map((block, index) => {
-          const [timeLine, ...textLines] = block.split('\n');
-          const [timeRange] = timeLine.match(/(\d+:\d{2}) - (\d+:\d{2})/) || [];
-          if (!timeRange) {
-            console.warn('[SubtitleEditor] Invalid time range in block:', block);
+          const lines = block.split('\n');
+          if (lines.length < 2) {
+            console.warn('[SubtitleEditor] Invalid block (not enough lines):', block);
+            return null;
+          }
+          const timeLine = lines[0];
+          const textLines = lines.slice(1);
+
+          // Robust parsing of the timeLine
+          const timeParts = timeLine.split(' - ');
+          if (timeParts.length !== 2) {
+            console.warn('[SubtitleEditor] Invalid timeLine format (expected "startTimeStr - endTimeStr"):', timeLine, 'in block:', block);
             return null;
           }
 
-          const [startTime, endTime] = timeLine.split(' - ');
-          const [startMin, startSec] = startTime.split(':').map(Number);
-          const [endMin, endSec] = endTime.split(':').map(Number);
+          const [startTimeStr, endTimeStr] = timeParts;
+          
+          const startComps = startTimeStr.split(':');
+          const endComps = endTimeStr.split(':');
 
+          if (startComps.length !== 2 || endComps.length !== 2) {
+            console.warn('[SubtitleEditor] Invalid time string format (expected "MM:SS" or "MM:SSS"):', timeLine, 'in block:', block);
+            return null;
+          }
+
+          const startMin = parseInt(startComps[0], 10);
+          const startSec = parseInt(startComps[1], 10);
+          const endMin = parseInt(endComps[0], 10);
+          const endSec = parseInt(endComps[1], 10);
+
+          if (isNaN(startMin) || isNaN(startSec) || isNaN(endMin) || isNaN(endSec)) {
+            console.warn('[SubtitleEditor] Failed to parse time components to numbers:', timeLine, 'in block:', block);
+            return null;
+          }
+          
+          const calculatedStartTime = startMin * 60 + startSec;
+          const calculatedEndTime = endMin * 60 + endSec;
+
+          // Optional: Add validation for calculated times if needed
+          // if (calculatedStartTime < 0 || calculatedEndTime < 0 || calculatedEndTime < calculatedStartTime) {
+          //   console.warn('[SubtitleEditor] Invalid calculated time values:', 
+          //                { calculatedStartTime, calculatedEndTime }, 'for block:', block);
+          //   return null; 
+          // }
+          
           return {
             id: index,
-            startTime: startMin * 60 + startSec,
-            endTime: endMin * 60 + endSec,
+            startTime: calculatedStartTime,
+            endTime: calculatedEndTime,
             text: textLines.join('\n').trim()
           };
         })
