@@ -10,8 +10,11 @@
   align-items: center;
   margin-bottom: 1rem;
   padding: 0 0.5rem;
+<<<<<<< HEAD
   flex-wrap: wrap;
   gap: 0.5rem;
+=======
+>>>>>>> f2cbc8c2fcc3868bd014a17f22a2c2b04103dcf5
 }
 
 .editor-header h3 {
@@ -89,8 +92,11 @@
   flex-direction: column;
   gap: 0.5rem;
   position: relative;
+<<<<<<< HEAD
   border: 1px solid var(--border-subtle);
   transition: border-color 0.2s ease;
+=======
+>>>>>>> f2cbc8c2fcc3868bd014a17f22a2c2b04103dcf5
 }
 
 .segment-header {
@@ -104,14 +110,22 @@
 .segment-time {
   background-color: var(--tanne);
   color: white;
+<<<<<<< HEAD
   padding: var(--spacing-small) var(--spacing-medium);
+=======
+  padding: 0.5rem;
+>>>>>>> f2cbc8c2fcc3868bd014a17f22a2c2b04103dcf5
   border-radius: 4px;
   font-family: monospace;
   text-align: center;
   flex-grow: 1;
   cursor: pointer;
+<<<<<<< HEAD
   transition: background-color 0.2s ease, transform 0.1s ease;
   user-select: none;
+=======
+  transition: background-color 0.2s ease;
+>>>>>>> f2cbc8c2fcc3868bd014a17f22a2c2b04103dcf5
 }
 
 .segment-time:hover {
@@ -121,12 +135,21 @@
 .segment-time-inputs {
   display: flex;
   align-items: center;
+<<<<<<< HEAD
   gap: var(--spacing-small);
   flex-grow: 1;
   background-color: var(--background-color-alt);
   padding: var(--spacing-small) var(--spacing-medium);
   border-radius: 4px;
   border: 1px solid var(--tanne);
+=======
+  gap: 0.3rem;
+  flex-grow: 1;
+  background-color: var(--background-color);
+  padding: 0.4rem 0.6rem;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+>>>>>>> f2cbc8c2fcc3868bd014a17f22a2c2b04103dcf5
 }
 
 .segment-time-inputs input.segment-time-input {
@@ -137,6 +160,7 @@
   color: var(--font-color);
   text-align: center;
   width: 90px;
+<<<<<<< HEAD
   padding: var(--spacing-xxsmall);
   outline: none;
   border-radius: 2px;
@@ -151,19 +175,39 @@
 .segment-time-inputs span {
   color: var(--font-color);
   font-weight: bold;
+=======
+  padding: 0.1rem;
+  outline: none;
+}
+
+.segment-time-inputs input.segment-time-input:focus {
+  background-color: var(--hover-color-alt);
+  border-radius: 2px;
+}
+
+.segment-time-inputs span {
+  color: var(--font-color-light);
+>>>>>>> f2cbc8c2fcc3868bd014a17f22a2c2b04103dcf5
 }
 
 .delete-segment-button {
   background: none;
   border: none;
+<<<<<<< HEAD
   color: #e74c3c;
   cursor: pointer;
   padding: var(--spacing-small);
+=======
+  color: var(--error-color);
+  cursor: pointer;
+  padding: 0.3rem;
+>>>>>>> f2cbc8c2fcc3868bd014a17f22a2c2b04103dcf5
   font-size: 1rem;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 4px;
+<<<<<<< HEAD
   transition: transform 0.1s ease;
   min-width: 32px;
   height: 32px;
@@ -171,6 +215,18 @@
 
 .delete-segment-button:active {
   transform: scale(0.95);
+=======
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.delete-segment-button:hover {
+  background-color: rgba(255, 0, 0, 0.1);
+  color: darkred;
+}
+
+.delete-segment-button svg {
+  display: block;
+>>>>>>> f2cbc8c2fcc3868bd014a17f22a2c2b04103dcf5
 }
 
 .segment-text {
@@ -248,6 +304,7 @@
     margin-bottom: 5px;
   }
 
+<<<<<<< HEAD
   .segment-header {
     flex-direction: column;
     gap: var(--spacing-xsmall);
@@ -271,6 +328,8 @@
     font-size: 0.85em;
   }
 
+=======
+>>>>>>> f2cbc8c2fcc3868bd014a17f22a2c2b04103dcf5
   .segment-text-preview {
     top: 7px;
     left: 7px;
@@ -406,12 +465,15 @@
 
   .subtitle-segment {
     background-color: var(--background-color);
+<<<<<<< HEAD
     border-color: var(--border-subtle);
   }
 
   .subtitle-segment.segment-overlap {
     border-left: 3px solid #ffb74d;
     background-color: rgba(255, 183, 77, 0.03);
+=======
+>>>>>>> f2cbc8c2fcc3868bd014a17f22a2c2b04103dcf5
   }
 
   .segment-time-inputs {
@@ -425,17 +487,28 @@
 
   .segment-time-inputs input.segment-time-input:focus {
     background-color: var(--background-color);
+<<<<<<< HEAD
     box-shadow: 0 0 0 2px rgba(120, 200, 150, 0.3);
   }
 
   .segment-time-inputs span {
     color: var(--font-color);
+=======
+>>>>>>> f2cbc8c2fcc3868bd014a17f22a2c2b04103dcf5
   }
 
   .delete-segment-button {
     color: #ff6b6b;
   }
 
+<<<<<<< HEAD
+=======
+  .delete-segment-button:hover {
+    background-color: rgba(255, 107, 107, 0.15);
+    color: #ff4d4d;
+  }
+
+>>>>>>> f2cbc8c2fcc3868bd014a17f22a2c2b04103dcf5
   .emoji-transparent {
     color: var(--font-color);
     background-color: rgba(255, 152, 0, 0.15);
@@ -444,6 +517,7 @@
   .emoji-warning {
     color: #ffb74d;
   }
+<<<<<<< HEAD
 
   .segment-time.segment-time-overlap {
     background-color: var(--tanne);
@@ -467,4 +541,6 @@
   color: white;
   border-left: 3px solid #ff9800;
   position: relative;
+=======
+>>>>>>> f2cbc8c2fcc3868bd014a17f22a2c2b04103dcf5
 } 
