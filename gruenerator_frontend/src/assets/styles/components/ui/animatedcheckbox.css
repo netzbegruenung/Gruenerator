@@ -68,25 +68,47 @@
 }
 
 @media (max-width: 768px) {
-    .checkbox-wrapper-28 {
+    .checkbox-wrapper-28:not(.checkbox-simple) {
         margin: 0 0 12px 0;
         padding: 0;
     }
 
-    .checkbox-wrapper-28 label {
+    .checkbox-wrapper-28:not(.checkbox-simple) label {
         padding: 6px 25px 6px 40px;
         font-size: 0.9em;
     }
 
-    .checkbox-wrapper-28 label::before {
+    .checkbox-wrapper-28:not(.checkbox-simple) label::before {
         --size: 13px;
         left: 15px;
     }
 
-    .checkbox-wrapper-28 .checkbox-svg {
+    .checkbox-wrapper-28:not(.checkbox-simple) .checkbox-svg {
         left: 17px;
         width: calc(var(--size) - 4px);
         height: calc(var(--size) - 4px);
+    }
+
+    /* Simple variant keeps desktop size on mobile for better UX in forms */
+    .checkbox-simple {
+        margin: 0;
+        padding: 3px;
+    }
+
+    .checkbox-simple label {
+        padding: 6px 10px 6px 30px;
+        font-size: 0.9em;
+    }
+
+    .checkbox-simple label::before {
+        --size: 13px;
+        left: 6px;
+    }
+
+    .checkbox-simple .checkbox-svg {
+        left: 8px;
+        width: calc(var(--size) - 3px);
+        height: calc(var(--size) - 3px);
     }
 
     .platform-checkboxes {
@@ -112,4 +134,26 @@
 
 .labor-tab-checkbox-container .checkbox-wrapper-28 input:checked ~ label .checkbox-svg {
     stroke: var(--interactive-accent-color);
+}
+
+/* Simple variant - maintains desktop sizing in small containers */
+.checkbox-simple {
+    --size: 15px;
+    padding: 5px;
+}
+
+.checkbox-simple label {
+    padding: 8px 12px 8px 35px;
+    font-size: 1em;
+}
+
+.checkbox-simple label::before {
+    --size: 15px;
+    left: 8px;
+}
+
+.checkbox-simple .checkbox-svg {
+    left: 10px;
+    width: calc(var(--size) - 4px);
+    height: calc(var(--size) - 4px);
 }
