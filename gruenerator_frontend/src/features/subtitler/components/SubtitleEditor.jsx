@@ -1,16 +1,18 @@
 import React, { useState, useRef, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import apiClient from '../../../components/utils/apiClient';
+import LiveSubtitlePreview from './LiveSubtitlePreview';
 
 const SubtitleEditor = ({ videoFile, subtitles, uploadId, onExportSuccess, isExporting, onExportComplete }) => {
   const videoRef = useRef(null);
   const [videoUrl, setVideoUrl] = useState(null);
   const [editableSubtitles, setEditableSubtitles] = useState([]);
   const [error, setError] = useState(null);
+  const [currentTimeInSeconds, setCurrentTimeInSeconds] = useState(0);
+  const [videoMetadata, setVideoMetadata] = useState(null);
 
   // Emoji detection function
   const detectEmojis = (text) => {
-    // Unicode ranges for emojis
     const emojiRegex = /[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F018}-\u{1F270}]|[\u{238C}-\u{2454}]|[\u{20D0}-\u{20FF}]|[\u{FE0F}]/gu;
     return emojiRegex.test(text);
   };
@@ -100,6 +102,29 @@ const SubtitleEditor = ({ videoFile, subtitles, uploadId, onExportSuccess, isExp
       setError('Fehler beim Verarbeiten der Untertitel');
     }
   }, [subtitles]);
+
+  // Handle video metadata loading
+  const handleVideoLoadedMetadata = () => {
+    if (videoRef.current) {
+      const video = videoRef.current;
+      const metadata = {
+        width: video.videoWidth,
+        height: video.videoHeight,
+        duration: video.duration
+      };
+      setVideoMetadata(metadata);
+      console.log('[SubtitleEditor] Video metadata loaded:', metadata);
+    }
+  };
+
+  // Handle video time updates
+  const handleVideoTimeUpdate = () => {
+    if (videoRef.current) {
+      const currentTime = videoRef.current.currentTime;
+      setCurrentTimeInSeconds(currentTime);
+      console.log('[SubtitleEditor] Time update:', currentTime.toFixed(2), 's');
+    }
+  };
 
   // Frühe Rückgabe bei fehlenden Props
   if (!videoFile || !subtitles) {
@@ -242,26 +267,60 @@ const SubtitleEditor = ({ videoFile, subtitles, uploadId, onExportSuccess, isExp
         </div>
       )}
 
+      <div className="editor-header">
+        <h3>Untertitel bearbeiten</h3>
+      </div>
+
       <div className="editor-layout">
-        <div className="video-preview">
-          {videoUrl ? (
-            <video 
-              ref={videoRef}
-              className="preview-video"
-              controls
-              src={videoUrl}
+        <div className="video-section">
+          <div className="video-preview">
+            {videoUrl ? (
+              <div style={{ position: 'relative' }}>
+                <video 
+                  ref={videoRef}
+                  className="preview-video"
+                  controls
+                  src={videoUrl}
+                  onLoadedMetadata={handleVideoLoadedMetadata}
+                  onTimeUpdate={handleVideoTimeUpdate}
+                >
+                  Dein Browser unterstützt keine Video-Wiedergabe.
+                </video>
+                
+                <LiveSubtitlePreview
+                  editableSubtitles={editableSubtitles}
+                  currentTimeInSeconds={currentTimeInSeconds}
+                  videoMetadata={videoMetadata}
+                />
+              </div>
+            ) : (
+              <div className="video-loading">
+                {error ? 'Fehler beim Laden des Videos' : 'Video wird geladen...'}
+              </div>
+            )}
+          </div>
+          <div className="subtitle-preview-notice">
+            Nur eine Vorschau. Das finale Styling sieht besser aus!
+          </div>
+          <div className="video-controls desktop-only">
+            <button 
+              className="btn-primary"
+              onClick={handleExport}
+              disabled={isExporting}
             >
-              Dein Browser unterstützt keine Video-Wiedergabe.
-            </video>
-          ) : (
-            <div className="video-loading">
-              {error ? 'Fehler beim Laden des Videos' : 'Video wird geladen...'}
-            </div>
-          )}
+              {isExporting ? (
+                <div className="button-loading-content">
+                  <div className="button-spinner" />
+                  <span>Video wird verarbeitet...</span>
+                </div>
+              ) : (
+                'Video herunterladen'
+              )}
+            </button>
+          </div>
         </div>
 
         <div className="subtitles-editor">
-          <h3>Untertitel bearbeiten</h3>
           <div className="subtitles-list">
             {editableSubtitles.map(segment => (
               <div key={segment.id} className="subtitle-segment">
@@ -291,7 +350,7 @@ const SubtitleEditor = ({ videoFile, subtitles, uploadId, onExportSuccess, isExp
         </div>
       </div>
 
-      <div className="editor-controls">
+      <div className="editor-controls mobile-only">
         <button 
           className="btn-primary"
           onClick={handleExport}
