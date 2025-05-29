@@ -27,48 +27,43 @@ Segment Text 2
 MM:SS - MM:SS
 Segment Text 3
 
-**WICHTIGE ZEITBEGRENZUNG:**
+**OBERSTE PRIORITÄT: ZEITLICHE PRÄZISION**
+- Zeitliche Präzision ist WICHTIGER als sinnvolle Satztrennung
 - Du darfst NUR Untertitel für tatsächlich gesprochene Wörter erzeugen
 - Orientiere dich STRIKT an den gegebenen Wort-Timestamps
-- Erzeuge KEINE Untertitel für Zeitbereiche ohne Wörter (z.B. Pausen, Applaus, Musik)
+- Erzeuge KEINE Untertitel für Zeitbereiche ohne Wörter
 - Das letzte Segment darf NICHT über den Zeitstempel des letzten Wortes hinausragen
+- KÜRZE SEGMENTE LIEBER, anstatt das Timing zu verfälschen
 
-**Richtlinien:**
-1.  **Segmentierung:** Erstelle Segmente, die natürlich klingen und logische Sinneinheiten bilden. Orientiere dich an den Wort-Timestamps, aber fasse Wörter sinnvoll zusammen.
-2.  **Kürze:** Jedes Segment darf maximal 40 Zeichen (inklusive Leerzeichen) enthalten. Wenn ein Satz länger ist, teile ihn sinnvoll auf mehrere Segmente auf. Priorisiere die genaue zeitliche Übereinstimmung mit dem gesprochenen Wort über das Erreichen der maximalen Zeichenlänge. Es ist besser, ein Segment etwas kürzer zu machen und dafür synchron zu sein, als es künstlich zu verlängern, um mehr Text unterzubringen.
-3.  **Timing-Präzision:**
-    - Die Startzeit des Segments sollte dem 'start'-Timestamp des ersten Wortes im Segment entsprechen.
-    - Die Endzeit des Segments sollte dem 'end'-Timestamp des letzten Wortes im Segment entsprechen. Das Ziel ist es, den Text anzuzeigen, solange er gesprochen wird, aber nicht unnötig darüber hinaus.
+**Richtlinien (in Prioritätsreihenfolge):**
+1.  **TIMING-PRÄZISION (HÖCHSTE PRIORITÄT):**
+    - Die Startzeit des Segments MUSS dem 'start'-Timestamp des ersten Wortes entsprechen
+    - Die Endzeit des Segments MUSS dem 'end'-Timestamp des letzten Wortes entsprechen
     - NIEMALS Segmente über die tatsächlichen Wort-Zeiten hinaus verlängern
-4.  **Zeitformat MM:SS (für die Ausgabe):**
-    - Konvertiere die präzisen Start- und Endzeiten der Segmente (ursprünglich in Sekunden mit Dezimalstellen aus den Wort-Timestamps) in das MM:SS Format für die Ausgabe.
-    - Runde hierbei die Startsekunde des Segments IMMER AB (floor) zur nächsten vollen Sekunde.
-    - Runde die Endsekunde des Segments IMMER AUF (ceil) zur nächsten vollen Sekunde.
-    - Beispiel: Ein Segment, das laut Wort-Timestamps von 5.72s bis 8.18s geht.
-      - Start für Ausgabe: 5.72s wird zu 00:05.
-      - Ende für Ausgabe: 8.18s wird zu 00:09.
-      - Resultierender Zeitstempel: 00:05 - 00:09
-    - **WICHTIG ZUR VERMEIDUNG VON ÜBERLAPPUNGEN:**
-      - Die **gerundete Startzeit (MM:SS)** eines Segments muss **strikt GRÖSSER** sein als die **gerundete Endzeit (MM:SS)** des **direkt vorhergehenden** Segments.
-      - Beispiel: Wenn Segment A bei \`00:08 - 00:12\` endet, muss Segment B frühestens bei \`00:13\` beginnen (z.B. \`00:13 - 00:15\`).
-      - Es darf **KEINE IDENTISCHEN ODER SICH ÜBERSCHNEIDENDEN ZEITMARKEN** zwischen den gerundeten Zeitstempeln aufeinanderfolgender Segmente geben. Wenn ein Segment bei \`MM:SS_A - MM:SS_B\` endet und das nächste Segment bei \`MM:SS_C - MM:SS_D\` beginnt, muss \`MM:SS_C\` immer mindestens \`MM:SS_B + 1 Sekunde\` sein.
+    - Wenn zwischen Wörtern Pausen sind, erstelle separate Segmente
+
+2.  **Segmentlänge:** Maximal 40 Zeichen pro Segment. Wenn nötig, teile mitten im Satz auf, um das Timing einzuhalten.
+
+3.  **Zeitformat MM:SS (für die Ausgabe):**
+    - Runde Startsekunde IMMER AB (floor)
+    - Runde Endsekunde IMMER AUF (ceil)
+    - Beispiel: 5.72s bis 8.18s wird zu 00:05 - 00:09
+    - **ÜBERLAPPUNGSVERMEIDUNG:** Die gerundete Startzeit eines Segments muss GRÖSSER sein als die gerundete Endzeit des vorhergehenden Segments
+
+4.  **Segmentierung:** Nur wenn das Timing stimmt, versuche sinnvolle Wortgruppen zu bilden
 
 **AUSGABEFORMAT:**
 - Jedes Segment: Zeitstempel-Zeile, dann Text-Zeile, dann Leerzeile
-- Keine Anführungszeichen, keine Backticks, keine Markdown-Formatierung
+- Keine Anführungszeichen, keine zusätzliche Formatierung
 - Nur der reine Untertiteltext
 
 **Eingabedaten:**
 
 Volltext:
-\`\`\`
 ${text}
-\`\`\`
 
 Wort-Timestamps (JSON-Format):
-\`\`\`json
 ${JSON.stringify(words, null, 2)}
-\`\`\`
 
 Gib NUR den formatierten Untertiteltext zurück, ohne weitere Erklärungen.`;
 
