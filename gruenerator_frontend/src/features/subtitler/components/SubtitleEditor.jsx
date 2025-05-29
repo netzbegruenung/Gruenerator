@@ -76,20 +76,24 @@ const SubtitleEditor = ({ videoFile, subtitles, uploadId, onExportSuccess, isExp
       const segments = subtitles.split('\n\n')
         .map((block, index) => {
           const [timeLine, ...textLines] = block.split('\n');
-          const [timeRange] = timeLine.match(/(\d+:\d{2}) - (\d+:\d{2})/) || [];
-          if (!timeRange) {
+          const timeMatch = timeLine.match(/(\d+):(\d{2,3}) - (\d+):(\d{2,3})/);
+          if (!timeMatch) {
             console.warn('[SubtitleEditor] Invalid time range in block:', block);
             return null;
           }
 
-          const [startTime, endTime] = timeLine.split(' - ');
-          const [startMin, startSec] = startTime.split(':').map(Number);
-          const [endMin, endSec] = endTime.split(':').map(Number);
+          const startMin = parseInt(timeMatch[1], 10);
+          const startSec = parseInt(timeMatch[2], 10);
+          const endMin = parseInt(timeMatch[3], 10);
+          const endSec = parseInt(timeMatch[4], 10);
+
+          const startTime = startMin * 60 + startSec;
+          const endTime = endMin * 60 + endSec;
 
           return {
             id: index,
-            startTime: startMin * 60 + startSec,
-            endTime: endMin * 60 + endSec,
+            startTime,
+            endTime,
             text: textLines.join('\n').trim()
           };
         })
