@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import PropTypes from 'prop-types';
 import { motion } from 'motion/react';
 
-const StyledCheckbox = ({ id, checked, onChange, label }) => {
+const StyledCheckbox = ({ id, checked, onChange, label, variant = 'default' }) => {
   const checkboxId = id || `checkbox-${Math.random().toString(36).substr(2, 9)}`;
   const hasInteracted = useRef(false);
 
@@ -11,8 +11,10 @@ const StyledCheckbox = ({ id, checked, onChange, label }) => {
     onChange(e);
   };
 
+  const wrapperClass = variant === 'simple' ? 'checkbox-wrapper-28 checkbox-simple' : 'checkbox-wrapper-28';
+
   return (
-    <div className="checkbox-wrapper-28">
+    <div className={wrapperClass}>
       <input
         id={checkboxId}
         type="checkbox"
@@ -64,7 +66,8 @@ StyledCheckbox.propTypes = {
   id: PropTypes.string,
   checked: PropTypes.bool.isRequired,
   onChange: PropTypes.func.isRequired,
-  label: PropTypes.string.isRequired
+  label: PropTypes.string.isRequired,
+  variant: PropTypes.oneOf(['default', 'simple'])
 };
 
 export default StyledCheckbox;

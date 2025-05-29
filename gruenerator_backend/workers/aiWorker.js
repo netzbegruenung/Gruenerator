@@ -160,7 +160,25 @@ async function processAIRequest(requestId, data) {
 
       // Message setup
       if (messages) {
-        requestConfig.messages = messages;
+        // Check for Files API integration with prompt caching
+        if (type === 'antragsversteher' && data.fileMetadata?.usePromptCaching) {
+          // Add cache control to document blocks for Files API
+          requestConfig.messages = messages.map(message => ({
+            ...message,
+            content: message.content.map(block => {
+              if (block.type === 'document' && block.source?.type === 'file') {
+                return {
+                  ...block,
+                  cache_control: { type: 'ephemeral' }
+                };
+              }
+              return block;
+            })
+          }));
+          console.log(`[AI Worker] Prompt caching aktiviert für Files API Request ${requestId}`);
+        } else {
+          requestConfig.messages = messages;
+        }
       } else if (prompt) {
         requestConfig.messages = [{
           role: "user",
@@ -228,7 +246,9 @@ async function processAIRequest(requestId, data) {
           backupRequested: false,
           requestId: requestId,
           messageId: response.id,
-          isPdfRequest: type === 'antragsversteher' && betas?.includes('pdfs-2024-09-25'),
+          isFilesApiRequest: data.fileMetadata?.fileId ? true : false,
+          fileId: data.fileMetadata?.fileId || null,
+          usedPromptCaching: data.fileMetadata?.usePromptCaching || false,
           modelUsed: requestConfig.model
         }
       };
