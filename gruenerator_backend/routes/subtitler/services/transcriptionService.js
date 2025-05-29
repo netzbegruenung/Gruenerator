@@ -209,6 +209,16 @@ async function transcribeVideo(videoPath, subtitlePreference = 'standard', aiWor
         
         console.log(`[transcriptionService] OpenAI Wörter: ${transcriptionResult.words?.length || 0}, Text: ${transcriptionResult.text.length} chars`);
         
+        // Log more details about the data being sent to Claude
+        if (transcriptionResult.words && transcriptionResult.words.length > 0) {
+          console.log('[transcriptionService] Vollständiger Text an ShortSubtitleGenerator:', transcriptionResult.text);
+          console.log(`[transcriptionService] Anzahl Wort-Timestamps an ShortSubtitleGenerator: ${transcriptionResult.words.length}`);
+          const lastThreeWords = transcriptionResult.words.slice(-3);
+          console.log('[transcriptionService] Letzte drei Wort-Timestamps an ShortSubtitleGenerator:', JSON.stringify(lastThreeWords, null, 2));
+        } else {
+          console.warn('[transcriptionService] Keine Wort-Timestamps an ShortSubtitleGenerator gesendet.');
+        }
+
         // Use Claude service to generate short segments from raw text
         finalTranscription = await generateShortSubtitlesViaAI(transcriptionResult.text, transcriptionResult.words, aiWorkerPool);
 

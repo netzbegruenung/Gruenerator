@@ -54,6 +54,7 @@
 @import url('./components/popups/welcome-popup.css');
 @import url('./components/popups/popup.css');
 @import url('./components/popups/AntragSavePopup.css');
+@import url('./components/popups/confirm-delete.css');
 
 
 @import url('./components/editor/editor-content.css');
