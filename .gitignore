@@ -21,6 +21,8 @@ CLAUDE.md
 .editorconfig
 mcp.json
 
+# UUID files (auto-generated)
+*.uuid
 
 # Logs
 npm-debug.log*

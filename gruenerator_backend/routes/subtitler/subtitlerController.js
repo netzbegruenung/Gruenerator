@@ -8,95 +8,25 @@ const { getVideoMetadata, cleanupFiles } = require('./services/videoUploadServic
 const { transcribeVideo } = require('./services/transcriptionService');
 const { getFilePathFromUploadId, checkFileExists, markUploadAsProcessed, scheduleImmediateCleanup } = require('./services/tusService');
 const redisClient = require('../../utils/redisClient'); // Import Redis client
+const { v4: uuidv4 } = require('uuid'); // Import uuid
+const AssSubtitleService = require('./services/assSubtitleService'); // Import ASS service
 
 // Font configuration
 const FONT_PATH = path.resolve(__dirname, '../../public/fonts/GrueneType.ttf');
 
-// Check if the font exists
+// Create ASS service instance
+const assService = new AssSubtitleService();
+
+// Check if the font exists (optional for ASS - will fallback to system fonts)
 async function checkFont() {
   try {
     await fsPromises.access(FONT_PATH);
-    console.log('GrueneType Font found:', FONT_PATH);
+    console.log('GrueneType Font found for ASS subtitles:', FONT_PATH);
   } catch (err) {
-    console.error('Error accessing GrueneType Font:', err);
-    throw new Error('GrueneType Font not found');
+    console.warn('GrueneType Font not found, ASS will use system fallback:', err.message);
+    // Don't throw error for ASS - it can handle font fallbacks
   }
 }
-
-// Helper function to intelligently split text
-function splitLongText(text, avgLength = 30, maxLength = 50) {
-  // Remove superfluous spaces and backslashes
-  text = text.trim().replace(/\s+/g, ' ').replace(/\\/g, '');
-
-  // Calculate dynamic threshold based on avgLength
-  const dynamicMaxLength = Math.max(
-    25, // Minimum threshold - changed from 15
-    Math.min(
-      50, // Maximum threshold
-      Math.floor(avgLength * 0.7) // Dynamic value based on avgLength (use factor 0.7 for earlier break)
-    )
-  );
-
-  // If text is short enough, return it as is
-  if (text.length <= dynamicMaxLength) {
-    return text;
-  }
-
-  const words = text.split(' ');
-  const totalLength = text.length;
-  const targetSplitLength = totalLength / 2;
-
-  let bestSplitIndex = -1;
-  let minDiff = Infinity;
-  let currentLength = 0;
-
-  // Find the word boundary closest to the middle of the text length
-  for (let i = 0; i < words.length - 1; i++) { // Iterate up to the second to last word
-    currentLength += words[i].length + (i > 0 ? 1 : 0); // Add 1 for space after the first word
-    const diff = Math.abs(currentLength - targetSplitLength);
-
-    if (diff < minDiff) {
-      minDiff = diff;
-      bestSplitIndex = i + 1; // Split *after* this word index
-    }
-  }
-
-  // If no suitable split point found (e.g., very short words), or only one word, default to splitting after the first word if possible
-  if (bestSplitIndex === -1 && words.length > 1) {
-      bestSplitIndex = 1;
-  } else if (bestSplitIndex === -1) {
-      // Cannot split (only one word, or some edge case)
-      return text; 
-  }
-
-
-  const firstLine = words.slice(0, bestSplitIndex).join(' ');
-  const secondLine = words.slice(bestSplitIndex).join(' ');
-
-  // Never truncate the second line
-  return firstLine + '\n' + secondLine;
-}
-
-// Helper function to escape text for FFmpeg
-function escapeFFmpegText(text, avgLength = 30) {
-  // First, remove all timestamps
-  let cleanedText = text.replace(/\d{1,2}:\d{2}\s*-\s*\d{1,2}:\d{2}/g, '').trim();
-  
-  // Split long lines using avgLength parameter
-  cleanedText = splitLongText(cleanedText, avgLength);
-  // Escape special characters for FFmpeg
-  return cleanedText
-    .replace(/'/g, "'\\''")
-    .replace(/:/g, '\\:')
-    .replace(/-/g, '\\-')
-    .replace(/\./g, '\\.')
-    .replace(/,/g, '\\,')
-    // .replace(/\n/g, '\n') // Removed: FFmpeg drawtext handles literal 
-
-    .trim();
-}
-
-
 
 // Route for video upload and processing
 router.post('/process', async (req, res) => {
@@ -310,11 +240,12 @@ router.get('/result/:uploadId', async (req, res) => {
 });
 
 // Route to get export progress
-router.get('/export-progress/:uploadId', async (req, res) => {
-    const { uploadId } = req.params;
+router.get('/export-progress/:exportToken', async (req, res) => {
+    const { exportToken } = req.params; // Changed from uploadId to exportToken
     
     try {
-        const progressData = await redisClient.get(`export:${uploadId}`);
+        // Use exportToken to fetch progress from Redis
+        const progressData = await redisClient.get(`export:${exportToken}`); 
         
         if (!progressData) {
             return res.status(404).json({ status: 'not_found' });
@@ -324,7 +255,7 @@ router.get('/export-progress/:uploadId', async (req, res) => {
         return res.status(200).json(progress);
         
     } catch (error) {
-        console.error(`Fehler beim Abrufen des Export-Progress für ${uploadId}:`, error);
+        console.error(`Fehler beim Abrufen des Export-Progress für Token ${exportToken}:`, error); // Log with exportToken
         return res.status(500).json({ status: 'error', error: 'Fehler beim Abrufen des Progress' });
     }
 });
@@ -357,6 +288,7 @@ router.post('/export', async (req, res) => {
   let inputPath = null;
   let outputPath = null;
   let originalFilename = 'video.mp4'; // Default filename
+  const exportToken = uuidv4(); // Generate a unique token for this export operation
 
   if (!uploadId || !subtitles) {
     return res.status(400).json({ error: 'Upload-ID und Untertitel werden benötigt' });
@@ -429,9 +361,9 @@ router.post('/export', async (req, res) => {
       maxFontSize = 70;  // +15px
       basePercentage = isVertical ? 0.055 : 0.050; // +1.5% / +1.5%
     } else { // SD and smaller
-      minFontSize = 24;  // +8px
-      maxFontSize = 50;  // +10px
-      basePercentage = isVertical ? 0.050 : 0.045; // +1.5% / +1.5%
+      minFontSize = 32;  // Increased from 24 for better readability on small screens
+      maxFontSize = 65;  // Increased from 50 for better visibility
+      basePercentage = isVertical ? 0.065 : 0.060; // Increased from 0.050/0.045 for better proportion
     }
     
     // Logarithmic adjustment for very high resolutions (amplified)
@@ -446,57 +378,101 @@ router.post('/export', async (req, res) => {
     const spacing = Math.max(minSpacing, Math.min(maxSpacing, fontSize * (1.5 + (1 - fontSize/48))));
 
     // Process subtitle segments
-    console.log('Raw subtitles input:', subtitles.substring(0, 200) + '...');
+    console.log('[subtitlerController] Raw subtitles input (last 500 chars):', subtitles.slice(-500));
     
-    const segments = subtitles
+    // First pass: Extract raw data and sort
+    const preliminarySegments = subtitles
       .split('\n\n')
       .map((block, index) => {
         const lines = block.trim().split('\n');
         if (lines.length < 2) {
-          console.warn(`[subtitlerController] Skipping invalid block ${index}:`, block);
+          // console.warn(`[subtitlerController] Skipping invalid block ${index}:`, block); // Keep this commented unless very verbose debugging is needed
           return null;
         }
         
         const timeLine = lines[0].trim();
-        
-        // Unterstützt sowohl MM:SS als auch HH:MM:SS Format
-        const timeMatch = timeLine.match(/^(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})$/);
+        const timeMatch = timeLine.match(/^(\d{1,2}):(\d{2,3})\s*-\s*(\d{1,2}):(\d{2,3})$/);
         if (!timeMatch) {
-          console.warn(`[subtitlerController] Invalid time format in block ${index}:`, timeLine);
+          // console.warn(`[subtitlerController] Invalid time format in block ${index}:`, timeLine); // Keep this commented
           return null;
         }
 
-        const [_, startMin, startSec, endMin, endSec] = timeMatch;
-        const startTime = parseInt(startMin) * 60 + parseInt(startSec);
-        const endTime = parseInt(endMin) * 60 + parseInt(endSec);
+        let startMin = parseInt(timeMatch[1]);
+        let startSec = parseInt(timeMatch[2]);
+        let endMin = parseInt(timeMatch[3]);
+        let endSec = parseInt(timeMatch[4]);
+
+        // DEBUG: Log time parsing for segments with potential issues
+        const totalSegments = subtitles.split('\n\n').length;
+        const isLastSegments = index >= totalSegments - 5; // Last 5 segments
+        if (isLastSegments || startSec >= 60 || endSec >= 60) {
+          console.log(`[DEBUG TIME] Segment ${index}: Raw="${timeLine}" → startMin=${startMin}, startSec=${startSec}, endMin=${endMin}, endSec=${endSec}`);
+        }
+
+        if (startMin === 0 && startSec >= 60) {
+          startMin = Math.floor(startSec / 60);
+          startSec = startSec % 60;
+          if (isLastSegments) console.log(`[DEBUG TIME] Converted start: ${startMin}:${startSec}`);
+        }
+        if (endMin === 0 && endSec >= 60) {
+          endMin = Math.floor(endSec / 60);
+          endSec = endSec % 60;
+          if (isLastSegments) console.log(`[DEBUG TIME] Converted end: ${endMin}:${endSec}`);
+        }
         
-        // Validiere Zeitstempel
+        const startTime = startMin * 60 + startSec;
+        const endTime = endMin * 60 + endSec;
+        
+        if (isLastSegments) {
+          console.log(`[DEBUG TIME] Final times: ${startTime}s - ${endTime}s (duration: ${endTime - startTime}s)`);
+        }
+        
         if (startTime >= endTime) {
           console.warn(`[subtitlerController] Invalid time range in block ${index}: ${startTime} >= ${endTime}`);
           return null;
         }
 
-        // Teile den Text in maximal zwei Zeilen
-        const text = lines.slice(1).join(' ').trim();
-        if (!text) {
-          console.warn(`[subtitlerController] Empty text in block ${index}`);
+        const rawText = lines.slice(1).join(' ').trim();
+        if (!rawText) {
+          // console.warn(`[subtitlerController] Empty text in block ${index}`); // Keep this commented
           return null;
         }
         
-        const formattedText = splitLongText(text);
-
         return {
           startTime,
           endTime,
-          text: formattedText.replace('\\n', '\n')
+          rawText // Store raw text first
         };
       })
-      .filter(Boolean)
-      // Sortiere nach Startzeit um sicherzustellen, dass die Reihenfolge stimmt
-      .sort((a, b) => a.startTime - b.startTime);
+      .filter(Boolean) // Remove nulls from invalid blocks
+      .sort((a, b) => a.startTime - b.startTime); // Sort by startTime
+
+    if (preliminarySegments.length === 0) {
+      throw new Error('Keine gültigen vorläufigen Untertitel-Segmente gefunden');
+    }
+
+    // ---- Start: Calculate average segment length and enhanced scale factor based on rawText ----
+    let totalChars = 0;
+    let totalWords = 0;
+    preliminarySegments.forEach(segment => {
+      totalChars += segment.rawText.length;
+      totalWords += segment.rawText.split(' ').length;
+    });
+    const avgLength = preliminarySegments.length > 0 ? totalChars / preliminarySegments.length : 30;
+    const avgWords = preliminarySegments.length > 0 ? totalWords / preliminarySegments.length : 5;
+
+    // ---- Second pass to process text and create final segments ----
+    const segments = preliminarySegments.map((pSegment, index) => {
+      // For ASS subtitles, we keep the raw text and let ASS handle formatting
+      return {
+        startTime: pSegment.startTime,
+        endTime: pSegment.endTime,
+        text: pSegment.rawText // Use raw text for ASS processing
+      };
+    });
 
     if (segments.length === 0) {
-      throw new Error('Keine Untertitel-Segmente gefunden');
+      throw new Error('Keine finalen Untertitel-Segmente nach der Verarbeitung gefunden');
     }
 
     console.log(`[subtitlerController] Parsed ${segments.length} segments. Erste 3:`,
@@ -506,17 +482,6 @@ router.post('/export', async (req, res) => {
     console.log(`[subtitlerController] Finale Segmente (User-Input priorisiert, keine Backend-Anpassungen):`,
       segments.map((s, i) => `${i}: ${s.startTime.toFixed(2)}-${s.endTime.toFixed(2)}s (${(s.endTime - s.startTime).toFixed(2)}s)`));
     
-
-    // ---- Start: Calculate average segment length and enhanced scale factor ----
-    let totalChars = 0;
-    let totalWords = 0;
-    segments.forEach(segment => {
-      totalChars += segment.text.length;
-      totalWords += segment.text.split(' ').length;
-    });
-    const avgLength = segments.length > 0 ? totalChars / segments.length : 30;
-    const avgWords = segments.length > 0 ? totalWords / segments.length : 5;
-
     const calculateScaleFactor = (avgChars, avgWords) => {
         // Verstärkte Skalierung für kurze Texte (typisch für Untertitel)
         const shortCharThreshold = 20;  // Reduziert von 15
@@ -561,8 +526,6 @@ router.post('/export', async (req, res) => {
     const scaledMaxSpacing = maxSpacing * (scaleFactor > 1 ? scaleFactor : 1);
     const finalSpacing = Math.max(minSpacing, Math.min(scaledMaxSpacing, Math.floor(spacing * scaleFactor)));
 
-    // ---- End: Calculate average segment length and scale factor ----
-
     // Log the extended calculation for short subtitles
     console.log('Font calculation:', {
       videoDimensionen: `${metadata.width}x${metadata.height}`,
@@ -571,6 +534,58 @@ router.post('/export', async (req, res) => {
       finalFontSize: `${finalFontSize}px`,
       finalSpacing: `${finalSpacing}px`
     });
+
+    // Generate ASS subtitles BEFORE FFmpeg processing
+    console.log('[ASS] Preparing ASS subtitles');
+    const cacheKey = `${uploadId}_${subtitles.length}_${finalFontSize}`;
+    let assFilePath = null;
+    let tempFontPath = null;
+    
+    try {
+      // Check for cached ASS content first
+      let assContent = await assService.getCachedAssContent(cacheKey);
+      
+      if (!assContent) {
+        // Generate new ASS content with optimized styling
+        const styleOptions = {
+          fontSize: Math.floor(finalFontSize / 2), // ASS uses different font size scale than drawtext - divide by 2 for visual equivalency
+          outline: Math.max(2, Math.floor(finalFontSize / 25)),
+          marginV: Math.floor(metadata.height * 0.33), // Instagram Reels: 1/3 der Höhe von unten
+          marginL: 10, // Reduzierte Seitenränder
+          marginR: 10,
+          borderStyle: 3, // Background box
+          backColor: '&H80000000', // Semi-transparent black
+          primaryColor: '&Hffffff', // White text
+          alignment: 2 // Bottom center alignment für Instagram Reels
+        };
+        
+        assContent = assService.generateAssContent(segments, metadata, styleOptions);
+        
+        // Cache the generated content
+        await assService.cacheAssContent(cacheKey, assContent);
+      }
+      
+      // Create temporary ASS file
+      assFilePath = await assService.createTempAssFile(assContent, uploadId);
+      
+      // Copy font to temp directory for FFmpeg access
+      tempFontPath = path.join(path.dirname(assFilePath), 'GrueneType.ttf');
+      try {
+        await fsPromises.copyFile(FONT_PATH, tempFontPath);
+        console.log(`[ASS] Copied font to temp: ${tempFontPath}`);
+      } catch (fontCopyError) {
+        console.warn('[ASS] Font copy failed, using system fallback:', fontCopyError.message);
+        tempFontPath = null;
+      }
+      
+      console.log(`[ASS] Created ASS file: ${assFilePath}`);
+      console.log(`[ASS] Processing ${segments.length} segments with GrueneType font`);
+      console.log(`[ASS] Instagram Reels positioning: ${Math.floor(metadata.height * 0.33)}px from bottom (1/3 height)`);
+      
+    } catch (assError) {
+      console.error('[ASS] Error generating ASS subtitles:', assError);
+      assFilePath = null; // Proceed without subtitles
+    }
 
     // FFmpeg-Verarbeitung
     await new Promise((resolve, reject) => {
@@ -662,77 +677,15 @@ router.post('/export', async (req, res) => {
 
       command.outputOptions(outputOptions);
 
-      // Create filters for subtitles (using finalFontSize and finalSpacing)
-      const filters = segments
-        .map((segment, index) => {
-          const escapedText = escapeFFmpegText(segment.text, avgLength);
-          const hasNewline = escapedText.includes('\n');
-          
-          const isVertical = metadata.rotation === '90' || metadata.rotation === '270';
-          const yPosBase = isVertical ? 'h*0.7' : 'h*0.7'; // Base Y-position
-          
-          let filterString = '';
-
-          if (hasNewline) {
-            // Case 1: Text was split
-            const [line1, line2] = escapedText.split('\n');
-            
-            const yPosLine1 = yPosBase;
-            const yPosLine2 = `${yPosBase}+${finalSpacing}`;
-
-            const line1Filter = `drawtext=text='${line1}':` +
-              `fontfile='${FONT_PATH}':` +
-              `fontsize=${finalFontSize}:` +
-              `fontcolor=white:` +
-              `box=1:` +
-              `boxcolor=black@0.8:` +
-              `boxborderw=8:` +
-              `x=(w-text_w)/2:` +
-              `y=${yPosLine1}:` + // Position line 1
-              `enable='between(t,${segment.startTime},${segment.endTime})'`;
-
-            const line2Filter = `,drawtext=text='${line2}':` + // Comma as separator
-              `fontfile='${FONT_PATH}':` +
-              `fontsize=${finalFontSize}:` +
-              `fontcolor=white:` +
-              `box=1:` +
-              `boxcolor=black@0.8:` +
-              `boxborderw=8:` +
-              `x=(w-text_w)/2:` +
-              `y=${yPosLine2}:` + // Position line 2
-              `enable='between(t,${segment.startTime},${segment.endTime})'`;
-
-            filterString = line1Filter + line2Filter;
-
-          } else {
-            // Case 2: Text was NOT split (or originally had no line break)
-            const yPosLine1 = yPosBase;
-
-            const line1Filter = `drawtext=text='${escapedText}':` + // Entire text in line1
-              `fontfile='${FONT_PATH}':` +
-              `fontsize=${finalFontSize}:` +
-              `fontcolor=white:` +
-              `box=1:` +
-              `boxcolor=black@0.8:` +
-              `boxborderw=8:` +
-              `x=(w-text_w)/2:` +
-              `y=${yPosLine1}:` + // Center position (only one line)
-              `enable='between(t,${segment.startTime},${segment.endTime})'`;
-
-            filterString = line1Filter;
-          }
-          return filterString;
-        })
-        .join(','); // Füge die einzelnen Filter-Strings zusammen
-
-      // Wende Filter an
-      command.videoFilters(filters);
-
-      // Debug-Logging für erste 2 Segmente
-      console.log(`[FFmpeg] Filter für erste 2 Segmente:`);
-      segments.slice(0, 2).forEach((segment, index) => {
-        console.log(`  Segment ${index}: t=${segment.startTime}-${segment.endTime}s, Text: "${segment.text.substring(0, 30)}..."`);
-      });
+      // Apply ASS subtitles filter if available
+      if (assFilePath) {
+        // Use fontdir option to specify font directory for ASS subtitles
+        const fontDir = path.dirname(tempFontPath);
+        command.videoFilters([`subtitles=${assFilePath}:fontsdir=${fontDir}`]);
+        console.log(`[FFmpeg] Applied ASS filter with font directory: ${assFilePath}:fontsdir=${fontDir}`);
+      } else {
+        console.log('[FFmpeg] No ASS subtitles available, proceeding without subtitles');
+      }
 
       command
         .on('start', cmd => {
@@ -749,22 +702,38 @@ router.post('/export', async (req, res) => {
             timeRemaining: progress.timemark
           };
           try {
-            await redisClient.set(`export:${uploadId}`, JSON.stringify(progressData), { EX: 60 * 60 });
+            await redisClient.set(`export:${exportToken}`, JSON.stringify(progressData), { EX: 60 * 60 });
           } catch (redisError) {
             console.warn('Redis Progress Update Fehler:', redisError.message);
           }
         })
         .on('error', (err) => {
           console.error('FFmpeg Fehler:', err);
+          // Try to remove progress key on error
+          redisClient.del(`export:${exportToken}`).catch(delErr => console.warn(`[FFmpeg Error Cleanup] Failed to delete progress key export:${exportToken}`, delErr));
+          // Cleanup ASS file and temp font on error
+          if (assFilePath) {
+            assService.cleanupTempFile(assFilePath).catch(cleanupErr => console.warn('[FFmpeg Error] ASS cleanup failed:', cleanupErr));
+            if (tempFontPath) {
+              fsPromises.unlink(tempFontPath).catch(fontErr => console.warn('[FFmpeg Error] Font cleanup failed:', fontErr.message));
+            }
+          }
           reject(err);
         })
         .on('end', async () => {
           console.log('FFmpeg Verarbeitung abgeschlossen');
           // Lösche Progress aus Redis
           try {
-            await redisClient.del(`export:${uploadId}`);
+            await redisClient.del(`export:${exportToken}`);
           } catch (redisError) {
             console.warn('Redis Progress Cleanup Fehler:', redisError.message);
+          }
+          // Cleanup ASS file and temp font on success
+          if (assFilePath) {
+            await assService.cleanupTempFile(assFilePath).catch(cleanupErr => console.warn('[FFmpeg Success] ASS cleanup failed:', cleanupErr));
+            if (tempFontPath) {
+              await fsPromises.unlink(tempFontPath).catch(fontErr => console.warn('[FFmpeg Success] Font cleanup failed:', fontErr.message));
+            }
           }
           resolve();
         });
@@ -779,7 +748,13 @@ router.post('/export', async (req, res) => {
     const stats = await fsPromises.stat(outputPath);
     const fileSize = stats.size;
 
-    // Headers für Download
+    // Send the exportToken back to the client with the file stream.
+    // The client will need this token to poll for progress if it's a long operation,
+    // though in this case, the file is streamed directly.
+    // For a more robust progress system, the export might be a background job,
+    // and the client would poll using this token.
+    // Here, we set it as a custom header.
+    res.setHeader('X-Export-Token', exportToken);
     res.setHeader('Content-Type', 'video/mp4');
     res.setHeader('Content-Length', fileSize);
     res.setHeader('Content-Disposition', `attachment; filename="subtitled_${originalFilename}"`);
