@@ -54,10 +54,14 @@ const useContentManagement = (initialContent = '') => {
   
   // Hilfsfunktion, die prüft, ob value aktualisiert werden sollte
   const shouldUpdateValue = (newContent) => {
+    // Prüfe, ob newContent und value Strings sind
+    if (typeof newContent !== 'string') return false;
+    
     // Wenn newContent SUCHERGEBNIS oder ANTRAG enthält, während value diese nicht enthält
     return (
       (newContent.includes('SUCHERGEBNIS:') || newContent.includes('ANTRAG:')) && 
       (!value || 
+       typeof value !== 'string' ||
        (!value.includes('SUCHERGEBNIS:') && !value.includes('ANTRAG:')) ||
        (newContent.includes('ANTRAG:') && !value.includes('ANTRAG:')))
     );

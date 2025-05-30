@@ -72,6 +72,7 @@ const FormSection = forwardRef(({
               </div>
             )}
           </div>
+          
           {isMultiStep ? (
             <div className={buttonContainerClasses}>
               {showBackButton && (

@@ -197,6 +197,26 @@ const useApiSubmit = (endpoint) => {
             console.error('[useApiSubmit] Invalid structure for /generate_generator_config:', response);
             throw new Error('Ungültiges JSON-Format in der generierten Konfiguration. Bitte versuche es erneut.');
         }
+      } else if (endpoint === '/claude_social') {
+        console.log('[useApiSubmit] Processing claude_social response:', response);
+        if (response && response.content) {
+          setSuccess(true);
+          return response.content; // Return only the content string
+        } else if (response && typeof response === 'string') {
+          // Fallback if response is already a string
+          setSuccess(true);
+          return response;
+        }
+      } else if (endpoint === '/claude_gruene_jugend') {
+        console.log('[useApiSubmit] Processing claude_gruene_jugend response:', response);
+        if (response && response.content) {
+          setSuccess(true);
+          return response.content; // Return only the content string
+        } else if (response && typeof response === 'string') {
+          // Fallback if response is already a string
+          setSuccess(true);
+          return response;
+        }
       }
 
       // Fallback für alle anderen Endpoints

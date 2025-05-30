@@ -32,7 +32,8 @@ export const useFormState = (initialState = {}, disableAutoCollapse = false) => 
 
   // Funktion zur Prüfung auf Multi-Plattform-Inhalte
   const checkMultiPlatform = (value, usePlatformContainers) => {
-    if (value && usePlatformContainers) {
+    // Prüfe, ob value ein String ist
+    if (value && typeof value === 'string' && usePlatformContainers) {
       const platformCount = (value.match(/(TWITTER|FACEBOOK|INSTAGRAM|LINKEDIN|ACTIONIDEAS|INSTAGRAM REEL|PRESSEMITTEILUNG|SUCHANFRAGE|SUCHERGEBNIS):/g) || []).length;
       setIsMultiPlatform(platformCount >= 2);
       
@@ -41,6 +42,9 @@ export const useFormState = (initialState = {}, disableAutoCollapse = false) => 
       if (platformCount >= 2 && isFormVisible && !disableAutoCollapse && !userToggledForm.current) {
         setIsFormVisible(false);
       }
+    } else {
+      // Wenn value kein String ist oder leer, setze isMultiPlatform auf false
+      setIsMultiPlatform(false);
     }
   };
 
