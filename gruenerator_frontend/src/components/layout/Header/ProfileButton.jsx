@@ -125,11 +125,26 @@ const ProfileButton = () => {
       {isDropdownOpen && (
         <div className="profile-dropdown">
           <div className="profile-dropdown-header">
-            <div className="profile-dropdown-greeting">
-              {firstName ? getPossessiveForm(firstName) : "Dein"} Grünerator
+            <div className="profile-dropdown-avatar">
+              {avatarProps.type === 'robot' ? (
+                <div className="profile-dropdown-avatar-robot">
+                  <img 
+                    src={avatarProps.src} 
+                    alt={avatarProps.alt}
+                    className="profile-dropdown-robot-image"
+                  />
+                </div>
+              ) : (
+                <FaUserCircle className="profile-dropdown-avatar-icon" />
+              )}
             </div>
-            <div className="profile-dropdown-email">
-              {user.email}
+            <div className="profile-dropdown-info">
+              <div className="profile-dropdown-greeting">
+                {firstName ? getPossessiveForm(firstName) : "Dein"} Grünerator
+              </div>
+              <div className="profile-dropdown-email">
+                {user.email}
+              </div>
             </div>
           </div>
           <div className="profile-dropdown-links">

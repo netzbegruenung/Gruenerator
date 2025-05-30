@@ -63,4 +63,30 @@
     margin-right: 4px;
     vertical-align: middle;
     display: inline-block;
+}
+
+/* Ensure help text in FormSection is always white */
+.form-container .help-text {
+    color: var(--weiß) !important;
+}
+
+/* Ensure subtext in FormSection is always white */
+.form-container .subtext {
+    color: var(--weiß) !important;
+    font-size: 0.9em;
+    margin-top: 5px;
+    margin-bottom: 15px;
+}
+
+/* Ensure all paragraphs in FormSection are white */
+.form-container p {
+    color: var(--weiß) !important;
+}
+
+/* More specific rules for form-inner content */
+.form-container .form-inner p,
+.form-container .form-inner .subtext,
+.form-container .form-content p,
+.form-container .form-content .subtext {
+    color: var(--weiß) !important;
 } 

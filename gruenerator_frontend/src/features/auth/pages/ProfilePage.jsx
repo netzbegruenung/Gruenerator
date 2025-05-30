@@ -84,6 +84,33 @@ const ProfilePage = () => {
     betaFeatures, // Get betaFeatures object from context
     updateUserBetaFeatures // Get update function from context
   } = useSupabaseAuth();
+
+  // --- Auth Loading Check --- 
+  if (authLoading) {
+     return (
+        <div className="profile-container">
+          <div className="loading-container">
+            <Spinner size="large" />
+          </div>
+        </div>
+      );
+  }
+
+  // --- Not Logged In Check --- 
+  if (!user) {
+     return (
+        <div className="profile-container">
+          <div className="profile-header">
+            <h1>Nicht angemeldet</h1>
+            <p>Du musst angemeldet sein, um dein Profil zu verwalten.</p>
+          </div>
+          <div className="auth-links">
+            <Link to="/login" className="button primary">Zum Login</Link>
+          </div>
+        </div>
+      );
+  }
+
   const queryClient = useQueryClient();
   const shouldReduceMotion = useReducedMotion();
   // BetaFeaturesContext is no longer the primary source for these persistent settings
@@ -201,32 +228,6 @@ const ProfilePage = () => {
     setSuccessMessage(''); // Clear success when error occurs
     setErrorMessage(message);
   }, []); // Dependencies: setSuccessMessage, setErrorMessage (from useState, are stable)
-
-  // --- Auth Loading Check --- 
-  if (authLoading) {
-     return (
-        <div className="profile-container">
-          <div className="loading-container">
-            <Spinner size="large" />
-          </div>
-        </div>
-      );
-  }
-
-  // --- Not Logged In Check --- 
-  if (!user) {
-     return (
-        <div className="profile-container">
-          <div className="profile-header">
-            <h1>Nicht angemeldet</h1>
-            <p>Du musst angemeldet sein, um dein Profil zu verwalten.</p>
-          </div>
-          <div className="auth-links">
-            <Link to="/login" className="button primary">Zum Login</Link>
-          </div>
-        </div>
-      );
-  }
 
   // --- Helper function to get initials (Moved to utils) ---
   // const getInitials = (fname, lname, mail) => { ... };

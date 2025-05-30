@@ -25,8 +25,8 @@ const LogoutButton = ({ className = '', label = 'Abmelden', onLogoutSuccess }) =
       if (onLogoutSuccess) {
         onLogoutSuccess();
       } else {
-        // Standardmäßig zur Login-Seite navigieren
-        navigate('/login');
+        // Zur "Ausgeloggt"-Seite navigieren
+        navigate('/logged-out');
       }
     } catch (error) {
       console.error('Logout fehlgeschlagen:', error.message);

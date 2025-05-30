@@ -20,6 +20,7 @@ const ResetPasswordPage = lazy(() => import('../features/auth/pages/ResetPasswor
 const EmailVerificationPage = lazy(() => import('../features/auth/pages/EmailVerificationPage'));
 const ConfirmEmailPage = lazy(() => import('../features/auth/pages/ConfirmEmailPage'));
 const ProfilePage = lazy(() => import('../features/auth/pages/ProfilePage'));
+const LoggedOutPage = lazy(() => import('../features/auth/pages/LoggedOutPage'));
 const AccountDeletePage = lazy(() => import('../features/auth/pages/AccountDeletePage'));
 const SetupMFAPage = lazy(() => import('../features/auth/pages/SetupMFAPage'));
 const MFAVerificationPage = lazy(() => import('../features/auth/pages/MFAVerificationPage'));
@@ -100,6 +101,7 @@ const standardRoutes = [
   { path: '/email-verification', component: EmailVerificationPage },
   { path: '/confirm-email', component: ConfirmEmailPage },
   { path: '/profile', component: ProfilePage },
+  { path: '/logged-out', component: LoggedOutPage },
   { path: '/account-delete', component: AccountDeletePage },
   { path: '/setup-mfa', component: SetupMFAPage },
   { path: '/mfa-verification', component: MFAVerificationPage },

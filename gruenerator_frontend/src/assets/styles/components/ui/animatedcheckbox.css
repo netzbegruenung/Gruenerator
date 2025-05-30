@@ -157,3 +157,21 @@
     width: calc(var(--size) - 4px);
     height: calc(var(--size) - 4px);
 }
+
+/* Ensure checkboxes in FormSection always have white text */
+.form-container .checkbox-wrapper-28 label,
+.form-container .checkbox-wrapper-28 label .checkbox-label {
+    color: var(--weiß) !important;
+}
+
+.form-container .checkbox-wrapper-28 label::before {
+    border-color: var(--weiß);
+}
+
+.form-container .checkbox-wrapper-28 .checkbox-svg {
+    stroke: var(--weiß);
+}
+
+.form-container .checkbox-wrapper-28 input:checked ~ label .checkbox-svg {
+    stroke: var(--tanne);
+}
