@@ -65,7 +65,7 @@ export const useProfileData = (userId, templatesSupabase) => {
       if (!userId || !templatesSupabase) throw new Error('Kein User oder Supabase Client');
       const { data, error } = await templatesSupabase
         .from('profiles')
-        .select('display_name, first_name, last_name, avatar_robot_id, email')
+        .select('display_name, first_name, last_name, avatar_robot_id')
         .eq('id', userId)
         .single();
       if (error) throw new Error(error.message || 'Fehler beim Laden der Profildaten.');
