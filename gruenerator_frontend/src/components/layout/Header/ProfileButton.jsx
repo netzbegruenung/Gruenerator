@@ -2,57 +2,55 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FaUserCircle, FaUser, FaSignOutAlt, FaCog } from 'react-icons/fa';
 import { useSupabaseAuth } from '../../../context/SupabaseAuthContext';
+import { getAvatarDisplayProps, useProfileData } from '../../../features/auth/utils/profileUtils';
+import { templatesSupabase } from '../../../components/utils/templatesSupabaseClient';
 
 const ProfileButton = () => {
   const { user, loading, logout } = useSupabaseAuth();
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [displayName, setDisplayName] = useState('');
-  const [firstName, setFirstName] = useState('');
+  // Profildaten aus Query holen
+  const { data: profile } = useProfileData(user?.id, templatesSupabase);
+
+  // Avatar und Name immer aus Query
+  const displayName = profile?.display_name || '';
+  const firstName = profile?.first_name || '';
+  const avatarRobotId = profile?.avatar_robot_id ?? 1;
+
   const dropdownRef = useRef(null);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   useEffect(() => {
-    // Nur den Namen abrufen, wenn der Benutzer eingeloggt ist
-    const fetchUserProfile = async () => {
-      if (user) {
-        try {
-          const { templatesSupabase } = await import('../../../components/utils/templatesSupabaseClient');
-          const { data, error } = await templatesSupabase
-            .from('profiles')
-            .select('display_name, first_name')
-            .eq('id', user.id)
-            .single();
-          
-          if (error) throw error;
-          
-          if (data) {
-            setDisplayName(data.display_name || '');
-            setFirstName(data.first_name || '');
-          }
-        } catch (err) {
-          console.error('Fehler beim Laden des Profils:', err.message);
-        }
-      }
+    // Listen for avatar updates from other components
+    const handleAvatarUpdate = (event) => {
+      // This component doesn't manage avatar updates, so no action needed
     };
-
-    fetchUserProfile();
-  }, [user]);
+    
+    window.addEventListener('avatarUpdated', handleAvatarUpdate);
+    
+    return () => {
+      window.removeEventListener('avatarUpdated', handleAvatarUpdate);
+    };
+  }, []);
 
   // Dropdown schließen wenn außerhalb geklickt wird
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setDropdownOpen(false);
+        setIsDropdownOpen(false);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
+    if (isDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    } else {
+      document.removeEventListener('mousedown', handleClickOutside);
+    }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, []);
+  }, [isDropdownOpen]);
 
   const toggleDropdown = () => {
-    setDropdownOpen(!dropdownOpen);
+    setIsDropdownOpen((prev) => !prev);
   };
 
   // Initialen für Avatar erstellen
@@ -79,6 +77,14 @@ const ProfileButton = () => {
     }
   };
 
+  // Avatar-Eigenschaften für Header und Dropdown bestimmen
+  const avatarProps = getAvatarDisplayProps({
+    avatar_robot_id: avatarRobotId,
+    first_name: firstName,
+    last_name: '', // Wird im Header nicht verwendet
+    email: user?.email
+  });
+
   if (loading) {
     return (
       <div className="profile-button-container">
@@ -101,20 +107,24 @@ const ProfileButton = () => {
       <button 
         className="profile-button header-nav-item profile-label-button" 
         onClick={toggleDropdown}
-        aria-expanded={dropdownOpen}
+        aria-expanded={isDropdownOpen}
         aria-label="Profil-Menü öffnen"
       >
-        <FaUserCircle className="profile-icon" />
+        {avatarProps.type === 'robot' ? (
+          <div className="profile-header-avatar-robot">
+            <img 
+              src={avatarProps.src} 
+              alt={avatarProps.alt}
+              className="profile-header-robot-image"
+            />
+          </div>
+        ) : (
+          <FaUserCircle className="profile-icon" />
+        )}
       </button>
-      
-      {dropdownOpen && (
+      {isDropdownOpen && (
         <div className="profile-dropdown">
           <div className="profile-dropdown-header">
-            <div className="profile-avatar-wrapper">
-              <div className="profile-dropdown-avatar">
-                {getInitials()}
-              </div>
-            </div>
             <div className="profile-dropdown-greeting">
               {firstName ? getPossessiveForm(firstName) : "Dein"} Grünerator
             </div>
@@ -126,7 +136,7 @@ const ProfileButton = () => {
             <Link 
               to="/profile"
               className="profile-dropdown-link"
-              onClick={() => setDropdownOpen(false)}
+              onClick={() => {}}
             >
               <FaUser className="profile-dropdown-icon" />
               <span>Mein Profil</span>
@@ -135,7 +145,6 @@ const ProfileButton = () => {
               className="profile-dropdown-link logout-link"
               onClick={() => {
                 logout();
-                setDropdownOpen(false);
               }}
             >
               <FaSignOutAlt className="profile-dropdown-icon" />

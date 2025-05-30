@@ -65,7 +65,9 @@ const BaseForm = ({
   useWebSearchFeatureToggle = false,
   displayActions = null,
   formNotice = null,
-  enableKnowledgeSelector = false
+  enableKnowledgeSelector = false,
+  onSave,
+  saveLoading = false
 }) => {
   // Get knowledge source config from context
   const { 
@@ -293,6 +295,8 @@ const BaseForm = ({
           onToggleFocusMode={handleToggleFocusMode}
           isFocusMode={isFocusMode}
           displayActions={displayActions}
+          onSave={onSave}
+          saveLoading={saveLoading}
         />
         {!isMobileView && !isFocusMode && (
           <Tooltip id="action-tooltip" place="bottom" />
@@ -354,7 +358,9 @@ BaseForm.propTypes = {
   useWebSearchFeatureToggle: PropTypes.bool,
   displayActions: PropTypes.node,
   formNotice: PropTypes.node,
-  enableKnowledgeSelector: PropTypes.bool
+  enableKnowledgeSelector: PropTypes.bool,
+  onSave: PropTypes.func,
+  saveLoading: PropTypes.bool
 };
 
 BaseForm.defaultProps = {

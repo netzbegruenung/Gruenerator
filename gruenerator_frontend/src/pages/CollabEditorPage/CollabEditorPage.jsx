@@ -9,9 +9,12 @@ import apiClient from '../../components/utils/apiClient';
 import { applyHighlightWithAnimation, removeAllHighlights as removeAllQuillHighlights, applyNewTextHighlight } from '../../components/common/editor/utils/highlightUtils';
 import Quill from 'quill'; // Import Quill for temp instance in handleAiResponse
 import CollabEditorSkeleton from './CollabEditorSkeleton'; // NEU: Import Skeleton
+import { useSupabaseAuth } from '../../context/SupabaseAuthContext';
+import { Link } from 'react-router-dom';
 
 const CollabEditorPage = () => {
   const { documentId } = useParams();
+  const { user, loading: authLoading, betaFeatures } = useSupabaseAuth();
   const [initialContent, setInitialContent] = useState(undefined); // Start with undefined
   const [isLoadingContent, setIsLoadingContent] = useState(true);
   const [errorLoadingContent, setErrorLoadingContent] = useState(null);
@@ -22,6 +25,27 @@ const CollabEditorPage = () => {
   const [selectedText, setSelectedText] = useState('');
   const [highlightedRange, setHighlightedRange] = useState(null);
   const [isEditing, setIsEditing] = useState(true); // Always editing in collab mode
+
+  // Check if user has access to collab feature
+  const hasCollabAccess = betaFeatures?.collab === true;
+
+  // If still loading auth, show skeleton
+  if (authLoading) {
+    return <CollabEditorSkeleton />;
+  }
+
+  // If no access to collab feature, show error message
+  if (!hasCollabAccess) {
+    return (
+      <div className="collab-editor-overlay">
+        <div className="collab-editor-content collab-editor-error">
+          <h2>Zugriff verweigert</h2>
+          <p>Die kollaborative Bearbeitung ist ein Beta-Feature, das derzeit nur für Administratoren verfügbar ist.</p>
+          <Link to="/" className="button primary">Zurück zur Startseite</Link>
+        </div>
+      </div>
+    );
+  }
 
   useEffect(() => {
     const fetchInitialContent = async () => {

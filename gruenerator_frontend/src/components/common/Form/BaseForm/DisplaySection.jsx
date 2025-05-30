@@ -8,6 +8,7 @@ import { BUTTON_LABELS, ARIA_LABELS } from '../constants';
 import ContentRenderer from './ContentRenderer';
 import ErrorDisplay from './ErrorDisplay';
 import apiClient from '../../../utils/apiClient';
+import { useSupabaseAuth } from '../../../../context/SupabaseAuthContext';
 
 /**
  * Komponente für den Anzeigebereich des Formulars
@@ -28,6 +29,8 @@ import apiClient from '../../../utils/apiClient';
  * @param {Function} props.onToggleFocusMode - Funktion zum Umschalten des Fokus-Modus
  * @param {boolean} props.isFocusMode - Gibt an, ob der Fokus-Modus aktiv ist
  * @param {React.ReactNode} [props.displayActions=null] - Zusätzliche Aktionen, die unter dem Inhalt angezeigt werden sollen
+ * @param {Function} props.onSave - Funktion zum Speichern des Inhalts
+ * @param {boolean} props.saveLoading - Gibt an, ob der Speichervorgang läuft
  * @returns {JSX.Element} Display-Sektion
  */
 const DisplaySection = forwardRef(({
@@ -46,10 +49,16 @@ const DisplaySection = forwardRef(({
   getExportableContent,
   onToggleFocusMode,
   isFocusMode,
-  displayActions = null
+  displayActions = null,
+  onSave,
+  saveLoading = false
 }, ref) => {
+  const { betaFeatures } = useSupabaseAuth();
   const [generatePostLoading, setGeneratePostLoading] = React.useState(false);
   const [collabLoading, setCollabLoading] = React.useState(false);
+
+  // Check if user has access to collab feature
+  const hasCollabAccess = betaFeatures?.collab === true;
 
   const handleGeneratePost = React.useCallback(async () => {
     if (!onGeneratePost) return;
@@ -105,6 +114,18 @@ const DisplaySection = forwardRef(({
             showExport={true}
           onToggleFocusMode={onToggleFocusMode}
           isFocusMode={isFocusMode}
+          showCollab={hasCollabAccess}
+          showRegenerate={true}
+          showSave={!!onSave}
+          onCollab={handleOpenCollabEditor}
+          onRegenerate={handleGeneratePost}
+          onSave={onSave}
+          collabLoading={collabLoading}
+          regenerateLoading={generatePostLoading}
+          saveLoading={saveLoading}
+          exportableContent={exportableContent}
+          generatedPost={generatedPost}
+          generatedContent={generatedContent}
           />
       </div>
       <div className="display-content" style={{ fontSize: '16px' }}>
@@ -121,34 +142,6 @@ const DisplaySection = forwardRef(({
       {displayActions && (
         <div className="display-action-section">
           {displayActions}
-        </div>
-      )}
-      {generatedPost && (
-        <div className="generated-post-container">
-          <p>{generatedPost}</p>
-          <div className="button-container">
-            <SubmitButton
-              onClick={handleGeneratePost}
-              loading={generatePostLoading}
-              text={BUTTON_LABELS.REGENERATE_TEXT}
-              icon={<HiCog />}
-              className="generate-post-button"
-              ariaLabel={ARIA_LABELS.REGENERATE_TEXT}
-            />
-          </div>
-        </div>
-      )}
-      {/* Button für kollaborativen Editor */} 
-      {allowEditing && exportableContent && !isEditing && (
-        <div className="button-container" style={{ marginTop: '10px' }}>
-           <SubmitButton
-            onClick={handleOpenCollabEditor}
-            loading={collabLoading}
-            text="Kollaborativ bearbeiten"
-            icon={<HiOutlineUsers />}
-            className="collab-edit-button form-button"
-            ariaLabel="Kollaborativ bearbeiten"
-          />
         </div>
       )}
     </div>
@@ -179,7 +172,9 @@ DisplaySection.propTypes = {
   getExportableContent: PropTypes.func.isRequired,
   onToggleFocusMode: PropTypes.func.isRequired,
   isFocusMode: PropTypes.bool,
-  displayActions: PropTypes.node
+  displayActions: PropTypes.node,
+  onSave: PropTypes.func,
+  saveLoading: PropTypes.bool
 };
 
 DisplaySection.defaultProps = {

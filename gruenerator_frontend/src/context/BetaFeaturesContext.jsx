@@ -17,6 +17,7 @@ export const BetaFeaturesProvider = ({ children }) => {
   const [sharepicBetaEnabled, setSharepicBetaEnabledState] = useState(() => getInitialState('sharepicBetaEnabled', false));
   const [databaseBetaEnabled, setDatabaseBetaEnabledState] = useState(() => getInitialState('databaseBetaEnabled', false));
   const [youBetaEnabled, setYouBetaEnabledState] = useState(() => getInitialState('youBetaEnabled', false));
+  const [collabBetaEnabled, setCollabBetaEnabledState] = useState(() => getInitialState('collabBetaEnabled', false));
   // Add more beta features here as needed
 
   const setSharepicBetaEnabled = useCallback((value) => {
@@ -46,6 +47,15 @@ export const BetaFeaturesProvider = ({ children }) => {
     }
   }, []);
 
+  const setCollabBetaEnabled = useCallback((value) => {
+    setCollabBetaEnabledState(value);
+    try {
+      window.localStorage.setItem('collabBetaEnabled', JSON.stringify(value));
+    } catch (error) {
+      console.warn('Error writing collabBetaEnabled to localStorage:', error);
+    }
+  }, []);
+
   // Check admin access and auto-disable features user can't access
   useEffect(() => {
     const checkAndUpdateFeatureAccess = async () => {
@@ -72,6 +82,17 @@ export const BetaFeaturesProvider = ({ children }) => {
           setYouBetaEnabled(false);
         }
 
+        // Check collab feature access
+        const { data: canAccessCollab, error: collabError } = await templatesSupabase
+          .rpc('can_access_beta_feature', { feature_name: 'collab' });
+        
+        if (collabError) {
+          console.warn('Error checking collab access:', collabError);
+        } else if (!canAccessCollab && collabBetaEnabled) {
+          console.log('Auto-disabling collab feature due to lack of access');
+          setCollabBetaEnabled(false);
+        }
+
         // Sharepic is public, so no check needed - always allowed
         
       } catch (error) {
@@ -83,7 +104,7 @@ export const BetaFeaturesProvider = ({ children }) => {
     if (templatesSupabase) {
       checkAndUpdateFeatureAccess();
     }
-  }, [databaseBetaEnabled, setDatabaseBetaEnabled, youBetaEnabled, setYouBetaEnabled]);
+  }, [databaseBetaEnabled, setDatabaseBetaEnabled, youBetaEnabled, setYouBetaEnabled, collabBetaEnabled, setCollabBetaEnabled]);
 
   // Effect to listen for storage changes from other tabs (optional but good for UX)
   useEffect(() => {
@@ -96,6 +117,9 @@ export const BetaFeaturesProvider = ({ children }) => {
       }
       if (event.key === 'youBetaEnabled') {
         setYouBetaEnabledState(event.newValue ? JSON.parse(event.newValue) : false);
+      }
+      if (event.key === 'collabBetaEnabled') {
+        setCollabBetaEnabledState(event.newValue ? JSON.parse(event.newValue) : false);
       }
     };
 
@@ -113,7 +137,9 @@ export const BetaFeaturesProvider = ({ children }) => {
       databaseBetaEnabled,
       setDatabaseBetaEnabled,
       youBetaEnabled,
-      setYouBetaEnabled
+      setYouBetaEnabled,
+      collabBetaEnabled,
+      setCollabBetaEnabled
       // Add more features here
     }}>
       {children}

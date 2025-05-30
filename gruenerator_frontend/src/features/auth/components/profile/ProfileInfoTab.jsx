@@ -3,87 +3,76 @@ import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Spinner from '../../../../components/common/Spinner';
 import TextInput from '../../../../components/common/Form/Input/TextInput';
-import { getInitials } from '../../utils/profileUtils';
+import { getInitials, getAvatarDisplayProps, useProfileData } from '../../utils/profileUtils';
 import { useSupabaseAuth } from '../../../../context/SupabaseAuthContext';
 import ProfileTabSkeleton from '../../../../components/common/UI/ProfileTabSkeleton';
+import AvatarSelectionModal from './AvatarSelectionModal';
 import { motion } from "motion/react";
 
 const ProfileInfoTab = ({ user, templatesSupabase, onSuccessMessage, onErrorProfileMessage, updatePassword, isActive }) => {
   const queryClient = useQueryClient();
   const { setDeutschlandmodusInContext } = useSupabaseAuth();
   
-  const [loadingProfile, setLoadingProfile] = useState(false);
-  const [displayName, setDisplayName] = useState('');
+  // Profildaten aus Query holen
+  const { data: profile, isLoading: isLoadingProfile, isError: isErrorProfileQuery, error: errorProfileQuery } = useProfileData(user?.id, templatesSupabase);
+
+  // Lokale States nur für Formulareingaben
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState(user?.email || '');
   const [errorProfile, setErrorProfile] = useState('');
-
   const [loadingPasswordChange, setLoadingPasswordChange] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
-
   const [showPasswordChangeForm, setShowPasswordChangeForm] = useState(false);
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
+
+  // Initialisiere Formfelder, wenn Profildaten geladen werden
+  useEffect(() => {
+    if (profile) {
+      setFirstName(profile.first_name || '');
+      setLastName(profile.last_name || '');
+      setDisplayName(profile.display_name || (profile.first_name && profile.last_name ? `${profile.first_name} ${profile.last_name}`.trim() : user?.email || ''));
+      setEmail(user?.email || '');
+    }
+  }, [profile, user]);
+
+  // Avatar immer aus Profildaten
+  const avatarRobotId = profile?.avatar_robot_id ?? 1;
 
   const profileQueryKey = ['profileData', user?.id];
-
-  const { isLoading: isLoadingProfile, isError: isErrorProfileQuery, error: errorProfileQuery } = useQuery({
-    queryKey: profileQueryKey,
-    queryFn: async () => {
-      if (!user?.id || !templatesSupabase) {
-        throw new Error("Benutzer oder Supabase-Client nicht verfügbar.");
-      }
-      const { data, error } = await templatesSupabase
-        .from('profiles')
-        .select('display_name, first_name, last_name')
-        .eq('id', user.id)
-        .single();
-      if (error && error.code !== 'PGRST116') {
-        throw new Error(error.message || 'Fehler beim Laden der Profildaten.');
-      }
-      return data || {};
-    },
-    enabled: !!user?.id && !!templatesSupabase && isActive,
-    staleTime: 5 * 60 * 1000,
-    cacheTime: 15 * 60 * 1000,
-    onSuccess: (data) => {
-      setFirstName(data?.first_name || '');
-      setLastName(data?.last_name || '');
-      setDisplayName(data?.display_name || (data?.first_name && data?.last_name ? `${data.first_name} ${data.last_name}`.trim() : user?.email || ''));
-      setEmail(user?.email || '');
-      onErrorProfileMessage('');
-      setErrorProfile('');
-    },
-    onError: (error) => {
-      onErrorProfileMessage(error.message || 'Profildaten konnten nicht geladen werden.');
-      setErrorProfile(error.message || 'Profildaten konnten nicht geladen werden.');
-    }
-  });
 
   const { mutate: updateProfileMutation, isLoading: isUpdatingProfile } = useMutation({
     mutationFn: async (profileUpdateData) => {
       if (!user?.id || !templatesSupabase) {
         throw new Error("Benutzer oder Supabase-Client nicht verfügbar.");
       }
-      const { error } = await templatesSupabase
+      const { data, error } = await templatesSupabase
         .from('profiles')
         .update({ ...profileUpdateData, updated_at: new Date() })
-        .eq('id', user.id);
+        .eq('id', user.id)
+        .select()
+        .single();
       if (error) {
         throw new Error(error.message || 'Profil konnte nicht aktualisiert werden.');
       }
-      return profileUpdateData;
+      return data;
     },
-    onSuccess: (updatedData) => {
-      queryClient.invalidateQueries({ queryKey: profileQueryKey });
+    onSuccess: (data) => {
+      // Update Query-Cache direkt
+      queryClient.setQueryData(profileQueryKey, data);
       onSuccessMessage('Profil erfolgreich aktualisiert!');
       onErrorProfileMessage('');
       setErrorProfile('');
-      setFirstName(updatedData.first_name || '');
-      setLastName(updatedData.last_name || '');
-      setDisplayName(updatedData.display_name || (updatedData.first_name && updatedData.last_name ? `${updatedData.first_name} ${updatedData.last_name}`.trim() : user?.email || ''));
+      // Event für andere Komponenten
+      if (data.avatar_robot_id !== undefined) {
+        window.dispatchEvent(new CustomEvent('avatarUpdated', { 
+          detail: { avatarRobotId: data.avatar_robot_id } 
+        }));
+      }
     },
     onError: (error) => {
       onSuccessMessage('');
@@ -103,6 +92,13 @@ const ProfileInfoTab = ({ user, templatesSupabase, onSuccessMessage, onErrorProf
       display_name: fullDisplayName,
       first_name: firstName || null,
       last_name: lastName || null,
+      avatar_robot_id: avatarRobotId
+    });
+  };
+
+  const handleAvatarSelect = (robotId) => {
+    updateProfileMutation({
+      avatar_robot_id: robotId
     });
   };
 
@@ -190,6 +186,24 @@ const ProfileInfoTab = ({ user, templatesSupabase, onSuccessMessage, onErrorProf
 
   const calculatedDisplayName = displayName || (firstName && lastName ? `${firstName} ${lastName}`.trim() : email);
 
+  // Get avatar display properties based on current profile data
+  const avatarProps = getAvatarDisplayProps({
+    avatar_robot_id: avatarRobotId,
+    first_name: firstName,
+    last_name: lastName,
+    email: email
+  });
+
+  // Korrekte Genitiv-Form mit Apostroph
+  const getPossessiveForm = (name) => {
+    if (!name) return "Dein";
+    if (/[sßzx]$/.test(name) || name.endsWith('ss') || name.endsWith('tz') || name.endsWith('ce')) {
+      return `${name}'`;
+    } else {
+      return `${name}'s`;
+    }
+  };
+
   return (
     <>
       {isLoadingProfile ? (
@@ -202,13 +216,37 @@ const ProfileInfoTab = ({ user, templatesSupabase, onSuccessMessage, onErrorProf
           transition={{ duration: 0.3 }}
         >
           <div className="profile-avatar-section">
-            <div className="profile-avatar">
+            <div 
+              className="profile-avatar" 
+              onClick={() => setShowAvatarModal(true)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setShowAvatarModal(true);
+                }
+              }}
+              aria-label="Avatar ändern"
+              style={{ cursor: 'pointer', position: 'relative' }}
+            >
+              {avatarProps.type === 'robot' ? (
+                <img 
+                  src={avatarProps.src} 
+                  alt={avatarProps.alt}
+                  style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                />
+              ) : (
               <div className="profile-avatar-placeholder">
-                {getInitials(firstName, lastName, email)}
-              </div>
+                  {avatarProps.initials}
+                </div>
+              )}
+              <div className="profile-avatar-edit-overlay"></div>
             </div>
             <div className="profile-user-info">
-              <div className="profile-user-name">{calculatedDisplayName}</div>
+              <div className="profile-user-name">
+                {firstName ? getPossessiveForm(firstName) : "Dein"} Grünerator
+              </div>
               <div className="profile-user-email">{email}</div>
               {user?.id && <div className="profile-user-id" style={{ fontSize: '0.8rem', color: 'var(--font-color-subtle)', marginTop: 'var(--spacing-xxsmall)' }}>ID: {user.id}</div>}
             </div>
@@ -306,6 +344,13 @@ const ProfileInfoTab = ({ user, templatesSupabase, onSuccessMessage, onErrorProf
           </div>
         </motion.div>
       )}
+
+      <AvatarSelectionModal
+        isOpen={showAvatarModal}
+        onClose={() => setShowAvatarModal(false)}
+        currentAvatarId={avatarRobotId}
+        onSelect={handleAvatarSelect}
+      />
     </>
   );
 };

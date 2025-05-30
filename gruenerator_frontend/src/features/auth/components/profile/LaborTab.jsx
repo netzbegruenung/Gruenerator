@@ -26,6 +26,8 @@ const LaborTab = ({
   setAnweisungenBeta,
   youBeta,
   setYouBeta,
+  collabBeta,
+  setCollabBeta,
 }) => {
   const [currentView, setCurrentView] = useState('deutschlandmodus');
   const [loading, setLoading] = useState(false);
@@ -40,6 +42,7 @@ const LaborTab = ({
     SHAREPIC: 'sharepic',
     ANWEISUNGEN: 'anweisungen',
     YOU: 'you',
+    COLLAB: 'collab',
   };
 
   const ALL_FEATURES = [
@@ -50,6 +53,7 @@ const LaborTab = ({
     { key: BETA_VIEWS.GENERATORS, label: 'Grüneratoren' },
     { key: BETA_VIEWS.ANWEISUNGEN, label: 'Anweisungen & Wissen' },
     { key: BETA_VIEWS.YOU, label: 'You Generator' },
+    { key: BETA_VIEWS.COLLAB, label: 'Kollaborative Bearbeitung' },
   ];
 
   // Check which features are available for current user
@@ -101,6 +105,7 @@ const LaborTab = ({
         { key: BETA_VIEWS.SHAREPIC, isActive: sharepicBeta, setter: setSharepicBeta, name: 'Sharepic' },
         { key: BETA_VIEWS.ANWEISUNGEN, isActive: anweisungenBeta, setter: setAnweisungenBeta, name: 'Anweisungen & Wissen' },
         { key: BETA_VIEWS.YOU, isActive: youBeta, setter: setYouBeta, name: 'You Generator' },
+        { key: BETA_VIEWS.COLLAB, isActive: collabBeta, setter: setCollabBeta, name: 'Kollaborative Bearbeitung' },
       ];
 
       const deactivatedFeatures = [];
@@ -115,7 +120,7 @@ const LaborTab = ({
         onSuccessMessage(`Nicht verfügbare Features automatisch deaktiviert: ${deactivatedFeatures.join(', ')}`);
       }
     }
-  }, [availableFeatures, checkingFeatures, deutschlandmodusBeta, groupsBeta, databaseBeta, customGeneratorsBeta, sharepicBeta, anweisungenBeta, youBeta]);
+  }, [availableFeatures, checkingFeatures, deutschlandmodusBeta, groupsBeta, databaseBeta, customGeneratorsBeta, sharepicBeta, anweisungenBeta, youBeta, collabBeta]);
 
   const handleViewChange = (view) => {
     setCurrentView(view);
@@ -265,6 +270,19 @@ const LaborTab = ({
           </>
         );
         break;
+      case BETA_VIEWS.COLLAB:
+        content = (
+          <div className="labor-tab-checkbox-container">
+            <StyledCheckbox
+              id="collab-beta"
+              label="Kollaborative Bearbeitung aktivieren"
+              checked={collabBeta}
+              onChange={() => handleBetaToggle(setCollabBeta, collabBeta, 'Kollaborative Bearbeitung')}
+              aria-label="Kollaborative Bearbeitung Beta-Test aktivieren"
+            />
+          </div>
+        );
+        break;
       default:
         content = <p>Bitte wähle einen Beta-Test aus.</p>;
     }
@@ -280,7 +298,7 @@ const LaborTab = ({
       >
         <div className="form-group">
           <div className="form-group-title labor-tab-title">{currentView.replace('_',' ')} Einstellungen</div>
-          <p className="help-text labor-tab-help-text">
+          <p className="labor-tab-help-text">
             Aktiviere oder deaktiviere hier einzelne Beta-Funktionen. Änderungen werden sofort wirksam.
           </p>
           {content}

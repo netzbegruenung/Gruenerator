@@ -71,6 +71,7 @@
 @import url('./features/auth/auth.css');
 @import url('./features/auth/profile.css');
 @import url('./features/auth/profile-bubbles.css');
+@import url('./components/auth/avatar-selection.css');
 
 
 @import url('./pages/Startseitenstyle.css');

@@ -596,6 +596,8 @@ const ProfilePage = () => {
               setAnweisungenBeta={(value) => updateUserBetaFeatures('anweisungen', value)}
               youBeta={getBetaFeatureState('you')}
               setYouBeta={(value) => updateUserBetaFeatures('you', value)}
+              collabBeta={getBetaFeatureState('collab')}
+              setCollabBeta={(value) => updateUserBetaFeatures('collab', value)}
             />
           )}
         </Suspense>

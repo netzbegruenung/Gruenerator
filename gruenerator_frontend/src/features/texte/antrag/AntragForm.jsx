@@ -143,26 +143,6 @@ export const AntragForm = () => {
     }
   };
 
-  const saveActionElement = generatedAntrag && generatedAntrag.trim() !== '' ? (
-    <div className="save-action-element">
-      <SubmitButton
-        onClick={handleSaveToDb}
-        loading={isSaving}
-        text="Antrag in Supabase speichern"
-        icon={<HiSave />}
-        disabled={isSaving}
-        className="antrag-save-button"
-        ariaLabel="Antrag in Supabase speichern"
-        type="button"
-      />
-      {saveStatus && (
-        <p className={`status-message-container ${saveStatus.type}`}>
-          {saveStatus.message}
-        </p>
-      )}
-    </div>
-  ) : null;
-
   const userDisplayName = user?.displayName || (user?.user_metadata?.firstName && user?.user_metadata?.lastName ? `${user?.user_metadata?.firstName} ${user?.user_metadata?.lastName}`.trim() : user?.user_metadata?.email);
 
   const formNoticeElement = (() => {
@@ -264,7 +244,8 @@ export const AntragForm = () => {
           description: "Nutzt aktuelle Informationen aus dem Web."
         }}
         useWebSearchFeatureToggle={true}
-        displayActions={saveActionElement}
+        onSave={handleSaveToDb}
+        saveLoading={isSaving}
         formNotice={formNoticeElement}
         enableKnowledgeSelector={true}
       >

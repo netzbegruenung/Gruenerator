@@ -51,16 +51,103 @@
   color: var(--font-color);
 }
 
-
-.auth-form .form-input,
-.auth-form .form-select,
-.auth-form .form-textarea {
+/* Generische form-input Styles für alle Formulare */
+.form-input,
+.form-select,
+.form-textarea {
   width: 100%;
+  padding: var(--spacing-small) var(--spacing-small);
   border: 1px solid var(--border-subtle);
   border-radius: 4px;
   background-color: var(--background-color-alt);
   color: var(--font-color);
+  font-size: 1rem;
+  line-height: 1.5;
   transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-input:focus,
+.form-select:focus,
+.form-textarea:focus {
+  border-color: var(--klee);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(var(--klee-rgb), 0.2);
+}
+
+.form-input.error-input {
+  border-color: #ff4d4d;
+}
+
+.form-input:disabled,
+.form-select:disabled,
+.form-textarea:disabled {
+  background-color: var(--background-color-disabled, #f5f5f5);
+  color: var(--font-color-disabled, #757575);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* Checkbox Styles */
+.form-checkbox {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  cursor: pointer;
+  accent-color: var(--tanne);
+}
+
+.form-checkbox:focus {
+  outline: 2px solid var(--klee);
+  outline-offset: 2px;
+}
+
+.form-checkbox:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.checkbox-wrapper {
+  margin-bottom: var(--spacing-medium);
+}
+
+.checkbox-label {
+  color: var(--font-color);
+  font-size: 0.95rem;
+  user-select: none;
+}
+
+.checkbox-label a {
+  color: var(--link-color);
+  text-decoration: underline;
+}
+
+.checkbox-label a:hover {
+  color: var(--tanne);
+}
+
+/* Wrapper für Formularfelder */
+.form-field-wrapper {
+  margin-bottom: var(--spacing-medium);
+}
+
+.form-field-wrapper label {
+  display: block;
+  margin-bottom: var(--spacing-xxsmall);
+  color: var(--font-color);
+  font-weight: 500;
+}
+
+.form-field-wrapper .help-text {
+  color: var(--font-color);
+  opacity: 0.8;
+  font-size: 0.85rem;
+  margin-top: var(--spacing-xxsmall);
+  margin-bottom: 0;
+}
+
+/* Spezifische Styles für auth-form Kontext */
+.auth-form .form-field-wrapper {
+  margin-bottom: var(--spacing-medium);
 }
 
 .auth-form .form-textarea {
@@ -69,26 +156,6 @@
   font-size: 0.95rem;
   min-height: 80px;
   resize: vertical;
-}
-
-.auth-form .form-input:focus,
-.auth-form .form-select:focus,
-.auth-form .form-textarea:focus {
-  border-color: var(--klee);
-  outline: none;
-  box-shadow: 0 0 0 2px rgba(var(--klee-rgb), 0.2);
-}
-
-.auth-form .error-input {
-  border-color: #ff4d4d;
-}
-
-.auth-form .help-text {
-  color: var(--font-color);
-  opacity: 0.8;
-  font-size: 0.85rem;
-  margin-top: var(--spacing-xxsmall);
-  margin-bottom: 0;
 }
 
 .auth-form .error-message {
@@ -378,21 +445,3 @@
     border-radius: 0;
   }
 }
-
-
-.profile-label-button {
-  border: 1px solid var(--border-subtle);
-  border-radius: 4px;
-  border-color: var(--font-color);
-  padding: 0.7rem 0.7rem;
-  gap: 8px;
-  transition: all 0.2s ease-in-out;
-}
-
-.profile-label-button:hover {
-  border-color: var(--klee);
-}
-
-.profile-label-button .profile-icon {
-  font-size: 1.2rem;
-} 
