@@ -79,3 +79,6 @@ typings/
 
 # Audio files
 uploads/voice/*.wav
+
+/test/
+/tests/

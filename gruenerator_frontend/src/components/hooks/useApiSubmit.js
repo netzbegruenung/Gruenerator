@@ -1,22 +1,36 @@
 import { useState } from 'react';
 import { processText } from '../utils/apiClient';
+import { useAuthStore } from '../../stores/authStore';
+import useGeneratedTextStore from '../../stores/generatedTextStore';
 
 const useApiSubmit = (endpoint) => {
+  const { deutschlandmodus } = useAuthStore();
+  const { generatedText } = useGeneratedTextStore();
+
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
   const [retryCount, setRetryCount] = useState(0);
 
-  const submitForm = async (formData, useBackup = false) => {
+  const submitForm = async (formData, useBackup = false, options = {}) => {
+    
     setLoading(true);
     setSuccess(false);
     setError('');
     setRetryCount(0);
 
     try {
+      // Log the context value right before using it
+      console.log('[useApiSubmit] Checking deutschlandmodus from context inside submitForm:', deutschlandmodus);
+
+      const useBedrock = deutschlandmodus === true;
+      
+      const effectiveUseBackup = useBackup && !useBedrock;
+
       const requestData = {
         ...formData,
-        useBackupProvider: useBackup,
+        useBedrock: useBedrock,
+        useBackupProvider: effectiveUseBackup,
         onRetry: (attempt, delay) => {
           setRetryCount(attempt);
           setError(`Verbindungsprobleme. Neuer Versuch in ${Math.round(delay/1000)} Sekunden... (Versuch ${attempt}/3)`);
@@ -25,6 +39,7 @@ const useApiSubmit = (endpoint) => {
       
       console.log(`[useApiSubmit] Submitting to ${endpoint}:`, {
         useBackup,
+        useBedrock,
         formData: requestData,
         endpoint
       });
@@ -67,6 +82,56 @@ const useApiSubmit = (endpoint) => {
           setSuccess(true);
           return response.suggestions[0];
         }
+      } else if (endpoint === '/claude_chat') {
+        if (response && (response.response || response.responseType === 'searchResults')) {
+          // Wenn es sich um Suchergebnisse handelt
+          if (response.responseType === 'searchResults' && Array.isArray(response.messages)) {
+            setSuccess(true);
+            return response;
+          }
+          
+          // Bestehende Logik für Edit/Think-Modus
+          if (response.response) {
+            // Wenn textAdjustment vorhanden ist, validiere dessen Struktur
+            if (response.textAdjustment) {
+              const { type, newText } = response.textAdjustment;
+              
+              // Nur full oder selected Typen erlauben
+              if (!type || !newText || (type !== 'full' && type !== 'selected')) {
+                throw new Error(`Ungültiger Anpassungstyp: ${type || 'unbekannt'}`);
+              }
+              
+              // Debugging-Ausgabe für newText
+              console.log('[useApiSubmit] textAdjustment.newText:', newText?.substring(0, 50) + '...');
+              
+              // Füge Standardwerte für context und punctuation hinzu falls nicht vorhanden
+              if (!response.textAdjustment.context) {
+                response.textAdjustment.context = {
+                  beforeContext: '',
+                  text: type === 'selected' ? 
+                        response.textAdjustment.selectedText || '' : 
+                        response.fullText || '',
+                  afterContext: ''
+                };
+              }
+              if (!response.textAdjustment.punctuation) {
+                response.textAdjustment.punctuation = {
+                  startsWithPunctuation: false,
+                  endsWithPunctuation: false,
+                  type: 'phrase'
+                };
+              }
+            }
+            
+            setSuccess(true);
+            return response;
+          }
+        }
+      } else if (endpoint === '/claude_think') {
+        if (response && response.response) {
+          setSuccess(true);
+          return response;
+        }
       } else if (endpoint === 'zitat_claude') {
         if (response && response.quote) {
           setSuccess(true);
@@ -79,19 +144,19 @@ const useApiSubmit = (endpoint) => {
           setSuccess(true);
           return response;
         }
-      } else if (endpoint === 'claude/antrag' || endpoint === 'claude/antrag-simple') {
+      } else if (endpoint === 'claude/antrag' || endpoint === 'claude/antrag-simple' || endpoint === 'antraege/generate-simple') {
         console.log('[useApiSubmit] Processing antrag response:', response);
         if (response) {
           // Prüfe auf verschiedene mögliche Antwortstrukturen
           if (response.content) {
             setSuccess(true);
-            return response.content;
+            return response;
           } else if (response.metadata && response.metadata.content) {
             setSuccess(true);
-            return response.metadata.content;
+            return { content: response.metadata.content, metadata: response.metadata };
           } else if (typeof response === 'string') {
             setSuccess(true);
-            return response;
+            return { content: response };
           }
         }
       } else if (endpoint === 'analyze') {
@@ -112,22 +177,66 @@ const useApiSubmit = (endpoint) => {
             originalPrompt: response.originalPrompt || ''
           };
         }
-      } else {
-        // Standard AI-Response-Behandlung
+      } else if (endpoint === '/generate_generator_config') {
+        console.log('[useApiSubmit] Processing generator_config response:', response);
+        if (response && 
+            typeof response === 'object' &&
+            typeof response.name === 'string' &&
+            typeof response.slug === 'string' &&
+            Array.isArray(response.fields) &&
+            typeof response.prompt === 'string' &&
+            response.fields.every(field => 
+                typeof field === 'object' && 
+                field !== null && 
+                typeof field.label === 'string' &&
+                typeof field.name === 'string' &&
+                (field.type === 'text' || field.type === 'textarea') &&
+                typeof field.required === 'boolean'
+            )
+        ) {
+            setSuccess(true);
+            return response;
+        } else {
+            console.error('[useApiSubmit] Invalid structure for /generate_generator_config:', response);
+            throw new Error('Ungültiges JSON-Format in der generierten Konfiguration. Bitte versuche es erneut.');
+        }
+      } else if (endpoint === '/claude_social') {
+        console.log('[useApiSubmit] Processing claude_social response:', response);
         if (response && response.content) {
           setSuccess(true);
-          return response.content;
+          return response.content; // Return only the content string
+        } else if (response && typeof response === 'string') {
+          // Fallback if response is already a string
+          setSuccess(true);
+          return response;
+        }
+      } else if (endpoint === '/claude_gruene_jugend') {
+        console.log('[useApiSubmit] Processing claude_gruene_jugend response:', response);
+        if (response && response.content) {
+          setSuccess(true);
+          return response.content; // Return only the content string
+        } else if (response && typeof response === 'string') {
+          // Fallback if response is already a string
+          setSuccess(true);
+          return response;
         }
       }
 
-      throw new Error('Unerwartete Antwortstruktur von der API');
+      // Fallback für alle anderen Endpoints
+      console.log('[useApiSubmit] Fallback handling for endpoint:', endpoint);
+      if (response) {
+        setSuccess(true);
+        return response;
+      }
+
+      throw new Error('Leere Antwort von der KI erhalten.');
     } catch (error) {
-      console.error(`[useApiSubmit] Error:`, error);
-      setError(error.message);
+      console.error('[useApiSubmit] Submit error:', error);
+      setError(`${error.name || 'Fehler'}: ${error.message}`);
+      setSuccess(false);
       throw error;
     } finally {
       setLoading(false);
-      setRetryCount(0);
     }
   };
 
@@ -135,7 +244,22 @@ const useApiSubmit = (endpoint) => {
     setSuccess(false);
   };
 
-  return { submitForm, loading, success, resetSuccess, error, retryCount };
+  const resetState = () => {
+    setLoading(false);
+    setSuccess(false);
+    setError('');
+    setRetryCount(0);
+  };
+
+  return {
+    loading,
+    success,
+    error,
+    retryCount,
+    submitForm,
+    resetSuccess,
+    resetState
+  };
 };
 
 export default useApiSubmit;

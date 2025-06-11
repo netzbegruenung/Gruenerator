@@ -1,0 +1,113 @@
+/* Styling for the ErrorBoundary component */
+.error-boundary {
+  padding: var(--spacing-large);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--spacing-xsmall);
+  background-color: var(--background-color-alt);
+  margin: var(--spacing-large) auto;
+  max-width: 800px;
+  text-align: center;
+  font-family: 'PT Sans', Arial, sans-serif;
+  color: var(--font-color);
+}
+
+.error-boundary h1 {
+  color: var(--font-color-h);
+  font-family: 'GrueneType', Arial, sans-serif;
+  font-size: 2em; /* Example size, adjust as needed */
+  margin-bottom: var(--spacing-medium);
+}
+
+.error-boundary p {
+  margin-bottom: var(--spacing-medium);
+  line-height: 1.6;
+}
+
+.error-boundary .error-id {
+  font-size: 0.9em;
+  color: var(--font-color); /* Or a more subtle color if needed */
+  margin-bottom: var(--spacing-medium);
+  padding: var(--spacing-xsmall);
+  background-color: var(--background-color);
+  border: 1px dashed var(--border-subtle);
+  display: inline-block;
+}
+
+.error-boundary details {
+  margin-top: var(--spacing-large);
+  margin-bottom: var(--spacing-large);
+  text-align: left;
+  background-color: var(--background-color);
+  padding: var(--spacing-medium);
+  border-radius: var(--spacing-xsmall);
+}
+
+.error-boundary summary {
+  cursor: pointer;
+  font-weight: bold;
+  margin-bottom: var(--spacing-small);
+  color: var(--link-color);
+}
+
+.error-boundary pre {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  background-color: var(--background-color-alt);
+  padding: var(--spacing-medium);
+  border-radius: var(--spacing-xsmall);
+  border: 1px solid var(--border-subtle);
+  max-height: 200px;
+  overflow-y: auto;
+  font-size: 0.85em;
+  color: var(--font-color);
+}
+
+.error-boundary .error-actions {
+  margin-top: var(--spacing-large);
+  display: flex;
+  gap: var(--spacing-medium);
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.error-boundary .error-actions button,
+.error-boundary .error-actions .button {
+  background-color: var(--button-background-color);
+  color: var(--button-text-color);
+  padding: var(--spacing-small) var(--spacing-medium);
+  border: none;
+  border-radius: var(--spacing-xsmall);
+  cursor: pointer;
+  text-decoration: none;
+  font-size: 1em;
+  transition: all 0.2s ease;
+}
+
+.error-boundary .error-actions button:hover,
+.error-boundary .error-actions .button:hover {
+  background-color: var(--button-hover-color);
+}
+
+.error-boundary .copy-button {
+  background-color: #6c757d;
+  color: white;
+}
+
+.error-boundary .copy-button:hover {
+  background-color: #5a6268;
+}
+
+.error-boundary .copy-button.copied {
+  background-color: #28a745;
+  color: white;
+}
+
+.error-boundary .copy-button.copied:hover {
+  background-color: #218838;
+}
+
+/* Minimal styling for links when they are not styled as buttons */
+.error-boundary a:not(.button) {
+  color: var(--link-color);
+  text-decoration: underline;
+} 

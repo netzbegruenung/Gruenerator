@@ -1,6 +1,8 @@
 const { parentPort } = require('worker_threads');
 const { Anthropic } = require('@anthropic-ai/sdk');
 const OpenAI = require('openai');
+const { InvokeModelCommand } = require("@aws-sdk/client-bedrock-runtime");
+const bedrockClient = require('./awsBedrockClient');
 const config = require('./worker.config');
 require('dotenv').config();
 
@@ -70,18 +72,31 @@ function sendProgress(requestId, progress) {
 
 // Main AI request processing function
 async function processAIRequest(requestId, data) {
+  // Destructure data, ensuring options exists
   const { type, prompt, options = {}, systemPrompt, messages, useBackupProvider } = data;
-  
+
+  // Testweise Bedrock als Standard aktivieren
+  // const effectiveOptions = { ...options, useBedrock: true };
+  const effectiveOptions = { ...options };
+
   try {
     let result;
-    if (useBackupProvider === true) {
+    // Prüfe die Optionen mit dem (möglicherweise) überschriebenen useBedrock-Wert
+    if (effectiveOptions.useBedrock === true) {
+      console.log(`[AI Worker] Using AWS Bedrock provider for request ${requestId}`);
+      sendProgress(requestId, 15);
+      // Übergebe die ursprünglichen 'data', da processWithBedrock die Optionen ggf. intern neu prüft
+      result = await processWithBedrock(requestId, { ...data, options: effectiveOptions });
+    } else if (useBackupProvider === true) {
       console.log(`[AI Worker] Using backup provider (OpenAI) for request ${requestId}`);
+      sendProgress(requestId, 15);
       result = await processWithOpenAI(requestId, data);
     } else {
       console.log(`[AI Worker] Using primary provider (Claude) for request ${requestId} { useBackupProvider: false }`);
+      sendProgress(requestId, 15);
       
-      // Remove betas from options
-      const { betas, ...cleanOptions } = options;
+      // Remove internal flags and betas from options before sending to Claude
+      const { useBedrock, useBackupProvider, betas, ...apiOptions } = effectiveOptions;
       
       const defaultConfig = {
         model: "claude-3-7-sonnet-latest",
@@ -118,6 +133,9 @@ async function processAIRequest(requestId, data) {
         'antrag': {
           system: "Du bist ein erfahrener Kommunalpolitiker von Bündnis 90/Die Grünen...",
           temperature: 0.3
+        },
+        'generator_config': {
+          temperature: 0.5
         }
       };
 
@@ -125,7 +143,7 @@ async function processAIRequest(requestId, data) {
       let requestConfig = {
         ...defaultConfig,
         ...(typeConfigs[type] || {}),
-        ...cleanOptions,
+        ...apiOptions, // Use the cleaned options
         system: systemPrompt || (typeConfigs[type]?.system || defaultConfig.system)
       };
 
@@ -138,12 +156,36 @@ async function processAIRequest(requestId, data) {
 
       // Message setup
       if (messages) {
-        requestConfig.messages = messages;
+        // Check for Files API integration with prompt caching
+        if (type === 'antragsversteher' && data.fileMetadata?.usePromptCaching) {
+          // Add cache control to document blocks for Files API
+          requestConfig.messages = messages.map(message => ({
+            ...message,
+            content: message.content.map(block => {
+              if (block.type === 'document' && block.source?.type === 'file') {
+                return {
+                  ...block,
+                  cache_control: { type: 'ephemeral' }
+                };
+              }
+              return block;
+            })
+          }));
+          console.log(`[AI Worker] Prompt caching aktiviert für Files API Request ${requestId}`);
+        } else {
+          requestConfig.messages = messages;
+        }
       } else if (prompt) {
         requestConfig.messages = [{
           role: "user",
           content: prompt
         }];
+      }
+
+      // Tools setup for you_with_tools type
+      if (type === 'you_with_tools' && apiOptions.tools) {
+        requestConfig.tools = apiOptions.tools;
+        console.log(`[AI Worker] Tools aktiviert für ${requestId}:`, apiOptions.tools.length);
       }
 
       sendProgress(requestId, 30);
@@ -169,17 +211,30 @@ async function processAIRequest(requestId, data) {
         type,
         contentLength,
         contentPreview: response.content?.[0]?.text?.substring(0, 100) + '...',
-        id: response.id || 'unknown'
+        id: response.id || 'unknown',
+        modelUsed: requestConfig.model
       });
       
       // Validate the response
       if (!response.content || !response.content[0] || !response.content[0].text) {
-        throw new Error(`Invalid Claude response for request ${requestId}: missing content`);
+        // If stop_reason is tool_use, content[0].text might be empty, which is valid.
+        // We need to check if there's content OR tool_calls.
+        if (response.stop_reason !== 'tool_use' && (!response.content || !response.content[0] || typeof response.content[0].text !== 'string')) {
+          throw new Error(`Invalid Claude response for request ${requestId}: missing textual content when not using tools`);
+        }
+        if (response.stop_reason === 'tool_use' && (!response.tool_calls || response.tool_calls.length === 0)) {
+          throw new Error(`Invalid Claude response for request ${requestId}: tool_use indicated but no tool_calls provided.`);
+        }
       }
       
+      const textualContent = response.content?.find(block => block.type === 'text')?.text || null;
+
       // Create the result object - ensure it's complete before returning
       result = {
-        content: response.content[0].text,
+        content: textualContent, // Textual part, null if no text block
+        stop_reason: response.stop_reason,
+        tool_calls: response.tool_calls, // Will be present if stop_reason is 'tool_use'
+        raw_content_blocks: response.content, // Full content blocks from Claude
         success: true,
         metadata: {
           provider: 'claude',
@@ -187,12 +242,15 @@ async function processAIRequest(requestId, data) {
           backupRequested: false,
           requestId: requestId,
           messageId: response.id,
-          isPdfRequest: type === 'antragsversteher' && betas?.includes('pdfs-2024-09-25')
+          isFilesApiRequest: data.fileMetadata?.fileId ? true : false,
+          fileId: data.fileMetadata?.fileId || null,
+          usedPromptCaching: data.fileMetadata?.usePromptCaching || false,
+          modelUsed: requestConfig.model
         }
       };
       
       // Double-check we have content before returning
-      if (!result.content || typeof result.content !== 'string' || result.content.length === 0) {
+      if (!result.content && result.stop_reason !== 'tool_use' && (typeof result.content !== 'string' || result.content.length === 0)) {
         throw new Error(`Empty or invalid content in processed result for ${requestId}`);
       }
     }
@@ -244,7 +302,13 @@ async function processWithOpenAI(requestId, data) {
       openAIMessages.push({ role: 'system', content: systemPrompt });
     }
     if (messages) {
-      openAIMessages.push(...messages);
+      // Simple message structure expected for generator_config
+      messages.forEach(msg => {
+        openAIMessages.push({
+          role: msg.role,
+          content: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content) // Ensure content is string
+        });
+      });
     }
   }
 
@@ -256,7 +320,7 @@ async function processWithOpenAI(requestId, data) {
       messages: openAIMessages,
       temperature: 0.9,
       max_tokens: 4000,
-      response_format: type === 'social' ? { type: "json_object" } : undefined
+      response_format: (type === 'social' || type === 'generator_config') ? { type: "json_object" } : undefined
     });
 
     // Validate the response
@@ -279,5 +343,88 @@ async function processWithOpenAI(requestId, data) {
   } catch (error) {
     console.error('[AI Worker] OpenAI Error:', error);
     throw new Error(`OpenAI Error: ${error.message}`);
+  }
+}
+
+// Function to process request with AWS Bedrock
+async function processWithBedrock(requestId, data) {
+  const { messages, systemPrompt, options = {} } = data;
+  // Prefer ARN if available, otherwise use Model ID
+  const modelIdentifier = process.env.BEDROCK_CLAUDE_MODEL_ARN || process.env.BEDROCK_CLAUDE_MODEL_ID;
+
+  if (!modelIdentifier) {
+    throw new Error('Neither BEDROCK_CLAUDE_MODEL_ARN nor BEDROCK_CLAUDE_MODEL_ID environment variable is set.');
+  }
+
+  if (!messages || messages.length === 0) {
+    throw new Error('Messages are required for Bedrock request.');
+  }
+
+  console.log(`[AI Worker] Processing with Bedrock. Request ID: ${requestId}, Model: ${modelIdentifier}`);
+
+  // Construct the payload for Bedrock Claude
+  // Note: Bedrock API structure differs from direct Anthropic API
+  const bedrockPayload = {
+    anthropic_version: options.anthropic_version || "bedrock-2023-05-31", // Required for Bedrock
+    max_tokens: options.max_tokens || 4096, // Default or from options
+    messages: messages,
+    temperature: options.temperature !== undefined ? options.temperature : 0.9,
+    top_p: options.top_p !== undefined ? options.top_p : 1,
+    // top_k: options.top_k, // Optional
+    // stop_sequences: options.stop_sequences, // Optional
+  };
+
+  if (systemPrompt) {
+    bedrockPayload.system = systemPrompt;
+  }
+
+  try {
+    sendProgress(requestId, 20);
+
+    // Log the exact payload being prepared for Bedrock
+    console.log(`[AI Worker] Preparing Bedrock Payload for ${requestId}:`, JSON.stringify(bedrockPayload, null, 2));
+
+    const command = new InvokeModelCommand({
+      modelId: modelIdentifier, // Use ARN or ID
+      contentType: "application/json",
+      accept: "application/json",
+      body: JSON.stringify(bedrockPayload),
+    });
+
+    console.log(`[AI Worker] Sending request to Bedrock: ${requestId}`);
+    const response = await bedrockClient.send(command);
+    sendProgress(requestId, 90);
+
+    // Decode the response body (Uint8Array to JSON string, then parse)
+    const jsonString = new TextDecoder().decode(response.body);
+    // Log the raw response string from Bedrock before parsing
+    console.log(`[AI Worker] Raw Bedrock response string for ${requestId}:`, jsonString);
+    const parsedResponse = JSON.parse(jsonString);
+
+    // Validate and extract content
+    if (!parsedResponse.content || !Array.isArray(parsedResponse.content) || parsedResponse.content.length === 0 || !parsedResponse.content[0].text) {
+      console.error("[AI Worker] Invalid Bedrock response structure:", parsedResponse);
+      throw new Error(`Invalid Bedrock response structure for request ${requestId}.`);
+    }
+    const responseText = parsedResponse.content[0].text;
+
+    console.log(`[AI Worker] Bedrock response received for ${requestId}: Content length ${responseText.length}`);
+
+    return {
+      content: responseText,
+      success: true,
+      metadata: {
+        provider: 'aws-bedrock',
+        model: modelIdentifier, // Log the identifier used (ARN or ID)
+        timestamp: new Date().toISOString(),
+        requestId: requestId,
+        // Include any relevant identifiers from parsedResponse if needed, e.g., Amazon Bedrock invocation IDs
+      }
+    };
+
+  } catch (error) {
+    console.error(`[AI Worker] AWS Bedrock Error for request ${requestId}:`, error);
+    // Distinguish SDK/AWS errors from application logic errors if possible
+    throw new Error(`AWS Bedrock Error: ${error.message || 'Unknown error during Bedrock API call'}`);
   }
 }

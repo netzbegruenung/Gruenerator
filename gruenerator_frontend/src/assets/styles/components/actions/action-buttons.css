@@ -1,0 +1,98 @@
+.content-actions,
+.platform-actions,
+.display-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+
+.action-button {
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--font-color-h);
+  transition: all 0.2s ease;
+  border-radius: 4px;
+}
+
+.action-button:hover {
+  background-color: var(--button-hover-color);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.action-button-disabled {
+  position: relative;
+}
+
+.action-button-disabled::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 20%;
+  right: 20%;
+  height: 1px;
+  background-color: var(--font-color-h);
+  transform: translateY(-50%) rotate(-45deg);
+  z-index: 1;
+}
+
+.action-button-disabled:hover {
+  background-color: var(--button-hover-color);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.platform-actions .action-button:hover {
+  background-color: var(--button-hover-color);
+}
+
+.action-button:active {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.action-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+
+.action-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+
+.action-button[data-tooltip-id] {
+  position: relative;
+}
+
+
+[data-theme="dark"] .platform-content.editing .platform-header .action-button {
+  color: var(--weiß);
+}
+
+[data-theme="dark"] .platform-content.editing .platform-header .action-button:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+
+@media (max-width: 768px) {
+  .content-actions,
+  .platform-actions,
+  .display-actions {
+    gap: 5px;
+  }
+
+  .action-button {
+    padding: 6px;
+  }
+
+  .action-button svg {
+    width: 14px;
+    height: 14px;
+  }
+} 

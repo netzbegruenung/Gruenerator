@@ -1,6 +1,6 @@
-/* YouRecording.css - Styling für die Sprachaufnahme-Funktionalität */
 
-/* Sprachaufnahme-Komponente */
+
+
 .voice-recorder-wrapper {
   width: 100%;
   min-height: 120px;
@@ -48,7 +48,7 @@
   filter: brightness(0.9);
 }
 
-/* Fullscreen recording mode */
+
 .recording-fullscreen-overlay {
   position: absolute;
   top: 0;
@@ -76,11 +76,6 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-}
-
-.recording-lottie {
-  width: 120px;
-  height: 120px;
 }
 
 .recording-status, .recording-timestamps {
@@ -123,7 +118,7 @@
   }
 }
 
-/* Dark mode adjustments */
+
 [data-theme="dark"] .voice-recorder-toggle svg {
   color: var(--klee);
 } 

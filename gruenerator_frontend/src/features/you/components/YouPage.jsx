@@ -1,22 +1,16 @@
 import React, { useState, useRef, useEffect, useContext } from 'react';
-import { FaArrowUp, FaMicrophone, FaStop } from 'react-icons/fa';
+import { FaArrowUp, FaMicrophone, FaStop, FaPaperPlane } from 'react-icons/fa';
 import PropTypes from 'prop-types';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import useVoiceRecorder from '../../voice/hooks/useVoiceRecorder';
 import useYouProcessor from '../hooks/useYouProcessor';
 import useEditorLayout from '../hooks/useEditorLayout';
 import Spinner from '../../../components/common/Spinner';
-import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 // Nur die Hauptdatei importieren, die dann die anderen CSS-Dateien importiert
-import '../styles/YouPage.css';
-import '../../../assets/styles/components/spinner.css';
-import '../../../assets/styles/common/global.css';
 // Import der DisplaySection-Komponente
 import DisplaySection from '../../../components/common/Form/BaseForm/DisplaySection';
 // Import des FormContext
 import { FormContext } from '../../../components/utils/FormContext';
-// Import des Loggers
-import logger from '../../../utils/logger';
 
 // Beispiele für Prompts mit kurzen Titeln und vollständigen Prompts
 const EXAMPLES = [
@@ -81,11 +75,7 @@ const RecordingOverlay = ({ isRecording, stopRecording }) => (
   <div className={`recording-fullscreen-overlay ${isRecording ? 'active' : ''}`}>
     <div className="recording-animation-container">
       <div className="recording-lottie">
-        <DotLottieReact
-          src="https://lottie.host/98c6e050-b8d2-47a6-80cf-a3aeea335afb/Yy69gKzW3d.lottie"
-          loop
-          autoplay
-        />
+        {/* Lottie Animation Removed */}
       </div>
     </div>
     
@@ -163,18 +153,7 @@ const YouPage = () => {
 
   // Log für das result
   useEffect(() => {
-    logger.group('YouPage', 'Result Update', () => {
-      logger.debug('YouPage', 'Result Typ', typeof result);
-      logger.debug('YouPage', 'Result vorhanden', !!result);
-      logger.debug('YouPage', 'Result Länge', typeof result === 'string' ? result?.length || 0 : 'nicht-string');
-      logger.debug('YouPage', 'SocialMediaContent vor Update Länge', socialMediaContent?.length || 0);
-    });
-    
-    // Wenn ein Ergebnis vorliegt, setze es in den State und den FormContext
     if (result) {
-      logger.info('YouPage', 'Setze result in socialMediaContent und FormContext', {
-        resultLength: typeof result === 'string' ? result.length : 'nicht-string'
-      });
       setSocialMediaContent(result);
       setGeneratedContent(result);
       updateValue(result);
@@ -198,6 +177,9 @@ const YouPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!prompt.trim() || isProcessing) return;
+    
+    // Reset errors before starting new request
+    resetProcessor();
     
     // Verarbeite den Prompt mit dem Hook
     const content = await processPrompt(prompt);
@@ -223,6 +205,8 @@ const YouPage = () => {
 
   // Funktion zum Umschalten zwischen Mikrofon und Submit-Button
   const renderSubmitOrMicButton = () => {
+    // Voice functionality temporarily disabled
+    /*
     // Wenn wir aufnehmen, zeige den Stop-Button
     if (isRecording) {
       return (
@@ -236,6 +220,7 @@ const YouPage = () => {
         </button>
       );
     }
+    */
     
     // Wenn wir verarbeiten (Sprache oder Text), zeige den Spinner
     if (isVoiceProcessing || isProcessing) {
@@ -246,7 +231,7 @@ const YouPage = () => {
           disabled={true}
           aria-label="Verarbeitung läuft"
         >
-          <Spinner size="small" white withBackground />
+          <Spinner size="small" white />
         </button>
       );
     }
@@ -260,11 +245,24 @@ const YouPage = () => {
           disabled={isProcessing || isVoiceProcessing}
           aria-label="Absenden"
         >
-          <FaArrowUp />
+          <FaPaperPlane />
         </button>
       );
     }
     
+    // Standardfall: Zeige den Submit-Button (statt Mikrofon)
+    return (
+      <button
+        type="submit"
+        className="you-submit-button"
+        disabled={isProcessing || isVoiceProcessing || !prompt.trim()}
+        aria-label="Absenden"
+      >
+        <FaPaperPlane />
+      </button>
+    );
+    
+    /*
     // Standardfall: Zeige den Mikrofon-Button
     return (
       <button
@@ -277,6 +275,7 @@ const YouPage = () => {
         <FaMicrophone />
       </button>
     );
+    */
   };
 
   const handleReset = () => {
@@ -298,12 +297,6 @@ const YouPage = () => {
 
   // Funktion zum Abrufen des exportierbaren Inhalts
   const getExportableContent = (content, value) => {
-    logger.debug('YouPage', 'getExportableContent aufgerufen', { 
-      contentType: typeof content,
-      contentLength: typeof content === 'string' ? content?.length || 0 : 'nicht-string',
-      valueLength: value?.length || 0
-    });
-    
     // Wenn content ein String ist, direkt zurückgeben
     if (content && typeof content === 'string') {
       return content;

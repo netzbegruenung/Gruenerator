@@ -1,8 +1,15 @@
 const express = require('express');
 const multer = require('multer');
+const { Anthropic } = require('@anthropic-ai/sdk');
+const { MARKDOWN_CHAT_INSTRUCTIONS } = require('../utils/promptUtils');
 const router = express.Router();
 
-// Multer Konfiguration für PDF-Upload
+// Anthropic client for Files API
+const anthropic = new Anthropic({
+  apiKey: process.env.CLAUDE_API_KEY
+});
+
+// Multer configuration for PDF upload
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
@@ -15,8 +22,18 @@ router.post('/upload-pdf', upload.single('file'), async (req, res) => {
 
   try {
     const fileBuffer = req.file.buffer;
-    const base64PDF = fileBuffer.toString('base64');
+    const fileName = req.file.originalname || 'document.pdf';
 
+    // Upload file to Claude Files API
+    const fileUpload = await anthropic.beta.files.upload({
+      file: fileBuffer,
+      name: fileName,
+      type: 'application/pdf'
+    });
+
+    console.log('[Antragsversteher] File uploaded to Claude Files API:', fileUpload.id);
+
+    // Process with AI Worker Pool using file_id
     const result = await req.app.locals.aiWorkerPool.processRequest({
       type: 'antragsversteher',
       systemPrompt: 'Sie sind ein hilfreicher kommunalpolitischer Berater von Bündnis 90/Die Grünen.',
@@ -26,9 +43,8 @@ router.post('/upload-pdf', upload.single('file'), async (req, res) => {
           {
             type: 'document',
             source: {
-              type: 'base64',
-              media_type: 'application/pdf',
-              data: base64PDF
+              type: 'file',
+              file_id: fileUpload.id
             }
           },
           {
@@ -38,17 +54,23 @@ router.post('/upload-pdf', upload.single('file'), async (req, res) => {
                   2. Positive Aspekte aus Sicht der Partei.
                   3. Negative und kritische Aspekte aus Sicht der Partei.
                   4. Mögliche Rückfragen für die kommende Sitzung, falls notwendig.
-                  Stellen Sie sicher, dass die Antwort objektiv, sachlich und präzise ist.`
+                  Stellen Sie sicher, dass die Antwort objektiv, sachlich und präzise ist.
+
+                  ${MARKDOWN_CHAT_INSTRUCTIONS}`
           }
         ]
       }],
       options: {
-        model: 'claude-3-5-sonnet-20240620',
+        model: 'claude-3-5-sonnet-20241022',
         max_tokens: 2048,
-        temperature: 0.3,
-        betas: ["pdfs-2024-09-25"]  // Wichtig für PDF-Verarbeitung
+        temperature: 0.3
       },
-      useBackupProvider
+      useBackupProvider,
+      fileMetadata: {
+        fileId: fileUpload.id,
+        fileName: fileName,
+        usePromptCaching: true
+      }
     });
 
     if (!result.success) {
@@ -57,7 +79,8 @@ router.post('/upload-pdf', upload.single('file'), async (req, res) => {
 
     res.json({ 
       success: true,
-      summary: result.content 
+      summary: result.content,
+      fileId: fileUpload.id
     });
 
   } catch (error) {

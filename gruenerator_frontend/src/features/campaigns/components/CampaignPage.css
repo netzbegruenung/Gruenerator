@@ -1,0 +1,89 @@
+.campaign-page {
+  width: 100%;
+  background-color: var(--background-color);
+  color: var(--font-color);
+  min-height: calc(100vh - 100px);
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+  box-sizing: border-box;
+}
+
+.campaign-header {
+  margin-bottom: 2.5rem;
+  text-align: center;
+  position: relative;
+  padding-bottom: 1.5rem;
+}
+
+.campaign-header::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 3px;
+  background: linear-gradient(90deg, var(--klee), var(--grashalm));
+  border-radius: 3px;
+}
+
+.campaign-header h1 {
+  color: var(--font-color-h);
+  font-size: 2.2rem;
+  margin-bottom: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+  position: relative;
+  display: inline-block;
+}
+
+.campaign-header h1::before,
+.campaign-header h1::after {
+  content: '';
+  position: absolute;
+  width: 30px;
+  height: 2px;
+  background-color: var(--klee);
+  opacity: 0.2;
+  top: 50%;
+}
+
+.campaign-header h1::before {
+  left: -40px;
+}
+
+.campaign-header h1::after {
+  right: -40px;
+}
+
+.campaign-description {
+  font-size: 1rem;
+  max-width: 700px;
+  margin: 0 auto;
+  line-height: 1.6;
+  color: var(--font-color);
+}
+
+.campaign-container {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+@media (max-width: 768px) {
+  .campaign-header {
+    margin-bottom: 2rem;
+  }
+  
+  .campaign-header h1 {
+    font-size: 1.8rem;
+  }
+  
+  .campaign-header h1::before,
+  .campaign-header h1::after {
+    display: none;
+  }
+  
+  .campaign-description {
+    font-size: 0.9rem;
+  }
+} 

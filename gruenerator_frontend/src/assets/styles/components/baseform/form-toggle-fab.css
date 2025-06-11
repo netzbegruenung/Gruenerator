@@ -1,0 +1,24 @@
+/* Form Toggle Floating Action Button */
+.form-toggle-fab {
+  position: fixed;
+  bottom: var(--spacing-large);
+  left: var(--spacing-large);
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background-color: var(--tanne);
+  color: var(--weiß);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-lg);
+  cursor: pointer;
+  z-index: 1000;
+  transition: background-color 0.25s ease-out;
+}
+
+.form-toggle-fab:focus {
+  outline: 2px solid var(--interactive-accent-color);
+  outline-offset: 2px;
+} 

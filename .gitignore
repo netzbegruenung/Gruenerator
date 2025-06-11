@@ -17,6 +17,12 @@ build
 .env.test.local
 .env.production.local
 .cursorrules
+CLAUDE.md
+.editorconfig
+mcp.json
+
+# UUID files (auto-generated)
+*.uuid
 
 # Logs
 npm-debug.log*
@@ -49,3 +55,18 @@ gruenerator_backend/uploads/exports/*
 gruenerator_backend/uploads/*.zip
 gruenerator_backend/uploads/*.png
 gruenerator_backend/uploads/*.zip:Zone.Identifier
+
+# Temporarily ignore admin feature
+# gruenerator_frontend/src/features/admin/
+
+#claudecode & cursor files
+CLAUDE.md
+.cursor
+
+#scripts
+scripts
+
+docs
+
+bfg-1.14.0.jar
+

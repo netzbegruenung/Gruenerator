@@ -1,0 +1,30 @@
+.generator-header {
+  width: 100%; 
+  max-width: var(--container-max-width, 1200px); 
+  box-sizing: border-box; 
+  margin-bottom: var(--spacing-large, 24px); 
+  padding: var(--spacing-medium, 16px); 
+  border-radius: var(--border-radius-medium, 6px); 
+  border: 1px solid var(--border-subtle);
+}
+
+.generator-header .generator-title {
+  color: var(--font-color-h); 
+  margin-bottom: var(--spacing-small, 12px); 
+  font-size: 1.8rem; 
+  font-weight: 600;
+}
+
+.generator-header .generator-description {
+  color: var(--font-color); 
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.custom-generator-page-container {
+  display: flex; 
+  flex-direction: column; 
+  align-items: center; 
+  
+  justify-content: flex-start; 
+} 

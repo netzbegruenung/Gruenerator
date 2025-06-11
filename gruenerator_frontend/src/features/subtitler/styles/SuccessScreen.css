@@ -5,7 +5,7 @@
   justify-content: center;
   align-items: center;
   min-height: 400px;
-  padding: 2rem;
+  padding: 1rem;
 }
 
 .success-content {
@@ -18,6 +18,10 @@
   max-width: 1200px;
   width: 100%;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.success-buttons {
+  gap: 1rem;
 }
 
 .success-icon {
@@ -73,12 +77,17 @@
 
 .success-content h2 {
   margin-bottom: 1rem;
-  color: var(--text-color);
 }
 
 .success-content p {
   margin-bottom: 2rem;
-  color: var(--text-color-secondary);
+}
+
+@media (max-width: 768px) {
+  .success-content p {
+    font-size: 1.2rem;
+    margin-bottom: 1.5rem;
+  }
 }
 
 .success-buttons {
@@ -131,7 +140,7 @@
   }
 }
 
-/* Responsive Design */
+
 @media (min-width: 1024px) {
   .success-content {
     flex-direction: row;
@@ -163,16 +172,18 @@
 @media (max-width: 1023px) {
   .success-content {
     padding: 2rem;
-    margin: 1rem;
+    margin: 0rem;
   }
   
   .success-buttons {
+    gap: 0.5rem;
     flex-direction: column;
     align-items: center;
   }
 
   .success-buttons .btn-primary {
     width: 100%;
+    margin-bottom: 20px;
   }
 }
 
@@ -196,16 +207,28 @@
 }
 
 .social-text-result h3 {
-  color: var(--text-color);
-  margin-bottom: 1rem;
+  margin-bottom: 1rem !important;
   font-size: 1.1rem;
 }
 
 .social-text-result p {
-  color: var(--text-color);
   line-height: 1.5;
   white-space: pre-wrap;
   margin-bottom: 1rem;
+}
+
+@media (max-width: 768px) {
+  .social-text-result {
+    background-color: transparent;
+    padding: 1.5rem 0 0 0;
+    border-radius: 0;
+  }
+
+  .social-text-result p {
+    font-size: 0.9rem;
+    line-height: 1.4;
+    margin-bottom: 0.8rem;
+  }
 }
 
 .copy-button {
@@ -221,10 +244,65 @@
   transition: all 0.2s ease;
 }
 
+@media (max-width: 768px) {
+  .success-screen .copy-button {
+    font-size: 0.6rem;
+  }
+}
+
 .copy-button:hover {
   background-color: var(--klee-light);
 }
 
+[data-theme="dark"] .success-screen .copy-button {
+  border-color: var(--sand);
+  color: var(--sand);
+}
+
+[data-theme="dark"] .success-screen .copy-button:hover {
+  background-color: rgba(245, 241, 233, 0.1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .success-screen .copy-button {
+    border-color: var(--sand);
+    color: var(--sand);
+  }
+
+  :root:not([data-theme="light"]) .success-screen .copy-button:hover {
+    background-color: rgba(245, 241, 233, 0.1);
+  }
+}
+
 .copy-button:active {
   transform: scale(0.98);
+}
+
+.progress-container {
+  margin: 20px 0;
+  width: 100%;
+  max-width: 300px;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background-color: var(--grau-hell, #f0f0f0);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--klee, #4CAF50), var(--gruen, #2E7D32));
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  font-size: 14px;
+  color: var(--grau-dunkel, #666);
+  text-align: center;
+  display: block;
 } 

@@ -1,8 +1,12 @@
 const express = require('express');
 const router = express.Router();
+const { HTML_FORMATTING_INSTRUCTIONS } = require('../utils/promptUtils');
 
 router.post('/', async (req, res) => {
   const { rolle, thema, Zielgruppe, schwerpunkte, redezeit, useBackupProvider, customPrompt } = req.body;
+
+  // Aktuelles Datum ermitteln
+  const currentDate = new Date().toISOString().split('T')[0];
 
   try {
     // Systemanweisung für die Redenerstellung
@@ -10,6 +14,8 @@ router.post('/', async (req, res) => {
 
 Geben Sie vor der rede an: 1. 2-3 Unterschiedliche Ideen für den Einstieg, dann 2-3 Kernargumente, dann 2-3 gute Ideen für ein Ende. Gib dem Redner 2-3 Tipps, worauf er bei dieser rede und diesem thema achten muss, um zu überzeugen.
 Schreibe anschließend eine Rede.
+
+${HTML_FORMATTING_INSTRUCTIONS}
 
 Befolgen Sie diese Richtlinien, um die Rede zu verfassen:
 
@@ -38,6 +44,8 @@ Befolgen Sie diese Richtlinien, um die Rede zu verfassen:
       // Bei benutzerdefiniertem Prompt diesen verwenden, aber mit Redeinformationen ergänzen
       userContent = `Benutzerdefinierter Prompt: ${customPrompt}
 
+Aktuelles Datum: ${currentDate}
+
 Zusätzliche Informationen zur Rede:
 - Rolle/Position des Redners: ${rolle || 'Nicht angegeben'}
 - Spezifisches Thema oder Anlass der Rede: ${thema || 'Nicht angegeben'}
@@ -50,11 +58,11 @@ Zusätzliche Informationen zur Rede:
 Spezifisches Thema oder Anlass der Rede: ${thema}
 Zielgruppe: ${Zielgruppe}
 Besondere Schwerpunkte oder lokale Aspekte: ${schwerpunkte}
-Gewünschte Redezeit (in Minuten): ${redezeit}`;
+Gewünschte Redezeit (in Minuten): ${redezeit}
+Aktuelles Datum: ${currentDate}`;
     }
 
-    const result = await req.app.locals.aiWorkerPool.processRequest({
-      type: 'rede',
+    const payload = {
       systemPrompt,
       messages: [{
         role: "user",
@@ -64,11 +72,15 @@ Gewünschte Redezeit (in Minuten): ${redezeit}`;
         }]
       }],
       options: {
-        model: "claude-3-5-sonnet-20240620",
         max_tokens: 4000,
         temperature: 0.3
       },
       useBackupProvider
+    };
+    
+    const result = await req.app.locals.aiWorkerPool.processRequest({
+      type: 'rede',
+      ...payload
     });
 
     if (!result.success) throw new Error(result.error);

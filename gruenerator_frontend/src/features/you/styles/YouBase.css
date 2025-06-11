@@ -1,4 +1,4 @@
-/* YouBase.css - Grundlegendes Layout und Container */
+
 
 :root {
   --editor-top-offset: 0px;
@@ -14,14 +14,14 @@
   transition: background-color 0.3s ease;
 }
 
-/* Anpassungen für den Bearbeitungsmodus */
+
 .you-page-container.base-container.editing-mode {
   max-width: 100%;
   justify-content: center;
   align-items: flex-start;
   padding: 20px;
   gap: 0;
-  margin-top: 80px; /* Abstand nach oben für Desktop-Modus */
+  margin-top: 80px; 
 }
 
 .you-content-wrapper {
@@ -29,31 +29,31 @@
   flex-direction: column;
   align-items: center;
   width: 100%;
-  max-width: 900px; /* Breiter für Word-ähnliches Layout */
+  max-width: 900px; 
   margin: 0 auto;
   transition: margin 0.3s ease;
 }
 
-/* Entfernen der empty-state Klasse, da wir jetzt ein festes Layout haben */
+
 .you-content-wrapper.empty-state {
-  margin-top: 20vh; /* Nur den oberen Abstand anpassen */
+  margin-top: 20vh; 
 }
 
-/* Im Bearbeitungsmodus den Abstand entfernen */
+
 .base-container.editing-mode .you-content-wrapper {
   margin-top: 0;
 }
 
-/* Neuer Container für den Input-Bereich */
+
 .you-input-section {
   width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-bottom: 30px; /* Abstand zum Ergebnisbereich */
+  margin-bottom: 30px; 
 }
 
-/* Neuer Container für den Ergebnisbereich */
+
 .you-result-section {
   width: 100%;
   display: flex;
@@ -61,19 +61,19 @@
   align-items: center;
 }
 
-/* Anpassungen für den Bearbeitungsmodus */
+
 .you-result-section.display-container {
   flex: 1;
   max-width: 816px;
   width: 816px;
   margin: 0 auto;
-  min-height: calc(100vh - 120px); /* Angepasst für den Header-Abstand */
+  min-height: calc(100vh - 120px); 
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
   padding: 0;
   position: relative;
 }
 
-/* Editor-Container für die Bearbeitung */
+
 .editor-container {
   width: 100%;
   margin-top: 20px;
@@ -83,7 +83,7 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-/* Anpassungen für den Editor innerhalb der YouPage */
+
 .editor-container .text-editor {
   background-color: var(--background-color-alt);
   border-radius: 8px;
@@ -138,7 +138,7 @@
   color: var(--font-color);
 }
 
-/* Dark Mode Anpassungen */
+
 [data-theme="dark"] .you-page-container {
   background-color: var(--background-color);
 }
@@ -147,7 +147,7 @@
   color: var(--sand);
 }
 
-/* Dark Mode Anpassungen für den Editor */
+
 [data-theme="dark"] .editor-container .ql-toolbar {
   background-color: var(--background-color-alt);
   border-color: var(--hover-color);
@@ -159,7 +159,7 @@
   color: var(--font-color);
 }
 
-/* Mobile Anpassungen */
+
 @media (max-width: 768px) {
   .you-page-container.base-container.editing-mode {
     position: fixed;
@@ -168,12 +168,12 @@
     width: 100vw;
     height: 100vh;
     padding: 0;
-    margin: 0; /* Kein Abstand im mobilen Modus */
+    margin: 0; 
     z-index: 1000;
     background-color: var(--background-color);
   }
 
-  /* Anpassung für den Editor-Container */
+  
   .base-container.editing-mode .you-content-wrapper {
     padding-top: var(--editor-top-offset);
     box-sizing: border-box;
@@ -185,6 +185,6 @@
     width: 100%;
     max-width: 100%;
     height: calc(100vh - var(--editor-top-offset));
-    overflow-y: auto; /* Ermöglicht Scrollen im Container */
+    overflow-y: auto; 
   }
 } 

@@ -1,5 +1,5 @@
 :root {
-    /* Basisfarben */
+    
     --tanne: #005538;
     --klee: #008939;
     --grashalm: #8ABD24;
@@ -8,14 +8,17 @@
     --sonne: #FFF17A;
     --weiß: #ffffff;
     --dunkelgruen: #005437;
-    --dunkelgruen-alt: #004d40; /* Eine dunklere Variante von dunkelgrün */
+    --dunkelgruen-alt: #004d40; 
+    --error-red: #D32F2F;
 
     --backgroundgruen: #f3faf6;
+    --backgroundgruen-dark: #e0f6e7;
     --dunkelgrau: #333;
     --anthrazit: #222;
 
-    /* Light Mode (Standard) */
+    
     --background-color: white;
+    --background-color-pure: white;
     --background-color-alt: var(--backgroundgruen);
     --background-color-sand: var(--sand);
     --hover-color-alt: #e5f1eb;
@@ -28,47 +31,190 @@
     --button-color-hover: var(--sand);
     --button-text-color: black;
     --button-hover-color: #e5f1eb;
+    
+    
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+    --shadow-lg: 0 6px 16px rgba(0, 0, 0, 0.12);
+    --shadow-xl: 0 8px 24px rgba(0, 0, 0, 0.15);
+    --border-subtle: 1px solid rgba(0, 0, 0, 0.1);
+    
+    --spacing-xxsmall: 4px;
+    --spacing-xsmall: 8px;
+    --spacing-small: 12px;
+    --spacing-medium: 16px;
+    --spacing-large: 24px;
+    --spacing-xlarge: 32px;
+    --spacing-xxlarge: 48px;
+
+    
+    --interactive-accent-color: var(--tanne);
+    --font-color-disabled: #a0a0a0;
+    --border-color-disabled: #dcdcdc;
+
+    /* Scrollbar variables */
+    --scrollbar-track-color: var(--background-color-alt);
+    --scrollbar-thumb-color: var(--dunkelgrau);
+    --scrollbar-thumb-hover-color: var(--anthrazit);
+
+    /* Custom Chat variables */
+    --chat-background-light: var(--backgroundgruen);
+    --ai-message-background-light: var(--weiß);
+    --ai-message-text-color-light: var(--dunkelgrau);
+    --assistant-icon-background-light: var(--weiß);
+    --assistant-icon-color-light: var(--dunkelgrau);
+    --chat-message-user-name-color-light: var(--grau);
+    --chat-input-background-light: var(--weiß); 
+    --chat-input-text-color-light: var(--font-color);
+    --chat-input-border-color-light: var(--background-color-alt);
+
+
+    --chat-background: var(--chat-background-light);
+    --ai-message-background: var(--ai-message-background-light);
+    --ai-message-text-color: var(--ai-message-text-color-light);
+    --assistant-icon-background: var(--assistant-icon-background-light);
+    --assistant-icon-color: var(--assistant-icon-color-light);
+    --chat-message-user-name-color: var(--chat-message-user-name-color-light);
+    --chat-input-background: var(--chat-input-background-light);
+    --chat-input-text-color: var(--chat-input-text-color-light);
+    --chat-input-border-color: var(--chat-input-border-color-light);
+
+    /* Card Styles */
+    --card-border-radius-small: 8px;
+    --card-border-radius-medium: 12px;
+    --card-border-radius-large: 16px;
+    --card-shadow-none: none;
+    --card-shadow-subtle: var(--shadow-sm);
+    --card-shadow-elevated: var(--shadow-md);
+    --card-shadow-floating: var(--shadow-lg);
+    --card-shadow-dramatic: var(--shadow-xl);
+    --card-background: var(--background-color);
+    --card-background-alt: var(--background-color-alt);
+    --card-border: var(--border-subtle);
+    --card-hover-shadow: var(--shadow-xl);
+    --card-hover-transform: translateY(-2px);
+
+    /* Form Input Styles */
+    --input-background: var(--backgroundgruen-dark);
+    --input-border: var(--border-subtle);
+    --input-border-focus: 2px solid var(--interactive-accent-color);
+    --input-border-error: 2px solid var(--error-red);
+    --input-text-color: var(--font-color);
+    --input-placeholder-color: var(--font-color-disabled);
+    --input-shadow-focus: 0 0 0 3px rgba(0, 85, 56, 0.1);
+    --input-transition: all 0.25s ease-out;
+
+    /* Form Element Dimensions */
+    --form-element-font-size: 12px;
+    --form-element-line-height: 1.5;
+    --form-element-padding-y: var(--spacing-small);
+    --form-element-padding-x: var(--spacing-small);
+    --form-element-min-height: 44px;
 }
 
-/* Dark Mode */
+
 [data-theme="dark"] {
     --background-color: #222;
+    --background-color-pure: #232323;
     --background-color-alt: #343434;
     --background-color-sand: #343434;
     --hover-color-alt: #3d3d3d;
     --font-color: var(--sand);
     --font-color-h: var(--sand);
     --font-color-h3: var(--sand);
-    --link-color: var(--tanne);
+    --link-color: var(--sand);
     --button-background-color: var(--tanne);
     --button-color: var(--sand);
     --button-color-hover: var(--klee);
     --button-text-color: white;
     --button-hover-color: #3d3d3d;
+    
+    
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 6px 16px rgba(0, 0, 0, 0.5);
+    --shadow-xl: 0 8px 24px rgba(0, 0, 0, 0.6);
+    --border-subtle: 1px solid rgba(255, 255, 255, 0.1);
+
+    
+    --interactive-accent-color: var(--weiß);
+    --font-color-disabled: #777777;
+    --border-color-disabled: #555555;
+
+    /* Scrollbar variables for dark theme */
+    --scrollbar-track-color: var(--background-color-alt); /* Uses dark theme's --background-color-alt */
+    --scrollbar-thumb-color: var(--sand); /* Uses root --sand, which is light */
+    --scrollbar-thumb-hover-color: var(--weiß); /* Uses root --weiß */
+
+    /* Custom Chat variables for dark theme - keep as is */
+    --chat-background: var(--background-color); /* Default dark background */
+    --ai-message-background: var(--background-color-alt); /* Default dark alt background for assistant messages */
+    --ai-message-text-color: var(--font-color); /* Default dark font color for assistant messages */
+    --assistant-icon-background: var(--background-color-alt);
+    --assistant-icon-color: var(--font-color);
+    --chat-message-user-name-color: var(--grau); /* Assuming grau is fine for dark mode too, or define a specific dark var */
+    --chat-input-background: var(--background-color);
+    --chat-input-text-color: var(--font-color);
+    --chat-input-border-color: var(--background-color-alt);
+
+    /* Form Input Styles for dark theme */
+    --input-background: var(--background-color-alt);
 }
 
-/* Automatischer Dark Mode basierend auf Systemeinstellungen */
+
 @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
         --background-color: #222;
+        --background-color-pure: #232323;
         --background-color-alt: #343434;
         --background-color-sand: var(--dunkelgruen);
         --hover-color-alt: #3d3d3d;
         --font-color: var(--sand);
         --font-color-h: var(--sand);
         --font-color-h3: var(--sand);
-        --link-color: lightblue;
+        --link-color: var(--sand);
         --button-background-color: var(--tanne);
         --button-color: var(--sand);
         --button-color-hover: var(--klee);
         --button-text-color: white;
         --button-hover-color: #3d3d3d;
+        
+        
+        --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+        --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+        --shadow-lg: 0 6px 16px rgba(0, 0, 0, 0.5);
+        --shadow-xl: 0 8px 24px rgba(0, 0, 0, 0.6);
+        --border-subtle: 1px solid rgba(255, 255, 255, 0.1);
+
+        
+        --interactive-accent-color: var(--weiß);
+        --font-color-disabled: #777777;
+        --border-color-disabled: #555555;
+
+        /* Scrollbar variables for prefers-color-scheme: dark */
+        --scrollbar-track-color: var(--background-color-alt); /* Uses dark theme's --background-color-alt */
+        --scrollbar-thumb-color: var(--sand); /* Uses root --sand, which is light */
+        --scrollbar-thumb-hover-color: var(--weiß); /* Uses root --weiß */
+
+        /* Custom Chat variables for prefers-color-scheme: dark - keep as is */
+        --chat-background: var(--background-color); /* Default dark background */
+        --ai-message-background: var(--background-color-alt); /* Default dark alt background for assistant messages */
+        --ai-message-text-color: var(--font-color); /* Default dark font color for assistant messages */
+        --assistant-icon-background: var(--background-color-alt);
+        --assistant-icon-color: var(--font-color);
+        --chat-message-user-name-color: var(--grau);
+        --chat-input-background: var(--background-color);
+        --chat-input-text-color: var(--font-color);
+        --chat-input-border-color: var(--background-color-alt);
+
+        /* Form Input Styles for prefers-color-scheme: dark */
+        --input-background: var(--background-color-alt);
     }
 }
 
 body {
     background-color: var(--background-color);
-    color: var(--text-color);
+    color: var(--font-color);
     transition: background-color 0.5s, color 0.5s;
 }
 
@@ -92,18 +238,10 @@ button {
     margin-bottom: 20px;
 }
 
-.with-header {
-    margin-top: 80px; 
-}
-
 @media (max-width: 768px) {
     .container {
         flex-direction: column;
-        margin-top: 0; /* Entfernt den oberen Abstand in der mobilen Ansicht */
+        margin-top: 0; 
         margin-bottom: 0px;
-    }
-
-    .container.with-header {
-        margin-top: 80px; /* Fügt den oberen Abstand nur hinzu, wenn der Header vorhanden ist */
     }
 }
