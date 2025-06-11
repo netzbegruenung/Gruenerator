@@ -9,8 +9,7 @@ import SuspenseWrapper from './components/common/SuspenseWrapper';
 import RouteComponent from './components/routing/RouteComponent';
 import { routes } from './config/routes';
 import { AuthProvider } from './components/utils/AuthContext';
-import SupabaseAuthProvider from './context/SupabaseAuthContext';
-import { BetaFeaturesProvider } from './context/BetaFeaturesContext';
+
 import CustomGeneratorPage from './features/generators/CustomGeneratorPage';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
@@ -22,10 +21,23 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 5 * 60 * 1000, // 5 Minuten Cache
-      refetchOnWindowFocus: false, // Optional: Neu laden bei Fensterfokus deaktivieren
+      gcTime: 15 * 60 * 1000, // Keep data in cache for 15 minutes (was cacheTime)
+      refetchOnWindowFocus: false, // Verhindert unnötige Neuladungen
+      refetchOnReconnect: 'always', // Nur bei Reconnect neu laden
+      retry: (failureCount, error) => {
+        // Smart retry logic
+        if (error?.status === 404 || error?.status === 401) return false;
+        return failureCount < 2; // Max 2 retries
+      },
+      retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
     },
   },
 });
+
+// Make queryClient globally available for cache invalidation
+if (typeof window !== 'undefined') {
+  window.queryClient = queryClient;
+}
 
 // Debug-Komponente für Route-Logging
 const RouteLogger = () => {
@@ -76,8 +88,6 @@ function App() {
     <ErrorBoundary>
       <AuthProvider>
         <QueryClientProvider client={queryClient}>
-          <SupabaseAuthProvider>
-            <BetaFeaturesProvider>
               <Router>
                 <ScrollToTop />
                 <RouteLogger />
@@ -140,8 +150,6 @@ function App() {
                   </Routes>
                 </SuspenseWrapper>
               </Router>
-            </BetaFeaturesProvider>
-          </SupabaseAuthProvider>
           <ReactQueryDevtools initialIsOpen={false} />
         </QueryClientProvider>
       </AuthProvider>

@@ -129,6 +129,7 @@ const BaseForm = ({
             onChange={handleChange}
             placeholder="Maxi Mustermensch"
             required
+            className={`form-input ${formErrors.name ? 'error-input' : ''}`}
           />
           {formErrors.name && <span className="error-message">{formErrors.name}</span>}
         </div>
@@ -362,7 +363,7 @@ const BaseForm = ({
 
   return (
     <div className={`sharepic-base-container ${generatedContent ? 'with-content' : ''} ${currentStep === FORM_STEPS.RESULT ? 'result-step' : ''}`}>
-      <div className="form-container">
+      <div className="form-container form-card form-card--elevated form-card--large">
         <form onSubmit={(e) => {
           e.preventDefault();
           onSubmit();

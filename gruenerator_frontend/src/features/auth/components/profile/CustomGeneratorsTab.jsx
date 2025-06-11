@@ -2,18 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Spinner from '../../../../components/common/Spinner';
-import ProfileTabSkeleton from '../../../../components/common/UI/ProfileTabSkeleton';
 import { motion } from "motion/react";
 import { handleError } from '../../../../components/utils/errorHandling';
 import { HiInformationCircle, HiPlus, HiTrash, HiArrowRight } from 'react-icons/hi';
+import { useProfileResourceManager } from '../../utils/profileUtils';
 import apiClient from '../../../../components/utils/apiClient';
 
-const CustomGeneratorsTab = ({ user, templatesSupabase, onSuccessMessage, onErrorMessage, isActive }) => {
+const CustomGeneratorsTab = ({ user, onSuccessMessage, onErrorMessage, isActive }) => {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [selectedGeneratorId, setSelectedGeneratorId] = useState(null);
   const [view, setView] = useState('overview');
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  
+  const { templatesSupabase } = useProfileResourceManager();
 
   const fetchGenerators = async () => {
     if (!user || !templatesSupabase) {
@@ -137,12 +139,6 @@ const CustomGeneratorsTab = ({ user, templatesSupabase, onSuccessMessage, onErro
   );
 
   const renderContentPanel = () => {
-    if (loading && generators.length === 0) {
-      return (
-        <ProfileTabSkeleton type="default" itemCount={4} />
-      );
-    }
-    
     if (fetchError && generators.length === 0) {
       return (
         <div className="group-overview-container">
@@ -189,7 +185,7 @@ const CustomGeneratorsTab = ({ user, templatesSupabase, onSuccessMessage, onErro
                     oder klicke auf "Neu", um einen weiteren Grünerator nach deinen Vorstellungen zu konfigurieren.
                   </p>
                 </section>
-                {generators.length === 0 && !loading && (
+                {generators.length === 0 && (
                   <section className="group-overview-section">
                     <p>Du hast noch keine eigenen Grüneratoren erstellt. Klicke auf "Neu", um deinen ersten Grünerator zu erstellen!</p>
                   </section>
@@ -318,14 +314,19 @@ const CustomGeneratorsTab = ({ user, templatesSupabase, onSuccessMessage, onErro
   };
 
   return (
-    <div className="profile-content groups-management-layout">
+    <motion.div 
+      className="profile-content groups-management-layout"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.3 }}
+    >
       <div className="groups-navigation-panel">
         {renderNavigationPanel()}
       </div>
       <div className="groups-content-panel profile-form-section">
         {renderContentPanel()}
       </div>
-    </div>
+    </motion.div>
   );
 };
 

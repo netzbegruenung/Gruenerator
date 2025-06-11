@@ -1,7 +1,5 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import Editor from '../../editor/Editor';
-import HelpDisplay from '../../HelpDisplay';
 import { isReactElement } from '../utils/contentUtils';
 
 /**
@@ -10,23 +8,22 @@ import { isReactElement } from '../utils/contentUtils';
  * @param {string} props.value - Aktueller Wert
  * @param {any} props.generatedContent - Generierter Inhalt
  * @param {boolean} props.isEditing - Bearbeitungsmodus aktiv
- * @param {Object} props.helpContent - Hilfe-Inhalt
+ * @param {boolean} props.usePlatformContainers - Plattform-Container verwenden
+ * @param {Object} props.helpContent - Hilfe-Inhalt (nicht mehr verwendet)
  * @returns {JSX.Element} Gerenderte Inhalte
  */
 const ContentRenderer = ({
   value,
   generatedContent,
   isEditing,
+  usePlatformContainers,
   helpContent
 }) => {
-  // Wenn kein Content vorhanden ist, zeige den HelpDisplay
-  if (!value && !generatedContent) {
-    return helpContent ? (
-      <HelpDisplay
-        content={helpContent.content}
-        tips={helpContent.tips}
-      />
-    ) : null;
+  const contentToRender = value || generatedContent || '';
+  
+  // Wenn kein Content vorhanden ist, zeige nichts an (HelpDisplay wird in DisplaySection gehandhabt)
+  if (!contentToRender) {
+    return null;
   }
 
   // Wenn generatedContent ein React-Element ist, direkt anzeigen
@@ -34,10 +31,14 @@ const ContentRenderer = ({
     return generatedContent;
   }
 
-  // Standard Editor anzeigen (read-only wenn nicht im Bearbeitungsmodus)
+  // Einfache HTML-Darstellung
   return (
     <div className="generated-content-wrapper">
-      <Editor value={value || ''} />
+      <div 
+        className="content-display" 
+        style={{ whiteSpace: 'pre-wrap' }}
+        dangerouslySetInnerHTML={{ __html: contentToRender }}
+      />
     </div>
   );
 };
@@ -50,6 +51,7 @@ ContentRenderer.propTypes = {
     PropTypes.element
   ]),
   isEditing: PropTypes.bool.isRequired,
+  usePlatformContainers: PropTypes.bool,
   helpContent: PropTypes.shape({
     content: PropTypes.string,
     tips: PropTypes.arrayOf(PropTypes.string)

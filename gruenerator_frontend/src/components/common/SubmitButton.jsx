@@ -45,11 +45,11 @@ const SubmitButton = ({
   }, [success, internalSuccess]);
 
   const handleClick = (event) => {
-    if (!loading && !internalSuccess && onClick) {
+    if (!loading && onClick) {
       console.log('Button wurde geklickt, führe onClick aus');
       onClick(event);
     } else {
-      console.log('Button-Klick ignoriert. Loading:', loading, 'internalSuccess:', internalSuccess);
+      console.log('Button-Klick ignoriert. Loading:', loading);
     }
   };
 
@@ -78,8 +78,7 @@ const SubmitButton = ({
       className={`submit-button ${className} ${loading ? 'submit-button--loading' : ''} ${internalSuccess ? 'submit-button--success' : ''} ${showStatus ? 'submit-button--with-status' : ''}`}
       aria-busy={loading}
       aria-label={ariaLabel}
-      disabled={loading || internalSuccess}
-      style={{ width: '100%', height: buttonSize.height }}
+      disabled={loading}
     >
       {getButtonContent()}
     </button>

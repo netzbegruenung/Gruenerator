@@ -1,10 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useSupabaseAuth } from '../../../context/SupabaseAuthContext'; // Pfad anpassen, falls nötig
+import { useAuthStore } from '../../../stores/authStore';
 // import { templatesSupabase } from '../../../../components/utils/templatesSupabaseClient'; // Direkter Import, falls nicht über Context
 
 // Hook zum Verwalten von Canva-Vorlagen eines Nutzers
 export const useCanvaTemplates = () => {
-  const { user } = useSupabaseAuth();
+  const supabaseUser = useAuthStore((state) => state.supabaseUser);
   const queryClient = useQueryClient();
   
   // TODO: Supabase-Client-Instanz sicherstellen (z.B. über Prop oder direkten Import)
@@ -110,14 +110,14 @@ export const useCanvaTemplates = () => {
 
   // --- Create Canva Template ---
   const createCanvaTemplate = async ({ templateData, templatesSupabaseInstance }) => {
-    if (!user?.id || !templatesSupabaseInstance) {
+    if (!supabaseUser?.id || !templatesSupabaseInstance) {
       throw new Error('User not authenticated or Supabase client not available for creating Canva template.');
     }
     const { category_ids, tag_ids, canva_url, thumbnail_url, ...restOfTemplateData } = templateData;
 
     const dbData = {
       ...restOfTemplateData,
-      user_id: user.id,
+      user_id: supabaseUser.id,
       canvaurl: canva_url,
       thumbnailurl: thumbnail_url,
     };
@@ -168,7 +168,7 @@ export const useCanvaTemplates = () => {
   
   // --- Update Canva Template ---
   const updateCanvaTemplate = async ({ templateId, templateData, templatesSupabaseInstance }) => {
-    if (!user?.id || !templatesSupabaseInstance) {
+    if (!supabaseUser?.id || !templatesSupabaseInstance) {
       throw new Error('User not authenticated or Supabase client not available for updating Canva template.');
     }
     const { category_ids, tag_ids, canva_url, thumbnail_url, ...restOfTemplateData } = templateData;
@@ -183,7 +183,7 @@ export const useCanvaTemplates = () => {
       .from('canva_templates')
       .update(dbData)
       .eq('id', templateId)
-      .eq('user_id', user.id) // Sicherstellen, dass der Nutzer der Eigentümer ist
+      .eq('user_id', supabaseUser.id) // Sicherstellen, dass der Nutzer der Eigentümer ist
       .select()
       .single();
 
@@ -225,7 +225,7 @@ export const useCanvaTemplates = () => {
 
   // --- Delete Canva Template ---
   const deleteCanvaTemplate = async ({ templateId, templatesSupabaseInstance }) => {
-    if (!user?.id || !templatesSupabaseInstance) {
+    if (!supabaseUser?.id || !templatesSupabaseInstance) {
       throw new Error('User not authenticated or Supabase client not available for deleting Canva template.');
     }
     // Wichtig: Abhängigkeiten in template_to_categories und template_to_tags müssen zuerst gelöscht werden,
@@ -241,7 +241,7 @@ export const useCanvaTemplates = () => {
       .from('canva_templates')
       .delete()
       .eq('id', templateId)
-      .eq('user_id', user.id); // Sicherstellen, dass der Nutzer der Eigentümer ist
+      .eq('user_id', supabaseUser.id); // Sicherstellen, dass der Nutzer der Eigentümer ist
 
     if (error) {
       console.error('Error deleting Canva template:', error);
@@ -254,14 +254,14 @@ export const useCanvaTemplates = () => {
   const createMutation = useMutation({
     mutationFn: (params) => createCanvaTemplate(params), // params = { templateData, templatesSupabaseInstance }
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['canvaTemplates', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['canvaTemplates', supabaseUser?.id] });
     },
   });
 
   const updateMutation = useMutation({
     mutationFn: (params) => updateCanvaTemplate(params), // params = { templateId, templateData, templatesSupabaseInstance }
     onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['canvaTemplates', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['canvaTemplates', supabaseUser?.id] });
       queryClient.invalidateQueries({ queryKey: ['canvaTemplate', variables.templateId] }); // Auch Einzeleintrag invalidieren
     },
   });
@@ -269,7 +269,7 @@ export const useCanvaTemplates = () => {
   const deleteMutation = useMutation({
     mutationFn: (params) => deleteCanvaTemplate(params), // params = { templateId, templatesSupabaseInstance }
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['canvaTemplates', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['canvaTemplates', supabaseUser?.id] });
     },
   });
   
@@ -282,9 +282,9 @@ export const useCanvaTemplates = () => {
     // aber da templatesSupabaseInstance von außen kommt, machen wir es flexibler.
     // Beispiel für die Verwendung in einer Komponente:
     // const { data, isLoading, isError } = useQuery({
-    //   queryKey: ['canvaTemplates', user?.id],
-    //   queryFn: () => fetchCanvaTemplates(user?.id, templatesSupabase), // templatesSupabase aus Props/Context
-    //   enabled: !!user?.id && !!templatesSupabase,
+    //   queryKey: ['canvaTemplates', supabaseUser?.id],
+    //   queryFn: () => fetchCanvaTemplates(supabaseUser?.id, templatesSupabase), // templatesSupabase aus Props/Context
+    //   enabled: !!supabaseUser?.id && !!templatesSupabase,
     // });
     
     createCanvaTemplate: createMutation.mutate,

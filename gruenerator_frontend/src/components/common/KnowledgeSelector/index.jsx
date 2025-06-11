@@ -1,54 +1,116 @@
-import React, { useContext } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { FormContext } from '../../utils/FormContext';
-import './style.css';
+import FormSelect from '../Form/Input/FormSelect';
+// Removed: import './style.css';
 // Removed: import { HiPlus, HiX } from 'react-icons/hi';
 // Removed: import useKnowledge from '../../hooks/useKnowledge';
 
 /**
- * KnowledgeSelector-Komponente zur Anzeige des aktuell ausgewählten Wissens.
- * Das Wissen wird zentral im FormContext basierend auf der Auswahl in BaseForm verwaltet.
+ * KnowledgeSelector-Komponente zur Anzeige und Auswahl von Wissen.
  */
-const KnowledgeSelector = () => {
+const KnowledgeSelector = ({ 
+  availableKnowledge = [], 
+  onKnowledgeSelection, 
+  disabled = false,
+  enableSelection = false 
+}) => {
   const { knowledgeSourceConfig } = useContext(FormContext);
   const { type: sourceType, name: sourceName, loadedKnowledgeItems } = knowledgeSourceConfig || {};
+  
+  const [selectedKnowledgeId, setSelectedKnowledgeId] = useState('');
 
-  // Removed: useKnowledge hook call and related state/handlers for local selection
-  // (availableKnowledge, selectedKnowledge, isLoading, handleKnowledgeSelection, clearSelectedKnowledge)
+  // Convert available knowledge to FormSelect options
+  const knowledgeOptions = availableKnowledge.map(item => ({
+    value: item.id,
+    label: item.title
+  }));
+
+  const handleKnowledgeChange = (knowledgeId) => {
+    setSelectedKnowledgeId(knowledgeId);
+    if (onKnowledgeSelection && knowledgeId) {
+      const selectedItem = availableKnowledge.find(item => item.id === knowledgeId);
+      if (selectedItem) {
+        onKnowledgeSelection(selectedItem);
+      }
+    }
+  };
+
+  // Reset selection when available knowledge changes
+  useEffect(() => {
+    setSelectedKnowledgeId('');
+  }, [availableKnowledge]);
 
   if (sourceType === 'neutral' || !loadedKnowledgeItems || loadedKnowledgeItems.length === 0) {
-    return (
-      <div className="knowledge-selector-display-only">
-        {/* Optional: Display a message if nothing is loaded, or render nothing.
-            For now, rendering nothing to keep it clean if no knowledge is active.
-            If a message is preferred, it could be:
-            <p className="no-knowledge">Kein spezifisches Wissen für die aktuelle Auswahl geladen.</p> 
-        */}
-      </div>
-    );
+    return null;
   }
 
   return (
-    <div className="knowledge-selector-display-only">
-      {/* Removed heading, as the source selection is now above in BaseForm */}
-      {/* <h4>Wissen aus Quelle: {sourceName || sourceType}</h4> */}
+    <div>
+      {/* Display loaded knowledge items */}
       {loadedKnowledgeItems && loadedKnowledgeItems.length > 0 && (
-        <div className="loaded-knowledge-container">
-          {loadedKnowledgeItems.map((item) => (
-            <span key={item.id || item.title} className="knowledge-tag-display">
-              {item.title}
-            </span>
-          ))}
+        <div style={{ marginBottom: 'var(--spacing-medium)' }}>
+          <div style={{ 
+            display: 'flex', 
+            flexWrap: 'wrap', 
+            gap: 'var(--spacing-xsmall)' 
+          }}>
+            {loadedKnowledgeItems.map((item) => (
+              <span 
+                key={item.id || item.title} 
+                style={{
+                  background: 'var(--background-color-alt)',
+                  color: 'var(--font-color)',
+                  padding: 'var(--spacing-xxsmall) var(--spacing-xsmall)',
+                  borderRadius: 'var(--card-border-radius-small)',
+                  fontSize: '0.875rem',
+                  border: 'var(--border-subtle)'
+                }}
+              >
+                {item.title}
+              </span>
+            ))}
+          </div>
         </div>
       )}
-      {/* Removed UI elements for adding/selecting knowledge, as this is now handled in BaseForm */}
+
+      {/* Knowledge selection with FormSelect - use it directly without wrapper */}
+      {enableSelection && knowledgeOptions.length > 0 && (
+        <FormSelect
+          name="knowledge-selection"
+          label="Wissen hinzufügen"
+          options={knowledgeOptions}
+          placeholder="Wissen auswählen..."
+          disabled={disabled}
+          value={selectedKnowledgeId}
+          onChange={(e) => handleKnowledgeChange(e.target.value)}
+        />
+      )}
+
+      {/* Show message when no knowledge is available for selection */}
+      {enableSelection && knowledgeOptions.length === 0 && !disabled && (
+        <p style={{ 
+          color: 'var(--font-color-disabled)', 
+          fontSize: '0.875rem',
+          margin: 'var(--spacing-small) 0'
+        }}>
+          Kein Wissen verfügbar für die aktuelle Auswahl.
+        </p>
+      )}
     </div>
   );
 };
 
 KnowledgeSelector.propTypes = {
-  // Props like enableKnowledgeSelector, onKnowledgeUpdate, etc., are removed
-  // as the component is now a passive display driven by FormContext.
+  availableKnowledge: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+      title: PropTypes.string.isRequired
+    })
+  ),
+  onKnowledgeSelection: PropTypes.func,
+  disabled: PropTypes.bool,
+  enableSelection: PropTypes.bool
 };
 
 export default KnowledgeSelector; 

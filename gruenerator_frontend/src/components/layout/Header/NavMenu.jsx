@@ -5,7 +5,7 @@ import { PiCaretDown, PiCaretUp } from 'react-icons/pi';
 import { CSSTransition } from 'react-transition-group';
 import useAccessibility from '../../hooks/useAccessibility';
 import { getMenuItems, getDirectMenuItems, getMobileOnlyMenuItems, handleMenuInteraction as commonHandleMenuInteraction } from './menuData';
-import { BetaFeaturesContext } from '../../../context/BetaFeaturesContext';
+import { useLazyAuth } from '../../../hooks/useAuth';
 
 const MenuItem = ({ icon: Icon, title, description, path, onClick, isTopLevel = false }) => (
   <div className={`menu-item ${isTopLevel ? 'menu-item--top-level' : ''}`}>
@@ -38,17 +38,24 @@ const NavMenu = ({ open, onClose }) => {
   const location = useLocation();
   const { announce } = useAccessibility();
   const navMenuRef = useRef(null);
-  const { sharepicBetaEnabled, databaseBetaEnabled } = useContext(BetaFeaturesContext);
+  const { betaFeatures } = useLazyAuth();
+  const sharepicBetaEnabled = betaFeatures?.sharepic === true;
+  const databaseBetaEnabled = betaFeatures?.database === true;
 
   const menuItems = getMenuItems({ sharepicBetaEnabled, databaseBetaEnabled });
   const directMenuItems = getDirectMenuItems({ sharepicBetaEnabled, databaseBetaEnabled });
   const mobileOnlyItems = getMobileOnlyMenuItems();
   const dynamicTopLevelItems = [...Object.values(directMenuItems), ...Object.values(mobileOnlyItems)];
 
-  const nodeRefs = Object.keys(menuItems).reduce((acc, key) => {
-    acc[key] = useRef(null);
-    return acc;
-  }, {});
+  // Fixed: Create refs statically to avoid hooks order issues
+  const nodeRefs = useRef({});
+  
+  // Initialize refs for menu items if they don't exist
+  Object.keys(menuItems).forEach(key => {
+    if (!nodeRefs.current[key]) {
+      nodeRefs.current[key] = React.createRef();
+    }
+  });
 
   useEffect(() => {
     if (onClose) {
@@ -123,11 +130,11 @@ const NavMenu = ({ open, onClose }) => {
               exitActive: 'dropdown-exit-active'
             }}
             unmountOnExit
-            nodeRef={nodeRefs[key]}
+            nodeRef={nodeRefs.current[key]}
           >
             <ul 
               className="nav-menu__dropdown-content"
-              ref={nodeRefs[key]}
+              ref={nodeRefs.current[key]}
               aria-label={`${menu.title} Untermenü`}
             >
               {renderDropdownContent(key)}

@@ -17,7 +17,7 @@ router.post('/', async (req, res) => {
     thema, 
     details, 
     platforms,
-    hasCustomPrompt: !!customPrompt,
+    hasCustomPrompt: !!customPrompt
   });
 
   try {
@@ -48,8 +48,29 @@ Achte bei der Umsetzung dieses Stils auf Klarheit, Präzision und eine ausgewoge
     let userContent;
     
     if (customPrompt) {
-      // Bei benutzerdefiniertem Prompt diesen verwenden, aber mit Plattforminformationen ergänzen
-      userContent = `
+      // Prüfe ob es sich um strukturierte Anweisungen/Wissen handelt
+      const isStructured = customPrompt.includes('Der User gibt dir folgende Anweisungen') || 
+                          customPrompt.includes('Der User stellt dir folgendes, wichtiges Wissen');
+      
+      if (isStructured) {
+        // Strukturierte Anweisungen und Wissen direkt verwenden
+        userContent = `${customPrompt}
+
+---
+
+Aktuelles Datum: ${currentDate}
+
+Erstelle Inhalte für folgende Plattformen: ${platforms.join(', ')}
+
+${platforms.map(platform => {
+  if (platform === 'pressemitteilung') return '';
+  const upperPlatform = platform === 'reelScript' ? 'INSTAGRAM REEL' : platform.toUpperCase();
+  const guidelines = PLATFORM_SPECIFIC_GUIDELINES[platform] || {};
+  return `${upperPlatform}: Maximale Länge: ${guidelines.maxLength || 'N/A'} Zeichen. Stil: ${guidelines.style || 'N/A'} Fokus: ${guidelines.focus || 'N/A'}`;
+}).filter(Boolean).join('\n')}`;
+      } else {
+        // Legacy: Bei benutzerdefiniertem Prompt diesen verwenden, aber mit Plattforminformationen ergänzen
+        userContent = `
 Benutzerdefinierter Prompt: ${customPrompt}
 
 Aktuelles Datum: ${currentDate}
@@ -63,6 +84,7 @@ ${platforms.map(platform => {
   return `${upperPlatform}: Maximale Länge: ${guidelines.maxLength || 'N/A'} Zeichen. Stil: ${guidelines.style || 'N/A'} Fokus: ${guidelines.focus || 'N/A'}`;
 }).filter(Boolean).join('\n')}
 `;
+      }
     } else {
       // Standardinhalt ohne benutzerdefinierten Prompt
       userContent = `
@@ -96,8 +118,7 @@ ${platforms.includes('pressemitteilung') ? '' : `Jeder Beitrag sollte:
 `;
     }
 
-    const result = await req.app.locals.aiWorkerPool.processRequest({
-      type: 'social',
+    const payload = {
       systemPrompt,
       messages: [{
         role: 'user',
@@ -108,6 +129,11 @@ ${platforms.includes('pressemitteilung') ? '' : `Jeder Beitrag sollte:
         temperature: 0.9
       },
       useBackupProvider
+    };
+
+    const result = await req.app.locals.aiWorkerPool.processRequest({
+      type: 'social',
+      ...payload
     });
 
     console.log('[claude_social] AI Worker Antwort erhalten:', {

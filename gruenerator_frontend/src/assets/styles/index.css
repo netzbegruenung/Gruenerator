@@ -20,13 +20,18 @@
 @import url('./components/ui/image-slider.css');
 @import url('./components/ui/quote-form.css');
 @import url('./components/ui/animatedcheckbox.css');
-@import url('./components/ui/form-select.css');
+
 @import url('./components/ui/form-toggle-button.css');
 @import url('./components/ui/FeatureToggle.css');
 @import url('./components/ui/LogLevelSelector.css');
 @import url('./components/ui/BackupToggle.css');
 @import url('./components/ui/tooltip.css');
+@import url('./components/ui/form-select-modern.css');
 @import url('./components/ui/forms.css');
+@import url('./components/form/form-inputs.css');
+@import url('./components/baseform/base.css');
+@import url('./components/baseform/form-layout.css');
+@import url('./components/baseform/form-toggle-fab.css');
 @import url('./components/ui/profile-skeleton.css');
 @import url('../../components/common/editor/EditorChat.css');
 @import url('./components/ui/success-screen.css');
@@ -34,7 +39,7 @@
 @import url('./components/gallery-layout.css');
 @import url('./components/SearchBar.css');
 @import url('./components/gallery-content-type.css');
-@import url('../../components/common/KnowledgeSelector/style.css');
+/* @import url('../../components/common/KnowledgeSelector/style.css'); */
 @import url('./components/ui/react-select.css');
 @import url('./components/error-boundary.css');
 @import url('./components/ui/TypingIndicator.css');
@@ -54,7 +59,6 @@
 @import url('./components/popups/welcome-popup.css');
 @import url('./components/popups/popup.css');
 @import url('./components/popups/AntragSavePopup.css');
-@import url('./components/popups/confirm-delete.css');
 
 
 @import url('./components/editor/editor-content.css');
@@ -70,8 +74,10 @@
 
 
 @import url('./features/auth/auth.css');
+@import url('./features/auth/login-page.css');
 @import url('./features/auth/profile.css');
 @import url('./features/auth/profile-bubbles.css');
+@import url('./components/auth/avatar-selection.css');
 
 
 @import url('./pages/Startseitenstyle.css');

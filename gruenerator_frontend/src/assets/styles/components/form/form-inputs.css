@@ -1,0 +1,476 @@
+/* Modern Form Input Styles - Card-based Design with Theme Support */
+
+/* ===== Form Field Wrapper ===== */
+.form-field-wrapper {
+  margin-bottom: var(--spacing-large);
+}
+
+.form-field-wrapper:last-child {
+  margin-bottom: 0;
+}
+
+/* ===== Base Input Styles ===== */
+.form-input,
+.form-textarea,
+.form-select {
+  width: 100%;
+  font-family: 'PT Sans', Arial, sans-serif;
+  font-size: var(--form-element-font-size, 14px);
+  line-height: var(--form-element-line-height, 1.5);
+  color: var(--input-text-color, var(--font-color));
+  background-color: var(--input-background);
+  border: 0px solid var(--font-color-h);
+  border-radius: var(--card-border-radius-small);
+  padding: var(--form-element-padding-y, var(--spacing-small)) var(--form-element-padding-x, var(--spacing-small));
+  min-height: var(--form-element-min-height, 44px);
+  transition: var(--input-transition, all 0.25s ease-out);
+  box-sizing: border-box;
+  outline: none;
+}
+
+/* ===== Focus States ===== */
+.form-input:focus,
+.form-textarea:focus,
+.form-select:focus {
+  box-shadow: var(--input-shadow-focus, 0 0 0 1px rgba(0, 85, 56, 0.1));
+}
+
+/* Enhanced focus ring for keyboard navigation */
+.user-is-tabbing .form-input:focus,
+.user-is-tabbing .form-textarea:focus,
+.user-is-tabbing .form-select:focus,
+.user-is-tabbing .form-checkbox:focus {
+  outline: 1px solid var(--interactive-accent-color);
+  outline-offset: 1px;
+}
+
+/* ===== Error States ===== */
+.form-input.error-input,
+.form-textarea.error-input,
+/* .form-select.error-input { */
+  /* box-shadow: 0 0 0 3px rgba(211, 47, 47, 0.1); */
+/* } */
+
+.form-input.error-input:focus,
+.form-textarea.error-input:focus,
+/* .form-select.error-input:focus { */
+  /* box-shadow: 0 0 0 3px rgba(211, 47, 47, 0.2); */
+/* } */
+
+/* ===== Disabled States ===== */
+.form-input:disabled,
+.form-textarea:disabled,
+/* .form-select:disabled { */
+  /* background-color: var(--background-color-alt); */
+  /* color: var(--input-placeholder-color, var(--font-color-disabled)); */
+  /* cursor: not-allowed; */
+  /* opacity: 0.7; */
+/* } */
+
+/* ===== Placeholder Styles ===== */
+.form-input::placeholder,
+.form-textarea::placeholder {
+  color: var(--font-color) !important;
+  opacity: 0.8 !important;
+}
+
+/* Browser-specific placeholder styles for better compatibility */
+.form-input::-webkit-input-placeholder,
+.form-textarea::-webkit-input-placeholder {
+  color: var(--font-color) !important;
+  opacity: 0.8 !important;
+}
+
+.form-input::-moz-placeholder,
+.form-textarea::-moz-placeholder {
+  color: var(--font-color) !important;
+  opacity: 0.8 !important;
+}
+
+.form-input:-ms-input-placeholder,
+.form-textarea:-ms-input-placeholder {
+  color: var(--font-color) !important;
+  opacity: 0.8 !important;
+}
+
+/* ===== Autofill Styles - Remove browser defaults ===== */
+.form-input:-webkit-autofill,
+.form-input:-webkit-autofill:hover,
+.form-input:-webkit-autofill:focus,
+.form-input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px var(--input-background) inset !important;
+  -webkit-text-fill-color: var(--input-text-color) !important;
+  background-color: var(--input-background) !important;
+  border: 0px solid var(--font-color-h) !important;
+  transition: var(--input-transition, all 0.25s ease-out);
+}
+
+/* ===== Label Styles ===== */
+.form-field-label {
+  display: block;
+  font-weight: 600;
+  color: var(--font-color);
+  margin-bottom: var(--spacing-xsmall);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.form-field-label.required::after {
+  content: ' *';
+  color: var(--error-red);
+  font-weight: bold;
+}
+
+/* ===== Help Text ===== */
+.form-field-help {
+  display: block;
+  font-size: 13px;
+  color: var(--font-color-disabled);
+  margin-top: var(--spacing-xxsmall);
+  line-height: 1.4;
+}
+
+/* ===== Error Message ===== */
+.form-field-error {
+  display: block;
+  font-size: 13px;
+  color: var(--error-red);
+  margin-top: var(--spacing-xxsmall);
+  line-height: 1.4;
+  font-weight: 500;
+  animation: error-slide-in 0.3s ease-out;
+}
+
+@keyframes error-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ===== Textarea Specific ===== */
+.form-textarea {
+  min-height: auto;
+  resize: none;
+  overflow: hidden;
+}
+
+/* ===== Select Specific ===== */
+.form-select {
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'%3E%3Cpolyline points='6,9 12,15 18,9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right var(--form-element-padding-x, var(--spacing-small)) center;
+  background-size: 16px;
+  padding-right: calc(var(--form-element-padding-x, var(--spacing-small)) * 2.5);
+  appearance: none;
+  cursor: pointer;
+}
+
+.form-select:focus {
+  cursor: pointer;
+}
+
+
+
+/* ===== Checkbox Styles ===== */
+.checkbox-wrapper {
+  margin-bottom: var(--spacing-medium);
+}
+
+.checkbox-input-wrapper {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-xsmall);
+}
+
+.form-checkbox {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border-subtle);
+  border-radius: 4px;
+  background-color: transparent;
+  cursor: pointer;
+  position: relative;
+  margin: 0;
+  flex-shrink: 0;
+  appearance: none;
+  transition: var(--input-transition, all 0.25s ease-out);
+}
+
+.form-checkbox:checked {
+  background-color: var(--interactive-accent-color);
+  border-color: var(--interactive-accent-color);
+}
+
+.form-checkbox:checked::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.form-checkbox:focus {
+  box-shadow: var(--input-shadow-focus, 0 0 0 3px rgba(0, 85, 56, 0.1));
+}
+
+.checkbox-label {
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--font-color);
+  margin: 0;
+  flex-grow: 1;
+}
+
+.required-marker {
+  color: var(--error-red);
+  font-weight: bold;
+}
+
+/* ===== Card-based Form Container ===== */
+.form-card {
+  background-color: var(--card-background, var(--background-color-alt));
+  border: 1px solid var(--card-border, var(--border-subtle));
+  border-radius: var(--spacing-small);
+  padding: var(--spacing-large);
+  box-shadow: var(--shadow-sm);
+  transition: var(--input-transition, all 0.25s ease-out);
+}
+
+/* ===== Skip Link Styles ===== */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 6px;
+  background: var(--interactive-accent-color);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 4px;
+  text-decoration: none;
+  font-weight: bold;
+  z-index: 9999;
+  transition: top 0.3s ease;
+}
+
+.skip-link:focus {
+  top: 6px;
+}
+
+/* ===== Accessibility Preference Classes ===== */
+.reduce-motion .form-input,
+.reduce-motion .form-textarea,
+/* .reduce-motion .form-select, */
+.reduce-motion .form-checkbox,
+.reduce-motion .form-field-error {
+  transition: none;
+  animation: none;
+}
+
+.high-contrast .form-input,
+.high-contrast .form-textarea {
+  border-width: 2px;
+  border-color: currentColor;
+}
+
+.high-contrast .form-input:focus,
+.high-contrast .form-textarea:focus {
+  outline: 3px solid currentColor;
+  outline-offset: 2px;
+}
+
+/* ===== Responsive Design ===== */
+@media (max-width: 768px) {
+  .form-field-wrapper {
+    margin-bottom: var(--spacing-medium);
+  }
+
+  .form-input {
+    font-size: 16px;
+    min-height: 44px;
+  }
+
+  .form-textarea {
+    font-size: 16px;
+    min-height: auto;
+  }
+
+  .form-checkbox {
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
+    min-height: 24px;
+  }
+}
+
+/* ===== Phase 5: High Contrast Mode & Forced Colors Support ===== */
+@media (forced-colors: active) {
+  .form-input,
+  .form-textarea,
+  /* .form-select { */
+    /* border: 1px solid ButtonText; */
+    /* background: ButtonFace; */
+    /* color: ButtonText; */
+    /* forced-color-adjust: none; */
+  /* } */
+
+  .form-input:focus,
+  .form-textarea:focus,
+  /* .form-select:focus { */
+    /* border: 2px solid Highlight; */
+    /* outline: 2px solid Highlight; */
+    /* outline-offset: 2px; */
+    /* background: ButtonFace; */
+  /* } */
+
+  .form-input:disabled,
+  .form-textarea:disabled,
+  /* .form-select:disabled { */
+    /* border-color: GrayText; */
+    /* background: ButtonFace; */
+    /* color: GrayText; */
+  /* } */
+
+  .form-checkbox {
+    border: 2px solid ButtonText;
+    background: ButtonFace;
+    forced-color-adjust: none;
+  }
+
+  .form-checkbox:checked {
+    background: Highlight;
+    border-color: Highlight;
+  }
+
+  .form-checkbox:checked::after {
+    color: HighlightText;
+  }
+
+  .form-checkbox:focus {
+    outline: 2px solid Highlight;
+    outline-offset: 2px;
+  }
+
+  .form-field-label {
+    color: ButtonText;
+  }
+
+  .form-field-error {
+    color: ButtonText;
+    font-weight: bold;
+  }
+
+  .form-field-help {
+    color: ButtonText;
+  }
+
+  .form-card {
+    border: 1px solid ButtonText;
+    background: ButtonFace;
+  }
+
+  .skip-link {
+    background: Highlight;
+    color: HighlightText;
+    border: 2px solid ButtonText;
+  }
+}
+
+/* ===== Prefers High Contrast Support ===== */
+@media (prefers-contrast: high) {
+  .form-input,
+  .form-textarea,
+  /* .form-select { */
+    /* border-width: 2px; */
+    /* border-color: var(--font-color); */
+  /* } */
+
+  .form-input:focus,
+  .form-textarea:focus,
+  /* .form-select:focus { */
+    /* border-width: 3px; */
+    /* box-shadow: 0 0 0 2px var(--interactive-accent-color); */
+  /* } */
+
+  .form-field-error {
+    font-weight: bold;
+    text-decoration: underline;
+  }
+
+  .form-checkbox {
+    border-width: 3px;
+  }
+}
+
+/* ===== Screen Reader Only Elements ===== */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ===== Form Navigation Landmarks ===== */
+form[role="form"] {
+  position: relative;
+}
+
+.form-section-title {
+  margin-bottom: var(--spacing-medium);
+  font-weight: 600;
+  color: var(--font-color);
+}
+
+/* ===== Error Animation with Reduced Motion Support ===== */
+@media (prefers-reduced-motion: no-preference) {
+  .form-field-error {
+    animation: error-slide-in 0.3s ease-out;
+  }
+  
+  .form-input.error-input,
+  .form-textarea.error-input {
+    animation: error-shake 0.4s ease-out;
+  }
+}
+
+@keyframes error-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-2px); }
+  75% { transform: translateX(2px); }
+}
+
+/* ===== Color Scheme Declaration ===== */
+:root {
+  color-scheme: light dark;
+}
+
+/* ===== Touch Target Optimization ===== */
+@media (pointer: coarse) {
+  .form-input,
+  /* .form-select, */
+  .form-checkbox,
+  .checkbox-label {
+    min-height: 44px;
+  }
+
+  .form-textarea {
+    min-height: auto;
+  }
+  
+  .checkbox-input-wrapper {
+    min-height: 44px;
+    align-items: center;
+  }
+} 

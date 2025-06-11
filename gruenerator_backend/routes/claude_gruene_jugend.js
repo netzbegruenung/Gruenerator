@@ -150,8 +150,7 @@ Jeder Beitrag sollte:
 ${HTML_FORMATTING_INSTRUCTIONS}`;
     }
 
-    const result = await req.app.locals.aiWorkerPool.processRequest({
-      type: 'gruene_jugend',
+    const payload = {
       systemPrompt,
       messages: [{
         role: 'user',
@@ -162,6 +161,11 @@ ${HTML_FORMATTING_INSTRUCTIONS}`;
         temperature: 0.9
       },
       useBackupProvider
+    };
+    
+    const result = await req.app.locals.aiWorkerPool.processRequest({
+      type: 'gruene_jugend',
+      ...payload
     });
 
     console.log('[claude_gruene_jugend] AI Worker Antwort erhalten:', {

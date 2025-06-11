@@ -27,6 +27,8 @@
   box-shadow: var(--shadow-sm);
 }
 
+/* SearchBarStyles input styles - DISABLED to prevent conflicts with main form-inputs.css */
+/*
 .search-input {
   flex: 1;
   height: 48px;
@@ -39,6 +41,7 @@
   width: 100%;
   transition: background-color 0.3s ease, color 0.3s ease;
 }
+*/
 
 .search-icon-button {
   display: flex;

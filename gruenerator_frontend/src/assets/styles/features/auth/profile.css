@@ -47,7 +47,6 @@
   border: none;
   cursor: pointer;
   white-space: nowrap;
-  transition: all 0.2s ease;
   flex-shrink: 0;
   position: relative;
   overflow: visible;
@@ -78,6 +77,20 @@
   background-color: var(--tanne);
   border-radius: 1px;
 }
+
+.tab-underline-hover {
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: var(--font-color);
+  border-radius: 1px;
+  opacity: 0.6;
+  transform-origin: left;
+}
+
+
 
 
 .profile-content {
@@ -163,15 +176,19 @@
   margin-bottom: var(--spacing-large);
 }
 
+/* Zentralisiertes Styling für .profile-avatar */
 .profile-avatar {
-  width: 180px;
-  height: 180px;
+  width: 120px;
+  height: 120px;
   border-radius: 50%;
   overflow: hidden;
-  border: 4px solid var(--sand);
+  border: 2px solid var(--tanne);
   position: relative;
-  margin: var(--spacing-medium) 0;
   box-shadow: var(--shadow-md);
+  background-color: var(--background-color-alt);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .profile-avatar-placeholder {
@@ -466,7 +483,8 @@
   font-weight: 500;
 }
 
-/* Ergänzung für alle Textinputs und Textareas in der Profilseite */
+/* Profile input styles - DISABLED to prevent conflicts with main form-inputs.css */
+/*
 .profile-container input[type="text"],
 .profile-container input[type="email"],
 .profile-container input[type="password"],
@@ -474,6 +492,7 @@
   height: 38px;
   padding: var(--spacing-xsmall) var(--spacing-small);
 }
+*/
 
 /* Styling für automatische Erweiterung der Textfelder */
 .auto-expand-textarea {
@@ -580,4 +599,133 @@
 
 .labor-tab-external-link-icon {
   margin-left: var(--spacing-xxsmall);
+}
+
+/* Account Management Styles for ProfileInfoTab */
+
+.profile-danger-zone {
+  border: 1px solid var(--error-red, #dc3545);
+  border-radius: var(--spacing-small);
+  padding: var(--spacing-medium);
+  background-color: var(--background-color-alt);
+}
+
+.profile-danger-button {
+  background-color: var(--error-red, #dc3545);
+  color: var(--weiß);
+  border: 1px solid var(--error-red, #dc3545);
+  transition: all 0.25s ease-out;
+}
+
+.profile-danger-button:hover:not(:disabled) {
+  background-color: #c82333;
+  border-color: #c82333;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.profile-danger-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.account-deletion-warning {
+  background-color: var(--background-color-alt);
+  border: 1px solid var(--error-red, #dc3545);
+  border-radius: var(--spacing-small);
+  padding: var(--spacing-medium);
+  margin-bottom: var(--spacing-medium);
+}
+
+.account-deletion-warning h4 {
+  margin: 0 0 var(--spacing-small) 0;
+  color: var(--error-red, #dc3545);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.account-deletion-warning ul {
+  margin: 0;
+  padding-left: var(--spacing-medium);
+  color: var(--font-color);
+}
+
+.account-deletion-warning ul li {
+  margin-bottom: var(--spacing-xsmall);
+}
+
+/* Password input wrapper for registration page */
+.password-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-input-wrapper input {
+  flex: 1;
+  padding-right: var(--spacing-xlarge);
+}
+
+.password-toggle {
+  position: absolute;
+  right: var(--spacing-small);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: var(--spacing-xsmall);
+  border-radius: var(--spacing-xsmall);
+  transition: background-color 0.25s ease-out;
+}
+
+.password-toggle:hover:not(:disabled) {
+  background-color: var(--background-color-alt);
+}
+
+.password-toggle:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.password-requirements {
+  margin-top: var(--spacing-xsmall);
+}
+
+.password-requirements small {
+  color: var(--font-color);
+  opacity: 0.8;
+  font-size: 0.9rem;
+}
+
+/* Field errors */
+.field-error {
+  color: var(--red);
+  font-size: 0.875rem;
+  margin-top: var(--spacing-xsmall);
+}
+
+/* Admin Badge und Notice Styles */
+.admin-badge {
+  font-size: 0.75rem;
+  color: var(--yellow);
+  font-weight: normal;
+  opacity: 0.8;
+}
+
+.labor-tab-admin-notice {
+  margin-top: var(--spacing-large);
+  padding: var(--spacing-medium);
+  background-color: var(--background-color-alt);
+  border-left: 4px solid var(--tanne);
+  border-radius: 4px;
+}
+
+.labor-tab-admin-notice p {
+  margin: 0;
+  color: var(--font-color);
+  font-size: 0.9rem;
+}
+
+.labor-tab-content {
+  padding: var(--spacing-medium);
 }

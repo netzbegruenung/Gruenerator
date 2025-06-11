@@ -1,6 +1,3 @@
-
-
-
 .sharepic-base-container {
     display: flex;
     width: 100%;
@@ -21,7 +18,8 @@
     flex-direction: column;
     padding: 20px;
     border-radius: 8px;
-    background-color: var(--dunkelgruen);
+    background-color: var(--card-background);
+    border: 1px solid var(--border-subtle);
     align-self: flex-start;
     transition: all 0.3s ease-in-out;
 }
@@ -87,7 +85,7 @@
 .color-controls h3,
 .font-size-group h3,
 .social-media-group h3 {
-    color: var(--weiß);
+    color: var(--font-color);
     margin: 0;
     font-size: 1.1em;
     font-weight: 600;
@@ -99,7 +97,7 @@
 .color-controls p,
 .font-size-group p,
 .social-media-group p {
-    color: var(--weiß);
+    color: var(--font-color);
     margin: 0 0 0.5rem 0;
     font-size: 0.9em;
     opacity: 0.9;
@@ -187,6 +185,8 @@
 }
 
 
+/* Sharepic credit control input styles - DISABLED to prevent conflicts with main form-inputs.css */
+/*
 .credit-control input {
     width: 100%;
     padding: 0.75rem;
@@ -207,6 +207,7 @@
 .credit-control input::placeholder {
     color: rgba(255, 255, 255, 0.6);
 }
+*/
 
 .social-media-button {
     width: 100%;
@@ -227,7 +228,7 @@
 
 .sharepic-form-container h3,
 .sharepic-form-container h4 {
-    color: var(--weiß);
+    color: var(--font-color);
     margin-bottom: 0;
 }
 

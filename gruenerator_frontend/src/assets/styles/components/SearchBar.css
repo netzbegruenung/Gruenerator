@@ -5,6 +5,8 @@
   margin: 0 auto;
 }
 
+/* SearchBar input styles - DISABLED to prevent conflicts with main form-inputs.css */
+/*
 .gallery-search-input {
   width: 100%;
   padding: var(--spacing-medium) var(--spacing-large);
@@ -26,6 +28,7 @@
   border-color: var(--tanne);
   box-shadow: 0 0 0 1px var(--klee);
 }
+*/
 
 .search-options-toggle {
   position: absolute;

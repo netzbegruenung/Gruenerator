@@ -1,5 +1,7 @@
 import React from 'react';
 import PropTypes from 'prop-types';
+import * as Switch from '@radix-ui/react-switch';
+
 const FeatureToggle = ({ 
   isActive, 
   onToggle, 
@@ -8,25 +10,24 @@ const FeatureToggle = ({
   description,
   className
 }) => {
-  const handleToggle = () => {
-    onToggle(!isActive);
+  const handleToggle = (checked) => {
+    onToggle(checked);
   };
 
   return (
     <div className={`feature-toggle ${className || ''}`}>
       <div className="feature-header">
-        <label className="feature-switch">
-          <input
-            type="checkbox"
-            checked={isActive}
-            onChange={handleToggle}
-            aria-label={label}
-          />
-          <span className="feature-slider"></span>
-        </label>
+        <Switch.Root
+          className="feature-switch"
+          checked={isActive}
+          onCheckedChange={handleToggle}
+          aria-label={label}
+        >
+          <Switch.Thumb className="feature-switch-thumb" />
+        </Switch.Root>
         <div className="feature-label">
-          <Icon className="feature-icon" />
-          {label} {isActive ? '(aktiviert)' : ''}
+          <Icon className={`feature-icon ${isActive ? 'active' : ''}`} />
+          {label} {isActive ? '' : ''}
         </div>
       </div>
 

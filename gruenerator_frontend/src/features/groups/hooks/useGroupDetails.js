@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useSupabaseAuth } from '../../../context/SupabaseAuthContext';
+import { useAuthStore } from '../../../stores/authStore';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 const MAX_KNOWLEDGE_ENTRIES = 3;
@@ -26,7 +26,7 @@ const cleanKnowledgeEntry = (entry) => {
  * Hook for managing group details including instructions and knowledge
  */
 const useGroupDetails = (groupId, { isActive } = {}) => {
-  const { user } = useSupabaseAuth();
+  const supabaseUser = useAuthStore((state) => state.supabaseUser);
   const [templatesSupabase, setTemplatesSupabase] = useState(null);
   const queryClient = useQueryClient();
   
@@ -63,7 +63,7 @@ const useGroupDetails = (groupId, { isActive } = {}) => {
 
   // Fetch group details
   const fetchGroupDetailsFn = async () => {
-    if (!user?.id || !templatesSupabase || !groupId) {
+    if (!supabaseUser?.id || !templatesSupabase || !groupId) {
       throw new Error("Required data missing");
     }
 
@@ -72,7 +72,7 @@ const useGroupDetails = (groupId, { isActive } = {}) => {
       .from('group_memberships')
       .select('role')
       .eq('group_id', groupId)
-      .eq('user_id', user.id)
+      .eq('user_id', supabaseUser.id)
       .single();
 
     if (membershipError) {
@@ -113,7 +113,7 @@ const useGroupDetails = (groupId, { isActive } = {}) => {
     }
 
     // Determine if user is admin
-    const isAdmin = membership.role === 'admin' || group.created_by === user.id;
+    const isAdmin = membership.role === 'admin' || group.created_by === supabaseUser.id;
 
     return {
       group,
@@ -134,7 +134,7 @@ const useGroupDetails = (groupId, { isActive } = {}) => {
   } = useQuery({
     queryKey: groupDetailsQueryKey,
     queryFn: fetchGroupDetailsFn,
-    enabled: !!user?.id && !!templatesSupabase && !!groupId && isActive !== false,
+    enabled: !!supabaseUser?.id && !!templatesSupabase && !!groupId && isActive !== false,
     staleTime: 5 * 60 * 1000,
     cacheTime: 15 * 60 * 1000,
     refetchOnWindowFocus: false
@@ -242,7 +242,7 @@ const useGroupDetails = (groupId, { isActive } = {}) => {
 
   // Save changes mutation
   const saveChangesMutationFn = async () => {
-    if (!user?.id || !templatesSupabase || !groupId) {
+    if (!supabaseUser?.id || !templatesSupabase || !groupId) {
       throw new Error("Required data missing");
     }
 
@@ -333,7 +333,7 @@ const useGroupDetails = (groupId, { isActive } = {}) => {
               group_id: groupId,
               title: currentEntry.title || 'Untitled',
               content: currentEntry.content,
-              created_by: user.id
+              created_by: supabaseUser.id
             })
         );
       }
@@ -369,7 +369,7 @@ const useGroupDetails = (groupId, { isActive } = {}) => {
 
   // Delete knowledge entry mutation
   const deleteKnowledgeMutationFn = async (entryId) => {
-    if (!user?.id || !templatesSupabase || !groupId) {
+    if (!supabaseUser?.id || !templatesSupabase || !groupId) {
       throw new Error("Required data missing");
     }
 

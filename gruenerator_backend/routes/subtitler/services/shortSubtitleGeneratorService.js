@@ -13,13 +13,7 @@ async function generateShortSubtitlesViaAI(text, words, aiWorkerPool, useBackupP
     const systemPrompt = 'Du bist ein Experte für die Erstellung von prägnanten Untertiteln für Social-Media-Videos (Reels).';
 
     // Detailed instructions and data in the user message
-    const userContent = `Deine Aufgabe ist es, aus einem gegebenen Volltext und den dazugehörigen Wort-Timestamps kurze, gut lesbare Untertitel-Segmente zu generieren. Stelle sicher, dass du ALLE Wörter aus den bereitgestellten Wort-Timestamps verarbeitest und Untertitel bis zum Zeitstempel des allerletzten Wortes generierst.
-
-**ABSOLUT KRITISCH - VOLLSTÄNDIGE VERARBEITUNG:**
-- Du MUSST alle bereitgestellten Wort-Timestamps verarbeiten
-- Deine Untertitel-Segmente müssen bis zum Zeitstempel des allerletzten Wortes in der JSON-Liste reichen
-- Überprüfe nach der Generierung, ob das letzte Segment wirklich dem letzten Wort-Timestamp entspricht
-- NIEMALS vorzeitig aufhören, auch wenn der Text lang ist
+    const userContent = `Deine Aufgabe ist es, aus einem gegebenen Volltext und den dazugehörigen Wort-Timestamps kurze, gut lesbare Untertitel-Segmente zu generieren.
 
 **KRITISCHE FORMATANFORDERUNGEN:**
 Du MUSST das Ergebnis EXAKT in diesem Format zurückgeben:
@@ -33,61 +27,60 @@ Segment Text 2
 MM:SS - MM:SS
 Segment Text 3
 
-**WICHTIGE ZEITBEGRENZUNG:**
+**OBERSTE PRIORITÄT: ZEITLICHE PRÄZISION**
+- Zeitliche Präzision ist WICHTIGER als sinnvolle Satztrennung
+- Du darfst NUR Untertitel für tatsächlich gesprochene Wörter erzeugen
 - Orientiere dich STRIKT an den gegebenen Wort-Timestamps
-- Erzeuge KEINE Untertitel für Zeitbereiche ohne Wörter (z.B. Pausen, Applaus, Musik)
+- Erzeuge KEINE Untertitel für Zeitbereiche ohne Wörter
 - Das letzte Segment darf NICHT über den Zeitstempel des letzten Wortes hinausragen
+- KÜRZE SEGMENTE LIEBER, anstatt das Timing zu verfälschen
 
-**Richtlinien:**
-1.  **Segmentierung:** Erstelle Segmente, die natürlich klingen und logische Sinneinheiten bilden. Orientiere dich an den Wort-Timestamps, aber fasse Wörter sinnvoll zusammen.
-2.  **Kürze:** Jedes Segment darf maximal 40 Zeichen (inklusive Leerzeichen) enthalten. Wenn ein Satz länger ist, teile ihn sinnvoll auf mehrere Segmente auf. Priorisiere die genaue zeitliche Übereinstimmung mit dem gesprochenen Wort über das Erreichen der maximalen Zeichenlänge. Es ist besser, ein Segment etwas kürzer zu machen und dafür synchron zu sein, als es künstlich zu verlängern, um mehr Text unterzubringen.
-3.  **Timing-Präzision:**
-    - Die Startzeit des Segments sollte dem 'start'-Timestamp des ersten Wortes im Segment entsprechen.
-    - Die Endzeit des Segments sollte dem 'end'-Timestamp des letzten Wortes im Segment entsprechen. Das Ziel ist es, den Text anzuzeigen, solange er gesprochen wird, aber nicht unnötig darüber hinaus.
-    - NIEMALS Segmente über die tatsächlichen Wort-Zeiten hinaus verlängern
-4.  **Zeitformat MM:SS (für die Ausgabe):**
-    - Konvertiere die präzisen Start- und Endzeiten der Segmente (ursprünglich in Sekunden mit Dezimalstellen aus den Wort-Timestamps) in das MM:SS Format für die Ausgabe.
-    - Runde hierbei die Startsekunde des Segments IMMER AB (floor) zur nächsten vollen Sekunde.
-    - Runde die Endsekunde des Segments IMMER AUF (ceil) zur nächsten vollen Sekunde.
-    - Beispiel: Ein Segment, das laut Wort-Timestamps von 5.72s bis 8.18s geht.
-      - Start für Ausgabe: 5.72s wird zu 00:05.
-      - Ende für Ausgabe: 8.18s wird zu 00:09.
-      - Resultierender Zeitstempel: 00:05 - 00:09
-    - **WICHTIG ZUR VERMEIDUNG VON ÜBERLAPPUNGEN:**
-      - Die **gerundete Startzeit (MM:SS)** eines Segments muss **strikt GRÖSSER** sein als die **gerundete Endzeit (MM:SS)** des **direkt vorhergehenden** Segments.
-      - Beispiel: Wenn Segment A bei \`00:08 - 00:12\` endet, muss Segment B frühestens bei \`00:13\` beginnen (z.B. \`00:13 - 00:15\`).
-      - Es darf **KEINE IDENTISCHEN ODER SICH ÜBERSCHNEIDENDEN ZEITMARKEN** zwischen den gerundeten Zeitstempeln aufeinanderfolgender Segmente geben. Wenn ein Segment bei \`MM:SS_A - MM:SS_B\` endet und das nächste Segment bei \`MM:SS_C - MM:SS_D\` beginnt, muss \`MM:SS_C\` immer mindestens \`MM:SS_B + 1 Sekunde\` sein.
+**Richtlinien (in Prioritätsreihenfolge):**
+1.  **TIMING-PRÄZISION (HÖCHSTE PRIORITÄT):**
+    - Die Startzeit des Segments MUSS dem 'start'-Timestamp des ersten Wortes entsprechen
+    - Die Endzeit des Segments MUSS dem 'end'-Timestamp des letzten Wortes entsprechen
+    - **AUSNAHME - Lesezeit bei Redepausen:** Wenn nach einem Segment eine Redepause von 1-2 Sekunden folgt (keine neuen Wörter), verlängere das Segment um diese Pause für bessere Lesbarkeit
+    - NIEMALS Segmente über die tatsächlichen Wort-Zeiten hinaus verlängern (außer bei obiger Redepausen-Regel)
+    - Wenn zwischen Wörtern längere Pausen (>2s) sind, erstelle separate Segmente
+
+2.  **0-SEKUNDEN-TIMESTAMPS VERMEIDEN:**
+    - NIEMALS Segmente mit identischer Start- und Endzeit erstellen (z.B. 1:41 - 1:41)
+    - Wenn ein Segment nach Rundung 0 Sekunden hätte, teile es in die benachbarten Segmente auf
+    - Priorisiere dabei die zeitliche Nähe zum tatsächlich gesprochenen Wort
+
+3.  **Segmentlänge:** Maximal 40 Zeichen pro Segment. Wenn nötig, teile mitten im Satz auf, um das Timing einzuhalten.
+
+4.  **Zeitformat MM:SS (für die Ausgabe) - ÜBERLAPPUNGSFREIE RUNDUNG:**
+    - Verwende die exakten Wort-Timestamps für die Segmentierung
+    - Für die MM:SS Ausgabe: Runde Startsekunde AB (floor), Endsekunde AUF (ceil)
+    - **KRITISCH: Überlappungsvermeidung beim Runden:**
+      - Wenn das gerundete Ende von Segment A (MM:SS) >= gerundeter Start von Segment B (MM:SS) ist, dann:
+      - Setze den Start von Segment B auf (Ende von Segment A + 1 Sekunde)
+      - Beispiel: Segment A endet bei 5.8s (gerundet 00:06), Segment B startet bei 5.9s (würde zu 00:05 gerundet)
+      - Lösung: Segment B startet in der Ausgabe bei 00:07 (00:06 + 1)
+    - So bleiben die Segmente zeitlich präzise zu den Wörtern, aber überlappen nicht in der Anzeige
+
+5.  **Segmentierung:** Nur wenn das Timing stimmt, versuche sinnvolle Wortgruppen zu bilden
 
 **AUSGABEFORMAT:**
 - Jedes Segment: Zeitstempel-Zeile, dann Text-Zeile, dann Leerzeile
-- Keine Anführungszeichen, keine Backticks, keine Markdown-Formatierung
+- Keine Anführungszeichen, keine zusätzliche Formatierung
 - Nur der reine Untertiteltext
 
 **Eingabedaten:**
 
 Volltext:
-\`\`\`
 ${text}
-\`\`\`
 
 Wort-Timestamps (JSON-Format):
-\`\`\`json
 ${JSON.stringify(words, null, 2)}
-\`\`\`
 
 Gib NUR den formatierten Untertiteltext zurück, ohne weitere Erklärungen.`;
 
     console.log(`[ShortSubtitleGenerator] Anfrage an Claude: ${text.length} chars, ${words.length} Wörter`);
     
-    // Log first few and last few word timestamps for debugging
+    // Log first few word timestamps for debugging
     console.log(`[ShortSubtitleGenerator] Erste 3 Wort-Timestamps:`, words.slice(0, 3).map(w => `"${w.word}": ${w.start.toFixed(2)}s-${w.end.toFixed(2)}s`));
-    if (words.length > 3) {
-      console.log(`[ShortSubtitleGenerator] Letzte 3 Wort-Timestamps:`, words.slice(-3).map(w => `"${w.word}": ${w.start.toFixed(2)}s-${w.end.toFixed(2)}s`));
-    }
-    // Log the approximate size of the prompt components
-    const userContentLength = userContent.length;
-    const systemPromptLength = systemPrompt.length;
-    console.log(`[ShortSubtitleGenerator] Ungefähre Prompt-Größe: System ${systemPromptLength} Zeichen, UserContent ${userContentLength} Zeichen (inkl. Text und Word-Timestamp-JSON)`);
 
     try {
         const result = await aiWorkerPool.processRequest({

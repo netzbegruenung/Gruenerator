@@ -142,7 +142,7 @@ export const FormProvider = ({
   const setGeneratedContent = useCallback((content) => {
     console.log('[FormContext] setGeneratedContent called. Content length:', content?.length);
     setValue(content);
-  }, []);
+  }, [setValue]);
 
   const handleEdit = useCallback(() => {
     console.log('[FormContext] handleEdit called. Setting isEditing to true.');
@@ -371,7 +371,6 @@ export const FormProvider = ({
     value,
     setValue,
     updateValue,
-    setGeneratedContent,
     isEditing,
     setIsEditing,
     handleEdit,
@@ -417,7 +416,6 @@ export const FormProvider = ({
   }), [
     value,
     updateValue, // Removed setValue as updateValue is preferred
-    setGeneratedContent,
     isEditing, setIsEditing, // Added setIsEditing
     handleEdit,
     handleSave,

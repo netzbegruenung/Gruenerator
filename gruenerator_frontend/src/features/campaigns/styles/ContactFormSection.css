@@ -40,6 +40,8 @@
 }
 
 
+/* Contact-form input focus styles - DISABLED to prevent conflicts with main form-inputs.css */
+/*
 .contact-form input[type="text"]:focus,
 .contact-form input[type="email"]:focus,
 .contact-form textarea:focus {
@@ -48,6 +50,7 @@
     padding: 8px; 
     box-shadow: 0 0 5px rgba(81, 163, 37, 0.5); 
 }
+*/
 
 .contact-form textarea {
     min-height: 100px; 

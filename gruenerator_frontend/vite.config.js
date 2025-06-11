@@ -4,7 +4,7 @@ import path from 'node:path';
 
 export default defineConfig(({ command }) => ({
   plugins: [
-    react({ jsxRuntime: 'automatic', babel: { plugins: ['babel-plugin-macros'] } })
+    react({ jsxRuntime: 'automatic' })
   ],
   resolve: {
     alias: {
@@ -13,50 +13,72 @@ export default defineConfig(({ command }) => ({
     }
   },
   optimizeDeps: {
-    exclude: ['react-icons'],
-    esbuildOptions: { target: 'es2020' }
+    include: [
+      'react', 'react-dom', 'react-router-dom',
+      '@tanstack/react-query', 'zustand',
+      '@supabase/supabase-js',
+      'motion/react'
+    ],
+    esbuildOptions: { 
+      target: 'es2022',
+      treeShaking: true
+    }
   },
   build: {
-    target: 'es2020',
+    target: 'es2022',
     sourcemap: false,
     minify: 'esbuild',
     cssCodeSplit: true,
-    assetsInlineLimit: 1024,
-    chunkSizeWarningLimit: 1500,
+    assetsInlineLimit: 4096,
+    chunkSizeWarningLimit: 1000,
     outDir: 'build',
-    commonjsOptions: {
-      exclude: []
-    },
     rollupOptions: {
-      external: [
-        // Entfernen Sie hier die Bibliotheken, die Probleme verursachen
-        // 'react-icons',
-        // '@mui/material',
-        // '@mui/icons-material'
-      ],
       maxParallelFileOps: 16,
-      treeshake: { moduleSideEffects: false },
+      treeshake: { 
+        moduleSideEffects: false,
+        propertyReadSideEffects: false,
+        unknownGlobalSideEffects: false
+      },
       output: {
         manualChunks(id) {
           if (id.includes('node_modules')) {
-            if (id.includes('react')) return 'react';
-            if (id.includes('@supabase')) return 'supabase';
+            if (id.includes('react') || id.includes('react-dom')) return 'react-vendor';
+            if (id.includes('@tanstack')) return 'query-vendor';
+            if (id.includes('@supabase')) return 'supabase-vendor';
+            if (id.includes('motion')) return 'motion-vendor';
+            if (id.includes('react-icons')) return 'icons-vendor';
+            if (id.includes('quill') || id.includes('marked') || id.includes('turndown')) return 'editor-vendor';
+            if (id.includes('lodash') || id.includes('uuid') || id.includes('dompurify')) return 'utils-vendor';
+            return 'misc-vendor';
           }
+          if (id.includes('src/features/auth')) return 'auth-feature';
+          if (id.includes('src/features/texte')) return 'texte-feature';
+          if (id.includes('src/features/groups')) return 'groups-feature';
+          if (id.includes('src/features/sharepic')) return 'sharepic-feature';
+          if (id.includes('src/features/templates')) return 'templates-feature';
+          if (id.includes('src/features/generators')) return 'generators-feature';
+          if (id.includes('src/components/common')) return 'common-ui';
+          if (id.includes('src/components/layout')) return 'layout';
+          if (id.includes('src/hooks') || id.includes('src/stores')) return 'core-logic';
         },
         entryFileNames: 'assets/js/[name].[hash].js',
         chunkFileNames: 'assets/js/[name].[hash].js',
         assetFileNames(assetInfo) {
           const ext = assetInfo.name.split('.').pop();
-          if (/png|jpe?g|svg|gif|tiff|bmp|ico/i.test(ext)) {
+          if (/png|jpe?g|svg|gif|tiff|bmp|ico|webp/i.test(ext)) {
             return 'assets/images/[name].[hash][extname]';
           }
           if (/css/i.test(ext)) {
             return 'assets/css/[name].[hash][extname]';
           }
+          if (/woff2?|ttf|eot/i.test(ext)) {
+            return 'assets/fonts/[name].[hash][extname]';
+          }
           return 'assets/[name].[hash][extname]';
         }
       }
-    }
+    },
+    cssMinify: 'esbuild'
   },
   server: {
     port: 3000,

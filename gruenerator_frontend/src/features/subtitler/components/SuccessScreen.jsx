@@ -52,15 +52,6 @@ const AnimatedCheckmark = () => {
 };
 
 const SuccessScreen = ({ onReset, onEditAgain, isLoading, socialText, uploadId }) => {
-<<<<<<< HEAD
-  const [progress, setProgress] = useState(0);
-
-  useEffect(() => {
-    if (!isLoading || !uploadId) {
-      setProgress(0); // Reset progress when not loading or no uploadId
-      return;
-    }
-=======
   const [showSpinner, setShowSpinner] = useState(isLoading);
   const [progress, setProgress] = useState(0);
 
@@ -79,7 +70,6 @@ const SuccessScreen = ({ onReset, onEditAgain, isLoading, socialText, uploadId }
   // Progress Polling
   useEffect(() => {
     if (!isLoading || !uploadId) return;
->>>>>>> f2cbc8c2fcc3868bd014a17f22a2c2b04103dcf5
 
     const pollProgress = async () => {
       try {
@@ -101,13 +91,8 @@ const SuccessScreen = ({ onReset, onEditAgain, isLoading, socialText, uploadId }
     <div className="success-screen">
       <div className="success-content">
         <div className="success-main">
-<<<<<<< HEAD
-          <div className={`success-icon ${isLoading ? 'loading' : ''}`}>
-            {isLoading ? (
-=======
           <div className={`success-icon ${showSpinner ? 'loading' : ''}`}>
             {showSpinner ? (
->>>>>>> f2cbc8c2fcc3868bd014a17f22a2c2b04103dcf5
               <div className="spinner" />
             ) : (
               <AnimatedCheckmark />
@@ -115,13 +100,8 @@ const SuccessScreen = ({ onReset, onEditAgain, isLoading, socialText, uploadId }
           </div>
           <h2>{isLoading ? 'Dein Video wird verarbeitet' : 'Dein Video wurde heruntergeladen'}</h2>
           <p>
-<<<<<<< HEAD
-            {isLoading
-              ? 'Während dein Video mit Untertiteln versehen wird, kannst du dir schon den generierten Beitragstext ansehen.'
-=======
             {isLoading 
               ? 'Während dein Video mit Untertiteln versehen wird, kannst du dir schon den generierten Beitragstext ansehen.' 
->>>>>>> f2cbc8c2fcc3868bd014a17f22a2c2b04103dcf5
               : 'Dein Video wurde erfolgreich mit Untertiteln versehen und heruntergeladen.'}
           </p>
           

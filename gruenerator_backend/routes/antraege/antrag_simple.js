@@ -53,8 +53,15 @@ router.post('/', async (req, res) => {
     let userContent;
     
     if (customPrompt) {
-      // Bei benutzerdefiniertem Prompt diesen verwenden, aber mit Standardinformationen ergänzen
-      userContent = `Benutzerdefinierter Prompt: ${customPrompt}
+      // Prüfe ob es sich um strukturierte Anweisungen/Wissen handelt
+      const isStructured = customPrompt.includes('Der User gibt dir folgende Anweisungen') || 
+                          customPrompt.includes('Der User stellt dir folgendes, wichtiges Wissen');
+      
+      if (isStructured) {
+        // Strukturierte Anweisungen und Wissen direkt verwenden
+        userContent = `${customPrompt}
+
+---
 
 Aktuelles Datum: ${currentDate}
 
@@ -68,6 +75,23 @@ Der Antrag sollte eine klare Struktur mit Betreff, Antragstext und Begründung h
 WICHTIG: Antworte ausschließlich auf Deutsch. Gib nur den finalen Antrag aus, keine Zwischenschritte oder Erklärungen.
 
 ${HTML_FORMATTING_INSTRUCTIONS}`;
+      } else {
+        // Legacy: Bei benutzerdefiniertem Prompt diesen verwenden, aber mit Standardinformationen ergänzen
+        userContent = `Benutzerdefinierter Prompt: ${customPrompt}
+
+Aktuelles Datum: ${currentDate}
+
+Zusätzliche Informationen (falls relevant):
+${idee ? `- Antragsidee: ${idee}` : ''}
+${gliederung ? `- Gliederung: ${gliederung}` : ''}
+${details ? `- Details: ${details}` : ''}
+
+Der Antrag sollte eine klare Struktur mit Betreff, Antragstext und Begründung haben.
+
+WICHTIG: Antworte ausschließlich auf Deutsch. Gib nur den finalen Antrag aus, keine Zwischenschritte oder Erklärungen.
+
+${HTML_FORMATTING_INSTRUCTIONS}`;
+      }
     } else {
       // Standardinhalt ohne benutzerdefinierten Prompt
       userContent = `Erstelle einen kommunalpolitischen Antrag zum Thema: ${idee}` + 
@@ -85,8 +109,7 @@ ${HTML_FORMATTING_INSTRUCTIONS}`;
     }
     
     // Anfrage an Claude
-    const result = await req.app.locals.aiWorkerPool.processRequest({
-      type: 'antrag',
+    const payload = {
       systemPrompt,
       messages: [{
         role: "user",
@@ -98,6 +121,11 @@ ${HTML_FORMATTING_INSTRUCTIONS}`;
         useBedrock: useBedrock
       },
       useBackupProvider
+    };
+    
+    const result = await req.app.locals.aiWorkerPool.processRequest({
+      type: 'antrag',
+      ...payload
     });
 
     if (!result.success) {

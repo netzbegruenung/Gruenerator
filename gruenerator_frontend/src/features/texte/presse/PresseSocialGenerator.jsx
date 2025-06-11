@@ -1,42 +1,72 @@
-import React, { useState, useCallback, useContext, useEffect } from 'react';
+import React, { useState, useCallback, useContext, useEffect, useMemo } from 'react';
 import PropTypes from 'prop-types';
+import { useForm, Controller } from 'react-hook-form';
+import { motion, AnimatePresence } from 'motion/react';
 import BaseForm from '../../../components/common/BaseForm';
 import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../../components/utils/constants';
 import useApiSubmit from '../../../components/hooks/useApiSubmit';
 import StyledCheckbox from '../../../components/common/AnimatedCheckbox';
 import { FormContext } from '../../../components/utils/FormContext';
-import { useDynamicTextSize } from '../../../components/utils/commonFunctions';
+// import { useDynamicTextSize } from '../../../components/utils/commonFunctions';
 import { useSharedContent } from '../../../components/hooks/useSharedContent';
-import { usePresseSocialForm } from './hooks';
 import ErrorBoundary from '../../../components/ErrorBoundary';
-import { useSupabaseAuth } from '../../../context/SupabaseAuthContext';
+import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { HiInformationCircle } from 'react-icons/hi';
-import { createFinalPrompt } from '../../../utils/promptUtils';
+import { createStructuredFinalPrompt } from '../../../utils/promptUtils';
 import useGroupDetails from '../../groups/hooks/useGroupDetails';
+import { useFormFields } from '../../../components/common/Form/hooks';
+import useGeneratedTextStore from '../../../stores/generatedTextStore';
 
 const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   const { initialContent } = useSharedContent();
-  const { user, deutschlandmodus } = useSupabaseAuth();
-  
+  const { user, betaFeatures } = useOptimizedAuth();
+  const deutschlandmodus = betaFeatures?.deutschlandmodus;
+  const { Input, Textarea } = useFormFields();
+  const { setGeneratedText: setStoreGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
+
+  const platformOptions = useMemo(() => [
+    { id: 'instagram', label: 'Instagram' },
+    { id: 'facebook', label: 'Facebook' },
+    { id: 'twitter', label: 'Twitter/X' },
+    { id: 'linkedin', label: 'LinkedIn' },
+    { id: 'actionIdeas', label: 'Aktionsideen' },
+    { id: 'reelScript', label: 'Instagram Reel' },
+    { id: 'pressemitteilung', label: 'Pressemitteilung' }
+  ], []);
+
+  const defaultPlatforms = useMemo(() => {
+    return platformOptions.reduce((acc, platformOpt) => {
+      acc[platformOpt.id] = initialContent?.platforms?.[platformOpt.id] || 
+                             (platformOpt.id === 'instagram' && initialContent?.isFromSharepic) || 
+                             (platformOpt.id === 'twitter' && initialContent?.isFromSharepic) ||
+                             false;
+      return acc;
+    }, {});
+  }, [initialContent, platformOptions]);
+
   const {
-    thema,
-    setThema,
-    details,
-    setDetails,
-    platforms,
-    handlePlatformChange,
-    zitatgeber,
-    setZitatgeber,
-    pressekontakt,
-    setPressekontakt,
-    getFormData
-  } = usePresseSocialForm(initialContent);
+    control,
+    handleSubmit,
+    reset,
+    watch,
+    formState: { errors }
+  } = useForm({
+    defaultValues: {
+      thema: initialContent?.thema || '',
+      details: initialContent?.details || '',
+      zitatgeber: initialContent?.zitatgeber || '',
+      pressekontakt: initialContent?.pressekontakt || '',
+      ...defaultPlatforms
+    }
+  });
+
+  const watchPressemitteilung = watch('pressemitteilung');
 
   const [socialMediaContent, setSocialMediaContent] = useState('');
-  const textSize = useDynamicTextSize(socialMediaContent, 1.2, 0.8, [1000, 2000]);
+  // const textSize = useDynamicTextSize(socialMediaContent, 1.2, 0.8, [1000, 2000]);
   const { submitForm, loading, success, resetSuccess, error } = useApiSubmit('/claude_social');
+  const storeGeneratedText = useGeneratedTextStore(state => state.generatedText);
   const { 
-    setGeneratedContent, 
     getKnowledgeContent,
     knowledgeSourceConfig
   } = useContext(FormContext);
@@ -84,9 +114,21 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
     knowledgeSourceConfig.type === 'group'
   );
 
-  const handleSubmit = useCallback(async () => {
+  const onSubmitRHF = useCallback(async (rhfData) => {
+    setStoreIsLoading(true);
     try {
-      const formDataToSubmit = getFormData();
+      const selectedPlatforms = platformOptions
+        .filter(p => rhfData[p.id])
+        .map(p => p.id);
+
+      const formDataToSubmit = {
+        thema: rhfData.thema,
+        details: rhfData.details,
+        platforms: selectedPlatforms,
+        zitatgeber: rhfData.zitatgeber,
+        pressekontakt: rhfData.pressekontakt,
+      };
+      
       let activeInstructionsText = null;
       let areInstructionsActive = false;
 
@@ -99,44 +141,47 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
       }
       
       const knowledgeContent = getKnowledgeContent();
-      const finalPrompt = createFinalPrompt(areInstructionsActive ? activeInstructionsText : null, knowledgeContent);
-
-      delete formDataToSubmit.customPrompt; 
-      delete formDataToSubmit.knowledgeContent;
+      const finalPrompt = createStructuredFinalPrompt(
+        areInstructionsActive ? activeInstructionsText : null,
+        knowledgeContent
+      );
       
       if (finalPrompt) {
         formDataToSubmit.customPrompt = finalPrompt; 
-        console.log('[PresseSocialGenerator] Final combined prompt added to formData.', finalPrompt.substring(0,100)+'...');
+        console.log('[PresseSocialGenerator] Final structured prompt added to formData.', finalPrompt.substring(0,100)+'...');
       } else {
-        console.log('[PresseSocialGenerator] No custom prompt or knowledge for generation.');
+        console.log('[PresseSocialGenerator] No custom instructions or knowledge for generation.');
       }
 
       const content = await submitForm(formDataToSubmit, useBackupProvider);
       if (content) {
         setSocialMediaContent(content);
-        setGeneratedContent(content);
+        setStoreGeneratedText(content);
         setTimeout(resetSuccess, 3000);
       }
     } catch (submitError) {
       console.error('[PresseSocialGenerator] Error submitting form:', submitError);
+    } finally {
+      setStoreIsLoading(false);
     }
   }, [
-    getFormData, 
     submitForm, 
     resetSuccess, 
-    setGeneratedContent, 
+    setStoreGeneratedText,
+    setStoreIsLoading,
     useBackupProvider, 
     knowledgeSourceConfig,
     userCustomSocialPrompt,
     isUserCustomSocialPromptActive,
     groupDetailsData,
-    getKnowledgeContent
+    getKnowledgeContent,
+    platformOptions
   ]);
 
   const handleGeneratedContentChange = useCallback((content) => {
     setSocialMediaContent(content);
-    setGeneratedContent(content);
-  }, [setGeneratedContent]);
+    setStoreGeneratedText(content);
+  }, [setStoreGeneratedText]);
 
   const formNoticeElement = (() => {
     if (knowledgeSourceConfig.type === 'group' && isLoadingGroupDetails) {
@@ -213,73 +258,94 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
     );
   })();
 
+  const helpContent = {
+    content: "Dieser Grünerator erstellt professionelle Pressemitteilungen und Social Media Inhalte basierend auf deinen Angaben.",
+    tips: [
+      "Gib ein klares, prägnantes Thema an",
+      "Füge wichtige Details und Fakten hinzu",
+      "Wähle die gewünschten Plattformen aus",
+      "Bei Pressemitteilungen: Angabe von Zitatgeber und Pressekontakt erforderlich"
+    ]
+  };
+
   const renderFormInputs = () => (
     <>
-      <h3><label htmlFor="thema">{FORM_LABELS.THEME}</label></h3>
-      <input
-        id="thema"
-        type="text"
+      <Input
         name="thema"
+        control={control}
+        label={FORM_LABELS.THEME}
         placeholder={FORM_PLACEHOLDERS.THEME}
-        value={thema}
-        onChange={(e) => setThema(e.target.value)}
-        aria-required="true"
+        rules={{ required: 'Thema ist ein Pflichtfeld' }}
       />
 
-      <h3><label htmlFor="details">{FORM_LABELS.DETAILS}</label></h3>
-                <textarea
-            id="details"
-            name="details"
-            className="form-textarea-large"
-            placeholder={FORM_PLACEHOLDERS.DETAILS}
-            value={details}
-            onChange={(e) => setDetails(e.target.value)}
-            aria-required="true"
-          />
+      <Textarea
+        name="details"
+        control={control}
+        label={FORM_LABELS.DETAILS}
+        placeholder={FORM_PLACEHOLDERS.DETAILS}
+        rules={{ required: 'Details sind ein Pflichtfeld' }}
+        minRows={3}
+        maxRows={10}
+        className="form-textarea-large"
+      />
 
+      <AnimatePresence>
+        {watchPressemitteilung && (
+          <motion.div 
+            className="press-release-fields"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 8 }}
+            transition={{ 
+              type: "spring", 
+              stiffness: 400, 
+              damping: 25,
+              duration: 0.25 
+            }}
+          >
+            <Input
+              name="zitatgeber"
+              control={control}
+              label={FORM_LABELS.WHO_QUOTE}
+              subtext="Mehrere Personen können genannt werden."
+              placeholder={FORM_PLACEHOLDERS.WHO_QUOTE}
+              rules={{ required: 'Zitatgeber ist ein Pflichtfeld für Pressemitteilungen' }}
+            />
+            
+            <Textarea
+              name="pressekontakt"
+              control={control}
+              label={FORM_LABELS.PRESS_CONTACT}
+              placeholder={FORM_PLACEHOLDERS.PRESS_CONTACT}
+              rules={{ required: 'Pressekontakt ist ein Pflichtfeld für Pressemitteilungen' }}
+              minRows={3}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
+  );
+  
+  const renderPlatformCheckboxesSection = () => (
+    <>
       <h3>Plattformen & Formate</h3>
       <div className="platform-checkboxes">
-        {Object.entries(platforms).map(([platform, isChecked]) => (
-          <StyledCheckbox
-            key={platform}
-            id={`checkbox-${platform}`}
-            checked={isChecked}
-            onChange={() => handlePlatformChange(platform)}
-            label={
-              platform === 'actionIdeas' ? 'Aktionsideen' :
-              platform === 'reelScript' ? 'Instagram Reel' :
-              platform === 'pressemitteilung' ? 'Pressemitteilung' :
-              platform.charAt(0).toUpperCase() + platform.slice(1)
-            }
+        {platformOptions.map((platformOpt) => (
+          <Controller
+            key={platformOpt.id}
+            name={platformOpt.id}
+            control={control}
+            render={({ field }) => (
+              <StyledCheckbox
+                id={`checkbox-${platformOpt.id}`}
+                checked={field.value}
+                onChange={(e) => field.onChange(e.target.checked)}
+                label={platformOpt.label}
+              />
+            )}
           />
         ))}
       </div>
-
-      {platforms.pressemitteilung && (
-        <div className="press-release-fields">
-          <h3><label htmlFor="zitatgeber">{FORM_LABELS.WHO_QUOTE}</label></h3>
-          <p className="subtext">Mehrere Personen können genannt werden.</p>
-          <input
-            id="zitatgeber"
-            type="text"
-            name="zitatgeber"
-            placeholder={FORM_PLACEHOLDERS.WHO_QUOTE}
-            value={zitatgeber}
-            onChange={(e) => setZitatgeber(e.target.value)}
-            aria-required="true"
-          />
-          
-          <h3><label htmlFor="pressekontakt">{FORM_LABELS.PRESS_CONTACT}</label></h3>
-          <textarea
-            id="pressekontakt"
-            name="pressekontakt"
-            placeholder={FORM_PLACEHOLDERS.PRESS_CONTACT}
-            value={pressekontakt}
-            onChange={(e) => setPressekontakt(e.target.value)}
-            aria-required="true"
-          ></textarea>
-        </div>
-      )}
     </>
   );
 
@@ -288,18 +354,19 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
       <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
         <BaseForm
           title="Presse- & Social Media Grünerator"
-          onSubmit={handleSubmit}
+          onSubmit={handleSubmit(onSubmitRHF)}
           loading={loading}
           success={success}
           error={error}
-          generatedContent={socialMediaContent}
-          textSize={textSize}
+          generatedContent={storeGeneratedText || socialMediaContent}
           onGeneratedContentChange={handleGeneratedContentChange}
           useBackupProvider={useBackupProvider}
           setUseBackupProvider={setUseBackupProvider}
           usePlatformContainers={true}
           formNotice={formNoticeElement}
           enableKnowledgeSelector={true}
+          helpContent={helpContent}
+          bottomSectionChildren={renderPlatformCheckboxesSection()}
         >
           {renderFormInputs()}
         </BaseForm>

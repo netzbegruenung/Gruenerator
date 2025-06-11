@@ -36,10 +36,34 @@ const { tusServer } = require('./routes/subtitler/services/tusService');
 const testBedrockRoutes = require('./routes/testBedrock'); // Import the new test route
 const collabEditorRouter = require('./routes/collabEditor'); // Import the new collab editor route
 const snapshottingRouter = require('./routes/internal/snapshottingController'); // Import the new snapshotting controller
+const offboardingRouter = require('./routes/internal/offboardingController'); // Import the offboarding controller
+// Auth routes will be imported dynamically
 
-function setupRoutes(app) {
-  app.use('/api/subtitler/upload', tusServer.handle.bind(tusServer));
+async function setupRoutes(app) {
+  // Add debug middleware to trace ALL requests before anything else
+  app.use('*', (req, res, next) => {
+    console.log(`[SERVER REQUEST] ${req.method} ${req.originalUrl} - From: ${req.headers.origin || 'unknown'}`);
+    next();
+  });
 
+  // Add debug middleware to trace all API requests
+  app.use('/api/*', (req, res, next) => {
+    console.log(`[Route Debug] ${req.method} ${req.originalUrl} - Headers: ${JSON.stringify(req.headers.cookie ? { cookie: req.headers.cookie } : {})}`);
+    // Session info ohne req.isAuthenticated da passport.session() nicht mehr global läuft
+    console.log(`[Route Debug] Session info:`, {
+      hasSession: !!req.session,
+      sessionId: req.sessionID,
+      hasUser: !!req.user
+    });
+    next();
+  });
+
+  // app.use('/api/subtitler/upload', tusServer.handle.bind(tusServer)); // REMOVED: Redundant, already handled in server.mjs
+
+  // Auth routes (non-API path) - dynamic import for ES module
+  const { default: authRoutes } = await import('./routes/authRoutes.mjs');
+  app.use('/api/auth', authRoutes);
+  
   // Use the single consolidated router for all /api/antraege paths
   app.use('/api/antraege', antraegeRouter);
 
@@ -80,13 +104,14 @@ function setupRoutes(app) {
   app.use('/api/analyze', searchAnalysisRouter);
 
   // Add the Bedrock test route
-  app.use('/api', testBedrockRoutes);
+  app.use('/api/test-bedrock', testBedrockRoutes); // FIX: Used a more specific path to avoid conflicts
 
   // Add the Collab Editor route
   app.use('/api/collab-editor', collabEditorRouter);
 
   // Add internal routes like snapshotting trigger
   app.use('/api/internal', snapshottingRouter);
+  app.use('/api/internal/offboarding', offboardingRouter);
 }
 
 module.exports = { setupRoutes };

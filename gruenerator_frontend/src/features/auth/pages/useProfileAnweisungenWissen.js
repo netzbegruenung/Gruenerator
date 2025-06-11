@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useSupabaseAuth } from '../../../context/SupabaseAuthContext';
+import { useAuthStore } from '../../../stores/authStore';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'; // Import React Query hooks
 
 const MAX_KNOWLEDGE_ENTRIES = 3;
@@ -24,7 +24,7 @@ const cleanKnowledgeEntry = (entry) => {
 };
 
 export const useProfileAnweisungenWissen = ({ isActive }) => {
-  const { user } = useSupabaseAuth();
+  const { supabaseUser: user } = useAuthStore();
   const [templatesSupabase, setTemplatesSupabase] = useState(null);
   const queryClient = useQueryClient(); // Get query client instance
 

@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const authMiddleware = require('../../middleware/authMiddleware');
+const { requireAuth } = require('../../middleware/authMiddleware');
 
-router.post('/', authMiddleware, async (req, res) => {
+router.post('/', requireAuth, async (req, res) => {
   try {
     const { title, antragstext } = req.body;
     

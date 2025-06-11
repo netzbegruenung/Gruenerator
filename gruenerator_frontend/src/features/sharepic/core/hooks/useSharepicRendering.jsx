@@ -23,7 +23,7 @@ export const useSharepicRendering = () => {
             placeholder="Klimaschutzinitiative"
             value={formData.thema || ''}
             onChange={handleChange}
-            className={formErrors.thema ? 'error-input' : ''}
+            className={`form-input ${formErrors.thema ? 'error-input' : ''}`}
           />
           {formErrors.thema && <div className="error-message">{formErrors.thema}</div>}
           
@@ -34,7 +34,7 @@ export const useSharepicRendering = () => {
             placeholder="Details zur Initiative, beteiligte Personen und geplante Aktionen."
             value={formData.details || ''}
             onChange={handleChange}
-            className={formErrors.details ? 'error-input' : ''}
+            className={`form-textarea ${formErrors.details ? 'error-input' : ''}`}
           />
           {formErrors.details && <div className="error-message">{formErrors.details}</div>}
         </>
@@ -51,7 +51,7 @@ export const useSharepicRendering = () => {
               name="quote"
               value={formData.quote || ''}
               onChange={handleChange}
-              className={formErrors.quote ? 'error-input' : ''}
+              className={`form-textarea ${formErrors.quote ? 'error-input' : ''}`}
               placeholder="Gib hier das Zitat ein..."
               rows={4}
             />
@@ -64,7 +64,7 @@ export const useSharepicRendering = () => {
               name="name"
               value={formData.name || ''}
               onChange={handleChange}
-              className={formErrors.name ? 'error-input' : ''}
+              className={`form-input ${formErrors.name ? 'error-input' : ''}`}
               placeholder="Name der zitierten Person"
             />
             {formErrors.name && <div className="error-message">{formErrors.name}</div>}
@@ -80,7 +80,7 @@ export const useSharepicRendering = () => {
               name="line1"
               value={formData.line1 || ''}
               onChange={handleChange}
-              className={formErrors.line1 ? 'error-input' : ''}
+              className={`form-input ${formErrors.line1 ? 'error-input' : ''}`}
             />
             {formErrors.line1 && <div className="error-message">{formErrors.line1}</div>}
 
@@ -91,7 +91,7 @@ export const useSharepicRendering = () => {
               name="line2"
               value={formData.line2 || ''}
               onChange={handleChange}
-              className={formErrors.line2 ? 'error-input' : ''}
+              className={`form-input ${formErrors.line2 ? 'error-input' : ''}`}
             />
             {formErrors.line2 && <div className="error-message">{formErrors.line2}</div>}
 
@@ -102,7 +102,7 @@ export const useSharepicRendering = () => {
               name="line3"
               value={formData.line3 || ''}
               onChange={handleChange}
-              className={formErrors.line3 ? 'error-input' : ''}
+              className={`form-input ${formErrors.line3 ? 'error-input' : ''}`}
             />
             {formErrors.line3 && <div className="error-message">{formErrors.line3}</div>}
           </>

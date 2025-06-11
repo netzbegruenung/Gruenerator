@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useContext } from 'react';
 import PropTypes from 'prop-types';
-import {useDynamicTextSize } from '../../utils/commonFunctions';
+// import {useDynamicTextSize } from '../../utils/commonFunctions';
 import useApiSubmit from '../../hooks/useApiSubmit';
 import BaseForm from '../../common/BaseForm';
 import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../utils/constants';
@@ -11,7 +11,7 @@ const WahlpruefsteinBundestagswahl = ({ showHeaderFooter = true }) => {
   const [question, setQuestion] = useState('');
   const [selectedChapter, setSelectedChapter] = useState('');
   const [response, setResponse] = useState('');
-  const textSize = useDynamicTextSize(response, 1.2, 0.8, [1000, 2000]);
+  // const textSize = useDynamicTextSize(response, 1.2, 0.8, [1000, 2000]);
   const { submitForm, loading, success, resetSuccess, error } = useApiSubmit('/wahlpruefsteinbundestagswahl/frage');
   const { setGeneratedContent } = useContext(FormContext);
 
@@ -80,7 +80,7 @@ const WahlpruefsteinBundestagswahl = ({ showHeaderFooter = true }) => {
           success={success}
           error={error}
           generatedContent={response}
-          textSize={textSize}
+  
           onGeneratedContentChange={handleGeneratedContentChange}
           helpContent={helpContent}
         >

@@ -1,11 +1,11 @@
 import React, { useRef, forwardRef } from 'react';
 import PropTypes from 'prop-types';
-import { CSSTransition } from 'react-transition-group';
+import { LazyMotion, m, AnimatePresence } from 'motion/react';
+
+// Lazy load motion features
+const loadFeatures = () => import('motion/react').then(res => res.domAnimation);
 
 export const SloganAlternativesButton = forwardRef(({ isExpanded, onClick }, ref) => {
-  const showButtonRef = useRef(null);
-  const hideButtonRef = useRef(null);
-
   const handleClick = (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -13,45 +13,47 @@ export const SloganAlternativesButton = forwardRef(({ isExpanded, onClick }, ref
   };
 
   return (
-    <div className="alternatives-button-wrapper" ref={ref}>
-      <CSSTransition
-        nodeRef={showButtonRef}
-        in={!isExpanded}
-        timeout={300}
-        classNames="alternatives-fade"
-        unmountOnExit
-      >
-        <button
-          ref={showButtonRef}
-          type="button"
-          className="alternatives-button"
-          onClick={handleClick}
-          aria-expanded={isExpanded}
-          aria-label="Alternativen anzeigen"
-        >
-          Alternativen anzeigen
-        </button>
-      </CSSTransition>
+    <LazyMotion features={loadFeatures}>
+      <div className="alternatives-button-wrapper" ref={ref}>
+        <AnimatePresence>
+          {!isExpanded && (
+            <m.button
+              key="show-button"
+              type="button"
+              className="alternatives-button"
+              onClick={handleClick}
+              aria-expanded={isExpanded}
+              aria-label="Alternativen anzeigen"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.25, ease: "easeOut" }}
+            >
+              Alternativen anzeigen
+            </m.button>
+          )}
+        </AnimatePresence>
 
-      <CSSTransition
-        nodeRef={hideButtonRef}
-        in={isExpanded}
-        timeout={300}
-        classNames="alternatives-fade"
-        unmountOnExit
-      >
-        <button
-          ref={hideButtonRef}
-          type="button"
-          className="alternatives-button"
-          onClick={handleClick}
-          aria-expanded={isExpanded}
-          aria-label="Ausblenden"
-        >
-          Ausblenden
-        </button>
-      </CSSTransition>
-    </div>
+        <AnimatePresence>
+          {isExpanded && (
+            <m.button
+              key="hide-button"
+              type="button"
+              className="alternatives-button"
+              onClick={handleClick}
+              aria-expanded={isExpanded}
+              aria-label="Ausblenden"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.25, ease: "easeOut" }}
+            >
+              Ausblenden
+            </m.button>
+          )}
+        </AnimatePresence>
+      </div>
+    </LazyMotion>
   );
 });
 

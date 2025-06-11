@@ -1,4 +1,4 @@
-import { useSupabaseAuth } from '../../../context/SupabaseAuthContext';
+import { useAuthStore } from '../../../stores/authStore';
 import { useQuery } from '@tanstack/react-query';
 // Direct import of the Supabase client instance
 import { templatesSupabase } from '../../../components/utils/templatesSupabaseClient';
@@ -12,15 +12,15 @@ const EMPTY_ARRAY = []; // Stable empty array reference
  * @returns {object} - { groupKnowledge, isLoading, isError, error, refetchGroupKnowledge }
  */
 const useGroupKnowledgeItems = (groupId, enabled = !!groupId) => {
-  const { user } = useSupabaseAuth();
+  const supabaseUser = useAuthStore((state) => state.supabaseUser);
 
   // The Supabase client is now imported directly, so no useEffect/useState needed for it.
 
-  const queryKey = ['groupKnowledgeItems', groupId, user?.id]; // Added user.id to queryKey for user-specific group data if necessary
+  const queryKey = ['groupKnowledgeItems', groupId, supabaseUser?.id]; // Added user.id to queryKey for user-specific group data if necessary
 
   const fetchGroupKnowledgeFn = async () => {
     // templatesSupabase is now directly available due to static import.
-    if (!user?.id || !templatesSupabase || !groupId) {
+    if (!supabaseUser?.id || !templatesSupabase || !groupId) {
       // console.warn('[useGroupKnowledgeItems] Required data missing for fetch: user, templatesSupabase, or groupId');
       return EMPTY_ARRAY; // Return stable empty array if prerequisites are not met
     }
@@ -52,7 +52,7 @@ const useGroupKnowledgeItems = (groupId, enabled = !!groupId) => {
     queryFn: fetchGroupKnowledgeFn,
     // templatesSupabase is available at module scope, so check is simpler.
     // Query will only be enabled if user, templatesSupabase, groupId, and the passed 'enabled' prop are all truthy.
-    enabled: !!user?.id && !!templatesSupabase && !!groupId && enabled,
+    enabled: !!supabaseUser?.id && !!templatesSupabase && !!groupId && enabled,
     staleTime: 5 * 60 * 1000, // 5 minutes
     cacheTime: 15 * 60 * 1000, // 15 minutes
     refetchOnWindowFocus: false,

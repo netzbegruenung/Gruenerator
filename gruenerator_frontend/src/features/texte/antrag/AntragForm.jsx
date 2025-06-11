@@ -1,4 +1,5 @@
 import React, { useCallback, useContext, useState, useEffect } from 'react';
+import { useForm } from 'react-hook-form';
 import { useAntrag } from './useAntrag';
 import { useAntragContext } from './AntragContext';
 import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../../components/utils/constants';
@@ -8,12 +9,17 @@ import { HiGlobeAlt, HiSave, HiInformationCircle } from 'react-icons/hi';
 import { FormContext } from '../../../components/utils/FormContext';
 import SubmitButton from '../../../components/common/SubmitButton';
 import AntragSavePopup from './components/AntragSavePopup';
-import { useSupabaseAuth } from '../../../context/SupabaseAuthContext';
-import { createFinalPrompt } from '../../../utils/promptUtils';
+import { useOptimizedAuth } from '../../../hooks/useAuth';
+import { createStructuredFinalPrompt } from '../../../utils/promptUtils';
 import useGroupDetails from '../../groups/hooks/useGroupDetails';
+import { useFormFields } from '../../../components/common/Form/hooks';
+import useGeneratedTextStore from '../../../stores/generatedTextStore';
 
 export const AntragForm = () => {
-  const { user, deutschlandmodus } = useSupabaseAuth();
+  const { user, betaFeatures } = useOptimizedAuth();
+  const deutschlandmodus = betaFeatures?.deutschlandmodus;
+  const { Input, Textarea } = useFormFields();
+  const { setGeneratedText: setStoreGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
   
   const {
     formData,
@@ -35,7 +41,6 @@ export const AntragForm = () => {
   } = useAntragContext();
 
   const { 
-    setGeneratedContent, 
     getKnowledgeContent,
     knowledgeSourceConfig
   } = useContext(FormContext);
@@ -43,6 +48,32 @@ export const AntragForm = () => {
   const [isSavePopupOpen, setIsSavePopupOpen] = useState(false);
   const [userCustomAntragPrompt, setUserCustomAntragPrompt] = useState(null);
   const [isUserCustomAntragPromptActive, setIsUserCustomAntragPromptActive] = useState(false);
+
+  const { control, handleSubmit, reset, formState: { errors } } = useForm({
+    defaultValues: {
+      idee: '',
+      details: '',
+      gliederung: ''
+    }
+  });
+
+  useEffect(() => {
+    reset({
+      idee: formData.idee || '',
+      details: formData.details || '',
+      gliederung: formData.gliederung || ''
+    });
+  }, [formData, reset]);
+
+  useEffect(() => {
+    if (generatedAntrag) {
+      setStoreGeneratedText(generatedAntrag);
+    }
+  }, [generatedAntrag, setStoreGeneratedText]);
+
+  useEffect(() => {
+    setStoreIsLoading(loading);
+  }, [loading, setStoreIsLoading]);
 
   useEffect(() => {
     const loadUserCustomPrompt = async () => {
@@ -84,7 +115,7 @@ export const AntragForm = () => {
     knowledgeSourceConfig.type === 'group'
   );
 
-  const handleSubmit = async () => {
+  const onSubmitRHF = async (rhfData) => {
     try {
       let activeInstructionsText = null;
       let areInstructionsActive = false;
@@ -98,14 +129,22 @@ export const AntragForm = () => {
       }
       
       const knowledgeContent = getKnowledgeContent();
-      const finalPrompt = createFinalPrompt(areInstructionsActive ? activeInstructionsText : null, knowledgeContent);
+      const finalPrompt = createStructuredFinalPrompt(
+        areInstructionsActive ? activeInstructionsText : null,
+        knowledgeContent
+      );
       
       if (finalPrompt) {
-        console.log('[AntragForm] Final combined prompt for generateAntrag:', finalPrompt.substring(0, 100) + '...');
+        console.log('[AntragForm] Final structured prompt for generateAntrag:', finalPrompt.substring(0, 100) + '...');
       } else {
-        console.log('[AntragForm] No custom prompt or knowledge for generateAntrag.');
+        console.log('[AntragForm] No custom instructions or knowledge for generateAntrag.');
       }
 
+      if (handleInputChange) {
+          handleInputChange('idee', rhfData.idee);
+          handleInputChange('details', rhfData.details);
+          handleInputChange('gliederung', rhfData.gliederung);
+      }
       await generateAntrag(finalPrompt);
     } catch (submitError) {
       console.error('[AntragForm] Error submitting antrag:', submitError);
@@ -114,14 +153,14 @@ export const AntragForm = () => {
 
   const handleGeneratedContentChange = useCallback((content) => {
     setGeneratedAntrag(content);
-    setGeneratedContent(content);
-  }, [setGeneratedAntrag, setGeneratedContent]);
+    setStoreGeneratedText(content);
+  }, [setGeneratedAntrag, setStoreGeneratedText]);
 
   const getButtonText = () => {
     if (loading) {
       return "Antrag wird generiert...";
     }
-    return "Antrag generieren";
+    return "Antrag grünerieren";
   };
 
   const handleSaveToDb = async () => {
@@ -131,9 +170,10 @@ export const AntragForm = () => {
   const handleConfirmSave = async (popupData) => {
     setIsSavePopupOpen(false);
     try {
+      const { generatedText: storeGeneratedText } = useGeneratedTextStore.getState();
       const payload = {
         title: formData.idee || 'Unbenannter Antrag',
-        antragstext: generatedAntrag,
+        antragstext: storeGeneratedText,
         gliederung: formData.gliederung || '',
         ...popupData,
       };
@@ -142,26 +182,6 @@ export const AntragForm = () => {
       console.error('[AntragForm] Error during final save of antrag:', saveError);
     }
   };
-
-  const saveActionElement = generatedAntrag && generatedAntrag.trim() !== '' ? (
-    <div className="save-action-element">
-      <SubmitButton
-        onClick={handleSaveToDb}
-        loading={isSaving}
-        text="Antrag in Supabase speichern"
-        icon={<HiSave />}
-        disabled={isSaving}
-        className="antrag-save-button"
-        ariaLabel="Antrag in Supabase speichern"
-        type="button"
-      />
-      {saveStatus && (
-        <p className={`status-message-container ${saveStatus.type}`}>
-          {saveStatus.message}
-        </p>
-      )}
-    </div>
-  ) : null;
 
   const userDisplayName = user?.displayName || (user?.user_metadata?.firstName && user?.user_metadata?.lastName ? `${user?.user_metadata?.firstName} ${user?.user_metadata?.lastName}`.trim() : user?.user_metadata?.email);
 
@@ -216,7 +236,7 @@ export const AntragForm = () => {
     }
 
     if (deutschlandmodus === true) {
-      noticeParts.push("Deutschlandmodus (AWS) aktiv");
+      noticeParts.push("Deutschlandmodus aktiv");
     }
 
     if (noticeParts.length === 0 && knowledgeSourceConfig.type === 'neutral') {
@@ -240,11 +260,22 @@ export const AntragForm = () => {
     );
   })();
 
+  const helpContent = {
+    content: "Dieser Grünerator erstellt strukturierte Anträge für politische Gremien basierend auf deiner Idee und den Details.",
+    tips: [
+      "Formuliere deine Idee klar und präzise",
+      "Füge ausführliche Begründungen hinzu",
+      "Optional: Gib eine gewünschte Gliederung vor",
+      "Nutze die Websuche für aktuelle Informationen",
+      "Speichere wichtige Anträge in der Datenbank"
+    ]
+  };
+
   return (
     <div className="container with-header">
       <BaseForm
         title="Grünerator für Anträge"
-        onSubmit={handleSubmit}
+        onSubmit={handleSubmit(onSubmitRHF)}
         loading={loading}
         generatedContent={generatedAntrag}
         onGeneratedContentChange={handleGeneratedContentChange}
@@ -264,35 +295,35 @@ export const AntragForm = () => {
           description: "Nutzt aktuelle Informationen aus dem Web."
         }}
         useWebSearchFeatureToggle={true}
-        displayActions={saveActionElement}
+        onSave={handleSaveToDb}
+        saveLoading={isSaving}
         formNotice={formNoticeElement}
         enableKnowledgeSelector={true}
+        helpContent={helpContent}
       >
-        <h3><label htmlFor="idee">{FORM_LABELS.IDEE}</label></h3>
-        <input
-          id="idee"
-          type="text"
-          value={formData.idee}
-          onChange={(e) => handleInputChange('idee', e.target.value)}
+        <Input
+          name="idee"
+          control={control}
+          label={FORM_LABELS.IDEE}
           placeholder={FORM_PLACEHOLDERS.IDEE}
           required
+          rules={{ required: 'Idee ist ein Pflichtfeld' }}
         />
 
-        <h3><label htmlFor="details">{FORM_LABELS.DETAILS}</label></h3>
-        <textarea
-          id="details"
-          value={formData.details}
-          onChange={(e) => handleInputChange('details', e.target.value)}
+        <Textarea
+          name="details"
+          control={control}
+          label={FORM_LABELS.DETAILS}
           placeholder={FORM_PLACEHOLDERS.DETAILS}
-          className="form-textarea-large"
+          minRows={4}
+          maxRows={12}
+          rules={{ maxLength: { value: 5000, message: "Details dürfen maximal 5000 Zeichen lang sein" } }}
         />
 
-        <h3><label htmlFor="gliederung">{FORM_LABELS.GLIEDERUNG}</label></h3>
-        <input
-          id="gliederung"
-          type="text"
-          value={formData.gliederung}
-          onChange={(e) => handleInputChange('gliederung', e.target.value)}
+        <Input
+          name="gliederung"
+          control={control}
+          label={FORM_LABELS.GLIEDERUNG}
           placeholder={FORM_PLACEHOLDERS.GLIEDERUNG}
         />
       </BaseForm>

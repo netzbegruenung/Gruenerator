@@ -1,24 +1,21 @@
-import React, { useState, useContext } from 'react';
+import React, { useState } from 'react';
 import ReactDOM from 'react-dom';
 import PropTypes from 'prop-types';
 import useApiSubmit from '../hooks/useApiSubmit';
 import { IoDocumentOutline, IoCopyOutline, IoOpenOutline, IoCloseOutline, IoPeopleOutline, IoFlashOutline, IoLinkOutline, IoCheckmark } from "react-icons/io5";
 import { useLocation } from 'react-router-dom';
 import { useUnmount } from 'react-use';
-import { FormContext } from '../utils/FormContext';
+import useGeneratedTextStore from '../../stores/generatedTextStore';
 import { formatExportContent } from '../utils/exportUtils';
 
-const ExportToDocument = ({ content: initialContent }) => {
+const ExportToDocument = () => {
   const location = useLocation();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [docURL, setDocURL] = useState('');
   const [hasExistingDoc, setHasExistingDoc] = useState(false);
   const { submitForm, loading, error } = useApiSubmit('etherpad/create');
-  const { value } = useContext(FormContext);
+  const { generatedText } = useGeneratedTextStore();
   const [isCopied, setIsCopied] = useState(false);
-
-  // Verwende den aktuellen Wert aus dem Context oder den initial Content
-  const currentContent = value || initialContent;
 
   // Cleanup beim Unmount (Seitenwechsel, Neuladen, etc.)
   useUnmount(() => {
@@ -50,9 +47,8 @@ const ExportToDocument = ({ content: initialContent }) => {
 
   const handleDocsExport = async () => {
     try {
-      // Formatiere den HTML-Content
       const htmlContent = formatExportContent({
-        analysis: value ? value : currentContent
+        analysis: generatedText
       });
       
       const response = await submitForm({ 
@@ -198,8 +194,6 @@ const ExportToDocument = ({ content: initialContent }) => {
   );
 };
 
-ExportToDocument.propTypes = {
-  content: PropTypes.string.isRequired,
-};
+ExportToDocument.propTypes = {};
 
 export default ExportToDocument;

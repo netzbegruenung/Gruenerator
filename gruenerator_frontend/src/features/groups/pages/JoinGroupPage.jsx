@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { useSupabaseAuth } from '../../../context/SupabaseAuthContext';
+import { useOptimizedAuth } from '../../../hooks/useAuth';
 import Spinner from '../../../components/common/Spinner';
 import useGroups from '../hooks/useGroups';
 
 const JoinGroupPage = () => {
   const { joinToken } = useParams();
   const navigate = useNavigate();
-  const { user, loading: authLoading } = useSupabaseAuth();
+  const { user: supabaseUser, loading: isLoading, isAuthResolved } = useOptimizedAuth();
   const [groupName, setGroupName] = useState('');
   const [status, setStatus] = useState('loading'); // loading, error, success, already_member
 
@@ -24,7 +24,7 @@ const JoinGroupPage = () => {
     let isMounted = true;
     
     const verifyToken = async () => {
-      if (!joinToken || authLoading || !user) return;
+      if (!joinToken || isLoading || !isAuthResolved || !supabaseUser) return;
       
       try {
         // Load Supabase client
@@ -52,7 +52,7 @@ const JoinGroupPage = () => {
             .from('group_memberships')
             .select('group_id')
             .eq('group_id', data.id)
-            .eq('user_id', user.id)
+            .eq('user_id', supabaseUser.id)
             .maybeSingle();
             
           if (membershipError) {
@@ -75,11 +75,11 @@ const JoinGroupPage = () => {
     
     verifyToken();
     return () => { isMounted = false; };
-  }, [joinToken, user, authLoading]);
+  }, [joinToken, supabaseUser, isLoading, isAuthResolved]);
 
   // Handle Join Button Click
   const handleJoin = () => {
-    if (!joinToken || !user) return;
+    if (!joinToken || !supabaseUser) return;
     
     joinGroup(joinToken, {
       onSuccess: (result) => {
@@ -98,7 +98,7 @@ const JoinGroupPage = () => {
   };
 
   // If not logged in, show login prompt
-  if (!authLoading && !user) {
+  if (isAuthResolved && !isLoading && !supabaseUser) {
     return (
       <div className="join-group-container">
         <div className="join-group-card">
@@ -113,7 +113,7 @@ const JoinGroupPage = () => {
   }
 
   // Loading state
-  if (authLoading || status === 'loading') {
+  if (isLoading || !isAuthResolved || status === 'loading') {
     return (
       <div className="join-group-container">
         <div className="join-group-card">

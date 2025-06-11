@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
-import { GrueneratorenBundle } from '../pages/Grüneratoren/';
+import { GrueneratorenBundle } from '../../config/routes';
 import { ROUTE_RELATIONSHIPS, getCriticalStyles, preloadFonts } from '../utils/routePreloader';
 
 export const useRoutePreloader = () => {

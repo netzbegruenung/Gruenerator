@@ -75,22 +75,34 @@
 .form-button, .generate-post-button, .submit-button {
   background-color: var(--weiß);
   color: #333;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .form-button{
   flex: 1;
   border-radius: var(--button-border-radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .back-button {
   background-color: var(--weiß);
   color: #333;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .download-button {
   background-color: var(--tanne);
   color: var(--weiß);
   text-decoration: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .download-button,
@@ -149,7 +161,9 @@
   border-radius: var(--button-border-radius, 5px);
   font-size: var(--button-font-size, 1em);
   cursor: pointer;
-  transition: background-color 0.3s, transform 0.3s;
+  background: linear-gradient(135deg, var(--tanne) 0%, var(--klee) 100%);
+  color: var(--weiß);
+  transition: all 0.25s ease-out;
 }
 
 .submit-button--loading {
@@ -173,7 +187,6 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: opacity 0.3s ease-in-out;
 }
 
 .submit-button__content--visible {
@@ -186,6 +199,9 @@
 
 .submit-button__icon {
   margin-right: 8px;
+  display: flex;
+  align-items: center;
+  height: 100%;
 }
 
 .submit-button__status {
@@ -361,6 +377,7 @@
   gap: 1rem;
   width: 100%;
   margin-bottom: 1rem;
+  margin-top: 1rem;
 }
 
 .action-buttons.three-buttons .button-wrapper {
@@ -377,6 +394,9 @@
   border-radius: var(--button-border-radius);
   cursor: pointer;
   transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .alternatives-button:hover {
@@ -533,7 +553,7 @@
   cursor: pointer;
   font-size: 16px;
   text-decoration: none;
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
@@ -547,6 +567,9 @@
   background-color: transparent;
   color: var(--klee);
   border: 1px solid var(--klee);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .copy-button-compact:hover {
@@ -596,6 +619,9 @@
     border-radius: 10px;
     color: var(--weiß, #ffffff); 
     padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .btn.btn-tanne-bordered:hover {

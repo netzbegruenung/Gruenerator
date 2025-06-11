@@ -8,11 +8,8 @@ router.post('/', async (req, res) => {
   // Aktuelles Datum ermitteln
   const currentDate = new Date().toISOString().split('T')[0];
 
-  try {
-    const result = await req.app.locals.aiWorkerPool.processRequest({
-      type: 'wahlprogramm',
-      systemPrompt: 'Du bist Schreiber des Wahlprogramms einer Gliederung von Bündnis 90/Die Grünen.',
-      prompt: `Erstelle ein Kapitel für ein Wahlprogramm zum Thema ${thema} im Stil des vorliegenden Dokuments.
+  const systemPrompt = 'Du bist Schreiber des Wahlprogramms einer Gliederung von Bündnis 90/Die Grünen.';
+  const userContent = `Erstelle ein Kapitel für ein Wahlprogramm zum Thema ${thema} im Stil des vorliegenden Dokuments.
 
 Aktuelles Datum: ${currentDate}
 
@@ -38,12 +35,25 @@ Beachte zusätzlich diese sprachlichen Aspekte:
 - Starke Verben
 - Abwechslungsreicher Satzbau
 
-${HTML_FORMATTING_INSTRUCTIONS}`,
-      options: {
-        max_tokens: 4000,
-        temperature: 0.3
-      },
-      useBackupProvider
+${HTML_FORMATTING_INSTRUCTIONS}`;
+
+  const payload = {
+    systemPrompt,
+    messages: [{ role: 'user', content: userContent }],
+    options: {
+      max_tokens: 4000,
+      temperature: 0.3
+    },
+    useBackupProvider
+  };
+  
+  try {
+    const result = await req.app.locals.aiWorkerPool.processRequest({
+      type: 'wahlprogramm',
+      systemPrompt: payload.systemPrompt,
+      prompt: userContent, // Worker expects 'prompt' for this type
+      options: payload.options,
+      useBackupProvider: payload.useBackupProvider
     });
 
     if (!result.success) throw new Error(result.error);

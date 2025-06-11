@@ -1,15 +1,14 @@
-import React, { useContext, forwardRef } from 'react';
+import React, { forwardRef } from 'react';
 import PropTypes from 'prop-types';
-import { HiCog } from "react-icons/hi";
-import SubmitButton from '../../SubmitButton';
-import FeatureToggle from '../../FeatureToggle';
-import { getFormContainerClasses, getFormContentClasses, getButtonContainerClasses, getSubmitButtonClasses } from '../utils/classNameUtils';
-import { hasFormErrors } from '../utils/errorUtils';
-import { FormContext } from '../../../utils/FormContext';
+import FormCard from './FormCard';
+import FormInputSection from './FormInputSection';
+import FormExtrasSection from './FormExtrasSection';
+import { getFormContainerClasses } from '../utils/classNameUtils';
 
 /**
- * Komponente für den Eingabebereich des Formulars
+ * Hauptkomponente für den Formular-Container (Inputs + Extras)
  * @param {Object} props - Komponenten-Props
+ * @param {string} props.title - Titel des Formulars
  * @param {Function} props.onSubmit - Funktion für die Formularübermittlung
  * @param {boolean} props.loading - Ladeindikator
  * @param {boolean} props.success - Erfolgsindikator
@@ -22,12 +21,22 @@ import { FormContext } from '../../../utils/FormContext';
  * @param {Object} props.submitButtonProps - Props für den Submit-Button
  * @param {Object} props.webSearchFeatureToggle - Props für den Web Search Feature-Toggle
  * @param {boolean} props.useWebSearchFeatureToggle - Soll der Web Search Feature-Toggle verwendet werden
- * @param {node} props.children - Kindelemente
+ * @param {boolean} props.enableKnowledgeSelector - Soll der Knowledge Selector aktiviert werden
+ * @param {node} props.children - Input-Elemente für das Formular
  * @param {boolean} props.showSubmitButton - Soll der Submit-Button angezeigt werden
  * @param {node} props.formNotice - Hinweis oder Information im Formular
+ * @param {node} props.extrasChildren - Zusätzliche Extras-Komponenten
+ * @param {Object} props.defaultValues - Default-Werte für react-hook-form
+ * @param {Object} props.validationRules - Validierungsregeln für Legacy-Support
+ * @param {boolean} props.useModernForm - Aktiviert react-hook-form (opt-in)
+ * @param {Function} props.onFormChange - Callback für Formular-Änderungen
+ * @param {node} props.bottomSectionChildren - Zusätzliche Unterelemente am Ende des Formulars
+ * @param {boolean} props.showHideButton - Zeige Verstecken-Button
+ * @param {Function} props.onHide - Callback für Verstecken-Button
  * @returns {JSX.Element} Formular-Sektion
  */
 const FormSection = forwardRef(({
+  title,
   onSubmit,
   loading,
   success,
@@ -40,85 +49,82 @@ const FormSection = forwardRef(({
   submitButtonProps = {},
   webSearchFeatureToggle,
   useWebSearchFeatureToggle,
+  enableKnowledgeSelector = false,
   children,
   showSubmitButton = true,
-  formNotice = null
+  formNotice = null,
+  extrasChildren = null,
+  defaultValues = {},
+  validationRules = {},
+  useModernForm = true,
+  onFormChange = null,
+  bottomSectionChildren = null,
+  showHideButton = false,
+  onHide = null
 }, ref) => {
   const formContainerClasses = getFormContainerClasses(isFormVisible);
-  const formContentClasses = getFormContentClasses(hasFormErrors(formErrors));
-  const buttonContainerClasses = getButtonContainerClasses(showBackButton);
-  const submitButtonClasses = getSubmitButtonClasses(showBackButton);
-  const { handleKnowledgeSelection } = useContext(FormContext);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      await onSubmit();
-    } catch (error) {
-      console.error('[FormSection] Submit error:', error);
-    }
-  };
 
   return (
-    <div className={formContainerClasses} ref={ref}>
-      <form onSubmit={handleSubmit}>
-        <div className={formContentClasses}>
-          <div className="form-inner">
-            {children}
+    <div className={`form-section ${formContainerClasses} ${isFormVisible ? 'visible' : ''}`} ref={ref}>
+      <FormCard 
+        variant="elevated"
+        size="large"
+        hover={false}
+        title={title}
+        showHideButton={showHideButton}
+        onHide={onHide}
+      >
+        <form onSubmit={(e) => {
+          e.preventDefault();
+          onSubmit();
+        }} className="form-section__form">
+          <div className="form-section__container">
             
-            {webSearchFeatureToggle && useWebSearchFeatureToggle && (
-              <div className="feature-section">
-                <FeatureToggle {...webSearchFeatureToggle} className="form-feature-toggle" />
-              </div>
-            )}
+            {/* Input Section */}
+            <FormInputSection
+              formErrors={formErrors}
+              isMultiStep={isMultiStep}
+              onBack={onBack}
+              showBackButton={showBackButton}
+              defaultValues={defaultValues}
+              validationRules={validationRules}
+              useModernForm={useModernForm}
+              onFormChange={onFormChange}
+            >
+              {children}
+            </FormInputSection>
+
+            {/* Extras Section */}
+            <FormExtrasSection
+              webSearchFeatureToggle={webSearchFeatureToggle}
+              useWebSearchFeatureToggle={useWebSearchFeatureToggle}
+              enableKnowledgeSelector={enableKnowledgeSelector}
+              formNotice={formNotice}
+              onSubmit={onSubmit}
+              loading={loading}
+              success={success}
+              isMultiStep={isMultiStep}
+              nextButtonText={nextButtonText}
+              submitButtonProps={submitButtonProps}
+              showSubmitButton={showSubmitButton}
+            >
+              {extrasChildren}
+            </FormExtrasSection>
+
           </div>
-          {isMultiStep ? (
-            <div className={buttonContainerClasses}>
-              {showBackButton && (
-                <button 
-                  type="button" 
-                  onClick={onBack} 
-                  className="back-button form-button"
-                >
-                  Zurück
-                </button>
-              )}
-              {showSubmitButton && (
-                <SubmitButton
-                  onClick={onSubmit}
-                  loading={loading}
-                  success={success}
-                  text={nextButtonText || 'Weiter'}
-                  icon={<HiCog />}
-                  className={submitButtonClasses}
-                  ariaLabel={nextButtonText || 'Weiter'}
-                  {...submitButtonProps}
-                />
-              )}
-            </div>
-          ) : (
-            <div className="button-container">
-              {showSubmitButton && (
-                <SubmitButton
-                  onClick={onSubmit}
-                  loading={loading}
-                  success={success}
-                  text={submitButtonProps.defaultText || "Grünerieren"}
-                  icon={<HiCog />}
-                  className="submit-button form-button"
-                  ariaLabel="Generieren"
-                  {...submitButtonProps}
-                />
-              )}
+          {bottomSectionChildren && (
+            <div className="form-section__bottom">
+              {bottomSectionChildren}
             </div>
           )}
-        </div>
-      </form>
+        </form>
+      </FormCard>
     </div>
   );
 });
 
 FormSection.propTypes = {
+  title: PropTypes.string,
   onSubmit: PropTypes.func.isRequired,
   loading: PropTypes.bool.isRequired,
   success: PropTypes.bool,
@@ -143,17 +149,35 @@ FormSection.propTypes = {
     statusMessage: PropTypes.string
   }),
   useWebSearchFeatureToggle: PropTypes.bool,
-  children: PropTypes.node.isRequired,
+  enableKnowledgeSelector: PropTypes.bool,
+  children: PropTypes.oneOfType([PropTypes.node, PropTypes.func]).isRequired,
   showSubmitButton: PropTypes.bool,
-  formNotice: PropTypes.node
+  formNotice: PropTypes.node,
+  extrasChildren: PropTypes.node,
+  defaultValues: PropTypes.object,
+  validationRules: PropTypes.object,
+  useModernForm: PropTypes.bool,
+  onFormChange: PropTypes.func,
+  bottomSectionChildren: PropTypes.node,
+  showHideButton: PropTypes.bool,
+  onHide: PropTypes.func
 };
 
 FormSection.defaultProps = {
   isMultiStep: false,
   showBackButton: false,
   useWebSearchFeatureToggle: false,
+  enableKnowledgeSelector: false,
   showSubmitButton: true,
-  formNotice: null
+  formNotice: null,
+  extrasChildren: null,
+  defaultValues: {},
+  validationRules: {},
+  useModernForm: true,
+  onFormChange: null,
+  bottomSectionChildren: null,
+  showHideButton: false,
+  onHide: null
 };
 
 FormSection.displayName = 'FormSection';

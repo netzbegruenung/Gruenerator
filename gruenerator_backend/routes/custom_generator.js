@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { HTML_FORMATTING_INSTRUCTIONS } = require('../utils/promptUtils.js');
 const { supabaseService } = require('../utils/supabaseClient');
-const authMiddleware = require('../middleware/authMiddleware');
+const { requireAuth } = require('../middleware/authMiddleware');
 
 router.post('/', async (req, res) => {
   const { slug, formData } = req.body;
@@ -142,7 +142,7 @@ router.get('/check-slug/:slug', async (req, res) => {
 });
 
 // DELETE Route zum Löschen eines benutzerdefinierten Generators
-router.delete('/:id', authMiddleware, async (req, res) => {
+router.delete('/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user?.id;

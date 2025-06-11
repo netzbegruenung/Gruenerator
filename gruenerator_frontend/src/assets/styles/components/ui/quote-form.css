@@ -37,12 +37,15 @@
     resize: vertical;
 }
 
+/* Quote-form input focus styles - DISABLED to prevent conflicts with main form-inputs.css */
+/*
 .quote-form textarea:focus,
 .quote-form input[type="text"]:focus {
     outline: none;
     border-color: var(--primary-color);
     box-shadow: 0 0 0 2px var(--primary-color-light);
 }
+*/
 
 .quote-form .error {
     border-color: var(--error-color);

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { supabase } from '../../../components/utils/supabaseClient'; // Adjusted path to supabaseClient
-import { useSupabaseAuth } from '../../../context/SupabaseAuthContext';
+import { useLazyAuth } from '../../../hooks/useAuth';
 import Spinner from '../../../components/common/Spinner'; // Corrected import for Spinner
 
 // Placeholder für PRTextCard, wird später erstellt oder importiert
@@ -26,7 +26,7 @@ const PRTextsGallery = ({ searchTerm, selectedCategory, searchMode }) => {
   const [texts, setTexts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const { user } = useSupabaseAuth(); // RLS benötigt möglicherweise user info
+  const { user } = useLazyAuth(); // RLS benötigt möglicherweise user info
 
   const fetchPRTexts = useCallback(async () => {
     if (!user) return; // Warten auf User-Info für RLS

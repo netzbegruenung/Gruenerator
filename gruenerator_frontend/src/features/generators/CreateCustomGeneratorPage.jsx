@@ -10,7 +10,7 @@ import useDebounce from '../../components/hooks/useDebounce';
 import apiClient from '../../components/utils/apiClient';
 import GeneratorStartScreen from './components/GeneratorStartScreen';
 import GeneratorCreationSuccessScreen from './components/GeneratorCreationSuccessScreen';
-import { useSupabaseAuth } from '../../context/SupabaseAuthContext';
+import { useOptimizedAuth } from '../../hooks/useAuth';
 import InlineValidationMessage from '../../components/common/UI/InlineValidationMessage';
 
 // Define steps
@@ -35,7 +35,7 @@ const CreateCustomGeneratorPage = ({ showHeaderFooter = true }) => {
   const [error, setError] = useState(null);
   const [completionData, setCompletionData] = useState(null);
   const navigate = useNavigate();
-  const { user } = useSupabaseAuth();
+  const { user } = useOptimizedAuth();
   
   const { 
     submitForm: submitAIGeneration, 
