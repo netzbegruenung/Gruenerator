@@ -1,9 +1,3 @@
-/* Imports */
-@import url('../common/variables.css');
-@import url('../common/global.css');
-@import url('../common/typography.css');
-
-/* Grundlegende Container-Struktur */
 .base-container {
     display: flex;
     width: 100%;
@@ -16,137 +10,82 @@
     transition: all 0.3s ease-in-out;
 }
 
-/* Edit Mode */
-.base-container.editing-mode {
-    max-width: 100%;
-    justify-content: center;
-    align-items: flex-start;
-    padding: 20px 20px;
-    gap: 0;
-}
 
-/* Formular-Container */
-.form-container {
-    flex: 1 1 50%;
-    max-width: 50%;
-    display: flex;
-    flex-direction: column;
-    padding: 20px;
-    border-radius: 8px;
-    background-color: var(--dunkelgruen);
-    align-self: flex-start;
-    transition: all 0.3s ease-in-out;
-}
+
+/* FormSection - 2/3 layout with DisplaySection */
 
 .white-text {
     color: var(--weiß) !important;
 }
 
-/* Anzeige-Container */
 .display-container {
-    flex: 1 1 50%;
-    max-width: 50%;
-    width: 50%;
+    flex: 1 1 33.33%;
     display: flex;
     flex-direction: column;
     padding: 25px;
     border-radius: 8px;
-    background-color: var(--background-color-alt);
+    background-color: var(--background-color-pure);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
     transition: padding 0.3s ease-in-out;
 }
 
-/* Anpassung wenn Content generiert wurde */
 .base-container.has-generated-content {
-    padding: 0 40px;
+    padding: 0 px;
 }
 
-.base-container.has-generated-content .form-container {
-    flex: 0 0 30%;
-    max-width: 30%;
+/* FormSection responsive - with generated content */
+.form-section.has-generated-content {
+    flex: 0 0 40%;
+    max-width: 40%;
 }
 
-.base-container.has-generated-content .display-container {
-    flex: 0 0 65%;
-    max-width: 65%;
-    width: 65%;
+.display-container.has-generated-content {
+    flex: 0 0 55%;
+    max-width: 55%;
+    width: 55%;
+    transition: padding 0.3s ease-in-out;
 }
 
-/* Multi-Platform Anpassungen */
 .base-container.multi-platform {
     max-width: 100%;
     padding: 0 40px;
 }
 
-.base-container.multi-platform .form-container {
+/* FormSection multi-platform behavior */
+.form-section.multi-platform {
     flex: 0 0 0;
     max-width: 0;
-    padding: 0;
     overflow: hidden;
     transform: translateX(-350px);
     transition: all 0.3s ease-out;
 }
 
-.base-container.multi-platform .form-container.visible {
+.form-section.multi-platform.visible {
     flex: 0 0 350px;
     max-width: 350px;
-    padding: 20px;
     transform: translateX(0);
 }
 
-/* Neue Regel für form-hidden */
-.base-container.form-hidden .form-container {
-    flex: 0 0 0;
-    max-width: 0;
-    padding: 0;
+/* FormSection form-hidden state */
+.form-section.has-generated-content.multi-platform.form-hidden {
+    flex: 0 0 0 !important;
+    max-width: 0 !important;
     overflow: hidden;
     transform: translateX(-350px);
+    opacity: 0;
+    visibility: hidden;
 }
 
-.base-container.multi-platform .display-container {
+.display-container.multi-platform {
     flex: 1;
     max-width: 100%;
     transition: all 0.3s ease-out;
 }
 
-/* Anzeige-Container */
-.display-container {
-    flex: 1 1 50%;
-    max-width: 50%;
-    width: 50%;
-    display: flex;
-    flex-direction: column;
-    padding: 25px;
-    border-radius: 8px;
-    background-color: var(--background-color-alt);
-    transition: padding 0.3s ease-in-out;
-}
 
-.base-container.has-generated-content .display-container {
-    flex: 0 0 65%;
-    max-width: 65%;
-    width: 65%;
-    transition: padding 0.3s ease-in-out;
-}
 
-.base-container.editing-mode .display-container {
-    flex: 1;
-    max-width: 816px;
-    width: 816px;
-    margin: 0 auto;
-    min-height: calc(100vh - 40px);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-    padding: 0;
-    position: relative;
-    transition: padding 0.3s ease-in-out;
-}
-
-.base-container.multi-platform .display-container {
-    flex: 1;
-    max-width: 100%;
-}
-
-/* Spezifische Anpassungen für den Antragsversteher */
-.antragsversteher-base .form-container {
+/* FormSection antragsversteher layout */
+.antragsversteher-base .form-section {
     flex: 1 1 25%;
     max-width: 25%;
 }
@@ -156,7 +95,6 @@
     max-width: 75%;
 }
 
-/* Generierter Inhalt */
 .generated-content-wrapper {
     flex: 1;
     display: flex;
@@ -164,7 +102,6 @@
     min-height: 0;
 }
 
-/* Header Styles */
 .display-header {
     display: flex;
     justify-content: space-between;
@@ -173,107 +110,16 @@
     transition: all 0.3s ease-in-out;
 }
 
-.display-header h3 {
-    padding-left: 15px;
-}
 
-/* Überschriften */
-.form-container h3, .display-container h3, .sidebar h2 {
-    margin-top: 0;
-    text-align: left;
-}
-
-.sidebar h2 {
-    color: var(--weiß);
-}
-
-.form-container h3 {
-    color: var(--sand);
-    margin-bottom: -12px;
-}
 
 .display-container h3 {
-    margin-bottom: 8px;
+    margin-bottom: 8px !important;
 }
 
-/* Formular-Eingabefelder */
-.form-container input, .form-container textarea, .form-container select,
-.sidebar input, .sidebar textarea, .sidebar select {
-    font-family: 'PT Sans', Arial, sans-serif;
-    width: 100%;
-    padding: 10px;
-    border: none;
-    border-radius: 4px;
-    box-sizing: border-box;
-    font-size: 0.9em;
-    outline: none;
-    color: #333;
-    background-color: var(--weiß);
-    transition: box-shadow 0.3s ease, background-color 0.3s ease;
-    margin-top: 15px;
-    margin-bottom: 15px;
-}
 
-.help-text {
-    color: var(--weiß);
-    font-size: 0.9em;
-    margin-top: -10px;
-    margin-bottom: 15px;
-}
 
-.form-container textarea, .sidebar textarea {
-    height: 120px;
-}
-
-.form-container input:focus, .form-container textarea:focus,
-.sidebar input:focus, .sidebar textarea:focus {
-    border: 2px solid var(--grashalm);
-    padding: 8px;
-}
-
-/* Fehlermeldungen */
-.form-container input.error-input,
-.form-container textarea.error-input,
-.form-container select.error-input,
-.sidebar input.error-input,
-.sidebar textarea.error-input,
-.sidebar select.error-input {
-    border: 2px solid var(--sonne);
-}
-
-/* Edit Mode */
-.base-container.editing-mode {
-    gap: 0;
-    justify-content: center;
-    padding: 20px;
-}
-
-.base-container.editing-mode .form-container {
-    display: none;
-}
-
-.base-container.editing-mode .display-container {
-    flex: 1;
-    max-width: 816px;
-    width: 816px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-    padding: 0;
-    position: relative;
-    transform: translateZ(0);
-}
-
-.base-container.editing-mode .display-container .display-header {
-    padding: 30px 20px 20px 20px;
-    border-top-left-radius: 8px;
-    border-top-right-radius: 8px;
-    position: sticky;
-    top: 0;
-    z-index: 10;
-}
-
-/* Media Queries */
 @media (max-width: 1024px) {
-    .base-container.multi-platform .platforms-container {
+    .platforms-container.multi-platform {
         grid-template-columns: 1fr;
     }
 }
@@ -287,7 +133,8 @@
         margin: 0;
     }
 
-    .form-container,
+    /* FormSection responsive */
+    .form-section,
     .display-container {
         flex: 1 1 100%;
         max-width: 100%;
@@ -296,8 +143,7 @@
         padding: 20px;
     }
 
-    .display-header h3,
-    .form-container h3 {
+    .display-header h3 /* , .form-container h3 */ {
         padding-left: 0;
         padding-right: 10px;
         margin: 0;
@@ -308,87 +154,73 @@
         padding: 10px;
     }
 
-    .base-container.has-generated-content .form-container,
-    .base-container.has-generated-content .display-container {
+    /* FormSection responsive layouts */
+    .form-section.has-generated-content,
+    .display-container.has-generated-content {
         flex: 1 1 100%;
         max-width: 100%;
         width: 100%;
     }
 
-    /* Multi-Platform Mobile Override */
+    .base-container.has-generated-content,
+    .base-container.multi-platform {
+        flex-direction: column;
+    }
+
+    /* FormSection responsive layouts */
+    .form-section.has-generated-content,
+    .form-section,
+    .display-container.has-generated-content,
+    .display-container {
+        flex: 1 1 100%;
+        max-width: 100%;
+        width: 100%;
+    }
+
     .base-container.multi-platform {
         padding: 10px;
     }
 
-    .base-container.multi-platform .form-container {
+    /* FormSection multi-platform mobile */
+    .form-section.multi-platform {
         position: static;
         transform: none;
         flex: 1 1 100%;
         max-width: 100%;
         width: 100%;
-        padding: 15px 20px;
         margin-bottom: 15px;
     }
 
-    .base-container.multi-platform .form-container.visible {
+    .form-section.multi-platform.visible {
         flex: 1 1 100%;
         max-width: 100%;
-        padding: 15px 20px;
         transform: none;
     }
 
-    .base-container.multi-platform .display-container {
+    .display-container.multi-platform {
         margin: 0;
         flex: 1 1 100%;
         max-width: 100%;
         width: 100%;
     }
 
-    /* Edit Mode Mobile */
-    .base-container.editing-mode {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        padding: 0;
-        margin: 0;
-        z-index: 1000;
-        background-color: var(--background-color);
-    }
 
-    .base-container.editing-mode .display-container {
-        border-radius: 0;
-        box-shadow: none;
-        width: 100%;
-        max-width: 100%;
-        height: 100vh;
-    }
 
-    .base-container.editing-mode .display-container .display-header {
-        padding: 20px 20px 20px 20px !important;
-        background-color: var(--dunkelgruen);
-        border-radius: 0;
-    }
-
-    .base-container.editing-mode .display-container .display-header h3 {
-        color: var(--sand);
-        margin-right: 10px;
-        padding-left: 5px;
-    }
-
-    /* Form Elements Mobile */
-    .form-container input,
-    .form-container textarea,
-    .form-container select {
-        font-size: 0.7em;
-        padding: 10px;
-        margin-bottom: 10px;
-        margin-top: 10px;
-    line-height: 1.3; /* Zeilenabstand reduzieren */
-    }
-
-    .base-container.multi-platform .display-container .display-header {
+    .display-container.multi-platform .display-header {
         padding: 20px 0;
     }
+
+
+
+
 }
+
+
+
+.display-container.has-generated-content.form-hidden {
+    flex: 0 0 100%;
+    max-width: 900px;
+    width: 100%;
+    margin: 0 auto;
+}
+

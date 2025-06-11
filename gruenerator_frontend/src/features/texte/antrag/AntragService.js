@@ -1,72 +1,40 @@
-import axios from 'axios';
 import useApiSubmit from '../../../components/hooks/useApiSubmit';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-
-// Hilfsfunktion zur Extraktion des Inhalts aus der Antwort
-const extractContent = (response) => {
-  if (!response) return null;
+export const useAntragService = () => {
+  const simpleAntragSubmit = useApiSubmit('antraege/generate-simple');
   
-  if (typeof response === 'string') {
-    return response;
-  }
-  
-  if (response.content) {
-    return response.content;
-  }
-  
-  if (response.metadata && response.metadata.content) {
-    return response.metadata.content;
-  }
-  
-  console.error('[AntragService] Unbekanntes Antwortformat:', response);
-  return null;
+  return {
+    simpleAntragSubmit
+  };
 };
 
 export const AntragService = {
-  async generateSearchQuery(formData) {
-    const response = await axios.post(`${API_BASE_URL}/claude/search-query`, formData);
-    return response.data;
-  },
-
-  async searchInformation(searchQuery) {
-    const response = await axios.post(`${API_BASE_URL}/search`, { 
-      query: searchQuery.trim() 
-    });
-    console.log('[AntragService] Search Response:', response.data);
-    return response.data;
-  },
-
-  async generateAntrag(formData, searchResults) {
+  async generateAntragWithWebSearch(formData, submitForm) {
     const payload = {
       ...formData,
-      searchResults,
+      useWebSearchTool: true
     };
-    const response = await axios.post(`${API_BASE_URL}/claude/antrag`, payload);
-    console.log('[AntragService] Antrag Response:', response.data);
-    return extractContent(response.data);
+    const result = await submitForm(payload);
+    console.log('[AntragService] Web Search Antrag Response:', result);
+    return result;
   },
 
-  async generateSimpleAntrag(formData) {
+  async generateAntragClassic(formData, submitForm) {
+    const payload = {
+      ...formData,
+      useWebSearchTool: false
+    };
+    const result = await submitForm(payload);
+    console.log('[AntragService] Classic Antrag Response:', result);
+    return result;
+  },
+
+  async generateSimpleAntrag(formData, submitForm) {
     const payload = {
       ...formData
     };
-    const response = await axios.post(`${API_BASE_URL}/claude/antrag-simple`, payload);
-    console.log('[AntragService] Simple Antrag Response:', response.data);
-    return extractContent(response.data);
+    const result = await submitForm(payload);
+    console.log('[AntragService] Simple Antrag Response:', result);
+    return result;
   },
-};
-
-export const useAntragService = () => {
-  const searchQuerySubmit = useApiSubmit('claude/search-query');
-  const searchSubmit = useApiSubmit('search');
-  const antragSubmit = useApiSubmit('claude/antrag');
-  const simpleAntragSubmit = useApiSubmit('claude/antrag-simple');
-
-  return {
-    searchQuerySubmit,
-    searchSubmit,
-    antragSubmit,
-    simpleAntragSubmit
-  };
 }; 

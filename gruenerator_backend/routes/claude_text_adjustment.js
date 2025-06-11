@@ -28,7 +28,6 @@ Bitte schlage eine verbesserte Version des Abschnitts vor, die die gewünschten 
         }
       ],
       options: {
-        model: "claude-3-5-sonnet-20240620",
         max_tokens: 1024,
         temperature: 0.5
       },

@@ -1,8 +1,23 @@
 import { lazy } from 'react';
-import TemplateGallery from '../features/templates';
-import UniversalTextGenerator from '../features/texte/universal/UniversalTextGenerator';
-import AntragPage from '../features/texte/antrag/AntragPage';
-import { YouPage } from '../features/you';
+// Statische Importe in dynamische umwandeln
+const UniversalTextGenerator = lazy(() => import('../features/texte/universal/UniversalTextGenerator'));
+const AntragPage = lazy(() => import('../features/texte/antrag/AntragPage'));
+const AntraegeGallery = lazy(() => import('../features/templates/antraege/AntraegeGallery'));
+const AntragDetailPage = lazy(() => import('../features/templates/antraege/AntragDetailPage'));
+const YouPage = lazy(() => import('../features/you'));
+const EmptyEditor = lazy(() => import('../features/texte/editor/EmptyEditor'));
+const CustomGeneratorPage = lazy(() => import('../features/generators/CustomGeneratorPage'));
+const CreateCustomGeneratorPage = lazy(() => import('../features/generators/CreateCustomGeneratorPage'));
+const CampaignPage = lazy(() => import('../features/campaigns'));
+const WebinarCampaign = lazy(() => import('../features/campaigns/components/WebinarCampaign'));
+
+// Auth-Komponenten importieren (only components still used after Authentic integration)
+const LoginPage = lazy(() => import('../features/auth/pages/LoginPage'));
+const ProfilePage = lazy(() => import('../features/auth/pages/ProfilePage'));
+const RegistrationPage = lazy(() => import('../features/auth/pages/RegistrationPage'));
+
+// Gruppen-Komponente importieren
+const JoinGroupPage = lazy(() => import('../features/groups/pages/JoinGroupPage'));
 
 // Lazy loading für statische Seiten
 const Home = lazy(() => import('../components/pages/Home'));
@@ -12,6 +27,12 @@ const NotFound = lazy(() => import('../components/pages/NotFound'));
 const Search = lazy(() => import('../features/search/components/SearchPage'));
 const Reel = lazy(() => import('../features/subtitler/components/SubtitlerPage'));
 const PresseSocialGenerator = lazy(() => import('../features/texte/presse/PresseSocialGenerator'));
+
+// ContentGallery importieren
+const ContentGallery = lazy(() => import('../components/common/Gallery/ContentGallery'));
+
+// NEU: CollabEditorPage importieren (Lazy Loading)
+const CollabEditorPage = lazy(() => import('../pages/CollabEditorPage/CollabEditorPage'));
 
 // Lazy loading für Grüneratoren Bundle
 export const GrueneratorenBundle = {
@@ -26,9 +47,16 @@ export const GrueneratorenBundle = {
   Wahlprogramm: UniversalTextGenerator,
   Kandidat: lazy(() => import('../components/pages/Grüneratoren/Kandidatengenerator')),
   Search: Search,
-  Templates: TemplateGallery,
+  AntraegeListe: AntraegeGallery,
+  AntragDetail: AntragDetailPage,
   Reel: Reel,
-  You: YouPage
+  You: YouPage,
+  Campaign: CampaignPage,
+  Webinar: WebinarCampaign,
+  EmptyEditor: EmptyEditor,
+  CustomGenerator: CustomGeneratorPage,
+  CreateCustomGenerator: CreateCustomGeneratorPage,
+  ContentGallery: ContentGallery
 };
 
 // Route Konfigurationen
@@ -43,12 +71,28 @@ const standardRoutes = [
   { path: '/rede', component: GrueneratorenBundle.Rede, withForm: true },
   { path: '/wahlprogramm', component: GrueneratorenBundle.Wahlprogramm, withForm: true },
   { path: '/kandidat', component: GrueneratorenBundle.Kandidat, withForm: true },
-  { path: '/vorlagen', component: GrueneratorenBundle.Templates },
+  { path: '/datenbank/antraege', component: GrueneratorenBundle.AntraegeListe },
+  { path: '/datenbank/antraege/:antragId', component: GrueneratorenBundle.AntragDetail },
   { path: '/suche', component: GrueneratorenBundle.Search, withForm: true },
   { path: '/reel', component: GrueneratorenBundle.Reel },
   { path: '/you', component: GrueneratorenBundle.You, withForm: true },
+  { path: '/kampagne', component: GrueneratorenBundle.Campaign },
+  { path: '/webinare', component: GrueneratorenBundle.Webinar },
+  { path: '/editor', component: GrueneratorenBundle.EmptyEditor, withForm: true },
+  { path: '/generator/:slug', component: GrueneratorenBundle.CustomGenerator, withForm: true },
+  { path: '/create-generator', component: GrueneratorenBundle.CreateCustomGenerator, withForm: true },
   { path: '/datenschutz', component: Datenschutz },
   { path: '/impressum', component: Impressum },
+  // Auth-Routen (only components still used after Authentic integration)
+  { path: '/login', component: LoginPage },
+  { path: '/register', component: RegistrationPage },
+  { path: '/profile', component: ProfilePage },
+  // Note: Other auth routes (password reset, email verification, MFA, etc.) are now handled by Authentic
+  // Gruppen-Route
+  { path: '/join-group/:joinToken', component: JoinGroupPage },
+  { path: '/datenbank', component: GrueneratorenBundle.ContentGallery },
+  // NEU: Route für CollabEditorPage
+  { path: '/editor/collab/:documentId', component: CollabEditorPage, showHeaderFooter: false }, // showHeaderFooter: false, da eigener Header
   { path: '*', component: NotFound }
 ];
 
@@ -63,7 +107,7 @@ const specialRoutes = [
 
 // Hilfsfunktion zum Erstellen der No-Header-Footer-Variante
 const createNoHeaderFooterRoute = (route) => {
-  // Nur die 404-Route ausschließen
+  // Nur die 404-Route und Linktree-Route ausschließen
   if (route.path === '*') return null;
   
   const noHeaderPath = route.path === '/' 
@@ -81,7 +125,7 @@ export const routes = {
   standard: standardRoutes,
   special: specialRoutes,
   noHeaderFooter: [
-    ...standardRoutes.map(createNoHeaderFooterRoute).filter(Boolean),
+    ...standardRoutes.map(createNoHeaderFooterRoute).filter(Boolean).filter(route => route.path !== '/editor/collab/:documentId-no-header-footer'), // Verhindere doppelte no-header-footer Route
     ...specialRoutes.map(createNoHeaderFooterRoute).filter(Boolean)
   ]
 };

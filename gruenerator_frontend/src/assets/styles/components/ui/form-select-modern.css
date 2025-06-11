@@ -1,0 +1,87 @@
+/* Styles for the FormSelect component */
+.form-field-wrapper {
+  margin-bottom: var(--spacing-medium);
+}
+
+.form-select {
+  display: block;
+  width: 100%;
+  padding: var(--form-element-padding-y, var(--spacing-small)) var(--form-element-padding-x, var(--spacing-small));
+  font-size: var(--form-element-font-size, 14px);
+  font-family: 'PT Sans', Arial, sans-serif;
+  line-height: var(--form-element-line-height, 1.5);
+  color: var(--input-text-color);
+  background-color: var(--input-background);
+  background-clip: padding-box;
+  border: var(--input-border);
+  border-radius: var(--card-border-radius-small);
+  box-shadow: none;
+  min-height: var(--form-element-min-height, 44px);
+  transition: var(--input-transition);
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  /* Custom dropdown arrow for light mode - using font-color for proper contrast */
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23333333' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right var(--form-element-padding-x, var(--spacing-small)) center;
+  background-size: 16px 12px;
+  padding-right: calc(var(--form-element-padding-x, var(--spacing-small)) * 2.5);
+}
+
+.form-select:focus {
+  border-color: transparent;
+  outline: 0;
+  box-shadow: var(--input-shadow-focus);
+}
+
+.form-select.error-input {
+  border: var(--input-border-error);
+  background-color: var(--input-background);
+}
+
+.form-select.error-input:focus {
+  border-color: transparent;
+  box-shadow: 0 0 0 3px rgba(211, 47, 47, 0.25);
+}
+
+.form-select:disabled {
+  background-color: var(--border-color-disabled);
+  color: var(--font-color-disabled);
+  opacity: 0.7;
+  cursor: not-allowed;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23a0a0a0' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
+}
+
+/* Styling for the label */
+.form-field-wrapper label {
+  display: block;
+  margin-bottom: var(--spacing-xsmall);
+  font-weight: 500;
+  color: var(--font-color);
+}
+
+/* Styling for the help text */
+.help-text {
+  display: block;
+  margin-top: var(--spacing-xxsmall);
+  font-size: 0.875rem;
+  color: var(--font-color-disabled);
+}
+
+/* Dark theme adjustments for the custom arrow */
+[data-theme="dark"] .form-select,
+:root:not([data-theme="light"]) .form-select {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23f5f1e9' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
+}
+
+[data-theme="dark"] .form-select:disabled,
+:root:not([data-theme="light"]) .form-select:disabled {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23777777' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
+}
+
+/* Required asterisk styling */
+.form-field-required-asterisk {
+  color: var(--error-red);
+  margin-left: var(--spacing-xxsmall);
+} 

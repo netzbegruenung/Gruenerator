@@ -1,0 +1,16 @@
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import './assets/styles/index.css';
+import App from './App';
+
+// Load server health test utilities in development
+if (import.meta.env.DEV) {
+  import('./utils/serverHealthTest.js');
+}
+
+const root = createRoot(document.getElementById('root'));
+root.render(
+  // <React.StrictMode>
+    <App />
+  // </React.StrictMode>
+);

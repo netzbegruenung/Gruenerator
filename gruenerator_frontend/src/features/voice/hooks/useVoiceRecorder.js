@@ -74,7 +74,7 @@ const useVoiceRecorder = (onTranscriptionComplete, options = {}) => {
       const formData = new FormData();
       formData.append('audio', audioBlob, 'recording.mp3');
       
-      const apiBaseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:3001/api';
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
       const url = `${apiBaseUrl.endsWith('/api') ? apiBaseUrl : `${apiBaseUrl}/api`}/voice/transcribe${removeTimestamps ? '?removeTimestamps=true' : ''}`;
       
       console.log('Sending request to:', url);

@@ -1,11 +1,16 @@
 //routes.js
-const claudeRoute = require('./routes/claude/index');
+const antraegeRouter = require('./routes/antraege/index'); // Import the consolidated Anträge router
+// const saveAntragRoute = require('./routes/antraege/saveAntrag');
+// const getMyAntraegeRouter = require('./routes/antraege/getMyAntraege');
+// const deleteAntragRouter = require('./routes/antraege/deleteAntrag');
+// const antragSimpleRoute = require('./routes/antraege/antrag_simple'); // REMOVED direct import/use
 const claudeSocialRoute = require('./routes/claude_social');
 const claudeRedeRoute = require('./routes/claude_rede');
+const claudeChatRoute = require('./routes/claude_chat');
 const antragsversteherRoute = require('./routes/claude_antragsversteher');
 const pdfExtractionRoute = require('./routes/pdf-text-extraction');
 const wahlpruefsteinBundestagswahlRoute = require('./routes/wahlpruefsteinbundestagswahl');
-const sharepicDreizeilenCanvasRoute = require('./routes/sharepic/sharepic_canvas/dreizeilen_canvas'); 
+const sharepicDreizeilenCanvasRoute = require('./routes/sharepic/sharepic_canvas/dreizeilen_canvas');
 const zitatSharepicCanvasRoute = require('./routes/sharepic/sharepic_canvas/zitat_canvas');
 const sharepicDreizeilenClaudeRoute = require('./routes/sharepic/sharepic_claude/dreizeilen_claude');
 const zitatSharepicClaudeRoute = require('./routes/sharepic/sharepic_claude/zitat_claude');
@@ -24,25 +29,52 @@ const searchAnalysisRouter = require('./routes/search/searchAnalysis');
 const subtitlerRouter = require('./routes/subtitler/subtitlerController');
 const subtitlerSocialRouter = require('./routes/subtitler/subtitlerSocialController');
 const voiceRouter = require('./routes/voice/voiceController');
+const customGeneratorRoute = require('./routes/custom_generator');
+const generatorConfiguratorRoute = require('./routes/generator_configurator');
+const claudeSubtitlesRoute = require('./routes/claude_subtitles');
+const { tusServer } = require('./routes/subtitler/services/tusService');
+const testBedrockRoutes = require('./routes/testBedrock'); // Import the new test route
+const collabEditorRouter = require('./routes/collabEditor'); // Import the new collab editor route
+const snapshottingRouter = require('./routes/internal/snapshottingController'); // Import the new snapshotting controller
+const offboardingRouter = require('./routes/internal/offboardingController'); // Import the offboarding controller
+// Auth routes will be imported dynamically
 
-const withLazyLoading = (importFunc) => 
-  lazy(() => 
-    importFunc()
-      .then(module => {
-        // Simuliere Ladezeit im Development
-        if (process.env.NODE_ENV === 'development') {
-          return new Promise(resolve => 
-            setTimeout(() => resolve(module), 1000)
-          );
-        }
-        return module;
-      })
-  );
+async function setupRoutes(app) {
+  // Add debug middleware to trace ALL requests before anything else
+  app.use('*', (req, res, next) => {
+    console.log(`[SERVER REQUEST] ${req.method} ${req.originalUrl} - From: ${req.headers.origin || 'unknown'}`);
+    next();
+  });
 
-function setupRoutes(app) {
-  app.use('/api/claude', claudeRoute);
+  // Add debug middleware to trace all API requests
+  app.use('/api/*', (req, res, next) => {
+    console.log(`[Route Debug] ${req.method} ${req.originalUrl} - Headers: ${JSON.stringify(req.headers.cookie ? { cookie: req.headers.cookie } : {})}`);
+    // Session info ohne req.isAuthenticated da passport.session() nicht mehr global läuft
+    console.log(`[Route Debug] Session info:`, {
+      hasSession: !!req.session,
+      sessionId: req.sessionID,
+      hasUser: !!req.user
+    });
+    next();
+  });
+
+  // app.use('/api/subtitler/upload', tusServer.handle.bind(tusServer)); // REMOVED: Redundant, already handled in server.mjs
+
+  // Auth routes (non-API path) - dynamic import for ES module
+  const { default: authRoutes } = await import('./routes/authRoutes.mjs');
+  app.use('/api/auth', authRoutes);
+  
+  // Use the single consolidated router for all /api/antraege paths
+  app.use('/api/antraege', antraegeRouter);
+
+  // Remove the separate app.use calls for the individual antraege routes
+  // app.use('/api/antraege/my', getMyAntraegeRouter);
+  // app.use('/api/antraege', deleteAntragRouter);
+  // app.use('/api/antrag-save', saveAntragRoute);
+
   app.use('/api/claude_social', claudeSocialRoute);
   app.use('/api/claude_rede', claudeRedeRoute);
+  app.use('/api/claude_chat', claudeChatRoute);
   app.use('/api/antragsversteher', antragsversteherRoute);
   app.use('/api/pdf-extraction', pdfExtractionRoute);
   app.use('/api/wahlpruefsteinbundestagswahl', wahlpruefsteinBundestagswahlRoute);
@@ -53,20 +85,33 @@ function setupRoutes(app) {
   app.use('/api/ai-image-modification', aiImageModificationRouter);
   app.use('/api/imageupload', imageUploadRouter);
   app.use('/api/processText', processTextRouter);
-  app.use('/api/claude_text_adjustment', claudeTextAdjustmentRoute); 
+  app.use('/api/claude_text_adjustment', claudeTextAdjustmentRoute);
   app.use('/api/etherpad', etherpadRoute);
   app.use('/api/claude_wahlprogramm', claudeWahlprogrammRoute);
   app.use('/api/claude_kandidat', claudeKandidatRoute);
   app.use('/api/claude_universal', claudeUniversalRoute);
   app.use('/api/claude_gruene_jugend', claudeGrueneJugendRoute);
   app.use('/api/you', claudeYouRoute);
+  app.use('/api/custom_generator', customGeneratorRoute);
+  app.use('/api/generate_generator_config', generatorConfiguratorRoute);
+  app.use('/api/claude/generate-short-subtitles', claudeSubtitlesRoute);
+
   app.use('/api/subtitler', subtitlerRouter);
   app.use('/api/subtitler', subtitlerSocialRouter);
   app.use('/api/voice', voiceRouter);
-  
-  // Suchrouten
+
   app.use('/api/search', searchRouter);
   app.use('/api/analyze', searchAnalysisRouter);
+
+  // Add the Bedrock test route
+  app.use('/api/test-bedrock', testBedrockRoutes); // FIX: Used a more specific path to avoid conflicts
+
+  // Add the Collab Editor route
+  app.use('/api/collab-editor', collabEditorRouter);
+
+  // Add internal routes like snapshotting trigger
+  app.use('/api/internal', snapshottingRouter);
+  app.use('/api/internal/offboarding', offboardingRouter);
 }
 
 module.exports = { setupRoutes };

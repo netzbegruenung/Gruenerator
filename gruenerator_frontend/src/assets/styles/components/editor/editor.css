@@ -1,0 +1,21 @@
+
+
+
+@import 'editor-base.css';
+@import 'editor-content.css';
+@import 'editor-toolbar.css';
+@import 'editor-ai-tools.css';
+@import 'editor-responsive.css';
+
+
+.text-editor {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;  
+    overflow-x: hidden;
+}
+
+.quill {
+    overflow-x: hidden;
+}

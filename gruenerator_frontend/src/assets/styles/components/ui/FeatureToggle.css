@@ -1,0 +1,103 @@
+.feature-toggle {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: var(--spacing-medium);
+  border-radius: var(--card-border-radius-small);
+  border: var(--card-border);
+  transition: var(--input-transition);
+}
+
+/* .feature-toggle:hover {
+  background-color: var(--hover-color-alt);
+  border-color: var(--border-subtle);
+  box-shadow: var(--card-shadow-subtle);
+} */
+
+.feature-section {
+  margin: var(--spacing-large) 0;
+}
+
+.feature-header {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: var(--spacing-small);
+}
+
+.feature-description {
+  margin: var(--spacing-small) 0 0 0;
+  font-size: 0.9rem;
+  color: var(--font-color);
+  line-height: 1.5;
+  opacity: 0.8;
+}
+
+.feature-switch {
+  all: unset;
+  width: 46px;
+  height: 22px;
+  background-color: var(--input-background);
+  border: var(--input-border);
+  border-radius: 22px;
+  position: relative;
+  box-shadow: var(--shadow-sm);
+  transition: var(--input-transition);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.feature-switch:focus-visible {
+  outline: 2px solid var(--interactive-accent-color);
+  outline-offset: 2px;
+}
+
+.feature-switch[data-state="checked"] {
+  background-color: var(--interactive-accent-color);
+  border-color: var(--interactive-accent-color);
+  box-shadow: var(--shadow-md);
+}
+
+.feature-switch-thumb {
+  all: unset;
+  display: block;
+  width: 16px;
+  height: 16px;
+  background-color: var(--background-color);
+  border-radius: 50%;
+  box-shadow: var(--shadow-sm);
+  transition: var(--input-transition);
+  transform: translateX(3px);
+  will-change: transform;
+}
+
+.feature-switch[data-state="checked"] .feature-switch-thumb {
+  transform: translateX(27px);
+  background-color: var(--background-color-pure);
+}
+
+.feature-label {
+  display: flex;
+  align-items: center;
+  font-size: 0.9rem;
+  color: var(--font-color);
+  font-weight: 400;
+  flex-grow: 1;
+}
+
+.feature-icon {
+  margin-right: var(--spacing-xsmall);
+  font-size: 1.1rem;
+  color: var(--font-color);
+  opacity: 0.7;
+  transition: var(--input-transition);
+}
+
+.feature-icon.active {
+  color: var(--interactive-accent-color);
+  opacity: 1;
+}
+
+.form-container:not(.visible) .form-feature-toggle {
+  display: none !important;
+} 

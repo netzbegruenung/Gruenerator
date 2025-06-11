@@ -1,3 +1,3 @@
 import YouPage from './components/YouPage';
 
-export { YouPage }; 
+export default YouPage; 

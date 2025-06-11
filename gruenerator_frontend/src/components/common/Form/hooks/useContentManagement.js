@@ -1,4 +1,4 @@
-import { useEffect, useContext } from 'react';
+import { useEffect, useContext, useCallback } from 'react';
 import { FormContext } from '../context';
 
 /**
@@ -11,7 +11,10 @@ const useContentManagement = (initialContent = '') => {
     value,
     updateValue,
     isEditing,
-    toggleEditMode
+    handleSave,
+    handleEdit,
+    setWelcomeMessage,
+    welcomeMessage
   } = useContext(FormContext);
 
   // Setze initialContent in value, falls vorhanden
@@ -25,34 +28,65 @@ const useContentManagement = (initialContent = '') => {
   const updateWithGeneratedContent = (generatedContent) => {
     if (!generatedContent) return;
 
-    // Wenn value leer ist, setze generatedContent
-    if (!value) {
-      console.log('[useContentManagement] Setze generatedContent in value:', generatedContent);
-      updateValue(generatedContent);
+    // Prüfe, ob generatedContent ein Objekt mit content und welcomeMessage ist
+    if (typeof generatedContent === 'object' && 'content' in generatedContent) {
+      // Extrahiere Content und Welcome Message
+      const { content, welcomeMessage: newWelcomeMessage } = generatedContent;
+      
+      // Setze den Content
+      if (content && (!value || shouldUpdateValue(content))) {
+        updateValue(content);
+      }
+      
+      // Setze die Welcome Message, falls vorhanden
+      if (newWelcomeMessage) {
+        setWelcomeMessage(newWelcomeMessage);
+      }
+      
       return;
     }
-    
-    // Wenn generatedContent SUCHERGEBNIS oder ANTRAG enthält, aktualisiere auch value
-    if (generatedContent && 
-        (generatedContent.includes('SUCHERGEBNIS:') || generatedContent.includes('ANTRAG:')) && 
-        (!value || 
-         (!value.includes('SUCHERGEBNIS:') && !value.includes('ANTRAG:')) ||
-         (generatedContent.includes('ANTRAG:') && !value.includes('ANTRAG:')))) {
-      console.log('[useContentManagement] Aktualisiere value mit generatedContent, da SUCHERGEBNIS oder ANTRAG enthalten ist');
+
+    // Wenn value leer ist, setze generatedContent
+    if (!value || shouldUpdateValue(generatedContent)) {
       updateValue(generatedContent);
     }
   };
-
-  // Funktion zum Umschalten des Bearbeitungsmodus
-  const handleToggleEditMode = () => {
-    console.log('[useContentManagement] Toggle Edit Mode aufgerufen');
-    toggleEditMode();
+  
+  // Hilfsfunktion, die prüft, ob value aktualisiert werden sollte
+  const shouldUpdateValue = (newContent) => {
+    // Prüfe, ob newContent und value Strings sind
+    if (typeof newContent !== 'string') return false;
+    
+    // Wenn newContent SUCHERGEBNIS oder ANTRAG enthält, während value diese nicht enthält
+    return (
+      (newContent.includes('SUCHERGEBNIS:') || newContent.includes('ANTRAG:')) && 
+      (!value || 
+       typeof value !== 'string' ||
+       (!value.includes('SUCHERGEBNIS:') && !value.includes('ANTRAG:')) ||
+       (newContent.includes('ANTRAG:') && !value.includes('ANTRAG:')))
+    );
   };
+
+  // Funktion zum Umschalten des Bearbeitungsmodus (mit Auto-Save)
+  const handleToggleEditMode = useCallback(() => {
+    console.log(`[useContentManagement] handleToggleEditMode called. Current isEditing: ${isEditing}`);
+    if (isEditing) {
+      // Wenn aktuell bearbeitet wird -> Speichern und Modus beenden
+      console.log('[useContentManagement] Calling handleSave() from context.');
+      handleSave(); 
+    } else {
+      // Wenn aktuell nicht bearbeitet wird -> Modus starten
+      console.log('[useContentManagement] Calling handleEdit() from context.');
+      handleEdit();
+    }
+  }, [isEditing, handleSave, handleEdit]);
 
   // Funktion zum Abrufen des exportierbaren Inhalts
   const getExportableContent = (generatedContent) => {
     if (generatedContent) {
-      return typeof generatedContent === 'string' ? generatedContent : generatedContent?.content || '';
+      return typeof generatedContent === 'string' 
+        ? generatedContent 
+        : generatedContent?.content || '';
     }
     return value || '';
   };
@@ -63,7 +97,8 @@ const useContentManagement = (initialContent = '') => {
     isEditing,
     updateWithGeneratedContent,
     handleToggleEditMode,
-    getExportableContent
+    getExportableContent,
+    welcomeMessage
   };
 };
 

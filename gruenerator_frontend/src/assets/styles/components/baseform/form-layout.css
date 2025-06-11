@@ -1,0 +1,375 @@
+/* FormCard Base Styles */
+.form-card {
+  background-color: var(--card-background);
+  border: var(--card-border);
+  border-radius: var(--card-border-radius-medium);
+  overflow: hidden;
+}
+
+/* FormCard Header Styles */
+.form-card__header {
+  background-color: var(--card-background);
+  padding: var(--spacing-small) var(--spacing-xlarge) var(--spacing-medium);
+  border-bottom: 1px solid var(--border-subtle, rgba(0, 0, 0, 0.1));
+  margin: calc(-1 * var(--spacing-xlarge)) calc(-1 * var(--spacing-xlarge)) 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.form-card__title {
+  margin: 0;
+  font-size: 1.4em;
+}
+
+.form-card__hide-button {
+  background: none;
+  border: none;
+  color: var(--font-color);
+  cursor: pointer;
+  padding: var(--spacing-xxsmall);
+  border-radius: var(--card-border-radius-small);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2em;
+  opacity: 0.6;
+  transition: var(--input-transition);
+}
+
+.form-card__hide-button:hover {
+  opacity: 1;
+  background-color: var(--background-color-alt);
+  transform: scale(1.01);
+}
+
+.form-card__hide-button:focus {
+  outline: 2px solid var(--interactive-accent-color);
+  outline-offset: 2px;
+}
+
+.form-card__content {
+  flex: 1;
+}
+
+.form-card--elevated {
+  box-shadow: var(--card-shadow-elevated);
+}
+
+.form-card--floating {
+  box-shadow: var(--card-shadow-floating);
+}
+
+.form-card--subtle {
+  box-shadow: var(--card-shadow-subtle);
+}
+
+.form-card--small {
+  padding: var(--spacing-medium);
+}
+
+.form-card--medium {
+  padding: var(--spacing-large);
+}
+
+.form-card--large {
+  padding: var(--spacing-xlarge);
+}
+
+/* FormSection Modern Layout */
+.form-section {
+  display: flex;
+  flex-direction: column;
+  min-height: 400px;
+  background-color: var(--card-background);
+  color: var(--font-color);
+}
+
+/* Split Layout Container */
+.form-section__container {
+  display: flex;
+  gap: var(--spacing-large);
+  height: 100%;
+}
+
+/* Input Section Styles */
+.form-section__inputs {
+  flex: 2;
+  min-width: 0;
+}
+
+.form-inputs__form {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.form-inputs__content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.form-inputs__fields {
+  flex: 1;
+  margin-bottom: var(--spacing-large);
+}
+
+.form-inputs__buttons {
+  display: flex;
+  gap: var(--spacing-medium);
+  justify-content: flex-end;
+  align-items: center;
+  padding-top: var(--spacing-medium);
+  border-top: var(--border-subtle);
+  margin-top: auto;
+}
+
+.form-inputs__back-button {
+  background-color: transparent;
+  border: 2px solid var(--interactive-accent-color);
+  color: var(--interactive-accent-color);
+  padding: var(--spacing-small) var(--spacing-large);
+  border-radius: var(--card-border-radius-small);
+  font-family: 'PT Sans', Arial, sans-serif;
+  font-size: 0.9em;
+  cursor: pointer;
+  transition: var(--input-transition);
+}
+
+.form-inputs__back-button:hover {
+  background-color: var(--interactive-accent-color);
+  color: var(--background-color-pure);
+}
+
+.form-inputs__submit {
+  flex-shrink: 0;
+}
+
+/* Extras Section Styles */
+.form-section__extras {
+  flex: 1;
+  min-width: 0;
+  border-radius: var(--card-border-radius-small);
+}
+
+.form-extras__content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-medium);
+}
+
+.form-extras__item {
+  padding-bottom: 0;
+}
+
+
+.form-extras__notice {
+  border-radius: var(--card-border-radius-small);
+}
+
+.form-extras__notice .custom-prompt-notice,
+.form-extras__notice .neutral-notice {
+  margin-top: -10px;
+  font-size: 0.6em;
+  line-height: 1.3;
+
+}
+
+.form-extras__notice .custom-prompt-notice .info-icon,
+.form-extras__notice .neutral-notice .info-icon {
+  font-size: 0.9em;
+  margin-right: var(--spacing-xxsmall);
+  opacity: 0.7;
+}
+
+.form-extras__custom {
+  padding: 0;
+}
+
+.form-extras__submit {
+  padding: 0;
+  margin-top: var(--spacing-medium);
+}
+
+.form-extras__submit-button {
+  width: 100%;
+  border: 0px solid var(--font-color-h) ;
+  color: var(--weiß);
+  background-color: var(--klee);
+  border-radius: 20px;
+}
+
+/* Form Field Layouts */
+.form-section .form-field {
+  margin-bottom: var(--spacing-large);
+}
+
+.form-section .form-field:last-child {
+  margin-bottom: 0;
+}
+
+.form-section label {
+  display: block;
+  margin-bottom: var(--spacing-small);
+  color: var(--font-color);
+  font-weight: 500;
+}
+
+
+
+.form-section .help-text,
+.form-section .subtext,
+.form-section p {
+  color: var(--font-color);
+  font-size: 0.9em;
+  margin-top: var(--spacing-xsmall);
+  line-height: 1.4;
+}
+
+/* Error States */
+
+.form-section .inline-validation-message {
+  color: var(--error-red);
+  font-size: 0.85em;
+  margin-top: var(--spacing-xsmall);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xxsmall);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .form-card--large {
+    padding: var(--spacing-medium);
+  }
+  
+  .form-section {
+    min-height: 300px;
+  }
+  
+  /* Split Layout Mobile */
+  .form-section__container {
+    flex-direction: column;
+    gap: var(--spacing-medium);
+  }
+  
+  .form-section__inputs,
+  .form-section__extras {
+    flex: 1 1 auto;
+  }
+  
+  .form-section__extras {
+    order: 2;
+  }
+  
+  .form-inputs__buttons {
+    flex-direction: column;
+    gap: var(--spacing-small);
+  }
+  
+  .form-inputs__back-button,
+  .form-inputs__submit {
+    width: 100%;
+    text-align: center;
+  }
+  
+  /* Legacy buttons for compatibility */
+  .form-section__buttons {
+    flex-direction: column;
+    gap: var(--spacing-small);
+  }
+  
+  .form-section__back-button,
+  .form-section__submit {
+    width: 100%;
+    text-align: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .form-card--large {
+    padding: var(--spacing-small);
+  }
+  
+
+}
+
+/* Focus and accessibility improvements */
+.form-section__back-button:focus {
+  outline: 2px solid var(--interactive-accent-color);
+  outline-offset: 2px;
+}
+
+/* Input focus handled by main form-section focus styles above */
+
+/* High contrast mode support */
+@media (forced-colors: active) {
+  .form-card {
+    border: 1px solid ButtonText;
+    background: ButtonFace;
+  }
+  
+  .form-section {
+    background: Canvas;
+    color: CanvasText;
+  }
+  
+  .form-section__back-button {
+    border: 1px solid ButtonText;
+    background: ButtonFace;
+    color: ButtonText;
+  }
+}
+
+/* New styles for the bottom section */
+.form-section__bottom {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.form-section__bottom h3 {
+  margin-top: 0;
+}
+
+/* Press release fields animation container */
+
+.press-release-fields .form-field {
+  margin-bottom: var(--spacing-large);
+}
+
+.press-release-fields .form-field:last-child {
+  margin-bottom: 0;
+}
+
+/* Motion wrapper layout classes */
+.form-section-motion-wrapper {
+  flex: 2;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.display-section-motion-wrapper {
+  min-width: 0;
+  display: flex;
+}
+
+.display-section-motion-wrapper.form-visible {
+  flex: 1;
+  justify-content: flex-start;
+}
+
+.display-section-motion-wrapper.form-hidden {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+}
+
+.display-section-motion-wrapper.form-hidden .display-container {
+  max-width: 900px;
+  width: 100%;
+  margin: 0 auto;
+}

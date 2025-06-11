@@ -1,0 +1,147 @@
+
+
+@media (max-width: 768px) {
+    
+    .base-container.editing-mode {
+        height: 100vh;
+        overflow: hidden;
+    }
+
+    .base-container.editing-mode .display-container {
+        height: 100vh;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .base-container.editing-mode .display-container .text-editor {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .base-container.editing-mode .display-container .ql-container {
+        flex: 1;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+
+    
+    
+    .base-container.editing-mode .display-container .ql-editor {
+        flex: 1;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch;
+        font-size: 14px !important;
+        padding: 12px 0px;
+    }
+
+    .editing-mode .ql-container {
+        padding: 0;
+    }
+
+    
+    .text-editor .ql-toolbar.ql-snow {
+        display: flex !important;
+        padding: 4px !important;
+        position: sticky;
+        top: 0;
+        background: var(--background-color);
+        z-index: 100;
+        border-bottom: 1px solid var(--hellgrau) !important;
+        flex-wrap: wrap;
+        justify-content: space-between;
+    }
+
+    .text-editor .ql-toolbar.ql-snow .ql-formats {
+        margin-right: 3px;
+        margin-bottom: 3px;
+    }
+
+    .text-editor .ql-toolbar.ql-snow button {
+        padding: 2px 3px;
+        width: 26px;
+        height: 26px;
+    }
+    
+    
+    .ql-snow.ql-toolbar button svg,
+    .ql-snow .ql-toolbar button svg {
+        width: 18px !important;
+        height: 18px !important;
+        stroke-width: 2px !important;
+        transform: scale(1.2) !important;
+    }
+    
+    
+    .ql-snow.ql-toolbar button,
+    .ql-snow .ql-toolbar button {
+        padding: 6px !important;
+        margin: 0 2px !important;
+        min-width: 32px !important;
+        min-height: 32px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+    
+    
+    .ql-snow.ql-toolbar .ql-formats,
+    .ql-snow .ql-toolbar .ql-formats {
+        margin-right: 6px !important;
+        margin-bottom: 6px !important;
+    }
+
+    
+    .adjust-form {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .input-wrapper {
+        margin-bottom: 5px;
+    }
+
+    .adjust-input {
+        width: 100%;
+    }
+
+    .adjust-submit {
+        width: 100%;
+        margin-left: 0;
+    }
+
+    .confirmation-container {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .confirmation-container p {
+        margin-bottom: 5px;
+        text-align: center;
+    }
+
+    .confirmation-buttons {
+        display: flex;
+        justify-content: center;
+    }
+
+    
+    .ql-adjust-text.custom-button,
+    .adjust-form,
+    .confirmation-container,
+    .custom-context-menu {
+        display: none !important;
+    }
+
+    
+    .editor-toolbar-wrapper.read-only .ql-toolbar.ql-snow {
+        display: none !important;
+    }
+
+    .ql-editor p, .ql-editor ol, .ql-editor ul, .ql-editor pre, .ql-editor blockquote, .ql-editor h1, .ql-editor h2, .ql-editor h3, .ql-editor h4, .ql-editor h5, .ql-editor h6 {
+        font-size: 1.2em !important;
+    }
+} 

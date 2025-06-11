@@ -9,8 +9,12 @@ const useSocialTextGenerator = () => {
     if (!subtitles) return;
     
     try {
-      const content = await submitForm({ subtitles });
-      if (content) {
+      const response = await submitForm({ subtitles });
+      if (response) {
+        // Extrahiere den content aus der API-Antwort
+        const content = typeof response === 'object' && response.content 
+          ? response.content 
+          : response;
         setSocialText(content);
       }
     } catch (err) {

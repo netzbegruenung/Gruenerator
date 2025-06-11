@@ -86,7 +86,7 @@
   100% { transform: rotate(360deg); }
 }
 
-/* Dark Mode Anpassungen */
+
 [data-theme="dark"] .search-result-item:hover {
   background-color: var(--background-color-sand);
 }

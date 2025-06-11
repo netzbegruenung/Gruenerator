@@ -1,0 +1,215 @@
+/* Profile Dropdown Component Styles
+   Enthält Styling für den Profil-Button und das Dropdown-Menü im Header */
+
+
+.profile-button-container {
+  position: relative;
+  margin-left: var(--spacing-small);
+}
+
+
+.profile-button {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profile-icon {
+  font-size: 1.8rem;
+  color: var(--font-color-h);
+}
+
+/* Roboter-Avatar im Header */
+.profile-header-avatar-robot {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.profile-header-robot-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.profile-button-loading {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: var(--background-color-alt);
+  position: relative;
+}
+
+.profile-button-loading::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  border-top-color: var(--font-color);
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+
+.login-button {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xxsmall);
+  color: var(--font-color-h);
+  text-decoration: none;
+  padding: var(--spacing-small) var(--spacing-medium);
+  border-radius: var(--spacing-xxsmall);
+  transition: background-color 0.3s ease;
+}
+
+.login-button:hover {
+  background-color: var(--background-color-alt);
+}
+
+.login-button svg {
+  font-size: 1.2rem;
+}
+
+
+.profile-dropdown {
+  position: absolute;
+  top: 55px;
+  right: 0;
+  width: 260px;
+  background-color: var(--background-color);
+  border-radius: 12px;
+  box-shadow: var(--shadow-md);
+  z-index: 1000;
+  overflow: hidden;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+  transform-origin: top right;
+  transform: scale(0.95);
+  opacity: 0;
+  animation: dropdownFadeIn 0.2s ease forwards;
+}
+
+@keyframes dropdownFadeIn {
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+
+.profile-dropdown-header {
+  padding: var(--spacing-medium);
+  border-bottom: 1px solid var(--border-subtle);
+  background-color: var(--background-color-alt);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-medium);
+}
+
+.profile-dropdown-avatar {
+  flex-shrink: 0;
+}
+
+.profile-dropdown-avatar-robot {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profile-dropdown-robot-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.profile-dropdown-avatar-icon {
+  font-size: 3rem;
+  color: var(--font-color-h);
+}
+
+.profile-dropdown-info {
+  flex: 1;
+  text-align: left;
+}
+
+.profile-dropdown-greeting {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--font-color-h);
+  margin-bottom: var(--spacing-xxsmall);
+  font-family: 'GrueneType', Arial, sans-serif;
+}
+
+.profile-dropdown-email {
+  font-size: 0.85rem;
+  color: var(--font-color);
+  opacity: 0.8;
+  margin-bottom: var(--spacing-xsmall);
+}
+
+
+.profile-dropdown-links {
+  padding: 0;
+}
+
+.profile-dropdown-link {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-small);
+  padding: var(--spacing-small) var(--spacing-medium);
+  color: var(--font-color);
+  text-decoration: none;
+  transition: background-color 0.2s ease;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: none;
+  font-size: 1rem;
+}
+
+.profile-dropdown-icon {
+  font-size: 1rem;
+  color: var(--font-color);
+  opacity: 0.8;
+  min-width: 18px;
+}
+
+.profile-dropdown-link:hover {
+  background-color: var(--background-color-alt);
+}
+
+.profile-dropdown-link.logout-link {
+  color: #e74c3c;
+}
+
+.profile-dropdown-link.logout-link .profile-dropdown-icon {
+  color: #e74c3c;
+}
+
+
+@media (max-width: 768px) {
+  .profile-button-container {
+    margin-right: 60px; 
+  }
+} 

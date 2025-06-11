@@ -1,24 +1,82 @@
 // useAccessibility.js
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
+import FocusTrap from 'focus-trap-react';
 import {
   announceToScreenReader,
   setFocus,
   handleKeyboardNavigation,
-  updateAriaLiveRegion
+  updateAriaLiveRegion,
+  setupEnhancedKeyboardNavigation,
+  enhanceAriaSupport,
+  announceFormError,
+  announceFormSuccess,
+  detectAccessibilityPreferences,
+  applyAccessibilityPreferences,
+  createAriaLiveRegion
 } from '../utils/accessibilityHelpers';
 
-const useAccessibility = () => {
+const useAccessibility = (options = {}) => {
+  const formRef = useRef(null);
+  const cleanupFunctions = useRef([]);
+
+  const {
+    enableEnhancedNavigation = true,
+    enableAriaSupport = true,
+    enableErrorAnnouncements = true,
+    enableSuccessAnnouncements = true,
+    keyboardNavigationOptions = {}
+  } = options;
+
+  // Initialize accessibility features
   useEffect(() => {
-    const ariaLiveRegion = document.getElementById('aria-live-region');
-    if (!ariaLiveRegion) {
+    // Create global aria-live regions
+    createAriaLiveRegion('aria-live-region', 'polite');
+    createAriaLiveRegion('form-error-announcer', 'assertive');
+    createAriaLiveRegion('form-success-announcer', 'polite');
+
+    const screenReaderRegion = document.getElementById('sr-announcer');
+    if (!screenReaderRegion) {
       const region = document.createElement('div');
-      region.id = 'aria-live-region';
+      region.id = 'sr-announcer';
       region.setAttribute('aria-live', 'polite');
       region.style.position = 'absolute';
       region.style.left = '-9999px';
       document.body.appendChild(region);
     }
   }, []);
+
+  // Setup enhanced accessibility when form ref is available
+  useEffect(() => {
+    if (!formRef.current) return;
+
+    const formElement = formRef.current;
+
+    // Apply user accessibility preferences
+    const preferences = applyAccessibilityPreferences(formElement);
+
+    // Setup enhanced keyboard navigation
+    if (enableEnhancedNavigation) {
+      const cleanup = setupEnhancedKeyboardNavigation(formElement, keyboardNavigationOptions);
+      if (cleanup) {
+        cleanupFunctions.current.push(cleanup);
+      }
+    }
+
+    // Enhance ARIA support
+    if (enableAriaSupport) {
+      enhanceAriaSupport(formElement);
+    }
+
+    // Cleanup function
+    return () => {
+      cleanupFunctions.current.forEach(cleanup => {
+        if (typeof cleanup === 'function') {
+          cleanup();
+        }
+      });
+      cleanupFunctions.current = [];
+    };
+  }, [enableEnhancedNavigation, enableAriaSupport, keyboardNavigationOptions]);
 
   const announce = useCallback((message) => {
     announceToScreenReader(message);
@@ -35,7 +93,159 @@ const useAccessibility = () => {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  return { announce, focusElement, setupKeyboardNav };
+  const manageFocusTrap = useCallback((trapActive, containerRef, options = {}) => {
+    if (containerRef.current) {
+      if (trapActive) {
+        // Focus trap is managed by the FocusTrap component in JSX
+        // This hook provides configuration and state management
+      } else {
+        // Focus trap should be inactive
+      }
+    }
+    return trapActive;
+  }, []);
+
+  // Enhanced error handling with announcements
+  const handleFormError = useCallback((errorMessage, fieldName = '') => {
+    if (enableErrorAnnouncements) {
+      announceFormError(errorMessage, fieldName);
+    }
+  }, [enableErrorAnnouncements]);
+
+  // Enhanced success handling with announcements
+  const handleFormSuccess = useCallback((message) => {
+    if (enableSuccessAnnouncements) {
+      announceFormSuccess(message);
+    }
+  }, [enableSuccessAnnouncements]);
+
+  // Function to register form element
+  const registerFormElement = useCallback((element) => {
+    formRef.current = element;
+  }, []);
+
+  // Get accessibility preferences
+  const getAccessibilityPreferences = useCallback(() => {
+    return detectAccessibilityPreferences();
+  }, []);
+
+  // Enhanced focus management for specific scenarios
+  const manageFocusSequence = useCallback((elements, startIndex = 0) => {
+    if (!elements || elements.length === 0) return;
+    
+    let currentIndex = startIndex;
+    
+    const focusNext = () => {
+      if (currentIndex < elements.length - 1) {
+        currentIndex++;
+        elements[currentIndex]?.focus();
+      }
+    };
+    
+    const focusPrevious = () => {
+      if (currentIndex > 0) {
+        currentIndex--;
+        elements[currentIndex]?.focus();
+      }
+    };
+    
+    const focusCurrent = () => {
+      elements[currentIndex]?.focus();
+    };
+    
+    // Initial focus
+    focusCurrent();
+    
+    return {
+      focusNext,
+      focusPrevious,
+      focusCurrent,
+      getCurrentIndex: () => currentIndex,
+      setCurrentIndex: (index) => {
+        if (index >= 0 && index < elements.length) {
+          currentIndex = index;
+          focusCurrent();
+        }
+      }
+    };
+  }, []);
+
+  // Accessibility testing helpers (for development)
+  const testAccessibility = useCallback(() => {
+    if (process.env.NODE_ENV !== 'development') return;
+    
+    const formElement = formRef.current;
+    if (!formElement) return;
+    
+    const report = {
+      hasAriaLabels: [],
+      missingLabels: [],
+      hasRoles: [],
+      missingRoles: [],
+      focusableElements: [],
+      accessibilityPreferences: getAccessibilityPreferences()
+    };
+    
+    // Check ARIA labels
+    const labeledElements = formElement.querySelectorAll('[aria-label], [aria-labelledby]');
+    report.hasAriaLabels = Array.from(labeledElements).map(el => ({
+      tag: el.tagName,
+      id: el.id,
+      label: el.getAttribute('aria-label') || el.getAttribute('aria-labelledby')
+    }));
+    
+    // Check for missing labels on inputs
+    const inputs = formElement.querySelectorAll('input, select, textarea');
+    inputs.forEach(input => {
+      const hasLabel = input.labels?.length > 0 || 
+                     input.getAttribute('aria-label') || 
+                     input.getAttribute('aria-labelledby');
+      if (!hasLabel) {
+        report.missingLabels.push({
+          tag: input.tagName,
+          type: input.type,
+          id: input.id,
+          name: input.name
+        });
+      }
+    });
+    
+    // Check roles
+    const elementsWithRoles = formElement.querySelectorAll('[role]');
+    report.hasRoles = Array.from(elementsWithRoles).map(el => ({
+      tag: el.tagName,
+      role: el.getAttribute('role'),
+      id: el.id
+    }));
+    
+    // Check focusable elements
+    const focusableSelectors = 'input, select, textarea, button, a[href], [tabindex]:not([tabindex="-1"])';
+    const focusableElements = formElement.querySelectorAll(focusableSelectors);
+    report.focusableElements = Array.from(focusableElements).map(el => ({
+      tag: el.tagName,
+      type: el.type,
+      id: el.id,
+      tabIndex: el.tabIndex,
+      disabled: el.disabled
+    }));
+    
+
+    
+    return report;
+  }, [getAccessibilityPreferences]);
+
+  return { 
+    announce, 
+    focusElement, 
+    setupKeyboardNav, 
+    manageFocusTrap,
+    handleFormError,
+    handleFormSuccess,
+    registerFormElement,
+    getAccessibilityPreferences,
+    manageFocusSequence,
+    testAccessibility
+  };
 };
 
 export default useAccessibility;

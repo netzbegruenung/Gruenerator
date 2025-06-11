@@ -1,6 +1,5 @@
 @import url('./variables.css');
 @import url('./typography.css');
-@import url('../components/spinner.css');
 
 *, *:before, *:after { box-sizing: inherit; }
 html { box-sizing: border-box; }
@@ -12,6 +11,7 @@ html {
     -moz-osx-font-smoothing: grayscale;
     font-size-adjust: 100%;
     -webkit-tap-highlight-color: transparent;
+    overflow: auto;
 }
 
 body {
@@ -44,10 +44,12 @@ button {
     margin-right: auto;
 }
 
+/*
 .with-header {
     margin-top: 80px; 
     margin-bottom: 20px;
 }
+*/
 
 @media (max-width: 768px) {
     .container {
@@ -56,7 +58,4 @@ button {
         margin-bottom: 0px;
     }
 
-    .container.with-header {
-        margin-top: 80px;
-    }
 }

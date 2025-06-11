@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const { HTML_FORMATTING_INSTRUCTIONS, PLATFORM_HEADER_STRUCTURE_INSTRUCTIONS } = require('../utils/promptUtils');
 
 const platformGuidelines = {
   instagram: {
@@ -100,7 +101,11 @@ router.post('/', async (req, res) => {
 
       Formatiere deine Antwort als Text mit Überschriften für die verschiedenen Plattformen. 
       WICHTIG: Jede Plattform muss mit einem eigenen Header in Großbuchstaben und einem Doppelpunkt 
-      beginnen, z.B. "TWITTER:" oder "INSTAGRAM:"`;
+      beginnen, z.B. "TWITTER:" oder "INSTAGRAM:"
+      
+      ${PLATFORM_HEADER_STRUCTURE_INSTRUCTIONS}
+      
+      ${HTML_FORMATTING_INSTRUCTIONS}`;
 
     // Erstelle den Benutzerinhalt basierend auf dem Vorhandensein eines benutzerdefinierten Prompts
     let userContent;
@@ -115,7 +120,9 @@ Erstelle Inhalte für folgende Plattformen: ${platforms.join(', ')}
 ${platforms.map(platform => {
   const guidelines = platformGuidelines[platform];
   return `${platform.toUpperCase()}: Maximale Länge: ${guidelines.maxLength} Zeichen. Stil: ${guidelines.style} Fokus: ${guidelines.focus}`;
-}).join('\n')}`;
+}).join('\n')}
+
+${HTML_FORMATTING_INSTRUCTIONS}`;
     } else {
       // Standardinhalt ohne benutzerdefinierten Prompt
       userContent = `
@@ -138,22 +145,27 @@ Jeder Beitrag sollte:
 5. Emojis effektiv zur Betonung wichtiger Punkte einsetzen
 6. Hashtags strategisch verwenden
 7. Eine jugendliche, authentische Sprache nutzen
-8. Zum direkten politischen Handeln aufrufen`;
+8. Zum direkten politischen Handeln aufrufen
+
+${HTML_FORMATTING_INSTRUCTIONS}`;
     }
 
-    const result = await req.app.locals.aiWorkerPool.processRequest({
-      type: 'gruene_jugend',
+    const payload = {
       systemPrompt,
       messages: [{
         role: 'user',
         content: userContent
       }],
       options: {
-        model: "claude-3-5-sonnet-20240620",
         max_tokens: 8000,
         temperature: 0.9
       },
       useBackupProvider
+    };
+    
+    const result = await req.app.locals.aiWorkerPool.processRequest({
+      type: 'gruene_jugend',
+      ...payload
     });
 
     console.log('[claude_gruene_jugend] AI Worker Antwort erhalten:', {

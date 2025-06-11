@@ -1,0 +1,46 @@
+
+/* Display action section with modern spacing */
+.display-action-section {
+    margin-top: var(--spacing-large);
+    padding-top: var(--spacing-medium);
+    border-top: var(--border-subtle);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.display-action-section .save-action-element {
+    margin-top: var(--spacing-medium);
+}
+
+.save-action-element .antrag-save-button {
+    margin-top: var(--spacing-small);
+}
+
+/* Modern error message styling */
+.display-content .form-error-message {
+    color: var(--error-red);
+    background-color: rgba(211, 47, 47, 0.1);
+    border: 1px solid var(--error-red);
+    border-radius: var(--card-border-radius-small);
+    padding: var(--spacing-small) var(--spacing-medium);
+    margin-top: var(--spacing-medium);
+    margin-bottom: var(--spacing-medium);
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    transition: var(--input-transition);
+}
+
+/* Dark mode adjustments for error messages */
+[data-theme="dark"] .display-content .form-error-message {
+    background-color: rgba(211, 47, 47, 0.15);
+    border-color: rgba(211, 47, 47, 0.6);
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .display-content .form-error-message {
+        background-color: rgba(211, 47, 47, 0.15);
+        border-color: rgba(211, 47, 47, 0.6);
+    }
+}

@@ -1,0 +1,44 @@
+.live-subtitle-preview {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 10;
+  overflow: hidden;
+}
+
+.live-subtitle-text {
+  display: inline-block;
+  white-space: pre-wrap;
+  word-break: break-word;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "kern" 1;
+  font-family: 'GrueneType', Arial, sans-serif;
+}
+
+.video-loading {
+  padding: var(--spacing-xlarge);
+  text-align: center;
+  color: var(--font-color);
+  font-size: 1.1rem;
+}
+
+@media (max-width: 768px) {
+  
+  .live-subtitle-text {
+    font-size: clamp(14px, 3vw, 18px) !important;
+    line-height: 1.1 !important;
+    padding: 0.15em 0.3em !important;
+    max-width: 90% !important;
+    text-shadow: none !important;
+    font-family: 'GrueneType', Arial, sans-serif !important;
+  }
+  
+  .live-subtitle-preview {
+    padding: 0 5px;
+  }
+} 
