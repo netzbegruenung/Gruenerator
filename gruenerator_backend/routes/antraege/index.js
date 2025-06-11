@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const authMiddleware = require('../../middleware/authMiddleware');
+// Import session-based auth middleware from authMiddleware
+const authMiddlewareModule = require('../../middleware/authMiddleware');
+const { requireAuth } = authMiddlewareModule;
 const {
   saveAntragToSupabase,
   deleteAntragById
@@ -31,7 +33,7 @@ router.use('/generate-description', generateDescriptionRouter);
 // === Specific Antrag CRUD Routes ===
 
 // POST /api/antraege - Save a new Antrag (previously /api/antrag-save)
-router.post('/', authMiddleware, async (req, res) => {
+router.post('/', requireAuth, async (req, res) => {
   // Log req.user IMMEDIATELY after middleware runs
   console.log(`[POST /api/antraege] Route handler started. req.user received:`, req.user ? { id: req.user.id, email: req.user.email, aud: req.user.aud } : 'undefined');
 
@@ -95,7 +97,7 @@ router.get('/:antragId', async (req, res) => {
 });
 
 // DELETE /api/antraege/:antragId - Delete a specific Antrag owned by the user
-router.delete('/:antragId', authMiddleware, async (req, res) => {
+router.delete('/:antragId', requireAuth, async (req, res) => {
   const userId = req.user?.id;
   const { antragId } = req.params;
 

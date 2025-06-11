@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useSupabaseAuth } from '../../../context/SupabaseAuthContext';
+import { useAuthStore } from '../../../stores/authStore';
 import { useQueryClient, useQuery, useMutation } from '@tanstack/react-query';
 
 /**
  * Hook for managing user groups
  */
 const useGroups = ({ isActive } = {}) => {
-  const { user } = useSupabaseAuth();
+  const supabaseUser = useAuthStore((state) => state.supabaseUser);
   const [templatesSupabase, setTemplatesSupabase] = useState(null);
   const queryClient = useQueryClient();
 
@@ -28,18 +28,18 @@ const useGroups = ({ isActive } = {}) => {
   }, []);
 
   // Query key for user's groups
-  const groupsQueryKey = ['userGroups', user?.id];
+  const groupsQueryKey = ['userGroups', supabaseUser?.id];
 
   // Fetch groups where user is a member
   const fetchGroupsFn = async () => {
-    if (!user?.id || !templatesSupabase) {
+    if (!supabaseUser?.id || !templatesSupabase) {
       throw new Error("User or Supabase client not available");
     }
 
     const { data: memberships, error: membershipsError } = await templatesSupabase
       .from('group_memberships')
       .select('group_id, role')
-      .eq('user_id', user.id);
+      .eq('user_id', supabaseUser.id);
 
     if (membershipsError) {
       throw new Error(`Failed to fetch memberships: ${membershipsError.message}`);
@@ -64,7 +64,7 @@ const useGroups = ({ isActive } = {}) => {
     const combinedGroups = groupsData.map(group => ({
       ...group,
       role: memberships.find(m => m.group_id === group.id)?.role || 'member',
-      isAdmin: group.created_by === user.id || 
+      isAdmin: group.created_by === supabaseUser.id || 
               memberships.find(m => m.group_id === group.id)?.role === 'admin'
     }));
     return combinedGroups;
@@ -80,7 +80,7 @@ const useGroups = ({ isActive } = {}) => {
   } = useQuery({
     queryKey: groupsQueryKey,
     queryFn: fetchGroupsFn,
-    enabled: !!user?.id && !!templatesSupabase && isActive !== false,
+    enabled: !!supabaseUser?.id && !!templatesSupabase && isActive !== false,
     staleTime: 5 * 60 * 1000, // 5 minutes
     cacheTime: 15 * 60 * 1000, // 15 minutes
     refetchOnWindowFocus: false,
@@ -92,7 +92,7 @@ const useGroups = ({ isActive } = {}) => {
 
   // Create a new group
   const createGroupMutationFn = async (groupName) => {
-    if (!user?.id || !templatesSupabase) {
+    if (!supabaseUser?.id || !templatesSupabase) {
       throw new Error("User or Supabase client not available");
     }
 
@@ -105,7 +105,7 @@ const useGroups = ({ isActive } = {}) => {
       .from('groups')
       .insert({
         name: groupName.trim(),
-        created_by: user.id
+        created_by: supabaseUser.id
       })
       .select('id')
       .single();
@@ -119,7 +119,7 @@ const useGroups = ({ isActive } = {}) => {
       .from('group_memberships')
       .insert({
         group_id: newGroup.id,
-        user_id: user.id,
+        user_id: supabaseUser.id,
         role: 'admin'
       });
 
@@ -156,7 +156,7 @@ const useGroups = ({ isActive } = {}) => {
 
   // Generate a new join token for a group
   const regenerateJoinTokenMutationFn = async (groupId) => {
-    if (!user?.id || !templatesSupabase || !groupId) {
+    if (!supabaseUser?.id || !templatesSupabase || !groupId) {
       throw new Error("Required data missing");
     }
 
@@ -168,7 +168,7 @@ const useGroups = ({ isActive } = {}) => {
       .from('groups')
       .update({ join_token: randomToken })
       .eq('id', groupId)
-      .eq('created_by', user.id) // Ensure user is the creator
+      .eq('created_by', supabaseUser.id) // Ensure user is the creator
       .select('join_token')
       .single();
 
@@ -190,7 +190,7 @@ const useGroups = ({ isActive } = {}) => {
 
   // Join a group with token
   const joinGroupMutationFn = async (joinToken) => {
-    if (!user?.id || !templatesSupabase || !joinToken) {
+    if (!supabaseUser?.id || !templatesSupabase || !joinToken) {
       throw new Error("Required data missing");
     }
 
@@ -210,7 +210,7 @@ const useGroups = ({ isActive } = {}) => {
       .from('group_memberships')
       .select('group_id')
       .eq('group_id', group.id)
-      .eq('user_id', user.id)
+      .eq('user_id', supabaseUser.id)
       .maybeSingle();
 
     if (membershipCheckError) {
@@ -226,7 +226,7 @@ const useGroups = ({ isActive } = {}) => {
       .from('group_memberships')
       .insert({
         group_id: group.id,
-        user_id: user.id,
+        user_id: supabaseUser.id,
         role: 'member'
       });
 
@@ -252,7 +252,7 @@ const useGroups = ({ isActive } = {}) => {
 
   // Delete a group and all its related data
   const deleteGroupMutationFn = async (groupId) => {
-    if (!user?.id || !templatesSupabase || !groupId) {
+    if (!supabaseUser?.id || !templatesSupabase || !groupId) {
       throw new Error("User, Supabase client, or Group ID not available");
     }
 
@@ -262,7 +262,7 @@ const useGroups = ({ isActive } = {}) => {
       .from('group_memberships')
       .select('role')
       .eq('group_id', groupId)
-      .eq('user_id', user.id)
+      .eq('user_id', supabaseUser.id)
       .single();
 
     if (adminCheckError || !groupMembership || groupMembership.role !== 'admin') {
@@ -274,7 +274,7 @@ const useGroups = ({ isActive } = {}) => {
             .eq('id', groupId)
             .single();
 
-        if (groupFetchError || !groupData || groupData.created_by !== user.id) {
+        if (groupFetchError || !groupData || groupData.created_by !== supabaseUser.id) {
             throw new Error("User is not authorized to delete this group.");
         }
     }

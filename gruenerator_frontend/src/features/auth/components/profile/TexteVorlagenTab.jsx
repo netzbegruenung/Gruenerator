@@ -3,14 +3,17 @@ import CanvaTemplatesTab from './CanvaTemplatesTab';
 import AntraegeListTab from './AntraegeListTab';
 import PRTextsManagementTab from './PRTextsManagementTab';
 import ProfileTabSkeleton from '../../../../components/common/UI/ProfileTabSkeleton';
+import { useProfileResourceManager } from '../../utils/profileUtils';
 import { motion, AnimatePresence } from "motion/react";
 
 // Importiere Icons, falls gewünscht für die Navigation
 // import { HiOutlineDocumentText, HiOutlinePhotograph, HiOutlineNewspaper } from 'react-icons/hi'; // Example for new icon
 
-const TexteVorlagenTab = ({ user, templatesSupabase, onSuccessMessage, onErrorMessage, isActive }) => {
+const TexteVorlagenTab = ({ user, onSuccessMessage, onErrorMessage, isActive }) => {
   const [currentView, setCurrentView] = useState('canva'); // 'canva', 'antraege', oder 'pr_texts'
   const [loading, setLoading] = useState(true);
+
+  const { templatesSupabase } = useProfileResourceManager();
 
   // Simuliere einen kurzen Ladevorgang, um den Skeleton zu zeigen
   useEffect(() => {
@@ -169,7 +172,12 @@ const TexteVorlagenTab = ({ user, templatesSupabase, onSuccessMessage, onErrorMe
   };
 
   return (
-    <div className="profile-content groups-management-layout"> {/* Wiederverwendung der Layout-Klasse */}
+    <motion.div 
+      className="profile-content groups-management-layout"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.3 }}
+    >
       <div className="groups-navigation-panel">
         {renderNavigationPanel()}
       </div>
@@ -178,7 +186,7 @@ const TexteVorlagenTab = ({ user, templatesSupabase, onSuccessMessage, onErrorMe
           {renderContentPanel()}
         </AnimatePresence>
       </div>
-    </div>
+    </motion.div>
   );
 };
 

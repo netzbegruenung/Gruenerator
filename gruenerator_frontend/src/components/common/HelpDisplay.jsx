@@ -1,6 +1,18 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-const HelpDisplay = ({ content, tips }) => {
+import useGeneratedTextStore from '../../stores/generatedTextStore';
+
+const HelpDisplay = ({ content, tips, forceHidden }) => {
+  const { generatedText } = useGeneratedTextStore();
+  
+  // Hide if there's generated content, or force hidden
+  const isHidden = forceHidden || 
+                   (generatedText && generatedText.length > 0);
+
+  if (!content || isHidden) {
+    return null;
+  }
+
   return (
     <div className="help-display">
       <div className="help-content">
@@ -22,11 +34,13 @@ const HelpDisplay = ({ content, tips }) => {
 
 HelpDisplay.propTypes = {
   content: PropTypes.string.isRequired,
-  tips: PropTypes.arrayOf(PropTypes.string)
+  tips: PropTypes.arrayOf(PropTypes.string),
+  forceHidden: PropTypes.bool
 };
 
 HelpDisplay.defaultProps = {
-  tips: []
+  tips: [],
+  forceHidden: false
 };
 
 export default HelpDisplay; 

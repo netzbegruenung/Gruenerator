@@ -1,5 +1,7 @@
 import React from 'react';
 import PropTypes from 'prop-types';
+import FormSelect from '../../../../components/common/Form/Input/FormSelect';
+
 export const TEXT_TYPES = {
   REDE: 'rede',
   WAHLPROGRAMM: 'wahlprogramm',
@@ -19,24 +21,21 @@ export const TEXT_TYPE_TITLES = {
 };
 
 const TextTypeSelector = ({ selectedType, onTypeChange }) => {
+  const textTypeOptions = Object.entries(TEXT_TYPE_LABELS).map(([value, label]) => ({
+    value,
+    label
+  }));
+
   return (
-    <div className="form-group text-type-selector">
-      <h3><label htmlFor="textType">Art des Textes</label></h3>
-      <div className="select-wrapper">
-        <select
-          id="textType"
-          value={selectedType}
-          onChange={(e) => onTypeChange(e.target.value)}
-          className="form-control custom-select"
-        >
-          {Object.entries(TEXT_TYPE_LABELS).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
-        <span className="select-arrow">▼</span>
-      </div>
+    <div style={{ marginBottom: 'var(--spacing-large)' }}>
+      <FormSelect
+        name="textType"
+        label="Art des Textes"
+        options={textTypeOptions}
+        value={selectedType}
+        onChange={(e) => onTypeChange(e.target.value)}
+        required
+      />
     </div>
   );
 };

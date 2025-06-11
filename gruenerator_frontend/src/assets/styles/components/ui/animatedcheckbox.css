@@ -1,159 +1,230 @@
+:root {
+    --checkbox-size-base: 1rem;
+    --checkbox-size-mobile: 0.875rem;
+    --checkbox-padding-base: 0.5rem;
+    --checkbox-border-radius: 0.5rem;
+    --checkbox-touch-target: 2.75rem;
+}
+
 .checkbox-wrapper-28 {
-    --size: 15px;
+    --size: clamp(var(--checkbox-size-mobile), 2.5vw, var(--checkbox-size-base));
     position: relative;
     display: inline-flex;
-    padding: 5px;
+    padding: clamp(0.15rem, 0.5vw, 0.3rem);
+    min-height: var(--checkbox-touch-target);
 }
 
+/* Radix Checkbox.Root styling */
 .checkbox-wrapper-28 .promoted-input-checkbox {
     position: absolute;
-    opacity: 0;
+    margin-left: 0.75rem;
+    top: 40%;
+    transform: translateY(-50%);
+    width: var(--size);
+    height: var(--size);
+    border: 0.125rem solid var(--font-color);
+    border-radius: 0.25rem;
+    background-color: transparent;
+    transition: all 0.2s ease-in-out;
     cursor: pointer;
-    height: 0;
-    width: 0;
+    z-index: 2;
+    /* Ensure Radix checkbox is clickable */
+    pointer-events: auto;
+    /* Flex for centering indicator */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.125rem;
+    min-height: 1.125rem;
 }
 
-.checkbox-wrapper-28 label {
-    color: var(--weiß);
+.checkbox-wrapper-28 .checkbox-indicator-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+}
+
+.checkbox-wrapper-28 .checkbox-label-wrapper {
+    color: var(--font-color);
     cursor: pointer;
     position: relative;
     display: flex;
     align-items: center;
-    border: 1.5px solid var(--sand);
-    border-radius: 8px;
-    padding: 8px 12px 8px 35px;
-    transition: background-color 0.3s ease;
+    border: 0.125rem solid var(--font-color-h) !important;
+    border-radius: var(--checkbox-border-radius);
+    padding: clamp(0.5rem, 2vw, 0.75rem) clamp(0.75rem, 3vw, 1rem) clamp(0.5rem, 2vw, 0.75rem) clamp(2.25rem, 6vw, 2.5rem);
+    transition: all 0.25s ease-out;
     white-space: nowrap;
+    z-index: 1;
+    min-height: var(--checkbox-touch-target);
+    font-size: clamp(0.875rem, 2.5vw, 1rem);
 }
 
-.checkbox-wrapper-28 label:hover {
-    background-color: #007a54;
-}
-
-.checkbox-wrapper-28 label::before {
-    content: '';
-    position: absolute;
-    left: 8px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: var(--size);
-    height: var(--size);
-    border: 1.5px solid var(--weiß);
-    border-radius: 3px;
-    background-color: transparent;
-    transition: all 0.2s ease-in-out;
+.checkbox-wrapper-28 .checkbox-label-wrapper:hover {
+    background-color: var(--hover-color-alt);
 }
 
 .checkbox-wrapper-28 .checkbox-svg {
-    position: absolute;
-    left: 10px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: calc(var(--size) - 4px);
-    height: calc(var(--size) - 4px);
-    stroke: var(--weiß);
-    stroke-width: 3px;
+    width: calc(var(--size) - 0.375rem);
+    height: calc(var(--size) - 0.375rem);
+    stroke: var(--font-color);
+    stroke-width: 0.1875rem;
     fill: none;
+    pointer-events: none;
+    min-width: 0.75rem;
+    min-height: 0.75rem;
 }
 
-.checkbox-wrapper-28 input:checked ~ label .checkbox-svg {
-    stroke: var(--tanne);
+.checkbox-wrapper-28 .promoted-input-checkbox[data-state="checked"] ~ .checkbox-label-wrapper .checkbox-svg {
+    stroke: var(--button-background-color);
 }
 
 .platform-checkboxes {
-    margin-top: 20px;
-    margin-bottom: 20px;
+    margin: clamp(1rem, 4vw, 1.25rem) 0;
     display: flex;
     flex-wrap: wrap;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 480px) {
     .checkbox-wrapper-28:not(.checkbox-simple) {
-        margin: 0 0 12px 0;
+        margin: 0 0 0.5rem 0;
         padding: 0;
+        --size: var(--checkbox-size-mobile);
+        width: 100%;
+        max-width: 100%;
     }
 
-    .checkbox-wrapper-28:not(.checkbox-simple) label {
-        padding: 6px 25px 6px 40px;
-        font-size: 0.9em;
+    .checkbox-wrapper-28:not(.checkbox-simple) .checkbox-label-wrapper {
+        font-size: 0.875rem;
+        border-radius: 0.375rem;
+        white-space: normal;
+        word-wrap: break-word;
+        max-width: 100%;
+        box-sizing: border-box;
     }
 
-    .checkbox-wrapper-28:not(.checkbox-simple) label::before {
-        --size: 13px;
-        left: 15px;
-    }
-
-    .checkbox-wrapper-28:not(.checkbox-simple) .checkbox-svg {
-        left: 17px;
-        width: calc(var(--size) - 4px);
-        height: calc(var(--size) - 4px);
-    }
-
-    /* Simple variant keeps desktop size on mobile for better UX in forms */
-    .checkbox-simple {
-        margin: 0;
-        padding: 3px;
-    }
-
-    .checkbox-simple label {
-        padding: 6px 10px 6px 30px;
-        font-size: 0.9em;
-    }
-
-    .checkbox-simple label::before {
-        --size: 13px;
-        left: 6px;
-    }
-
-    .checkbox-simple .checkbox-svg {
-        left: 8px;
-        width: calc(var(--size) - 3px);
-        height: calc(var(--size) - 3px);
+    .checkbox-wrapper-28:not(.checkbox-simple) .promoted-input-checkbox {
+        min-width: 1rem;
+        min-height: 1rem;
     }
 
     .platform-checkboxes {
-        gap: 4px;
         flex-direction: column;
         width: 100%;
     }
 }
 
+@media (min-width: 481px) and (max-width: 768px) {
+    .checkbox-wrapper-28:not(.checkbox-simple) {
+        --size: calc(var(--checkbox-size-mobile) + 0.125rem);
+    }
+
+    .checkbox-wrapper-28:not(.checkbox-simple) .checkbox-label-wrapper {
+        font-size: 0.9375rem;
+    }
+
+    .checkbox-wrapper-28:not(.checkbox-simple) .promoted-input-checkbox {
+        /* left wird durch clamp() im base style definiert */
+    }
+
+    .platform-checkboxes {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+}
+
+@media (max-width: 768px) {
+    .checkbox-simple {
+        margin: 0;
+        padding: 0.25rem;
+        --size: var(--checkbox-size-mobile);
+        width: 100%;
+        max-width: 100%;
+    }
+
+    .checkbox-simple .checkbox-label-wrapper {
+        padding: 0.5rem 0.75rem 0.5rem 2rem;
+        font-size: 0.875rem;
+        min-height: 2.5rem;
+        white-space: normal;
+        word-wrap: break-word;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+
+    .checkbox-simple .promoted-input-checkbox {
+        min-width: 1rem;
+        min-height: 1rem;
+    }
+}
+
+@media (min-width: 769px) {
+  
+    .checkbox-simple {
+        --size: var(--checkbox-size-base);
+        padding: var(--checkbox-padding-base);
+    }
+
+    .checkbox-simple .checkbox-label-wrapper {
+        padding: 0.75rem 1rem 0.75rem 2.5rem;
+        font-size: 1rem;
+    }
+
+    .checkbox-simple .promoted-input-checkbox {
+        /* left wird durch clamp() im base style definiert */
+    }
+}
+
 /* Styles for LaborTab specific checkboxes */
-.labor-tab-checkbox-container .checkbox-wrapper-28 label {
-    border-color: var(--border-subtle);
+.labor-tab-checkbox-container .checkbox-wrapper-28 .checkbox-label-wrapper {
+    border-color: var(--font-color-h) !important;
     color: var(--font-color);
 }
 
-.labor-tab-checkbox-container .checkbox-wrapper-28 label:hover {
+.labor-tab-checkbox-container .checkbox-wrapper-28 .checkbox-label-wrapper:hover {
     background-color: var(--hover-color-alt);
 }
 
-.labor-tab-checkbox-container .checkbox-wrapper-28 label::before {
-    border-color: var(--font-color);
+.labor-tab-checkbox-container .checkbox-wrapper-28 .promoted-input-checkbox {
+    top: 55%;
 }
 
-.labor-tab-checkbox-container .checkbox-wrapper-28 input:checked ~ label .checkbox-svg {
+.labor-tab-checkbox-container .checkbox-wrapper-28 .promoted-input-checkbox[data-state="checked"] ~ .checkbox-label-wrapper .checkbox-svg {
     stroke: var(--interactive-accent-color);
 }
 
-/* Simple variant - maintains desktop sizing in small containers */
-.checkbox-simple {
-    --size: 15px;
-    padding: 5px;
+/* Enhanced styling for checkboxes in form containers */
+.form-container .checkbox-wrapper-28 .checkbox-label-wrapper,
+.form-container .checkbox-wrapper-28 .checkbox-label-wrapper .checkbox-label {
+    color: var(--font-color);
 }
 
-.checkbox-simple label {
-    padding: 8px 12px 8px 35px;
-    font-size: 1em;
+.form-container .checkbox-wrapper-28 .promoted-input-checkbox {
+    border-color: var(--font-color);
 }
 
-.checkbox-simple label::before {
-    --size: 15px;
-    left: 8px;
+.form-container .checkbox-wrapper-28 .checkbox-svg {
+    stroke: var(--font-color);
 }
 
-.checkbox-simple .checkbox-svg {
-    left: 10px;
-    width: calc(var(--size) - 4px);
-    height: calc(var(--size) - 4px);
+.form-container .checkbox-wrapper-28 .promoted-input-checkbox[data-state="checked"] ~ .checkbox-label-wrapper .checkbox-svg {
+    stroke: var(--button-background-color);
+}
+
+/* Radix UI specific overrides */
+.checkbox-wrapper-28 .promoted-input-checkbox:focus-visible {
+    outline: 2px solid var(--button-background-color);
+    outline-offset: 2px;
+}
+
+.checkbox-wrapper-28 .promoted-input-checkbox:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.checkbox-wrapper-28 .promoted-input-checkbox:disabled ~ .checkbox-label-wrapper {
+    opacity: 0.5;
+    cursor: not-allowed;
 }

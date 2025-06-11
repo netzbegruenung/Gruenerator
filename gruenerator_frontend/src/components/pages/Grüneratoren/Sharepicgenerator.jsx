@@ -19,7 +19,7 @@ import {
   SHAREPIC_GENERATOR, 
   ERROR_MESSAGES, 
 } from '../../utils/constants';
-import { useSupabaseAuth } from '../../../context/SupabaseAuthContext';
+import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 
 const getHelpContent = (step, showingAlternatives = false) => {
@@ -75,14 +75,14 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
   const [errors, setErrors] = useState({});
   const [showAlternatives, setShowAlternatives] = useState(false);
 
-  const { user, loading: authLoading } = useSupabaseAuth();
+  const { user, loading: authLoading, isAuthResolved } = useOptimizedAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!authLoading && !user) {
+    if (isAuthResolved && !authLoading && !user) {
       navigate('/');
     }
-  }, [authLoading, user, navigate]);
+  }, [authLoading, user, navigate, isAuthResolved]);
 
   useEffect(() => {
     if (hasSeenWelcome && state.currentStep === FORM_STEPS.WELCOME) {
@@ -356,7 +356,7 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
     });
   }, [updateFormData]);
 
-  if (authLoading) {
+  if (authLoading || !isAuthResolved) {
     return <div className="container">Lade Authentifizierung...</div>; // Or a more sophisticated loading spinner
   }
 

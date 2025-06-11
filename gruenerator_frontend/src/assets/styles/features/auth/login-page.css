@@ -1,0 +1,206 @@
+.login-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-medium);
+  margin-bottom: var(--spacing-large);
+}
+
+.login-option {
+  display: flex;
+  align-items: center;
+  padding: 0;
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-border-radius-medium);
+  background: var(--card-background);
+  cursor: pointer;
+  transition: all 0.25s ease-out;
+  text-align: left;
+  min-height: 80px;
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(10px);
+  box-shadow: var(--card-shadow-floating);
+}
+
+.login-option::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(var(--tanne-rgb), 0.05), transparent);
+  transition: left 0.5s ease-out;
+}
+
+.login-option:hover::before {
+  left: 100%;
+}
+
+.login-option:hover:not(:disabled) {
+  transform: var(--card-hover-transform);
+  box-shadow: var(--card-shadow-dramatic);
+  border-color: var(--tanne);
+}
+
+.login-option:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+  filter: grayscale(50%);
+}
+
+.login-option:active:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow: var(--card-shadow-elevated);
+}
+
+.login-content {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-medium);
+  width: 100%;
+  padding: var(--spacing-large);
+  position: relative;
+  z-index: 1;
+}
+
+.login-icon {
+  font-size: 2.5rem;
+  flex-shrink: 0;
+  width: 50px;
+  text-align: center;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+  transition: transform 0.25s ease-out;
+}
+
+.login-option:hover .login-icon {
+  transform: scale(1.1) rotate(5deg);
+}
+
+.login-text-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xxsmall);
+  flex-grow: 1;
+}
+
+.login-title {
+  font-weight: 600;
+  font-size: 1.2rem;
+  color: var(--font-color-h);
+  margin: 0;
+  font-family: 'GrueneType', Arial, sans-serif;
+  transition: color 0.25s ease-out;
+}
+
+.login-description {
+  color: var(--font-color);
+  font-size: 0.9rem;
+  opacity: 0.8;
+  margin: 0;
+  transition: opacity 0.25s ease-out;
+}
+
+.login-option:hover .login-description {
+  opacity: 1;
+}
+
+.login-option.gruenerator:hover:not(:disabled) {
+  border-color: var(--tanne);
+  background: linear-gradient(135deg, var(--card-background) 0%, rgba(var(--tanne-rgb), 0.03) 100%);
+}
+
+.login-option.netzbegruenung:hover:not(:disabled) {
+  border-color: var(--klee);
+  background: linear-gradient(135deg, var(--card-background) 0%, rgba(var(--klee-rgb), 0.03) 100%);
+}
+
+.login-option.gruenes-netz:hover:not(:disabled) {
+  border-color: var(--grashalm);
+  background: linear-gradient(135deg, var(--card-background) 0%, rgba(var(--grashalm-rgb), 0.03) 100%);
+}
+
+.auth-status-message {
+  background: var(--card-background-alt);
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-border-radius-medium);
+  padding: var(--spacing-medium);
+  margin-bottom: var(--spacing-medium);
+  text-align: center;
+  box-shadow: var(--card-shadow-subtle);
+}
+
+.auth-status-message p {
+  margin: 0;
+  color: var(--font-color);
+  font-weight: 500;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.login-option {
+  animation: fadeInUp 0.5s ease-out;
+}
+
+.login-option:nth-child(1) {
+  animation-delay: 0.1s;
+}
+
+.login-option:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.login-option:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@media (max-width: 480px) {
+  .login-content {
+    padding: var(--spacing-medium);
+  }
+  
+  .login-icon {
+    font-size: 2rem;
+    width: 40px;
+  }
+  
+  .login-title {
+    font-size: 1.1rem;
+  }
+  
+  .login-description {
+    font-size: 0.85rem;
+  }
+  
+  .login-option {
+    min-height: 70px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-option,
+  .login-icon,
+  .login-title,
+  .login-description,
+  .auth-status-message {
+    animation: none !important;
+    transition: none !important;
+  }
+  
+  .login-option:hover .login-icon {
+    transform: none !important;
+  }
+  
+  .login-option::before {
+    display: none;
+  }
+} 

@@ -5,22 +5,47 @@ import { handleError } from './errorHandling';
 const supabaseUrl = import.meta.env.VITE_TEMPLATES_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_TEMPLATES_SUPABASE_ANON_KEY;
 
-// Erstelle den Supabase Client für Templates nur, wenn Variablen vorhanden sind
+// Singleton pattern to prevent multiple client instances
 let templatesSupabase = null;
-if (supabaseUrl && supabaseKey) {
-  try {
-    templatesSupabase = createClient(supabaseUrl, supabaseKey);
-    console.log('[templatesSupabase] Client initialized successfully.'); // Optional success log
-  } catch (error) {
-    console.error(`[templatesSupabase] Failed to initialize client: ${error.message}. Invalid URL?`, { urlProvided: supabaseUrl });
-    templatesSupabase = null; // Ensure client is null on error
+
+const createTemplatesSupabaseClient = () => {
+  if (templatesSupabase) {
+    return templatesSupabase;
   }
-} else {
-  console.warn('[templatesSupabase] Environment variables not found. Functionality will be disabled.');
-}
+
+  if (supabaseUrl && supabaseKey) {
+    try {
+      templatesSupabase = createClient(supabaseUrl, supabaseKey, {
+        auth: {
+          storageKey: 'supabase_templates_auth_token'
+        }
+      });
+      console.log('[templatesSupabase] Client initialized successfully.');
+      return templatesSupabase;
+    } catch (error) {
+      console.error(`[templatesSupabase] Failed to initialize client: ${error.message}. Invalid URL?`, { urlProvided: supabaseUrl });
+      templatesSupabase = null;
+      return null;
+    }
+  } else {
+    console.warn('[templatesSupabase] Environment variables not found. Functionality will be disabled.');
+    return null;
+  }
+};
+
+// Initialize the singleton instance
+templatesSupabase = createTemplatesSupabaseClient();
 
 // Exportiere den möglicherweise nullen Client (Benutzer sollten prüfen)
 export { templatesSupabase };
+
+// Funktion zum Setzen der Authentifizierungs-Session
+export const setTemplatesSupabaseSession = (session) => {
+  if (templatesSupabase && session) {
+    console.log('[templatesSupabase] Setting user session for authenticated requests');
+    templatesSupabase.auth.setSession(session);
+  }
+};
 
 // Hilfsfunktionen für häufige Datenbankoperationen
 export const templatesSupabaseUtils = {

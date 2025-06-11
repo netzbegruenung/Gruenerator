@@ -27,6 +27,11 @@ const AIWorkerPool = AiWorkerPoolModule;
 import tusServiceModule from './routes/subtitler/services/tusService.js';
 const { tusServer } = tusServiceModule;
 
+// Import session and auth modules at the top level
+import session from 'express-session';
+import {RedisStore} from 'connect-redis';
+import passport from './config/passportSetup.mjs';
+
 const numCPUs = os.cpus().length;
 
 // Load environment variables
@@ -112,12 +117,99 @@ if (cluster.isMaster) {
   process.on('SIGTERM', () => masterShutdown('SIGTERM'));
   process.on('SIGINT', () => masterShutdown('SIGINT'));
 } else {
+  console.log('!!!!!!!!!!!!!! SERVER.MJS (WORKER) MIT DEBUG-OPTIONS-MIDDLEWARE WIRD GELADEN !!!!!!!!!!!!!!'); // <--- TEST LOG
+
   const app = express();
   let workerShutdownInProgress = false;
+  
+  // Redis Client Setup - moved before session setup
+  const redisClient = Redis.createClient({
+    url: process.env.REDIS_URL || 'redis://localhost:6379'
+  });
+
+  redisClient.on('error', (err) => console.log('Redis Client Error', err));
+  
+  // Connect to Redis
+  await redisClient.connect();
+
+  // CORS Setup - MUSS GANZ AM ANFANG kommen!
+  const allowedOrigins = [
+    'https://gruenerator-test.de',
+    'https://www.gruenerator-test.de',
+    'https://gruenerator.netzbegruenung.verdigado.net',
+    'https://www.gruenerator.netzbegruenung.verdigado.net',
+    'https://gruenerator.de',
+    'https://www.gruenerator.de',
+    'https://beta.gruenerator.de',
+    'https://www.beta.gruenerator.de',
+    'https://gruenerator-test.netzbegruenung.verdigado.net',
+    'https://www.gruenerator-test.netzbegruenung.verdigado.net',
+    'https://xn--grenerator-test-4pb.de',
+    'https://www.xn--grenerator-test-4pb.de',
+    'https://xn--grenerator-z2a.xn--netzbegrnung-dfb.verdigado.net',
+    'https://www.xn--grenerator-z2a.xn--netzbegrnung-dfb.verdigado.net',
+    'https://xn--grenerator-z2a.de',
+    'https://www.xn--grenerator-z2a.de',
+    'https://beta.xn--grenerator-z2a.de',
+    'https://www.beta.xn--grenerator-z2a.de',
+    'https://xn--grenerator-test-4pb.xn--netzbegrnung-dfb.verdigado.net',
+    'https://www.xn--grenerator-test-4pb.xn--netzbegrnung-dfb.verdigado.net',
+    'http://localhost:3000',
+    'https://localhost:3000',
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:3001',
+    'https://www.gruenerator-test.netzbegruenung.verdigado.net',
+    'https://www.gruenerator-test.de',
+    'https://www.gruenerator.de',
+    'https://www.gruenerator.netzbegruenung.verdigado.net',
+    'https://www.xn--grnerator-z2a.xn--netzbegrnung-dfb.verdigado.net',
+    'https://www.xn--grenerator-test-4pb.xn--netzbegrnung-dfb.verdigado.net',
+    'http://gruenerator.de',
+  ];
+
+  const corsOptions = {
+    origin: function (origin, callback) {
+      if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'Range',
+      // Add TUS specific headers
+      'Upload-Length',
+      'Upload-Offset',
+      'Tus-Resumable',
+      'Upload-Metadata',
+      'Upload-Defer-Length', // If using defer length extension
+      'Upload-Concat' // If using concatenation extension
+    ],
+    exposedHeaders: [
+      'Content-Range',
+      'Accept-Ranges',
+      'Content-Length',
+      'Content-Type',
+      // Add TUS specific headers
+      'Upload-Offset',
+      'Location',
+      'Tus-Resumable'
+    ],
+    credentials: true,
+    optionsSuccessStatus: 204
+  };
+
+  // CORS muss ZUERST kommen!
+  app.use(cors(corsOptions));
   
   // Setze Express Limit
   app.use(express.json({limit: '500mb'}));
   app.use(express.raw({limit: '500mb'}));
+  app.use(bodyParser.json({ limit: '105mb' }));
+  app.use(bodyParser.urlencoded({ limit: '105mb', extended: true }));
   
   // Timeout-Einstellungen
   app.use((req, res, next) => {
@@ -131,44 +223,58 @@ if (cluster.isMaster) {
   aiWorkerPool = new AIWorkerPool(aiWorkerCount);
   app.locals.aiWorkerPool = aiWorkerPool;
 
-  // Multer Konfiguration für Videouploads
-  const videoUpload = multer({
-    limits: {
-      fileSize: 150 * 1024 * 1024, // 150MB für Videos
+  // Compression Middleware
+  app.use(compression({
+    filter: (req, res) => {
+      if (req.headers['x-no-compression']) {
+        return false;
+      }
+      return compression.filter(req, res);
     },
-    fileFilter: (req, file, cb) => {
-      // Erlaubte Video-Formate
-      const allowedMimes = ['video/mp4', 'video/quicktime', 'video/x-msvideo'];
-      if (allowedMimes.includes(file.mimetype)) {
-        cb(null, true);
-      } else {
-        cb(new Error('Ungültiges Dateiformat. Nur MP4, MOV und AVI sind erlaubt.'));
-      }
-    }
-  });
+    level: 6 // Optimaler Kompromiss zwischen CPU und Kompression
+  }));
 
-  // Allgemeine Dateiupload-Konfiguration
-  const generalUpload = multer({
-    limits: {
-      fileSize: 75 * 1024 * 1024 // 75MB für andere Dateien
-    }
-  });
+  // Security Helmet
+  app.use(helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", "data:", "blob:", "https://*.unsplash.com"],
+        connectSrc: [
+          "'self'",
+          "https://*.supabase.co", 
+          // Alle Subdomains von gruenerator.de (HTTP & HTTPS, falls lokal noch HTTP gebraucht wird)
+          "http://*.gruenerator.de",
+          "https://*.gruenerator.de",
+          // Umlaut-Domain grüenerator.de + Subdomains (Punycode-kodiert)
+          "http://*.xn--grnerator-z2a.de",
+          "https://*.xn--grnerator-z2a.de",
+          // Weiterhin lokale Entwicklungs-URLs
+          "http://localhost:*",
+          "http://127.0.0.1:*",
+          // Falls *.netzbegruenung* genutzt wird
+          "http://*.netzbegruenung.verdigado.net",
+          "https://*.netzbegruenung.verdigado.net",
+          // Zusätzliche erlaubte Domains
+          ...allowedOrigins,
+        ],
+        fontSrc: ["'self'", "https://fonts.gstatic.com"],
+        objectSrc: ["'none'"],
+        mediaSrc: ["'self'", "blob:"],
+        frameSrc: ["'none'"],
+      },
+    },
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }
+  }));
 
-  // Middleware für verschiedene Upload-Routen
-  app.use('/subtitler/process', videoUpload.single('video'));
-  app.use('/upload', generalUpload.single('file'));
+  const desiredPort = process.env.PORT || 3001;
+  const host = process.env.HOST || "127.0.0.1";
 
-  // Fehlerbehandlung für zu große Dateien
-  app.use((error, req, res, next) => {
-    if (error instanceof multer.MulterError) {
-      if (error.code === 'LIMIT_FILE_SIZE') {
-        return res.status(413).json({
-          error: 'Datei ist zu groß. Videos dürfen maximal 150MB groß sein.'
-        });
-      }
-    }
-    next(error);
-  });
+  // Multer Konfiguration für Videouploads - MOVED AFTER ROUTES
+  // Die Multer-Middleware wird nach setupRoutes verschoben
 
   // Verbesserte Graceful Shutdown Handler für Worker
   process.on('message', async (msg) => {
@@ -236,162 +342,12 @@ if (cluster.isMaster) {
   process.on('SIGTERM', () => workerShutdown('SIGTERM'));
   process.on('SIGINT', () => workerShutdown('SIGINT'));
 
-  // Redis Client Setup
-  const redisClient = Redis.createClient({
-    url: process.env.REDIS_URL || 'redis://localhost:6379'
-  });
-
-  redisClient.on('error', (err) => console.log('Redis Client Error', err));
-
-  const port = process.env.PORT || 3001;
-  const host = process.env.HOST || "127.0.0.1";
-
-  // Redis-basiertes Rate Limiting
-  /*
-  const redisRateLimiter = async (req, res, next) => {
-    const key = `rate-limit:${req.ip}`;
-    try {
-      const requests = await redisClient.incr(key);
-      if (requests === 1) {
-        await redisClient.expire(key, 15 * 60); // 15 Minuten
-      }
-      if (requests > 1000) { // Limit
-        return res.status(429).json({
-          error: 'Zu viele Anfragen, bitte später erneut versuchen'
-        });
-      }
-      next();
-    } catch (err) {
-      next(); // Bei Redis-Fehler weitermachen
-    }
-  };
-  */
-
-  // Compression Middleware
-  app.use(compression({
-    filter: (req, res) => {
-      if (req.headers['x-no-compression']) {
-        return false;
-      }
-      return compression.filter(req, res);
-    },
-    level: 6 // Optimaler Kompromiss zwischen CPU und Kompression
-  }));
-
-  // CORS Setup
-  const allowedOrigins = [
-    'https://gruenerator-test.de',
-    'https://www.gruenerator-test.de',
-    'https://gruenerator.netzbegruenung.verdigado.net',
-    'https://www.gruenerator.netzbegruenung.verdigado.net',
-    'https://gruenerator.de',
-    'https://www.gruenerator.de',
-    'https://beta.gruenerator.de',
-    'https://www.beta.gruenerator.de',
-    'https://gruenerator-test.netzbegruenung.verdigado.net',
-    'https://www.gruenerator-test.netzbegruenung.verdigado.net',
-    'https://xn--grenerator-test-4pb.de',
-    'https://www.xn--grenerator-test-4pb.de',
-    'https://xn--grenerator-z2a.xn--netzbegrnung-dfb.verdigado.net',
-    'https://www.xn--grenerator-z2a.xn--netzbegrnung-dfb.verdigado.net',
-    'https://xn--grenerator-z2a.de',
-    'https://www.xn--grenerator-z2a.de',
-    'https://beta.xn--grenerator-z2a.de',
-    'https://www.beta.xn--grenerator-z2a.de',
-    'https://xn--grenerator-test-4pb.xn--netzbegrnung-dfb.verdigado.net',
-    'https://www.xn--grenerator-test-4pb.xn--netzbegrnung-dfb.verdigado.net',
-    'http://localhost:3000',
-    'https://localhost:3000',
-    'http://127.0.0.1:3000',
-    'http://127.0.0.1:3001',
-    'https://www.gruenerator-test.netzbegruenung.verdigado.net',
-    'https://www.gruenerator-test.de',
-    'https://www.gruenerator.de',
-    'https://www.gruenerator.netzbegruenung.verdigado.net',
-    'https://www.xn--grenerator-z2a.xn--netzbegrnung-dfb.verdigado.net',
-    'https://www.xn--grenerator-test-4pb.xn--netzbegrnung-dfb.verdigado.net',
-    'http://gruenerator.de',
-  ];
-
-  const corsOptions = {
-    origin: function (origin, callback) {
-      if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
-      }
-    },
-    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
-    allowedHeaders: [
-      'Content-Type',
-      'Authorization',
-      'Range',
-      // Add TUS specific headers
-      'Upload-Length',
-      'Upload-Offset',
-      'Tus-Resumable',
-      'Upload-Metadata',
-      'Upload-Defer-Length', // If using defer length extension
-      'Upload-Concat' // If using concatenation extension
-    ],
-    exposedHeaders: [
-      'Content-Range',
-      'Accept-Ranges',
-      'Content-Length',
-      'Content-Type',
-      // Add TUS specific headers
-      'Upload-Offset',
-      'Location',
-      'Tus-Resumable'
-    ],
-    credentials: true,
-    optionsSuccessStatus: 204
-  };
-
-  app.use(cors(corsOptions));
-  app.options('*', cors(corsOptions));
-
-  // Security
-
-  app.use(helmet({
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
-        imgSrc: ["'self'", "data:", "blob:", "https://*.unsplash.com"],
-        connectSrc: [
-          "'self'",
-          "https://*.supabase.co", 
-          // Alle Subdomains von gruenerator.de (HTTP & HTTPS, falls lokal noch HTTP gebraucht wird)
-          "http://*.gruenerator.de",
-          "https://*.gruenerator.de",
-          // Umlaut-Domain grüenerator.de + Subdomains (Punycode-kodiert)
-          "http://*.xn--grnerator-z2a.de",
-          "https://*.xn--grnerator-z2a.de",
-          // Weiterhin lokale Entwicklungs-URLs
-          "http://localhost:*",
-          "http://127.0.0.1:*",
-          // Falls *.netzbegruenung* genutzt wird
-          "http://*.netzbegruenung.verdigado.net",
-          "https://*.netzbegruenung.verdigado.net",
-          // Zusätzliche erlaubte Domains (z.B. aus allowedOrigins)
-          ...allowedOrigins,
-        ],
-        fontSrc: ["'self'", "https://fonts.gstatic.com"],
-        objectSrc: ["'none'"],
-        mediaSrc: ["'self'", "blob:"],
-        frameSrc: ["'none'"],
-      },
-    },
-    crossOriginResourcePolicy: { policy: "cross-origin" },
-    crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }
-  }));
-  
-
-  // Redis-Cache für statische Dateien
+  // Redis-Cache für statische Dateien (EXCLUDE API ROUTES) - BUGFIX!
   const cacheMiddleware = async (req, res, next) => {
-    if (req.method !== 'GET') return next();
+    // WICHTIG: API-Routen NIEMALS cachen!
+    if (req.method !== 'GET' || req.path.startsWith('/api')) {
+      return next();
+    }
     
     const key = `cache:${req.originalUrl}`;
     try {
@@ -399,25 +355,60 @@ if (cluster.isMaster) {
       if (cachedResponse) {
         return res.send(JSON.parse(cachedResponse));
       }
-      res.sendResponse = res.send;
-      res.send = (body) => {
-        redisClient.set(key, JSON.stringify(body), {
-          EX: 3600 // 1 Stunde Cache
-        });
-        res.sendResponse(body);
+      
+      // Nur für NICHT-API-Routen cachen
+      const originalSend = res.send;
+      res.send = function(body) {
+        // Nur cachen wenn es keine API-Route ist
+        if (!req.originalUrl.startsWith('/api/')) {
+          redisClient.set(key, JSON.stringify(body), {
+            EX: 3600 // 1 Stunde Cache
+          }).catch(err => console.error('[Cache] Error setting cache:', err));
+        }
+        return originalSend.call(this, body);
       };
       next();
     } catch (err) {
+      console.error('[Cache] Error:', err);
       next();
     }
   };
 
+  // Session and Authentication setup
+  console.log('[Server.mjs] Setting up session middleware...');
+  
+  app.use(session({
+    store: new RedisStore({ client: redisClient }),
+    secret: process.env.SESSION_SECRET || 'fallback-secret-please-change',
+    resave: false,
+    saveUninitialized: false,
+    name: 'gruenerator.sid', // Custom session name to avoid conflicts
+    cookie: {
+      secure: process.env.NODE_ENV === 'production',
+      httpOnly: true,
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax', // Allow cross-port in development
+      domain: process.env.NODE_ENV === 'production' ? undefined : undefined, // Don't set domain in development
+      path: '/' // Ensure cookie is available for all paths
+    }
+  }));
+  
+  console.log('[Server.mjs] Session middleware setup complete.');
+
+  // Passport middleware
+  console.log('[Server.mjs] Initializing Passport...');
+  app.use(passport.initialize());
+  console.log('[Server.mjs] Passport initialized.');
+  // ENTFERNT: Globale Passport-Session - wird nur für Auth-Routen benötigt
+  // console.log('[Server.mjs] Initializing Passport session...');
+  // app.use(passport.session());
+  // console.log('[Server.mjs] Passport session initialized.');
+
+  // Initialize Passport OIDC strategy
+  // ... existing code ...
+
   // Optimierte Middleware-Stack
 
-  app.use(bodyParser.json({ limit: '105mb' }));
-  app.use(bodyParser.urlencoded({ limit: '105mb', extended: true }));
-
-  
   // Logging nur für wichtige Requests
   app.use(morgan('combined', {
     skip: function (req, res) {
@@ -429,8 +420,19 @@ if (cluster.isMaster) {
   // Rate Limiting
   // app.use(redisRateLimiter);
 
-  // Cache für statische Dateien
+  // Cache für statische Dateien - WICHTIG: Nach Session!
   app.use(cacheMiddleware);
+
+  // === Health Check Endpoint ===
+  // Simple health check endpoint for frontend server availability detection
+  app.get('/health', (req, res) => {
+    res.status(200).json({
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      worker: process.pid,
+      uptime: process.uptime()
+    });
+  });
 
   // === TUS Upload Handler ===
   // WICHTIG: Muss VOR setupRoutes und VOR den statischen Fallbacks stehen!
@@ -444,13 +446,49 @@ if (cluster.isMaster) {
   // === Ende TUS Upload Handler ===
 
   // Routen einrichten
-  setupRoutes(app);
+  await setupRoutes(app);
+
+  // Multer Konfiguration für Videouploads - NACH den Routen!
+  const videoUpload = multer({
+    limits: {
+      fileSize: 150 * 1024 * 1024, // 150MB für Videos
+    },
+    fileFilter: (req, file, cb) => {
+      // Erlaubte Video-Formate
+      const allowedMimes = ['video/mp4', 'video/quicktime', 'video/x-msvideo'];
+      if (allowedMimes.includes(file.mimetype)) {
+        cb(null, true);
+      } else {
+        cb(new Error('Ungültiges Dateiformat. Nur MP4, MOV und AVI sind erlaubt.'));
+      }
+    }
+  });
+
+  // Allgemeine Dateiupload-Konfiguration
+  const generalUpload = multer({
+    limits: {
+      fileSize: 75 * 1024 * 1024 // 75MB für andere Dateien
+    }
+  });
+
+  // Middleware für verschiedene Upload-Routen
+  app.use('/subtitler/process', videoUpload.single('video'));
+  app.use('/upload', generalUpload.single('file'));
+
+  // Fehlerbehandlung für zu große Dateien
+  app.use((error, req, res, next) => {
+    if (error instanceof multer.MulterError) {
+      if (error.code === 'LIMIT_FILE_SIZE') {
+        return res.status(413).json({
+          error: 'Datei ist zu groß. Videos dürfen maximal 150MB groß sein.'
+        });
+      }
+    }
+    next(error);
+  });
 
   // Optimierte statische Datei-Auslieferung für Vite
   const staticFilesPath = path.join(__dirname, '../gruenerator_frontend/build');
-  
-  // API-Routen zuerst
-  setupRoutes(app);
 
   // Statische Assets mit spezifischer Struktur
   app.use('/assets', express.static(path.join(staticFilesPath, 'assets'), {
@@ -472,8 +510,8 @@ if (cluster.isMaster) {
   // SPA-Routing: Alle anderen Anfragen zu index.html
   app.get('*', (req, res, next) => {
     // API-Routen ignorieren
-    if (req.path.startsWith('/api/')) {
-      return next();
+    if (req.path.startsWith('/api')) {
+      return next(); // Ensure next() is called for API routes
     }
     
     const indexPath = path.join(staticFilesPath, 'index.html');
@@ -499,25 +537,7 @@ if (cluster.isMaster) {
     }
   }));
 
-  // Middleware für AI-Anfragen
-  app.use('/api/*', async (req, res, next) => {
-    if (req.method === 'POST' && req.path.includes('claude')) {
-      try {
-        const result = await aiWorkerPool.processRequest({
-          type: req.path.split('/')[2], // Extrahiert den Typ aus dem Pfad
-          ...req.body
-        });
-        return res.json(result);
-      } catch (error) {
-        console.error('AI Request Error:', error);
-        return res.status(500).json({
-          success: false,
-          error: error.message
-        });
-      }
-    }
-    next();
-  });
+  // Entfernt: Problematisches AI-Request Middleware das alle API-Anfragen abfängt
 
   // Timeout-Einstellungen für große Dateiübertragungen
   app.use((req, res, next) => {
@@ -533,6 +553,7 @@ if (cluster.isMaster) {
   });
 
   // Root und Catch-all Routes
+  /* Commenting out these potentially problematic routes
   app.get('/', (req, res, next) => {
     try {
       const filePath = path.join(staticFilesPath, 'index.html');
@@ -562,6 +583,7 @@ if (cluster.isMaster) {
       next(err); // Fehler an den Error Handler weiterleiten
     }
   });
+  */
 
   // Error Handler 
   app.use((err, req, res, next) => {
@@ -570,8 +592,18 @@ if (cluster.isMaster) {
     
     // Prüfe auf spezifische Fehlertypen
     let errorMessage = 'Bitte versuchen Sie es später erneut';
+    let statusCode = 500;
     
-    if (err.message && err.message.includes('Index-Datei nicht gefunden')) {
+    // Handle authentication errors
+    if (err.name === 'AuthenticationError' || err.message && err.message.includes('authentication')) {
+      statusCode = 401;
+      errorMessage = 'Authentifizierung fehlgeschlagen. Bitte melden Sie sich erneut an.';
+      
+      // For browser requests, redirect to login
+      if (req.accepts('html') && !req.xhr) {
+        return res.redirect('/auth/login');
+      }
+    } else if (err.message && err.message.includes('Index-Datei nicht gefunden')) {
       errorMessage = 'Die Anwendung konnte nicht geladen werden. Bitte kontaktieren Sie den Administrator.';
     } else if (err.code === 'ENOENT') {
       errorMessage = 'Eine benötigte Datei wurde nicht gefunden.';
@@ -580,7 +612,7 @@ if (cluster.isMaster) {
     }
     
     // Sende eine strukturierte Fehlerantwort
-    res.status(500).json({
+    res.status(statusCode).json({
       success: false,
       error: 'Ein Serverfehler ist aufgetreten',
       message: isDevelopment ? err.message : errorMessage,
@@ -615,7 +647,12 @@ if (cluster.isMaster) {
     socket.setKeepAlive(true, 30000); // 30 Sekunden
   });
 
-  server.listen(port, host, () => {
-    console.log(`Worker ${process.pid} started - Server running at http://${host}:${port}`);
+  // DIAGNOSTIC LOGS FOR PORT
+  console.log(`[DIAGNOSTIC] Worker ${process.pid}: process.env.PORT is: ${process.env.PORT}`);
+  console.log(`[DIAGNOSTIC] Worker ${process.pid}: desiredPort is: ${desiredPort}`);
+  console.log(`[DIAGNOSTIC] Worker ${process.pid}: host is: ${host}`);
+
+  server.listen(desiredPort, host, () => {
+    console.log(`Main Backend Worker ${process.pid} started - Server running at http://${host}:${desiredPort}`);
   });
 }

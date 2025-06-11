@@ -9,11 +9,14 @@ import useDarkMode from '../../hooks/useDarkMode';
 import useAccessibility from '../../hooks/useAccessibility';
 import { getMenuItems, getDirectMenuItems, MenuItem, menuStyles, handleMenuInteraction } from './menuData';
 import { FormContext } from '../../utils/FormContext';
-import { BetaFeaturesContext } from '../../../context/BetaFeaturesContext';
+import { useLazyAuth } from '../../../hooks/useAuth';
 
 const Header = () => {
     const { isEditing } = useContext(FormContext);
-    const { sharepicBetaEnabled, databaseBetaEnabled, youBetaEnabled } = useContext(BetaFeaturesContext);
+    const { betaFeatures } = useLazyAuth();
+    const sharepicBetaEnabled = betaFeatures?.sharepic === true;
+    const databaseBetaEnabled = betaFeatures?.database === true;
+    const youBetaEnabled = betaFeatures?.you === true;
     const [menuActive, setMenuActive] = useState(false);
     const [activeDropdown, setActiveDropdown] = useState(null);
     const [darkMode, toggleDarkMode] = useDarkMode();

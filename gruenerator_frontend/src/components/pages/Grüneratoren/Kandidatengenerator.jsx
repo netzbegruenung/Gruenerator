@@ -2,7 +2,7 @@ import React, { useState, useContext } from 'react';
 import PropTypes from 'prop-types';
 import BaseForm from '../../common/BaseForm';
 import HelpDisplay from '../../common/HelpDisplay';
-import { useDynamicTextSize } from '../../utils/commonFunctions';
+// import { useDynamicTextSize } from '../../utils/commonFunctions';
 import useApiSubmit from '../../hooks/useApiSubmit';
 import { FormContext } from '../../utils/FormContext';
 import WelcomePage from '../../common/WelcomePage';
@@ -25,7 +25,7 @@ const KandidatenGenerator = ({ showHeaderFooter = true }) => {
   });
 
   const [generatedJson, setGeneratedJson] = useState('');
-  const textSize = useDynamicTextSize(generatedJson, 1.2, 0.8, [1000, 2000]);
+  // const textSize = useDynamicTextSize(generatedJson, 1.2, 0.8, [1000, 2000]);
   const { submitForm, loading, success, resetSuccess, error } = useApiSubmit('/claude_kandidat');
   const { setGeneratedContent } = useContext(FormContext);
   const [useBackupProvider, setUseBackupProvider] = useState(false);
@@ -256,7 +256,7 @@ const KandidatenGenerator = ({ showHeaderFooter = true }) => {
         success={success}
         error={error}
         generatedContent={generatedJson || helpDisplay}
-        textSize={textSize}
+        
         onGeneratedContentChange={handleGeneratedContentChange}
         useBackupProvider={useBackupProvider}
         setUseBackupProvider={setUseBackupProvider}

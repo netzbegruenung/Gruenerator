@@ -80,7 +80,5 @@ typings/
 # Audio files
 uploads/voice/*.wav
 
-# tus-temp Inhalt ignorieren, aber Ordner behalten
-uploads/tus-temp/*
-!uploads/tus-temp/.gitkeep
-
+/test/
+/tests/

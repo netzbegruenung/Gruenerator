@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { templatesSupabase } from '../../../components/utils/templatesSupabaseClient.js';
-import { useSupabaseAuth } from '../../../context/SupabaseAuthContext.jsx';
+import { useOptimizedAuth } from '../../../hooks/useAuth';
 import AntragEditForm from './AntragEditForm';
 
 // Hilfsfunktionen (ähnlich wie in AntragDetailView)
@@ -30,7 +30,7 @@ const AntragDetailPage = () => {
   const [antrag, setAntrag] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const { user } = useSupabaseAuth();
+  const { user: supabaseUser } = useOptimizedAuth();
 
   // State for editing mode
   const [isEditing, setIsEditing] = useState(false);
@@ -121,7 +121,7 @@ const AntragDetailPage = () => {
   };
 
   const handleSaveClick = async () => {
-    if (!editedAntrag || !user) return;
+    if (!editedAntrag || !supabaseUser) return;
 
     setLoading(true);
     setError(null);
@@ -140,7 +140,7 @@ const AntragDetailPage = () => {
         .from('antraege')
         .update(updateData)
         .eq('id', antragId)
-        .eq('user_id', user.id);
+        .eq('user_id', supabaseUser.id);
 
       if (updateError) {
         throw updateError;
@@ -198,7 +198,7 @@ const AntragDetailPage = () => {
   }
 
   // --- Edit Button Logic ---
-  const canEdit = user && antrag && user.id === antrag.user_id;
+  const canEdit = supabaseUser && antrag && supabaseUser.id === antrag.user_id;
 
   // --- Render View or Edit Mode ---
   return (

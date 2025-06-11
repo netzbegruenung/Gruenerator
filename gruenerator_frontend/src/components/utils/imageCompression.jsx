@@ -1,12 +1,13 @@
 import imageCompression from 'browser-image-compression';
 
 const COMPRESSION_OPTIONS = {
-  maxSizeMB: 1,              // maximale Dateigröße in MB
-  maxWidthOrHeight: 1920,    // maximale Breite/Höhe
-  useWebWorker: true,        // nutzt Web Worker für bessere Performance
-  preserveExif: true,        // behält EXIF-Daten
-  initialQuality: 0.8,       // initiale Qualität
-  alwaysKeepResolution: false // erlaubt Größenänderung wenn nötig
+  maxSizeMB: 0.8,              // Slightly more aggressive compression
+  maxWidthOrHeight: 1920,      // maximale Breite/Höhe
+  useWebWorker: true,          // nutzt Web Worker für bessere Performance
+  preserveExif: false,         // Remove EXIF for smaller files (was true)
+  initialQuality: 0.85,        // Slightly higher quality
+  alwaysKeepResolution: false, // erlaubt Größenänderung wenn nötig
+  fileType: 'image/webp'       // Use WebP format for better compression
 };
 
 /**
@@ -16,6 +17,19 @@ const COMPRESSION_OPTIONS = {
  */
 const isImage = (file) => {
   return file && file.type.startsWith('image/');
+};
+
+/**
+ * Detect if browser supports WebP
+ * @returns {boolean}
+ */
+const supportsWebP = () => {
+  if (typeof window === 'undefined') return false;
+  
+  const canvas = document.createElement('canvas');
+  canvas.width = 1;
+  canvas.height = 1;
+  return canvas.toDataURL('image/webp').indexOf('data:image/webp') === 0;
 };
 
 /**
@@ -36,8 +50,11 @@ export const compressImage = async (imageFile, customOptions = {}) => {
       type: imageFile.type
     });
 
+    // Use WebP if supported, otherwise fall back to original format
+    const useWebP = supportsWebP() && !customOptions.preserveFormat;
     const options = {
       ...COMPRESSION_OPTIONS,
+      ...(useWebP ? {} : { fileType: imageFile.type }), // Keep original format if WebP not supported
       ...customOptions
     };
 
@@ -46,7 +63,8 @@ export const compressImage = async (imageFile, customOptions = {}) => {
     console.log('Bildkomprimierung abgeschlossen:', {
       originalSize: `${(imageFile.size / (1024 * 1024)).toFixed(2)}MB`,
       compressedSize: `${(compressedFile.size / (1024 * 1024)).toFixed(2)}MB`,
-      compressionRatio: `${((1 - compressedFile.size / imageFile.size) * 100).toFixed(1)}%`
+      compressionRatio: `${((1 - compressedFile.size / imageFile.size) * 100).toFixed(1)}%`,
+      format: compressedFile.type
     });
 
     return compressedFile;

@@ -386,12 +386,14 @@ router.post('/export', async (req, res) => {
       .map((block, index) => {
         const lines = block.trim().split('\n');
         if (lines.length < 2) {
+          // console.warn(`[subtitlerController] Skipping invalid block ${index}:`, block); // Keep this commented unless very verbose debugging is needed
           return null;
         }
         
         const timeLine = lines[0].trim();
         const timeMatch = timeLine.match(/^(\d{1,2}):(\d{2,3})\s*-\s*(\d{1,2}):(\d{2,3})$/);
         if (!timeMatch) {
+          // console.warn(`[subtitlerController] Invalid time format in block ${index}:`, timeLine); // Keep this commented
           return null;
         }
 
@@ -425,7 +427,6 @@ router.post('/export', async (req, res) => {
           console.log(`[DEBUG TIME] Final times: ${startTime}s - ${endTime}s (duration: ${endTime - startTime}s)`);
         }
         
-        // Skip segments with identical start/end times (invalid)
         if (startTime >= endTime) {
           console.warn(`[subtitlerController] Invalid time range in block ${index}: ${startTime} >= ${endTime}`);
           return null;
@@ -433,6 +434,7 @@ router.post('/export', async (req, res) => {
 
         const rawText = lines.slice(1).join(' ').trim();
         if (!rawText) {
+          // console.warn(`[subtitlerController] Empty text in block ${index}`); // Keep this commented
           return null;
         }
         
@@ -445,46 +447,22 @@ router.post('/export', async (req, res) => {
       .filter(Boolean) // Remove nulls from invalid blocks
       .sort((a, b) => a.startTime - b.startTime); // Sort by startTime
 
-    // Minimal backend correction: Merge segments with very short durations that might overlap
-    const mergedSegments = [];
-    for (let i = 0; i < preliminarySegments.length; i++) {
-      const current = preliminarySegments[i];
-      const next = preliminarySegments[i + 1];
-      
-      // If current segment is very short (< 1s) and next segment starts at same time or very close
-      if (next && (current.endTime - current.startTime) < 1 && 
-          Math.abs(next.startTime - current.startTime) <= 1) {
-        // Merge with next segment
-        const mergedText = `${current.rawText} ${next.rawText}`.trim();
-        const mergedSegment = {
-          startTime: current.startTime,
-          endTime: Math.max(current.endTime, next.endTime),
-          rawText: mergedText
-        };
-        mergedSegments.push(mergedSegment);
-        i++; // Skip next segment as it's been merged
-        console.log(`[subtitlerController] Merged short segments: ${current.startTime}s + ${next.startTime}s`);
-      } else {
-        mergedSegments.push(current);
-      }
-    }
-
-    if (mergedSegments.length === 0) {
+    if (preliminarySegments.length === 0) {
       throw new Error('Keine gültigen vorläufigen Untertitel-Segmente gefunden');
     }
 
     // ---- Start: Calculate average segment length and enhanced scale factor based on rawText ----
     let totalChars = 0;
     let totalWords = 0;
-    mergedSegments.forEach(segment => {
+    preliminarySegments.forEach(segment => {
       totalChars += segment.rawText.length;
       totalWords += segment.rawText.split(' ').length;
     });
-    const avgLength = mergedSegments.length > 0 ? totalChars / mergedSegments.length : 30;
-    const avgWords = mergedSegments.length > 0 ? totalWords / mergedSegments.length : 5;
+    const avgLength = preliminarySegments.length > 0 ? totalChars / preliminarySegments.length : 30;
+    const avgWords = preliminarySegments.length > 0 ? totalWords / preliminarySegments.length : 5;
 
     // ---- Second pass to process text and create final segments ----
-    const segments = mergedSegments.map((pSegment, index) => {
+    const segments = preliminarySegments.map((pSegment, index) => {
       // For ASS subtitles, we keep the raw text and let ASS handle formatting
       return {
         startTime: pSegment.startTime,

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import useGeneratedTextStore from '../../stores/generatedTextStore';
 
 // Function to handle form changes
 export const handleChange = (e, setFormData) => {
@@ -74,26 +75,26 @@ export const copyPlainText = (htmlContent) => {
 };
 
 // Hook to dynamically adjust text size based on length
-export const useDynamicTextSize = (text, baseSize = 1.2, minSize = 0.8, thresholds = [1000, 2000]) => {
-  const [textSize, setTextSize] = useState(`${baseSize}em`);
+// export const useDynamicTextSize = (text, baseSize = 1.2, minSize = 0.8, thresholds = [1000, 2000]) => {
+//   const [textSize, setTextSize] = useState(`${baseSize}em`);
   
-  useEffect(() => {
-    if (text === undefined || text === null) {
-      console.log('Warning: text is undefined or null in useDynamicTextSize');
-      return;
-    }
+//   useEffect(() => {
+//     if (text === undefined || text === null) {
+//       console.log('Warning: text is undefined or null in useDynamicTextSize');
+//       return;
+//     }
     
-    let newSize = baseSize;
-    if (text.length > thresholds[1]) {
-      newSize = minSize;
-    } else if (text.length > thresholds[0]) {
-      newSize = (baseSize - 0.2).toFixed(1);
-    }
-    setTextSize(`${newSize}em`);
-  }, [text, baseSize, minSize, thresholds]);
+//     let newSize = baseSize;
+//     if (text.length > thresholds[1]) {
+//       newSize = minSize;
+//     } else if (text.length > thresholds[0]) {
+//       newSize = (baseSize - 0.2).toFixed(1);
+//     }
+//     setTextSize(`${newSize}em`);
+//   }, [text, baseSize, minSize, thresholds]);
   
-  return textSize;
-};
+//   return textSize;
+// };
 
 export const useScrollRestoration = () => {
   useEffect(() => {
@@ -131,54 +132,50 @@ export const handleDrop = (e, setDragging, setFile, setFileName) => {
   setDragging(false);
 };
 
-export const copyFormattedContent = (content, onSuccess, onError) => {
+export const copyFormattedContent = (onSuccess, onError) => {
+  const { generatedText } = useGeneratedTextStore.getState();
+  
   console.log('1. Kopiervorgang startet mit:', { 
-    contentLength: content?.length,
+    contentLength: generatedText?.length,
     hasOnSuccess: !!onSuccess,
     hasOnError: !!onError 
   });
 
-  // Prüfe ob es sich um einen Suchseiten-Export handelt
-  const isSearchExport = typeof content === 'object' && content.analysis;
+  const isSearchExport = typeof generatedText === 'object' && generatedText.analysis;
   
   if (isSearchExport) {
-    // Formatiere den Suchseiten-Export
-    let formattedText = content.analysis;
+    let formattedText = generatedText.analysis;
     
-    // Bereinige den Haupttext
     formattedText = formattedText
-      .replace(/<\/?[^>]+(>|$)/g, '')  // Entferne HTML-Tags
-      .replace(/\n\s+•/g, '\n•')       // Entferne Leerzeichen vor Aufzählungspunkten
-      .replace(/•\s+/g, '• ')          // Korrigiere Abstände nach Aufzählungspunkten
-      .replace(/\n[ \t]+/g, '\n')      // Entferne Einrückungen am Zeilenanfang
-      .replace(/[ \t]+/g, ' ')         // Reduziere mehrfache Leerzeichen
-      .replace(/\n{2,}/g, '\n\n')      // Reduziere auf maximal eine Leerzeile
+      .replace(/<\/?[^>]+(>|$)/g, '')
+      .replace(/\n\s+•/g, '\n•')
+      .replace(/•\s+/g, '• ')
+      .replace(/\n[ \t]+/g, '\n')
+      .replace(/[ \t]+/g, ' ')
+      .replace(/\n{2,}/g, '\n\n')
       .trim();
 
-    // Füge Quellenempfehlungen hinzu
-    if (content.sourceRecommendations?.length > 0) {
+    if (generatedText.sourceRecommendations?.length > 0) {
       formattedText += '\n\nQuellenempfehlungen:';
-      content.sourceRecommendations.forEach(rec => {
+      generatedText.sourceRecommendations.forEach(rec => {
         formattedText += `\n• ${rec.title} - ${rec.summary}`;
       });
     }
     
-    // Füge weitere Quellen hinzu
-    if (content.unusedSources?.length > 0) {
+    if (generatedText.unusedSources?.length > 0) {
       formattedText += '\n\nWeitere relevante Quellen:';
-      content.unusedSources.forEach(source => {
+      generatedText.unusedSources.forEach(source => {
         formattedText += `\n• ${source.title}`;
       });
     }
 
-    // Finale Bereinigung
     const cleanText = formattedText
-      .replace(/\n[ \t]+/g, '\n')      // Entferne Einrückungen am Zeilenanfang
-      .replace(/[ \t]+/g, ' ')         // Reduziere mehrfache Leerzeichen
-      .replace(/•\s+/g, '• ')          // Korrigiere Aufzählungszeichen-Abstände
-      .replace(/\n\s*\n(\s*• )/g, '\n$1')  // Entferne Leerzeilen vor Listenpunkten
-      .replace(/(\n• [^\n]+)\n\s*\n(\s*• )/g, '$1\n$2')  // Entferne Leerzeilen zwischen Listenpunkten
-      .replace(/\n{3,}/g, '\n\n')      // Maximal eine Leerzeile zwischen Abschnitten
+      .replace(/\n[ \t]+/g, '\n')
+      .replace(/[ \t]+/g, ' ')
+      .replace(/•\s+/g, '• ')
+      .replace(/\n\s*\n(\s*• )/g, '\n$1')
+      .replace(/(\n• [^\n]+)\n\s*\n(\s*• )/g, '$1\n$2')
+      .replace(/\n{3,}/g, '\n\n')
       .trim();
 
     navigator.clipboard.writeText(cleanText)
@@ -197,15 +194,12 @@ export const copyFormattedContent = (content, onSuccess, onError) => {
   console.log('2. Quill Editor gefunden:', !!quillEditor);
   
   if (quillEditor) {
-    // Hole den aktuellen HTML-Inhalt direkt aus dem Editor
     const currentContent = quillEditor.innerHTML;
     console.log('3. Aktueller Editor-Inhalt geholt:', currentContent?.length);
     
-    // Temporäres Element für die Formatierung
     const tempElement = document.createElement('div');
     tempElement.innerHTML = currentContent;
     
-    // Formatiere Block-Elemente
     const blockElements = tempElement.querySelectorAll('p, div, li, h1, h2, h3, h4, h5, h6, blockquote');
     blockElements.forEach(element => {
       element.insertAdjacentHTML('afterend', '\n');
@@ -214,16 +208,14 @@ export const copyFormattedContent = (content, onSuccess, onError) => {
       }
     });
 
-    // Formatiere Listen
     const lists = tempElement.querySelectorAll('ul, ol');
     lists.forEach(list => {
       list.insertAdjacentHTML('afterend', '\n');
     });
 
-    // Extrahiere und bereinige den Text
     const cleanText = tempElement.innerText
-      .replace(/\n{2,}/g, '\n')       // Reduziere mehrfache Zeilenumbrüche auf einen
-      .replace(/•\s+/g, '• ')         // Korrigiere Aufzählungszeichen-Abstände
+      .replace(/\n{2,}/g, '\n')
+      .replace(/•\s+/g, '• ')
       .trim();
       
     console.log('4. Formatierter Text erstellt:', cleanText);
@@ -239,7 +231,7 @@ export const copyFormattedContent = (content, onSuccess, onError) => {
       .catch(err => {
         console.error('5. Fehler beim Kopieren:', err);
         console.log('Fallback wird verwendet');
-        copyPlainText(content);
+        copyPlainText(generatedText);
         if (onError) {
           console.log('6. onError Callback wird aufgerufen');
           onError(err);
@@ -247,7 +239,7 @@ export const copyFormattedContent = (content, onSuccess, onError) => {
       });
   } else {
     console.log('2b. Kein Quill Editor gefunden, verwende Fallback');
-    copyPlainText(content);
+    copyPlainText(generatedText);
     if (onSuccess) {
       console.log('3b. onSuccess Callback wird aufgerufen (Fallback)');
       onSuccess();

@@ -24,7 +24,7 @@ const SubtitlerPage = () => {
   const [isExiting, setIsExiting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const { socialText, isGenerating, error: socialError, generateSocialText, reset: resetSocialText } = useSocialTextGenerator();
-  const [subtitlePreference, setSubtitlePreference] = useState('short'); // Default auf 'short' geändert
+  const [subtitlePreference] = useState('short'); // Always use 'short', no setter needed
   const [isProModeActive, setIsProModeActive] = useState(false);
 
   const pollingIntervalRef = useRef(null); // Ref für Polling Interval
@@ -300,10 +300,10 @@ const SubtitlerPage = () => {
                   </p>
                   
                   {/* Add Subtitle Preference Selection here */}
+                  {/* 
                   <div className={`subtitle-preference-selector confirm-section-preference ${isProcessing ? 'disabled' : ''}`}>
                     <h4>Untertitellänge wählen:</h4>
                     <div className="preference-options tiles">
-                      {/* Short Option */}
                       <label htmlFor="short-subtitles-confirm" className="preference-tile">
                         <input 
                           type="radio" 
@@ -319,7 +319,6 @@ const SubtitlerPage = () => {
                           Kurz (Empfohlen)
                         </div>
                       </label>
-                      {/* Standard Option */}
                       <label htmlFor="standard-subtitles-confirm" className="preference-tile">
                         <input 
                           type="radio" 
@@ -337,6 +336,7 @@ const SubtitlerPage = () => {
                       </label>
                     </div>
                   </div>
+                  */}
 
                   <div className="confirm-buttons">
                     <button 

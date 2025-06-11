@@ -5,35 +5,32 @@ import TextInput from '../../../../components/common/Form/Input/TextInput';
 import GroupList from '../../../../features/groups/components/GroupList';
 import useGroups from '../../../../features/groups/hooks/useGroups';
 import useGroupDetails from '../../../../features/groups/hooks/useGroupDetails';
-import { useSupabaseAuth } from '../../../../context/SupabaseAuthContext';
-import { autoResizeTextarea } from '../../pages/ProfilePage';
-import ProfileTabSkeleton from '../../../../components/common/UI/ProfileTabSkeleton';
+import { useProfileResourceManager } from '../../utils/profileUtils';
+import { autoResizeTextarea } from '../../utils/profileUtils';
 import { motion } from "motion/react";
 
-// Hilfsfunktion für Gruppen-Initialen
+// Helper function for group initials
 const getGroupInitials = (groupName) => {
     if (!groupName) return 'G';
     
-    // Für einfache Namen: Erste beiden Buchstaben
     if (!groupName.includes(' ')) {
         return groupName.substring(0, 2).toUpperCase();
     }
     
-    // Für zusammengesetzte Namen: Initialen der ersten beiden Wörter
     const words = groupName.split(' ');
     return (words[0][0] + (words[1] ? words[1][0] : '')).toUpperCase();
 };
 
-// Component for the Group Detail View (internal to GroupsManagementTab)
+// Component for the Group Detail View
 const GroupDetailView = ({ 
     groupId, 
-    templatesSupabase, // Pass down for useGroupDetails
-    onBackToList, // This might be handled by the parent tab now
+    onBackToList,
     onSuccessMessage, 
     onErrorMessage,
-    isActive  // Füge isActive hinzu, um es an useGroupDetails weiterzugeben
+    isActive
 }) => {
-    const { user } = useSupabaseAuth(); // Needed for useGroupDetails indirectly?
+    const { templatesSupabase } = useProfileResourceManager();
+    
     const { 
         groupInfo, 
         joinToken, 
@@ -58,42 +55,36 @@ const GroupDetailView = ({
         errorDetails,
         hasUnsavedChanges,
         MAX_CONTENT_LENGTH: GROUP_MAX_CONTENT_LENGTH 
-    } = useGroupDetails(groupId, { isActive }); // Gib isActive als Option an useGroupDetails weiter
+    } = useGroupDetails(groupId, { isActive });
+    
     const { 
         deleteGroup, 
         isDeletingGroup, 
-        // isDeleteGroupError, // wird bereits von onErrorMessage behandelt
-        // deleteGroupError 
-    } = useGroups({ isActive }); // Get the delete function
+    } = useGroups({ isActive });
 
     const [showJoinLink, setShowJoinLink] = useState(false);
     const [joinLinkCopied, setJoinLinkCopied] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-    // Refs für die Textareas
+    // Refs for textareas
     const antragTextareaRef = useRef(null);
     const socialTextareaRef = useRef(null);
     const knowledgeTextareaRefs = useRef({});
 
-    // Effect for save/delete feedback within this component
+    // Effect for save/delete feedback
     useEffect(() => {
-        let timer;
         if (isSaveSuccess) {
             onSuccessMessage('Gruppenänderungen erfolgreich gespeichert!');
-            // timer = setTimeout(() => onSuccessMessage(''), 3000); // Parent handles clearing
         } else if (isSaveError) {
             const message = saveError instanceof Error ? saveError.message : 'Ein unbekannter Fehler ist aufgetreten.';
             onErrorMessage(`Fehler beim Speichern (Gruppe): ${message}`);
-            // timer = setTimeout(() => onErrorMessage(''), 6000); // Parent handles clearing
         } else if (isDeleteKnowledgeError) {
             const message = deleteKnowledgeError instanceof Error ? deleteKnowledgeError.message : 'Ein unbekannter Fehler ist aufgetreten.';
             onErrorMessage(`Fehler beim Löschen (Gruppenwissen): ${message}`);
-            // timer = setTimeout(() => onErrorMessage(''), 6000); // Parent handles clearing
         }
-        // return () => clearTimeout(timer); // Parent handles clearing
-      }, [isSaveSuccess, isSaveError, saveError, isDeleteKnowledgeError, deleteKnowledgeError, onSuccessMessage, onErrorMessage]);
+    }, [isSaveSuccess, isSaveError, saveError, isDeleteKnowledgeError, deleteKnowledgeError, onSuccessMessage, onErrorMessage]);
 
-    // Effekt zur Anwendung der autoResize-Funktion
+    // Auto-resize effect for textareas
     useEffect(() => {
         if (antragTextareaRef.current) {
             autoResizeTextarea(antragTextareaRef.current);
@@ -102,7 +93,6 @@ const GroupDetailView = ({
             autoResizeTextarea(socialTextareaRef.current);
         }
         
-        // Für alle Wissens-Textareas
         Object.values(knowledgeTextareaRefs.current).forEach(ref => {
             if (ref) autoResizeTextarea(ref);
         });
@@ -123,15 +113,9 @@ const GroupDetailView = ({
         .catch(err => console.error('Failed to copy link:', err));
     };
 
-    if (isLoadingDetails) {
-        return (
-            <ProfileTabSkeleton type="default" itemCount={5} />
-        );
-    }
-
     if (isErrorDetails) {
         return (
-            <> {/* Changed from profile-form-section to allow parent to control overall layout */}
+            <>
                 <div className="auth-error-message">
                     Fehler beim Laden der Gruppendetails: {errorDetails?.message || 'Unbekannter Fehler'}
                 </div>
@@ -155,8 +139,6 @@ const GroupDetailView = ({
             onSuccess: () => {
                 onSuccessMessage('Gruppe erfolgreich gelöscht!');
                 setShowDeleteConfirm(false);
-                // Navigation/View update will be handled by parent component's useEffect
-                // or by the invalidation of queries causing a re-render
             },
             onError: (error) => {
                 onErrorMessage(`Fehler beim Löschen der Gruppe: ${error.message}`);
@@ -176,7 +158,7 @@ const GroupDetailView = ({
             animate={{ opacity: 1 }}
             transition={{ duration: 0.3 }}
         >
-            <div className="group-content-card"> {/* First card for info */}
+            <div className="group-content-card">
                 <div className="group-info-panel"> 
                     <div className="group-header-section"> 
                         <div className="group-title-area"> 
@@ -206,152 +188,221 @@ const GroupDetailView = ({
                             </button>
                         )}
                     </div>
-                    <div className="anweisungen-info gruppen-info">
-                        <p>
-                            Diese Gruppe ermöglicht die gemeinsame Nutzung von Anweisungen und Wissen für den Grünerator.
-                            Als Admin kannst du die Einstellungen unten bearbeiten und Mitglieder einladen, indem du rechts auf den Link-Button klickst und den kopierten Link verschickst.
-                        </p>
-                    </div>
-                </div>
-            </div>
 
-            <div className="group-content-card"> {/* Second card for form content */}
-                <div className="auth-form">
-                    <div className="form-group">
-                        <div className="form-group-title">Gruppenanweisungen</div>
-
-                        <div className="form-field-wrapper anweisungen-field">
-                            <div className="anweisungen-header">
-                                <label htmlFor={`groupCustomAntragPrompt-${groupId}`}>Anweisungen für Anträge:</label>
-                            </div>
-                            <textarea
-                                id={`groupCustomAntragPrompt-${groupId}`}
-                                className="form-textarea anweisungen-textarea auto-expand-textarea"
-                                value={customAntragPrompt ?? ''}
-                                onChange={(e) => {
-                                    handleInstructionsChange?.('customAntragPrompt', e.target.value);
-                                    autoResizeTextarea(e.target);
-                                }}
-                                placeholder="Gib hier Anweisungen für die Erstellung von Anträgen ein..."
-                                rows={4}
-                                disabled={!isAdmin || isSaving}
-                                ref={antragTextareaRef}
-                            />
-                        </div>
-
-                        <div className="form-field-wrapper anweisungen-field">
-                            <div className="anweisungen-header">
-                                <label htmlFor={`groupCustomSocialPrompt-${groupId}`}>Anweisungen für Social Media & Presse:</label>
-                            </div>
-                            <textarea
-                                id={`groupCustomSocialPrompt-${groupId}`}
-                                className="form-textarea anweisungen-textarea auto-expand-textarea"
-                                value={customSocialPrompt ?? ''}
-                                onChange={(e) => {
-                                    handleInstructionsChange?.('customSocialPrompt', e.target.value);
-                                    autoResizeTextarea(e.target);
-                                }}
-                                placeholder="Gib hier Anweisungen für die Erstellung von Social Media Inhalten ein..."
-                                rows={4}
-                                disabled={!isAdmin || isSaving}
-                                ref={socialTextareaRef}
-                            />
-                        </div>
-                    </div>
-
-                    <hr className="form-divider-large" />
-
-                    <div className="form-group knowledge-management-section">
-                        <div className="form-group-title">Gruppenwissen</div>
-                        <p className="help-text">
-                            Hinterlege hier bis zu drei Wissensbausteine für die Gruppe. Nur Admins können sie bearbeiten.
-                        </p>
-
-                        {(knowledgeEntries ?? []).map((entry, index) => (
-                            <div key={entry.id || `new-${index}`} className={`knowledge-entry ${index > 0 ? 'knowledge-entry-bordered' : ''}`}>
-                                <div className="form-field-wrapper anweisungen-field">
-                                    <div className="anweisungen-header">
-                                        <label htmlFor={`group-knowledge-title-${entry.id || `new-${index}`}`}>Wissen #{index + 1}: Titel</label>
-                                        {!(entry.isNew || (typeof entry.id === 'string' && entry.id.startsWith('new-'))) && isAdmin && (
-                                            <button
-                                                type="button"
-                                                onClick={() => handleKnowledgeDelete?.(entry.id)}
-                                                className="knowledge-delete-button icon-button danger"
-                                                disabled={isSaving || (isDeletingKnowledge && deletingKnowledgeId === entry.id)}
-                                                aria-label={`Gruppenwissen ${index + 1} löschen`}
-                                            >
-                                                {(isDeletingKnowledge && deletingKnowledgeId === entry.id) ? <Spinner size="xsmall" /> : <HiOutlineTrash />}
-                                            </button>
-                                        )}
-                                    </div>
-                                    <TextInput
-                                        id={`group-knowledge-title-${entry.id || `new-${index}`}`}
-                                        type="text"
-                                        value={entry.title ?? ''}
-                                        onChange={(e) => handleKnowledgeChange?.(entry.id, 'title', e.target.value)}
-                                        placeholder="Kurzer, prägnanter Titel"
-                                        maxLength={100}
-                                        disabled={!isAdmin || isSaving || isDeletingKnowledge}
-                                        className="form-input"
-                                    />
+                    {isAdmin && joinToken && (
+                        <div className="join-link-section">
+                            <div className="join-link-display">
+                                <div className="join-link-label">
+                                    <HiInformationCircle style={{ marginRight: 'var(--spacing-xxsmall)' }} />
+                                    Einladungslink für neue Mitglieder:
                                 </div>
-                                <div className="form-field-wrapper anweisungen-field">
-                                    <label htmlFor={`group-knowledge-content-${entry.id || `new-${index}`}`} className="knowledge-content-label">Inhalt:</label>
-                                    <textarea
-                                        id={`group-knowledge-content-${entry.id || `new-${index}`}`}
-                                        className="form-textarea anweisungen-textarea auto-expand-textarea"
-                                        value={entry.content ?? ''}
-                                        onChange={(e) => {
-                                            handleKnowledgeChange?.(entry.id, 'content', e.target.value);
-                                            autoResizeTextarea(e.target);
-                                        }}
-                                        placeholder="Füge hier den Wissensinhalt ein..."
-                                        rows={3}
-                                        maxLength={GROUP_MAX_CONTENT_LENGTH ?? 1000}
-                                        disabled={!isAdmin || isSaving || isDeletingKnowledge}
-                                        ref={(el) => knowledgeTextareaRefs.current[entry.id || `new-${index}`] = el}
-                                    />
-                                    <p className="help-text character-count">
-                                        {(entry.content?.length || 0)} / {GROUP_MAX_CONTENT_LENGTH ?? 1000} Zeichen
-                                    </p>
+                                <div className="join-link-url" title={getJoinUrl()}>
+                                    {getJoinUrl()}
                                 </div>
                             </div>
-                        ))}
-                    </div>
-
-                    {isAdmin && (
-                        <div className="profile-actions profile-actions-container">
-                            <button
-                                type="button"
-                                className="profile-action-button profile-primary-button"
-                                onClick={() => saveChanges?.()}
-                                disabled={!hasUnsavedChanges || isSaving || isDeletingKnowledge}
-                                aria-live="polite"
-                            >
-                                {isSaving ? <Spinner size="small" /> : 'Gruppenänderungen speichern'}
-                            </button>
-                            {isAdmin && (
-                                <button
-                                    type="button"
-                                    className="profile-action-button profile-danger-button group-delete-button"
-                                    onClick={handleDeleteGroup}
-                                    disabled={isDeletingGroup || isSaving}
-                                >
-                                    {isDeletingGroup ? <Spinner size="small" /> : 'Gruppe löschen'}
-                                </button>
-                            )}
                         </div>
                     )}
                 </div>
             </div>
 
+            <div className="group-content-card">
+                <div className="group-instructions-section">
+                    <div className="group-section-header">
+                        <h3 className="group-section-title">Gruppenanweisungen</h3>
+                        {isAdmin && (
+                            <div className="group-save-actions">
+                                <button 
+                                    onClick={saveChanges} 
+                                    className="profile-action-button profile-primary-button"
+                                    disabled={isSaving || !hasUnsavedChanges}
+                                >
+                                    {isSaving ? <Spinner size="small" /> : 'Speichern'}
+                                </button>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="group-instructions-grid">
+                        <div className="group-instruction-card">
+                            <div className="instruction-card-header">
+                                <h4>Anträge</h4>
+                                {isAdmin ? (
+                                    <label className="checkbox-label">
+                                        <input
+                                            type="checkbox"
+                                            checked={groupInfo?.antrag_instructions_enabled || false}
+                                            onChange={(e) => handleInstructionsChange('antrag_instructions_enabled', e.target.checked)}
+                                            disabled={isSaving}
+                                        />
+                                        Aktiv
+                                    </label>
+                                ) : (
+                                    <span className={`status-badge ${groupInfo?.antrag_instructions_enabled ? 'active' : 'inactive'}`}>
+                                        {groupInfo?.antrag_instructions_enabled ? 'Aktiv' : 'Inaktiv'}
+                                    </span>
+                                )}
+                            </div>
+                            <div className="instruction-content">
+                                {isAdmin ? (
+                                    <textarea
+                                        ref={antragTextareaRef}
+                                        value={customAntragPrompt}
+                                        onChange={(e) => handleInstructionsChange('custom_antrag_prompt', e.target.value)}
+                                        placeholder="Spezifische Anweisungen für Anträge..."
+                                        className="group-instruction-textarea"
+                                        disabled={isSaving}
+                                        maxLength={GROUP_MAX_CONTENT_LENGTH}
+                                        onInput={(e) => autoResizeTextarea(e.target)}
+                                    />
+                                ) : (
+                                    <div className="instruction-display">
+                                        {customAntragPrompt || 'Keine spezifischen Anweisungen für Anträge.'}
+                                    </div>
+                                )}
+                                <div className="character-count">
+                                    {customAntragPrompt?.length || 0} / {GROUP_MAX_CONTENT_LENGTH}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="group-instruction-card">
+                            <div className="instruction-card-header">
+                                <h4>Social Media</h4>
+                                {isAdmin ? (
+                                    <label className="checkbox-label">
+                                        <input
+                                            type="checkbox"
+                                            checked={groupInfo?.social_instructions_enabled || false}
+                                            onChange={(e) => handleInstructionsChange('social_instructions_enabled', e.target.checked)}
+                                            disabled={isSaving}
+                                        />
+                                        Aktiv
+                                    </label>
+                                ) : (
+                                    <span className={`status-badge ${groupInfo?.social_instructions_enabled ? 'active' : 'inactive'}`}>
+                                        {groupInfo?.social_instructions_enabled ? 'Aktiv' : 'Inaktiv'}
+                                    </span>
+                                )}
+                            </div>
+                            <div className="instruction-content">
+                                {isAdmin ? (
+                                    <textarea
+                                        ref={socialTextareaRef}
+                                        value={customSocialPrompt}
+                                        onChange={(e) => handleInstructionsChange('custom_social_prompt', e.target.value)}
+                                        placeholder="Spezifische Anweisungen für Social Media..."
+                                        className="group-instruction-textarea"
+                                        disabled={isSaving}
+                                        maxLength={GROUP_MAX_CONTENT_LENGTH}
+                                        onInput={(e) => autoResizeTextarea(e.target)}
+                                    />
+                                ) : (
+                                    <div className="instruction-display">
+                                        {customSocialPrompt || 'Keine spezifischen Anweisungen für Social Media.'}
+                                    </div>
+                                )}
+                                <div className="character-count">
+                                    {customSocialPrompt?.length || 0} / {GROUP_MAX_CONTENT_LENGTH}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="group-content-card">
+                <div className="group-knowledge-section">
+                    <div className="group-section-header">
+                        <h3 className="group-section-title">Gruppenwissen</h3>
+                        {isAdmin && knowledgeEntries.length < 3 && (
+                            <button 
+                                onClick={() => handleKnowledgeChange(null, '', 'add')} 
+                                className="profile-action-button"
+                                disabled={isSaving}
+                            >
+                                <HiPlus /> Wissen hinzufügen
+                            </button>
+                        )}
+                    </div>
+
+                    {knowledgeEntries.length === 0 ? (
+                        <div className="knowledge-empty-state">
+                            <p>Noch kein Gruppenwissen vorhanden.</p>
+                            {!isAdmin && <p>Nur Admins können Gruppenwissen hinzufügen.</p>}
+                        </div>
+                    ) : (
+                        <div className="knowledge-entries">
+                            {knowledgeEntries.map((entry, index) => (
+                                <div key={entry.id || index} className="knowledge-entry">
+                                    <div className="knowledge-entry-header">
+                                        <span className="knowledge-entry-number">#{index + 1}</span>
+                                        {isAdmin && (
+                                            <button
+                                                onClick={() => handleKnowledgeDelete(entry.id)}
+                                                className="delete-knowledge-button"
+                                                disabled={isDeletingKnowledge && deletingKnowledgeId === entry.id}
+                                                title="Wissen löschen"
+                                            >
+                                                {isDeletingKnowledge && deletingKnowledgeId === entry.id ? 
+                                                    <Spinner size="small" /> : <HiOutlineTrash />
+                                                }
+                                            </button>
+                                        )}
+                                    </div>
+                                    <div className="knowledge-entry-content">
+                                        {isAdmin ? (
+                                            <textarea
+                                                ref={el => knowledgeTextareaRefs.current[entry.id] = el}
+                                                value={entry.content}
+                                                onChange={(e) => handleKnowledgeChange(entry.id, e.target.value, 'update')}
+                                                placeholder="Gruppenwissen eingeben..."
+                                                className="knowledge-textarea"
+                                                disabled={isSaving}
+                                                maxLength={GROUP_MAX_CONTENT_LENGTH}
+                                                onInput={(e) => autoResizeTextarea(e.target)}
+                                            />
+                                        ) : (
+                                            <div className="knowledge-display">
+                                                {entry.content || 'Kein Inhalt vorhanden.'}
+                                            </div>
+                                        )}
+                                        <div className="character-count">
+                                            {entry.content?.length || 0} / {GROUP_MAX_CONTENT_LENGTH}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {isAdmin && (
+                <div className="group-content-card">
+                    <div className="group-danger-zone">
+                        <h3 className="group-section-title" style={{ color: 'var(--error-color)' }}>
+                            Gruppe löschen
+                        </h3>
+                        <p className="danger-zone-description">
+                            Das Löschen der Gruppe ist unwiderruflich. Alle Gruppeninhalte und -mitgliedschaften werden permanent entfernt.
+                        </p>
+                        <button 
+                            onClick={handleDeleteGroup}
+                            className="profile-action-button profile-danger-button"
+                            disabled={isDeletingGroup || isSaving}
+                        >
+                            {isDeletingGroup ? <Spinner size="small" /> : 'Gruppe löschen'}
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {showDeleteConfirm && (
-                <div className="confirm-dialog-backdrop">
-                    <div className="confirm-dialog-box">
-                        <h3 className="confirm-dialog-title">Gruppe löschen bestätigen</h3>
-                        <p className="confirm-dialog-message">
-                            Bist du sicher, dass du die Gruppe "<strong>{groupInfo?.name}</strong>" endgültig löschen möchtest?
-                            Alle zugehörigen Daten (Anweisungen, Wissen, Mitglieder) werden unwiderruflich entfernt.
+                <div className="modal-overlay">
+                    <div className="confirm-dialog">
+                        <h3>Gruppe wirklich löschen?</h3>
+                        <p>
+                            Die Gruppe "{groupInfo?.name}" wird unwiderruflich gelöscht.
                             Diese Aktion kann nicht rückgängig gemacht werden.
                         </p>
                         <div className="confirm-dialog-actions">
@@ -370,9 +421,9 @@ const GroupDetailView = ({
 };
 
 // Main component for the Groups Management Tab
-const GroupsManagementTab = ({ user, templatesSupabase, onSuccessMessage, onErrorMessage, isActive }) => {
+const GroupsManagementTab = ({ user, onSuccessMessage, onErrorMessage, isActive }) => {
     const [selectedGroupId, setSelectedGroupId] = useState(null);
-    const [groupView, setGroupView] = useState('overview'); // Änderung von 'list' zu 'overview'
+    const [groupView, setGroupView] = useState('overview');
     const [newGroupName, setNewGroupName] = useState('');
 
     const { 
@@ -384,11 +435,10 @@ const GroupsManagementTab = ({ user, templatesSupabase, onSuccessMessage, onErro
         isCreatingGroup,
         isCreateGroupError,
         createGroupError,
-        // For delete feedback & view reset
         isDeleteGroupSuccess, 
-        deleteGroupError: rawDeleteGroupError, // use raw error to avoid conflict
-        isDeletingGroup, // to potentially disable UI elements in parent
-    } = useGroups({ isActive }); // Füge isActive hinzu, um die Queries zu steuern
+        deleteGroupError: rawDeleteGroupError,
+        isDeletingGroup,
+    } = useGroups({ isActive });
 
     // Handle Group Creation Submit
     const handleCreateGroupSubmit = (e) => {
@@ -397,8 +447,8 @@ const GroupsManagementTab = ({ user, templatesSupabase, onSuccessMessage, onErro
         onSuccessMessage(''); 
         onErrorMessage('');
         createGroup(newGroupName, {
-          onSuccess: (newGroup) => { // Assuming createGroup resolves with the new group object or its ID
-            const newGroupId = newGroup.id; // Adjust if API returns differently
+          onSuccess: (newGroup) => {
+            const newGroupId = newGroup.id;
             setSelectedGroupId(newGroupId);
             setGroupView('detail');
             setNewGroupName(''); 
@@ -412,7 +462,7 @@ const GroupsManagementTab = ({ user, templatesSupabase, onSuccessMessage, onErro
 
     // Auto-select logic & handle group deletion side effects
     useEffect(() => {
-        if (groupView === 'list' && !isLoadingGroups && userGroups) {
+        if (groupView === 'list' && userGroups) {
             if (userGroups.length === 1 && !selectedGroupId) {
                 setSelectedGroupId(userGroups[0].id);
                 setGroupView('detail');
@@ -420,40 +470,34 @@ const GroupsManagementTab = ({ user, templatesSupabase, onSuccessMessage, onErro
                 setSelectedGroupId(userGroups[0].id);
                 setGroupView('detail');
             } else if (userGroups.length === 0) {
-                setSelectedGroupId(null); // Clear selected group if no groups left
+                setSelectedGroupId(null);
                 setGroupView('list');
             }
         }
 
         // Handle view update after successful group deletion
         if (isDeleteGroupSuccess && selectedGroupId) {
-            // Check if the deleted group was the one selected
             const deletedGroupWasSelected = !userGroups || !userGroups.some(g => g.id === selectedGroupId);
             if (deletedGroupWasSelected) {
-                onSuccessMessage('Gruppe erfolgreich gelöscht!'); // Keep success message from detail view or set new one
+                onSuccessMessage('Gruppe erfolgreich gelöscht!');
                 if (userGroups && userGroups.length > 0) {
                     setSelectedGroupId(userGroups[0].id);
                     setGroupView('detail');
                 } else {
                     setSelectedGroupId(null);
-                    setGroupView('overview'); // Änderung von 'list' zu 'overview'
+                    setGroupView('overview');
                 }
             }
-        } else if (rawDeleteGroupError && selectedGroupId) {
-             // Error message is handled by GroupDetailView, but ensure view doesn't break
-             // console.warn("Error during group deletion, check detail view for messages.")
         }
-
-    }, [userGroups, isLoadingGroups, groupView, selectedGroupId, isDeleteGroupSuccess, rawDeleteGroupError, onSuccessMessage]);
-
+    }, [userGroups, groupView, selectedGroupId, isDeleteGroupSuccess, rawDeleteGroupError, onSuccessMessage]);
 
     // Function to switch view
     const handleSelectGroup = (groupId) => {
         if (selectedGroupId !== groupId) {
-            onSuccessMessage(''); // Clear messages when switching groups
+            onSuccessMessage('');
             onErrorMessage('');
             setSelectedGroupId(groupId);
-            setGroupView('detail'); // Ensure we are in detail view
+            setGroupView('detail');
         }
     };
 
@@ -465,14 +509,12 @@ const GroupsManagementTab = ({ user, templatesSupabase, onSuccessMessage, onErro
         onErrorMessage('');
     };
 
-    // Back to list is less of a "view" and more of a state if no group is selected.
-    // If create is cancelled, or if we want a dedicated "list overview" (though current logic auto-selects).
     const handleCancelCreate = () => {
         if (userGroups && userGroups.length > 0) {
-            setSelectedGroupId(userGroups[0].id); // Go back to the first group or last selected
+            setSelectedGroupId(userGroups[0].id);
             setGroupView('detail');
         } else {
-            setGroupView('overview'); // Änderung von 'list' zu 'overview'
+            setGroupView('overview');
         }
         onSuccessMessage('');
         onErrorMessage('');
@@ -552,16 +594,6 @@ const GroupsManagementTab = ({ user, templatesSupabase, onSuccessMessage, onErro
                             ) : (
                                 <p>Du bist noch nicht Mitglied einer Gruppe. Erstelle jetzt deine erste Gruppe!</p>
                             )}
-                            
-                            <button
-                                onClick={handleCreateNew}
-                                className="profile-action-button profile-primary-button"
-                                type="button"
-                                disabled={isCreatingGroup || groupView === 'create'}
-                            >
-                                Neue Gruppe erstellen
-                                <HiPlus style={{marginLeft: 'var(--spacing-xsmall)'}} />
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -569,60 +601,55 @@ const GroupsManagementTab = ({ user, templatesSupabase, onSuccessMessage, onErro
         </motion.div>
     );
 
-    // Render Navigation Panel (Left Column)
+    // Render Navigation Panel
     const renderNavigationPanel = () => (
-        <div className="groups-vertical-navigation"> {/* Class for CSS styling */}
-            <button
-                className={`groups-vertical-tab ${groupView === 'overview' ? 'active' : ''}`}
-                onClick={handleOverviewTab}
-                disabled={groupView === 'create'}
-            >
-                Übersicht
-            </button>
-            
-            {userGroups && userGroups.length > 0 && (
-                <nav className="groups-vertical-tabs" aria-label="Gruppen Navigation">
-                    {userGroups.map(group => (
-                        <button
-                            key={group.id}
-                            className={`groups-vertical-tab ${selectedGroupId === group.id && groupView === 'detail' ? 'active' : ''}`}
-                            onClick={() => handleSelectGroup(group.id)}
-                            disabled={groupView === 'create'} // Disable tabs when in create mode
-                        >
-                            {group.name}
-                        </button>
-                    ))}
-                </nav>
-            )}
+        <div className="group-navigation-panel">
+            <div className="group-nav-header">
+                <button 
+                    onClick={handleOverviewTab} 
+                    className={`nav-tab-button ${groupView === 'overview' ? 'active' : ''}`}
+                >
+                    Übersicht
+                </button>
+                <button 
+                    onClick={handleCreateNew} 
+                    className="create-group-button"
+                    disabled={isCreatingGroup}
+                >
+                    <HiPlus /> Gruppe erstellen
+                </button>
+            </div>
 
-            <button
-                onClick={handleCreateNew}
-                className="groups-action-button create-new-group-button" // Style as prominent button
-                type="button"
-                disabled={isCreatingGroup || groupView === 'create'} // Disable if already in create mode
-            >
-                Neu
-                <HiPlus />
-            </button>
+            {isLoadingGroups ? (
+                <div className="groups-loading">
+                    <Spinner size="medium" />
+                    <p>Lade Gruppen...</p>
+                </div>
+            ) : isErrorGroups ? (
+                <div className="groups-error">
+                    <p>Fehler beim Laden der Gruppen: {errorGroups?.message}</p>
+                </div>
+            ) : (
+                <div className="groups-list">
+                    {userGroups && userGroups.length > 0 ? (
+                        <GroupList 
+                            groups={userGroups} 
+                            selectedGroupId={selectedGroupId}
+                            onSelectGroup={handleSelectGroup}
+                            getGroupInitials={getGroupInitials}
+                        />
+                    ) : (
+                        <div className="no-groups-message">
+                            <p>Keine Gruppen gefunden</p>
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
     );
 
-    // Render Content Panel (Right Column)
+    // Render Content Panel
     const renderContentPanel = () => {
-        if (isLoadingGroups) {
-            return (
-                <ProfileTabSkeleton type={groupView === 'form' ? 'form' : 'default'} itemCount={5} />
-            );
-        }
-
-        if (isErrorGroups) {
-            return (
-                <div className="auth-error-message" style={{padding: 'var(--spacing-large)'}}>
-                    Fehler beim Laden der Gruppen: {errorGroups?.message || 'Unbekannter Fehler'}
-                </div>
-            );
-        }
-
         if (groupView === 'overview') {
             return renderOverviewTab();
         }
@@ -630,88 +657,92 @@ const GroupsManagementTab = ({ user, templatesSupabase, onSuccessMessage, onErro
         if (groupView === 'create') {
             return (
                 <motion.div 
-                    className="create-group-form-container"
+                    className="group-create-container"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ duration: 0.3 }}
                 >
-                    {/* Removed profile-avatar-section and profile-form-section wrappers */}
-                    <form className="auth-form" onSubmit={handleCreateGroupSubmit}>
-                        <div className="form-group">
-                            <h2 className="form-group-title" style={{fontSize: '1.8rem'}}>Neue Gruppe erstellen</h2>
-                            <p>Erstelle eine neue Gruppe, um Anweisungen und Wissen mit anderen zu teilen. Als Ersteller wirst du automatisch Admin.</p>
+                    <div className="group-content-card">
+                        <div className="group-info-panel">
+                            <div className="group-header-section">
+                                <div className="group-title-area">
+                                    <h2 className="profile-user-name" style={{ fontSize: '1.8rem' }}>Neue Gruppe erstellen</h2>
+                                </div>
+                            </div>
+                            
                             {isCreateGroupError && (
-                            <div className="auth-error-message">
-                                Fehler: {createGroupError?.message || 'Gruppe konnte nicht erstellt werden.'}
-                            </div>
+                                <div className="auth-error-message" style={{ marginBottom: 'var(--spacing-medium)' }}>
+                                    {createGroupError?.message || 'Fehler beim Erstellen der Gruppe'}
+                                </div>
                             )}
-                            <div className="form-field-wrapper" style={{marginTop: 'var(--spacing-large)'}}>
-                            <label htmlFor="newGroupName">Gruppenname:</label>
-                            <TextInput
-                                id="newGroupName"
-                                value={newGroupName}
-                                onChange={(e) => setNewGroupName(e.target.value)}
-                                placeholder="z.B. OV Musterdorf, LAG Digitales"
-                                aria-required="true"
-                                required
-                                disabled={isCreatingGroup}
-                            />
-                            </div>
+                            
+                            <form onSubmit={handleCreateGroupSubmit} className="auth-form">
+                                <div className="form-group">
+                                    <div className="form-field-wrapper">
+                                        <label htmlFor="groupName">Gruppenname:</label>
+                                        <TextInput
+                                            id="groupName"
+                                            type="text"
+                                            value={newGroupName}
+                                            onChange={(e) => setNewGroupName(e.target.value)}
+                                            placeholder="Name der neuen Gruppe"
+                                            required
+                                            disabled={isCreatingGroup}
+                                            maxLength={100}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="profile-actions">
+                                    <button 
+                                        type="submit" 
+                                        className="profile-action-button profile-primary-button"
+                                        disabled={isCreatingGroup || !newGroupName.trim()}
+                                    >
+                                        {isCreatingGroup ? <Spinner size="small" /> : 'Gruppe erstellen'}
+                                    </button>
+                                    <button 
+                                        type="button" 
+                                        onClick={handleCancelCreate}
+                                        className="profile-action-button"
+                                        disabled={isCreatingGroup}
+                                    >
+                                        Abbrechen
+                                    </button>
+                                </div>
+                            </form>
                         </div>
-                        <div className="profile-actions" style={{marginTop: 'var(--spacing-large)'}}>
-                            <button
-                                type="button"
-                                className="profile-action-button"
-                                onClick={handleCancelCreate}
-                                disabled={isCreatingGroup}
-                            >
-                                Abbrechen
-                            </button>
-                            <button
-                                type="submit"
-                                className="profile-action-button profile-primary-button"
-                                disabled={isCreatingGroup || !newGroupName.trim()}
-                                aria-live="polite"
-                            >
-                                {isCreatingGroup ? <Spinner size="small" /> : 'Gruppe erstellen'}
-                            </button>
-                        </div>
-                    </form>
+                    </div>
                 </motion.div>
             );
         }
 
-        if (selectedGroupId && groupView === 'detail') {
+        if (groupView === 'detail' && selectedGroupId) {
             return (
-                <GroupDetailView
+                <GroupDetailView 
                     groupId={selectedGroupId}
-                    templatesSupabase={templatesSupabase}
-                    // onBackToList is removed as navigation is persistent
-                    onSuccessMessage={onSuccessMessage} // Pass down for internal feedback
-                    onErrorMessage={onErrorMessage}   // Pass down for internal feedback
-                    isActive={isActive} // Weitergabe der isActive-Prop an die untergeordnete Komponente
+                    onBackToList={() => setGroupView('overview')}
+                    onSuccessMessage={onSuccessMessage}
+                    onErrorMessage={onErrorMessage}
+                    isActive={isActive}
                 />
             );
         }
-        
-        // Fallback für 'list' view - jetzt zur Übersicht umleiten
+
         return renderOverviewTab();
     };
-    
 
-    // Main layout uses .profile-content for the grid
     return (
-        <div className="profile-content groups-management-layout"> {/* Added groups-management-layout for specific styling */}
-            {/* Left Column for Navigation */}
-            <div className="groups-navigation-panel"> {/* Use profile-avatar-section if its base styles are suitable, or this new class */}
-                {renderNavigationPanel()}
-            </div>
-
-            {/* Right Column for Content */}
-            <div className="groups-content-panel profile-form-section"> {/* Re-using profile-form-section for consistent padding/styling */}
+        <motion.div 
+            className="groups-management-layout"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+        >
+            {renderNavigationPanel()}
+            <div className="group-content-area">
                 {renderContentPanel()}
             </div>
-        </div>
+        </motion.div>
     );
 };
 

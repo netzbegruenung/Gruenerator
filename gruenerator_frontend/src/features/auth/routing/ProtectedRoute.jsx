@@ -2,7 +2,7 @@ import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import Spinner from '../../../components/common/Spinner';
-import { useSupabaseAuth } from '../../../context/SupabaseAuthContext';
+import { useInstantAuth } from '../../../hooks/useAuth';
 
 /**
  * Komponente zum Schutz von Routen, die nur für eingeloggte Benutzer zugänglich sein sollen.
@@ -14,11 +14,11 @@ import { useSupabaseAuth } from '../../../context/SupabaseAuthContext';
  * @returns {JSX.Element} Die geschützten Komponenten oder eine Weiterleitung
  */
 const ProtectedRoute = ({ children, adminRequired = false }) => {
-  const { user, loading } = useSupabaseAuth();
+  const { user, isAuthenticated, loading, hasCachedData } = useInstantAuth();
   const location = useLocation();
 
-  // Zeige Ladeindikator während der Auth-Status geprüft wird
-  if (loading) {
+  // Zeige Ladeindikator nur wenn kein Cache vorhanden ist
+  if (loading && !hasCachedData) {
     return (
       <div style={{ 
         display: 'flex', 
@@ -33,15 +33,15 @@ const ProtectedRoute = ({ children, adminRequired = false }) => {
 
   // Wenn kein Benutzer eingeloggt ist, zur Login-Seite weiterleiten
   // und den aktuellen Pfad in der Location speichern
-  if (!user) {
+  if (!isAuthenticated || !user) {
     return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   }
 
   // Wenn Admin-Rechte erforderlich sind, aber der Benutzer kein Admin ist
-  // TODO: Implementiere Admin-Check basierend auf Benutzerrolle aus Supabase
+  // TODO: Implementiere Admin-Check basierend auf Benutzerrolle aus Backend
   if (adminRequired) {
     // Hier muss die Logik für die Admin-Überprüfung ergänzt werden
-    // z.B.: if (!user.app_metadata?.admin) { ... }
+    // z.B.: if (!user.is_admin) { ... }
     return <Navigate to="/unauthorized" replace />;
   }
 

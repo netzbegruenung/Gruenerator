@@ -6,7 +6,7 @@ import { useClaudeResponse } from './hooks/useClaudeResponse';
 import { motion, AnimatePresence } from 'motion/react';
 import { useCollabEditor } from '../../../context/CollabEditorContext';
 import * as Y from 'yjs';
-import { useSupabaseAuth } from '../../../context/SupabaseAuthContext';
+import { useOptimizedAuth } from '../../../hooks/useAuth';
 import TypingIndicator from '../../common/UI/TypingIndicator';
 import ReactMarkdown from 'react-markdown';
 import { truncateMiddle } from './textTruncation';
@@ -38,7 +38,7 @@ const EditorChat = ({ isEditing, isCollabEditor }) => {
   } = useContext(FormContext);
   
   const { yChatHistory, ydoc } = isCollabEditor ? useCollabEditor() : { yChatHistory: null, ydoc: null };
-  const { user, selectedMessageColor: userPersistentColor, updateUserMessageColor } = useSupabaseAuth();
+  const { user, selectedMessageColor: userPersistentColor, updateUserMessageColor } = useOptimizedAuth();
 
   const [displayedChatHistory, setDisplayedChatHistory] = useState([]);
   

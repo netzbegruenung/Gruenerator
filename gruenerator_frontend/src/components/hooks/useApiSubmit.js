@@ -1,16 +1,19 @@
-import { useState, useContext } from 'react';
+import { useState } from 'react';
 import { processText } from '../utils/apiClient';
-import { SupabaseAuthContext } from '../../context/SupabaseAuthContext';
+import { useAuthStore } from '../../stores/authStore';
+import useGeneratedTextStore from '../../stores/generatedTextStore';
 
 const useApiSubmit = (endpoint) => {
-  const { deutschlandmodus } = useContext(SupabaseAuthContext);
+  const { deutschlandmodus } = useAuthStore();
+  const { generatedText } = useGeneratedTextStore();
 
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
   const [retryCount, setRetryCount] = useState(0);
 
-  const submitForm = async (formData, useBackup = false) => {
+  const submitForm = async (formData, useBackup = false, options = {}) => {
+    
     setLoading(true);
     setSuccess(false);
     setError('');
@@ -196,6 +199,26 @@ const useApiSubmit = (endpoint) => {
         } else {
             console.error('[useApiSubmit] Invalid structure for /generate_generator_config:', response);
             throw new Error('Ungültiges JSON-Format in der generierten Konfiguration. Bitte versuche es erneut.');
+        }
+      } else if (endpoint === '/claude_social') {
+        console.log('[useApiSubmit] Processing claude_social response:', response);
+        if (response && response.content) {
+          setSuccess(true);
+          return response.content; // Return only the content string
+        } else if (response && typeof response === 'string') {
+          // Fallback if response is already a string
+          setSuccess(true);
+          return response;
+        }
+      } else if (endpoint === '/claude_gruene_jugend') {
+        console.log('[useApiSubmit] Processing claude_gruene_jugend response:', response);
+        if (response && response.content) {
+          setSuccess(true);
+          return response.content; // Return only the content string
+        } else if (response && typeof response === 'string') {
+          // Fallback if response is already a string
+          setSuccess(true);
+          return response;
         }
       }
 

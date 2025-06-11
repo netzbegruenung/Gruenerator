@@ -1,14 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import PropTypes from 'prop-types';
-<<<<<<< HEAD
-import { motion, AnimatePresence } from 'motion/react';
 import apiClient from '../../../components/utils/apiClient';
 import LiveSubtitlePreview from './LiveSubtitlePreview';
-import ConfirmDeletePopup from '../../../components/common/ConfirmDeletePopup';
-=======
-import apiClient from '../../../components/utils/apiClient';
-import LiveSubtitlePreview from './LiveSubtitlePreview';
->>>>>>> f2cbc8c2fcc3868bd014a17f22a2c2b04103dcf5
 
 const SubtitleEditor = ({ videoFile, subtitles, uploadId, onExportSuccess, isExporting, onExportComplete }) => {
   const videoRef = useRef(null);
@@ -17,12 +10,6 @@ const SubtitleEditor = ({ videoFile, subtitles, uploadId, onExportSuccess, isExp
   const [error, setError] = useState(null);
   const [currentTimeInSeconds, setCurrentTimeInSeconds] = useState(0);
   const [videoMetadata, setVideoMetadata] = useState(null);
-<<<<<<< HEAD
-  const [editingTimeId, setEditingTimeId] = useState(null);
-  const [deleteConfirmation, setDeleteConfirmation] = useState({ isVisible: false, segmentId: null });
-  const [overlappingSegments, setOverlappingSegments] = useState(new Set());
-=======
->>>>>>> f2cbc8c2fcc3868bd014a17f22a2c2b04103dcf5
 
   // Emoji detection function
   const detectEmojis = (text) => {
@@ -88,73 +75,25 @@ const SubtitleEditor = ({ videoFile, subtitles, uploadId, onExportSuccess, isExp
       
       const segments = subtitles.split('\n\n')
         .map((block, index) => {
-<<<<<<< HEAD
-          const lines = block.split('\n');
-          if (lines.length < 2) {
-            console.warn('[SubtitleEditor] Invalid block (not enough lines):', block);
-            return null;
-          }
-          const timeLine = lines[0];
-          const textLines = lines.slice(1);
-
-          // Robust parsing of the timeLine
-          const timeParts = timeLine.split(' - ');
-          if (timeParts.length !== 2) {
-            console.warn('[SubtitleEditor] Invalid timeLine format (expected "startTimeStr - endTimeStr"):', timeLine, 'in block:', block);
-            return null;
-          }
-
-          const [startTimeStr, endTimeStr] = timeParts;
-          
-          const startComps = startTimeStr.split(':');
-          const endComps = endTimeStr.split(':');
-
-          if (startComps.length !== 2 || endComps.length !== 2) {
-            console.warn('[SubtitleEditor] Invalid time string format (expected "MM:SS" or "MM:SSS"):', timeLine, 'in block:', block);
-            return null;
-          }
-
-          const startMin = parseInt(startComps[0], 10);
-          const startSec = parseInt(startComps[1], 10);
-          const endMin = parseInt(endComps[0], 10);
-          const endSec = parseInt(endComps[1], 10);
-
-          if (isNaN(startMin) || isNaN(startSec) || isNaN(endMin) || isNaN(endSec)) {
-            console.warn('[SubtitleEditor] Failed to parse time components to numbers:', timeLine, 'in block:', block);
-            return null;
-          }
-          
-          const calculatedStartTime = startMin * 60 + startSec;
-          const calculatedEndTime = endMin * 60 + endSec;
-
-          // Optional: Add validation for calculated times if needed
-          // if (calculatedStartTime < 0 || calculatedEndTime < 0 || calculatedEndTime < calculatedStartTime) {
-          //   console.warn('[SubtitleEditor] Invalid calculated time values:', 
-          //                { calculatedStartTime, calculatedEndTime }, 'for block:', block);
-          //   return null; 
-          // }
-          
-          return {
-            id: index,
-            startTime: calculatedStartTime,
-            endTime: calculatedEndTime,
-=======
           const [timeLine, ...textLines] = block.split('\n');
-          const [timeRange] = timeLine.match(/(\d+:\d{2}) - (\d+:\d{2})/) || [];
-          if (!timeRange) {
+          const timeMatch = timeLine.match(/(\d+):(\d{2,3}) - (\d+):(\d{2,3})/);
+          if (!timeMatch) {
             console.warn('[SubtitleEditor] Invalid time range in block:', block);
             return null;
           }
 
-          const [startTime, endTime] = timeLine.split(' - ');
-          const [startMin, startSec] = startTime.split(':').map(Number);
-          const [endMin, endSec] = endTime.split(':').map(Number);
+          const startMin = parseInt(timeMatch[1], 10);
+          const startSec = parseInt(timeMatch[2], 10);
+          const endMin = parseInt(timeMatch[3], 10);
+          const endSec = parseInt(timeMatch[4], 10);
+
+          const startTime = startMin * 60 + startSec;
+          const endTime = endMin * 60 + endSec;
 
           return {
             id: index,
-            startTime: startMin * 60 + startSec,
-            endTime: endMin * 60 + endSec,
->>>>>>> f2cbc8c2fcc3868bd014a17f22a2c2b04103dcf5
+            startTime,
+            endTime,
             text: textLines.join('\n').trim()
           };
         })
@@ -168,17 +107,6 @@ const SubtitleEditor = ({ videoFile, subtitles, uploadId, onExportSuccess, isExp
     }
   }, [subtitles]);
 
-<<<<<<< HEAD
-  // Check for overlaps whenever subtitles change
-  useEffect(() => {
-    if (editableSubtitles.length > 0) {
-      const overlaps = detectOverlaps(editableSubtitles);
-      setOverlappingSegments(overlaps);
-    }
-  }, [editableSubtitles]);
-
-=======
->>>>>>> f2cbc8c2fcc3868bd014a17f22a2c2b04103dcf5
   // Handle video metadata loading
   const handleVideoLoadedMetadata = () => {
     if (videoRef.current) {
@@ -238,63 +166,6 @@ const SubtitleEditor = ({ videoFile, subtitles, uploadId, onExportSuccess, isExp
     }
   };
 
-<<<<<<< HEAD
-  // Handler for editing timestamps
-  const handleTimeEdit = (id, field, value) => {
-    const [minutes, seconds] = value.split(':').map(Number);
-    if (isNaN(minutes) || isNaN(seconds) || seconds >= 60 || seconds < 0) return;
-    
-    const timeInSeconds = minutes * 60 + seconds;
-    
-    setEditableSubtitles(prev => 
-      prev.map(segment => {
-        if (segment.id === id) {
-          const newSegment = { ...segment };
-          if (field === 'start') {
-            newSegment.startTime = timeInSeconds;
-            // Only adjust end time if the new start time would make it invalid
-            if (newSegment.endTime <= timeInSeconds) {
-              newSegment.endTime = timeInSeconds + 1;
-            }
-          } else if (field === 'end') {
-            newSegment.endTime = timeInSeconds;
-            // Only adjust start time if the new end time would make it invalid
-            if (newSegment.startTime >= timeInSeconds) {
-              newSegment.startTime = Math.max(0, timeInSeconds - 1);
-            }
-          }
-          return newSegment;
-        }
-        return segment;
-      })
-    );
-  };
-
-  // Handler for deleting segments
-  const handleDeleteSegment = (id) => {
-    setDeleteConfirmation({ isVisible: true, segmentId: id });
-  };
-
-  // Handler for confirming deletion
-  const confirmDeleteSegment = () => {
-    if (deleteConfirmation.segmentId !== null) {
-      setEditableSubtitles(prev => prev.filter(segment => segment.id !== deleteConfirmation.segmentId));
-    }
-    setDeleteConfirmation({ isVisible: false, segmentId: null });
-  };
-
-  // Handler for canceling deletion
-  const cancelDeleteSegment = () => {
-    setDeleteConfirmation({ isVisible: false, segmentId: null });
-  };
-
-  // Toggle time editing mode
-  const toggleTimeEdit = (id) => {
-    setEditingTimeId(editingTimeId === id ? null : id);
-  };
-
-=======
->>>>>>> f2cbc8c2fcc3868bd014a17f22a2c2b04103dcf5
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
@@ -389,29 +260,6 @@ const SubtitleEditor = ({ videoFile, subtitles, uploadId, onExportSuccess, isExp
     }
   };
 
-<<<<<<< HEAD
-  // Function to detect overlapping segments
-  const detectOverlaps = (segments) => {
-    const overlaps = new Set();
-    
-    for (let i = 0; i < segments.length; i++) {
-      for (let j = i + 1; j < segments.length; j++) {
-        const segmentA = segments[i];
-        const segmentB = segments[j];
-        
-        // Check if segments overlap
-        if (segmentA.startTime < segmentB.endTime && segmentB.startTime < segmentA.endTime) {
-          overlaps.add(segmentA.id);
-          overlaps.add(segmentB.id);
-        }
-      }
-    }
-    
-    return overlaps;
-  };
-
-=======
->>>>>>> f2cbc8c2fcc3868bd014a17f22a2c2b04103dcf5
   return (
     <div className="subtitle-editor-container">
       {error && (
@@ -478,82 +326,6 @@ const SubtitleEditor = ({ videoFile, subtitles, uploadId, onExportSuccess, isExp
 
         <div className="subtitles-editor">
           <div className="subtitles-list">
-<<<<<<< HEAD
-            <AnimatePresence>
-              {editableSubtitles.map(segment => (
-                <motion.div 
-                  key={segment.id} 
-                  className={`subtitle-segment ${overlappingSegments.has(segment.id) ? 'segment-overlap' : ''}`}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, x: -300, transition: { duration: 0.3 } }}
-                  transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                  layout
-                >
-                  <div className="segment-header">
-                    {editingTimeId === segment.id ? (
-                      <div className="segment-time-inputs">
-                        <input
-                          type="text"
-                          className="segment-time-input"
-                          value={formatTime(segment.startTime)}
-                          onChange={(e) => handleTimeEdit(segment.id, 'start', e.target.value)}
-                          onBlur={() => setEditingTimeId(null)}
-                          onKeyDown={(e) => e.key === 'Enter' && setEditingTimeId(null)}
-                          autoFocus
-                        />
-                        <span>-</span>
-                        <input
-                          type="text"
-                          className="segment-time-input"
-                          value={formatTime(segment.endTime)}
-                          onChange={(e) => handleTimeEdit(segment.id, 'end', e.target.value)}
-                          onBlur={() => setEditingTimeId(null)}
-                          onKeyDown={(e) => e.key === 'Enter' && setEditingTimeId(null)}
-                        />
-                      </div>
-                    ) : (
-                      <motion.div 
-                        className={`segment-time ${overlappingSegments.has(segment.id) ? 'segment-time-overlap' : ''}`}
-                        onClick={() => toggleTimeEdit(segment.id)}
-                        whileTap={{ scale: 0.98 }}
-                      >
-                        {formatTime(segment.startTime)} - {formatTime(segment.endTime)}
-                        {overlappingSegments.has(segment.id) && (
-                          <span className="overlap-icon">⚠️</span>
-                        )}
-                      </motion.div>
-                    )}
-                    <motion.button
-                      className="delete-segment-button"
-                      onClick={() => handleDeleteSegment(segment.id)}
-                      whileTap={{ scale: 0.9 }}
-                      title="Segment löschen"
-                    >
-                      ✕
-                    </motion.button>
-                  </div>
-                  <div className="segment-text-container">
-                    <textarea
-                      value={segment.text}
-                      onChange={(e) => handleSubtitleEdit(segment.id, e.target.value, e)}
-                      className={`segment-text ${detectEmojis(segment.text) ? 'has-emojis' : ''}`}
-                      rows={window.innerWidth <= 768 ? undefined : 2}
-                    />
-                    {detectEmojis(segment.text) && (
-                      <div className="emoji-warning">
-                        ⚠️ Emojis werden im Video nicht angezeigt
-                      </div>
-                    )}
-                    <div 
-                      className="segment-text-preview"
-                      dangerouslySetInnerHTML={{ __html: formatTextWithEmojis(segment.text) }}
-                    />
-                  </div>
-                </motion.div>
-              ))}
-            </AnimatePresence>
-=======
             {editableSubtitles.map(segment => (
               <div key={segment.id} className="subtitle-segment">
                 <div className="segment-time">
@@ -578,7 +350,6 @@ const SubtitleEditor = ({ videoFile, subtitles, uploadId, onExportSuccess, isExp
                 </div>
               </div>
             ))}
->>>>>>> f2cbc8c2fcc3868bd014a17f22a2c2b04103dcf5
           </div>
         </div>
       </div>
@@ -599,19 +370,6 @@ const SubtitleEditor = ({ videoFile, subtitles, uploadId, onExportSuccess, isExp
           )}
         </button>
       </div>
-<<<<<<< HEAD
-
-      {deleteConfirmation.isVisible && (
-        <ConfirmDeletePopup
-          isVisible={deleteConfirmation.isVisible}
-          onConfirm={confirmDeleteSegment}
-          onCancel={cancelDeleteSegment}
-          title="Untertitel-Segment löschen?"
-          message="Dieses Untertitel-Segment wird permanent entfernt. Diese Aktion kann nicht rückgängig gemacht werden."
-        />
-      )}
-=======
->>>>>>> f2cbc8c2fcc3868bd014a17f22a2c2b04103dcf5
     </div>
   );
 };

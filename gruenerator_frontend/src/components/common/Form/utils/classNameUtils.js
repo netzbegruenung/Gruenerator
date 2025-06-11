@@ -4,23 +4,19 @@
  * @returns {string} Generierte Klassennamen
  */
 export const getBaseContainerClasses = ({
-  isEditing,
   title,
   generatedContent,
   isMultiPlatform,
-  isFormVisible,
-  isFocusMode
+  isFormVisible
 }) => {
   const classes = [
     'base-container',
-    isEditing ? 'editing-mode' : '',
     title === "Grünerator Antragscheck" ? 'antragsversteher-base' : '',
     generatedContent && (
       typeof generatedContent === 'string' ? generatedContent.length > 0 : generatedContent?.content?.length > 0
     ) ? 'has-generated-content' : '',
     isMultiPlatform ? 'multi-platform' : '',
-    isMultiPlatform && !isFormVisible ? 'form-hidden' : '',
-    isFocusMode ? 'focus-mode' : ''
+    isMultiPlatform && !isFormVisible ? 'form-hidden' : ''
   ];
 
   return classes.filter(Boolean).join(' ');

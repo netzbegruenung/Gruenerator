@@ -12,6 +12,7 @@
     --error-red: #D32F2F;
 
     --backgroundgruen: #f3faf6;
+    --backgroundgruen-dark: #e0f6e7;
     --dunkelgrau: #333;
     --anthrazit: #222;
 
@@ -77,6 +78,38 @@
     --chat-input-background: var(--chat-input-background-light);
     --chat-input-text-color: var(--chat-input-text-color-light);
     --chat-input-border-color: var(--chat-input-border-color-light);
+
+    /* Card Styles */
+    --card-border-radius-small: 8px;
+    --card-border-radius-medium: 12px;
+    --card-border-radius-large: 16px;
+    --card-shadow-none: none;
+    --card-shadow-subtle: var(--shadow-sm);
+    --card-shadow-elevated: var(--shadow-md);
+    --card-shadow-floating: var(--shadow-lg);
+    --card-shadow-dramatic: var(--shadow-xl);
+    --card-background: var(--background-color);
+    --card-background-alt: var(--background-color-alt);
+    --card-border: var(--border-subtle);
+    --card-hover-shadow: var(--shadow-xl);
+    --card-hover-transform: translateY(-2px);
+
+    /* Form Input Styles */
+    --input-background: var(--backgroundgruen-dark);
+    --input-border: var(--border-subtle);
+    --input-border-focus: 2px solid var(--interactive-accent-color);
+    --input-border-error: 2px solid var(--error-red);
+    --input-text-color: var(--font-color);
+    --input-placeholder-color: var(--font-color-disabled);
+    --input-shadow-focus: 0 0 0 3px rgba(0, 85, 56, 0.1);
+    --input-transition: all 0.25s ease-out;
+
+    /* Form Element Dimensions */
+    --form-element-font-size: 12px;
+    --form-element-line-height: 1.5;
+    --form-element-padding-y: var(--spacing-small);
+    --form-element-padding-x: var(--spacing-small);
+    --form-element-min-height: 44px;
 }
 
 
@@ -123,6 +156,9 @@
     --chat-input-background: var(--background-color);
     --chat-input-text-color: var(--font-color);
     --chat-input-border-color: var(--background-color-alt);
+
+    /* Form Input Styles for dark theme */
+    --input-background: var(--background-color-alt);
 }
 
 
@@ -170,12 +206,15 @@
         --chat-input-background: var(--background-color);
         --chat-input-text-color: var(--font-color);
         --chat-input-border-color: var(--background-color-alt);
+
+        /* Form Input Styles for prefers-color-scheme: dark */
+        --input-background: var(--background-color-alt);
     }
 }
 
 body {
     background-color: var(--background-color);
-    color: var(--text-color);
+    color: var(--font-color);
     transition: background-color 0.5s, color 0.5s;
 }
 

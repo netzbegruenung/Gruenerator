@@ -1,16 +1,16 @@
 // src/features/texte/antrag/components/AntragSavePopup.jsx
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
-import { useSupabaseAuth } from '../../../../context/SupabaseAuthContext'; // Import the hook
+import { useOptimizedAuth } from '../../../../hooks/useAuth';
 import SubmitButton from '../../../../components/common/SubmitButton'; // Adjust path if needed
 import TextInput from '../../../../components/common/Form/Input/TextInput'; // CORRECTED PATH
-import SelectInput from '../../../../components/common/Form/Input/SelectInput'; // CORRECTED PATH
+import FormSelect from '../../../../components/common/Form/Input/FormSelect';
 import CheckboxInput from '../../../../components/common/Form/Input/CheckboxInput'; // Adjust path as needed
 import TextAreaInput from '../../../../components/common/Form/Input/TextAreaInput'; // Adjust path as needed
 import { generateAntragDescription } from '../antragDescriptionUtils'; // Import the description generator
 
 const AntragSavePopup = ({ isOpen, onClose, onConfirm, initialData = {}, isSaving, antragstext = '' }) => {
-  const { user } = useSupabaseAuth(); // Get user from context
+  const { user } = useOptimizedAuth(); // Get user from auth hook
   const [antragsteller, setAntragsteller] = useState('');
   const [status, setStatus] = useState('draft'); // Default to a likely valid backend enum value
   const [description, setDescription] = useState('');
@@ -191,18 +191,15 @@ const AntragSavePopup = ({ isOpen, onClose, onConfirm, initialData = {}, isSavin
           </div>
 
           <div className="form-field">
-            <label htmlFor="status">Status: *</label> {/* Mark required field */}
-            <SelectInput
-              id="status"
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
+            <FormSelect
+              name="status"
+              label="Status"
               options={statusOptions}
-              required // HTML5 validation attribute
+              required
+              defaultValue={status}
+              onChange={(e) => setStatus(e.target.value)}
+              helpText="Wähle den aktuellen Bearbeitungsstand des Antrags."
             />
-            {/* Add small text for clarification */}
-            <small style={{display: 'block', marginTop: 'var(--spacing-xxsmall)', color: 'var(--font-color-subtle)'}}>
-              Wähle den aktuellen Bearbeitungsstand des Antrags.
-            </small>
           </div>
 
           <div className="form-field">

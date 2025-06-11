@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import { FiUpload, FiFile, FiX, FiFileText, FiCheck } from 'react-icons/fi';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import ErrorBoundary from '../../ErrorBoundary';
-import { useDynamicTextSize } from '../../utils/commonFunctions';
+// import { useDynamicTextSize } from '../../utils/commonFunctions';
 import { FormContext } from '../../utils/FormContext';
 import AnimatedCheckbox from '../../common/AnimatedCheckbox';
 import Spinner from '../../common/Spinner';
@@ -50,7 +50,7 @@ const Antragsversteher = ({ showHeaderFooter = true }) => {
   const { value: generatedContent, updateValue: setGeneratedContent } = formContext || {};
   const shouldReduceMotion = useReducedMotion();
 
-  const textSize = useDynamicTextSize(generatedContent, 1.2, 0.8, [1000, 2000]);
+  // const textSize = useDynamicTextSize(generatedContent, 1.2, 0.8, [1000, 2000]);
 
   useEffect(() => {
     const hasAcceptedTerms = localStorage.getItem('termsAccepted');
@@ -411,7 +411,7 @@ const Antragsversteher = ({ showHeaderFooter = true }) => {
               
               <div 
                 className="analysis-content antrag-text-content"
-                style={{ fontSize: textSize }}
+                style={{ fontSize: '1.2em' }}
                 dangerouslySetInnerHTML={{ __html: processMarkdown(generatedContent) }}
               />
             </motion.div>

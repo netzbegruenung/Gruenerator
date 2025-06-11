@@ -11,19 +11,11 @@ const CreateCustomGeneratorPage = lazy(() => import('../features/generators/Crea
 const CampaignPage = lazy(() => import('../features/campaigns'));
 const WebinarCampaign = lazy(() => import('../features/campaigns/components/WebinarCampaign'));
 
-// Auth-Komponenten importieren
+// Auth-Komponenten importieren (only components still used after Authentic integration)
 const LoginPage = lazy(() => import('../features/auth/pages/LoginPage'));
-const RegistrationPage = lazy(() => import('../features/auth/pages/RegistrationPage'));
-const RequestPasswordResetPage = lazy(() => import('../features/auth/pages/RequestPasswordResetPage'));
-const ResetPasswordPage = lazy(() => import('../features/auth/pages/ResetPasswordPage'));
-// Zusätzliche Auth-Komponenten importieren
-const EmailVerificationPage = lazy(() => import('../features/auth/pages/EmailVerificationPage'));
-const ConfirmEmailPage = lazy(() => import('../features/auth/pages/ConfirmEmailPage'));
 const ProfilePage = lazy(() => import('../features/auth/pages/ProfilePage'));
-const AccountDeletePage = lazy(() => import('../features/auth/pages/AccountDeletePage'));
-const SetupMFAPage = lazy(() => import('../features/auth/pages/SetupMFAPage'));
-const MFAVerificationPage = lazy(() => import('../features/auth/pages/MFAVerificationPage'));
-const OAuthCallbackPage = lazy(() => import('../features/auth/pages/OAuthCallbackPage'));
+const RegistrationPage = lazy(() => import('../features/auth/pages/RegistrationPage'));
+
 // Gruppen-Komponente importieren
 const JoinGroupPage = lazy(() => import('../features/groups/pages/JoinGroupPage'));
 
@@ -91,19 +83,11 @@ const standardRoutes = [
   { path: '/create-generator', component: GrueneratorenBundle.CreateCustomGenerator, withForm: true },
   { path: '/datenschutz', component: Datenschutz },
   { path: '/impressum', component: Impressum },
-  // Auth-Routen
+  // Auth-Routen (only components still used after Authentic integration)
   { path: '/login', component: LoginPage },
   { path: '/register', component: RegistrationPage },
-  { path: '/request-password-reset', component: RequestPasswordResetPage },
-  { path: '/reset-password', component: ResetPasswordPage },
-  // Zusätzliche Auth-Routen
-  { path: '/email-verification', component: EmailVerificationPage },
-  { path: '/confirm-email', component: ConfirmEmailPage },
   { path: '/profile', component: ProfilePage },
-  { path: '/account-delete', component: AccountDeletePage },
-  { path: '/setup-mfa', component: SetupMFAPage },
-  { path: '/mfa-verification', component: MFAVerificationPage },
-  { path: '/oauth-callback', component: OAuthCallbackPage },
+  // Note: Other auth routes (password reset, email verification, MFA, etc.) are now handled by Authentic
   // Gruppen-Route
   { path: '/join-group/:joinToken', component: JoinGroupPage },
   { path: '/datenbank', component: GrueneratorenBundle.ContentGallery },

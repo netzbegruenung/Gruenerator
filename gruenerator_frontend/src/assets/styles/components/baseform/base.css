@@ -1,85 +1,46 @@
-.base-container {
-    display: flex;
-    width: 100%;
-    max-width: 1200px;
-    margin: 20px auto 20px;
-    gap: 20px;
-    position: relative;
-    align-items: stretch;
-    box-sizing: border-box;
-    transition: all 0.3s ease-in-out;
-}
 
-.white-text {
-    color: var(--weiß) !important;
-}
-
-
-.form-container h3, .display-container h3, .sidebar h2 {
-    margin-top: 0;
-    text-align: left;
-}
-
-.sidebar h2 {
-    color: var(--weiß);
-}
-
-.form-container h3 {
-    color: var(--sand);
-    margin-bottom: -12px;
-}
-
-.display-container h3 {
-    margin-bottom: 8px !important;
-}
-
-
-.form-field label {
-  display: block; 
-  margin-bottom: var(--spacing-xsmall); 
-  color: var(--font-color); 
-  
-}
-
-
+/* Display action section with modern spacing */
 .display-action-section {
-  margin-top: var(--spacing-large); 
-  padding-top: var(--spacing-medium); 
-  border-top: 1px solid var(--border-subtle); 
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start; 
+    margin-top: var(--spacing-large);
+    padding-top: var(--spacing-medium);
+    border-top: var(--border-subtle);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
 }
-
 
 .display-action-section .save-action-element {
-    margin-top: var(--spacing-medium); 
+    margin-top: var(--spacing-medium);
 }
-
 
 .save-action-element .antrag-save-button {
     margin-top: var(--spacing-small);
 }
 
-/* Style for general error messages displayed by BaseForm/DisplaySection */
+/* Modern error message styling */
 .display-content .form-error-message {
-    color: var(--error-red, #D32F2F); /* Fallback to a strong red */
-    background-color: var(--error-background-light, #FFEBEE); /* Light reddish background */
-    border: 1px solid var(--error-red-border, #E57373);
-    border-radius: var(--border-radius-small, 4px);
-    padding: var(--spacing-small, 8px) var(--spacing-medium, 12px);
-    margin-top: var(--spacing-medium, 16px);
-    margin-bottom: var(--spacing-medium, 16px);
-    font-weight: 500; /* Make text slightly bolder */
-    display: flex; /* To align icon and text if an icon is added later via JS/React */
-    align-items: center; /* To align icon and text */
+    color: var(--error-red);
+    background-color: rgba(211, 47, 47, 0.1);
+    border: 1px solid var(--error-red);
+    border-radius: var(--card-border-radius-small);
+    padding: var(--spacing-small) var(--spacing-medium);
+    margin-top: var(--spacing-medium);
+    margin-bottom: var(--spacing-medium);
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    transition: var(--input-transition);
 }
 
-/* Optional: If you want to add a specific icon via CSS (less flexible than React icon) */
-/*
-.form-error-message::before {
-    content: '⚠️'; 
-    margin-right: 8px;
-    font-size: 1.2em;
+/* Dark mode adjustments for error messages */
+[data-theme="dark"] .display-content .form-error-message {
+    background-color: rgba(211, 47, 47, 0.15);
+    border-color: rgba(211, 47, 47, 0.6);
 }
-*/
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .display-content .form-error-message {
+        background-color: rgba(211, 47, 47, 0.15);
+        border-color: rgba(211, 47, 47, 0.6);
+    }
+}

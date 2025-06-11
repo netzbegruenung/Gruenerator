@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useContext } from 'react';
 import PropTypes from 'prop-types';
-import { useDynamicTextSize } from '../../utils/commonFunctions';
+// import { useDynamicTextSize } from '../../utils/commonFunctions';
 import useApiSubmit from '../../hooks/useApiSubmit';
 import BaseForm from '../../common/BaseForm';
 import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../utils/constants';
@@ -12,7 +12,7 @@ const Antragsgenerator = ({ showHeaderFooter = true }) => {
   const [gliederung, setGliederung] = useState('');
   const [antrag, setAntrag] = useState('');
   const [useBackupProvider, setUseBackupProvider] = useState(false);
-  const textSize = useDynamicTextSize(antrag, 1.2, 0.8, [1000, 2000]);
+  // const textSize = useDynamicTextSize(antrag, 1.2, 0.8, [1000, 2000]);
   const { submitForm, loading, success, resetSuccess, error } = useApiSubmit('/claude');
   const { setGeneratedContent } = useContext(FormContext);
 
@@ -44,7 +44,7 @@ const Antragsgenerator = ({ showHeaderFooter = true }) => {
         success={success}
         error={error}
         generatedContent={antrag}
-        textSize={textSize}
+
         onGeneratedContentChange={handleGeneratedContentChange}
         useBackupProvider={useBackupProvider}
         setUseBackupProvider={setUseBackupProvider}

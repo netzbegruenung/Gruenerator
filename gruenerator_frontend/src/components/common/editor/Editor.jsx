@@ -92,14 +92,14 @@ const Editor = React.memo(({ setEditorInstance = () => {} }) => {
       console.log('[Editor] Updating Quill content from localValue change using dangerouslyPasteHTML');
       isProgrammaticChange.current = true;
       try {
-        console.log('[Editor] Pasting HTML. Content type:', typeof localValue, 'Content starts with:', localValue?.substring(0, 50));
-        console.log('[Editor] HTML content to be pasted (dangerouslyPasteHTML):', localValue);
+        console.log('[Editor] Pasting HTML. Content type:', typeof localValue, 'Content length:', localValue?.length || 0);
+        console.log('[Editor] HTML content to be pasted (dangerouslyPasteHTML):', localValue || '');
         quill.setContents([], 'api'); // Clear existing content
         quill.clipboard.dangerouslyPasteHTML(0, localValue || '', 'api');
         console.log('[Editor] HTML content pasted successfully');
       } catch (error) {
         console.error('[Editor] Error pasting HTML content:', error);
-        console.log('[Editor] Falling back to setText on error. Failed content type:', typeof localValue, 'Content starts with:', localValue?.substring(0, 50));
+        console.log('[Editor] Falling back to setText on error. Failed content type:', typeof localValue, 'Content length:', localValue?.length || 0);
         // Fallback to plain text if pasting HTML fails
         quill.setText(localValue || '', 'api'); 
       } finally {
@@ -220,8 +220,8 @@ const Editor = React.memo(({ setEditorInstance = () => {} }) => {
         console.log(`[Editor] Initial localValue length: ${localValue?.length ?? 'undefined'}`);
         if (localValue) {
           console.log('[Editor] Setting initial content during Quill initialization using dangerouslyPasteHTML.');
-          console.log('[Editor] Initial content starts with:', localValue.substring(0, 50));
-          console.log('[Editor] Initial HTML content to be pasted:', localValue);
+          console.log('[Editor] Initial content length:', localValue?.length || 0);
+          console.log('[Editor] Initial HTML content to be pasted:', localValue || '');
           try {
             // Clear potential placeholder before pasting
             quillInstance.setContents([], 'api'); 

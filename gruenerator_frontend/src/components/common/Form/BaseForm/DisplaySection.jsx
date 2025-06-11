@@ -7,15 +7,19 @@ import { HiCog, HiOutlineUsers } from "react-icons/hi";
 import { BUTTON_LABELS, ARIA_LABELS } from '../constants';
 import ContentRenderer from './ContentRenderer';
 import ErrorDisplay from './ErrorDisplay';
+import HelpDisplay from '../../HelpDisplay';
 import apiClient from '../../../utils/apiClient';
+import { useLazyAuth } from '../../../../hooks/useAuth';
+import useGeneratedTextStore from '../../../../stores/generatedTextStore';
+import { useCollabPreload } from '../../../hooks/useCollabPreload';
 
 /**
  * Komponente für den Anzeigebereich des Formulars
  * @param {Object} props - Komponenten-Props
  * @param {string} props.title - Titel des Formulars
  * @param {string} props.error - Fehlertext
- * @param {string} props.value - Aktueller Wert
- * @param {any} props.generatedContent - Generierter Inhalt
+ * @param {string} props.value - Aktueller Wert (aus BaseForm, potenziell für Editor)
+ * @param {any} props.generatedContent - Generierter Inhalt (aus BaseForm)
  * @param {boolean} props.isEditing - Bearbeitungsmodus aktiv
  * @param {boolean} props.allowEditing - Bearbeitung erlaubt
  * @param {boolean} props.hideEditButton - Edit-Button ausblenden
@@ -24,10 +28,10 @@ import apiClient from '../../../utils/apiClient';
  * @param {string} props.generatedPost - Generierter Post
  * @param {Function} props.onGeneratePost - Funktion zum Generieren eines Posts
  * @param {Function} props.handleToggleEditMode - Funktion zum Umschalten des Bearbeitungsmodus
- * @param {Function} props.getExportableContent - Funktion zum Abrufen des exportierbaren Inhalts
- * @param {Function} props.onToggleFocusMode - Funktion zum Umschalten des Fokus-Modus
- * @param {boolean} props.isFocusMode - Gibt an, ob der Fokus-Modus aktiv ist
+ * @param {Function} props.getExportableContent - Funktion zum Abrufen des exportierbaren Inhalts (wird hier ggf. modifiziert)
  * @param {React.ReactNode} [props.displayActions=null] - Zusätzliche Aktionen, die unter dem Inhalt angezeigt werden sollen
+ * @param {Function} props.onSave - Funktion zum Speichern des Inhalts
+ * @param {boolean} props.saveLoading - Gibt an, ob der Speichervorgang läuft
  * @returns {JSX.Element} Display-Sektion
  */
 const DisplaySection = forwardRef(({
@@ -44,12 +48,20 @@ const DisplaySection = forwardRef(({
   onGeneratePost,
   handleToggleEditMode,
   getExportableContent,
-  onToggleFocusMode,
-  isFocusMode,
-  displayActions = null
+  displayActions = null,
+  onSave,
+  saveLoading = false
 }, ref) => {
+  const { betaFeatures } = useLazyAuth();
+  const storeGeneratedText = useGeneratedTextStore(state => state.generatedText);
+  const streamingContent = useGeneratedTextStore(state => state.streamingContent);
+  const isStreaming = useGeneratedTextStore(state => state.isStreaming);
+  const isLoading = useGeneratedTextStore(state => state.isLoading);
   const [generatePostLoading, setGeneratePostLoading] = React.useState(false);
   const [collabLoading, setCollabLoading] = React.useState(false);
+
+  // Check if user has access to collab feature
+  const hasCollabAccess = betaFeatures?.collab === true;
 
   const handleGeneratePost = React.useCallback(async () => {
     if (!onGeneratePost) return;
@@ -63,24 +75,54 @@ const DisplaySection = forwardRef(({
     }
   }, [onGeneratePost]);
 
-  const exportableContent = React.useMemo(() => {
-    return getExportableContent(generatedContent, value);
-  }, [getExportableContent, generatedContent, value]);
+  // Determine the content to display and use for actions
+  // Priority: store content -> editing value -> props fallback
+  let activeContent;
+  if (storeGeneratedText) {
+    activeContent = storeGeneratedText;
+  } else if (isEditing && value) {
+    activeContent = value;
+  } else {
+    activeContent = generatedContent || value || '';
+  }
+
+  // Preload collab document
+  const preloadedDocId = useCollabPreload(activeContent, hasCollabAccess, true);
+
+  const currentExportableContent = React.useMemo(() => {
+    return activeContent;
+  }, [activeContent]);
+
+  // Debug logging
+  React.useEffect(() => {
+    console.log('[DisplaySection] Content update:', {
+      storeGeneratedTextLength: storeGeneratedText?.length,
+      activeContentLength: activeContent?.length,
+    });
+  }, [storeGeneratedText, activeContent]);
 
   const handleOpenCollabEditor = async () => {
-    if (!exportableContent) {
+    if (!currentExportableContent) {
       console.warn("Kein Inhalt zum kollaborativen Bearbeiten vorhanden.");
       return;
     }
+    // If a document was preloaded, use its ID.
+    if (preloadedDocId) {
+      console.log(`[DisplaySection] Opening preloaded collaborative document: ${preloadedDocId}`);
+      window.open(`/editor/collab/${preloadedDocId}`, '_blank');
+      return; // Early exit
+    }
+
+    // Fallback if preloading hasn't happened or failed
     setCollabLoading(true);
     const documentId = uuidv4();
-    console.log("[DisplaySection] Generated Document ID:", documentId);
-    console.log("[DisplaySection] Content to send:", exportableContent.substring(0,100) + "...");
+    console.log("[DisplaySection] No preloaded doc found. Generated Document ID:", documentId);
+    console.log("[DisplaySection] Content to send:", currentExportableContent.substring(0,100) + "...");
 
     try {
       const response = await apiClient.post('/collab-editor/init-doc', { 
         documentId: documentId, 
-        content: exportableContent 
+        content: currentExportableContent 
       });
 
       console.log("[DisplaySection] Kollaboratives Dokument erfolgreich initialisiert über apiClient.");
@@ -95,23 +137,40 @@ const DisplaySection = forwardRef(({
   return (
     <div className="display-container" id="display-section-container" ref={ref}>
       <div className="display-header">
-        <h3>{title}</h3>
           <ActionButtons 
-          content={value}
+            content={activeContent}
             onEdit={handleToggleEditMode}
             isEditing={isEditing}
             allowEditing={allowEditing}
             hideEditButton={hideEditButton}
             showExport={true}
-          onToggleFocusMode={onToggleFocusMode}
-          isFocusMode={isFocusMode}
+            showCollab={hasCollabAccess}
+            showRegenerate={true}
+            showSave={!!onSave}
+            onCollab={handleOpenCollabEditor}
+            onRegenerate={onGeneratePost}
+            onSave={onSave}
+            collabLoading={collabLoading}
+            regenerateLoading={generatePostLoading || isStreaming}
+            saveLoading={saveLoading}
+            exportableContent={currentExportableContent}
+            generatedPost={generatedPost}
+            generatedContent={activeContent}
           />
       </div>
+      {helpContent && (
+        <div className="help-section">
+          <HelpDisplay 
+            content={helpContent.content}
+            tips={helpContent.tips}
+          />
+        </div>
+      )}
       <div className="display-content" style={{ fontSize: '16px' }}>
         <ErrorDisplay error={error} />
         <ContentRenderer
-          value={value}
-          generatedContent={generatedContent}
+          value={isEditing ? value : activeContent}
+          generatedContent={activeContent}
           isEditing={isEditing}
           usePlatformContainers={usePlatformContainers}
           helpContent={helpContent}
@@ -121,34 +180,6 @@ const DisplaySection = forwardRef(({
       {displayActions && (
         <div className="display-action-section">
           {displayActions}
-        </div>
-      )}
-      {generatedPost && (
-        <div className="generated-post-container">
-          <p>{generatedPost}</p>
-          <div className="button-container">
-            <SubmitButton
-              onClick={handleGeneratePost}
-              loading={generatePostLoading}
-              text={BUTTON_LABELS.REGENERATE_TEXT}
-              icon={<HiCog />}
-              className="generate-post-button"
-              ariaLabel={ARIA_LABELS.REGENERATE_TEXT}
-            />
-          </div>
-        </div>
-      )}
-      {/* Button für kollaborativen Editor */} 
-      {allowEditing && exportableContent && !isEditing && (
-        <div className="button-container" style={{ marginTop: '10px' }}>
-           <SubmitButton
-            onClick={handleOpenCollabEditor}
-            loading={collabLoading}
-            text="Kollaborativ bearbeiten"
-            icon={<HiOutlineUsers />}
-            className="collab-edit-button form-button"
-            ariaLabel="Kollaborativ bearbeiten"
-          />
         </div>
       )}
     </div>
@@ -177,9 +208,9 @@ DisplaySection.propTypes = {
   onGeneratePost: PropTypes.func,
   handleToggleEditMode: PropTypes.func.isRequired,
   getExportableContent: PropTypes.func.isRequired,
-  onToggleFocusMode: PropTypes.func.isRequired,
-  isFocusMode: PropTypes.bool,
-  displayActions: PropTypes.node
+  displayActions: PropTypes.node,
+  onSave: PropTypes.func,
+  saveLoading: PropTypes.bool
 };
 
 DisplaySection.defaultProps = {
@@ -191,4 +222,4 @@ DisplaySection.defaultProps = {
 
 DisplaySection.displayName = 'DisplaySection';
 
-export default DisplaySection; 
+export default React.memo(DisplaySection); 

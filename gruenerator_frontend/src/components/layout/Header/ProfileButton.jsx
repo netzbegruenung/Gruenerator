@@ -1,58 +1,57 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FaUserCircle, FaUser, FaSignOutAlt, FaCog } from 'react-icons/fa';
-import { useSupabaseAuth } from '../../../context/SupabaseAuthContext';
+import { useLazyAuth } from '../../../hooks/useAuth';
+import { getAvatarDisplayProps, useProfileData } from '../../../features/auth/utils/profileUtils';
+import { templatesSupabase } from '../../../components/utils/templatesSupabaseClient';
 
 const ProfileButton = () => {
-  const { user, loading, logout } = useSupabaseAuth();
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [displayName, setDisplayName] = useState('');
-  const [firstName, setFirstName] = useState('');
+  const { user, loading, logout } = useLazyAuth();
+  // Profildaten aus Query holen
+  const { data: profile, isLoading: isProfileLoading } = useProfileData(user?.id, templatesSupabase);
+
+  // Avatar und Name mit intelligent fallbacks für instant rendering
+  const displayName = profile?.display_name || '';
+  const firstName = profile?.first_name || '';
+  // Use default avatar (robot #1) while loading for immediate visual feedback
+  const avatarRobotId = profile?.avatar_robot_id ?? 1;
+
   const dropdownRef = useRef(null);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   useEffect(() => {
-    // Nur den Namen abrufen, wenn der Benutzer eingeloggt ist
-    const fetchUserProfile = async () => {
-      if (user) {
-        try {
-          const { templatesSupabase } = await import('../../../components/utils/templatesSupabaseClient');
-          const { data, error } = await templatesSupabase
-            .from('profiles')
-            .select('display_name, first_name')
-            .eq('id', user.id)
-            .single();
-          
-          if (error) throw error;
-          
-          if (data) {
-            setDisplayName(data.display_name || '');
-            setFirstName(data.first_name || '');
-          }
-        } catch (err) {
-          console.error('Fehler beim Laden des Profils:', err.message);
-        }
-      }
+    // Listen for avatar updates from other components
+    const handleAvatarUpdate = (event) => {
+      // This component doesn't manage avatar updates, so no action needed
     };
-
-    fetchUserProfile();
-  }, [user]);
+    
+    window.addEventListener('avatarUpdated', handleAvatarUpdate);
+    
+    return () => {
+      window.removeEventListener('avatarUpdated', handleAvatarUpdate);
+    };
+  }, []);
 
   // Dropdown schließen wenn außerhalb geklickt wird
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setDropdownOpen(false);
+        setIsDropdownOpen(false);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
+    if (isDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    } else {
+      document.removeEventListener('mousedown', handleClickOutside);
+    }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, []);
+  }, [isDropdownOpen]);
 
   const toggleDropdown = () => {
-    setDropdownOpen(!dropdownOpen);
+    setIsDropdownOpen((prev) => !prev);
   };
 
   // Initialen für Avatar erstellen
@@ -79,20 +78,36 @@ const ProfileButton = () => {
     }
   };
 
-  if (loading) {
+  // Avatar-Eigenschaften für Header und Dropdown bestimmen
+  const avatarProps = getAvatarDisplayProps({
+    avatar_robot_id: avatarRobotId,
+    first_name: firstName,
+    last_name: '', // Wird im Header nicht verwendet
+    email: user?.email
+  });
+
+  // Show login button for non-authenticated users only
+  if (!loading && !user) {
     return (
-      <div className="profile-button-container">
-        <div className="profile-button-loading"></div>
-      </div>
+      <Link to="/login" className="login-button" aria-label="Anmelden">
+        <FaUserCircle className="profile-icon" />
+      </Link>
     );
   }
 
-  if (!user) {
+  // Show cached/default avatar immediately for authenticated users
+  // Profile data will update the avatar when available
+  if (!user && loading) {
     return (
-      <Link to="/login" className="login-button">
-        <FaUserCircle className="profile-icon" />
-        <span>Login</span>
-      </Link>
+      <div className="profile-button-container">
+        <button 
+          className="profile-button header-nav-item profile-label-button" 
+          disabled
+          aria-label="Profil wird geladen"
+        >
+          <FaUserCircle className="profile-icon" />
+        </button>
+      </div>
     );
   }
 
@@ -101,32 +116,61 @@ const ProfileButton = () => {
       <button 
         className="profile-button header-nav-item profile-label-button" 
         onClick={toggleDropdown}
-        aria-expanded={dropdownOpen}
+        aria-expanded={isDropdownOpen}
         aria-label="Profil-Menü öffnen"
       >
-        <FaUserCircle className="profile-icon" />
+        {avatarProps.type === 'robot' ? (
+          <div className="profile-header-avatar-robot">
+            <img 
+              src={avatarProps.src} 
+              alt={avatarProps.alt}
+              className="profile-header-robot-image"
+              style={{ 
+                opacity: isProfileLoading ? 0.8 : 1,
+                transition: 'opacity 0.2s ease-in-out'
+              }}
+            />
+          </div>
+        ) : (
+          <FaUserCircle 
+            className="profile-icon" 
+            style={{ 
+              opacity: isProfileLoading ? 0.8 : 1,
+              transition: 'opacity 0.2s ease-in-out'
+            }}
+          />
+        )}
       </button>
-      
-      {dropdownOpen && (
+      {isDropdownOpen && (
         <div className="profile-dropdown">
           <div className="profile-dropdown-header">
-            <div className="profile-avatar-wrapper">
-              <div className="profile-dropdown-avatar">
-                {getInitials()}
+            <div className="profile-dropdown-avatar">
+              {avatarProps.type === 'robot' ? (
+                <div className="profile-dropdown-avatar-robot">
+                  <img 
+                    src={avatarProps.src} 
+                    alt={avatarProps.alt}
+                    className="profile-dropdown-robot-image"
+                  />
+                </div>
+              ) : (
+                <FaUserCircle className="profile-dropdown-avatar-icon" />
+              )}
+            </div>
+            <div className="profile-dropdown-info">
+              <div className="profile-dropdown-greeting">
+                {firstName ? getPossessiveForm(firstName) : "Dein"} Grünerator
               </div>
-            </div>
-            <div className="profile-dropdown-greeting">
-              {firstName ? getPossessiveForm(firstName) : "Dein"} Grünerator
-            </div>
-            <div className="profile-dropdown-email">
-              {user.email}
+              <div className="profile-dropdown-email">
+                {user?.email || ''}
+              </div>
             </div>
           </div>
           <div className="profile-dropdown-links">
             <Link 
               to="/profile"
               className="profile-dropdown-link"
-              onClick={() => setDropdownOpen(false)}
+              onClick={() => {}}
             >
               <FaUser className="profile-dropdown-icon" />
               <span>Mein Profil</span>
@@ -135,7 +179,6 @@ const ProfileButton = () => {
               className="profile-dropdown-link logout-link"
               onClick={() => {
                 logout();
-                setDropdownOpen(false);
               }}
             >
               <FaSignOutAlt className="profile-dropdown-icon" />

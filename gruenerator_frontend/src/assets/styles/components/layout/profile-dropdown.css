@@ -18,31 +18,28 @@
   justify-content: center;
 }
 
-
-.profile-label-button {
-  border: 1px solid var(--border-subtle);
-  border-radius: 50%;
-  width: 40px;
-  height: 40px;
-  padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease-in-out;
-  background-color: var(--background-color);
-}
-
-.profile-label-button:hover {
-  border-color: var(--klee);
-  transform: scale(1.05);
-  background-color: var(--background-color-alt);
-}
-
 .profile-icon {
-  font-size: 1.4rem;
+  font-size: 1.8rem;
   color: var(--font-color-h);
 }
 
+/* Roboter-Avatar im Header */
+.profile-header-avatar-robot {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.profile-header-robot-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
 
 .profile-button-loading {
   width: 40px;
@@ -118,30 +115,41 @@
 .profile-dropdown-header {
   padding: var(--spacing-medium);
   border-bottom: 1px solid var(--border-subtle);
-  text-align: center;
   background-color: var(--background-color-alt);
-}
-
-.profile-avatar-wrapper {
   display: flex;
-  justify-content: center;
-  margin-bottom: var(--spacing-small);
+  align-items: center;
+  gap: var(--spacing-medium);
 }
 
 .profile-dropdown-avatar {
-  width: 60px;
-  height: 60px;
+  flex-shrink: 0;
+}
+
+.profile-dropdown-avatar-robot {
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
-  background-color: var(--klee);
-  color: white;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.8rem;
-  font-weight: bold;
-  box-shadow: var(--shadow-sm);
-  margin-bottom: var(--spacing-xsmall);
-  border: 2px solid var(--sand);
+}
+
+.profile-dropdown-robot-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.profile-dropdown-avatar-icon {
+  font-size: 3rem;
+  color: var(--font-color-h);
+}
+
+.profile-dropdown-info {
+  flex: 1;
+  text-align: left;
 }
 
 .profile-dropdown-greeting {
@@ -161,7 +169,7 @@
 
 
 .profile-dropdown-links {
-  padding: var(--spacing-small) 0;
+  padding: 0;
 }
 
 .profile-dropdown-link {

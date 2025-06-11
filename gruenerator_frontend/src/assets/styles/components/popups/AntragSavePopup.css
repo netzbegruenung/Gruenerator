@@ -46,6 +46,8 @@
 
 .antrag-save-popup-content .form-field .form-input,
 .antrag-save-popup-content .form-field .form-select,
+/* AntragSavePopup textarea styles - DISABLED to prevent conflicts with main form-inputs.css */
+/*
 .antrag-save-popup-content .form-field .form-textarea {
   font-family: 'PT Sans', Arial, sans-serif;
   width: 100%;
@@ -60,6 +62,7 @@
   transition: border-color 0.3s ease, box-shadow 0.3s ease;
   resize: vertical;
 }
+*/
 
 
 .antrag-save-popup-content .form-field .form-checkbox {
@@ -85,12 +88,14 @@
 }
 
 
+/* AntragSavePopup input focus styles - DISABLED to prevent conflicts with main form-inputs.css */
+/*
 .antrag-save-popup-content .form-field .form-input:focus,
 .antrag-save-popup-content .form-field .form-select:focus,
 .antrag-save-popup-content .form-field .form-textarea:focus {
   border-color: var(--klee);
-
 }
+*/
 
 .antrag-save-popup-content .modal-actions {
   margin-top: var(--spacing-large);

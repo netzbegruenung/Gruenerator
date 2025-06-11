@@ -15,9 +15,8 @@ router.post('/', async (req, res) => {
     });
   }
 
-  try {
-    // Systemanweisung für die Texterstellung
-    const systemPrompt = `Du bist ein erfahrener politischer Texter für Bündnis 90/Die Grünen mit Expertise in verschiedenen Textformen.
+  // Systemanweisung für die Texterstellung
+  const systemPrompt = `Du bist ein erfahrener politischer Texter für Bündnis 90/Die Grünen mit Expertise in verschiedenen Textformen.
 Deine Hauptaufgabe ist es, politische Texte zu erstellen, die die grünen Werte und Ziele optimal kommunizieren.
 Achte besonders auf:
 - Klare politische Positionierung im Sinne der Grünen
@@ -26,12 +25,12 @@ Achte besonders auf:
 - Lokale und regionale Bezüge, wo sinnvoll
 - Handlungsaufforderungen und Lösungsvorschläge`;
 
-    // Erstelle den Benutzerinhalt basierend auf dem Vorhandensein eines benutzerdefinierten Prompts
-    let userContent;
-    
-    if (customPrompt) {
-      // Bei benutzerdefiniertem Prompt diesen verwenden, aber mit Standardinformationen ergänzen
-      userContent = `Benutzerdefinierter Prompt: ${customPrompt}
+  // Erstelle den Benutzerinhalt basierend auf dem Vorhandensein eines benutzerdefinierten Prompts
+  let userContent;
+  
+  if (customPrompt) {
+    // Bei benutzerdefiniertem Prompt diesen verwenden, aber mit Standardinformationen ergänzen
+    userContent = `Benutzerdefinierter Prompt: ${customPrompt}
 
 Aktuelles Datum: ${currentDate}
 
@@ -42,9 +41,9 @@ ${thema ? `- Thema: ${thema}` : ''}
 ${details ? `- Details: ${details}` : ''}
 
 ${HTML_FORMATTING_INSTRUCTIONS}`;
-    } else {
-      // Standardinhalt ohne benutzerdefinierten Prompt
-      userContent = `Erstelle einen Text mit folgenden Anforderungen:
+  } else {
+    // Standardinhalt ohne benutzerdefinierten Prompt
+    userContent = `Erstelle einen Text mit folgenden Anforderungen:
 
 <textform>
 ${textForm}
@@ -67,22 +66,27 @@ Aktuelles Datum: ${currentDate}
 Passe Struktur, Länge und Aufbau an die gewählte Textform an. Der Text soll im angegebenen Stil verfasst sein und dabei authentisch und überzeugend wirken.
 
 ${HTML_FORMATTING_INSTRUCTIONS}`;
-    }
+  }
 
+  const payload = {
+    systemPrompt,
+    messages: [
+      {
+        role: "user",
+        content: userContent
+      }
+    ],
+    options: {
+      max_tokens: 4000,
+      temperature: 0.9
+    },
+    useBackupProvider
+  };
+  
+  try {
     const result = await req.app.locals.aiWorkerPool.processRequest({
       type: 'universal_generator',
-      systemPrompt,
-      messages: [
-        {
-          role: "user",
-          content: userContent
-        }
-      ],
-      options: {
-        max_tokens: 4000,
-        temperature: 0.9
-      },
-      useBackupProvider
+      ...payload
     });
 
     if (!result.success) {

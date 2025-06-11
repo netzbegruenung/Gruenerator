@@ -1,11 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import Spinner from '../../../../components/common/Spinner';
-import ProfileTabSkeleton from '../../../../components/common/UI/ProfileTabSkeleton';
 import { motion, AnimatePresence } from "motion/react";
 import StyledCheckbox from '../../../../components/common/AnimatedCheckbox';
 import { HiOutlineExternalLink } from 'react-icons/hi';
-import { templatesSupabase } from '../../../../components/utils/templatesSupabaseClient';
 
 const LaborTab = ({
   user,
@@ -26,96 +23,31 @@ const LaborTab = ({
   setAnweisungenBeta,
   youBeta,
   setYouBeta,
+  collabBeta,
+  setCollabBeta,
+  isAdmin = false,
+  adminOnlyFeatures = [],
+  availableFeatures = []
 }) => {
-  const [currentView, setCurrentView] = useState('deutschlandmodus');
-  const [loading, setLoading] = useState(false);
-  const [availableFeatures, setAvailableFeatures] = useState([]);
-  const [checkingFeatures, setCheckingFeatures] = useState(true);
-
   const BETA_VIEWS = {
     DEUTSCHLANDMODUS: 'deutschlandmodus',
     GROUPS: 'groups',
     DATABASE: 'database',
-    GENERATORS: 'generators',
+    GENERATORS: 'customGenerators',
     SHAREPIC: 'sharepic',
     ANWEISUNGEN: 'anweisungen',
     YOU: 'you',
+    COLLAB: 'collab',
   };
 
-  const ALL_FEATURES = [
-    { key: BETA_VIEWS.DEUTSCHLANDMODUS, label: 'Deutschlandmodus' },
-    { key: BETA_VIEWS.SHAREPIC, label: 'Sharepic' },
-    { key: BETA_VIEWS.GROUPS, label: 'Gruppen' },
-    { key: BETA_VIEWS.DATABASE, label: 'Datenbank' },
-    { key: BETA_VIEWS.GENERATORS, label: 'Grüneratoren' },
-    { key: BETA_VIEWS.ANWEISUNGEN, label: 'Anweisungen & Wissen' },
-    { key: BETA_VIEWS.YOU, label: 'You Generator' },
-  ];
+  const [currentView, setCurrentView] = useState('deutschlandmodus');
 
-  // Check which features are available for current user
+  // Set default view to first available feature if current is not available
   useEffect(() => {
-    const checkAvailableFeatures = async () => {
-      try {
-        const accessPromises = ALL_FEATURES.map(async (feature) => {
-          const { data, error } = await templatesSupabase
-            .rpc('can_access_beta_feature', { feature_name: feature.key });
-          
-          if (error) throw error;
-          return { ...feature, hasAccess: data };
-        });
-
-        const results = await Promise.all(accessPromises);
-        const accessible = results.filter(f => f.hasAccess);
-        setAvailableFeatures(accessible);
-
-        // Set default view to first available feature
-        if (accessible.length > 0 && !accessible.find(f => f.key === currentView)) {
-          setCurrentView(accessible[0].key);
-        }
-      } catch (error) {
-        console.error('Error checking feature access:', error);
-        // Fallback to basic features if check fails
-        setAvailableFeatures([
-          { key: BETA_VIEWS.DEUTSCHLANDMODUS, label: 'Deutschlandmodus' },
-          { key: BETA_VIEWS.SHAREPIC, label: 'Sharepic' }
-        ]);
-      } finally {
-        setCheckingFeatures(false);
-      }
-    };
-
-    if (isActive) {
-      checkAvailableFeatures();
+    if (availableFeatures.length > 0 && !availableFeatures.find(f => f.key === currentView)) {
+      setCurrentView(availableFeatures[0].key);
     }
-  }, [isActive, currentView]);
-
-  // Auto-deactivate features that are no longer available
-  useEffect(() => {
-    if (!checkingFeatures && availableFeatures.length > 0) {
-      const availableFeatureKeys = availableFeatures.map(f => f.key);
-      const featureMappings = [
-        { key: BETA_VIEWS.DEUTSCHLANDMODUS, isActive: deutschlandmodusBeta, setter: setDeutschlandmodusBeta, name: 'Deutschlandmodus' },
-        { key: BETA_VIEWS.GROUPS, isActive: groupsBeta, setter: setGroupsBeta, name: 'Gruppen' },
-        { key: BETA_VIEWS.DATABASE, isActive: databaseBeta, setter: setDatabaseBeta, name: 'Datenbank' },
-        { key: BETA_VIEWS.GENERATORS, isActive: customGeneratorsBeta, setter: setCustomGeneratorsBeta, name: 'Grüneratoren' },
-        { key: BETA_VIEWS.SHAREPIC, isActive: sharepicBeta, setter: setSharepicBeta, name: 'Sharepic' },
-        { key: BETA_VIEWS.ANWEISUNGEN, isActive: anweisungenBeta, setter: setAnweisungenBeta, name: 'Anweisungen & Wissen' },
-        { key: BETA_VIEWS.YOU, isActive: youBeta, setter: setYouBeta, name: 'You Generator' },
-      ];
-
-      const deactivatedFeatures = [];
-      featureMappings.forEach(({ key, isActive, setter, name }) => {
-        if (isActive && !availableFeatureKeys.includes(key)) {
-          setter(false);
-          deactivatedFeatures.push(name);
-        }
-      });
-
-      if (deactivatedFeatures.length > 0) {
-        onSuccessMessage(`Nicht verfügbare Features automatisch deaktiviert: ${deactivatedFeatures.join(', ')}`);
-      }
-    }
-  }, [availableFeatures, checkingFeatures, deutschlandmodusBeta, groupsBeta, databaseBeta, customGeneratorsBeta, sharepicBeta, anweisungenBeta, youBeta]);
+  }, [availableFeatures, currentView]);
 
   const handleViewChange = (view) => {
     setCurrentView(view);
@@ -137,20 +69,13 @@ const LaborTab = ({
           onClick={() => handleViewChange(feature.key)}
         >
           {feature.label}
+          {feature.isAdminOnly && <span className="admin-badge"> (Admin)</span>}
         </button>
       ))}
     </div>
   );
 
   const renderContentPanel = () => {
-    if (loading || checkingFeatures) {
-      return (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
-          <ProfileTabSkeleton type="form" itemCount={1} />
-        </motion.div>
-      );
-    }
-
     let content = null;
     switch (currentView) {
       case BETA_VIEWS.DEUTSCHLANDMODUS:
@@ -265,6 +190,19 @@ const LaborTab = ({
           </>
         );
         break;
+      case BETA_VIEWS.COLLAB:
+        content = (
+          <div className="labor-tab-checkbox-container">
+            <StyledCheckbox
+              id="collab-beta"
+              label="Kollaborative Bearbeitung aktivieren"
+              checked={collabBeta}
+              onChange={() => handleBetaToggle(setCollabBeta, collabBeta, 'Kollaborative Bearbeitung')}
+              aria-label="Kollaborative Bearbeitung Beta-Test aktivieren"
+            />
+          </div>
+        );
+        break;
       default:
         content = <p>Bitte wähle einen Beta-Test aus.</p>;
     }
@@ -280,11 +218,16 @@ const LaborTab = ({
       >
         <div className="form-group">
           <div className="form-group-title labor-tab-title">{currentView.replace('_',' ')} Einstellungen</div>
-          <p className="help-text labor-tab-help-text">
+          <p className="labor-tab-help-text">
             Aktiviere oder deaktiviere hier einzelne Beta-Funktionen. Änderungen werden sofort wirksam.
           </p>
           {content}
         </div>
+        {!isAdmin && availableFeatures.some(f => f.isAdminOnly) && (
+          <div className="labor-tab-admin-notice">
+            <p><strong>Hinweis:</strong> Einige Beta-Features sind nur für Administratoren verfügbar.</p>
+          </div>
+        )}
       </motion.div>
     );
   };
@@ -294,7 +237,12 @@ const LaborTab = ({
   }
 
   return (
-    <div className="profile-content groups-management-layout"> 
+    <motion.div 
+      className="profile-content groups-management-layout"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.3 }}
+    > 
       <div className="groups-navigation-panel">
         {renderNavigationPanel()}
       </div>
@@ -303,7 +251,7 @@ const LaborTab = ({
           {renderContentPanel()}
         </AnimatePresence>
       </div>
-    </div>
+    </motion.div>
   );
 };
 

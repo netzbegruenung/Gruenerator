@@ -1,6 +1,6 @@
-import React, { useState, useCallback, useContext, useRef } from 'react';
+import React, { useState, useCallback, useContext, useRef, useEffect } from 'react';
 import PropTypes from 'prop-types';
-import { useDynamicTextSize } from '../../../components/utils/commonFunctions';
+// import { useDynamicTextSize } from '../../../components/utils/commonFunctions';
 import useApiSubmit from '../../../components/hooks/useApiSubmit';
 import BaseForm from '../../../components/common/BaseForm';
 import { FormContext } from '../../../components/utils/FormContext';
@@ -9,6 +9,7 @@ import TextTypeSelector, { TEXT_TYPES, TEXT_TYPE_TITLES } from './components/Tex
 import RedeForm from './RedeForm';
 import WahlprogrammForm from './WahlprogrammForm';
 import UniversalForm from './UniversalForm';
+import useGeneratedTextStore from '../../../stores/generatedTextStore';
 
 const API_ENDPOINTS = {
   [TEXT_TYPES.REDE]: '/claude_rede',
@@ -20,10 +21,15 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
   const [selectedType, setSelectedType] = useState(TEXT_TYPES.UNIVERSAL);
   const [generatedContent, setGeneratedContent] = useState('');
   const formRef = useRef();
+  const { setGeneratedText: setStoreGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
   
-  const textSize = useDynamicTextSize(generatedContent, 1.2, 0.8, [1000, 2000]);
+  // const textSize = useDynamicTextSize(generatedContent, 1.2, 0.8, [1000, 2000]);
   const { submitForm, loading, success, resetSuccess, error } = useApiSubmit(API_ENDPOINTS[selectedType]);
-  const { setGeneratedContent: setContextGeneratedContent } = useContext(FormContext);
+  const { /* setGeneratedContent: setContextGeneratedContent */ } = useContext(FormContext);
+
+  useEffect(() => {
+    setStoreIsLoading(loading);
+  }, [loading, setStoreIsLoading]);
 
   const handleSubmit = useCallback(async () => {
     if (!formRef.current?.getFormData) return;
@@ -35,18 +41,29 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
       const content = await submitForm(formData);
       if (content) {
         setGeneratedContent(content);
-        setContextGeneratedContent(content);
+        setStoreGeneratedText(content);
         setTimeout(resetSuccess, 3000);
       }
     } catch (error) {
       console.error('Error submitting form:', error);
     }
-  }, [submitForm, resetSuccess, setContextGeneratedContent]);
+  }, [submitForm, resetSuccess, setStoreGeneratedText, selectedType]);
 
   const handleGeneratedContentChange = useCallback((content) => {
     setGeneratedContent(content);
-    setContextGeneratedContent(content);
-  }, [setContextGeneratedContent]);
+    setStoreGeneratedText(content);
+  }, [setStoreGeneratedText]);
+
+  const helpContent = {
+    content: "Der Universal Text Grünerator erstellt verschiedene Textarten - von Reden über Wahlprogramme bis hin zu allgemeinen Texten.",
+    tips: [
+      "Wähle zunächst den passenden Texttyp aus",
+      "Reden: Perfekt für Veranstaltungen und öffentliche Auftritte",
+      "Wahlprogramme: Strukturierte politische Inhalte",
+      "Universal: Für alle anderen Textarten geeignet",
+      "Gib spezifische Details für bessere Ergebnisse an"
+    ]
+  };
 
   const renderForm = () => {
     switch (selectedType) {
@@ -70,9 +87,9 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
           success={success}
           error={error}
           generatedContent={generatedContent}
-          textSize={textSize}
           onGeneratedContentChange={handleGeneratedContentChange}
           onSubmit={handleSubmit}
+          helpContent={helpContent}
         >
           <TextTypeSelector 
             selectedType={selectedType}

@@ -158,6 +158,8 @@
   text-align: center;
 }
 
+/* EditorChat input styles - DISABLED to prevent conflicts with main form-inputs.css */
+/*
 .editor-chat-input {
   padding: 12px;
   border-top: var(--border-subtle);
@@ -180,6 +182,7 @@
 .editor-chat-input input:focus {
   border-color: var(--user-accent-color, var(--klee));
 }
+*/
 
 .color-picker-container {
   position: relative;

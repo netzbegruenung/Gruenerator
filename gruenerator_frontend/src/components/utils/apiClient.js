@@ -1,7 +1,11 @@
 import axios from 'axios';
 import { supabase } from './supabaseClient';
 
-const baseURL = import.meta.env.VITE_API_BASE_URL || 'https://gruenerator.de/api';
+// Use relative URL by default (same as AUTH_BASE_URL in useAuth.js)
+// This works because frontend is served by backend on same port
+const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
+
+
 
 const apiClient = axios.create({
   baseURL: baseURL,
@@ -23,7 +27,6 @@ apiClient.interceptors.request.use(
           delete config.headers.Authorization;
         }
       } else {
-        console.warn('[apiClient Interceptor] Supabase client not initialized. Cannot attach auth token.');
         delete config.headers.Authorization;
       }
     } catch (e) {
@@ -42,7 +45,6 @@ apiClient.interceptors.response.use(
   response => response,
   error => {
     if (error.response && error.response.status === 401) {
-      console.warn('[apiClient Interceptor] Received 401 Unauthorized. Redirecting to login.');
       if (window.location.pathname !== '/login') {
         window.location.href = '/login';
       }
@@ -67,7 +69,6 @@ async function retryWithExponentialBackoff(operation, retryCount = 0, onRetry) {
         onRetry(retryCount + 1, totalDelay, error);
       }
       
-      console.warn(`[apiClient] Request failed (Status: ${error.response.status}). Retrying in ${Math.round(totalDelay / 1000)}s... (Attempt ${retryCount + 1}/${MAX_RETRIES})`);
       await new Promise(resolve => setTimeout(resolve, totalDelay));
       return retryWithExponentialBackoff(operation, retryCount + 1, onRetry);
     }
@@ -92,14 +93,6 @@ export const uploadFileAndGetText = async (endpoint, file) => {
 
 export const processText = async (endpoint, formData) => {
   try {
-    console.log('[apiClient] Sending request:', {
-      endpoint,
-      useBackupProvider: formData.useBackupProvider,
-      hasSystemPrompt: !!formData.systemPrompt,
-      type: formData.type,
-      payloadKeys: Object.keys(formData).filter(k => k !== 'onRetry')
-    });
-
     const { onRetry, ...cleanFormData } = formData;
 
     const response = await retryWithExponentialBackoff(
@@ -109,12 +102,6 @@ export const processText = async (endpoint, formData) => {
     );
 
     const responseData = response.data;
-    console.log('[apiClient] Raw Response Status:', response.status);
-    console.log('[apiClient] Response Data Keys:', responseData ? Object.keys(responseData) : 'No data');
-    if (responseData?.metadata) {
-      console.log('[apiClient] Response Metadata:', responseData.metadata);
-    }
-
     return responseData;
   } catch (error) {
     console.error('[apiClient] Error processing request:', {

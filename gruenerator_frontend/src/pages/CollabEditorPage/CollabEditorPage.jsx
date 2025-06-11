@@ -9,9 +9,13 @@ import apiClient from '../../components/utils/apiClient';
 import { applyHighlightWithAnimation, removeAllHighlights as removeAllQuillHighlights, applyNewTextHighlight } from '../../components/common/editor/utils/highlightUtils';
 import Quill from 'quill'; // Import Quill for temp instance in handleAiResponse
 import CollabEditorSkeleton from './CollabEditorSkeleton'; // NEU: Import Skeleton
+import { useOptimizedAuth } from '../../hooks/useAuth';
+import useGeneratedTextStore from '../../stores/generatedTextStore';
+import { Link } from 'react-router-dom';
 
 const CollabEditorPage = () => {
   const { documentId } = useParams();
+  const { user, loading: authLoading, betaFeatures, isLoadingBetaFeatures, isAuthResolved } = useOptimizedAuth();
   const [initialContent, setInitialContent] = useState(undefined); // Start with undefined
   const [isLoadingContent, setIsLoadingContent] = useState(true);
   const [errorLoadingContent, setErrorLoadingContent] = useState(null);
@@ -22,6 +26,27 @@ const CollabEditorPage = () => {
   const [selectedText, setSelectedText] = useState('');
   const [highlightedRange, setHighlightedRange] = useState(null);
   const [isEditing, setIsEditing] = useState(true); // Always editing in collab mode
+
+  // Check if user has access to collab feature
+  const hasCollabAccess = betaFeatures?.collab === true;
+
+  // If still loading auth or beta features, show skeleton
+  if (authLoading || isLoadingBetaFeatures || !isAuthResolved) {
+    return <CollabEditorSkeleton />;
+  }
+
+  // If no access to collab feature, show error message
+  if (!hasCollabAccess) {
+    return (
+      <div className="collab-editor-overlay">
+        <div className="collab-editor-content collab-editor-error">
+          <h2>Zugriff verweigert</h2>
+          <p>Die kollaborative Bearbeitung ist ein Beta-Feature, das derzeit nur für Administratoren verfügbar ist.</p>
+          <Link to="/" className="button primary">Zurück zur Startseite</Link>
+        </div>
+      </div>
+    );
+  }
 
   useEffect(() => {
     const fetchInitialContent = async () => {
@@ -143,30 +168,29 @@ const CollabEditorPageContent = ({
   onSelectionChangeCallback,
   initialContentForEditor
 }) => {
-  const { ydoc, ytext, provider, awareness, connectionStatus, setQuillInstance } = useCollabEditor(); // Called within CollabEditorProvider's scope
-  const [editorValue, setEditorValue] = useState(''); // Local state reflecting Yjs content
-  const [isAdjusting, setIsAdjusting] = useState(false); // NEU: Lokaler State für isAdjusting
+  const { ydoc, ytext, provider, awareness, connectionStatus, setQuillInstance } = useCollabEditor();
+  const { generatedText, setGeneratedText } = useGeneratedTextStore();
+  const [isAdjusting, setIsAdjusting] = useState(false);
 
   const handleQuillInstanceReady = useCallback((instance) => {
-    quillRef.current = instance; // Set the parent's ref
-    setQuillInstance(instance); // NEU: Quill-Instanz im Context setzen
+    quillRef.current = instance;
+    setQuillInstance(instance);
     console.log("[CollabEditorPageContent] Quill instance ready via CollabEditorPageContent:", instance);
 
     if (ytext) {
       const ytextObserver = () => {
         if (quillRef.current) {
-          setEditorValue(quillRef.current.root.innerHTML);
+          setGeneratedText(quillRef.current.root.innerHTML);
         }
       };
       ytext.observe(ytextObserver);
-      // Initial set from Yjs after binding
-      if (quillRef.current) setEditorValue(quillRef.current.root.innerHTML);
+      if (quillRef.current) setGeneratedText(quillRef.current.root.innerHTML);
 
       return () => {
         if (ytext && ytext.unobserve) ytext.unobserve(ytextObserver);
       };
     }
-  }, [ytext, quillRef, setQuillInstance]); // Dependency: ytext, quillRef, setQuillInstance
+  }, [ytext, quillRef, setQuillInstance, setGeneratedText]);
 
   const handleAiResponse = useCallback((response) => {
     console.log("[CollabEditorPageContent] handleAiResponse received:", response);
@@ -214,13 +238,13 @@ const CollabEditorPageContent = ({
   // NEU: localFormContextValue mit useMemo stabilisieren
   const localFormContextValue = useMemo(() => {
     return {
-      value: editorValue,
+      value: generatedText,
       setValue: (newVal) => { 
         console.warn("[CollabEditorPageContent] Direct setValue in FormContext is discouraged. Changes should flow via Yjs.");
         if (ytext && quillRef.current && ydoc) {
             const currentQuillContent = quillRef.current.root.innerHTML;
             if (newVal !== currentQuillContent) {
-                ydoc.transact(() => { // Use ydoc from context
+                ydoc.transact(() => {
                     if (ytext.length > 0) ytext.delete(0, ytext.length);
                     const tempQuill = new Quill(document.createElement('div'));
                     tempQuill.clipboard.dangerouslyPasteHTML(0, newVal);
@@ -258,7 +282,7 @@ const CollabEditorPageContent = ({
       originalContent: '', setOriginalContent: () => {},
       setIsApplyingAdjustment: () => {},
       aiAdjustment: null, setAiAdjustment: () => {},
-      isFocusMode: false,
+
       hideEditButton: true,
       showPlatformContainer: false,
       usePlatformContainers: false,
@@ -266,12 +290,12 @@ const CollabEditorPageContent = ({
       setKnowledgeSourceConfig: () => {},
     };
   }, [
-    editorValue, ytext, ydoc, quillRef, // ydoc added
+    generatedText, ytext, ydoc, quillRef,
     selectedTextState, setSelectedTextState,
     highlightedRangeState, setHighlightedRangeState,
     isEditingState, handleAiResponse, 
     isAdjusting, setIsAdjusting,
-    setQuillInstance // NEU: setQuillInstance als Abhängigkeit hinzufügen, falls es sich ändert (obwohl unwahrscheinlich)
+    setQuillInstance
   ]);
 
   return (

@@ -1,66 +1,62 @@
-import React, { useState, forwardRef, useImperativeHandle } from 'react';
+import React, { forwardRef, useImperativeHandle } from 'react';
+import { useForm } from 'react-hook-form';
 import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../../components/utils/constants';
+import { useFormFields } from '../../../components/common/Form/hooks';
 
 const UniversalForm = forwardRef((props, ref) => {
-  const [textForm, setTextForm] = useState('');
-  const [sprache, setSprache] = useState('');
-  const [thema, setThema] = useState('');
-  const [details, setDetails] = useState('');
+  const { Input, Textarea } = useFormFields();
+  const {
+    control,
+    getValues,
+    reset
+  } = useForm({
+    defaultValues: {
+      textForm: '',
+      sprache: '',
+      thema: '',
+      details: ''
+    }
+  });
 
   useImperativeHandle(ref, () => ({
-    getFormData: () => ({
-      textForm,
-      sprache,
-      thema,
-      details
-    })
+    getFormData: () => getValues(),
+    resetForm: (data) => reset(data)
   }));
 
   return (
     <>
-      <h3><label htmlFor="textForm">Textform</label></h3>
-      <input
-        id="textForm"
-        type="text"
+      <Input
         name="textForm"
+        control={control}
+        label="Textform"
         placeholder="z.B. Antrag, Pressemitteilung, Social Media Post, Rede..."
-        value={textForm}
-        onChange={(e) => setTextForm(e.target.value)}
-        aria-required="true"
+        rules={{ required: 'Textform ist ein Pflichtfeld' }}
       />
 
-      <h3><label htmlFor="sprache">Sprache & Stil</label></h3>
-      <input
-        id="sprache"
-        type="text"
+      <Input
         name="sprache"
+        control={control}
+        label="Sprache & Stil"
         placeholder="z.B. formal, sachlich, emotional, aktivierend..."
-        value={sprache}
-        onChange={(e) => setSprache(e.target.value)}
-        aria-required="true"
+        rules={{ required: 'Sprache & Stil ist ein Pflichtfeld' }}
       />
 
-      <h3><label htmlFor="thema">{FORM_LABELS.THEME}</label></h3>
-      <input
-        id="thema"
-        type="text"
+      <Input
         name="thema"
+        control={control}
+        label={FORM_LABELS.THEME}
         placeholder={FORM_PLACEHOLDERS.THEME}
-        value={thema}
-        onChange={(e) => setThema(e.target.value)}
-        aria-required="true"
+        rules={{ required: 'Thema ist ein Pflichtfeld' }}
       />
 
-      <h3><label htmlFor="details">{FORM_LABELS.DETAILS}</label></h3>
-      <textarea
-        id="details"
+      <Textarea
         name="details"
-        style={{ height: '120px' }}
+        control={control}
+        label={FORM_LABELS.DETAILS}
         placeholder={FORM_PLACEHOLDERS.DETAILS}
-        value={details}
-        onChange={(e) => setDetails(e.target.value)}
-        aria-required="true"
-      ></textarea>
+        rules={{ required: 'Details sind ein Pflichtfeld' }}
+        minRows={3}
+      />
     </>
   );
 });

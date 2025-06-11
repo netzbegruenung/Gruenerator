@@ -64,6 +64,8 @@
 }
 
 
+/* GeneratorStartScreen input styles - DISABLED to prevent conflicts with main form-inputs.css */
+/*
 .description-input {
   flex-grow: 1; 
   width: 100%;
@@ -80,12 +82,12 @@
   outline: none; 
 }
 
-
 .description-input:focus,
 .description-input.error-input {
   outline: none;
   box-shadow: none;
 }
+*/
 
 .description-input::placeholder {
   color: var(--font-color);

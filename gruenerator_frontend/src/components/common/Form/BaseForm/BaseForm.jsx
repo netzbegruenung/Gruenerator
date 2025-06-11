@@ -1,23 +1,24 @@
-import React, { useEffect, useContext, useRef } from 'react';
+import React, { useEffect, useContext, useRef, useState, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { Tooltip } from 'react-tooltip';
-import FormToggleButton from '../../FormToggleButton';
 import useAccessibility from '../../../hooks/useAccessibility';
 import { addAriaLabelsToElements, enhanceFocusVisibility } from '../../../utils/accessibilityHelpers';
 import { BUTTON_LABELS } from '../../../utils/constants';
 import FocusTrap from 'focus-trap-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { HiPencil } from 'react-icons/hi';
+import useGeneratedTextStore from '../../../../stores/generatedTextStore';
 
 // Importiere die Komponenten
 import FormSection from './FormSection';
 import DisplaySection from './DisplaySection';
 import EditorChat from '../../editor/EditorChat';
 import Editor from '../../editor/Editor';
-import KnowledgeSelector from '../../../common/KnowledgeSelector';
+import FormToggleButtonFAB from './FormToggleButtonFAB';
 
 // Importiere die neuen Hooks
-import { useFormState, useContentManagement, useErrorHandling, useResponsive, useFocusMode } from '../hooks';
-import useKnowledge from '../../../hooks/useKnowledge';
-import useGroups from '../../../../features/groups/hooks/useGroups';
+import { useContentManagement, useErrorHandling, useResponsive, useBaseForm } from '../hooks';
+import { useFormVisibility } from '../hooks/useFormVisibility';
 
 // Importiere die Utility-Funktionen
 import { getBaseContainerClasses } from '../utils/classNameUtils';
@@ -25,16 +26,42 @@ import { getBaseContainerClasses } from '../utils/classNameUtils';
 // Import FormContext
 import { FormContext } from '../../../utils/FormContext';
 
-// Import BetaFeaturesContext
-import { BetaFeaturesContext } from '../../../../context/BetaFeaturesContext';
-
-// Import an icon for the toggle
-import { HiChevronDown } from 'react-icons/hi';
-
 /**
  * Basis-Formular-Komponente
  * @param {Object} props - Komponenten-Props
  */
+const useMultiPlatform = () => {
+  const [isMultiPlatform, setIsMultiPlatform] = useState(false);
+  const [contentChanged, setContentChanged] = useState(false);
+
+  const checkMultiPlatform = useCallback((value, usePlatformContainers) => {
+    if (value && typeof value === 'string' && usePlatformContainers) {
+      const platformCount = (value.match(/(TWITTER|FACEBOOK|INSTAGRAM|LINKEDIN|ACTIONIDEAS|INSTAGRAM REEL|PRESSEMITTEILUNG|SUCHANFRAGE|SUCHERGEBNIS):/g) || []).length;
+      setIsMultiPlatform(platformCount >= 2);
+    } else {
+      setIsMultiPlatform(false);
+    }
+  }, []);
+
+  const markContentChanged = useCallback((hasContent) => {
+    if (hasContent) {
+      setContentChanged(true);
+    }
+  }, []);
+
+  const resetContentChanged = useCallback(() => {
+    setContentChanged(false);
+  }, []);
+
+  return {
+    isMultiPlatform,
+    checkMultiPlatform,
+    contentChanged,
+    markContentChanged,
+    resetContentChanged
+  };
+};
+
 const BaseForm = ({
   title,
   children,
@@ -65,41 +92,38 @@ const BaseForm = ({
   useWebSearchFeatureToggle = false,
   displayActions = null,
   formNotice = null,
-  enableKnowledgeSelector = false
+  enableKnowledgeSelector = false,
+  onSave,
+  saveLoading = false,
+  defaultValues = {},
+  validationRules = {},
+  useModernForm = true,
+  onFormChange = null,
+  accessibilityOptions = {},
+  bottomSectionChildren = null
 }) => {
-  // Get knowledge source config from context
-  const { 
-    knowledgeSourceConfig,
-    setKnowledgeSourceConfig
-  } = useContext(FormContext);
-  
-  // Get database beta feature status
-  const { databaseBetaEnabled } = useContext(BetaFeaturesContext);
-  
-  // Hook zum Laden der Gruppen des Benutzers
-  const { userGroups: groups, isLoadingGroups, errorGroups: groupsError } = useGroups();
 
+
+  const baseFormRef = useRef(null);
   const formSectionRef = useRef(null);
   const displaySectionRef = useRef(null);
 
-  useEffect(() => {
-    // console.log('[BaseForm] useEffect - Data from useGroups - isLoadingGroups:', isLoadingGroups, 'groupsError:', groupsError, 'groups:', groups);
-  }, [groups, isLoadingGroups, groupsError]);
-
-  // Verwende die neuen Hooks
   const {
-    error: errorState,
+    error,
     setError
   } = useErrorHandling();
   
+  const isStreaming = useGeneratedTextStore(state => state.isStreaming);
+  const hasContent = !!generatedContent || isStreaming;
+  
+  const { isFormVisible, toggleFormVisibility } = useFormVisibility(hasContent, disableAutoCollapse);
+
   const {
-    isFormVisible,
     isMultiPlatform,
-    toggleForm,
     checkMultiPlatform,
     markContentChanged,
     resetContentChanged
-  } = useFormState({}, disableAutoCollapse);
+  } = useMultiPlatform();
   
   const {
     value,
@@ -114,19 +138,58 @@ const BaseForm = ({
     getDisplayTitle
   } = useResponsive();
 
-  const {
-    isFocusMode,
-    handleToggleFocusMode
-  } = useFocusMode();
+  // Enhanced accessibility hook with Phase 5 features
+  const { 
+    setupKeyboardNav, 
+    handleFormError, 
+    handleFormSuccess,
+    registerFormElement,
+    getAccessibilityPreferences,
+    testAccessibility
+  } = useAccessibility({
+    enableEnhancedNavigation: true,
+    enableAriaSupport: true,
+    enableErrorAnnouncements: true,
+    enableSuccessAnnouncements: true,
+    keyboardNavigationOptions: {
+      onEnterSubmit: true,
+      onEscapeCancel: true,
+      skipLinkText: 'Zum Hauptinhalt springen',
+      enableTabManagement: true,
+      ...accessibilityOptions
+    }
+  });
 
-  const { setupKeyboardNav } = useAccessibility();
+  // Register form element for accessibility
+  useEffect(() => {
+    if (baseFormRef.current) {
+      registerFormElement(baseFormRef.current);
+    }
+  }, [registerFormElement]);
 
   // Setze Fehler aus Props
   useEffect(() => {
     if (propError) {
       setError(propError);
+      handleFormError(propError);
     }
-  }, [propError, setError]);
+  }, [propError, setError, handleFormError]);
+
+  // Handle success states
+  useEffect(() => {
+    if (success) {
+      handleFormSuccess('Formular erfolgreich übermittelt');
+    }
+  }, [success, handleFormSuccess]);
+
+  // Announce form errors when they change
+  useEffect(() => {
+    if (formErrors && Object.keys(formErrors).length > 0) {
+      const firstErrorKey = Object.keys(formErrors)[0];
+      const firstErrorMessage = formErrors[firstErrorKey];
+      handleFormError(firstErrorMessage, firstErrorKey);
+    }
+  }, [formErrors, handleFormError]);
 
   // Aktualisiere generatedContent in value
   useEffect(() => {
@@ -178,126 +241,140 @@ const BaseForm = ({
     }
   }, [setupKeyboardNav, generatedContent]);
 
+  // Development accessibility testing
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development' && baseFormRef.current) {
+      // Add a delay to allow form to fully render
+      const timer = setTimeout(() => {
+        testAccessibility();
+      }, 1000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [testAccessibility, children]);
+
   // Berechne den Anzeigetitel
-  const displayTitle = getDisplayTitle(title, isEditing, generatedContent);
+  const displayTitle = getDisplayTitle('', isEditing, generatedContent);
 
   // Berechne die Klassennamen für den Container
   const baseContainerClasses = getBaseContainerClasses({
-    isEditing,
     title,
     generatedContent,
     isMultiPlatform,
-    isFormVisible,
-    isFocusMode
+    isFormVisible
   });
 
-  const handleToggleForm = () => {
-    toggleForm();
+  // Enhanced form submission with accessibility announcements
+  const handleEnhancedSubmit = async (formData) => {
+    try {
+      await onSubmit(formData);
+      // Success is handled in the success useEffect above
+    } catch (error) {
+      handleFormError(error.message || 'Ein Fehler ist aufgetreten');
+    }
   };
 
   return (
     <>
       { !isEditing && headerContent }
-      <div className={baseContainerClasses}>
-        {!isFocusMode && isMultiPlatform && (
-          <FormToggleButton
-            isFormVisible={isFormVisible}
-            toggleForm={handleToggleForm}
+      <motion.div 
+        layout
+        transition={{ duration: 0.25, ease: "easeOut" }}
+        ref={baseFormRef}
+        className={baseContainerClasses}
+        role="main"
+        aria-label={title || 'Formular'}
+        id="main-content"
+      >
+        <AnimatePresence initial={false}>
+          {!isFormVisible && hasContent && !isEditing && (
+            <FormToggleButtonFAB onClick={toggleFormVisibility} />
+          )}
+        </AnimatePresence>
+        
+        {isEditing ? (
+          <FocusTrap active={isEditing}>
+            <div ref={displaySectionRef}>
+              <EditorChat isEditing={isEditing} />
+            </div>
+          </FocusTrap>
+        ) : (
+          <AnimatePresence initial={false}>
+            {isFormVisible && (
+              <motion.div
+                key="form-section"
+                layout
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ 
+                  duration: 0.25, 
+                  ease: "easeOut"
+                }}
+                className="form-section-motion-wrapper"
+              >
+                <FormSection
+                  ref={formSectionRef}
+                  title={title}
+                  onSubmit={useModernForm ? handleEnhancedSubmit : onSubmit}
+                  loading={loading}
+                  success={success}
+                  formErrors={formErrors}
+                  isFormVisible={isFormVisible}
+                  isMultiStep={isMultiStep}
+                  onBack={onBack}
+                  showBackButton={showBackButton}
+                  nextButtonText={nextButtonText}
+                  submitButtonProps={submitButtonProps}
+                  webSearchFeatureToggle={webSearchFeatureToggle}
+                  useWebSearchFeatureToggle={useWebSearchFeatureToggle}
+                  enableKnowledgeSelector={enableKnowledgeSelector}
+                  showSubmitButton={showNextButton}
+                  formNotice={formNotice}
+                  defaultValues={defaultValues}
+                  validationRules={validationRules}
+                  useModernForm={useModernForm}
+                  onFormChange={onFormChange}
+                  bottomSectionChildren={bottomSectionChildren}
+                  showHideButton={hasContent && !disableAutoCollapse}
+                  onHide={toggleFormVisibility}
+                >
+                  {children}
+                </FormSection>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        )}
+        <motion.div
+          layout
+          transition={{ duration: 0.25, ease: "easeOut" }}
+          className={`display-section-motion-wrapper ${isFormVisible ? 'form-visible' : 'form-hidden'}`}
+        >
+          <DisplaySection
+            ref={displaySectionRef}
+            title={displayTitle}
+            error={error || propError}
+            value={value}
+            generatedContent={generatedContent}
+            isEditing={isEditing}
+            allowEditing={allowEditing}
+            hideEditButton={hideEditButton}
+            usePlatformContainers={usePlatformContainers}
+            helpContent={helpContent}
+            generatedPost={generatedPost}
+            onGeneratePost={onGeneratePost}
+            handleToggleEditMode={handleToggleEditMode}
+            getExportableContent={getExportableContent}
+            displayActions={displayActions}
+            onSave={onSave}
+            saveLoading={saveLoading}
           />
-        )}
-        {!isFocusMode && (
-          isEditing ? (
-            <FocusTrap active={isEditing}>
-              <div ref={displaySectionRef}>
-                <EditorChat isEditing={isEditing} />
-              </div>
-            </FocusTrap>
-          ) : (
-            <FormSection
-              ref={formSectionRef}
-              onSubmit={onSubmit}
-              loading={loading}
-              success={success}
-              formErrors={formErrors}
-              isFormVisible={isFormVisible}
-              isMultiStep={isMultiStep}
-              onBack={onBack}
-              showBackButton={showBackButton}
-              nextButtonText={nextButtonText}
-              submitButtonProps={submitButtonProps}
-              webSearchFeatureToggle={webSearchFeatureToggle}
-              useWebSearchFeatureToggle={useWebSearchFeatureToggle}
-              showSubmitButton={showNextButton}
-              formNotice={formNotice}
-            >
-              {children}
-              
-              {enableKnowledgeSelector && databaseBetaEnabled && (
-                <div className="knowledge-source-config-container">
-                  <h3 className="knowledge-selector-heading">Anweisungen & Wissensquelle</h3>
-                  <div className="knowledge-source-dropdown">
-                    <select 
-                      className="knowledge-source-select"
-                      value={knowledgeSourceConfig.type === 'group' ? `group-${knowledgeSourceConfig.id}` : knowledgeSourceConfig.type}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        if (value === 'neutral') {
-                          setKnowledgeSourceConfig({ type: 'neutral', id: null, name: 'Neutral' });
-                        } else if (value === 'user') {
-                          setKnowledgeSourceConfig({ type: 'user', id: null, name: 'Meine Anweisungen & Wissen' });
-                        } else if (value.startsWith('group-')) {
-                          const groupId = value.substring("group-".length);
-                          const selectedGroup = groups.find(g => g.id === groupId);
-                          if (selectedGroup) {
-                            setKnowledgeSourceConfig({ type: 'group', id: selectedGroup.id, name: selectedGroup.name });
-                          }
-                        }
-                      }}
-                      disabled={isLoadingGroups}
-                    >
-                      <option value="neutral">Neutral</option>
-                      <option value="user">Meine Anweisungen & Wissen</option>
-                      {isLoadingGroups && <option disabled>Lade Gruppen...</option>}
-                      {!isLoadingGroups && groupsError && (
-                        <>
-                          <option disabled>Fehler beim Laden der Gruppen</option>
-                        </>
-                      )}
-                      {!isLoadingGroups && !groupsError && groups && groups.map(group => (
-                        <option key={group.id} value={`group-${group.id}`}>{group.name} Anweisungen & Wissen</option>
-                      ))}
-                    </select>
-                    <HiChevronDown className="knowledge-source-dropdown-arrow" />
-                  </div>
-                  <KnowledgeSelector />
-                </div>
-              )}
-            </FormSection>
-          )
-        )}
-        <DisplaySection
-          ref={displaySectionRef} // Ref hier weiterleiten für den Editor-Fall
-          title={displayTitle}
-          error={errorState || propError}
-          value={value}
-          generatedContent={generatedContent}
-          isEditing={isEditing}
-          allowEditing={allowEditing}
-          hideEditButton={hideEditButton}
-          usePlatformContainers={usePlatformContainers}
-          helpContent={helpContent}
-          generatedPost={generatedPost}
-          onGeneratePost={onGeneratePost}
-          handleToggleEditMode={handleToggleEditMode}
-          getExportableContent={getExportableContent}
-          onToggleFocusMode={handleToggleFocusMode}
-          isFocusMode={isFocusMode}
-          displayActions={displayActions}
-        />
-        {!isMobileView && !isFocusMode && (
+        </motion.div>
+
+        {!isMobileView && (
           <Tooltip id="action-tooltip" place="bottom" />
         )}
-      </div>
+      </motion.div>
     </>
   );
 };
@@ -354,7 +431,15 @@ BaseForm.propTypes = {
   useWebSearchFeatureToggle: PropTypes.bool,
   displayActions: PropTypes.node,
   formNotice: PropTypes.node,
-  enableKnowledgeSelector: PropTypes.bool
+  enableKnowledgeSelector: PropTypes.bool,
+  onSave: PropTypes.func,
+  saveLoading: PropTypes.bool,
+  defaultValues: PropTypes.object,
+  validationRules: PropTypes.object,
+  useModernForm: PropTypes.bool,
+  onFormChange: PropTypes.func,
+  accessibilityOptions: PropTypes.object,
+  bottomSectionChildren: PropTypes.node
 };
 
 BaseForm.defaultProps = {
@@ -363,7 +448,13 @@ BaseForm.defaultProps = {
   useWebSearchFeatureToggle: false,
   displayActions: null,
   formNotice: null,
-  enableKnowledgeSelector: false
+  enableKnowledgeSelector: false,
+  defaultValues: {},
+  validationRules: {},
+  useModernForm: true,
+  onFormChange: null,
+  accessibilityOptions: {},
+  bottomSectionChildren: null
 };
 
 export default BaseForm; 

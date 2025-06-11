@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../components/utils/supabaseClient'; // Assuming supabaseClient is in the parent directory
-import { useSupabaseAuth } from '../context/SupabaseAuthContext';
+import { useAuthStore } from '../stores/authStore';
 
 export const usePRTextsGallery = () => {
   const [categories, setCategories] = useState([]);
   const [loadingCategories, setLoadingCategories] = useState(false);
   const [errorCategories, setErrorCategories] = useState(null);
-  const { user } = useSupabaseAuth();
+  const { supabaseUser: user } = useAuthStore();
 
   const fetchCategories = useCallback(async () => {
     if (!user) return; // Ensure user is available for RLS

@@ -62,8 +62,7 @@ Gewünschte Redezeit (in Minuten): ${redezeit}
 Aktuelles Datum: ${currentDate}`;
     }
 
-    const result = await req.app.locals.aiWorkerPool.processRequest({
-      type: 'rede',
+    const payload = {
       systemPrompt,
       messages: [{
         role: "user",
@@ -77,6 +76,11 @@ Aktuelles Datum: ${currentDate}`;
         temperature: 0.3
       },
       useBackupProvider
+    };
+    
+    const result = await req.app.locals.aiWorkerPool.processRequest({
+      type: 'rede',
+      ...payload
     });
 
     if (!result.success) throw new Error(result.error);

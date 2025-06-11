@@ -285,3 +285,20 @@
     padding: 8px 20px;
   }
 }
+
+.editor-maintenance-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-medium);
+  padding: var(--spacing-large);
+  background-color: var(--background-color-alt);
+  border-radius: 8px;
+  margin: var(--spacing-medium) 0;
+}
+
+.editor-maintenance-info p {
+  margin: 0;
+  text-align: center;
+  line-height: 1.5;
+}

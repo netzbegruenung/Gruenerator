@@ -1,6 +1,7 @@
 const HTML_FORMATTING_INSTRUCTIONS = `
 **Formatierung:** Bitte formatiere die GESAMTE Ausgabe als HTML. 
 - Verwende <h2>-Tags für die Hauptüberschriften (z.B. "Einstiegsideen", "Kernargumente", "Tipps", "Rede").
+- Verwende <h3>-Tags für Unterüberschriften und <h4>-Tags für weitere Unterteilungen.
 - Verwende <p>-Tags für **jeden einzelnen** Textabsatz unterhalb der Überschriften und innerhalb der Rede. Jeder Gedanke oder logische Block, der einen Absatz darstellt, muss in eigenen <p>...</p>-Tags stehen. Verwende **keine** <br>-Tags, um Absätze zu simulieren.
 - Verwende <strong> für wichtige Stichworte *innerhalb* von Absätzen, falls nötig.
 - Stelle sicher, dass nach einem Doppelpunkt (z.B. nach einer <h2>-Überschrift) immer ein Leerzeichen folgt, bevor der nächste Text oder eine Liste beginnt.
@@ -8,6 +9,59 @@ const HTML_FORMATTING_INSTRUCTIONS = `
 - Füge **keine** zusätzlichen Zeilenumbrüche (newline characters wie '\\n') in den HTML-Code ein, weder innerhalb noch zwischen den Tags. Der einzige Inhalt zwischen </p> und <p> oder zwischen </h2> und <p> sollte Leerraum (whitespace) sein, keine Zeilenumbrüche.
 - KEINEN Markdown verwenden.
 `;
+
+/**
+ * Checks if a custom prompt is structured (contains instruction/knowledge headers)
+ * @param {string} customPrompt - The custom prompt to check
+ * @returns {boolean} True if the prompt is structured
+ */
+const isStructuredPrompt = (customPrompt) => {
+  if (!customPrompt || typeof customPrompt !== 'string') {
+    return false;
+  }
+  
+  return customPrompt.includes('Der User gibt dir folgende Anweisungen') || 
+         customPrompt.includes('Der User stellt dir folgendes, wichtiges Wissen');
+};
+
+/**
+ * Formats user content based on whether the custom prompt is structured or legacy
+ * @param {object} params - Parameters object
+ * @param {string} params.customPrompt - The custom prompt from the user
+ * @param {string} params.baseContent - Base content to append
+ * @param {string} params.currentDate - Current date string
+ * @param {string} params.additionalInfo - Additional information to include
+ * @returns {string} Formatted user content
+ */
+const formatUserContent = ({ customPrompt, baseContent, currentDate, additionalInfo = '' }) => {
+  if (!customPrompt) {
+    return baseContent;
+  }
+  
+  const structured = isStructuredPrompt(customPrompt);
+  
+  if (structured) {
+    // Strukturierte Anweisungen und Wissen direkt verwenden
+    return `${customPrompt}
+
+---
+
+Aktuelles Datum: ${currentDate}
+
+${additionalInfo}
+
+${baseContent}`;
+  } else {
+    // Legacy: Bei benutzerdefiniertem Prompt diesen verwenden
+    return `Benutzerdefinierter Prompt: ${customPrompt}
+
+Aktuelles Datum: ${currentDate}
+
+${additionalInfo}
+
+${baseContent}`;
+  }
+};
 
 const PLATFORM_SPECIFIC_GUIDELINES = {
   facebook: {
@@ -173,5 +227,7 @@ module.exports = {
   PLATFORM_SPECIFIC_GUIDELINES,
   PLATFORM_HEADER_STRUCTURE_INSTRUCTIONS,
   MARKDOWN_CHAT_INSTRUCTIONS,
-  JSON_OUTPUT_FORMATTING_INSTRUCTIONS
+  JSON_OUTPUT_FORMATTING_INSTRUCTIONS,
+  isStructuredPrompt,
+  formatUserContent
 }; 
