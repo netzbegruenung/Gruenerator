@@ -86,3 +86,28 @@ Alle Rechte vorbehalten. Siehe [LICENSE.md](LICENSE.md)
 
 - Netzbegrünung für technischen und inhaltlichen Support
 - Allen Mitwirkenden und Unterstützern
+
+## Authentik Multi-Source SSO Configuration
+
+Der Grünerator unterstützt drei verschiedene Anmeldemöglichkeiten über Authentik:
+
+1. **Grünerator Login** - Email/Password (Built-in Authentication)
+2. **Netzbegrünung Login** - SAML SSO 
+3. **Grünes Netz Login** - SAML SSO (coming soon)
+
+### Setup
+
+```bash
+# 1. API Token in Authentik erstellen und setzen
+export AUTHENTIK_API_TOKEN="ak_your_token_here"
+
+# 2. Sources automatisch konfigurieren
+cd gruenerator_backend
+npm run setup:authentik-sources:dry-run  # Vorschau
+npm run setup:authentik-sources          # Ausführen
+
+# 3. Manuelle Validation der SAML Sources
+# Siehe: docs/setup/AUTHENTIK_SOURCES_CONFIGURATION.md
+```
+
+Detaillierte Anleitung: [`docs/setup/AUTHENTIK_SOURCES_CONFIGURATION.md`](docs/setup/AUTHENTIK_SOURCES_CONFIGURATION.md)
