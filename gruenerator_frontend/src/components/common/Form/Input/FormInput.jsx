@@ -2,6 +2,7 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { Controller } from 'react-hook-form';
 import FormFieldWrapper from './FormFieldWrapper';
+import { useSimpleFormStore } from '../../../../stores/simpleFormStore';
 
 /**
  * FormInput - Modern text input component with react-hook-form integration
@@ -28,8 +29,38 @@ const FormInput = ({
 
   // Require control for react-hook-form integration
   if (!control) {
-    console.error('FormInput requires control prop for react-hook-form integration');
-    return null;
+    // Zustand fallback – controlled component
+    const value = useSimpleFormStore((state) => state.fields[name] ?? defaultValue);
+    const setField = useSimpleFormStore((state) => state.setField);
+
+    return (
+      <FormFieldWrapper
+        label={label}
+        required={required}
+        helpText={helpText}
+        htmlFor={inputId}
+        labelProps={labelProps}
+      >
+        <input
+          id={inputId}
+          name={name}
+          type={type}
+          placeholder={placeholder}
+          disabled={disabled}
+          className={inputClassName}
+          value={value}
+          onChange={(e) => {
+            const newVal = e.target.value;
+            setField(name, newVal);
+            if (rest.onChange) {
+              rest.onChange(newVal);
+            }
+          }}
+          {...inputProps}
+          {...rest}
+        />
+      </FormFieldWrapper>
+    );
   }
 
   return (

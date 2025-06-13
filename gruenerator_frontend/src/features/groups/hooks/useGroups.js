@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useAuthStore } from '../../../stores/authStore';
+import { useAuth } from '../../../hooks/useAuth';
 import { useQueryClient, useQuery, useMutation } from '@tanstack/react-query';
 
 /**
  * Hook for managing user groups
  */
 const useGroups = ({ isActive } = {}) => {
-  const supabaseUser = useAuthStore((state) => state.supabaseUser);
+  const { user: supabaseUser } = useAuth();
   const [templatesSupabase, setTemplatesSupabase] = useState(null);
   const queryClient = useQueryClient();
 

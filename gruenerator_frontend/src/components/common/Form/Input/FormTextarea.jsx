@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import { Controller } from 'react-hook-form';
 import TextareaAutosize from 'react-textarea-autosize';
 import FormFieldWrapper from './FormFieldWrapper';
+import { useSimpleFormStore } from '../../../../stores/simpleFormStore';
 
 /**
  * FormTextarea - Modern textarea component with auto-resize and react-hook-form integration
@@ -95,7 +96,10 @@ const FormTextarea = ({
     );
   }
 
-  // Fallback for legacy use without react-hook-form
+  // Zustand fallback controlled component
+  const value = useSimpleFormStore((state) => state.fields[name] ?? defaultValue);
+  const setField = useSimpleFormStore((state) => state.setField);
+
   return (
     <FormFieldWrapper
       label={label}
@@ -110,15 +114,22 @@ const FormTextarea = ({
           name={name}
           placeholder={placeholder}
           disabled={disabled}
-          defaultValue={defaultValue}
           minRows={minRows}
           maxRows={maxRows}
           maxLength={maxLength}
           className={textareaClassName}
+          value={value}
+          onChange={(e) => {
+            const newVal = e.target.value;
+            setField(name, newVal);
+            if (rest.onChange) {
+              rest.onChange(newVal);
+            }
+          }}
           {...textareaProps}
           {...rest}
         />
-        <CharacterCount value={defaultValue} />
+        <CharacterCount value={value} />
       </div>
     </FormFieldWrapper>
   );
