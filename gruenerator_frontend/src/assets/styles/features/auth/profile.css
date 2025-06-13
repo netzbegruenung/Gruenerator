@@ -543,6 +543,30 @@
   gap: var(--spacing-medium);
 }
 
+.add-knowledge-button {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xxsmall);
+  background-color: transparent;
+  color: var(--font-color);
+  border: 1px solid var(--border-subtle);
+  padding: var(--spacing-small) var(--spacing-medium);
+  border-radius: 4px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.25s ease-out;
+}
+
+.add-knowledge-button:hover:not(:disabled) {
+  background-color: var(--background-color-alt);
+  transform: translateY(-1px);
+}
+
+.add-knowledge-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* Gruppen-spezifische Klassen */
 .gruppen-info {
   margin-bottom: var(--spacing-large);

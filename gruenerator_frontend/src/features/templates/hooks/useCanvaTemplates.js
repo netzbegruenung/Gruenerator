@@ -1,10 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useAuthStore } from '../../../stores/authStore';
+import { useAuth } from '../../../hooks/useAuth';
 // import { templatesSupabase } from '../../../../components/utils/templatesSupabaseClient'; // Direkter Import, falls nicht über Context
 
 // Hook zum Verwalten von Canva-Vorlagen eines Nutzers
 export const useCanvaTemplates = () => {
-  const supabaseUser = useAuthStore((state) => state.supabaseUser);
+  const { user: supabaseUser } = useAuth();
   const queryClient = useQueryClient();
   
   // TODO: Supabase-Client-Instanz sicherstellen (z.B. über Prop oder direkten Import)

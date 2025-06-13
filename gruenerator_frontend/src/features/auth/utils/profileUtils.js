@@ -5,8 +5,9 @@
 import { getRobotAvatarPath, validateRobotId, getRobotAvatarAlt } from './avatarUtils';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import modulePreloader from '../../../utils/modulePreloader';
+import { useAnweisungenWissenStore } from '../stores/anweisungenWissenStore';
 
 /**
  * Get initials from first name, last name, or email
@@ -123,14 +124,27 @@ class ProfileResourceManager {
     }
   }
 
-  prefetchQuery(queryClient, queryKey, queryFn, options = {}) {
+  prefetchQuery(queryClient, queryKey, queryFn = () => null, options = {}) {
     const key = JSON.stringify(queryKey);
     if (this.queryPrefetches.has(key)) return;
 
     this.queryPrefetches.set(key, true);
+
+    // Wrap the original queryFn so that it never returns undefined
+    const safeQueryFn = async () => {
+      try {
+        const result = await Promise.resolve(queryFn());
+        return typeof result === 'undefined' ? null : result;
+      } catch (err) {
+        // Log and gracefully fall back – the prefetched data is optional
+        console.warn('Prefetch query failed:', err);
+        return null;
+      }
+    };
+
     queryClient.prefetchQuery({
       queryKey,
-      queryFn,
+      queryFn: safeQueryFn,
       staleTime: 5 * 60 * 1000,
       ...options
     });
@@ -429,4 +443,162 @@ export const autoResizeTextarea = (element) => {
   
   element.style.height = 'auto';
   element.style.height = (element.scrollHeight + 2) + 'px';
-}; 
+};
+
+// === PERSONAL INSTRUCTIONS & KNOWLEDGE ===
+
+const MAX_KNOWLEDGE_ENTRIES = 3;
+const MAX_CONTENT_LENGTH = 1000;
+
+// Helper for deep comparison (simple version)
+const deepEqual = (obj1, obj2) => {
+  return JSON.stringify(obj1) === JSON.stringify(obj2);
+};
+
+// Helper to prepare knowledge entry for comparison/saving (removes temporary flags)
+const cleanKnowledgeEntry = (entry) => {
+    if (!entry) return { title: '', content: '' }; // Return empty structure for comparison
+    // Ensure defined values for comparison, treat null/undefined as empty string
+    // Keep the id if it's not temporary, needed for updates/deletes
+    const cleaned = {
+      id: (typeof entry.id === 'string' && entry.id.startsWith('new-')) ? undefined : entry.id,
+      title: entry.title?.trim() || '',
+      content: entry.content?.trim() || ''
+    };
+    return cleaned;
+};
+
+export const useAnweisungenWissen = ({ isActive, enabled = true } = {}) => {
+  const { user } = useOptimizedAuth();
+  const queryClient = useQueryClient();
+  const AUTH_BASE_URL = import.meta.env.VITE_AUTH_BASE_URL || '';
+
+  // Use the zustand store for UI state
+  const { 
+    setSaving, 
+    setSuccess, 
+    setError, 
+    setDeleting, 
+    reset: resetStore 
+  } = useAnweisungenWissenStore();
+
+  // --- React Query: Fetch Anweisungen & Wissen --- 
+  const queryKey = ['anweisungenWissen', user?.id];
+
+  const fetchAnweisungenWissenFn = async () => {
+    if (!user?.id) throw new Error('Nicht eingeloggt');
+    const resp = await fetch(`${AUTH_BASE_URL}/api/auth/anweisungen-wissen`, {
+      method: 'GET',
+      credentials: 'include'
+    });
+    if (!resp.ok) throw new Error('Fehler beim Laden');
+    const json = await resp.json();
+    return {
+      antragPrompt: json.antragPrompt || '',
+      socialPrompt: json.socialPrompt || '',
+      knowledge: json.knowledge || []
+    };
+  };
+
+  const query = useQuery({
+      queryKey: queryKey, 
+      queryFn: fetchAnweisungenWissenFn, 
+      enabled: enabled && !!user?.id && isActive,
+      staleTime: 5 * 60 * 1000,
+      cacheTime: 15 * 60 * 1000,
+      refetchOnWindowFocus: false,
+      refetchOnMount: 'always',
+      retry: 1,
+  });
+
+  // Reset store when tab becomes inactive
+  useEffect(() => {
+    if (!isActive) {
+      resetStore();
+    }
+  }, [isActive, resetStore]);
+
+
+  // --- React Query: Save Mutation --- 
+  const saveMutation = useMutation({
+    mutationFn: async (dataToSave) => {
+      // Clean knowledge entries before saving
+      const cleanedKnowledge = dataToSave.knowledge.map(entry => ({
+          id: typeof entry.id === 'string' && entry.id.startsWith('new-') ? undefined : entry.id,
+          title: entry.title,
+          content: entry.content
+      }));
+
+      const payload = {
+          custom_antrag_prompt: dataToSave.customAntragPrompt,
+          custom_social_prompt: dataToSave.customSocialPrompt,
+          knowledge: cleanedKnowledge
+      };
+
+      const resp = await fetch(`${AUTH_BASE_URL}/api/auth/anweisungen-wissen`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(payload)
+      });
+
+      if (!resp.ok) {
+        const errorData = await resp.json().catch(() => ({ message: 'Fehler beim Speichern' }));
+        throw new Error(errorData.message || 'Ein unbekannter Fehler ist aufgetreten.');
+      }
+      return await resp.json();
+    },
+    onMutate: () => {
+      setSaving(true);
+    },
+    onSuccess: () => {
+      setSuccess('Änderungen erfolgreich gespeichert!');
+      queryClient.invalidateQueries({ queryKey });
+    },
+    onError: (error) => {
+      setError(error.message);
+    },
+  });
+
+  // --- React Query: Delete Knowledge Mutation --- 
+  const deleteKnowledgeMutation = useMutation({
+    mutationFn: async (entryId) => {
+      if (typeof entryId === 'string' && entryId.startsWith('new-')) {
+          // This should not happen if called correctly, but as a safeguard
+          return; 
+      }
+      
+      const resp = await fetch(`${AUTH_BASE_URL}/api/auth/anweisungen-wissen/${entryId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+
+      if (!resp.ok) {
+        const msg = await resp.text();
+        throw new Error(msg || 'Fehler beim Löschen');
+      }
+      return entryId;
+    },
+    onMutate: (entryId) => {
+      setDeleting(true, entryId);
+    },
+    onSuccess: () => {
+      setSuccess('Wissenseintrag gelöscht.');
+      queryClient.invalidateQueries({ queryKey });
+    },
+    onError: (error) => {
+      setError(error.message);
+    }
+  });
+
+   return {
+      // The main data query object
+      query,
+      // Mutation functions
+      saveChanges: saveMutation.mutate,
+      deleteKnowledgeEntry: deleteKnowledgeMutation.mutate,
+      // Constants
+      MAX_KNOWLEDGE_ENTRIES
+    };
+};
+// === END PERSONAL INSTRUCTIONS & KNOWLEDGE === 

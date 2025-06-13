@@ -1,87 +1,91 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { HiOutlineTrash } from 'react-icons/hi';
+import React, { useEffect, useState } from 'react';
+import { useForm, FormProvider, useFieldArray } from 'react-hook-form';
+import { HiOutlineTrash, HiPlus } from 'react-icons/hi';
 import Spinner from '../../../../components/common/Spinner';
-import TextInput from '../../../../components/common/Form/Input/TextInput';
-import { useProfileAnweisungenWissen } from '../../pages/useProfileAnweisungenWissen';
-import { autoResizeTextarea } from '../../utils/profileUtils';
+import { useFormFields } from '../../../../components/common/Form/hooks';
+import { useAnweisungenWissen } from '../../utils/profileUtils';
+import { useAnweisungenWissenStore } from '../../stores/anweisungenWissenStore';
 import { motion } from "motion/react";
 
 const MAX_CONTENT_LENGTH = 1000;
 
-const AnweisungenWissenTab = ({ user, onSuccessMessage, onErrorMessage, isActive }) => {
-    // Refs for textareas
-    const antragTextareaRef = useRef(null);
-    const socialTextareaRef = useRef(null);
-    const knowledgeTextareaRefs = useRef({});
-
+const AnweisungenWissenTab = ({ isActive }) => {
     const [currentView, setCurrentView] = useState('anweisungen');
 
+    // Zustand store for UI state
     const {
-        customAntragPrompt,
-        customSocialPrompt,
-        knowledgeEntries,
-        handleAnweisungenChange,
-        handleKnowledgeChange,
-        handleKnowledgeDelete,
-        saveChanges,
-        isSaving,
-        isSaveSuccess,
-        isSaveError,
-        saveError,
-        isDeletingKnowledge,
-        deletingKnowledgeId,
-        isDeleteKnowledgeError,
-        deleteKnowledgeError,
-        isLoadingQuery,
-        isFetchingQuery,
-        isErrorQuery,
-        errorQuery,
-        hasUnsavedChanges,
-    } = useProfileAnweisungenWissen({ isActive });
+        isSaving, isDeleting, error, successMessage, hasUnsavedChanges, deletingKnowledgeId,
+        setHasUnsavedChanges, setError, setSuccess, clearMessages
+    } = useAnweisungenWissenStore();
+    
+    // React Query hook for data fetching and mutations
+    const { query, saveChanges, deleteKnowledgeEntry, MAX_KNOWLEDGE_ENTRIES } = useAnweisungenWissen({ isActive });
+    const { data, isLoading: isLoadingQuery, isError: isErrorQuery, error: errorQuery } = query;
 
-    // Effect to handle feedback messages using parent callbacks
+    // React Hook Form setup
+    const formMethods = useForm({
+        defaultValues: {
+            customAntragPrompt: '',
+            customSocialPrompt: '',
+            knowledge: [],
+        },
+        mode: 'onChange'
+    });
+
+    const { control, handleSubmit, reset, formState: { isDirty } } = formMethods;
+    const { fields, append, remove } = useFieldArray({ 
+        control, 
+        name: "knowledge",
+        keyName: "key"
+    });
+    const { Input, Textarea } = useFormFields();
+
+    // Effect to reset form with data from server
     useEffect(() => {
-        if (isSaveSuccess) {
-            onSuccessMessage('Anweisungen/Wissen erfolgreich gespeichert!');
-        } else if (isSaveError) {
-            const message = saveError instanceof Error ? saveError.message : 'Ein unbekannter Fehler ist aufgetreten.';
-            onErrorMessage(`Fehler beim Speichern (Anweisungen/Wissen): ${message}`);
-        } else if (isDeleteKnowledgeError) {
-            const message = deleteKnowledgeError instanceof Error ? deleteKnowledgeError.message : 'Ein unbekannter Fehler ist aufgetreten.';
-            onErrorMessage(`Fehler beim Löschen (Wissen): ${message}`);
+        if (data) {
+            reset({
+                customAntragPrompt: data.antragPrompt || '',
+                customSocialPrompt: data.socialPrompt || '',
+                knowledge: data.knowledge || []
+            });
         }
-    }, [isSaveSuccess, isSaveError, saveError, isDeleteKnowledgeError, deleteKnowledgeError, onSuccessMessage, onErrorMessage]);
+    }, [data, reset]);
 
-    // Clear messages before initiating save or delete
-    const handleSaveChanges = () => {
-        onSuccessMessage('');
-        onErrorMessage('');
-        saveChanges();
+    // Effect to sync form dirty state with zustand store
+    useEffect(() => {
+        setHasUnsavedChanges(isDirty);
+    }, [isDirty, setHasUnsavedChanges]);
+
+    // Effect to clear messages when view changes or component becomes inactive
+    useEffect(() => {
+        clearMessages();
+    }, [currentView, isActive, clearMessages]);
+
+    const onSubmit = (formData) => {
+        saveChanges(formData);
     };
 
-    const handleDeleteKnowledge = (entryId) => {
-        onSuccessMessage('');
-        onErrorMessage('');
-        handleKnowledgeDelete(entryId);
+    const handleDeleteKnowledge = (entry, index) => {
+        if (!entry.id || (typeof entry.id === 'string' && entry.id.startsWith('new-'))) {
+            remove(index); // Remove from form state if it's a new, unsaved entry
+        } else {
+            if (window.confirm("Möchtest du diesen Wissenseintrag wirklich löschen?")) {
+                deleteKnowledgeEntry(entry.id, {
+                    onSuccess: () => {
+                        // The query invalidation will trigger a data refetch and form reset
+                    },
+                });
+            }
+        }
     };
 
-    // Auto-resize effect for textareas
-    useEffect(() => {
-        if (antragTextareaRef.current) {
-            autoResizeTextarea(antragTextareaRef.current);
+    const handleAddKnowledge = () => {
+        if (fields.length < MAX_KNOWLEDGE_ENTRIES) {
+            append({ id: `new-${Date.now()}`, title: '', content: '' });
         }
-        if (socialTextareaRef.current) {
-            autoResizeTextarea(socialTextareaRef.current);
-        }
-        
-        Object.values(knowledgeTextareaRefs.current).forEach(ref => {
-            if (ref) autoResizeTextarea(ref);
-        });
-    }, [customAntragPrompt, customSocialPrompt, knowledgeEntries]);
-
+    };
+    
     const handleTabClick = (view) => {
-        onSuccessMessage('');
-        onErrorMessage('');
         setCurrentView(view);
     };
 
@@ -102,158 +106,149 @@ const AnweisungenWissenTab = ({ user, onSuccessMessage, onErrorMessage, isActive
         </div>
     );
 
+    if (isLoadingQuery) {
+        return <div className="profile-content-centered"><Spinner /></div>;
+    }
+    
     if (isErrorQuery) {
         return (
             <div className="auth-error-message error-message-container" style={{ margin: 'var(--spacing-large)' }}>
-                Fehler beim Laden der Anweisungen & Wissensdaten: {errorQuery.message}
+                Fehler beim Laden der Daten: {errorQuery.message}
             </div>
         );
     }
 
     return (
-        <motion.div 
-            className="profile-content groups-management-layout"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.3 }}
-        >
-            <div className="groups-navigation-panel">
-                {renderNavigationPanel()}
-            </div>
-            <div className="groups-content-panel profile-form-section">
-                <div className="group-content-card">
-                    <div className="auth-form">
-                        <div className="anweisungen-info" style={{ marginBottom: 'var(--spacing-large)', paddingBottom: 'var(--spacing-medium)', borderBottom: '1px solid var(--border-subtle)' }}>
-                            <p>
-                              Hier kannst du eigene Anweisungen und Wissensbausteine für den Grünerator hinterlegen.
-                            </p>
-                            <p>
-                            <strong>Tipp:</strong> Formuliere klare Anweisungen zum Stil oder persönliche Präferenzen.
-                            Nutze Wissen für wiederkehrende Infos (z.B. über dich, deinen Verband).
-                            </p>
-                        </div>
-
-                        {currentView === 'anweisungen' && (
-                            <div className="form-group">
-                                <div className="form-group-title">Benutzerdefinierte Anweisungen</div>
-                                <div className="form-field-wrapper anweisungen-field">
-                                    <div className="anweisungen-header">
-                                        <label htmlFor="userCustomAntragPrompt">Anweisungen für Anträge:</label>
-                                    </div>
-                                    <textarea
-                                        id="userCustomAntragPrompt"
-                                        className="form-textarea anweisungen-textarea auto-expand-textarea"
-                                        value={customAntragPrompt}
-                                        onChange={(e) => {
-                                            handleAnweisungenChange('customAntragPrompt', e.target.value);
-                                            autoResizeTextarea(e.target);
-                                        }}
-                                        placeholder="Gib hier deine Anweisungen für die Erstellung von Anträgen ein..."
-                                        rows={4}
-                                        disabled={isSaving}
-                                        ref={antragTextareaRef}
-                                    />
-                                    <p className="help-text">
-                                        Diese Anweisungen werden bei der Erstellung von Anträgen berücksichtigt.
+        <FormProvider {...formMethods}>
+            <form onSubmit={handleSubmit(onSubmit)}>
+                <motion.div 
+                    className="profile-content groups-management-layout"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.3 }}
+                >
+                    <div className="groups-navigation-panel">
+                        {renderNavigationPanel()}
+                    </div>
+                    <div className="groups-content-panel profile-form-section">
+                        <div className="group-content-card">
+                            <div className="auth-form">
+                                <div className="anweisungen-info" style={{ marginBottom: 'var(--spacing-large)', paddingBottom: 'var(--spacing-medium)', borderBottom: '1px solid var(--border-subtle)' }}>
+                                    <p>
+                                      Hier kannst du eigene Anweisungen und Wissensbausteine für den Grünerator hinterlegen.
+                                    </p>
+                                    <p>
+                                    <strong>Tipp:</strong> Formuliere klare Anweisungen zum Stil oder persönliche Präferenzen.
+                                    Nutze Wissen für wiederkehrende Infos (z.B. über dich, deinen Verband).
                                     </p>
                                 </div>
 
-                                <div className="form-field-wrapper anweisungen-field">
-                                    <div className="anweisungen-header">
-                                        <label htmlFor="userCustomSocialPrompt">Anweisungen für Social Media & Presse:</label>
-                                    </div>
-                                    <textarea
-                                        id="userCustomSocialPrompt"
-                                        className="form-textarea anweisungen-textarea auto-expand-textarea"
-                                        value={customSocialPrompt}
-                                        onChange={(e) => {
-                                            handleAnweisungenChange('customSocialPrompt', e.target.value);
-                                            autoResizeTextarea(e.target);
-                                        }}
-                                        placeholder="Gib hier deine Anweisungen für die Erstellung von Social Media Inhalten ein..."
-                                        rows={4}
-                                        disabled={isSaving}
-                                        ref={socialTextareaRef}
-                                    />
-                                    <p className="help-text">
-                                        Diese Anweisungen werden bei der Erstellung von Social Media & Presse-Inhalten berücksichtigt.
-                                    </p>
-                                </div>
-                            </div>
-                        )}
+                                {currentView === 'anweisungen' && (
+                                    <div className="form-group">
+                                        <div className="form-group-title">Benutzerdefinierte Anweisungen</div>
+                                        
+                                        <Textarea
+                                            name="customAntragPrompt"
+                                            label="Anweisungen für Anträge:"
+                                            placeholder="Gib hier deine Anweisungen für die Erstellung von Anträgen ein..."
+                                            helpText="Diese Anweisungen werden bei der Erstellung von Anträgen berücksichtigt."
+                                            minRows={4}
+                                            disabled={isSaving}
+                                            control={control}
+                                        />
 
-                        {currentView === 'wissen' && (
-                            <div className="form-group knowledge-management-section">
-                                <div className="form-group-title">Persönliches Wissen</div>
-                                {knowledgeEntries.map((entry, index) => (
-                                    <div key={entry.id} className={`knowledge-entry ${index > 0 ? 'knowledge-entry-bordered' : ''}`}>
-                                        <div className="form-field-wrapper anweisungen-field">
-                                            <div className="anweisungen-header">
-                                                <label htmlFor={`user-knowledge-title-${entry.id}`}>Wissen #{index + 1}: Titel</label>
-                                                {!(entry.isNew || (typeof entry.id === 'string' && entry.id.startsWith('new-'))) && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleDeleteKnowledge(entry.id)}
-                                                        className="knowledge-delete-button icon-button danger"
-                                                        disabled={isSaving || (isDeletingKnowledge && deletingKnowledgeId === entry.id)}
-                                                        aria-label={`Wissenseintrag ${index + 1} löschen`}
-                                                    >
-                                                        {(isDeletingKnowledge && deletingKnowledgeId === entry.id) ? <Spinner size="xsmall" /> : <HiOutlineTrash />}
-                                                    </button>
-                                                )}
+                                        <Textarea
+                                            name="customSocialPrompt"
+                                            label="Anweisungen für Social Media & Presse:"
+                                            placeholder="Gib hier deine Anweisungen für die Erstellung von Social Media Inhalten ein..."
+                                            helpText="Diese Anweisungen werden bei der Erstellung von Social Media & Presse-Inhalten berücksichtigt."
+                                            minRows={4}
+                                            disabled={isSaving}
+                                            control={control}
+                                        />
+                                    </div>
+                                )}
+
+                                {currentView === 'wissen' && (
+                                    <div className="form-group knowledge-management-section">
+                                        <div className="form-group-title-container" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-medium)' }}>
+                                            <div className="form-group-title">Persönliches Wissen</div>
+                                            <button
+                                                type="button"
+                                                className="add-knowledge-button"
+                                                onClick={handleAddKnowledge}
+                                                disabled={isSaving || isDeleting || fields.length >= MAX_KNOWLEDGE_ENTRIES}
+                                            >
+                                                <HiPlus /> Wissen hinzufügen
+                                            </button>
+                                        </div>
+
+                                        {fields.length === 0 && (
+                                            <div className="knowledge-empty-state" style={{ textAlign: 'center', padding: 'var(--spacing-large)', backgroundColor: 'var(--background-color-alt)', borderRadius: 'var(--border-radius-medium)', marginTop: 'var(--spacing-medium)' }}>
+                                                <p>Du hast noch keine Wissensbausteine hinterlegt.</p>
+                                                <p style={{ marginTop: 'var(--spacing-small)', color: 'var(--font-color-subtle)' }}>
+                                                    Klicke auf "Wissen hinzufügen", um wiederkehrende Informationen zu speichern.
+                                                </p>
                                             </div>
-                                            <TextInput
-                                                id={`user-knowledge-title-${entry.id}`}
-                                                type="text"
-                                                value={entry.title}
-                                                onChange={(e) => handleKnowledgeChange(entry.id, 'title', e.target.value)}
-                                                placeholder="Kurzer, prägnanter Titel (z.B. 'OV Musterstadt Vorstand')"
-                                                maxLength={100}
-                                                disabled={isSaving || isDeletingKnowledge}
-                                                className="form-input"
-                                            />
-                                        </div>
-                                        <div className="form-field-wrapper anweisungen-field">
-                                            <label htmlFor={`user-knowledge-content-${entry.id}`} className="knowledge-content-label">Inhalt:</label>
-                                            <textarea
-                                                id={`user-knowledge-content-${entry.id}`}
-                                                className="form-textarea anweisungen-textarea auto-expand-textarea"
-                                                value={entry.content}
-                                                onChange={(e) => {
-                                                    handleKnowledgeChange(entry.id, 'content', e.target.value);
-                                                    autoResizeTextarea(e.target);
-                                                }}
-                                                placeholder="Füge hier den Wissensinhalt ein..."
-                                                rows={3}
-                                                maxLength={MAX_CONTENT_LENGTH}
-                                                disabled={isSaving || isDeletingKnowledge}
-                                                ref={(el) => knowledgeTextareaRefs.current[entry.id] = el}
-                                            />
-                                            <p className="help-text character-count">
-                                                {entry.content?.length || 0} / {MAX_CONTENT_LENGTH} Zeichen
-                                            </p>
-                                        </div>
+                                        )}
+
+                                        {fields.map((field, index) => (
+                                            <div key={field.key} className={`knowledge-entry ${index > 0 ? 'knowledge-entry-bordered' : ''}`}>
+                                                <div className="form-field-wrapper anweisungen-field">
+                                                    <div className="anweisungen-header">
+                                                        <label htmlFor={`knowledge.${index}.title`}>Wissen #{index + 1}: Titel</label>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleDeleteKnowledge(field, index)}
+                                                            className="knowledge-delete-button icon-button danger"
+                                                            disabled={isSaving || (isDeleting && deletingKnowledgeId === field.id)}
+                                                            aria-label={`Wissenseintrag ${index + 1} löschen`}
+                                                        >
+                                                            {(isDeleting && deletingKnowledgeId === field.id) ? <Spinner size="xsmall" /> : <HiOutlineTrash />}
+                                                        </button>
+                                                    </div>
+                                                    <Input
+                                                        name={`knowledge.${index}.title`}
+                                                        type="text"
+                                                        placeholder="Kurzer, prägnanter Titel (z.B. 'OV Musterstadt Vorstand')"
+                                                        rules={{ maxLength: { value: 100, message: 'Titel darf maximal 100 Zeichen haben' } }}
+                                                        disabled={isSaving || isDeleting}
+                                                        control={control}
+                                                    />
+                                                </div>
+                                                <div className="form-field-wrapper anweisungen-field">
+                                                    <Textarea
+                                                        name={`knowledge.${index}.content`}
+                                                        label="Inhalt:"
+                                                        placeholder="Füge hier den Wissensinhalt ein..."
+                                                        minRows={3}
+                                                        maxLength={MAX_CONTENT_LENGTH}
+                                                        showCharacterCount={true}
+                                                        disabled={isSaving || isDeleting}
+                                                        control={control}
+                                                    />
+                                                </div>
+                                            </div>
+                                        ))}
                                     </div>
-                                ))}
+                                )}
+                                
+                                <div className="profile-actions profile-actions-container" style={{ marginTop: 'var(--spacing-large)' }}>
+                                    <button
+                                        type="submit"
+                                        className="profile-action-button profile-primary-button"
+                                        disabled={!hasUnsavedChanges || isSaving || isDeleting}
+                                        aria-live="polite"
+                                    >
+                                        {isSaving ? <Spinner size="small" /> : 'Änderungen speichern'}
+                                    </button>
+                                </div>
                             </div>
-                        )}
-                        
-                        {/* Save Button Area - Common for both views */}
-                        <div className="profile-actions profile-actions-container" style={{ marginTop: 'var(--spacing-large)' }}>
-                            <button
-                                type="button"
-                                className="profile-action-button profile-primary-button"
-                                onClick={handleSaveChanges}
-                                disabled={!hasUnsavedChanges || isSaving || isDeletingKnowledge}
-                                aria-live="polite"
-                            >
-                                {isSaving ? <Spinner size="small" /> : 'Änderungen speichern'}
-                            </button>
                         </div>
                     </div>
-                </div>
-            </div>
-        </motion.div>
+                </motion.div>
+            </form>
+        </FormProvider>
     );
 };
 
