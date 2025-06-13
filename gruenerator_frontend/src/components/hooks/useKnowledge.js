@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { useAuthStore } from '../../stores/authStore';
+import { useAuth } from '../../hooks/useAuth';
 import { useQuery } from '@tanstack/react-query';
 import { templatesSupabase as supabase } from '../utils/templatesSupabaseClient'; // Direct import
 
@@ -10,7 +10,7 @@ const EMPTY_ARRAY = []; // Stable empty array reference
  * Lädt verfügbare Wissenseinheiten aus der DB und verwaltet ausgewählte Einheiten
  */
 const useKnowledge = () => {
-  const { supabaseUser: user } = useAuthStore();
+  const { user } = useAuth();
   // selectedKnowledge bleibt client-seitiger State
   const [selectedKnowledge, setSelectedKnowledge] = useState([]);
 

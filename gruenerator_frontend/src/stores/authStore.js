@@ -31,7 +31,6 @@ const supabaseHelpers = {
         .single();
 
       if (fetchError) {
-        console.error("Error fetching user metadata:", fetchError);
         throw fetchError;
       }
 
@@ -55,13 +54,11 @@ const supabaseHelpers = {
         .eq('id', currentUser.id);
 
       if (updateError) {
-        console.error("Error updating user beta features in Supabase:", updateError);
         throw updateError;
       }
 
       return updatedBetaFeatures;
     } catch (err) {
-      console.error("Failed to update beta features:", err);
       throw err;
     }
   },
@@ -83,7 +80,6 @@ const supabaseHelpers = {
         .single();
 
       if (fetchError) {
-        console.error("Error fetching user metadata:", fetchError);
         throw fetchError;
       }
 
@@ -101,13 +97,11 @@ const supabaseHelpers = {
         .eq('id', currentUser.id);
       
       if (updateError) {
-        console.error("Error updating user message color in Supabase:", updateError);
         throw updateError;
       }
 
       return newColor;
     } catch (err) {
-      console.error("Failed to update message color:", err);
       throw err;
     }
   },
@@ -125,7 +119,6 @@ const supabaseHelpers = {
       if (error) throw error;
       return session;
     } catch (err) {
-      console.error('Error getting Supabase session:', err);
       return null;
     }
   },
@@ -154,7 +147,6 @@ const loadPersistedAuthState = () => {
     // Check cache version first
     const storedVersion = localStorage.getItem(AUTH_VERSION_KEY);
     if (storedVersion !== AUTH_CACHE_VERSION) {
-      console.log('[AuthStore] Cache version mismatch, clearing auth cache');
       localStorage.removeItem(AUTH_STORAGE_KEY);
       localStorage.setItem(AUTH_VERSION_KEY, AUTH_CACHE_VERSION);
       return null;
@@ -172,7 +164,6 @@ const loadPersistedAuthState = () => {
       
       // Check if stored state is still valid (not expired)
       if (timestamp && Date.now() - timestamp < AUTH_EXPIRY_TIME) {
-        console.log('[AuthStore] Loading persisted auth state');
         return {
           user: authState.user,
           isAuthenticated: authState.isAuthenticated,
@@ -183,12 +174,10 @@ const loadPersistedAuthState = () => {
         };
       } else {
         // Remove expired data
-        console.log('[AuthStore] Cached auth state expired');
         localStorage.removeItem(AUTH_STORAGE_KEY);
       }
     }
   } catch (error) {
-    console.warn('[AuthStore] Error loading persisted auth state:', error);
     localStorage.removeItem(AUTH_STORAGE_KEY);
     localStorage.removeItem(AUTH_VERSION_KEY);
   }
@@ -212,13 +201,9 @@ const persistAuthState = (authState) => {
     
     localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(dataToStore));
     localStorage.setItem(AUTH_VERSION_KEY, AUTH_CACHE_VERSION);
-    
-    console.log('[AuthStore] Auth state persisted successfully');
   } catch (error) {
-    console.warn('[AuthStore] Error persisting auth state:', error);
     // If storage is full, try to clear some space
     if (error.name === 'QuotaExceededError') {
-      console.log('[AuthStore] Storage quota exceeded, clearing old data');
       localStorage.removeItem(AUTH_STORAGE_KEY);
       localStorage.removeItem(AUTH_VERSION_KEY);
     }
@@ -255,15 +240,9 @@ export const useAuthStore = create((set, get) => ({
 
   // Main actions
   setAuthState: (data) => {
-    console.log('[AuthStore DEBUG] setAuthState called with:', { 
-      user: data.user ? `User with ID ${data.user.id}` : null,
-      isAuthenticated: data.isAuthenticated 
-    });
-
     // Immediately set the session in the Supabase client if available.
     // This is crucial to ensure subsequent requests are authenticated.
     if (data.supabaseSession) {
-      console.log('[AuthStore] Setting Supabase session in client to authenticate requests.');
       setTemplatesSupabaseSession(data.supabaseSession);
     }
 
@@ -283,15 +262,12 @@ export const useAuthStore = create((set, get) => ({
   setLoading: (isLoading) => set({ isLoading }),
   
   setError: (error) => {
-    console.log('[AuthStore DEBUG] setError called with:', error);
     set({ error, isLoading: false });
   },
   
   setLoggingOut: (loggingOut) => set({ isLoggingOut: loggingOut }),
   
   clearAuth: () => {
-    console.log('[AuthStore DEBUG] clearAuth called.');
-    
     // Cleanup Supabase auth listener
     const state = get();
     if (state._supabaseAuthCleanup) {
@@ -337,8 +313,6 @@ export const useAuthStore = create((set, get) => ({
   // Profile management via Backend API
   updateProfile: async (profileData) => {
     try {
-      console.log('[AuthStore] Updating profile via backend API:', profileData);
-      
       const response = await fetch(`${AUTH_BASE_URL}/api/auth/profile`, {
         method: 'PUT',
         credentials: 'include',
@@ -354,8 +328,6 @@ export const useAuthStore = create((set, get) => ({
         throw new Error(result.message || 'Profil-Update fehlgeschlagen');
       }
       
-      console.log('[AuthStore] Profile updated successfully:', result.profile);
-      
       // Update user in store with new profile data
       set(state => ({
         user: { ...state.user, ...result.profile }
@@ -363,7 +335,6 @@ export const useAuthStore = create((set, get) => ({
       
       return result.profile;
     } catch (error) {
-      console.error('[AuthStore] Profile update failed:', error);
       throw error;
     }
   },
@@ -371,8 +342,6 @@ export const useAuthStore = create((set, get) => ({
   // Avatar update via Backend API
   updateAvatar: async (avatarRobotId) => {
     try {
-      console.log('[AuthStore] Updating avatar via backend API:', avatarRobotId);
-      
       const response = await fetch(`${AUTH_BASE_URL}/api/auth/profile/avatar`, {
         method: 'PATCH',
         credentials: 'include',
@@ -388,8 +357,6 @@ export const useAuthStore = create((set, get) => ({
         throw new Error(result.message || 'Avatar-Update fehlgeschlagen');
       }
       
-      console.log('[AuthStore] Avatar updated successfully:', result.profile);
-      
       // Update user in store with new avatar
       set(state => ({
         user: { ...state.user, ...result.profile }
@@ -397,7 +364,6 @@ export const useAuthStore = create((set, get) => ({
       
       return result.profile;
     } catch (error) {
-      console.error('[AuthStore] Avatar update failed:', error);
       throw error;
     }
   },
@@ -416,8 +382,6 @@ export const useAuthStore = create((set, get) => ({
     // Use backend API instead of direct Supabase calls
     return fetchWithDedup(dedupKey, async () => {
       try {
-        console.log(`[AuthStore] Updating beta feature '${key}' to ${value} via backend API`);
-        
         const response = await fetch(`${AUTH_BASE_URL}/api/auth/profile/beta-features`, {
           method: 'PATCH',
           credentials: 'include',
@@ -433,8 +397,6 @@ export const useAuthStore = create((set, get) => ({
           throw new Error(result.message || 'Beta Feature Update fehlgeschlagen');
         }
         
-        console.log(`[AuthStore] Beta feature '${key}' updated to ${value} successfully`);
-        
         // Update beta features in store
         set(state => ({
           betaFeatures: result.betaFeatures
@@ -447,7 +409,6 @@ export const useAuthStore = create((set, get) => ({
         
         return result.betaFeatures;
       } catch (error) {
-        console.error(`[AuthStore] Failed to update beta feature '${key}':`, error);
         // Revert on error
         set(state => ({ betaFeatures: { ...state.betaFeatures, [key]: !value } }));
         throw error;
@@ -461,8 +422,6 @@ export const useAuthStore = create((set, get) => ({
     set({ selectedMessageColor: color });
 
     try {
-      console.log(`[AuthStore] Updating message color to ${color} via backend API`);
-      
       const response = await fetch(`${AUTH_BASE_URL}/api/auth/profile/message-color`, {
         method: 'PATCH',
         credentials: 'include',
@@ -478,11 +437,8 @@ export const useAuthStore = create((set, get) => ({
         throw new Error(result.message || 'Message Color Update fehlgeschlagen');
       }
       
-      console.log(`[AuthStore] Message color updated to ${color} successfully`);
-      
       return result.messageColor;
     } catch (error) {
-      console.error(`[AuthStore] Failed to update message color:`, error);
       // Revert optimistic update on failure
       const state = get();
       const previousColor = state.user?.user_metadata?.chat_color || '#008939';
@@ -494,19 +450,15 @@ export const useAuthStore = create((set, get) => ({
   // Handle failed backend session creation with frontend fallback
   handleFailedBackendSession: async (user) => {
     if (!templatesSupabase || !user?.email) {
-      console.warn('[AuthStore] Cannot create frontend session: missing Supabase client or user email');
       return;
     }
 
     try {
-      console.log('[AuthStore] Attempting to sign in to Supabase directly:', user.email);
-      
       // Try to sign in using the email (this will trigger RLS with the correct user)
       // This works because the user already exists in Supabase auth.users table
       const { data: existingSession } = await templatesSupabase.auth.getSession();
       
       if (existingSession?.session) {
-        console.log('[AuthStore] Found existing Supabase session');
         get().setSupabaseSession(existingSession.session);
         return;
       }
@@ -515,7 +467,6 @@ export const useAuthStore = create((set, get) => ({
       const { data: userData, error: userError } = await templatesSupabase.auth.getUser();
       
       if (!userError && userData?.user) {
-        console.log('[AuthStore] Supabase user found, session should be active');
         // Sometimes the session exists but getSession doesn't return it immediately
         setTimeout(async () => {
           const { data: retrySession } = await templatesSupabase.auth.getSession();
@@ -525,11 +476,9 @@ export const useAuthStore = create((set, get) => ({
         }, 1000);
         return;
       }
-
-      console.log('[AuthStore] No active Supabase session found, user may need to authenticate with Supabase separately');
       
     } catch (error) {
-      console.error('[AuthStore] Frontend Supabase session fallback failed:', error);
+      // Failed to create frontend session fallback
     }
   },
 
@@ -554,7 +503,6 @@ export const useAuthStore = create((set, get) => ({
 
       // Set up auth state change listener
       const cleanup = supabaseHelpers.setupSupabaseAuthListener((event, session) => {
-        console.log('[AuthStore] Supabase auth state changed:', event);
         get().setSupabaseSession(session);
         
         if (session?.user?.user_metadata) {
@@ -571,7 +519,7 @@ export const useAuthStore = create((set, get) => ({
       set({ _supabaseAuthCleanup: cleanup });
 
     } catch (error) {
-      console.error('[AuthStore] Failed to initialize Supabase auth:', error);
+      // Failed to initialize Supabase auth
     }
   },
 
@@ -587,7 +535,6 @@ export const useAuthStore = create((set, get) => ({
   // Auth actions (these now redirect to backend endpoints)
   login: () => {
     const authUrl = `${AUTH_BASE_URL}/api/auth/login`;
-    console.log(`[AuthStore] Redirecting to login: ${authUrl}`);
     window.location.href = authUrl;
   },
 
@@ -601,7 +548,6 @@ export const useAuthStore = create((set, get) => ({
       
       // Start logout API call but don't wait for it
       const authUrl = `${AUTH_BASE_URL}/api/auth/logout`;
-      console.log(`[AuthStore] Calling logout API: ${authUrl}`);
       
       // Call logout API and clear state
       fetch(authUrl, {
@@ -611,17 +557,15 @@ export const useAuthStore = create((set, get) => ({
           'Content-Type': 'application/json',
         },
       }).then(response => response.json()).then(data => {
-        console.log('[AuthStore] Logout API completed:', data);
+        // Logout API completed
       }).catch(error => {
-        console.warn('[AuthStore] Logout API error (non-blocking):', error);
+        // Logout API error (non-blocking)
       });
 
       // Clear auth state immediately
-      console.log('[AuthStore] Clearing auth state without redirect...');
       get().clearAuth();
       
     } catch (error) {
-      console.error('[AuthStore] Logout error:', error);
       // Clear local state even if logout API failed
       get().clearAuth();
     }
@@ -629,15 +573,12 @@ export const useAuthStore = create((set, get) => ({
 
   // Registration functionality (now handled by Authentik flows)
   register: () => {
-    console.warn('[AuthStore] register() is deprecated. Registration is now handled through Authentik enrollment flows.');
-    console.warn('[AuthStore] Use the registration page that redirects to Authentik instead.');
+    // Deprecated: Registration is now handled through Authentik enrollment flows
   },
 
   // Account deletion for gruenerator users
   deleteAccount: async (confirmationData) => {
     try {
-      console.log(`[AuthStore] Deleting account for user: ${get().user?.email}`);
-      
       const authUrl = `${AUTH_BASE_URL}/api/auth/delete-account`;
       const response = await fetch(authUrl, {
         method: 'DELETE',
@@ -654,8 +595,6 @@ export const useAuthStore = create((set, get) => ({
         throw new Error(data.message || 'Kontolöschung fehlgeschlagen');
       }
 
-      console.log('[AuthStore] Account deletion successful');
-      
       // Clear local auth state
       get().clearAuth();
       
@@ -665,7 +604,6 @@ export const useAuthStore = create((set, get) => ({
       };
 
     } catch (error) {
-      console.error('[AuthStore] Account deletion error:', error);
       throw {
         success: false,
         message: error.message || 'Kontolöschung fehlgeschlagen'
@@ -676,8 +614,6 @@ export const useAuthStore = create((set, get) => ({
   // Password reset request for gruenerator users
   sendPasswordResetEmail: async (email) => {
     try {
-      console.log(`[AuthStore] Requesting password reset for: ${email}`);
-      
       const authUrl = `${AUTH_BASE_URL}/api/auth/reset-password`;
       const response = await fetch(authUrl, {
         method: 'POST',
@@ -694,15 +630,12 @@ export const useAuthStore = create((set, get) => ({
         throw new Error(data.message || 'Passwort-Reset fehlgeschlagen');
       }
 
-      console.log('[AuthStore] Password reset email requested');
-      
       return {
         success: true,
         message: data.message
       };
 
     } catch (error) {
-      console.error('[AuthStore] Password reset error:', error);
       throw {
         success: false,
         message: error.message || 'Passwort-Reset fehlgeschlagen'
@@ -712,7 +645,7 @@ export const useAuthStore = create((set, get) => ({
 
   // Legacy compatibility method (still needed for external SSO users)
   updatePassword: () => {
-    console.warn('updatePassword is not supported with Authentik SSO. Use your identity provider or password reset flow.');
+    // Not supported with Authentik SSO
   },
 
   // Helper method to check if current user can register/delete account
@@ -729,7 +662,7 @@ export const useAuthStore = create((set, get) => ({
 
   // Legacy compatibility (marked as removed)
   signup: () => {
-    console.warn('signup is deprecated. Use register() method instead.');
+    // Deprecated method
   },
 }));
 
@@ -739,13 +672,9 @@ export { supabaseHelpers };
 // Subscribe to changes and persist them to localStorage
 useAuthStore.subscribe(
   (state) => {
-    console.log('[AuthStore DEBUG] Subscription triggered. IsAuthenticated:', state.isAuthenticated);
     // Only persist if the user is authenticated to avoid overwriting with null
     if (state.isAuthenticated && state.user) {
-      console.log(`[AuthStore DEBUG] Persisting state for user ${state.user.id}`);
       persistAuthState(state);
-    } else {
-      console.log('[AuthStore DEBUG] Skipping persistence: user not authenticated or null.');
     }
   },
   (state) => ({ 

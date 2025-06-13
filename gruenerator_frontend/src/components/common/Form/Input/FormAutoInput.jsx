@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import { Controller } from 'react-hook-form';
 import TextareaAutosize from 'react-textarea-autosize';
 import FormFieldWrapper from './FormFieldWrapper';
+import { useSimpleFormStore } from '../../../../stores/simpleFormStore';
 
 /**
  * FormAutoInput - Large input component with auto-resize for extensive text input
@@ -125,7 +126,10 @@ const FormAutoInput = ({
     );
   }
 
-  // Fallback for legacy use without react-hook-form
+  // Zustand fallback controlled component
+  const value = useSimpleFormStore((state) => state.fields[name] ?? defaultValue);
+  const setField = useSimpleFormStore((state) => state.setField);
+
   return (
     <FormFieldWrapper
       label={label}
@@ -140,15 +144,25 @@ const FormAutoInput = ({
           name={name}
           placeholder={placeholder}
           disabled={disabled}
-          defaultValue={defaultValue}
           minRows={minRows}
           maxRows={maxRows}
           maxLength={maxLength}
           className={autoInputClassName}
+          value={value}
+          onChange={(e) => {
+            let newVal = e.target.value;
+            if (autoFormat) {
+              newVal = formatText(newVal);
+            }
+            setField(name, newVal);
+            if (rest.onChange) {
+              rest.onChange(newVal);
+            }
+          }}
           {...textareaProps}
           {...rest}
         />
-        <TextStats value={defaultValue} />
+        <TextStats value={value} />
       </div>
     </FormFieldWrapper>
   );
