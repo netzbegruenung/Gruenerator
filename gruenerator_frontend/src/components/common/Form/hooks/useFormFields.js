@@ -8,22 +8,24 @@ import { FormInput, FormTextarea, FormAutoInput, FormSelect, FormCheckbox } from
  * @returns {Object} Form components with control automatically bound
  */
 export const useFormFields = () => {
-  let control = null;
-  
+  let ctxControl = null;
   try {
     const formContext = useFormContext();
-    control = formContext.control;
+    ctxControl = formContext.control;
   } catch (error) {
-    // No FormContext available - components will work in legacy mode
-    console.warn('[useFormFields] No FormContext available, using legacy mode');
+    // No RHF context available
   }
 
+  // helper to bind component
+  const bind = (Cmp) => ({ control, ...rest }) =>
+    React.createElement(Cmp, { control: control || ctxControl, ...rest });
+
   return {
-    Input: (props) => React.createElement(FormInput, { control, ...props }),
-    Textarea: (props) => React.createElement(FormTextarea, { control, ...props }),
-    AutoInput: (props) => React.createElement(FormAutoInput, { control, ...props }),
-    Select: (props) => React.createElement(FormSelect, { control, ...props }),
-    Checkbox: (props) => React.createElement(FormCheckbox, { control, ...props })
+    Input: bind(FormInput),
+    Textarea: bind(FormTextarea),
+    AutoInput: bind(FormAutoInput),
+    Select: bind(FormSelect),
+    Checkbox: bind(FormCheckbox)
   };
 };
 

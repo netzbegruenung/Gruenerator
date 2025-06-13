@@ -5,46 +5,58 @@ import { handleError } from './errorHandling';
 const supabaseUrl = import.meta.env.VITE_TEMPLATES_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_TEMPLATES_SUPABASE_ANON_KEY;
 
-// Singleton pattern to prevent multiple client instances
-let templatesSupabase = null;
+// Robust Singleton – bleibt auch bei Vite-HMR nur einmal erhalten
+const SUPABASE_SINGLETON_KEY = '__gruenerator_templates_supabase__';
+
+// Retrieve existing instance from globalThis (if any)
+let templatesSupabase = globalThis[SUPABASE_SINGLETON_KEY] || null;
 
 const createTemplatesSupabaseClient = () => {
   if (templatesSupabase) {
     return templatesSupabase;
   }
 
-  if (supabaseUrl && supabaseKey) {
-    try {
-      templatesSupabase = createClient(supabaseUrl, supabaseKey, {
-        auth: {
-          storageKey: 'supabase_templates_auth_token'
-        }
-      });
-      console.log('[templatesSupabase] Client initialized successfully.');
-      return templatesSupabase;
-    } catch (error) {
-      console.error(`[templatesSupabase] Failed to initialize client: ${error.message}. Invalid URL?`, { urlProvided: supabaseUrl });
-      templatesSupabase = null;
-      return null;
-    }
-  } else {
+  if (!supabaseUrl || !supabaseKey) {
     console.warn('[templatesSupabase] Environment variables not found. Functionality will be disabled.');
+    return null;
+  }
+
+  try {
+    templatesSupabase = createClient(supabaseUrl, supabaseKey, {
+      auth: {
+        storageKey: 'supabase_templates_auth_token'
+      }
+    });
+
+    // Persist instance across HMR reloads
+    globalThis[SUPABASE_SINGLETON_KEY] = templatesSupabase;
+
+    console.log('[templatesSupabase] Client initialized successfully.');
+    return templatesSupabase;
+  } catch (error) {
+    console.error(`[templatesSupabase] Failed to initialize client: ${error.message}. Invalid URL?`, { urlProvided: supabaseUrl });
+    templatesSupabase = null;
     return null;
   }
 };
 
-// Initialize the singleton instance
-templatesSupabase = createTemplatesSupabaseClient();
+// Force initialization immediately so the instance exists for imports
+createTemplatesSupabaseClient();
 
-// Exportiere den möglicherweise nullen Client (Benutzer sollten prüfen)
+// Getter for external modules – avoids direct import of the variable
+export const getTemplatesSupabase = () => templatesSupabase;
+
+// Export variable for backwards compatibility (read-only)
 export { templatesSupabase };
 
 // Funktion zum Setzen der Authentifizierungs-Session
 export const setTemplatesSupabaseSession = (session) => {
-  if (templatesSupabase && session) {
-    console.log('[templatesSupabase] Setting user session for authenticated requests');
-    templatesSupabase.auth.setSession(session);
-  }
+  if (!templatesSupabase || !session) return;
+
+  // Supabase-JS v2 besitzt nur getSession() (async). Zur Vereinfachung
+  // setzen wir die Session immer, doppelte Aufrufe sind unkritisch.
+  console.log('[templatesSupabase] Setting user session for authenticated requests');
+  templatesSupabase.auth.setSession(session);
 };
 
 // Hilfsfunktionen für häufige Datenbankoperationen

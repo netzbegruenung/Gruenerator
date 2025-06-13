@@ -87,7 +87,7 @@ const getCachedAuthState = () => {
       }
     }
   } catch (error) {
-    console.warn('[useAuth] Cache read failed:', error);
+    // Cache read failed, return null
   }
   return null;
 };
@@ -102,7 +102,7 @@ const setCachedAuthState = (data) => {
       timestamp: Date.now()
     }));
   } catch (error) {
-    console.warn('[useAuth] Cache write failed:', error);
+    // Cache write failed, ignore
   }
 };
 
@@ -208,7 +208,6 @@ export const useAuth = (options = {}) => {
   // Initialize with cached data if available
   useEffect(() => {
     if (cachedAuth && !hasInitializedFromCache) {
-      console.log('[useAuth DEBUG] Initializing state from cache.');
       setAuthState(cachedAuth);
       setHasInitializedFromCache(true);
     }
@@ -227,7 +226,6 @@ export const useAuth = (options = {}) => {
   } = useQuery({
     queryKey: ['authStatus'],
     queryFn: async () => {
-      console.log('[useAuth DEBUG] queryFn starting.');
       try {
         const response = await fetch(`${AUTH_BASE_URL}/api/auth/status`, {
           method: 'GET',
@@ -242,10 +240,8 @@ export const useAuth = (options = {}) => {
         }
         
         const data = await response.json();
-        console.log('[useAuth DEBUG] queryFn success, data received:', { isAuthenticated: data.isAuthenticated, user: !!data.user });
         return data;
       } catch (error) {
-        console.error('[useAuth DEBUG] queryFn error:', error);
         throw error;
       }
     },
@@ -261,8 +257,6 @@ export const useAuth = (options = {}) => {
   // Handle auth data when it changes
   useEffect(() => {
     if (authData) {
-      console.log('[useAuth DEBUG] useEffect handling authData:', { isAuthenticated: authData.isAuthenticated, user: !!authData.user });
-      
       if (instant) {
         setCachedAuthState(authData);
       }
@@ -272,7 +266,6 @@ export const useAuth = (options = {}) => {
       if (authData.isAuthenticated && authData.user) {
         // Prevent infinite loop by only setting state if user is different
         if (authData.user.id !== currentUser?.id) {
-          console.log('[useAuth DEBUG] User changed. Setting authenticated state for user:', authData.user.id);
           setAuthState({
             user: authData.user,
             isAuthenticated: authData.isAuthenticated,
@@ -281,21 +274,18 @@ export const useAuth = (options = {}) => {
         }
 
         if (authData.supabaseSession) {
-          console.log('[useAuth DEBUG] Supabase session available, initializing...');
           try {
             const { initializeSupabaseAuth } = useAuthStore.getState();
             initializeSupabaseAuth();
           } catch (error) {
-            console.warn('[useAuth DEBUG] Supabase auth initialization warning:', error);
+            // Supabase auth initialization failed
           }
         }
       } else if (currentIsAuthenticated) {
         // Only clear auth if user was previously authenticated
-        console.log('[useAuth DEBUG] Clearing auth - user not authenticated');
         clearAuth();
       }
     } else if (queryError) {
-      console.error('[useAuth DEBUG] Query error, clearing auth:', queryError);
       setError(queryError.message);
       clearAuth();
     }
@@ -313,26 +303,20 @@ export const useAuth = (options = {}) => {
     (!isChecking && !isQueryLoading && (authData !== undefined || queryError) && !isLoggingOut)
   );
 
-  console.log(`[useAuth DEBUG] Render. IsAuthenticated: ${isAuthenticated}, User: ${user ? `ID ${user.id}` : 'null'}, Loading: ${isCombinedLoading}`);
-
   // Helper function to update user beta features
   const updateUserBetaFeatures = async (featureKey, isEnabled) => {
     if (!user) {
-      console.error('User not logged in, cannot update beta features.');
       return;
     }
 
     try {
-      console.log(`[useAuth] Updating beta feature '${featureKey}' to ${isEnabled}`);
       await updateBetaFeature(featureKey, isEnabled);
-      console.log(`[useAuth] Beta feature '${featureKey}' successfully updated to ${isEnabled}`);
       
       // Invalidate beta features query to force refresh
       queryClient.invalidateQueries({ queryKey: ['betaFeatures', user.id] });
       // Also refetch auth data to ensure sync
       refetchAuth();
     } catch (err) {
-      console.error(`[useAuth] Failed to update beta feature '${featureKey}':`, err);
       throw err;
     }
   };
@@ -340,16 +324,12 @@ export const useAuth = (options = {}) => {
   // Helper function to update message color
   const updateUserMessageColor = async (newColor) => {
     if (!user) {
-      console.error('User not logged in, cannot update message color.');
       return;
     }
 
     try {
-      console.log(`[useAuth] Updating message color to: ${newColor}`);
       await updateMessageColor(newColor);
-      console.log(`[useAuth] Message color successfully updated to: ${newColor}`);
     } catch (err) {
-      console.error(`[useAuth] Failed to update message color:`, err);
       throw err;
     }
   };
@@ -390,7 +370,7 @@ export const useAuth = (options = {}) => {
     session: useAuthStore.getState().supabaseSession,
     supabase: null,
     setDeutschlandmodusInContext: (value) => {
-      console.warn('setDeutschlandmodusInContext is deprecated. Use updateUserBetaFeatures instead.');
+      // Deprecated function
     },
     canManageAccount,
   };
