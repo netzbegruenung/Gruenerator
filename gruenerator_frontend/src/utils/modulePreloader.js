@@ -77,22 +77,18 @@ class ModulePreloader {
     
     // Adjust behavior for slow connections
     if (this.isSlowConnection && priority !== 'CRITICAL' && priority !== 'HIGH') {
-      console.log(`[ModulePreloader] Skipping ${name} due to slow connection`);
       return Promise.resolve(null);
     }
     
     const loadFn = async () => {
       try {
-        console.log(`[ModulePreloader] Loading ${name} with priority ${priority}`);
         const module = await importFn();
         
         const endTime = performance.now();
         this.loadTimes.set(name, endTime - startTime);
-        console.log(`[ModulePreloader] Loaded ${name} in ${(endTime - startTime).toFixed(2)}ms`);
         
         return module;
       } catch (error) {
-        console.error(`[ModulePreloader] Failed to load ${name}:`, error);
         throw error;
       }
     };
@@ -173,9 +169,9 @@ class ModulePreloader {
       for (const chunk of chunks) {
         await Promise.all(
           chunk.map(({ name, importFn, priority }) => 
-            this.preloadModule(name, importFn, priority).catch(err => 
-              console.warn(`Failed to preload ${name}:`, err)
-            )
+            this.preloadModule(name, importFn, priority).catch(err => {
+              // Module preload failed
+            })
           )
         );
       }

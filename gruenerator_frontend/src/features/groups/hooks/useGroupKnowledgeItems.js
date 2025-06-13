@@ -1,4 +1,4 @@
-import { useAuthStore } from '../../../stores/authStore';
+import { useAuth } from '../../../hooks/useAuth';
 import { useQuery } from '@tanstack/react-query';
 // Direct import of the Supabase client instance
 import { templatesSupabase } from '../../../components/utils/templatesSupabaseClient';
@@ -12,7 +12,7 @@ const EMPTY_ARRAY = []; // Stable empty array reference
  * @returns {object} - { groupKnowledge, isLoading, isError, error, refetchGroupKnowledge }
  */
 const useGroupKnowledgeItems = (groupId, enabled = !!groupId) => {
-  const supabaseUser = useAuthStore((state) => state.supabaseUser);
+  const { user: supabaseUser } = useAuth();
 
   // The Supabase client is now imported directly, so no useEffect/useState needed for it.
 
