@@ -11,13 +11,11 @@ const upload = multer({ dest: 'uploads/' });
 // Pfade definieren
 const fontPath = path.resolve(__dirname, '../../../public/fonts/GrueneType.ttf');
 const quotationMarkPath = path.resolve(__dirname, '../../../public/quote.svg');
-const testbildPath = path.resolve(__dirname, '../../../public/testbild.jpg');
 
 // Überprüfen, ob notwendige Dateien existieren
 [
   { path: fontPath, name: 'Schriftartdatei' },
-  { path: quotationMarkPath, name: 'Anführungszeichen-SVG' },
-  { path: testbildPath, name: 'Testbild' }
+  { path: quotationMarkPath, name: 'Anführungszeichen-SVG' }
 ].forEach(file => {
   if (!fs.existsSync(file.path)) {
     throw new Error(`${file.name} nicht gefunden: ${file.path}`);
@@ -120,8 +118,6 @@ async function addTextToImage(imagePath, outputImagePath, quote, name) {
   }
 }
 
-
-
 router.post('/', upload.single('image'), async (req, res) => {
   let outputImagePath;
   try {
@@ -134,8 +130,11 @@ router.post('/', upload.single('image'), async (req, res) => {
     if (!name || typeof name !== 'string') {
       throw new Error('Name ist erforderlich');
     }
+    if (!req.file) {
+      throw new Error('Bild ist erforderlich');
+    }
 
-    const imagePath = req.file ? req.file.path : testbildPath;
+    const imagePath = req.file.path;
     outputImagePath = path.join('uploads', `output-${uuidv4()}.png`);
 
     await addTextToImage(imagePath, outputImagePath, quote, name);
