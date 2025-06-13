@@ -1,7 +1,6 @@
 import express from 'express';
 import cluster from 'cluster';
 import os from 'os';
-import Redis from 'redis';
 import compression from 'compression';
 import bodyParser from 'body-parser';
 import dotenv from 'dotenv';
@@ -16,6 +15,7 @@ import helmet from 'helmet';
 import winston from 'winston';
 import multer from 'multer';
 import axios from 'axios';
+import { createRequire } from 'module';
 
 // Adjusted imports for CommonJS modules
 import routesModule from './routes.js';
@@ -32,6 +32,8 @@ import session from 'express-session';
 import {RedisStore} from 'connect-redis';
 import passport from './config/passportSetup.mjs';
 
+const require = createRequire(import.meta.url);
+
 const numCPUs = os.cpus().length;
 
 // Load environment variables
@@ -44,6 +46,8 @@ const __dirname = dirname(__filename);
 // Globaler Worker-Pool für AI-Anfragen
 let aiWorkerPool;
 let masterShutdownInProgress = false;
+
+// ... existing code ...
 
 if (cluster.isMaster) {
   console.log(`Master ${process.pid} is running`);
@@ -117,20 +121,16 @@ if (cluster.isMaster) {
   process.on('SIGTERM', () => masterShutdown('SIGTERM'));
   process.on('SIGINT', () => masterShutdown('SIGINT'));
 } else {
-  console.log('!!!!!!!!!!!!!! SERVER.MJS (WORKER) MIT DEBUG-OPTIONS-MIDDLEWARE WIRD GELADEN !!!!!!!!!!!!!!'); // <--- TEST LOG
+
 
   const app = express();
   let workerShutdownInProgress = false;
   
-  // Redis Client Setup - moved before session setup
-  const redisClient = Redis.createClient({
-    url: process.env.REDIS_URL || 'redis://localhost:6379'
-  });
-
-  redisClient.on('error', (err) => console.log('Redis Client Error', err));
+  // Import Redis client only in worker process
+  const redisClient = require('./utils/redisClient.js');
   
-  // Connect to Redis
-  await redisClient.connect();
+  // Redis Client is already configured and connected in utils/redisClient.js
+  // No need to create a new client here
 
   // CORS Setup - MUSS GANZ AM ANFANG kommen!
   const allowedOrigins = [
