@@ -1,45 +1,58 @@
-import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../components/utils/supabaseClient';
-import { useAuth } from '../hooks/useAuth';
+import { useState, useEffect } from 'react';
+import { templatesSupabase } from '../components/utils/templatesSupabaseClient';
 
 export const usePRTextsGallery = () => {
   const [categories, setCategories] = useState([]);
-  const [loadingCategories, setLoadingCategories] = useState(false);
-  const [errorCategories, setErrorCategories] = useState(null);
-  const { user } = useAuth();
-
-  const fetchCategories = useCallback(async () => {
-    if (!user) return; // Ensure user is available for RLS
-
-    setLoadingCategories(true);
-    setErrorCategories(null);
-    try {
-      const { data, error } = await supabase
-        .from('pr_text_categories')
-        .select('id, name')
-        .order('name', { ascending: true });
-
-      if (error) throw error;
-      
-      // Transform data to match the expected format for CategoryFilter { id: 'string', label: 'string' }
-      const formattedCategories = data.map(cat => ({ id: cat.id, label: cat.name }));
-      setCategories(formattedCategories);
-    } catch (error) {
-      console.error("Error fetching PR text categories:", error);
-      setErrorCategories(error.message);
-    } finally {
-      setLoadingCategories(false);
-    }
-  }, [user]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetchCategories();
-  }, [fetchCategories]);
+    const fetchPRTexts = async () => {
+      if (!templatesSupabase) {
+        setCategories([]);
+        setLoading(false);
+        return;
+      }
 
-  return {
-    categories,
-    loadingCategories,
-    errorCategories,
-    fetchCategories, // Expose fetchCategories if manual refetch is needed
-  };
+      try {
+        setLoading(true);
+        const { data, error } = await templatesSupabase
+          .from('pr_texts')
+          .select('*')
+          .order('category')
+          .order('title');
+
+        if (error) throw error;
+
+        // Group by category
+        const groupedData = data.reduce((acc, item) => {
+          const category = item.category || 'Uncategorized';
+          if (!acc[category]) {
+            acc[category] = [];
+          }
+          acc[category].push(item);
+          return acc;
+        }, {});
+
+        // Convert to array format
+        const categoriesArray = Object.entries(groupedData).map(([name, items]) => ({
+          name,
+          items
+        }));
+
+        setCategories(categoriesArray);
+        setError(null);
+      } catch (err) {
+        console.error('Error fetching PR texts:', err);
+        setError(err.message);
+        setCategories([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPRTexts();
+  }, []);
+
+  return { categories, loading, error };
 }; 

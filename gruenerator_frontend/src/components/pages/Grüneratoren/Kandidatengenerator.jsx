@@ -28,7 +28,6 @@ const KandidatenGenerator = ({ showHeaderFooter = true }) => {
   // const textSize = useDynamicTextSize(generatedJson, 1.2, 0.8, [1000, 2000]);
   const { submitForm, loading, success, resetSuccess, error } = useApiSubmit('/claude_kandidat');
   const { setGeneratedContent } = useContext(FormContext);
-  const [useBackupProvider, setUseBackupProvider] = useState(false);
 
   const handleSubmit = async () => {
     try {
@@ -38,7 +37,7 @@ const KandidatenGenerator = ({ showHeaderFooter = true }) => {
         ort: formData.ort,
         personenbeschreibung: formData.personenbeschreibung,
         themen: formData.themen
-      }, useBackupProvider);
+      });
 
       if (content) {
         setGeneratedJson(content);
@@ -258,8 +257,6 @@ const KandidatenGenerator = ({ showHeaderFooter = true }) => {
         generatedContent={generatedJson || helpDisplay}
         
         onGeneratedContentChange={handleGeneratedContentChange}
-        useBackupProvider={useBackupProvider}
-        setUseBackupProvider={setUseBackupProvider}
         isMultiStep={true}
         showBackButton={currentStep > STEPS.PERSONAL}
         nextButtonText={currentStep === STEPS.THEMES ? 'Grünerieren' : 'Weiter'}

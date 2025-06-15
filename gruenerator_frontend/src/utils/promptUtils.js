@@ -52,6 +52,36 @@ export const createStructuredFinalPrompt = (customInstructions, knowledgeContent
 };
 
 /**
+ * Creates a base prompt from form data for social media generators
+ * @param {Object} formData - Form data object
+ * @returns {string} Formatted base prompt
+ */
+export const createBasePromptFromFormData = (formData) => {
+  const { thema, details, platforms = [], zitatgeber, pressekontakt } = formData;
+  
+  let basePrompt = `Thema: ${thema || 'Nicht angegeben'}`;
+  
+  if (details) {
+    basePrompt += `\nDetails: ${details}`;
+  }
+  
+  if (platforms.length > 0) {
+    basePrompt += `\nPlattformen: ${platforms.join(', ')}`;
+  }
+  
+  if (platforms.includes('pressemitteilung')) {
+    if (zitatgeber) {
+      basePrompt += `\nZitat von: ${zitatgeber}`;
+    }
+    if (pressekontakt) {
+      basePrompt += `\nPressekontakt: ${pressekontakt}`;
+    }
+  }
+  
+  return basePrompt;
+};
+
+/**
  * Combines a base prompt with additional knowledge content.
  * @param {string | null} basePrompt The user's custom prompt.
  * @param {string | null} knowledgeString The formatted string of selected knowledge items.

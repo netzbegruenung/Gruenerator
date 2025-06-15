@@ -18,56 +18,92 @@ const LOGIN_INTENT_KEY = 'gruenerator_login_intent';
 // Helper functions for Supabase operations (extracted from SupabaseAuthContext)
 const supabaseHelpers = {
   /**
-   * Update user beta features via backend API (deprecated - now handled by backend)
+   * Update user beta features in Supabase user metadata
    */
   async updateUserBetaFeatures(featureKey, isEnabled, currentUser) {
-    // This method is deprecated - beta features are now managed via backend API
-    // Keeping for backward compatibility but delegating to backend API
+    if (!currentUser || !templatesSupabase) {
+      throw new Error("User not logged in or Supabase not available");
+    }
+
     try {
-      const response = await fetch(`${AUTH_BASE_URL}/api/auth/profile/beta-features`, {
-        method: 'PATCH',
-        credentials: 'include',
-        headers: { 
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ feature: featureKey, enabled: isEnabled })
-      });
-      
-      const result = await response.json();
-      
-      if (!response.ok || !result.success) {
-        throw new Error(result.message || 'Beta Feature Update fehlgeschlagen');
+      // Get current user metadata
+      const { data: userData, error: fetchError } = await templatesSupabase
+        .from('auth.users')
+        .select('raw_user_meta_data')
+        .eq('id', currentUser.id)
+        .single();
+
+      if (fetchError) {
+        throw fetchError;
       }
-      
-      return result.betaFeatures;
+
+      // Update beta features in metadata
+      const currentMetadata = userData.raw_user_meta_data || {};
+      const currentBetaFeatures = currentMetadata.beta_features || {};
+      const updatedBetaFeatures = { 
+        ...currentBetaFeatures, 
+        [featureKey]: isEnabled 
+      };
+
+      const updatedMetadata = {
+        ...currentMetadata,
+        beta_features: updatedBetaFeatures
+      };
+
+      // Update in database
+      const { error: updateError } = await templatesSupabase
+        .from('auth.users')
+        .update({ raw_user_meta_data: updatedMetadata })
+        .eq('id', currentUser.id);
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      return updatedBetaFeatures;
     } catch (err) {
       throw err;
     }
   },
 
   /**
-   * Update user message color via backend API (deprecated - now handled by backend)
+   * Update user message color in Supabase user metadata
    */
   async updateUserMessageColor(newColor, currentUser) {
-    // This method is deprecated - message color is now managed via backend API
-    // Keeping for backward compatibility but delegating to backend API
+    if (!currentUser || !templatesSupabase) {
+      throw new Error("User not logged in or Supabase not available");
+    }
+
     try {
-      const response = await fetch(`${AUTH_BASE_URL}/api/auth/profile/message-color`, {
-        method: 'PATCH',
-        credentials: 'include',
-        headers: { 
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ color: newColor })
-      });
-      
-      const result = await response.json();
-      
-      if (!response.ok || !result.success) {
-        throw new Error(result.message || 'Message Color Update fehlgeschlagen');
+      // Get current user metadata
+      const { data: userData, error: fetchError } = await templatesSupabase
+        .from('auth.users')
+        .select('raw_user_meta_data')
+        .eq('id', currentUser.id)
+        .single();
+
+      if (fetchError) {
+        throw fetchError;
       }
+
+      // Update chat color in metadata
+      const currentMetadata = userData.raw_user_meta_data || {};
+      const updatedMetadata = {
+        ...currentMetadata,
+        chat_color: newColor
+      };
+
+      // Update in database
+      const { error: updateError } = await templatesSupabase
+        .from('auth.users')
+        .update({ raw_user_meta_data: updatedMetadata })
+        .eq('id', currentUser.id);
       
-      return result.messageColor;
+      if (updateError) {
+        throw updateError;
+      }
+
+      return newColor;
     } catch (err) {
       throw err;
     }
@@ -538,155 +574,58 @@ export const useAuthStore = create((set, get) => ({
   },
 
   logout: async () => {
-    const state = get();
-    
-    // Prevent multiple concurrent logout attempts
-    if (state.isLoggingOut) {
-      console.log('[AuthStore] Logout already in progress, skipping duplicate request');
-      return;
-    }
-    
     try {
-      console.log('[AuthStore] Starting logout process...');
+      // Set logging out state immediately for smooth UX
+      get().setLoggingOut(true);
       
-      // Step 1: Set logging out state immediately for smooth UX
-      set({ isLoggingOut: true });
+      // Cleanup Supabase auth listener
+      get().cleanupSupabaseAuth();
       
-      // Step 2: Cleanup Supabase auth listener immediately to prevent state conflicts
-      if (state._supabaseAuthCleanup) {
-        try {
-          state._supabaseAuthCleanup();
-        } catch (error) {
-          console.warn('[AuthStore] Supabase cleanup error:', error);
-        }
-      }
+      // CRITICAL: Clear all local state immediately to prevent data leakage
+      get().clearAuth();
       
-      // Step 3: Call backend logout API FIRST (before clearing local state)
+      // Call logout API to clear server session
       const authUrl = `${AUTH_BASE_URL}/api/auth/logout`;
-      console.log('[AuthStore] Calling backend logout API...');
       
-      let backendResponse = null;
       try {
-        const response = await fetchWithDedup('logout', () => fetch(authUrl, {
+        const response = await fetch(authUrl, {
           method: 'POST',
           credentials: 'include',
           headers: {
             'Content-Type': 'application/json',
           },
-        }));
-        
-        backendResponse = await response.json();
-        console.log('[AuthStore] Backend logout response:', backendResponse);
-        
-        // Check if backend logout actually succeeded
-        if (!response.ok || !backendResponse.success) {
-          console.error('[AuthStore] Backend logout failed:', backendResponse);
-          
-          // If backend reports specific session destruction failure, handle it
-          if (backendResponse.error === 'session_destruction_failed') {
-            console.warn('[AuthStore] Session destruction failed, will need manual recovery');
-            // Continue with local cleanup but flag for potential issues
-          } else {
-            throw new Error(`Backend logout failed: ${backendResponse.message || 'Unknown error'}`);
-          }
-        }
-        
-      } catch (error) {
-        console.error('[AuthStore] Backend logout API error:', error);
-        
-        // For network errors, still try to clean up locally but log the issue
-        backendResponse = {
-          success: false,
-          error: 'network_error',
-          message: error.message,
-          sessionCleared: false
-        };
-      }
-      
-      // Step 4: Clear local state after backend confirmation (or on backend failure)
-      console.log('[AuthStore] Clearing local authentication state...');
-      get().clearAuth();
-      
-      // Step 5: Handle SSO logout if backend provided logout URL
-      const ssoLogoutUrl = backendResponse?.keycloakBackgroundLogoutUrl || backendResponse?.authentikBackgroundLogoutUrl;
-      if (ssoLogoutUrl) {
-        console.log('[AuthStore] Performing background SSO logout...');
-        
-        // Method 1: Try fetch with no-cors (fire-and-forget)
-        try {
-          fetch(ssoLogoutUrl, { 
-            mode: 'no-cors',
-            credentials: 'include'
-          }).catch(error => {
-            console.warn('[AuthStore] Background SSO logout fetch warning (expected for no-cors):', error);
-          });
-        } catch (error) {
-          console.warn('[AuthStore] Background SSO logout fetch error:', error);
-        }
-        
-        // Method 2: Fallback with hidden iframe for better compatibility
-        try {
-          const iframe = document.createElement('iframe');
-          iframe.style.display = 'none';
-          iframe.style.width = '0';
-          iframe.style.height = '0';
-          iframe.src = ssoLogoutUrl;
-          document.body.appendChild(iframe);
-          
-          // Clean up iframe after SSO logout
-          setTimeout(() => {
-            if (iframe.parentNode) {
-              iframe.parentNode.removeChild(iframe);
-            }
-          }, 3000);
-        } catch (error) {
-          console.warn('[AuthStore] Background SSO iframe logout error:', error);
-        }
-      }
-      
-      // Step 6: Verify logout completion (optional verification)
-      try {
-        console.log('[AuthStore] Verifying logout completion...');
-        const statusResponse = await fetch(`${AUTH_BASE_URL}/api/auth/status`, {
-          credentials: 'include',
-          method: 'GET'
         });
         
-        if (statusResponse.ok) {
-          const statusData = await statusResponse.json();
-          if (statusData.isAuthenticated) {
-            console.warn('[AuthStore] Warning: Still appears authenticated after logout. This may indicate a partial logout.');
-            // Note: Don't fail here as this could be due to SSO logout timing
-          } else {
-            console.log('[AuthStore] Logout verification successful - user is no longer authenticated');
-          }
+        const data = await response.json();
+        console.log('[AuthStore] Logout API response:', data);
+        
+        // CRITICAL: Redirect to Authentik logout to prevent auto re-login
+        if (data.sessionCleared && data.authentikLogoutUrl) {
+          console.log('[AuthStore] Redirecting to Authentik logout:', data.authentikLogoutUrl);
+          window.location.href = data.authentikLogoutUrl;
+          return; // Don't reload, let Authentik handle the redirect
         }
+        
+        // Fallback: redirect to home page if no Authentik logout URL
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 100);
+        
       } catch (error) {
-        console.warn('[AuthStore] Logout verification failed (non-critical):', error);
+        console.warn('[AuthStore] Logout API error (non-blocking):', error);
+        // Fallback: redirect to home page
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 100);
       }
-      
-      // Step 7: Navigate to home page after successful logout
-      console.log('[AuthStore] Logout process completed, redirecting to home page');
-      window.location.href = '/';
       
     } catch (error) {
-      console.error('[AuthStore] Critical logout error:', error);
-      
-      // Emergency cleanup: Clear local state even if everything else failed
-      try {
-        get().clearAuth();
-      } catch (cleanupError) {
-        console.error('[AuthStore] Emergency cleanup also failed:', cleanupError);
-      }
-      
-      // Always redirect to home page, even on complete failure
+      // Clear local state even if logout API failed
+      get().clearAuth();
+      // Fallback: redirect to home page
       setTimeout(() => {
         window.location.href = '/';
       }, 100);
-      
-    } finally {
-      // Always reset the logging out state
-      set({ isLoggingOut: false });
     }
   },
 
@@ -769,7 +708,7 @@ export const useAuthStore = create((set, get) => ({
 
   // Helper method to check if current user can register/delete account
   canManageAccount: () => {
-    const currentUser = get().user;
+    const currentUser = get(user);
     return !!currentUser;
   },
 

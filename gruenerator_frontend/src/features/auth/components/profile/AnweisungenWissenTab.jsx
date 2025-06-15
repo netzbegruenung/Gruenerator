@@ -4,7 +4,7 @@ import { HiOutlineTrash, HiPlus } from 'react-icons/hi';
 import Spinner from '../../../../components/common/Spinner';
 import { useFormFields } from '../../../../components/common/Form/hooks';
 import { useAnweisungenWissen } from '../../utils/profileUtils';
-import { useAnweisungenWissenStore } from '../../stores/anweisungenWissenStore';
+import { useAnweisungenWissenUiStore } from '../../../../stores/auth/anweisungenWissenUiStore';
 import { motion } from "motion/react";
 
 const MAX_CONTENT_LENGTH = 1000;
@@ -16,7 +16,7 @@ const AnweisungenWissenTab = ({ isActive }) => {
     const {
         isSaving, isDeleting, error, successMessage, hasUnsavedChanges, deletingKnowledgeId,
         setHasUnsavedChanges, setError, setSuccess, clearMessages
-    } = useAnweisungenWissenStore();
+    } = useAnweisungenWissenUiStore();
     
     // React Query hook for data fetching and mutations
     const { query, saveChanges, deleteKnowledgeEntry, MAX_KNOWLEDGE_ENTRIES } = useAnweisungenWissen({ isActive });

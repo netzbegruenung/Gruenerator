@@ -3,7 +3,7 @@ const express = require('express');
 const router = express.Router();
 
 router.post('/', async (req, res) => {
-  const { originalText, modification, fullText, useBackupProvider } = req.body;
+  const { originalText, modification, fullText } = req.body;
 
   if (!originalText || !modification || !fullText) {
     return res.status(400).json({ error: 'originalText, modification und fullText sind erforderlich.' });
@@ -31,7 +31,7 @@ Bitte schlage eine verbesserte Version des Abschnitts vor, die die gewünschten 
         max_tokens: 1024,
         temperature: 0.5
       },
-      useBackupProvider
+
     });
 
     if (result.success) {

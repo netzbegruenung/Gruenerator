@@ -5,14 +5,15 @@ import TextInput from '../../../../components/common/Form/Input/TextInput';
 import { 
   getAvatarDisplayProps, 
   useProfileData, 
-  useProfileManager 
+  useProfileManager,
+  initializeProfileFormFields
 } from '../../utils/profileUtils';
 import { useOptimizedAuth } from '../../../../hooks/useAuth';
 import AvatarSelectionModal from './AvatarSelectionModal';
 import { motion } from "motion/react";
 
 const ProfileInfoTab = ({ 
-  user, 
+  user: userProp, 
   onSuccessMessage, 
   onErrorProfileMessage, 
   updatePassword, 
@@ -22,15 +23,19 @@ const ProfileInfoTab = ({
 }) => {
   const queryClient = useQueryClient();
   
+  // Get user from auth hook as fallback if prop is not provided
+  const { user: authUser, loading: authLoading, isAuthenticated } = useOptimizedAuth();
+  const user = userProp || authUser;
+  
   // Business logic hooks from profileUtils
-  const { data: profile, isLoading: isLoadingProfile, isError: isErrorProfileQuery, error: errorProfileQuery } = useProfileData();
+  const { data: profile, isLoading: isLoadingProfile, isError: isErrorProfileQuery, error: errorProfileQuery } = useProfileData(user?.id);
   const { updateProfile, updateAvatar, isUpdatingProfile, isUpdatingAvatar, profileUpdateError } = useProfileManager();
 
   // Local form states only
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [displayName, setDisplayName] = useState('');
-  const [email, setEmail] = useState(user?.email || '');
+  const [email, setEmail] = useState('');
   const [errorProfile, setErrorProfile] = useState('');
   
   // Password change states
@@ -51,16 +56,24 @@ const ProfileInfoTab = ({
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [deleteAccountError, setDeleteAccountError] = useState('');
 
-  const canManageCurrentAccount = canManageAccount();
+  const canManageCurrentAccount = user ? canManageAccount() : false;
 
-  // Initialize form fields when profile data loads
+  // Early return if no user available
+  if (!user) {
+    return (
+      <div className="profile-tab-loading">
+        <div>Benutzerinformationen werden geladen...</div>
+      </div>
+    );
+  }
+
+  // Initialize form fields when profile data loads (centralized logic from profileUtils)
   useEffect(() => {
-    if (profile) {
-      setFirstName(profile.first_name || '');
-      setLastName(profile.last_name || '');
-      setDisplayName(profile.display_name || (profile.first_name && profile.last_name ? `${profile.first_name} ${profile.last_name}`.trim() : user?.email || ''));
-      setEmail(profile.email || user?.email || '');
-    }
+    const formFields = initializeProfileFormFields(profile, user);
+    setFirstName(formFields.firstName);
+    setLastName(formFields.lastName);
+    setDisplayName(formFields.displayName);
+    setEmail(formFields.email);
   }, [profile, user]);
 
   // Handle profile update error from hook
@@ -91,7 +104,7 @@ const ProfileInfoTab = ({
       }
     }
 
-    const fullDisplayName = firstName || lastName ? `${firstName} ${lastName}`.trim() : (displayName || email || 'Benutzer');
+    const fullDisplayName = firstName || lastName ? `${firstName} ${lastName}`.trim() : (displayName || email || user?.username || 'Benutzer');
     
     const profileUpdateData = {
       display_name: fullDisplayName,
@@ -250,13 +263,13 @@ const ProfileInfoTab = ({
   };
 
   // UI Helper functions
-  const calculatedDisplayName = displayName || (firstName && lastName ? `${firstName} ${lastName}`.trim() : email || 'Benutzer');
+  const calculatedDisplayName = displayName || (firstName && lastName ? `${firstName} ${lastName}`.trim() : email || user?.username || 'Benutzer');
 
   const avatarProps = getAvatarDisplayProps({
     avatar_robot_id: avatarRobotId,
     first_name: firstName,
     last_name: lastName,
-    email: email || user?.email
+    email: email || user?.email || user?.username
   });
 
   const getPossessiveForm = (name) => {
@@ -310,7 +323,7 @@ const ProfileInfoTab = ({
             <div className="profile-user-name">
               {firstName ? getPossessiveForm(firstName) : "Dein"} Grünerator
             </div>
-            {(email || user?.email) && <div className="profile-user-email">{email || user?.email}</div>}
+            {(email || user?.email || user?.username) && <div className="profile-user-email">{email || user?.email || user?.username}</div>}
             {user?.id && <div className="profile-user-id" style={{ fontSize: '0.8rem', color: 'var(--font-color-subtle)', marginTop: 'var(--spacing-xxsmall)' }}>ID: {user.id}</div>}
           </div>
         </div>

@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 router.post('/', async (req, res) => {
-  const { name, position, ort, personenbeschreibung, themen, useBackupProvider } = req.body;
+  const { name, position, ort, personenbeschreibung, themen } = req.body;
 
   try {
     const result = await req.app.locals.aiWorkerPool.processRequest({
@@ -77,8 +77,7 @@ Gib NUR die JSON-Datei zurück, ohne weitere Erklärungen.`,
       options: {
         max_tokens: 2000,
         temperature: 0.7
-      },
-      useBackupProvider
+      }
     });
 
     if (!result.success) throw new Error(result.error);

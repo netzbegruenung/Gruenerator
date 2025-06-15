@@ -148,22 +148,7 @@ const PLATFORM_SPECIFIC_GUIDELINES = {
   }
 };
 
-const PLATFORM_HEADER_STRUCTURE_INSTRUCTIONS = `
-Plattform-Struktur: Für jede Plattform muss die folgende Struktur EXAKT eingehalten werden:
-1. Ein umschließender <div class="platform-section" data-platform="PLATFORM_NAME"> (PLATFORM_NAME in Großbuchstaben)
-2. INNERHALB dieses divs MUSS als erstes Element eine <h2>-Überschrift mit dem Plattformnamen stehen
-3. Danach folgt der plattformspezifische Inhalt gemäß den HTML-Formatierungsregeln
 
-Beispiel der EXAKTEN Struktur:
-<div class="platform-section" data-platform="FACEBOOK">
-<h2>FACEBOOK</h2>
-<p>Dies ist der Inhalt für Facebook.</p>
-</div>
-<div class="platform-section" data-platform="INSTAGRAM">
-<h2>INSTAGRAM</h2>
-<p>Inhalt für Instagram...</p>
-</div>
-`;
 
 const MARKDOWN_CHAT_INSTRUCTIONS = `
 **Formatierung und Stil der Chat-Antwort:**
@@ -225,7 +210,6 @@ Stelle sicher, dass die Platzhalter ${MARKDOWN_CHAT_INSTRUCTIONS} und ${HTML_FOR
 module.exports = {
   HTML_FORMATTING_INSTRUCTIONS,
   PLATFORM_SPECIFIC_GUIDELINES,
-  PLATFORM_HEADER_STRUCTURE_INSTRUCTIONS,
   MARKDOWN_CHAT_INSTRUCTIONS,
   JSON_OUTPUT_FORMATTING_INSTRUCTIONS,
   isStructuredPrompt,

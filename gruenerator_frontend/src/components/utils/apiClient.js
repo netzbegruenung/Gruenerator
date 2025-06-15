@@ -1,11 +1,9 @@
 import axios from 'axios';
-import { supabase } from './supabaseClient';
+import { getTemplatesSupabase } from './templatesSupabaseClient';
 
 // Use relative URL by default (same as AUTH_BASE_URL in useAuth.js)
 // This works because frontend is served by backend on same port
 const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
-
-
 
 const apiClient = axios.create({
   baseURL: baseURL,
@@ -16,8 +14,9 @@ const apiClient = axios.create({
 apiClient.interceptors.request.use(
   async (config) => {
     try {
-      if (supabase) {
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      const templatesSupabase = getTemplatesSupabase();
+      if (templatesSupabase) {
+        const { data: { session }, error: sessionError } = await templatesSupabase.auth.getSession();
 
         if (sessionError) {
           console.error('[apiClient Interceptor] Error getting Supabase session:', sessionError);

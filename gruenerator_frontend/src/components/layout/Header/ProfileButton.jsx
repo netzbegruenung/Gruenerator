@@ -1,14 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FaUserCircle, FaUser, FaSignOutAlt, FaCog } from 'react-icons/fa';
-import { useLazyAuth } from '../../../hooks/useAuth';
+import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { getAvatarDisplayProps, useProfileData } from '../../../features/auth/utils/profileUtils';
 import { templatesSupabase } from '../../../components/utils/templatesSupabaseClient';
 
 const ProfileButton = () => {
-  const { user, loading, logout } = useLazyAuth();
+  const { user, loading, logout, isLoggingOut, isProfileLoading, setLoginIntent } = useOptimizedAuth();
   // Profildaten aus Query holen
-  const { data: profile, isLoading: isProfileLoading } = useProfileData(user?.id, templatesSupabase);
+  const { data: profile } = useProfileData(user?.id, templatesSupabase);
 
   // Avatar und Name mit intelligent fallbacks für instant rendering
   const displayName = profile?.display_name || '';
@@ -89,7 +89,7 @@ const ProfileButton = () => {
   // Show login button for non-authenticated users only
   if (!loading && !user) {
     return (
-      <Link to="/login" className="login-button" aria-label="Anmelden">
+      <Link to="/login" className="login-button" aria-label="Anmelden" onClick={() => setLoginIntent()}>
         <FaUserCircle className="profile-icon" />
       </Link>
     );
@@ -177,12 +177,15 @@ const ProfileButton = () => {
             </Link>
             <button 
               className="profile-dropdown-link logout-link"
+              disabled={isLoggingOut}
               onClick={() => {
-                logout();
+                if (!isLoggingOut) {
+                  logout();
+                }
               }}
             >
               <FaSignOutAlt className="profile-dropdown-icon" />
-              <span>Abmelden</span>
+              <span>{isLoggingOut ? 'Wird abgemeldet...' : 'Abmelden'}</span>
             </button>
           </div>
         </div>

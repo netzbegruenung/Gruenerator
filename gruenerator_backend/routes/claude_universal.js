@@ -3,7 +3,7 @@ const router = express.Router();
 const { HTML_FORMATTING_INSTRUCTIONS } = require('../utils/promptUtils');
 
 router.post('/', async (req, res) => {
-  const { textForm, sprache, thema, details, useBackupProvider, customPrompt } = req.body;
+  const { textForm, sprache, thema, details, customPrompt } = req.body;
 
   // Aktuelles Datum ermitteln
   const currentDate = new Date().toISOString().split('T')[0];
@@ -80,7 +80,7 @@ ${HTML_FORMATTING_INSTRUCTIONS}`;
       max_tokens: 4000,
       temperature: 0.9
     },
-    useBackupProvider
+    
   };
   
   try {

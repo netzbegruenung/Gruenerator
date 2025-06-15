@@ -8,7 +8,7 @@ import { isReactElement } from '../utils/contentUtils';
  * @param {string} props.value - Aktueller Wert
  * @param {any} props.generatedContent - Generierter Inhalt
  * @param {boolean} props.isEditing - Bearbeitungsmodus aktiv
- * @param {boolean} props.usePlatformContainers - Plattform-Container verwenden
+
  * @param {Object} props.helpContent - Hilfe-Inhalt (nicht mehr verwendet)
  * @returns {JSX.Element} Gerenderte Inhalte
  */
@@ -16,7 +16,7 @@ const ContentRenderer = ({
   value,
   generatedContent,
   isEditing,
-  usePlatformContainers,
+
   helpContent
 }) => {
   const contentToRender = value || generatedContent || '';
@@ -51,7 +51,7 @@ ContentRenderer.propTypes = {
     PropTypes.element
   ]),
   isEditing: PropTypes.bool.isRequired,
-  usePlatformContainers: PropTypes.bool,
+
   helpContent: PropTypes.shape({
     content: PropTypes.string,
     tips: PropTypes.arrayOf(PropTypes.string)

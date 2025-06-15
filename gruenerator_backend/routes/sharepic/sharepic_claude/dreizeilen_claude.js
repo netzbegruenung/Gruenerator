@@ -3,7 +3,7 @@ const router = express.Router();
 
 router.post('/', async (req, res) => {
   console.log('[3Zeilen-Claude API] Received request:', req.body);
-  const { thema, details, line1, line2, line3, useBackupProvider } = req.body;
+  const { thema, details, line1, line2, line3 } = req.body;
 
   try {
     console.log('[3Zeilen-Claude API] Preparing request to Claude API');
@@ -101,8 +101,7 @@ Zeile 3: ${line3}
       options: {
         max_tokens: 4000,
         temperature: 1.0
-      },
-      useBackupProvider
+      }
     });
 
     console.log('[3Zeilen-Claude API] Received response from Claude API:', aiResponse);

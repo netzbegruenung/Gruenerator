@@ -2,15 +2,10 @@ import React, { createContext, useState, useCallback, useMemo, useEffect, useRef
 import PropTypes from 'prop-types';
 import debounce from 'lodash.debounce';
 import useApiSubmit from '../hooks/useApiSubmit';
-import { useNavigationWarning } from '../common/editor/hooks';
+import useNavigationWarning from '../common/editor/hooks/useNavigationWarning';
 import { removeAllHighlights } from '../common/editor/utils/highlightUtils';
-import useKnowledge from '../hooks/useKnowledge';
-import useGroupKnowledgeItems from '../../features/groups/hooks/useGroupKnowledgeItems';
 
 export const FormContext = createContext();
-
-// Define initial config for knowledge source
-const initialKnowledgeSourceConfig = { type: 'neutral', id: null, name: 'Neutral', loadedKnowledgeItems: [] };
 
 export const FormProvider = ({ 
   children, 
@@ -40,63 +35,6 @@ export const FormProvider = ({
   const [isApplyingAdjustment, setIsApplyingAdjustment] = useState(false);
   const [hasContent, setHasContent] = useState(false);
   const [adjustmentError, setAdjustmentError] = useState(null);
-  
-  // State for knowledge source configuration
-  const [knowledgeSourceConfig, setKnowledgeSourceConfigState] = useState(initialKnowledgeSourceConfig);
-
-  // Fetch user knowledge
-  const { availableKnowledge: userKnowledge, isLoading: isLoadingUserKnowledge } = useKnowledge();
-  
-  // Fetch group knowledge - needs groupId from knowledgeSourceConfig
-  const { groupKnowledge, isLoading: isLoadingGroupKnowledge } = useGroupKnowledgeItems(
-    knowledgeSourceConfig.type === 'group' ? knowledgeSourceConfig.id : null,
-    knowledgeSourceConfig.type === 'group' // enabled if type is group and id is present
-  );
-
-  useEffect(() => {
-    // Dieser Effect reagiert auf Änderungen in type/id/name (aus dem State)
-    // oder auf Änderungen in den Quelldaten (userKnowledge, groupKnowledge)
-    console.log('[FormContext] useEffect for loading knowledge triggered. Current config (type/id/name):', 
-                knowledgeSourceConfig.type, knowledgeSourceConfig.id, knowledgeSourceConfig.name);
-
-    let newLoadedItems;
-    if (knowledgeSourceConfig.type === 'user' && userKnowledge) {
-      newLoadedItems = userKnowledge;
-      console.log('[FormContext] Loading user knowledge. Items count:', newLoadedItems.length);
-    } else if (knowledgeSourceConfig.type === 'group' && knowledgeSourceConfig.id && groupKnowledge) {
-      newLoadedItems = groupKnowledge;
-      console.log('[FormContext] Loading group knowledge for group', knowledgeSourceConfig.id, '. Items count:', newLoadedItems.length);
-    } else {
-      newLoadedItems = [];
-      if (knowledgeSourceConfig.type !== 'neutral') {
-        console.log('[FormContext] Clearing loaded knowledge for type:', knowledgeSourceConfig.type);
-      }
-    }
-
-    // Nur aktualisieren, wenn sich die geladenen Items tatsächlich ändern
-    setKnowledgeSourceConfigState(currentConfig => {
-      // Vergleiche die neuen Items mit den bereits im State vorhandenen
-      // Dies vermeidet einen Loop, wenn userKnowledge/groupKnowledge sich nicht geändert hat
-      // aber der Effect durch type/id/name Änderung getriggert wurde.
-      if (currentConfig.loadedKnowledgeItems === newLoadedItems) {
-        // console.log('[FormContext] loadedKnowledgeItems are the same, skipping update.');
-        return currentConfig;
-      }
-      // console.log('[FormContext] Updating loadedKnowledgeItems.');
-      return {
-        ...currentConfig, // currentConfig hat bereits den korrekten type, id, name
-        loadedKnowledgeItems: newLoadedItems,
-      };
-    });
-  }, [
-    knowledgeSourceConfig.type,
-    knowledgeSourceConfig.id,
-    knowledgeSourceConfig.name, // Behalten, um auf explizite Namensänderungen zu reagieren, falls relevant
-    userKnowledge,
-    groupKnowledge,
-    // setKnowledgeSourceConfigState ist nicht nötig
-  ]);
-
 
   const debouncedSetValue = useMemo(() => 
     debounce((newValue) => {
@@ -115,15 +53,6 @@ export const FormProvider = ({
     console.log('[FormContext] updateValue called. New value length:', newValue?.length);
     setValue(newValue);
     setSyncStatus('synced');
-  }, []);
-
-  // Platzhalter-Funktionen, die durch Editor überschrieben werden
-  const applyAdjustment = useCallback(() => {
-    console.log('[FormContext] applyAdjustment wurde aufgerufen, aber es gibt noch keine Implementierung');
-  }, []);
-
-  const rejectAdjustment = useCallback(() => {
-    console.log('[FormContext] rejectAdjustment wurde aufgerufen, aber es gibt noch keine Implementierung');
   }, []);
 
   useEffect(() => {
@@ -200,35 +129,9 @@ export const FormProvider = ({
       setAiAdjustment(adjustmentOrState); // Store the full AI adjustment object
       setAdjustmentText(adjustmentOrState.newText); // Store the new text to be applied
       setIsApplyingAdjustment(false); // Ready to be applied
-       // If the AI provides a range, it might not correspond to a user highlight.
-      // We don't set originalSelectedText or highlightedRange from AI-provided range here.
-      // originalSelectedText is for user selection, highlightedRange is for user highlight.
+    
     }
   }, [/* Removed setIsAdjusting from deps as it's part of the same hook */]);
-
-  // Function to set knowledge source configuration
-  // This function now only sets the type, id, and name.
-  // The actual loading of knowledge items is handled by the useEffect above.
-  const setKnowledgeSourceConfig = useCallback((configUpdate) => {
-    // configUpdate is { type, id, name }
-    console.log('[FormContext] setKnowledgeSourceConfig called with:', configUpdate);
-    setKnowledgeSourceConfigState(prevConfig => ({
-      ...prevConfig, // Behält andere mögliche Eigenschaften von prevConfig
-      ...configUpdate, // Überschreibt type, id, name
-      loadedKnowledgeItems: [], // Immer leeren, useEffect lädt neu
-    }));
-  }, []);
-  
-  // Function to get knowledge content for API requests
-  const getKnowledgeContent = useCallback(() => {
-    if (!knowledgeSourceConfig.loadedKnowledgeItems || knowledgeSourceConfig.loadedKnowledgeItems.length === 0) {
-      return null;
-    }
-    // Kombiniere den Inhalt aller geladenen Wissenseinheiten
-    return knowledgeSourceConfig.loadedKnowledgeItems.map(item => {
-      return `## ${item.title}\\n${item.content}`;
-    }).join('\\n\\n');
-  }, [knowledgeSourceConfig.loadedKnowledgeItems]);
 
   const handleConfirmAdjustment = useCallback(async () => {
     console.log('[FormContext] handleConfirmAdjustment. Adjustment Text:', adjustmentText, 'AI Adjustment Object:', aiAdjustment);
@@ -253,8 +156,6 @@ export const FormProvider = ({
         quill.setContents(delta, 'api');
         updateValue(quill.root.innerHTML);
       } else if (aiAdjustment?.type === 'selected') {
-        // This handles both user-selected text (where highlightedRange would be set by user interaction)
-        // AND AI-determined ranges (where aiAdjustment.range is provided by the backend).
         const rangeToUse = aiAdjustment.range; // Directly use range from AI adjustment
 
         if (rangeToUse && typeof rangeToUse.index === 'number' && typeof rangeToUse.length === 'number') {
@@ -273,9 +174,7 @@ export const FormProvider = ({
           throw new Error('Kein gültiger Bereich für die Textanpassung gefunden.');
         }
       } else {
-        // Fallback or default behavior if aiAdjustment.type is not 'full' or 'selected'
-        // This might be where simple string `adjustmentText` (if no `aiAdjustment` object) could be handled,
-        // e.g., by replacing current user selection if `highlightedRange` is available.
+ 
         if (highlightedRange) {
             console.log('[FormContext] Applying adjustment to user highlightedRange (default behavior): ', highlightedRange);
             quill.deleteText(highlightedRange.index, highlightedRange.length, 'api');
@@ -283,8 +182,7 @@ export const FormProvider = ({
             updateValue(quill.root.innerHTML);
         } else {
             console.warn('[FormContext] No specific adjustment type and no highlighted range. Cannot apply adjustment text: ', textToApply.substring(0,100));
-            // Potentially, this could be an instruction to append or prepend if no selection/range.
-            // For now, we do nothing if no range is specified.
+      
         }
       }
 
@@ -309,8 +207,6 @@ export const FormProvider = ({
     highlightedRange, 
     updateValue, 
     removeAllHighlights, 
-    /* Removed quillRef from here as it's a ref, its .current is used */
-    // Added setIsAdjusting, setAdjustmentText etc. as they are setters from useState
     setIsAdjusting, 
     setAdjustmentText, 
     setOriginalSelectedText, 
@@ -332,18 +228,12 @@ export const FormProvider = ({
   const handleAiResponse = useCallback(async (response) => {
     console.log("[FormContext] handleAiResponse received:", response);
     if (response && response.textAdjustment) {
-      // The backend now directly provides the full textAdjustment object
-      // including type, newText, and range (if type is 'selected')
+
       handleAiAdjustment(response.textAdjustment);
       
-      // Call handleConfirmAdjustment to apply it.
-      // Ensure that handleConfirmAdjustment has access to the latest aiAdjustment state.
-      // It might be better to pass the adjustment directly or ensure state update is processed.
-      // For now, relying on the state update from handleAiAdjustment then calling confirm.
       handleConfirmAdjustment(); 
     } else if (response && response.response && !response.textAdjustment) {
-      // This is a chat message from Claude without a text adjustment (e.g., after a tool error or pure chat)
-      // The message will be displayed by EditorChat. No action needed here for text content.
+
       console.log("[FormContext] Received chat response without text adjustment.");
     }
     // Return the chat part of the response for EditorChat to display
@@ -377,10 +267,10 @@ export const FormProvider = ({
     handleSave,
     handleCancel,
     isAdjusting,
-    setIsAdjusting, // Important to pass this down
+    setIsAdjusting,
     aiAdjustment, 
-    setAiAdjustment, // Pass setter
-    handleAiAdjustment, // Pass main handler
+    setAiAdjustment,
+    handleAiAdjustment,
     selectedText, 
     setSelectedText,
     highlightedRange, 
@@ -389,61 +279,54 @@ export const FormProvider = ({
     setSyncStatus,
     toggleEditMode,
     originalSelectedText, 
-    setOriginalSelectedText, // Pass setter
+    setOriginalSelectedText,
     adjustmentText, 
-    setAdjustmentText, // Pass setter
-    handleConfirmAdjustment, // Pass main handler
-    // rejectAdjustment, // Ensure rejectAdjustment is defined or removed if not used
+    setAdjustmentText,
+    handleConfirmAdjustment,
     originalContent, 
-    setOriginalContent, // Pass setter
-    removeAllHighlights, // Utility
+    setOriginalContent,
+    removeAllHighlights,
     linkName, 
     setLinkName,
     linkData, 
     setLinkData,
-    setQuillInstance, // Callback to set quillRef
-    clearAllHighlights, // Utility, though removeAllHighlights might be more specific
-    isApplyingAdjustment, 
-    setIsApplyingAdjustment, // Pass setter
-    hasContent,
-    quillRef: quillRef, // Expose the ref itself for direct use if needed
-    handleAiResponse, // Main AI response handler
-    adjustmentError, 
-    setAdjustmentError, // Pass setter
-    knowledgeSourceConfig, 
-    setKnowledgeSourceConfig, 
-    getKnowledgeContent
-  }), [
-    value,
-    updateValue, // Removed setValue as updateValue is preferred
-    isEditing, setIsEditing, // Added setIsEditing
-    handleEdit,
-    handleSave,
-    handleCancel,
-    isAdjusting, setIsAdjusting, // Added setIsAdjusting again for clarity
-    aiAdjustment, setAiAdjustment, // Added setter
-    handleAiAdjustment,
-    selectedText, setSelectedText, // Added setter
-    highlightedRange, setHighlightedRange, // Added setter
-    syncStatus, setSyncStatus, // Added setter
-    toggleEditMode,
-    originalSelectedText, setOriginalSelectedText, // Added setter
-    adjustmentText, setAdjustmentText, // Added setter
-    handleConfirmAdjustment,
-    // rejectAdjustment,
-    originalContent, setOriginalContent, // Added setter
-    removeAllHighlights,
-    linkName, setLinkName, // Added setter
-    linkData, setLinkData, // Added setter
     setQuillInstance,
     clearAllHighlights,
-    isApplyingAdjustment, setIsApplyingAdjustment, // Added setter
+    isApplyingAdjustment, 
+    setIsApplyingAdjustment,
     hasContent,
     quillRef,
     handleAiResponse,
-    adjustmentError, setAdjustmentError, // Added setter
-    knowledgeSourceConfig, setKnowledgeSourceConfig, // Added setter
-    getKnowledgeContent
+    adjustmentError, 
+    setAdjustmentError
+  }), [
+    value,
+    updateValue,
+    isEditing, setIsEditing,
+    handleEdit,
+    handleSave,
+    handleCancel,
+    isAdjusting, setIsAdjusting,
+    aiAdjustment, setAiAdjustment,
+    handleAiAdjustment,
+    selectedText, setSelectedText,
+    highlightedRange, setHighlightedRange,
+    syncStatus, setSyncStatus,
+    toggleEditMode,
+    originalSelectedText, setOriginalSelectedText,
+    adjustmentText, setAdjustmentText,
+    handleConfirmAdjustment,
+    originalContent, setOriginalContent,
+    removeAllHighlights,
+    linkName, setLinkName,
+    linkData, setLinkData,
+    setQuillInstance,
+    clearAllHighlights,
+    isApplyingAdjustment, setIsApplyingAdjustment,
+    hasContent,
+    quillRef,
+    handleAiResponse,
+    adjustmentError, setAdjustmentError
   ]);
 
   return (

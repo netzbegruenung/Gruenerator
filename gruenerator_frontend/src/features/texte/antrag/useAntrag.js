@@ -2,6 +2,8 @@ import { useCallback, useState } from 'react';
 import { useAntragContext } from './AntragContext';
 import { useAntragService } from './AntragService';
 import { saveAntrag } from './antragSaveUtils';
+import { useGeneratorKnowledgeStore } from '../../../stores/core/generatorKnowledgeStore';
+import { createStructuredFinalPrompt } from '../../../utils/promptUtils';
 
 const SEARCH_STATES = {
   IDLE: 'idle',
@@ -27,6 +29,13 @@ export const useAntrag = () => {
   } = useAntragContext();
 
   const { simpleAntragSubmit } = useAntragService();
+  
+  // Store integration for knowledge
+  const {
+    source,
+    availableKnowledge,
+    selectedKnowledgeIds
+  } = useGeneratorKnowledgeStore();
 
   const handleInputChange = useCallback((field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -35,14 +44,11 @@ export const useAntrag = () => {
   const formatAntragContent = useCallback((content) => {
     if (!content) return '';
     
-    if (content.startsWith('PRESSEMITTEILUNG:') || 
-        content.startsWith('Betreff:') || 
-        content.startsWith('ANTRAG:')) {
+    if (content.startsWith('Betreff:')) {
       return content;
     }
     
-    const formattedAntrag = `ANTRAG: \n\n${content}`;
-    return formattedAntrag;
+    return content;
   }, []);
 
   const formatAndDisplaySources = useCallback((results) => {
@@ -59,16 +65,52 @@ export const useAntrag = () => {
     setDisplayedSources(sources);
   }, [setDisplayedSources]);
 
-  const generateAntrag = useCallback(async (finalPrompt = null) => {
+  const generateAntrag = useCallback(async (finalPrompt = null, currentFormData = null) => {
+    // Generate knowledge content from store if available
+    let enhancedPrompt = finalPrompt;
+    
+    if (!enhancedPrompt && (source.type === 'user' || source.type === 'group')) {
+      const hasSelectedKnowledge = selectedKnowledgeIds.length > 0;
+      const hasLoadedKnowledge = availableKnowledge.length > 0;
+      
+      if (hasLoadedKnowledge) {
+        let knowledgeContent = null;
+        
+        if (hasSelectedKnowledge) {
+          // Use only selected knowledge items
+          const selectedItems = availableKnowledge.filter(item => 
+            selectedKnowledgeIds.includes(item.id)
+          );
+          knowledgeContent = selectedItems.map(item => {
+            return `## ${item.title}\n${item.content}`;
+          }).join('\n\n');
+          console.log(`[useAntrag] Using ${selectedItems.length} selected knowledge items from source: ${source.type}`);
+        } else {
+          // Use all available knowledge from the selected source
+          knowledgeContent = availableKnowledge.map(item => {
+            return `## ${item.title}\n${item.content}`;
+          }).join('\n\n');
+          console.log(`[useAntrag] Using all ${availableKnowledge.length} knowledge items from source: ${source.type}`);
+        }
+        
+        if (knowledgeContent) {
+          enhancedPrompt = createStructuredFinalPrompt(null, knowledgeContent);
+          console.log('[useAntrag] Enhanced prompt with knowledge content created.');
+        }
+      }
+    }
+
     if (useWebSearch) {
       setLoading(true);
       setError(null);
       
       try {
-        const extendedFormData = { ...formData };
+        // Use current form data if provided, otherwise fall back to context formData
+        const baseFormData = currentFormData || formData;
+        const extendedFormData = { ...baseFormData };
         
-        if (finalPrompt) {
-          extendedFormData.customPrompt = finalPrompt;
+        if (enhancedPrompt) {
+          extendedFormData.customPrompt = enhancedPrompt;
         }
         
         const { AntragService } = await import('./AntragService');
@@ -99,10 +141,12 @@ export const useAntrag = () => {
       setError(null);
       
       try {
-        const extendedFormData = { ...formData };
+        // Use current form data if provided, otherwise fall back to context formData
+        const baseFormData = currentFormData || formData;
+        const extendedFormData = { ...baseFormData };
         
-        if (finalPrompt) {
-          extendedFormData.customPrompt = finalPrompt;
+        if (enhancedPrompt) {
+          extendedFormData.customPrompt = enhancedPrompt;
         }
         
         const { AntragService } = await import('./AntragService');
@@ -125,7 +169,19 @@ export const useAntrag = () => {
         setLoading(false);
       }
     }
-  }, [formData, useWebSearch, formatAntragContent, setGeneratedAntrag, formatAndDisplaySources, setLoading, setError, simpleAntragSubmit.submitForm]);
+  }, [
+    formData, 
+    useWebSearch, 
+    formatAntragContent, 
+    setGeneratedAntrag, 
+    formatAndDisplaySources, 
+    setLoading, 
+    setError, 
+    simpleAntragSubmit.submitForm,
+    source,
+    availableKnowledge,
+    selectedKnowledgeIds
+  ]);
 
   const saveGeneratedAntrag = useCallback(async (antragData) => {
     if (!antragData || !antragData.title || !antragData.antragstext) {

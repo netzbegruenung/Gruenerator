@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../stores/authStore';
-import { templatesSupabase } from '../components/utils/templatesSupabaseClient';
+
+// Auth Backend URL aus Environment Variable oder Fallback zu aktuellem Host
+const AUTH_BASE_URL = import.meta.env.VITE_AUTH_BASE_URL || '';
 
 const fetchBetaFeatures = async (user) => {
   // 1) Direkt aus user_metadata, wenn vorhanden
@@ -8,23 +10,25 @@ const fetchBetaFeatures = async (user) => {
     return user.user_metadata.beta_features;
   }
 
-  // 2) Fallback: Supabase Abfrage
+  // 2) Fallback: Backend API Abfrage (ersetzt direkte Supabase calls)
   try {
-    if (!user?.id || !templatesSupabase) return {};
+    if (!user?.id) return {};
 
-    const { data, error } = await templatesSupabase
-      .schema('auth')
-      .from('users')
-      .select('raw_user_meta_data')
-      .eq('id', user.id)
-      .single();
+    const response = await fetch(`${AUTH_BASE_URL}/api/auth/profile/beta-features`, {
+      method: 'GET',
+      credentials: 'include',
+      headers: { 
+        'Content-Type': 'application/json',
+      }
+    });
 
-    if (error) {
-      console.warn('[useBetaFeaturesWithSWR] Supabase fetch error:', error.message);
+    if (!response.ok) {
+      console.warn('[useBetaFeaturesWithSWR] Backend fetch error:', response.status);
       return {};
     }
 
-    return data?.raw_user_meta_data?.beta_features || {};
+    const result = await response.json();
+    return result.betaFeatures || {};
   } catch (err) {
     console.warn('[useBetaFeaturesWithSWR] Unexpected error:', err);
     return {};

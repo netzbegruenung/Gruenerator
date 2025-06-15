@@ -5,7 +5,7 @@ import useApiSubmit from '../hooks/useApiSubmit';
 import { IoDocumentOutline, IoCopyOutline, IoOpenOutline, IoCloseOutline, IoPeopleOutline, IoFlashOutline, IoLinkOutline, IoCheckmark } from "react-icons/io5";
 import { useLocation } from 'react-router-dom';
 import { useUnmount } from 'react-use';
-import useGeneratedTextStore from '../../stores/generatedTextStore';
+import useGeneratedTextStore from '../../stores/core/generatedTextStore';
 import { formatExportContent } from '../utils/exportUtils';
 
 const ExportToDocument = () => {

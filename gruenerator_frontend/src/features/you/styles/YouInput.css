@@ -7,9 +7,8 @@
   position: relative;
 }
 
-/* YouInput styles - DISABLED to prevent conflicts with main form-inputs.css */
-/*
-.you-input-field {
+/* You Generator specific input styles - scoped to avoid conflicts */
+.you-page-container .you-input-field {
   width: 100%;
   min-height: 120px;
   max-height: none;
@@ -27,20 +26,19 @@
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
 }
 
-.you-input-field:hover {
+.you-page-container .you-input-field:hover {
   box-shadow: 0 0 0 1px rgba(0, 137, 57, 0.1), 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
-.you-input-field:focus {
+.you-page-container .you-input-field:focus {
   outline: none;
   box-shadow: 0 0 0 1px var(--klee), 0 0 0 3px rgba(0, 137, 57, 0.15);
 }
 
-.you-input-field::placeholder {
+.you-page-container .you-input-field::placeholder {
   color: var(--font-color);
   opacity: 0.6;
 }
-*/
 
 
 .inline-examples {
