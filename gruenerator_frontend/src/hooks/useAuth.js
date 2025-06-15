@@ -6,6 +6,79 @@ import { useBetaFeaturesWithSWR } from './useBetaFeaturesWithSWR';
 // Auth Backend URL aus Environment Variable oder Fallback zu aktuellem Host
 const AUTH_BASE_URL = import.meta.env.VITE_AUTH_BASE_URL || '';
 
+// Helper to check if user recently logged out
+const isRecentlyLoggedOut = () => {
+  try {
+    // Check if there's a recent login intent - if so, allow auth
+    const loginIntent = localStorage.getItem('gruenerator_login_intent');
+    if (loginIntent) {
+      const intentTime = parseInt(loginIntent);
+      const timeSinceIntent = Date.now() - intentTime;
+      // Allow auth for 5 minutes after login intent
+      if (timeSinceIntent < 5 * 60 * 1000) {
+        console.log('[useAuth] Recent login intent found, allowing auth');
+        return false; // Don't block auth
+      } else {
+        // Clean up old login intent
+        localStorage.removeItem('gruenerator_login_intent');
+      }
+    }
+
+    // Check logout timestamp only if no recent login intent
+    const logoutTimestamp = localStorage.getItem('gruenerator_logout_timestamp');
+    if (logoutTimestamp) {
+      const timeSinceLogout = Date.now() - parseInt(logoutTimestamp);
+      // Check if logout was within the last minute
+      if (timeSinceLogout < 60 * 1000) {
+        console.log('[useAuth] Recent logout detected, blocking automatic auth');
+        return true; // Block automatic auth
+      } else {
+        // Clean up old logout timestamp
+        localStorage.removeItem('gruenerator_logout_timestamp');
+      }
+    }
+  } catch (error) {
+    // If we can't read from localStorage, assume not recently logged out
+  }
+  return false;
+};
+
+// Helper to detect potential partial logout states
+const detectPartialLogoutState = async () => {
+  try {
+    const authStore = useAuthStore.getState();
+    const frontendLoggedOut = !authStore.isAuthenticated;
+    
+    // If frontend shows logged out, check if backend still has session
+    if (frontendLoggedOut) {
+      const response = await fetch(`${AUTH_BASE_URL}/api/auth/status`, {
+        credentials: 'include',
+        method: 'GET'
+      });
+      
+      if (response.ok) {
+        const statusData = await response.json();
+        const backendAuthenticated = statusData.isAuthenticated;
+        
+        if (backendAuthenticated) {
+          console.warn('[useAuth] Partial logout detected: Frontend logged out but backend still authenticated');
+          return {
+            isPartialLogout: true,
+            needsRecovery: true,
+            frontendState: 'logged_out',
+            backendState: 'authenticated'
+          };
+        }
+      }
+    }
+    
+    return { isPartialLogout: false };
+  } catch (error) {
+    console.warn('[useAuth] Could not check for partial logout state:', error);
+    return { isPartialLogout: false };
+  }
+};
+
 /**
  * Helper function to check if server is available
  */
@@ -156,6 +229,7 @@ export const useAuth = (options = {}) => {
     updateProfile,
     updateAvatar,
     canManageAccount,
+    setLoginIntent,
   } = useAuthStore();
 
   const [hasInitializedFromCache, setHasInitializedFromCache] = useState(false);
@@ -215,6 +289,17 @@ export const useAuth = (options = {}) => {
 
   const { isServerAvailable, isChecking } = useServerAvailability(lazy || (instant && hasCachedData));
 
+  // Check if user is on the logged-out page to prevent automatic re-auth
+  const isJustLoggedOut = typeof window !== 'undefined' && 
+    window.location.pathname === '/logged-out';
+
+  // Check if user recently logged out to prevent immediate re-auth
+  const hasRecentlyLoggedOut = isRecentlyLoggedOut();
+
+  // Always allow auth on login page (conscious user action)
+  const isOnLoginPage = typeof window !== 'undefined' && 
+    (window.location.pathname === '/login' || window.location.pathname === '/auth/login');
+
   // Query configuration for different loading strategies
   const {
     data: authData,
@@ -245,7 +330,7 @@ export const useAuth = (options = {}) => {
         throw error;
       }
     },
-    enabled: isServerAvailable && !skipAuth,
+    enabled: isServerAvailable && !skipAuth && !isJustLoggedOut && (!hasRecentlyLoggedOut || isOnLoginPage), // Allow auth on login page
     staleTime: 5 * 60 * 1000, // 5 minutes
     cacheTime: 10 * 60 * 1000, // 10 minutes
     retry: 1, 
@@ -256,6 +341,12 @@ export const useAuth = (options = {}) => {
 
   // Handle auth data when it changes
   useEffect(() => {
+    // Don't process auth data if user was just logged out or recently logged out (unless on login page)
+    if (isJustLoggedOut || (hasRecentlyLoggedOut && !isOnLoginPage)) {
+      clearAuth();
+      return;
+    }
+
     if (authData) {
       if (instant) {
         setCachedAuthState(authData);
@@ -289,7 +380,7 @@ export const useAuth = (options = {}) => {
       setError(queryError.message);
       clearAuth();
     }
-  }, [authData, queryError, instant, setAuthState, clearAuth, setError]);
+  }, [authData, queryError, instant, setAuthState, clearAuth, setError, isJustLoggedOut, hasRecentlyLoggedOut, isOnLoginPage]);
 
   // Calculate loading states with optimizations
   const isCombinedLoading = (
@@ -353,6 +444,7 @@ export const useAuth = (options = {}) => {
     
     login,
     logout,
+    setLoginIntent,
     
     updateUserBetaFeatures,
     updateUserMessageColor,

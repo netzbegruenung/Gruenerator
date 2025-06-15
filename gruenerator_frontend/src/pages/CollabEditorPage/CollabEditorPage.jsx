@@ -10,7 +10,7 @@ import { applyHighlightWithAnimation, removeAllHighlights as removeAllQuillHighl
 import Quill from 'quill'; // Import Quill for temp instance in handleAiResponse
 import CollabEditorSkeleton from './CollabEditorSkeleton'; // NEU: Import Skeleton
 import { useOptimizedAuth } from '../../hooks/useAuth';
-import useGeneratedTextStore from '../../stores/generatedTextStore';
+import useGeneratedTextStore from '../../stores/core/generatedTextStore';
 import { Link } from 'react-router-dom';
 
 const CollabEditorPage = () => {
@@ -284,8 +284,8 @@ const CollabEditorPageContent = ({
       aiAdjustment: null, setAiAdjustment: () => {},
 
       hideEditButton: true,
-      showPlatformContainer: false,
-      usePlatformContainers: false,
+      
+      
       knowledgeSourceConfig: { type: 'neutral', id: null, name: 'Neutral' },
       setKnowledgeSourceConfig: () => {},
     };

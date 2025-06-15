@@ -136,32 +136,7 @@
   font-weight: 500;
 }
 
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
 
-.login-option {
-  animation: fadeInUp 0.5s ease-out;
-}
-
-.login-option:nth-child(1) {
-  animation-delay: 0.1s;
-}
-
-.login-option:nth-child(2) {
-  animation-delay: 0.2s;
-}
-
-.login-option:nth-child(3) {
-  animation-delay: 0.3s;
-}
 
 @media (max-width: 480px) {
   .login-content {

@@ -50,13 +50,23 @@ export const getTemplatesSupabase = () => templatesSupabase;
 export { templatesSupabase };
 
 // Funktion zum Setzen der Authentifizierungs-Session
+let lastSessionSet = null;
+
 export const setTemplatesSupabaseSession = (session) => {
   if (!templatesSupabase || !session) return;
+
+  // Prevent setting the same session multiple times
+  const sessionKey = session?.access_token ? session.access_token.substring(0, 20) : null;
+  if (sessionKey && lastSessionSet === sessionKey) {
+    return;
+  }
 
   // Supabase-JS v2 besitzt nur getSession() (async). Zur Vereinfachung
   // setzen wir die Session immer, doppelte Aufrufe sind unkritisch.
   console.log('[templatesSupabase] Setting user session for authenticated requests');
   templatesSupabase.auth.setSession(session);
+  
+  lastSessionSet = sessionKey;
 };
 
 // Hilfsfunktionen für häufige Datenbankoperationen

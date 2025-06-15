@@ -1,93 +1,67 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { useInstantAuth } from '../../../hooks/useAuth';
 
-const GRUENERATOR_LOGIN_SOURCE_SLUG = import.meta.env.VITE_AUTHENTIK_GRUENERATOR_SOURCE_SLUG || 'gruenerator-login';
+// Auth Backend URL aus Environment Variable oder Fallback zu aktuellem Host
 const AUTH_BASE_URL = import.meta.env.VITE_AUTH_BASE_URL || '';
 
 const RegistrationPage = () => {
-  const navigate = useNavigate();
-  const { isAuthenticated, loading } = useInstantAuth();
-  const [isRedirecting, setIsRedirecting] = useState(false);
+  const location = useLocation();
+  const [isRegistering, setIsRegistering] = useState(false);
+  const { loading, isAuthenticated, setLoginIntent } = useInstantAuth();
 
-  // Redirect if already authenticated
-  useEffect(() => {
-    if (isAuthenticated) {
-      navigate('/profile');
-    }
-  }, [isAuthenticated, navigate]);
-
-  const handleRegistration = async () => {
-    setIsRedirecting(true);
+  const handleRegister = async () => {
+    setIsRegistering(true);
     try {
-      // Redirect to Authentik's registration flow
-      const registrationUrl = `${AUTH_BASE_URL}/api/auth/login?source=${encodeURIComponent(GRUENERATOR_LOGIN_SOURCE_SLUG)}&prompt=register`;
-      console.log(`[RegistrationPage] Redirecting to Authentik registration: ${registrationUrl}`);
-      window.location.href = registrationUrl;
+      // Set login intent to allow auth after logout cooldown
+      setLoginIntent();
+      
+      // Keycloak verwaltet auch die Registrierung
+      const authUrl = `${AUTH_BASE_URL}/api/auth/login?prompt=register`;
+      console.log(`[RegistrationPage] Redirecting to: ${authUrl}`);
+      window.location.href = authUrl;
     } catch (err) {
       console.error('Fehler beim Initiieren der Registrierung:', err);
-      setIsRedirecting(false);
+      setIsRegistering(false);
     }
   };
-
-  // Show loading while checking auth status
-  if (loading) {
-    return (
-      <div className="auth-container">
-        <div className="auth-header">
-          <h1>Lädt...</h1>
-        </div>
-        <div className="loading-container">
-          <div className="spinner"></div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="auth-container">
       <div className="auth-header">
-        <h1>Grünerator Konto erstellen</h1>
-        <p>Erstellen Sie Ihr kostenloses Konto für den vollen Zugriff auf alle Grünerator Funktionen.</p>
+        <h1>Registrierung</h1>
+        <p>Erstelle dein kostenloses Grünerator-Konto:</p>
       </div>
 
-      <div className="login-options">
+      <div className="registration-options">
         <button
-          className="login-option gruenerator"
-          onClick={handleRegistration}
-          disabled={isRedirecting}
+          className="registration-option primary"
+          onClick={handleRegister}
+          disabled={isRegistering}
         >
-          <div className="login-content">
-            <span className="login-icon">📝</span>
-            <div className="login-text-content">
-              <h3 className="login-title">Neues Konto erstellen</h3>
-              <p className="login-description">Registrierung mit E-Mail & Passwort</p>
+          <div className="registration-content">
+            <span className="registration-icon">📝</span>
+            <div className="registration-text-content">
+              <h3 className="registration-title">Konto erstellen</h3>
+              <p className="registration-description">Kostenlose Registrierung</p>
             </div>
           </div>
         </button>
       </div>
 
-      {isRedirecting && (
-        <div className="auth-status-message">
-          <p>Weiterleitung zur Registrierung...</p>
-        </div>
-      )}
-
       {/* Login Link */}
-      <div className="auth-links">
-        <p>
-          Haben Sie bereits ein Konto?{' '}
-          <Link to="/login" className="auth-link">
-            Hier anmelden
-          </Link>
+      <div className="auth-footer">
+        <p className="auth-help-text">
+          Schon ein Konto? <Link to="/login">Hier anmelden</Link>
         </p>
       </div>
 
-      {/* Support */}
-      <div className="auth-links">
-        <p className="auth-help-text">
-          Brauchst du Hilfe? Kontaktiere den Support unter{' '}
-          <a href="mailto:support@gruenerator.de">support@gruenerator.de</a>
+      {/* Legal Notice */}
+      <div className="auth-legal">
+        <p>
+          Mit der Registrierung stimmst du unseren{' '}
+          <Link to="/legal/terms">Nutzungsbedingungen</Link> und der{' '}
+          <Link to="/legal/privacy">Datenschutzerklärung</Link> zu.
         </p>
       </div>
     </div>

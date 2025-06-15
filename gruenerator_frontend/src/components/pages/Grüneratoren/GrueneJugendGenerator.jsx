@@ -10,12 +10,13 @@ import { FormContext } from '../../utils/FormContext';
 // import { useDynamicTextSize } from '../../utils/commonFunctions';
 import ErrorBoundary from '../../ErrorBoundary';
 import { useFormFields } from '../../common/Form/hooks';
-import useGeneratedTextStore from '../../../stores/generatedTextStore';
+import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 
 const GrueneJugendGenerator = ({ showHeaderFooter = true }) => {
+  const componentName = 'gruene-jugend';
   const { initialContent } = useSharedContent();
   const { Input, Textarea } = useFormFields();
-  const { setGeneratedText: setStoreGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
+  const { setGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
 
   const platformOptions = [
     { id: 'instagram', label: 'Instagram' },
@@ -51,7 +52,7 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }) => {
   // const textSize = useDynamicTextSize(socialMediaContent, 1.2, 0.8, [1000, 2000]);
   const { submitForm, loading, success, resetSuccess, error } = useApiSubmit('/claude_gruene_jugend');
   const { /* setGeneratedContent, */ } = useContext(FormContext);
-  const [useBackupProvider, setUseBackupProvider] = useState(false);
+
 
   useEffect(() => {
     reset({
@@ -75,12 +76,12 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }) => {
       };
 
       console.log('[GrueneJugendGenerator] Sende Formular mit Daten:', formData);
-      const content = await submitForm(formData, useBackupProvider);
+      const content = await submitForm(formData);
       console.log('[GrueneJugendGenerator] API Antwort erhalten:', content);
       if (content) {
         console.log('[GrueneJugendGenerator] Setze generierten Content:', content.substring(0, 100) + '...');
         setSocialMediaContent(content);
-        setStoreGeneratedText(content);
+        setGeneratedText(componentName, content);
         setTimeout(resetSuccess, 3000);
       }
     } catch (err) {
@@ -88,13 +89,13 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }) => {
     } finally {
       setStoreIsLoading(false);
     }
-  }, [submitForm, resetSuccess, /* setGeneratedContent, */ setStoreGeneratedText, setStoreIsLoading, useBackupProvider, platformOptions]);
+  }, [submitForm, resetSuccess, /* setGeneratedContent, */ setGeneratedText, setStoreIsLoading, platformOptions]);
 
   const handleGeneratedContentChange = useCallback((content) => {
     console.log('[GrueneJugendGenerator] Content Change Handler aufgerufen mit:', content?.substring(0, 100) + '...');
     setSocialMediaContent(content);
-    setStoreGeneratedText(content);
-  }, [/* setGeneratedContent, */ setStoreGeneratedText]);
+    setGeneratedText(componentName, content);
+  }, [/* setGeneratedContent, */ setGeneratedText, componentName]);
 
   const helpContent = {
     content: "Dieser Grünerator erstellt jugendgerechte Social Media Inhalte und Aktionsideen speziell für die Grüne Jugend.",
@@ -159,10 +160,9 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }) => {
           error={error}
           generatedContent={socialMediaContent}
           onGeneratedContentChange={handleGeneratedContentChange}
-          useBackupProvider={useBackupProvider}
-          setUseBackupProvider={setUseBackupProvider}
-          usePlatformContainers={true}
+
           helpContent={helpContent}
+          componentName={componentName}
         >
           {renderFormInputs()}
         </BaseForm>

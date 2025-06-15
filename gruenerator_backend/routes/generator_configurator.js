@@ -20,7 +20,7 @@ const sanitizeSlug = (slug) => {
 }
 
 router.post('/', async (req, res) => {
-  const { description, useBackupProvider } = req.body;
+  const { description } = req.body;
 
   if (!description || typeof description !== 'string' || description.trim() === '') {
     return res.status(400).json({ error: 'Beschreibung darf nicht leer sein.' });
@@ -61,7 +61,7 @@ Beachte:
       options: {
         temperature: 0.5, // Moderate temperature for structured output
       },
-      useBackupProvider: useBackupProvider || false // Default to primary provider
+
     });
 
     if (!result.success) {

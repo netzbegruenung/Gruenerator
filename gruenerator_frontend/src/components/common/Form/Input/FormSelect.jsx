@@ -102,7 +102,7 @@ const FormSelect = ({
 
   // Uncontrolled component for legacy use without react-hook-form
   const { value: _, onChange: __, onBlur: ___, ...uncontrolledSelectProps } = selectProps;
-  const { value: ____, onChange: _____, onBlur: ______, control: _______, ...uncontrolledRest } = rest;
+  const { value: ____, onBlur: ______, control: _______, ...uncontrolledRest } = rest;
   
   return (
     <FormFieldWrapper

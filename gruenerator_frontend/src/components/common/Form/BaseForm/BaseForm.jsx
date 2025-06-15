@@ -7,13 +7,12 @@ import { BUTTON_LABELS } from '../../../utils/constants';
 import FocusTrap from 'focus-trap-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { HiPencil } from 'react-icons/hi';
-import useGeneratedTextStore from '../../../../stores/generatedTextStore';
+import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
 
 // Importiere die Komponenten
 import FormSection from './FormSection';
 import DisplaySection from './DisplaySection';
-import EditorChat from '../../editor/EditorChat';
-import Editor from '../../editor/Editor';
+import EditorChat from '../../editor/EditorChatnew';
 import FormToggleButtonFAB from './FormToggleButtonFAB';
 
 // Importiere die neuen Hooks
@@ -30,38 +29,6 @@ import { FormContext } from '../../../utils/FormContext';
  * Basis-Formular-Komponente
  * @param {Object} props - Komponenten-Props
  */
-const useMultiPlatform = () => {
-  const [isMultiPlatform, setIsMultiPlatform] = useState(false);
-  const [contentChanged, setContentChanged] = useState(false);
-
-  const checkMultiPlatform = useCallback((value, usePlatformContainers) => {
-    if (value && typeof value === 'string' && usePlatformContainers) {
-      const platformCount = (value.match(/(TWITTER|FACEBOOK|INSTAGRAM|LINKEDIN|ACTIONIDEAS|INSTAGRAM REEL|PRESSEMITTEILUNG|SUCHANFRAGE|SUCHERGEBNIS):/g) || []).length;
-      setIsMultiPlatform(platformCount >= 2);
-    } else {
-      setIsMultiPlatform(false);
-    }
-  }, []);
-
-  const markContentChanged = useCallback((hasContent) => {
-    if (hasContent) {
-      setContentChanged(true);
-    }
-  }, []);
-
-  const resetContentChanged = useCallback(() => {
-    setContentChanged(false);
-  }, []);
-
-  return {
-    isMultiPlatform,
-    checkMultiPlatform,
-    contentChanged,
-    markContentChanged,
-    resetContentChanged
-  };
-};
-
 const BaseForm = ({
   title,
   children,
@@ -82,7 +49,7 @@ const BaseForm = ({
   nextButtonText,
   generatedContent,
   hideDisplayContainer = false,
-  usePlatformContainers = false,
+
   helpContent,
   submitButtonProps = {},
   disableAutoCollapse = false,
@@ -100,9 +67,9 @@ const BaseForm = ({
   useModernForm = true,
   onFormChange = null,
   accessibilityOptions = {},
-  bottomSectionChildren = null
+  bottomSectionChildren = null,
+  componentName = 'default'
 }) => {
-
 
   const baseFormRef = useRef(null);
   const formSectionRef = useRef(null);
@@ -118,13 +85,6 @@ const BaseForm = ({
   
   const { isFormVisible, toggleFormVisibility } = useFormVisibility(hasContent, disableAutoCollapse);
 
-  const {
-    isMultiPlatform,
-    checkMultiPlatform,
-    markContentChanged,
-    resetContentChanged
-  } = useMultiPlatform();
-  
   const {
     value,
     isEditing,
@@ -196,25 +156,7 @@ const BaseForm = ({
     updateWithGeneratedContent(generatedContent);
   }, [generatedContent, updateWithGeneratedContent]);
 
-  // Prüfe auf Multi-Plattform-Inhalte
-  useEffect(() => {
-    checkMultiPlatform(value, usePlatformContainers);
-  }, [value, usePlatformContainers, checkMultiPlatform]);
 
-  // Markiere Inhaltsänderungen
-  useEffect(() => {
-    markContentChanged(!!value);
-  }, [value, markContentChanged]);
-
-  // Zurücksetzen von Inhaltsänderungen beim Scrollen
-  useEffect(() => {
-    const handleScroll = () => {
-      resetContentChanged();
-    };
-
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [resetContentChanged]);
 
   // Setze alwaysEditing
   useEffect(() => {
@@ -260,7 +202,6 @@ const BaseForm = ({
   const baseContainerClasses = getBaseContainerClasses({
     title,
     generatedContent,
-    isMultiPlatform,
     isFormVisible
   });
 
@@ -359,7 +300,7 @@ const BaseForm = ({
             isEditing={isEditing}
             allowEditing={allowEditing}
             hideEditButton={hideEditButton}
-            usePlatformContainers={usePlatformContainers}
+
             helpContent={helpContent}
             generatedPost={generatedPost}
             onGeneratePost={onGeneratePost}
@@ -368,6 +309,7 @@ const BaseForm = ({
             displayActions={displayActions}
             onSave={onSave}
             saveLoading={saveLoading}
+            componentName={componentName}
           />
         </motion.div>
 
@@ -393,8 +335,7 @@ BaseForm.propTypes = {
   initialContent: PropTypes.string,
   alwaysEditing: PropTypes.bool,
   hideEditButton: PropTypes.bool,
-  useBackupProvider: PropTypes.bool,
-  setUseBackupProvider: PropTypes.func,
+
   isMultiStep: PropTypes.bool,
   onBack: PropTypes.func,
   showBackButton: PropTypes.bool,
@@ -406,7 +347,7 @@ BaseForm.propTypes = {
     })
   ]),
   hideDisplayContainer: PropTypes.bool,
-  usePlatformContainers: PropTypes.bool,
+
   helpContent: PropTypes.shape({
     content: PropTypes.string,
     tips: PropTypes.arrayOf(PropTypes.string)
@@ -439,7 +380,8 @@ BaseForm.propTypes = {
   useModernForm: PropTypes.bool,
   onFormChange: PropTypes.func,
   accessibilityOptions: PropTypes.object,
-  bottomSectionChildren: PropTypes.node
+  bottomSectionChildren: PropTypes.node,
+  componentName: PropTypes.string
 };
 
 BaseForm.defaultProps = {

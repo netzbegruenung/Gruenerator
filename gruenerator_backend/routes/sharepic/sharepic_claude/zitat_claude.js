@@ -3,7 +3,7 @@ const router = express.Router();
 
 router.post('/', async (req, res) => {
   console.log('[Zitat-Claude API] Received request:', req.body);
-  const { thema, details, quote, name, useBackupProvider } = req.body;
+  const { thema, details, quote, name } = req.body;
 
   try {
     console.log('[Zitat-Claude API] Preparing request to Claude API');
@@ -22,8 +22,7 @@ router.post('/', async (req, res) => {
       options: {
         max_tokens: 1000,
         temperature: 0.7
-      },
-      useBackupProvider
+      }
     });
 
     console.log('[Zitat-Claude API] Received response from Claude API:', result);

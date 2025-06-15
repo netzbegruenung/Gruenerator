@@ -393,7 +393,7 @@ const YouPage = () => {
                 isEditing={isEditing}
                 allowEditing={true}
                 hideEditButton={false}
-                usePlatformContainers={false}
+        
                 handleToggleEditMode={handleToggleEditMode}
                 getExportableContent={getExportableContent}
                 onGeneratedContentChange={handleGeneratedContentChange}

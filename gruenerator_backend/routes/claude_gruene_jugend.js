@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { HTML_FORMATTING_INSTRUCTIONS, PLATFORM_HEADER_STRUCTURE_INSTRUCTIONS } = require('../utils/promptUtils');
+const { HTML_FORMATTING_INSTRUCTIONS } = require('../utils/promptUtils');
 
 const platformGuidelines = {
   instagram: {
@@ -76,7 +76,7 @@ const platformGuidelines = {
 };
 
 router.post('/', async (req, res) => {
-  const { thema, details, platforms = [], useBackupProvider, customPrompt } = req.body;
+  const { thema, details, platforms = [], customPrompt } = req.body;
   console.log('[claude_gruene_jugend] Anfrage erhalten:', { 
     thema, 
     details, 
@@ -102,8 +102,6 @@ router.post('/', async (req, res) => {
       Formatiere deine Antwort als Text mit Überschriften für die verschiedenen Plattformen. 
       WICHTIG: Jede Plattform muss mit einem eigenen Header in Großbuchstaben und einem Doppelpunkt 
       beginnen, z.B. "TWITTER:" oder "INSTAGRAM:"
-      
-      ${PLATFORM_HEADER_STRUCTURE_INSTRUCTIONS}
       
       ${HTML_FORMATTING_INSTRUCTIONS}`;
 
@@ -160,7 +158,7 @@ ${HTML_FORMATTING_INSTRUCTIONS}`;
         max_tokens: 8000,
         temperature: 0.9
       },
-      useBackupProvider
+
     };
     
     const result = await req.app.locals.aiWorkerPool.processRequest({

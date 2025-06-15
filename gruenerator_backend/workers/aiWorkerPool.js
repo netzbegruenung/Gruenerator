@@ -141,8 +141,7 @@ class AIWorkerPool {
     const requestId = `req_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
     
     console.log(`[AIWorkerPool] Processing request ${requestId}:`, {
-      type: data.type,
-      useBackupProvider: data.useBackupProvider
+      type: data.type
     });
 
     return new Promise((resolve, reject) => {
