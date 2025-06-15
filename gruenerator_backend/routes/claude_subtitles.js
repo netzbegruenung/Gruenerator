@@ -3,7 +3,7 @@ const router = express.Router();
 const { generateShortSubtitlesViaAI } = require('./subtitler/services/shortSubtitleGeneratorService');
 
 router.post('/generate-short-subtitles', async (req, res) => {
-  const { text, words, useBackupProvider } = req.body;
+  const { text, words } = req.body;
 
   if (!text || !Array.isArray(words) || words.length === 0) {
     return res.status(400).json({ 
@@ -16,7 +16,7 @@ router.post('/generate-short-subtitles', async (req, res) => {
       text,
       words,
       req.app.locals.aiWorkerPool,
-      useBackupProvider
+
     );
 
     res.json({ 

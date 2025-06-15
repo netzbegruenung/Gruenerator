@@ -10,7 +10,7 @@ const { YouConversationManager } = require('../utils/youConversationManager');
  * Verwendet Claude mit Tools um direkt die passenden Backend-Services aufzurufen
  */
 router.post('/', async (req, res) => {
-  const { prompt, useBackupProvider } = req.body;
+  const { prompt } = req.body;
 
   try {
     console.log('You-Anfrage mit Tool Use erhalten:', {
@@ -37,8 +37,7 @@ router.post('/', async (req, res) => {
 
     // Process the conversation with tool use
     const result = await conversationManager.processConversation(
-      prompt, 
-      useBackupProvider
+      prompt
     );
 
     res.json({

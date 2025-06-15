@@ -14,7 +14,7 @@ const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
 router.post('/upload-pdf', upload.single('file'), async (req, res) => {
-  const useBackupProvider = req.body.useBackupProvider;
+
 
   if (!req.file) {
     return res.status(400).send('Keine Datei hochgeladen');
@@ -64,9 +64,8 @@ router.post('/upload-pdf', upload.single('file'), async (req, res) => {
         model: 'claude-3-5-sonnet-20241022',
         max_tokens: 2048,
         temperature: 0.3
-      },
-      useBackupProvider,
-      fileMetadata: {
+            },
+        fileMetadata: {
         fileId: fileUpload.id,
         fileName: fileName,
         usePromptCaching: true

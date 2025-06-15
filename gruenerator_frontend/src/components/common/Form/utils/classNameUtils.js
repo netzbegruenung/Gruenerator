@@ -6,7 +6,6 @@
 export const getBaseContainerClasses = ({
   title,
   generatedContent,
-  isMultiPlatform,
   isFormVisible
 }) => {
   const classes = [
@@ -14,9 +13,7 @@ export const getBaseContainerClasses = ({
     title === "Grünerator Antragscheck" ? 'antragsversteher-base' : '',
     generatedContent && (
       typeof generatedContent === 'string' ? generatedContent.length > 0 : generatedContent?.content?.length > 0
-    ) ? 'has-generated-content' : '',
-    isMultiPlatform ? 'multi-platform' : '',
-    isMultiPlatform && !isFormVisible ? 'form-hidden' : ''
+    ) ? 'has-generated-content' : ''
   ];
 
   return classes.filter(Boolean).join(' ');

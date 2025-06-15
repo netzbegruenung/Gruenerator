@@ -7,7 +7,8 @@ import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import modulePreloader from '../../../utils/modulePreloader';
-import { useAnweisungenWissenStore } from '../stores/anweisungenWissenStore';
+import { useAnweisungenWissenUiStore } from '../../../stores/auth/anweisungenWissenUiStore';
+
 
 /**
  * Get initials from first name, last name, or email
@@ -57,7 +58,7 @@ export const getAvatarDisplayProps = (profile) => {
   
   return {
     type: 'initials',
-    initials: getInitials(first_name, last_name, email)
+    initials: getInitials(first_name, last_name, email || 'User')
   };
 };
 
@@ -337,8 +338,33 @@ export const useBetaFeatureManager = () => {
 
 // === PROFILE DATA MANAGEMENT ===
 
+/**
+ * Initialize profile form fields with safe fallbacks
+ * @param {object} profile - Profile data from API
+ * @param {object} user - User data from auth
+ * @returns {object} Initialized form values
+ */
+export const initializeProfileFormFields = (profile, user) => {
+  const safeName = profile?.display_name || 
+                   (profile?.first_name && profile?.last_name ? 
+                    `${profile.first_name} ${profile.last_name}`.trim() : 
+                    user?.email || user?.username || 'User');
+  
+  // Prioritize auth user email if profile email is empty/null
+  const syncedEmail = (profile?.email && profile.email.trim()) ? 
+                      profile.email : 
+                      (user?.email || '');
+  
+  return {
+    firstName: profile?.first_name || '',
+    lastName: profile?.last_name || '',
+    displayName: safeName,
+    email: syncedEmail
+  };
+};
+
 export const useProfileData = (userId) => {
-  const { user } = useOptimizedAuth();
+  const { user, isAuthenticated, loading } = useOptimizedAuth();
   const actualUserId = userId || user?.id;
   const AUTH_BASE_URL = import.meta.env.VITE_AUTH_BASE_URL || '';
 
@@ -373,9 +399,11 @@ export const useProfileData = (userId) => {
         display_name: profile.display_name,
         first_name: profile.first_name,
         last_name: profile.last_name,
-        email: profile.email,
+        email: profile.email || null,
         avatar_robot_id: profile.avatar_robot_id,
-        is_admin: profile.is_admin
+        is_admin: profile.is_admin,
+        username: profile.username,
+        keycloak_id: profile.keycloak_id
       };
     },
     enabled: !!actualUserId,
@@ -402,7 +430,9 @@ export const useProfileManager = () => {
       return await updateProfile(profileData);
     },
     onSuccess: (updatedProfile) => {
-      queryClient.setQueryData(['profileData', user.id], updatedProfile);
+      if (user?.id) {
+        queryClient.setQueryData(['profileData', user.id], updatedProfile);
+      }
       queryClient.invalidateQueries({ queryKey: ['profileData'] });
     },
     onError: (error) => {
@@ -476,11 +506,13 @@ export const useAnweisungenWissen = ({ isActive, enabled = true } = {}) => {
   // Use the zustand store for UI state
   const { 
     setSaving, 
+    setDeleting,
     setSuccess, 
     setError, 
-    setDeleting, 
-    reset: resetStore 
-  } = useAnweisungenWissenStore();
+    clearMessages, 
+    reset: resetStore,
+    setHasUnsavedChanges: setStoreHasUnsavedChanges
+  } = useAnweisungenWissenUiStore();
 
   // --- React Query: Fetch Anweisungen & Wissen --- 
   const queryKey = ['anweisungenWissen', user?.id];

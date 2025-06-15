@@ -5,7 +5,7 @@ import { HiCog, HiOutlineUsers, HiSave } from "react-icons/hi";
 import { copyFormattedContent } from '../utils/commonFunctions';
 import ExportToDocument from './ExportToDocument';
 import { useLazyAuth } from '../../hooks/useAuth';
-import useGeneratedTextStore from '../../stores/generatedTextStore';
+import useGeneratedTextStore from '../../stores/core/generatedTextStore';
 
 const ActionButtons = ({
   onEdit,

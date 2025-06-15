@@ -1,25 +1,28 @@
-import React, { useCallback, useContext, useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useAntrag } from './useAntrag';
 import { useAntragContext } from './AntragContext';
 import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../../components/utils/constants';
 import BaseForm from '../../../components/common/BaseForm';
-import PlatformContainer from '../../../components/common/PlatformContainer';
 import { HiGlobeAlt, HiSave, HiInformationCircle } from 'react-icons/hi';
-import { FormContext } from '../../../components/utils/FormContext';
 import SubmitButton from '../../../components/common/SubmitButton';
 import AntragSavePopup from './components/AntragSavePopup';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { createStructuredFinalPrompt } from '../../../utils/promptUtils';
 import useGroupDetails from '../../groups/hooks/useGroupDetails';
 import { useFormFields } from '../../../components/common/Form/hooks';
-import useGeneratedTextStore from '../../../stores/generatedTextStore';
+import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
+import { useGeneratorKnowledgeStore } from '../../../stores/core/generatorKnowledgeStore';
+import useKnowledge from '../../../components/hooks/useKnowledge';
 
 export const AntragForm = () => {
   const { user, betaFeatures } = useOptimizedAuth();
   const deutschlandmodus = betaFeatures?.deutschlandmodus;
   const { Input, Textarea } = useFormFields();
   const { setGeneratedText: setStoreGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
+  
+  // Initialize knowledge system
+  useKnowledge();
   
   const {
     formData,
@@ -40,10 +43,16 @@ export const AntragForm = () => {
     displayedSources
   } = useAntragContext();
 
-  const { 
+  // Store integration - all knowledge and instructions from store
+  const {
+    source,
+    availableKnowledge,
+    selectedKnowledgeIds,
+    instructions,
+    isInstructionsActive,
     getKnowledgeContent,
-    knowledgeSourceConfig
-  } = useContext(FormContext);
+    getActiveInstruction
+  } = useGeneratorKnowledgeStore();
 
   const [isSavePopupOpen, setIsSavePopupOpen] = useState(false);
   const [userCustomAntragPrompt, setUserCustomAntragPrompt] = useState(null);
@@ -75,62 +84,26 @@ export const AntragForm = () => {
     setStoreIsLoading(loading);
   }, [loading, setStoreIsLoading]);
 
-  useEffect(() => {
-    const loadUserCustomPrompt = async () => {
-      if (!user) return;
-      
-      try {
-        const module = await import('../../../components/utils/templatesSupabaseClient');
-        if (!module.templatesSupabase) {
-          console.warn('Templates Supabase client not available for fetching user custom prompt.');
-          return;
-        }
-        
-        const { templatesSupabase } = module;
-        
-        const { data, error: fetchError } = await templatesSupabase
-          .from('profiles')
-          .select('custom_antrag_prompt')
-          .eq('id', user.id)
-          .single();
-        
-        if (fetchError) {
-          console.error('Error loading user custom antrag prompt:', fetchError);
-          return;
-        }
-        
-        if (data) {
-          setUserCustomAntragPrompt(data.custom_antrag_prompt || null);
-        }
-      } catch (err) {
-        console.error('Error loading user custom antrag prompt:', err);
-      }
-    };
-    
-    loadUserCustomPrompt();
-  }, [user]);
-
   const { data: groupDetailsData, isLoading: isLoadingGroupDetails } = useGroupDetails(
-    knowledgeSourceConfig.type === 'group' ? knowledgeSourceConfig.id : null,
-    knowledgeSourceConfig.type === 'group'
+    source.type === 'group' ? source.id : null,
+    { isActive: source.type === 'group' }
   );
 
   const onSubmitRHF = async (rhfData) => {
     try {
-      let activeInstructionsText = null;
-      let areInstructionsActive = false;
-
-      if (knowledgeSourceConfig.type === 'user') {
-        activeInstructionsText = userCustomAntragPrompt;
-        areInstructionsActive = isUserCustomAntragPromptActive;
-      } else if (knowledgeSourceConfig.type === 'group' && groupDetailsData?.instructions) {
-        activeInstructionsText = groupDetailsData.instructions.custom_antrag_prompt;
-        areInstructionsActive = !!groupDetailsData.instructions.custom_antrag_prompt;
+      // Get active instruction based on source
+      let activeInstruction = null;
+      if (source.type === 'user' && isInstructionsActive) {
+        activeInstruction = getActiveInstruction('antrag');
+      } else if (source.type === 'group' && groupDetailsData?.instructions) {
+        activeInstruction = groupDetailsData.instructions.custom_antrag_prompt;
       }
       
+      // Get knowledge content from store
       const knowledgeContent = getKnowledgeContent();
+      
       const finalPrompt = createStructuredFinalPrompt(
-        areInstructionsActive ? activeInstructionsText : null,
+        activeInstruction,
         knowledgeContent
       );
       
@@ -145,7 +118,8 @@ export const AntragForm = () => {
           handleInputChange('details', rhfData.details);
           handleInputChange('gliederung', rhfData.gliederung);
       }
-      await generateAntrag(finalPrompt);
+      // Pass current form data to ensure we have the latest values
+      await generateAntrag(finalPrompt, rhfData);
     } catch (submitError) {
       console.error('[AntragForm] Error submitting antrag:', submitError);
     }
@@ -183,10 +157,8 @@ export const AntragForm = () => {
     }
   };
 
-  const userDisplayName = user?.displayName || (user?.user_metadata?.firstName && user?.user_metadata?.lastName ? `${user?.user_metadata?.firstName} ${user?.user_metadata?.lastName}`.trim() : user?.user_metadata?.email);
-
   const formNoticeElement = (() => {
-    if (knowledgeSourceConfig.type === 'group' && isLoadingGroupDetails) {
+    if (source.type === 'group' && isLoadingGroupDetails) {
       return (
         <div className="custom-prompt-notice">
           <HiInformationCircle className="info-icon" />
@@ -196,41 +168,28 @@ export const AntragForm = () => {
     }
 
     let noticeParts = [];
-    let activeInstructionsTextForNotice = null;
-    let areInstructionsActiveForNotice = false;
-    let instructionsAvailableForNotice = false;
     let sourceNameForNotice = "";
 
-    if (knowledgeSourceConfig.type === 'user') {
+    if (source.type === 'user') {
       sourceNameForNotice = "Persönliche";
-      activeInstructionsTextForNotice = userCustomAntragPrompt;
-      areInstructionsActiveForNotice = isUserCustomAntragPromptActive && userCustomAntragPrompt;
-      instructionsAvailableForNotice = !!userCustomAntragPrompt;
-      if (areInstructionsActiveForNotice) {
+      if (isInstructionsActive && instructions.antrag) {
         noticeParts.push(`${sourceNameForNotice} Anweisungen`);
-      } else if (instructionsAvailableForNotice) {
+      } else if (instructions.antrag) {
         noticeParts.push(`${sourceNameForNotice} Anweisungen (inaktiv)`);
       }
-    } else if (knowledgeSourceConfig.type === 'group') {
-      sourceNameForNotice = knowledgeSourceConfig.name || 'Gruppe';
-      if (groupDetailsData?.instructions) {
-        activeInstructionsTextForNotice = groupDetailsData.instructions.custom_antrag_prompt;
-        areInstructionsActiveForNotice = !!groupDetailsData.instructions.custom_antrag_prompt;
-        instructionsAvailableForNotice = !!groupDetailsData.instructions.custom_antrag_prompt;
-        if (areInstructionsActiveForNotice) {
-          noticeParts.push(`Anweisungen der Gruppe "${sourceNameForNotice}"`);
-        } else if (instructionsAvailableForNotice) {
-          noticeParts.push(`Anweisungen der Gruppe "${sourceNameForNotice}" (inaktiv)`);
-        }
+    } else if (source.type === 'group') {
+      sourceNameForNotice = source.name || 'Gruppe';
+      if (groupDetailsData?.instructions?.custom_antrag_prompt) {
+        noticeParts.push(`Anweisungen der Gruppe "${sourceNameForNotice}"`);
       }
     }
 
-    const hasLoadedKnowledge = knowledgeSourceConfig.loadedKnowledgeItems && knowledgeSourceConfig.loadedKnowledgeItems.length > 0;
+    const hasLoadedKnowledge = availableKnowledge.length > 0;
 
-    if (knowledgeSourceConfig.type !== 'neutral' && hasLoadedKnowledge) {
-      if (knowledgeSourceConfig.type === 'user') {
+    if (source.type !== 'neutral' && hasLoadedKnowledge) {
+      if (source.type === 'user') {
         noticeParts.push('gesamtes persönliches Wissen');
-      } else if (knowledgeSourceConfig.type === 'group') {
+      } else if (source.type === 'group') {
         noticeParts.push(`gesamtes Wissen der Gruppe "${sourceNameForNotice}"`);
       }
     }
@@ -239,7 +198,7 @@ export const AntragForm = () => {
       noticeParts.push("Deutschlandmodus aktiv");
     }
 
-    if (noticeParts.length === 0 && knowledgeSourceConfig.type === 'neutral') {
+    if (noticeParts.length === 0 && source.type === 'neutral') {
       return (
         <div className="custom-prompt-notice neutral-notice">
           <HiInformationCircle className="info-icon" />
@@ -285,7 +244,6 @@ export const AntragForm = () => {
           defaultText: getButtonText(),
           loading: loading
         }}
-        usePlatformContainers={true}
         disableAutoCollapse={true}
         webSearchFeatureToggle={{
           isActive: useWebSearch,
@@ -340,7 +298,9 @@ export const AntragForm = () => {
       {displayedSources && displayedSources.trim() !== '' && generatedAntrag && generatedAntrag.trim() !== '' && (
         <div className="sources-container">
           <h3>Quellen</h3>
-          <PlatformContainer content={`QUELLEN: \n\n${displayedSources}`} />
+          <div className="sources-content">
+            <pre>{displayedSources}</pre>
+          </div>
         </div>
       )}
     </div>

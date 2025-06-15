@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import useGeneratedTextStore from '../../stores/generatedTextStore';
+import useGeneratedTextStore from '../../stores/core/generatedTextStore';
 
 // Function to handle form changes
 export const handleChange = (e, setFormData) => {

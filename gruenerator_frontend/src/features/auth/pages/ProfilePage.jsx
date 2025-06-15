@@ -49,7 +49,7 @@ const TabButton = ({
       }}
       onMouseLeave={() => setIsHovered(false)}
       animate={{ 
-        fontWeight: activeTab === tabKey ? 'bold' : 'normal'
+        fontWeight: activeTab === tabKey ? 700 : 400
       }}
       transition={{ fontWeight: { duration: 0.3, ease: "easeOut" } }}
     >

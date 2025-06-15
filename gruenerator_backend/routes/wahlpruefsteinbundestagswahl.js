@@ -33,10 +33,9 @@ const loadChapterText = (chapterNumber) => {
 
 router.post('/frage', async (req, res) => {
     console.log('Received question request');
-    const { question, selectedChapter, useBackupProvider } = req.body;
+    const { question, selectedChapter } = req.body;
     console.log('Question:', question);
     console.log('Selected Chapter:', selectedChapter);
-    console.log('Using backup provider:', useBackupProvider);
 
     if (typeof question !== 'string' || question.trim().length === 0 || !selectedChapter) {
         console.log('Invalid input received');
@@ -104,7 +103,7 @@ Bitte beantworte nun folgende Frage: ${question}`
                 max_tokens: 8000,
                 temperature: 0.7
             },
-            useBackupProvider
+    
         });
 
         if (!result.success) {

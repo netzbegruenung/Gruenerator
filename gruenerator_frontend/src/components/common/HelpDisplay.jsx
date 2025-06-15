@@ -1,6 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import useGeneratedTextStore from '../../stores/generatedTextStore';
+import useGeneratedTextStore from '../../stores/core/generatedTextStore';
 
 const HelpDisplay = ({ content, tips, forceHidden }) => {
   const { generatedText } = useGeneratedTextStore();

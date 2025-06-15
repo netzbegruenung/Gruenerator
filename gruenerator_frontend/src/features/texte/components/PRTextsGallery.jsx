@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import PropTypes from 'prop-types';
-import { supabase } from '../../../components/utils/supabaseClient'; // Adjusted path to supabaseClient
+import { templatesSupabase } from '../../../components/utils/templatesSupabaseClient';
 import { useLazyAuth } from '../../../hooks/useAuth';
 import Spinner from '../../../components/common/Spinner'; // Corrected import for Spinner
 
@@ -35,7 +35,7 @@ const PRTextsGallery = ({ searchTerm, selectedCategory, searchMode }) => {
     setError(null);
 
     try {
-      let query = supabase
+      let query = templatesSupabase
         .from('pr_texts')
         .select('id, title, content, created_at, pr_texts_to_categories!inner(category_id)') // Include category join
         .order('created_at', { ascending: false });

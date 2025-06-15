@@ -5,7 +5,7 @@ import { create } from 'zustand';
  * This decouples UI state (loading, errors, etc.) from the data fetching/mutation logic
  * in the useAnweisungenWissen hook.
  */
-export const useAnweisungenWissenStore = create((set) => ({
+export const useAnweisungenWissenUiStore = create((set) => ({
   // State
   isSaving: false,
   isDeleting: false,
