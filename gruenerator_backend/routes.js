@@ -8,7 +8,6 @@ const claudeSocialRoute = require('./routes/claude_social');
 const claudeRedeRoute = require('./routes/claude_rede');
 const claudeChatRoute = require('./routes/claude_chat');
 const antragsversteherRoute = require('./routes/claude_antragsversteher');
-const pdfExtractionRoute = require('./routes/pdf-text-extraction');
 const wahlpruefsteinBundestagswahlRoute = require('./routes/wahlpruefsteinbundestagswahl');
 const sharepicDreizeilenCanvasRoute = require('./routes/sharepic/sharepic_canvas/dreizeilen_canvas');
 const zitatSharepicCanvasRoute = require('./routes/sharepic/sharepic_canvas/zitat_canvas');
@@ -33,7 +32,6 @@ const customGeneratorRoute = require('./routes/custom_generator');
 const generatorConfiguratorRoute = require('./routes/generator_configurator');
 const claudeSubtitlesRoute = require('./routes/claude_subtitles');
 const { tusServer } = require('./routes/subtitler/services/tusService');
-const testBedrockRoutes = require('./routes/testBedrock'); // Import the new test route
 const collabEditorRouter = require('./routes/collabEditor'); // Import the new collab editor route
 const snapshottingRouter = require('./routes/internal/snapshottingController'); // Import the new snapshotting controller
 const offboardingRouter = require('./routes/internal/offboardingController'); // Import the offboarding controller
@@ -60,9 +58,14 @@ async function setupRoutes(app) {
 
   // app.use('/api/subtitler/upload', tusServer.handle.bind(tusServer)); // REMOVED: Redundant, already handled in server.mjs
 
-  // Auth routes (non-API path) - dynamic import for ES module
-  const { default: authRoutes } = await import('./routes/authRoutes.mjs');
-  app.use('/api/auth', authRoutes);
+  // Auth routes (non-API path) - dynamic import for ES modules
+  const { default: authCore } = await import('./routes/auth/authCore.mjs');
+  const { default: userProfile } = await import('./routes/auth/userProfile.mjs');
+  const { default: userContent } = await import('./routes/auth/userContent.mjs');
+  
+  app.use('/api/auth', authCore);
+  app.use('/api/auth', userProfile);
+  app.use('/api/auth', userContent);
   
   // Use the single consolidated router for all /api/antraege paths
   app.use('/api/antraege', antraegeRouter);
@@ -76,7 +79,6 @@ async function setupRoutes(app) {
   app.use('/api/claude_rede', claudeRedeRoute);
   app.use('/api/claude_chat', claudeChatRoute);
   app.use('/api/antragsversteher', antragsversteherRoute);
-  app.use('/api/pdf-extraction', pdfExtractionRoute);
   app.use('/api/wahlpruefsteinbundestagswahl', wahlpruefsteinBundestagswahlRoute);
   app.use('/api/dreizeilen_canvas', sharepicDreizeilenCanvasRoute);
   app.use('/api/zitat_canvas', zitatSharepicCanvasRoute);
@@ -102,9 +104,6 @@ async function setupRoutes(app) {
 
   app.use('/api/search', searchRouter);
   app.use('/api/analyze', searchAnalysisRouter);
-
-  // Add the Bedrock test route
-  app.use('/api/test-bedrock', testBedrockRoutes); // FIX: Used a more specific path to avoid conflicts
 
   // Add the Collab Editor route
   app.use('/api/collab-editor', collabEditorRouter);

@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 router.post('/generate-social', async (req, res) => {
-  const { subtitles, useBackupProvider } = req.body;
+  const { subtitles } = req.body;
   console.log('[subtitlerSocial] Anfrage erhalten:', { subtitlesLength: subtitles?.length });
 
   try {
@@ -27,8 +27,7 @@ router.post('/generate-social', async (req, res) => {
       options: {
         max_tokens: 1000,
         temperature: 0.7
-      },
-      useBackupProvider
+      }
     });
 
     console.log('[subtitlerSocial] AI Worker Antwort erhalten:', {

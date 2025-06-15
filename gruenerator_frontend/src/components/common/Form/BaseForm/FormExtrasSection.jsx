@@ -1,13 +1,14 @@
-import React, { useContext } from 'react';
+import React, { useContext, useMemo } from 'react';
 import PropTypes from 'prop-types';
 import { HiCog } from "react-icons/hi";
 import FeatureToggle from '../../FeatureToggle';
 import SubmitButton from '../../SubmitButton';
-import KnowledgeSelector from '../../../common/KnowledgeSelector';
+import KnowledgeSelector from '../../../common/KnowledgeSelector/KnowledgeSelector';
 import FormSelect from '../Input/FormSelect';
 import { FormContext } from '../../../utils/FormContext';
 import useGroups from '../../../../features/groups/hooks/useGroups';
 import { useLazyAuth } from '../../../../hooks/useAuth';
+import { useGeneratorKnowledgeStore } from '../../../../stores/core/generatorKnowledgeStore';
 
 /**
  * Komponente für zusätzliche Formular-Features (Extras)
@@ -40,10 +41,11 @@ const FormExtrasSection = ({
   showSubmitButton = true,
   children
 }) => {
-  const { 
-    knowledgeSourceConfig,
-    setKnowledgeSourceConfig
-  } = useContext(FormContext);
+  // Keep FormContext for all non-knowledge features (like web search, etc.)
+  const formContext = useContext(FormContext);
+  
+  // Use store for knowledge source management
+  const { source, setSource } = useGeneratorKnowledgeStore();
   
   const { betaFeatures, isLoadingBetaFeatures } = useLazyAuth();
   const anweisungenBetaEnabled = betaFeatures?.anweisungen === true;
@@ -60,6 +62,62 @@ const FormExtrasSection = ({
     return null;
   }
 
+  // Handle knowledge source selection - only update store
+  const handleKnowledgeSourceChange = (e) => {
+    const value = e.target.value;
+    console.log('[FormExtrasSection] handleKnowledgeSourceChange called with value:', value);
+    if (value === 'neutral') {
+      console.log('[FormExtrasSection] Setting source to neutral');
+      setSource({ type: 'neutral', id: null, name: null });
+    } else if (value === 'user') {
+      console.log('[FormExtrasSection] Setting source to user');
+      setSource({ type: 'user', id: null, name: 'Meine Anweisungen & Wissen' });
+    } else if (value.startsWith('group-')) {
+      const groupId = value.substring("group-".length);
+      const selectedGroup = groups.find(g => g.id === groupId);
+      console.log('[FormExtrasSection] Setting source to group:', selectedGroup);
+      if (selectedGroup) {
+        setSource({ type: 'group', id: selectedGroup.id, name: selectedGroup.name });
+      }
+    }
+  };
+
+  // Get current source value for the select
+  const getCurrentSourceValue = () => {
+    if (source.type === 'neutral') return 'neutral';
+    if (source.type === 'user') return 'user';
+    if (source.type === 'group') return `group-${source.id}`;
+    return 'neutral';
+  };
+
+  // Memoize options array to prevent unnecessary re-renders
+  const knowledgeSourceOptions = useMemo(() => {
+    const baseOptions = [
+      { value: 'neutral', label: 'Neutral' },
+      { value: 'user', label: 'Meine Anweisungen & Wissen' }
+    ];
+
+    const loadingOptions = [];
+    if (isLoadingBetaFeatures) {
+      loadingOptions.push({ value: '', label: 'Lade Beta Features...', disabled: true });
+    }
+    if (isLoadingGroups) {
+      loadingOptions.push({ value: '', label: 'Lade Gruppen...', disabled: true });
+    }
+    if (groupsError && !isLoadingGroups) {
+      loadingOptions.push({ value: '', label: 'Fehler beim Laden der Gruppen', disabled: true });
+    }
+
+    const groupOptions = (groups && !isLoadingGroups && !groupsError) 
+      ? groups.map(group => ({
+          value: `group-${group.id}`,
+          label: `${group.name} Anweisungen & Wissen`
+        }))
+      : [];
+
+    return [...baseOptions, ...loadingOptions, ...groupOptions];
+  }, [groups, isLoadingGroups, isLoadingBetaFeatures, groupsError]);
+
   return (
     <div className="form-section__extras">
       <div className="form-extras__content">
@@ -70,37 +128,16 @@ const FormExtrasSection = ({
             <FormSelect
               name="knowledge-source"
               label="Anweisungen & Wissensquelle"
-              options={[
-                { value: 'neutral', label: 'Neutral' },
-                { value: 'user', label: 'Meine Anweisungen & Wissen' },
-                ...(isLoadingBetaFeatures ? [{ value: '', label: 'Lade Beta Features...', disabled: true }] : []),
-                ...(isLoadingGroups ? [{ value: '', label: 'Lade Gruppen...', disabled: true }] : []),
-                ...(groupsError && !isLoadingGroups ? [{ value: '', label: 'Fehler beim Laden der Gruppen', disabled: true }] : []),
-                ...(groups && !isLoadingGroups && !groupsError ? 
-                  groups.map(group => ({
-                    value: `group-${group.id}`,
-                    label: `${group.name} Anweisungen & Wissen`
-                  })) : []
-                )
-              ]}
-              value={knowledgeSourceConfig.type === 'group' ? `group-${knowledgeSourceConfig.id}` : knowledgeSourceConfig.type}
+              options={knowledgeSourceOptions}
+              value={getCurrentSourceValue()}
               onChange={(e) => {
-                const value = e.target.value;
-                if (value === 'neutral') {
-                  setKnowledgeSourceConfig({ type: 'neutral', id: null, name: 'Neutral' });
-                } else if (value === 'user') {
-                  setKnowledgeSourceConfig({ type: 'user', id: null, name: 'Meine Anweisungen & Wissen' });
-                } else if (value.startsWith('group-')) {
-                  const groupId = value.substring("group-".length);
-                  const selectedGroup = groups.find(g => g.id === groupId);
-                  if (selectedGroup) {
-                    setKnowledgeSourceConfig({ type: 'group', id: selectedGroup.id, name: selectedGroup.name });
-                  }
-                }
+                console.log('[FormExtrasSection] FormSelect onChange triggered with event:', e);
+                console.log('[FormExtrasSection] FormSelect onChange - event.target.value:', e.target.value);
+                handleKnowledgeSourceChange(e);
               }}
               disabled={isLoadingGroups || isLoadingBetaFeatures || !anweisungenBetaEnabled}
             />
-            <KnowledgeSelector />
+            <KnowledgeSelector enableSelection={true} />
           </div>
         )}
 

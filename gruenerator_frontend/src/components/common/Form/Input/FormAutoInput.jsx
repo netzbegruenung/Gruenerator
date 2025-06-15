@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import { Controller } from 'react-hook-form';
 import TextareaAutosize from 'react-textarea-autosize';
 import FormFieldWrapper from './FormFieldWrapper';
-import { useSimpleFormStore } from '../../../../stores/simpleFormStore';
+import { useSimpleFormStore } from '../../../../stores/core/simpleFormStore';
 
 /**
  * FormAutoInput - Large input component with auto-resize for extensive text input

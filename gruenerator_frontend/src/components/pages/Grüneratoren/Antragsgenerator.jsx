@@ -11,7 +11,7 @@ const Antragsgenerator = ({ showHeaderFooter = true }) => {
   const [details, setDetails] = useState('');
   const [gliederung, setGliederung] = useState('');
   const [antrag, setAntrag] = useState('');
-  const [useBackupProvider, setUseBackupProvider] = useState(false);
+
   // const textSize = useDynamicTextSize(antrag, 1.2, 0.8, [1000, 2000]);
   const { submitForm, loading, success, resetSuccess, error } = useApiSubmit('/claude');
   const { setGeneratedContent } = useContext(FormContext);
@@ -19,7 +19,7 @@ const Antragsgenerator = ({ showHeaderFooter = true }) => {
   const handleSubmit = useCallback(async () => {
     const formData = { idee, details, gliederung };
     try {
-      const content = await submitForm(formData, useBackupProvider);
+      const content = await submitForm(formData);
       if (content) {
         setAntrag(content);
         setGeneratedContent(content);
@@ -28,7 +28,7 @@ const Antragsgenerator = ({ showHeaderFooter = true }) => {
     } catch (error) {
       // Error handling
     }
-  }, [idee, details, gliederung, submitForm, resetSuccess, setGeneratedContent, useBackupProvider]);
+  }, [idee, details, gliederung, submitForm, resetSuccess, setGeneratedContent]);
 
   const handleGeneratedContentChange = useCallback((content) => {
     setAntrag(content);
@@ -46,8 +46,6 @@ const Antragsgenerator = ({ showHeaderFooter = true }) => {
         generatedContent={antrag}
 
         onGeneratedContentChange={handleGeneratedContentChange}
-        useBackupProvider={useBackupProvider}
-        setUseBackupProvider={setUseBackupProvider}
       >
         <h3><label htmlFor="idee">{FORM_LABELS.IDEE}</label></h3>
         <input

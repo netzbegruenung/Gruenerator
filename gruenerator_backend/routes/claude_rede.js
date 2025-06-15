@@ -3,7 +3,7 @@ const router = express.Router();
 const { HTML_FORMATTING_INSTRUCTIONS } = require('../utils/promptUtils');
 
 router.post('/', async (req, res) => {
-  const { rolle, thema, Zielgruppe, schwerpunkte, redezeit, useBackupProvider, customPrompt } = req.body;
+  const { rolle, thema, Zielgruppe, schwerpunkte, redezeit, customPrompt } = req.body;
 
   // Aktuelles Datum ermitteln
   const currentDate = new Date().toISOString().split('T')[0];
@@ -75,7 +75,7 @@ Aktuelles Datum: ${currentDate}`;
         max_tokens: 4000,
         temperature: 0.3
       },
-      useBackupProvider
+
     };
     
     const result = await req.app.locals.aiWorkerPool.processRequest({

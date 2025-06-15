@@ -2,27 +2,25 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useInstantAuth } from '../../../hooks/useAuth';
 
-// Die Sourcen-Slugs sollten idealerweise aus einer Konfiguration oder Umgebungsvariablen kommen
-const GRUENERATOR_LOGIN_SOURCE_SLUG = import.meta.env.VITE_AUTHENTIK_GRUENERATOR_SOURCE_SLUG || 'gruenerator-login';
-const NETZBEGRUENUNG_LOGIN_SOURCE_SLUG = import.meta.env.VITE_AUTHENTIK_NETZBEGRUENUNG_SOURCE_SLUG || 'netzbegruenung-login';
-const GRUENES_NETZ_LOGIN_SOURCE_SLUG = import.meta.env.VITE_AUTHENTIK_GRUENES_NETZ_SOURCE_SLUG || 'gruenes-netz-login';
-
 // Auth Backend URL aus Environment Variable oder Fallback zu aktuellem Host
 const AUTH_BASE_URL = import.meta.env.VITE_AUTH_BASE_URL || '';
 
 const LoginPage = () => {
   const location = useLocation();
   const [isAuthenticating, setIsAuthenticating] = useState(false);
-  const { loading, isAuthenticated } = useInstantAuth();
+  const { loading, isAuthenticated, setLoginIntent } = useInstantAuth();
 
   // Get success message from navigation state (e.g., from registration)
   const successMessage = location.state?.message;
 
-  const handleLogin = async (sourceSlug) => {
+  const handleLogin = async () => {
     setIsAuthenticating(true);
     try {
-      // Die Backend-Route /api/auth/login kümmert sich um den Redirect zu Authentik
-      const authUrl = `${AUTH_BASE_URL}/api/auth/login?source=${encodeURIComponent(sourceSlug)}`;
+      // Set login intent to allow auth after logout cooldown
+      setLoginIntent();
+      
+      // Keycloak verwaltet alle Identity Provider - ein einziger Login-Endpunkt
+      const authUrl = `${AUTH_BASE_URL}/api/auth/login`;
       console.log(`[LoginPage] Redirecting to: ${authUrl}`);
       window.location.href = authUrl;
     } catch (err) {
@@ -35,7 +33,7 @@ const LoginPage = () => {
     <div className="auth-container">
       <div className="auth-header">
         <h1>Willkommen zurück!</h1>
-        <p>Bitte wähle deine Anmeldeoption:</p>
+        <p>Melde dich mit deinem Account an:</p>
       </div>
 
       {/* Success Message */}
@@ -47,42 +45,17 @@ const LoginPage = () => {
 
       <div className="login-options">
         <button
-          className="login-option gruenerator"
-          onClick={() => handleLogin(GRUENERATOR_LOGIN_SOURCE_SLUG)}
+          className="login-option primary"
+          onClick={handleLogin}
           disabled={isAuthenticating}
         >
           <div className="login-content">
-            <span className="login-icon">⚙️</span>
+            <span className="login-icon">🔐</span>
             <div className="login-text-content">
-              <h3 className="login-title">Grünerator Login</h3>
-              <p className="login-description">Mit E-Mail & Passwort</p>
-            </div>
-          </div>
-        </button>
-
-        <button
-          className="login-option netzbegruenung"
-          onClick={() => handleLogin(NETZBEGRUENUNG_LOGIN_SOURCE_SLUG)}
-          disabled={isAuthenticating}
-        >
-          <div className="login-content">
-            <span className="login-icon">🌱</span>
-            <div className="login-text-content">
-              <h3 className="login-title">Netzbegrünung Login</h3>
-              <p className="login-description">SAML Single Sign-On</p>
-            </div>
-          </div>
-        </button>
-
-        <button
-          className="login-option gruenes-netz"
-          onClick={() => handleLogin(GRUENES_NETZ_LOGIN_SOURCE_SLUG)}
-        >
-          <div className="login-content">
-            <span className="login-icon">🌻</span>
-            <div className="login-text-content">
-              <h3 className="login-title">Grünes Netz Login</h3>
-              <p className="login-description">SAML Single Sign-On</p>
+              <h3 className="login-title">Anmelden</h3>
+              <p className="login-description">
+                Grünerator • Netzbegrünung • Grünes Netz
+              </p>
             </div>
           </div>
         </button>
@@ -95,22 +68,18 @@ const LoginPage = () => {
       )}
 
       {/* Registration Link */}
-      <div className="auth-links">
-        <p>
-          Noch kein Grünerator Konto?{' '}
-          <a 
-            href={`${AUTH_BASE_URL}/api/auth/login?source=${encodeURIComponent(GRUENERATOR_LOGIN_SOURCE_SLUG)}&prompt=register`}
-            className="auth-link"
-          >
-            Jetzt kostenlos registrieren
-          </a>
+      <div className="auth-footer">
+        <p className="auth-help-text">
+          Noch kein Konto? <Link to="/register">Hier registrieren</Link>
         </p>
       </div>
 
-      <div className="auth-links">
-        <p className="auth-help-text">
-          Brauchst du Hilfe? Kontaktiere den Support unter{' '}
-          <a href="mailto:support@gruenerator.de">support@gruenerator.de</a>
+      {/* Legal Notice */}
+      <div className="auth-legal">
+        <p>
+          Mit der Anmeldung stimmst du unseren{' '}
+          <Link to="/legal/terms">Nutzungsbedingungen</Link> und der{' '}
+          <Link to="/legal/privacy">Datenschutzerklärung</Link> zu.
         </p>
       </div>
     </div>

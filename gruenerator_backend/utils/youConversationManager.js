@@ -7,7 +7,7 @@ class YouConversationManager {
     this.maxIterations = 3;
   }
   
-  async processConversation(prompt, useBackupProvider = false) {
+  async processConversation(prompt) {
     let messages = [{
       role: "user",
       content: prompt
@@ -30,8 +30,7 @@ class YouConversationManager {
           max_tokens: 4000,
           temperature: 0.7,
           tools: CORE_TOOLS
-        },
-        useBackupProvider
+        }
       });
       
       if (!result.success) {

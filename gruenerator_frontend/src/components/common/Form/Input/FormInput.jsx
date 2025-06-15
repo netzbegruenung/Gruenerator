@@ -2,7 +2,7 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { Controller } from 'react-hook-form';
 import FormFieldWrapper from './FormFieldWrapper';
-import { useSimpleFormStore } from '../../../../stores/simpleFormStore';
+import { useSimpleFormStore } from '../../../../stores/core/simpleFormStore';
 
 /**
  * FormInput - Modern text input component with react-hook-form integration

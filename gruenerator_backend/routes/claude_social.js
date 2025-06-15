@@ -4,11 +4,13 @@ const router = express.Router();
 const {
   HTML_FORMATTING_INSTRUCTIONS,
   PLATFORM_SPECIFIC_GUIDELINES,
-  PLATFORM_HEADER_STRUCTURE_INSTRUCTIONS
+
+  isStructuredPrompt,
+  formatUserContent
 } = require('../utils/promptUtils');
 
 router.post('/', async (req, res) => {
-  const { thema, details, platforms = [], was, wie, zitatgeber, pressekontakt, useBackupProvider, customPrompt } = req.body;
+  const { thema, details, platforms = [], was, wie, zitatgeber, pressekontakt, customPrompt } = req.body;
   
   // Aktuelles Datum ermitteln
   const currentDate = new Date().toISOString().split('T')[0];
@@ -17,15 +19,37 @@ router.post('/', async (req, res) => {
     thema, 
     details, 
     platforms,
-    hasCustomPrompt: !!customPrompt
+    hasCustomPrompt: !!customPrompt,
+    customPromptLength: customPrompt?.length || 0
   });
+
+  // Prüfung auf strukturierte Anweisungen/Wissen
+  if (customPrompt) {
+    const isStructured = isStructuredPrompt(customPrompt);
+    const hasInstructions = customPrompt.includes('Der User gibt dir folgende Anweisungen');
+    const hasKnowledge = customPrompt.includes('Der User stellt dir folgendes, wichtiges Wissen');
+
+    console.log('[claude_social] Custom Prompt Analyse:', {
+      isStructured,
+      hasInstructions,
+      hasKnowledge,
+      promptLength: customPrompt.length
+    });
+
+    if (hasKnowledge) {
+      try {
+        const knowledgePart = customPrompt.split('Der User stellt dir folgendes, wichtiges Wissen')[1];
+        console.log('[claude_social] Enthaltenes Wissen (Vorschau):', knowledgePart.substring(0, 400) + '...');
+      } catch (e) {
+        console.log('[claude_social] Wissens-Vorschau konnte nicht extrahiert werden.');
+      }
+    }
+  }
 
   try {
     console.log('[claude_social] Starte AI Worker Request');
 
     let systemPrompt = `Du bist Social Media Manager für Bündnis 90/Die Grünen. Erstelle Vorschläge für Social-Media-Beiträge für die angegebenen Plattformen.
-
-${PLATFORM_HEADER_STRUCTURE_INSTRUCTIONS}
 
 ${HTML_FORMATTING_INSTRUCTIONS}`;
 
@@ -48,19 +72,7 @@ Achte bei der Umsetzung dieses Stils auf Klarheit, Präzision und eine ausgewoge
     let userContent;
     
     if (customPrompt) {
-      // Prüfe ob es sich um strukturierte Anweisungen/Wissen handelt
-      const isStructured = customPrompt.includes('Der User gibt dir folgende Anweisungen') || 
-                          customPrompt.includes('Der User stellt dir folgendes, wichtiges Wissen');
-      
-      if (isStructured) {
-        // Strukturierte Anweisungen und Wissen direkt verwenden
-        userContent = `${customPrompt}
-
----
-
-Aktuelles Datum: ${currentDate}
-
-Erstelle Inhalte für folgende Plattformen: ${platforms.join(', ')}
+      const additionalInfo = `Erstelle Inhalte für folgende Plattformen: ${platforms.join(', ')}
 
 ${platforms.map(platform => {
   if (platform === 'pressemitteilung') return '';
@@ -68,23 +80,13 @@ ${platforms.map(platform => {
   const guidelines = PLATFORM_SPECIFIC_GUIDELINES[platform] || {};
   return `${upperPlatform}: Maximale Länge: ${guidelines.maxLength || 'N/A'} Zeichen. Stil: ${guidelines.style || 'N/A'} Fokus: ${guidelines.focus || 'N/A'}`;
 }).filter(Boolean).join('\n')}`;
-      } else {
-        // Legacy: Bei benutzerdefiniertem Prompt diesen verwenden, aber mit Plattforminformationen ergänzen
-        userContent = `
-Benutzerdefinierter Prompt: ${customPrompt}
 
-Aktuelles Datum: ${currentDate}
-
-Erstelle Inhalte für folgende Plattformen: ${platforms.join(', ')}
-
-${platforms.map(platform => {
-  if (platform === 'pressemitteilung') return '';
-  const upperPlatform = platform === 'reelScript' ? 'INSTAGRAM REEL' : platform.toUpperCase();
-  const guidelines = PLATFORM_SPECIFIC_GUIDELINES[platform] || {};
-  return `${upperPlatform}: Maximale Länge: ${guidelines.maxLength || 'N/A'} Zeichen. Stil: ${guidelines.style || 'N/A'} Fokus: ${guidelines.focus || 'N/A'}`;
-}).filter(Boolean).join('\n')}
-`;
-      }
+      userContent = formatUserContent({
+        customPrompt,
+        baseContent: '',
+        currentDate,
+        additionalInfo
+      });
     } else {
       // Standardinhalt ohne benutzerdefinierten Prompt
       userContent = `
@@ -118,6 +120,15 @@ ${platforms.includes('pressemitteilung') ? '' : `Jeder Beitrag sollte:
 `;
     }
 
+    // Detailliertes Logging der vollständigen Prompts
+    console.log('[claude_social] === VOLLSTÄNDIGER SYSTEM PROMPT ===');
+    console.log(systemPrompt);
+    console.log('[claude_social] === ENDE SYSTEM PROMPT ===');
+    
+    console.log('[claude_social] === VOLLSTÄNDIGER USER CONTENT ===');
+    console.log(userContent);
+    console.log('[claude_social] === ENDE USER CONTENT ===');
+
     const payload = {
       systemPrompt,
       messages: [{
@@ -127,9 +138,14 @@ ${platforms.includes('pressemitteilung') ? '' : `Jeder Beitrag sollte:
       options: {
         max_tokens: 4000,
         temperature: 0.9
-      },
-      useBackupProvider
+      }
     };
+
+    console.log('[claude_social] Payload Overview:', {
+      systemPromptLength: systemPrompt.length,
+      userContentLength: userContent.length,
+      messageCount: payload.messages.length
+    });
 
     const result = await req.app.locals.aiWorkerPool.processRequest({
       type: 'social',

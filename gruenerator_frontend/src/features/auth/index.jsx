@@ -1,5 +1,6 @@
 // Auth Components (remaining after Authentic integration)
 export { default as LoginPage } from './pages/LoginPage';
+export { default as LoggedOutPage } from './pages/LoggedOutPage';
 export { default as ProfilePage } from './pages/ProfilePage';
 export { default as ProtectedRoute } from './routing/ProtectedRoute';
 

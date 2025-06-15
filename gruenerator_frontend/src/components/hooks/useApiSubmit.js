@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { processText } from '../utils/apiClient';
 import { useAuthStore } from '../../stores/authStore';
-import useGeneratedTextStore from '../../stores/generatedTextStore';
+import useGeneratedTextStore from '../../stores/core/generatedTextStore';
 
 const useApiSubmit = (endpoint) => {
   const { deutschlandmodus } = useAuthStore();
@@ -12,7 +12,7 @@ const useApiSubmit = (endpoint) => {
   const [error, setError] = useState('');
   const [retryCount, setRetryCount] = useState(0);
 
-  const submitForm = async (formData, useBackup = false, options = {}) => {
+  const submitForm = async (formData, options = {}) => {
     
     setLoading(true);
     setSuccess(false);
@@ -24,13 +24,10 @@ const useApiSubmit = (endpoint) => {
       console.log('[useApiSubmit] Checking deutschlandmodus from context inside submitForm:', deutschlandmodus);
 
       const useBedrock = deutschlandmodus === true;
-      
-      const effectiveUseBackup = useBackup && !useBedrock;
 
       const requestData = {
         ...formData,
         useBedrock: useBedrock,
-        useBackupProvider: effectiveUseBackup,
         onRetry: (attempt, delay) => {
           setRetryCount(attempt);
           setError(`Verbindungsprobleme. Neuer Versuch in ${Math.round(delay/1000)} Sekunden... (Versuch ${attempt}/3)`);
@@ -38,7 +35,6 @@ const useApiSubmit = (endpoint) => {
       };
       
       console.log(`[useApiSubmit] Submitting to ${endpoint}:`, {
-        useBackup,
         useBedrock,
         formData: requestData,
         endpoint

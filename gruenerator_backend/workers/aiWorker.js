@@ -73,7 +73,7 @@ function sendProgress(requestId, progress) {
 // Main AI request processing function
 async function processAIRequest(requestId, data) {
   // Destructure data, ensuring options exists
-  const { type, prompt, options = {}, systemPrompt, messages, useBackupProvider } = data;
+  const { type, prompt, options = {}, systemPrompt, messages } = data;
 
   // Testweise Bedrock als Standard aktivieren
   // const effectiveOptions = { ...options, useBedrock: true };
@@ -87,16 +87,12 @@ async function processAIRequest(requestId, data) {
       sendProgress(requestId, 15);
       // Übergebe die ursprünglichen 'data', da processWithBedrock die Optionen ggf. intern neu prüft
       result = await processWithBedrock(requestId, { ...data, options: effectiveOptions });
-    } else if (useBackupProvider === true) {
-      console.log(`[AI Worker] Using backup provider (OpenAI) for request ${requestId}`);
-      sendProgress(requestId, 15);
-      result = await processWithOpenAI(requestId, data);
     } else {
-      console.log(`[AI Worker] Using primary provider (Claude) for request ${requestId} { useBackupProvider: false }`);
+              console.log(`[AI Worker] Using primary provider (Claude) for request ${requestId}`);
       sendProgress(requestId, 15);
       
-      // Remove internal flags and betas from options before sending to Claude
-      const { useBedrock, useBackupProvider, betas, ...apiOptions } = effectiveOptions;
+              // Remove internal flags and betas from options before sending to Claude
+        const { useBedrock, betas, ...apiOptions } = effectiveOptions;
       
       const defaultConfig = {
         model: "claude-3-7-sonnet-latest",

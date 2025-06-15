@@ -3,7 +3,7 @@ const router = express.Router();
 const { HTML_FORMATTING_INSTRUCTIONS } = require('../utils/promptUtils');
 
 router.post('/', async (req, res) => {
-  const { thema, details, zeichenanzahl, useBackupProvider } = req.body;
+  const { thema, details, zeichenanzahl } = req.body;
 
   // Aktuelles Datum ermitteln
   const currentDate = new Date().toISOString().split('T')[0];
@@ -43,8 +43,7 @@ ${HTML_FORMATTING_INSTRUCTIONS}`;
     options: {
       max_tokens: 4000,
       temperature: 0.3
-    },
-    useBackupProvider
+          }
   };
   
   try {
@@ -53,7 +52,7 @@ ${HTML_FORMATTING_INSTRUCTIONS}`;
       systemPrompt: payload.systemPrompt,
       prompt: userContent, // Worker expects 'prompt' for this type
       options: payload.options,
-      useBackupProvider: payload.useBackupProvider
+
     });
 
     if (!result.success) throw new Error(result.error);

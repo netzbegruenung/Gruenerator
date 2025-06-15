@@ -12,7 +12,7 @@ export { crossTabSyncMiddleware, createCrossTabSyncConfig } from './middlewares/
 export { default as BetaFeaturesMigrationTest } from '../components/test/BetaFeaturesMigrationTest';
 
 // Active stores:
-export { default as useGeneratedTextStore } from './generatedTextStore';
+export { default as useGeneratedTextStore } from './core/generatedTextStore';
 
 // Future stores will be exported here:
 // export { useCollabEditorStore } from './collabEditorStore';

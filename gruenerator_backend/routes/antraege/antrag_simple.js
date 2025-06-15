@@ -19,7 +19,7 @@ const webSearchTool = {
  */
 router.post('/', async (req, res) => {
   // Extract useWebSearchTool along with other flags
-  const { idee, details, gliederung, useBackupProvider, useBedrock, customPrompt, useWebSearchTool } = req.body;
+  const { idee, details, gliederung, useBedrock, customPrompt, useWebSearchTool } = req.body;
   
   // Aktuelles Datum ermitteln
   const currentDate = new Date().toISOString().split('T')[0];
@@ -119,8 +119,7 @@ ${HTML_FORMATTING_INSTRUCTIONS}`;
       options: {
         temperature: 0.3,
         useBedrock: useBedrock
-      },
-      useBackupProvider
+      }
     };
     
     const result = await req.app.locals.aiWorkerPool.processRequest({

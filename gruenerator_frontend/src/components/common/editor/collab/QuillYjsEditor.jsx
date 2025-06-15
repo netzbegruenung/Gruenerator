@@ -8,14 +8,8 @@ import * as Y from 'yjs';
 import { QuillBinding } from 'y-quill';
 import { WebsocketProvider } from 'y-websocket';
 
-// Bestehende Quill-Anpassungen importieren
-import PlatformSectionBlot from '../utils/PlatformSectionBlot';
-import { EDITOR_FORMATS, EDITOR_MODULES } from '../utils/constants'; // Ggf. anpassen für Bubble
-
 // Yjs, WebsocketProvider werden jetzt vom CollabEditorContext bereitgestellt
-import { useCollabEditor } from '../../../../context/CollabEditorContext'; 
-
-Quill.register(PlatformSectionBlot); // Registriere benutzerdefinierte Blots
+import { useCollabEditor } from '../../../../context/CollabEditorContext';
 
 const QuillYjsEditor = ({ documentId, initialContent, onQuillInstanceReady, onSelectionChange }) => {
   const editorRef = useRef(null); // Ref für das Quill-Container-Div

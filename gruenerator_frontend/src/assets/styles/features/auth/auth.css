@@ -248,6 +248,36 @@
   background-color: var(--button-hover-color, #005229);
 }
 
+/* Email sync hint styling */
+.auth-email-sync-hint {
+  font-size: 0.9rem;
+  color: var(--font-color-subtle);
+  margin-bottom: var(--spacing-xsmall);
+  padding: var(--spacing-xsmall);
+  background-color: var(--background-color-subtle);
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.auth-email-sync-button {
+  margin-left: var(--spacing-xsmall);
+  font-size: 0.8rem;
+  padding: 2px 6px;
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.auth-email-sync-button:hover {
+  background-color: var(--primary-color-hover, var(--tanne));
+}
+
 .auth-submit-button:disabled {
   background-color: #b0b0b0;
   cursor: not-allowed;
@@ -573,9 +603,36 @@
   }
 }
 
+/* Logged Out Page specific styles */
+.auth-container .auth-success-message h3 {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-small);
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.auth-container .auth-success-message {
+  text-align: center;
+}
+
+.auth-form button + button {
+  margin-top: var(--spacing-small);
+}
+
+.auth-form button.auth-submit-button:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+  transition: all 0.25s ease-out;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .spinner {
     animation: none !important;
     transition: none !important;
+  }
+  
+  .auth-form button.auth-submit-button:hover {
+    transform: none;
   }
 }

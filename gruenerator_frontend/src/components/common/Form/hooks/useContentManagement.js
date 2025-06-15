@@ -57,14 +57,8 @@ const useContentManagement = (initialContent = '') => {
     // Prüfe, ob newContent und value Strings sind
     if (typeof newContent !== 'string') return false;
     
-    // Wenn newContent SUCHERGEBNIS oder ANTRAG enthält, während value diese nicht enthält
-    return (
-      (newContent.includes('SUCHERGEBNIS:') || newContent.includes('ANTRAG:')) && 
-      (!value || 
-       typeof value !== 'string' ||
-       (!value.includes('SUCHERGEBNIS:') && !value.includes('ANTRAG:')) ||
-       (newContent.includes('ANTRAG:') && !value.includes('ANTRAG:')))
-    );
+    // Standard: Update wenn value leer ist
+    return !value;
   };
 
   // Funktion zum Umschalten des Bearbeitungsmodus (mit Auto-Save)

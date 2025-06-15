@@ -4,7 +4,7 @@ const express = require('express');
  * Generates short subtitles using an AI model via the AI Worker Pool.
  * Currently configured for Claude's prompt structure.
  */
-async function generateShortSubtitlesViaAI(text, words, aiWorkerPool, useBackupProvider = false) {
+async function generateShortSubtitlesViaAI(text, words, aiWorkerPool) {
     if (!text || !Array.isArray(words) || words.length === 0) {
         throw new Error('Volltext (text) und Wort-Timestamps (words) sind für die AI-Untertitelgenerierung erforderlich.');
     }
@@ -95,8 +95,7 @@ Gib NUR den formatierten Untertiteltext zurück, ohne weitere Erklärungen.`;
             }],
             options: {
                 temperature: 0.3
-            },
-            useBackupProvider
+                  }
         });
 
         if (!result.success) {

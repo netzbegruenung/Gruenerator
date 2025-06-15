@@ -10,7 +10,7 @@ import ErrorDisplay from './ErrorDisplay';
 import HelpDisplay from '../../HelpDisplay';
 import apiClient from '../../../utils/apiClient';
 import { useLazyAuth } from '../../../../hooks/useAuth';
-import useGeneratedTextStore from '../../../../stores/generatedTextStore';
+import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
 import { useCollabPreload } from '../../../hooks/useCollabPreload';
 
 /**
@@ -23,7 +23,7 @@ import { useCollabPreload } from '../../../hooks/useCollabPreload';
  * @param {boolean} props.isEditing - Bearbeitungsmodus aktiv
  * @param {boolean} props.allowEditing - Bearbeitung erlaubt
  * @param {boolean} props.hideEditButton - Edit-Button ausblenden
- * @param {boolean} props.usePlatformContainers - Plattform-Container verwenden
+
  * @param {Object} props.helpContent - Hilfe-Inhalt
  * @param {string} props.generatedPost - Generierter Post
  * @param {Function} props.onGeneratePost - Funktion zum Generieren eines Posts
@@ -42,7 +42,7 @@ const DisplaySection = forwardRef(({
   isEditing,
   allowEditing,
   hideEditButton,
-  usePlatformContainers,
+
   helpContent,
   generatedPost,
   onGeneratePost,
@@ -50,10 +50,11 @@ const DisplaySection = forwardRef(({
   getExportableContent,
   displayActions = null,
   onSave,
-  saveLoading = false
+  saveLoading = false,
+  componentName = 'default'
 }, ref) => {
   const { betaFeatures } = useLazyAuth();
-  const storeGeneratedText = useGeneratedTextStore(state => state.generatedText);
+  const storeGeneratedText = useGeneratedTextStore(state => state.getGeneratedText(componentName));
   const streamingContent = useGeneratedTextStore(state => state.streamingContent);
   const isStreaming = useGeneratedTextStore(state => state.isStreaming);
   const isLoading = useGeneratedTextStore(state => state.isLoading);
@@ -172,7 +173,7 @@ const DisplaySection = forwardRef(({
           value={isEditing ? value : activeContent}
           generatedContent={activeContent}
           isEditing={isEditing}
-          usePlatformContainers={usePlatformContainers}
+
           helpContent={helpContent}
         />
       </div>
@@ -199,7 +200,7 @@ DisplaySection.propTypes = {
   isEditing: PropTypes.bool.isRequired,
   allowEditing: PropTypes.bool,
   hideEditButton: PropTypes.bool,
-  usePlatformContainers: PropTypes.bool,
+
   helpContent: PropTypes.shape({
     content: PropTypes.string,
     tips: PropTypes.arrayOf(PropTypes.string)
@@ -210,13 +211,14 @@ DisplaySection.propTypes = {
   getExportableContent: PropTypes.func.isRequired,
   displayActions: PropTypes.node,
   onSave: PropTypes.func,
-  saveLoading: PropTypes.bool
+  saveLoading: PropTypes.bool,
+  componentName: PropTypes.string
 };
 
 DisplaySection.defaultProps = {
   allowEditing: true,
   hideEditButton: false,
-  usePlatformContainers: false,
+
   displayActions: null
 };
 

@@ -6,23 +6,28 @@ import BaseForm from '../../../components/common/BaseForm';
 import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../../components/utils/constants';
 import useApiSubmit from '../../../components/hooks/useApiSubmit';
 import StyledCheckbox from '../../../components/common/AnimatedCheckbox';
-import { FormContext } from '../../../components/utils/FormContext';
 // import { useDynamicTextSize } from '../../../components/utils/commonFunctions';
 import { useSharedContent } from '../../../components/hooks/useSharedContent';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { HiInformationCircle } from 'react-icons/hi';
-import { createStructuredFinalPrompt } from '../../../utils/promptUtils';
+import { createStructuredFinalPrompt, createBasePromptFromFormData } from '../../../utils/promptUtils';
 import useGroupDetails from '../../groups/hooks/useGroupDetails';
 import { useFormFields } from '../../../components/common/Form/hooks';
-import useGeneratedTextStore from '../../../stores/generatedTextStore';
+import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
+import { useGeneratorKnowledgeStore } from '../../../stores/core/generatorKnowledgeStore';
+import useKnowledge from '../../../components/hooks/useKnowledge';
 
 const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
+  const componentName = 'presse-social';
   const { initialContent } = useSharedContent();
   const { user, betaFeatures } = useOptimizedAuth();
   const deutschlandmodus = betaFeatures?.deutschlandmodus;
   const { Input, Textarea } = useFormFields();
-  const { setGeneratedText: setStoreGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
+  const { setGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
+
+  // Initialize knowledge system
+  useKnowledge();
 
   const platformOptions = useMemo(() => [
     { id: 'instagram', label: 'Instagram' },
@@ -65,57 +70,37 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   const [socialMediaContent, setSocialMediaContent] = useState('');
   // const textSize = useDynamicTextSize(socialMediaContent, 1.2, 0.8, [1000, 2000]);
   const { submitForm, loading, success, resetSuccess, error } = useApiSubmit('/claude_social');
-  const storeGeneratedText = useGeneratedTextStore(state => state.generatedText);
-  const { 
+  const storeGeneratedText = useGeneratedTextStore(state => state.getGeneratedText(componentName));
+  
+  // Store integration - all knowledge and instructions from store
+  const {
+    source,
+    availableKnowledge,
+    selectedKnowledgeIds,
+    instructions,
+    isInstructionsActive,
     getKnowledgeContent,
-    knowledgeSourceConfig
-  } = useContext(FormContext);
-  const [useBackupProvider, setUseBackupProvider] = useState(false);
-  const [userCustomSocialPrompt, setUserCustomSocialPrompt] = useState(null);
-  const [isUserCustomSocialPromptActive, setIsUserCustomSocialPromptActive] = useState(false);
-
-  useEffect(() => {
-    const loadUserCustomSocialPrompt = async () => {
-      if (!user) return;
-      
-      try {
-        const module = await import('../../../components/utils/templatesSupabaseClient');
-        if (!module.templatesSupabase) {
-          console.warn('Templates Supabase client not available for fetching user custom social prompt.');
-          return;
-        }
-        
-        const { templatesSupabase } = module;
-        
-        const { data, error: fetchError } = await templatesSupabase
-          .from('profiles')
-          .select('custom_social_prompt')
-          .eq('id', user.id)
-          .single();
-        
-        if (fetchError) {
-          console.error('Error loading user custom social prompt:', fetchError);
-          return;
-        }
-        
-        if (data) {
-          setUserCustomSocialPrompt(data.custom_social_prompt || null);
-        }
-      } catch (err) {
-        console.error('Error loading user custom social prompt:', err);
-      }
-    };
-    
-    loadUserCustomSocialPrompt();
-  }, [user]);
-
+    getActiveInstruction
+  } = useGeneratorKnowledgeStore();
+  
   const { data: groupDetailsData, isLoading: isLoadingGroupDetails } = useGroupDetails(
-    knowledgeSourceConfig.type === 'group' ? knowledgeSourceConfig.id : null,
-    knowledgeSourceConfig.type === 'group'
+    source.type === 'group' ? source.id : null,
+    source.type === 'group'
   );
 
   const onSubmitRHF = useCallback(async (rhfData) => {
     setStoreIsLoading(true);
+
+    console.log('[PresseSocialGenerator] Formular abgeschickt. Store-Status:', {
+        source,
+        availableKnowledgeCount: availableKnowledge.length,
+        selectedKnowledgeIds: Array.from(selectedKnowledgeIds),
+        hasSelectedKnowledge: selectedKnowledgeIds.size > 0,
+        instructions,
+        isInstructionsActive,
+        groupInstructions: groupDetailsData?.instructions?.custom_social_prompt ? `Vorhanden, Länge: ${groupDetailsData.instructions.custom_social_prompt.length}` : null,
+    });
+
     try {
       const selectedPlatforms = platformOptions
         .filter(p => rhfData[p.id])
@@ -129,21 +114,24 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
         pressekontakt: rhfData.pressekontakt,
       };
       
-      let activeInstructionsText = null;
-      let areInstructionsActive = false;
-
-      if (knowledgeSourceConfig.type === 'user') {
-        activeInstructionsText = userCustomSocialPrompt;
-        areInstructionsActive = isUserCustomSocialPromptActive;
-      } else if (knowledgeSourceConfig.type === 'group' && groupDetailsData?.instructions) {
-        activeInstructionsText = groupDetailsData.instructions.custom_social_prompt;
-        areInstructionsActive = !!groupDetailsData.instructions.custom_social_prompt;
+      // Get active instruction based on source
+      let activeInstruction = null;
+      if (source.type === 'user' && isInstructionsActive) {
+        activeInstruction = getActiveInstruction('social');
+      } else if (source.type === 'group' && groupDetailsData?.instructions) {
+        activeInstruction = groupDetailsData.instructions.custom_social_prompt;
       }
       
+      // Get knowledge content from store
       const knowledgeContent = getKnowledgeContent();
+      
+      // Create base prompt from form data
+      const basePrompt = createBasePromptFromFormData(formDataToSubmit);
+
       const finalPrompt = createStructuredFinalPrompt(
-        areInstructionsActive ? activeInstructionsText : null,
-        knowledgeContent
+        activeInstruction,
+        knowledgeContent,
+        basePrompt
       );
       
       if (finalPrompt) {
@@ -153,10 +141,10 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
         console.log('[PresseSocialGenerator] No custom instructions or knowledge for generation.');
       }
 
-      const content = await submitForm(formDataToSubmit, useBackupProvider);
+      const content = await submitForm(formDataToSubmit);
       if (content) {
         setSocialMediaContent(content);
-        setStoreGeneratedText(content);
+        setGeneratedText(componentName, content);
         setTimeout(resetSuccess, 3000);
       }
     } catch (submitError) {
@@ -167,24 +155,26 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   }, [
     submitForm, 
     resetSuccess, 
-    setStoreGeneratedText,
+    setGeneratedText,
     setStoreIsLoading,
-    useBackupProvider, 
-    knowledgeSourceConfig,
-    userCustomSocialPrompt,
-    isUserCustomSocialPromptActive,
-    groupDetailsData,
+    source,
+    availableKnowledge,
+    selectedKnowledgeIds,
+    instructions,
+    isInstructionsActive,
     getKnowledgeContent,
+    getActiveInstruction,
+    groupDetailsData,
     platformOptions
   ]);
 
   const handleGeneratedContentChange = useCallback((content) => {
     setSocialMediaContent(content);
-    setStoreGeneratedText(content);
-  }, [setStoreGeneratedText]);
+    setGeneratedText(componentName, content);
+  }, [setGeneratedText, componentName]);
 
   const formNoticeElement = (() => {
-    if (knowledgeSourceConfig.type === 'group' && isLoadingGroupDetails) {
+    if (source.type === 'group' && isLoadingGroupDetails) {
       return (
         <div className="custom-prompt-notice">
           <HiInformationCircle className="info-icon" />
@@ -194,41 +184,28 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
     }
 
     let noticeParts = [];
-    let activeInstructionsTextForNotice = null;
-    let areInstructionsActiveForNotice = false;
-    let instructionsAvailableForNotice = false;
     let sourceNameForNotice = "";
 
-    if (knowledgeSourceConfig.type === 'user') {
+    if (source.type === 'user') {
       sourceNameForNotice = "Persönliche";
-      activeInstructionsTextForNotice = userCustomSocialPrompt;
-      areInstructionsActiveForNotice = isUserCustomSocialPromptActive && userCustomSocialPrompt;
-      instructionsAvailableForNotice = !!userCustomSocialPrompt;
-      if (areInstructionsActiveForNotice) {
+      if (isInstructionsActive && instructions.social) {
         noticeParts.push(`${sourceNameForNotice} Anweisungen`);
-      } else if (instructionsAvailableForNotice) {
+      } else if (instructions.social) {
         noticeParts.push(`${sourceNameForNotice} Anweisungen (inaktiv)`);
       }
-    } else if (knowledgeSourceConfig.type === 'group') {
-      sourceNameForNotice = knowledgeSourceConfig.name || 'Gruppe';
-      if (groupDetailsData?.instructions) {
-        activeInstructionsTextForNotice = groupDetailsData.instructions.custom_social_prompt;
-        areInstructionsActiveForNotice = !!groupDetailsData.instructions.custom_social_prompt;
-        instructionsAvailableForNotice = !!groupDetailsData.instructions.custom_social_prompt;
-        if (areInstructionsActiveForNotice) {
-          noticeParts.push(`Anweisungen der Gruppe "${sourceNameForNotice}"`);
-        } else if (instructionsAvailableForNotice) {
-          noticeParts.push(`Anweisungen der Gruppe "${sourceNameForNotice}" (inaktiv)`);
-        }
+    } else if (source.type === 'group') {
+      sourceNameForNotice = source.name || 'Gruppe';
+      if (groupDetailsData?.instructions?.custom_social_prompt) {
+        noticeParts.push(`Anweisungen der Gruppe "${sourceNameForNotice}"`);
       }
     }
 
-    const hasLoadedKnowledge = knowledgeSourceConfig.loadedKnowledgeItems && knowledgeSourceConfig.loadedKnowledgeItems.length > 0;
+    const hasLoadedKnowledge = availableKnowledge.length > 0;
 
-    if (knowledgeSourceConfig.type !== 'neutral' && hasLoadedKnowledge) {
-      if (knowledgeSourceConfig.type === 'user') {
+    if (source.type !== 'neutral' && hasLoadedKnowledge) {
+      if (source.type === 'user') {
         noticeParts.push('gesamtes persönliches Wissen');
-      } else if (knowledgeSourceConfig.type === 'group') {
+      } else if (source.type === 'group') {
         noticeParts.push(`gesamtes Wissen der Gruppe "${sourceNameForNotice}"`);
       }
     }
@@ -237,7 +214,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
       noticeParts.push("Deutschlandmodus (AWS) aktiv");
     }
 
-    if (noticeParts.length === 0 && knowledgeSourceConfig.type === 'neutral') {
+    if (noticeParts.length === 0 && source.type === 'neutral') {
       return (
         <div className="custom-prompt-notice neutral-notice">
           <HiInformationCircle className="info-icon" />
@@ -360,13 +337,12 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
           error={error}
           generatedContent={storeGeneratedText || socialMediaContent}
           onGeneratedContentChange={handleGeneratedContentChange}
-          useBackupProvider={useBackupProvider}
-          setUseBackupProvider={setUseBackupProvider}
-          usePlatformContainers={true}
+
           formNotice={formNoticeElement}
           enableKnowledgeSelector={true}
           helpContent={helpContent}
           bottomSectionChildren={renderPlatformCheckboxesSection()}
+          componentName={componentName}
         >
           {renderFormInputs()}
         </BaseForm>
