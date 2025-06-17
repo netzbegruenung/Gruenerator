@@ -64,15 +64,17 @@ export default defineConfig(({ command }) => ({
             
             return 'misc-vendor';
           }
+          // Be more conservative with feature splitting to prevent circular dependencies
           if (id.includes('src/features/auth')) return 'auth-feature';
-          if (id.includes('src/features/texte')) return 'texte-feature';
-          if (id.includes('src/features/groups')) return 'groups-feature';
-          if (id.includes('src/features/sharepic')) return 'sharepic-feature';
-          if (id.includes('src/features/templates')) return 'templates-feature';
-          if (id.includes('src/features/generators')) return 'generators-feature';
-          if (id.includes('src/components/common')) return 'common-ui';
-          if (id.includes('src/components/layout')) return 'layout';
-          if (id.includes('src/hooks') || id.includes('src/stores')) return 'core-logic';
+          if (id.includes('src/features/texte') || 
+              id.includes('src/features/templates') ||
+              id.includes('src/features/generators')) return 'content-features';
+          if (id.includes('src/features/sharepic') ||
+              id.includes('src/features/groups')) return 'ui-features';
+          if (id.includes('src/components/common') ||
+              id.includes('src/components/layout') ||
+              id.includes('src/hooks') || 
+              id.includes('src/stores')) return 'core-ui';
         },
         entryFileNames: 'assets/js/[name].[hash].js',
         chunkFileNames: 'assets/js/[name].[hash].js',
