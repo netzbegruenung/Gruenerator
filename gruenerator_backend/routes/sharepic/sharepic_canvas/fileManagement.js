@@ -5,8 +5,7 @@ const { FONT_PATH, SUNFLOWER_PATH, TESTBILD_PATH, TEMP_UPLOAD_DIR  } = require('
 async function checkFiles() {
   const files = [
     { path: FONT_PATH, name: 'Schriftartdatei' },
-    { path: SUNFLOWER_PATH, name: 'Sonnenblumen-Bild' },
-    { path: TESTBILD_PATH, name: 'Testbild' }
+    { path: SUNFLOWER_PATH, name: 'Sonnenblumen-Bild' }
   ];
 
   for (const file of files) {
@@ -21,8 +20,18 @@ async function checkFiles() {
 
 function registerFonts() {
   try {
+    console.log('Attempting to register font from:', FONT_PATH);
     registerFont(FONT_PATH, { family: 'GrueneType' });
     console.log('Schriftart erfolgreich registriert:', FONT_PATH);
+    
+    // Verify the font file exists and is readable
+    const fs = require('fs');
+    const stats = fs.statSync(FONT_PATH);
+    console.log('Font file stats:', {
+      size: stats.size,
+      isFile: stats.isFile(),
+      readable: fs.constants.R_OK
+    });
   } catch (err) {
     console.error('Fehler beim Registrieren der Schriftart:', err);
     throw err;

@@ -246,6 +246,12 @@
   
   .form-section {
     min-height: 300px;
+    margin-top: var(--spacing-medium);
+  }
+  
+  .form-card__header {
+    margin: -1;
+    padding-top: var(--spacing-xlarge);
   }
   
   /* Split Layout Mobile */
@@ -329,6 +335,18 @@
 
 .form-section__bottom h3 {
   margin-top: 0;
+}
+
+/* Mobile first extras styles */
+.form-section__mobile-first-extras {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .form-section__mobile-first-extras {
+    display: block;
+    margin-bottom: var(--spacing-large);
+  }
 }
 
 /* Press release fields animation container */

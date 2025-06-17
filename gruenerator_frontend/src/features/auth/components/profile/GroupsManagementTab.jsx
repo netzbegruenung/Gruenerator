@@ -7,6 +7,7 @@ import useGroups from '../../../../features/groups/hooks/useGroups';
 import useGroupDetails from '../../../../features/groups/hooks/useGroupDetails';
 import { useProfileResourceManager } from '../../utils/profileUtils';
 import { autoResizeTextarea } from '../../utils/profileUtils';
+import HelpTooltip from '../../../../components/common/HelpTooltip';
 import { motion } from "motion/react";
 
 // Helper function for group initials
@@ -163,7 +164,7 @@ const GroupDetailView = ({
                     <div className="group-header-section"> 
                         <div className="group-title-area"> 
                             <div className="group-title-line">
-                                <h2 className="profile-user-name" style={{ fontSize: '1.8rem' }}>{groupInfo?.name}</h2>
+                                <h2 className="profile-user-name large-profile-title">{groupInfo?.name}</h2>
                                 {isAdmin && <span className="admin-badge">Admin</span>}
                             </div>
                             {!isAdmin && (
@@ -193,7 +194,7 @@ const GroupDetailView = ({
                         <div className="join-link-section">
                             <div className="join-link-display">
                                 <div className="join-link-label">
-                                    <HiInformationCircle style={{ marginRight: 'var(--spacing-xxsmall)' }} />
+                                    <HiInformationCircle className="info-icon-inline" />
                                     Einladungslink für neue Mitglieder:
                                 </div>
                                 <div className="join-link-url" title={getJoinUrl()}>
@@ -380,7 +381,7 @@ const GroupDetailView = ({
             {isAdmin && (
                 <div className="group-content-card">
                     <div className="group-danger-zone">
-                        <h3 className="group-section-title" style={{ color: 'var(--error-color)' }}>
+                        <h3 className="group-section-title error-section-title">
                             Gruppe löschen
                         </h3>
                         <p className="danger-zone-description">
@@ -409,7 +410,7 @@ const GroupDetailView = ({
                             <button onClick={cancelDeleteGroup} className="profile-action-button" disabled={isDeletingGroup}>
                                 Abbrechen
                             </button>
-                            <button onClick={confirmDeleteGroup} className="profile-action-button profile-danger-button" disabled={isDeletingGroup} style={{marginLeft: 'var(--spacing-small)'}}>
+                            <button onClick={confirmDeleteGroup} className="profile-action-button profile-danger-button danger-button-spaced" disabled={isDeletingGroup}>
                                 {isDeletingGroup ? <Spinner size="small" /> : 'Endgültig löschen'}
                             </button>
                         </div>
@@ -540,7 +541,17 @@ const GroupsManagementTab = ({ user, onSuccessMessage, onErrorMessage, isActive 
                 <div className="group-info-panel">
                     <div className="group-header-section">
                         <div className="group-title-area">
-                            <h2 className="profile-user-name" style={{ fontSize: '1.8rem' }}>Gruppenfunktion im Grünerator</h2>
+                            <div className="header-with-help">
+                                <h2 className="profile-user-name large-profile-title">Gruppenfunktion im Grünerator</h2>
+                                <HelpTooltip>
+                                    <p>
+                                        Mit Gruppen kannst du Anweisungen und Wissen mit anderen teilen und gemeinsam nutzen.
+                                    </p>
+                                    <p>
+                                        <strong>Tipp:</strong> Erstelle eine Gruppe für deinen Verband oder dein Team und lade andere über den Join-Link ein.
+                                    </p>
+                                </HelpTooltip>
+                            </div>
                         </div>
                     </div>
                     
@@ -666,12 +677,12 @@ const GroupsManagementTab = ({ user, onSuccessMessage, onErrorMessage, isActive 
                         <div className="group-info-panel">
                             <div className="group-header-section">
                                 <div className="group-title-area">
-                                    <h2 className="profile-user-name" style={{ fontSize: '1.8rem' }}>Neue Gruppe erstellen</h2>
+                                    <h2 className="profile-user-name large-profile-title">Neue Gruppe erstellen</h2>
                                 </div>
                             </div>
                             
                             {isCreateGroupError && (
-                                <div className="auth-error-message" style={{ marginBottom: 'var(--spacing-medium)' }}>
+                                <div className="auth-error-message error-margin">
                                     {createGroupError?.message || 'Fehler beim Erstellen der Gruppe'}
                                 </div>
                             )}

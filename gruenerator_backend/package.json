@@ -22,7 +22,12 @@
     "test:errors": "NODE_ENV=test jest tests/testErrorHandling.js",
     "download-whisper": "npx nodejs-whisper download",
     "offboarding": "node scripts/offboarding-cron.js",
-    "offboarding:status": "node -e \"require('./services/offboardingService').OffboardingService.validateConfig(); console.log('✓ Offboarding configuration is valid');\""
+    "offboarding:status": "node -e \"require('./services/offboardingService').OffboardingService.validateConfig(); console.log('✓ Offboarding configuration is valid');\"",
+    "mem0:setup": "cd mem0_service && python3 -m venv venv && venv/bin/pip install -r requirements.txt",
+    "mem0:install": "cd mem0_service && venv/bin/pip install -r requirements.txt",
+    "mem0:dev": "cd mem0_service && venv/bin/python main.py",
+    "mem0:prod": "cd mem0_service && venv/bin/uvicorn main:app --host 127.0.0.1 --port 3002",
+    "start:with-mem0": "concurrently --kill-others-on-exit --prefix-colors \"bgBlue.bold,bgMagenta.bold,bgGreen.bold\" \"npm:start:backend\" \"npm:start:yjs\" \"npm:mem0:prod\""
   },
   "keywords": [],
   "author": "",

@@ -35,6 +35,9 @@ const ContentGallery = lazy(() => import('../components/common/Gallery/ContentGa
 // NEU: CollabEditorPage importieren (Lazy Loading)
 const CollabEditorPage = lazy(() => import('../pages/CollabEditorPage/CollabEditorPage'));
 
+// Test-Komponenten importieren
+const ButtonTest = lazy(() => import('../components/test/ButtonTest'));
+
 // Lazy loading für Grüneratoren Bundle
 export const GrueneratorenBundle = {
   Universal: UniversalTextGenerator,
@@ -95,6 +98,7 @@ const standardRoutes = [
   { path: '/datenbank', component: GrueneratorenBundle.ContentGallery },
   // NEU: Route für CollabEditorPage
   { path: '/editor/collab/:documentId', component: CollabEditorPage, showHeaderFooter: false }, // showHeaderFooter: false, da eigener Header
+  { path: '/button-test', component: ButtonTest },
   { path: '*', component: NotFound }
 ];
 

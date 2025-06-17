@@ -172,19 +172,19 @@ const CanvaTemplatesTab = ({ user, templatesSupabase, onSuccessMessage, onErrorM
     // Die äußeren Container wurden entfernt. Die Darstellung erfolgt jetzt im übergeordneten Tab.
     <>
       {isListError && viewMode === 'list' && (
-        <div className="auth-error-message" style={{ marginBottom: 'var(--spacing-medium)'}}>
+        <div className="auth-error-message error-margin">
           {listError?.message || 'Fehler beim Laden der Vorlagen.'} 
-          <button onClick={() => refetchTemplates()} style={{marginLeft: '10px'}}>Erneut versuchen</button>
+          <button onClick={() => refetchTemplates()} className="retry-button">Erneut versuchen</button>
         </div>
       )}
 
       {isCategoriesError && viewMode === 'form' && (
-        <div className="auth-error-message" style={{ marginBottom: 'var(--spacing-medium)'}}>
+        <div className="auth-error-message error-margin">
           {categoriesError?.message || 'Fehler beim Laden der Kategorien für das Formular.'} 
         </div>
       )}
       {isTagsError && viewMode === 'form' && (
-        <div className="auth-error-message" style={{ marginBottom: 'var(--spacing-medium)'}}>
+        <div className="auth-error-message error-margin">
           {tagsError?.message || 'Fehler beim Laden der Tags für das Formular.'} 
         </div>
       )}

@@ -97,7 +97,7 @@ const AntraegeListTab = ({ user, templatesSupabase, onSuccessMessage, onErrorAnt
     return (
         <>
             {isErrorAntraege && !isLoadingAntraege && (
-                <div className="auth-error-message" style={{ marginBottom: 'var(--spacing-medium)' }}>
+                <div className="auth-error-message error-margin">
                     {errorAntraege instanceof Error ? errorAntraege.message : 'Fehler beim Laden der Anträge.'}
                 </div>
             )}
@@ -113,7 +113,7 @@ const AntraegeListTab = ({ user, templatesSupabase, onSuccessMessage, onErrorAnt
                                     <div className="antrag-details">
                                         <div className="antrag-title">{antrag.title || 'Unbenannter Antrag'}</div>
                                         <div className="antrag-meta">
-                                            {antrag.status && <span style={{ marginRight: '8px', fontStyle: 'italic' }}>Status: {antrag.status}</span>}
+                                            {antrag.status && <span className="antrag-status">Status: {antrag.status}</span>}
                                             Erstellt am: {new Date(antrag.created_at).toLocaleDateString()}
                                         </div>
                                     </div>

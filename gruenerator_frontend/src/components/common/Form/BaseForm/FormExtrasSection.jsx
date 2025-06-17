@@ -25,6 +25,7 @@ import { useGeneratorKnowledgeStore } from '../../../../stores/core/generatorKno
  * @param {Object} props.submitButtonProps - Props für Submit-Button
  * @param {boolean} props.showSubmitButton - Soll Submit-Button angezeigt werden
  * @param {node} props.children - Zusätzliche Extra-Komponenten
+ * @param {node} props.firstExtrasChildren - Zusätzliche Extra-Komponenten als erstes Element
  * @returns {JSX.Element} Formular-Extras Sektion
  */
 const FormExtrasSection = ({
@@ -39,7 +40,8 @@ const FormExtrasSection = ({
   nextButtonText = null,
   submitButtonProps = {},
   showSubmitButton = true,
-  children
+  children,
+  firstExtrasChildren = null
 }) => {
   // Keep FormContext for all non-knowledge features (like web search, etc.)
   const formContext = useContext(FormContext);
@@ -56,7 +58,8 @@ const FormExtrasSection = ({
                    (enableKnowledgeSelector && (anweisungenBetaEnabled || isLoadingBetaFeatures)) || 
                    formNotice || 
                    showSubmitButton ||
-                   children;
+                   children ||
+                   firstExtrasChildren;
 
   if (!hasExtras) {
     return null;
@@ -121,6 +124,13 @@ const FormExtrasSection = ({
   return (
     <div className="form-section__extras">
       <div className="form-extras__content">
+        
+        {/* First extras - rendered as first element */}
+        {firstExtrasChildren && (
+          <div className="form-extras__item form-extras__first">
+            {firstExtrasChildren}
+          </div>
+        )}
         
         {/* Knowledge Source Selection */}
         {enableKnowledgeSelector && (anweisungenBetaEnabled || isLoadingBetaFeatures) && (
@@ -208,7 +218,8 @@ FormExtrasSection.propTypes = {
     defaultText: PropTypes.string
   }),
   showSubmitButton: PropTypes.bool,
-  children: PropTypes.node
+  children: PropTypes.node,
+  firstExtrasChildren: PropTypes.node
 };
 
 FormExtrasSection.defaultProps = {

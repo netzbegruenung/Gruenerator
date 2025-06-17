@@ -13,18 +13,45 @@ const LoginPage = () => {
   // Get success message from navigation state (e.g., from registration)
   const successMessage = location.state?.message;
 
-  const handleLogin = async () => {
+
+  const handleGruenesNetzLogin = async () => {
     setIsAuthenticating(true);
     try {
-      // Set login intent to allow auth after logout cooldown
       setLoginIntent();
       
-      // Keycloak verwaltet alle Identity Provider - ein einziger Login-Endpunkt
-      const authUrl = `${AUTH_BASE_URL}/api/auth/login`;
-      console.log(`[LoginPage] Redirecting to: ${authUrl}`);
+      const authUrl = `${AUTH_BASE_URL}/api/auth/login?source=gruenes-netz-login`;
+      console.log(`[LoginPage] Grünes Netz Login - Redirecting to: ${authUrl}`);
       window.location.href = authUrl;
     } catch (err) {
-      console.error('Fehler beim Initiieren des Logins:', err);
+      console.error('Fehler beim Initiieren des Grünes Netz Logins:', err);
+      setIsAuthenticating(false);
+    }
+  };
+
+  const handleNetzbegrueungLogin = async () => {
+    setIsAuthenticating(true);
+    try {
+      setLoginIntent();
+      
+      const authUrl = `${AUTH_BASE_URL}/api/auth/login?source=netzbegruenung-login`;
+      console.log(`[LoginPage] Netzbegrünung Login - Redirecting to: ${authUrl}`);
+      window.location.href = authUrl;
+    } catch (err) {
+      console.error('Fehler beim Initiieren des Netzbegrünung Logins:', err);
+      setIsAuthenticating(false);
+    }
+  };
+
+  const handleGrueneratorLogin = async () => {
+    setIsAuthenticating(true);
+    try {
+      setLoginIntent();
+      
+      const authUrl = `${AUTH_BASE_URL}/api/auth/login?source=gruenerator-login`;
+      console.log(`[LoginPage] Grünerator Login - Redirecting to: ${authUrl}`);
+      window.location.href = authUrl;
+    } catch (err) {
+      console.error('Fehler beim Initiieren des Grünerator Logins:', err);
       setIsAuthenticating(false);
     }
   };
@@ -33,7 +60,6 @@ const LoginPage = () => {
     <div className="auth-container">
       <div className="auth-header">
         <h1>Willkommen zurück!</h1>
-        <p>Melde dich mit deinem Account an:</p>
       </div>
 
       {/* Success Message */}
@@ -44,17 +70,64 @@ const LoginPage = () => {
       )}
 
       <div className="login-options">
+
         <button
-          className="login-option primary"
-          onClick={handleLogin}
+          className="login-option gruenes-netz"
+          onClick={handleGruenesNetzLogin}
           disabled={isAuthenticating}
         >
           <div className="login-content">
-            <span className="login-icon">🔐</span>
+            <img 
+              src="/images/Sonnenblume_RGB_gelb.png" 
+              alt="Grünes Netz" 
+              className="login-logo"
+              width="50"
+              height="50"
+              loading="eager"
+            />
             <div className="login-text-content">
-              <h3 className="login-title">Anmelden</h3>
+              <h3 className="login-title">Grünes Netz Login</h3>
               <p className="login-description">
-                Grünerator • Netzbegrünung • Grünes Netz
+                Mit deinem Grünes Netz Account anmelden
+              </p>
+            </div>
+          </div>
+        </button>
+
+        <button
+          className="login-option netzbegruenung"
+          onClick={handleNetzbegrueungLogin}
+          disabled={isAuthenticating}
+        >
+          <div className="login-content">
+            <img 
+              src="/images/nb_icon.png" 
+              alt="Netzbegrünung" 
+              className="login-logo"
+              width="50"
+              height="50"
+              loading="eager"
+            />
+            <div className="login-text-content">
+              <h3 className="login-title">Netzbegrünung Login</h3>
+              <p className="login-description">
+                Mit deinem Netzbegrünung Account anmelden
+              </p>
+            </div>
+          </div>
+        </button>
+
+        <button
+          className="login-option gruenerator"
+          onClick={handleGrueneratorLogin}
+          disabled={isAuthenticating}
+        >
+          <div className="login-content">
+            <span className="login-icon">🌱</span>
+            <div className="login-text-content">
+              <h3 className="login-title">Grünerator Login</h3>
+              <p className="login-description">
+                Für Mitarbeitende von Abgeordneten und Geschäftsstellen (soon)
               </p>
             </div>
           </div>

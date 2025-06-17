@@ -4,6 +4,7 @@ import FormCard from './FormCard';
 import FormInputSection from './FormInputSection';
 import FormExtrasSection from './FormExtrasSection';
 import { getFormContainerClasses } from '../utils/classNameUtils';
+import useResponsive from '../hooks/useResponsive';
 
 /**
  * Hauptkomponente für den Formular-Container (Inputs + Extras)
@@ -33,6 +34,7 @@ import { getFormContainerClasses } from '../utils/classNameUtils';
  * @param {node} props.bottomSectionChildren - Zusätzliche Unterelemente am Ende des Formulars
  * @param {boolean} props.showHideButton - Zeige Verstecken-Button
  * @param {Function} props.onHide - Callback für Verstecken-Button
+ * @param {node} props.firstExtrasChildren - Zusätzliche Extras-Komponenten am Anfang des Formulars
  * @returns {JSX.Element} Formular-Sektion
  */
 const FormSection = forwardRef(({
@@ -60,9 +62,11 @@ const FormSection = forwardRef(({
   onFormChange = null,
   bottomSectionChildren = null,
   showHideButton = false,
-  onHide = null
+  onHide = null,
+  firstExtrasChildren = null
 }, ref) => {
   const formContainerClasses = getFormContainerClasses(isFormVisible);
+  const { isMobileView } = useResponsive();
 
   return (
     <div className={`form-section ${formContainerClasses} ${isFormVisible ? 'visible' : ''}`} ref={ref}>
@@ -78,6 +82,14 @@ const FormSection = forwardRef(({
           e.preventDefault();
           onSubmit();
         }} className="form-section__form">
+          
+          {/* Mobile: firstExtrasChildren above everything */}
+          {isMobileView && firstExtrasChildren && (
+            <div className="form-section__mobile-first-extras">
+              {firstExtrasChildren}
+            </div>
+          )}
+          
           <div className="form-section__container">
             
             {/* Input Section */}
@@ -107,6 +119,7 @@ const FormSection = forwardRef(({
               nextButtonText={nextButtonText}
               submitButtonProps={submitButtonProps}
               showSubmitButton={showSubmitButton}
+              firstExtrasChildren={!isMobileView ? firstExtrasChildren : null}
             >
               {extrasChildren}
             </FormExtrasSection>
@@ -160,7 +173,8 @@ FormSection.propTypes = {
   onFormChange: PropTypes.func,
   bottomSectionChildren: PropTypes.node,
   showHideButton: PropTypes.bool,
-  onHide: PropTypes.func
+  onHide: PropTypes.func,
+  firstExtrasChildren: PropTypes.node
 };
 
 FormSection.defaultProps = {
@@ -177,7 +191,8 @@ FormSection.defaultProps = {
   onFormChange: null,
   bottomSectionChildren: null,
   showHideButton: false,
-  onHide: null
+  onHide: null,
+  firstExtrasChildren: null
 };
 
 FormSection.displayName = 'FormSection';

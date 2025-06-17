@@ -6,6 +6,16 @@
   --button-border-radius: 7px;
   --button-font-size: 1em;
   --button-transition: 0.3s ease;
+  
+  /* Primary Button Variables */
+  --primary-button-bg: #005538;
+  --primary-button-hover-bg: #003d28;
+  --primary-button-text: #ffffff;
+  --primary-button-radius: 72px;
+  --primary-button-padding-s: 12px 24px;
+  --primary-button-padding-m: 16px 32px;
+  --primary-button-height-s: 40px;
+  --primary-button-height-m: 48px;
 }
 
 .button-container {
@@ -161,9 +171,51 @@
   border-radius: var(--button-border-radius, 5px);
   font-size: var(--button-font-size, 1em);
   cursor: pointer;
-  background: linear-gradient(135deg, var(--tanne) 0%, var(--klee) 100%);
+  background: var(--secondary-600);
   color: var(--weiß);
   transition: all 0.25s ease-out;
+  z-index: 1;
+}
+
+.submit-button__gradient-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.submit-button__gradient-layer--1 {
+  background: linear-gradient(45deg, var(--primary-500) 0%, var(--secondary-600) 50%, var(--secondary-600) 100%);
+}
+
+.submit-button__gradient-layer--2 {
+  background: linear-gradient(135deg, var(--secondary-600) 0%, var(--primary-600) 50%, var(--secondary-600) 100%);
+}
+
+.submit-button__gradient-layer--3 {
+  background: linear-gradient(225deg, var(--primary-400) 0%, var(--secondary-500) 50%, var(--primary-600) 100%);
+}
+
+.submit-button__gradient-layer--4 {
+  background: linear-gradient(315deg, var(--secondary-600) 0%, var(--primary-500) 50%, var(--secondary-600) 100%);
+}
+
+.submit-button__gradient-layer--5 {
+  background: linear-gradient(90deg, var(--secondary-600) 0%, var(--primary-600) 25%, var(--secondary-600) 50%, var(--primary-600) 75%, var(--secondary-600) 100%);
+}
+
+.submit-button__content-wrapper {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
 }
 
 .submit-button--loading {
@@ -171,7 +223,15 @@
 }
 
 .submit-button--success {
-  background-color: var(--success-color, #28a745);
+  background: var(--success-color, #28a745);
+}
+
+.submit-button--success .submit-button__gradient-layer {
+  display: none;
+}
+
+.submit-button--clicked {
+  box-shadow: 0 0 20px rgba(0, 106, 78, 0.3);
 }
 
 .submit-button--with-status {
@@ -179,8 +239,7 @@
 }
 
 .submit-button:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
+  cursor: loading;
 }
 
 .submit-button__content {
@@ -628,4 +687,58 @@
     background-color: var(--klee, #008939); 
     border-color: var(--weiß, #ffffff);
     color: var(--weiß, #ffffff);
+}
+
+/* New Primary Button Design System */
+.btn-primary {
+  background-color: var(--primary-button-bg);
+  color: var(--primary-button-text);
+  border: none;
+  border-radius: var(--primary-button-radius);
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-decoration: none;
+  font-family: inherit;
+}
+
+.btn-primary.size-s {
+  padding: var(--primary-button-padding-s);
+  height: var(--primary-button-height-s);
+  font-size: 14px;
+}
+
+.btn-primary.size-m {
+  padding: var(--primary-button-padding-m);
+  height: var(--primary-button-height-m);
+  font-size: 16px;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: var(--primary-button-hover-bg);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 85, 56, 0.3);
+}
+
+.btn-primary:focus {
+  outline: 2px solid var(--primary-button-bg);
+  outline-offset: 2px;
+}
+
+.btn-primary:disabled {
+  background-color: #cccccc;
+  color: #666666;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.btn-primary .icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
 }

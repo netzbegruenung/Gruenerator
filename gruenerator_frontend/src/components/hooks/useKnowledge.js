@@ -2,16 +2,18 @@ import { useEffect, useCallback } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useQuery } from '@tanstack/react-query';
 import { useGeneratorKnowledgeStore } from '../../stores/core/generatorKnowledgeStore';
-import useGroupKnowledgeItems from '../../features/groups/hooks/useGroupKnowledgeItems';
+import useGroupDetails from '../../features/groups/hooks/useGroupDetails';
 
 const EMPTY_ARRAY = []; // Stable empty array reference
 
 /**
  * Hook für die Verwaltung von Wissenseinheiten und Anweisungen
  * Orchestriert den Store und lädt Daten vom Backend
+ * @param {Object} options - Configuration options
+ * @param {string} options.instructionType - Type of instruction context ('antrag', 'social')
  */
-const useKnowledge = () => {
-  const { user } = useAuth();
+const useKnowledge = ({ instructionType = 'social' } = {}) => {
+  const { user, betaFeatures } = useAuth();
   const { 
     source, 
     availableKnowledge, 
@@ -23,13 +25,14 @@ const useKnowledge = () => {
     setLoading,
     setInstructions,
     setInstructionsActive,
-    getKnowledgeContent
+    getKnowledgeContent,
+    getActiveInstruction
   } = useGeneratorKnowledgeStore();
 
   // Fetch user knowledge and instructions via backend API
   const fetchUserData = async () => {
     if (!user) {
-      return { knowledge: EMPTY_ARRAY, instructions: { antrag: null, social: null } };
+      return { knowledge: EMPTY_ARRAY, instructions: { antrag: null, social: null, universal: null, gruenejugend: null } };
     }
     
     try {
@@ -57,11 +60,13 @@ const useKnowledge = () => {
           knowledge: data.knowledge || EMPTY_ARRAY,
           instructions: {
             antrag: data.antragPrompt || null,
-            social: data.socialPrompt || null
+            social: data.socialPrompt || null,
+            universal: data.universalPrompt || null,
+            gruenejugend: data.gruenejugendPrompt || null
           }
         };
       }
-      return { knowledge: EMPTY_ARRAY, instructions: { antrag: null, social: null } };
+      return { knowledge: EMPTY_ARRAY, instructions: { antrag: null, social: null, universal: null, gruenejugend: null } };
     } catch (error) {
       console.error('Fehler beim Laden der Benutzer-Daten:', error);
       throw new Error('Benutzer-Daten konnten nicht geladen werden');
@@ -91,16 +96,22 @@ const useKnowledge = () => {
     hasUserData: !!userData
   });
 
-  // Hook for group knowledge - only enabled when source is group
+  // Hook for group details (includes knowledge) - only enabled when source is group
   const { 
-    groupKnowledge, 
-    isLoading: isLoadingGroupKnowledge,
-    error: groupKnowledgeError,
-    refetchGroupKnowledge
-  } = useGroupKnowledgeItems(
+    data: groupDetailsData,
+    isLoading: isLoadingGroupDetails,
+    error: groupDetailsError,
+    refetch: refetchGroupDetails
+  } = useGroupDetails(
     source.type === 'group' ? source.id : null,
-    source.type === 'group'
+    { isActive: source.type === 'group' }
   );
+  
+  // Extract group knowledge from group details (with stable references)
+  const groupKnowledge = groupDetailsData?.knowledge || EMPTY_ARRAY; // Use stable empty array
+  const isLoadingGroupKnowledge = isLoadingGroupDetails;
+  const groupKnowledgeError = groupDetailsError;
+  const refetchGroupKnowledge = refetchGroupDetails;
 
   // Memoize store update functions to prevent dependency changes
   const updateUserKnowledge = useCallback((knowledge, instructions) => {
@@ -116,7 +127,7 @@ const useKnowledge = () => {
 
   const clearKnowledge = useCallback(() => {
     setAvailableKnowledge([]);
-    setInstructions({ antrag: null, social: null });
+    setInstructions({ antrag: null, social: null, universal: null, gruenejugend: null });
     setInstructionsActive(false);
     setLoading(false);
   }, [setAvailableKnowledge, setInstructions, setInstructionsActive, setLoading]);
@@ -142,7 +153,7 @@ const useKnowledge = () => {
       setLoading(isLoadingUserData);
     } else if (source.type === 'group') {
       // Update knowledge when data is available
-      if (groupKnowledge) {
+      if (groupKnowledge && groupKnowledge.length >= 0) {
         updateGroupKnowledge(groupKnowledge);
       }
       // Update loading state
@@ -162,6 +173,7 @@ const useKnowledge = () => {
     setLoading
   ]);
 
+
   return {
     // Store state
     source,
@@ -172,6 +184,8 @@ const useKnowledge = () => {
     isInstructionsActive,
     // Store actions
     getKnowledgeContent,
+    // Group data (when applicable)
+    groupData: groupDetailsData,
     // Refresh functions
     refreshData: source.type === 'user' ? refreshUserData : 
                  source.type === 'group' ? refetchGroupKnowledge : 
