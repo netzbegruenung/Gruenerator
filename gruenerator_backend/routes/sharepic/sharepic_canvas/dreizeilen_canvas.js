@@ -53,14 +53,14 @@ async function testLoadImage(filePath) {
 async function addTextToImage(uploadedImageBuffer, processedText, validatedParams) {
   console.log('Starting addTextToImage function');
   try {
-    let img;
-    if (uploadedImageBuffer) {
-      console.log('Loading image from buffer, size:', uploadedImageBuffer.length);
-      img = await loadImage(uploadedImageBuffer);
-    } else {
-      console.log('Loading default image');
-      img = await loadImage(TESTBILD_PATH);
-    }
+      let img;
+  if (uploadedImageBuffer) {
+    console.log('Loading image from buffer, size:', uploadedImageBuffer.length);
+    img = await loadImage(uploadedImageBuffer);
+  } else {
+    console.log('testbild nicht gefunden, weiter - kein uploadedImageBuffer vorhanden');
+    throw new Error('Kein Bild verfügbar - weder hochgeladen noch Testbild vorhanden');
+  }
     console.log('Image loaded successfully, dimensions:', img.width, 'x', img.height);
 
     await checkFiles();
@@ -93,6 +93,37 @@ async function addTextToImage(uploadedImageBuffer, processedText, validatedParam
 
     const { balkenGruppenOffset, fontSize, colors, balkenOffset, sunflowerOffset, sunflowerPosition, credit } = validatedParams;
     ctx.font = `${fontSize}px GrueneType`;
+    console.log('Font set to:', ctx.font);
+    
+    // Try alternative font specifications
+    console.log('Testing different font specifications...');
+    const altFont1 = `${fontSize}px "GrueneType"`;
+    const altFont2 = `normal ${fontSize}px GrueneType`;
+    const altFont3 = `normal ${fontSize}px "GrueneType"`;
+    
+    console.log('Alternative fonts:', {
+      current: ctx.font,
+      altFont1,
+      altFont2,
+      altFont3
+    });
+    
+    // Test if font is actually loaded
+    const testText = "Test";
+    const beforeWidth = ctx.measureText(testText).width;
+    ctx.font = `${fontSize}px serif`; // Fallback font
+    const serifWidth = ctx.measureText(testText).width;
+    ctx.font = `${fontSize}px GrueneType`; // Set back to GrueneType
+    const afterWidth = ctx.measureText(testText).width;
+    
+    console.log('Font loading test:', {
+      grueneTypeWidth: beforeWidth,
+      serifWidth: serifWidth,
+      grueneTypeWidthAfter: afterWidth,
+      fontsMatch: beforeWidth === afterWidth,
+      differentFromSerif: afterWidth !== serifWidth
+    });
+    
     ctx.textBaseline = 'middle';
     ctx.textAlign = 'center';
 
@@ -233,6 +264,7 @@ async function addTextToImage(uploadedImageBuffer, processedText, validatedParam
     if (credit) {
       console.log('Zeichne Credit-Text:', credit);
       ctx.font = '60px GrueneType'; // Feste Schriftgröße für Credit
+      console.log('Credit font set to:', ctx.font);
       ctx.textAlign = 'center';
       ctx.textBaseline = 'bottom';
       

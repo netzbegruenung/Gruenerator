@@ -4,9 +4,9 @@ const antraegeRouter = require('./routes/antraege/index'); // Import the consoli
 // const getMyAntraegeRouter = require('./routes/antraege/getMyAntraege');
 // const deleteAntragRouter = require('./routes/antraege/deleteAntrag');
 // const antragSimpleRoute = require('./routes/antraege/antrag_simple'); // REMOVED direct import/use
-const claudeSocialRoute = require('./routes/claude_social');
-const claudeRedeRoute = require('./routes/claude_rede');
+// claude_social will be imported dynamically (ES6 module)
 const claudeChatRoute = require('./routes/claude_chat');
+const { universalRouter, redeRouter, wahlprogrammRouter } = require('./routes/claude_universal');
 const antragsversteherRoute = require('./routes/claude_antragsversteher');
 const wahlpruefsteinBundestagswahlRoute = require('./routes/wahlpruefsteinbundestagswahl');
 const sharepicDreizeilenCanvasRoute = require('./routes/sharepic/sharepic_canvas/dreizeilen_canvas');
@@ -18,9 +18,7 @@ const imageUploadRouter = require('./routes/sharepic/sharepic_canvas/imageUpload
 const processTextRouter = require('./routes/sharepic/sharepic_canvas/processTextRouter');
 const claudeTextAdjustmentRoute = require('./routes/claude_text_adjustment');
 const etherpadRoute = require('./routes/etherpad/etherpadController');
-const claudeWahlprogrammRoute = require('./routes/claude_wahlprogramm');
 const claudeKandidatRoute = require('./routes/claude_kandidat');
-const claudeUniversalRoute = require('./routes/claude_universal');
 const claudeGrueneJugendRoute = require('./routes/claude_gruene_jugend');
 const claudeYouRoute = require('./routes/claude_you');
 const searchRouter = require('./routes/search/searchController');
@@ -35,6 +33,7 @@ const { tusServer } = require('./routes/subtitler/services/tusService');
 const collabEditorRouter = require('./routes/collabEditor'); // Import the new collab editor route
 const snapshottingRouter = require('./routes/internal/snapshottingController'); // Import the new snapshotting controller
 const offboardingRouter = require('./routes/internal/offboardingController'); // Import the offboarding controller
+// mem0Router will be imported dynamically like auth routes
 // Auth routes will be imported dynamically
 
 async function setupRoutes(app) {
@@ -46,13 +45,17 @@ async function setupRoutes(app) {
 
   // Add debug middleware to trace all API requests
   app.use('/api/*', (req, res, next) => {
-    console.log(`[Route Debug] ${req.method} ${req.originalUrl} - Headers: ${JSON.stringify(req.headers.cookie ? { cookie: req.headers.cookie } : {})}`);
-    // Session info ohne req.isAuthenticated da passport.session() nicht mehr global läuft
-    console.log(`[Route Debug] Session info:`, {
-      hasSession: !!req.session,
-      sessionId: req.sessionID,
-      hasUser: !!req.user
-    });
+    // Only log for claude_social to avoid bloat
+    if (req.originalUrl.includes('/claude_social')) {
+      console.log(`[Route Debug] ${req.method} ${req.originalUrl} - Session: ${req.sessionID}`);
+      console.log(`[Route Debug] Session info:`, {
+        hasSession: !!req.session,
+        sessionId: req.sessionID,
+        hasUser: !!req.user,
+        hasPassportUser: !!req.session?.passport?.user,
+        passportUserId: req.session?.passport?.user?.id
+      });
+    }
     next();
   });
 
@@ -62,6 +65,17 @@ async function setupRoutes(app) {
   const { default: authCore } = await import('./routes/auth/authCore.mjs');
   const { default: userProfile } = await import('./routes/auth/userProfile.mjs');
   const { default: userContent } = await import('./routes/auth/userContent.mjs');
+  // Try to import mem0Router, fall back to null if not available
+  let mem0Router = null;
+  try {
+    const mem0Module = await import('./routes/mem0.mjs');
+    mem0Router = mem0Module.default;
+  } catch (error) {
+    console.log('[Setup] Mem0 router not available, skipping mem0 routes');
+  }
+  
+  // Import claude_social as ES6 module
+  const { default: claudeSocialRoute } = await import('./routes/claude_social.js');
   
   app.use('/api/auth', authCore);
   app.use('/api/auth', userProfile);
@@ -76,7 +90,7 @@ async function setupRoutes(app) {
   // app.use('/api/antrag-save', saveAntragRoute);
 
   app.use('/api/claude_social', claudeSocialRoute);
-  app.use('/api/claude_rede', claudeRedeRoute);
+  app.use('/api/claude_rede', redeRouter);
   app.use('/api/claude_chat', claudeChatRoute);
   app.use('/api/antragsversteher', antragsversteherRoute);
   app.use('/api/wahlpruefsteinbundestagswahl', wahlpruefsteinBundestagswahlRoute);
@@ -89,9 +103,9 @@ async function setupRoutes(app) {
   app.use('/api/processText', processTextRouter);
   app.use('/api/claude_text_adjustment', claudeTextAdjustmentRoute);
   app.use('/api/etherpad', etherpadRoute);
-  app.use('/api/claude_wahlprogramm', claudeWahlprogrammRoute);
+  app.use('/api/claude_wahlprogramm', wahlprogrammRouter);
   app.use('/api/claude_kandidat', claudeKandidatRoute);
-  app.use('/api/claude_universal', claudeUniversalRoute);
+  app.use('/api/claude_universal', universalRouter);
   app.use('/api/claude_gruene_jugend', claudeGrueneJugendRoute);
   app.use('/api/you', claudeYouRoute);
   app.use('/api/custom_generator', customGeneratorRoute);
@@ -111,6 +125,14 @@ async function setupRoutes(app) {
   // Add internal routes like snapshotting trigger
   app.use('/api/internal', snapshottingRouter);
   app.use('/api/internal/offboarding', offboardingRouter);
+
+  // Add Mem0 routes only if available
+  if (mem0Router) {
+    app.use('/api/mem0', mem0Router);
+    console.log('[Setup] Mem0 routes registered');
+  } else {
+    console.log('[Setup] Mem0 routes skipped - service not available');
+  }
 }
 
 module.exports = { setupRoutes };

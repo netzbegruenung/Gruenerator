@@ -22,7 +22,7 @@ router.get('/anweisungen-wissen', ensureAuthenticated, async (req, res) => {
     // Fetch profile prompts
     const { data: profileData, error: profileErr } = await supabaseService
       .from('profiles')
-      .select('custom_antrag_prompt, custom_social_prompt')
+      .select('custom_antrag_prompt, custom_social_prompt, custom_universal_prompt, custom_gruenejugend_prompt')
       .eq('id', userId)
       .maybeSingle();
     if (profileErr) throw profileErr;
@@ -40,6 +40,8 @@ router.get('/anweisungen-wissen', ensureAuthenticated, async (req, res) => {
       success: true,
       antragPrompt: profileData?.custom_antrag_prompt || '',
       socialPrompt: profileData?.custom_social_prompt || '',
+      universalPrompt: profileData?.custom_universal_prompt || '',
+      gruenejugendPrompt: profileData?.custom_gruenejugend_prompt || '',
       knowledge: knowledgeRows || []
     });
     
@@ -57,7 +59,7 @@ router.get('/anweisungen-wissen', ensureAuthenticated, async (req, res) => {
 router.put('/anweisungen-wissen', ensureAuthenticated, async (req, res) => {
   try {
     const userId = req.user.id;
-    const { custom_antrag_prompt, custom_social_prompt, knowledge = [] } = req.body || {};
+    const { custom_antrag_prompt, custom_social_prompt, custom_universal_prompt, custom_gruenejugend_prompt, knowledge = [] } = req.body || {};
     console.log('[User Content /anweisungen-wissen PUT] Incoming request body for user:', userId);
     console.log(JSON.stringify(req.body, null, 2));
 
@@ -67,6 +69,8 @@ router.put('/anweisungen-wissen', ensureAuthenticated, async (req, res) => {
       updated_at: new Date().toISOString(),
       custom_antrag_prompt: custom_antrag_prompt ?? null,
       custom_social_prompt: custom_social_prompt ?? null,
+      custom_universal_prompt: custom_universal_prompt ?? null,
+      custom_gruenejugend_prompt: custom_gruenejugend_prompt ?? null,
     };
     console.log('[User Content /anweisungen-wissen PUT] Prepared profile payload:');
     console.log(JSON.stringify(profilePayload, null, 2));

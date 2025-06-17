@@ -9,7 +9,9 @@ const initialState = {
   // New: Instructions state
   instructions: {
     antrag: null,
-    social: null
+    social: null,
+    universal: null,
+    gruenejugend: null
   },
   isInstructionsActive: false,
 };
@@ -36,7 +38,7 @@ export const useGeneratorKnowledgeStore = create(immer((set, get) => {
     state.selectedKnowledgeIds = [];
     state.isLoading = !!source && source.type !== 'neutral';
     // Reset instructions when source changes
-    state.instructions = { antrag: null, social: null };
+    state.instructions = { antrag: null, social: null, universal: null, gruenejugend: null };
     state.isInstructionsActive = false;
   }),
 

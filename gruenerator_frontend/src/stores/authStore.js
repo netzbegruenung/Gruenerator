@@ -144,6 +144,7 @@ const loadPersistedAuthState = () => {
           betaFeatures: authState.betaFeatures || {},
           selectedMessageColor: authState.selectedMessageColor || '#008939',
           deutschlandmodus: authState.deutschlandmodus || null,
+          memoryEnabled: authState.memoryEnabled || false,
           isLoading: false, // Don't start in loading state if we have persisted data
         };
       } else {
@@ -168,6 +169,7 @@ const persistAuthState = (authState) => {
         betaFeatures: authState.betaFeatures,
         selectedMessageColor: authState.selectedMessageColor,
         deutschlandmodus: authState.deutschlandmodus,
+        memoryEnabled: authState.memoryEnabled,
       },
       timestamp: Date.now(),
       cacheVersion: AUTH_CACHE_VERSION,
@@ -207,6 +209,9 @@ export const useAuthStore = create((set, get) => ({
   betaFeatures: persistedState?.betaFeatures || {},
   selectedMessageColor: persistedState?.selectedMessageColor || '#008939', // Default Klee
   deutschlandmodus: persistedState?.deutschlandmodus || null,
+  
+  // Memory preferences
+  memoryEnabled: persistedState?.memoryEnabled || false, // Default OFF
 
   // Supabase specific state
   supabaseSession: null,
@@ -230,6 +235,7 @@ export const useAuthStore = create((set, get) => ({
       betaFeatures: data.user?.user_metadata?.beta_features || {},
       selectedMessageColor: data.user?.user_metadata?.chat_color || '#008939',
       deutschlandmodus: data.user?.user_metadata?.deutschlandmodus || null,
+      memoryEnabled: data.user?.user_metadata?.memory_enabled || false,
     });
   },
 
@@ -281,6 +287,7 @@ export const useAuthStore = create((set, get) => ({
       betaFeatures: {},
       selectedMessageColor: '#008939',
       deutschlandmodus: null,
+      memoryEnabled: false,
       supabaseSession: null,
       _supabaseAuthCleanup: null,
     });
@@ -300,6 +307,7 @@ export const useAuthStore = create((set, get) => ({
         betaFeatures: metadata.beta_features || state.betaFeatures,
         selectedMessageColor: metadata.chat_color || state.selectedMessageColor,
         deutschlandmodus: metadata.deutschlandmodus ?? state.deutschlandmodus,
+        memoryEnabled: metadata.memory_enabled ?? state.memoryEnabled,
       }));
     }
   },
@@ -441,6 +449,43 @@ export const useAuthStore = create((set, get) => ({
     }
   },
 
+  // Memory preferences management via Backend API
+  setMemoryEnabled: async (enabled) => {
+    // Check if in development environment
+    const isDevelopment = import.meta.env.VITE_APP_ENV === 'development';
+    if (!isDevelopment) {
+      console.log('[AuthStore] Memory disabled - not in development environment');
+      set({ memoryEnabled: false });
+      return false;
+    }
+
+    // Optimistic update
+    set({ memoryEnabled: enabled });
+
+    try {
+      const response = await fetch(`${AUTH_BASE_URL}/api/auth/profile/memory-settings`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ memory_enabled: enabled })
+      });
+      
+      const result = await response.json();
+      
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || 'Memory Settings Update fehlgeschlagen');
+      }
+      
+      return result.memoryEnabled;
+    } catch (error) {
+      // Revert optimistic update on failure
+      set({ memoryEnabled: !enabled });
+      throw error;
+    }
+  },
+
   // Handle failed backend session creation with frontend fallback
   handleFailedBackendSession: async (user) => {
     if (!templatesSupabase || !user?.email) {
@@ -491,6 +536,7 @@ export const useAuthStore = create((set, get) => ({
             betaFeatures: user.user_metadata.beta_features || state.betaFeatures,
             selectedMessageColor: user.user_metadata.chat_color || state.selectedMessageColor,
             deutschlandmodus: user.user_metadata.deutschlandmodus ?? state.deutschlandmodus,
+            memoryEnabled: user.user_metadata.memory_enabled ?? state.memoryEnabled,
           }));
         }
       }
@@ -505,6 +551,7 @@ export const useAuthStore = create((set, get) => ({
             betaFeatures: metadata.beta_features || state.betaFeatures,
             selectedMessageColor: metadata.chat_color || state.selectedMessageColor,
             deutschlandmodus: metadata.deutschlandmodus ?? state.deutschlandmodus,
+            memoryEnabled: metadata.memory_enabled ?? state.memoryEnabled,
           }));
         }
       });
@@ -767,10 +814,19 @@ export const useAuthStore = create((set, get) => ({
     // Not supported with Authentik SSO
   },
 
-  // Helper method to check if current user can register/delete account
+  // Helper method to check if current user can manage account (smart SSO detection)
   canManageAccount: () => {
     const currentUser = get().user;
-    return !!currentUser;
+    if (!currentUser) return false;
+    
+    const authEmail = currentUser.auth_email; // from auth.users
+    const hasKeycloakId = !!currentUser.keycloak_id;
+    
+    // SSO user with email from IdP = can't change email (managed externally)
+    if (hasKeycloakId && authEmail) return false;
+    
+    // SSO user without email OR local user = can manage email
+    return true;
   },
 
   // Legacy compatibility (marked as removed)
@@ -796,6 +852,7 @@ useAuthStore.subscribe(
     betaFeatures: state.betaFeatures,
     selectedMessageColor: state.selectedMessageColor,
     deutschlandmodus: state.deutschlandmodus,
+    memoryEnabled: state.memoryEnabled,
   })
 );
 

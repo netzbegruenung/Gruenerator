@@ -6,6 +6,7 @@ import { getRobotAvatarPath, validateRobotId, getRobotAvatarAlt } from './avatar
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { useState, useCallback, useEffect, useRef } from 'react';
+import debounce from 'lodash.debounce';
 import modulePreloader from '../../../utils/modulePreloader';
 import { useAnweisungenWissenUiStore } from '../../../stores/auth/anweisungenWissenUiStore';
 
@@ -430,10 +431,13 @@ export const useProfileManager = () => {
       return await updateProfile(profileData);
     },
     onSuccess: (updatedProfile) => {
-      if (user?.id) {
-        queryClient.setQueryData(['profileData', user.id], updatedProfile);
+      if (user?.id && updatedProfile) {
+        // Use setQueryData instead of invalidateQueries to prevent refetch loops
+        queryClient.setQueryData(['profileData', user.id], (oldData) => ({
+          ...oldData,
+          ...updatedProfile
+        }));
       }
-      queryClient.invalidateQueries({ queryKey: ['profileData'] });
     },
     onError: (error) => {
       console.error('Profile update failed:', error);
@@ -446,8 +450,13 @@ export const useProfileManager = () => {
       return await updateAvatar(avatarRobotId);
     },
     onSuccess: (updatedProfile) => {
-      queryClient.setQueryData(['profileData', user.id], updatedProfile);
-      queryClient.invalidateQueries({ queryKey: ['profileData'] });
+      if (user?.id && updatedProfile) {
+        // Use setQueryData instead of invalidateQueries to prevent refetch loops
+        queryClient.setQueryData(['profileData', user.id], (oldData) => ({
+          ...oldData,
+          ...updatedProfile
+        }));
+      }
     },
     onError: (error) => {
       console.error('Avatar update failed:', error);
@@ -528,6 +537,8 @@ export const useAnweisungenWissen = ({ isActive, enabled = true } = {}) => {
     return {
       antragPrompt: json.antragPrompt || '',
       socialPrompt: json.socialPrompt || '',
+      universalPrompt: json.universalPrompt || '',
+      gruenejugendPrompt: json.gruenejugendPrompt || '',
       knowledge: json.knowledge || []
     };
   };
@@ -564,6 +575,8 @@ export const useAnweisungenWissen = ({ isActive, enabled = true } = {}) => {
       const payload = {
           custom_antrag_prompt: dataToSave.customAntragPrompt,
           custom_social_prompt: dataToSave.customSocialPrompt,
+          custom_universal_prompt: dataToSave.customUniversalPrompt,
+          custom_gruenejugend_prompt: dataToSave.customGruenejugendPrompt,
           knowledge: cleanedKnowledge
       };
 

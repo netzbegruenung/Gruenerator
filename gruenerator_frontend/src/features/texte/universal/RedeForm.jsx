@@ -1,89 +1,76 @@
-import React, { useState, forwardRef, useImperativeHandle } from 'react';
-import { useFormValidation } from '../../../components/hooks/useFormValidation';
+import React, { forwardRef, useImperativeHandle } from 'react';
+import { useForm } from 'react-hook-form';
+import { useFormFields } from '../../../components/common/Form/hooks';
 
 const RedeForm = forwardRef((props, ref) => {
-  const [rolle, setRolle] = useState('');
-  const [thema, setThema] = useState('');
-  const [zielgruppe, setZielgruppe] = useState('');
-  const [schwerpunkte, setSchwerpunkte] = useState('');
-  const [redezeit, setRedezeit] = useState('');
-
-  const validationRules = {
-    redezeit: { 
-      required: true,
-      min: 1,
-      max: 5,
-      message: 'Die Redezeit muss zwischen 1 und 3 Minuten liegen'
+  const { Input, Textarea } = useFormFields();
+  const {
+    control,
+    getValues,
+    reset
+  } = useForm({
+    defaultValues: {
+      rolle: '',
+      thema: '',
+      zielgruppe: '',
+      schwerpunkte: '',
+      redezeit: ''
     }
-  };
-
-  const { errors, validateForm } = useFormValidation(validationRules);
+  });
 
   useImperativeHandle(ref, () => ({
-    getFormData: () => {
-      const formData = { rolle, thema, zielgruppe, schwerpunkte, redezeit };
-      return validateForm(formData) ? formData : null;
-    }
+    getFormData: () => getValues(),
+    resetForm: (data) => reset(data)
   }));
 
   return (
     <>
-      <h3><label htmlFor="rolle">Rolle/Position</label></h3>
-      <input
-        id="rolle"
-        type="text"
+      <Input
         name="rolle"
+        control={control}
+        label="Rolle/Position"
         placeholder="Sprecher*in der Grünen OV Musterdorf, Antragssteller*in etc."
-        value={rolle}
-        onChange={(e) => setRolle(e.target.value)}
-        aria-required="true"
+        rules={{ required: 'Rolle/Position ist ein Pflichtfeld' }}
       />
-      
-      <h3><label htmlFor="thema">Spezifisches Thema oder Anlass der Rede</label></h3>
-      <input
-        id="thema"
-        type="text"
-        name="thema"
-        placeholder="Umwelt- und Klimaschutz in der Stadt"
-        value={thema}
-        onChange={(e) => setThema(e.target.value)}
-        aria-required="true"
-      />
-      
-      <h3><label htmlFor="zielgruppe">Zielgruppe</label></h3>
-      <input
-        id="zielgruppe"
-        type="text"
-        name="zielgruppe"
-        placeholder="Bürger*innen von Musterdorf"
-        value={zielgruppe}
-        onChange={(e) => setZielgruppe(e.target.value)}
-        aria-required="true"
-      />
-      
-      <h3><label htmlFor="schwerpunkte">Besondere Schwerpunkte oder lokale Aspekte</label></h3>
-      <textarea
-        id="schwerpunkte"
-        name="schwerpunkte"
-        style={{ height: '120px' }}
-        placeholder="Durchführung von Projekten zur Förderung erneuerbarer Energien, Unterstützung lokaler Initiativen..."
-        value={schwerpunkte}
-        onChange={(e) => setSchwerpunkte(e.target.value)}
-        aria-required="true"
-      ></textarea>
 
-      <h3><label htmlFor="redezeit">Gewünschte Redezeit (in Minuten)</label></h3>
-      <input
-        id="redezeit"
-        type="number"
-        name="redezeit"
-        placeholder="1-5"
-        value={redezeit}
-        onChange={(e) => setRedezeit(e.target.value)}
-        aria-required="true"
+      <Input
+        name="thema"
+        control={control}
+        label="Spezifisches Thema oder Anlass der Rede"
+        placeholder="Umwelt- und Klimaschutz in der Stadt"
+        rules={{ required: 'Thema ist ein Pflichtfeld' }}
       />
-      {errors.redezeit && <small className="error-text">{errors.redezeit}</small>}
-      <small className="help-text">Maximal 5 Minuten möglich</small>
+
+      <Input
+        name="zielgruppe"
+        control={control}
+        label="Zielgruppe"
+        placeholder="Bürger*innen von Musterdorf"
+        rules={{ required: 'Zielgruppe ist ein Pflichtfeld' }}
+      />
+
+      <Textarea
+        name="schwerpunkte"
+        control={control}
+        label="Besondere Schwerpunkte oder lokale Aspekte"
+        placeholder="Durchführung von Projekten zur Förderung erneuerbarer Energien, Unterstützung lokaler Initiativen..."
+        rules={{ required: 'Schwerpunkte sind ein Pflichtfeld' }}
+        minRows={3}
+      />
+
+      <Input
+        name="redezeit"
+        control={control}
+        type="number"
+        label="Gewünschte Redezeit (in Minuten)"
+        placeholder="1-5"
+        rules={{ 
+          required: 'Redezeit ist ein Pflichtfeld',
+          min: { value: 1, message: 'Die Redezeit muss mindestens 1 Minute betragen' },
+          max: { value: 5, message: 'Die Redezeit darf maximal 5 Minuten betragen' }
+        }}
+        helpText="Maximal 5 Minuten möglich"
+      />
     </>
   );
 });

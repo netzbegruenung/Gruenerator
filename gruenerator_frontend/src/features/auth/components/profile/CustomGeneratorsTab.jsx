@@ -6,6 +6,7 @@ import { motion } from "motion/react";
 import { handleError } from '../../../../components/utils/errorHandling';
 import { HiInformationCircle, HiPlus, HiTrash, HiArrowRight } from 'react-icons/hi';
 import { useProfileResourceManager } from '../../utils/profileUtils';
+import HelpTooltip from '../../../../components/common/HelpTooltip';
 import apiClient from '../../../../components/utils/apiClient';
 
 const CustomGeneratorsTab = ({ user, onSuccessMessage, onErrorMessage, isActive }) => {
@@ -131,7 +132,7 @@ const CustomGeneratorsTab = ({ user, onSuccessMessage, onErrorMessage, isActive 
         </nav>
       )}
 
-      <Link to="/create-generator" className="groups-action-button create-new-group-button" style={{ textDecoration: 'none' }}>
+      <Link to="/create-generator" className="groups-action-button create-new-group-button no-decoration-link">
         Neu
         <HiPlus />
       </Link>
@@ -142,8 +143,8 @@ const CustomGeneratorsTab = ({ user, onSuccessMessage, onErrorMessage, isActive 
     if (fetchError && generators.length === 0) {
       return (
         <div className="group-overview-container">
-          <div className="group-content-card" style={{ textAlign: 'center', padding: 'var(--spacing-large)' }}>
-            <HiInformationCircle size={48} style={{ color: 'var(--color-warning)', marginBottom: 'var(--spacing-medium)' }} />
+          <div className="group-content-card centered-content-card">
+            <HiInformationCircle size={48} className="warning-icon" />
             <h3>Fehler beim Laden</h3>
             <p>Deine Grüneratoren konnten nicht geladen werden.</p>
             <p><i>{fetchError.message || 'Bitte versuche es später erneut.'}</i></p>
@@ -170,7 +171,17 @@ const CustomGeneratorsTab = ({ user, onSuccessMessage, onErrorMessage, isActive 
             <div className="group-info-panel">
               <div className="group-header-section">
                 <div className="group-title-area">
-                  <h2 className="profile-user-name" style={{ fontSize: '1.8rem' }}>Meine Grüneratoren</h2>
+                  <div className="header-with-help">
+                    <h2 className="profile-user-name large-profile-title">Meine Grüneratoren</h2>
+                    <HelpTooltip>
+                      <p>
+                        Hier kannst du eigene Grüneratoren erstellen und verwalten.
+                      </p>
+                      <p>
+                        <strong>Tipp:</strong> Erstelle spezialisierte Grüneratoren für wiederkehrende Aufgaben in deinem Bereich.
+                      </p>
+                    </HelpTooltip>
+                  </div>
                 </div>
               </div>
               <div className="group-overview-content">
@@ -191,9 +202,9 @@ const CustomGeneratorsTab = ({ user, onSuccessMessage, onErrorMessage, isActive 
                   </section>
                 )}
                 <div className="group-overview-cta">
-                  <Link to="/create-generator" className="profile-action-button profile-primary-button" style={{ textDecoration: 'none' }}>
+                  <Link to="/create-generator" className="profile-action-button profile-primary-button no-decoration-link">
                     Neuen Grünerator erstellen
-                    <HiPlus style={{ marginLeft: 'var(--spacing-xsmall)' }} />
+                    <HiPlus className="plus-icon" />
                   </Link>
                 </div>
               </div>
@@ -209,7 +220,7 @@ const CustomGeneratorsTab = ({ user, onSuccessMessage, onErrorMessage, isActive 
         return (
           <div className="group-overview-container">
             <div className="group-content-card" style={{ textAlign: 'center', padding: 'var(--spacing-large)' }}>
-              <HiInformationCircle size={48} style={{ color: 'var(--color-info)', marginBottom: 'var(--spacing-medium)' }} />
+              <HiInformationCircle size={48} className="info-icon" />
               <h3>Grünerator nicht gefunden</h3>
               <p>Der ausgewählte Grünerator ist nicht mehr verfügbar. Möglicherweise wurde er gelöscht.</p>
               <button onClick={handleShowOverview} className="profile-action-button profile-secondary-button">
@@ -230,7 +241,7 @@ const CustomGeneratorsTab = ({ user, onSuccessMessage, onErrorMessage, isActive 
             <div className="group-info-panel">
               <div className="group-header-section">
                 <div className="group-title-area">
-                  <h3 className="profile-user-name" style={{ fontSize: '1.6rem' }}>{generator.title || generator.name}</h3>
+                  <h3 className="profile-user-name medium-profile-title">{generator.title || generator.name}</h3>
                 </div>
                 <div className="custom-generator-actions">
                   <Link 
