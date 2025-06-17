@@ -42,15 +42,18 @@ export default defineConfig(({ command }) => ({
       output: {
         manualChunks(id) {
           if (id.includes('node_modules')) {
-            if (id.includes('react') || id.includes('react-dom')) return 'react-vendor';
+            // React must be first to ensure proper loading order
+            if (id.includes('react') || id.includes('react-dom') || id.includes('react/')) return 'react-vendor';
             if (id.includes('@tanstack')) return 'query-vendor';
             if (id.includes('@supabase')) return 'supabase-vendor';
-            if (id.includes('motion')) return 'motion-vendor';
+            if (id.includes('motion') && !id.includes('react')) return 'motion-vendor';
             if (id.includes('react-icons')) return 'icons-vendor';
             if (id.includes('quill')) return 'quill-vendor';
             if (id.includes('marked')) return 'markdown-vendor';
             if (id.includes('turndown')) return 'turndown-vendor';
             if (id.includes('lodash') || id.includes('uuid') || id.includes('dompurify')) return 'utils-vendor';
+            // Ensure any React-dependent libraries go to react-vendor
+            if (id.includes('react-') || id.includes('use-') || id.includes('hook')) return 'react-vendor';
             return 'misc-vendor';
           }
           if (id.includes('src/features/auth')) return 'auth-feature';
