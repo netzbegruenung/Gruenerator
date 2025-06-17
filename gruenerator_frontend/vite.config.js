@@ -61,8 +61,14 @@ export default defineConfig(({ command }) => ({
           if (id.includes('src/components/layout')) return 'layout';
           if (id.includes('src/hooks') || id.includes('src/stores')) return 'core-logic';
         },
-        entryFileNames: 'assets/js/[name].[hash].js',
-        chunkFileNames: 'assets/js/[name].[hash].js',
+        entryFileNames: (chunkInfo) => {
+          // Ensure all entry files have .js extension
+          return `assets/js/${chunkInfo.name.replace(/\.jsx?$/, '')}.[hash].js`;
+        },
+        chunkFileNames: (chunkInfo) => {
+          // Ensure all chunk files have .js extension  
+          return `assets/js/${chunkInfo.name.replace(/\.jsx?$/, '')}.[hash].js`;
+        },
         assetFileNames(assetInfo) {
           const ext = assetInfo.name.split('.').pop();
           if (/png|jpe?g|svg|gif|tiff|bmp|ico|webp/i.test(ext)) {
