@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import debounce from 'lodash.debounce';
 import Spinner from '../../../../components/common/Spinner';
 import TextInput from '../../../../components/common/Form/Input/TextInput';
 import { 
@@ -10,16 +11,15 @@ import {
 } from '../../utils/profileUtils';
 import { useOptimizedAuth } from '../../../../hooks/useAuth';
 import AvatarSelectionModal from './AvatarSelectionModal';
+import HelpTooltip from '../../../../components/common/HelpTooltip';
 import { motion } from "motion/react";
 
 const ProfileInfoTab = ({ 
   user: userProp, 
   onSuccessMessage, 
   onErrorProfileMessage, 
-  updatePassword, 
   deleteAccount, 
-  canManageAccount, 
-  isActive 
+  canManageAccount 
 }) => {
   const queryClient = useQueryClient();
   
@@ -38,13 +38,10 @@ const ProfileInfoTab = ({
   const [email, setEmail] = useState('');
   const [errorProfile, setErrorProfile] = useState('');
   
-  // Password change states
-  const [loadingPasswordChange, setLoadingPasswordChange] = useState(false);
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [passwordError, setPasswordError] = useState('');
-  const [showPasswordChangeForm, setShowPasswordChangeForm] = useState(false);
+  // Refs to track initialization and prevent loops
+  const isInitialized = useRef(false);
+  const lastSavedData = useRef(null);
+  
   
   // UI states
   const [showAvatarModal, setShowAvatarModal] = useState(false);
@@ -69,41 +66,42 @@ const ProfileInfoTab = ({
 
   // Initialize form fields when profile data loads (centralized logic from profileUtils)
   useEffect(() => {
+    if (!profile || !user) return;
+    
     const formFields = initializeProfileFormFields(profile, user);
-    setFirstName(formFields.firstName);
-    setLastName(formFields.lastName);
-    setDisplayName(formFields.displayName);
-    setEmail(formFields.email);
+    
+    // Only initialize once or when switching users
+    if (!isInitialized.current) {
+      setFirstName(formFields.firstName);
+      setLastName(formFields.lastName);
+      setDisplayName(formFields.displayName);
+      setEmail(formFields.email);
+      isInitialized.current = true;
+    }
   }, [profile, user]);
 
-  // Handle profile update error from hook
-  useEffect(() => {
-    if (profileUpdateError) {
-      setErrorProfile(profileUpdateError.message || 'Fehler beim Aktualisieren des Profils.');
-      onErrorProfileMessage(profileUpdateError.message || 'Fehler beim Aktualisieren des Profils.');
-    }
-  }, [profileUpdateError, onErrorProfileMessage]);
-
+  // Define avatarRobotId early since it's used in auto-save
   const avatarRobotId = profile?.avatar_robot_id ?? 1;
 
-  const handleProfileUpdateSubmit = async (e) => {
-    e.preventDefault();
-    setErrorProfile(''); 
-    setPasswordError(''); 
-    onSuccessMessage(''); 
-    onErrorProfileMessage('');
-
-    // Email validation for manageable accounts
-    if (canManageCurrentAccount && email && email.trim()) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email.trim())) {
-        const errorMsg = 'Bitte gib eine gültige E-Mail-Adresse ein.';
-        setErrorProfile(errorMsg);
-        onErrorProfileMessage(errorMsg);
-        return;
+  // Auto-save profile data with debouncing
+  const debouncedSave = useCallback(
+    debounce(async (profileData) => {
+      try {
+        await updateProfile(profileData);
+        onSuccessMessage('Profil automatisch gespeichert!');
+        onErrorProfileMessage('');
+        setErrorProfile('');
+      } catch (error) {
+        // Error is handled by useEffect above
       }
-    }
+    }, 1000),
+    [updateProfile, onSuccessMessage, onErrorProfileMessage]
+  );
 
+  // Trigger auto-save when form fields change
+  useEffect(() => {
+    if (!profile || !isInitialized.current) return; // Don't auto-save until initial load and initialization
+    
     const fullDisplayName = firstName || lastName ? `${firstName} ${lastName}`.trim() : (displayName || email || user?.username || 'Benutzer');
     
     const profileUpdateData = {
@@ -117,22 +115,21 @@ const ProfileInfoTab = ({
       profileUpdateData.email = email?.trim() || null;
     }
 
-    try {
-      await updateProfile(profileUpdateData);
-      onSuccessMessage('Profil erfolgreich aktualisiert!');
-      onErrorProfileMessage('');
-      setErrorProfile('');
-      
-      // Event for other components
-      if (profileUpdateData.avatar_robot_id !== undefined) {
-        window.dispatchEvent(new CustomEvent('avatarUpdated', { 
-          detail: { avatarRobotId: profileUpdateData.avatar_robot_id } 
-        }));
-      }
-    } catch (error) {
-      // Error is handled by useEffect above
+    // Deep comparison with last saved data to prevent unnecessary saves
+    const dataToCompare = JSON.stringify(profileUpdateData);
+    if (lastSavedData.current !== dataToCompare) {
+      lastSavedData.current = dataToCompare;
+      debouncedSave(profileUpdateData);
     }
-  };
+  }, [firstName, lastName, displayName, email, avatarRobotId, canManageCurrentAccount, user?.username, profile, debouncedSave]);
+
+  // Handle profile update error from hook
+  useEffect(() => {
+    if (profileUpdateError) {
+      setErrorProfile(profileUpdateError.message || 'Fehler beim Aktualisieren des Profils.');
+      onErrorProfileMessage(profileUpdateError.message || 'Fehler beim Aktualisieren des Profils.');
+    }
+  }, [profileUpdateError, onErrorProfileMessage]);
 
   const handleAvatarSelect = async (robotId) => {
     try {
@@ -148,68 +145,6 @@ const ProfileInfoTab = ({
     }
   };
 
-  const handlePasswordChangeSubmit = async (e) => {
-    e.preventDefault();
-    setPasswordError('');
-    setErrorProfile('');
-    onSuccessMessage('');
-    onErrorProfileMessage('');
-
-    // Basic validation
-    if (!user?.email) {
-      const msg = "Benutzerinformationen nicht verfügbar. Bitte neu anmelden.";
-      setPasswordError(msg);
-      onErrorProfileMessage(msg);
-      return;
-    }
-    
-    if (!updatePassword) {
-      const msg = "Passwortänderungsfunktion nicht verfügbar.";
-      setPasswordError(msg);
-      onErrorProfileMessage(msg);
-      return;
-    }
-    
-    if (!currentPassword || newPassword.length < 8 || newPassword !== confirmPassword) {
-      let errorMsg = '';
-      if (!currentPassword) errorMsg = 'Bitte gib dein aktuelles Passwort ein.';
-      else if (newPassword.length < 8) errorMsg = 'Das neue Passwort muss mindestens 8 Zeichen lang sein.';
-      else if (newPassword !== confirmPassword) errorMsg = 'Die neuen Passwörter stimmen nicht überein.';
-      setPasswordError(errorMsg);
-      onErrorProfileMessage(errorMsg);
-      return;
-    }
-
-    setLoadingPasswordChange(true);
-    try {
-      // Note: Password validation and update logic should ideally be moved to profileUtils
-      // For now, keeping the existing logic but this could be further extracted
-      await updatePassword(newPassword);
-      onSuccessMessage('Dein Passwort wurde erfolgreich geändert!');
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
-      setShowPasswordChangeForm(false);
-    } catch (err) {
-      const msg = 'Fehler beim Ändern des Passworts: ' + err.message;
-      setPasswordError(msg);
-      onErrorProfileMessage(msg);
-    } finally {
-      setLoadingPasswordChange(false);
-    }
-  };
-
-  const handleTogglePasswordForm = () => {
-    setShowPasswordChangeForm(!showPasswordChangeForm);
-    if (!showPasswordChangeForm) {
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
-      setPasswordError('');
-    } else {
-      setPasswordError('');
-    }
-  };
 
   const handleToggleDeleteAccountForm = () => {
     setShowDeleteAccountForm(!showDeleteAccountForm);
@@ -281,7 +216,9 @@ const ProfileInfoTab = ({
     }
   };
 
-  const isLoading = isLoadingProfile || isUpdatingProfile || isUpdatingAvatar;
+  // Separate loading states - only disable fields during profile loading, not during updates
+  const isLoading = isLoadingProfile;
+  const isSaving = isUpdatingProfile || isUpdatingAvatar;
 
   return (
     <>
@@ -293,7 +230,7 @@ const ProfileInfoTab = ({
       >
         <div className="profile-avatar-section">
           <div 
-            className="profile-avatar" 
+            className="profile-avatar clickable-avatar" 
             onClick={() => setShowAvatarModal(true)}
             role="button"
             tabIndex={0}
@@ -304,13 +241,12 @@ const ProfileInfoTab = ({
               }
             }}
             aria-label="Avatar ändern"
-            style={{ cursor: 'pointer', position: 'relative' }}
           >
             {avatarProps.type === 'robot' ? (
               <img 
                 src={avatarProps.src} 
                 alt={avatarProps.alt}
-                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                className="avatar-image"
               />
             ) : (
               <div className="profile-avatar-placeholder">
@@ -324,20 +260,19 @@ const ProfileInfoTab = ({
               {firstName ? getPossessiveForm(firstName) : "Dein"} Grünerator
             </div>
             {(email || user?.email || user?.username) && <div className="profile-user-email">{email || user?.email || user?.username}</div>}
-            {user?.id && <div className="profile-user-id" style={{ fontSize: '0.8rem', color: 'var(--font-color-subtle)', marginTop: 'var(--spacing-xxsmall)' }}>ID: {user.id}</div>}
+            {user?.id && <div className="profile-user-id user-id-display">ID: {user.id}</div>}
           </div>
         </div>
 
         <div className="profile-form-section">
           {(errorProfile || isErrorProfileQuery) && (
-            <div className="auth-error-message" style={{ marginBottom: 'var(--spacing-medium)'}}>
+            <div className="auth-error-message error-margin">
               {errorProfile || errorProfileQuery?.message || 'Ein Fehler ist aufgetreten.'}
               {isErrorProfileQuery && 
                 <button 
                   type="button" 
                   onClick={() => queryClient.refetchQueries({ queryKey: ['profileData', user?.id] })} 
-                  style={{marginLeft: '10px'}} 
-                  className="profile-action-button profile-secondary-button"
+                  className="retry-button profile-action-button profile-secondary-button"
                 >
                   Erneut versuchen
                 </button>
@@ -345,7 +280,7 @@ const ProfileInfoTab = ({
             </div>
           )}
           
-          <form className="auth-form" onSubmit={handleProfileUpdateSubmit}>
+          <div className="auth-form">
             <div className="form-group">
               <div className="form-group-title">Persönliche Daten</div>
               <div className="form-field-wrapper">
@@ -355,10 +290,20 @@ const ProfileInfoTab = ({
                   type="email" 
                   value={email} 
                   onChange={(e) => setEmail(e.target.value)} 
-                  placeholder="Deine E-Mail-Adresse" 
+                  placeholder={!canManageCurrentAccount ? "E-Mail wird von deinem Login-Anbieter verwaltet" : "Deine E-Mail-Adresse"} 
                   aria-label="E-Mail" 
-                  disabled={!canManageCurrentAccount || isLoading}
+                  disabled={!canManageCurrentAccount}
                 />
+                {!canManageCurrentAccount && profile?.is_sso_user && (
+                  <div className="form-help-text">
+                    Deine E-Mail-Adresse wird von deinem Login-Anbieter (SSO) verwaltet und kann hier nicht geändert werden.
+                  </div>
+                )}
+                {canManageCurrentAccount && profile?.is_sso_user && !profile?.auth_email && (
+                  <div className="form-help-text form-help-text-success">
+                    Du kannst hier deine E-Mail-Adresse hinzufügen, da keine von deinem Login-Anbieter bereitgestellt wurde.
+                  </div>
+                )}
               </div>
               <div className="form-field-wrapper">
                 <label htmlFor="firstName">Vorname:</label>
@@ -369,7 +314,7 @@ const ProfileInfoTab = ({
                   onChange={(e) => setFirstName(e.target.value)} 
                   placeholder="Dein Vorname" 
                   aria-label="Vorname" 
-                  disabled={isLoading}
+                  disabled={false}
                 />
               </div>
               <div className="form-field-wrapper">
@@ -385,108 +330,20 @@ const ProfileInfoTab = ({
                 />
               </div>
             </div>
-            <div className="profile-actions">
-              <button 
-                type="submit" 
-                className="profile-action-button profile-primary-button" 
-                disabled={isLoading || loadingPasswordChange} 
-                aria-live="polite"
-              >
-                {isLoading ? <Spinner size="small" /> : 'Profil aktualisieren'}
-              </button>
+            <div className="form-help-text">
+              {isSaving ? 'Wird gespeichert...' : 'Änderungen werden automatisch gespeichert'}
             </div>
-          </form>
-
-          <hr className="form-divider-large" />
-
-          {!showPasswordChangeForm && (
-            <div className="profile-actions" style={{ marginTop: 'var(--spacing-large)' }}>
-              <button 
-                type="button" 
-                className="profile-action-button" 
-                onClick={handleTogglePasswordForm}
-                disabled={isLoading} 
-              >
-                Passwort ändern
-              </button>
-            </div>
-          )}
-
-          {showPasswordChangeForm && (
-            <form className="auth-form" onSubmit={handlePasswordChangeSubmit} style={{ marginTop: 'var(--spacing-large)' }}>
-              <div className="form-group">
-                <div className="form-group-title">Passwort ändern</div>
-                {passwordError && (
-                  <div className="auth-error-message" style={{ marginBottom: 'var(--spacing-medium)' }}>
-                    {passwordError}
-                  </div>
-                )}
-                <div className="form-field-wrapper">
-                  <label htmlFor="currentPassword">Aktuelles Passwort:</label>
-                  <TextInput 
-                    id="currentPassword" 
-                    type="password" 
-                    value={currentPassword} 
-                    onChange={(e) => setCurrentPassword(e.target.value)} 
-                    placeholder="Dein aktuelles Passwort" 
-                    aria-label="Aktuelles Passwort" 
-                    disabled={loadingPasswordChange || isLoading}
-                  />
-                </div>
-                <div className="form-field-wrapper">
-                  <label htmlFor="newPassword">Neues Passwort:</label>
-                  <TextInput 
-                    id="newPassword" 
-                    type="password" 
-                    value={newPassword} 
-                    onChange={(e) => setNewPassword(e.target.value)} 
-                    placeholder="Dein neues Passwort (min. 8 Zeichen)" 
-                    aria-label="Neues Passwort" 
-                    disabled={loadingPasswordChange || isLoading}
-                  />
-                </div>
-                <div className="form-field-wrapper">
-                  <label htmlFor="confirmPassword">Neues Passwort bestätigen:</label>
-                  <TextInput 
-                    id="confirmPassword" 
-                    type="password" 
-                    value={confirmPassword} 
-                    onChange={(e) => setConfirmPassword(e.target.value)} 
-                    placeholder="Neues Passwort wiederholen" 
-                    aria-label="Neues Passwort bestätigen" 
-                    disabled={loadingPasswordChange || isLoading}
-                  />
-                </div>
-              </div>
-              <div className="profile-actions">
-                <button 
-                  type="submit" 
-                  className="profile-action-button profile-primary-button" 
-                  disabled={loadingPasswordChange || isLoading}
-                >
-                  {loadingPasswordChange ? <Spinner size="small" /> : 'Passwort ändern'}
-                </button>
-                <button 
-                  type="button" 
-                  className="profile-action-button" 
-                  onClick={handleTogglePasswordForm}
-                  disabled={loadingPasswordChange || isLoading}
-                >
-                  Abbrechen
-                </button>
-              </div>
-            </form>
-          )}
+          </div>
 
           {canManageCurrentAccount && !showDeleteAccountForm && (
             <>
               <hr className="form-divider-large" />
-              <div className="profile-actions" style={{ marginTop: 'var(--spacing-large)' }}>
+              <div className="profile-actions profile-actions-centered">
                 <button 
                   type="button" 
-                  className="profile-action-button profile-danger-button" 
+                  className="delete-all-link" 
                   onClick={handleToggleDeleteAccountForm}
-                  disabled={isLoading || loadingPasswordChange}
+                  disabled={isLoading}
                 >
                   Konto löschen
                 </button>
@@ -495,15 +352,15 @@ const ProfileInfoTab = ({
           )}
 
           {showDeleteAccountForm && (
-            <form className="auth-form" onSubmit={handleDeleteAccountSubmit} style={{ marginTop: 'var(--spacing-large)' }}>
+            <form className="auth-form" onSubmit={handleDeleteAccountSubmit}>
               <div className="form-group">
-                <div className="form-group-title" style={{ color: 'var(--error-color)' }}>Konto löschen</div>
+                <div className="form-group-title">Konto löschen</div>
                 <p className="warning-text">
                   <strong>Warnung:</strong> Diese Aktion kann nicht rückgängig gemacht werden. 
                   Alle Ihre Daten werden permanent gelöscht.
                 </p>
                 {deleteAccountError && (
-                  <div className="auth-error-message" style={{ marginBottom: 'var(--spacing-medium)' }}>
+                  <div className="auth-error-message">
                     {deleteAccountError}
                   </div>
                 )}

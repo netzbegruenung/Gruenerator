@@ -3,8 +3,70 @@ import { processText } from '../utils/apiClient';
 import { useAuthStore } from '../../stores/authStore';
 import useGeneratedTextStore from '../../stores/core/generatedTextStore';
 
+// Helper function to determine generator type from endpoint
+const getGeneratorTypeFromEndpoint = (endpoint) => {
+  const endpointMap = {
+    '/claude_social': 'social_media',
+    'claude_social': 'social_media',
+    '/claude_gruene_jugend': 'gruenejugend',
+    'claude_gruene_jugend': 'gruenejugend',
+    'claude/antrag': 'antrag',
+    'claude/antrag-simple': 'antrag',
+    'antraege/generate-simple': 'antrag',
+    '/claude_universal': 'universal',
+    'claude_universal': 'universal',
+    '/claude_rede': 'universal',
+    'claude_rede': 'universal',
+    '/claude_wahlprogramm': 'universal',
+    'claude_wahlprogramm': 'universal'
+  };
+  return endpointMap[endpoint];
+};
+
+// Helper function to add memory in background (non-blocking)
+const addMemoryInBackground = async (endpoint, formData, response, memoryEnabled) => {
+  // Skip memory addition if not in development environment
+  const isDevelopment = import.meta.env.VITE_APP_ENV === 'development';
+  if (!isDevelopment) {
+    console.log('[useApiSubmit] Skipping memory - not in development environment');
+    return;
+  }
+
+  // Skip memory addition if memory is disabled
+  if (!memoryEnabled) {
+    console.log('[useApiSubmit] Skipping memory - memory functionality is disabled');
+    return;
+  }
+
+  try {
+    const generatorType = getGeneratorTypeFromEndpoint(endpoint);
+    if (!generatorType) {
+      console.log('[useApiSubmit] Skipping memory - not a generator endpoint:', endpoint);
+      return;
+    }
+
+    // Prepare memory data
+    const memoryData = {
+      generatorType,
+      ...formData
+    };
+
+    console.log('[useApiSubmit] Adding memory in background for:', generatorType);
+    
+    // Non-blocking call - don't await to avoid blocking user experience
+    processText('/mem0/add-generator', memoryData).catch(error => {
+      console.warn('[useApiSubmit] Background memory addition failed:', error.message);
+      // Silently fail - memory errors shouldn't affect user experience
+    });
+
+  } catch (error) {
+    console.warn('[useApiSubmit] Memory background process error:', error.message);
+    // Don't throw - memory failure shouldn't affect generation
+  }
+};
+
 const useApiSubmit = (endpoint) => {
-  const { deutschlandmodus } = useAuthStore();
+  const { deutschlandmodus, memoryEnabled } = useAuthStore();
   const { generatedText } = useGeneratedTextStore();
 
   const [loading, setLoading] = useState(false);
@@ -146,12 +208,18 @@ const useApiSubmit = (endpoint) => {
           // Prüfe auf verschiedene mögliche Antwortstrukturen
           if (response.content) {
             setSuccess(true);
+            // Add memory for successful antrag generation
+            addMemoryInBackground(endpoint, formData, response, memoryEnabled);
             return response;
           } else if (response.metadata && response.metadata.content) {
             setSuccess(true);
+            // Add memory for successful antrag generation
+            addMemoryInBackground(endpoint, formData, response, memoryEnabled);
             return { content: response.metadata.content, metadata: response.metadata };
           } else if (typeof response === 'string') {
             setSuccess(true);
+            // Add memory for successful antrag generation
+            addMemoryInBackground(endpoint, formData, response, memoryEnabled);
             return { content: response };
           }
         }
@@ -200,20 +268,28 @@ const useApiSubmit = (endpoint) => {
         console.log('[useApiSubmit] Processing claude_social response:', response);
         if (response && response.content) {
           setSuccess(true);
+          // Add memory for successful social media generation
+          addMemoryInBackground(endpoint, formData, response, memoryEnabled);
           return response.content; // Return only the content string
         } else if (response && typeof response === 'string') {
           // Fallback if response is already a string
           setSuccess(true);
+          // Add memory for successful social media generation
+          addMemoryInBackground(endpoint, formData, response, memoryEnabled);
           return response;
         }
       } else if (endpoint === '/claude_gruene_jugend') {
         console.log('[useApiSubmit] Processing claude_gruene_jugend response:', response);
         if (response && response.content) {
           setSuccess(true);
+          // Add memory for successful gruene jugend generation
+          addMemoryInBackground(endpoint, formData, response, memoryEnabled);
           return response.content; // Return only the content string
         } else if (response && typeof response === 'string') {
           // Fallback if response is already a string
           setSuccess(true);
+          // Add memory for successful gruene jugend generation
+          addMemoryInBackground(endpoint, formData, response, memoryEnabled);
           return response;
         }
       }
@@ -222,6 +298,8 @@ const useApiSubmit = (endpoint) => {
       console.log('[useApiSubmit] Fallback handling for endpoint:', endpoint);
       if (response) {
         setSuccess(true);
+        // Add memory for successful generation (fallback)
+        addMemoryInBackground(endpoint, formData, response, memoryEnabled);
         return response;
       }
 

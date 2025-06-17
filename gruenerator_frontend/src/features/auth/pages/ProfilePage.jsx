@@ -20,7 +20,7 @@ import '../../../assets/styles/features/auth/profile-bubbles.css';
 // Enhanced lazy loading with cache support
 const ProfileInfoTab = lazy(() => import('../components/profile/ProfileInfoTab'));
 const GroupsManagementTab = lazy(() => import('../components/profile/GroupsManagementTab'));
-const AnweisungenWissenTab = lazy(() => import('../components/profile/AnweisungenWissenTab'));
+const IntelligenceTab = lazy(() => import('../components/profile/IntelligenceTab'));
 const CustomGeneratorsTab = lazy(() => import('../components/profile/CustomGeneratorsTab'));
 const TexteVorlagenTab = lazy(() => import('../components/profile/TexteVorlagenTab'));
 const LaborTab = lazy(() => import('../components/profile/LaborTab'));
@@ -238,12 +238,12 @@ const ProfilePage = () => {
         {shouldShowTab('anweisungen') && (
           <TabButton
             activeTab={activeTab}
-            tabKey="anweisungen"
+            tabKey="intelligence"
             onClick={handleTabChange}
-            onMouseEnter={() => onTabHover('anweisungen')}
+            onMouseEnter={() => onTabHover('intelligence')}
             underlineTransition={underlineTransition}
           >
-            Anweisungen & Wissen
+            Intelligence
           </TabButton>
         )}
         
@@ -333,13 +333,13 @@ const ProfilePage = () => {
             />
           )}
           
-          {activeTab === 'anweisungen' && shouldShowTab('anweisungen') && (
-            <AnweisungenWissenTab
+          {activeTab === 'intelligence' && shouldShowTab('anweisungen') && (
+            <IntelligenceTab
               user={user}
               templatesSupabase={templatesSupabase}
               onSuccessMessage={handleSuccessMessage}
               onErrorMessage={handleErrorMessage}
-              isActive={activeTab === 'anweisungen'}
+              isActive={activeTab === 'intelligence'}
             />
           )}
           

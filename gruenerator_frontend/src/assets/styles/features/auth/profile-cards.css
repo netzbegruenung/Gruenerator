@@ -1,0 +1,75 @@
+/* Profile Cards - Reusable Card Styles */
+
+.profile-cards-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--spacing-large);
+}
+
+.profile-card {
+  background-color: var(--card-background);
+  border: var(--card-border);
+  border-radius: var(--card-border-radius-medium);
+  box-shadow: var(--card-shadow-subtle);
+  overflow: hidden;
+  transition: var(--input-transition);
+  display: flex;
+  flex-direction: column;
+}
+
+.profile-card:hover {
+  box-shadow: var(--card-shadow-elevated);
+}
+
+.profile-card-header {
+  padding: var(--spacing-medium) var(--spacing-large);
+  border-bottom: var(--card-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.profile-card-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--font-color-h3);
+}
+
+.profile-card-content {
+  padding: var(--spacing-large);
+  flex-grow: 1;
+}
+
+.profile-card-content .help-tooltip {
+  margin-bottom: var(--spacing-medium);
+}
+
+@media (max-width: 768px) {
+  .profile-cards-grid {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-medium);
+  }
+
+  .profile-card-header {
+    padding: var(--spacing-medium);
+  }
+
+  .profile-card-content {
+    padding: var(--spacing-medium);
+  }
+}
+
+/* Styles for memories grid */
+.memories-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--spacing-medium);
+}
+
+@media (min-width: 992px) {
+  .memories-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+} 

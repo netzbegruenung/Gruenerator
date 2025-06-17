@@ -68,7 +68,8 @@ const BaseForm = ({
   onFormChange = null,
   accessibilityOptions = {},
   bottomSectionChildren = null,
-  componentName = 'default'
+  componentName = 'default',
+  firstExtrasChildren = null
 }) => {
 
   const baseFormRef = useRef(null);
@@ -279,6 +280,7 @@ const BaseForm = ({
                   bottomSectionChildren={bottomSectionChildren}
                   showHideButton={hasContent && !disableAutoCollapse}
                   onHide={toggleFormVisibility}
+                  firstExtrasChildren={firstExtrasChildren}
                 >
                   {children}
                 </FormSection>
@@ -381,7 +383,8 @@ BaseForm.propTypes = {
   onFormChange: PropTypes.func,
   accessibilityOptions: PropTypes.object,
   bottomSectionChildren: PropTypes.node,
-  componentName: PropTypes.string
+  componentName: PropTypes.string,
+  firstExtrasChildren: PropTypes.node
 };
 
 BaseForm.defaultProps = {
@@ -396,7 +399,8 @@ BaseForm.defaultProps = {
   useModernForm: true,
   onFormChange: null,
   accessibilityOptions: {},
-  bottomSectionChildren: null
+  bottomSectionChildren: null,
+  firstExtrasChildren: null
 };
 
 export default BaseForm; 

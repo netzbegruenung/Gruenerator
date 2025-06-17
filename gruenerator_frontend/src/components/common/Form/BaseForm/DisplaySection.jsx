@@ -164,6 +164,7 @@ const DisplaySection = forwardRef(({
           <HelpDisplay 
             content={helpContent.content}
             tips={helpContent.tips}
+            hasGeneratedContent={!!activeContent}
           />
         </div>
       )}

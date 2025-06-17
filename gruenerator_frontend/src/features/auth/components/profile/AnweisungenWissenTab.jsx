@@ -1,21 +1,27 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useForm, FormProvider, useFieldArray } from 'react-hook-form';
 import { HiOutlineTrash, HiPlus } from 'react-icons/hi';
+import debounce from 'lodash.debounce';
 import Spinner from '../../../../components/common/Spinner';
 import { useFormFields } from '../../../../components/common/Form/hooks';
 import { useAnweisungenWissen } from '../../utils/profileUtils';
 import { useAnweisungenWissenUiStore } from '../../../../stores/auth/anweisungenWissenUiStore';
+import HelpTooltip from '../../../../components/common/HelpTooltip';
 import { motion } from "motion/react";
 
 const MAX_CONTENT_LENGTH = 1000;
 
 const AnweisungenWissenTab = ({ isActive }) => {
-    const [currentView, setCurrentView] = useState('anweisungen');
+    const [currentView, setCurrentView] = useState('antraege');
 
+    // Refs to track initialization and prevent loops (ProfileInfoTab pattern)
+    const isInitialized = useRef(false);
+    const lastSavedData = useRef(null);
+    
     // Zustand store for UI state
     const {
-        isSaving, isDeleting, error, successMessage, hasUnsavedChanges, deletingKnowledgeId,
-        setHasUnsavedChanges, setError, setSuccess, clearMessages
+        isSaving, isDeleting, deletingKnowledgeId,
+        clearMessages
     } = useAnweisungenWissenUiStore();
     
     // React Query hook for data fetching and mutations
@@ -27,12 +33,14 @@ const AnweisungenWissenTab = ({ isActive }) => {
         defaultValues: {
             customAntragPrompt: '',
             customSocialPrompt: '',
+            customUniversalPrompt: '',
+            customGruenejugendPrompt: '',
             knowledge: [],
         },
         mode: 'onChange'
     });
 
-    const { control, handleSubmit, reset, formState: { isDirty } } = formMethods;
+    const { control, getValues, reset } = formMethods;
     const { fields, append, remove } = useFieldArray({ 
         control, 
         name: "knowledge",
@@ -40,30 +48,67 @@ const AnweisungenWissenTab = ({ isActive }) => {
     });
     const { Input, Textarea } = useFormFields();
 
-    // Effect to reset form with data from server
+    // Initialize form when data loads (ProfileInfoTab pattern)
     useEffect(() => {
-        if (data) {
+        if (!data) return;
+        
+        // Only initialize once (ProfileInfoTab pattern)
+        if (!isInitialized.current) {
             reset({
                 customAntragPrompt: data.antragPrompt || '',
                 customSocialPrompt: data.socialPrompt || '',
+                customUniversalPrompt: data.universalPrompt || '',
+                customGruenejugendPrompt: data.gruenejugendPrompt || '',
                 knowledge: data.knowledge || []
             });
+            
+            isInitialized.current = true;
         }
     }, [data, reset]);
 
-    // Effect to sync form dirty state with zustand store
+    // Auto-save with debouncing (ProfileInfoTab pattern)
+    const debouncedSave = useCallback(
+        debounce(async (formData) => {
+            try {
+                await saveChanges(formData);
+                // Success is handled by the saveChanges function
+            } catch (error) {
+                // Error is handled by saveChanges function
+            }
+        }, 1000),
+        [saveChanges]
+    );
+    
+    // Auto-save trigger using form subscription (adapted ProfileInfoTab pattern)
     useEffect(() => {
-        setHasUnsavedChanges(isDirty);
-    }, [isDirty, setHasUnsavedChanges]);
+        if (!data || !isInitialized.current) return; // Don't auto-save until initial load
+        
+        // Use a timer to check for form changes periodically
+        const interval = setInterval(() => {
+            const currentValues = getValues();
+            const formData = {
+                customAntragPrompt: currentValues.customAntragPrompt || '',
+                customSocialPrompt: currentValues.customSocialPrompt || '',
+                customUniversalPrompt: currentValues.customUniversalPrompt || '',
+                customGruenejugendPrompt: currentValues.customGruenejugendPrompt || '',
+                knowledge: currentValues.knowledge || []
+            };
+            
+            // Deep comparison with last saved data to prevent unnecessary saves (ProfileInfoTab pattern)
+            const dataToCompare = JSON.stringify(formData);
+            if (lastSavedData.current !== dataToCompare) {
+                lastSavedData.current = dataToCompare;
+                debouncedSave(formData);
+            }
+        }, 500); // Check every 500ms for changes
+        
+        return () => clearInterval(interval);
+    }, [data, getValues, debouncedSave]);
 
     // Effect to clear messages when view changes or component becomes inactive
     useEffect(() => {
         clearMessages();
     }, [currentView, isActive, clearMessages]);
-
-    const onSubmit = (formData) => {
-        saveChanges(formData);
-    };
 
     const handleDeleteKnowledge = (entry, index) => {
         if (!entry.id || (typeof entry.id === 'string' && entry.id.startsWith('new-'))) {
@@ -92,10 +137,28 @@ const AnweisungenWissenTab = ({ isActive }) => {
     const renderNavigationPanel = () => (
         <div className="groups-vertical-navigation">
             <button
-                className={`groups-vertical-tab ${currentView === 'anweisungen' ? 'active' : ''}`}
-                onClick={() => handleTabClick('anweisungen')}
+                className={`groups-vertical-tab ${currentView === 'antraege' ? 'active' : ''}`}
+                onClick={() => handleTabClick('antraege')}
             >
-                Anweisungen
+                Anträge
+            </button>
+            <button
+                className={`groups-vertical-tab ${currentView === 'presse' ? 'active' : ''}`}
+                onClick={() => handleTabClick('presse')}
+            >
+                Presse/Social
+            </button>
+            <button
+                className={`groups-vertical-tab ${currentView === 'universal' ? 'active' : ''}`}
+                onClick={() => handleTabClick('universal')}
+            >
+                Universal
+            </button>
+            <button
+                className={`groups-vertical-tab ${currentView === 'gruenejugend' ? 'active' : ''}`}
+                onClick={() => handleTabClick('gruenejugend')}
+            >
+                Grüne Jugend
             </button>
             <button
                 className={`groups-vertical-tab ${currentView === 'wissen' ? 'active' : ''}`}
@@ -112,7 +175,7 @@ const AnweisungenWissenTab = ({ isActive }) => {
     
     if (isErrorQuery) {
         return (
-            <div className="auth-error-message error-message-container" style={{ margin: 'var(--spacing-large)' }}>
+            <div className="auth-error-message error-message-container error-large-margin">
                 Fehler beim Laden der Daten: {errorQuery.message}
             </div>
         );
@@ -120,7 +183,7 @@ const AnweisungenWissenTab = ({ isActive }) => {
 
     return (
         <FormProvider {...formMethods}>
-            <form onSubmit={handleSubmit(onSubmit)}>
+            <div>
                 <motion.div 
                     className="profile-content groups-management-layout"
                     initial={{ opacity: 0 }}
@@ -133,35 +196,88 @@ const AnweisungenWissenTab = ({ isActive }) => {
                     <div className="groups-content-panel profile-form-section">
                         <div className="group-content-card">
                             <div className="auth-form">
-                                <div className="anweisungen-info" style={{ marginBottom: 'var(--spacing-large)', paddingBottom: 'var(--spacing-medium)', borderBottom: '1px solid var(--border-subtle)' }}>
-                                    <p>
-                                      Hier kannst du eigene Anweisungen und Wissensbausteine für den Grünerator hinterlegen.
-                                    </p>
-                                    <p>
-                                    <strong>Tipp:</strong> Formuliere klare Anweisungen zum Stil oder persönliche Präferenzen.
-                                    Nutze Wissen für wiederkehrende Infos (z.B. über dich, deinen Verband).
-                                    </p>
-                                </div>
 
-                                {currentView === 'anweisungen' && (
+                                {currentView === 'antraege' && (
                                     <div className="form-group">
-                                        <div className="form-group-title">Benutzerdefinierte Anweisungen</div>
+                                        <div className="header-with-help">
+                                            <div className="form-group-title">Anweisungen für Anträge</div>
+                                            <HelpTooltip>
+                                                <p>Diese Anweisungen werden bei der Erstellung von Anträgen berücksichtigt.</p>
+                                                <p><strong>Tipp:</strong> Formuliere spezifische Vorgaben für Stil und Aufbau deiner Anträge.</p>
+                                            </HelpTooltip>
+                                        </div>
                                         
                                         <Textarea
                                             name="customAntragPrompt"
-                                            label="Anweisungen für Anträge:"
+                                            label="Persönliche Anweisungen:"
                                             placeholder="Gib hier deine Anweisungen für die Erstellung von Anträgen ein..."
-                                            helpText="Diese Anweisungen werden bei der Erstellung von Anträgen berücksichtigt."
+                                            helpText="z.B. bevorzugter Stil, spezielle Formulierungen, politische Schwerpunkte"
                                             minRows={4}
                                             disabled={isSaving}
                                             control={control}
                                         />
+                                    </div>
+                                )}
 
+                                {currentView === 'presse' && (
+                                    <div className="form-group">
+                                        <div className="header-with-help">
+                                            <div className="form-group-title">Anweisungen für Presse & Social Media</div>
+                                            <HelpTooltip>
+                                                <p>Diese Anweisungen werden bei der Erstellung von Presse- und Social Media-Inhalten berücksichtigt.</p>
+                                                <p><strong>Tipp:</strong> Definiere Tonalität, Hashtag-Präferenzen und Zielgruppen-Ansprache.</p>
+                                            </HelpTooltip>
+                                        </div>
+                                        
                                         <Textarea
                                             name="customSocialPrompt"
-                                            label="Anweisungen für Social Media & Presse:"
-                                            placeholder="Gib hier deine Anweisungen für die Erstellung von Social Media Inhalten ein..."
-                                            helpText="Diese Anweisungen werden bei der Erstellung von Social Media & Presse-Inhalten berücksichtigt."
+                                            label="Persönliche Anweisungen:"
+                                            placeholder="Gib hier deine Anweisungen für die Erstellung von Presse- und Social Media-Inhalten ein..."
+                                            helpText="z.B. Tonalität, Hashtag-Präferenzen, Zielgruppen-Ansprache"
+                                            minRows={4}
+                                            disabled={isSaving}
+                                            control={control}
+                                        />
+                                    </div>
+                                )}
+
+                                {currentView === 'universal' && (
+                                    <div className="form-group">
+                                        <div className="header-with-help">
+                                            <div className="form-group-title">Anweisungen für Universelle Texte</div>
+                                            <HelpTooltip>
+                                                <p>Diese Anweisungen werden bei der Erstellung von universellen Texten berücksichtigt.</p>
+                                                <p><strong>Tipp:</strong> Definiere allgemeine Schreibweise und politische Grundhaltung.</p>
+                                            </HelpTooltip>
+                                        </div>
+                                        
+                                        <Textarea
+                                            name="customUniversalPrompt"
+                                            label="Persönliche Anweisungen:"
+                                            placeholder="Gib hier deine Anweisungen für die Erstellung von universellen Texten ein..."
+                                            helpText="z.B. allgemeine Schreibweise, politische Grundhaltung, Formulierungspräferenzen"
+                                            minRows={4}
+                                            disabled={isSaving}
+                                            control={control}
+                                        />
+                                    </div>
+                                )}
+
+                                {currentView === 'gruenejugend' && (
+                                    <div className="form-group">
+                                        <div className="header-with-help">
+                                            <div className="form-group-title">Anweisungen für Grüne Jugend</div>
+                                            <HelpTooltip>
+                                                <p>Diese Anweisungen werden bei der Erstellung von Grüne Jugend-Inhalten berücksichtigt.</p>
+                                                <p><strong>Tipp:</strong> Verwende jugendgerechte Sprache und fokussiere auf Aktivismus-Themen.</p>
+                                            </HelpTooltip>
+                                        </div>
+                                        
+                                        <Textarea
+                                            name="customGruenejugendPrompt"
+                                            label="Persönliche Anweisungen:"
+                                            placeholder="Gib hier deine Anweisungen für die Erstellung von Grüne Jugend-Inhalten ein..."
+                                            helpText="z.B. jugendgerechte Sprache, spezielle Themen, Aktivismus-Fokus"
                                             minRows={4}
                                             disabled={isSaving}
                                             control={control}
@@ -171,22 +287,22 @@ const AnweisungenWissenTab = ({ isActive }) => {
 
                                 {currentView === 'wissen' && (
                                     <div className="form-group knowledge-management-section">
-                                        <div className="form-group-title-container" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-medium)' }}>
+                                        <div className="form-group-title-container flex-between">
                                             <div className="form-group-title">Persönliches Wissen</div>
                                             <button
                                                 type="button"
-                                                className="add-knowledge-button"
+                                                className="btn-primary size-s"
                                                 onClick={handleAddKnowledge}
                                                 disabled={isSaving || isDeleting || fields.length >= MAX_KNOWLEDGE_ENTRIES}
                                             >
-                                                <HiPlus /> Wissen hinzufügen
+                                                <HiPlus className="icon" /> Wissen hinzufügen
                                             </button>
                                         </div>
 
                                         {fields.length === 0 && (
-                                            <div className="knowledge-empty-state" style={{ textAlign: 'center', padding: 'var(--spacing-large)', backgroundColor: 'var(--background-color-alt)', borderRadius: 'var(--border-radius-medium)', marginTop: 'var(--spacing-medium)' }}>
+                                            <div className="knowledge-empty-state centered">
                                                 <p>Du hast noch keine Wissensbausteine hinterlegt.</p>
-                                                <p style={{ marginTop: 'var(--spacing-small)', color: 'var(--font-color-subtle)' }}>
+                                                <p>
                                                     Klicke auf "Wissen hinzufügen", um wiederkehrende Informationen zu speichern.
                                                 </p>
                                             </div>
@@ -233,21 +349,14 @@ const AnweisungenWissenTab = ({ isActive }) => {
                                     </div>
                                 )}
                                 
-                                <div className="profile-actions profile-actions-container" style={{ marginTop: 'var(--spacing-large)' }}>
-                                    <button
-                                        type="submit"
-                                        className="profile-action-button profile-primary-button"
-                                        disabled={!hasUnsavedChanges || isSaving || isDeleting}
-                                        aria-live="polite"
-                                    >
-                                        {isSaving ? <Spinner size="small" /> : 'Änderungen speichern'}
-                                    </button>
+                                <div className="form-help-text">
+                                    {isSaving ? 'Wird gespeichert...' : 'Änderungen werden automatisch gespeichert'}
                                 </div>
                             </div>
                         </div>
                     </div>
                 </motion.div>
-            </form>
+            </div>
         </FormProvider>
     );
 };

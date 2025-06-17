@@ -50,7 +50,7 @@ passport.use('oidc', new OidcClientStrategy({
       _raw_claims: claims
     };
 
-    const user = await handleUserProfile(profile);
+    const user = await handleUserProfile(profile, req);
 
     if (user && tokenset.id_token) {
       user.id_token = tokenset.id_token;
@@ -96,7 +96,7 @@ passport.deserializeUser(async (userData, done) => {
 });
 
 // Helper function to handle user profile from Keycloak
-async function handleUserProfile(profile) {
+async function handleUserProfile(profile, req = null) {
   console.log('[handleUserProfile] Processing profile from Keycloak for ID:', profile.id);
   console.log('[handleUserProfile] Full profile object:', JSON.stringify(profile, null, 2));
 
@@ -107,6 +107,17 @@ async function handleUserProfile(profile) {
 
   if (!keycloakId) {
     throw new Error('No Keycloak ID (sub) found in profile');
+  }
+
+  // Determine auth source based on session data or claims
+  let authSource = null;
+  if (req?.session?.preferredSource) {
+    authSource = req.session.preferredSource;
+    console.log('[handleUserProfile] Auth source from session:', authSource);
+  } else {
+    // Fallback: try to determine from profile data or default to gruenerator-login
+    authSource = 'gruenerator-login';
+    console.log('[handleUserProfile] Auth source defaulted to:', authSource);
   }
 
   // Allow users without email (use username or keycloak ID as fallback)
@@ -133,16 +144,18 @@ async function handleUserProfile(profile) {
         return await updateUser(existingUser.id, {
           display_name: name,
           username,
+          email: existingUser.email || null, // Keep existing email to avoid conflict
           last_login: new Date().toISOString(),
-        });
+        }, authSource);
       }
     }
     
     return await updateUser(existingUser.id, {
       display_name: name,
       username,
+      email: email || existingUser.email || null, // Sync email from auth, preserve existing if no new email
       last_login: new Date().toISOString(),
-    });
+    }, authSource);
   }
 
   // Check for existing user by email (only if email exists)
@@ -156,7 +169,7 @@ async function handleUserProfile(profile) {
         display_name: name,
         username,
         last_login: new Date().toISOString(),
-      });
+      }, authSource);
     }
   }
 
@@ -167,6 +180,7 @@ async function handleUserProfile(profile) {
     name,
     username,
     last_login: new Date().toISOString(),
+    auth_source: authSource,
   });
 }
 
@@ -240,6 +254,8 @@ async function createUser(profileData) {
         name: profileData.name,
         username: profileData.username,
         keycloak_id: profileData.keycloak_id,
+        auth_source: profileData.auth_source,
+        memory_enabled: false, // Default memory disabled for new users
       }
     });
 
@@ -261,6 +277,7 @@ async function createUser(profileData) {
       keycloak_id: profileData.keycloak_id,
       username: profileData.username,
       display_name: profileData.name,
+      email: profileData.email || null, // Sync email from auth.users to profiles
       last_login: profileData.last_login,
     };
 
@@ -291,8 +308,25 @@ async function createUser(profileData) {
 }
 
 // Update existing user
-async function updateUser(userId, updates) {
+async function updateUser(userId, updates, authSource = null) {
   try {
+    // Update user metadata in Supabase Auth if auth_source is provided
+    if (authSource) {
+      const { data: authUser } = await supabaseService.auth.admin.getUserById(userId);
+      if (authUser?.user) {
+        const updatedMetadata = {
+          ...authUser.user.user_metadata,
+          auth_source: authSource,
+        };
+        
+        await supabaseService.auth.admin.updateUserById(userId, {
+          user_metadata: updatedMetadata
+        });
+        
+        console.log('[updateUser] Updated auth_source in user metadata:', authSource);
+      }
+    }
+
     const { data, error } = await supabaseService
       .from('profiles')
       .update(updates)
@@ -324,8 +358,26 @@ async function updateUser(userId, updates) {
 }
 
 // Link Keycloak ID to existing user
-async function linkUser(userId, updates) {
+async function linkUser(userId, updates, authSource = null) {
   try {
+    // Update user metadata in Supabase Auth if auth_source is provided
+    if (authSource) {
+      const { data: authUser } = await supabaseService.auth.admin.getUserById(userId);
+      if (authUser?.user) {
+        const updatedMetadata = {
+          ...authUser.user.user_metadata,
+          auth_source: authSource,
+          keycloak_id: updates.keycloak_id,
+        };
+        
+        await supabaseService.auth.admin.updateUserById(userId, {
+          user_metadata: updatedMetadata
+        });
+        
+        console.log('[linkUser] Updated auth_source in user metadata:', authSource);
+      }
+    }
+
     const { data, error } = await supabaseService
       .from('profiles')
       .update(updates)
@@ -378,8 +430,8 @@ async function linkExistingAuthUser(profileData) {
     
     console.log('[linkExistingAuthUser] Found existing auth user:', existingAuthUser.id);
     
-    // Update auth user metadata with new Keycloak ID
-    const { data: updatedAuthUser, error: updateError } = await supabaseService.auth.admin.updateUserById(
+    // Update auth user metadata with new Keycloak ID and auth_source
+    const { error: updateError } = await supabaseService.auth.admin.updateUserById(
       existingAuthUser.id,
       {
         user_metadata: {
@@ -387,6 +439,8 @@ async function linkExistingAuthUser(profileData) {
           name: profileData.name,
           username: profileData.username,
           keycloak_id: profileData.keycloak_id,
+          auth_source: profileData.auth_source,
+          memory_enabled: existingAuthUser.user_metadata?.memory_enabled || false, // Preserve existing memory settings
         }
       }
     );
@@ -395,12 +449,13 @@ async function linkExistingAuthUser(profileData) {
       console.error('[linkExistingAuthUser] Error updating auth user metadata:', updateError);
     }
     
-    // Create or update profile record (don't set email as it's managed by auth)
+    // Create or update profile record, sync email from auth
     const newProfileData = {
       id: existingAuthUser.id,
       keycloak_id: profileData.keycloak_id,
       username: profileData.username,
       display_name: profileData.name,
+      email: profileData.email || null, // Sync email from auth.users to profiles
       last_login: profileData.last_login,
     };
 

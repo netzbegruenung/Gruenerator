@@ -1,6 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const { HTML_FORMATTING_INSTRUCTIONS } = require('../utils/promptUtils');
+const {
+  HTML_FORMATTING_INSTRUCTIONS,
+  isStructuredPrompt,
+  formatUserContent
+} = require('../utils/promptUtils');
 
 const platformGuidelines = {
   instagram: {
@@ -77,6 +81,9 @@ const platformGuidelines = {
 
 router.post('/', async (req, res) => {
   const { thema, details, platforms = [], customPrompt } = req.body;
+  
+  // Aktuelles Datum ermitteln
+  const currentDate = new Date().toISOString().split('T')[0];
   console.log('[claude_gruene_jugend] Anfrage erhalten:', { 
     thema, 
     details, 
@@ -110,10 +117,7 @@ router.post('/', async (req, res) => {
     
     if (customPrompt) {
       // Bei benutzerdefiniertem Prompt diesen verwenden, aber mit Plattforminformationen ergänzen
-      userContent = `
-Benutzerdefinierter Prompt: ${customPrompt}
-
-Erstelle Inhalte für folgende Plattformen: ${platforms.join(', ')}
+      const additionalInfo = `Erstelle Inhalte für folgende Plattformen: ${platforms.join(', ')}
 
 ${platforms.map(platform => {
   const guidelines = platformGuidelines[platform];
@@ -121,6 +125,13 @@ ${platforms.map(platform => {
 }).join('\n')}
 
 ${HTML_FORMATTING_INSTRUCTIONS}`;
+
+      userContent = formatUserContent({
+        customPrompt,
+        baseContent: '',
+        currentDate, 
+        additionalInfo
+      });
     } else {
       // Standardinhalt ohne benutzerdefinierten Prompt
       userContent = `

@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
-import { motion, AnimatePresence } from "motion/react";
+import { motion } from "motion/react";
 import StyledCheckbox from '../../../../components/common/AnimatedCheckbox';
 import { HiOutlineExternalLink } from 'react-icons/hi';
 
@@ -40,19 +40,6 @@ const LaborTab = ({
     COLLAB: 'collab',
   };
 
-  const [currentView, setCurrentView] = useState('deutschlandmodus');
-
-  // Set default view to first available feature if current is not available
-  useEffect(() => {
-    if (availableFeatures.length > 0 && !availableFeatures.find(f => f.key === currentView)) {
-      setCurrentView(availableFeatures[0].key);
-    }
-  }, [availableFeatures, currentView]);
-
-  const handleViewChange = (view) => {
-    setCurrentView(view);
-  };
-
   const handleBetaToggle = (setter, currentValue, featureName) => {
     const newValue = !currentValue;
     setter(newValue);
@@ -60,176 +47,89 @@ const LaborTab = ({
     onErrorLaborMessage('');
   };
 
-  const renderNavigationPanel = () => (
-    <div className="groups-vertical-navigation"> 
-      {availableFeatures.map((feature) => (
-        <button
-          key={feature.key}
-          className={`groups-vertical-tab ${currentView === feature.key ? 'active' : ''}`}
-          onClick={() => handleViewChange(feature.key)}
-        >
-          {feature.label}
-          {feature.isAdminOnly && <span className="admin-badge"> (Admin)</span>}
-        </button>
-      ))}
-    </div>
-  );
-
-  const renderContentPanel = () => {
-    let content = null;
-    switch (currentView) {
+  const getBetaFeatureConfig = (viewKey) => {
+    switch (viewKey) {
       case BETA_VIEWS.DEUTSCHLANDMODUS:
-        content = (
-          <div className="labor-tab-checkbox-container">
-            <StyledCheckbox
-              id="deutschlandmodus-beta"
-              label="Deutschlandmodus aktivieren"
-              checked={deutschlandmodusBeta}
-              onChange={() => handleBetaToggle(setDeutschlandmodusBeta, deutschlandmodusBeta, 'Deutschlandmodus')}
-              aria-label="Deutschlandmodus Beta-Test aktivieren"
-            />
-          </div>
-        );
-        break;
+        return {
+          title: 'Deutschlandmodus',
+          description: 'Aktiviere spezielle Funktionen für Deutschland-spezifische Inhalte.',
+          checked: deutschlandmodusBeta,
+          setter: setDeutschlandmodusBeta,
+          featureName: 'Deutschlandmodus',
+          checkboxLabel: 'Deutschlandmodus aktivieren'
+        };
       case BETA_VIEWS.GROUPS:
-        content = (
-          <div className="labor-tab-checkbox-container">
-            <StyledCheckbox
-              id="groups-beta"
-              label="Gruppen-Tab anzeigen und Funktionalität aktivieren"
-              checked={groupsBeta}
-              onChange={() => handleBetaToggle(setGroupsBeta, groupsBeta, 'Gruppen')}
-              aria-label="Gruppen Beta-Test aktivieren"
-            />
-          </div>
-        );
-        break;
+        return {
+          title: 'Gruppen-Verwaltung',
+          description: 'Verwalte deine Gruppen und arbeite gemeinsam an Projekten.',
+          checked: groupsBeta,
+          setter: setGroupsBeta,
+          featureName: 'Gruppen',
+          checkboxLabel: 'Gruppen-Tab anzeigen und Funktionalität aktivieren'
+        };
       case BETA_VIEWS.DATABASE:
-        content = (
-          <>
-            <div className="labor-tab-checkbox-container">
-              <StyledCheckbox
-                id="database-beta"
-                label="'Texte & Vorlagen'-Tab (Datenbank) anzeigen und Funktionalität aktivieren"
-                checked={databaseBeta}
-                onChange={() => handleBetaToggle(setDatabaseBeta, databaseBeta, 'Datenbank')}
-                aria-label="Datenbank Beta-Test aktivieren"
-              />
-            </div>
-            {databaseBeta && (
-              <Link to="/datenbank" className="profile-action-button profile-secondary-button labor-tab-external-link">
-                Zur Datenbank <HiOutlineExternalLink className="labor-tab-external-link-icon"/>
-              </Link>
-            )}
-          </>
-        );
-        break;
+        return {
+          title: 'Texte & Vorlagen',
+          description: 'Zugang zur Datenbank mit Texten und Vorlagen für deine Arbeit.',
+          checked: databaseBeta,
+          setter: setDatabaseBeta,
+          featureName: 'Datenbank',
+          checkboxLabel: '\'Texte & Vorlagen\'-Tab (Datenbank) anzeigen und Funktionalität aktivieren',
+          linkTo: '/datenbank',
+          linkText: 'Zur Datenbank'
+        };
       case BETA_VIEWS.GENERATORS:
-        content = (
-          <div className="labor-tab-checkbox-container">
-            <StyledCheckbox
-              id="custom-generators-beta"
-              label="'Meine Grüneratoren'-Tab anzeigen und Funktionalität aktivieren"
-              checked={customGeneratorsBeta}
-              onChange={() => handleBetaToggle(setCustomGeneratorsBeta, customGeneratorsBeta, 'Grüneratoren')}
-              aria-label="Eigene Grüneratoren Beta-Test aktivieren"
-            />
-          </div>
-        );
-        break;
+        return {
+          title: 'Meine Grüneratoren',
+          description: 'Erstelle und verwalte deine eigenen benutzerdefinierten Grüneratoren.',
+          checked: customGeneratorsBeta,
+          setter: setCustomGeneratorsBeta,
+          featureName: 'Grüneratoren',
+          checkboxLabel: '\'Meine Grüneratoren\'-Tab anzeigen und Funktionalität activieren'
+        };
       case BETA_VIEWS.SHAREPIC:
-        content = (
-          <>
-            <div className="labor-tab-checkbox-container">
-              <StyledCheckbox
-                id="sharepic-beta"
-                label="Link zum Sharepic-Grünerator anzeigen"
-                checked={sharepicBeta}
-                onChange={() => handleBetaToggle(setSharepicBeta, sharepicBeta, 'Sharepic Link')}
-                aria-label="Sharepic Link Beta-Test aktivieren"
-              />
-            </div>
-            {sharepicBeta && (
-              <Link to="/sharepic" className="profile-action-button profile-secondary-button labor-tab-external-link">
-                Zum Sharepic Grünerator <HiOutlineExternalLink className="labor-tab-external-link-icon"/>
-              </Link>
-            )}
-          </>
-        );
-        break;
+        return {
+          title: 'Sharepic-Grünerator',
+          description: 'Erstelle ansprechende Sharepics für deine Social Media Kanäle.',
+          checked: sharepicBeta,
+          setter: setSharepicBeta,
+          featureName: 'Sharepic Link',
+          checkboxLabel: 'Link zum Sharepic-Grünerator anzeigen',
+          linkTo: '/sharepic',
+          linkText: 'Zum Sharepic Grünerator'
+        };
       case BETA_VIEWS.ANWEISUNGEN:
-        content = (
-          <div className="labor-tab-checkbox-container">
-            <StyledCheckbox
-              id="anweisungen-beta"
-              label="'Anweisungen & Wissen'-Tab anzeigen und Funktionalität aktivieren"
-              checked={anweisungenBeta}
-              onChange={() => handleBetaToggle(setAnweisungenBeta, anweisungenBeta, 'Anweisungen & Wissen')}
-              aria-label="Anweisungen & Wissen Beta-Test aktivieren"
-            />
-          </div>
-        );
-        break;
+        return {
+          title: 'Anweisungen & Wissen',
+          description: 'Verwalte persönliche Anweisungen und Wissensbausteine für die KI.',
+          checked: anweisungenBeta,
+          setter: setAnweisungenBeta,
+          featureName: 'Anweisungen & Wissen',
+          checkboxLabel: '\'Anweisungen & Wissen\'-Tab anzeigen und Funktionalität aktivieren'
+        };
       case BETA_VIEWS.YOU:
-        content = (
-          <>
-            <div className="labor-tab-checkbox-container">
-              <StyledCheckbox
-                id="you-beta"
-                label="You Grünerator aktivieren"
-                checked={youBeta}
-                onChange={() => handleBetaToggle(setYouBeta, youBeta, 'You Generator')}
-                aria-label="You Grünerator Beta-Test aktivieren"
-              />
-            </div>
-            {youBeta && (
-              <Link to="/you" className="profile-action-button profile-secondary-button labor-tab-external-link">
-                Zum You Grünerator <HiOutlineExternalLink className="labor-tab-external-link-icon"/>
-              </Link>
-            )}
-          </>
-        );
-        break;
+        return {
+          title: 'You Grünerator',
+          description: 'Personalisierte Inhalte basierend auf deinem Profil und deinen Vorlieben.',
+          checked: youBeta,
+          setter: setYouBeta,
+          featureName: 'You Generator',
+          checkboxLabel: 'You Grünerator aktivieren',
+          linkTo: '/you',
+          linkText: 'Zum You Grünerator'
+        };
       case BETA_VIEWS.COLLAB:
-        content = (
-          <div className="labor-tab-checkbox-container">
-            <StyledCheckbox
-              id="collab-beta"
-              label="Kollaborative Bearbeitung aktivieren"
-              checked={collabBeta}
-              onChange={() => handleBetaToggle(setCollabBeta, collabBeta, 'Kollaborative Bearbeitung')}
-              aria-label="Kollaborative Bearbeitung Beta-Test aktivieren"
-            />
-          </div>
-        );
-        break;
+        return {
+          title: 'Kollaborative Bearbeitung',
+          description: 'Arbeite in Echtzeit mit anderen an Dokumenten und Texten.',
+          checked: collabBeta,
+          setter: setCollabBeta,
+          featureName: 'Kollaborative Bearbeitung',
+          checkboxLabel: 'Kollaborative Bearbeitung aktivieren'
+        };
       default:
-        content = <p>Bitte wähle einen Beta-Test aus.</p>;
+        return null;
     }
-
-    return (
-      <motion.div
-        key={currentView}
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -10 }}
-        transition={{ duration: 0.2 }}
-        className="profile-form-section"
-      >
-        <div className="form-group">
-          <div className="form-group-title labor-tab-title">{currentView.replace('_',' ')} Einstellungen</div>
-          <p className="labor-tab-help-text">
-            Aktiviere oder deaktiviere hier einzelne Beta-Funktionen. Änderungen werden sofort wirksam.
-          </p>
-          {content}
-        </div>
-        {!isAdmin && availableFeatures.some(f => f.isAdminOnly) && (
-          <div className="labor-tab-admin-notice">
-            <p><strong>Hinweis:</strong> Einige Beta-Features sind nur für Administratoren verfügbar.</p>
-          </div>
-        )}
-      </motion.div>
-    );
   };
 
   if (!isActive) {
@@ -238,18 +138,64 @@ const LaborTab = ({
 
   return (
     <motion.div 
-      className="profile-content groups-management-layout"
+      className="profile-content"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3 }}
-    > 
-      <div className="groups-navigation-panel">
-        {renderNavigationPanel()}
-      </div>
-      <div className="groups-content-panel">
-        <AnimatePresence mode="wait">
-          {renderContentPanel()}
-        </AnimatePresence>
+    >
+      <div className="profile-form-section">
+        <div className="auth-form">
+          <div className="profile-cards-grid">
+            {availableFeatures.map(feature => {
+              const config = getBetaFeatureConfig(feature.key);
+              if (!config) return null;
+
+              return (
+                <div key={feature.key} className="profile-card">
+                  <div className="profile-card-header">
+                    <h3>{config.title}</h3>
+                    {feature.isAdminOnly && <span className="admin-badge">Admin</span>}
+                  </div>
+                  <div className="profile-card-content">
+                    <p className="group-description">
+                      {config.description}
+                    </p>
+                    
+                    <div className="labor-tab-checkbox-container">
+                      <StyledCheckbox
+                        id={`${feature.key}-beta`}
+                        label={config.checkboxLabel}
+                        checked={config.checked}
+                        onChange={() => handleBetaToggle(config.setter, config.checked, config.featureName)}
+                        aria-label={`${config.featureName} Beta-Test aktivieren`}
+                      />
+                    </div>
+
+                    {config.linkTo && config.checked && (
+                      <Link 
+                        to={config.linkTo} 
+                        className="profile-action-button profile-secondary-button labor-tab-external-link"
+                      >
+                        {config.linkText} <HiOutlineExternalLink className="labor-tab-external-link-icon"/>
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {!isAdmin && availableFeatures.some(f => f.isAdminOnly) && (
+            <div className="profile-card" style={{marginTop: 'var(--spacing-large)'}}>
+              <div className="profile-card-header">
+                <h3>Administrator-Features</h3>
+              </div>
+              <div className="profile-card-content">
+                <p><strong>Hinweis:</strong> Einige Beta-Features sind nur für Administratoren verfügbar.</p>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </motion.div>
   );
