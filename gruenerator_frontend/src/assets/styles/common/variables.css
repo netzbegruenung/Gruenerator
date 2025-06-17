@@ -1,36 +1,84 @@
 :root {
+    /* Base Colors */
+    --black: #000000;
+    --white: #ffffff;
     
-    --tanne: #005538;
-    --klee: #008939;
-    --grashalm: #8ABD24;
-    --sand: #F5F1E9;
-    --himmel: #0BA1DD;
-    --sonne: #FFF17A;
-    --weiß: #ffffff;
-    --dunkelgruen: #005437;
-    --dunkelgruen-alt: #004d40; 
+    /* Primary Color System ("Klee") - Limited digital use, mainly illustrations */
+    --primary-50: #e8f5e8;
+    --primary-100: #c8e6c8;
+    --primary-200: #a3d4a3;
+    --primary-300: #7dc17d;
+    --primary-400: #60b260;
+    --primary-500: #42a342;
+    --primary-600: #008939;  /* Base "Klee" color */
+    --primary-700: #007230;
+    --primary-800: #005c27;
+    --primary-900: #004019;
+    --primary-950: #002d12;
+    
+    /* Secondary Color System ("Tanne") - Primary digital interaction color */
+    --secondary-50: #e8f2ee;
+    --secondary-100: #c8dfd5;
+    --secondary-200: #a3c9b8;
+    --secondary-300: #7db39a;
+    --secondary-400: #60a183;
+    --secondary-500: #428f6c;
+    --secondary-600: #005538;  /* Base "Tanne" color */
+    --secondary-700: #004a2f;
+    --secondary-800: #003e26;
+    --secondary-900: #00321d;
+    --secondary-950: #002315;
+    
+    /* Grey Color System */
+    --grey-50: #f9f9f9;
+    --grey-100: #efefef;
+    --grey-200: #dcdcdc;
+    --grey-300: #bdbdbd;
+    --grey-400: #989898;
+    --grey-500: #7c7c7c;
+    --grey-600: #656565;
+    --grey-700: #525252;
+    --grey-800: #464646;
+    --grey-900: #3d3d3d;
+    --grey-950: #262626;
+    
+    /* Neutral Color System ("Sand") - Backgrounds and subtle hover */
+    --neutral-500: #f8f4ec;
+    --neutral-600: #F5F1E9;  /* Base "Sand" color */
+    --neutral-700: #e8e0d4;
+    
+    /* Legacy compatibility - maintaining old variable names */
+    --tanne: var(--secondary-600);
+    --klee: var(--primary-600);
+    --grashalm: var(--grashalm-600);
+    --sand: var(--neutral-600);
+    --himmel: var(--himmel-600);
+    --sonne: var(--sun-600);
+    --weiß: var(--white);
+    --dunkelgruen: var(--secondary-700);
+    --dunkelgruen-alt: var(--secondary-800); 
     --error-red: #D32F2F;
 
-    --backgroundgruen: #f3faf6;
-    --backgroundgruen-dark: #e0f6e7;
-    --dunkelgrau: #333;
-    --anthrazit: #222;
+    --backgroundgruen: var(--primary-50);
+    --backgroundgruen-dark: var(--primary-100);
+    --dunkelgrau: var(--grey-900);
+    --anthrazit: var(--grey-950);
 
-    
-    --background-color: white;
-    --background-color-pure: white;
+    /* Semantic Color Variables - Theme-aware */
+    --background-color: var(--white);
+    --background-color-pure: var(--white);
     --background-color-alt: var(--backgroundgruen);
-    --background-color-sand: var(--sand);
-    --hover-color-alt: #e5f1eb;
-    --font-color: var(--dunkelgrau);
-    --font-color-h: var(--tanne);
-    --font-color-h3: var(--tanne);
-    --link-color: var(--tanne);
-    --button-background-color: #e0e0e0;
-    --button-color: var(--tanne);
-    --button-color-hover: var(--sand);
-    --button-text-color: black;
-    --button-hover-color: #e5f1eb;
+    --background-color-sand: var(--neutral-600);
+    --hover-color-alt: var(--secondary-50);
+    --font-color: var(--grey-800);
+    --font-color-h: var(--secondary-600);
+    --font-color-h3: var(--secondary-600);
+    --link-color: var(--secondary-600);
+    --button-background-color: var(--grey-200);
+    --button-color: var(--secondary-600);
+    --button-color-hover: var(--neutral-600);
+    --button-text-color: var(--black);
+    --button-hover-color: var(--secondary-50);
     
     
     --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
@@ -48,23 +96,23 @@
     --spacing-xxlarge: 48px;
 
     
-    --interactive-accent-color: var(--tanne);
-    --font-color-disabled: #a0a0a0;
-    --border-color-disabled: #dcdcdc;
+    --interactive-accent-color: var(--secondary-600);
+    --font-color-disabled: var(--grey-400);
+    --border-color-disabled: var(--grey-200);
 
     /* Scrollbar variables */
     --scrollbar-track-color: var(--background-color-alt);
-    --scrollbar-thumb-color: var(--dunkelgrau);
-    --scrollbar-thumb-hover-color: var(--anthrazit);
+    --scrollbar-thumb-color: var(--grey-600);
+    --scrollbar-thumb-hover-color: var(--grey-700);
 
     /* Custom Chat variables */
     --chat-background-light: var(--backgroundgruen);
-    --ai-message-background-light: var(--weiß);
-    --ai-message-text-color-light: var(--dunkelgrau);
-    --assistant-icon-background-light: var(--weiß);
-    --assistant-icon-color-light: var(--dunkelgrau);
-    --chat-message-user-name-color-light: var(--grau);
-    --chat-input-background-light: var(--weiß); 
+    --ai-message-background-light: var(--white);
+    --ai-message-text-color-light: var(--grey-800);
+    --assistant-icon-background-light: var(--white);
+    --assistant-icon-color-light: var(--grey-800);
+    --chat-message-user-name-color-light: var(--grey-600);
+    --chat-input-background-light: var(--white); 
     --chat-input-text-color-light: var(--font-color);
     --chat-input-border-color-light: var(--background-color-alt);
 
@@ -95,7 +143,7 @@
     --card-hover-transform: translateY(-2px);
 
     /* Form Input Styles */
-    --input-background: var(--backgroundgruen-dark);
+    --input-background: var(--grey-100);
     --input-border: var(--border-subtle);
     --input-border-focus: 2px solid var(--interactive-accent-color);
     --input-border-error: 2px solid var(--error-red);
@@ -114,20 +162,20 @@
 
 
 [data-theme="dark"] {
-    --background-color: #222;
-    --background-color-pure: #232323;
-    --background-color-alt: #343434;
-    --background-color-sand: #343434;
-    --hover-color-alt: #3d3d3d;
-    --font-color: var(--sand);
-    --font-color-h: var(--sand);
-    --font-color-h3: var(--sand);
-    --link-color: var(--sand);
-    --button-background-color: var(--tanne);
-    --button-color: var(--sand);
-    --button-color-hover: var(--klee);
-    --button-text-color: white;
-    --button-hover-color: #3d3d3d;
+    --background-color: var(--grey-950);
+    --background-color-pure: var(--grey-950);
+    --background-color-alt: var(--grey-950);
+    --background-color-sand: var(--grey-950);
+    --hover-color-alt: var(--grey-700);
+    --font-color: var(--neutral-600);
+    --font-color-h: var(--neutral-600);
+    --font-color-h3: var(--neutral-600);
+    --link-color: var(--neutral-600);
+    --button-background-color: var(--secondary-600);
+    --button-color: var(--neutral-600);
+    --button-color-hover: var(--primary-600);
+    --button-text-color: var(--white);
+    --button-hover-color: var(--grey-700);
     
     
     --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
@@ -137,22 +185,22 @@
     --border-subtle: 1px solid rgba(255, 255, 255, 0.1);
 
     
-    --interactive-accent-color: var(--weiß);
-    --font-color-disabled: #777777;
-    --border-color-disabled: #555555;
+    --interactive-accent-color: var(--white);
+    --font-color-disabled: var(--grey-500);
+    --border-color-disabled: var(--grey-600);
 
     /* Scrollbar variables for dark theme */
-    --scrollbar-track-color: var(--background-color-alt); /* Uses dark theme's --background-color-alt */
-    --scrollbar-thumb-color: var(--sand); /* Uses root --sand, which is light */
-    --scrollbar-thumb-hover-color: var(--weiß); /* Uses root --weiß */
+    --scrollbar-track-color: var(--background-color-alt);
+    --scrollbar-thumb-color: var(--neutral-600);
+    --scrollbar-thumb-hover-color: var(--white);
 
-    /* Custom Chat variables for dark theme - keep as is */
-    --chat-background: var(--background-color); /* Default dark background */
-    --ai-message-background: var(--background-color-alt); /* Default dark alt background for assistant messages */
-    --ai-message-text-color: var(--font-color); /* Default dark font color for assistant messages */
+    /* Custom Chat variables for dark theme */
+    --chat-background: var(--background-color);
+    --ai-message-background: var(--background-color-alt);
+    --ai-message-text-color: var(--font-color);
     --assistant-icon-background: var(--background-color-alt);
     --assistant-icon-color: var(--font-color);
-    --chat-message-user-name-color: var(--grau); /* Assuming grau is fine for dark mode too, or define a specific dark var */
+    --chat-message-user-name-color: var(--grey-400);
     --chat-input-background: var(--background-color);
     --chat-input-text-color: var(--font-color);
     --chat-input-border-color: var(--background-color-alt);
@@ -164,20 +212,20 @@
 
 @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-        --background-color: #222;
-        --background-color-pure: #232323;
-        --background-color-alt: #343434;
-        --background-color-sand: var(--dunkelgruen);
-        --hover-color-alt: #3d3d3d;
-        --font-color: var(--sand);
-        --font-color-h: var(--sand);
-        --font-color-h3: var(--sand);
-        --link-color: var(--sand);
-        --button-background-color: var(--tanne);
-        --button-color: var(--sand);
-        --button-color-hover: var(--klee);
-        --button-text-color: white;
-        --button-hover-color: #3d3d3d;
+        --background-color: var(--grey-950);
+        --background-color-pure: var(--grey-950);
+        --background-color-alt: var(--grey-800);
+        --background-color-sand: var(--secondary-700);
+        --hover-color-alt: var(--grey-700);
+        --font-color: var(--neutral-600);
+        --font-color-h: var(--neutral-600);
+        --font-color-h3: var(--neutral-600);
+        --link-color: var(--neutral-600);
+        --button-background-color: var(--secondary-600);
+        --button-color: var(--neutral-600);
+        --button-color-hover: var(--primary-600);
+        --button-text-color: var(--white);
+        --button-hover-color: var(--grey-700);
         
         
         --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
@@ -187,22 +235,22 @@
         --border-subtle: 1px solid rgba(255, 255, 255, 0.1);
 
         
-        --interactive-accent-color: var(--weiß);
-        --font-color-disabled: #777777;
-        --border-color-disabled: #555555;
+        --interactive-accent-color: var(--white);
+        --font-color-disabled: var(--grey-500);
+        --border-color-disabled: var(--grey-600);
 
         /* Scrollbar variables for prefers-color-scheme: dark */
-        --scrollbar-track-color: var(--background-color-alt); /* Uses dark theme's --background-color-alt */
-        --scrollbar-thumb-color: var(--sand); /* Uses root --sand, which is light */
-        --scrollbar-thumb-hover-color: var(--weiß); /* Uses root --weiß */
+        --scrollbar-track-color: var(--background-color-alt);
+        --scrollbar-thumb-color: var(--neutral-600);
+        --scrollbar-thumb-hover-color: var(--white);
 
-        /* Custom Chat variables for prefers-color-scheme: dark - keep as is */
-        --chat-background: var(--background-color); /* Default dark background */
-        --ai-message-background: var(--background-color-alt); /* Default dark alt background for assistant messages */
-        --ai-message-text-color: var(--font-color); /* Default dark font color for assistant messages */
+        /* Custom Chat variables for prefers-color-scheme: dark */
+        --chat-background: var(--background-color);
+        --ai-message-background: var(--background-color-alt);
+        --ai-message-text-color: var(--font-color);
         --assistant-icon-background: var(--background-color-alt);
         --assistant-icon-color: var(--font-color);
-        --chat-message-user-name-color: var(--grau);
+        --chat-message-user-name-color: var(--grey-400);
         --chat-input-background: var(--background-color);
         --chat-input-text-color: var(--font-color);
         --chat-input-border-color: var(--background-color-alt);

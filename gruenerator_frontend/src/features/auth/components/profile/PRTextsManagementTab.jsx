@@ -248,10 +248,10 @@ const PRTextsManagementTab = ({ user, templatesSupabase, onSuccessMessage, onErr
           {prTexts.length > 0 && (
             <ul>
               {prTexts.map(text => (
-                <li key={text.id} style={{borderBottom: '1px solid #eee', padding: '10px 0', display: 'flex', justifyContent: 'space-between'}}>
+                <li key={text.id} className="pr-text-item">
                   <span>{text.title} (Erstellt: {new Date(text.created_at).toLocaleDateString()})</span>
                   <div>
-                    <button onClick={() => handleShowForm(text)} className="button" style={{marginRight: '8px'}} disabled={isUpdatingPRText || (isDeletingSinglePRText && deletingPRTextId === text.id)}>Bearbeiten</button>
+                    <button onClick={() => handleShowForm(text)} className="button pr-text-edit-button" disabled={isUpdatingPRText || (isDeletingSinglePRText && deletingPRTextId === text.id)}>Bearbeiten</button>
                     <button 
                         onClick={() => handleDelete(text.id)} 
                         className="button danger" 

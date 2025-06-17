@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useContext, useEffect } from 'react';
+import React, { useState, useCallback, useContext, useEffect, useMemo } from 'react';
 import PropTypes from 'prop-types';
 import { useForm, Controller } from 'react-hook-form';
 import BaseForm from '../../common/BaseForm';
@@ -11,6 +11,11 @@ import { FormContext } from '../../utils/FormContext';
 import ErrorBoundary from '../../ErrorBoundary';
 import { useFormFields } from '../../common/Form/hooks';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
+import useKnowledge from '../../hooks/useKnowledge';
+import { useOptimizedAuth } from '../../../hooks/useAuth';
+import { createKnowledgeFormNotice, createKnowledgePrompt } from '../../../utils/knowledgeFormUtils';
+import { useGeneratorKnowledgeStore } from '../../../stores/core/generatorKnowledgeStore';
+import { useAuthStore } from '../../../stores/authStore';
 
 const GrueneJugendGenerator = ({ showHeaderFooter = true }) => {
   const componentName = 'gruene-jugend';
@@ -18,22 +23,55 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }) => {
   const { Input, Textarea } = useFormFields();
   const { setGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
 
-  const platformOptions = [
+  const { user, betaFeatures } = useOptimizedAuth();
+  const { memoryEnabled } = useAuthStore();
+  const deutschlandmodus = betaFeatures?.deutschlandmodus;
+
+  // Initialize knowledge system
+  const instructionType = 'gruenejugend';
+  useKnowledge({ instructionType });
+  
+  // Get knowledge state from store
+  const {
+    source,
+    availableKnowledge,
+    isInstructionsActive,
+    instructions,
+    getKnowledgeContent,
+    getActiveInstruction,
+    groupData: groupDetailsData
+  } = useGeneratorKnowledgeStore();
+  
+  // Create form notice
+  const formNotice = createKnowledgeFormNotice({
+    source,
+    isLoadingGroupDetails: false, // useKnowledge handles loading
+    isInstructionsActive,
+    instructions,
+    instructionType,
+    groupDetailsData,
+    availableKnowledge,
+    deutschlandmodus
+  });
+
+  const platformOptions = useMemo(() => [
     { id: 'instagram', label: 'Instagram' },
     { id: 'twitter', label: 'Twitter/X' },
     { id: 'tiktok', label: 'TikTok' },
     { id: 'messenger', label: 'Messenger' },
     { id: 'reelScript', label: 'Instagram Reel' },
     { id: 'actionIdeas', label: 'Aktionsideen' }
-  ];
+  ], []);
 
-  const defaultPlatforms = platformOptions.reduce((acc, platformOpt) => {
-    acc[platformOpt.id] = initialContent?.platforms?.[platformOpt.id] || 
-                           (platformOpt.id === 'instagram' && initialContent?.isFromSharepic) || 
-                           (platformOpt.id === 'twitter' && initialContent?.isFromSharepic) || 
-                           false;
-    return acc;
-  }, {});
+  const defaultPlatforms = useMemo(() => {
+    return platformOptions.reduce((acc, platformOpt) => {
+      acc[platformOpt.id] = initialContent?.platforms?.[platformOpt.id] || 
+                             (platformOpt.id === 'instagram' && initialContent?.isFromSharepic) || 
+                             (platformOpt.id === 'twitter' && initialContent?.isFromSharepic) || 
+                             false;
+      return acc;
+    }, {});
+  }, [initialContent, platformOptions]);
   
   const {
     control,
@@ -53,15 +91,6 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }) => {
   const { submitForm, loading, success, resetSuccess, error } = useApiSubmit('/claude_gruene_jugend');
   const { /* setGeneratedContent, */ } = useContext(FormContext);
 
-
-  useEffect(() => {
-    reset({
-      thema: initialContent?.thema || '',
-      details: initialContent?.details || '',
-      ...defaultPlatforms
-    });
-  }, [initialContent, reset, defaultPlatforms]);
-
   const onSubmitRHF = useCallback(async (rhfData) => {
     setStoreIsLoading(true);
     try {
@@ -69,14 +98,37 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }) => {
         .filter(p => rhfData[p.id])
         .map(p => p.id);
 
-      const formData = { 
+      const formDataToSubmit = { 
         thema: rhfData.thema, 
         details: rhfData.details, 
         platforms: selectedPlatforms
       };
+      
+      // Add knowledge, instructions, and memories
+      const finalPrompt = await createKnowledgePrompt({
+        source,
+        isInstructionsActive,
+        getActiveInstruction,
+        instructionType,
+        groupDetailsData,
+        getKnowledgeContent,
+        memoryOptions: {
+          enableMemories: memoryEnabled,
+          query: rhfData.thema,
+          generatorType: 'gruenejugend',
+          userId: user?.id
+        }
+      });
+      
+      if (finalPrompt) {
+        formDataToSubmit.customPrompt = finalPrompt;
+        console.log('[GrueneJugendGenerator] Final structured prompt added to formData.', finalPrompt.substring(0,100)+'...');
+      } else {
+        console.log('[GrueneJugendGenerator] No custom instructions or knowledge for generation.');
+      }
 
-      console.log('[GrueneJugendGenerator] Sende Formular mit Daten:', formData);
-      const content = await submitForm(formData);
+      console.log('[GrueneJugendGenerator] Sende Formular mit Daten:', formDataToSubmit);
+      const content = await submitForm(formDataToSubmit);
       console.log('[GrueneJugendGenerator] API Antwort erhalten:', content);
       if (content) {
         console.log('[GrueneJugendGenerator] Setze generierten Content:', content.substring(0, 100) + '...');
@@ -89,7 +141,7 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }) => {
     } finally {
       setStoreIsLoading(false);
     }
-  }, [submitForm, resetSuccess, /* setGeneratedContent, */ setGeneratedText, setStoreIsLoading, platformOptions]);
+  }, [submitForm, resetSuccess, /* setGeneratedContent, */ setGeneratedText, setStoreIsLoading, platformOptions, source, isInstructionsActive, getActiveInstruction, groupDetailsData, getKnowledgeContent, memoryEnabled, user?.id]);
 
   const handleGeneratedContentChange = useCallback((content) => {
     console.log('[GrueneJugendGenerator] Content Change Handler aufgerufen mit:', content?.substring(0, 100) + '...');
@@ -127,7 +179,11 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }) => {
         minRows={3}
         maxRows={10}
       />
+    </>
+  );
 
+  const renderPlatformCheckboxesSection = () => (
+    <>
       <h3>Plattformen & Formate</h3>
       <div className="platform-checkboxes">
         {platformOptions.map((platformOpt) => (
@@ -160,8 +216,10 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }) => {
           error={error}
           generatedContent={socialMediaContent}
           onGeneratedContentChange={handleGeneratedContentChange}
-
+          formNotice={formNotice}
+          enableKnowledgeSelector={true}
           helpContent={helpContent}
+          bottomSectionChildren={renderPlatformCheckboxesSection()}
           componentName={componentName}
         >
           {renderFormInputs()}

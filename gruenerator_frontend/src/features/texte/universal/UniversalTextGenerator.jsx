@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useContext, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useContext, useRef, useEffect, useMemo } from 'react';
 import PropTypes from 'prop-types';
 // import { useDynamicTextSize } from '../../../components/utils/commonFunctions';
 import useApiSubmit from '../../../components/hooks/useApiSubmit';
@@ -10,6 +10,10 @@ import RedeForm from './RedeForm';
 import WahlprogrammForm from './WahlprogrammForm';
 import UniversalForm from './UniversalForm';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
+import useKnowledge from '../../../components/hooks/useKnowledge';
+import { useOptimizedAuth } from '../../../hooks/useAuth';
+import { createKnowledgeFormNotice, createKnowledgePrompt } from '../../../utils/knowledgeFormUtils';
+import { useGeneratorKnowledgeStore } from '../../../stores/core/generatorKnowledgeStore';
 
 const API_ENDPOINTS = {
   [TEXT_TYPES.REDE]: '/claude_rede',
@@ -23,6 +27,35 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
   const [generatedContent, setGeneratedContent] = useState('');
   const formRef = useRef();
   const { setGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
+  
+  const { betaFeatures } = useOptimizedAuth();
+  const deutschlandmodus = betaFeatures?.deutschlandmodus;
+  
+  // Initialize knowledge system
+  useKnowledge({ instructionType: 'universal' });
+  
+  // Get knowledge state from store
+  const {
+    source,
+    availableKnowledge,
+    isInstructionsActive,
+    instructions,
+    getKnowledgeContent,
+    getActiveInstruction,
+    groupData: groupDetailsData
+  } = useGeneratorKnowledgeStore();
+  
+  // Create form notice
+  const formNotice = createKnowledgeFormNotice({
+    source,
+    isLoadingGroupDetails: false, // useKnowledge handles loading
+    isInstructionsActive,
+    instructions,
+    instructionType: 'universal',
+    groupDetailsData,
+    availableKnowledge,
+    deutschlandmodus
+  });
   
   // const textSize = useDynamicTextSize(generatedContent, 1.2, 0.8, [1000, 2000]);
   const { submitForm, loading, success, resetSuccess, error } = useApiSubmit(API_ENDPOINTS[selectedType]);
@@ -39,6 +72,23 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
     if (!formData) return;
 
     try {
+      // Add knowledge and instructions
+      const finalPrompt = createKnowledgePrompt({
+        source,
+        isInstructionsActive,
+        getActiveInstruction,
+        instructionType: 'universal',
+        groupDetailsData,
+        getKnowledgeContent
+      });
+      
+      if (finalPrompt) {
+        formData.customPrompt = finalPrompt;
+        console.log('[UniversalTextGenerator] Final structured prompt added to formData.', finalPrompt.substring(0,100)+'...');
+      } else {
+        console.log('[UniversalTextGenerator] No custom instructions or knowledge for generation.');
+      }
+      
       const content = await submitForm(formData);
       if (content) {
         setGeneratedContent(content);
@@ -48,7 +98,7 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
     } catch (error) {
       console.error('Error submitting form:', error);
     }
-  }, [submitForm, resetSuccess, setGeneratedText, selectedType, componentName]);
+  }, [submitForm, resetSuccess, setGeneratedText, selectedType, componentName, source, isInstructionsActive, getActiveInstruction, groupDetailsData, getKnowledgeContent]);
 
   const handleGeneratedContentChange = useCallback((content) => {
     setGeneratedContent(content);
@@ -79,6 +129,13 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
     }
   };
 
+  const renderTextTypeSection = () => (
+    <TextTypeSelector 
+      selectedType={selectedType}
+      onTypeChange={setSelectedType}
+    />
+  );
+
   return (
     <ErrorBoundary>
       <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
@@ -90,13 +147,12 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
           generatedContent={generatedContent}
           onGeneratedContentChange={handleGeneratedContentChange}
           onSubmit={handleSubmit}
+          formNotice={formNotice}
+          enableKnowledgeSelector={true}
           helpContent={helpContent}
           componentName={componentName}
+          firstExtrasChildren={renderTextTypeSection()}
         >
-          <TextTypeSelector 
-            selectedType={selectedType}
-            onTypeChange={setSelectedType}
-          />
           {renderForm()}
         </BaseForm>
       </div>

@@ -1,5 +1,4 @@
 import axios from 'axios';
-import { getTemplatesSupabase } from './templatesSupabaseClient';
 
 // Use relative URL by default (same as AUTH_BASE_URL in useAuth.js)
 // This works because frontend is served by backend on same port
@@ -8,30 +7,16 @@ const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
 const apiClient = axios.create({
   baseURL: baseURL,
   timeout: 900000,
-  headers: { 'Content-Type': 'application/json' }
+  headers: { 'Content-Type': 'application/json' },
+  // Include cookies for session-based authentication
+  withCredentials: true
 });
 
+// Request interceptor for debugging and header setup
 apiClient.interceptors.request.use(
-  async (config) => {
-    try {
-      const templatesSupabase = getTemplatesSupabase();
-      if (templatesSupabase) {
-        const { data: { session }, error: sessionError } = await templatesSupabase.auth.getSession();
-
-        if (sessionError) {
-          console.error('[apiClient Interceptor] Error getting Supabase session:', sessionError);
-        } else if (session?.access_token) {
-          config.headers.Authorization = `Bearer ${session.access_token}`;
-        } else {
-          delete config.headers.Authorization;
-        }
-      } else {
-        delete config.headers.Authorization;
-      }
-    } catch (e) {
-      console.error('[apiClient Interceptor] Unexpected error getting session:', e);
-    }
-
+  (config) => {
+    // Session-based auth uses cookies automatically with withCredentials: true
+    // No need to manually add Authorization headers
     return config;
   },
   error => {
@@ -40,12 +25,15 @@ apiClient.interceptors.request.use(
   }
 );
 
+// Response interceptor for error handling
 apiClient.interceptors.response.use(
   response => response,
   error => {
     if (error.response && error.response.status === 401) {
+      // Use the new auth system for login redirects
+      const AUTH_BASE_URL = import.meta.env.VITE_AUTH_BASE_URL || '';
       if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
+        window.location.href = `${AUTH_BASE_URL}/api/auth/login`;
       }
     }
     return Promise.reject(error);

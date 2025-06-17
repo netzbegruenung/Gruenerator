@@ -66,9 +66,12 @@ router.get('/login', (req, res, next) => {
   // Add identity provider hint if specific source is requested
   if (source === 'netzbegruenung-login') {
     options.kc_idp_hint = 'netzbegruenung';
+    options.prompt = 'login'; // Force re-authentication to respect identity provider hint
   } else if (source === 'gruenes-netz-login') {
     options.kc_idp_hint = 'gruenes-netz';
+    options.prompt = 'login'; // Force re-authentication to respect identity provider hint
   }
+  // gruenerator-login uses default behavior (no kc_idp_hint) - shows all providers like old generic login
 
   console.log('[Auth Core /login] OIDC options:', options);
   passport.authenticate('oidc', options)(req, res, next);
@@ -173,6 +176,10 @@ router.get('/status', async (req, res) => {
 
       if (authUser?.user?.user_metadata) {
         req.user.user_metadata = authUser.user.user_metadata;
+        // Ensure memory_enabled is included in user metadata for frontend
+        if (req.user.user_metadata.memory_enabled === undefined) {
+          req.user.user_metadata.memory_enabled = false;
+        }
       }
 
       if (!supabaseSession || (supabaseSession.expires_at && supabaseSession.expires_at < Math.floor(Date.now() / 1000))) {

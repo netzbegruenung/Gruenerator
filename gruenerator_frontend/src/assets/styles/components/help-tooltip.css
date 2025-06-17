@@ -1,0 +1,114 @@
+/* Help Tooltip Component Styles */
+
+.help-tooltip-container {
+  position: relative;
+  display: inline-block;
+  margin-left: var(--spacing-small);
+}
+
+.help-tooltip-trigger {
+  background: none;
+  border: none;
+  color: var(--font-color-subtle);
+  cursor: pointer;
+  padding: var(--spacing-xxsmall);
+  border-radius: 50%;
+  transition: all 0.2s ease;
+  opacity: 0.7;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.help-tooltip-trigger:hover {
+  opacity: 1;
+  color: var(--interactive-accent-color);
+  background-color: var(--background-color-alt);
+}
+
+.help-tooltip-trigger:focus {
+  outline: 2px solid var(--interactive-accent-color);
+  outline-offset: 2px;
+}
+
+.help-tooltip-content {
+  position: absolute;
+  top: calc(100% + var(--spacing-xxsmall));
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--background-color);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--card-border-radius-medium);
+  padding: var(--spacing-medium);
+  box-shadow: var(--shadow-md);
+  z-index: 1000;
+  max-width: 300px;
+  min-width: 250px;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  color: var(--font-color-subtle);
+}
+
+.help-tooltip-arrow {
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 12px;
+  height: 12px;
+  background: var(--background-color);
+  border: 1px solid var(--border-subtle);
+  border-bottom: none;
+  border-right: none;
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.help-tooltip-content p {
+  margin: 0 0 var(--spacing-small) 0;
+}
+
+.help-tooltip-content p:last-child {
+  margin-bottom: 0;
+}
+
+.help-tooltip-content strong {
+  color: var(--font-color);
+}
+
+/* Header with help tooltip */
+.header-with-help {
+  display: flex;
+  align-items: center;
+  margin-bottom: var(--spacing-xsmall);
+  padding-bottom: var(--spacing-xsmall);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.header-with-help .form-group-title {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .help-tooltip-content {
+    max-width: 250px;
+    min-width: 200px;
+    left: 0;
+    transform: none;
+  }
+  
+  .help-tooltip-arrow {
+    left: var(--spacing-medium);
+    transform: rotate(45deg);
+  }
+}
+
+/* Accessibility improvements */
+@media (prefers-reduced-motion: reduce) {
+  .help-tooltip-trigger {
+    transition: none;
+  }
+}

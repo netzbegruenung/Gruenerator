@@ -82,3 +82,6 @@ uploads/voice/*.wav
 
 /test/
 /tests/
+
+mem0_service/
+services/mem0Service.js
