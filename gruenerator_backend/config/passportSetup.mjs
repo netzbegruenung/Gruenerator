@@ -12,7 +12,7 @@ const keycloakIssuer = await Issuer.discover(`${process.env.KEYCLOAK_BASE_URL}/r
 const client = new keycloakIssuer.Client({
   client_id: process.env.KEYCLOAK_CLIENT_ID,
   client_secret: process.env.KEYCLOAK_CLIENT_SECRET,
-  redirect_uris: [`${process.env.AUTH_BASE_URL || process.env.BASE_URL}/api/auth/callback`],
+  redirect_uris: [`${process.env.AUTH_BASE_URL || process.env.BASE_URL || 'https://beta.gruenerator.de'}/api/auth/callback`],
   response_types: ['code'],
   token_endpoint_auth_method: 'client_secret_post'
 });
