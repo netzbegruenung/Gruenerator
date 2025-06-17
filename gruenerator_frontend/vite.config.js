@@ -29,7 +29,7 @@ export default defineConfig(({ command }) => ({
     sourcemap: false,
     minify: 'esbuild',
     cssCodeSplit: true,
-    assetsInlineLimit: 4096,
+    assetsInlineLimit: 0,
     chunkSizeWarningLimit: 1000,
     outDir: 'build',
     rollupOptions: {
@@ -47,7 +47,9 @@ export default defineConfig(({ command }) => ({
             if (id.includes('@supabase')) return 'supabase-vendor';
             if (id.includes('motion')) return 'motion-vendor';
             if (id.includes('react-icons')) return 'icons-vendor';
-            if (id.includes('quill') || id.includes('marked') || id.includes('turndown')) return 'editor-vendor';
+            if (id.includes('quill')) return 'quill-vendor';
+            if (id.includes('marked')) return 'markdown-vendor';
+            if (id.includes('turndown')) return 'turndown-vendor';
             if (id.includes('lodash') || id.includes('uuid') || id.includes('dompurify')) return 'utils-vendor';
             return 'misc-vendor';
           }
@@ -61,15 +63,13 @@ export default defineConfig(({ command }) => ({
           if (id.includes('src/components/layout')) return 'layout';
           if (id.includes('src/hooks') || id.includes('src/stores')) return 'core-logic';
         },
-        entryFileNames: (chunkInfo) => {
-          // Ensure all entry files have .js extension
-          return `assets/js/${chunkInfo.name.replace(/\.jsx?$/, '')}.[hash].js`;
-        },
-        chunkFileNames: (chunkInfo) => {
-          // Ensure all chunk files have .js extension  
-          return `assets/js/${chunkInfo.name.replace(/\.jsx?$/, '')}.[hash].js`;
-        },
+        entryFileNames: 'assets/js/[name].[hash].js',
+        chunkFileNames: 'assets/js/[name].[hash].js',
         assetFileNames(assetInfo) {
+          // Force .js extension for any remaining jsx files
+          if (assetInfo.name.endsWith('.jsx')) {
+            return `assets/js/${assetInfo.name.replace('.jsx', '')}.[hash].js`;
+          }
           const ext = assetInfo.name.split('.').pop();
           if (/png|jpe?g|svg|gif|tiff|bmp|ico|webp/i.test(ext)) {
             return 'assets/images/[name].[hash][extname]';
