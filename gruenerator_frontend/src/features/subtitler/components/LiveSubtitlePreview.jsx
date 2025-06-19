@@ -5,7 +5,8 @@ import SubtitleStylingService from '../utils/subtitleStylingService';
 const LiveSubtitlePreview = ({ 
   editableSubtitles, 
   currentTimeInSeconds, 
-  videoMetadata
+  videoMetadata,
+  stylePreference = 'standard'
 }) => {
   const activeSegment = useMemo(() => {
     const segment = SubtitleStylingService.findActiveSegment(editableSubtitles, currentTimeInSeconds);
@@ -23,9 +24,72 @@ const LiveSubtitlePreview = ({
     return styles;
   }, [videoMetadata, editableSubtitles]);
 
+  const getStyleForPreference = useMemo(() => {
+    const baseStyles = {
+      fontFamily: "'GrueneType', Arial, sans-serif",
+      fontWeight: 'bold',
+      color: '#ffffff',
+      textAlign: 'center',
+      lineHeight: '1.2',
+      maxWidth: '100%',
+      wordWrap: 'break-word',
+      hyphens: 'auto'
+    };
+
+    switch (stylePreference) {
+      case 'clean':
+        return {
+          ...baseStyles,
+          backgroundColor: 'transparent',
+          textShadow: `
+            -2px -2px 0 #000000,
+            2px -2px 0 #000000,
+            -2px 2px 0 #000000,
+            2px 2px 0 #000000
+          `,
+          padding: '0',
+          borderRadius: '0'
+        };
+      
+      case 'shadow':
+        return {
+          ...baseStyles,
+          backgroundColor: 'transparent',
+          textShadow: '0 2px 8px rgba(0, 0, 0, 0.8), 0 0 4px rgba(0, 0, 0, 0.6)',
+          padding: '0',
+          borderRadius: '0'
+        };
+      
+      case 'tanne':
+        return {
+          ...baseStyles,
+          backgroundColor: '#005538', // --secondary-600 value
+          textShadow: 'none',
+          padding: '0.2em 0.4em',
+          borderRadius: '0.1em'
+        };
+      
+      case 'standard':
+      default:
+        return {
+          ...baseStyles,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          textShadow: `
+            -2px -2px 0 #000000,
+            2px -2px 0 #000000,
+            -2px 2px 0 #000000,
+            2px 2px 0 #000000
+          `,
+          padding: '0.2em 0.4em',
+          borderRadius: '0.1em'
+        };
+    }
+  }, [stylePreference]);
+
   console.log('[LivePreview] Render conditions:', {
     hasActiveSegment: !!activeSegment,
     hasVideoMetadata: !!videoMetadata,
+    stylePreference,
     videoMetadata
   });
 
@@ -37,8 +101,7 @@ const LiveSubtitlePreview = ({
     fontSize,
     marginV,
     marginL,
-    marginR,
-    outline
+    marginR
   } = calculatedStyles;
 
   // Detect mobile devices
@@ -50,7 +113,6 @@ const LiveSubtitlePreview = ({
   // Mobile-optimized font size calculation
   let relativeFontSize;
   if (isMobile) {
-    // On mobile, use a much smaller base size and limit the scaling
     relativeFontSize = Math.min(3.5, Math.max(2, (fontSize / videoMetadata.height) * 8));
   } else {
     relativeFontSize = videoMetadata.height > 0 ? (fontSize / videoMetadata.height) * 20 : 1.5;
@@ -62,7 +124,8 @@ const LiveSubtitlePreview = ({
     relativeMarginV: relativeMarginV,
     originalFontSize: fontSize,
     relativeFontSize: relativeFontSize,
-    videoHeight: videoMetadata.height
+    videoHeight: videoMetadata.height,
+    stylePreference
   });
 
   const containerStyles = {
@@ -78,31 +141,26 @@ const LiveSubtitlePreview = ({
   };
 
   const textStyles = {
-    fontSize: `${relativeFontSize}vw`, // Use viewport width for responsive sizing
-    fontFamily: "'GrueneType', Arial, sans-serif",
-    fontWeight: 'bold',
-    color: '#ffffff',
-    textAlign: 'center',
-    lineHeight: '1.2',
-    textShadow: isMobile ? 'none' : `
-      -2px -2px 0 #000000,
-      2px -2px 0 #000000,
-      -2px 2px 0 #000000,
-      2px 2px 0 #000000,
-      0 0 4px #000000
-    `,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    padding: `0.2em 0.4em`,
-    borderRadius: `0.1em`,
-    maxWidth: '100%',
-    wordWrap: 'break-word',
-    hyphens: 'auto'
+    ...getStyleForPreference,
+    fontSize: `${relativeFontSize}vw`
   };
+
+  // Mobile specific adjustments
+  if (isMobile) {
+    textStyles.fontSize = 'clamp(14px, 3vw, 18px)';
+    textStyles.lineHeight = '1.1';
+    
+    // Remove some effects on mobile for better performance
+    if (stylePreference === 'clean' || stylePreference === 'standard') {
+      textStyles.textShadow = 'none';
+    }
+  }
 
   console.log('[LivePreview] Rendering subtitle:', {
     text: activeSegment.text,
     containerStyles,
-    textStyles
+    textStyles,
+    stylePreference
   });
 
   return (
@@ -127,6 +185,7 @@ LiveSubtitlePreview.propTypes = {
     height: PropTypes.number.isRequired,
     duration: PropTypes.number
   }),
+  stylePreference: PropTypes.oneOf(['standard', 'clean', 'shadow', 'tanne'])
 };
 
 export default LiveSubtitlePreview; 

@@ -281,25 +281,33 @@
 .video-controls .btn-primary {
   display: block;
   margin: 0 auto;
-  padding: 0.6rem 1.5rem;
-  font-size: 0.9rem;
-  border-radius: 6px;
-  font-weight: 600;
+  padding: var(--primary-button-padding-m, 16px 32px);
+  font-size: 16px;
+  border-radius: var(--primary-button-radius, 72px);
+  font-weight: 500;
   transition: all 0.2s ease;
-  background-color: var(--tanne);
+  background-color: var(--primary-button-bg, var(--tanne));
   border: none;
-  color: white;
+  color: var(--primary-button-text, white);
   box-shadow: 0 2px 4px rgba(0, 85, 56, 0.2);
+  min-height: var(--primary-button-height-m, 48px);
+  gap: 8px;
 }
 
-.video-controls .btn-primary:hover {
-  background-color: var(--klee);
+.video-controls .btn-primary:hover:not(:disabled) {
+  background-color: var(--primary-button-hover-bg, var(--klee));
   transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(0, 85, 56, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 85, 56, 0.3);
+}
+
+.video-controls .btn-primary:focus {
+  outline: 2px solid var(--primary-button-bg, var(--tanne));
+  outline-offset: 2px;
 }
 
 .video-controls .btn-primary:disabled {
-  background-color: var(--font-color-light);
+  background-color: #cccccc;
+  color: #666666;
   transform: none;
   box-shadow: none;
   cursor: not-allowed;
@@ -413,4 +421,59 @@
   .emoji-warning {
     color: #ffb74d;
   }
+
+  /* Dark mode button adjustments */
+  .video-controls .btn-primary {
+    background-color: var(--primary-600);
+    color: var(--white);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+  }
+
+  .video-controls .btn-primary:hover:not(:disabled) {
+    background-color: var(--klee);
+    box-shadow: 0 4px 12px rgba(0, 137, 57, 0.4);
+  }
+
+  .editor-back-button {
+    background-color: var(--background-color);
+    color: var(--font-color);
+    border-color: var(--border-subtle);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  }
+
+  .editor-back-button:hover {
+    background-color: var(--hover-color-alt);
+    border-color: var(--primary-600);
+    box-shadow: 0 2px 8px rgba(0, 137, 57, 0.25);
+  }
+}
+
+.editor-back-button {
+  padding: var(--primary-button-padding-s, 12px 24px);
+  font-size: 14px;
+  border-radius: var(--primary-button-radius, 72px);
+  background-color: var(--background-color-alt);
+  color: var(--font-color);
+  border: 2px solid var(--border-subtle);
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: var(--primary-button-height-s, 40px);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.editor-back-button:hover {
+  background-color: var(--hover-color-alt);
+  border-color: var(--tanne);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 85, 56, 0.15);
+}
+
+.editor-back-button:focus {
+  outline: 2px solid var(--tanne);
+  outline-offset: 2px;
 } 
