@@ -31,7 +31,11 @@ async function checkFont() {
 // Route for video upload and processing
 router.post('/process', async (req, res) => {
   console.log('=== SUBTITLER PROCESS START ===');
-  const { uploadId, subtitlePreference = 'standard' } = req.body; // Expect uploadId and preference in request body, default to 'standard'
+  const { 
+    uploadId, 
+    subtitlePreference = 'manual', // ONLY manual mode supported - word mode commented out
+    stylePreference = 'standard' 
+  } = req.body; // Expect uploadId, subtitlePreference (manual only), and stylePreference
   let videoPath = null;
 
   if (!uploadId) {
@@ -42,14 +46,15 @@ router.post('/process', async (req, res) => {
   console.log(`Verarbeitungsanfrage für Upload-ID erhalten: ${uploadId}`);
   console.log(`[subtitlerController] Request Body Debug:`, {
     uploadId,
-    subtitlePreference,
-    subtitlePreferenceType: typeof subtitlePreference,
-    subtitlePreferenceLength: subtitlePreference?.length,
+    mode: subtitlePreference, // subtitlePreference fixed to manual mode only
+    stylePreference,
+    modeType: typeof subtitlePreference,
+    modeLength: subtitlePreference?.length,
     rawBody: JSON.stringify(req.body)
   });
 
-  // Create unique Redis key with subtitlePreference
-  const jobKey = `job:${uploadId}:${subtitlePreference}`;
+  // Create unique Redis key with mode and stylePreference
+  const jobKey = `job:${uploadId}:${subtitlePreference}:${stylePreference}`;
   
   // Set initial status in Redis with TTL (e.g., 24 hours)
   const initialStatus = JSON.stringify({ status: 'processing' });
@@ -105,29 +110,19 @@ router.post('/process', async (req, res) => {
         console.warn('Konnte Metadaten nicht lesen:', metaError.message);
     }
 
-    // Subtitle preference is logged
-    console.log(`Untertitel Präferenz: ${subtitlePreference}`);
+    // Mode preference is logged
+    console.log(`Untertitel Modus: ${subtitlePreference}`);
 
     console.log('Starte Transkription...');
     
     // Run transcription asynchronously
     // Corrected call: Pass subtitlePreference as the second parameter and the aiWorkerPool
     const aiWorkerPool = req.app.locals.aiWorkerPool; // Get pool from app locals
+    
+    // AI Worker Pool check - only manual mode supported (word mode commented out)
     if (!aiWorkerPool) {
-        // Handle case where pool is not available
-        console.error(`[subtitlerController] AI Worker Pool not found in app locals for ${uploadId}. Cannot generate short subtitles if requested.`);
-        // Set error status or proceed without short subtitle capability
-         const errorPoolStatus = JSON.stringify({ status: 'error', data: 'AI Worker Pool nicht konfiguriert.' });
-         try {
-            await redisClient.set(jobKey, errorPoolStatus, { EX: 60 * 60 * 24 }); 
-            console.log(`[Upstash Redis] Status 'error' (AI Pool missing) für ${jobKey} gesetzt.`);
-        } catch (redisError) {
-             console.error(`[Upstash Redis] Fehler beim Setzen des 'AI Pool missing' Status für ${jobKey}:`, redisError);
-        }
-         if (!res.headersSent) {
-             return res.status(500).json({ error: 'Interner Konfigurationsfehler (AI Worker Pool).' });
-         }
-         return; // Stop further processing if pool is essential and missing
+        console.warn(`[subtitlerController] AI Worker Pool not found in app locals for ${uploadId}. Using fallback transcription.`);
+        // This is not an error - we can still process with fallback transcription
     }
     
     transcribeVideo(videoPath, subtitlePreference, aiWorkerPool) // Pass the pool
@@ -202,8 +197,11 @@ router.post('/process', async (req, res) => {
 // Route to get processing status and results
 router.get('/result/:uploadId', async (req, res) => {
     const { uploadId } = req.params;
-    const { subtitlePreference = 'standard' } = req.query; // Get preference from query params
-    const jobKey = `job:${uploadId}:${subtitlePreference}`;
+      const { 
+    subtitlePreference = 'manual', // Mode: only 'manual' supported (word mode commented out)
+    stylePreference = 'standard' 
+  } = req.query; // Get mode and style preferences from query params
+    const jobKey = `job:${uploadId}:${subtitlePreference}:${stylePreference}`;
     let jobDataString;
 
     try {
@@ -283,8 +281,13 @@ router.delete('/cleanup/:uploadId', async (req, res) => {
 
 // Route zum Herunterladen des fertigen Videos
 router.post('/export', async (req, res) => {
-  // Expect uploadId and subtitles in body
-  const { uploadId, subtitles } = req.body; 
+  // Expect uploadId, subtitles, subtitlePreference, and stylePreference in body
+  const { 
+    uploadId, 
+    subtitles, 
+    subtitlePreference = 'manual', // Mode: only 'manual' supported (word mode commented out)
+    stylePreference = 'standard' // Style preference parameter
+  } = req.body; 
   let inputPath = null;
   let outputPath = null;
   let originalFilename = 'video.mp4'; // Default filename
@@ -293,6 +296,8 @@ router.post('/export', async (req, res) => {
   if (!uploadId || !subtitles) {
     return res.status(400).json({ error: 'Upload-ID und Untertitel werden benötigt' });
   }
+
+  console.log(`[Export] Starting export with stylePreference: ${stylePreference}`);
 
   try {
     inputPath = getFilePathFromUploadId(uploadId);
@@ -391,7 +396,8 @@ router.post('/export', async (req, res) => {
         }
         
         const timeLine = lines[0].trim();
-        const timeMatch = timeLine.match(/^(\d{1,2}):(\d{2,3})\s*-\s*(\d{1,2}):(\d{2,3})$/);
+        // Updated regex to handle fractional seconds format (MM:SS.s - MM:SS.s) with optional metadata
+        const timeMatch = timeLine.match(/^(\d{1,2}):(\d{2})\.(\d)\s*-\s*(\d{1,2}):(\d{2})\.(\d)(?:\s*\[(?:HIGHLIGHT|STATIC)\])?$/);
         if (!timeMatch) {
           // console.warn(`[subtitlerController] Invalid time format in block ${index}:`, timeLine); // Keep this commented
           return null;
@@ -399,29 +405,33 @@ router.post('/export', async (req, res) => {
 
         let startMin = parseInt(timeMatch[1]);
         let startSec = parseInt(timeMatch[2]);
-        let endMin = parseInt(timeMatch[3]);
-        let endSec = parseInt(timeMatch[4]);
+        let startFrac = parseInt(timeMatch[3]);
+        let endMin = parseInt(timeMatch[4]);
+        let endSec = parseInt(timeMatch[5]);
+        let endFrac = parseInt(timeMatch[6]);
 
         // DEBUG: Log time parsing for segments with potential issues
         const totalSegments = subtitles.split('\n\n').length;
         const isLastSegments = index >= totalSegments - 5; // Last 5 segments
         if (isLastSegments || startSec >= 60 || endSec >= 60) {
-          console.log(`[DEBUG TIME] Segment ${index}: Raw="${timeLine}" → startMin=${startMin}, startSec=${startSec}, endMin=${endMin}, endSec=${endSec}`);
+          console.log(`[DEBUG TIME] Segment ${index}: Raw="${timeLine}" → startMin=${startMin}, startSec=${startSec}.${startFrac}, endMin=${endMin}, endSec=${endSec}.${endFrac}`);
         }
 
-        if (startMin === 0 && startSec >= 60) {
-          startMin = Math.floor(startSec / 60);
+        // Handle minute overflow for fractional seconds (shouldn't happen with new format)
+        if (startSec >= 60) {
+          startMin += Math.floor(startSec / 60);
           startSec = startSec % 60;
-          if (isLastSegments) console.log(`[DEBUG TIME] Converted start: ${startMin}:${startSec}`);
+          if (isLastSegments) console.log(`[DEBUG TIME] Converted start: ${startMin}:${startSec}.${startFrac}`);
         }
-        if (endMin === 0 && endSec >= 60) {
-          endMin = Math.floor(endSec / 60);
+        if (endSec >= 60) {
+          endMin += Math.floor(endSec / 60);
           endSec = endSec % 60;
-          if (isLastSegments) console.log(`[DEBUG TIME] Converted end: ${endMin}:${endSec}`);
+          if (isLastSegments) console.log(`[DEBUG TIME] Converted end: ${endMin}:${endSec}.${endFrac}`);
         }
         
-        const startTime = startMin * 60 + startSec;
-        const endTime = endMin * 60 + endSec;
+        // Convert to precise floating point seconds
+        const startTime = startMin * 60 + startSec + (startFrac / 10);
+        const endTime = endMin * 60 + endSec + (endFrac / 10);
         
         if (isLastSegments) {
           console.log(`[DEBUG TIME] Final times: ${startTime}s - ${endTime}s (duration: ${endTime - startTime}s)`);
@@ -438,10 +448,17 @@ router.post('/export', async (req, res) => {
           return null;
         }
         
+        // Extract highlight metadata for word mode
+        const isHighlight = timeLine.includes('[HIGHLIGHT]');
+        const isStatic = timeLine.includes('[STATIC]');
+        
         return {
           startTime,
           endTime,
-          rawText // Store raw text first
+          rawText, // Store raw text first
+          isHighlight: isHighlight,
+          isStatic: isStatic,
+          originalText: rawText // Store original text for word mode processing
         };
       })
       .filter(Boolean) // Remove nulls from invalid blocks
@@ -467,7 +484,10 @@ router.post('/export', async (req, res) => {
       return {
         startTime: pSegment.startTime,
         endTime: pSegment.endTime,
-        text: pSegment.rawText // Use raw text for ASS processing
+        text: pSegment.rawText, // Use raw text for ASS processing
+        isHighlight: pSegment.isHighlight,
+        isStatic: pSegment.isStatic,
+        originalText: pSegment.originalText // Pass original text for word mode processing
       };
     });
 
@@ -535,33 +555,43 @@ router.post('/export', async (req, res) => {
       finalSpacing: `${finalSpacing}px`
     });
 
-    // Generate ASS subtitles BEFORE FFmpeg processing
-    console.log('[ASS] Preparing ASS subtitles');
-    const cacheKey = `${uploadId}_${subtitles.length}_${finalFontSize}`;
+    // Updated cache key to include stylePreference
+    const cacheKey = `${uploadId}_${subtitlePreference}_${stylePreference}_${metadata.width}x${metadata.height}`;
+    
+    // Try to generate ASS subtitles with the selected style
     let assFilePath = null;
     let tempFontPath = null;
-    
+
     try {
-      // Check for cached ASS content first
+      // Check for cached ASS content first (updated with style preference)
       let assContent = await assService.getCachedAssContent(cacheKey);
       
       if (!assContent) {
-        // Generate new ASS content with optimized styling
+        // Generate new ASS content with optimized styling and mode-specific positioning
         const styleOptions = {
           fontSize: Math.floor(finalFontSize / 2), // ASS uses different font size scale than drawtext - divide by 2 for visual equivalency
-          outline: Math.max(2, Math.floor(finalFontSize / 25)),
-          marginV: Math.floor(metadata.height * 0.33), // Instagram Reels: 1/3 der Höhe von unten
           marginL: 10, // Reduzierte Seitenränder
           marginR: 10,
-          borderStyle: 3, // Background box
-          backColor: '&H80000000', // Semi-transparent black
-          primaryColor: '&Hffffff', // White text
-          alignment: 2 // Bottom center alignment für Instagram Reels
+          // Mode-specific positioning
+          marginV: subtitlePreference === 'word' 
+            ? Math.floor(metadata.height * 0.50) // Word mode: center positioning (50% from bottom)
+            : Math.floor(metadata.height * 0.33), // Manual mode: Instagram Reels positioning (33% from bottom)
+          alignment: subtitlePreference === 'word' 
+            ? 5 // Word mode: middle center alignment (TikTok style)
+            : 2 // Manual mode: bottom center alignment
+          // Note: outline, borderStyle, backColor, primaryColor are handled by style presets
         };
         
-        assContent = assService.generateAssContent(segments, metadata, styleOptions);
+        // Pass style preference to ASS service
+        assContent = assService.generateAssContent(
+          segments, 
+          metadata, 
+          styleOptions, 
+          subtitlePreference,
+          stylePreference // Add style preference parameter
+        );
         
-        // Cache the generated content
+        // Cache the generated content (includes style in cache key)
         await assService.cacheAssContent(cacheKey, assContent);
       }
       
@@ -578,9 +608,13 @@ router.post('/export', async (req, res) => {
         tempFontPath = null;
       }
       
-      console.log(`[ASS] Created ASS file: ${assFilePath}`);
+      console.log(`[ASS] Created ASS file with mode: ${subtitlePreference}, style: ${stylePreference}`);
       console.log(`[ASS] Processing ${segments.length} segments with GrueneType font`);
-      console.log(`[ASS] Instagram Reels positioning: ${Math.floor(metadata.height * 0.33)}px from bottom (1/3 height)`);
+      if (subtitlePreference === 'word') {
+        console.log(`[ASS] TikTok word mode positioning: center screen (50% height)`);
+      } else {
+        console.log(`[ASS] Instagram Reels positioning: ${Math.floor(metadata.height * 0.33)}px from bottom (1/3 height)`);
+      }
       
     } catch (assError) {
       console.error('[ASS] Error generating ASS subtitles:', assError);

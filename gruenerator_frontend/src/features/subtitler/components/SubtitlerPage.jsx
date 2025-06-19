@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import axios from 'axios'; // Import axios
 import VideoUploader from './VideoUploader';
+import SubtitleStyleSelector from './SubtitleStyleSelector';
 import SubtitleEditor from './SubtitleEditor';
 import SuccessScreen from './SuccessScreen';
 import useSocialTextGenerator from '../hooks/useSocialTextGenerator';
@@ -24,7 +25,9 @@ const SubtitlerPage = () => {
   const [isExiting, setIsExiting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const { socialText, isGenerating, error: socialError, generateSocialText, reset: resetSocialText } = useSocialTextGenerator();
-  const [subtitlePreference] = useState('short'); // Always use 'short', no setter needed
+  const [subtitlePreference, setSubtitlePreference] = useState('manual'); // Legacy parameter kept for backward compatibility
+  const [stylePreference, setStylePreference] = useState('standard'); // Style preference for subtitle appearance
+  const [modePreference, setModePreference] = useState('manual'); // New mode preference for subtitle generation type
   const [isProModeActive, setIsProModeActive] = useState(false);
 
   const pollingIntervalRef = useRef(null); // Ref für Polling Interval
@@ -97,10 +100,11 @@ const SubtitlerPage = () => {
         throw new Error('Keine Upload-ID gefunden');
       }
 
-      // Start processing request - Verwende axios direkt mit baseURL
+      // Start processing request with mode and style preferences
       const response = await axios.post(`${baseURL}/subtitler/process`, { 
         uploadId: uploadInfo.uploadId, 
-        subtitlePreference: subtitlePreference // Send local state preference
+        subtitlePreference: modePreference, // Use modePreference as the main parameter
+        stylePreference: stylePreference // Include style preference
       }, {
         // Header oder andere Axios-Konfigurationen könnten hier nötig sein
         // Beachte: Interceptors von apiClient (z.B. Auth Token) werden hier NICHT angewendet
@@ -131,9 +135,12 @@ const SubtitlerPage = () => {
 
       pollingIntervalRef.current = setInterval(async () => {
         try {
-          // Verwende axios direkt mit baseURL und füge subtitlePreference als Query-Parameter hinzu
+          // Verwende axios direkt mit baseURL und füge modePreference und stylePreference als Query-Parameter hinzu
           const resultResponse = await axios.get(`${baseURL}/subtitler/result/${currentUploadId}`, {
-              params: { subtitlePreference }, // Send preference as query parameter
+              params: { 
+                subtitlePreference: modePreference, // Use modePreference in polling
+                stylePreference // Include style preference in polling
+              },
               // Header oder andere Axios-Konfigurationen könnten hier nötig sein
               // Beachte: Interceptors von apiClient (z.B. Auth Token) werden hier NICHT angewendet
           });
@@ -143,7 +150,7 @@ const SubtitlerPage = () => {
             clearInterval(pollingIntervalRef.current);
             setSubtitles(fetchedSubtitles);
             setIsProcessing(false);
-            setStep('edit');
+            setStep('styling'); // Go to styling step instead of edit
           } else if (status === 'error') {
             console.error(`[SubtitlerPage] Processing error for ${currentUploadId}:`, jobError);
             clearInterval(pollingIntervalRef.current);
@@ -177,7 +184,7 @@ const SubtitlerPage = () => {
        clearInterval(pollingIntervalRef.current);
     }
 
-  }, [isProcessing, uploadInfo?.uploadId]); // Dependencies: run effect when isProcessing or uploadId changes
+  }, [isProcessing, uploadInfo?.uploadId, modePreference, stylePreference]); // Dependencies: run effect when isProcessing or uploadId changes
 
   const handleExport = useCallback(async () => {
     setIsExporting(true);
@@ -227,6 +234,28 @@ const SubtitlerPage = () => {
   const handleEditAgain = useCallback(() => {
     setStep('edit');
     // No reset of other states like videoFile, subtitles, etc.
+  }, []);
+
+  // New handlers for styling step
+  const handleStyleSelect = useCallback((style) => {
+    setStylePreference(style);
+  }, []);
+
+  const handleModeSelect = useCallback((mode) => {
+    setModePreference(mode);
+  }, []);
+
+  const handleStyleConfirm = useCallback(() => {
+    setStep('edit');
+  }, []);
+
+  const handleBackToConfirm = useCallback(() => {
+    setStep('confirm');
+  }, []);
+
+  // Function to go back to styling from editor
+  const handleBackToStyling = useCallback(() => {
+    setStep('styling');
   }, []);
 
   // Funktion zum Umschalten des Profi-Modus (erwartet jetzt den neuen Wert)
@@ -298,45 +327,7 @@ const SubtitlerPage = () => {
                   <p className="ai-notice">
                     Die Verarbeitung erfolgt mit OpenAI in den USA. Bitte beachte unsere <a href="/datenschutz">Datenschutzerklärung</a> bezüglich der Verarbeitung deiner Daten.
                   </p>
-                  
-                  {/* Add Subtitle Preference Selection here */}
-                  {/* 
-                  <div className={`subtitle-preference-selector confirm-section-preference ${isProcessing ? 'disabled' : ''}`}>
-                    <h4>Untertitellänge wählen:</h4>
-                    <div className="preference-options tiles">
-                      <label htmlFor="short-subtitles-confirm" className="preference-tile">
-                        <input 
-                          type="radio" 
-                          id="short-subtitles-confirm" 
-                          name="subtitlePreferenceConfirm" 
-                          value="short" 
-                          checked={subtitlePreference === 'short'} 
-                          onChange={(e) => setSubtitlePreference(e.target.value)}
-                          disabled={isProcessing}
-                          className="preference-tile-radio"
-                        />
-                        <div className="preference-tile-content">
-                          Kurz (Empfohlen)
-                        </div>
-                      </label>
-                      <label htmlFor="standard-subtitles-confirm" className="preference-tile">
-                        <input 
-                          type="radio" 
-                          id="standard-subtitles-confirm" 
-                          name="subtitlePreferenceConfirm" 
-                          value="standard" 
-                          checked={subtitlePreference === 'standard'} 
-                          onChange={(e) => setSubtitlePreference(e.target.value)}
-                          disabled={isProcessing}
-                          className="preference-tile-radio"
-                        />
-                         <div className="preference-tile-content">
-                           Standard (Ausführlicher)
-                         </div>
-                      </label>
-                    </div>
-                  </div>
-                  */}
+
 
                   <div className="confirm-buttons">
                     <button 
@@ -364,6 +355,22 @@ const SubtitlerPage = () => {
                 </div>
               )}
 
+              {step === 'styling' && (
+                <SubtitleStyleSelector
+                  videoFile={originalVideoFile}
+                  subtitles={subtitles}
+                  uploadId={uploadInfo?.uploadId}
+                  subtitlePreference={subtitlePreference}
+                  selectedStyle={stylePreference}
+                  selectedMode={modePreference}
+                  onStyleSelect={handleStyleSelect}
+                  onModeSelect={handleModeSelect}
+                  onContinue={handleStyleConfirm}
+                  onBack={handleBackToConfirm}
+                  isProcessing={false}
+                />
+              )}
+
               {step === 'edit' && (
                 <>
                   {/* Profi-Modus Schalter */}
@@ -381,9 +388,12 @@ const SubtitlerPage = () => {
                     videoFile={originalVideoFile}
                     subtitles={subtitles}
                     uploadId={uploadInfo?.uploadId}
+                    subtitlePreference={subtitlePreference}
+                    stylePreference={stylePreference} // Pass style preference
                     onExportSuccess={handleExport}
                     onExportComplete={handleExportComplete}
                     isExporting={isExporting || isGenerating}
+                    onBackToStyling={handleBackToStyling} // Allow going back to styling
                   />
                 </>
               )}
