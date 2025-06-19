@@ -6,7 +6,8 @@ const LiveSubtitlePreview = ({
   editableSubtitles, 
   currentTimeInSeconds, 
   videoMetadata,
-  stylePreference = 'standard'
+  stylePreference = 'standard',
+  heightPreference = 'standard'
 }) => {
   const activeSegment = useMemo(() => {
     const segment = SubtitleStylingService.findActiveSegment(editableSubtitles, currentTimeInSeconds);
@@ -107,8 +108,16 @@ const LiveSubtitlePreview = ({
   // Detect mobile devices
   const isMobile = window.innerWidth <= 768;
 
-  // Calculate relative positioning based on display size vs original video size
-  const relativeMarginV = videoMetadata.height > 0 ? (marginV / videoMetadata.height) * 100 : 33;
+  // Calculate relative positioning based on display size vs original video size and height preference
+  let baseMarginVPercentage = videoMetadata.height > 0 ? (marginV / videoMetadata.height) * 100 : 33;
+  
+  // Adjust positioning based on height preference
+  if (heightPreference === 'tief') {
+    // Move subtitles deeper (closer to bottom) for 'tief' option
+    baseMarginVPercentage = baseMarginVPercentage * 0.6; // Reduce bottom margin by 40%
+  }
+  
+  const relativeMarginV = baseMarginVPercentage;
   
   // Mobile-optimized font size calculation
   let relativeFontSize;
@@ -121,11 +130,13 @@ const LiveSubtitlePreview = ({
   console.log('[LivePreview] Position calculation:', {
     isMobile,
     originalMarginV: marginV,
+    baseMarginVPercentage: baseMarginVPercentage,
     relativeMarginV: relativeMarginV,
     originalFontSize: fontSize,
     relativeFontSize: relativeFontSize,
     videoHeight: videoMetadata.height,
-    stylePreference
+    stylePreference,
+    heightPreference
   });
 
   const containerStyles = {
@@ -185,7 +196,8 @@ LiveSubtitlePreview.propTypes = {
     height: PropTypes.number.isRequired,
     duration: PropTypes.number
   }),
-  stylePreference: PropTypes.oneOf(['standard', 'clean', 'shadow', 'tanne'])
+  stylePreference: PropTypes.oneOf(['standard', 'clean', 'shadow', 'tanne']),
+  heightPreference: PropTypes.oneOf(['standard', 'tief'])
 };
 
 export default LiveSubtitlePreview; 

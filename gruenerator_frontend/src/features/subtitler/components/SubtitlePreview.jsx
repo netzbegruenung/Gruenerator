@@ -1,3 +1,10 @@
+/* 
+LEGACY COMPONENT - NOT CURRENTLY USED
+This component has been replaced by LiveSubtitlePreview and SubtitleEditor
+Keeping for reference but commenting out to avoid confusion
+*/
+
+/*
 import React, { useRef, useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 
@@ -149,4 +156,5 @@ SubtitlePreview.propTypes = {
   onExport: PropTypes.func
 };
 
-export default SubtitlePreview; 
+export default SubtitlePreview;
+*/ 
