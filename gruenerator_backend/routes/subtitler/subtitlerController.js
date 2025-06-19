@@ -34,8 +34,9 @@ router.post('/process', async (req, res) => {
   const { 
     uploadId, 
     subtitlePreference = 'manual', // ONLY manual mode supported - word mode commented out
-    stylePreference = 'standard' 
-  } = req.body; // Expect uploadId, subtitlePreference (manual only), and stylePreference
+    stylePreference = 'standard',
+    heightPreference = 'standard' // Height positioning: 'standard' or 'tief'
+  } = req.body; // Expect uploadId, subtitlePreference (manual only), stylePreference, and heightPreference
   let videoPath = null;
 
   if (!uploadId) {
@@ -48,13 +49,14 @@ router.post('/process', async (req, res) => {
     uploadId,
     mode: subtitlePreference, // subtitlePreference fixed to manual mode only
     stylePreference,
+    heightPreference,
     modeType: typeof subtitlePreference,
     modeLength: subtitlePreference?.length,
     rawBody: JSON.stringify(req.body)
   });
 
-  // Create unique Redis key with mode and stylePreference
-  const jobKey = `job:${uploadId}:${subtitlePreference}:${stylePreference}`;
+  // Create unique Redis key with mode, stylePreference, and heightPreference
+  const jobKey = `job:${uploadId}:${subtitlePreference}:${stylePreference}:${heightPreference}`;
   
   // Set initial status in Redis with TTL (e.g., 24 hours)
   const initialStatus = JSON.stringify({ status: 'processing' });
@@ -199,9 +201,10 @@ router.get('/result/:uploadId', async (req, res) => {
     const { uploadId } = req.params;
       const { 
     subtitlePreference = 'manual', // Mode: only 'manual' supported (word mode commented out)
-    stylePreference = 'standard' 
-  } = req.query; // Get mode and style preferences from query params
-    const jobKey = `job:${uploadId}:${subtitlePreference}:${stylePreference}`;
+    stylePreference = 'standard',
+    heightPreference = 'standard' // Height positioning: 'standard' or 'tief'
+  } = req.query; // Get mode, style, and height preferences from query params
+    const jobKey = `job:${uploadId}:${subtitlePreference}:${stylePreference}:${heightPreference}`;
     let jobDataString;
 
     try {
@@ -286,7 +289,8 @@ router.post('/export', async (req, res) => {
     uploadId, 
     subtitles, 
     subtitlePreference = 'manual', // Mode: only 'manual' supported (word mode commented out)
-    stylePreference = 'standard' // Style preference parameter
+    stylePreference = 'standard', // Style preference parameter
+    heightPreference = 'standard' // Height positioning: 'standard' or 'tief'
   } = req.body; 
   let inputPath = null;
   let outputPath = null;
@@ -297,7 +301,7 @@ router.post('/export', async (req, res) => {
     return res.status(400).json({ error: 'Upload-ID und Untertitel werden benötigt' });
   }
 
-  console.log(`[Export] Starting export with stylePreference: ${stylePreference}`);
+  console.log(`[Export] Starting export with stylePreference: ${stylePreference}, heightPreference: ${heightPreference}`);
 
   try {
     inputPath = getFilePathFromUploadId(uploadId);
@@ -555,8 +559,8 @@ router.post('/export', async (req, res) => {
       finalSpacing: `${finalSpacing}px`
     });
 
-    // Updated cache key to include stylePreference
-    const cacheKey = `${uploadId}_${subtitlePreference}_${stylePreference}_${metadata.width}x${metadata.height}`;
+    // Updated cache key to include stylePreference and heightPreference
+    const cacheKey = `${uploadId}_${subtitlePreference}_${stylePreference}_${heightPreference}_${metadata.width}x${metadata.height}`;
     
     // Try to generate ASS subtitles with the selected style
     let assFilePath = null;
@@ -572,10 +576,12 @@ router.post('/export', async (req, res) => {
           fontSize: Math.floor(finalFontSize / 2), // ASS uses different font size scale than drawtext - divide by 2 for visual equivalency
           marginL: 10, // Reduzierte Seitenränder
           marginR: 10,
-          // Mode-specific positioning
+          // Mode and height-specific positioning
           marginV: subtitlePreference === 'word' 
             ? Math.floor(metadata.height * 0.50) // Word mode: center positioning (50% from bottom)
-            : Math.floor(metadata.height * 0.33), // Manual mode: Instagram Reels positioning (33% from bottom)
+            : (heightPreference === 'tief' 
+                ? Math.floor(metadata.height * 0.20) // Manual mode + tief: deeper positioning (20% from bottom)
+                : Math.floor(metadata.height * 0.33)), // Manual mode + standard: Instagram Reels positioning (33% from bottom)
           alignment: subtitlePreference === 'word' 
             ? 5 // Word mode: middle center alignment (TikTok style)
             : 2 // Manual mode: bottom center alignment
@@ -608,12 +614,16 @@ router.post('/export', async (req, res) => {
         tempFontPath = null;
       }
       
-      console.log(`[ASS] Created ASS file with mode: ${subtitlePreference}, style: ${stylePreference}`);
+      console.log(`[ASS] Created ASS file with mode: ${subtitlePreference}, style: ${stylePreference}, height: ${heightPreference}`);
       console.log(`[ASS] Processing ${segments.length} segments with GrueneType font`);
       if (subtitlePreference === 'word') {
         console.log(`[ASS] TikTok word mode positioning: center screen (50% height)`);
       } else {
-        console.log(`[ASS] Instagram Reels positioning: ${Math.floor(metadata.height * 0.33)}px from bottom (1/3 height)`);
+        const marginVValue = heightPreference === 'tief' 
+          ? Math.floor(metadata.height * 0.20) 
+          : Math.floor(metadata.height * 0.33);
+        const heightDesc = heightPreference === 'tief' ? 'deeper (1/5 height)' : 'standard (1/3 height)';
+        console.log(`[ASS] Instagram Reels positioning: ${marginVValue}px from bottom - ${heightDesc}`);
       }
       
     } catch (assError) {
