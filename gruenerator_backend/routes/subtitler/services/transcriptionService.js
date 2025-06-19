@@ -4,9 +4,13 @@ const fsSync = require('fs');
 const { nodewhisper } = require('nodejs-whisper');
 const { transcribeWithOpenAI, formatSegmentsToText } = require('./openAIService');
 const { extractAudio } = require('./videoUploadService');
-const { generateShortSubtitlesViaAI } = require('./shortSubtitleGeneratorService');
+// UNUSED: Short subtitle generator service commented out - only manual mode is used
+// const { generateShortSubtitlesViaAI } = require('./shortSubtitleGeneratorService');
+const { generateManualSubtitles } = require('./manualSubtitleGeneratorService');
+const { generateWordHighlightSubtitles } = require('./wordHighlightSubtitleService');
 
-// Hilfsfunktion zum Parsen der Zeitstempel
+// UNUSED: parseTimestamp function commented out - only manual mode is used
+/*
 function parseTimestamp(timestamp) {
   const match = timestamp.match(/(\d{2}):(\d{2}):(\d{2})\.(\d{3})/);
   if (!match) return 0;
@@ -14,6 +18,7 @@ function parseTimestamp(timestamp) {
   const [_, hours, minutes, seconds, ms] = match;
   return (parseInt(hours) * 3600 + parseInt(minutes) * 60 + parseInt(seconds) + parseInt(ms) / 1000);
 }
+*/
 
 // Helper function to create short subtitles from word timestamps
 /*
@@ -185,10 +190,10 @@ async function transcribeVideoLocal(videoPath, language = 'de') {
 }
 */
 
-// Updated main function to handle subtitle preference and accept aiWorkerPool
-async function transcribeVideo(videoPath, subtitlePreference = 'standard', aiWorkerPool, language = 'de') {
+// Updated main function to handle mode preference and accept aiWorkerPool
+async function transcribeVideo(videoPath, subtitlePreference = 'manual', aiWorkerPool, language = 'de') {
   try {
-    console.log(`[transcriptionService] Transkription Start - Präferenz: ${subtitlePreference}`);
+    console.log(`[transcriptionService] Transkription Start - Modus: ${subtitlePreference}`);
     
     const outputDir = path.join(__dirname, '../../../uploads/transcriptions');
     await fs.mkdir(outputDir, { recursive: true });
@@ -199,6 +204,8 @@ async function transcribeVideo(videoPath, subtitlePreference = 'standard', aiWor
     
     let finalTranscription = null;
     
+    // UNUSED: Short subtitle mode commented out - only manual mode is used
+    /*
     if (subtitlePreference === 'short') {
         console.log("[transcriptionService] Requesting word timestamps from OpenAI");
         const transcriptionResult = await transcribeWithOpenAI(audioPath, true);
@@ -212,13 +219,57 @@ async function transcribeVideo(videoPath, subtitlePreference = 'standard', aiWor
         // Use Claude service to generate short segments from raw text
         finalTranscription = await generateShortSubtitlesViaAI(transcriptionResult.text, transcriptionResult.words, aiWorkerPool);
 
+    } else
+    */
+    if (subtitlePreference === 'manual') {
+        console.log("[transcriptionService] Requesting word timestamps from OpenAI for manual processing");
+        const transcriptionResult = await transcribeWithOpenAI(audioPath, true);
+        
+        if (!transcriptionResult || typeof transcriptionResult.text !== 'string') {
+            throw new Error('Invalid transcription data received from OpenAI');
+        }
+        
+        console.log(`[transcriptionService] OpenAI Wörter: ${transcriptionResult.words?.length || 0}, Text: ${transcriptionResult.text.length} chars`);
+        
+        // Use manual service to generate 2-second intelligent segments
+        finalTranscription = await generateManualSubtitles(transcriptionResult.text, transcriptionResult.words);
+
+    } else if (subtitlePreference === 'word') {
+        console.log("[transcriptionService] Requesting word timestamps from OpenAI for word highlight processing");
+        const transcriptionResult = await transcribeWithOpenAI(audioPath, true);
+        
+        if (!transcriptionResult || typeof transcriptionResult.text !== 'string') {
+            throw new Error('Invalid transcription data received from OpenAI');
+        }
+        
+        console.log(`[transcriptionService] OpenAI Wörter: ${transcriptionResult.words?.length || 0}, Text: ${transcriptionResult.text.length} chars`);
+        
+        // Use word highlight service to generate individual word segments
+        finalTranscription = await generateWordHighlightSubtitles(transcriptionResult.text, transcriptionResult.words);
+
     } else {
+        // UNUSED: Standard subtitle mode commented out - only manual mode is used
+        /*
         console.log("[transcriptionService] Requesting standard segments from OpenAI");
         const transcriptionResult = await transcribeWithOpenAI(audioPath, false);
         if (!transcriptionResult || typeof transcriptionResult.text !== 'string') {
             throw new Error('Invalid segment data received from OpenAI');
         }
         finalTranscription = transcriptionResult.text;
+        */
+        
+        // Fallback to manual mode if unknown mode provided
+        console.log(`[transcriptionService] Unknown mode '${subtitlePreference}', using manual mode as fallback. Supported modes: 'manual', 'word'`);
+        const transcriptionResult = await transcribeWithOpenAI(audioPath, true);
+        
+        if (!transcriptionResult || typeof transcriptionResult.text !== 'string') {
+            throw new Error('Invalid transcription data received from OpenAI');
+        }
+        
+        console.log(`[transcriptionService] OpenAI Wörter: ${transcriptionResult.words?.length || 0}, Text: ${transcriptionResult.text.length} chars`);
+        
+        // Use manual service to generate 2-second intelligent segments
+        finalTranscription = await generateManualSubtitles(transcriptionResult.text, transcriptionResult.words);
     }
     
     // Cleanup
@@ -246,7 +297,7 @@ async function transcribeVideo(videoPath, subtitlePreference = 'standard', aiWor
 
     return finalTranscription;
   } catch (error) {
-    console.error(`[transcriptionService] Fehler (${subtitlePreference}):`, error.message);
+    console.error(`[transcriptionService] Fehler (Modus: ${subtitlePreference}):`, error.message);
     throw error;
   }
 }

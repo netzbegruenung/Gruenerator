@@ -95,6 +95,7 @@
 @import url('../../features/subtitler/styles/subtitler.css');
 @import url('../../features/subtitler/styles/ConfirmSection.css');
 @import url('../../features/subtitler/styles/SubtitleEditor.css');
+@import url('../../features/subtitler/styles/SubtitleStyleSelector.css');
 @import url('../../features/subtitler/styles/SuccessScreen.css');
 @import url('../../features/subtitler/styles/VideoUploader.css');
 @import url('../../features/subtitler/styles/live-subtitle-preview.css');

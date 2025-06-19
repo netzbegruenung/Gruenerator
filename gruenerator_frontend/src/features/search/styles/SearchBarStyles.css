@@ -27,9 +27,8 @@
   box-shadow: var(--shadow-sm);
 }
 
-/* SearchBarStyles input styles - DISABLED to prevent conflicts with main form-inputs.css */
-/*
-.search-input {
+/* SearchBarStyles input styles - More specific to avoid conflicts with global form styles */
+.search-bar-container .search-form .search-input-wrapper .search-input {
   flex: 1;
   height: 48px;
   padding: 0 16px;
@@ -39,9 +38,22 @@
   background-color: transparent;
   color: var(--font-color);
   width: 100%;
+  min-height: 48px;
+  box-shadow: none;
   transition: background-color 0.3s ease, color 0.3s ease;
 }
-*/
+
+.search-bar-container .search-form .search-input-wrapper .search-input:focus {
+  border: none;
+  background-color: transparent;
+  box-shadow: none;
+  outline: none;
+}
+
+.search-bar-container .search-form .search-input-wrapper .search-input::placeholder {
+  color: var(--font-color);
+  opacity: 0.6;
+}
 
 .search-icon-button {
   display: flex;
@@ -164,18 +176,20 @@
   animation-fill-mode: forwards;
 }
 
+
 /* Responsive Design */
 @media (max-width: 768px) {
-  .search-input-wrapper {
+  .search-bar-container .search-form .search-input-wrapper {
     border-radius: 18px;
   }
   
-  .search-input {
+  .search-bar-container .search-form .search-input-wrapper .search-input {
     height: 42px;
+    min-height: 42px;
     font-size: 15px;
   }
   
-  .search-icon-button {
+  .search-bar-container .search-form .search-input-wrapper .search-icon-button {
     width: 42px;
     height: 42px;
   }

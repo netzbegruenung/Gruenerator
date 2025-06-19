@@ -3,7 +3,17 @@ import PropTypes from 'prop-types';
 import apiClient from '../../../components/utils/apiClient';
 import LiveSubtitlePreview from './LiveSubtitlePreview';
 
-const SubtitleEditor = ({ videoFile, subtitles, uploadId, onExportSuccess, isExporting, onExportComplete }) => {
+const SubtitleEditor = ({ 
+  videoFile, 
+  subtitles, 
+  uploadId, 
+  subtitlePreference, 
+  stylePreference = 'standard',
+  onExportSuccess, 
+  isExporting, 
+  onExportComplete,
+  onBackToStyling
+}) => {
   const videoRef = useRef(null);
   const [videoUrl, setVideoUrl] = useState(null);
   const [editableSubtitles, setEditableSubtitles] = useState([]);
@@ -76,7 +86,7 @@ const SubtitleEditor = ({ videoFile, subtitles, uploadId, onExportSuccess, isExp
       const segments = subtitles.split('\n\n')
         .map((block, index) => {
           const [timeLine, ...textLines] = block.split('\n');
-          const timeMatch = timeLine.match(/(\d+):(\d{2,3}) - (\d+):(\d{2,3})/);
+          const timeMatch = timeLine.match(/(\d+):(\d{2})\.(\d) - (\d+):(\d{2})\.(\d)/);
           if (!timeMatch) {
             console.warn('[SubtitleEditor] Invalid time range in block:', block);
             return null;
@@ -84,11 +94,13 @@ const SubtitleEditor = ({ videoFile, subtitles, uploadId, onExportSuccess, isExp
 
           const startMin = parseInt(timeMatch[1], 10);
           const startSec = parseInt(timeMatch[2], 10);
-          const endMin = parseInt(timeMatch[3], 10);
-          const endSec = parseInt(timeMatch[4], 10);
+          const startFrac = parseInt(timeMatch[3], 10);
+          const endMin = parseInt(timeMatch[4], 10);
+          const endSec = parseInt(timeMatch[5], 10);
+          const endFrac = parseInt(timeMatch[6], 10);
 
-          const startTime = startMin * 60 + startSec;
-          const endTime = endMin * 60 + endSec;
+          const startTime = startMin * 60 + startSec + (startFrac / 10);
+          const endTime = endMin * 60 + endSec + (endFrac / 10);
 
           return {
             id: index,
@@ -168,8 +180,9 @@ const SubtitleEditor = ({ videoFile, subtitles, uploadId, onExportSuccess, isExp
 
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    const wholeSeconds = Math.floor(seconds % 60);
+    const fractionalSecond = Math.floor((seconds % 1) * 10); // Single decimal place
+    return `${mins}:${wholeSeconds.toString().padStart(2, '0')}.${fractionalSecond}`;
   };
 
   const handleExport = async () => {
@@ -183,21 +196,32 @@ const SubtitleEditor = ({ videoFile, subtitles, uploadId, onExportSuccess, isExp
       const subtitlesText = editableSubtitles
         .map(segment => {
           const startMin = Math.floor(segment.startTime / 60);
-          const startSec = Math.floor(segment.startTime % 60);
+          const startWholeSeconds = Math.floor(segment.startTime % 60);
+          const startFractional = Math.floor((segment.startTime % 1) * 10);
           const endMin = Math.floor(segment.endTime / 60);
-          const endSec = Math.floor(segment.endTime % 60);
-          return `${startMin.toString().padStart(2, '0')}:${startSec.toString().padStart(2, '0')}` +
-                 ` - ${endMin.toString().padStart(2, '0')}:${endSec.toString().padStart(2, '0')}` +
+          const endWholeSeconds = Math.floor(segment.endTime % 60);
+          const endFractional = Math.floor((segment.endTime % 1) * 10);
+          return `${startMin.toString().padStart(2, '0')}:${startWholeSeconds.toString().padStart(2, '0')}.${startFractional}` +
+                 ` - ${endMin.toString().padStart(2, '0')}:${endWholeSeconds.toString().padStart(2, '0')}.${endFractional}` +
                  `\n${segment.text}`;
         })
         .join('\n\n');
 
       onExportSuccess(); 
 
-      console.log('[SubtitleEditor] Exporting with:', { uploadId, subtitlesLength: subtitlesText.length });
+      console.log('[SubtitleEditor] Exporting with:', { 
+        uploadId, 
+        subtitlesLength: subtitlesText.length,
+        stylePreference 
+      });
 
       const response = await apiClient.post('/subtitler/export', 
-        { uploadId: uploadId, subtitles: subtitlesText }, 
+        { 
+          uploadId: uploadId, 
+          subtitles: subtitlesText, 
+          subtitlePreference: subtitlePreference,
+          stylePreference: stylePreference
+        }, 
         {
           responseType: 'arraybuffer',
           timeout: 300000,
@@ -273,6 +297,15 @@ const SubtitleEditor = ({ videoFile, subtitles, uploadId, onExportSuccess, isExp
 
       <div className="editor-header">
         <h3>Untertitel bearbeiten</h3>
+        {onBackToStyling && (
+          <button 
+            className="btn-secondary editor-back-button"
+            onClick={onBackToStyling}
+            title="Zurück zur Style-Auswahl"
+          >
+            Style ändern
+          </button>
+        )}
       </div>
 
       <div className="editor-layout">
@@ -295,6 +328,7 @@ const SubtitleEditor = ({ videoFile, subtitles, uploadId, onExportSuccess, isExp
                   editableSubtitles={editableSubtitles}
                   currentTimeInSeconds={currentTimeInSeconds}
                   videoMetadata={videoMetadata}
+                  stylePreference={stylePreference}
                 />
               </div>
             ) : (
@@ -378,9 +412,12 @@ SubtitleEditor.propTypes = {
   videoFile: PropTypes.instanceOf(File),
   subtitles: PropTypes.string.isRequired,
   uploadId: PropTypes.string.isRequired,
+  subtitlePreference: PropTypes.string.isRequired,
+  stylePreference: PropTypes.oneOf(['standard', 'clean', 'shadow', 'tanne']),
   onExportSuccess: PropTypes.func.isRequired,
   isExporting: PropTypes.bool,
-  onExportComplete: PropTypes.func
+  onExportComplete: PropTypes.func,
+  onBackToStyling: PropTypes.func
 };
 
 export default SubtitleEditor; 
