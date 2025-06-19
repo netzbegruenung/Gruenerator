@@ -10,8 +10,10 @@ const SubtitleStyleSelector = ({
   subtitlePreference, 
   selectedStyle,
   selectedMode,
+  selectedHeight,
   onStyleSelect,
   onModeSelect,
+  onHeightSelect,
   onContinue,
   isProcessing 
 }) => {
@@ -40,10 +42,10 @@ const SubtitleStyleSelector = ({
     {
       id: 'clean',
       name: 'Minimalistisch',
-      description: 'Reiner weißer Text ohne jegliche Effekte',
+      description: 'Reiner Text ohne jegliche Effekte',
       preview: {
         backgroundColor: 'transparent',
-        color: '#ffffff',
+        color: 'var(--font-color)',
         textShadow: 'none',
         padding: '0',
         borderRadius: '0'
@@ -72,6 +74,20 @@ const SubtitleStyleSelector = ({
         padding: '0.3em 0.6em',
         borderRadius: '0.2em'
       }
+    }
+  ];
+
+  // Height options for subtitle positioning
+  const heightOptions = [
+    {
+      id: 'standard',
+      name: 'Standard',
+      description: 'Normal'
+    },
+    {
+      id: 'tief',
+      name: 'Tief',
+      description: 'Tiefer'
     }
   ];
 
@@ -186,6 +202,10 @@ const SubtitleStyleSelector = ({
     onModeSelect(modeId);
   };
 
+  const handleHeightSelection = (heightId) => {
+    onHeightSelect(heightId);
+  };
+
   const formatDuration = (seconds) => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
@@ -256,6 +276,7 @@ const SubtitleStyleSelector = ({
                       currentTimeInSeconds={currentTimeInSeconds}
                       videoMetadata={videoMetadata}
                       stylePreference={selectedStyle}
+                      heightPreference={selectedHeight}
                     />
                   )}
                 </>
@@ -322,6 +343,45 @@ const SubtitleStyleSelector = ({
               </div>
             </div>
 
+            {/* Height Options */}
+            <div className="options-section">
+              <h3 className="section-title">
+                <FaCog />
+                Untertitel-Position
+              </h3>
+              
+              <div className="height-options-container">
+                {heightOptions.map((option) => (
+                  <label 
+                    key={option.id} 
+                    className={`height-option-card ${selectedHeight === option.id ? 'selected' : ''}`}
+                  >
+                    <input
+                      type="radio"
+                      name="heightOption"
+                      value={option.id}
+                      checked={selectedHeight === option.id}
+                      onChange={() => handleHeightSelection(option.id)}
+                      className="height-option-radio"
+                    />
+                    
+                    <div className="height-option-content">
+                      <div className="height-option-header">
+                        <h4 className="height-option-name">{option.name}</h4>
+                        <div className="height-option-check">
+                          {selectedHeight === option.id && <FaCheckCircle />}
+                        </div>
+                      </div>
+                      
+                      <div className="height-option-description">
+                        {option.description}
+                      </div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+
                       {/* Mode Options - HIDDEN: Only manual mode supported */}
           {/* 
           <div className="options-section">
@@ -352,7 +412,7 @@ const SubtitleStyleSelector = ({
           <button 
             className="continue-button"
             onClick={onContinue}
-            disabled={isProcessing || !selectedStyle}
+            disabled={isProcessing || !selectedStyle || !selectedHeight}
           >
             {isProcessing ? (
               <div className="button-loading-content">
@@ -379,8 +439,10 @@ SubtitleStyleSelector.propTypes = {
   subtitlePreference: PropTypes.string.isRequired,
   selectedStyle: PropTypes.string.isRequired,
   selectedMode: PropTypes.string.isRequired,
+  selectedHeight: PropTypes.string.isRequired,
   onStyleSelect: PropTypes.func.isRequired,
   onModeSelect: PropTypes.func.isRequired,
+  onHeightSelect: PropTypes.func.isRequired,
   onContinue: PropTypes.func.isRequired,
   isProcessing: PropTypes.bool
 };

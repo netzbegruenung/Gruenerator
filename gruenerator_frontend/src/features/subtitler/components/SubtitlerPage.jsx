@@ -28,6 +28,7 @@ const SubtitlerPage = () => {
   const [subtitlePreference, setSubtitlePreference] = useState('manual'); // Legacy parameter kept for backward compatibility
   const [stylePreference, setStylePreference] = useState('standard'); // Style preference for subtitle appearance
   const [modePreference, setModePreference] = useState('manual'); // New mode preference for subtitle generation type
+  const [heightPreference, setHeightPreference] = useState('standard'); // Height preference for subtitle positioning
   const [isProModeActive, setIsProModeActive] = useState(false);
 
   const pollingIntervalRef = useRef(null); // Ref für Polling Interval
@@ -100,11 +101,12 @@ const SubtitlerPage = () => {
         throw new Error('Keine Upload-ID gefunden');
       }
 
-      // Start processing request with mode and style preferences
+      // Start processing request with mode, style, and height preferences
       const response = await axios.post(`${baseURL}/subtitler/process`, { 
         uploadId: uploadInfo.uploadId, 
         subtitlePreference: modePreference, // Use modePreference as the main parameter
-        stylePreference: stylePreference // Include style preference
+        stylePreference: stylePreference, // Include style preference
+        heightPreference: heightPreference // Include height preference
       }, {
         // Header oder andere Axios-Konfigurationen könnten hier nötig sein
         // Beachte: Interceptors von apiClient (z.B. Auth Token) werden hier NICHT angewendet
@@ -135,11 +137,12 @@ const SubtitlerPage = () => {
 
       pollingIntervalRef.current = setInterval(async () => {
         try {
-          // Verwende axios direkt mit baseURL und füge modePreference und stylePreference als Query-Parameter hinzu
+          // Verwende axios direkt mit baseURL und füge modePreference, stylePreference, und heightPreference als Query-Parameter hinzu
           const resultResponse = await axios.get(`${baseURL}/subtitler/result/${currentUploadId}`, {
               params: { 
                 subtitlePreference: modePreference, // Use modePreference in polling
-                stylePreference // Include style preference in polling
+                stylePreference, // Include style preference in polling
+                heightPreference // Include height preference in polling
               },
               // Header oder andere Axios-Konfigurationen könnten hier nötig sein
               // Beachte: Interceptors von apiClient (z.B. Auth Token) werden hier NICHT angewendet
@@ -243,6 +246,10 @@ const SubtitlerPage = () => {
 
   const handleModeSelect = useCallback((mode) => {
     setModePreference(mode);
+  }, []);
+
+  const handleHeightSelect = useCallback((height) => {
+    setHeightPreference(height);
   }, []);
 
   const handleStyleConfirm = useCallback(() => {
@@ -363,8 +370,10 @@ const SubtitlerPage = () => {
                   subtitlePreference={subtitlePreference}
                   selectedStyle={stylePreference}
                   selectedMode={modePreference}
+                  selectedHeight={heightPreference}
                   onStyleSelect={handleStyleSelect}
                   onModeSelect={handleModeSelect}
+                  onHeightSelect={handleHeightSelect}
                   onContinue={handleStyleConfirm}
                   onBack={handleBackToConfirm}
                   isProcessing={false}
@@ -390,6 +399,7 @@ const SubtitlerPage = () => {
                     uploadId={uploadInfo?.uploadId}
                     subtitlePreference={subtitlePreference}
                     stylePreference={stylePreference} // Pass style preference
+                    heightPreference={heightPreference} // Pass height preference
                     onExportSuccess={handleExport}
                     onExportComplete={handleExportComplete}
                     isExporting={isExporting || isGenerating}

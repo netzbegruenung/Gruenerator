@@ -9,6 +9,7 @@ const SubtitleEditor = ({
   uploadId, 
   subtitlePreference, 
   stylePreference = 'standard',
+  heightPreference = 'standard',
   onExportSuccess, 
   isExporting, 
   onExportComplete,
@@ -212,7 +213,8 @@ const SubtitleEditor = ({
       console.log('[SubtitleEditor] Exporting with:', { 
         uploadId, 
         subtitlesLength: subtitlesText.length,
-        stylePreference 
+        stylePreference,
+        heightPreference 
       });
 
       const response = await apiClient.post('/subtitler/export', 
@@ -220,7 +222,8 @@ const SubtitleEditor = ({
           uploadId: uploadId, 
           subtitles: subtitlesText, 
           subtitlePreference: subtitlePreference,
-          stylePreference: stylePreference
+          stylePreference: stylePreference,
+          heightPreference: heightPreference
         }, 
         {
           responseType: 'arraybuffer',
@@ -329,6 +332,7 @@ const SubtitleEditor = ({
                   currentTimeInSeconds={currentTimeInSeconds}
                   videoMetadata={videoMetadata}
                   stylePreference={stylePreference}
+                  heightPreference={heightPreference}
                 />
               </div>
             ) : (
@@ -414,6 +418,7 @@ SubtitleEditor.propTypes = {
   uploadId: PropTypes.string.isRequired,
   subtitlePreference: PropTypes.string.isRequired,
   stylePreference: PropTypes.oneOf(['standard', 'clean', 'shadow', 'tanne']),
+  heightPreference: PropTypes.oneOf(['standard', 'tief']),
   onExportSuccess: PropTypes.func.isRequired,
   isExporting: PropTypes.bool,
   onExportComplete: PropTypes.func,
