@@ -20,11 +20,11 @@ const CustomGeneratorsTab = ({ user, onSuccessMessage, onErrorMessage, isActive 
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   
-  const { user: authUser } = useOptimizedAuth();
+  const { user: authUser, loading } = useOptimizedAuth();
 
   const fetchGenerators = async () => {
     if (!authUser) {
-      return [];
+      throw new Error('Not authenticated');
     }
     onErrorMessage('');
 
@@ -39,7 +39,7 @@ const CustomGeneratorsTab = ({ user, onSuccessMessage, onErrorMessage, isActive 
   const { data: generatorsData = [], error: fetchError } = useQuery({
     queryKey: ['customGenerators', authUser?.id],
     queryFn: fetchGenerators,
-    enabled: !!authUser && isActive,
+    enabled: !!authUser && !loading && isActive,
     refetchOnMount: 'always',
     refetchOnWindowFocus: false
   });
