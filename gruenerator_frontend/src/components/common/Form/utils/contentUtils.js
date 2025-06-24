@@ -40,6 +40,35 @@ export const getBaseContainerClasses = ({
 };
 
 /**
+ * Detects if content is markdown by checking for common markdown patterns
+ * @param {string} content - Content to check
+ * @returns {boolean} True if content appears to be markdown
+ */
+export const isMarkdownContent = (content) => {
+  if (!content || typeof content !== 'string') return false;
+  
+  // Check for common markdown patterns
+  const markdownPatterns = [
+    /^#{1,6}\s+/m,           // Headers (# ## ###)
+    /\*\*.*?\*\*/,           // Bold text
+    /\*.*?\*/,               // Italic text (but not bold)
+    /^\s*[-*+]\s+/m,         // Unordered lists
+    /^\s*\d+\.\s+/m,         // Ordered lists
+    /^>\s+/m,                // Blockquotes
+    /`.*?`/,                 // Inline code
+    /^\s*```/m,              // Code blocks
+    /\[.*?\]\(.*?\)/,        // Links
+  ];
+  
+  // Content is likely markdown if it contains multiple markdown patterns
+  // or if it has headers (which are strong indicators)
+  const patternMatches = markdownPatterns.filter(pattern => pattern.test(content)).length;
+  const hasHeaders = /^#{1,6}\s+/m.test(content);
+  
+  return hasHeaders || patternMatches >= 2;
+};
+
+/**
  * Prüft, ob der Inhalt ein React-Element ist
  * @param {any} content - Zu prüfender Inhalt
  * @returns {boolean} True, wenn der Inhalt ein React-Element ist

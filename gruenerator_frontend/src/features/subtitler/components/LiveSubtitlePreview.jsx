@@ -69,6 +69,58 @@ const LiveSubtitlePreview = ({
           padding: '0.2em 0.4em',
           borderRadius: '0.1em'
         };
+
+      // Grüne Jugend styles with GJFontRegular
+      case 'gj_clean':
+        return {
+          ...baseStyles,
+          fontFamily: "'GJFontRegular', Arial, sans-serif",
+          fontWeight: 'normal',
+          backgroundColor: 'transparent',
+          textShadow: `
+            -2px -2px 0 #000000,
+            2px -2px 0 #000000,
+            -2px 2px 0 #000000,
+            2px 2px 0 #000000
+          `,
+          padding: '0',
+          borderRadius: '0'
+        };
+
+      case 'gj_shadow':
+        return {
+          ...baseStyles,
+          fontFamily: "'GJFontRegular', Arial, sans-serif",
+          fontWeight: 'normal',
+          backgroundColor: 'transparent',
+          textShadow: '0 2px 8px rgba(0, 0, 0, 0.8), 0 0 4px rgba(0, 0, 0, 0.6)',
+          padding: '0',
+          borderRadius: '0'
+        };
+
+      case 'gj_lavendel':
+        return {
+          ...baseStyles,
+          fontFamily: "'GJFontRegular', Arial, sans-serif",
+          fontWeight: 'normal',
+          backgroundColor: '#9f88ff', // Lavendel color
+          color: '#ffffff',
+          textShadow: 'none',
+          padding: '0.2em 0.4em',
+          borderRadius: '0.1em'
+        };
+
+      case 'gj_hellgruen':
+        return {
+          ...baseStyles,
+          fontFamily: "'GJFontRegular', Arial, sans-serif",
+          fontWeight: 'normal',
+          backgroundColor: '#c7ff7a', // Light green color
+          color: '#000000', // Black text for contrast on light background
+          textShadow: 'none',
+          padding: '0.2em 0.4em',
+          borderRadius: '0.1em'
+        };
       
       case 'standard':
       default:
@@ -162,7 +214,8 @@ const LiveSubtitlePreview = ({
     textStyles.lineHeight = '1.1';
     
     // Remove some effects on mobile for better performance
-    if (stylePreference === 'clean' || stylePreference === 'standard') {
+    if (stylePreference === 'clean' || stylePreference === 'standard' || 
+        stylePreference === 'gj_clean') {
       textStyles.textShadow = 'none';
     }
   }
@@ -196,7 +249,7 @@ LiveSubtitlePreview.propTypes = {
     height: PropTypes.number.isRequired,
     duration: PropTypes.number
   }),
-  stylePreference: PropTypes.oneOf(['standard', 'clean', 'shadow', 'tanne']),
+  stylePreference: PropTypes.oneOf(['standard', 'clean', 'shadow', 'tanne', 'gj_clean', 'gj_shadow', 'gj_lavendel', 'gj_hellgruen']),
   heightPreference: PropTypes.oneOf(['standard', 'tief'])
 };
 

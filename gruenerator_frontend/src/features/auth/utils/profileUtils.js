@@ -71,29 +71,19 @@ export const getAvatarDisplayProps = (profile) => {
  */
 class ProfileResourceManager {
   constructor() {
-    this.templatesSupabase = null;
+    this.authBaseUrl = null;
     this.loadingPromise = null;
     this.componentPromises = new Map();
     this.queryPrefetches = new Map();
   }
 
-  async loadTemplatesSupabase() {
-    if (this.templatesSupabase) return this.templatesSupabase;
-    if (this.loadingPromise) return this.loadingPromise;
-
-    this.loadingPromise = (async () => {
-      try {
-        const module = await import('../../../components/utils/templatesSupabaseClient');
-        this.templatesSupabase = module.templatesSupabase;
-        return this.templatesSupabase;
-      } catch (error) {
-        console.error('Failed to load templatesSupabase:', error);
-        throw error;
-      }
-    })();
-
-    return this.loadingPromise;
+  async getAuthBaseUrl() {
+    if (this.authBaseUrl) return this.authBaseUrl;
+    
+    this.authBaseUrl = import.meta.env.VITE_AUTH_BASE_URL || '';
+    return this.authBaseUrl;
   }
+
 
   preloadComponent(name, importFn, priority = 'normal') {
     if (this.componentPromises.has(name)) {
@@ -155,27 +145,20 @@ class ProfileResourceManager {
   async initializeResources(user, queryClient, userPreferences = {}) {
     const promises = [];
 
-    promises.push(this.loadTemplatesSupabase());
-
     const preloadPromise = modulePreloader.intelligentPreload('/profile', userPreferences);
     promises.push(preloadPromise);
 
     promises.push(this.preloadComponent('ProfileInfoTab', () => import('../components/profile/ProfileInfoTab'), 'high'));
     promises.push(this.preloadComponent('LaborTab', () => import('../components/profile/LaborTab'), 'high'));
 
-    const [templatesSupabase] = await Promise.all([
-      promises[0],
-      promises[1]
-    ]);
+    await Promise.all([promises[0]]);
 
-    if (templatesSupabase && user?.id) {
+    if (user?.id) {
       this.prefetchQuery(queryClient, ['userData', user.id], () => console.log('Prefetching user data'));
       this.prefetchQuery(queryClient, ['userGroups', user.id], () => console.log('Prefetching groups'));
     }
 
-    Promise.all(promises.slice(2)).catch(err => console.warn('Background component loading error:', err));
-
-    return templatesSupabase;
+    Promise.all(promises.slice(1)).catch(err => console.warn('Background component loading error:', err));
   }
 }
 
@@ -189,7 +172,6 @@ const resourceManager = new ProfileResourceManager();
 export const useProfileResourceManager = () => {
   const { user } = useOptimizedAuth();
   const queryClient = useQueryClient();
-  const [templatesSupabase, setTemplatesSupabase] = useState(null);
   const [resourcesError, setResourcesError] = useState('');
   const [isLoadingResources, setIsLoadingResources] = useState(true);
 
@@ -207,14 +189,9 @@ export const useProfileResourceManager = () => {
           betaFeatures: user?.user_metadata?.beta_features || {},
           frequentlyUsed: []
         };
-        const templatesSupabaseClient = await resourceManager.initializeResources(user, queryClient, userPreferences);
+        await resourceManager.initializeResources(user, queryClient, userPreferences);
 
         if (isMounted) {
-          if (templatesSupabaseClient) {
-            setTemplatesSupabase(templatesSupabaseClient);
-          } else {
-            setResourcesError('Problem beim Verbinden mit der Datenbank.');
-          }
           setIsLoadingResources(false);
         }
       } catch (error) {
@@ -233,7 +210,7 @@ export const useProfileResourceManager = () => {
   const handleTabHover = useCallback((tabName, activeTab, hoveredTab) => {
     if (tabName === activeTab || tabName === hoveredTab) return;
     
-    if (user?.id && templatesSupabase) {
+    if (user?.id) {
       switch (tabName) {
         case 'profile':
           resourceManager.prefetchQuery(queryClient, ['userData', user.id], () => console.log('Prefetching profile data'));
@@ -251,16 +228,14 @@ export const useProfileResourceManager = () => {
           resourceManager.prefetchQuery(queryClient, ['canvaTemplates', user.id], () => console.log('Prefetching canva templates data'));
           break;
         case 'labor':
-          resourceManager.prefetchQuery(queryClient, ['deutschlandmodus', user.id], () => console.log('Prefetching deutschlandmodus data'));
           break;
         default:
           break;
       }
     }
-  }, [user, templatesSupabase, queryClient]);
+  }, [user, queryClient]);
 
   return {
-    templatesSupabase,
     resourcesError,
     isLoadingResources,
     handleTabHover,
@@ -268,74 +243,6 @@ export const useProfileResourceManager = () => {
   };
 };
 
-// === BETA FEATURES MANAGEMENT ===
-
-/**
- * Beta features configuration - single source of truth
- */
-const BETA_FEATURES_CONFIG = [
-  { key: 'deutschlandmodus', label: 'Deutschlandmodus', isAdminOnly: false },
-  { key: 'sharepic', label: 'Sharepic', isAdminOnly: false },
-  { key: 'you', label: 'You Generator', isAdminOnly: false },
-  { key: 'collab', label: 'Kollaborative Bearbeitung', isAdminOnly: false },
-  { key: 'anweisungen', label: 'Anweisungen & Wissen', isAdminOnly: false },
-  { key: 'groups', label: 'Gruppen', isAdminOnly: true },
-  { key: 'database', label: 'Datenbank', isAdminOnly: true },
-  { key: 'customGenerators', label: 'Grüneratoren', isAdminOnly: true },
-];
-
-// Dynamically generated arrays from config
-const ADMIN_ONLY_FEATURES = BETA_FEATURES_CONFIG.filter(f => f.isAdminOnly).map(f => f.key);
-const PUBLIC_FEATURES = BETA_FEATURES_CONFIG.filter(f => !f.isAdminOnly).map(f => f.key);
-
-/**
- * Hook for managing beta features access and permissions
- * Extracted from ProfilePage.jsx
- */
-export const useBetaFeatureManager = () => {
-  const { betaFeatures, updateUserBetaFeatures } = useOptimizedAuth();
-  const { data: profile } = useProfileData();
-
-  const getBetaFeatureState = useCallback((key) => !!betaFeatures?.[key], [betaFeatures]);
-
-  const canAccessBetaFeature = useCallback((featureKey) => {
-    const isAdmin = profile?.is_admin === true;
-    const isAdminOnlyFeature = ADMIN_ONLY_FEATURES.includes(featureKey);
-    
-    if (isAdminOnlyFeature && !isAdmin) {
-      return false;
-    }
-    
-    return getBetaFeatureState(featureKey);
-  }, [profile?.is_admin, getBetaFeatureState]);
-
-  const shouldShowTab = useCallback((featureKey) => {
-    const isAdmin = profile?.is_admin === true;
-    const isAdminOnlyFeature = ADMIN_ONLY_FEATURES.includes(featureKey);
-    
-    if (isAdminOnlyFeature && !isAdmin) {
-      return false;
-    }
-    
-    return getBetaFeatureState(featureKey);
-  }, [profile?.is_admin, getBetaFeatureState]);
-
-  const getAvailableFeatures = useCallback(() => {
-    const isAdmin = profile?.is_admin === true;
-    return BETA_FEATURES_CONFIG.filter(feature => !feature.isAdminOnly || isAdmin);
-  }, [profile?.is_admin]);
-
-  return {
-    getBetaFeatureState,
-    canAccessBetaFeature,
-    shouldShowTab,
-    getAvailableFeatures,
-    updateUserBetaFeatures,
-    isAdmin: profile?.is_admin === true,
-    adminOnlyFeatures: ADMIN_ONLY_FEATURES,
-    publicFeatures: PUBLIC_FEATURES
-  };
-};
 
 // === PROFILE DATA MANAGEMENT ===
 
@@ -375,7 +282,7 @@ export const useProfileData = (userId) => {
       if (!actualUserId) throw new Error('Kein User verfügbar');
 
       // Fetch profile data via backend API instead of direct Supabase access
-      const response = await fetch(`${AUTH_BASE_URL}/api/auth/profile`, {
+      const response = await fetch(`${AUTH_BASE_URL}/auth/profile`, {
         method: 'GET',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' }
@@ -528,7 +435,7 @@ export const useAnweisungenWissen = ({ isActive, enabled = true } = {}) => {
 
   const fetchAnweisungenWissenFn = async () => {
     if (!user?.id) throw new Error('Nicht eingeloggt');
-    const resp = await fetch(`${AUTH_BASE_URL}/api/auth/anweisungen-wissen`, {
+    const resp = await fetch(`${AUTH_BASE_URL}/auth/anweisungen-wissen`, {
       method: 'GET',
       credentials: 'include'
     });
@@ -580,7 +487,7 @@ export const useAnweisungenWissen = ({ isActive, enabled = true } = {}) => {
           knowledge: cleanedKnowledge
       };
 
-      const resp = await fetch(`${AUTH_BASE_URL}/api/auth/anweisungen-wissen`, {
+      const resp = await fetch(`${AUTH_BASE_URL}/auth/anweisungen-wissen`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -613,7 +520,7 @@ export const useAnweisungenWissen = ({ isActive, enabled = true } = {}) => {
           return; 
       }
       
-      const resp = await fetch(`${AUTH_BASE_URL}/api/auth/anweisungen-wissen/${entryId}`, {
+      const resp = await fetch(`${AUTH_BASE_URL}/auth/anweisungen-wissen/${entryId}`, {
         method: 'DELETE',
         credentials: 'include'
       });
@@ -647,3 +554,173 @@ export const useAnweisungenWissen = ({ isActive, enabled = true } = {}) => {
     };
 };
 // === END PERSONAL INSTRUCTIONS & KNOWLEDGE === 
+
+// === Q&A COLLECTIONS MANAGEMENT ===
+
+export const useQACollections = ({ isActive, enabled = true } = {}) => {
+  const { user } = useOptimizedAuth();
+  const queryClient = useQueryClient();
+  const AUTH_BASE_URL = import.meta.env.VITE_AUTH_BASE_URL || '';
+
+  // --- React Query: Fetch Q&A Collections --- 
+  const queryKey = ['qaCollections', user?.id];
+
+  const fetchQACollectionsFn = async () => {
+    if (!user?.id) throw new Error('Nicht eingeloggt');
+    const resp = await fetch(`${AUTH_BASE_URL}/auth/qa-collections`, {
+      method: 'GET',
+      credentials: 'include'
+    });
+    if (!resp.ok) throw new Error('Fehler beim Laden der Q&A-Sammlungen');
+    const json = await resp.json();
+    
+    if (!json.success) {
+      throw new Error(json.message || 'Failed to fetch Q&A collections');
+    }
+    
+    return json.collections || [];
+  };
+
+  const query = useQuery({
+    queryKey: queryKey, 
+    queryFn: fetchQACollectionsFn, 
+    enabled: enabled && !!user?.id && isActive,
+    staleTime: 5 * 60 * 1000,
+    cacheTime: 15 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: 'always',
+    retry: 1,
+  });
+
+  // --- React Query: Create Collection Mutation --- 
+  const createCollectionMutation = useMutation({
+    mutationFn: async (collectionData) => {
+      if (!user?.id) throw new Error('Nicht eingeloggt');
+      
+      const resp = await fetch(`${AUTH_BASE_URL}/auth/qa-collections`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: collectionData.name,
+          description: collectionData.description,
+          custom_prompt: collectionData.custom_prompt,
+          documents: collectionData.documents
+        })
+      });
+      
+      if (!resp.ok) throw new Error('Fehler beim Erstellen der Q&A-Sammlung');
+      const json = await resp.json();
+      
+      if (!json.success) {
+        throw new Error(json.message || 'Failed to create Q&A collection');
+      }
+      
+      return json.collection;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey });
+    }
+  });
+
+  // --- React Query: Update Collection Mutation --- 
+  const updateCollectionMutation = useMutation({
+    mutationFn: async ({ collectionId, collectionData }) => {
+      if (!user?.id) throw new Error('Nicht eingeloggt');
+      
+      const resp = await fetch(`${AUTH_BASE_URL}/auth/qa-collections/${collectionId}`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: collectionData.name,
+          description: collectionData.description,
+          custom_prompt: collectionData.custom_prompt,
+          documents: collectionData.documents
+        })
+      });
+      
+      if (!resp.ok) throw new Error('Fehler beim Aktualisieren der Q&A-Sammlung');
+      const json = await resp.json();
+      
+      if (!json.success) {
+        throw new Error(json.message || 'Failed to update Q&A collection');
+      }
+      
+      return json;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey });
+    }
+  });
+
+  // --- React Query: Delete Collection Mutation --- 
+  const deleteCollectionMutation = useMutation({
+    mutationFn: async (collectionId) => {
+      if (!user?.id) throw new Error('Nicht eingeloggt');
+      
+      const resp = await fetch(`${AUTH_BASE_URL}/auth/qa-collections/${collectionId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      
+      if (!resp.ok) throw new Error('Fehler beim Löschen der Q&A-Sammlung');
+      const json = await resp.json();
+      
+      if (!json.success) {
+        throw new Error(json.message || 'Failed to delete Q&A collection');
+      }
+      
+      return json;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey });
+    }
+  });
+
+  // Fetch available documents for Q&A creation
+  const fetchAvailableDocuments = async () => {
+    if (!user?.id) throw new Error('Nicht eingeloggt');
+    
+    const resp = await fetch(`${AUTH_BASE_URL}/api/documents/user`, {
+      method: 'GET',
+      credentials: 'include'
+    });
+    
+    if (!resp.ok) throw new Error('Fehler beim Laden der Dokumente');
+    const json = await resp.json();
+    
+    if (!json.success) {
+      throw new Error(json.message || 'Failed to fetch documents');
+    }
+
+    // Filter only completed documents
+    const completedDocuments = (json.data || []).filter(doc => doc.status === 'completed');
+    return completedDocuments;
+  };
+
+  // Helper functions
+  const getQACollection = (collectionId) => {
+    const collections = query.data || [];
+    return collections.find(c => c.id === collectionId);
+  };
+
+  return {
+    // The main data query object
+    query,
+    // Mutation functions
+    createQACollection: createCollectionMutation.mutate,
+    updateQACollection: (collectionId, collectionData) => 
+      updateCollectionMutation.mutate({ collectionId, collectionData }),
+    deleteQACollection: deleteCollectionMutation.mutate,
+    // Helper functions
+    fetchAvailableDocuments,
+    getQACollection,
+    // Loading states
+    isCreating: createCollectionMutation.isPending,
+    isUpdating: updateCollectionMutation.isPending,
+    isDeleting: deleteCollectionMutation.isPending,
+  };
+};
+
+// === END Q&A COLLECTIONS MANAGEMENT ===

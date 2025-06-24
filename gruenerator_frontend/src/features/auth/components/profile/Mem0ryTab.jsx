@@ -225,7 +225,7 @@ const Mem0ryTab = ({ onSuccessMessage, onErrorMessage, isActive }) => {
 
   return (
     <motion.div 
-      className="profile-content groups-management-layout"
+      className="profile-content profile-management-layout"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3 }}
@@ -233,8 +233,8 @@ const Mem0ryTab = ({ onSuccessMessage, onErrorMessage, isActive }) => {
       <div className="groups-navigation-panel">
         {renderNavigationPanel()}
       </div>
-      <div className="groups-content-panel profile-form-section">
-        <div className="group-content-card">
+      <div className="profile-content-panel profile-form-section">
+        <div className="profile-content-card">
           <div className="auth-form">
 
             {error && (

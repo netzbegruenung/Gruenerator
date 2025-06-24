@@ -1,10 +1,10 @@
-import React, { useState, useCallback, useEffect, useContext } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { FiUpload, FiFile, FiX, FiFileText, FiCheck } from 'react-icons/fi';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import ErrorBoundary from '../../ErrorBoundary';
 // import { useDynamicTextSize } from '../../utils/commonFunctions';
-import { FormContext } from '../../utils/FormContext';
+import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 import AnimatedCheckbox from '../../common/AnimatedCheckbox';
 import Spinner from '../../common/Spinner';
 import apiClient from '../../utils/apiClient';
@@ -46,8 +46,9 @@ const Antragsversteher = ({ showHeaderFooter = true }) => {
   const [dataPrivacyAccepted, setDataPrivacyAccepted] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
 
-  const formContext = useContext(FormContext);
-  const { value: generatedContent, updateValue: setGeneratedContent } = formContext || {};
+  const { getGeneratedText, setGeneratedText } = useGeneratedTextStore();
+  const generatedContent = getGeneratedText('antragsversteher');
+  const setGeneratedContent = (content) => setGeneratedText('antragsversteher', content);
   const shouldReduceMotion = useReducedMotion();
 
   // const textSize = useDynamicTextSize(generatedContent, 1.2, 0.8, [1000, 2000]);

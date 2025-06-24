@@ -9,6 +9,7 @@ import { FaVideo, FaFileVideo, FaRuler, FaClock, FaUserCog } from 'react-icons/f
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import MaintenanceNotice from '../../../components/common/MaintenanceNotice'; // Import the MaintenanceNotice component
 import FeatureToggle from '../../../components/common/FeatureToggle'; // Import FeatureToggle
+import { useAuthStore } from '../../../stores/authStore';
 
 // --- Maintenance Flag ---
 // Set to true to enable maintenance mode for this page
@@ -30,6 +31,9 @@ const SubtitlerPage = () => {
   const [modePreference, setModePreference] = useState('manual'); // New mode preference for subtitle generation type
   const [heightPreference, setHeightPreference] = useState('standard'); // Height preference for subtitle positioning
   const [isProModeActive, setIsProModeActive] = useState(false);
+  
+  // Get Igel mode status from auth store
+  const { igelModus } = useAuthStore();
 
   const pollingIntervalRef = useRef(null); // Ref für Polling Interval
 
@@ -377,6 +381,7 @@ const SubtitlerPage = () => {
                   onContinue={handleStyleConfirm}
                   onBack={handleBackToConfirm}
                   isProcessing={false}
+                  igelModus={igelModus}
                 />
               )}
 

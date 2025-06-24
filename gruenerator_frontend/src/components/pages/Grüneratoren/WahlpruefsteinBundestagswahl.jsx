@@ -1,19 +1,20 @@
-import React, { useState, useCallback, useContext } from 'react';
+import React, { useState, useCallback } from 'react';
 import PropTypes from 'prop-types';
 // import {useDynamicTextSize } from '../../utils/commonFunctions';
 import useApiSubmit from '../../hooks/useApiSubmit';
 import BaseForm from '../../common/BaseForm';
 import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../utils/constants';
-import { FormContext } from '../../utils/FormContext';
+import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 import ErrorBoundary from '../../ErrorBoundary';
 
 const WahlpruefsteinBundestagswahl = ({ showHeaderFooter = true }) => {
+  const componentName = 'wahlpruefstein-bundestagswahl';
   const [question, setQuestion] = useState('');
   const [selectedChapter, setSelectedChapter] = useState('');
-  const [response, setResponse] = useState('');
-  // const textSize = useDynamicTextSize(response, 1.2, 0.8, [1000, 2000]);
   const { submitForm, loading, success, resetSuccess, error } = useApiSubmit('/wahlpruefsteinbundestagswahl/frage');
-  const { setGeneratedContent } = useContext(FormContext);
+  const { setGeneratedText } = useGeneratedTextStore();
+  const response = useGeneratedTextStore(state => state.getGeneratedText(componentName)) || '';
+  // FormContext removed - using generatedTextStore directly
 
   const getChapterDescription = (chapter) => {
     switch(chapter) {
@@ -45,19 +46,17 @@ const WahlpruefsteinBundestagswahl = ({ showHeaderFooter = true }) => {
           .replace(/Antwort:/g, '<strong> Antwort:</strong>')
           .replace(/\n/g, '<br />');
         
-        setResponse(formattedContent);
-        setGeneratedContent(content);
+        setGeneratedText(componentName, formattedContent);
         setTimeout(resetSuccess, 3000);
       }
     } catch (error) {
       console.error('Error processing the question:', error);
     }
-  }, [question, selectedChapter, submitForm, resetSuccess, setGeneratedContent]);
+  }, [question, selectedChapter, submitForm, resetSuccess, setGeneratedText, componentName]);
 
   const handleGeneratedContentChange = useCallback((content) => {
-    setResponse(content);
-    setGeneratedContent(content);
-  }, [setGeneratedContent]);
+    setGeneratedText(componentName, content);
+  }, [setGeneratedText, componentName]);
 
   const helpContent = {
     title: "BTW Programm-Kompass",

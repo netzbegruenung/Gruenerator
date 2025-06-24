@@ -801,7 +801,7 @@ router.post('/export', async (req, res) => {
     res.setHeader('X-Export-Token', exportToken);
     res.setHeader('Content-Type', 'video/mp4');
     res.setHeader('Content-Length', fileSize);
-    res.setHeader('Content-Disposition', `attachment; filename="subtitled_${originalFilename}"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${path.basename(originalFilename, path.extname(originalFilename))}_mit_untertiteln.mp4"`);
     
     // Sende die Datei
     const fileStream = fs.createReadStream(outputPath);

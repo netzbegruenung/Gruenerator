@@ -6,6 +6,7 @@ import { CSSTransition } from 'react-transition-group';
 import useAccessibility from '../../hooks/useAccessibility';
 import { getMenuItems, getDirectMenuItems, getMobileOnlyMenuItems, handleMenuInteraction as commonHandleMenuInteraction } from './menuData';
 import { useLazyAuth } from '../../../hooks/useAuth';
+import { useBetaFeatures } from '../../../hooks/useBetaFeatures';
 
 const MenuItem = ({ icon: Icon, title, description, path, onClick, isTopLevel = false }) => (
   <div className={`menu-item ${isTopLevel ? 'menu-item--top-level' : ''}`}>
@@ -38,9 +39,10 @@ const NavMenu = ({ open, onClose }) => {
   const location = useLocation();
   const { announce } = useAccessibility();
   const navMenuRef = useRef(null);
-  const { betaFeatures } = useLazyAuth();
-  const sharepicBetaEnabled = betaFeatures?.sharepic === true;
-  const databaseBetaEnabled = betaFeatures?.database === true;
+  useLazyAuth(); // Keep for other auth functionality
+  const { getBetaFeatureState } = useBetaFeatures();
+  const sharepicBetaEnabled = getBetaFeatureState('sharepic');
+  const databaseBetaEnabled = getBetaFeatureState('database');
 
   const menuItems = getMenuItems({ sharepicBetaEnabled, databaseBetaEnabled });
   const directMenuItems = getDirectMenuItems({ sharepicBetaEnabled, databaseBetaEnabled });

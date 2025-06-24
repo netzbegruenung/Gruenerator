@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../../components/utils/constants';
 import { useFormFields } from '../../../components/common/Form/hooks';
 
-const WahlprogrammForm = forwardRef((props, ref) => {
+const WahlprogrammForm = forwardRef(({ tabIndex = {} }, ref) => {
   const { Input, Textarea } = useFormFields();
   const {
     control,
@@ -30,6 +30,7 @@ const WahlprogrammForm = forwardRef((props, ref) => {
         label={FORM_LABELS.THEME}
         placeholder={FORM_PLACEHOLDERS.THEME}
         rules={{ required: 'Thema ist ein Pflichtfeld' }}
+        tabIndex={tabIndex.formType || 10}
       />
 
       <Textarea
@@ -39,6 +40,7 @@ const WahlprogrammForm = forwardRef((props, ref) => {
         placeholder={FORM_PLACEHOLDERS.DETAILS}
         rules={{ required: 'Details sind ein Pflichtfeld' }}
         minRows={3}
+        tabIndex={tabIndex.hauptfeld || 11}
       />
 
       <Input
@@ -53,6 +55,7 @@ const WahlprogrammForm = forwardRef((props, ref) => {
           max: { value: 3500, message: 'Die Zeichenanzahl darf maximal 3.500 betragen' }
         }}
         helpText="Zwischen 1.000 und 3.500 Zeichen möglich"
+        tabIndex={tabIndex.hauptfeld || 12}
       />
     </>
   );

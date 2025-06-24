@@ -12,6 +12,7 @@
   position: sticky;
   top: 0;
   flex-shrink: 0;
+  position: relative;
   transition: all 0.3s ease;
   padding: 0;
 }
@@ -158,31 +159,53 @@
   text-align: center;
 }
 
-/* EditorChat input styles - DISABLED to prevent conflicts with main form-inputs.css */
-/*
-.editor-chat-input {
-  padding: 12px;
-  border-top: var(--border-subtle);
+/* Floating input with glass design and layout */
+.floating-input {
+  position: absolute;
+  bottom: var(--spacing-medium);
+  left: var(--spacing-medium);
+  right: var(--spacing-medium);
+  background-color: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 24px;
+  box-shadow: var(--shadow-lg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  z-index: 20;
+}
+
+[data-theme="dark"] .floating-input {
+  background-color: rgba(0, 0, 0, 0.25);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.floating-input .input-elements {
+  padding: 12px 12px;
   display: flex;
-  gap: 8px;
-  background: var(--chat-input-background);
+  align-items: center;
+  gap: 12/px;
+  background: transparent;
 }
 
-.editor-chat-input input {
+.floating-input input.form-input {
   flex: 1;
-  padding: 8px 12px;
-  border: 1px solid var(--chat-input-border-color);
-  border-radius: 20px;
+  margin-bottom: 0; /* Override form-input default margin */
+  min-height: 20px; /* Keep original size */
+  border-radius: 20px; /* Keep original rounded style */
   font-size: 14px;
-  outline: none;
-  background: var(--chat-input-background);
-  color: var(--chat-input-text-color);
+  margin-left: 10px;
+  margin-right: 10px;
 }
 
-.editor-chat-input input:focus {
-  border-color: var(--user-accent-color, var(--klee));
+.floating-input input.form-input:focus {
+  box-shadow: 0 0 0 1px var(--user-accent-color, var(--klee));
 }
-*/
+
+/* Dark mode specific override for chat input visibility */
+[data-theme="dark"] .floating-input input.form-input {
+  background-color: var(--grey-800);
+  border: 1px solid var(--grey-700);
+}
 
 .color-picker-container {
   position: relative;
@@ -229,7 +252,7 @@
   flex-shrink: 0;
 }
 
-.editor-chat-input button {
+.floating-input button {
   color: var(--weiß);
   border: none;
   border-radius: 50%;
@@ -242,11 +265,11 @@
   transition: background-color 0.2s;
 }
 
-.editor-chat-input button:hover:not(:disabled) {
+.floating-input button:hover:not(:disabled) {
   filter: brightness(90%);
 }
 
-.editor-chat-input button:disabled {
+.floating-input button:disabled {
   background: var(--background-color-alt);
   cursor: not-allowed;
   opacity: 0.5;
@@ -255,17 +278,17 @@
 .selected-text-display {
   font-size: 0.75rem;
   color: #666;
-  margin: 8px 12px;
-  padding: 8px 12px;
+  margin: 12px 16px 8px;
+  padding: 12px 16px;
   background: var(--sand);
-  border-radius: 4px;
+  border-radius: 16px;
   white-space: pre-wrap;
   overflow: hidden;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   line-height: 1.4;
   max-height: 5.6em;
-  width: calc(100% - 24px);
+  width: calc(100% - 32px);
   border: 1px solid var(--hellgrau);
   word-break: break-word;
 }
@@ -310,6 +333,12 @@
     border-radius: 12px 12px 0 0;
     z-index: 1000;
   }
+  
+  .floating-input {
+    bottom: var(--spacing-large);
+    left: var(--spacing-large);
+    right: var(--spacing-large);
+  }
 }
 
 @media (max-width: 480px) {
@@ -321,11 +350,11 @@
     font-size: 14px;
   }
   
-  .editor-chat-input {
-    padding: 8px;
+  .floating-input .input-elements {
+    padding: 12px;
   }
   
-  .editor-chat-input input {
+  .floating-input input {
     font-size: 12px;
   }
 } 

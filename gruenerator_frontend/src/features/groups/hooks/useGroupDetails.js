@@ -1,14 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useAuth } from '../../../hooks/useAuth';
+import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 const MAX_KNOWLEDGE_ENTRIES = 3;
 const MAX_CONTENT_LENGTH = 1000;
-
-// Helper for comparing objects
-const deepEqual = (obj1, obj2) => {
-  return JSON.stringify(obj1) === JSON.stringify(obj2);
-};
+const AUTH_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
 
 // Helper to clean up knowledge entry
 const cleanKnowledgeEntry = (entry) => {
@@ -24,15 +20,17 @@ const cleanKnowledgeEntry = (entry) => {
 
 /**
  * Hook for managing group details including instructions and knowledge
+ * Refactored to use backend API following modern auth pattern
  */
 const useGroupDetails = (groupId, { isActive } = {}) => {
-  const { user: supabaseUser } = useAuth();
-  const [templatesSupabase, setTemplatesSupabase] = useState(null);
+  const { user, isAuthenticated, loading: authLoading } = useOptimizedAuth();
   const queryClient = useQueryClient();
   
   // Local states for editing
   const [customAntragPrompt, setCustomAntragPrompt] = useState('');
   const [customSocialPrompt, setCustomSocialPrompt] = useState('');
+  const [antragInstructionsEnabled, setAntragInstructionsEnabled] = useState(false);
+  const [socialInstructionsEnabled, setSocialInstructionsEnabled] = useState(false);
   const [knowledgeEntries, setKnowledgeEntries] = useState([]);
   const [groupInfo, setGroupInfo] = useState(null);
   const [joinToken, setJoinToken] = useState('');
@@ -41,86 +39,39 @@ const useGroupDetails = (groupId, { isActive } = {}) => {
   const initialDataLoaded = useRef(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
-  // Load Supabase client
-  useEffect(() => {
-    let isMounted = true;
-    const loadSupabaseClient = async () => {
-      try {
-        const module = await import('../../../components/utils/templatesSupabaseClient');
-        if (isMounted && module.templatesSupabase) {
-          setTemplatesSupabase(module.templatesSupabase);
-        }
-      } catch (error) {
-        console.error('Error loading Supabase client:', error);
-      }
-    };
-    loadSupabaseClient();
-    return () => { isMounted = false; };
-  }, []);
-
   // Query key for group details
   const groupDetailsQueryKey = ['groupDetails', groupId];
 
-  // Fetch group details
+  // Fetch group details via backend API
   const fetchGroupDetailsFn = async () => {
-    if (!supabaseUser?.id || !templatesSupabase || !groupId) {
+    if (!user?.id || !groupId) {
       throw new Error("Required data missing");
     }
 
-    // 1. Check membership and role
-    const { data: membership, error: membershipError } = await templatesSupabase
-      .from('group_memberships')
-      .select('role')
-      .eq('group_id', groupId)
-      .eq('user_id', supabaseUser.id)
-      .single();
+    const response = await fetch(`${AUTH_BASE_URL}/auth/groups/${groupId}/details`, {
+      method: 'GET',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
 
-    if (membershipError) {
-      throw new Error("You are not a member of this group");
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
     }
 
-    // 2. Fetch group info
-    const { data: group, error: groupError } = await templatesSupabase
-      .from('groups')
-      .select('id, name, created_at, created_by, join_token')
-      .eq('id', groupId)
-      .single();
-
-    if (groupError) {
-      throw new Error(`Failed to fetch group: ${groupError.message}`);
+    const data = await response.json();
+    
+    if (!data.success) {
+      throw new Error(data.message || 'Failed to fetch group details');
     }
-
-    // 3. Fetch instructions
-    const { data: instructions, error: instructionsError } = await templatesSupabase
-      .from('group_instructions')
-      .select('group_id, custom_antrag_prompt, custom_social_prompt')
-      .eq('group_id', groupId)
-      .single();
-
-    if (instructionsError && instructionsError.code !== 'PGRST116') {
-      throw new Error(`Failed to fetch instructions: ${instructionsError.message}`);
-    }
-
-    // 4. Fetch knowledge
-    const { data: knowledge, error: knowledgeError } = await templatesSupabase
-      .from('group_knowledge')
-      .select('id, title, content, created_by, created_at')
-      .eq('group_id', groupId)
-      .order('created_at', { ascending: true });
-
-    if (knowledgeError) {
-      throw new Error(`Failed to fetch knowledge: ${knowledgeError.message}`);
-    }
-
-    // Determine if user is admin
-    const isAdmin = membership.role === 'admin' || group.created_by === supabaseUser.id;
 
     return {
-      group,
-      instructions: instructions || { group_id: groupId },
-      knowledge: knowledge || [],
-      role: membership.role,
-      isAdmin
+      group: data.group,
+      instructions: data.instructions,
+      knowledge: data.knowledge,
+      membership: data.membership
     };
   };
 
@@ -134,7 +85,7 @@ const useGroupDetails = (groupId, { isActive } = {}) => {
   } = useQuery({
     queryKey: groupDetailsQueryKey,
     queryFn: fetchGroupDetailsFn,
-    enabled: !!supabaseUser?.id && !!templatesSupabase && !!groupId && isActive !== false,
+    enabled: !!user?.id && !!groupId && isAuthenticated && !authLoading && isActive !== false,
     staleTime: 5 * 60 * 1000,
     cacheTime: 15 * 60 * 1000,
     refetchOnWindowFocus: false
@@ -144,12 +95,18 @@ const useGroupDetails = (groupId, { isActive } = {}) => {
   useEffect(() => {
     if (isLoadingDetails || !queryData || hasUnsavedChanges) return;
 
-    setUserRole(queryData.role);
-    setGroupInfo(queryData.group);
+    setUserRole(queryData.membership.role);
+    setGroupInfo({
+      ...queryData.group,
+      antrag_instructions_enabled: queryData.instructions.antrag_instructions_enabled,
+      social_instructions_enabled: queryData.instructions.social_instructions_enabled
+    });
     setJoinToken(queryData.group.join_token);
     
     setCustomAntragPrompt(queryData.instructions.custom_antrag_prompt || '');
     setCustomSocialPrompt(queryData.instructions.custom_social_prompt || '');
+    setAntragInstructionsEnabled(queryData.instructions.antrag_instructions_enabled || false);
+    setSocialInstructionsEnabled(queryData.instructions.social_instructions_enabled || false);
 
     // Initialize knowledge entries with placeholders
     const existingEntries = queryData.knowledge.map(entry => ({ ...entry, isNew: false }));
@@ -175,7 +132,9 @@ const useGroupDetails = (groupId, { isActive } = {}) => {
 
     // Compare instructions
     if (customAntragPrompt !== (queryData.instructions.custom_antrag_prompt || '') ||
-        customSocialPrompt !== (queryData.instructions.custom_social_prompt || '')
+        customSocialPrompt !== (queryData.instructions.custom_social_prompt || '') ||
+        antragInstructionsEnabled !== (queryData.instructions.antrag_instructions_enabled || false) ||
+        socialInstructionsEnabled !== (queryData.instructions.social_instructions_enabled || false)
       ) {
       changed = true;
     }
@@ -213,6 +172,8 @@ const useGroupDetails = (groupId, { isActive } = {}) => {
   }, [
     customAntragPrompt,
     customSocialPrompt,
+    antragInstructionsEnabled,
+    socialInstructionsEnabled,
     knowledgeEntries,
     queryData,
     isLoadingDetails
@@ -222,27 +183,50 @@ const useGroupDetails = (groupId, { isActive } = {}) => {
   const handleInstructionsChange = useCallback((field, value) => {
     if (!initialDataLoaded.current) return;
     
-    if (field === 'customAntragPrompt') setCustomAntragPrompt(value);
-    else if (field === 'customSocialPrompt') setCustomSocialPrompt(value);
+    if (field === 'custom_antrag_prompt') setCustomAntragPrompt(value);
+    else if (field === 'custom_social_prompt') setCustomSocialPrompt(value);
+    else if (field === 'antrag_instructions_enabled') setAntragInstructionsEnabled(value);
+    else if (field === 'social_instructions_enabled') setSocialInstructionsEnabled(value);
   }, []);
 
-  const handleKnowledgeChange = useCallback((id, field, value) => {
+  const handleKnowledgeChange = useCallback((id, content, action = 'update') => {
     if (!initialDataLoaded.current) return;
     
-    if (field === 'content' && value.length > MAX_CONTENT_LENGTH) {
-      value = value.substring(0, MAX_CONTENT_LENGTH);
+    if (action === 'add') {
+      // Add new knowledge entry
+      const newEntry = {
+        id: `new-${Date.now()}`,
+        title: 'Untitled',
+        content: '',
+        isNew: true
+      };
+      setKnowledgeEntries(prevEntries => {
+        // Replace first empty entry
+        const firstEmptyIndex = prevEntries.findIndex(entry => !entry.content && !entry.title);
+        if (firstEmptyIndex !== -1) {
+          const newEntries = [...prevEntries];
+          newEntries[firstEmptyIndex] = newEntry;
+          return newEntries;
+        }
+        return prevEntries;
+      });
+      return;
+    }
+    
+    if (content && content.length > MAX_CONTENT_LENGTH) {
+      content = content.substring(0, MAX_CONTENT_LENGTH);
     }
     
     setKnowledgeEntries(prevEntries =>
       prevEntries.map(entry => 
-        entry.id === id ? { ...entry, [field]: value } : entry
+        entry.id === id ? { ...entry, content } : entry
       )
     );
   }, []);
 
-  // Save changes mutation
+  // Save changes mutation - split into instructions and knowledge operations
   const saveChangesMutationFn = async () => {
-    if (!supabaseUser?.id || !templatesSupabase || !groupId) {
+    if (!user?.id || !groupId) {
       throw new Error("Required data missing");
     }
 
@@ -253,27 +237,50 @@ const useGroupDetails = (groupId, { isActive } = {}) => {
     const promises = [];
 
     // Update instructions if changed
-    const instructionsUpdatePayload = {};
     let instructionsChanged = false;
+    const instructionsPayload = {};
 
     if (customAntragPrompt !== (queryData.instructions.custom_antrag_prompt || '')) {
-      instructionsUpdatePayload.custom_antrag_prompt = customAntragPrompt;
+      instructionsPayload.custom_antrag_prompt = customAntragPrompt;
       instructionsChanged = true;
     }
     
     if (customSocialPrompt !== (queryData.instructions.custom_social_prompt || '')) {
-      instructionsUpdatePayload.custom_social_prompt = customSocialPrompt;
+      instructionsPayload.custom_social_prompt = customSocialPrompt;
+      instructionsChanged = true;
+    }
+
+    if (antragInstructionsEnabled !== (queryData.instructions.antrag_instructions_enabled || false)) {
+      instructionsPayload.antrag_instructions_enabled = antragInstructionsEnabled;
+      instructionsChanged = true;
+    }
+
+    if (socialInstructionsEnabled !== (queryData.instructions.social_instructions_enabled || false)) {
+      instructionsPayload.social_instructions_enabled = socialInstructionsEnabled;
       instructionsChanged = true;
     }
 
     if (instructionsChanged) {
-      instructionsUpdatePayload.updated_at = new Date();
-      promises.push(
-        templatesSupabase
-          .from('group_instructions')
-          .update(instructionsUpdatePayload)
-          .eq('group_id', groupId)
-      );
+      const instructionsPromise = fetch(`${AUTH_BASE_URL}/auth/groups/${groupId}/instructions`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(instructionsPayload)
+      }).then(response => {
+        if (!response.ok) {
+          throw new Error(`Instructions update failed: ${response.status}`);
+        }
+        return response.json();
+      }).then(data => {
+        if (!data.success) {
+          throw new Error(data.message || 'Failed to update instructions');
+        }
+        return data;
+      });
+
+      promises.push(instructionsPromise);
     }
 
     // Process knowledge entries
@@ -299,26 +306,47 @@ const useGroupDetails = (groupId, { isActive } = {}) => {
             throw new Error(`Content too long for knowledge entry (ID: ${currentEntry.id})`);
           }
           
-          promises.push(
-            templatesSupabase
-              .from('group_knowledge')
-              .update({ 
-                title: currentEntry.title || 'Untitled', 
-                content: currentEntry.content,
-                updated_at: new Date()
-              })
-              .eq('id', currentEntry.id)
-              .eq('group_id', groupId)
-          );
+          const updatePromise = fetch(`${AUTH_BASE_URL}/auth/groups/${groupId}/knowledge/${currentEntry.id}`, {
+            method: 'PUT',
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              title: currentEntry.title || 'Untitled',
+              content: currentEntry.content
+            })
+          }).then(response => {
+            if (!response.ok) {
+              throw new Error(`Knowledge update failed: ${response.status}`);
+            }
+            return response.json();
+          }).then(data => {
+            if (!data.success) {
+              throw new Error(data.message || 'Failed to update knowledge');
+            }
+            return data;
+          });
+
+          promises.push(updatePromise);
         } else if (isEmptyNow && wasNotEmpty) {
           // Delete entry that became empty
-          promises.push(
-            templatesSupabase
-              .from('group_knowledge')
-              .delete()
-              .eq('id', currentEntry.id)
-              .eq('group_id', groupId)
-          );
+          const deletePromise = fetch(`${AUTH_BASE_URL}/auth/groups/${groupId}/knowledge/${currentEntry.id}`, {
+            method: 'DELETE',
+            credentials: 'include'
+          }).then(response => {
+            if (!response.ok) {
+              throw new Error(`Knowledge deletion failed: ${response.status}`);
+            }
+            return response.json();
+          }).then(data => {
+            if (!data.success) {
+              throw new Error(data.message || 'Failed to delete knowledge');
+            }
+            return data;
+          });
+
+          promises.push(deletePromise);
         }
       } else if (hasContent) {
         // Insert new entry
@@ -326,29 +354,34 @@ const useGroupDetails = (groupId, { isActive } = {}) => {
           throw new Error('Content too long for new knowledge entry');
         }
         
-        promises.push(
-          templatesSupabase
-            .from('group_knowledge')
-            .insert({
-              group_id: groupId,
-              title: currentEntry.title || 'Untitled',
-              content: currentEntry.content,
-              created_by: supabaseUser.id
-            })
-        );
+        const createPromise = fetch(`${AUTH_BASE_URL}/auth/groups/${groupId}/knowledge`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            title: currentEntry.title || 'Untitled',
+            content: currentEntry.content
+          })
+        }).then(response => {
+          if (!response.ok) {
+            throw new Error(`Knowledge creation failed: ${response.status}`);
+          }
+          return response.json();
+        }).then(data => {
+          if (!data.success) {
+            throw new Error(data.message || 'Failed to create knowledge');
+          }
+          return data;
+        });
+
+        promises.push(createPromise);
       }
     }
 
     // Execute all operations
     const results = await Promise.all(promises);
-
-    // Check for errors
-    results.forEach(result => {
-      if (result && result.error) {
-        throw new Error(`Database operation error: ${result.error.message}`);
-      }
-    });
-
     return results;
   };
 
@@ -369,7 +402,7 @@ const useGroupDetails = (groupId, { isActive } = {}) => {
 
   // Delete knowledge entry mutation
   const deleteKnowledgeMutationFn = async (entryId) => {
-    if (!supabaseUser?.id || !templatesSupabase || !groupId) {
+    if (!user?.id || !groupId) {
       throw new Error("Required data missing");
     }
 
@@ -377,14 +410,20 @@ const useGroupDetails = (groupId, { isActive } = {}) => {
       return;
     }
 
-    const { error } = await templatesSupabase
-      .from('group_knowledge')
-      .delete()
-      .eq('id', entryId)
-      .eq('group_id', groupId);
+    const response = await fetch(`${AUTH_BASE_URL}/auth/groups/${groupId}/knowledge/${entryId}`, {
+      method: 'DELETE',
+      credentials: 'include'
+    });
 
-    if (error) {
-      throw new Error(`Failed to delete knowledge: ${error.message}`);
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (!data.success) {
+      throw new Error(data.message || 'Failed to delete knowledge');
     }
 
     return entryId;
@@ -434,7 +473,7 @@ const useGroupDetails = (groupId, { isActive } = {}) => {
     groupInfo,
     joinToken,
     userRole,
-    isAdmin: queryData?.isAdmin || false,
+    isAdmin: queryData?.membership?.isAdmin || false,
     
     // Local state
     customAntragPrompt,
@@ -472,4 +511,4 @@ const useGroupDetails = (groupId, { isActive } = {}) => {
   };
 };
 
-export default useGroupDetails; 
+export default useGroupDetails;

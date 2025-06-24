@@ -13,7 +13,8 @@ const SubmitButton = ({
   ariaLabel, 
   type = "submit",
   statusMessage,
-  showStatus = false
+  showStatus = false,
+  tabIndex
 }) => {
   const [internalSuccess, setInternalSuccess] = useState(false);
   const timerRef = useRef(null);
@@ -47,6 +48,18 @@ const SubmitButton = ({
 
   const handleClick = (event) => {
     if (!loading && onClick) {
+      // Check if this click was triggered by Enter key from react-select
+      const activeElement = document.activeElement;
+      
+      if (activeElement && (
+        activeElement.closest('.react-select') || 
+        activeElement.closest('.react-select__input') ||
+        activeElement.className?.includes('react-select')
+      )) {
+        console.log('Button click prevented - triggered by react-select Enter key');
+        return;
+      }
+      
       console.log('Button wurde geklickt, führe onClick aus');
       onClick(event);
     } else {
@@ -89,6 +102,7 @@ const SubmitButton = ({
       aria-busy={loading}
       aria-label={ariaLabel}
       disabled={loading}
+      tabIndex={tabIndex}
       whileHover={{ scale: 1.01 }}
       animate={gradientAnimation}
       transition={{
@@ -155,7 +169,8 @@ SubmitButton.propTypes = {
   ariaLabel: PropTypes.string,
   type: PropTypes.string,
   statusMessage: PropTypes.string,
-  showStatus: PropTypes.bool
+  showStatus: PropTypes.bool,
+  tabIndex: PropTypes.number
 };
 
 export default SubmitButton;

@@ -10,6 +10,7 @@ import ErrorDisplay from './ErrorDisplay';
 import HelpDisplay from '../../HelpDisplay';
 import apiClient from '../../../utils/apiClient';
 import { useLazyAuth } from '../../../../hooks/useAuth';
+import { useBetaFeatures } from '../../../../hooks/useBetaFeatures';
 import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
 import { useCollabPreload } from '../../../hooks/useCollabPreload';
 
@@ -20,14 +21,10 @@ import { useCollabPreload } from '../../../hooks/useCollabPreload';
  * @param {string} props.error - Fehlertext
  * @param {string} props.value - Aktueller Wert (aus BaseForm, potenziell für Editor)
  * @param {any} props.generatedContent - Generierter Inhalt (aus BaseForm)
- * @param {boolean} props.isEditing - Bearbeitungsmodus aktiv
- * @param {boolean} props.allowEditing - Bearbeitung erlaubt
- * @param {boolean} props.hideEditButton - Edit-Button ausblenden
 
  * @param {Object} props.helpContent - Hilfe-Inhalt
  * @param {string} props.generatedPost - Generierter Post
  * @param {Function} props.onGeneratePost - Funktion zum Generieren eines Posts
- * @param {Function} props.handleToggleEditMode - Funktion zum Umschalten des Bearbeitungsmodus
  * @param {Function} props.getExportableContent - Funktion zum Abrufen des exportierbaren Inhalts (wird hier ggf. modifiziert)
  * @param {React.ReactNode} [props.displayActions=null] - Zusätzliche Aktionen, die unter dem Inhalt angezeigt werden sollen
  * @param {Function} props.onSave - Funktion zum Speichern des Inhalts
@@ -39,21 +36,19 @@ const DisplaySection = forwardRef(({
   error,
   value,
   generatedContent,
-  isEditing,
-  allowEditing,
-  hideEditButton,
+  useMarkdown = null,
 
   helpContent,
   generatedPost,
   onGeneratePost,
-  handleToggleEditMode,
   getExportableContent,
   displayActions = null,
   onSave,
   saveLoading = false,
   componentName = 'default'
 }, ref) => {
-  const { betaFeatures } = useLazyAuth();
+  const { user } = useLazyAuth(); // Keep for other auth functionality
+  const { getBetaFeatureState } = useBetaFeatures();
   const storeGeneratedText = useGeneratedTextStore(state => state.getGeneratedText(componentName));
   const streamingContent = useGeneratedTextStore(state => state.streamingContent);
   const isStreaming = useGeneratedTextStore(state => state.isStreaming);
@@ -62,7 +57,7 @@ const DisplaySection = forwardRef(({
   const [collabLoading, setCollabLoading] = React.useState(false);
 
   // Check if user has access to collab feature
-  const hasCollabAccess = betaFeatures?.collab === true;
+  const hasCollabAccess = getBetaFeatureState('collab');
 
   const handleGeneratePost = React.useCallback(async () => {
     if (!onGeneratePost) return;
@@ -77,18 +72,16 @@ const DisplaySection = forwardRef(({
   }, [onGeneratePost]);
 
   // Determine the content to display and use for actions
-  // Priority: store content -> editing value -> props fallback
+  // Priority: store content -> props fallback (no edit mode)
   let activeContent;
   if (storeGeneratedText) {
     activeContent = storeGeneratedText;
-  } else if (isEditing && value) {
-    activeContent = value;
   } else {
     activeContent = generatedContent || value || '';
   }
 
   // Preload collab document
-  const preloadedDocId = useCollabPreload(activeContent, hasCollabAccess, true);
+  const preloadedDocId = useCollabPreload(activeContent, hasCollabAccess, true, user, title, 'text');
 
   const currentExportableContent = React.useMemo(() => {
     return activeContent;
@@ -96,10 +89,12 @@ const DisplaySection = forwardRef(({
 
   // Debug logging
   React.useEffect(() => {
-    console.log('[DisplaySection] Content update:', {
-      storeGeneratedTextLength: storeGeneratedText?.length,
-      activeContentLength: activeContent?.length,
-    });
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[DisplaySection] Content update:', {
+        storeGeneratedTextLength: storeGeneratedText?.length,
+        activeContentLength: activeContent?.length,
+      });
+    }
   }, [storeGeneratedText, activeContent]);
 
   const handleOpenCollabEditor = async () => {
@@ -123,7 +118,10 @@ const DisplaySection = forwardRef(({
     try {
       const response = await apiClient.post('/collab-editor/init-doc', { 
         documentId: documentId, 
-        content: currentExportableContent 
+        content: currentExportableContent,
+        userId: user?.id || null,
+        title: title || 'Unbenanntes Dokument',
+        documentType: 'text'
       });
 
       console.log("[DisplaySection] Kollaboratives Dokument erfolgreich initialisiert über apiClient.");
@@ -140,11 +138,9 @@ const DisplaySection = forwardRef(({
       <div className="display-header">
           <ActionButtons 
             content={activeContent}
-            onEdit={handleToggleEditMode}
-            isEditing={isEditing}
-            allowEditing={allowEditing}
-            hideEditButton={hideEditButton}
+            isEditing={false}
             showExport={true}
+            showPDF={true}
             showCollab={hasCollabAccess}
             showRegenerate={true}
             showSave={!!onSave}
@@ -157,6 +153,7 @@ const DisplaySection = forwardRef(({
             exportableContent={currentExportableContent}
             generatedPost={generatedPost}
             generatedContent={activeContent}
+            title={title}
           />
       </div>
       {helpContent && (
@@ -171,10 +168,10 @@ const DisplaySection = forwardRef(({
       <div className="display-content" style={{ fontSize: '16px' }}>
         <ErrorDisplay error={error} />
         <ContentRenderer
-          value={isEditing ? value : activeContent}
+          value={activeContent}
           generatedContent={activeContent}
-          isEditing={isEditing}
-
+          useMarkdown={useMarkdown}
+          componentName={componentName}
           helpContent={helpContent}
         />
       </div>
@@ -198,9 +195,7 @@ DisplaySection.propTypes = {
       content: PropTypes.string
     })
   ]),
-  isEditing: PropTypes.bool.isRequired,
-  allowEditing: PropTypes.bool,
-  hideEditButton: PropTypes.bool,
+  useMarkdown: PropTypes.bool,
 
   helpContent: PropTypes.shape({
     content: PropTypes.string,
@@ -208,7 +203,6 @@ DisplaySection.propTypes = {
   }),
   generatedPost: PropTypes.string,
   onGeneratePost: PropTypes.func,
-  handleToggleEditMode: PropTypes.func.isRequired,
   getExportableContent: PropTypes.func.isRequired,
   displayActions: PropTypes.node,
   onSave: PropTypes.func,
@@ -217,9 +211,6 @@ DisplaySection.propTypes = {
 };
 
 DisplaySection.defaultProps = {
-  allowEditing: true,
-  hideEditButton: false,
-
   displayActions: null
 };
 

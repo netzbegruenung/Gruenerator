@@ -26,6 +26,7 @@ const FormTextarea = ({
   maxLength,
   textareaProps = {},
   labelProps = {},
+  tabIndex,
   ...rest
 }) => {
   const textareaId = `form-textarea-${name}`;
@@ -79,6 +80,7 @@ const FormTextarea = ({
                 maxRows={maxRows}
                 maxLength={maxLength}
                 className={`${textareaClassName} ${error ? 'error-input' : ''}`.trim()}
+                tabIndex={tabIndex}
                 onChange={(e) => {
                   field.onChange(e);
                   // Call external onChange if provided
@@ -119,6 +121,7 @@ const FormTextarea = ({
           maxLength={maxLength}
           className={textareaClassName}
           value={value}
+          tabIndex={tabIndex}
           onChange={(e) => {
             const newVal = e.target.value;
             setField(name, newVal);
@@ -151,7 +154,8 @@ FormTextarea.propTypes = {
   showCharacterCount: PropTypes.bool,
   maxLength: PropTypes.number,
   textareaProps: PropTypes.object,
-  labelProps: PropTypes.object
+  labelProps: PropTypes.object,
+  tabIndex: PropTypes.number
 };
 
 export default FormTextarea; 

@@ -1,10 +1,10 @@
-import React, { useState, useContext } from 'react';
+import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import BaseForm from '../../common/BaseForm';
 import HelpDisplay from '../../common/HelpDisplay';
 // import { useDynamicTextSize } from '../../utils/commonFunctions';
 import useApiSubmit from '../../hooks/useApiSubmit';
-import { FormContext } from '../../utils/FormContext';
+import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 import WelcomePage from '../../common/WelcomePage';
 
 const STEPS = {
@@ -15,6 +15,7 @@ const STEPS = {
 };
 
 const KandidatenGenerator = ({ showHeaderFooter = true }) => {
+  const componentName = 'kandidatengenerator';
   const [currentStep, setCurrentStep] = useState(STEPS.WELCOME);
   const [formData, setFormData] = useState({
     name: '',
@@ -24,10 +25,9 @@ const KandidatenGenerator = ({ showHeaderFooter = true }) => {
     themen: ''
   });
 
-  const [generatedJson, setGeneratedJson] = useState('');
-  // const textSize = useDynamicTextSize(generatedJson, 1.2, 0.8, [1000, 2000]);
   const { submitForm, loading, success, resetSuccess, error } = useApiSubmit('/claude_kandidat');
-  const { setGeneratedContent } = useContext(FormContext);
+  const { setGeneratedText } = useGeneratedTextStore();
+  const generatedJson = useGeneratedTextStore(state => state.getGeneratedText(componentName)) || '';
 
   const handleSubmit = async () => {
     try {
@@ -40,8 +40,7 @@ const KandidatenGenerator = ({ showHeaderFooter = true }) => {
       });
 
       if (content) {
-        setGeneratedJson(content);
-        setGeneratedContent(content);
+        setGeneratedText(componentName, content);
         setTimeout(resetSuccess, 3000);
       }
     } catch (error) {

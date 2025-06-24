@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useContext } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { FaArrowUp, FaMicrophone, FaStop, FaPaperPlane } from 'react-icons/fa';
 import PropTypes from 'prop-types';
 import ErrorBoundary from '../../../components/ErrorBoundary';
@@ -9,8 +9,8 @@ import Spinner from '../../../components/common/Spinner';
 // Nur die Hauptdatei importieren, die dann die anderen CSS-Dateien importiert
 // Import der DisplaySection-Komponente
 import DisplaySection from '../../../components/common/Form/BaseForm/DisplaySection';
-// Import des FormContext
-import { FormContext } from '../../../components/utils/FormContext';
+import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
+
 
 // Beispiele für Prompts mit kurzen Titeln und vollständigen Prompts
 const EXAMPLES = [
@@ -126,12 +126,8 @@ const YouPage = () => {
     removeTimestamps: true 
   });
 
-  // Setze den Inhalt in den FormContext
-  const { 
-    setGeneratedContent, 
-    updateValue, 
-    toggleEditMode
-  } = useContext(FormContext);
+  // Use generatedTextStore instead of FormContext
+  const { setGeneratedText } = useGeneratedTextStore();
 
   // Überprüfe, ob es sich um ein mobiles Gerät handelt
   useEffect(() => {
@@ -155,10 +151,9 @@ const YouPage = () => {
   useEffect(() => {
     if (result) {
       setSocialMediaContent(result);
-      setGeneratedContent(result);
-      updateValue(result);
+      setGeneratedText('you', result);
     }
-  }, [result, setGeneratedContent, updateValue, socialMediaContent]);
+  }, [result, setGeneratedText, socialMediaContent]);
 
   // Verarbeite die Aufnahme automatisch, wenn sie gestoppt wurde
   useEffect(() => {

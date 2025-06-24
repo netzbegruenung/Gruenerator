@@ -1,12 +1,9 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import { HiChevronLeft } from 'react-icons/hi';
-import { useContext } from 'react';
-import { FormContext } from '../utils/FormContext';
+// FormContext removed - no edit mode needed anymore
 const FormCollapseButton = ({ isFormVisible, toggleForm }) => {
-  const { isEditing } = useContext(FormContext);
-
-  if (isEditing) return null;
+  // No edit mode check needed - always show button
 
   const handleClick = () => {
     toggleForm();

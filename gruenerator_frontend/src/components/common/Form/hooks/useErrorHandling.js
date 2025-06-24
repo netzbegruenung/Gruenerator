@@ -1,11 +1,18 @@
 import { useState, useCallback } from 'react';
+import useBaseForm from './useBaseForm';
 
 /**
  * Hook für die Fehlerbehandlung in Formularen
+ * @deprecated Use useBaseForm instead for new implementations
  * @returns {Object} Fehlerzustand und Funktionen
  */
 const useErrorHandling = () => {
   const [error, setError] = useState('');
+  
+  // For new implementations, recommend using useBaseForm
+  if (process.env.NODE_ENV === 'development') {
+    console.warn('[useErrorHandling] This hook is deprecated. Consider using useBaseForm for new implementations.');
+  }
 
   /**
    * Generiert eine benutzerfreundliche Fehlermeldung basierend auf dem Fehlercode

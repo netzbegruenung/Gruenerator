@@ -7,9 +7,12 @@ import apiClient from '../utils/apiClient';
  * @param {string} content - The content to initialize the document with.
  * @param {boolean} hasAccess - Whether the user has access to the collab feature.
  * @param {boolean} isEnabled - A flag to enable or disable the hook.
+ * @param {Object} user - User object with id for document metadata.
+ * @param {string} title - Document title.
+ * @param {string} documentType - Document type.
  * @returns {string|null} - The preloaded document ID, or null.
  */
-export const useCollabPreload = (content, hasAccess, isEnabled) => {
+export const useCollabPreload = (content, hasAccess, isEnabled, user = null, title = null, documentType = 'text') => {
   const preloadedDocIdRef = useRef(null);
   
   useEffect(() => {
@@ -21,7 +24,10 @@ export const useCollabPreload = (content, hasAccess, isEnabled) => {
           console.log(`[useCollabPreload] Preloading document with ID: ${documentId}`);
           await apiClient.post('/collab-editor/init-doc', { 
             documentId, 
-            content 
+            content,
+            userId: user?.id || null,
+            title: title || 'Unbenanntes Dokument',
+            documentType: documentType || 'text'
           });
           preloadedDocIdRef.current = documentId;
           console.log(`[useCollabPreload] Document ${documentId} successfully preloaded.`);
@@ -32,7 +38,7 @@ export const useCollabPreload = (content, hasAccess, isEnabled) => {
       
       // Preload component code as well
       import('../../pages/CollabEditorPage/CollabEditorPage.jsx');
-      import('../../context/CollabEditorContext.jsx');
+      import('../../stores/collabEditorStore.js');
       
       createDoc();
     }

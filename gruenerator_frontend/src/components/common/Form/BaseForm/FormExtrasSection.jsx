@@ -1,13 +1,9 @@
-import React, { useContext, useMemo } from 'react';
+import React from 'react';
 import PropTypes from 'prop-types';
-import { HiCog } from "react-icons/hi";
 import FeatureToggle from '../../FeatureToggle';
 import SubmitButton from '../../SubmitButton';
 import KnowledgeSelector from '../../../common/KnowledgeSelector/KnowledgeSelector';
-import FormSelect from '../Input/FormSelect';
-import { FormContext } from '../../../utils/FormContext';
-import useGroups from '../../../../features/groups/hooks/useGroups';
-import { useLazyAuth } from '../../../../hooks/useAuth';
+import { useBetaFeatures } from '../../../../hooks/useBetaFeatures';
 import { useGeneratorKnowledgeStore } from '../../../../stores/core/generatorKnowledgeStore';
 
 /**
@@ -16,6 +12,8 @@ import { useGeneratorKnowledgeStore } from '../../../../stores/core/generatorKno
  * @param {Object} props.webSearchFeatureToggle - Props für den Web Search Feature-Toggle
  * @param {boolean} props.useWebSearchFeatureToggle - Soll der Web Search Feature-Toggle verwendet werden
  * @param {boolean} props.enableKnowledgeSelector - Soll der Knowledge Selector aktiviert werden
+ * @param {boolean} props.enableDocumentSelector - Soll der Document Selector aktiviert werden
+ * @param {Object} props.formControl - React Hook Form Control Object
  * @param {node} props.formNotice - Hinweis oder Information im Formular
  * @param {Function} props.onSubmit - Submit-Handler für das Formular
  * @param {boolean} props.loading - Loading-Status
@@ -32,6 +30,8 @@ const FormExtrasSection = ({
   webSearchFeatureToggle,
   useWebSearchFeatureToggle = false,
   enableKnowledgeSelector = false,
+  enableDocumentSelector = false,
+  formControl = null,
   formNotice = null,
   onSubmit,
   loading = false,
@@ -41,21 +41,22 @@ const FormExtrasSection = ({
   submitButtonProps = {},
   showSubmitButton = true,
   children,
-  firstExtrasChildren = null
+  firstExtrasChildren = null,
+  knowledgeSelectorTabIndex = 14,
+  knowledgeSourceSelectorTabIndex = 13,
+  documentSelectorTabIndex = 15,
+  submitButtonTabIndex = 17
 }) => {
-  // Keep FormContext for all non-knowledge features (like web search, etc.)
-  const formContext = useContext(FormContext);
+  // Simplified store access
+  const { source, availableKnowledge } = useGeneratorKnowledgeStore();
   
-  // Use store for knowledge source management
-  const { source, setSource } = useGeneratorKnowledgeStore();
-  
-  const { betaFeatures, isLoadingBetaFeatures } = useLazyAuth();
-  const anweisungenBetaEnabled = betaFeatures?.anweisungen === true;
-  const { userGroups: groups, isLoadingGroups, errorGroups: groupsError } = useGroups();
+  const { getBetaFeatureState, isLoading: isLoadingBetaFeatures } = useBetaFeatures();
+  const anweisungenBetaEnabled = getBetaFeatureState('anweisungen');
 
   // Don't render if no extras are enabled
   const hasExtras = useWebSearchFeatureToggle || 
                    (enableKnowledgeSelector && (anweisungenBetaEnabled || isLoadingBetaFeatures)) || 
+                   enableDocumentSelector ||
                    formNotice || 
                    showSubmitButton ||
                    children ||
@@ -64,62 +65,6 @@ const FormExtrasSection = ({
   if (!hasExtras) {
     return null;
   }
-
-  // Handle knowledge source selection - only update store
-  const handleKnowledgeSourceChange = (e) => {
-    const value = e.target.value;
-    console.log('[FormExtrasSection] handleKnowledgeSourceChange called with value:', value);
-    if (value === 'neutral') {
-      console.log('[FormExtrasSection] Setting source to neutral');
-      setSource({ type: 'neutral', id: null, name: null });
-    } else if (value === 'user') {
-      console.log('[FormExtrasSection] Setting source to user');
-      setSource({ type: 'user', id: null, name: 'Meine Anweisungen & Wissen' });
-    } else if (value.startsWith('group-')) {
-      const groupId = value.substring("group-".length);
-      const selectedGroup = groups.find(g => g.id === groupId);
-      console.log('[FormExtrasSection] Setting source to group:', selectedGroup);
-      if (selectedGroup) {
-        setSource({ type: 'group', id: selectedGroup.id, name: selectedGroup.name });
-      }
-    }
-  };
-
-  // Get current source value for the select
-  const getCurrentSourceValue = () => {
-    if (source.type === 'neutral') return 'neutral';
-    if (source.type === 'user') return 'user';
-    if (source.type === 'group') return `group-${source.id}`;
-    return 'neutral';
-  };
-
-  // Memoize options array to prevent unnecessary re-renders
-  const knowledgeSourceOptions = useMemo(() => {
-    const baseOptions = [
-      { value: 'neutral', label: 'Neutral' },
-      { value: 'user', label: 'Meine Anweisungen & Wissen' }
-    ];
-
-    const loadingOptions = [];
-    if (isLoadingBetaFeatures) {
-      loadingOptions.push({ value: '', label: 'Lade Beta Features...', disabled: true });
-    }
-    if (isLoadingGroups) {
-      loadingOptions.push({ value: '', label: 'Lade Gruppen...', disabled: true });
-    }
-    if (groupsError && !isLoadingGroups) {
-      loadingOptions.push({ value: '', label: 'Fehler beim Laden der Gruppen', disabled: true });
-    }
-
-    const groupOptions = (groups && !isLoadingGroups && !groupsError) 
-      ? groups.map(group => ({
-          value: `group-${group.id}`,
-          label: `${group.name} Anweisungen & Wissen`
-        }))
-      : [];
-
-    return [...baseOptions, ...loadingOptions, ...groupOptions];
-  }, [groups, isLoadingGroups, isLoadingBetaFeatures, groupsError]);
 
   return (
     <div className="form-section__extras">
@@ -132,22 +77,18 @@ const FormExtrasSection = ({
           </div>
         )}
         
-        {/* Knowledge Source Selection */}
-        {enableKnowledgeSelector && (anweisungenBetaEnabled || isLoadingBetaFeatures) && (
+        {/* Knowledge Selector - using existing optimized component with source selection and document selection */}
+        {(enableKnowledgeSelector || enableDocumentSelector) && (anweisungenBetaEnabled || isLoadingBetaFeatures || enableDocumentSelector) && (
           <div className="form-extras__item">
-            <FormSelect
-              name="knowledge-source"
-              label="Anweisungen & Wissensquelle"
-              options={knowledgeSourceOptions}
-              value={getCurrentSourceValue()}
-              onChange={(e) => {
-                console.log('[FormExtrasSection] FormSelect onChange triggered with event:', e);
-                console.log('[FormExtrasSection] FormSelect onChange - event.target.value:', e.target.value);
-                handleKnowledgeSourceChange(e);
-              }}
-              disabled={isLoadingGroups || isLoadingBetaFeatures || !anweisungenBetaEnabled}
+            <KnowledgeSelector 
+              enableSelection={enableKnowledgeSelector}
+              enableSourceSelection={enableKnowledgeSelector}
+              enableDocumentSelection={enableDocumentSelector}
+              disabled={isLoadingBetaFeatures || (!anweisungenBetaEnabled && !enableDocumentSelector)}
+              tabIndex={knowledgeSelectorTabIndex}
+              sourceTabIndex={knowledgeSourceSelectorTabIndex}
+              documentTabIndex={documentSelectorTabIndex}
             />
-            <KnowledgeSelector enableSelection={true} />
           </div>
         )}
 
@@ -172,7 +113,7 @@ const FormExtrasSection = ({
           </div>
         )}
 
-        {/* Submit Button */}
+        {/* Submit Button - using existing optimized component */}
         {showSubmitButton && (
           <div className="form-extras__item form-extras__submit">
             <SubmitButton
@@ -180,10 +121,10 @@ const FormExtrasSection = ({
               loading={loading}
               success={success}
               text={isMultiStep ? (nextButtonText || 'Weiter') : (submitButtonProps.defaultText || "Grünerieren")}
-              icon={<HiCog />}
               className="form-extras__submit-button button-primary"
               ariaLabel={isMultiStep ? (nextButtonText || 'Weiter') : "Generieren"}
               type="submit"
+              tabIndex={submitButtonTabIndex}
               {...submitButtonProps}
             />
           </div>
@@ -206,6 +147,8 @@ FormExtrasSection.propTypes = {
   }),
   useWebSearchFeatureToggle: PropTypes.bool,
   enableKnowledgeSelector: PropTypes.bool,
+  enableDocumentSelector: PropTypes.bool,
+  formControl: PropTypes.object,
   formNotice: PropTypes.node,
   onSubmit: PropTypes.func,
   loading: PropTypes.bool,
@@ -219,21 +162,31 @@ FormExtrasSection.propTypes = {
   }),
   showSubmitButton: PropTypes.bool,
   children: PropTypes.node,
-  firstExtrasChildren: PropTypes.node
+  firstExtrasChildren: PropTypes.node,
+  knowledgeSelectorTabIndex: PropTypes.number,
+  knowledgeSourceSelectorTabIndex: PropTypes.number,
+  documentSelectorTabIndex: PropTypes.number,
+  submitButtonTabIndex: PropTypes.number
 };
 
 FormExtrasSection.defaultProps = {
   useWebSearchFeatureToggle: false,
   enableKnowledgeSelector: false,
+  enableDocumentSelector: false,
+  formControl: null,
   formNotice: null,
   loading: false,
   success: false,
   isMultiStep: false,
   nextButtonText: null,
   submitButtonProps: {},
-  showSubmitButton: true
+  showSubmitButton: true,
+  knowledgeSelectorTabIndex: 14,
+  knowledgeSourceSelectorTabIndex: 13,
+  documentSelectorTabIndex: 15,
+  submitButtonTabIndex: 17
 };
 
 FormExtrasSection.displayName = 'FormExtrasSection';
 
-export default FormExtrasSection; 
+export default React.memo(FormExtrasSection); 

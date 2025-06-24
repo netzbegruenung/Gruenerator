@@ -9,9 +9,10 @@ const Home = () => {
   const [showMore, setShowMore] = useState(false);
 
   return (
-    <div>
-      <div className="top-section">
-        <div className="animated-heading">
+    <main role="main" id="main-content">
+      <section className="top-section">
+        <header className="animated-heading">
+          <h1 className="sr-only">Grünerator - AI-gestützte Textgenerierung für die Grünen</h1>
           <TypeAnimation
             sequence={[
               'Pressemitteilung?',
@@ -31,10 +32,11 @@ const Home = () => {
             speed={50}
             repeat={Infinity}
             className="typing-text"
+            aria-label="Verschiedene Textarten, die der Grünerator erstellen kann"
           />
           <h2>Dafür gibt&apos;s den Grünerator.</h2>
-        </div>
-        <p>Mit dem Grünerator kannst du schnell und kostenlos einen Vorschlag für Grüne Inhalte deiner Wahl erhalten. Alle Eingaben werden von Anthropic verarbeitet. Bitte gib daher keine privaten Daten ein.</p>
+        </header>
+        <p>Mit dem Grünerator kannst du schnell und kostenlos einen Vorschlag für Grüne Inhalte deiner Wahl erhalten. Deine Eingaben werden sicher in Europa verarbeitet.</p>
         <div className="link-buttons-container">
           <div className="link-buttons primary-buttons">
             <Link to="/presse-social" aria-label="Zum Presse & Social Media Generator"><PiNewspaper /> Presse & Social Media</Link>
@@ -69,49 +71,51 @@ const Home = () => {
             Newsletter <PiArrowRight />
           </a>
         </div>
-      </div>
-      <div className="sections-container">
-  <div className="section">
-    <div className="text-column">
-      <h2>So funktionierts</h2>
-      <p>Der Grünerator sammelt die von dir eingegebenen Daten und schickt sie an eine KI, die die Daten anhand vorgegebener Parameter bearbeitet. Das Ergebnis ist ein Vorschlag, den du weiter bearbeiten kannst.</p>
-    </div>
-    <div className="image-column">
-      <img src="/images/undraw_brainstorming_re_1lmw.svg" alt="So funktionierts" loading="lazy" />
-    </div>
-  </div>
+      </section>
+      <section className="sections-container" aria-labelledby="about-gruenerator">
+        <h2 id="about-gruenerator" className="sr-only">Über den Grünerator</h2>
+        
+        <section className="section" aria-labelledby="how-it-works">
+          <div className="text-column">
+            <h3 id="how-it-works">So funktionierts</h3>
+            <p>Der Grünerator sammelt die von dir eingegebenen Daten und schickt sie an eine KI, die die Daten anhand vorgegebener Parameter bearbeitet. Das Ergebnis ist ein Vorschlag, den du weiter bearbeiten kannst.</p>
+          </div>
+          <div className="image-column">
+            <img src="/images/undraw_brainstorming_re_1lmw.svg" alt="Illustration: Brainstorming und Ideenfindung" loading="lazy" />
+          </div>
+        </section>
 
-  <div className="section">
-    <div className="text-column">
-      <h2>Wer dahinter steckt</h2>
-      <p>Der Grünerator ist kein Produkt der Partei, sondern ein Freizeit-Projekt von mir, Moritz Wächter. Ich bin Student und seit fast zehn Jahren Ehrenamtler bei den Grünen. Mehr über mich findest Du auf meiner Website oder bei Twitter.</p>
-    </div>
-    <div className="image-column">
-      <img src="/images/IMG_9658.jpg" alt="Wer dahinter steckt" loading="lazy" />
-    </div>
-  </div>
+        <section className="section" aria-labelledby="about-creator">
+          <div className="text-column">
+            <h3 id="about-creator">Wer dahinter steckt</h3>
+            <p>Der Grünerator ist kein Produkt der Partei, sondern ein Freizeit-Projekt von mir, Moritz Wächter. Ich bin Student und seit fast zehn Jahren Ehrenamtler bei den Grünen. Mehr über mich findest Du auf meiner Website oder bei Twitter.</p>
+          </div>
+          <div className="image-column">
+            <img src="/images/IMG_9658.jpg" alt="Foto von Moritz Wächter, dem Entwickler des Grünerators" loading="lazy" />
+          </div>
+        </section>
 
-  <div className="section">
-    <div className="text-column">
-      <h2>Newsletter</h2>
-      <p>Bleib informiert und melde dich für das <a href="https://896ca129.sibforms.com/serve/MUIFAFnH3lov98jrw3d75u_DFByChA39XRS6JkBKqjTsN9gx0MxCvDn1FMnkvHLgzxEh1JBcEOiyHEkyzRC-XUO2DffKsVccZ4r7CCaYiugoiLf1a-yoTxDwoctxuzCsmDuodwrVwEwnofr7K42jQc-saIKeVuB_8UxrwS18QIaahZml1qMExNno2sEC7HyMy9Nz4f2f8-UJ4QmW" target="_blank" rel="noopener noreferrer">Grünerator Fax</a> an, um keine Updates zu verpassen.</p>
-    </div>
-    <div className="image-column">
-      <img src="/images/undraw_online_banking_re_kwqh.svg" alt="Finanzierung" loading="lazy" />
-    </div>
-  </div>
+        <section className="section" aria-labelledby="newsletter-section">
+          <div className="text-column">
+            <h3 id="newsletter-section">Newsletter</h3>
+            <p>Bleib informiert und melde dich für das <a href="https://896ca129.sibforms.com/serve/MUIFAFnH3lov98jrw3d75u_DFByChA39XRS6JkBKqjTsN9gx0MxCvDn1FMnkvHLgzxEh1JBcEOiyHEkyzRC-XUO2DffKsVccZ4r7CCaYiugoiLf1a-yoTxDwoctxuzCsmDuodwrVwEwnofr7K42jQc-saIKeVuB_8UxrwS18QIaahZml1qMExNno2sEC7HyMy9Nz4f2f8-UJ4QmW" target="_blank" rel="noopener noreferrer">Grünerator Fax</a> an, um keine Updates zu verpassen.</p>
+          </div>
+          <div className="image-column">
+            <img src="/images/undraw_online_banking_re_kwqh.svg" alt="Illustration: Newsletter und Updates" loading="lazy" />
+          </div>
+        </section>
 
-  <div className="section">
-    <div className="text-column">
-      <h2>Ideen und Anregungen</h2>
-      <p>Du hast Ideen, wie man dieses Projekt verbessern kann? Schreib mir, zum Beispiel per E-Mail an {email}.</p>
-    </div>
-    <div className="image-column">
-      <img src="/images/undraw_chat_bot_re_e2gj.svg" alt="Ideen und Anregungen" loading="lazy" />
-    </div>
-  </div>
-</div>
-    </div>
+        <section className="section" aria-labelledby="feedback-section">
+          <div className="text-column">
+            <h3 id="feedback-section">Ideen und Anregungen</h3>
+            <p>Du hast Ideen, wie man dieses Projekt verbessern kann? Schreib mir, zum Beispiel per E-Mail an {email}.</p>
+          </div>
+          <div className="image-column">
+            <img src="/images/undraw_chat_bot_re_e2gj.svg" alt="Illustration: Feedback und Kommunikation" loading="lazy" />
+          </div>
+        </section>
+      </section>
+    </main>
   );
 };
 

@@ -1,16 +1,11 @@
 import React from 'react';
 import { SharepicGeneratorProvider } from '../../../features/sharepic/core/utils/SharepicGeneratorContext';
-import { FormProvider } from '../../utils/FormContext';
+// FormProvider removed - using generatedTextStore directly
 
 const AppProviders = ({ children, withSharepic = false, pathname }) => {
   let wrapped = children;
 
-  // Form Provider wrapping
-  wrapped = (
-    <FormProvider key={`form-${pathname}`}>
-      {wrapped}
-    </FormProvider>
-  );
+  // FormProvider removed - no global form state needed anymore
 
   // Optional Sharepic Provider
   if (withSharepic) {

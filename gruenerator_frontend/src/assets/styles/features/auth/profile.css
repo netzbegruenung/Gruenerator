@@ -927,3 +927,11 @@
   opacity: 0.7;
   font-size: 0.85rem;
 }
+
+/* Full-width tab content for components that need more space */
+.profile-tab-content-full-width {
+  /* Override any existing grid or flex constraints */
+  display: block;
+  max-width: 100%;
+  width: 100%;
+}

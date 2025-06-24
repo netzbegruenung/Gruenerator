@@ -52,21 +52,25 @@ export const createStructuredFinalPrompt = (customInstructions, knowledgeContent
 };
 
 /**
- * Creates a structured final prompt with instructions, knowledge, memories, and additional context.
+ * Creates a structured final prompt with instructions, knowledge, memories, documents, and additional context.
  * @param {string | null} customInstructions User's custom instructions/prompt.
  * @param {string | null} knowledgeContent The formatted string of selected knowledge items.
  * @param {string | null} memoryContent The formatted string of relevant memories from mem0.
  * @param {string | null} basePrompt Additional base prompt/context.
+ * @param {string | null} documentContent The formatted string of relevant document excerpts (from API search).
+ * @param {string | null} selectedDocumentContent The formatted string of user-selected documents.
  * @returns {string | null} The structured prompt string, or null if all inputs are empty.
  */
-export const createPromptWithMemories = (customInstructions, knowledgeContent, memoryContent, basePrompt = null) => {
+export const createPromptWithMemories = (customInstructions, knowledgeContent, memoryContent, basePrompt = null, documentContent = null, selectedDocumentContent = null) => {
   const instructionsPart = customInstructions?.trim() || '';
   const knowledgePart = knowledgeContent?.trim() || '';
   const memoryPart = memoryContent?.trim() || '';
   const basePart = basePrompt?.trim() || '';
+  const documentPart = documentContent?.trim() || '';
+  const selectedDocumentPart = selectedDocumentContent?.trim() || '';
   
   // Return null if all inputs are empty
-  if (!instructionsPart && !knowledgePart && !memoryPart && !basePart) {
+  if (!instructionsPart && !knowledgePart && !memoryPart && !basePart && !documentPart && !selectedDocumentPart) {
     return null;
   }
   
@@ -85,6 +89,16 @@ export const createPromptWithMemories = (customInstructions, knowledgeContent, m
   // Add memories with clear header
   if (memoryPart) {
     parts.push(`Aus früheren Interaktionen mit dem User sind folgende relevante Informationen bekannt:\n${memoryPart}`);
+  }
+  
+  // Add API-searched documents with clear header
+  if (documentPart) {
+    parts.push(`Der User hat folgende relevante Dokumente hochgeladen:\n${documentPart}`);
+  }
+  
+  // Add user-selected documents with clear header
+  if (selectedDocumentPart) {
+    parts.push(`Der User hat explizit folgende Dokumente für diese Anfrage ausgewählt:\n${selectedDocumentPart}`);
   }
   
   // Add base prompt as additional context if provided

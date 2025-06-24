@@ -1,0 +1,121 @@
+/* Q&A Collections Styling - Cleaned up version after DocumentOverview integration */
+
+/* Empty State Enhancement */
+.qa-empty-features {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--spacing-large);
+    margin: var(--spacing-xlarge) 0;
+    max-width: 600px;
+}
+
+.qa-feature-item {
+    text-align: center;
+    padding: var(--spacing-large);
+    background: var(--neutral-600);
+    border-radius: 12px;
+    transition: all 0.2s ease;
+}
+
+.qa-feature-icon {
+    font-size: 2rem;
+    margin-bottom: var(--spacing-small);
+}
+
+.qa-feature-item span {
+    display: block;
+    color: var(--font-color);
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+/* Error State */
+.qa-error-state {
+    text-align: center;
+    padding: var(--spacing-xlarge);
+    background: #ffebee;
+    border-radius: 12px;
+    border: 1px solid #ffcdd2;
+}
+
+.qa-error-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-medium);
+}
+
+.qa-error-icon {
+    width: 48px;
+    height: 48px;
+    color: var(--error-red);
+}
+
+.qa-error-text h4 {
+    margin: 0 0 var(--spacing-xsmall) 0;
+    color: var(--error-red);
+}
+
+.qa-error-text p {
+    margin: 0;
+    color: var(--grey-700);
+}
+
+.qa-error-details {
+    font-size: 0.875rem;
+    color: var(--grey-600);
+    margin-top: var(--spacing-xsmall);
+}
+
+.qa-retry-button {
+    margin-top: var(--spacing-large);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xsmall);
+    padding: var(--spacing-small) var(--spacing-large);
+    background: var(--secondary-600);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.qa-retry-button:hover {
+    background: var(--secondary-700);
+    transform: translateY(-1px);
+}
+
+.qa-retry-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Back Button */
+.qa-back-button {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xsmall);
+    padding: var(--spacing-xsmall) var(--spacing-medium);
+    background: transparent;
+    color: var(--secondary-600);
+    border: 1px solid var(--secondary-200);
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.qa-back-button:hover {
+    background: var(--secondary-50);
+    border-color: var(--secondary-600);
+}
+
+/* Dark theme support moved to document-overview.css for .qa-document-count and .qa-public-badge */
+
+[data-theme="dark"] .qa-error-state {
+    background: rgba(211, 47, 47, 0.1);
+    border-color: rgba(211, 47, 47, 0.3);
+}

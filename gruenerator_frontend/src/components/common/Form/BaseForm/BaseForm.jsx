@@ -4,7 +4,6 @@ import { Tooltip } from 'react-tooltip';
 import useAccessibility from '../../../hooks/useAccessibility';
 import { addAriaLabelsToElements, enhanceFocusVisibility } from '../../../utils/accessibilityHelpers';
 import { BUTTON_LABELS } from '../../../utils/constants';
-import FocusTrap from 'focus-trap-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { HiPencil } from 'react-icons/hi';
 import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
@@ -12,18 +11,43 @@ import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
 // Importiere die Komponenten
 import FormSection from './FormSection';
 import DisplaySection from './DisplaySection';
-import EditorChat from '../../editor/EditorChatnew';
-import FormToggleButtonFAB from './FormToggleButtonFAB';
 
 // Importiere die neuen Hooks
-import { useContentManagement, useErrorHandling, useResponsive, useBaseForm } from '../hooks';
+import { useErrorHandling, useResponsive } from '../hooks';
 import { useFormVisibility } from '../hooks/useFormVisibility';
 
 // Importiere die Utility-Funktionen
-import { getBaseContainerClasses } from '../utils/classNameUtils';
+import { getExportableContent } from '../utils/contentUtils';
 
-// Import FormContext
-import { FormContext } from '../../../utils/FormContext';
+// Inline utility function (moved from classNameUtils)
+const getBaseContainerClasses = ({ title, generatedContent, isFormVisible }) => {
+  const classes = [
+    'base-container',
+    title === "Grünerator Antragscheck" ? 'antragsversteher-base' : '',
+    generatedContent && (
+      typeof generatedContent === 'string' ? generatedContent.length > 0 : generatedContent?.content?.length > 0
+    ) ? 'has-generated-content' : ''
+  ];
+  return classes.filter(Boolean).join(' ');
+};
+
+// Inline FormToggleButtonFAB component (previously separate file) - memoized for performance
+const FormToggleButtonFAB = React.memo(({ onClick }) => (
+  <motion.button
+    className="form-toggle-fab"
+    onClick={onClick}
+    initial={{ scale: 0, y: 50, opacity: 0 }}
+    animate={{ scale: 1, y: 0, opacity: 1 }}
+    exit={{ scale: 0, y: 50, opacity: 0 }}
+    whileHover={{ scale: 1.1, backgroundColor: 'var(--klee)' }}
+    whileTap={{ scale: 0.95 }}
+    transition={{ type: "spring", stiffness: 500, damping: 30 }}
+    aria-label="Formular anzeigen"
+  >
+    <HiPencil size="24" />
+  </motion.button>
+));
+
 
 /**
  * Basis-Formular-Komponente
@@ -39,10 +63,7 @@ const BaseForm = ({
   formErrors = {},
   onGeneratePost,
   generatedPost,
-  allowEditing = true,
   initialContent = '',
-  alwaysEditing = false,
-  hideEditButton = false,
   isMultiStep = false,
   onBack,
   showBackButton = false,
@@ -54,12 +75,20 @@ const BaseForm = ({
   submitButtonProps = {},
   disableAutoCollapse = false,
   showNextButton = true,
+  // New consolidated prop (optional, backward compatible)
+  submitConfig = null,
   headerContent,
   webSearchFeatureToggle = null,
   useWebSearchFeatureToggle = false,
+  // New consolidated prop (optional, backward compatible)
+  webSearchConfig = null,
   displayActions = null,
   formNotice = null,
   enableKnowledgeSelector = false,
+  enableDocumentSelector = false,
+  enablePlatformSelector = false,
+  platformOptions = [],
+  formControl = null,
   onSave,
   saveLoading = false,
   defaultValues = {},
@@ -69,7 +98,14 @@ const BaseForm = ({
   accessibilityOptions = {},
   bottomSectionChildren = null,
   componentName = 'default',
-  firstExtrasChildren = null
+  firstExtrasChildren = null,
+  useMarkdown = null,
+  // TabIndex configuration
+  platformSelectorTabIndex = 12,
+  knowledgeSelectorTabIndex = 14,
+  knowledgeSourceSelectorTabIndex = 13,
+  documentSelectorTabIndex = 15,
+  submitButtonTabIndex = 17
 }) => {
 
   const baseFormRef = useRef(null);
@@ -83,16 +119,67 @@ const BaseForm = ({
   
   const isStreaming = useGeneratedTextStore(state => state.isStreaming);
   const hasContent = !!generatedContent || isStreaming;
+
+  // Consolidated config with backward compatibility
+  const resolvedSubmitConfig = React.useMemo(() => {
+    if (submitConfig) {
+      return {
+        showButton: submitConfig.showButton ?? showNextButton,
+        buttonText: submitConfig.buttonText ?? nextButtonText,
+        buttonProps: submitConfig.buttonProps ?? submitButtonProps,
+        ...submitConfig
+      };
+    }
+    return {
+      showButton: showNextButton,
+      buttonText: nextButtonText,
+      buttonProps: submitButtonProps
+    };
+  }, [submitConfig, showNextButton, nextButtonText, submitButtonProps]);
+
+  // Consolidated webSearch config with backward compatibility
+  const resolvedWebSearchConfig = React.useMemo(() => {
+    if (webSearchConfig) {
+      return {
+        enabled: webSearchConfig.enabled ?? useWebSearchFeatureToggle,
+        toggle: webSearchConfig.toggle ?? webSearchFeatureToggle,
+        ...webSearchConfig
+      };
+    }
+    return {
+      enabled: useWebSearchFeatureToggle,
+      toggle: webSearchFeatureToggle
+    };
+  }, [webSearchConfig, useWebSearchFeatureToggle, webSearchFeatureToggle]);
   
   const { isFormVisible, toggleFormVisibility } = useFormVisibility(hasContent, disableAutoCollapse);
 
-  const {
-    value,
-    isEditing,
-    updateWithGeneratedContent,
-    handleToggleEditMode,
-    getExportableContent
-  } = useContentManagement(initialContent);
+  // Direct store access instead of useContentManagement
+  const value = useGeneratedTextStore(state => state.getGeneratedText(componentName));
+  const setGeneratedText = useGeneratedTextStore(state => state.setGeneratedText);
+  
+  // Initialize with initial content if needed
+  useEffect(() => {
+    if (initialContent && !value) {
+      setGeneratedText(componentName, initialContent);
+    }
+  }, [initialContent, value, setGeneratedText, componentName]);
+
+  // Update store when generatedContent changes
+  useEffect(() => {
+    if (generatedContent) {
+      if (typeof generatedContent === 'object' && 'content' in generatedContent) {
+        setGeneratedText(componentName, generatedContent.content);
+      } else if (typeof generatedContent === 'string') {
+        setGeneratedText(componentName, generatedContent);
+      }
+    }
+  }, [generatedContent, setGeneratedText, componentName]);
+
+  // Function to get exportable content
+  const getExportableContentCallback = useCallback((content) => {
+    return getExportableContent(content, value);
+  }, [value]);
   
   const {
     isMobileView,
@@ -152,19 +239,9 @@ const BaseForm = ({
     }
   }, [formErrors, handleFormError]);
 
-  // Aktualisiere generatedContent in value
-  useEffect(() => {
-    updateWithGeneratedContent(generatedContent);
-  }, [generatedContent, updateWithGeneratedContent]);
 
 
 
-  // Setze alwaysEditing
-  useEffect(() => {
-    if (alwaysEditing && !isEditing) {
-      handleToggleEditMode();
-    }
-  }, [alwaysEditing, isEditing, handleToggleEditMode]);
 
   // Verbessere Barrierefreiheit
   useEffect(() => {
@@ -179,8 +256,12 @@ const BaseForm = ({
 
     if (labelledElements.length > 0) {
       addAriaLabelsToElements(labelledElements);
-      const interactiveElements = labelledElements.map(item => item.element);
-      setupKeyboardNav(interactiveElements);
+      // Only setup custom keyboard navigation for specific interactive elements
+      // Skip for forms to allow natural tab navigation
+      if (!baseFormRef.current?.querySelector('form')) {
+        const interactiveElements = labelledElements.map(item => item.element);
+        setupKeyboardNav(interactiveElements);
+      }
     }
   }, [setupKeyboardNav, generatedContent]);
 
@@ -196,15 +277,18 @@ const BaseForm = ({
     }
   }, [testAccessibility, children]);
 
-  // Berechne den Anzeigetitel
-  const displayTitle = getDisplayTitle('', isEditing, generatedContent);
+  // Berechne den Anzeigetitel (memoized for performance)
+  const displayTitle = React.useMemo(() => 
+    getDisplayTitle('', false, generatedContent), 
+    [getDisplayTitle, generatedContent]
+  );
 
-  // Berechne die Klassennamen für den Container
-  const baseContainerClasses = getBaseContainerClasses({
+  // Berechne die Klassennamen für den Container (memoized for performance)
+  const baseContainerClasses = React.useMemo(() => getBaseContainerClasses({
     title,
     generatedContent,
     isFormVisible
-  });
+  }), [title, generatedContent, isFormVisible]);
 
   // Enhanced form submission with accessibility announcements
   const handleEnhancedSubmit = async (formData) => {
@@ -218,7 +302,7 @@ const BaseForm = ({
 
   return (
     <>
-      { !isEditing && headerContent }
+      { headerContent }
       <motion.div 
         layout
         transition={{ duration: 0.25, ease: "easeOut" }}
@@ -229,18 +313,11 @@ const BaseForm = ({
         id="main-content"
       >
         <AnimatePresence initial={false}>
-          {!isFormVisible && hasContent && !isEditing && (
+          {!isFormVisible && hasContent && (
             <FormToggleButtonFAB onClick={toggleFormVisibility} />
           )}
         </AnimatePresence>
         
-        {isEditing ? (
-          <FocusTrap active={isEditing}>
-            <div ref={displaySectionRef}>
-              <EditorChat isEditing={isEditing} />
-            </div>
-          </FocusTrap>
-        ) : (
           <AnimatePresence initial={false}>
             {isFormVisible && (
               <motion.div
@@ -266,12 +343,16 @@ const BaseForm = ({
                   isMultiStep={isMultiStep}
                   onBack={onBack}
                   showBackButton={showBackButton}
-                  nextButtonText={nextButtonText}
-                  submitButtonProps={submitButtonProps}
-                  webSearchFeatureToggle={webSearchFeatureToggle}
-                  useWebSearchFeatureToggle={useWebSearchFeatureToggle}
+                  nextButtonText={resolvedSubmitConfig.buttonText}
+                  submitButtonProps={resolvedSubmitConfig.buttonProps}
+                  webSearchFeatureToggle={resolvedWebSearchConfig.toggle}
+                  useWebSearchFeatureToggle={resolvedWebSearchConfig.enabled}
                   enableKnowledgeSelector={enableKnowledgeSelector}
-                  showSubmitButton={showNextButton}
+                  enableDocumentSelector={enableDocumentSelector}
+                  enablePlatformSelector={enablePlatformSelector}
+                  platformOptions={platformOptions}
+                  formControl={formControl}
+                  showSubmitButton={resolvedSubmitConfig.showButton}
                   formNotice={formNotice}
                   defaultValues={defaultValues}
                   validationRules={validationRules}
@@ -281,13 +362,18 @@ const BaseForm = ({
                   showHideButton={hasContent && !disableAutoCollapse}
                   onHide={toggleFormVisibility}
                   firstExtrasChildren={firstExtrasChildren}
+                  platformSelectorTabIndex={platformSelectorTabIndex}
+                  knowledgeSelectorTabIndex={knowledgeSelectorTabIndex}
+                  knowledgeSourceSelectorTabIndex={knowledgeSourceSelectorTabIndex}
+                  documentSelectorTabIndex={documentSelectorTabIndex}
+                  submitButtonTabIndex={submitButtonTabIndex}
                 >
                   {children}
                 </FormSection>
               </motion.div>
             )}
           </AnimatePresence>
-        )}
+        
         <motion.div
           layout
           transition={{ duration: 0.25, ease: "easeOut" }}
@@ -299,15 +385,12 @@ const BaseForm = ({
             error={error || propError}
             value={value}
             generatedContent={generatedContent}
-            isEditing={isEditing}
-            allowEditing={allowEditing}
-            hideEditButton={hideEditButton}
+            useMarkdown={useMarkdown}
 
             helpContent={helpContent}
             generatedPost={generatedPost}
             onGeneratePost={onGeneratePost}
-            handleToggleEditMode={handleToggleEditMode}
-            getExportableContent={getExportableContent}
+            getExportableContent={getExportableContentCallback}
             displayActions={displayActions}
             onSave={onSave}
             saveLoading={saveLoading}
@@ -333,10 +416,7 @@ BaseForm.propTypes = {
   formErrors: PropTypes.object,
   onGeneratePost: PropTypes.func,
   generatedPost: PropTypes.string,
-  allowEditing: PropTypes.bool,
   initialContent: PropTypes.string,
-  alwaysEditing: PropTypes.bool,
-  hideEditButton: PropTypes.bool,
 
   isMultiStep: PropTypes.bool,
   onBack: PropTypes.func,
@@ -361,6 +441,11 @@ BaseForm.propTypes = {
   }),
   disableAutoCollapse: PropTypes.bool,
   showNextButton: PropTypes.bool,
+  submitConfig: PropTypes.shape({
+    showButton: PropTypes.bool,
+    buttonText: PropTypes.string,
+    buttonProps: PropTypes.object
+  }),
   headerContent: PropTypes.node,
   webSearchFeatureToggle: PropTypes.shape({
     isActive: PropTypes.bool,
@@ -372,9 +457,21 @@ BaseForm.propTypes = {
     statusMessage: PropTypes.string
   }),
   useWebSearchFeatureToggle: PropTypes.bool,
+  webSearchConfig: PropTypes.shape({
+    enabled: PropTypes.bool,
+    toggle: PropTypes.object
+  }),
   displayActions: PropTypes.node,
   formNotice: PropTypes.node,
   enableKnowledgeSelector: PropTypes.bool,
+  enablePlatformSelector: PropTypes.bool,
+  platformOptions: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.string.isRequired,
+      label: PropTypes.string.isRequired
+    })
+  ),
+  formControl: PropTypes.object,
   onSave: PropTypes.func,
   saveLoading: PropTypes.bool,
   defaultValues: PropTypes.object,
@@ -384,7 +481,13 @@ BaseForm.propTypes = {
   accessibilityOptions: PropTypes.object,
   bottomSectionChildren: PropTypes.node,
   componentName: PropTypes.string,
-  firstExtrasChildren: PropTypes.node
+  firstExtrasChildren: PropTypes.node,
+  useMarkdown: PropTypes.bool,
+  // TabIndex configuration
+  platformSelectorTabIndex: PropTypes.number,
+  knowledgeSelectorTabIndex: PropTypes.number,
+  knowledgeSourceSelectorTabIndex: PropTypes.number,
+  submitButtonTabIndex: PropTypes.number
 };
 
 BaseForm.defaultProps = {
@@ -394,13 +497,21 @@ BaseForm.defaultProps = {
   displayActions: null,
   formNotice: null,
   enableKnowledgeSelector: false,
+  enablePlatformSelector: false,
+  platformOptions: [],
+  formControl: null,
   defaultValues: {},
   validationRules: {},
   useModernForm: true,
   onFormChange: null,
   accessibilityOptions: {},
   bottomSectionChildren: null,
-  firstExtrasChildren: null
+  firstExtrasChildren: null,
+  // TabIndex configuration defaults
+  platformSelectorTabIndex: 12,
+  knowledgeSelectorTabIndex: 14,
+  knowledgeSourceSelectorTabIndex: 13,
+  submitButtonTabIndex: 17
 };
 
-export default BaseForm; 
+export default React.memo(BaseForm); 

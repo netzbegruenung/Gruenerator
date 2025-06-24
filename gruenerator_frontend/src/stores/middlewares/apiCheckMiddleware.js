@@ -1,9 +1,10 @@
 /**
  * API Check Middleware for Zustand
- * Automatically validates feature access via Supabase RPC calls
+ * Automatically validates feature access via backend API calls
  */
 
-import { templatesSupabase } from '../../components/utils/templatesSupabaseClient';
+// Auth Backend URL aus Environment Variable oder Fallback zu aktuellem Host
+const AUTH_BASE_URL = import.meta.env.VITE_AUTH_BASE_URL || '';
 
 export const apiCheckMiddleware = (config) => (set, get, api) => {
   const storeApi = config(set, get, api);
@@ -11,15 +12,22 @@ export const apiCheckMiddleware = (config) => (set, get, api) => {
   // Add API check functionality to the store
   const checkFeatureAccess = async (featureName) => {
     try {
-      const { data: canAccess, error } = await templatesSupabase
-        .rpc('can_access_beta_feature', { feature_name: featureName });
+      const response = await fetch(`${AUTH_BASE_URL}/api/beta-features/access`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ feature_name: featureName }),
+      });
       
-      if (error) {
-        console.warn(`Error checking ${featureName} access:`, error);
+      if (!response.ok) {
+        console.warn(`Error checking ${featureName} access: HTTP ${response.status}`);
         return null; // Don't auto-disable on API errors
       }
       
-      return canAccess;
+      const result = await response.json();
+      return result.canAccess || result.data;
     } catch (error) {
       console.warn(`API check failed for ${featureName}:`, error);
       return null;

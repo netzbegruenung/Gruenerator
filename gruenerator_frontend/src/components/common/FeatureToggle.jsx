@@ -8,7 +8,8 @@ const FeatureToggle = ({
   label, 
   icon: Icon, 
   description,
-  className
+  className,
+  tabIndex
 }) => {
   const handleToggle = (checked) => {
     onToggle(checked);
@@ -22,6 +23,7 @@ const FeatureToggle = ({
           checked={isActive}
           onCheckedChange={handleToggle}
           aria-label={label}
+          tabIndex={tabIndex}
         >
           <Switch.Thumb className="feature-switch-thumb" />
         </Switch.Root>
@@ -44,7 +46,8 @@ FeatureToggle.propTypes = {
   label: PropTypes.string.isRequired,
   icon: PropTypes.elementType.isRequired,
   description: PropTypes.string.isRequired,
-  className: PropTypes.string
+  className: PropTypes.string,
+  tabIndex: PropTypes.number
 };
 
 export default FeatureToggle; 
