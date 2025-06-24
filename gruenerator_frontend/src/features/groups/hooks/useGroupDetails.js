@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 const MAX_KNOWLEDGE_ENTRIES = 3;
 const MAX_CONTENT_LENGTH = 1000;
-const AUTH_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 // Helper to clean up knowledge entry
 const cleanKnowledgeEntry = (entry) => {
