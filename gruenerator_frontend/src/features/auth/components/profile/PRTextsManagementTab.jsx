@@ -8,7 +8,7 @@ import PRTextForm from './PRTextForm'; // Import the new form
 // import PRTextList from './PRTextList'; // To be created
 
 // Auth Backend URL for API calls
-const AUTH_BASE_URL = import.meta.env.VITE_AUTH_BASE_URL || '';
+const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 const PRTextsManagementTab = ({ user, onSuccessMessage, onErrorMessage, isActive }) => {
   const queryClient = useQueryClient();

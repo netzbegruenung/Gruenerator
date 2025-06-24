@@ -3,7 +3,7 @@ import { HiInformationCircle } from 'react-icons/hi';
 import { createPromptWithMemories } from './promptUtils';
 
 // Auth Backend URL aus Environment Variable oder Fallback zu aktuellem Host
-const AUTH_BASE_URL = import.meta.env.VITE_AUTH_BASE_URL || '';
+const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 /**
  * Search documents for relevant content based on query

@@ -19,7 +19,7 @@ import DocumentSelector from './components/DocumentSelector';
 import '../../assets/styles/components/custom-generator/custom-generator-page.css';
 
 // Auth Backend URL aus Environment Variable oder Fallback zu aktuellem Host
-const AUTH_BASE_URL = import.meta.env.VITE_AUTH_BASE_URL || '';
+const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 // Define steps
 const MODE_SELECTION = -1;
