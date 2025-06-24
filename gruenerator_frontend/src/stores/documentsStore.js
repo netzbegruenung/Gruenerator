@@ -49,7 +49,7 @@ export const useDocumentsStore = create(immer((set, get) => {
       try {
         console.log('[DocumentsStore] Fetching user documents');
         
-        const response = await fetch(`${AUTH_BASE_URL}/api/documents/user`, {
+        const response = await fetch(`${AUTH_BASE_URL}/documents/user`, {
           method: 'GET',
           credentials: 'include',
           headers: {
@@ -102,7 +102,7 @@ export const useDocumentsStore = create(immer((set, get) => {
         }
 
         // Upload with progress tracking
-        const response = await fetch(`${AUTH_BASE_URL}/api/documents/upload`, {
+        const response = await fetch(`${AUTH_BASE_URL}/documents/upload`, {
           method: 'POST',
           credentials: 'include',
           body: formData,
@@ -143,7 +143,7 @@ export const useDocumentsStore = create(immer((set, get) => {
       try {
         console.log('[DocumentsStore] Deleting document:', documentId);
 
-        const response = await fetch(`${AUTH_BASE_URL}/api/documents/${documentId}`, {
+        const response = await fetch(`${AUTH_BASE_URL}/documents/${documentId}`, {
           method: 'DELETE',
           credentials: 'include',
           headers: {
@@ -187,7 +187,7 @@ export const useDocumentsStore = create(immer((set, get) => {
       try {
         console.log('[DocumentsStore] Searching documents:', { query, limit });
 
-        const response = await fetch(`${AUTH_BASE_URL}/api/documents/search`, {
+        const response = await fetch(`${AUTH_BASE_URL}/documents/search`, {
           method: 'POST',
           credentials: 'include',
           headers: {
@@ -264,7 +264,7 @@ export const useDocumentsStore = create(immer((set, get) => {
       try {
         console.log('[DocumentsStore] Updating document title:', { documentId, newTitle });
 
-        const response = await fetch(`${AUTH_BASE_URL}/api/documents/${documentId}/metadata`, {
+        const response = await fetch(`${AUTH_BASE_URL}/documents/${documentId}/metadata`, {
           method: 'POST',
           credentials: 'include',
           headers: {
@@ -306,7 +306,7 @@ export const useDocumentsStore = create(immer((set, get) => {
       try {
         console.log('[DocumentsStore] Refreshing document:', documentId);
 
-        const response = await fetch(`${AUTH_BASE_URL}/api/documents/${documentId}/content`, {
+        const response = await fetch(`${AUTH_BASE_URL}/documents/${documentId}/content`, {
           method: 'GET',
           credentials: 'include',
           headers: {
