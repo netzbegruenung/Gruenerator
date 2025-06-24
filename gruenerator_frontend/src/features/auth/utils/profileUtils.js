@@ -80,7 +80,7 @@ class ProfileResourceManager {
   async getAuthBaseUrl() {
     if (this.authBaseUrl) return this.authBaseUrl;
     
-    this.authBaseUrl = import.meta.env.VITE_AUTH_BASE_URL || '';
+    this.authBaseUrl = import.meta.env.VITE_API_BASE_URL || '/api';
     return this.authBaseUrl;
   }
 
@@ -274,7 +274,7 @@ export const initializeProfileFormFields = (profile, user) => {
 export const useProfileData = (userId) => {
   const { user, isAuthenticated, loading } = useOptimizedAuth();
   const actualUserId = userId || user?.id;
-  const AUTH_BASE_URL = import.meta.env.VITE_AUTH_BASE_URL || '';
+  const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
   return useQuery({
     queryKey: ['profileData', actualUserId],
@@ -417,7 +417,7 @@ const cleanKnowledgeEntry = (entry) => {
 export const useAnweisungenWissen = ({ isActive, enabled = true } = {}) => {
   const { user } = useOptimizedAuth();
   const queryClient = useQueryClient();
-  const AUTH_BASE_URL = import.meta.env.VITE_AUTH_BASE_URL || '';
+  const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
   // Use the zustand store for UI state
   const { 
@@ -560,7 +560,7 @@ export const useAnweisungenWissen = ({ isActive, enabled = true } = {}) => {
 export const useQACollections = ({ isActive, enabled = true } = {}) => {
   const { user } = useOptimizedAuth();
   const queryClient = useQueryClient();
-  const AUTH_BASE_URL = import.meta.env.VITE_AUTH_BASE_URL || '';
+  const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
   // --- React Query: Fetch Q&A Collections --- 
   const queryKey = ['qaCollections', user?.id];

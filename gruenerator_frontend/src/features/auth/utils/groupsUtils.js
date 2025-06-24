@@ -8,7 +8,7 @@ import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { useGroupsUiStore } from '../../../stores/auth/groupsUiStore';
 
-const AUTH_BASE_URL = import.meta.env.VITE_AUTH_BASE_URL || '';
+const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 /**
  * Hook for comprehensive groups management using backend API
