@@ -61,6 +61,7 @@
 
     --backgroundgruen: var(--primary-50);
     --backgroundgruen-dark: var(--primary-100);
+    --background-red-light: #f5e8e8; /* Very light red for preview mode */
     --dunkelgrau: var(--grey-900);
     --anthrazit: var(--grey-950);
 
@@ -163,7 +164,7 @@
 
 [data-theme="dark"] {
     --background-color: var(--grey-950);
-    --background-color-pure: var(--grey-950);
+    --background-color-pure: var(--grey-900);
     --background-color-alt: var(--grey-950);
     --background-color-sand: var(--grey-950);
     --hover-color-alt: var(--grey-700);
@@ -200,6 +201,7 @@
     --ai-message-text-color: var(--font-color);
     --assistant-icon-background: var(--background-color-alt);
     --assistant-icon-color: var(--font-color);
+    
     --chat-message-user-name-color: var(--grey-400);
     --chat-input-background: var(--background-color);
     --chat-input-text-color: var(--font-color);
@@ -213,7 +215,7 @@
 @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
         --background-color: var(--grey-950);
-        --background-color-pure: var(--grey-950);
+        --background-color-pure: var(--grey-900);
         --background-color-alt: var(--grey-800);
         --background-color-sand: var(--secondary-700);
         --hover-color-alt: var(--grey-700);

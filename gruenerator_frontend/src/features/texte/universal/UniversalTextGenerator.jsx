@@ -1,9 +1,9 @@
-import React, { useState, useCallback, useContext, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import PropTypes from 'prop-types';
 // import { useDynamicTextSize } from '../../../components/utils/commonFunctions';
 import useApiSubmit from '../../../components/hooks/useApiSubmit';
 import BaseForm from '../../../components/common/BaseForm';
-import { FormContext } from '../../../components/utils/FormContext';
+// FormContext removed - using generatedTextStore directly
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import TextTypeSelector, { TEXT_TYPES, TEXT_TYPE_TITLES } from './components/TextTypeSelector';
 import RedeForm from './RedeForm';
@@ -14,6 +14,7 @@ import useKnowledge from '../../../components/hooks/useKnowledge';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { createKnowledgeFormNotice, createKnowledgePrompt } from '../../../utils/knowledgeFormUtils';
 import { useGeneratorKnowledgeStore } from '../../../stores/core/generatorKnowledgeStore';
+import { useTabIndex, useBaseFormTabIndex } from '../../../hooks/useTabIndex';
 
 const API_ENDPOINTS = {
   [TEXT_TYPES.REDE]: '/claude_rede',
@@ -28,11 +29,14 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
   const formRef = useRef();
   const { setGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
   
-  const { betaFeatures } = useOptimizedAuth();
-  const deutschlandmodus = betaFeatures?.deutschlandmodus;
+  useOptimizedAuth();
   
-  // Initialize knowledge system
-  useKnowledge({ instructionType: 'universal' });
+  // Initialize knowledge system with document preloading
+  useKnowledge({ instructionType: 'universal', enableDocuments: true });
+
+  // Initialize tabIndex configuration
+  const tabIndex = useTabIndex('UNIVERSAL');
+  const baseFormTabIndex = useBaseFormTabIndex('UNIVERSAL');
   
   // Get knowledge state from store
   const {
@@ -41,6 +45,7 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
     isInstructionsActive,
     instructions,
     getKnowledgeContent,
+    getDocumentContent,
     getActiveInstruction,
     groupData: groupDetailsData
   } = useGeneratorKnowledgeStore();
@@ -54,12 +59,10 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
     instructionType: 'universal',
     groupDetailsData,
     availableKnowledge,
-    deutschlandmodus
   });
   
   // const textSize = useDynamicTextSize(generatedContent, 1.2, 0.8, [1000, 2000]);
   const { submitForm, loading, success, resetSuccess, error } = useApiSubmit(API_ENDPOINTS[selectedType]);
-  const { /* setGeneratedContent: setContextGeneratedContent */ } = useContext(FormContext);
 
   useEffect(() => {
     setStoreIsLoading(loading);
@@ -72,14 +75,40 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
     if (!formData) return;
 
     try {
-      // Add knowledge and instructions
-      const finalPrompt = createKnowledgePrompt({
+      // Extract search query from form data for intelligent document content
+      const extractQueryFromFormData = (data) => {
+        const queryParts = [];
+        
+        // Extract key fields that provide context
+        if (data.thema) queryParts.push(data.thema);
+        if (data.hauptthema) queryParts.push(data.hauptthema);
+        if (data.anliegen) queryParts.push(data.anliegen);
+        if (data.topic) queryParts.push(data.topic);
+        if (data.subject) queryParts.push(data.subject);
+        if (data.zielgruppe) queryParts.push(data.zielgruppe);
+        if (data.context) queryParts.push(data.context);
+        if (data.beschreibung) queryParts.push(data.beschreibung);
+        if (data.inhalt) queryParts.push(data.inhalt);
+        
+        return queryParts.filter(part => part && part.trim()).join(' ');
+      };
+      
+      const searchQuery = extractQueryFromFormData(formData);
+      console.log('[UniversalTextGenerator] Extracted search query from form:', searchQuery);
+
+      // Add knowledge, instructions, and documents with intelligent extraction
+      const finalPrompt = await createKnowledgePrompt({
         source,
         isInstructionsActive,
         getActiveInstruction,
         instructionType: 'universal',
         groupDetailsData,
-        getKnowledgeContent
+        getKnowledgeContent,
+        getDocumentContent,
+        memoryOptions: {
+          enableMemories: false, // Not using memories in this context
+          query: searchQuery
+        }
       });
       
       if (finalPrompt) {
@@ -98,7 +127,7 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
     } catch (error) {
       console.error('Error submitting form:', error);
     }
-  }, [submitForm, resetSuccess, setGeneratedText, selectedType, componentName, source, isInstructionsActive, getActiveInstruction, groupDetailsData, getKnowledgeContent]);
+  }, [submitForm, resetSuccess, setGeneratedText, selectedType, componentName, source, isInstructionsActive, getActiveInstruction, groupDetailsData, getKnowledgeContent, getDocumentContent]);
 
   const handleGeneratedContentChange = useCallback((content) => {
     setGeneratedContent(content);
@@ -119,11 +148,11 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
   const renderForm = () => {
     switch (selectedType) {
       case TEXT_TYPES.REDE:
-        return <RedeForm ref={formRef} />;
+        return <RedeForm ref={formRef} tabIndex={tabIndex} />;
       case TEXT_TYPES.WAHLPROGRAMM:
-        return <WahlprogrammForm ref={formRef} />;
+        return <WahlprogrammForm ref={formRef} tabIndex={tabIndex} />;
       case TEXT_TYPES.UNIVERSAL:
-        return <UniversalForm ref={formRef} />;
+        return <UniversalForm ref={formRef} tabIndex={tabIndex} />;
       default:
         return null;
     }
@@ -149,9 +178,15 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
           onSubmit={handleSubmit}
           formNotice={formNotice}
           enableKnowledgeSelector={true}
+          enableDocumentSelector={true}
           helpContent={helpContent}
           componentName={componentName}
           firstExtrasChildren={renderTextTypeSection()}
+          platformSelectorTabIndex={baseFormTabIndex.platformSelectorTabIndex}
+          knowledgeSelectorTabIndex={baseFormTabIndex.knowledgeSelectorTabIndex}
+          knowledgeSourceSelectorTabIndex={baseFormTabIndex.knowledgeSourceSelectorTabIndex}
+          documentSelectorTabIndex={baseFormTabIndex.documentSelectorTabIndex}
+          submitButtonTabIndex={baseFormTabIndex.submitButtonTabIndex}
         >
           {renderForm()}
         </BaseForm>

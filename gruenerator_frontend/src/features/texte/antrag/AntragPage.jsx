@@ -1,18 +1,10 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import { AntragProvider } from './AntragContext';
-import { AntragForm } from './AntragForm';
-import ErrorBoundary from '../../../components/ErrorBoundary';
+import AntragGenerator from './AntragGenerator';
 
 export const AntragPage = ({ showHeaderFooter = true }) => {
   return (
-    <div className={showHeaderFooter ? 'with-header' : 'no-header'}>
-      <ErrorBoundary>
-        <AntragProvider>
-          <AntragForm />
-        </AntragProvider>
-      </ErrorBoundary>
-    </div>
+    <AntragGenerator showHeaderFooter={showHeaderFooter} />
   );
 };
 

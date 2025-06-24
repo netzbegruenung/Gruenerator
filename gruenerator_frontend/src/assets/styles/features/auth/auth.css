@@ -616,7 +616,9 @@
   text-align: center;
 }
 
-.auth-form button + button {
+/* Spacing for consecutive form action buttons only - not navigation */
+.auth-form .form-actions button + button,
+.auth-form .profile-actions button + button {
   margin-top: var(--spacing-small);
 }
 

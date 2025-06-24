@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import Spinner from '../../../components/common/Spinner';
-import useGroups from '../hooks/useGroups';
+import { useGroups } from '../../auth/utils/groupsUtils';
 
 const JoinGroupPage = () => {
   const { joinToken } = useParams();
@@ -27,39 +27,29 @@ const JoinGroupPage = () => {
       if (!joinToken || isLoading || !isAuthResolved || !supabaseUser) return;
       
       try {
-        // Load Supabase client
-        const module = await import('../../../components/utils/templatesSupabaseClient');
-        if (!module.templatesSupabase) {
-          throw new Error("Supabase client konnte nicht geladen werden");
-        }
-        
-        // Get group info from token
-        const { data, error } = await module.templatesSupabase
-          .from('groups')
-          .select('id, name')
-          .eq('join_token', joinToken)
-          .single();
-          
-        if (error) {
+        // Use backend API to verify join token
+        const response = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001'}/auth/groups/verify-token/${joinToken}`, {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!response.ok) {
           throw new Error("Ungültiger Einladungslink");
+        }
+
+        const data = await response.json();
+        
+        if (!data.success) {
+          throw new Error(data.message || "Ungültiger Einladungslink");
         }
         
         if (isMounted) {
-          setGroupName(data.name);
+          setGroupName(data.group.name);
           
-          // Check if already a member
-          const { data: membership, error: membershipError } = await module.templatesSupabase
-            .from('group_memberships')
-            .select('group_id')
-            .eq('group_id', data.id)
-            .eq('user_id', supabaseUser.id)
-            .maybeSingle();
-            
-          if (membershipError) {
-            throw new Error("Fehler beim Überprüfen der Mitgliedschaft");
-          }
-          
-          if (membership) {
+          if (data.alreadyMember) {
             setStatus('already_member');
           } else {
             setStatus('ready');

@@ -1,36 +1,23 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from "motion/react";
-import StyledCheckbox from '../../../../components/common/AnimatedCheckbox';
-import { HiOutlineExternalLink } from 'react-icons/hi';
+import FeatureToggle from '../../../../components/common/FeatureToggle';
+import { HiOutlineExternalLink, HiOutlineGlobe, HiOutlineUserGroup, HiOutlineDatabase, HiOutlineCog, HiOutlinePhotograph, HiOutlineAcademicCap, HiOutlineUser, HiOutlineUsers } from 'react-icons/hi';
+import { useBetaFeatures } from '../../../../hooks/useBetaFeatures';
 
 const LaborTab = ({
   user,
   onSuccessMessage,
   onErrorLaborMessage,
   isActive,
-  deutschlandmodusBeta,
-  setDeutschlandmodusBeta,
-  groupsBeta,
-  setGroupsBeta,
-  databaseBeta,
-  setDatabaseBeta,
-  customGeneratorsBeta,
-  setCustomGeneratorsBeta,
-  sharepicBeta,
-  setSharepicBeta,
-  anweisungenBeta,
-  setAnweisungenBeta,
-  youBeta,
-  setYouBeta,
-  collabBeta,
-  setCollabBeta,
-  isAdmin = false,
-  adminOnlyFeatures = [],
-  availableFeatures = []
 }) => {
+  const { 
+    getBetaFeatureState, 
+    updateUserBetaFeatures, 
+    getAvailableFeatures, 
+    isAdmin 
+  } = useBetaFeatures();
   const BETA_VIEWS = {
-    DEUTSCHLANDMODUS: 'deutschlandmodus',
     GROUPS: 'groups',
     DATABASE: 'database',
     GENERATORS: 'customGenerators',
@@ -49,83 +36,81 @@ const LaborTab = ({
 
   const getBetaFeatureConfig = (viewKey) => {
     switch (viewKey) {
-      case BETA_VIEWS.DEUTSCHLANDMODUS:
-        return {
-          title: 'Deutschlandmodus',
-          description: 'Aktiviere spezielle Funktionen für Deutschland-spezifische Inhalte.',
-          checked: deutschlandmodusBeta,
-          setter: setDeutschlandmodusBeta,
-          featureName: 'Deutschlandmodus',
-          checkboxLabel: 'Deutschlandmodus aktivieren'
-        };
       case BETA_VIEWS.GROUPS:
         return {
           title: 'Gruppen-Verwaltung',
           description: 'Verwalte deine Gruppen und arbeite gemeinsam an Projekten.',
-          checked: groupsBeta,
-          setter: setGroupsBeta,
+          checked: getBetaFeatureState('groups'),
+          setter: (value) => updateUserBetaFeatures('groups', value),
           featureName: 'Gruppen',
-          checkboxLabel: 'Gruppen-Tab anzeigen und Funktionalität aktivieren'
+          checkboxLabel: 'Gruppen-Tab anzeigen und Funktionalität aktivieren',
+          icon: HiOutlineUserGroup
         };
       case BETA_VIEWS.DATABASE:
         return {
           title: 'Texte & Vorlagen',
           description: 'Zugang zur Datenbank mit Texten und Vorlagen für deine Arbeit.',
-          checked: databaseBeta,
-          setter: setDatabaseBeta,
+          checked: getBetaFeatureState('database'),
+          setter: (value) => updateUserBetaFeatures('database', value),
           featureName: 'Datenbank',
           checkboxLabel: '\'Texte & Vorlagen\'-Tab (Datenbank) anzeigen und Funktionalität aktivieren',
           linkTo: '/datenbank',
-          linkText: 'Zur Datenbank'
+          linkText: 'Zur Datenbank',
+          icon: HiOutlineDatabase
         };
       case BETA_VIEWS.GENERATORS:
         return {
           title: 'Meine Grüneratoren',
           description: 'Erstelle und verwalte deine eigenen benutzerdefinierten Grüneratoren.',
-          checked: customGeneratorsBeta,
-          setter: setCustomGeneratorsBeta,
+          checked: getBetaFeatureState('customGenerators'),
+          setter: (value) => updateUserBetaFeatures('customGenerators', value),
           featureName: 'Grüneratoren',
-          checkboxLabel: '\'Meine Grüneratoren\'-Tab anzeigen und Funktionalität activieren'
+          checkboxLabel: '\'Meine Grüneratoren\'-Tab anzeigen und Funktionalität activieren',
+          icon: HiOutlineCog
         };
       case BETA_VIEWS.SHAREPIC:
         return {
           title: 'Sharepic-Grünerator',
           description: 'Erstelle ansprechende Sharepics für deine Social Media Kanäle.',
-          checked: sharepicBeta,
-          setter: setSharepicBeta,
+          checked: getBetaFeatureState('sharepic'),
+          setter: (value) => updateUserBetaFeatures('sharepic', value),
           featureName: 'Sharepic Link',
           checkboxLabel: 'Link zum Sharepic-Grünerator anzeigen',
           linkTo: '/sharepic',
-          linkText: 'Zum Sharepic Grünerator'
+          linkText: 'Zum Sharepic Grünerator',
+          icon: HiOutlinePhotograph
         };
       case BETA_VIEWS.ANWEISUNGEN:
         return {
           title: 'Anweisungen & Wissen',
           description: 'Verwalte persönliche Anweisungen und Wissensbausteine für die KI.',
-          checked: anweisungenBeta,
-          setter: setAnweisungenBeta,
+          checked: getBetaFeatureState('anweisungen'),
+          setter: (value) => updateUserBetaFeatures('anweisungen', value),
           featureName: 'Anweisungen & Wissen',
-          checkboxLabel: '\'Anweisungen & Wissen\'-Tab anzeigen und Funktionalität aktivieren'
+          checkboxLabel: '\'Anweisungen & Wissen\'-Tab anzeigen und Funktionalität aktivieren',
+          icon: HiOutlineAcademicCap
         };
       case BETA_VIEWS.YOU:
         return {
           title: 'You Grünerator',
           description: 'Personalisierte Inhalte basierend auf deinem Profil und deinen Vorlieben.',
-          checked: youBeta,
-          setter: setYouBeta,
+          checked: getBetaFeatureState('you'),
+          setter: (value) => updateUserBetaFeatures('you', value),
           featureName: 'You Generator',
           checkboxLabel: 'You Grünerator aktivieren',
           linkTo: '/you',
-          linkText: 'Zum You Grünerator'
+          linkText: 'Zum You Grünerator',
+          icon: HiOutlineUser
         };
       case BETA_VIEWS.COLLAB:
         return {
           title: 'Kollaborative Bearbeitung',
           description: 'Arbeite in Echtzeit mit anderen an Dokumenten und Texten.',
-          checked: collabBeta,
-          setter: setCollabBeta,
+          checked: getBetaFeatureState('collab'),
+          setter: (value) => updateUserBetaFeatures('collab', value),
           featureName: 'Kollaborative Bearbeitung',
-          checkboxLabel: 'Kollaborative Bearbeitung aktivieren'
+          checkboxLabel: 'Kollaborative Bearbeitung aktivieren',
+          icon: HiOutlineUsers
         };
       default:
         return null;
@@ -146,7 +131,7 @@ const LaborTab = ({
       <div className="profile-form-section">
         <div className="auth-form">
           <div className="profile-cards-grid">
-            {availableFeatures.map(feature => {
+            {getAvailableFeatures().map(feature => {
               const config = getBetaFeatureConfig(feature.key);
               if (!config) return null;
 
@@ -161,13 +146,18 @@ const LaborTab = ({
                       {config.description}
                     </p>
                     
-                    <div className="labor-tab-checkbox-container">
-                      <StyledCheckbox
-                        id={`${feature.key}-beta`}
+                    <div className="labor-tab-toggle-container">
+                      <FeatureToggle
+                        isActive={config.checked}
+                        onToggle={(checked) => {
+                          config.setter(checked);
+                          onSuccessMessage(`${config.featureName} Beta-Test ${checked ? 'aktiviert' : 'deaktiviert'}.`);
+                          onErrorLaborMessage('');
+                        }}
                         label={config.checkboxLabel}
-                        checked={config.checked}
-                        onChange={() => handleBetaToggle(config.setter, config.checked, config.featureName)}
-                        aria-label={`${config.featureName} Beta-Test aktivieren`}
+                        icon={config.icon}
+                        description={config.description}
+                        className="labor-feature-toggle"
                       />
                     </div>
 
@@ -185,7 +175,7 @@ const LaborTab = ({
             })}
           </div>
 
-          {!isAdmin && availableFeatures.some(f => f.isAdminOnly) && (
+          {!isAdmin && getAvailableFeatures().some(f => f.isAdminOnly) && (
             <div className="profile-card" style={{marginTop: 'var(--spacing-large)'}}>
               <div className="profile-card-header">
                 <h3>Administrator-Features</h3>

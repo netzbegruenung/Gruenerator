@@ -1,5 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
-import { templatesSupabase } from '../components/utils/templatesSupabaseClient.js';
+
+// Auth Backend URL aus Environment Variable oder Fallback zu aktuellem Host
+const AUTH_BASE_URL = import.meta.env.VITE_AUTH_BASE_URL || '';
 
 export const useCustomGeneratorsGallery = (searchTerm, selectedCategory = 'all') => {
   // Kategorien für Custom Generators laden
@@ -29,38 +31,33 @@ export const useCustomGeneratorsGallery = (searchTerm, selectedCategory = 'all')
   } = useQuery({
     queryKey: ['customGenerators', searchTerm, selectedCategory],
     queryFn: async () => {
-      let query = templatesSupabase
-        .from('custom_generators')
-        .select('*');
-
+      const url = new URL(`${AUTH_BASE_URL}/auth/custom-generators`);
+      
       // Suchfilter anwenden
       if (searchTerm) {
-        query = query.or(`name.ilike.%${searchTerm}%,title.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`);
+        url.searchParams.append('searchTerm', searchTerm);
+      }
+      
+      // Kategoriefilter anwenden
+      if (selectedCategory && selectedCategory !== 'all') {
+        url.searchParams.append('category', selectedCategory);
       }
 
-      // Kategoriefilter anwenden (nur client-seitiger Filter für jetzt)
-      const { data, error } = await query.order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      
-      // Filtere nach Kategorie (hier als Beispiel - kann später serverseitig implementiert werden)
-      let filtered = data || [];
-      if (selectedCategory !== 'all') {
-        // Diese Logik würde durch tatsächliche Kategorien aus der DB ersetzt werden
-        switch (selectedCategory) {
-          case 'own':
-            // Implementierung, sobald Benutzerauthentifizierung integriert ist
-            break;
-          case 'shared':
-            // Implementierung für geteilte Generatoren
-            break;
-          case 'popular':
-            // Beispiel: Filter nach Nutzungshäufigkeit
-            break;
-        }
+      const response = await fetch(url, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ message: 'Failed to fetch custom generators' }));
+        throw new Error(error.message || 'Fehler beim Laden der Custom Generators');
       }
       
-      return filtered;
+      const result = await response.json();
+      return result.generators || result || [];
     }
   });
 

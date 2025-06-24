@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import ImageSlider from '../../../../../components/common/ImageSlider';
-import { useAuth } from '../../../../../components/utils/AuthContext';
+import { useAuth } from '../../../../../hooks/useAuth';
 import VerifyFeature from '../../../../../components/common/VerifyFeature';
 
 const CanvaTemplateCard = ({ template }) => {

@@ -73,21 +73,30 @@ passport.serializeUser((user, done) => {
 // Deserialize user from session
 passport.deserializeUser(async (userData, done) => {
   try {
-    console.log('[Passport] Deserialize called with userData:', typeof userData, userData);
-    
     if (typeof userData === 'object' && userData.id) {
-      console.log('[Passport] Deserializing full user object from session for ID:', userData.id, 'Has id_token:', !!userData.id_token);
       const userToReturn = await getUserById(userData.id);
-      if (userToReturn && userData.id_token) {
-        userToReturn.id_token = userData.id_token;
+      if (userToReturn) {
+        // Preserve session data that might have been updated
+        if (userData.id_token) {
+          userToReturn.id_token = userData.id_token;
+        }
+        // CRITICAL: Preserve beta_features from session if they were updated
+        if (userData.beta_features) {
+          userToReturn.beta_features = userData.beta_features;
+        }
+        // Also preserve user_metadata if it exists
+        if (userData.user_metadata) {
+          userToReturn.user_metadata = userData.user_metadata;
+        }
+        // Preserve supabaseSession if it exists
+        if (userData.supabaseSession) {
+          userToReturn.supabaseSession = userData.supabaseSession;
+        }
       }
-      console.log('[Passport] Returning user from deserialize:', userToReturn ? userToReturn.id : 'null');
       return done(null, userToReturn || userData);
     }
     
-    console.log('[Passport] Deserializing user ID:', userData);
     const user = await getUserById(userData);
-    console.log('[Passport] Found user by ID:', user ? user.id : 'null');
     done(null, user);
   } catch (error) {
     console.error('[Passport] Error deserializing user:', error);
@@ -235,6 +244,39 @@ async function getUserById(id) {
 
     if (error && error.code !== 'PGRST116') {
       throw new Error(`Database error: ${error.message}`);
+    }
+
+    if (!data) return null;
+
+    // Load user's groups if groups beta feature is enabled
+    if (data.beta_features?.groups) {
+      try {
+        const { data: memberships, error: membershipError } = await supabaseService
+          .from('group_memberships')
+          .select(`
+            group_id,
+            role,
+            joined_at,
+            groups!inner(id, name, created_at, created_by, join_token)
+          `)
+          .eq('user_id', id);
+
+        if (!membershipError && memberships) {
+          data.groups = memberships.map(m => ({
+            id: m.groups.id,
+            name: m.groups.name,
+            created_at: m.groups.created_at,
+            created_by: m.groups.created_by,
+            join_token: m.groups.join_token,
+            role: m.role,
+            joined_at: m.joined_at,
+            isAdmin: m.groups.created_by === id || m.role === 'admin'
+          }));
+        }
+      } catch (groupError) {
+        console.warn('[getUserById] Error loading groups:', groupError);
+        // Don't fail authentication if groups fail to load
+      }
     }
 
     return data;

@@ -4,6 +4,7 @@ const OpenAI = require('openai');
 const { InvokeModelCommand } = require("@aws-sdk/client-bedrock-runtime");
 const bedrockClient = require('./awsBedrockClient');
 const config = require('./worker.config');
+const ToolHandler = require('../services/toolHandler');
 require('dotenv').config();
 
 // Create API clients
@@ -33,9 +34,14 @@ parentPort.on('message', async (message) => {
     // Process the request
     const result = await processAIRequest(requestId, data);
     
-    // Validate result before sending
-    if (!result || !result.content || result.content.length === 0) {
+    // Validate result before sending - handle both text and tool responses
+    if (!result || (!result.content && result.stop_reason !== 'tool_use')) {
       throw new Error(`Empty or invalid result generated for request ${requestId}`);
+    }
+    
+    // For tool_use responses, ensure we have tool_calls
+    if (result.stop_reason === 'tool_use' && (!result.tool_calls || result.tool_calls.length === 0)) {
+      throw new Error(`Tool use indicated but no tool calls found for request ${requestId}`);
     }
     
     // Send back the successful result
@@ -75,14 +81,15 @@ async function processAIRequest(requestId, data) {
   // Destructure data, ensuring options exists
   const { type, prompt, options = {}, systemPrompt, messages } = data;
 
-  // Testweise Bedrock als Standard aktivieren
-  // const effectiveOptions = { ...options, useBedrock: true };
-  const effectiveOptions = { ...options };
+  // Force Bedrock for gruenerator_ask and gruenerator_ask_grundsatz types to use Haiku for faster and cheaper responses
+  const effectiveOptions = (type === 'gruenerator_ask' || type === 'gruenerator_ask_grundsatz')
+    ? { ...options, useBedrock: true, model: 'anthropic.claude-3-haiku-20240307-v1:0' }
+    : { ...options, useBedrock: true }; // Default to Bedrock for all requests
 
   try {
     let result;
-    // Prüfe die Optionen mit dem (möglicherweise) überschriebenen useBedrock-Wert
-    if (effectiveOptions.useBedrock === true) {
+    // Use Bedrock by default (Deutschland mode), only fall back to Claude API if explicitly disabled
+    if (effectiveOptions.useBedrock !== false) {
       console.log(`[AI Worker] Using AWS Bedrock provider for request ${requestId}`);
       sendProgress(requestId, 15);
       // Übergebe die ursprünglichen 'data', da processWithBedrock die Optionen ggf. intern neu prüft
@@ -132,6 +139,11 @@ async function processAIRequest(requestId, data) {
         },
         'generator_config': {
           temperature: 0.5
+        },
+        'gruenerator_ask': {
+          system: "Du bist ein hilfsreicher Assistent, der Fragen zu hochgeladenen Dokumenten beantwortet. Analysiere die bereitgestellten Dokumente und beantworte die Nutzerfrage präzise und hilfreich auf Deutsch.",
+          model: "claude-3-5-haiku-latest",
+          temperature: 0.3
         }
       };
 
@@ -178,10 +190,13 @@ async function processAIRequest(requestId, data) {
         }];
       }
 
-      // Tools setup for you_with_tools type
-      if (type === 'you_with_tools' && apiOptions.tools) {
-        requestConfig.tools = apiOptions.tools;
-        console.log(`[AI Worker] Tools aktiviert für ${requestId}:`, apiOptions.tools.length);
+      // Tools setup using ToolHandler
+      const toolsPayload = ToolHandler.prepareToolsPayload(apiOptions, 'claude', requestId, type);
+      if (toolsPayload.tools) {
+        requestConfig.tools = toolsPayload.tools;
+        if (toolsPayload.tool_choice) {
+          requestConfig.tool_choice = toolsPayload.tool_choice;
+        }
       }
 
       sendProgress(requestId, 30);
@@ -344,19 +359,24 @@ async function processWithOpenAI(requestId, data) {
 
 // Function to process request with AWS Bedrock
 async function processWithBedrock(requestId, data) {
-  const { messages, systemPrompt, options = {} } = data;
-  // Prefer ARN if available, otherwise use Model ID
-  const modelIdentifier = process.env.BEDROCK_CLAUDE_MODEL_ARN || process.env.BEDROCK_CLAUDE_MODEL_ID;
+  const { messages, systemPrompt, options = {}, type } = data;
+  // Use model from options if provided (for gruenerator_ask), otherwise use EU cross-region inference profile for Claude 4 Sonnet
+  const modelIdentifier = options.model || process.env.BEDROCK_CLAUDE_MODEL_ARN || process.env.BEDROCK_CLAUDE_MODEL_ID || 'eu.anthropic.claude-sonnet-4-20250514-v1:0';
 
   if (!modelIdentifier) {
-    throw new Error('Neither BEDROCK_CLAUDE_MODEL_ARN nor BEDROCK_CLAUDE_MODEL_ID environment variable is set.');
+    throw new Error('No model identifier provided and neither BEDROCK_CLAUDE_MODEL_ARN nor BEDROCK_CLAUDE_MODEL_ID environment variable is set.');
   }
 
   if (!messages || messages.length === 0) {
     throw new Error('Messages are required for Bedrock request.');
   }
 
-  console.log(`[AI Worker] Processing with Bedrock. Request ID: ${requestId}, Model: ${modelIdentifier}`);
+  console.log(`[AI Worker] Processing with Bedrock. Request ID: ${requestId}, Type: ${type}, Model: ${modelIdentifier}`);
+  
+  // Special logging for gruenerator_ask and gruenerator_ask_grundsatz to confirm Haiku usage for faster responses
+  if (type === 'gruenerator_ask' || type === 'gruenerator_ask_grundsatz') {
+    console.log(`[AI Worker] Using Haiku for Ask feature (faster and cheaper) - Model: ${modelIdentifier}`);
+  }
 
   // Construct the payload for Bedrock Claude
   // Note: Bedrock API structure differs from direct Anthropic API
@@ -374,6 +394,15 @@ async function processWithBedrock(requestId, data) {
     bedrockPayload.system = systemPrompt;
   }
 
+  // Add tools support using ToolHandler
+  const toolsPayload = ToolHandler.prepareToolsPayload(options, 'bedrock', requestId, type);
+  if (toolsPayload.tools) {
+    bedrockPayload.tools = toolsPayload.tools;
+    if (toolsPayload.tool_choice) {
+      bedrockPayload.tool_choice = toolsPayload.tool_choice;
+    }
+  }
+
   try {
     sendProgress(requestId, 20);
 
@@ -388,7 +417,59 @@ async function processWithBedrock(requestId, data) {
     });
 
     console.log(`[AI Worker] Sending request to Bedrock: ${requestId}`);
-    const response = await bedrockClient.send(command);
+    
+    // Add retry logic with EU model hierarchy fallback
+    let retryCount = 0;
+    const maxRetries = 3;
+    let response;
+    
+    // EU model hierarchy for fallbacks
+    const euModelHierarchy = [
+      'eu.anthropic.claude-sonnet-4-20250514-v1:0',
+      'eu.anthropic.claude-3-7-sonnet-20250219-v1:0', 
+      'eu.anthropic.claude-3-5-sonnet-20240620-v1:0'
+    ];
+    
+    // Start with the provided model, then fallback to hierarchy
+    const modelsToTry = modelIdentifier.startsWith('eu.') 
+      ? [modelIdentifier, ...euModelHierarchy.filter(m => m !== modelIdentifier)]
+      : [modelIdentifier, ...euModelHierarchy];
+    
+    let modelIndex = 0;
+    let currentModelId = modelsToTry[modelIndex];
+    
+    while (retryCount <= maxRetries && modelIndex < modelsToTry.length) {
+      try {
+        const currentCommand = new InvokeModelCommand({
+          modelId: currentModelId,
+          contentType: "application/json",
+          accept: "application/json",
+          body: JSON.stringify(bedrockPayload),
+        });
+        
+        response = await bedrockClient.send(currentCommand);
+        console.log(`[AI Worker] Request successful with model: ${currentModelId}`);
+        break; // Success, exit retry loop
+      } catch (error) {
+        if (error.name === 'ThrottlingException' && retryCount < maxRetries) {
+          const delay = Math.pow(2, retryCount) * 1000; // Exponential backoff: 1s, 2s, 4s
+          console.log(`[AI Worker] Rate limited on ${currentModelId}, retrying in ${delay}ms (attempt ${retryCount + 1}/${maxRetries + 1})`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          retryCount++;
+        } else if ((error.name === 'ThrottlingException' || error.name === 'ModelNotReadyException') && modelIndex < modelsToTry.length - 1) {
+          // Move to next model in hierarchy
+          modelIndex++;
+          currentModelId = modelsToTry[modelIndex];
+          retryCount = 0; // Reset retry count for new model
+          console.log(`[AI Worker] Switching to backup EU model: ${currentModelId}`);
+        } else {
+          // No more models to try or non-recoverable error
+          console.error(`[AI Worker] All EU models failed for ${requestId}. Last error:`, error.message);
+          throw new Error(`All EU Bedrock models failed: ${error.message}`);
+        }
+      }
+    }
+    
     sendProgress(requestId, 90);
 
     // Decode the response body (Uint8Array to JSON string, then parse)
@@ -397,24 +478,41 @@ async function processWithBedrock(requestId, data) {
     console.log(`[AI Worker] Raw Bedrock response string for ${requestId}:`, jsonString);
     const parsedResponse = JSON.parse(jsonString);
 
-    // Validate and extract content
-    if (!parsedResponse.content || !Array.isArray(parsedResponse.content) || parsedResponse.content.length === 0 || !parsedResponse.content[0].text) {
+    // Validate response structure - handle both text and tool_use responses
+    if (!parsedResponse.content || !Array.isArray(parsedResponse.content) || parsedResponse.content.length === 0) {
       console.error("[AI Worker] Invalid Bedrock response structure:", parsedResponse);
       throw new Error(`Invalid Bedrock response structure for request ${requestId}.`);
     }
-    const responseText = parsedResponse.content[0].text;
 
-    console.log(`[AI Worker] Bedrock response received for ${requestId}: Content length ${responseText.length}`);
+    // Extract text content and tool calls
+    const textBlock = parsedResponse.content.find(block => block.type === 'text');
+    const toolBlocks = parsedResponse.content.filter(block => block.type === 'tool_use');
+    
+    const responseText = textBlock?.text || null;
+    const toolCalls = toolBlocks.map(block => ({
+      id: block.id,
+      name: block.name,
+      input: block.input
+    }));
+
+    console.log(`[AI Worker] Bedrock response received for ${requestId}:`, {
+      contentLength: responseText?.length || 0,
+      stopReason: parsedResponse.stop_reason,
+      toolCallCount: toolCalls.length
+    });
 
     return {
       content: responseText,
+      stop_reason: parsedResponse.stop_reason,
+      tool_calls: toolCalls.length > 0 ? toolCalls : undefined,
+      raw_content_blocks: parsedResponse.content,
       success: true,
       metadata: {
         provider: 'aws-bedrock',
-        model: modelIdentifier, // Log the identifier used (ARN or ID)
+        model: currentModelId, // Use the actual model that succeeded
+        originalModel: modelIdentifier, // Keep track of the originally requested model
         timestamp: new Date().toISOString(),
-        requestId: requestId,
-        // Include any relevant identifiers from parsedResponse if needed, e.g., Amazon Bedrock invocation IDs
+        requestId: requestId
       }
     };
 

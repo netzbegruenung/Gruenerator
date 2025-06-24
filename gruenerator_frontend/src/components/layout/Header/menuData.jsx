@@ -1,4 +1,4 @@
-import { PiFileText, PiNewspaper, PiMagicWand, PiMagnifyingGlass, PiVideoCamera, PiPencilSimple, PiImageSquare, PiArchive, PiFlask, PiUser } from 'react-icons/pi';
+import { PiFileText, PiNewspaper, PiMagicWand, PiMagnifyingGlass, PiVideoCamera, PiPencilSimple, PiImageSquare, PiArchive, PiFlask, PiUser, PiRobot } from 'react-icons/pi';
 import { GiHedgehog } from 'react-icons/gi';
 import PropTypes from 'prop-types';
 
@@ -113,6 +113,15 @@ export const getMenuItems = (betaFeatures = {}) => {
       icon: PiUser
     });
   }
+
+  // Vector Search Test - always available for testing
+  laborItems.push({
+    id: 'vector-search-test',
+    path: '/vector-search-test',
+    title: 'Vektor-Suche Test',
+    description: 'Teste die neue semantische Dokumentensuche',
+    icon: PiRobot
+  });
 
   if (laborItems.length > 0) {
     return {

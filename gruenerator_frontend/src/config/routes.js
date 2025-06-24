@@ -5,7 +5,7 @@ const AntragPage = lazy(() => import('../features/texte/antrag/AntragPage'));
 const AntraegeGallery = lazy(() => import('../features/templates/antraege/AntraegeGallery'));
 const AntragDetailPage = lazy(() => import('../features/templates/antraege/AntragDetailPage'));
 const YouPage = lazy(() => import('../features/you'));
-const EmptyEditor = lazy(() => import('../features/texte/editor/EmptyEditor'));
+// EmptyEditor removed - deprecated component
 const CustomGeneratorPage = lazy(() => import('../features/generators/CustomGeneratorPage'));
 const CreateCustomGeneratorPage = lazy(() => import('../features/generators/CreateCustomGeneratorPage'));
 const CampaignPage = lazy(() => import('../features/campaigns'));
@@ -26,6 +26,9 @@ const Datenschutz = lazy(() => import('../components/pages/Impressum_Datenschutz
 const Impressum = lazy(() => import('../components/pages/Impressum_Datenschutz_Terms/Impressum'));
 const NotFound = lazy(() => import('../components/pages/NotFound'));
 const Search = lazy(() => import('../features/search/components/SearchPage'));
+const AskPage = lazy(() => import('../features/ask/AskPage'));
+const AskGrundsatzPage = lazy(() => import('../features/ask/AskGrundsatzPage'));
+const DocumentViewPage = lazy(() => import('../features/documents/DocumentViewPage'));
 const Reel = lazy(() => import('../features/subtitler/components/SubtitlerPage'));
 const PresseSocialGenerator = lazy(() => import('../features/texte/presse/PresseSocialGenerator'));
 
@@ -34,6 +37,10 @@ const ContentGallery = lazy(() => import('../components/common/Gallery/ContentGa
 
 // NEU: CollabEditorPage importieren (Lazy Loading)
 const CollabEditorPage = lazy(() => import('../pages/CollabEditorPage/CollabEditorPage'));
+
+
+// Q&A Chat Komponente importieren
+const QAChat = lazy(() => import('../features/qa/components/QAChat'));
 
 // Test-Komponenten importieren
 const ButtonTest = lazy(() => import('../components/test/ButtonTest'));
@@ -51,16 +58,20 @@ export const GrueneratorenBundle = {
   Wahlprogramm: UniversalTextGenerator,
   Kandidat: lazy(() => import('../components/pages/Grüneratoren/Kandidatengenerator')),
   Search: Search,
+  Ask: AskPage,
+  AskGrundsatz: AskGrundsatzPage,
+  DocumentView: DocumentViewPage,
   AntraegeListe: AntraegeGallery,
   AntragDetail: AntragDetailPage,
   Reel: Reel,
   You: YouPage,
   Campaign: CampaignPage,
   Webinar: WebinarCampaign,
-  EmptyEditor: EmptyEditor,
+  // EmptyEditor: EmptyEditor, // Removed - deprecated
   CustomGenerator: CustomGeneratorPage,
   CreateCustomGenerator: CreateCustomGeneratorPage,
-  ContentGallery: ContentGallery
+  ContentGallery: ContentGallery,
+  QAChat: QAChat
 };
 
 // Route Konfigurationen
@@ -78,11 +89,14 @@ const standardRoutes = [
   { path: '/datenbank/antraege', component: GrueneratorenBundle.AntraegeListe },
   { path: '/datenbank/antraege/:antragId', component: GrueneratorenBundle.AntragDetail },
   { path: '/suche', component: GrueneratorenBundle.Search, withForm: true },
+  { path: '/ask', component: GrueneratorenBundle.Ask, withForm: true },
+  { path: '/ask-grundsatz', component: GrueneratorenBundle.AskGrundsatz, withForm: true },
+  { path: '/documents/:documentId', component: GrueneratorenBundle.DocumentView },
   { path: '/reel', component: GrueneratorenBundle.Reel },
   { path: '/you', component: GrueneratorenBundle.You, withForm: true },
   { path: '/kampagne', component: GrueneratorenBundle.Campaign },
   { path: '/webinare', component: GrueneratorenBundle.Webinar },
-  { path: '/editor', component: GrueneratorenBundle.EmptyEditor, withForm: true },
+  // { path: '/editor', component: GrueneratorenBundle.EmptyEditor, withForm: true }, // Removed - deprecated
   { path: '/generator/:slug', component: GrueneratorenBundle.CustomGenerator, withForm: true },
   { path: '/create-generator', component: GrueneratorenBundle.CreateCustomGenerator, withForm: true },
   { path: '/datenschutz', component: Datenschutz },
@@ -92,12 +106,17 @@ const standardRoutes = [
   { path: '/register', component: RegistrationPage },
   { path: '/logged-out', component: LoggedOutPage },
   { path: '/profile', component: ProfilePage },
+  { path: '/profile/:tab', component: ProfilePage },
   // Note: Other auth routes (password reset, email verification, MFA, etc.) are now handled by Authentic
   // Gruppen-Route
   { path: '/join-group/:joinToken', component: JoinGroupPage },
   { path: '/datenbank', component: GrueneratorenBundle.ContentGallery },
   // NEU: Route für CollabEditorPage
   { path: '/editor/collab/:documentId', component: CollabEditorPage, showHeaderFooter: false }, // showHeaderFooter: false, da eigener Header
+  // NEU: Route für Preview-Modus (mit /preview suffix)
+  { path: '/editor/collab/:documentId/preview', component: CollabEditorPage, showHeaderFooter: false }, // Preview-Modus ohne Header/Footer
+  // Q&A Chat Routen
+  { path: '/qa/:id', component: GrueneratorenBundle.QAChat },
   { path: '/button-test', component: ButtonTest },
   { path: '*', component: NotFound }
 ];

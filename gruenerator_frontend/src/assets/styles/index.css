@@ -35,13 +35,17 @@
 @import url('../../components/common/editor/EditorChat.css');
 @import url('./components/ui/success-screen.css');
 @import url('./components/ui/SegmentedControl.css');
+@import url('./components/ui/menu-dropdown.css');
 @import url('./components/gallery-layout.css');
 @import url('./components/SearchBar.css');
 @import url('./components/gallery-content-type.css');
 /* @import url('../../components/common/KnowledgeSelector/style.css'); */
 @import url('./components/ui/react-select.css');
+@import url('./components/ui/knowledge-selector.css');
 @import url('./components/error-boundary.css');
 @import url('./components/ui/TypingIndicator.css');
+@import url('./components/citation.css');
+@import url('./components/document-overview.css');
 
 
 
@@ -51,6 +55,7 @@
 @import url('./components/actions/action-buttons.css');
 @import url('./components/actions/advanced-editing.css');
 @import url('./components/actions/linksave.css');
+@import url('./components/actions/collection-actions.css');
 
 
 @import url('./components/popups/welcome.css');
@@ -75,9 +80,12 @@
 @import url('./features/auth/auth.css');
 @import url('./features/auth/login-page.css');
 @import url('./features/auth/profile.css');
+@import url('./features/auth/profile-layout.css');
 @import url('./features/auth/profile-cards.css');
 @import url('./features/auth/profile-bubbles.css');
 @import url('./features/auth/mem0ry-tab.css');
+@import url('./features/auth/documents-tab.css');
+@import url('../../features/auth/styles/meine-texte-tab.css');
 @import url('./components/auth/avatar-selection.css');
 
 
@@ -104,6 +112,9 @@
 @import url('../../features/search/styles/SearchPage.css');
 @import url('../../features/search/styles/SearchResults.css');
 @import url('../../features/search/styles/SearchBarStyles.css');
+
+@import url('./features/ask/ask-page.css');
+@import url('./features/documents/document-view.css');
 
 
 @import url('../../features/voice/styles/VoiceRecorder.css');
@@ -132,8 +143,16 @@
 @import url('../../features/groups/styles/groups.css');
 
 
+@import url('../../features/qa/styles/qa-creator.css');
+@import url('./features/qa/qa-chat.css');
+
+
+@import url('./features/ask/ask-page.css');
+
+
 @import url('./components/custom-generator/create-custom-generator.css');
 @import url('./components/custom-generator/field-editor-assistant.css');
+@import url('./components/custom-generator/document-selector.css');
 @import url('../../features/generators/styles/custom-generators-tab.css');
 
 
@@ -144,3 +163,4 @@
 @import './components/antraege/AntragEditForm.css';
 
 @import url('./pages/collab-editor.css');
+@import url('./features/qa/qa-collections.css');

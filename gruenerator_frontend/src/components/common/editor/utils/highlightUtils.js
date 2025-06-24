@@ -1,9 +1,8 @@
-export const applyHighlight = (quill, index, length, color = '#ffff00') => {
+export const applyHighlight = (quill, index, length, className = 'yellow') => {
   if (quill && typeof index === 'number' && typeof length === 'number') {
-    // Apply the highlight directly using formatText with 'silent' source
+    // Apply the highlight using Quill's background format which maps to CSS classes
     quill.formatText(index, length, {
-      background: color,
-      color: '#000000',
+      background: className,
     }, 'silent');
   }
 };
@@ -11,14 +10,13 @@ export const applyHighlight = (quill, index, length, color = '#ffff00') => {
 export const applyNewTextHighlight = (quill, index, length) => {
   if (quill && typeof index === 'number' && typeof length === 'number') {
     quill.formatText(index, length, {
-      background: 'var(--klee)',
-      color: 'white',
+      background: 'green',
     }, 'silent');
   }
 };
 
 export const applyHighlightWithAnimation = (quill, index, length) => {
-  applyHighlight(quill, index, length, '#ffff00');
+  applyHighlight(quill, index, length, 'yellow');
 };
 
 export const removeAllHighlights = (quill) => {
@@ -37,8 +35,7 @@ export const applyAdjustmentHighlight = (quill, index, length, keepFormatting = 
       applyNewTextHighlight(quill, index, length);
     } else {
       quill.formatText(index, length, {
-        color: null,
-        background: null,
+        background: false,
       }, 'silent');
     }
   }

@@ -170,17 +170,39 @@ router.get('/status', async (req, res) => {
   
   if (finalIsAuth) {
     try {
+      console.log('[Auth Status] BEFORE auth user fetch - Session beta_features:', req.user?.beta_features);
+      console.log('[Auth Status] BEFORE auth user fetch - Session user_metadata.beta_features:', req.user?.user_metadata?.beta_features);
+      
       let supabaseSession = req.user.supabaseSession;
 
       const { data: authUser } = await supabaseService.auth.admin.getUserById(req.user.id);
+      
+      console.log('[Auth Status] Auth user metadata beta_features:', authUser?.user?.user_metadata?.beta_features);
 
       if (authUser?.user?.user_metadata) {
+        // CRITICAL: Don't overwrite session beta_features with potentially stale auth metadata
+        const sessionBetaFeatures = req.user?.beta_features;
+        const authBetaFeatures = authUser.user.user_metadata.beta_features;
+        
         req.user.user_metadata = authUser.user.user_metadata;
+        
+        // Preserve session beta_features if they exist (they're more up-to-date)
+        if (sessionBetaFeatures && Object.keys(sessionBetaFeatures).length > 0) {
+          console.log('[Auth Status] Preserving session beta_features over auth metadata');
+          req.user.user_metadata.beta_features = sessionBetaFeatures;
+        } else if (authBetaFeatures) {
+          console.log('[Auth Status] Using auth metadata beta_features (no session data)');
+          req.user.user_metadata.beta_features = authBetaFeatures;
+        }
+        
         // Ensure memory_enabled is included in user metadata for frontend
         if (req.user.user_metadata.memory_enabled === undefined) {
           req.user.user_metadata.memory_enabled = false;
         }
       }
+      
+      console.log('[Auth Status] AFTER metadata merge - Final beta_features:', req.user?.beta_features);
+      console.log('[Auth Status] AFTER metadata merge - Final user_metadata.beta_features:', req.user?.user_metadata?.beta_features);
 
       if (!supabaseSession || (supabaseSession.expires_at && supabaseSession.expires_at < Math.floor(Date.now() / 1000))) {
         console.log('[Auth Status] Creating new Supabase session for user:', req.user.id);
@@ -201,6 +223,37 @@ router.get('/status', async (req, res) => {
               }
             });
           }
+        }
+      }
+
+      // Load user's groups if not already loaded and groups beta feature is enabled
+      if (req.user && req.user.beta_features?.groups && !req.user.groups) {
+        try {
+          const { data: memberships } = await supabaseService
+            .from('group_memberships')
+            .select(`
+              group_id,
+              role,
+              joined_at,
+              groups!inner(id, name, created_at, created_by, join_token)
+            `)
+            .eq('user_id', req.user.id);
+
+          if (memberships) {
+            req.user.groups = memberships.map(m => ({
+              id: m.groups.id,
+              name: m.groups.name,
+              created_at: m.groups.created_at,
+              created_by: m.groups.created_by,
+              join_token: m.groups.join_token,
+              role: m.role,
+              joined_at: m.joined_at,
+              isAdmin: m.groups.created_by === req.user.id || m.role === 'admin'
+            }));
+          }
+        } catch (groupError) {
+          console.warn('[Auth Status] Error loading groups:', groupError);
+          // Don't fail the request if groups fail to load
         }
       }
 

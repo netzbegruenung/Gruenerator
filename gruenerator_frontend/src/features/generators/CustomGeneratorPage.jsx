@@ -1,21 +1,55 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
 import BaseForm from '../../components/common/BaseForm';
-import { templatesSupabaseUtils } from '../../components/utils/templatesSupabaseClient';
+import FormInput from '../../components/common/Form/Input/FormInput';
+import FormTextarea from '../../components/common/Form/Input/FormTextarea';
 import useApiSubmit from '../../components/hooks/useApiSubmit';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import '../../assets/styles/components/custom-generator/custom-generator-page.css';
-import { FormContext } from '../../components/utils/FormContext';
+import apiClient from '../../components/utils/apiClient';
+import useGeneratedTextStore from '../../stores/core/generatedTextStore';
 
 const CustomGeneratorPage = ({ showHeaderFooter = true }) => {
   const { slug } = useParams();
   const [generatorConfig, setGeneratorConfig] = useState(null);
-  const [formData, setFormData] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { submitForm, loading: submitLoading, success, resetSuccess, error: submitError } = useApiSubmit('/custom_generator');
   const [localGeneratedContent, setLocalGeneratedContent] = useState('');
-  const { setGeneratedContent } = useContext(FormContext);
+  
+  // Use generatedTextStore instead of FormContext
+  const { setGeneratedText } = useGeneratedTextStore();
+
+  // Create default values for react-hook-form
+  const defaultValues = {};
+  if (generatorConfig) {
+    generatorConfig.form_schema.fields.forEach(field => {
+      defaultValues[field.name] = field.defaultValue || '';
+    });
+  }
+
+  // Setup react-hook-form
+  const {
+    control,
+    handleSubmit,
+    reset,
+    formState: { errors }
+  } = useForm({
+    defaultValues
+  });
+
+  // Reset form when generator config changes
+  useEffect(() => {
+    if (generatorConfig) {
+      const newDefaults = {};
+      generatorConfig.form_schema.fields.forEach(field => {
+        newDefaults[field.name] = field.defaultValue || '';
+      });
+      reset(newDefaults);
+    }
+  }, [generatorConfig, reset]);
+
 
   useEffect(() => {
     const fetchGeneratorConfig = async () => {
@@ -23,26 +57,24 @@ const CustomGeneratorPage = ({ showHeaderFooter = true }) => {
       setLoading(true);
       setError(null);
       setLocalGeneratedContent('');
-      setGeneratedContent('');
+      setGeneratedText('customGenerator', '');
       try {
-        const data = await templatesSupabaseUtils.fetchData('custom_generators', {
-          filter: { column: 'slug', operator: 'eq', value: slug },
-          limit: 1
-        });
+        const response = await apiClient.get(`/custom_generator/${slug}`);
+        const data = response.data;
+        const generator = data.generator || data;
 
-        if (data && data.length > 0) {
-          setGeneratorConfig(data[0]);
-          const initialFormData = {};
-          data[0].form_schema.fields.forEach(field => {
-            initialFormData[field.name] = field.defaultValue || '';
-          });
-          setFormData(initialFormData);
+        if (generator) {
+          setGeneratorConfig(generator);
         } else {
           setError('Generator nicht gefunden.');
         }
       } catch (err) {
-        setError('Fehler beim Laden des Generators.');
-        console.error(err);
+        console.error('Error fetching generator config:', err);
+        if (err.response?.status === 404) {
+          setError('Generator nicht gefunden.');
+        } else {
+          setError('Fehler beim Laden des Generators.');
+        }
       } finally {
         setLoading(false);
       }
@@ -51,40 +83,41 @@ const CustomGeneratorPage = ({ showHeaderFooter = true }) => {
     fetchGeneratorConfig();
   }, [slug]);
 
-  const handleInputChange = (fieldName, value) => {
-    setFormData(prev => ({
-      ...prev,
-      [fieldName]: value
-    }));
-  };
-
-  const handleSubmit = async () => {
+  const onSubmitRHF = async (rhfData) => {
     try {
+      // Create clean form data object - only include fields from generator config
+      const formDataToSubmit = {};
+      if (generatorConfig) {
+        generatorConfig.form_schema.fields.forEach(field => {
+          formDataToSubmit[field.name] = rhfData[field.name] || '';
+        });
+      }
+
       const response = await submitForm({
         slug,
-        formData
+        formData: formDataToSubmit
       });
       
       const content = response?.content || (typeof response === 'string' ? response : '');
       
       if (content) {
         setLocalGeneratedContent(content);
-        setGeneratedContent(content);
+        setGeneratedText('customGenerator', content);
         setTimeout(resetSuccess, 3000);
       } else {
         setLocalGeneratedContent('');
-        setGeneratedContent('');
+        setGeneratedText('customGenerator', '');
       }
     } catch (err) {
       console.error('Fehler bei der Generierung:', err);
       setLocalGeneratedContent('');
-      setGeneratedContent('');
+      setGeneratedText('customGenerator', '');
     }
   };
 
   const handleReset = () => {
     setLocalGeneratedContent('');
-    setGeneratedContent('');
+    setGeneratedText('customGenerator', '');
     resetSuccess();
   };
 
@@ -94,31 +127,37 @@ const CustomGeneratorPage = ({ showHeaderFooter = true }) => {
 
   const renderFormInputs = () => (
     <>
-      {generatorConfig.form_schema.fields.map((field) => (
-        <div key={field.name} className="form-field">
-          <label htmlFor={field.name}><h3>{field.label}</h3></label>
-          {field.type === 'textarea' ? (
-            <textarea
-              id={field.name}
+      {generatorConfig.form_schema.fields.map((field) => {
+        if (field.type === 'textarea') {
+          return (
+            <FormTextarea
+              key={field.name}
               name={field.name}
+              label={field.label}
               placeholder={field.placeholder}
-              value={formData[field.name]}
-              onChange={(e) => handleInputChange(field.name, e.target.value)}
               required={field.required}
+              control={control}
+              defaultValue={field.defaultValue || ''}
+              rows={4}
+              rules={field.required ? { required: `${field.label} ist ein Pflichtfeld` } : {}}
             />
-          ) : (
-            <input
-              type={field.type}
-              id={field.name}
-              name={field.name}
-              placeholder={field.placeholder}
-              value={formData[field.name]}
-              onChange={(e) => handleInputChange(field.name, e.target.value)}
-              required={field.required}
-            />
-          )}
-        </div>
-      ))}
+          );
+        }
+        
+        return (
+          <FormInput
+            key={field.name}
+            name={field.name}
+            label={field.label}
+            placeholder={field.placeholder}
+            type={field.type}
+            required={field.required}
+            control={control}
+            defaultValue={field.defaultValue || ''}
+            rules={field.required ? { required: `${field.label} ist ein Pflichtfeld` } : {}}
+          />
+        );
+      })}
     </>
   );
 
@@ -127,18 +166,18 @@ const CustomGeneratorPage = ({ showHeaderFooter = true }) => {
       <div className={`custom-generator-page-container container ${showHeaderFooter ? 'with-header' : ''}`}>
         <BaseForm
           title={generatorConfig.name || generatorConfig.title}
-          onSubmit={handleSubmit}
+          onSubmit={handleSubmit(onSubmitRHF)}
           loading={submitLoading}
           success={success}
-          error={submitError}
+          error={submitError?.message}
           generatedContent={localGeneratedContent}
-          onReset={handleReset}
-          showResetButton={!!localGeneratedContent || Object.values(formData).some(v => v !== '')}
-          headerContent={
-            <div className="generator-header">
-              {generatorConfig.title && <h2 className="generator-title">{generatorConfig.title}</h2>}
-              {generatorConfig.description && <p className="generator-description">{generatorConfig.description}</p>}
-            </div>
+          submitButtonProps={{
+            defaultText: 'Grünerieren'
+          }}
+          formNotice={
+            generatorConfig.description && (
+              <p className="generator-description">{generatorConfig.description}</p>
+            )
           }
         >
           {renderFormInputs()}

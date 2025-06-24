@@ -1,8 +1,9 @@
 // accessibilityHelpers.js
 
-// Funktion zur Ankündigung von Nachrichten für Screenreader
+// Passive screen reader announcements - use existing form-error-announcer
 export const announceToScreenReader = (message) => {
-    const announcer = document.getElementById('sr-announcer');
+    // Use the consolidated form-error-announcer instead of separate sr-announcer
+    const announcer = document.getElementById('form-error-announcer');
     if (announcer) {
       announcer.textContent = message;
     }
@@ -16,16 +17,11 @@ export const announceToScreenReader = (message) => {
     }
   };
   
-  // Funktion zur Verbesserung der Tastaturnavigation
+  // DEPRECATED: Custom tab navigation removed - let browser handle all tab navigation
   export const handleKeyboardNavigation = (event, elements) => {
-    if (event.key === 'Tab') {
-      const currentIndex = elements.indexOf(document.activeElement);
-      const nextIndex = event.shiftKey 
-        ? (currentIndex - 1 + elements.length) % elements.length 
-        : (currentIndex + 1) % elements.length;
-      elements[nextIndex].focus();
-      event.preventDefault();
-    }
+    // This function is now passive - browser handles all tab navigation natively
+    // Keeping function for backward compatibility but removing all custom behavior
+    return;
   };
   
   // Funktion zum Erstellen eines aria-live Bereichs
@@ -56,11 +52,18 @@ export const announceToScreenReader = (message) => {
     region.textContent = message;
   };
   
-  // Funktion zum Hinzufügen von aria-labels zu Elementen
+  // Passive ARIA labeling - only add labels when no accessible name exists
   export const addAriaLabelsToElements = (labelledElements) => {
     labelledElements.forEach(({ element, label }) => {
       if (element) {
-        element.setAttribute('aria-label', label);
+        // Only add aria-label if no accessible name already exists
+        const hasAccessibleName = element.getAttribute('aria-label') || 
+                                 element.getAttribute('aria-labelledby') ||
+                                 element.labels?.length > 0;
+        
+        if (!hasAccessibleName) {
+          element.setAttribute('aria-label', label);
+        }
       }
     });
   };
@@ -87,37 +90,18 @@ export const setupEnhancedKeyboardNavigation = (formElement, options = {}) => {
   const {
     onEnterSubmit = true,
     onEscapeCancel = true,
-    skipLinkText = 'Zum Hauptinhalt springen',
     enableTabManagement = true
   } = options;
 
-  // Add skip link for complex forms
-  const skipLink = createSkipLink(skipLinkText);
-  if (skipLink && !document.querySelector('.skip-link')) {
-    document.body.insertBefore(skipLink, document.body.firstChild);
-  }
+  // Remove any existing custom skip links - let browser handle native navigation
+  const existingSkipLinks = document.querySelectorAll('.skip-link');
+  existingSkipLinks.forEach(link => link.remove());
 
   const handleKeyDown = (event) => {
-    // Enter key for form submission
-    if (onEnterSubmit && event.key === 'Enter' && !event.shiftKey) {
-      const activeElement = document.activeElement;
-      if (activeElement && (
-        activeElement.tagName === 'INPUT' || 
-        activeElement.tagName === 'SELECT' ||
-        (activeElement.tagName === 'TEXTAREA' && !event.shiftKey)
-      )) {
-        const form = activeElement.closest('form');
-        if (form) {
-          const submitButton = form.querySelector('[type="submit"]');
-          if (submitButton && !submitButton.disabled) {
-            event.preventDefault();
-            submitButton.click();
-          }
-        }
-      }
-    }
+    // REMOVED: Enter key override - let browser handle form submission natively
+    // This was interfering with screen reader form navigation expectations
 
-    // Escape key for cancel actions
+    // Escape key for cancel actions - keeping this as it's non-interfering enhancement
     if (onEscapeCancel && event.key === 'Escape') {
       const cancelButton = formElement.querySelector('[data-action="cancel"], .cancel-button');
       if (cancelButton) {
@@ -125,10 +109,7 @@ export const setupEnhancedKeyboardNavigation = (formElement, options = {}) => {
       }
     }
 
-    // Enhanced tab management for card layouts
-    if (enableTabManagement && event.key === 'Tab') {
-      manageFocusForCardLayouts(event, formElement);
-    }
+    // REMOVED: Tab management - let browser handle all tab navigation natively
   };
 
   formElement.addEventListener('keydown', handleKeyDown);
@@ -138,68 +119,17 @@ export const setupEnhancedKeyboardNavigation = (formElement, options = {}) => {
   };
 };
 
-// Create skip link for better navigation
-export const createSkipLink = (text = 'Zum Hauptinhalt springen') => {
-  const skipLink = document.createElement('a');
-  skipLink.href = '#main-content';
-  skipLink.className = 'skip-link';
-  skipLink.textContent = text;
-  skipLink.style.cssText = `
-    position: absolute;
-    top: -40px;
-    left: 6px;
-    background: var(--interactive-accent-color);
-    color: white;
-    padding: 8px;
-    border-radius: 4px;
-    text-decoration: none;
-    font-weight: bold;
-    z-index: 9999;
-    transition: top 0.3s;
-  `;
-  
-  skipLink.addEventListener('focus', () => {
-    skipLink.style.top = '6px';
-  });
-  
-  skipLink.addEventListener('blur', () => {
-    skipLink.style.top = '-40px';
-  });
-  
-  return skipLink;
-};
+// DEPRECATED: Skip link creation removed - browsers handle this natively
+// export const createSkipLink = () => {
+//   // Function deprecated - rely on browser native skip navigation
+//   return null;
+// };
 
-// Enhanced tab management for card layouts
+// DEPRECATED: Enhanced tab management removed - let browser handle card navigation
 export const manageFocusForCardLayouts = (event, container) => {
-  const focusableElements = getFocusableElements(container);
-  const currentIndex = focusableElements.indexOf(document.activeElement);
-  
-  // Check if we're in a card container
-  const currentCard = document.activeElement?.closest('.form-card, .card-container');
-  if (currentCard) {
-    const cardFocusables = getFocusableElements(currentCard);
-    const cardIndex = cardFocusables.indexOf(document.activeElement);
-    
-    if (event.shiftKey && cardIndex === 0) {
-      // Moving to previous card or form section
-      const previousCard = findPreviousCard(currentCard);
-      if (previousCard) {
-        event.preventDefault();
-        const previousCardFocusables = getFocusableElements(previousCard);
-        const lastElement = previousCardFocusables[previousCardFocusables.length - 1];
-        if (lastElement) lastElement.focus();
-      }
-    } else if (!event.shiftKey && cardIndex === cardFocusables.length - 1) {
-      // Moving to next card or form section
-      const nextCard = findNextCard(currentCard);
-      if (nextCard) {
-        event.preventDefault();
-        const nextCardFocusables = getFocusableElements(nextCard);
-        const firstElement = nextCardFocusables[0];
-        if (firstElement) firstElement.focus();
-      }
-    }
-  }
+  // Function disabled - browser and screen readers handle card navigation natively
+  // Keeping function for backward compatibility but removing all custom behavior
+  return;
 };
 
 // Get all focusable elements in a container
@@ -231,26 +161,34 @@ export const findNextCard = (currentCard) => {
   return currentIndex < allCards.length - 1 ? allCards[currentIndex + 1] : null;
 };
 
-// Enhanced ARIA support for form elements
+// Passive ARIA support - only enhance when not already present
 export const enhanceAriaSupport = (formElement) => {
   if (!formElement) return;
 
-  // Add role attributes for card containers
+  // Only add role attributes for card containers if not already present
   const cardContainers = formElement.querySelectorAll('.form-card, .card-container');
   cardContainers.forEach((card, index) => {
-    card.setAttribute('role', 'group');
-    card.setAttribute('aria-labelledby', `card-title-${index}`);
+    // Only add role if not already present
+    if (!card.getAttribute('role')) {
+      card.setAttribute('role', 'group');
+    }
     
-    // Find or create card title
-    const title = card.querySelector('h1, h2, h3, h4, h5, h6, .card-title, .form-section-title');
-    if (title) {
-      title.id = `card-title-${index}`;
+    // Only add aria-labelledby if not already present and title exists
+    if (!card.getAttribute('aria-labelledby')) {
+      const title = card.querySelector('h1, h2, h3, h4, h5, h6, .card-title, .form-section-title');
+      if (title) {
+        if (!title.id) {
+          title.id = `card-title-${index}`;
+        }
+        card.setAttribute('aria-labelledby', title.id);
+      }
     }
   });
 
-  // Add form landmark
-  if (formElement.tagName === 'FORM') {
-    formElement.setAttribute('role', 'form');
+  // Only add form landmark if it's actually a form and doesn't have role
+  if (formElement.tagName === 'FORM' && !formElement.getAttribute('role')) {
+    // Don't add role="form" - browsers handle <form> elements natively
+    // Only add aria-label if no accessible name exists
     if (!formElement.getAttribute('aria-label') && !formElement.getAttribute('aria-labelledby')) {
       const formTitle = formElement.querySelector('h1, h2, h3, .form-title');
       if (formTitle) {
@@ -258,19 +196,16 @@ export const enhanceAriaSupport = (formElement) => {
           formTitle.id = `form-title-${Date.now()}`;
         }
         formElement.setAttribute('aria-labelledby', formTitle.id);
-      } else {
-        formElement.setAttribute('aria-label', 'Formular');
       }
+      // Remove automatic aria-label fallback - let browser handle unlabeled forms
     }
   }
 
-  // Enhanced error message announcements
+  // Only enhance error messages if not already accessible
   const errorElements = formElement.querySelectorAll('.form-field-error');
   errorElements.forEach(errorEl => {
-    if (!errorEl.getAttribute('role')) {
+    if (!errorEl.getAttribute('role') && !errorEl.getAttribute('aria-live')) {
       errorEl.setAttribute('role', 'alert');
-    }
-    if (!errorEl.getAttribute('aria-live')) {
       errorEl.setAttribute('aria-live', 'polite');
     }
   });

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import TextInput from '../../../components/common/Form/Input/TextInput';
 import Spinner from '../../../components/common/Spinner';
-import useGroups from '../hooks/useGroups';
+import { useGroups } from '../../auth/utils/groupsUtils';
 
 const CreateGroupForm = ({ onCancel, onSuccess }) => {
   const [groupName, setGroupName] = useState('');

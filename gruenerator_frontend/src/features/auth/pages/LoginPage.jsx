@@ -19,7 +19,7 @@ const LoginPage = () => {
     try {
       setLoginIntent();
       
-      const authUrl = `${AUTH_BASE_URL}/api/auth/login?source=gruenes-netz-login`;
+      const authUrl = `${AUTH_BASE_URL}/auth/login?source=gruenes-netz-login`;
       console.log(`[LoginPage] Grünes Netz Login - Redirecting to: ${authUrl}`);
       window.location.href = authUrl;
     } catch (err) {
@@ -33,7 +33,7 @@ const LoginPage = () => {
     try {
       setLoginIntent();
       
-      const authUrl = `${AUTH_BASE_URL}/api/auth/login?source=netzbegruenung-login`;
+      const authUrl = `${AUTH_BASE_URL}/auth/login?source=netzbegruenung-login`;
       console.log(`[LoginPage] Netzbegrünung Login - Redirecting to: ${authUrl}`);
       window.location.href = authUrl;
     } catch (err) {
@@ -47,7 +47,7 @@ const LoginPage = () => {
     try {
       setLoginIntent();
       
-      const authUrl = `${AUTH_BASE_URL}/api/auth/login?source=gruenerator-login`;
+      const authUrl = `${AUTH_BASE_URL}/auth/login?source=gruenerator-login`;
       console.log(`[LoginPage] Grünerator Login - Redirecting to: ${authUrl}`);
       window.location.href = authUrl;
     } catch (err) {

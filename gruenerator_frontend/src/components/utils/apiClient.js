@@ -33,7 +33,7 @@ apiClient.interceptors.response.use(
       // Use the new auth system for login redirects
       const AUTH_BASE_URL = import.meta.env.VITE_AUTH_BASE_URL || '';
       if (window.location.pathname !== '/login') {
-        window.location.href = `${AUTH_BASE_URL}/api/auth/login`;
+        window.location.href = `${AUTH_BASE_URL}/auth/login`;
       }
     }
     return Promise.reject(error);

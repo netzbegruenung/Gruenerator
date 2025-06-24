@@ -17,7 +17,7 @@ const RegistrationPage = () => {
       setLoginIntent();
       
       // Keycloak verwaltet auch die Registrierung
-      const authUrl = `${AUTH_BASE_URL}/api/auth/login?prompt=register`;
+      const authUrl = `${AUTH_BASE_URL}/auth/login?prompt=register`;
       console.log(`[RegistrationPage] Redirecting to: ${authUrl}`);
       window.location.href = authUrl;
     } catch (err) {

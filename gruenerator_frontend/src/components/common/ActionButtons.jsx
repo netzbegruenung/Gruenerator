@@ -4,7 +4,9 @@ import { IoCopyOutline, IoCheckmarkOutline } from "react-icons/io5";
 import { HiCog, HiOutlineUsers, HiSave } from "react-icons/hi";
 import { copyFormattedContent } from '../utils/commonFunctions';
 import ExportToDocument from './ExportToDocument';
+import PDFExport from './PDFExport';
 import { useLazyAuth } from '../../hooks/useAuth';
+import { useBetaFeatures } from '../../hooks/useBetaFeatures';
 import useGeneratedTextStore from '../../stores/core/generatedTextStore';
 
 const ActionButtons = ({
@@ -14,6 +16,7 @@ const ActionButtons = ({
   hideEditButton = false,
   className = 'display-actions',
   showExport = false,
+  showPDF = true,
   showCollab = false,
   showRegenerate = false,
   showSave = false,
@@ -25,18 +28,36 @@ const ActionButtons = ({
   saveLoading = false,
   exportableContent,
   generatedPost,
-  generatedContent
+  generatedContent,
+  title
 }) => {
-  const { isAuthenticated, betaFeatures } = useLazyAuth();
+  const { isAuthenticated } = useLazyAuth();
+  const { getBetaFeatureState } = useBetaFeatures();
   const { generatedText } = useGeneratedTextStore();
   const [copyIcon, setCopyIcon] = useState(<IoCopyOutline size={16} />);
 
-  const hasDatabaseAccess = isAuthenticated && betaFeatures?.database === true;
-  const hasCollabAccess = betaFeatures?.collab === true;
+  const hasDatabaseAccess = isAuthenticated && getBetaFeatureState('database');
+  const hasCollabAccess = getBetaFeatureState('collab');
+
+  // Use generatedContent prop if available, fall back to store's generatedText
+  const activeContent = generatedContent || generatedText;
+
+  // Debug logging for collab button visibility
+  React.useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[ActionButtons] Collab button debug:', {
+        showCollab,
+        hasCollabAccess,
+        activeContentLength: activeContent?.length,
+        onCollab: !!onCollab,
+        finalCondition: showCollab && hasCollabAccess && activeContent && onCollab
+      });
+    }
+  }, [showCollab, hasCollabAccess, activeContent, onCollab]);
 
   const handleCopyToClipboard = () => {
     copyFormattedContent(
-      generatedText,
+      activeContent,
       () => {
         setCopyIcon(<IoCheckmarkOutline size={16} />);
         setTimeout(() => {
@@ -51,7 +72,7 @@ const ActionButtons = ({
 
   return (
     <div className={className}>
-      {generatedText && (
+      {activeContent && (
         <>
           <button
             onClick={handleCopyToClipboard}
@@ -64,7 +85,8 @@ const ActionButtons = ({
           >
             {copyIcon}
           </button>
-          {showExport && <ExportToDocument content={generatedText} />}
+          {showExport && <ExportToDocument content={activeContent} />}
+          {showPDF && <PDFExport content={activeContent} title={title} />}
           {showRegenerate && generatedPost && onRegenerate && (
             <button
               onClick={onRegenerate}
@@ -93,7 +115,7 @@ const ActionButtons = ({
               <HiSave size={16} />
             </button>
           )}
-          {showCollab && hasCollabAccess && allowEditing && exportableContent && !isEditing && onCollab && (
+          {showCollab && hasCollabAccess && activeContent && onCollab && (
             <button
               onClick={onCollab}
               className="action-button"
@@ -114,12 +136,10 @@ const ActionButtons = ({
 };
 
 ActionButtons.propTypes = {
-  onEdit: PropTypes.func.isRequired,
-  isEditing: PropTypes.bool.isRequired,
-  allowEditing: PropTypes.bool,
-  hideEditButton: PropTypes.bool,
+  isEditing: PropTypes.bool, // Legacy - no longer used
   className: PropTypes.string,
   showExport: PropTypes.bool,
+  showPDF: PropTypes.bool,
   showCollab: PropTypes.bool,
   showRegenerate: PropTypes.bool,
   showSave: PropTypes.bool,
@@ -132,6 +152,7 @@ ActionButtons.propTypes = {
   exportableContent: PropTypes.string,
   generatedPost: PropTypes.string,
   generatedContent: PropTypes.any,
+  title: PropTypes.string,
 };
 
 export default ActionButtons; 
