@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { motion, useReducedMotion } from 'motion/react';
 
 // Hooks from profileUtils (centralized business logic)
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { 
   useProfileResourceManager, 
-  useBetaFeatureManager, 
   useProfileData 
 } from '../utils/profileUtils';
+import { useBetaFeatures } from '../../../hooks/useBetaFeatures';
 
 // Components
 import Spinner from '../../../components/common/Spinner';
@@ -21,8 +21,10 @@ import '../../../assets/styles/features/auth/profile-bubbles.css';
 const ProfileInfoTab = lazy(() => import('../components/profile/ProfileInfoTab'));
 const GroupsManagementTab = lazy(() => import('../components/profile/GroupsManagementTab'));
 const IntelligenceTab = lazy(() => import('../components/profile/IntelligenceTab'));
+const DocumentsTab = lazy(() => import('../components/profile/DocumentsTab'));
 const CustomGeneratorsTab = lazy(() => import('../components/profile/CustomGeneratorsTab'));
 const TexteVorlagenTab = lazy(() => import('../components/profile/TexteVorlagenTab'));
+const MeineTexteTab = lazy(() => import('../components/profile/MeineTexteTab'));
 const LaborTab = lazy(() => import('../components/profile/LaborTab'));
 
 // Reusable TabButton component
@@ -67,6 +69,9 @@ const TabButton = ({
 };
 
 const ProfilePage = () => {
+  const navigate = useNavigate();
+  const { tab } = useParams();
+  
   // Authentication and loading states
   const { 
     user, 
@@ -83,7 +88,6 @@ const ProfilePage = () => {
   
   // Business logic hooks (centralized in profileUtils)
   const { 
-    templatesSupabase, 
     resourcesError, 
     isLoadingResources, 
     handleTabHover 
@@ -97,12 +101,32 @@ const ProfilePage = () => {
     updateUserBetaFeatures,
     isAdmin,
     adminOnlyFeatures 
-  } = useBetaFeatureManager();
+  } = useBetaFeatures();
+  
   
   const { data: profile, isLoading: isLoadingProfile } = useProfileData();
 
+  // Tab mapping for URL paths to internal tab names
+  const TAB_MAPPING = {
+    'profil': 'profile',
+    'intelligence': 'intelligence', 
+    'dokumente': 'dokumente',
+    'meine-texte': 'meine_texte',
+    'gruppen': 'gruppen',
+    'vorlagen': 'texte_vorlagen',
+    'generatoren': 'custom_generators',
+    'labor': 'labor'
+  };
+
+  // Reverse mapping for internal tab names to URL paths
+  const REVERSE_TAB_MAPPING = Object.fromEntries(
+    Object.entries(TAB_MAPPING).map(([key, value]) => [value, key])
+  );
+
+  // Get active tab from URL path, default to 'profile' when no tab specified
+  const activeTab = tab ? (TAB_MAPPING[tab] || 'profile') : 'profile';
+  
   // UI State Management
-  const [activeTab, setActiveTab] = useState('profile');
   const [hoveredTab, setHoveredTab] = useState(null);
   const [burstBubbles, setBurstBubbles] = useState(false);
   
@@ -114,13 +138,21 @@ const ProfilePage = () => {
   const handleTabChange = useCallback((tabName) => {
     setSuccessMessage('');
     setErrorMessage('');
-    setActiveTab(tabName);
+    
+    // Navigate to new tab URL
+    if (tabName === 'profile') {
+      // Default profile tab uses base /profile URL
+      navigate('/profile', { replace: true });
+    } else {
+      const urlTabName = REVERSE_TAB_MAPPING[tabName];
+      navigate(`/profile/${urlTabName}`, { replace: true });
+    }
 
     if (tabName === 'labor') {
       setBurstBubbles(true);
       setTimeout(() => setBurstBubbles(false), 500);
     }
-  }, []);
+  }, [activeTab, navigate, REVERSE_TAB_MAPPING]);
 
   // Handle tab hover with prefetching
   const onTabHover = useCallback((tabName) => {
@@ -133,6 +165,14 @@ const ProfilePage = () => {
   useEffect(() => {
     setHoveredTab(null);
   }, [activeTab]);
+
+  // Handle invalid tab URLs
+  useEffect(() => {
+    if (tab && !TAB_MAPPING[tab]) {
+      // Invalid tab in URL, redirect to default
+      navigate('/profile', { replace: true });
+    }
+  }, [tab, navigate, TAB_MAPPING]);
 
   // Message timeout handling
   useEffect(() => {
@@ -220,7 +260,7 @@ const ProfilePage = () => {
     <div className="profile-container">
       <div className="profile-header">
         <h1>Mein Profil</h1>
-        <p>Verwalte deine persönlichen Daten, dein Passwort, Texte, Vorlagen, Gruppen und Anweisungen.</p>
+        <p>Verwalte deine persönlichen Daten, dein Passwort, Dokumente, Texte, Vorlagen, Gruppen und Anweisungen.</p>
       </div>
 
       {/* Tab Navigation */}
@@ -246,6 +286,26 @@ const ProfilePage = () => {
             Intelligence
           </TabButton>
         )}
+        
+        <TabButton
+          activeTab={activeTab}
+          tabKey="dokumente"
+          onClick={handleTabChange}
+          onMouseEnter={() => onTabHover('dokumente')}
+          underlineTransition={underlineTransition}
+        >
+          Dokumente
+        </TabButton>
+        
+        <TabButton
+          activeTab={activeTab}
+          tabKey="meine_texte"
+          onClick={handleTabChange}
+          onMouseEnter={() => onTabHover('meine_texte')}
+          underlineTransition={underlineTransition}
+        >
+          Meine Texte
+        </TabButton>
         
         {shouldShowTab('groups') && (
           <TabButton
@@ -318,12 +378,11 @@ const ProfilePage = () => {
       )}
 
       {/* Tab Content */}
-      <div className="profile-tab-content">
+      <div className={`profile-tab-content ${activeTab === 'meine_texte' ? 'profile-tab-content-full-width' : ''}`}>
         <Suspense fallback={<div className="profile-tab-loading"></div>}>
           {activeTab === 'profile' && (
             <ProfileInfoTab
               user={user}
-              templatesSupabase={templatesSupabase}
               onSuccessMessage={handleSuccessMessage}
               onErrorProfileMessage={handleErrorMessage}
               updatePassword={updatePassword}
@@ -336,17 +395,33 @@ const ProfilePage = () => {
           {activeTab === 'intelligence' && shouldShowTab('anweisungen') && (
             <IntelligenceTab
               user={user}
-              templatesSupabase={templatesSupabase}
               onSuccessMessage={handleSuccessMessage}
               onErrorMessage={handleErrorMessage}
               isActive={activeTab === 'intelligence'}
             />
           )}
           
+          {activeTab === 'dokumente' && (
+            <DocumentsTab
+              user={user}
+              onSuccessMessage={handleSuccessMessage}
+              onErrorMessage={handleErrorMessage}
+              isActive={activeTab === 'dokumente'}
+            />
+          )}
+          
+          {activeTab === 'meine_texte' && (
+            <MeineTexteTab
+              user={user}
+              onSuccessMessage={handleSuccessMessage}
+              onErrorMessage={handleErrorMessage}
+              isActive={activeTab === 'meine_texte'}
+            />
+          )}
+          
           {activeTab === 'gruppen' && shouldShowTab('groups') && (
             <GroupsManagementTab
               user={user}
-              templatesSupabase={templatesSupabase}
               onSuccessMessage={handleSuccessMessage}
               onErrorMessage={handleErrorMessage}
               isActive={activeTab === 'gruppen'}
@@ -356,7 +431,6 @@ const ProfilePage = () => {
           {activeTab === 'texte_vorlagen' && shouldShowTab('database') && (
             <TexteVorlagenTab
               user={user}
-              templatesSupabase={templatesSupabase}
               onSuccessMessage={handleSuccessMessage}
               onErrorMessage={handleErrorMessage}
               isActive={activeTab === 'texte_vorlagen'}
@@ -366,7 +440,6 @@ const ProfilePage = () => {
           {activeTab === 'custom_generators' && shouldShowTab('customGenerators') && (
             <CustomGeneratorsTab
               user={user}
-              templatesSupabase={templatesSupabase}
               onSuccessMessage={handleSuccessMessage}
               onErrorMessage={handleErrorMessage}
               isActive={activeTab === 'custom_generators'}
@@ -379,25 +452,6 @@ const ProfilePage = () => {
               onSuccessMessage={handleSuccessMessage}
               onErrorLaborMessage={handleErrorMessage}
               isActive={activeTab === 'labor'}
-              deutschlandmodusBeta={getBetaFeatureState('deutschlandmodus')}
-              setDeutschlandmodusBeta={(value) => updateUserBetaFeatures('deutschlandmodus', value)}
-              groupsBeta={canAccessBetaFeature('groups')}
-              setGroupsBeta={(value) => updateUserBetaFeatures('groups', value)}
-              databaseBeta={canAccessBetaFeature('database')}
-              setDatabaseBeta={(value) => updateUserBetaFeatures('database', value)}
-              customGeneratorsBeta={canAccessBetaFeature('customGenerators')}
-              setCustomGeneratorsBeta={(value) => updateUserBetaFeatures('customGenerators', value)}
-              sharepicBeta={canAccessBetaFeature('sharepic')}
-              setSharepicBeta={(value) => updateUserBetaFeatures('sharepic', value)}
-              anweisungenBeta={canAccessBetaFeature('anweisungen')}
-              setAnweisungenBeta={(value) => updateUserBetaFeatures('anweisungen', value)}
-              youBeta={canAccessBetaFeature('you')}
-              setYouBeta={(value) => updateUserBetaFeatures('you', value)}
-              collabBeta={getBetaFeatureState('collab')}
-              setCollabBeta={(value) => updateUserBetaFeatures('collab', value)}
-              isAdmin={isAdmin}
-              adminOnlyFeatures={adminOnlyFeatures}
-              availableFeatures={getAvailableFeatures()}
             />
           )}
         </Suspense>

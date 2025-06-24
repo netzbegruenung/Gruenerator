@@ -15,7 +15,8 @@ const SubtitleStyleSelector = ({
   onModeSelect,
   onHeightSelect,
   onContinue,
-  isProcessing 
+  isProcessing,
+  igelModus 
 }) => {
   const videoRef = useRef(null);
   const [videoUrl, setVideoUrl] = useState(null);
@@ -26,7 +27,7 @@ const SubtitleStyleSelector = ({
   const [isVideoLoaded, setIsVideoLoaded] = useState(false);
 
   // Enhanced style options with better descriptions and previews
-  const styleOptions = [
+  const baseStyleOptions = [
     {
       id: 'standard',
       name: 'Klassischer Stil',
@@ -76,6 +77,67 @@ const SubtitleStyleSelector = ({
       }
     }
   ];
+
+  // Grüne Jugend exclusive styles (only visible when igelModus is active)
+  const grueneJugendStyleOptions = [
+    {
+      id: 'gj_clean',
+      name: 'GJ Minimalistisch',
+      description: 'Transparenter Stil mit GJ-Font',
+      preview: {
+        backgroundColor: 'transparent',
+        color: 'var(--font-color)',
+        textShadow: 'none',
+        padding: '0',
+        borderRadius: '0',
+        fontFamily: 'GJFontRegular, sans-serif'
+      }
+    },
+    {
+      id: 'gj_shadow',
+      name: 'GJ Schatten',
+      description: 'Schatten-Effekt mit GJ-Font',
+      preview: {
+        backgroundColor: 'transparent',
+        color: 'var(--font-color)',
+        textShadow: '0 1px 3px rgba(0, 0, 0, 0.5)',
+        padding: '0',
+        borderRadius: '0',
+        fontFamily: 'GJFontRegular, sans-serif'
+      }
+    },
+    {
+      id: 'gj_lavendel',
+      name: 'GJ Lavendel',
+      description: 'Lavendel-Style der Grünen Jugend',
+      preview: {
+        backgroundColor: '#9f88ff',
+        color: '#ffffff',
+        textShadow: 'none',
+        padding: '0.3em 0.6em',
+        borderRadius: '0.2em',
+        fontFamily: 'GJFontRegular, sans-serif'
+      }
+    },
+    {
+      id: 'gj_hellgruen',
+      name: 'GJ Hellgrün',
+      description: 'Hellgrüner Style der Grünen Jugend',
+      preview: {
+        backgroundColor: '#c7ff7a',
+        color: '#000000',
+        textShadow: 'none',
+        padding: '0.3em 0.6em',
+        borderRadius: '0.2em',
+        fontFamily: 'GJFontRegular, sans-serif'
+      }
+    }
+  ];
+
+  // Combine base styles with Grüne Jugend styles if igel mode is active (for internal logic)
+  const allStyleOptions = igelModus 
+    ? [...baseStyleOptions, ...grueneJugendStyleOptions]
+    : baseStyleOptions;
 
   // Height options for subtitle positioning
   const heightOptions = [
@@ -307,7 +369,7 @@ const SubtitleStyleSelector = ({
               </h3>
               
               <div className="style-options-grid">
-                {styleOptions.map((option) => (
+                {baseStyleOptions.map((option) => (
                   <label 
                     key={option.id} 
                     className={`style-option-card ${selectedStyle === option.id ? 'selected' : ''}`}
@@ -341,6 +403,50 @@ const SubtitleStyleSelector = ({
                   </label>
                 ))}
               </div>
+              
+              {/* Grüne Jugend Styles Section - Only visible when igelModus is active */}
+              {igelModus && (
+                <>
+                  <h4 className="gj-section-title">
+                    🦔 Grüne Jugend Exklusiv
+                  </h4>
+                  <div className="style-options-grid gj-styles">
+                    {grueneJugendStyleOptions.map((option) => (
+                      <label 
+                        key={option.id} 
+                        className={`style-option-card gj-style-card ${selectedStyle === option.id ? 'selected' : ''}`}
+                      >
+                        <input
+                          type="radio"
+                          name="styleOption"
+                          value={option.id}
+                          checked={selectedStyle === option.id}
+                          onChange={() => handleStyleSelection(option.id)}
+                          className="style-option-radio"
+                        />
+                        
+                        <div className="style-option-content">
+                          <div className="style-option-header">
+                            <h4 className="style-option-name">{option.name}</h4>
+                            <div className="style-option-check">
+                              {selectedStyle === option.id && <FaCheckCircle />}
+                            </div>
+                          </div>
+                          
+                          <div className="style-option-preview">
+                            <span 
+                              className="preview-text"
+                              style={option.preview}
+                            >
+                              Beispiel Untertitel
+                            </span>
+                          </div>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Height Options */}
@@ -444,7 +550,8 @@ SubtitleStyleSelector.propTypes = {
   onModeSelect: PropTypes.func.isRequired,
   onHeightSelect: PropTypes.func.isRequired,
   onContinue: PropTypes.func.isRequired,
-  isProcessing: PropTypes.bool
+  isProcessing: PropTypes.bool,
+  igelModus: PropTypes.bool
 };
 
 export default SubtitleStyleSelector;

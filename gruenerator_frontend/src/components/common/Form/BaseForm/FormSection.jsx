@@ -3,7 +3,6 @@ import PropTypes from 'prop-types';
 import FormCard from './FormCard';
 import FormInputSection from './FormInputSection';
 import FormExtrasSection from './FormExtrasSection';
-import { getFormContainerClasses } from '../utils/classNameUtils';
 import useResponsive from '../hooks/useResponsive';
 
 /**
@@ -23,6 +22,10 @@ import useResponsive from '../hooks/useResponsive';
  * @param {Object} props.webSearchFeatureToggle - Props für den Web Search Feature-Toggle
  * @param {boolean} props.useWebSearchFeatureToggle - Soll der Web Search Feature-Toggle verwendet werden
  * @param {boolean} props.enableKnowledgeSelector - Soll der Knowledge Selector aktiviert werden
+ * @param {boolean} props.enableDocumentSelector - Soll der Document Selector aktiviert werden
+ * @param {boolean} props.enablePlatformSelector - Soll der Platform Selector aktiviert werden
+ * @param {Array} props.platformOptions - Optionen für Platform Selector
+ * @param {Object} props.formControl - React Hook Form Control Object
  * @param {node} props.children - Input-Elemente für das Formular
  * @param {boolean} props.showSubmitButton - Soll der Submit-Button angezeigt werden
  * @param {node} props.formNotice - Hinweis oder Information im Formular
@@ -35,6 +38,8 @@ import useResponsive from '../hooks/useResponsive';
  * @param {boolean} props.showHideButton - Zeige Verstecken-Button
  * @param {Function} props.onHide - Callback für Verstecken-Button
  * @param {node} props.firstExtrasChildren - Zusätzliche Extras-Komponenten am Anfang des Formulars
+ * @param {boolean} props.hideExtrasSection - Verstecke die Extras-Sektion komplett
+ * @param {boolean} props.showSubmitButtonInInputSection - Zeige Submit-Button in der Input-Sektion statt Extras-Sektion
  * @returns {JSX.Element} Formular-Sektion
  */
 const FormSection = forwardRef(({
@@ -52,6 +57,10 @@ const FormSection = forwardRef(({
   webSearchFeatureToggle,
   useWebSearchFeatureToggle,
   enableKnowledgeSelector = false,
+  enableDocumentSelector = false,
+  enablePlatformSelector = false,
+  platformOptions = [],
+  formControl = null,
   children,
   showSubmitButton = true,
   formNotice = null,
@@ -63,13 +72,20 @@ const FormSection = forwardRef(({
   bottomSectionChildren = null,
   showHideButton = false,
   onHide = null,
-  firstExtrasChildren = null
+  firstExtrasChildren = null,
+  hideExtrasSection = false,
+  showSubmitButtonInInputSection = false,
+  platformSelectorTabIndex = 12,
+  knowledgeSelectorTabIndex = 14,
+  knowledgeSourceSelectorTabIndex = 13,
+  documentSelectorTabIndex = 15,
+  submitButtonTabIndex = 17
 }, ref) => {
-  const formContainerClasses = getFormContainerClasses(isFormVisible);
+  const formContainerClasses = `form-container ${isFormVisible ? 'visible' : ''}`;
   const { isMobileView } = useResponsive();
 
   return (
-    <div className={`form-section ${formContainerClasses} ${isFormVisible ? 'visible' : ''}`} ref={ref}>
+    <div className={`form-section ${formContainerClasses}`} ref={ref}>
       <FormCard 
         variant="elevated"
         size="large"
@@ -80,6 +96,19 @@ const FormSection = forwardRef(({
       >
         <form onSubmit={(e) => {
           e.preventDefault();
+          
+          // Check if the submission was triggered by Enter key from react-select
+          const activeElement = document.activeElement;
+          
+          if (activeElement && (
+            activeElement.closest('.react-select') || 
+            activeElement.closest('.react-select__input') ||
+            activeElement.className?.includes('react-select')
+          )) {
+            console.log('Form submission prevented - triggered by react-select Enter key');
+            return;
+          }
+          
           onSubmit();
         }} className="form-section__form">
           
@@ -102,27 +131,45 @@ const FormSection = forwardRef(({
               validationRules={validationRules}
               useModernForm={useModernForm}
               onFormChange={onFormChange}
+              showSubmitButton={showSubmitButtonInInputSection && showSubmitButton}
+              onSubmit={onSubmit}
+              loading={loading}
+              success={success}
+              nextButtonText={nextButtonText}
+              submitButtonProps={submitButtonProps}
+              enablePlatformSelector={enablePlatformSelector}
+              platformOptions={platformOptions}
+              platformSelectorTabIndex={platformSelectorTabIndex}
+              formControl={formControl}
             >
               {children}
             </FormInputSection>
 
-            {/* Extras Section */}
-            <FormExtrasSection
-              webSearchFeatureToggle={webSearchFeatureToggle}
-              useWebSearchFeatureToggle={useWebSearchFeatureToggle}
-              enableKnowledgeSelector={enableKnowledgeSelector}
-              formNotice={formNotice}
-              onSubmit={onSubmit}
-              loading={loading}
-              success={success}
-              isMultiStep={isMultiStep}
-              nextButtonText={nextButtonText}
-              submitButtonProps={submitButtonProps}
-              showSubmitButton={showSubmitButton}
-              firstExtrasChildren={!isMobileView ? firstExtrasChildren : null}
-            >
-              {extrasChildren}
-            </FormExtrasSection>
+            {/* Extras Section - conditionally rendered */}
+            {!hideExtrasSection && (
+              <FormExtrasSection
+                webSearchFeatureToggle={webSearchFeatureToggle}
+                useWebSearchFeatureToggle={useWebSearchFeatureToggle}
+                enableKnowledgeSelector={enableKnowledgeSelector}
+                enableDocumentSelector={enableDocumentSelector}
+                formControl={formControl}
+                formNotice={formNotice}
+                onSubmit={onSubmit}
+                loading={loading}
+                success={success}
+                isMultiStep={isMultiStep}
+                nextButtonText={nextButtonText}
+                submitButtonProps={submitButtonProps}
+                showSubmitButton={showSubmitButton && !showSubmitButtonInInputSection}
+                firstExtrasChildren={!isMobileView ? firstExtrasChildren : null}
+                knowledgeSelectorTabIndex={knowledgeSelectorTabIndex}
+                knowledgeSourceSelectorTabIndex={knowledgeSourceSelectorTabIndex}
+                documentSelectorTabIndex={documentSelectorTabIndex}
+                submitButtonTabIndex={submitButtonTabIndex}
+              >
+                {extrasChildren}
+              </FormExtrasSection>
+            )}
 
           </div>
           {bottomSectionChildren && (
@@ -163,6 +210,15 @@ FormSection.propTypes = {
   }),
   useWebSearchFeatureToggle: PropTypes.bool,
   enableKnowledgeSelector: PropTypes.bool,
+  enableDocumentSelector: PropTypes.bool,
+  enablePlatformSelector: PropTypes.bool,
+  platformOptions: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.string.isRequired,
+      label: PropTypes.string.isRequired
+    })
+  ),
+  formControl: PropTypes.object,
   children: PropTypes.oneOfType([PropTypes.node, PropTypes.func]).isRequired,
   showSubmitButton: PropTypes.bool,
   formNotice: PropTypes.node,
@@ -174,7 +230,14 @@ FormSection.propTypes = {
   bottomSectionChildren: PropTypes.node,
   showHideButton: PropTypes.bool,
   onHide: PropTypes.func,
-  firstExtrasChildren: PropTypes.node
+  firstExtrasChildren: PropTypes.node,
+  hideExtrasSection: PropTypes.bool,
+  showSubmitButtonInInputSection: PropTypes.bool,
+  platformSelectorTabIndex: PropTypes.number,
+  knowledgeSelectorTabIndex: PropTypes.number,
+  knowledgeSourceSelectorTabIndex: PropTypes.number,
+  documentSelectorTabIndex: PropTypes.number,
+  submitButtonTabIndex: PropTypes.number
 };
 
 FormSection.defaultProps = {
@@ -182,6 +245,10 @@ FormSection.defaultProps = {
   showBackButton: false,
   useWebSearchFeatureToggle: false,
   enableKnowledgeSelector: false,
+  enableDocumentSelector: false,
+  enablePlatformSelector: false,
+  platformOptions: [],
+  formControl: null,
   showSubmitButton: true,
   formNotice: null,
   extrasChildren: null,
@@ -192,9 +259,14 @@ FormSection.defaultProps = {
   bottomSectionChildren: null,
   showHideButton: false,
   onHide: null,
-  firstExtrasChildren: null
+  firstExtrasChildren: null,
+  hideExtrasSection: false,
+  showSubmitButtonInInputSection: false,
+  platformSelectorTabIndex: 12,
+  knowledgeSelectorTabIndex: 14,
+  submitButtonTabIndex: 17
 };
 
 FormSection.displayName = 'FormSection';
 
-export default FormSection; 
+export default React.memo(FormSection); 

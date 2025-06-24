@@ -3,12 +3,11 @@ import { Link } from 'react-router-dom';
 import { FaUserCircle, FaUser, FaSignOutAlt, FaCog } from 'react-icons/fa';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { getAvatarDisplayProps, useProfileData } from '../../../features/auth/utils/profileUtils';
-import { templatesSupabase } from '../../../components/utils/templatesSupabaseClient';
 
 const ProfileButton = () => {
   const { user, loading, logout, isLoggingOut, isProfileLoading, setLoginIntent } = useOptimizedAuth();
-  // Profildaten aus Query holen
-  const { data: profile } = useProfileData(user?.id, templatesSupabase);
+  // Profildaten aus Query holen - now uses backend API via useAuth
+  const { data: profile } = useProfileData(user?.id);
 
   // Avatar und Name mit intelligent fallbacks für instant rendering
   const displayName = profile?.display_name || '';

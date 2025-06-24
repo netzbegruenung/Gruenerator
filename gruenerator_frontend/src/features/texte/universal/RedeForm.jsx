@@ -2,7 +2,7 @@ import React, { forwardRef, useImperativeHandle } from 'react';
 import { useForm } from 'react-hook-form';
 import { useFormFields } from '../../../components/common/Form/hooks';
 
-const RedeForm = forwardRef((props, ref) => {
+const RedeForm = forwardRef(({ tabIndex = {} }, ref) => {
   const { Input, Textarea } = useFormFields();
   const {
     control,
@@ -31,6 +31,7 @@ const RedeForm = forwardRef((props, ref) => {
         label="Rolle/Position"
         placeholder="Sprecher*in der Grünen OV Musterdorf, Antragssteller*in etc."
         rules={{ required: 'Rolle/Position ist ein Pflichtfeld' }}
+        tabIndex={tabIndex.formType || 10}
       />
 
       <Input
@@ -39,6 +40,7 @@ const RedeForm = forwardRef((props, ref) => {
         label="Spezifisches Thema oder Anlass der Rede"
         placeholder="Umwelt- und Klimaschutz in der Stadt"
         rules={{ required: 'Thema ist ein Pflichtfeld' }}
+        tabIndex={tabIndex.hauptfeld || 11}
       />
 
       <Input
@@ -47,6 +49,7 @@ const RedeForm = forwardRef((props, ref) => {
         label="Zielgruppe"
         placeholder="Bürger*innen von Musterdorf"
         rules={{ required: 'Zielgruppe ist ein Pflichtfeld' }}
+        tabIndex={tabIndex.hauptfeld || 12}
       />
 
       <Textarea
@@ -56,6 +59,7 @@ const RedeForm = forwardRef((props, ref) => {
         placeholder="Durchführung von Projekten zur Förderung erneuerbarer Energien, Unterstützung lokaler Initiativen..."
         rules={{ required: 'Schwerpunkte sind ein Pflichtfeld' }}
         minRows={3}
+        tabIndex={tabIndex.hauptfeld || 12}
       />
 
       <Input
@@ -70,6 +74,7 @@ const RedeForm = forwardRef((props, ref) => {
           max: { value: 5, message: 'Die Redezeit darf maximal 5 Minuten betragen' }
         }}
         helpText="Maximal 5 Minuten möglich"
+        tabIndex={tabIndex.hauptfeld || 13}
       />
     </>
   );

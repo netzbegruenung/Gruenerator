@@ -135,33 +135,33 @@ const AnweisungenWissenTab = ({ isActive }) => {
     };
 
     const renderNavigationPanel = () => (
-        <div className="groups-vertical-navigation">
+        <div className="profile-vertical-navigation">
             <button
-                className={`groups-vertical-tab ${currentView === 'antraege' ? 'active' : ''}`}
+                className={`profile-vertical-tab ${currentView === 'antraege' ? 'active' : ''}`}
                 onClick={() => handleTabClick('antraege')}
             >
                 Anträge
             </button>
             <button
-                className={`groups-vertical-tab ${currentView === 'presse' ? 'active' : ''}`}
+                className={`profile-vertical-tab ${currentView === 'presse' ? 'active' : ''}`}
                 onClick={() => handleTabClick('presse')}
             >
                 Presse/Social
             </button>
             <button
-                className={`groups-vertical-tab ${currentView === 'universal' ? 'active' : ''}`}
+                className={`profile-vertical-tab ${currentView === 'universal' ? 'active' : ''}`}
                 onClick={() => handleTabClick('universal')}
             >
                 Universal
             </button>
             <button
-                className={`groups-vertical-tab ${currentView === 'gruenejugend' ? 'active' : ''}`}
+                className={`profile-vertical-tab ${currentView === 'gruenejugend' ? 'active' : ''}`}
                 onClick={() => handleTabClick('gruenejugend')}
             >
                 Grüne Jugend
             </button>
             <button
-                className={`groups-vertical-tab ${currentView === 'wissen' ? 'active' : ''}`}
+                className={`profile-vertical-tab ${currentView === 'wissen' ? 'active' : ''}`}
                 onClick={() => handleTabClick('wissen')}
             >
                 Wissen
@@ -185,16 +185,16 @@ const AnweisungenWissenTab = ({ isActive }) => {
         <FormProvider {...formMethods}>
             <div>
                 <motion.div 
-                    className="profile-content groups-management-layout"
+                    className="profile-content profile-management-layout"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ duration: 0.3 }}
                 >
-                    <div className="groups-navigation-panel">
+                    <div className="profile-navigation-panel">
                         {renderNavigationPanel()}
                     </div>
-                    <div className="groups-content-panel profile-form-section">
-                        <div className="group-content-card">
+                    <div className="profile-content-panel profile-form-section">
+                        <div className="profile-content-card">
                             <div className="auth-form">
 
                                 {currentView === 'antraege' && (

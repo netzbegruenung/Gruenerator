@@ -1,7 +1,7 @@
+import React from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useAuthStore } from '../stores/authStore';
-import { useBetaFeaturesWithSWR } from './useBetaFeaturesWithSWR';
 
 // Auth Backend URL aus Environment Variable oder Fallback zu aktuellem Host
 const AUTH_BASE_URL = import.meta.env.VITE_AUTH_BASE_URL || '';
@@ -51,7 +51,7 @@ const detectPartialLogoutState = async () => {
     
     // If frontend shows logged out, check if backend still has session
     if (frontendLoggedOut) {
-      const response = await fetch(`${AUTH_BASE_URL}/api/auth/status`, {
+      const response = await fetch(`${AUTH_BASE_URL}/auth/status`, {
         credentials: 'include',
         method: 'GET'
       });
@@ -213,13 +213,14 @@ export const useAuth = (options = {}) => {
     isLoggingOut,
     betaFeatures,
     selectedMessageColor,
-    deutschlandmodus,
+    igelModus,
     setAuthState,
     setLoading,
     setError,
     clearAuth,
     updateBetaFeature,
     updateMessageColor,
+    setIgelModus,
     login,
     logout,
     register,
@@ -235,14 +236,6 @@ export const useAuth = (options = {}) => {
   const [hasInitializedFromCache, setHasInitializedFromCache] = useState(false);
   const queryClient = useQueryClient();
 
-  // SWR für Beta Features
-  const { data: queriedBetaFeatures, isLoading: isLoadingBetaFeatures } = useBetaFeaturesWithSWR();
-  
-  // Merge features: queriedBetaFeatures als Basis, betaFeatures (Store) hat Vorrang
-  const displayBetaFeatures = {
-    ...queriedBetaFeatures,
-    ...betaFeatures
-  };
 
   // Skip all auth logic for public pages
   if (skipAuth) {
@@ -254,13 +247,12 @@ export const useAuth = (options = {}) => {
       isLoggingOut: false,
       isAuthResolved: true,
       isInitialLoad: false,
-      betaFeatures: {},
       selectedMessageColor: '#008939',
-      deutschlandmodus: null,
+      igelModus: false,
       login,
       logout: () => {},
-      updateUserBetaFeatures: () => {},
       updateUserMessageColor: () => {},
+      setIgelModus: () => {},
       register: () => {},
       deleteAccount: () => {},
       sendPasswordResetEmail: () => {},
@@ -270,7 +262,6 @@ export const useAuth = (options = {}) => {
       refetchAuth: () => {},
       session: null,
       supabase: null,
-      setDeutschlandmodusInContext: () => {},
       canManageAccount: false,
     };
   }
@@ -312,7 +303,7 @@ export const useAuth = (options = {}) => {
     queryKey: ['authStatus'],
     queryFn: async () => {
       try {
-        const response = await fetch(`${AUTH_BASE_URL}/api/auth/status`, {
+        const response = await fetch(`${AUTH_BASE_URL}/auth/status`, {
           method: 'GET',
           credentials: 'include',
           headers: {
@@ -362,6 +353,31 @@ export const useAuth = (options = {}) => {
             isAuthenticated: authData.isAuthenticated,
             supabaseSession: authData.supabaseSession
           });
+
+          // Prefetch groups if groups beta feature is enabled and user doesn't already have groups loaded
+          if (authData.user.beta_features?.groups && !authData.user.groups) {
+            queryClient.prefetchQuery({
+              queryKey: ['userGroups', authData.user.id],
+              queryFn: async () => {
+                try {
+                  const response = await fetch(`${AUTH_BASE_URL}/auth/groups`, {
+                    method: 'GET',
+                    credentials: 'include',
+                  });
+                  if (response.ok) {
+                    const data = await response.json();
+                    console.log('[useAuth] Groups prefetched successfully:', data.groups?.length || 0);
+                    return data.groups || [];
+                  }
+                  return [];
+                } catch (error) {
+                  console.warn('[useAuth] Groups prefetch failed:', error);
+                  return [];
+                }
+              },
+              staleTime: 2 * 60 * 1000, // 2 minutes
+            });
+          }
         }
 
         if (authData.supabaseSession) {
@@ -394,23 +410,6 @@ export const useAuth = (options = {}) => {
     (!isChecking && !isQueryLoading && (authData !== undefined || queryError) && !isLoggingOut)
   );
 
-  // Helper function to update user beta features
-  const updateUserBetaFeatures = async (featureKey, isEnabled) => {
-    if (!user) {
-      return;
-    }
-
-    try {
-      await updateBetaFeature(featureKey, isEnabled);
-      
-      // Invalidate beta features query to force refresh
-      queryClient.invalidateQueries({ queryKey: ['betaFeatures', user.id] });
-      // Also refetch auth data to ensure sync
-      refetchAuth();
-    } catch (err) {
-      throw err;
-    }
-  };
 
   // Helper function to update message color
   const updateUserMessageColor = async (newColor) => {
@@ -436,18 +435,15 @@ export const useAuth = (options = {}) => {
     isAuthResolved,
     isInitialLoad: !hasCachedData && (isChecking || (isQueryLoading && !authData)),
     hasCachedData, // New: indicates if using cached data
-    isLoadingBetaFeatures, // New: indicates if beta features are loading
-    
-    betaFeatures: displayBetaFeatures,
     selectedMessageColor,
-    deutschlandmodus,
+    igelModus,
     
     login,
     logout,
     setLoginIntent,
     
-    updateUserBetaFeatures,
     updateUserMessageColor,
+    setIgelModus,
     
     register,
     deleteAccount,
@@ -461,9 +457,6 @@ export const useAuth = (options = {}) => {
     // Legacy compatibility
     session: useAuthStore.getState().supabaseSession,
     supabase: null,
-    setDeutschlandmodusInContext: (value) => {
-      // Deprecated function
-    },
     canManageAccount,
   };
 };

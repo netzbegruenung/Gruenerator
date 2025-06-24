@@ -80,9 +80,8 @@
 .header-with-help {
   display: flex;
   align-items: center;
-  margin-bottom: var(--spacing-xsmall);
-  padding-bottom: var(--spacing-xsmall);
-  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 0;
+  padding-bottom: 0;
 }
 
 .header-with-help .form-group-title {
@@ -110,5 +109,176 @@
 @media (prefers-reduced-motion: reduce) {
   .help-tooltip-trigger {
     transition: none;
+  }
+}
+
+/* Delete Warning Tooltip Component Styles */
+.delete-warning-tooltip-container {
+  position: relative;
+  display: inline-block;
+}
+
+.delete-warning-trigger {
+  background: none;
+  border: none;
+  color: var(--font-color-subtle);
+  cursor: pointer;
+  padding: var(--spacing-xxsmall);
+  border-radius: 50%;
+  transition: all 0.2s ease;
+  opacity: 0.7;
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+}
+
+.delete-warning-trigger:hover:not(:disabled) {
+  opacity: 1;
+  color: var(--error-red, #dc3545);
+  background-color: var(--background-color-alt);
+}
+
+.delete-warning-trigger:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.delete-warning-trigger:focus {
+  outline: 2px solid var(--error-red, #dc3545);
+  outline-offset: 2px;
+}
+
+.delete-warning-tooltip-content {
+  position: absolute;
+  background: var(--background-color);
+  border: 2px solid var(--error-red, #dc3545);
+  border-radius: var(--card-border-radius-medium);
+  padding: var(--spacing-medium);
+  box-shadow: var(--shadow-lg);
+  z-index: 1000;
+  max-width: 320px;
+  min-width: 280px;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.delete-warning-arrow {
+  position: absolute;
+  top: -7px;
+  right: var(--spacing-medium);
+  width: 12px;
+  height: 12px;
+  background: var(--background-color);
+  border: 2px solid var(--error-red, #dc3545);
+  border-bottom: none;
+  border-right: none;
+  transform: rotate(45deg);
+}
+
+.delete-warning-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-small);
+  margin-bottom: var(--spacing-medium);
+}
+
+.delete-warning-icon {
+  color: var(--error-red, #dc3545);
+  font-size: 1.3rem;
+  flex-shrink: 0;
+}
+
+.delete-warning-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--font-color);
+}
+
+.delete-warning-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-medium);
+}
+
+.delete-warning-message {
+  margin: 0;
+  color: var(--font-color);
+  line-height: 1.5;
+}
+
+.delete-warning-actions {
+  display: flex;
+  gap: var(--spacing-small);
+  justify-content: flex-end;
+}
+
+.delete-warning-button {
+  padding: var(--spacing-xsmall) var(--spacing-medium);
+  border: 1px solid;
+  border-radius: var(--border-radius-small);
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.delete-warning-button.cancel {
+  background: var(--background-color);
+  border-color: var(--border-subtle);
+  color: var(--font-color);
+}
+
+.delete-warning-button.cancel:hover {
+  background: var(--background-color-alt);
+  border-color: var(--interactive-accent-color);
+}
+
+.delete-warning-button.confirm-first {
+  background: var(--warning-orange, #ffc107);
+  border-color: var(--warning-orange, #ffc107);
+  color: var(--tanne);
+}
+
+.delete-warning-button.confirm-first:hover {
+  background: var(--warning-orange-dark, #e0a800);
+  border-color: var(--warning-orange-dark, #e0a800);
+}
+
+.delete-warning-button.confirm-final {
+  background: var(--error-red, #dc3545);
+  border-color: var(--error-red, #dc3545);
+  color: white;
+}
+
+.delete-warning-button.confirm-final:hover {
+  background: var(--error-red-dark, #c82333);
+  border-color: var(--error-red-dark, #c82333);
+}
+
+/* Responsive adjustments for delete warning */
+@media (max-width: 768px) {
+  .delete-warning-tooltip-content {
+    max-width: 280px;
+    min-width: 240px;
+    left: auto;
+    right: 0;
+  }
+  
+  .delete-warning-arrow {
+    right: var(--spacing-small);
+  }
+  
+  .delete-warning-actions {
+    flex-direction: column;
+  }
+  
+  .delete-warning-button {
+    width: 100%;
+    text-align: center;
   }
 }

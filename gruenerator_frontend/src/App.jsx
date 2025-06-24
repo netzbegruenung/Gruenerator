@@ -8,7 +8,6 @@ import ErrorBoundary from './components/ErrorBoundary';
 import SuspenseWrapper from './components/common/SuspenseWrapper';
 import RouteComponent from './components/routing/RouteComponent';
 import { routes } from './config/routes';
-import { AuthProvider } from './components/utils/AuthContext';
 
 import CustomGeneratorPage from './features/generators/CustomGeneratorPage';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -86,7 +85,6 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <AuthProvider>
         <QueryClientProvider client={queryClient}>
               <Router>
                 <ScrollToTop />
@@ -152,7 +150,6 @@ function App() {
               </Router>
           <ReactQueryDevtools initialIsOpen={false} />
         </QueryClientProvider>
-      </AuthProvider>
     </ErrorBoundary>
   );
 }

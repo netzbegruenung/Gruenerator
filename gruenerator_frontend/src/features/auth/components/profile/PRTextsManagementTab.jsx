@@ -3,12 +3,14 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Spinner from '../../../../components/common/Spinner';
 import ProfileTabSkeleton from '../../../../components/common/UI/ProfileTabSkeleton';
 import { motion } from "motion/react";
-import { templatesSupabaseUtils } from '../../../../components/utils/templatesSupabaseClient'; // Assuming this path
 import { handleError } from '../../../../components/utils/errorHandling';
 import PRTextForm from './PRTextForm'; // Import the new form
 // import PRTextList from './PRTextList'; // To be created
 
-const PRTextsManagementTab = ({ user, templatesSupabase, onSuccessMessage, onErrorMessage, isActive }) => {
+// Auth Backend URL for API calls
+const AUTH_BASE_URL = import.meta.env.VITE_AUTH_BASE_URL || '';
+
+const PRTextsManagementTab = ({ user, onSuccessMessage, onErrorMessage, isActive }) => {
   const queryClient = useQueryClient();
   const [viewMode, setViewMode] = useState('list'); // 'list' or 'form'
   const [currentPRText, setCurrentPRText] = useState(null); // For editing
@@ -27,13 +29,24 @@ const PRTextsManagementTab = ({ user, templatesSupabase, onSuccessMessage, onErr
   } = useQuery({
     queryKey: prTextsQueryKey,
     queryFn: async () => {
-      if (!user?.id || !templatesSupabase) throw new Error('User or Supabase client not available.');
-      return templatesSupabaseUtils.fetchData('pr_texts', {
-        filter: { column: 'user_id', operator: 'eq', value: user.id },
-        order: { column: 'created_at', options: { ascending: false } },
+      if (!user?.id) throw new Error('User not available.');
+      
+      const response = await fetch(`${AUTH_BASE_URL}/auth/pr-texts`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
       });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch PR texts: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      return data.prTexts || [];
     },
-    enabled: !!user?.id && !!templatesSupabase && isActive !== false,
+    enabled: !!user?.id && isActive !== false,
     onError: (err) => handleError(err, onErrorMessage, 'Fehler beim Laden der PR-Texte.'),
   });
 
@@ -44,10 +57,22 @@ const PRTextsManagementTab = ({ user, templatesSupabase, onSuccessMessage, onErr
   } = useQuery({
     queryKey: prTextCategoriesQueryKey,
     queryFn: async () => {
-      if (!templatesSupabase) throw new Error('Supabase client not available.');
-      return templatesSupabaseUtils.fetchData('pr_text_categories', { order: { column: 'name' } });
+      const response = await fetch(`${AUTH_BASE_URL}/auth/pr-text-categories`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch PR text categories: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      return data.categories || [];
     },
-    enabled: !!templatesSupabase && isActive !== false,
+    enabled: isActive !== false,
     staleTime: 5 * 60 * 1000,
     onError: (err) => handleError(err, onErrorMessage, 'Fehler beim Laden der PR-Text Kategorien.'),
   });
@@ -59,10 +84,22 @@ const PRTextsManagementTab = ({ user, templatesSupabase, onSuccessMessage, onErr
   } = useQuery({
     queryKey: prTextTagsQueryKey,
     queryFn: async () => {
-      if (!templatesSupabase) throw new Error('Supabase client not available.');
-      return templatesSupabaseUtils.fetchData('pr_text_tags', { order: { column: 'name' } });
+      const response = await fetch(`${AUTH_BASE_URL}/auth/pr-text-tags`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch PR text tags: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      return data.tags || [];
     },
-    enabled: !!templatesSupabase && isActive !== false,
+    enabled: isActive !== false,
     staleTime: 5 * 60 * 1000,
     onError: (err) => handleError(err, onErrorMessage, 'Fehler beim Laden der PR-Text Tags.'),
   });
@@ -76,39 +113,25 @@ const PRTextsManagementTab = ({ user, templatesSupabase, onSuccessMessage, onErr
   // --- Update PR Text Mutation ---
   const { mutate: updatePRText, isLoading: isUpdatingPRText } = useMutation({
     mutationFn: async ({ prTextId, formData }) => {
-      if (!user?.id || !prTextId || !templatesSupabase) {
-        throw new Error("Benutzer, PR-Text-ID oder Supabase-Client nicht verfügbar.");
+      if (!user?.id || !prTextId) {
+        throw new Error("Benutzer oder PR-Text-ID nicht verfügbar.");
       }
 
-      const { title, content, category_ids, tag_ids } = formData;
+      const response = await fetch(`${AUTH_BASE_URL}/auth/pr-texts/${prTextId}`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
 
-      // 1. Update pr_texts table
-      const { data: updatedText, error: textUpdateError } = await templatesSupabaseUtils.updateData(
-        'pr_texts',
-        { title, content, updated_at: new Date().toISOString() },
-        { id: prTextId, user_id: user.id }
-      );
-      if (textUpdateError) throw textUpdateError;
-
-      // 2. Update categories (delete existing, then insert new)
-      // Delete existing category associations
-      await templatesSupabaseUtils.deleteData('pr_texts_to_categories', { pr_text_id: prTextId });
-      // Insert new category associations
-      if (category_ids && category_ids.length > 0) {
-        const categoriesToInsert = category_ids.map(catId => ({ pr_text_id: prTextId, category_id: catId }));
-        await templatesSupabaseUtils.insertData('pr_texts_to_categories', categoriesToInsert);
+      if (!response.ok) {
+        throw new Error(`Failed to update PR text: ${response.status}`);
       }
 
-      // 3. Update tags (delete existing, then insert new)
-      // Delete existing tag associations
-      await templatesSupabaseUtils.deleteData('pr_texts_to_tags', { pr_text_id: prTextId });
-      // Insert new tag associations
-      if (tag_ids && tag_ids.length > 0) {
-        const tagsToInsert = tag_ids.map(tagId => ({ pr_text_id: prTextId, tag_id: tagId }));
-        await templatesSupabaseUtils.insertData('pr_texts_to_tags', tagsToInsert);
-      }
-      
-      return updatedText && updatedText.length > 0 ? updatedText[0] : null;
+      const data = await response.json();
+      return data.prText;
     },
     onSuccess: (updatedData) => {
       onSuccessMessage('Text erfolgreich aktualisiert.');
@@ -128,13 +151,22 @@ const PRTextsManagementTab = ({ user, templatesSupabase, onSuccessMessage, onErr
   // --- Delete PR Text Mutation ---
   const { mutate: deletePRText, isLoading: isDeletingSinglePRText, variables: deletingPRTextId } = useMutation({
     mutationFn: async (prTextId) => {
-      if (!user?.id || !prTextId || !templatesSupabase) {
-        throw new Error("Benutzer, PR-Text-ID oder Supabase-Client nicht verfügbar.");
+      if (!user?.id || !prTextId) {
+        throw new Error("Benutzer oder PR-Text-ID nicht verfügbar.");
       }
-      // Gleichzeitiges Löschen aus pr_texts, pr_texts_to_categories und pr_texts_to_tags
-      // Supabase löscht kaskadierend, wenn ON DELETE CASCADE bei den Foreign Keys gesetzt ist.
-      // Wir müssen also nur aus pr_texts löschen.
-      await templatesSupabaseUtils.deleteData('pr_texts', { id: prTextId, user_id: user.id });
+      
+      const response = await fetch(`${AUTH_BASE_URL}/auth/pr-texts/${prTextId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to delete PR text: ${response.status}`);
+      }
+
       return prTextId;
     },
     onSuccess: (deletedId) => {
@@ -161,18 +193,20 @@ const PRTextsManagementTab = ({ user, templatesSupabase, onSuccessMessage, onErr
       // Fetch associated categories and tags for the PR text being edited
       try {
         const [categoriesResponse, tagsResponse] = await Promise.all([
-          templatesSupabaseUtils.fetchData('pr_texts_to_categories', {
-            filter: { column: 'pr_text_id', operator: 'eq', value: prText.id },
-            select: 'category_id' // We only need the IDs
-          }),
-          templatesSupabaseUtils.fetchData('pr_texts_to_tags', {
-            filter: { column: 'pr_text_id', operator: 'eq', value: prText.id },
-            select: 'tag_id' // We only need the IDs
-          })
+          fetch(`${AUTH_BASE_URL}/auth/pr-texts/${prText.id}/categories`, {
+            method: 'GET',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+          }).then(res => res.ok ? res.json() : { categoryIds: [] }),
+          fetch(`${AUTH_BASE_URL}/auth/pr-texts/${prText.id}/tags`, {
+            method: 'GET',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+          }).then(res => res.ok ? res.json() : { tagIds: [] })
         ]);
 
-        const selectedCategoryIds = categoriesResponse.map(ct => ct.category_id);
-        const selectedTagIds = tagsResponse.map(tt => tt.tag_id);
+        const selectedCategoryIds = categoriesResponse.categoryIds || [];
+        const selectedTagIds = tagsResponse.tagIds || [];
         
         // Map these IDs to the format react-select expects { value: id, label: name }
         // We already have all categories and tags loaded (categories, tags states)

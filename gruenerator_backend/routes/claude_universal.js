@@ -33,20 +33,21 @@ Achte besonders auf:
   // Erstelle den Benutzerinhalt basierend auf dem Vorhandensein eines benutzerdefinierten Prompts
   let userContent;
   
+  // Build the specialized base content for universal text generation
+  const baseContent = `Passe Struktur, Länge und Aufbau an die gewählte Textform an. Der Text soll im angegebenen Stil verfasst sein und dabei authentisch und überzeugend wirken.
+
+${HTML_FORMATTING_INSTRUCTIONS}`;
+  
   if (customPrompt) {
     const additionalInfo = `Zusätzliche Informationen (falls relevant):
 ${textForm ? `- Textform: ${textForm}` : ''}
 ${sprache ? `- Stil/Sprache: ${sprache}` : ''}
 ${thema ? `- Thema: ${thema}` : ''}
-${details ? `- Details: ${details}` : ''}
-
-Der Text sollte die gewählte Textform und den gewählten Stil berücksichtigen.
-
-${HTML_FORMATTING_INSTRUCTIONS}`;
+${details ? `- Details: ${details}` : ''}`;
 
     userContent = formatUserContent({
       customPrompt,
-      baseContent: '',
+      baseContent,
       currentDate,
       additionalInfo
     });
@@ -72,9 +73,7 @@ ${details}
 
 Aktuelles Datum: ${currentDate}
 
-Passe Struktur, Länge und Aufbau an die gewählte Textform an. Der Text soll im angegebenen Stil verfasst sein und dabei authentisch und überzeugend wirken.
-
-${HTML_FORMATTING_INSTRUCTIONS}`;
+${baseContent}`;
   }
 
   const payload = {
@@ -156,6 +155,9 @@ Befolgen Sie diese Richtlinien, um die Rede zu verfassen:
     // Erstelle den Benutzerinhalt basierend auf dem Vorhandensein eines benutzerdefinierten Prompts
     let userContent;
     
+    // Build the specialized base content for speech generation
+    const speechBaseContent = `Erstelle eine überzeugende politische Rede für Bündnis 90/Die Grünen gemäß den gegebenen Parametern.`;
+    
     if (customPrompt) {
       // Bei benutzerdefiniertem Prompt diesen verwenden, aber mit Redeinformationen ergänzen
       const additionalInfo = `Zusätzliche Informationen zur Rede:
@@ -167,7 +169,7 @@ Befolgen Sie diese Richtlinien, um die Rede zu verfassen:
 
       userContent = formatUserContent({
         customPrompt,
-        baseContent: '',
+        baseContent: speechBaseContent,
         currentDate,
         additionalInfo
       });
@@ -178,7 +180,9 @@ Spezifisches Thema oder Anlass der Rede: ${thema}
 Zielgruppe: ${Zielgruppe}
 Besondere Schwerpunkte oder lokale Aspekte: ${schwerpunkte}
 Gewünschte Redezeit (in Minuten): ${redezeit}
-Aktuelles Datum: ${currentDate}`;
+Aktuelles Datum: ${currentDate}
+
+${speechBaseContent}`;
     }
 
     const payload = {
@@ -223,33 +227,8 @@ wahlprogrammRouter.post('/', async (req, res) => {
   
   let userContent;
   
-  if (customPrompt) {
-    const additionalInfo = `Zusätzliche Informationen (falls relevant):
-- Thema: ${thema || 'Nicht angegeben'}
-- Details: ${details || 'Nicht angegeben'}
-- Gewünschte Zeichenanzahl: ${zeichenanzahl || 'Nicht angegeben'}
-
-Das Kapitel soll die typischen Wahlprogramm-Strukturen und -Stil verwenden.
-
-${HTML_FORMATTING_INSTRUCTIONS}`;
-
-    userContent = formatUserContent({
-      customPrompt,
-      baseContent: '',
-      currentDate,
-      additionalInfo
-    });
-  } else {
-    userContent = `Erstelle ein Kapitel für ein Wahlprogramm zum Thema ${thema} im Stil des vorliegenden Dokuments.
-
-Aktuelles Datum: ${currentDate}
-
-Berücksichtige dabei folgende Details und Schwerpunkte:
-${details}
-
-Das Kapitel soll etwa ${zeichenanzahl} Zeichen umfassen.
-
-Beachte dabei folgende Punkte:
+  // Build the specialized base content for election program generation
+  const wahlprogrammBaseContent = `Beachte dabei folgende Punkte:
 
 1. Beginne mit einer kurzen Einleitung (2-3 Sätze), die die Bedeutung des Themas hervorhebt.
 2. Gliedere den Text in 3-4 Unterkapitel mit jeweils aussagekräftigen Überschriften.
@@ -267,6 +246,30 @@ Beachte zusätzlich diese sprachlichen Aspekte:
 - Abwechslungsreicher Satzbau
 
 ${HTML_FORMATTING_INSTRUCTIONS}`;
+  
+  if (customPrompt) {
+    const additionalInfo = `Zusätzliche Informationen (falls relevant):
+- Thema: ${thema || 'Nicht angegeben'}
+- Details: ${details || 'Nicht angegeben'}
+- Gewünschte Zeichenanzahl: ${zeichenanzahl || 'Nicht angegeben'}`;
+
+    userContent = formatUserContent({
+      customPrompt,
+      baseContent: wahlprogrammBaseContent,
+      currentDate,
+      additionalInfo
+    });
+  } else {
+    userContent = `Erstelle ein Kapitel für ein Wahlprogramm zum Thema ${thema} im Stil des vorliegenden Dokuments.
+
+Aktuelles Datum: ${currentDate}
+
+Berücksichtige dabei folgende Details und Schwerpunkte:
+${details}
+
+Das Kapitel soll etwa ${zeichenanzahl} Zeichen umfassen.
+
+${wahlprogrammBaseContent}`;
   }
 
   const payload = {

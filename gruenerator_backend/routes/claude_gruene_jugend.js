@@ -115,31 +115,8 @@ router.post('/', async (req, res) => {
     // Erstelle den Benutzerinhalt basierend auf dem Vorhandensein eines benutzerdefinierten Prompts
     let userContent;
     
-    if (customPrompt) {
-      // Bei benutzerdefiniertem Prompt diesen verwenden, aber mit Plattforminformationen ergänzen
-      const additionalInfo = `Erstelle Inhalte für folgende Plattformen: ${platforms.join(', ')}
-
-${platforms.map(platform => {
-  const guidelines = platformGuidelines[platform];
-  return `${platform.toUpperCase()}: Maximale Länge: ${guidelines.maxLength} Zeichen. Stil: ${guidelines.style} Fokus: ${guidelines.focus}`;
-}).join('\n')}
-
-${HTML_FORMATTING_INSTRUCTIONS}`;
-
-      userContent = formatUserContent({
-        customPrompt,
-        baseContent: '',
-        currentDate, 
-        additionalInfo
-      });
-    } else {
-      // Standardinhalt ohne benutzerdefinierten Prompt
-      userContent = `
-Thema: ${thema}
-Details: ${details}
-Plattformen: ${platforms.join(', ')}
-        
-Erstelle einen maßgeschneiderten Social-Media-Beitrag für jede ausgewählte Plattform zu diesem Thema im charakteristischen Stil der GRÜNEN JUGEND. Berücksichtige diese plattformspezifischen Richtlinien:
+    // Build the specialized base content for Grüne Jugend social media generation
+    const baseContent = `Erstelle einen maßgeschneiderten Social-Media-Beitrag für jede ausgewählte Plattform zu diesem Thema im charakteristischen Stil der GRÜNEN JUGEND. Berücksichtige diese plattformspezifischen Richtlinien:
 
 ${platforms.map(platform => {
   const guidelines = platformGuidelines[platform];
@@ -157,6 +134,28 @@ Jeder Beitrag sollte:
 8. Zum direkten politischen Handeln aufrufen
 
 ${HTML_FORMATTING_INSTRUCTIONS}`;
+    
+    if (customPrompt) {
+      // Bei benutzerdefiniertem Prompt diesen verwenden, aber mit Plattforminformationen ergänzen
+      const additionalInfo = `Zusätzliche Informationen (falls relevant):
+- Thema: ${thema}
+- Details: ${details}
+- Plattformen: ${platforms.join(', ')}`;
+
+      userContent = formatUserContent({
+        customPrompt,
+        baseContent,
+        currentDate, 
+        additionalInfo
+      });
+    } else {
+      // Standardinhalt ohne benutzerdefinierten Prompt
+      userContent = `Thema: ${thema}
+Details: ${details}
+Plattformen: ${platforms.join(', ')}
+Aktuelles Datum: ${currentDate}
+        
+${baseContent}`;
     }
 
     const payload = {

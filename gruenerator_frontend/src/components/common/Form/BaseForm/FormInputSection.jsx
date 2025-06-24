@@ -1,12 +1,14 @@
 import React, { forwardRef } from 'react';
 import PropTypes from 'prop-types';
 import { FormProvider } from 'react-hook-form';
-import { motion } from 'motion/react';
-import { HiCog } from "react-icons/hi";
 import SubmitButton from '../../SubmitButton';
-import { getFormContentClasses, getButtonContainerClasses, getSubmitButtonClasses } from '../utils/classNameUtils';
-import { hasFormErrors } from '../utils/errorUtils';
+import PlatformSelector from '../../../common/PlatformSelector';
 import { useBaseForm } from '../hooks';
+
+// Inline utility functions (moved from classNameUtils and errorUtils)
+const hasFormErrors = (formErrors = {}) => Object.keys(formErrors).length > 0;
+const getFormContentClasses = (hasFormErrors) => `form-content ${hasFormErrors ? 'has-errors' : ''}`;
+const getButtonContainerClasses = (showBackButton) => `button-container ${showBackButton ? 'form-buttons' : ''}`;
 
 /**
  * Komponente für den reinen Input-Bereich des Formulars
@@ -26,6 +28,8 @@ import { useBaseForm } from '../hooks';
  * @param {Object} props.validationRules - Validierungsregeln für Legacy-Support
  * @param {boolean} props.useModernForm - Aktiviert react-hook-form (opt-in)
  * @param {Function} props.onFormChange - Callback für Formular-Änderungen
+ * @param {boolean} props.enablePlatformSelector - Soll der Platform Selector aktiviert werden
+ * @param {Array} props.platformOptions - Optionen für Platform Selector
  * @returns {JSX.Element} Formular-Input Sektion
  */
 const FormInputSection = forwardRef(({
@@ -37,7 +41,17 @@ const FormInputSection = forwardRef(({
   defaultValues = {},
   validationRules = {},
   useModernForm = true,
-  onFormChange = null
+  onFormChange = null,
+  showSubmitButton = false,
+  onSubmit,
+  loading = false,
+  success = false,
+  nextButtonText = null,
+  submitButtonProps = {},
+  enablePlatformSelector = false,
+  platformOptions = [],
+  platformSelectorTabIndex = 12,
+  formControl = null
 }, ref) => {
   const formContentClasses = getFormContentClasses(hasFormErrors(formErrors));
   const buttonContainerClasses = getButtonContainerClasses(showBackButton);
@@ -81,47 +95,61 @@ const FormInputSection = forwardRef(({
   };
 
   return (
-    <motion.div 
-      className="form-section__inputs" 
-      ref={ref}
-      layout
-      transition={{ 
-        type: "spring", 
-        stiffness: 400, 
-        damping: 25,
-        duration: 0.25 
-      }}
-    >
-      <motion.div 
-        className="form-inputs__content"
-        layout
-      >
-        <motion.div 
-          className={`form-inputs__fields ${formContentClasses}`}
-          layout
-        >
+    <div className="form-section__inputs" ref={ref}>
+      <div className="form-inputs__content">
+        <div className={`form-inputs__fields ${formContentClasses}`}>
+          {/* Platform Selector - First Item */}
+          {enablePlatformSelector && useModernForm && platformOptions.length > 0 && (
+            <div className="form-inputs__platform-selector">
+              <PlatformSelector
+                name="platforms"
+                control={formControl || modernForm.control}
+                platformOptions={platformOptions}
+                label="Plattformen & Formate"
+                placeholder="Plattformen auswählen..."
+                required={true}
+                helpText="Wähle eine oder mehrere Plattformen für die dein Content optimiert werden soll"
+                tabIndex={platformSelectorTabIndex}
+              />
+            </div>
+          )}
+          
           {renderChildren()}
-        </motion.div>
+        </div>
         
-        {isMultiStep && showBackButton && (
+        {(isMultiStep && showBackButton) || showSubmitButton ? (
           <div className={`form-inputs__buttons ${buttonContainerClasses}`}>
-            <button 
-              type="button" 
-              onClick={onBack} 
-              className="form-inputs__back-button"
-            >
-              Zurück
-            </button>
+            {isMultiStep && showBackButton && (
+              <button 
+                type="button" 
+                onClick={onBack} 
+                className="form-inputs__back-button"
+              >
+                Zurück
+              </button>
+            )}
+            {showSubmitButton && (
+              <SubmitButton
+                onClick={onSubmit}
+                loading={loading}
+                success={success}
+                text={isMultiStep ? (nextButtonText || 'Weiter') : (submitButtonProps.defaultText || "Grünerieren")}
+                className="form-inputs__submit-button button-primary"
+                ariaLabel={isMultiStep ? (nextButtonText || 'Weiter') : "Generieren"}
+                type="submit"
+                {...submitButtonProps}
+              />
+            )}
           </div>
-        )}
-      </motion.div>
-    </motion.div>
+        ) : null}
+      </div>
+    </div>
   );
 });
 
 FormInputSection.propTypes = {
-  onSubmit: PropTypes.func.isRequired,
-  loading: PropTypes.bool.isRequired,
+  onSubmit: PropTypes.func,
+  loading: PropTypes.bool,
   success: PropTypes.bool,
   formErrors: PropTypes.object,
   isMultiStep: PropTypes.bool,
@@ -138,19 +166,36 @@ FormInputSection.propTypes = {
   defaultValues: PropTypes.object,
   validationRules: PropTypes.object,
   useModernForm: PropTypes.bool,
-  onFormChange: PropTypes.func
+  onFormChange: PropTypes.func,
+  enablePlatformSelector: PropTypes.bool,
+  platformOptions: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.string.isRequired,
+      label: PropTypes.string.isRequired
+    })
+  ),
+  platformSelectorTabIndex: PropTypes.number,
+  formControl: PropTypes.object
 };
 
 FormInputSection.defaultProps = {
   isMultiStep: false,
   showBackButton: false,
-  showSubmitButton: true,
+  showSubmitButton: false,
   defaultValues: {},
   validationRules: {},
   useModernForm: true,
-  onFormChange: null
+  onFormChange: null,
+  loading: false,
+  success: false,
+  nextButtonText: null,
+  submitButtonProps: {},
+  enablePlatformSelector: false,
+  platformOptions: [],
+  platformSelectorTabIndex: 12,
+  formControl: null
 };
 
 FormInputSection.displayName = 'FormInputSection';
 
-export default FormInputSection; 
+export default React.memo(FormInputSection); 

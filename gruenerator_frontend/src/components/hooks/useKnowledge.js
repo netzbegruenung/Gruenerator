@@ -2,6 +2,7 @@ import { useEffect, useCallback } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useQuery } from '@tanstack/react-query';
 import { useGeneratorKnowledgeStore } from '../../stores/core/generatorKnowledgeStore';
+import { useDocumentsStore } from '../../stores/documentsStore';
 import useGroupDetails from '../../features/groups/hooks/useGroupDetails';
 
 const EMPTY_ARRAY = []; // Stable empty array reference
@@ -11,8 +12,9 @@ const EMPTY_ARRAY = []; // Stable empty array reference
  * Orchestriert den Store und lädt Daten vom Backend
  * @param {Object} options - Configuration options
  * @param {string} options.instructionType - Type of instruction context ('antrag', 'social')
+ * @param {boolean} options.enableDocuments - Whether to preload documents for the user
  */
-const useKnowledge = ({ instructionType = 'social' } = {}) => {
+const useKnowledge = ({ instructionType = 'social', enableDocuments = false } = {}) => {
   const { user, betaFeatures } = useAuth();
   const { 
     source, 
@@ -26,8 +28,21 @@ const useKnowledge = ({ instructionType = 'social' } = {}) => {
     setInstructions,
     setInstructionsActive,
     getKnowledgeContent,
-    getActiveInstruction
+    getActiveInstruction,
+    // Document state and actions
+    setAvailableDocuments,
+    // Reset function
+    reset
   } = useGeneratorKnowledgeStore();
+  
+  // Access documents store for preloading
+  const { fetchDocuments } = useDocumentsStore();
+
+  // Reset store on component mount to ensure clean state
+  useEffect(() => {
+    console.log('[useKnowledge] Resetting store on component mount to ensure clean state');
+    reset();
+  }, [reset]); // Reset function dependency - runs once on mount
 
   // Fetch user knowledge and instructions via backend API
   const fetchUserData = async () => {
@@ -40,7 +55,7 @@ const useKnowledge = ({ instructionType = 'social' } = {}) => {
       
       // Use same auth method as useAuth (session-based with credentials)
       const AUTH_BASE_URL = import.meta.env.VITE_AUTH_BASE_URL || '';
-      const response = await fetch(`${AUTH_BASE_URL}/api/auth/anweisungen-wissen`, {
+      const response = await fetch(`${AUTH_BASE_URL}/auth/anweisungen-wissen`, {
         method: 'GET',
         credentials: 'include',
         headers: {
@@ -173,6 +188,22 @@ const useKnowledge = ({ instructionType = 'social' } = {}) => {
     setLoading
   ]);
 
+  // Preload documents when enabled and user source is selected
+  useEffect(() => {
+    if (enableDocuments && user && source.type === 'user') {
+      console.log('[useKnowledge] Preloading documents for user source');
+      
+      // Fetch documents in background
+      fetchDocuments()
+        .then(() => {
+          console.log('[useKnowledge] Document preloading completed successfully');
+        })
+        .catch((error) => {
+          console.warn('[useKnowledge] Document preloading failed (non-blocking):', error);
+          // Don't throw - document preloading failures shouldn't block the UI
+        });
+    }
+  }, [enableDocuments, user, source.type, fetchDocuments]);
 
   return {
     // Store state

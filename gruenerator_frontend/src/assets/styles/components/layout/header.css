@@ -112,6 +112,26 @@
     background-color: var(--background-color-alt);
 }
 
+/* Focus indicators for dropdown triggers - keyboard only */
+.header-dropdown[tabindex]:focus-visible {
+    outline: 2px solid var(--klee);
+    outline-offset: 2px;
+    border-radius: 0.5rem;
+}
+
+/* Focus indicators for dropdown links - keyboard only */
+.header-dropdown-content a:focus-visible {
+    outline: 2px solid var(--klee);
+    outline-offset: 2px;
+    background-color: var(--background-color-alt);
+    border-radius: 8px;
+}
+
+/* Ensure focus-within still works for keeping dropdown open */
+.header-dropdown:focus-within {
+    /* No visual outline, just maintains dropdown open state */
+}
+
 
 .header-dropdown-content {
     display: none;
@@ -133,6 +153,7 @@
 }
 
 .header-dropdown:hover .header-dropdown-content,
+.header-dropdown:focus-within .header-dropdown-content,
 .header-dropdown-content.show {
     display: flex;
     opacity: 1;
@@ -452,7 +473,8 @@ input:not(:checked) + .slider .icon.moon {
         background-color: var(--background-color-alt);
     }
 
-    .header-dropdown:hover .header-dropdown-content {
+    .header-dropdown:hover .header-dropdown-content,
+    .header-dropdown:focus-within .header-dropdown-content {
         display: flex;
     }
 

@@ -14,6 +14,110 @@ const normalizeStringForCompare = (str) => {
             .trim();                    // Trim leading/trailing whitespace
 };
 
+// Progressive fallback JSON parsing for Claude responses
+const parseClaudeJsonWithFallback = (content) => {
+  if (typeof content !== 'string') {
+    return content; // Already parsed
+  }
+
+  console.log('[claude_chat] Attempting to parse Claude JSON response');
+
+  // Step 1: Try parsing original content first (fast path)
+  try {
+    return JSON.parse(content);
+  } catch (error) {
+    console.log('[claude_chat] Initial JSON parse failed, trying fallbacks...');
+  }
+
+  // Step 2: Remove code block markers and try again
+  let cleanedContent = content.replace(/```json\n?|\n?```/g, '').trim();
+  try {
+    return JSON.parse(cleanedContent);
+  } catch (error) {
+    console.log('[claude_chat] JSON parse after removing code blocks failed, trying character fixes...');
+  }
+
+  // Step 3: Smart escaping - only escape control characters within JSON string values
+  try {
+    const smartEscaped = escapeJsonStringValues(cleanedContent);
+    return JSON.parse(smartEscaped);
+  } catch (error) {
+    console.log('[claude_chat] Smart escaping failed, trying aggressive fixes...');
+  }
+
+  // Step 4: Aggressive global replacement as last resort
+  try {
+    console.warn('[claude_chat] Using aggressive JSON fixing as last resort');
+    const aggressivelyFixed = cleanedContent
+      .replace(/\n/g, '\\n')
+      .replace(/\r/g, '\\r')
+      .replace(/\t/g, '\\t')
+      .replace(/\f/g, '\\f')
+      .replace(/\b/g, '\\b');
+    return JSON.parse(aggressivelyFixed);
+  } catch (error) {
+    console.error('[claude_chat] All JSON parsing attempts failed:', error);
+    throw new Error(`Failed to parse Claude JSON response: ${error.message}`);
+  }
+};
+
+// Smart escaping that only targets content within JSON string values
+const escapeJsonStringValues = (jsonString) => {
+  let result = '';
+  let inString = false;
+  let escapeNext = false;
+  
+  for (let i = 0; i < jsonString.length; i++) {
+    const char = jsonString[i];
+    
+    if (escapeNext) {
+      result += char;
+      escapeNext = false;
+      continue;
+    }
+    
+    if (char === '\\') {
+      result += char;
+      escapeNext = true;
+      continue;
+    }
+    
+    if (char === '"' && !escapeNext) {
+      inString = !inString;
+      result += char;
+      continue;
+    }
+    
+    if (inString) {
+      // We're inside a JSON string value - escape control characters
+      switch (char) {
+        case '\n':
+          result += '\\n';
+          break;
+        case '\r':
+          result += '\\r';
+          break;
+        case '\t':
+          result += '\\t';
+          break;
+        case '\f':
+          result += '\\f';
+          break;
+        case '\b':
+          result += '\\b';
+          break;
+        default:
+          result += char;
+      }
+    } else {
+      // We're outside a string value - keep JSON structure intact
+      result += char;
+    }
+  }
+  
+  return result;
+};
+
 router.post('/', async (req, res) => {
   // mode can be: 'editSelected', 'thinkGlobal', 'searchExplicit'
   const { message, currentText, selectedText, chatHistory, mode = 'thinkGlobal' } = req.body;
@@ -383,9 +487,15 @@ ${JSON_OUTPUT_FORMATTING_INSTRUCTIONS}`;
         }
       // Execute WEB_SEARCH_TOOL
       } else if (toolCallDetails.name === WEB_SEARCH_TOOL_NAME) {
-        // ... (existing web search logic)
-        let combinedResults = "";
-        if (searchResults.answer) {
+        console.log(`[claude_chat] Executing tool '${WEB_SEARCH_TOOL_NAME}' with input:`, toolInput);
+        try {
+          const searchResults = await tavilyService.search(toolInput.query, {
+            includeAnswer: "advanced",
+            maxResults: 5
+          });
+          
+          let combinedResults = "";
+          if (searchResults.answer) {
             combinedResults += `Antwort der Suche: ${searchResults.answer}\n\n`;
         }
         if (searchResults.results && searchResults.results.length > 0) {
@@ -393,8 +503,13 @@ ${JSON_OUTPUT_FORMATTING_INSTRUCTIONS}`;
             searchResults.results.forEach(r => {
                 combinedResults += `- Titel: ${r.title}\n  URL: ${r.url}\n  Inhalt (Auszug): ${r.content ? r.content.substring(0, 200) + '...' : 'Kein Inhalt verfügbar.'}\n`;
             });
+          }
+          toolResultContent = combinedResults || "Keine Ergebnisse für die Suche gefunden.";
+        } catch (searchError) {
+          console.error('[claude_chat] Error during web search:', searchError);
+          toolResultContent = `Fehler bei der Websuche: ${searchError.message}`;
+          toolErrorOccurred = true;
         }
-        toolResultContent = combinedResults || "Keine Ergebnisse für die Suche gefunden.";
         console.log("[claude_chat] Tool execution result:", toolResultContent);
       }
 
@@ -441,13 +556,22 @@ ${JSON_OUTPUT_FORMATTING_INSTRUCTIONS}`;
         });
       }
 
-      // 'editSelected' mode
-      const parsedResponse = typeof claudeResponseContent === 'string'
-        ? JSON.parse(claudeResponseContent.replace(/```json\n|\n```/g, ''))
-        : claudeResponseContent;
+      // 'editSelected' mode - Progressive fallback JSON parsing
+      const parsedResponse = parseClaudeJsonWithFallback(claudeResponseContent);
 
       if (!parsedResponse.response || !parsedResponse.textAdjustment) {
         throw new Error('Invalid response format for editSelected mode, missing response or textAdjustment.');
+      }
+
+      // Safety measure: Strip HTML tags from newText to ensure clean text for Quill editor
+      if (parsedResponse.textAdjustment.newText && typeof parsedResponse.textAdjustment.newText === 'string') {
+        const originalNewText = parsedResponse.textAdjustment.newText;
+        const cleanedNewText = originalNewText.replace(/<[^>]*>/g, ''); // Remove HTML tags
+        
+        if (cleanedNewText !== originalNewText) {
+          console.warn('[claude_chat] Stripped HTML tags from newText:', originalNewText, '->', cleanedNewText);
+          parsedResponse.textAdjustment.newText = cleanedNewText;
+        }
       }
       
       console.log('[claude_chat] Handling editSelected mode response. Claude Raw Parsed Response:', parsedResponse.response); 

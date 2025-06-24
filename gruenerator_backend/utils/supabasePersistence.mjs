@@ -1,12 +1,65 @@
 import * as Y from 'yjs';
 import pako from 'pako';
 import { supabaseService } from './supabaseClient.js'; // Use .js extension if that's the actual filename
+import { DailyVersionService } from '../services/dailyVersionService.js';
 
 const DEBOUNCE_TIMEOUT = 2000; // Millisekunden für Debouncing von Updates
 const debouncedUpdates = new Map(); // documentId -> { timeoutId, updates: [] }
 
+async function ensureDocumentExists(documentId) {
+  try {
+    // Check if document exists in collaborative_documents table
+    const { data: existingDoc, error: checkError } = await supabaseService
+      .from('collaborative_documents')
+      .select('id')
+      .eq('id', documentId)
+      .maybeSingle();
+
+    if (checkError) {
+      console.error(`[SupabasePersistence] Error checking document existence for ${documentId}:`, checkError);
+      return false;
+    }
+
+    if (!existingDoc) {
+      // Document doesn't exist, create it
+      console.log(`[SupabasePersistence] Document ${documentId} not found in collaborative_documents, creating entry...`);
+      
+      const { error: insertError } = await supabaseService
+        .from('collaborative_documents')
+        .insert([{ 
+          id: documentId,
+          entity_type: 'collaborative_document',
+          entity_id: documentId,
+          title: 'Collaborative Document',
+          initial_content_provided: false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }]);
+
+      if (insertError) {
+        console.error(`[SupabasePersistence] Error creating document entry for ${documentId}:`, insertError);
+        return false;
+      }
+      
+      console.log(`[SupabasePersistence] Successfully created document entry for ${documentId}`);
+    }
+    
+    return true;
+  } catch (e) {
+    console.error(`[SupabasePersistence] Exception ensuring document exists for ${documentId}:`, e);
+    return false;
+  }
+}
+
 async function writeUpdatesToDb(documentId, updatesToStore) {
   if (!updatesToStore || updatesToStore.length === 0) return;
+
+  // Ensure the document exists in collaborative_documents before inserting updates
+  const documentExists = await ensureDocumentExists(documentId);
+  if (!documentExists) {
+    console.error(`[SupabasePersistence] Cannot insert updates for ${documentId}: document entry creation failed`);
+    return;
+  }
 
   const records = updatesToStore.map(updateEntry => ({
     document_id: documentId,
@@ -21,6 +74,8 @@ async function writeUpdatesToDb(documentId, updatesToStore) {
     if (error) {
       console.error(`[SupabasePersistence] Error inserting ${records.length} updates for doc ${documentId}:`, error);
       // Implement more robust error handling/retry if needed
+    } else {
+      console.log(`[SupabasePersistence] Successfully inserted ${records.length} updates for doc ${documentId}`);
     }
   } catch (e) {
     console.error(`[SupabasePersistence] Exception during insert for doc ${documentId}:`, e);
@@ -30,6 +85,14 @@ async function writeUpdatesToDb(documentId, updatesToStore) {
 export const supabasePersistence = {
   bindState: async (documentId, ydoc) => {
     console.log(`[SupabasePersistence] bindState called for documentId: ${documentId}`);
+    
+    // Ensure document exists in collaborative_documents table
+    const documentExists = await ensureDocumentExists(documentId);
+    if (!documentExists) {
+      console.error(`[SupabasePersistence] Cannot bind state for ${documentId}: document entry creation failed`);
+      return; // Don't proceed with binding if we can't ensure the document exists
+    }
+    
     let snapshotSourceUpdateCreatedAt = null;
 
     // 1. Get latest snapshot
@@ -109,6 +172,16 @@ export const supabasePersistence = {
       }, DEBOUNCE_TIMEOUT);
     });
     console.log(`[SupabasePersistence] Attached 'update' listener to ydoc for documentId: ${documentId}`);
+    
+    // Create daily version if this is the first time someone opens the document today
+    // Do this asynchronously to not block the binding process
+    setTimeout(async () => {
+      try {
+        await DailyVersionService.ensureDailyVersion(documentId, ydoc);
+      } catch (error) {
+        console.error(`[SupabasePersistence] Error creating daily version for ${documentId}:`, error);
+      }
+    }, 1000); // Small delay to ensure document is fully loaded
   },
 
   writeState: async (documentId, ydoc) => {

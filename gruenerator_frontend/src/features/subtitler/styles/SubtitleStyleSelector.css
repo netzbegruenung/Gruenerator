@@ -173,6 +173,17 @@
   gap: 1rem;
 }
 
+/* Grüne Jugend Section */
+.gj-section-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--font-color-h3);
+  margin: 2rem 0 1rem 0;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+  text-align: center;
+}
+
 .style-option-card {
   position: relative;
   background: var(--background-color-alt);

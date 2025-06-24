@@ -4,8 +4,9 @@ const redisClient = require('../../../utils/redisClient');
 
 class AssSubtitleService {
   constructor() {
-    // Font path for GrueneType
-    this.fontPath = path.resolve(__dirname, '../../../public/fonts/GrueneType.ttf');
+    // Font paths for GrueneType and GJFontRegular
+    this.grueneTypeFontPath = path.resolve(__dirname, '../../../public/fonts/GrueneType.ttf');
+    this.gjFontPath = path.resolve(__dirname, '../../../public/fonts/GJFontRegular.ttf');
     
     this.defaultStyle = {
       fontName: 'GrueneType Black Condensed Italic', // Full font name from TTF file
@@ -109,6 +110,71 @@ class AssSubtitleService {
           secondaryColor: '&Hffffff', // White secondary
           spacing: 1 // Character spacing adds horizontal padding effect
         };
+
+      // Grüne Jugend styles with GJFontRegular
+      case 'gj_clean':
+        // GJ Minimalistisch - transparent style with GJ font
+        return {
+          ...baseStyle,
+          fontName: 'GJFontRegular', // GJ Font
+          backColor: '&H00000000', // Transparent background
+          borderStyle: 0, // No background box
+          outline: 0, // No outline for minimalistic style
+          outlineColor: '&H00000000', // Transparent outline
+          shadow: 0, // No shadow
+          primaryColor: '&Hffffff', // White text
+          secondaryColor: '&Hffffff' // White secondary
+        };
+
+      case 'gj_shadow':
+        // GJ Schatten - shadow effect with GJ font
+        return {
+          ...baseStyle,
+          fontName: 'GJFontRegular', // GJ Font
+          backColor: '&H00000000', // Transparent background
+          borderStyle: 0, // No background box
+          outline: 0, // No outline - shadow provides contrast
+          shadow: 3, // Shadow effect
+          outlineColor: '&H80000000', // Semi-transparent black shadow
+          primaryColor: '&Hffffff', // White text
+          secondaryColor: '&Hffffff' // White secondary
+        };
+
+      case 'gj_lavendel':
+        // GJ Lavendel - Grüne Jugend lavendel color (#9f88ff)
+        const lavendelColor = this.convertRgbToAssBgr('#9f88ff', 0x00); // Lavendel color
+        const lavendelOutline = this.convertRgbToAssBgr('#7d66cc', 0x00); // Darker lavendel for outline
+        console.log(`[ASS] Lavendel color conversion: #9f88ff → ${lavendelColor}`);
+        return {
+          ...baseStyle,
+          fontName: 'GJFontRegular', // GJ Font
+          backColor: lavendelColor, // Lavendel background
+          borderStyle: 3, // Background box
+          outline: 1, // Minimal outline
+          outlineColor: lavendelOutline, // Darker lavendel outline
+          shadow: 0, // No shadow
+          primaryColor: '&Hffffff', // White text for contrast
+          secondaryColor: '&Hffffff', // White secondary
+          spacing: 1 // Character spacing adds horizontal padding effect
+        };
+
+      case 'gj_hellgruen':
+        // GJ Hellgrün - Grüne Jugend light green color (#c7ff7a)
+        const hellgruenColor = this.convertRgbToAssBgr('#c7ff7a', 0x00); // Light green color
+        const hellgruenOutline = this.convertRgbToAssBgr('#9fcc5f', 0x00); // Darker green for outline
+        console.log(`[ASS] Hellgrün color conversion: #c7ff7a → ${hellgruenColor}`);
+        return {
+          ...baseStyle,
+          fontName: 'GJFontRegular', // GJ Font
+          backColor: hellgruenColor, // Light green background
+          borderStyle: 3, // Background box
+          outline: 1, // Minimal outline
+          outlineColor: hellgruenOutline, // Darker green outline
+          shadow: 0, // No shadow
+          primaryColor: '&H000000', // Black text for contrast on light background
+          secondaryColor: '&H000000', // Black secondary
+          spacing: 1 // Character spacing adds horizontal padding effect
+        };
         
       default:
         return this.getStylePreset('standard');
@@ -123,8 +189,8 @@ class AssSubtitleService {
     const presetStyle = this.getStylePreset(stylePreference);
     const style = { ...presetStyle, ...styleOptions };
     
-    // Calculate dynamic font size based on video resolution and mode
-    const fontSize = this.calculateFontSize(videoMetadata, style.fontSize, subtitlePreference);
+    // Calculate dynamic font size based on video resolution, mode, and style preference
+    const fontSize = this.calculateFontSize(videoMetadata, style.fontSize, subtitlePreference, stylePreference);
     style.fontSize = fontSize;
 
     console.log(`[AssSubtitleService] Using style preset: ${stylePreference}`, {
@@ -142,9 +208,9 @@ class AssSubtitleService {
   }
 
   /**
-   * Calculate optimal font size based on video metadata
+   * Calculate optimal font size based on video metadata and style preference
    */
-  calculateFontSize(metadata, baseFontSize, subtitlePreference = 'manual') {
+  calculateFontSize(metadata, baseFontSize, subtitlePreference = 'manual', stylePreference = 'standard') {
     const { width, height } = metadata;
     const referenceDimension = Math.min(width, height);
     
@@ -165,6 +231,13 @@ class AssSubtitleService {
     if (subtitlePreference === 'manual') {
       fontSize = Math.floor(fontSize * 1.2);
       console.log(`[ASS] Manual mode: increased font size by 20% to ${fontSize}px for shorter segments`);
+    }
+
+    // For GJ styles, reduce font size by 30% since GJFontRegular appears much larger than GrueneType
+    const isGjStyle = stylePreference?.startsWith('gj_');
+    if (isGjStyle) {
+      fontSize = Math.floor(fontSize * 0.70);
+      console.log(`[ASS] GJ style detected: reduced font size by 30% to ${fontSize}px for GJFontRegular`);
     }
     
     // COMMENTED OUT - Word mode functionality (TikTok style):
@@ -285,11 +358,12 @@ Style: ${styleLine}`;
    */
   addHorizontalPadding(text, stylePreference) {
     // Only add padding for styles with background boxes
-    if (stylePreference === 'standard' || stylePreference === 'tanne') {
+    if (stylePreference === 'standard' || stylePreference === 'tanne' || 
+        stylePreference === 'gj_lavendel' || stylePreference === 'gj_hellgruen') {
       // Add thin spaces for subtle padding
       return `\u2009${text}\u2009`; // Thin space (U+2009) for minimal padding
     }
-    return text; // No padding for clean/shadow styles
+    return text; // No padding for clean/shadow styles (including gj_clean and gj_shadow)
   }
 
   /**

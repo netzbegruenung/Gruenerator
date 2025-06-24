@@ -1,36 +1,49 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { HiOutlineTrash, HiPlus, HiLink, HiInformationCircle } from 'react-icons/hi';
+import { useForm, FormProvider, useFieldArray } from 'react-hook-form';
+import { HiOutlineTrash, HiPlus, HiLink, HiInformationCircle, HiPencil, HiCheck, HiX } from 'react-icons/hi';
 import Spinner from '../../../../components/common/Spinner';
-import TextInput from '../../../../components/common/Form/Input/TextInput';
-import GroupList from '../../../../features/groups/components/GroupList';
-import useGroups from '../../../../features/groups/hooks/useGroups';
+// Modern groups management using backend API
+import { useGroups, getGroupInitials } from '../../utils/groupsUtils';
 import useGroupDetails from '../../../../features/groups/hooks/useGroupDetails';
-import { useProfileResourceManager } from '../../utils/profileUtils';
 import { autoResizeTextarea } from '../../utils/profileUtils';
+import { useFormFields } from '../../../../components/common/Form/hooks';
 import HelpTooltip from '../../../../components/common/HelpTooltip';
+import DeleteWarningTooltip from '../../../../components/common/DeleteWarningTooltip';
+import GroupMembersList from './GroupMembersList';
 import { motion } from "motion/react";
 
-// Helper function for group initials
-const getGroupInitials = (groupName) => {
-    if (!groupName) return 'G';
-    
-    if (!groupName.includes(' ')) {
-        return groupName.substring(0, 2).toUpperCase();
-    }
-    
-    const words = groupName.split(' ');
-    return (words[0][0] + (words[1] ? words[1][0] : '')).toUpperCase();
-};
+// Helper function moved to groupsUtils.js
 
 // Component for the Group Detail View
 const GroupDetailView = ({ 
     groupId, 
-    onBackToList,
     onSuccessMessage, 
     onErrorMessage,
-    isActive
+    isActive,
+    currentView = 'anweisungen'
 }) => {
-    const { templatesSupabase } = useProfileResourceManager();
+    // State for editing group name and description
+    const [isEditingName, setIsEditingName] = useState(false);
+    const [editedGroupName, setEditedGroupName] = useState('');
+    const [isEditingDescription, setIsEditingDescription] = useState(false);
+    const [editedGroupDescription, setEditedGroupDescription] = useState('');
+    // React Hook Form setup for group details
+    const formMethods = useForm({
+        defaultValues: {
+            customAntragPrompt: '',
+            customSocialPrompt: '',
+            knowledge: []
+        },
+        mode: 'onChange'
+    });
+    
+    const { control, reset, getValues } = formMethods;
+    const { fields, append, remove } = useFieldArray({ 
+        control, 
+        name: "knowledge",
+        keyName: "key"
+    });
+    const { Input, Textarea } = useFormFields();
     
     const { 
         groupInfo, 
@@ -51,7 +64,6 @@ const GroupDetailView = ({
         deletingKnowledgeId, 
         isDeleteKnowledgeError, 
         deleteKnowledgeError,
-        isLoadingDetails, 
         isErrorDetails, 
         errorDetails,
         hasUnsavedChanges,
@@ -60,17 +72,33 @@ const GroupDetailView = ({
     
     const { 
         deleteGroup, 
-        isDeletingGroup, 
+        isDeletingGroup,
+        updateGroupName,
+        updateGroupInfo,
+        isUpdatingGroupName,
+        isUpdateGroupNameError,
+        updateGroupNameError 
     } = useGroups({ isActive });
 
-    const [showJoinLink, setShowJoinLink] = useState(false);
     const [joinLinkCopied, setJoinLinkCopied] = useState(false);
-    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
     // Refs for textareas
     const antragTextareaRef = useRef(null);
     const socialTextareaRef = useRef(null);
     const knowledgeTextareaRefs = useRef({});
+
+    // Initialize form when group data loads
+    useEffect(() => {
+        if (groupInfo) {
+            reset({
+                customAntragPrompt: customAntragPrompt || '',
+                customSocialPrompt: customSocialPrompt || '',
+                knowledge: knowledgeEntries || []
+            });
+            setEditedGroupName(groupInfo.name || '');
+            setEditedGroupDescription(groupInfo.description || '');
+        }
+    }, [groupInfo, customAntragPrompt, customSocialPrompt, knowledgeEntries, reset]);
 
     // Effect for save/delete feedback
     useEffect(() => {
@@ -128,29 +156,469 @@ const GroupDetailView = ({
         return <p>Gruppendaten nicht gefunden oder Du hast keinen Zugriff.</p>; 
     }
 
-    const handleDeleteGroup = () => {
-        if (!groupId || !isAdmin) return;
-        setShowDeleteConfirm(true);
-    };
-
     const confirmDeleteGroup = () => {
+        if (!groupId || !isAdmin) return;
+        
         onSuccessMessage('');
         onErrorMessage('');
         deleteGroup(groupId, {
             onSuccess: () => {
                 onSuccessMessage('Gruppe erfolgreich gelöscht!');
-                setShowDeleteConfirm(false);
             },
             onError: (error) => {
                 onErrorMessage(`Fehler beim Löschen der Gruppe: ${error.message}`);
-                setShowDeleteConfirm(false);
             }
         });
     };
 
-    const cancelDeleteGroup = () => {
-        setShowDeleteConfirm(false);
+    const handleFormSave = () => {
+        const formData = getValues();
+        const changes = {
+            custom_antrag_prompt: formData.customAntragPrompt,
+            custom_social_prompt: formData.customSocialPrompt
+        };
+        
+        // Handle form save through existing save mechanism
+        Object.entries(changes).forEach(([key, value]) => {
+            handleInstructionsChange(key, value);
+        });
+        
+        saveChanges();
     };
+
+    const handleDeleteKnowledge = (entry, index) => {
+        if (!entry.id || (typeof entry.id === 'string' && entry.id.startsWith('new-'))) {
+            remove(index);
+        } else {
+            if (window.confirm("Möchtest du diesen Wissenseintrag wirklich löschen?")) {
+                handleKnowledgeDelete(entry.id);
+            }
+        }
+    };
+
+    const handleAddKnowledge = () => {
+        if (fields.length < 3) {
+            append({ id: `new-${Date.now()}`, title: '', content: '' });
+        }
+    };
+
+    // Group name editing functions
+    const startEditingName = () => {
+        if (isAdmin) {
+            setIsEditingName(true);
+            setEditedGroupName(groupInfo?.name || '');
+        }
+    };
+
+    const cancelEditingName = () => {
+        setIsEditingName(false);
+        setEditedGroupName(groupInfo?.name || '');
+    };
+
+    const saveGroupName = async () => {
+        if (!editedGroupName.trim() || editedGroupName === groupInfo?.name) {
+            cancelEditingName();
+            return;
+        }
+
+        updateGroupName(groupId, editedGroupName.trim(), {
+            onSuccess: () => {
+                setIsEditingName(false);
+                onSuccessMessage('Gruppenname erfolgreich geändert!');
+            },
+            onError: (error) => {
+                onErrorMessage('Fehler beim Ändern des Gruppennamens: ' + error.message);
+                setEditedGroupName(groupInfo?.name || '');
+            }
+        });
+    };
+
+    // Group description editing functions
+    const startEditingDescription = () => {
+        if (isAdmin) {
+            setIsEditingDescription(true);
+            setEditedGroupDescription(groupInfo?.description || '');
+        }
+    };
+
+    const cancelEditingDescription = () => {
+        setIsEditingDescription(false);
+        setEditedGroupDescription(groupInfo?.description || '');
+    };
+
+    const saveGroupDescription = async () => {
+        if (editedGroupDescription === (groupInfo?.description || '')) {
+            cancelEditingDescription();
+            return;
+        }
+
+        updateGroupInfo(groupId, { description: editedGroupDescription }, {
+            onSuccess: () => {
+                setIsEditingDescription(false);
+                onSuccessMessage('Gruppenbeschreibung erfolgreich geändert!');
+            },
+            onError: (error) => {
+                onErrorMessage('Fehler beim Ändern der Gruppenbeschreibung: ' + error.message);
+                setEditedGroupDescription(groupInfo?.description || '');
+            }
+        });
+    };
+
+    // Render Group Header
+    const renderGroupHeader = () => (
+        <div className="group-content-card">
+            <div className="group-info-panel"> 
+                <div className="group-header-section"> 
+                    <div className="group-title-area"> 
+                        <div className="group-title-line">
+                            {isEditingName ? (
+                                <div className="group-name-edit-container">
+                                    <input
+                                        type="text"
+                                        value={editedGroupName}
+                                        onChange={(e) => setEditedGroupName(e.target.value)}
+                                        className="group-name-edit-input"
+                                        maxLength={100}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') saveGroupName();
+                                            if (e.key === 'Escape') cancelEditingName();
+                                        }}
+                                        autoFocus
+                                    />
+                                    <div className="group-name-edit-actions">
+                                        <button
+                                            onClick={saveGroupName}
+                                            className="group-name-edit-button save"
+                                            disabled={!editedGroupName.trim() || isUpdatingGroupName}
+                                            title="Speichern"
+                                        >
+                                            <HiCheck />
+                                        </button>
+                                        <button
+                                            onClick={cancelEditingName}
+                                            className="group-name-edit-button cancel"
+                                            disabled={isUpdatingGroupName}
+                                            title="Abbrechen"
+                                        >
+                                            <HiX />
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <>
+                                    <h2 className="profile-user-name large-profile-title">{groupInfo?.name}</h2>
+                                    {isAdmin && (
+                                        <button
+                                            onClick={startEditingName}
+                                            className="group-name-edit-icon"
+                                            title="Gruppenname bearbeiten"
+                                            disabled={isUpdatingGroupName}
+                                        >
+                                            <HiPencil />
+                                        </button>
+                                    )}
+                                </>
+                            )}
+                            {isAdmin && <span className="admin-badge">Admin</span>}
+                        </div>
+                        {!isAdmin && (
+                            <p className="group-membership-status">
+                                Du bist Mitglied dieser Gruppe
+                            </p>
+                        )}
+                    </div>
+                    {isAdmin && (
+                        <DeleteWarningTooltip
+                            onConfirm={confirmDeleteGroup}
+                            disabled={isDeletingGroup || isUpdatingGroupName}
+                            title="Gruppe löschen"
+                            message="Die gesamte Gruppe wird für alle Mitglieder unwiderruflich gelöscht. Alle Gruppeninhalte und -mitgliedschaften werden permanent entfernt."
+                            confirmText="Endgültig löschen"
+                            cancelText="Abbrechen"
+                        />
+                    )}
+                </div>
+
+                {isAdmin && joinToken && (
+                    <div className="join-link-section">
+                        <div className="join-link-display">
+                            <div className="join-link-label">
+                                <HiInformationCircle className="info-icon-inline" />
+                                Einladungslink für neue Mitglieder:
+                            </div>
+                            <div className="join-link-url-container">
+                                <div className="join-link-url" title={getJoinUrl()}>
+                                    {getJoinUrl()}
+                                </div>
+                                <button
+                                    onClick={copyJoinLink}
+                                    className="copy-join-link-button-inline"
+                                    type="button"
+                                    title="Einladungslink kopieren"
+                                    disabled={!joinToken}
+                                >
+                                    {joinLinkCopied ? (
+                                        'Kopiert!'
+                                    ) : (
+                                        <HiLink />
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+
+    // Render Group Info Tab
+    const renderGroupInfoTab = () => (
+        <>
+            {renderGroupHeader()}
+            
+            {/* Group Description Section */}
+            <div className="group-content-card">
+                <div className="group-section-header">
+                    <h4 className="group-section-title">Gruppenbeschreibung</h4>
+                    {isAdmin && !isEditingDescription && (
+                        <button
+                            onClick={startEditingDescription}
+                            className="group-name-edit-icon"
+                            title="Beschreibung bearbeiten"
+                            disabled={isUpdatingGroupName}
+                        >
+                            <HiPencil />
+                        </button>
+                    )}
+                </div>
+                
+                {isEditingDescription ? (
+                    <div className="form-field-wrapper">
+                        <textarea
+                            value={editedGroupDescription}
+                            onChange={(e) => setEditedGroupDescription(e.target.value)}
+                            className="form-textarea"
+                            placeholder="Beschreibung der Gruppe (optional)..."
+                            rows={4}
+                            maxLength={500}
+                            disabled={isUpdatingGroupName}
+                        />
+                        <div className="character-count">
+                            {editedGroupDescription.length}/500 Zeichen
+                        </div>
+                        <div className="group-name-edit-actions" style={{ marginTop: 'var(--spacing-small)' }}>
+                            <button
+                                onClick={saveGroupDescription}
+                                className="group-name-edit-button save"
+                                disabled={isUpdatingGroupName}
+                                title="Speichern"
+                            >
+                                <HiCheck />
+                            </button>
+                            <button
+                                onClick={cancelEditingDescription}
+                                className="group-name-edit-button cancel"
+                                disabled={isUpdatingGroupName}
+                                title="Abbrechen"
+                            >
+                                <HiX />
+                            </button>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="form-field-wrapper">
+                        {groupInfo?.description ? (
+                            <div className="knowledge-display" style={{ whiteSpace: 'pre-wrap' }}>
+                                {groupInfo.description}
+                            </div>
+                        ) : (
+                            <div className="knowledge-display" style={{ fontStyle: 'italic', color: 'var(--font-color-subtle)' }}>
+                                {isAdmin ? 'Keine Beschreibung vorhanden. Klicke auf das Bearbeiten-Symbol, um eine hinzuzufügen.' : 'Keine Beschreibung vorhanden.'}
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
+
+            {/* Group Members Section */}
+            <div className="group-content-card">
+                <GroupMembersList 
+                    groupId={groupId} 
+                    isActive={isActive}
+                />
+            </div>
+        </>
+    );
+
+    // Render Instructions Tab
+    const renderInstructionsTab = () => (
+        <>
+            <div className="group-content-card">
+                <div className="group-instructions-section">
+                    <div className="group-section-header">
+                        <h3 className="group-section-title">Gruppenanweisungen</h3>
+                        <div className="form-help-text">
+                            {isSaving ? 'Wird gespeichert...' : 'Änderungen werden automatisch gespeichert'}
+                        </div>
+                    </div>
+
+                    <div className="group-instructions-grid">
+                        <div className="group-instruction-card">
+                            <div className="instruction-card-header">
+                                <h4>Anträge</h4>
+                            </div>
+                            <div className="instruction-content">
+                                {isAdmin ? (
+                                    <FormProvider {...formMethods}>
+                                        <Textarea
+                                            name="customAntragPrompt"
+                                            placeholder="Spezifische Anweisungen für Anträge..."
+                                            className="group-instruction-textarea"
+                                            disabled={isSaving}
+                                            maxLength={GROUP_MAX_CONTENT_LENGTH}
+                                            showCharacterCount={true}
+                                            minRows={3}
+                                            maxRows={8}
+                                            control={control}
+                                            onChange={(value) => handleInstructionsChange('custom_antrag_prompt', value)}
+                                        />
+                                    </FormProvider>
+                                ) : (
+                                    <div className="instruction-display">
+                                        {customAntragPrompt || 'Keine spezifischen Anweisungen für Anträge.'}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="group-instruction-card">
+                            <div className="instruction-card-header">
+                                <h4>Social Media</h4>
+                            </div>
+                            <div className="instruction-content">
+                                {isAdmin ? (
+                                    <FormProvider {...formMethods}>
+                                        <Textarea
+                                            name="customSocialPrompt"
+                                            placeholder="Spezifische Anweisungen für Social Media..."
+                                            className="group-instruction-textarea"
+                                            disabled={isSaving}
+                                            maxLength={GROUP_MAX_CONTENT_LENGTH}
+                                            showCharacterCount={true}
+                                            minRows={3}
+                                            maxRows={8}
+                                            control={control}
+                                            onChange={(value) => handleInstructionsChange('custom_social_prompt', value)}
+                                        />
+                                    </FormProvider>
+                                ) : (
+                                    <div className="instruction-display">
+                                        {customSocialPrompt || 'Keine spezifischen Anweisungen für Social Media.'}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </>
+    );
+
+    // Render Knowledge Tab
+    const renderKnowledgeTab = () => (
+        <>
+            <div className="group-content-card">
+                <FormProvider {...formMethods}>
+                    <div className="profile-card">
+                        <div className="profile-card-header">
+                            <h3>Gruppenwissen</h3>
+                            {isAdmin && (
+                                <button
+                                    type="button"
+                                    className="btn-primary size-s"
+                                    onClick={handleAddKnowledge}
+                                    disabled={isSaving || isDeletingKnowledge || fields.length >= 3}
+                                >
+                                    <HiPlus className="icon" /> Wissen hinzufügen
+                                </button>
+                            )}
+                        </div>
+                        <div className="profile-card-content">
+                            {fields.length === 0 && (
+                                <div className="knowledge-empty-state centered">
+                                    <p>Noch kein Gruppenwissen vorhanden.</p>
+                                    {isAdmin ? (
+                                        <p>
+                                            Klicke auf "Wissen hinzufügen", um wiederkehrende Informationen zu speichern.
+                                        </p>
+                                    ) : (
+                                        <p>Nur Admins können Gruppenwissen hinzufügen.</p>
+                                    )}
+                                </div>
+                            )}
+
+                            {fields.map((field, index) => (
+                                <div key={field.key} className={`knowledge-entry ${index > 0 ? 'knowledge-entry-bordered' : ''}`}>
+                                    <div className="form-field-wrapper anweisungen-field">
+                                        <div className="anweisungen-header">
+                                            <label htmlFor={`knowledge.${index}.title`}>Wissen #{index + 1}: Titel</label>
+                                            {isAdmin && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleDeleteKnowledge(field, index)}
+                                                    className="knowledge-delete-button icon-button danger"
+                                                    disabled={isSaving || (isDeletingKnowledge && deletingKnowledgeId === field.id)}
+                                                    aria-label={`Wissenseintrag ${index + 1} löschen`}
+                                                >
+                                                    {(isDeletingKnowledge && deletingKnowledgeId === field.id) ? <Spinner size="xsmall" /> : <HiOutlineTrash />}
+                                                </button>
+                                            )}
+                                        </div>
+                                        {isAdmin ? (
+                                            <Input
+                                                name={`knowledge.${index}.title`}
+                                                type="text"
+                                                placeholder="Kurzer, prägnanter Titel (z.B. 'Gruppenstrategie 2024')"
+                                                rules={{ maxLength: { value: 100, message: 'Titel darf maximal 100 Zeichen haben' } }}
+                                                disabled={isSaving || isDeletingKnowledge}
+                                                control={control}
+                                            />
+                                        ) : (
+                                            <div className="knowledge-display">
+                                                <strong>{field.title || 'Ohne Titel'}</strong>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="form-field-wrapper anweisungen-field">
+                                        {isAdmin ? (
+                                            <Textarea
+                                                name={`knowledge.${index}.content`}
+                                                label="Inhalt:"
+                                                placeholder="Füge hier den Wissensinhalt ein..."
+                                                minRows={2}
+                                                maxRows={8}
+                                                maxLength={GROUP_MAX_CONTENT_LENGTH}
+                                                showCharacterCount={true}
+                                                disabled={isSaving || isDeletingKnowledge}
+                                                control={control}
+                                            />
+                                        ) : (
+                                            <>
+                                                <label className="form-label">Inhalt:</label>
+                                                <div className="knowledge-display">
+                                                    {field.content || 'Kein Inhalt vorhanden.'}
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </FormProvider>
+            </div>
+        </>
+    );
 
     return (
         <motion.div 
@@ -159,273 +627,30 @@ const GroupDetailView = ({
             animate={{ opacity: 1 }}
             transition={{ duration: 0.3 }}
         >
-            <div className="group-content-card">
-                <div className="group-info-panel"> 
-                    <div className="group-header-section"> 
-                        <div className="group-title-area"> 
-                            <div className="group-title-line">
-                                <h2 className="profile-user-name large-profile-title">{groupInfo?.name}</h2>
-                                {isAdmin && <span className="admin-badge">Admin</span>}
-                            </div>
-                            {!isAdmin && (
-                                <p className="group-membership-status">
-                                    Du bist Mitglied dieser Gruppe
-                                </p>
-                            )}
-                        </div>
-                        {isAdmin && joinToken && (
-                            <button
-                                onClick={copyJoinLink}
-                                className="copy-join-link-button"
-                                type="button"
-                                title="Einladungslink kopieren"
-                                disabled={!joinToken}
-                            >
-                                {joinLinkCopied ? (
-                                    'Kopiert!'
-                                ) : (
-                                    <HiLink />
-                                )}
-                            </button>
-                        )}
-                    </div>
+            {currentView === 'gruppeninfo' && renderGroupInfoTab()}
+            {currentView === 'anweisungen' && renderInstructionsTab()}
+            {currentView === 'wissen' && renderKnowledgeTab()}
 
-                    {isAdmin && joinToken && (
-                        <div className="join-link-section">
-                            <div className="join-link-display">
-                                <div className="join-link-label">
-                                    <HiInformationCircle className="info-icon-inline" />
-                                    Einladungslink für neue Mitglieder:
-                                </div>
-                                <div className="join-link-url" title={getJoinUrl()}>
-                                    {getJoinUrl()}
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            </div>
-
-            <div className="group-content-card">
-                <div className="group-instructions-section">
-                    <div className="group-section-header">
-                        <h3 className="group-section-title">Gruppenanweisungen</h3>
-                        {isAdmin && (
-                            <div className="group-save-actions">
-                                <button 
-                                    onClick={saveChanges} 
-                                    className="profile-action-button profile-primary-button"
-                                    disabled={isSaving || !hasUnsavedChanges}
-                                >
-                                    {isSaving ? <Spinner size="small" /> : 'Speichern'}
-                                </button>
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="group-instructions-grid">
-                        <div className="group-instruction-card">
-                            <div className="instruction-card-header">
-                                <h4>Anträge</h4>
-                                {isAdmin ? (
-                                    <label className="checkbox-label">
-                                        <input
-                                            type="checkbox"
-                                            checked={groupInfo?.antrag_instructions_enabled || false}
-                                            onChange={(e) => handleInstructionsChange('antrag_instructions_enabled', e.target.checked)}
-                                            disabled={isSaving}
-                                        />
-                                        Aktiv
-                                    </label>
-                                ) : (
-                                    <span className={`status-badge ${groupInfo?.antrag_instructions_enabled ? 'active' : 'inactive'}`}>
-                                        {groupInfo?.antrag_instructions_enabled ? 'Aktiv' : 'Inaktiv'}
-                                    </span>
-                                )}
-                            </div>
-                            <div className="instruction-content">
-                                {isAdmin ? (
-                                    <textarea
-                                        ref={antragTextareaRef}
-                                        value={customAntragPrompt}
-                                        onChange={(e) => handleInstructionsChange('custom_antrag_prompt', e.target.value)}
-                                        placeholder="Spezifische Anweisungen für Anträge..."
-                                        className="group-instruction-textarea"
-                                        disabled={isSaving}
-                                        maxLength={GROUP_MAX_CONTENT_LENGTH}
-                                        onInput={(e) => autoResizeTextarea(e.target)}
-                                    />
-                                ) : (
-                                    <div className="instruction-display">
-                                        {customAntragPrompt || 'Keine spezifischen Anweisungen für Anträge.'}
-                                    </div>
-                                )}
-                                <div className="character-count">
-                                    {customAntragPrompt?.length || 0} / {GROUP_MAX_CONTENT_LENGTH}
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="group-instruction-card">
-                            <div className="instruction-card-header">
-                                <h4>Social Media</h4>
-                                {isAdmin ? (
-                                    <label className="checkbox-label">
-                                        <input
-                                            type="checkbox"
-                                            checked={groupInfo?.social_instructions_enabled || false}
-                                            onChange={(e) => handleInstructionsChange('social_instructions_enabled', e.target.checked)}
-                                            disabled={isSaving}
-                                        />
-                                        Aktiv
-                                    </label>
-                                ) : (
-                                    <span className={`status-badge ${groupInfo?.social_instructions_enabled ? 'active' : 'inactive'}`}>
-                                        {groupInfo?.social_instructions_enabled ? 'Aktiv' : 'Inaktiv'}
-                                    </span>
-                                )}
-                            </div>
-                            <div className="instruction-content">
-                                {isAdmin ? (
-                                    <textarea
-                                        ref={socialTextareaRef}
-                                        value={customSocialPrompt}
-                                        onChange={(e) => handleInstructionsChange('custom_social_prompt', e.target.value)}
-                                        placeholder="Spezifische Anweisungen für Social Media..."
-                                        className="group-instruction-textarea"
-                                        disabled={isSaving}
-                                        maxLength={GROUP_MAX_CONTENT_LENGTH}
-                                        onInput={(e) => autoResizeTextarea(e.target)}
-                                    />
-                                ) : (
-                                    <div className="instruction-display">
-                                        {customSocialPrompt || 'Keine spezifischen Anweisungen für Social Media.'}
-                                    </div>
-                                )}
-                                <div className="character-count">
-                                    {customSocialPrompt?.length || 0} / {GROUP_MAX_CONTENT_LENGTH}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div className="group-content-card">
-                <div className="group-knowledge-section">
-                    <div className="group-section-header">
-                        <h3 className="group-section-title">Gruppenwissen</h3>
-                        {isAdmin && knowledgeEntries.length < 3 && (
-                            <button 
-                                onClick={() => handleKnowledgeChange(null, '', 'add')} 
-                                className="profile-action-button"
-                                disabled={isSaving}
-                            >
-                                <HiPlus /> Wissen hinzufügen
-                            </button>
-                        )}
-                    </div>
-
-                    {knowledgeEntries.length === 0 ? (
-                        <div className="knowledge-empty-state">
-                            <p>Noch kein Gruppenwissen vorhanden.</p>
-                            {!isAdmin && <p>Nur Admins können Gruppenwissen hinzufügen.</p>}
-                        </div>
-                    ) : (
-                        <div className="knowledge-entries">
-                            {knowledgeEntries.map((entry, index) => (
-                                <div key={entry.id || index} className="knowledge-entry">
-                                    <div className="knowledge-entry-header">
-                                        <span className="knowledge-entry-number">#{index + 1}</span>
-                                        {isAdmin && (
-                                            <button
-                                                onClick={() => handleKnowledgeDelete(entry.id)}
-                                                className="delete-knowledge-button"
-                                                disabled={isDeletingKnowledge && deletingKnowledgeId === entry.id}
-                                                title="Wissen löschen"
-                                            >
-                                                {isDeletingKnowledge && deletingKnowledgeId === entry.id ? 
-                                                    <Spinner size="small" /> : <HiOutlineTrash />
-                                                }
-                                            </button>
-                                        )}
-                                    </div>
-                                    <div className="knowledge-entry-content">
-                                        {isAdmin ? (
-                                            <textarea
-                                                ref={el => knowledgeTextareaRefs.current[entry.id] = el}
-                                                value={entry.content}
-                                                onChange={(e) => handleKnowledgeChange(entry.id, e.target.value, 'update')}
-                                                placeholder="Gruppenwissen eingeben..."
-                                                className="knowledge-textarea"
-                                                disabled={isSaving}
-                                                maxLength={GROUP_MAX_CONTENT_LENGTH}
-                                                onInput={(e) => autoResizeTextarea(e.target)}
-                                            />
-                                        ) : (
-                                            <div className="knowledge-display">
-                                                {entry.content || 'Kein Inhalt vorhanden.'}
-                                            </div>
-                                        )}
-                                        <div className="character-count">
-                                            {entry.content?.length || 0} / {GROUP_MAX_CONTENT_LENGTH}
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            </div>
-
-            {isAdmin && (
-                <div className="group-content-card">
-                    <div className="group-danger-zone">
-                        <h3 className="group-section-title error-section-title">
-                            Gruppe löschen
-                        </h3>
-                        <p className="danger-zone-description">
-                            Das Löschen der Gruppe ist unwiderruflich. Alle Gruppeninhalte und -mitgliedschaften werden permanent entfernt.
-                        </p>
-                        <button 
-                            onClick={handleDeleteGroup}
-                            className="profile-action-button profile-danger-button"
-                            disabled={isDeletingGroup || isSaving}
-                        >
-                            {isDeletingGroup ? <Spinner size="small" /> : 'Gruppe löschen'}
-                        </button>
-                    </div>
-                </div>
-            )}
-
-            {showDeleteConfirm && (
-                <div className="modal-overlay">
-                    <div className="confirm-dialog">
-                        <h3>Gruppe wirklich löschen?</h3>
-                        <p>
-                            Die Gruppe "{groupInfo?.name}" wird unwiderruflich gelöscht.
-                            Diese Aktion kann nicht rückgängig gemacht werden.
-                        </p>
-                        <div className="confirm-dialog-actions">
-                            <button onClick={cancelDeleteGroup} className="profile-action-button" disabled={isDeletingGroup}>
-                                Abbrechen
-                            </button>
-                            <button onClick={confirmDeleteGroup} className="profile-action-button profile-danger-button danger-button-spaced" disabled={isDeletingGroup}>
-                                {isDeletingGroup ? <Spinner size="small" /> : 'Endgültig löschen'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </motion.div>
     );
 };
 
 // Main component for the Groups Management Tab
-const GroupsManagementTab = ({ user, onSuccessMessage, onErrorMessage, isActive }) => {
+const GroupsManagementTab = ({ onSuccessMessage, onErrorMessage, isActive }) => {
+    const [currentView, setCurrentView] = useState('overview');
     const [selectedGroupId, setSelectedGroupId] = useState(null);
-    const [groupView, setGroupView] = useState('overview');
-    const [newGroupName, setNewGroupName] = useState('');
+    const [groupDetailView, setGroupDetailView] = useState('gruppeninfo');
+    
+    // React Hook Form setup for create group form
+    const createGroupFormMethods = useForm({
+        defaultValues: {
+            groupName: ''
+        },
+        mode: 'onChange'
+    });
+    
+    const { control: createGroupControl, reset: resetCreateGroup, handleSubmit: handleCreateGroupSubmit, getValues: getCreateGroupValues } = createGroupFormMethods;
+    const { Input } = useFormFields();
 
     const { 
         userGroups, 
@@ -438,21 +663,20 @@ const GroupsManagementTab = ({ user, onSuccessMessage, onErrorMessage, isActive 
         createGroupError,
         isDeleteGroupSuccess, 
         deleteGroupError: rawDeleteGroupError,
-        isDeletingGroup,
     } = useGroups({ isActive });
 
     // Handle Group Creation Submit
-    const handleCreateGroupSubmit = (e) => {
-        e.preventDefault();
-        if (!newGroupName.trim() || isCreatingGroup) return;
+    const handleCreateGroupFormSubmit = (data) => {
+        if (!data.groupName.trim() || isCreatingGroup) return;
         onSuccessMessage(''); 
         onErrorMessage('');
-        createGroup(newGroupName, {
+        createGroup(data.groupName, {
           onSuccess: (newGroup) => {
             const newGroupId = newGroup.id;
             setSelectedGroupId(newGroupId);
-            setGroupView('detail');
-            setNewGroupName(''); 
+            setCurrentView('group');
+            setGroupDetailView('gruppeninfo');
+            resetCreateGroup();
             onSuccessMessage('Gruppe erfolgreich erstellt!');
           },
           onError: (error) => {
@@ -463,16 +687,15 @@ const GroupsManagementTab = ({ user, onSuccessMessage, onErrorMessage, isActive 
 
     // Auto-select logic & handle group deletion side effects
     useEffect(() => {
-        if (groupView === 'list' && userGroups) {
-            if (userGroups.length === 1 && !selectedGroupId) {
+        if (userGroups) {
+            if (userGroups.length === 1 && !selectedGroupId && currentView === 'overview') {
                 setSelectedGroupId(userGroups[0].id);
-                setGroupView('detail');
-            } else if (userGroups.length > 0 && !selectedGroupId) {
-                setSelectedGroupId(userGroups[0].id);
-                setGroupView('detail');
+                setCurrentView('group');
             } else if (userGroups.length === 0) {
                 setSelectedGroupId(null);
-                setGroupView('list');
+                if (currentView !== 'overview') {
+                    setCurrentView('overview');
+                }
             }
         }
 
@@ -483,14 +706,14 @@ const GroupsManagementTab = ({ user, onSuccessMessage, onErrorMessage, isActive 
                 onSuccessMessage('Gruppe erfolgreich gelöscht!');
                 if (userGroups && userGroups.length > 0) {
                     setSelectedGroupId(userGroups[0].id);
-                    setGroupView('detail');
+                    setCurrentView('group');
                 } else {
                     setSelectedGroupId(null);
-                    setGroupView('overview');
+                    setCurrentView('overview');
                 }
             }
         }
-    }, [userGroups, groupView, selectedGroupId, isDeleteGroupSuccess, rawDeleteGroupError, onSuccessMessage]);
+    }, [userGroups, selectedGroupId, isDeleteGroupSuccess, rawDeleteGroupError, onSuccessMessage, currentView]);
 
     // Function to switch view
     const handleSelectGroup = (groupId) => {
@@ -498,14 +721,15 @@ const GroupsManagementTab = ({ user, onSuccessMessage, onErrorMessage, isActive 
             onSuccessMessage('');
             onErrorMessage('');
             setSelectedGroupId(groupId);
-            setGroupView('detail');
+            setCurrentView('group');
+            setGroupDetailView('gruppeninfo');
         }
     };
 
     const handleCreateNew = () => {
-        setGroupView('create');
+        setCurrentView('create');
         setSelectedGroupId(null);
-        setNewGroupName('');
+        resetCreateGroup();
         onSuccessMessage('');
         onErrorMessage('');
     };
@@ -513,18 +737,20 @@ const GroupsManagementTab = ({ user, onSuccessMessage, onErrorMessage, isActive 
     const handleCancelCreate = () => {
         if (userGroups && userGroups.length > 0) {
             setSelectedGroupId(userGroups[0].id);
-            setGroupView('detail');
+            setCurrentView('group');
         } else {
-            setGroupView('overview');
+            setCurrentView('overview');
         }
         onSuccessMessage('');
         onErrorMessage('');
     };
 
-    // Handle switching to overview tab
-    const handleOverviewTab = () => {
-        setSelectedGroupId(null);
-        setGroupView('overview');
+    // Handle switching between main tabs
+    const handleTabClick = (view) => {
+        setCurrentView(view);
+        if (view === 'overview') {
+            setSelectedGroupId(null);
+        }
         onSuccessMessage('');
         onErrorMessage('');
     };
@@ -605,6 +831,16 @@ const GroupsManagementTab = ({ user, onSuccessMessage, onErrorMessage, isActive 
                             ) : (
                                 <p>Du bist noch nicht Mitglied einer Gruppe. Erstelle jetzt deine erste Gruppe!</p>
                             )}
+                            
+                            <div className="profile-actions profile-actions-centered">
+                                <button 
+                                    onClick={handleCreateNew}
+                                    className="btn-primary size-m"
+                                    disabled={isCreatingGroup}
+                                >
+                                    <HiPlus className="icon" /> {isCreatingGroup ? 'Wird erstellt...' : 'Neue Gruppe erstellen'}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -612,130 +848,154 @@ const GroupsManagementTab = ({ user, onSuccessMessage, onErrorMessage, isActive 
         </motion.div>
     );
 
-    // Render Navigation Panel
+    // Render Navigation Panel with dynamic group tabs
     const renderNavigationPanel = () => (
-        <div className="group-navigation-panel">
-            <div className="group-nav-header">
-                <button 
-                    onClick={handleOverviewTab} 
-                    className={`nav-tab-button ${groupView === 'overview' ? 'active' : ''}`}
+        <div className="groups-navigation-panel">
+            <div className="groups-vertical-navigation">
+                <button
+                    className={`groups-vertical-tab ${currentView === 'overview' ? 'active' : ''}`}
+                    onClick={() => handleTabClick('overview')}
                 >
                     Übersicht
                 </button>
-                <button 
-                    onClick={handleCreateNew} 
-                    className="create-group-button"
-                    disabled={isCreatingGroup}
-                >
-                    <HiPlus /> Gruppe erstellen
-                </button>
-            </div>
-
-            {isLoadingGroups ? (
-                <div className="groups-loading">
-                    <Spinner size="medium" />
-                    <p>Lade Gruppen...</p>
-                </div>
-            ) : isErrorGroups ? (
-                <div className="groups-error">
-                    <p>Fehler beim Laden der Gruppen: {errorGroups?.message}</p>
-                </div>
-            ) : (
-                <div className="groups-list">
-                    {userGroups && userGroups.length > 0 ? (
-                        <GroupList 
-                            groups={userGroups} 
-                            selectedGroupId={selectedGroupId}
-                            onSelectGroup={handleSelectGroup}
-                            getGroupInitials={getGroupInitials}
-                        />
-                    ) : (
-                        <div className="no-groups-message">
-                            <p>Keine Gruppen gefunden</p>
+                
+                {/* Dynamic group tabs */}
+                {userGroups && userGroups.map(group => (
+                    <button
+                        key={group.id}
+                        className={`groups-vertical-tab ${selectedGroupId === group.id ? 'active' : ''}`}
+                        onClick={() => handleSelectGroup(group.id)}
+                    >
+                        <div className="group-tab-content">
+                            <div className="group-tab-avatar">
+                                {getGroupInitials(group.name)}
+                            </div>
+                            <div className="group-tab-info">
+                                <div className="group-tab-name">{group.name}</div>
+                                <div className="group-tab-badge">{group.isAdmin ? 'Admin' : 'Mitglied'}</div>
+                            </div>
                         </div>
-                    )}
-                </div>
-            )}
+                    </button>
+                ))}
+            </div>
         </div>
     );
 
-    // Render Content Panel
+    // Render Create Group Form
+    const renderCreateGroupForm = () => (
+        <motion.div 
+            className="group-create-container"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+        >
+            <div className="group-content-card">
+                <div className="group-info-panel">
+                    <div className="group-header-section">
+                        <div className="group-title-area">
+                            <h2 className="profile-user-name large-profile-title">Neue Gruppe erstellen</h2>
+                        </div>
+                    </div>
+                    
+                    {isCreateGroupError && (
+                        <div className="auth-error-message error-margin">
+                            {createGroupError?.message || 'Fehler beim Erstellen der Gruppe'}
+                        </div>
+                    )}
+                    
+                    <FormProvider {...createGroupFormMethods}>
+                        <form onSubmit={handleCreateGroupSubmit(handleCreateGroupFormSubmit)} className="auth-form">
+                            <div className="form-group">
+                                <div className="form-field-wrapper">
+                                    <Input
+                                        name="groupName"
+                                        type="text"
+                                        label="Gruppenname:"
+                                        placeholder="Name der neuen Gruppe"
+                                        rules={{ 
+                                            required: 'Gruppenname ist erforderlich',
+                                            maxLength: { value: 100, message: 'Gruppenname darf maximal 100 Zeichen haben' }
+                                        }}
+                                        disabled={isCreatingGroup}
+                                        control={createGroupControl}
+                                    />
+                                </div>
+                            </div>
+                            <div className="profile-actions">
+                                <button 
+                                    type="submit" 
+                                    className="profile-action-button profile-primary-button"
+                                    disabled={isCreatingGroup || !getCreateGroupValues().groupName?.trim()}
+                                >
+                                    {isCreatingGroup ? <Spinner size="small" /> : 'Gruppe erstellen'}
+                                </button>
+                                <button 
+                                    type="button" 
+                                    onClick={handleCancelCreate}
+                                    className="profile-action-button"
+                                    disabled={isCreatingGroup}
+                                >
+                                    Abbrechen
+                                </button>
+                            </div>
+                        </form>
+                    </FormProvider>
+                </div>
+            </div>
+        </motion.div>
+    );
+
+    // Main Content Panel
     const renderContentPanel = () => {
-        if (groupView === 'overview') {
+        if (currentView === 'overview') {
             return renderOverviewTab();
         }
 
-        if (groupView === 'create') {
-            return (
-                <motion.div 
-                    className="group-create-container"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.3 }}
-                >
-                    <div className="group-content-card">
-                        <div className="group-info-panel">
-                            <div className="group-header-section">
-                                <div className="group-title-area">
-                                    <h2 className="profile-user-name large-profile-title">Neue Gruppe erstellen</h2>
-                                </div>
-                            </div>
-                            
-                            {isCreateGroupError && (
-                                <div className="auth-error-message error-margin">
-                                    {createGroupError?.message || 'Fehler beim Erstellen der Gruppe'}
-                                </div>
-                            )}
-                            
-                            <form onSubmit={handleCreateGroupSubmit} className="auth-form">
-                                <div className="form-group">
-                                    <div className="form-field-wrapper">
-                                        <label htmlFor="groupName">Gruppenname:</label>
-                                        <TextInput
-                                            id="groupName"
-                                            type="text"
-                                            value={newGroupName}
-                                            onChange={(e) => setNewGroupName(e.target.value)}
-                                            placeholder="Name der neuen Gruppe"
-                                            required
-                                            disabled={isCreatingGroup}
-                                            maxLength={100}
-                                        />
-                                    </div>
-                                </div>
-                                <div className="profile-actions">
-                                    <button 
-                                        type="submit" 
-                                        className="profile-action-button profile-primary-button"
-                                        disabled={isCreatingGroup || !newGroupName.trim()}
-                                    >
-                                        {isCreatingGroup ? <Spinner size="small" /> : 'Gruppe erstellen'}
-                                    </button>
-                                    <button 
-                                        type="button" 
-                                        onClick={handleCancelCreate}
-                                        className="profile-action-button"
-                                        disabled={isCreatingGroup}
-                                    >
-                                        Abbrechen
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                </motion.div>
-            );
+        if (currentView === 'create') {
+            return renderCreateGroupForm();
         }
 
-        if (groupView === 'detail' && selectedGroupId) {
+        if (currentView === 'group' && selectedGroupId) {
             return (
-                <GroupDetailView 
-                    groupId={selectedGroupId}
-                    onBackToList={() => setGroupView('overview')}
-                    onSuccessMessage={onSuccessMessage}
-                    onErrorMessage={onErrorMessage}
-                    isActive={isActive}
-                />
+                <>
+                    {/* Top horizontal navigation for group sub-tabs - outside auth-form */}
+                    <div className="groups-horizontal-navigation">
+                        <button
+                            className={`groups-vertical-tab ${groupDetailView === 'gruppeninfo' ? 'active' : ''}`}
+                            onClick={() => setGroupDetailView('gruppeninfo')}
+                        >
+                            Gruppeninfo
+                        </button>
+                        <button
+                            className={`groups-vertical-tab ${groupDetailView === 'anweisungen' ? 'active' : ''}`}
+                            onClick={() => setGroupDetailView('anweisungen')}
+                        >
+                            Gruppenanweisungen
+                        </button>
+                        <button
+                            className={`groups-vertical-tab ${groupDetailView === 'wissen' ? 'active' : ''}`}
+                            onClick={() => setGroupDetailView('wissen')}
+                        >
+                            Gruppenwissen
+                        </button>
+                    </div>
+                    
+                    {/* Group content */}
+                    <motion.div 
+                        className="group-detail-with-tabs"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 0.3 }}
+                    >
+                        <GroupDetailView 
+                            groupId={selectedGroupId}
+                            onSuccessMessage={onSuccessMessage}
+                            onErrorMessage={onErrorMessage}
+                            isActive={isActive}
+                            currentView={groupDetailView}
+                        />
+                    </motion.div>
+                </>
             );
         }
 
@@ -744,14 +1004,20 @@ const GroupsManagementTab = ({ user, onSuccessMessage, onErrorMessage, isActive 
 
     return (
         <motion.div 
-            className="groups-management-layout"
+            className="profile-content groups-management-layout"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.3 }}
         >
-            {renderNavigationPanel()}
-            <div className="group-content-area">
-                {renderContentPanel()}
+            <div className="groups-navigation-panel">
+                {renderNavigationPanel()}
+            </div>
+            <div className="groups-content-panel profile-form-section">
+                <div className="group-content-card">
+                    <div className="auth-form">
+                        {renderContentPanel()}
+                    </div>
+                </div>
             </div>
         </motion.div>
     );
