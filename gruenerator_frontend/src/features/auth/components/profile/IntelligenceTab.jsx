@@ -13,7 +13,7 @@ import { useOptimizedAuth } from '../../../../hooks/useAuth';
 import { useAuthStore } from '../../../../stores/authStore';
 
 const MAX_CONTENT_LENGTH = 1000;
-const AUTH_BASE_URL = import.meta.env.VITE_AUTH_BASE_URL || '';
+const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
     const [currentView, setCurrentView] = useState('anweisungen');

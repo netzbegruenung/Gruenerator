@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useOptimizedAuth } from './useAuth';
 
 // Auth Backend URL aus Environment Variable oder Fallback zu aktuellem Host
-const AUTH_BASE_URL = import.meta.env.VITE_AUTH_BASE_URL || '';
+const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 // Beta features configuration - single source of truth
 const BETA_FEATURES_CONFIG = [

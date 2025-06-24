@@ -54,7 +54,7 @@ const useKnowledge = ({ instructionType = 'social', enableDocuments = false } = 
       console.log('[useKnowledge] Fetching user data via fetch for user:', user.id);
       
       // Use same auth method as useAuth (session-based with credentials)
-      const AUTH_BASE_URL = import.meta.env.VITE_AUTH_BASE_URL || '';
+      const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
       const response = await fetch(`${AUTH_BASE_URL}/auth/anweisungen-wissen`, {
         method: 'GET',
         credentials: 'include',
