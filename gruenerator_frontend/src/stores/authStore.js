@@ -1,7 +1,5 @@
 import { create } from 'zustand';
-import { templatesSupabase } from '../components/utils/templatesSupabaseClient';
 import { fetchWithDedup } from '../utils/requestDeduplication';
-import { setTemplatesSupabaseSession } from '../components/utils/templatesSupabaseClient.js';
 
 // Auth Backend URL aus Environment Variable oder Fallback zu aktuellem Host
 const AUTH_BASE_URL = import.meta.env.VITE_AUTH_BASE_URL || '';
@@ -15,96 +13,26 @@ const LOGOUT_TIMESTAMP_KEY = 'gruenerator_logout_timestamp';
 const LOGOUT_COOLDOWN_TIME = 60 * 1000; // 1 minute cooldown after logout
 const LOGIN_INTENT_KEY = 'gruenerator_login_intent';
 
-// Helper functions for Supabase operations (extracted from SupabaseAuthContext)
-const supabaseHelpers = {
+// Helper functions for legacy compatibility (deprecated)
+const legacyHelpers = {
   /**
-   * Update user beta features via backend API (deprecated - now handled by backend)
+   * Legacy compatibility - beta features are now managed via backend API
    */
-  async updateUserBetaFeatures(featureKey, isEnabled, currentUser) {
-    // This method is deprecated - beta features are now managed via backend API
-    // Keeping for backward compatibility but delegating to backend API
-    try {
-      const response = await fetch(`${AUTH_BASE_URL}/api/auth/profile/beta-features`, {
-        method: 'PATCH',
-        credentials: 'include',
-        headers: { 
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ feature: featureKey, enabled: isEnabled })
-      });
-      
-      const result = await response.json();
-      
-      if (!response.ok || !result.success) {
-        throw new Error(result.message || 'Beta Feature Update fehlgeschlagen');
-      }
-      
-      return result.betaFeatures;
-    } catch (err) {
-      throw err;
-    }
+  async updateUserBetaFeatures(featureKey, isEnabled) {
+    console.warn('[AuthStore] updateUserBetaFeatures is deprecated, use updateBetaFeature instead');
+    // Delegate to new implementation
+    const store = useAuthStore.getState();
+    return store.updateBetaFeature(featureKey, isEnabled);
   },
 
   /**
-   * Update user message color via backend API (deprecated - now handled by backend)
+   * Legacy compatibility - message color is now managed via backend API
    */
-  async updateUserMessageColor(newColor, currentUser) {
-    // This method is deprecated - message color is now managed via backend API
-    // Keeping for backward compatibility but delegating to backend API
-    try {
-      const response = await fetch(`${AUTH_BASE_URL}/api/auth/profile/message-color`, {
-        method: 'PATCH',
-        credentials: 'include',
-        headers: { 
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ color: newColor })
-      });
-      
-      const result = await response.json();
-      
-      if (!response.ok || !result.success) {
-        throw new Error(result.message || 'Message Color Update fehlgeschlagen');
-      }
-      
-      return result.messageColor;
-    } catch (err) {
-      throw err;
-    }
-  },
-
-  /**
-   * Sync user session from Supabase (if using templates database)
-   */
-  async getSupabaseSession() {
-    if (!templatesSupabase) {
-      return null;
-    }
-
-    try {
-      const { data: { session }, error } = await templatesSupabase.auth.getSession();
-      if (error) throw error;
-      return session;
-    } catch (err) {
-      return null;
-    }
-  },
-
-  /**
-   * Set up Supabase auth state change listener
-   */
-  setupSupabaseAuthListener(callback) {
-    if (!templatesSupabase) {
-      return () => {}; // Return empty cleanup function
-    }
-
-    const { data: { subscription } } = templatesSupabase.auth.onAuthStateChange((event, session) => {
-      callback(event, session);
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
+  async updateUserMessageColor(newColor) {
+    console.warn('[AuthStore] updateUserMessageColor is deprecated, use updateMessageColor instead');
+    // Delegate to new implementation
+    const store = useAuthStore.getState();
+    return store.updateMessageColor(newColor);
   }
 };
 
@@ -141,10 +69,9 @@ const loadPersistedAuthState = () => {
         return {
           user: authState.user,
           isAuthenticated: authState.isAuthenticated,
-          betaFeatures: authState.betaFeatures || {},
           selectedMessageColor: authState.selectedMessageColor || '#008939',
-          deutschlandmodus: authState.deutschlandmodus || null,
           memoryEnabled: authState.memoryEnabled || false,
+          igelModus: authState.igelModus || false,
           isLoading: false, // Don't start in loading state if we have persisted data
         };
       } else {
@@ -166,10 +93,9 @@ const persistAuthState = (authState) => {
       authState: {
         user: authState.user,
         isAuthenticated: authState.isAuthenticated,
-        betaFeatures: authState.betaFeatures,
         selectedMessageColor: authState.selectedMessageColor,
-        deutschlandmodus: authState.deutschlandmodus,
         memoryEnabled: authState.memoryEnabled,
+        igelModus: authState.igelModus,
       },
       timestamp: Date.now(),
       cacheVersion: AUTH_CACHE_VERSION,
@@ -189,10 +115,6 @@ const persistAuthState = (authState) => {
 // Load initial state from localStorage if available
 const persistedState = loadPersistedAuthState();
 
-// Debounce system for beta feature updates
-let betaFeatureUpdateTimeout = null;
-let pendingBetaUpdates = {};
-
 /**
  * Zustand store for authentication state management
  * Uses Authentik SSO for authentication and Supabase for user metadata/preferences
@@ -205,13 +127,13 @@ export const useAuthStore = create((set, get) => ({
   error: null,
   isLoggingOut: false, // New state to track logout in progress
   
-  // Beta features and other user metadata
-  betaFeatures: persistedState?.betaFeatures || {},
   selectedMessageColor: persistedState?.selectedMessageColor || '#008939', // Default Klee
-  deutschlandmodus: persistedState?.deutschlandmodus || null,
   
   // Memory preferences
   memoryEnabled: persistedState?.memoryEnabled || false, // Default OFF
+  
+  // Igel-Modus (Grüne Jugend membership)
+  igelModus: persistedState?.igelModus || false, // Default OFF
 
   // Supabase specific state
   supabaseSession: null,
@@ -219,23 +141,16 @@ export const useAuthStore = create((set, get) => ({
 
   // Main actions
   setAuthState: (data) => {
-    // Immediately set the session in the Supabase client if available.
-    // This is crucial to ensure subsequent requests are authenticated.
-    if (data.supabaseSession) {
-      setTemplatesSupabaseSession(data.supabaseSession);
-    }
-
     set({
       user: data.user,
       isAuthenticated: data.isAuthenticated,
       isLoading: false,
       error: null,
       supabaseSession: data.supabaseSession || null,
-      // Extract beta features and color from user metadata if available
-      betaFeatures: data.user?.user_metadata?.beta_features || {},
+      // Extract color from user metadata if available
       selectedMessageColor: data.user?.user_metadata?.chat_color || '#008939',
-      deutschlandmodus: data.user?.user_metadata?.deutschlandmodus || null,
       memoryEnabled: data.user?.user_metadata?.memory_enabled || false,
+      igelModus: data.user?.igel_modus || false, // Read from profiles table instead of user_metadata
     });
   },
 
@@ -264,18 +179,10 @@ export const useAuthStore = create((set, get) => ({
     // Clear React Query cache to prevent stale auth data
     if (typeof window !== 'undefined' && window.queryClient) {
       window.queryClient.removeQueries({ queryKey: ['authStatus'] });
-      window.queryClient.removeQueries({ queryKey: ['betaFeatures'] });
       window.queryClient.clear();
     }
     
-    // Clear Supabase session if available
-    if (typeof window !== 'undefined' && window.templatesSupabase) {
-      try {
-        window.templatesSupabase.auth.signOut();
-      } catch (error) {
-        // Ignore Supabase signout errors
-      }
-    }
+    // Legacy cleanup - no longer needed with new auth system
     
     // Reset store to default state
     set({
@@ -284,10 +191,9 @@ export const useAuthStore = create((set, get) => ({
       isLoading: false,
       error: null,
       isLoggingOut: false,
-      betaFeatures: {},
       selectedMessageColor: '#008939',
-      deutschlandmodus: null,
       memoryEnabled: false,
+      igelModus: false,
       supabaseSession: null,
       _supabaseAuthCleanup: null,
     });
@@ -304,10 +210,9 @@ export const useAuthStore = create((set, get) => ({
     if (user?.user_metadata) {
       const metadata = user.user_metadata;
       set((state) => ({
-        betaFeatures: metadata.beta_features || state.betaFeatures,
         selectedMessageColor: metadata.chat_color || state.selectedMessageColor,
-        deutschlandmodus: metadata.deutschlandmodus ?? state.deutschlandmodus,
         memoryEnabled: metadata.memory_enabled ?? state.memoryEnabled,
+        igelModus: metadata.igel_modus ?? state.igelModus,
       }));
     }
   },
@@ -315,7 +220,7 @@ export const useAuthStore = create((set, get) => ({
   // Profile management via Backend API
   updateProfile: async (profileData) => {
     try {
-      const response = await fetch(`${AUTH_BASE_URL}/api/auth/profile`, {
+      const response = await fetch(`${AUTH_BASE_URL}/auth/profile`, {
         method: 'PUT',
         credentials: 'include',
         headers: { 
@@ -344,7 +249,7 @@ export const useAuthStore = create((set, get) => ({
   // Avatar update via Backend API
   updateAvatar: async (avatarRobotId) => {
     try {
-      const response = await fetch(`${AUTH_BASE_URL}/api/auth/profile/avatar`, {
+      const response = await fetch(`${AUTH_BASE_URL}/auth/profile/avatar`, {
         method: 'PATCH',
         credentials: 'include',
         headers: { 
@@ -370,53 +275,6 @@ export const useAuthStore = create((set, get) => ({
     }
   },
 
-  // Beta features management via Backend API
-  updateBetaFeatures: (features) => set((state) => ({
-    betaFeatures: { ...state.betaFeatures, ...features }
-  })),
-
-  updateBetaFeature: async (key, value, immediate = false) => {
-    const dedupKey = `${key}_${immediate}`;
-    
-    // Optimistic Update
-    set(state => ({ betaFeatures: { ...state.betaFeatures, [key]: value } }));
-    
-    // Use backend API instead of direct Supabase calls
-    return fetchWithDedup(dedupKey, async () => {
-      try {
-        const response = await fetch(`${AUTH_BASE_URL}/api/auth/profile/beta-features`, {
-          method: 'PATCH',
-          credentials: 'include',
-          headers: { 
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ feature: key, enabled: value })
-        });
-        
-        const result = await response.json();
-        
-        if (!response.ok || !result.success) {
-          throw new Error(result.message || 'Beta Feature Update fehlgeschlagen');
-        }
-        
-        // Update beta features in store
-        set(state => ({
-          betaFeatures: result.betaFeatures
-        }));
-        
-        // Invalidate React Query cache for beta features
-        if (typeof window !== 'undefined' && window.queryClient) {
-          window.queryClient.invalidateQueries({ queryKey: ['betaFeatures'] });
-        }
-        
-        return result.betaFeatures;
-      } catch (error) {
-        // Revert on error
-        set(state => ({ betaFeatures: { ...state.betaFeatures, [key]: !value } }));
-        throw error;
-      }
-    });
-  },
 
   // Message color management via Backend API
   updateMessageColor: async (color) => {
@@ -424,7 +282,7 @@ export const useAuthStore = create((set, get) => ({
     set({ selectedMessageColor: color });
 
     try {
-      const response = await fetch(`${AUTH_BASE_URL}/api/auth/profile/message-color`, {
+      const response = await fetch(`${AUTH_BASE_URL}/auth/profile/message-color`, {
         method: 'PATCH',
         credentials: 'include',
         headers: { 
@@ -463,7 +321,7 @@ export const useAuthStore = create((set, get) => ({
     set({ memoryEnabled: enabled });
 
     try {
-      const response = await fetch(`${AUTH_BASE_URL}/api/auth/profile/memory-settings`, {
+      const response = await fetch(`${AUTH_BASE_URL}/auth/profile/memory-settings`, {
         method: 'PATCH',
         credentials: 'include',
         headers: { 
@@ -486,96 +344,54 @@ export const useAuthStore = create((set, get) => ({
     }
   },
 
-  // Handle failed backend session creation with frontend fallback
-  handleFailedBackendSession: async (user) => {
-    if (!templatesSupabase || !user?.email) {
-      return;
-    }
+  // Igel-Modus (Grüne Jugend membership) management via Backend API
+  setIgelModus: async (enabled) => {
+    // Optimistic update
+    set({ igelModus: enabled });
 
     try {
-      // Try to sign in using the email (this will trigger RLS with the correct user)
-      // This works because the user already exists in Supabase auth.users table
-      const { data: existingSession } = await templatesSupabase.auth.getSession();
-      
-      if (existingSession?.session) {
-        get().setSupabaseSession(existingSession.session);
-        return;
-      }
-
-      // If no existing session, try to refresh or get user data directly
-      const { data: userData, error: userError } = await templatesSupabase.auth.getUser();
-      
-      if (!userError && userData?.user) {
-        // Sometimes the session exists but getSession doesn't return it immediately
-        setTimeout(async () => {
-          const { data: retrySession } = await templatesSupabase.auth.getSession();
-          if (retrySession?.session) {
-            get().setSupabaseSession(retrySession.session);
-          }
-        }, 1000);
-        return;
-      }
-      
-    } catch (error) {
-      // Failed to create frontend session fallback
-    }
-  },
-
-  // Initialize Supabase auth state (call this after Authentik auth is established)
-  initializeSupabaseAuth: async () => {
-    try {
-      const session = await supabaseHelpers.getSupabaseSession();
-      
-      if (session) {
-        get().setSupabaseSession(session);
-        
-        // Update user metadata from Supabase session
-        const user = session.user;
-        if (user?.user_metadata) {
-          set((state) => ({
-            betaFeatures: user.user_metadata.beta_features || state.betaFeatures,
-            selectedMessageColor: user.user_metadata.chat_color || state.selectedMessageColor,
-            deutschlandmodus: user.user_metadata.deutschlandmodus ?? state.deutschlandmodus,
-            memoryEnabled: user.user_metadata.memory_enabled ?? state.memoryEnabled,
-          }));
-        }
-      }
-
-      // Set up auth state change listener
-      const cleanup = supabaseHelpers.setupSupabaseAuthListener((event, session) => {
-        get().setSupabaseSession(session);
-        
-        if (session?.user?.user_metadata) {
-          const metadata = session.user.user_metadata;
-          set((state) => ({
-            betaFeatures: metadata.beta_features || state.betaFeatures,
-            selectedMessageColor: metadata.chat_color || state.selectedMessageColor,
-            deutschlandmodus: metadata.deutschlandmodus ?? state.deutschlandmodus,
-            memoryEnabled: metadata.memory_enabled ?? state.memoryEnabled,
-          }));
-        }
+      const response = await fetch(`${AUTH_BASE_URL}/auth/profile/igel-modus`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ igel_modus: enabled })
       });
-
-      // Store cleanup function for later use
-      set({ _supabaseAuthCleanup: cleanup });
-
+      
+      const result = await response.json();
+      
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || 'Igel-Modus Update fehlgeschlagen');
+      }
+      
+      return result.igelModus;
     } catch (error) {
-      // Failed to initialize Supabase auth
+      // Revert optimistic update on failure
+      set({ igelModus: !enabled });
+      throw error;
     }
   },
 
-  // Cleanup Supabase auth listener
+  // Legacy compatibility methods (deprecated with new auth system)
+  handleFailedBackendSession: async () => {
+    console.warn('[AuthStore] handleFailedBackendSession is deprecated - backend now handles session creation');
+    // No longer needed with new auth system
+  },
+
+  initializeSupabaseAuth: async () => {
+    console.warn('[AuthStore] initializeSupabaseAuth is deprecated - auth handled via backend');
+    // No longer needed with new auth system
+  },
+
   cleanupSupabaseAuth: () => {
-    const state = get();
-    if (state._supabaseAuthCleanup) {
-      state._supabaseAuthCleanup();
-      set({ _supabaseAuthCleanup: null });
-    }
+    console.warn('[AuthStore] cleanupSupabaseAuth is deprecated');
+    // No longer needed with new auth system
   },
 
   // Auth actions (these now redirect to backend endpoints)
   login: () => {
-    const authUrl = `${AUTH_BASE_URL}/api/auth/login`;
+    const authUrl = `${AUTH_BASE_URL}/auth/login`;
     window.location.href = authUrl;
   },
 
@@ -609,7 +425,7 @@ export const useAuthStore = create((set, get) => ({
       }
       
       // Step 3: Call backend logout API FIRST (before clearing local state)
-      const authUrl = `${AUTH_BASE_URL}/api/auth/logout`;
+      const authUrl = `${AUTH_BASE_URL}/auth/logout`;
       console.log('[AuthStore] Calling backend logout API...');
       
       let backendResponse = null;
@@ -694,7 +510,7 @@ export const useAuthStore = create((set, get) => ({
       // Step 6: Verify logout completion (optional verification)
       try {
         console.log('[AuthStore] Verifying logout completion...');
-        const statusResponse = await fetch(`${AUTH_BASE_URL}/api/auth/status`, {
+        const statusResponse = await fetch(`${AUTH_BASE_URL}/auth/status`, {
           credentials: 'include',
           method: 'GET'
         });
@@ -745,7 +561,7 @@ export const useAuthStore = create((set, get) => ({
   // Account deletion for gruenerator users
   deleteAccount: async (confirmationData) => {
     try {
-      const authUrl = `${AUTH_BASE_URL}/api/auth/delete-account`;
+      const authUrl = `${AUTH_BASE_URL}/auth/delete-account`;
       const response = await fetch(authUrl, {
         method: 'DELETE',
         credentials: 'include',
@@ -780,7 +596,7 @@ export const useAuthStore = create((set, get) => ({
   // Password reset request for gruenerator users
   sendPasswordResetEmail: async (email) => {
     try {
-      const authUrl = `${AUTH_BASE_URL}/api/auth/reset-password`;
+      const authUrl = `${AUTH_BASE_URL}/auth/reset-password`;
       const response = await fetch(authUrl, {
         method: 'POST',
         credentials: 'include',
@@ -835,8 +651,8 @@ export const useAuthStore = create((set, get) => ({
   },
 }));
 
-// Export helpers for use in other parts of the application
-export { supabaseHelpers }; 
+// Export legacy helpers for backward compatibility
+export { legacyHelpers as supabaseHelpers }; 
 
 // Subscribe to changes and persist them to localStorage
 useAuthStore.subscribe(
@@ -849,19 +665,14 @@ useAuthStore.subscribe(
   (state) => ({ 
     user: state.user, 
     isAuthenticated: state.isAuthenticated,
-    betaFeatures: state.betaFeatures,
     selectedMessageColor: state.selectedMessageColor,
-    deutschlandmodus: state.deutschlandmodus,
     memoryEnabled: state.memoryEnabled,
+    igelModus: state.igelModus,
   })
 );
 
-// Initialize Supabase listener when the store is created
-const initialize = () => {
-  const { initializeSupabaseAuth } = useAuthStore.getState();
-  initializeSupabaseAuth();
-};
-initialize();
+// Legacy initialization - no longer needed with new auth system
+// Auth state is now managed via backend API calls in useAuth hook
 
 // Helper to set login intent (clears logout timestamp)
 const setLoginIntent = () => {
@@ -874,11 +685,3 @@ const setLoginIntent = () => {
   }
 };
 
-// Helper to clear login intent
-const clearLoginIntent = () => {
-  try {
-    localStorage.removeItem(LOGIN_INTENT_KEY);
-  } catch (error) {
-    // Ignore localStorage errors
-  }
-};

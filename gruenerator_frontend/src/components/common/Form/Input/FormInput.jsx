@@ -22,6 +22,7 @@ const FormInput = ({
   defaultValue = '',
   inputProps = {},
   labelProps = {},
+  tabIndex,
   ...rest
 }) => {
   const inputId = `form-input-${name}`;
@@ -49,6 +50,7 @@ const FormInput = ({
           disabled={disabled}
           className={inputClassName}
           value={value}
+          tabIndex={tabIndex}
           onChange={(e) => {
             const newVal = e.target.value;
             setField(name, newVal);
@@ -85,6 +87,7 @@ const FormInput = ({
             placeholder={placeholder}
             disabled={disabled}
             className={`${inputClassName} ${error ? 'error-input' : ''}`.trim()}
+            tabIndex={tabIndex}
             onChange={(e) => {
               const value = e.target.value;
               field.onChange(value);
@@ -114,7 +117,8 @@ FormInput.propTypes = {
   rules: PropTypes.object,
   defaultValue: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
   inputProps: PropTypes.object,
-  labelProps: PropTypes.object
+  labelProps: PropTypes.object,
+  tabIndex: PropTypes.number
 };
 
 export default FormInput; 

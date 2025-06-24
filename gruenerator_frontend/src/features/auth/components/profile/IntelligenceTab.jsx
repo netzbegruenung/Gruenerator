@@ -336,22 +336,22 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
         const isDevelopment = import.meta.env.VITE_APP_ENV === 'development';
         
         return (
-            <div className="groups-vertical-navigation">
+            <div className="profile-vertical-navigation">
                 <button
-                    className={`groups-vertical-tab ${currentView === 'anweisungen' ? 'active' : ''}`}
+                    className={`profile-vertical-tab ${currentView === 'anweisungen' ? 'active' : ''}`}
                     onClick={() => handleTabClick('anweisungen')}
                 >
                     Anweisungen
                 </button>
                 <button
-                    className={`groups-vertical-tab ${currentView === 'wissen' ? 'active' : ''}`}
+                    className={`profile-vertical-tab ${currentView === 'wissen' ? 'active' : ''}`}
                     onClick={() => handleTabClick('wissen')}
                 >
                     Wissen
                 </button>
                 {isDevelopment && (
                     <button
-                        className={`groups-vertical-tab ${currentView === 'mem0ry' ? 'active' : ''}`}
+                        className={`profile-vertical-tab ${currentView === 'mem0ry' ? 'active' : ''}`}
                         onClick={() => handleTabClick('mem0ry')}
                     >
                         Mem0ry
@@ -364,16 +364,16 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
     return (
         <FormProvider {...formMethods}>
             <motion.div 
-                className="profile-content groups-management-layout"
+                className="profile-content profile-management-layout"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.3 }}
             >
-                <div className="groups-navigation-panel">
+                <div className="profile-navigation-panel">
                     {renderNavigationPanel()}
                 </div>
-                <div className="groups-content-panel profile-form-section">
-                    <div className="group-content-card">
+                <div className="profile-content-panel profile-form-section">
+                    <div className="profile-content-card">
                         <div className="auth-form">
                             {currentView === 'anweisungen' && (
                                 <div className="profile-cards-grid">

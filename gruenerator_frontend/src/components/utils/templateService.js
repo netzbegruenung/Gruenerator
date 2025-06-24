@@ -1,20 +1,13 @@
-import { templatesSupabase, templatesSupabaseUtils } from './templatesSupabaseClient';
 import { handleError } from './errorHandling';
 
-// Define the bucket name here for reuse
-const imageBucketName = 'templateimages';
+// Auth Backend URL aus Environment Variable oder Fallback zu aktuellem Host
+const AUTH_BASE_URL = import.meta.env.VITE_AUTH_BASE_URL || '';
 
 // Helper function to generate public URL safely
 const getPublicImageUrl = (relativePath) => {
   if (!relativePath) return null; // Return null if path is empty or null
-  try {
-    const { data } = templatesSupabase.storage.from(imageBucketName).getPublicUrl(relativePath);
-    // Check if data exists and has publicUrl property
-    return data?.publicUrl || null; 
-  } catch (error) {
-    console.error(`Error generating public URL for ${relativePath}:`, error);
-    return null; // Return null on error
-  }
+  // For backend API, assume the URL is already public or handled by backend
+  return relativePath.startsWith('http') ? relativePath : `${AUTH_BASE_URL}/api/templates/images/${relativePath}`;
 };
 
 export const templateService = {
@@ -24,36 +17,25 @@ export const templateService = {
    */
   async getTemplates() {
     try {
-      const { data, error } = await templatesSupabase
-        .from('canva_templates')
-        .select(`
-          *, 
-          canva_template_images!canva_template_images_template_id_fkey(
-            id, url, alt, display_order 
-          ),
-          template_to_categories!inner(
-            category_id,
-            template_categories (
-              id,
-              label
-            )
-          ),
-          template_to_tags!inner(
-            tag_id,
-            template_tags (
-              id,
-              name
-            )
-          )
-        `)
-        .order('created_at', { ascending: false });
+      const response = await fetch(`${AUTH_BASE_URL}/api/templates`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ message: 'Failed to fetch templates' }));
+        throw new Error(error.message || 'Fehler beim Abrufen der Templates');
+      }
       
-      if (error) throw error;
+      const data = await response.json();
       
       // Transformiere die Daten in das im Frontend erwartete Format
       return data.map(template => {
-        const images = template.canva_template_images 
-          ? template.canva_template_images
+        const images = template.canva_template_images || template.images
+          ? (template.canva_template_images || template.images)
               .sort((a, b) => a.display_order - b.display_order)
               .map(img => ({
                 ...img,
@@ -65,17 +47,17 @@ export const templateService = {
           : [];
 
         // Extract category IDs from the join table structure
-        const categories = template.template_to_categories
-          ? template.template_to_categories
-              .filter(jtc => jtc.template_categories) // Ensure the nested category object exists
-              .map(jtc => jtc.template_categories.id) // Map to the category ID
+        const categories = template.template_to_categories || template.categories
+          ? (template.template_to_categories || template.categories)
+              .filter(jtc => jtc.template_categories || jtc.id) // Ensure the nested category object exists
+              .map(jtc => jtc.template_categories?.id || jtc.id) // Map to the category ID
           : [];
 
         // Extract tag names using the correct table name 'template_tags'
-        const tags = template.template_to_tags
-          ? template.template_to_tags
-              .filter(jtt => jtt.template_tags) // Check for the nested 'template_tags' object
-              .map(jtt => jtt.template_tags.name) // Map to the name within 'template_tags'
+        const tags = template.template_to_tags || template.tags
+          ? (template.template_to_tags || template.tags)
+              .filter(jtt => jtt.template_tags || jtt.name) // Check for the nested 'template_tags' object
+              .map(jtt => jtt.template_tags?.name || jtt.name) // Map to the name within 'template_tags'
           : [];
 
         return {
@@ -83,7 +65,7 @@ export const templateService = {
           images: images,
           category: categories, // Use the extracted category IDs
           tags: tags,           // Use the extracted tag names
-          canvaUrl: template.canvaurl // Ensure canvaUrl field name matches the database column name
+          canvaUrl: template.canvaurl || template.canva_url // Ensure canvaUrl field name matches the database column name
         };
       });
     } catch (error) {
@@ -99,29 +81,30 @@ export const templateService = {
    */
   async getTemplatesByCategory(categoryId) {
     try {
-      const { data, error } = await templatesSupabase
-        .from('canva_templates')
-        .select(`
-          *,
-          canva_template_images!canva_template_images_template_id_fkey(id, url, alt, display_order),
-          template_to_categories!inner(
-            category_id, 
-            template_categories(id, label)
-          ),
-          template_to_tags!inner(
-            tag_id, 
-            template_tags(id, name) // Use the correct table name 'template_tags'
-          )
-        `)
-        .eq('template_to_categories.category_id', categoryId) 
-        .order('created_at', { ascending: false });
+      const url = new URL(`${AUTH_BASE_URL}/api/templates`);
+      if (categoryId) {
+        url.searchParams.append('categoryId', categoryId);
+      }
 
-      if (error) throw error;
+      const response = await fetch(url, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ message: 'Failed to fetch templates by category' }));
+        throw new Error(error.message || 'Fehler beim Filtern der Templates nach Kategorie');
+      }
+      
+      const data = await response.json();
       
       // Transform data (similar to getTemplates)
       return data.map(template => {
-         const images = template.canva_template_images
-          ? template.canva_template_images
+         const images = template.canva_template_images || template.images
+          ? (template.canva_template_images || template.images)
               .sort((a, b) => a.display_order - b.display_order)
               .map(img => ({
                 ...img,
@@ -130,17 +113,17 @@ export const templateService = {
               .filter(img => img.url !== null)
           : [];
         
-        const categories = template.template_to_categories
-          ? template.template_to_categories
-              .filter(jtc => jtc.template_categories)
-              .map(jtc => jtc.template_categories.id)
+        const categories = template.template_to_categories || template.categories
+          ? (template.template_to_categories || template.categories)
+              .filter(jtc => jtc.template_categories || jtc.id)
+              .map(jtc => jtc.template_categories?.id || jtc.id)
           : [];
 
         // Extract tag names using the correct table name 'template_tags'
-        const tags = template.template_to_tags
-          ? template.template_to_tags
-              .filter(jtt => jtt.template_tags) // Check for the nested 'template_tags' object
-              .map(jtt => jtt.template_tags.name) // Map to the name within 'template_tags'
+        const tags = template.template_to_tags || template.tags
+          ? (template.template_to_tags || template.tags)
+              .filter(jtt => jtt.template_tags || jtt.name) // Check for the nested 'template_tags' object
+              .map(jtt => jtt.template_tags?.name || jtt.name) // Map to the name within 'template_tags'
           : [];
 
         return {
@@ -148,7 +131,7 @@ export const templateService = {
           images: images,
           category: categories, 
           tags: tags,
-          canvaUrl: template.canvaurl 
+          canvaUrl: template.canvaurl || template.canva_url
         };
       });
     } catch (error) {
@@ -163,13 +146,20 @@ export const templateService = {
    */
   async getCategories() {
     try {
-      // Assuming categories table has 'id' and 'label' fields
-      const { data, error } = await templatesSupabase
-        .from('template_categories')
-        .select('id, label') 
-        .order('label', { ascending: true }); // Optional: order categories alphabetically
+      const response = await fetch(`${AUTH_BASE_URL}/api/templates/categories`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ message: 'Failed to fetch categories' }));
+        throw new Error(error.message || 'Fehler beim Abrufen der Kategorien');
+      }
         
-      if (error) throw error;
+      const data = await response.json();
       return data || []; // Return fetched data or an empty array
 
     } catch (error) {

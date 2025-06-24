@@ -26,9 +26,11 @@ const searchAnalysisRouter = require('./routes/search/searchAnalysis');
 const subtitlerRouter = require('./routes/subtitler/subtitlerController');
 const subtitlerSocialRouter = require('./routes/subtitler/subtitlerSocialController');
 const voiceRouter = require('./routes/voice/voiceController');
-const customGeneratorRoute = require('./routes/custom_generator');
-const generatorConfiguratorRoute = require('./routes/generator_configurator');
+// customGeneratorRoute and generatorConfiguratorRoute will be imported as ES6 modules
+// const customGeneratorRoute = require('./routes/custom_generator');
+// const generatorConfiguratorRoute = require('./routes/generator_configurator');
 const claudeSubtitlesRoute = require('./routes/claude_subtitles');
+// claudeGrueneratorAskRoute will be imported dynamically (ES6 module)
 const { tusServer } = require('./routes/subtitler/services/tusService');
 const collabEditorRouter = require('./routes/collabEditor'); // Import the new collab editor route
 const snapshottingRouter = require('./routes/internal/snapshottingController'); // Import the new snapshotting controller
@@ -65,6 +67,9 @@ async function setupRoutes(app) {
   const { default: authCore } = await import('./routes/auth/authCore.mjs');
   const { default: userProfile } = await import('./routes/auth/userProfile.mjs');
   const { default: userContent } = await import('./routes/auth/userContent.mjs');
+  const { default: userGroups } = await import('./routes/auth/userGroups.mjs');
+  const { default: userCustomGenerators } = await import('./routes/auth/userCustomGenerators.mjs');
+  const { default: documentsRouter } = await import('./routes/documents.mjs');
   // Try to import mem0Router, fall back to null if not available
   let mem0Router = null;
   try {
@@ -76,10 +81,29 @@ async function setupRoutes(app) {
   
   // Import claude_social as ES6 module
   const { default: claudeSocialRoute } = await import('./routes/claude_social.js');
+  // Import claude_gruenerator_ask as ES6 module
+  const { default: claudeGrueneratorAskRoute } = await import('./routes/claude_gruenerator_ask.js');
+  // Import claude_gruenerator_ask_grundsatz as ES6 module
+  const { default: claudeGrueneratorAskGrundsatzRoute } = await import('./routes/claude_gruenerator_ask_grundsatz.js');
+  // Import custom generator routes as ES6 modules
+  const { default: customGeneratorRoute } = await import('./routes/custom_generator.mjs');
+  const { default: generatorConfiguratorRoute } = await import('./routes/generator_configurator.mjs');
+  // Import Q&A routes as ES6 modules
+  const { default: qaCollectionsRouter } = await import('./routes/qaCollections.mjs');
+  const { default: qaInteractionRouter } = await import('./routes/qaInteraction.mjs');
   
   app.use('/api/auth', authCore);
   app.use('/api/auth', userProfile);
   app.use('/api/auth', userContent);
+  app.use('/api/auth', userGroups);
+  app.use('/api/auth', userCustomGenerators);
+  app.use('/api/auth/qa-collections', qaCollectionsRouter);
+  app.use('/api/auth/qa', qaInteractionRouter);
+  app.use('/api/documents', documentsRouter);
+
+  // Import and use userTexts route (ES6 module)
+  const userTextsRouter = await import('./routes/userTexts.mjs');
+  app.use('/api/user-texts', userTextsRouter.default);
   
   // Use the single consolidated router for all /api/antraege paths
   app.use('/api/antraege', antraegeRouter);
@@ -107,6 +131,8 @@ async function setupRoutes(app) {
   app.use('/api/claude_kandidat', claudeKandidatRoute);
   app.use('/api/claude_universal', universalRouter);
   app.use('/api/claude_gruene_jugend', claudeGrueneJugendRoute);
+  app.use('/api/claude_gruenerator_ask', claudeGrueneratorAskRoute);
+  app.use('/api/claude_gruenerator_ask_grundsatz', claudeGrueneratorAskGrundsatzRoute);
   app.use('/api/you', claudeYouRoute);
   app.use('/api/custom_generator', customGeneratorRoute);
   app.use('/api/generate_generator_config', generatorConfiguratorRoute);

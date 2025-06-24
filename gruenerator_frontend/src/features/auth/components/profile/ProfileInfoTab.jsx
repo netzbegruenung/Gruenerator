@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import debounce from 'lodash.debounce';
 import Spinner from '../../../../components/common/Spinner';
 import TextInput from '../../../../components/common/Form/Input/TextInput';
+import FeatureToggle from '../../../../components/common/FeatureToggle';
 import { 
   getAvatarDisplayProps, 
   useProfileData, 
@@ -13,6 +14,7 @@ import { useOptimizedAuth } from '../../../../hooks/useAuth';
 import AvatarSelectionModal from './AvatarSelectionModal';
 import HelpTooltip from '../../../../components/common/HelpTooltip';
 import { motion } from "motion/react";
+import { GiHedgehog } from "react-icons/gi";
 
 const ProfileInfoTab = ({ 
   user: userProp, 
@@ -24,7 +26,13 @@ const ProfileInfoTab = ({
   const queryClient = useQueryClient();
   
   // Get user from auth hook as fallback if prop is not provided
-  const { user: authUser, loading: authLoading, isAuthenticated } = useOptimizedAuth();
+  const { 
+    user: authUser, 
+    loading: authLoading, 
+    isAuthenticated,
+    igelModus,
+    setIgelModus
+  } = useOptimizedAuth();
   const user = userProp || authUser;
   
   // Business logic hooks from profileUtils
@@ -142,6 +150,15 @@ const ProfileInfoTab = ({
       }));
     } catch (error) {
       onErrorProfileMessage('Fehler beim Aktualisieren des Avatars.');
+    }
+  };
+
+  const handleIgelModusToggle = async (enabled) => {
+    try {
+      await setIgelModus(enabled);
+      onSuccessMessage(enabled ? 'Igel-Modus aktiviert! Du bist jetzt Mitglied der Grünen Jugend.' : 'Igel-Modus deaktiviert.');
+    } catch (error) {
+      onErrorProfileMessage(error.message || 'Fehler beim Aktualisieren des Igel-Modus.');
     }
   };
 
@@ -333,6 +350,20 @@ const ProfileInfoTab = ({
             <div className="form-help-text">
               {isSaving ? 'Wird gespeichert...' : 'Änderungen werden automatisch gespeichert'}
             </div>
+          </div>
+
+          <hr className="form-divider" />
+          
+          <div className="form-group">
+            <div className="form-group-title">Mitgliedschaften</div>
+            <FeatureToggle
+              isActive={igelModus}
+              onToggle={handleIgelModusToggle}
+              label="Igel-Modus"
+              icon={GiHedgehog}
+              description="Aktiviere den Igel-Modus, um als Mitglied der Grünen Jugend erkannt zu werden. Dies beeinflusst deine Erfahrung und verfügbare Funktionen."
+              className="igel-modus-toggle"
+            />
           </div>
 
           {canManageCurrentAccount && !showDeleteAccountForm && (

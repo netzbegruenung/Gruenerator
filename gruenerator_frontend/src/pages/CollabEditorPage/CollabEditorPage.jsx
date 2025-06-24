@@ -1,21 +1,25 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { useParams } from 'react-router-dom';
-import CollabHeader from './CollabHeader';
+import { useParams, useLocation } from 'react-router-dom';
+import FloatingToolbar from './FloatingToolbar';
 import EditorChat from '../../components/common/editor/EditorChatnew';
 import QuillYjsEditor from '../../components/common/editor/collab/QuillYjsEditor';
-import { CollabEditorProvider, useCollabEditor } from '../../context/CollabEditorContext';
-import { FormContext } from '../../components/utils/FormContext';
+import useCollabEditorStore from '../../stores/collabEditorStore';
 import apiClient from '../../components/utils/apiClient';
 import { applyHighlightWithAnimation, removeAllHighlights as removeAllQuillHighlights, applyNewTextHighlight } from '../../components/common/editor/utils/highlightUtils';
 import Quill from 'quill'; // Import Quill for temp instance in handleAiResponse
 import CollabEditorSkeleton from './CollabEditorSkeleton'; // NEU: Import Skeleton
 import { useOptimizedAuth } from '../../hooks/useAuth';
+import { useBetaFeatures } from '../../hooks/useBetaFeatures';
 import useGeneratedTextStore from '../../stores/core/generatedTextStore';
 import { Link } from 'react-router-dom';
 
 const CollabEditorPage = () => {
   const { documentId } = useParams();
-  const { user, loading: authLoading, betaFeatures, isLoadingBetaFeatures, isAuthResolved } = useOptimizedAuth();
+  const location = useLocation();
+  const isPreviewMode = location.pathname.includes('/preview');
+  const { user, loading: authLoading, isAuthResolved } = useOptimizedAuth();
+  const { betaFeatures, isLoading: isLoadingBetaFeatures } = useBetaFeatures();
+  const { cleanup } = useCollabEditorStore();
   const [initialContent, setInitialContent] = useState(undefined); // Start with undefined
   const [isLoadingContent, setIsLoadingContent] = useState(true);
   const [errorLoadingContent, setErrorLoadingContent] = useState(null);
@@ -30,30 +34,25 @@ const CollabEditorPage = () => {
   // Check if user has access to collab feature
   const hasCollabAccess = betaFeatures?.collab === true;
 
-  // If still loading auth or beta features, show skeleton
-  if (authLoading || isLoadingBetaFeatures || !isAuthResolved) {
-    return <CollabEditorSkeleton />;
-  }
+  // Authentication logic: require login for collaboration mode, allow public access for preview mode
+  useEffect(() => {
+    if (!isPreviewMode && !user && isAuthResolved) {
+      // Redirect to login for collaboration mode without authentication
+      window.location.href = '/login';
+      return;
+    }
+  }, [isPreviewMode, user, isAuthResolved]);
 
-  // If no access to collab feature, show error message
-  if (!hasCollabAccess) {
-    return (
-      <div className="collab-editor-overlay">
-        <div className="collab-editor-content collab-editor-error">
-          <h2>Zugriff verweigert</h2>
-          <p>Die kollaborative Bearbeitung ist ein Beta-Feature, das derzeit nur für Administratoren verfügbar ist.</p>
-          <Link to="/" className="button primary">Zurück zur Startseite</Link>
-        </div>
-      </div>
-    );
-  }
-
+  // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
   useEffect(() => {
     const fetchInitialContent = async () => {
       setIsLoadingContent(true);
       setErrorLoadingContent(null);
       try {
-        const response = await apiClient.get(`/collab-editor/get-doc/${documentId}`);
+        const endpoint = isPreviewMode 
+          ? `/collab-editor/get-doc-preview/${documentId}`
+          : `/collab-editor/get-doc/${documentId}`;
+        const response = await apiClient.get(endpoint);
         setInitialContent(response.data.initialContent || '');
       } catch (err) {
         console.error('Error initializing collaborative document:', err.response?.status || err.message);
@@ -67,7 +66,7 @@ const CollabEditorPage = () => {
     if (documentId) {
       fetchInitialContent();
     }
-  }, [documentId]);
+  }, [documentId, isPreviewMode]);
 
   // Callback for QuillYjsEditor to inform parent about selection changes
   const handleSelectionChange = useCallback((text, range) => {
@@ -119,6 +118,35 @@ const CollabEditorPage = () => {
     };
   }, [highlightedRange]);
 
+  // Cleanup when component unmounts
+  useEffect(() => {
+    return () => {
+      cleanup();
+    };
+  }, [cleanup]);
+
+  // CONDITIONAL RETURNS - AFTER ALL HOOKS
+  // If still loading auth or beta features, show skeleton
+  if (authLoading || isLoadingBetaFeatures || !isAuthResolved) {
+    return <CollabEditorSkeleton />;
+  }
+
+  // If no access to collab feature, show error message
+  if (!hasCollabAccess) {
+    return (
+      <div className="collab-editor-overlay">
+        <div className="collab-editor-content collab-editor-error">
+          <h2>Zugriff verweigert</h2>
+          <p>Die kollaborative Bearbeitung ist ein Beta-Feature, das in deinem Profil aktiviert werden muss.</p>
+          <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+            <Link to="/profile/labor" className="button primary">Zum Profil (Labor)</Link>
+            <Link to="/" className="button secondary">Zurück zur Startseite</Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   let content;
   if (isLoadingContent || initialContent === undefined) {
     content = <CollabEditorSkeleton />; // NEU: Skeleton anzeigen
@@ -141,22 +169,29 @@ const CollabEditorPage = () => {
           setHighlightedRangeState={setHighlightedRange}
           isEditingState={isEditing}
           onSelectionChangeCallback={handleSelectionChange}
+          isPreviewMode={isPreviewMode}
         />
       </div>
     );
   }
 
   return (
-    <CollabEditorProvider documentId={documentId} initialContent={initialContent}>
-      <div className="collab-editor-overlay">
-        <CollabHeader documentId={documentId} />
-        {content}
-      </div>
-    </CollabEditorProvider>
+    <div className={`collab-editor-overlay ${isPreviewMode ? 'preview-mode' : ''}`}>
+      {isPreviewMode && (
+        <div className="preview-mode-banner">
+          <span className="preview-mode-title">👁️ Review-Modus</span>
+          <span className="preview-mode-text">
+            Du befindest dich im Review-Modus. Du kannst Text markieren und Kommentare schreiben, aber nicht bearbeiten.
+          </span>
+        </div>
+      )}
+      {content}
+      <FloatingToolbar documentId={documentId} isPreviewMode={isPreviewMode} />
+    </div>
   );
 };
 
-// Inner component to correctly use useCollabEditor before FormProvider
+// Inner component to use Zustand store for collaborative editor state
 const CollabEditorPageContent = ({
   documentId,
   quillRef,
@@ -166,9 +201,10 @@ const CollabEditorPageContent = ({
   setHighlightedRangeState,
   isEditingState,
   onSelectionChangeCallback,
-  initialContentForEditor
+  initialContentForEditor,
+  isPreviewMode
 }) => {
-  const { ydoc, ytext, provider, awareness, connectionStatus, setQuillInstance } = useCollabEditor();
+  const { ydoc, ytext, provider, awareness, connectionStatus, setQuillInstance } = useCollabEditorStore();
   const { generatedText, setGeneratedText } = useGeneratedTextStore();
   const [isAdjusting, setIsAdjusting] = useState(false);
 
@@ -229,92 +265,43 @@ const CollabEditorPageContent = ({
           setHighlightedRangeState(null); 
           setSelectedTextState('');
         }
-      });
+      }, 'ai-assistant'); // Add AI operation metadata
     } else if (response && response.response) {
       console.log("[CollabEditorPageContent] AI Response (non-adjustment):", response.response);
     }
-  }, [ytext, ydoc, highlightedRangeState, setSelectedTextState, setHighlightedRangeState, quillRef, connectionStatus, setQuillInstance]); // Dependencies: ytext, ydoc, connectionStatus, setQuillInstance
+  }, [ytext, ydoc, highlightedRangeState, setSelectedTextState, setHighlightedRangeState, quillRef, connectionStatus]); // Dependencies: ytext, ydoc, connectionStatus
   
-  // NEU: localFormContextValue mit useMemo stabilisieren
-  const localFormContextValue = useMemo(() => {
-    return {
-      value: generatedText,
-      setValue: (newVal) => { 
-        console.warn("[CollabEditorPageContent] Direct setValue in FormContext is discouraged. Changes should flow via Yjs.");
-        if (ytext && quillRef.current && ydoc) {
-            const currentQuillContent = quillRef.current.root.innerHTML;
-            if (newVal !== currentQuillContent) {
-                ydoc.transact(() => {
-                    if (ytext.length > 0) ytext.delete(0, ytext.length);
-                    const tempQuill = new Quill(document.createElement('div'));
-                    tempQuill.clipboard.dangerouslyPasteHTML(0, newVal);
-                    const delta = tempQuill.getContents();
-                    ytext.applyDelta(delta.ops);
-                });
-            }
-        }
-      },
-      selectedText: selectedTextState,
-      setSelectedText: setSelectedTextState,
-      highlightedRange: highlightedRangeState,
-      setHighlightedRange: setHighlightedRangeState,
-      quillRef, 
-      isEditing: isEditingState,
-      setIsEditing: () => {}, 
-      handleAiResponse, 
-      isAdjusting: isAdjusting, 
-      setIsAdjusting: setIsAdjusting, 
-      activePlatform: null,
-      updateValue: (newVal) => { 
-          console.warn("[CollabEditorPageContent] Direct updateValue in FormContext is discouraged.");
-      },
-      facebookValue: '', instagramValue: '', twitterValue: '', linkedinValue: '', reelScriptValue: '', actionIdeasValue: '',
-      handleAiAdjustment: () => console.log("[CollabEditorPageContent] handleAiAdjustment called (mocked)"),
-      adjustText: () => console.log("[CollabEditorPageContent] adjustText called (mocked)"),
-      error: null, setError: () => {},
-      adjustmentText: '', setAdjustmentText: () => {},
-      removeAllHighlights: () => {
-          if (quillRef.current) {
-              removeAllQuillHighlights(quillRef.current);
-          }
-          setHighlightedRangeState(null);
-      },
-      originalContent: '', setOriginalContent: () => {},
-      setIsApplyingAdjustment: () => {},
-      aiAdjustment: null, setAiAdjustment: () => {},
-
-      hideEditButton: true,
-      
-      
-      knowledgeSourceConfig: { type: 'neutral', id: null, name: 'Neutral' },
-      setKnowledgeSourceConfig: () => {},
-    };
-  }, [
-    generatedText, ytext, ydoc, quillRef,
-    selectedTextState, setSelectedTextState,
-    highlightedRangeState, setHighlightedRangeState,
-    isEditingState, handleAiResponse, 
-    isAdjusting, setIsAdjusting,
-    setQuillInstance
-  ]);
 
   return (
-    <FormContext.Provider value={localFormContextValue}>
-      <div className="collab-editor-main-content">
-        <div className="collab-editor-chat-column">
-          {/* Render EditorChat only if Yjs is ready, or handle loading state inside EditorChat */}
-          {ytext && connectionStatus === 'connected' ? <EditorChat isEditing={isEditingState} isCollabEditor={true} /> : <p>Verbinde Chat...</p>}
-        </div>
-        <div className="collab-editor-quill-column">
-          <QuillYjsEditor 
-            documentId={documentId} 
-            initialContent={initialContentForEditor}
-            onQuillInstanceReady={handleQuillInstanceReady}
-            onSelectionChange={onSelectionChangeCallback}
+    <div className="collab-editor-main-content">
+      <div className="collab-editor-chat-column">
+        {/* Render EditorChat only if Yjs is ready, or handle loading state inside EditorChat */}
+        {ytext && connectionStatus === 'connected' ? (
+          <EditorChat 
+            isEditing={isEditingState} 
+            isCollabEditor={true}
+            isPreviewMode={isPreviewMode}
+            value={generatedText}
+            selectedText={selectedTextState}
+            quillRef={quillRef}
+            isAdjusting={isAdjusting}
+            setIsAdjusting={setIsAdjusting}
+            handleAiResponse={handleAiResponse}
           />
-        </div>
+        ) : (
+          <p>Verbinde Chat...</p>
+        )}
       </div>
-    </FormContext.Provider>
+      <div className="collab-editor-quill-column">
+        <QuillYjsEditor 
+          documentId={documentId} 
+          initialContent={initialContentForEditor}
+          onQuillInstanceReady={handleQuillInstanceReady}
+          onSelectionChange={onSelectionChangeCallback}
+          readOnly={isPreviewMode}
+        />
+      </div>
+    </div>
   );
 }
 

@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
-import { templatesSupabase } from '../components/utils/templatesSupabaseClient';
+
+// Auth Backend URL aus Environment Variable oder Fallback zu aktuellem Host
+const AUTH_BASE_URL = import.meta.env.VITE_AUTH_BASE_URL || '';
 
 export const usePRTextsGallery = () => {
   const [categories, setCategories] = useState([]);
@@ -8,21 +10,23 @@ export const usePRTextsGallery = () => {
 
   useEffect(() => {
     const fetchPRTexts = async () => {
-      if (!templatesSupabase) {
-        setCategories([]);
-        setLoading(false);
-        return;
-      }
-
       try {
         setLoading(true);
-        const { data, error } = await templatesSupabase
-          .from('pr_texts')
-          .select('*')
-          .order('category')
-          .order('title');
+        
+        const response = await fetch(`${AUTH_BASE_URL}/api/pr-texts`, {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
 
-        if (error) throw error;
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({ message: 'Failed to fetch PR texts' }));
+          throw new Error(error.message || 'Fehler beim Laden der PR-Texte');
+        }
+
+        const data = await response.json();
 
         // Group by category
         const groupedData = data.reduce((acc, item) => {

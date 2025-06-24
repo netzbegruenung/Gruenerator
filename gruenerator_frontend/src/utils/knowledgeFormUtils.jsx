@@ -6,6 +6,83 @@ import { createPromptWithMemories } from './promptUtils';
 const AUTH_BASE_URL = import.meta.env.VITE_AUTH_BASE_URL || '';
 
 /**
+ * Search documents for relevant content based on query
+ * @param {string} query - Search query
+ * @param {string} userId - User ID for document access
+ * @param {number} limit - Maximum number of results
+ * @returns {Promise<Array>} Array of relevant documents
+ */
+export const getDocuments = async (query, userId, limit = 3) => {
+  if (!query?.trim() || !userId) {
+    return [];
+  }
+
+  try {
+    console.log('[getDocuments] Searching documents for:', { query, userId, limit });
+    
+    const response = await fetch(`${AUTH_BASE_URL}/api/documents/search`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        query: query.trim(),
+        limit: limit
+      }),
+    });
+
+    if (!response.ok) {
+      console.warn('[getDocuments] Search failed:', response.status);
+      return [];
+    }
+
+    const data = await response.json();
+    console.log('[getDocuments] Search response:', data);
+
+    if (!data.success || !Array.isArray(data.data)) {
+      console.warn('[getDocuments] No results found');
+      return [];
+    }
+
+    console.log(`[getDocuments] Returning ${data.data.length} relevant documents`);
+    return data.data;
+
+  } catch (error) {
+    console.warn('[getDocuments] Error searching documents:', error.message);
+    return []; // Fail silently - document search shouldn't block generation
+  }
+};
+
+/**
+ * Formats document search results into a structured string for prompt integration
+ * @param {Array} documents - Array of document objects from search
+ * @returns {string|null} Formatted document string or null if no documents
+ */
+export const formatDocuments = (documents) => {
+  if (!Array.isArray(documents) || documents.length === 0) {
+    return null;
+  }
+
+  const formattedDocs = documents.map((doc, index) => {
+    let docText = `**${doc.title}** (${doc.filename})`;
+    
+    if (doc.relevantText) {
+      docText += `\n${doc.relevantText}`;
+    }
+    
+    if (doc.created_at) {
+      const date = new Date(doc.created_at).toLocaleDateString('de-DE');
+      docText += `\n*Erstellt: ${date}*`;
+    }
+    
+    return `${index + 1}. ${docText}`;
+  }).join('\n\n');
+
+  return formattedDocs;
+};
+
+/**
  * Creates a form notice element for knowledge/instruction status
  * @param {Object} params - Parameters for creating the notice
  * @param {Object} params.source - Knowledge source from store
@@ -15,7 +92,6 @@ const AUTH_BASE_URL = import.meta.env.VITE_AUTH_BASE_URL || '';
  * @param {string} params.instructionType - Type of instruction ('antrag' or 'social')
  * @param {Object} params.groupDetailsData - Group details data
  * @param {Array} params.availableKnowledge - Available knowledge items
- * @param {boolean} params.deutschlandmodus - Whether Deutschlandmodus is active
  * @returns {JSX.Element|null} Form notice element or null
  */
 export const createKnowledgeFormNotice = ({
@@ -26,7 +102,6 @@ export const createKnowledgeFormNotice = ({
   instructionType,
   groupDetailsData,
   availableKnowledge,
-  deutschlandmodus
 }) => {
   if (source.type === 'group' && isLoadingGroupDetails) {
     return (
@@ -65,17 +140,9 @@ export const createKnowledgeFormNotice = ({
     }
   }
   
-  if (deutschlandmodus === true) {
-    noticeParts.push("Deutschlandmodus aktiv");
-  }
 
   if (noticeParts.length === 0 && source.type === 'neutral') {
-    return (
-      <div className="custom-prompt-notice neutral-notice">
-        <HiInformationCircle className="info-icon" />
-        <span>Standardmodus aktiv. Keine spezifischen Anweisungen, Wissen oder Deutschlandmodus ausgewählt.</span>
-      </div>
-    );
+    return null;
   }
 
   if (noticeParts.length === 0) return null;
@@ -192,7 +259,7 @@ export const formatMemories = (memories, generatorType) => {
 };
 
 /**
- * Creates a structured prompt with knowledge, instructions, and memories
+ * Creates a structured prompt with knowledge, instructions, memories, and documents
  * @param {Object} params - Parameters for creating the prompt
  * @param {Object} params.source - Knowledge source from store
  * @param {boolean} params.isInstructionsActive - Whether instructions are active
@@ -200,12 +267,17 @@ export const formatMemories = (memories, generatorType) => {
  * @param {string} params.instructionType - Type of instruction ('antrag' or 'social')
  * @param {Object} params.groupDetailsData - Group details data
  * @param {Function} params.getKnowledgeContent - Function to get knowledge content
+ * @param {Function} params.getDocumentContent - Function to get selected document content
  * @param {string} params.additionalContent - Additional content to include
  * @param {Object} params.memoryOptions - Options for memory retrieval
  * @param {string} params.memoryOptions.query - Search query for memories
  * @param {string} params.memoryOptions.generatorType - Generator type for relevance
  * @param {string} params.memoryOptions.userId - User ID for memory retrieval
  * @param {boolean} params.memoryOptions.enableMemories - Whether to include memories
+ * @param {Object} params.documentOptions - Options for document retrieval
+ * @param {string} params.documentOptions.query - Search query for documents
+ * @param {string} params.documentOptions.userId - User ID for document retrieval
+ * @param {boolean} params.documentOptions.enableDocuments - Whether to include documents
  * @returns {Promise<string|null>} Structured prompt or null
  */
 export const createKnowledgePrompt = async ({
@@ -215,14 +287,17 @@ export const createKnowledgePrompt = async ({
   instructionType,
   groupDetailsData,
   getKnowledgeContent,
+  getDocumentContent,
   additionalContent = '',
-  memoryOptions = {}
+  memoryOptions = {},
+  documentOptions = {}
 }) => {
   console.log('[createKnowledgePrompt] DEBUG: Starting with options:', {
     source,
     isInstructionsActive,
     instructionType,
     memoryOptions,
+    documentOptions,
     hasGroupData: !!groupDetailsData
   });
 
@@ -238,12 +313,37 @@ export const createKnowledgePrompt = async ({
   // Get knowledge content from store
   const knowledgeContent = getKnowledgeContent();
   
+  // Get selected document content from store (with intelligent extraction if query available)
+  let selectedDocumentContent = null;
+  if (getDocumentContent) {
+    try {
+      // Use memory query if available for intelligent document content extraction
+      const searchQuery = memoryOptions.query || documentOptions.query || null;
+      console.log('[createKnowledgePrompt] DEBUG: Calling getDocumentContent with query:', searchQuery);
+      
+      selectedDocumentContent = await getDocumentContent(searchQuery);
+      
+      console.log('[createKnowledgePrompt] DEBUG: Document content retrieved:', {
+        hasContent: !!selectedDocumentContent,
+        contentLength: selectedDocumentContent?.length || 0,
+        usedIntelligentExtraction: !!searchQuery
+      });
+    } catch (error) {
+      console.error('[createKnowledgePrompt] Error getting document content:', error);
+      // Continue without selected documents - don't let document errors block generation
+    }
+  }
+  
   console.log('[createKnowledgePrompt] DEBUG: Content retrieved:', {
     hasActiveInstruction: !!activeInstruction,
     hasKnowledgeContent: !!knowledgeContent,
+    hasSelectedDocuments: !!selectedDocumentContent,
     memoryEnabled: memoryOptions.enableMemories,
     hasQuery: !!memoryOptions.query,
-    hasUserId: !!memoryOptions.userId
+    hasUserId: !!memoryOptions.userId,
+    documentsEnabled: documentOptions.enableDocuments,
+    hasDocumentQuery: !!documentOptions.query,
+    hasDocumentUserId: !!documentOptions.userId
   });
   
   // Retrieve and format memories if enabled
@@ -284,16 +384,57 @@ export const createKnowledgePrompt = async ({
     });
   }
   
+  // Retrieve and format documents if enabled
+  let documentContent = null;
+  if (documentOptions.enableDocuments && documentOptions.query && documentOptions.userId) {
+    console.log('[createKnowledgePrompt] DEBUG: Attempting document retrieval with:', {
+      query: documentOptions.query,
+      userId: documentOptions.userId
+    });
+    
+    try {
+      const documents = await getDocuments(
+        documentOptions.query,
+        documentOptions.userId,
+        3 // Limit to 3 documents
+      );
+      console.log('[createKnowledgePrompt] DEBUG: Document retrieval successful:', {
+        documentsCount: documents?.length || 0,
+        documents: documents
+      });
+      
+      documentContent = formatDocuments(documents);
+      console.log('[createKnowledgePrompt] DEBUG: Document content formatted:', {
+        documentContentLength: documentContent?.length || 0,
+        documentContent: documentContent?.substring(0, 200) + '...'
+      });
+    } catch (error) {
+      console.warn('[createKnowledgePrompt] Document retrieval failed:', error.message);
+      console.error('[createKnowledgePrompt] Document retrieval error details:', error);
+      // Continue without documents - don't let document errors block generation
+    }
+  } else {
+    console.log('[createKnowledgePrompt] DEBUG: Document retrieval skipped because:', {
+      enableDocuments: documentOptions.enableDocuments,
+      hasQuery: !!documentOptions.query,
+      hasUserId: !!documentOptions.userId
+    });
+  }
+  
   const finalPrompt = createPromptWithMemories(
     activeInstruction,
     knowledgeContent,
     memoryContent,
-    additionalContent
+    additionalContent,
+    documentContent, // API-searched documents
+    selectedDocumentContent // Selected documents from store
   );
   
   console.log('[createKnowledgePrompt] DEBUG: Final prompt created:', {
     finalPromptLength: finalPrompt?.length || 0,
     hasMemoryContent: !!memoryContent,
+    hasDocumentContent: !!documentContent,
+    hasSelectedDocumentContent: !!selectedDocumentContent,
     finalPromptPreview: finalPrompt?.substring(0, 300) + '...'
   });
   

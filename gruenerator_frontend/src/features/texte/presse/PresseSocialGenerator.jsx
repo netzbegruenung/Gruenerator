@@ -5,29 +5,32 @@ import { motion, AnimatePresence } from 'motion/react';
 import BaseForm from '../../../components/common/BaseForm';
 import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../../components/utils/constants';
 import useApiSubmit from '../../../components/hooks/useApiSubmit';
-import StyledCheckbox from '../../../components/common/AnimatedCheckbox';
 // import { useDynamicTextSize } from '../../../components/utils/commonFunctions';
 import { useSharedContent } from '../../../components/hooks/useSharedContent';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { HiInformationCircle } from 'react-icons/hi';
-import { createStructuredFinalPrompt, createBasePromptFromFormData } from '../../../utils/promptUtils';
-import useGroupDetails from '../../groups/hooks/useGroupDetails';
+import { createKnowledgeFormNotice, createKnowledgePrompt } from '../../../utils/knowledgeFormUtils';
 import { useFormFields } from '../../../components/common/Form/hooks';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 import { useGeneratorKnowledgeStore } from '../../../stores/core/generatorKnowledgeStore';
 import useKnowledge from '../../../components/hooks/useKnowledge';
+import { useTabIndex, useBaseFormTabIndex } from '../../../hooks/useTabIndex';
+import { TabIndexHelpers } from '../../../utils/tabIndexConfig';
 
 const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   const componentName = 'presse-social';
   const { initialContent } = useSharedContent();
-  const { user, betaFeatures } = useOptimizedAuth();
-  const deutschlandmodus = betaFeatures?.deutschlandmodus;
+  const { user } = useOptimizedAuth();
   const { Input, Textarea } = useFormFields();
   const { setGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
 
-  // Initialize knowledge system
-  useKnowledge();
+  // Initialize knowledge system with document preloading
+  useKnowledge({ instructionType: 'social', enableDocuments: true });
+
+  // Initialize tabIndex configuration
+  const tabIndex = useTabIndex('PRESS_SOCIAL');
+  const baseFormTabIndex = useBaseFormTabIndex('PRESS_SOCIAL');
 
   const platformOptions = useMemo(() => [
     { id: 'instagram', label: 'Instagram' },
@@ -40,14 +43,23 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   ], []);
 
   const defaultPlatforms = useMemo(() => {
-    return platformOptions.reduce((acc, platformOpt) => {
-      acc[platformOpt.id] = initialContent?.platforms?.[platformOpt.id] || 
-                             (platformOpt.id === 'instagram' && initialContent?.isFromSharepic) || 
-                             (platformOpt.id === 'twitter' && initialContent?.isFromSharepic) ||
-                             false;
-      return acc;
-    }, {});
-  }, [initialContent, platformOptions]);
+    // Determine default platforms based on initial content
+    if (initialContent?.platforms) {
+      const selectedPlatforms = Object.keys(initialContent.platforms).filter(
+        key => initialContent.platforms[key]
+      );
+      if (selectedPlatforms.length > 0) {
+        return selectedPlatforms; // Return all selected platforms
+      }
+    }
+    
+    // Default for sharepic content
+    if (initialContent?.isFromSharepic) {
+      return ['instagram'];
+    }
+    
+    return []; // No default selection
+  }, [initialContent]);
 
   const {
     control,
@@ -61,11 +73,12 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
       details: initialContent?.details || '',
       zitatgeber: initialContent?.zitatgeber || '',
       pressekontakt: initialContent?.pressekontakt || '',
-      ...defaultPlatforms
+      platforms: defaultPlatforms
     }
   });
 
-  const watchPressemitteilung = watch('pressemitteilung');
+  const watchPlatforms = watch('platforms');
+  const watchPressemitteilung = watchPlatforms && watchPlatforms.includes('pressemitteilung');
 
   const [socialMediaContent, setSocialMediaContent] = useState('');
   // const textSize = useDynamicTextSize(socialMediaContent, 1.2, 0.8, [1000, 2000]);
@@ -77,16 +90,24 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
     source,
     availableKnowledge,
     selectedKnowledgeIds,
-    instructions,
     isInstructionsActive,
+    instructions,
     getKnowledgeContent,
-    getActiveInstruction
+    getDocumentContent,
+    getActiveInstruction,
+    groupData: groupDetailsData
   } = useGeneratorKnowledgeStore();
   
-  const { data: groupDetailsData, isLoading: isLoadingGroupDetails } = useGroupDetails(
-    source.type === 'group' ? source.id : null,
-    source.type === 'group'
-  );
+  // Create form notice
+  const formNotice = createKnowledgeFormNotice({
+    source,
+    isLoadingGroupDetails: false, // useKnowledge handles loading
+    isInstructionsActive,
+    instructions,
+    instructionType: 'social',
+    groupDetailsData,
+    availableKnowledge,
+  });
 
   const onSubmitRHF = useCallback(async (rhfData) => {
     setStoreIsLoading(true);
@@ -102,9 +123,8 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
     });
 
     try {
-      const selectedPlatforms = platformOptions
-        .filter(p => rhfData[p.id])
-        .map(p => p.id);
+      // Use platforms array directly from multi-select
+      const selectedPlatforms = rhfData.platforms || [];
 
       const formDataToSubmit = {
         thema: rhfData.thema,
@@ -114,25 +134,32 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
         pressekontakt: rhfData.pressekontakt,
       };
       
-      // Get active instruction based on source
-      let activeInstruction = null;
-      if (source.type === 'user' && isInstructionsActive) {
-        activeInstruction = getActiveInstruction('social');
-      } else if (source.type === 'group' && groupDetailsData?.instructions) {
-        activeInstruction = groupDetailsData.instructions.custom_social_prompt;
-      }
+      // Extract search query from form data for intelligent document content
+      const extractQueryFromFormData = (data) => {
+        const queryParts = [];
+        if (data.thema) queryParts.push(data.thema);
+        if (data.details) queryParts.push(data.details);
+        if (data.zitatgeber) queryParts.push(data.zitatgeber);
+        return queryParts.filter(part => part && part.trim()).join(' ');
+      };
       
-      // Get knowledge content from store
-      const knowledgeContent = getKnowledgeContent();
-      
-      // Create base prompt from form data
-      const basePrompt = createBasePromptFromFormData(formDataToSubmit);
+      const searchQuery = extractQueryFromFormData(formDataToSubmit);
+      console.log('[PresseSocialGenerator] Extracted search query from form:', searchQuery);
 
-      const finalPrompt = createStructuredFinalPrompt(
-        activeInstruction,
-        knowledgeContent,
-        basePrompt
-      );
+      // Add knowledge, instructions, and documents
+      const finalPrompt = await createKnowledgePrompt({
+        source,
+        isInstructionsActive,
+        getActiveInstruction,
+        instructionType: 'social',
+        groupDetailsData,
+        getKnowledgeContent,
+        getDocumentContent,
+        memoryOptions: {
+          enableMemories: false, // Not using memories in this context
+          query: searchQuery
+        }
+      });
       
       if (finalPrompt) {
         formDataToSubmit.customPrompt = finalPrompt; 
@@ -152,88 +179,13 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
     } finally {
       setStoreIsLoading(false);
     }
-  }, [
-    submitForm, 
-    resetSuccess, 
-    setGeneratedText,
-    setStoreIsLoading,
-    source,
-    availableKnowledge,
-    selectedKnowledgeIds,
-    instructions,
-    isInstructionsActive,
-    getKnowledgeContent,
-    getActiveInstruction,
-    groupDetailsData,
-    platformOptions
-  ]);
+  }, [submitForm, resetSuccess, setGeneratedText, setStoreIsLoading, source, isInstructionsActive, getActiveInstruction, groupDetailsData, getKnowledgeContent, getDocumentContent]);
 
   const handleGeneratedContentChange = useCallback((content) => {
     setSocialMediaContent(content);
     setGeneratedText(componentName, content);
   }, [setGeneratedText, componentName]);
 
-  const formNoticeElement = (() => {
-    if (source.type === 'group' && isLoadingGroupDetails) {
-      return (
-        <div className="custom-prompt-notice">
-          <HiInformationCircle className="info-icon" />
-          <span>Lade Gruppenanweisungen & Wissen...</span>
-        </div>
-      );
-    }
-
-    let noticeParts = [];
-    let sourceNameForNotice = "";
-
-    if (source.type === 'user') {
-      sourceNameForNotice = "Persönliche";
-      if (isInstructionsActive && instructions.social) {
-        noticeParts.push(`${sourceNameForNotice} Anweisungen`);
-      } else if (instructions.social) {
-        noticeParts.push(`${sourceNameForNotice} Anweisungen (inaktiv)`);
-      }
-    } else if (source.type === 'group') {
-      sourceNameForNotice = source.name || 'Gruppe';
-      if (groupDetailsData?.instructions?.custom_social_prompt) {
-        noticeParts.push(`Anweisungen der Gruppe "${sourceNameForNotice}"`);
-      }
-    }
-
-    const hasLoadedKnowledge = availableKnowledge.length > 0;
-
-    if (source.type !== 'neutral' && hasLoadedKnowledge) {
-      if (source.type === 'user') {
-        noticeParts.push('gesamtes persönliches Wissen');
-      } else if (source.type === 'group') {
-        noticeParts.push(`gesamtes Wissen der Gruppe "${sourceNameForNotice}"`);
-      }
-    }
-    
-    if (deutschlandmodus === true) {
-      noticeParts.push("Deutschlandmodus (AWS) aktiv");
-    }
-
-    if (noticeParts.length === 0 && source.type === 'neutral') {
-      return (
-        <div className="custom-prompt-notice neutral-notice">
-          <HiInformationCircle className="info-icon" />
-          <span>Standardmodus aktiv. Keine spezifischen Anweisungen, Wissen oder Deutschlandmodus ausgewählt.</span>
-        </div>
-      );
-    }
-
-    if (noticeParts.length === 0) return null;
-
-    const fullNoticeText = noticeParts.join('. ');
-
-    return (
-      <div className="custom-prompt-notice">
-        <HiInformationCircle className="info-icon" />
-        <span>{fullNoticeText}.</span>
-      </div>
-    );
-  })();
 
   const helpContent = {
     content: "Dieser Grünerator erstellt professionelle Pressemitteilungen und Social Media Inhalte basierend auf deinen Angaben.",
@@ -253,6 +205,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
         label={FORM_LABELS.THEME}
         placeholder={FORM_PLACEHOLDERS.THEME}
         rules={{ required: 'Thema ist ein Pflichtfeld' }}
+        tabIndex={tabIndex.thema}
       />
 
       <Textarea
@@ -264,6 +217,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
         minRows={3}
         maxRows={10}
         className="form-textarea-large"
+        tabIndex={tabIndex.details}
       />
 
       <AnimatePresence>
@@ -287,6 +241,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
               subtext="Mehrere Personen können genannt werden."
               placeholder={FORM_PLACEHOLDERS.WHO_QUOTE}
               rules={{ required: 'Zitatgeber ist ein Pflichtfeld für Pressemitteilungen' }}
+              tabIndex={TabIndexHelpers.getConditional(tabIndex.zitatgeber, watchPressemitteilung)}
             />
             
             <Textarea
@@ -296,6 +251,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
               placeholder={FORM_PLACEHOLDERS.PRESS_CONTACT}
               rules={{ required: 'Pressekontakt ist ein Pflichtfeld für Pressemitteilungen' }}
               minRows={3}
+              tabIndex={TabIndexHelpers.getConditional(tabIndex.pressekontakt, watchPressemitteilung)}
             />
           </motion.div>
         )}
@@ -303,28 +259,6 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
     </>
   );
   
-  const renderPlatformCheckboxesSection = () => (
-    <>
-      <h3>Plattformen & Formate</h3>
-      <div className="platform-checkboxes">
-        {platformOptions.map((platformOpt) => (
-          <Controller
-            key={platformOpt.id}
-            name={platformOpt.id}
-            control={control}
-            render={({ field }) => (
-              <StyledCheckbox
-                id={`checkbox-${platformOpt.id}`}
-                checked={field.value}
-                onChange={(e) => field.onChange(e.target.checked)}
-                label={platformOpt.label}
-              />
-            )}
-          />
-        ))}
-      </div>
-    </>
-  );
 
   return (
     <ErrorBoundary>
@@ -337,12 +271,19 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
           error={error}
           generatedContent={storeGeneratedText || socialMediaContent}
           onGeneratedContentChange={handleGeneratedContentChange}
-
-          formNotice={formNoticeElement}
+          formNotice={formNotice}
           enableKnowledgeSelector={true}
+          enableDocumentSelector={true}
+          enablePlatformSelector={true}
+          platformOptions={platformOptions}
+          formControl={control}
           helpContent={helpContent}
-          bottomSectionChildren={renderPlatformCheckboxesSection()}
           componentName={componentName}
+          platformSelectorTabIndex={baseFormTabIndex.platformSelectorTabIndex}
+          knowledgeSelectorTabIndex={baseFormTabIndex.knowledgeSelectorTabIndex}
+          knowledgeSourceSelectorTabIndex={baseFormTabIndex.knowledgeSourceSelectorTabIndex}
+          documentSelectorTabIndex={baseFormTabIndex.documentSelectorTabIndex}
+          submitButtonTabIndex={baseFormTabIndex.submitButtonTabIndex}
         >
           {renderFormInputs()}
         </BaseForm>

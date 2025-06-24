@@ -71,35 +71,8 @@ Achte bei der Umsetzung dieses Stils auf Klarheit, Präzision und eine ausgewoge
     // Build user content based on custom prompt or standard format
     let userContent;
     
-    if (customPrompt) {
-      const additionalInfo = `Erstelle Inhalte für folgende Plattformen: ${platforms.join(', ')}
-
-${platforms.map(platform => {
-  if (platform === 'pressemitteilung') return '';
-  const upperPlatform = platform === 'reelScript' ? 'INSTAGRAM REEL' : platform.toUpperCase();
-  const guidelines = PLATFORM_SPECIFIC_GUIDELINES[platform] || {};
-  return `${upperPlatform}: Maximale Länge: ${guidelines.maxLength || 'N/A'} Zeichen. Stil: ${guidelines.style || 'N/A'} Fokus: ${guidelines.focus || 'N/A'}`;
-}).filter(Boolean).join('\n')}`;
-
-      userContent = formatUserContent({
-        customPrompt,
-        baseContent: '',
-        currentDate,
-        additionalInfo
-      });
-    } else {
-      // Standard content without custom prompt
-      userContent = `Thema: ${thema}
-Details: ${details}
-Plattformen: ${platforms.join(', ')}
-Aktuelles Datum: ${currentDate}
-${platforms.includes('pressemitteilung') ? `
-Was: ${was}
-Wie: ${wie}
-Zitat von: ${zitatgeber}
-Pressekontakt: ${pressekontakt}` : ''}
-        
-Erstelle einen maßgeschneiderten Social-Media-Beitrag für jede ausgewählte Plattform zu diesem Thema, der den Stil und die Werte von Bündnis 90/Die Grünen widerspiegelt. Berücksichtige diese plattformspezifischen Richtlinien:
+    // Build the specialized base content for social media generation
+    const baseContent = `Erstelle einen maßgeschneiderten Social-Media-Beitrag für jede ausgewählte Plattform zu diesem Thema, der den Stil und die Werte von Bündnis 90/Die Grünen widerspiegelt. Berücksichtige diese plattformspezifischen Richtlinien:
 
 ${platforms.map(platform => {
   if (platform === 'pressemitteilung') return '';
@@ -116,6 +89,36 @@ ${platforms.includes('pressemitteilung') ? '' : `Jeder Beitrag sollte:
 5. Themen wie Klimaschutz, soziale Gerechtigkeit und Vielfalt betonen.
 6. Aktuelle Positionen der Grünen Partei einbeziehen.
 7. Bei Bedarf auf weiterführende Informationen verweisen (z.B. Webseite).`}`;
+    
+    if (customPrompt) {
+      const additionalInfo = `Zusätzliche Informationen (falls relevant):
+- Thema: ${thema}
+- Details: ${details}
+- Plattformen: ${platforms.join(', ')}
+${platforms.includes('pressemitteilung') ? `- Was: ${was || ''}
+- Wie: ${wie || ''}
+- Zitat von: ${zitatgeber || ''}
+- Pressekontakt: ${pressekontakt || ''}` : ''}`;
+
+      userContent = formatUserContent({
+        customPrompt,
+        baseContent,
+        currentDate,
+        additionalInfo
+      });
+    } else {
+      // Standard content without custom prompt
+      userContent = `Thema: ${thema}
+Details: ${details}
+Plattformen: ${platforms.join(', ')}
+Aktuelles Datum: ${currentDate}
+${platforms.includes('pressemitteilung') ? `
+Was: ${was}
+Wie: ${wie}
+Zitat von: ${zitatgeber}
+Pressekontakt: ${pressekontakt}` : ''}
+        
+${baseContent}`;
     }
 
     // Prepare AI Worker payload

@@ -27,21 +27,16 @@ const useAccessibility = (options = {}) => {
     keyboardNavigationOptions = {}
   } = options;
 
-  // Initialize accessibility features
+  // Initialize essential accessibility features only
   useEffect(() => {
-    // Create global aria-live regions
-    createAriaLiveRegion('aria-live-region', 'polite');
+    // Only create essential aria-live regions - reduce duplication
+    // Most screen readers handle form announcements natively
     createAriaLiveRegion('form-error-announcer', 'assertive');
-    createAriaLiveRegion('form-success-announcer', 'polite');
-
-    const screenReaderRegion = document.getElementById('sr-announcer');
-    if (!screenReaderRegion) {
-      const region = document.createElement('div');
-      region.id = 'sr-announcer';
-      region.setAttribute('aria-live', 'polite');
-      region.style.position = 'absolute';
-      region.style.left = '-9999px';
-      document.body.appendChild(region);
+    
+    // Remove duplicate sr-announcer - form-error-announcer serves the same purpose
+    const existingSrAnnouncer = document.getElementById('sr-announcer');
+    if (existingSrAnnouncer) {
+      existingSrAnnouncer.remove();
     }
   }, []);
 
@@ -88,9 +83,10 @@ const useAccessibility = (options = {}) => {
   }, []);
 
   const setupKeyboardNav = useCallback((elements) => {
-    const handleKeyDown = (event) => handleKeyboardNavigation(event, elements);
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    // DEPRECATED: Custom keyboard navigation removed - browser handles this natively
+    // Function kept for backward compatibility but no longer sets up global listeners
+    console.warn('setupKeyboardNav is deprecated - browser handles keyboard navigation natively');
+    return () => {}; // Return empty cleanup function
   }, []);
 
   const manageFocusTrap = useCallback((trapActive, containerRef, options = {}) => {
@@ -129,32 +125,35 @@ const useAccessibility = (options = {}) => {
     return detectAccessibilityPreferences();
   }, []);
 
-  // Enhanced focus management for specific scenarios
+  // Minimal focus management - use sparingly to avoid screen reader conflicts
   const manageFocusSequence = useCallback((elements, startIndex = 0) => {
     if (!elements || elements.length === 0) return;
+    
+    console.warn('manageFocusSequence: Programmatic focus management can interfere with screen readers - use browser native focus instead');
     
     let currentIndex = startIndex;
     
     const focusNext = () => {
+      // Only move focus if user explicitly requested it, don't auto-focus
       if (currentIndex < elements.length - 1) {
         currentIndex++;
-        elements[currentIndex]?.focus();
+        // Let browser/screen reader handle focus timing
+        setTimeout(() => elements[currentIndex]?.focus(), 0);
       }
     };
     
     const focusPrevious = () => {
       if (currentIndex > 0) {
         currentIndex--;
-        elements[currentIndex]?.focus();
+        setTimeout(() => elements[currentIndex]?.focus(), 0);
       }
     };
     
     const focusCurrent = () => {
-      elements[currentIndex]?.focus();
+      setTimeout(() => elements[currentIndex]?.focus(), 0);
     };
     
-    // Initial focus
-    focusCurrent();
+    // Don't auto-focus on creation - let screen reader maintain current position
     
     return {
       focusNext,
@@ -164,7 +163,7 @@ const useAccessibility = (options = {}) => {
       setCurrentIndex: (index) => {
         if (index >= 0 && index < elements.length) {
           currentIndex = index;
-          focusCurrent();
+          // Don't auto-focus, just update index
         }
       }
     };

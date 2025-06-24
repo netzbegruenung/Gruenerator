@@ -93,42 +93,6 @@
 }
 
 
-.create-new-group-button {
-  width: fit-content;
-  padding: var(--spacing-xsmall) var(--spacing-large);
-  background: transparent;
-  border: var(--border-subtle);
-  border-radius: 20px;
-  color: var(--font-color);
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all 0.2s ease;
-  font-size: 0.9rem;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: var(--spacing-xsmall);
-  align-self: center;
-  margin-bottom: var(--spacing-small);
-}
-
-.create-new-group-button svg {
-  font-size: 1.2em;
-}
-
-.create-new-group-button:hover:not(:disabled) {
-  background-color: var(--background-color-alt);
-  border-color: var(--interactive-accent-color);
-  color: var(--interactive-accent-color);
-}
-
-.create-new-group-button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  border-color: var(--border-color-disabled);
-  color: var(--font-color-disabled);
-}
 
 
 .groups-vertical-navigation {
@@ -140,7 +104,7 @@
 
 
 .groups-vertical-tab {
-  width: fit-content;
+  width: 100%;
   max-width: 220px;
   padding: var(--spacing-xsmall) var(--spacing-large);
   background: var(--background-color);
@@ -184,6 +148,115 @@
     color: var(--font-color-disabled);
 }
 
+/* Group Tab Content Structure */
+.group-tab-content {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-small);
+  width: 100%;
+}
+
+.group-tab-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: var(--interactive-accent-color);
+  color: white;
+  border-radius: 50%;
+  font-size: 0.8rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.group-tab-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.group-tab-name {
+  font-weight: 500;
+  font-size: 0.9rem;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.group-tab-badge {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--interactive-accent-color);
+  opacity: 0.8;
+}
+
+/* Groups Grid Layout */
+.groups-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--spacing-medium);
+  margin-top: var(--spacing-medium);
+}
+
+.group-card {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-medium);
+  padding: var(--spacing-medium);
+  background: var(--background-color-alt);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--border-radius-medium);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.group-card:hover {
+  background: var(--background-color);
+  border-color: var(--interactive-accent-color);
+  transform: translateY(-1px);
+}
+
+.group-card-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  background: var(--interactive-accent-color);
+  color: white;
+  border-radius: 50%;
+  font-size: 1rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.group-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xsmall);
+  min-width: 0;
+  flex: 1;
+}
+
+.group-card-name {
+  font-weight: 600;
+  font-size: 1.1rem;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.group-card-meta {
+  font-size: 0.9rem;
+  color: var(--font-color-subtle);
+  font-style: italic;
+}
+
 
 .groups-content-panel {
   min-width: 0;
@@ -196,7 +269,7 @@
 
 .group-info-panel .profile-user-name {
   font-size: 1.8rem !important;
-  margin-bottom: var(--spacing-xsmall) !important;
+  margin-bottom: 0 !important;
 }
 
 .group-info-panel .group-admin-status {
@@ -754,4 +827,416 @@
 }
 
 /* Der Button im CTA (.profile-action-button.profile-primary-button) 
-   verwendet globale Stile und benötigt hier normalerweise keine spezifischen Anpassungen. */ 
+   verwendet globale Stile und benötigt hier normalerweise keine spezifischen Anpassungen. */
+
+/* Invitation Link Section Styling
+========================================================================== */
+.join-link-section {
+  margin-top: var(--spacing-medium);
+  padding: var(--spacing-medium);
+  background-color: var(--background-color-alt);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--border-radius-medium);
+  border-left: 4px solid var(--interactive-accent-color);
+}
+
+.join-link-display {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-small);
+}
+
+.join-link-label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xsmall);
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--font-color);
+}
+
+.join-link-label .info-icon-inline {
+  color: var(--interactive-accent-color);
+  font-size: 1.1em;
+  flex-shrink: 0;
+}
+
+.join-link-url {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.85rem;
+  padding: var(--spacing-small);
+  background-color: var(--background-color);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--border-radius-small);
+  color: var(--font-color-subtle);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  user-select: all;
+  cursor: text;
+  transition: all 0.2s ease;
+}
+
+.join-link-url:hover {
+  background-color: var(--background-color-alt);
+  border-color: var(--interactive-accent-color);
+}
+
+.join-link-url-container {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-small);
+}
+
+.join-link-url-container .join-link-url {
+  flex: 1;
+}
+
+.copy-join-link-button-inline {
+  background-color: transparent;
+  color: var(--button-text-color, var(--font-color)); 
+  cursor: pointer;
+  display: inline-flex; 
+  border: var(--border-subtle);
+  transition: all 0.2s ease;
+  border-radius: var(--border-radius-small);
+  padding: var(--spacing-xsmall) var(--spacing-small); 
+  justify-content: center; 
+  align-items: center; 
+  border: 1px solid var(--border-subtle);
+  font-size: 0.85rem; 
+  white-space: nowrap; 
+  gap: var(--spacing-xsmall);
+  flex-shrink: 0;
+}
+
+.copy-join-link-button-inline:hover:not(:disabled) {
+  background-color: var(--button-hover-background-color, var(--background-color-alt));
+  border-color: var(--button-hover-border-color, var(--tanne));
+  color: var(--button-hover-text-color, var(--tanne));
+}
+
+.copy-join-link-button-inline:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.copy-join-link-button-inline svg {
+  font-size: 1em;
+}
+
+@media (max-width: 768px) {
+  .join-link-section {
+    padding: var(--spacing-small);
+  }
+  
+  .join-link-url {
+    font-size: 0.8rem;
+    padding: var(--spacing-xsmall);
+  }
+}
+
+/* Group Members List Styles
+========================================================================== */
+.group-members-section {
+  margin: var(--spacing-large) 0;
+}
+
+.group-members-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-small);
+  margin: var(--spacing-medium) 0;
+}
+
+.group-member-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-medium);
+  padding: var(--spacing-small);
+  background-color: var(--background-color-alt);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--border-radius-small);
+}
+
+.member-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.member-avatar-circle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: var(--interactive-accent-color);
+  color: white;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.member-avatar-circle.admin {
+  background-color: var(--klee);
+  box-shadow: 0 0 0 2px var(--background-color), 0 0 0 3px var(--klee);
+}
+
+.member-profile-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.member-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.member-name-line {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-small);
+  margin-bottom: var(--spacing-xxsmall);
+}
+
+.member-name {
+  font-weight: 500;
+  font-size: 0.95rem;
+  color: var(--font-color);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.member-name.anonymous {
+  font-style: italic;
+  color: var(--font-color-subtle);
+}
+
+.member-admin-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xxsmall);
+  background-color: var(--klee);
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px var(--spacing-xsmall);
+  border-radius: var(--border-radius-small);
+  text-transform: uppercase;
+  line-height: 1.1;
+  flex-shrink: 0;
+}
+
+.admin-icon {
+  font-size: 0.8rem;
+}
+
+.member-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-medium);
+  font-size: 0.8rem;
+  color: var(--font-color-subtle);
+}
+
+.member-join-date {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.members-empty-state,
+.members-privacy-note {
+  text-align: center;
+  padding: var(--spacing-medium);
+  color: var(--font-color-subtle);
+}
+
+.members-privacy-note {
+  margin-top: var(--spacing-medium);
+  padding: var(--spacing-small);
+  background-color: var(--background-color-alt);
+  border-radius: var(--border-radius-small);
+  border-left: 3px solid var(--interactive-accent-color);
+}
+
+.members-privacy-note small {
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+/* Group Section Headers
+========================================================================== */
+.group-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--spacing-medium);
+}
+
+.group-section-title {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-small);
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--font-color);
+  margin: 0;
+}
+
+.group-section-title .icon {
+  font-size: 1.2rem;
+  color: var(--interactive-accent-color);
+}
+
+/* Responsive adjustments for members list
+========================================================================== */
+@media (max-width: 768px) {
+  .group-member-item {
+    padding: var(--spacing-xsmall);
+    gap: var(--spacing-small);
+  }
+
+  .member-avatar-circle {
+    width: 32px;
+    height: 32px;
+    font-size: 0.8rem;
+  }
+
+  .member-name-line {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-xxsmall);
+  }
+
+  .member-admin-badge {
+    align-self: flex-start;
+  }
+
+  .member-meta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-xxsmall);
+  }
+}
+
+/* Horizontal navigation for group sub-tabs
+========================================================================== */
+.groups-horizontal-navigation {
+  display: flex;
+  flex-direction: row;
+  gap: var(--spacing-small);
+  margin-bottom: var(--spacing-large);
+  flex-wrap: wrap;
+}
+
+/* Override .auth-form button + button for group name editing only */
+.group-name-edit-actions button + button {
+  margin-top: 0 !important;
+}
+
+/* Group Name Editing Styles
+========================================================================== */
+.group-name-edit-container {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-small);
+  flex: 1;
+}
+
+.group-name-edit-input {
+  font-size: 1.8rem;
+  font-weight: bold;
+  color: var(--font-color-h);
+  background: var(--background-color);
+  border: 2px solid var(--interactive-accent-color);
+  border-radius: var(--border-radius-small);
+  padding: var(--spacing-xsmall) var(--spacing-small);
+  margin: 0;
+  font-family: inherit;
+  line-height: 1.2;
+  min-width: 200px;
+  max-width: 400px;
+}
+
+.group-name-edit-input:focus {
+  outline: none;
+  border-color: var(--tanne);
+  box-shadow: 0 0 0 2px rgba(0, 106, 78, 0.2);
+}
+
+.group-name-edit-actions {
+  display: flex;
+  gap: var(--spacing-xsmall);
+}
+
+.group-name-edit-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: var(--border-radius-small);
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+}
+
+.group-name-edit-button.save {
+  background-color: var(--klee);
+  color: white;
+}
+
+.group-name-edit-button.save:hover:not(:disabled) {
+  background-color: var(--tanne);
+}
+
+.group-name-edit-button.cancel {
+  background-color: var(--background-color-alt);
+  color: var(--font-color);
+  border: 1px solid var(--border-subtle);
+}
+
+.group-name-edit-button.cancel:hover:not(:disabled) {
+  background-color: var(--error-red, #dc3545);
+  color: white;
+  border-color: var(--error-red, #dc3545);
+}
+
+.group-name-edit-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.group-name-edit-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-left:0;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  border-radius: var(--border-radius-small);
+  transition: all 0.2s ease;
+  opacity: 0.7;
+}
+
+.group-name-edit-icon:hover:not(:disabled) {
+  background-color: var(--background-color-alt);
+  color: var(--interactive-accent-color);
+  opacity: 1;
+}
+
+.group-name-edit-icon:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+} 

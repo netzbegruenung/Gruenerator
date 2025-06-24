@@ -66,7 +66,7 @@ const addMemoryInBackground = async (endpoint, formData, response, memoryEnabled
 };
 
 const useApiSubmit = (endpoint) => {
-  const { deutschlandmodus, memoryEnabled } = useAuthStore();
+  const { memoryEnabled } = useAuthStore();
   const { generatedText } = useGeneratedTextStore();
 
   const [loading, setLoading] = useState(false);
@@ -82,14 +82,10 @@ const useApiSubmit = (endpoint) => {
     setRetryCount(0);
 
     try {
-      // Log the context value right before using it
-      console.log('[useApiSubmit] Checking deutschlandmodus from context inside submitForm:', deutschlandmodus);
-
-      const useBedrock = deutschlandmodus === true;
-
+      // Bedrock is now the default provider (Deutschland mode is always enabled)
       const requestData = {
         ...formData,
-        useBedrock: useBedrock,
+        useBedrock: true, // Always use Bedrock now
         onRetry: (attempt, delay) => {
           setRetryCount(attempt);
           setError(`Verbindungsprobleme. Neuer Versuch in ${Math.round(delay/1000)} Sekunden... (Versuch ${attempt}/3)`);
@@ -97,7 +93,7 @@ const useApiSubmit = (endpoint) => {
       };
       
       console.log(`[useApiSubmit] Submitting to ${endpoint}:`, {
-        useBedrock,
+        useBedrock: true,
         formData: requestData,
         endpoint
       });
@@ -202,7 +198,7 @@ const useApiSubmit = (endpoint) => {
           setSuccess(true);
           return response;
         }
-      } else if (endpoint === 'claude/antrag' || endpoint === 'claude/antrag-simple' || endpoint === 'antraege/generate-simple') {
+      } else if (endpoint === 'claude/antrag' || endpoint === 'claude/antrag-simple' || endpoint === 'antraege/generate-simple' || endpoint === '/antraege/generate-simple') {
         console.log('[useApiSubmit] Processing antrag response:', response);
         if (response) {
           // Prüfe auf verschiedene mögliche Antwortstrukturen
@@ -210,17 +206,17 @@ const useApiSubmit = (endpoint) => {
             setSuccess(true);
             // Add memory for successful antrag generation
             addMemoryInBackground(endpoint, formData, response, memoryEnabled);
-            return response;
+            return response.content; // Return just the content string
           } else if (response.metadata && response.metadata.content) {
             setSuccess(true);
             // Add memory for successful antrag generation
             addMemoryInBackground(endpoint, formData, response, memoryEnabled);
-            return { content: response.metadata.content, metadata: response.metadata };
+            return response.metadata.content; // Return just the content string
           } else if (typeof response === 'string') {
             setSuccess(true);
             // Add memory for successful antrag generation
             addMemoryInBackground(endpoint, formData, response, memoryEnabled);
-            return { content: response };
+            return response;
           }
         }
       } else if (endpoint === 'analyze') {
@@ -291,6 +287,22 @@ const useApiSubmit = (endpoint) => {
           // Add memory for successful gruene jugend generation
           addMemoryInBackground(endpoint, formData, response, memoryEnabled);
           return response;
+        }
+      } else if (endpoint === '/claude_gruenerator_ask') {
+        console.log('[useApiSubmit] Processing claude_gruenerator_ask response:', response);
+        if (response && response.answer) {
+          setSuccess(true);
+          return response; // Return the full response with answer, sources, etc.
+        }
+      } else if (endpoint === '/custom_generator') {
+        console.log('[useApiSubmit] Processing custom_generator response:', response);
+        if (response && response.content) {
+          setSuccess(true);
+          return response; // Return the full response with content
+        } else if (response && typeof response === 'string') {
+          // Fallback if response is already a string
+          setSuccess(true);
+          return { content: response };
         }
       }
 

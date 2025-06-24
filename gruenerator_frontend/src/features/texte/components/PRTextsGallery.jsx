@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import PropTypes from 'prop-types';
-import { templatesSupabase } from '../../../components/utils/templatesSupabaseClient';
 import { useLazyAuth } from '../../../hooks/useAuth';
 import Spinner from '../../../components/common/Spinner'; // Corrected import for Spinner
+
+// Auth Backend URL aus Environment Variable oder Fallback zu aktuellem Host
+const AUTH_BASE_URL = import.meta.env.VITE_AUTH_BASE_URL || '';
 
 // Placeholder für PRTextCard, wird später erstellt oder importiert
 const PRTextCard = ({ text }) => (
@@ -29,36 +31,41 @@ const PRTextsGallery = ({ searchTerm, selectedCategory, searchMode }) => {
   const { user } = useLazyAuth(); // RLS benötigt möglicherweise user info
 
   const fetchPRTexts = useCallback(async () => {
-    if (!user) return; // Warten auf User-Info für RLS
+    if (!user) return; // Warten auf User-Info für Auth
 
     setLoading(true);
     setError(null);
 
     try {
-      let query = templatesSupabase
-        .from('pr_texts')
-        .select('id, title, content, created_at, pr_texts_to_categories!inner(category_id)') // Include category join
-        .order('created_at', { ascending: false });
-
+      const url = new URL(`${AUTH_BASE_URL}/api/pr-texts`);
+      
       // Search term filter
       if (searchTerm) {
-        if (searchMode === 'title') {
-          query = query.ilike('title', `%${searchTerm}%`);
-        } else { // 'fulltext' or other modes, treat as fulltext for now
-          query = query.or(`title.ilike.%${searchTerm}%,content.ilike.%${searchTerm}%`);
+        url.searchParams.append('searchTerm', searchTerm);
+        if (searchMode) {
+          url.searchParams.append('searchMode', searchMode);
         }
       }
 
       // Category filter
-      if (selectedCategory && selectedCategory !== 'all') { // Assuming 'all' means no category filter
-        // We need to filter based on the pr_texts_to_categories table
-        // This requires a subquery or careful use of .eq on the joined table
-        query = query.eq('pr_texts_to_categories.category_id', selectedCategory);
+      if (selectedCategory && selectedCategory !== 'all') {
+        url.searchParams.append('categoryId', selectedCategory);
       }
 
-      const { data, error: fetchError } = await query;
+      const response = await fetch(url, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
 
-      if (fetchError) throw fetchError;
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ message: 'Failed to fetch PR texts' }));
+        throw new Error(error.message || 'Fehler beim Laden der PR-Texte');
+      }
+
+      const data = await response.json();
       setTexts(data || []);
     } catch (e) {
       console.error("Error fetching PR texts:", e);

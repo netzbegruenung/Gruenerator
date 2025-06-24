@@ -1,0 +1,74 @@
+/* Collection Actions - Shared styling for Q&A and Document actions */
+.qa-collection-actions,
+.document-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xsmall);
+    margin-left: auto;
+}
+
+.qa-collection-actions .icon-button,
+.document-actions .icon-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: var(--spacing-xsmall);
+    background-color: transparent;
+    color: var(--grey-600);
+    cursor: pointer;
+    transition: all 0.25s ease-out;
+    font-size: 16px;
+}
+
+.qa-collection-actions .icon-button:hover,
+.document-actions .icon-button:hover {
+    background-color: var(--hover-color-alt);
+    color: var(--font-color);
+    transform: translateY(-1px);
+}
+
+.qa-collection-actions .icon-button:active,
+.document-actions .icon-button:active {
+    transform: translateY(0);
+}
+
+.qa-collection-actions .icon-button.danger,
+.document-actions .icon-button.danger {
+    color: var(--error-red);
+}
+
+.qa-collection-actions .icon-button.danger:hover,
+.document-actions .icon-button.danger:hover {
+    background-color: rgba(211, 47, 47, 0.1);
+    color: var(--error-red);
+}
+
+.qa-collection-actions .icon-button:disabled,
+.document-actions .icon-button:disabled {
+    color: var(--font-color-disabled);
+    cursor: not-allowed;
+    transform: none;
+}
+
+.qa-collection-actions .icon-button:disabled:hover,
+.document-actions .icon-button:disabled:hover {
+    background-color: transparent;
+    transform: none;
+}
+
+@media (max-width: 768px) {
+    .qa-collection-actions,
+    .document-actions {
+        gap: var(--spacing-xxsmall);
+    }
+    
+    .qa-collection-actions .icon-button,
+    .document-actions .icon-button {
+        width: 28px;
+        height: 28px;
+        font-size: 14px;
+    }
+} 

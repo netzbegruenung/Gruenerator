@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
-import { templatesSupabase } from '../../../components/utils/templatesSupabaseClient.js';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import AntragEditForm from './AntragEditForm';
+
+// Auth Backend URL aus Environment Variable oder Fallback zu aktuellem Host
+const AUTH_BASE_URL = import.meta.env.VITE_AUTH_BASE_URL || '';
 
 // Hilfsfunktionen (ähnlich wie in AntragDetailView)
 const formatDate = (dateString) => {
@@ -49,53 +51,33 @@ const AntragDetailPage = () => {
       }
 
       try {
-        // Ähnliche Abfrage wie in AntraegeGallery, aber mit .eq() Filter
-        const { data, error: fetchError } = await templatesSupabase
-          .from('antraege')
-          .select(`
-            id,
-            title,
-            status,
-            antragstext,
-            description,
-            antragsteller,
-            kontakt_email,
-            created_at,
-            updated_at,
-            user_id,
-            antraege_to_tags!left(
-              tag_id,
-              antraege_tags (
-                id,
-                label
-              )
-            )
-          `)
-          .eq('id', antragId) // Filtern nach der ID aus der URL
-          .single(); // Erwarte nur ein Ergebnis
+        const response = await fetch(`${AUTH_BASE_URL}/auth/antraege/${antragId}`, {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
 
-        if (fetchError) throw fetchError;
+        if (!response.ok) {
+          if (response.status === 404) {
+            throw new Error('Antrag nicht gefunden.');
+          } else {
+            const error = await response.json().catch(() => ({ message: 'Failed to fetch antrag' }));
+            throw new Error(error.message || 'Fehler beim Laden des Antrags.');
+          }
+        }
 
-        if (!data) {
+        const data = await response.json();
+        const antrag = data.antrag || data;
+
+        if (!antrag) {
           throw new Error('Antrag nicht gefunden.');
         }
 
-        // Transformiere Tags wie in der Galerie
-        const tags = data.antraege_to_tags
-          ? data.antraege_to_tags
-              .filter(jtt => jtt && jtt.antraege_tags && typeof jtt.antraege_tags.label !== 'undefined')
-              .map(jtt => jtt.antraege_tags.label)
-          : [];
-
-        const transformedAntrag = {
-          ...data,
-          tags: tags,
-          antraege_to_tags: undefined, // Entferne Rohdaten
-        };
-
-        console.log("[AntragDetailPage] Antrag erfolgreich geladen:", transformedAntrag);
-        setAntrag(transformedAntrag);
-        setEditedAntrag(transformedAntrag);
+        console.log("[AntragDetailPage] Antrag erfolgreich geladen:", antrag);
+        setAntrag(antrag);
+        setEditedAntrag(antrag);
 
       } catch (err) {
         console.error('[AntragDetailPage] Fehler beim Laden des Antrags:', err);
@@ -133,20 +115,24 @@ const AntragDetailPage = () => {
         antragstext: editedAntrag.antragstext,
         antragsteller: editedAntrag.antragsteller,
         kontakt_email: editedAntrag.kontakt_email,
-        updated_at: new Date().toISOString(),
       };
 
-      const { error: updateError } = await templatesSupabase
-        .from('antraege')
-        .update(updateData)
-        .eq('id', antragId)
-        .eq('user_id', supabaseUser.id);
+      const response = await fetch(`${AUTH_BASE_URL}/auth/antraege/${antragId}`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updateData),
+      });
 
-      if (updateError) {
-        throw updateError;
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ message: 'Failed to update antrag' }));
+        throw new Error(error.message || 'Fehler beim Speichern des Antrags.');
       }
 
-      setAntrag(editedAntrag);
+      const result = await response.json();
+      setAntrag(result.antrag || editedAntrag);
       setIsEditing(false);
       console.log("[AntragDetailPage] Antrag erfolgreich aktualisiert.");
 

@@ -6,6 +6,11 @@
   align-items: center;
 }
 
+.display-header .display-actions {
+  position: relative;
+  margin-left: auto;
+}
+
 
 .action-button {
   background-color: transparent;

@@ -20,6 +20,17 @@ export const CUSTOM_GENERATOR_HELP_CONTENT = {
       "Markiere wichtige Felder als Pflichtfelder."
     ]
   },
+  [STEPS.DOCUMENTS]: {
+    title: "Dokumente hinzufügen (optional)",
+    content: "Wähle PDF-Dokumente aus, die als Wissensquelle für deinen Generator dienen sollen. Claude kann während der Texterstellung auf diese Dokumente zugreifen und relevante Inhalte zitieren.",
+    tips: [
+      "Diese Funktion ist optional - Generatoren funktionieren auch ohne Dokumente.",
+      "Nur vollständig verarbeitete PDF-Dokumente können hinzugefügt werden.",
+      "Dokumente werden intelligent durchsucht, um relevante Informationen zu finden.",
+      "Generierte Texte enthalten Quellenangaben, wenn Dokumente verwendet wurden.",
+      "Du kannst jederzeit weitere Dokumente hinzufügen oder entfernen."
+    ]
+  },
   [STEPS.PROMPT]: {
     title: "Prompt definieren",
     content: "Schreibe die Anweisung (Prompt), die an die KI gesendet wird. Die Inhalte der zuvor definierten Formularfelder werden automatisch als Variablen übergeben.",
