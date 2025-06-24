@@ -3,7 +3,7 @@ import { motion } from "motion/react";
 import DocumentOverview from '../../../../components/common/DocumentOverview';
 import { useOptimizedAuth } from '../../../../hooks/useAuth';
 
-const AUTH_BASE_URL = import.meta.env.VITE_AUTH_BASE_URL || '';
+const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 const MeineTexteTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
     const { user, isAuthenticated } = useOptimizedAuth();

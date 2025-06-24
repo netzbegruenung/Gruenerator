@@ -1,8 +1,8 @@
 import { create } from 'zustand';
 import { fetchWithDedup } from '../utils/requestDeduplication';
 
-// Auth Backend URL aus Environment Variable oder Fallback zu aktuellem Host
-const AUTH_BASE_URL = import.meta.env.VITE_AUTH_BASE_URL || '';
+// Auth Backend URL aus Environment Variable oder Fallback zu relativem Pfad
+const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 // localStorage keys for auth state persistence
 const AUTH_STORAGE_KEY = 'gruenerator_auth_state';

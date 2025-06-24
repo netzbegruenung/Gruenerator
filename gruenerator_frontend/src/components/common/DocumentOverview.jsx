@@ -230,7 +230,7 @@ const DocumentOverview = ({
         setPreviewError(null);
 
         try {
-            const AUTH_BASE_URL = import.meta.env.VITE_AUTH_BASE_URL || '';
+            const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
             const response = await fetch(`${AUTH_BASE_URL}/api/documents/${item.id}/content`, {
                 method: 'GET',
                 credentials: 'include',

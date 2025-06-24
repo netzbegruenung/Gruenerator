@@ -7,7 +7,7 @@ import { useOptimizedAuth } from '../../../../hooks/useAuth';
 import { useAuthStore } from '../../../../stores/authStore';
 
 // Auth Backend URL aus Environment Variable oder Fallback zu aktuellem Host
-const AUTH_BASE_URL = import.meta.env.VITE_AUTH_BASE_URL || '';
+const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 const Mem0ryTab = ({ onSuccessMessage, onErrorMessage, isActive }) => {
   const [memories, setMemories] = useState([]);
