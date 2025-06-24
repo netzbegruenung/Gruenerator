@@ -308,6 +308,7 @@ export const useAuth = (options = {}) => {
           credentials: 'include',
           headers: {
             'Content-Type': 'application/json',
+            'Origin': window.location.origin,
           },
         });
 
@@ -346,6 +347,13 @@ export const useAuth = (options = {}) => {
       const { isAuthenticated: currentIsAuthenticated, user: currentUser } = useAuthStore.getState();
 
       if (authData.isAuthenticated && authData.user) {
+        // Clear login intent after successful authentication
+        try {
+          localStorage.removeItem('gruenerator_login_intent');
+        } catch (error) {
+          // Ignore localStorage errors
+        }
+        
         // Prevent infinite loop by only setting state if user is different
         if (authData.user.id !== currentUser?.id) {
           setAuthState({
