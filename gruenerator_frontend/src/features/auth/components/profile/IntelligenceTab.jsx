@@ -154,7 +154,7 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
         
         try {
             console.log('[IntelligenceTab] Fetching memories for user:', user.id);
-            const response = await fetch(`${AUTH_BASE_URL}/api/mem0/user/${user.id}`, {
+            const response = await fetch(`${AUTH_BASE_URL}/mem0/user/${user.id}`, {
                 method: 'GET',
                 credentials: 'include',
                 headers: {
@@ -195,7 +195,7 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
 
         setAddingMemory(true);
         try {
-            const response = await fetch(`${AUTH_BASE_URL}/api/mem0/add-text`, {
+            const response = await fetch(`${AUTH_BASE_URL}/mem0/add-text`, {
                 method: 'POST',
                 credentials: 'include',
                 headers: {
@@ -233,7 +233,7 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
 
     const deleteMemory = async (memoryId) => {
         try {
-            const response = await fetch(`${AUTH_BASE_URL}/api/mem0/${memoryId}`, {
+            const response = await fetch(`${AUTH_BASE_URL}/mem0/${memoryId}`, {
                 method: 'DELETE',
                 credentials: 'include',
                 headers: {
@@ -266,7 +266,7 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
 
         try {
             const deletePromises = memories.map(memory => 
-                fetch(`${AUTH_BASE_URL}/api/mem0/${memory.id}`, {
+                fetch(`${AUTH_BASE_URL}/mem0/${memory.id}`, {
                     method: 'DELETE',
                     credentials: 'include',
                     headers: {
