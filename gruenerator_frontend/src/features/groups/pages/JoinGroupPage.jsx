@@ -28,7 +28,7 @@ const JoinGroupPage = () => {
       
       try {
         // Use backend API to verify join token
-        const response = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001'}/auth/groups/verify-token/${joinToken}`, {
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || '/api'}/auth/groups/verify-token/${joinToken}`, {
           method: 'GET',
           credentials: 'include',
           headers: {
