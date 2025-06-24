@@ -682,7 +682,7 @@ export const useQACollections = ({ isActive, enabled = true } = {}) => {
   const fetchAvailableDocuments = async () => {
     if (!user?.id) throw new Error('Nicht eingeloggt');
     
-    const resp = await fetch(`${AUTH_BASE_URL}/api/documents/user`, {
+    const resp = await fetch(`${AUTH_BASE_URL}/documents/user`, {
       method: 'GET',
       credentials: 'include'
     });
