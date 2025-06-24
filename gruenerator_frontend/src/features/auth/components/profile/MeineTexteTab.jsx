@@ -26,7 +26,7 @@ const MeineTexteTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
         if (!isAuthenticated || !user?.id) return;
 
         try {
-            const response = await fetch(`${AUTH_BASE_URL}/api/user-texts`, {
+            const response = await fetch(`${AUTH_BASE_URL}/user-texts`, {
                 method: 'GET',
                 credentials: 'include',
                 headers: {
@@ -59,7 +59,7 @@ const MeineTexteTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
 
     // Update document title
     const updateTitle = async (documentId, newTitleValue) => {
-        const response = await fetch(`${AUTH_BASE_URL}/api/user-texts/${documentId}/metadata`, {
+        const response = await fetch(`${AUTH_BASE_URL}/user-texts/${documentId}/metadata`, {
             method: 'POST',
             credentials: 'include',
             headers: {
@@ -87,7 +87,7 @@ const MeineTexteTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
 
     // Delete document
     const deleteDocument = async (documentId) => {
-        const response = await fetch(`${AUTH_BASE_URL}/api/user-texts/${documentId}`, {
+        const response = await fetch(`${AUTH_BASE_URL}/user-texts/${documentId}`, {
             method: 'DELETE',
             credentials: 'include',
             headers: {
