@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useForm, FormProvider, useFieldArray } from 'react-hook-form';
 import { HiOutlineTrash, HiPlus, HiLink, HiInformationCircle, HiPencil, HiCheck, HiX } from 'react-icons/hi';
 import Spinner from '../../../../components/common/Spinner';
-// Modern groups management using backend API
 import { useGroups, getGroupInitials } from '../../utils/groupsUtils';
 import useGroupDetails from '../../../../features/groups/hooks/useGroupDetails';
 import { autoResizeTextarea } from '../../utils/profileUtils';

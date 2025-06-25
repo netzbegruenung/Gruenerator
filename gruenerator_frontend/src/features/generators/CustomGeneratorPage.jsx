@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
+import { useOptimizedAuth } from '../../hooks/useAuth';
 import { useForm } from 'react-hook-form';
 import BaseForm from '../../components/common/BaseForm';
 import FormInput from '../../components/common/Form/Input/FormInput';
@@ -12,6 +13,7 @@ import useGeneratedTextStore from '../../stores/core/generatedTextStore';
 
 const CustomGeneratorPage = ({ showHeaderFooter = true }) => {
   const { slug } = useParams();
+  const { user, isAuthenticated, loading: authLoading } = useOptimizedAuth();
   const [generatorConfig, setGeneratorConfig] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -54,6 +56,11 @@ const CustomGeneratorPage = ({ showHeaderFooter = true }) => {
   useEffect(() => {
     const fetchGeneratorConfig = async () => {
       if (!slug) return;
+      if (!isAuthenticated || !user?.id) {
+        setError('Authentifizierung erforderlich');
+        setLoading(false);
+        return;
+      }
       setLoading(true);
       setError(null);
       setLocalGeneratedContent('');
@@ -80,8 +87,10 @@ const CustomGeneratorPage = ({ showHeaderFooter = true }) => {
       }
     };
 
-    fetchGeneratorConfig();
-  }, [slug]);
+    if (!authLoading) {
+      fetchGeneratorConfig();
+    }
+  }, [slug, isAuthenticated, user?.id, authLoading]);
 
   const onSubmitRHF = async (rhfData) => {
     try {
