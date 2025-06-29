@@ -52,11 +52,6 @@
   overflow: hidden; 
 }
 
-.input-wrapper:focus-within {
-  outline: 2px solid var(--link-color);
-  outline-offset: 2px;
-  box-shadow: var(--shadow-lg);
-}
 
 .input-wrapper.error-input {
   outline: 2px solid var(--sonne);
@@ -64,8 +59,7 @@
 }
 
 
-/* GeneratorStartScreen input styles - DISABLED to prevent conflicts with main form-inputs.css */
-/*
+
 .description-input {
   flex-grow: 1; 
   width: 100%;
@@ -96,6 +90,7 @@
 
 
 .example-prompts-container {
+  background-color: var(--background-color);
   padding: 0 15px 10px 15px; 
   align-self: flex-end; 
   margin-top: -10px; 
@@ -135,11 +130,6 @@
   border-color: var(--hintergrund-dunkel);
   transform: translateY(-1px);
   box-shadow: var(--shadow-sm);
-}
-
-.example-prompt-button:focus {
-  outline: 2px solid var(--link-color);
-  outline-offset: 2px;
 }
 
 

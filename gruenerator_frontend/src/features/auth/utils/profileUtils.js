@@ -8,7 +8,7 @@ import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import debounce from 'lodash.debounce';
 import modulePreloader from '../../../utils/modulePreloader';
-import { useAnweisungenWissenUiStore } from '../../../stores/auth/anweisungenWissenUiStore';
+import { useInstructionsUiStore } from '../../../stores/auth/instructionsUiStore';
 
 
 /**
@@ -428,7 +428,7 @@ export const useAnweisungenWissen = ({ isActive, enabled = true } = {}) => {
     clearMessages, 
     reset: resetStore,
     setHasUnsavedChanges: setStoreHasUnsavedChanges
-  } = useAnweisungenWissenUiStore();
+  } = useInstructionsUiStore();
 
   // --- React Query: Fetch Anweisungen & Wissen --- 
   const queryKey = ['anweisungenWissen', user?.id];
@@ -446,6 +446,7 @@ export const useAnweisungenWissen = ({ isActive, enabled = true } = {}) => {
       socialPrompt: json.socialPrompt || '',
       universalPrompt: json.universalPrompt || '',
       gruenejugendPrompt: json.gruenejugendPrompt || '',
+      presseabbinder: json.presseabbinder || '',
       knowledge: json.knowledge || []
     };
   };
@@ -484,6 +485,7 @@ export const useAnweisungenWissen = ({ isActive, enabled = true } = {}) => {
           custom_social_prompt: dataToSave.customSocialPrompt,
           custom_universal_prompt: dataToSave.customUniversalPrompt,
           custom_gruenejugend_prompt: dataToSave.customGruenejugendPrompt,
+          presseabbinder: dataToSave.presseabbinder,
           knowledge: cleanedKnowledge
       };
 

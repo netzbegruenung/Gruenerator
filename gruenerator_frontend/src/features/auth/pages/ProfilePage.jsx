@@ -23,8 +23,6 @@ const GroupsManagementTab = lazy(() => import('../components/profile/GroupsManag
 const IntelligenceTab = lazy(() => import('../components/profile/IntelligenceTab'));
 const DocumentsTab = lazy(() => import('../components/profile/DocumentsTab'));
 const CustomGeneratorsTab = lazy(() => import('../components/profile/CustomGeneratorsTab'));
-const TexteVorlagenTab = lazy(() => import('../components/profile/TexteVorlagenTab'));
-const MeineTexteTab = lazy(() => import('../components/profile/MeineTexteTab'));
 const LaborTab = lazy(() => import('../components/profile/LaborTab'));
 
 // Reusable TabButton component
@@ -111,9 +109,7 @@ const ProfilePage = () => {
     'profil': 'profile',
     'intelligence': 'intelligence', 
     'dokumente': 'dokumente',
-    'meine-texte': 'meine_texte',
     'gruppen': 'gruppen',
-    'vorlagen': 'texte_vorlagen',
     'generatoren': 'custom_generators',
     'labor': 'labor'
   };
@@ -260,7 +256,7 @@ const ProfilePage = () => {
     <div className="profile-container">
       <div className="profile-header">
         <h1>Mein Profil</h1>
-        <p>Verwalte deine persönlichen Daten, dein Passwort, Dokumente, Texte, Vorlagen, Gruppen und Anweisungen.</p>
+        <p>Verwalte deine persönlichen Daten, dein Passwort, Dokumente, Texte, Gruppen und Anweisungen.</p>
       </div>
 
       {/* Tab Navigation */}
@@ -294,17 +290,7 @@ const ProfilePage = () => {
           onMouseEnter={() => onTabHover('dokumente')}
           underlineTransition={underlineTransition}
         >
-          Dokumente
-        </TabButton>
-        
-        <TabButton
-          activeTab={activeTab}
-          tabKey="meine_texte"
-          onClick={handleTabChange}
-          onMouseEnter={() => onTabHover('meine_texte')}
-          underlineTransition={underlineTransition}
-        >
-          Meine Texte
+          Dokumente & Texte
         </TabButton>
         
         {shouldShowTab('groups') && (
@@ -319,17 +305,6 @@ const ProfilePage = () => {
           </TabButton>
         )}
         
-        {shouldShowTab('database') && (
-          <TabButton
-            activeTab={activeTab}
-            tabKey="texte_vorlagen"
-            onClick={handleTabChange}
-            onMouseEnter={() => onTabHover('texte')}
-            underlineTransition={underlineTransition}
-          >
-            Texte & Vorlagen
-          </TabButton>
-        )}
         
         {shouldShowTab('customGenerators') && (
           <TabButton
@@ -378,7 +353,7 @@ const ProfilePage = () => {
       )}
 
       {/* Tab Content */}
-      <div className={`profile-tab-content ${activeTab === 'meine_texte' ? 'profile-tab-content-full-width' : ''}`}>
+      <div className="profile-tab-content">
         <Suspense fallback={<div className="profile-tab-loading"></div>}>
           {activeTab === 'profile' && (
             <ProfileInfoTab
@@ -410,15 +385,6 @@ const ProfilePage = () => {
             />
           )}
           
-          {activeTab === 'meine_texte' && (
-            <MeineTexteTab
-              user={user}
-              onSuccessMessage={handleSuccessMessage}
-              onErrorMessage={handleErrorMessage}
-              isActive={activeTab === 'meine_texte'}
-            />
-          )}
-          
           {activeTab === 'gruppen' && shouldShowTab('groups') && (
             <GroupsManagementTab
               user={user}
@@ -428,14 +394,6 @@ const ProfilePage = () => {
             />
           )}
           
-          {activeTab === 'texte_vorlagen' && shouldShowTab('database') && (
-            <TexteVorlagenTab
-              user={user}
-              onSuccessMessage={handleSuccessMessage}
-              onErrorMessage={handleErrorMessage}
-              isActive={activeTab === 'texte_vorlagen'}
-            />
-          )}
           
           {activeTab === 'custom_generators' && shouldShowTab('customGenerators') && (
             <CustomGeneratorsTab

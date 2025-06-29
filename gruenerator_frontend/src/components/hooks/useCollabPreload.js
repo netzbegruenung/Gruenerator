@@ -10,18 +10,26 @@ import apiClient from '../utils/apiClient';
  * @param {Object} user - User object with id for document metadata.
  * @param {string} title - Document title.
  * @param {string} documentType - Document type.
+ * @param {boolean} autoCreate - Whether to automatically create the document or just preload components.
  * @returns {string|null} - The preloaded document ID, or null.
  */
-export const useCollabPreload = (content, hasAccess, isEnabled, user = null, title = null, documentType = 'text') => {
+export const useCollabPreload = (content, hasAccess, isEnabled, user = null, title = null, documentType = 'text', autoCreate = false) => {
   const preloadedDocIdRef = useRef(null);
   
   useEffect(() => {
-    // Only run if the feature is enabled, user has access, there is content, and no doc has been preloaded yet.
-    if (isEnabled && hasAccess && content && !preloadedDocIdRef.current) {
+    // Always preload component code if enabled and user has access
+    if (isEnabled && hasAccess) {
+      // Preload component code
+      import('../../pages/CollabEditorPage/CollabEditorPage.jsx');
+      import('../../stores/collabEditorStore.js');
+    }
+    
+    // Only create document if autoCreate is explicitly enabled
+    if (isEnabled && hasAccess && content && autoCreate && !preloadedDocIdRef.current) {
       const createDoc = async () => {
         try {
           const documentId = uuidv4();
-          console.log(`[useCollabPreload] Preloading document with ID: ${documentId}`);
+          console.log(`[useCollabPreload] Auto-creating document with ID: ${documentId}`);
           await apiClient.post('/collab-editor/init-doc', { 
             documentId, 
             content,
@@ -30,19 +38,15 @@ export const useCollabPreload = (content, hasAccess, isEnabled, user = null, tit
             documentType: documentType || 'text'
           });
           preloadedDocIdRef.current = documentId;
-          console.log(`[useCollabPreload] Document ${documentId} successfully preloaded.`);
+          console.log(`[useCollabPreload] Document ${documentId} successfully auto-created.`);
         } catch (error) {
-          console.error('[useCollabPreload] Preload document creation failed:', error);
+          console.error('[useCollabPreload] Auto document creation failed:', error);
         }
       };
       
-      // Preload component code as well
-      import('../../pages/CollabEditorPage/CollabEditorPage.jsx');
-      import('../../stores/collabEditorStore.js');
-      
       createDoc();
     }
-  }, [content, hasAccess, isEnabled]);
+  }, [content, hasAccess, isEnabled, autoCreate]);
   
   return preloadedDocIdRef.current;
 }; 

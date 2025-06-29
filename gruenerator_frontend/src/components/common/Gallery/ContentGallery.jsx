@@ -5,10 +5,8 @@ import SearchBar from './SearchBar';
 import AntraegeGallery from '../../../features/templates/antraege/AntraegeGallery';
 import CustomGeneratorsGallery from '../../../features/generators/components/CustomGeneratorsGallery';
 import PRTextsGallery from '../../../features/texte/components/PRTextsGallery';
-import CanvaTemplatesDisplay from '../../../features/templates/canva/CanvaTemplatesDisplay';
 import { useAntraegeGallery } from '../../../hooks/useAntraegeGallery';
 import { useCustomGeneratorsGallery } from '../../../hooks/useCustomGeneratorsGallery';
-import { useCanvaTemplatesGallery } from '../../../hooks/useCanvaTemplatesGallery';
 import { usePRTextsGallery } from '../../../hooks/usePRTextsGallery';
 
 // Verfügbare Inhaltstypen
@@ -16,7 +14,6 @@ const contentTypes = [
   { id: 'all', label: 'Alle Kategorien' },
   { id: 'antraege', label: 'Anträge' },
   { id: 'generators', label: 'Grüneratoren' },
-  { id: 'canva', label: 'Canva Vorlagen' },
   { id: 'pr', label: 'Öffentlichkeitsarbeit', disabled: false }
 ];
 
@@ -44,7 +41,6 @@ const ContentGallery = () => {
   // Spezifische Hooks für verschiedene Inhaltstypen
   const { categories: antraegeCategories } = useAntraegeGallery();
   const { categories: generatorCategories } = useCustomGeneratorsGallery();
-  const { categories: canvaCategories } = useCanvaTemplatesGallery(searchTerm, selectedCategory, searchMode);
   const { categories: prTextCategories } = usePRTextsGallery();
 
   // Titel und Intro-Text je nach Inhaltstyp
@@ -53,7 +49,6 @@ const ContentGallery = () => {
       case 'all': return 'Datenbank';
       case 'antraege': return 'Antragsdatenbank';
       case 'generators': return 'Grüneratoren-Datenbank';
-      case 'canva': return 'Canva Vorlagen Datenbank';
       case 'pr': return 'Öffentlichkeitsarbeit-Datenbank';
       default: return 'Datenbank';
     }
@@ -64,7 +59,6 @@ const ContentGallery = () => {
       case 'all': return 'Durchsuchen Sie unsere gesamte Datenbank mit allen Inhalten.';
       case 'antraege': return 'Durchsuchen und verwalten Sie hier eingereichte Anträge.';
       case 'generators': return 'Durchsuchen und verwalten Sie hier benutzerdefinierte Grüneratoren.';
-      case 'canva': return 'Durchsuchen Sie hier unsere Canva Vorlagen.';
       case 'pr': return 'Durchsuchen und verwalten Sie hier Texte für die Öffentlichkeitsarbeit.';
       default: return 'Durchsuchen Sie unsere Datenbank.';
     }
@@ -90,12 +84,6 @@ const ContentGallery = () => {
             </div>
           </div>
 
-          <div className="content-section">
-            <h2 className="content-section-title">Canva Vorlagen</h2>
-            <div className="content-section-grid">
-              <CanvaTemplatesDisplay searchTerm={searchTerm} selectedCategory={selectedCategory} searchMode={searchMode} />
-            </div>
-          </div>
           
           <div className="content-section">
             <h2 className="content-section-title">Öffentlichkeitsarbeit</h2>
@@ -113,8 +101,6 @@ const ContentGallery = () => {
         return <AntraegeGallery searchTerm={searchTerm} selectedCategory={selectedCategory} searchMode={searchMode} />;
       case 'generators':
         return <CustomGeneratorsGallery searchTerm={searchTerm} selectedCategory={selectedCategory} searchMode={searchMode} />;
-      case 'canva':
-        return <CanvaTemplatesDisplay searchTerm={searchTerm} selectedCategory={selectedCategory} searchMode={searchMode} />;
       case 'pr':
         return <PRTextsGallery searchTerm={searchTerm} selectedCategory={selectedCategory} searchMode={searchMode} />;
       default:
@@ -127,8 +113,6 @@ const ContentGallery = () => {
     categoriesForFilter = antraegeCategories;
   } else if (contentType === 'generators') {
     categoriesForFilter = generatorCategories;
-  } else if (contentType === 'canva') {
-    categoriesForFilter = canvaCategories;
   } else if (contentType === 'pr') {
     categoriesForFilter = prTextCategories;
   }

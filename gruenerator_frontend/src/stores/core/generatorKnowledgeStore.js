@@ -20,6 +20,17 @@ const initialState = {
   isLoadingDocuments: false,
   isExtractingDocumentContent: false,
   documentExtractionInfo: null,
+  // New: User texts state
+  availableTexts: [],
+  selectedTextIds: [],
+  isLoadingTexts: false,
+  // New: UI Configuration state
+  uiConfig: {
+    enableKnowledge: false,
+    enableDocuments: false,
+    enableTexts: false,
+    enableSourceSelection: false
+  },
 };
 
 /**
@@ -52,6 +63,9 @@ export const useGeneratorKnowledgeStore = create(immer((set, get) => {
       state.availableDocuments = [];
       state.selectedDocumentIds = [];
       state.isLoadingDocuments = false;
+      state.availableTexts = [];
+      state.selectedTextIds = [];
+      state.isLoadingTexts = false;
     }
   }),
 
@@ -152,21 +166,25 @@ export const useGeneratorKnowledgeStore = create(immer((set, get) => {
     });
   },
 
-  // Helper: Generate document content for API (now with intelligent vector search)
+  // Helper: Generate document and text content for API (now with intelligent vector search)
   getDocumentContent: async (searchQuery = null) => {
     const state = get();
-    const { setExtractingDocumentContent } = get();
+    const { setExtractingDocumentContent, getTextContent } = get();
     
-    if (state.selectedDocumentIds.length === 0) return null;
+    const hasDocuments = state.selectedDocumentIds.length > 0;
+    const hasTexts = state.selectedTextIds.length > 0;
     
-    const selectedDocuments = state.availableDocuments.filter(doc => 
+    if (!hasDocuments && !hasTexts) return null;
+    
+    const selectedDocuments = hasDocuments ? state.availableDocuments.filter(doc => 
       state.selectedDocumentIds.includes(doc.id)
-    );
+    ) : [];
     
-    if (selectedDocuments.length === 0) return null;
+    // Get text content synchronously
+    const textContent = hasTexts ? getTextContent() : null;
 
-    // If we have a search query, use intelligent content extraction
-    if (searchQuery && searchQuery.trim()) {
+    // If we have a search query and documents, use intelligent content extraction
+    if (searchQuery && searchQuery.trim() && hasDocuments && selectedDocuments.length > 0) {
       try {
         console.log('[KnowledgeStore] Using intelligent document content extraction with query:', searchQuery);
         
@@ -216,7 +234,9 @@ export const useGeneratorKnowledgeStore = create(immer((set, get) => {
             
             setTimeout(() => setExtractingDocumentContent(false), 2000);
             
-            return intelligentContents;
+            // Combine intelligent document content with text content
+            const combinedContent = [intelligentContents, textContent].filter(Boolean).join('\n\n===\n\n');
+            return combinedContent || null;
           }
         } else {
           console.warn('[KnowledgeStore] Vector search API failed, falling back to simple extraction');
@@ -238,9 +258,10 @@ export const useGeneratorKnowledgeStore = create(immer((set, get) => {
     }
 
     // Fallback: Use simple content extraction (Phase 1 behavior)
-    console.log('[KnowledgeStore] Using simple document content extraction (fallback)');
+    console.log('[KnowledgeStore] Using simple document and text content extraction (fallback)');
     
-    return selectedDocuments.map(doc => {
+    // Generate document content
+    const documentContent = hasDocuments ? selectedDocuments.map(doc => {
       // For short documents (≤2 pages), include full content
       // For longer documents, use smart excerpt
       const isShortDocument = (doc.page_count || 0) <= 2;
@@ -252,7 +273,11 @@ export const useGeneratorKnowledgeStore = create(immer((set, get) => {
       }
       
       return `## Dokument: ${doc.title}\n**Datei:** ${doc.filename}\n**Seiten:** ${doc.page_count || 'Unbekannt'}\n**Inhalt:** ${isShortDocument ? 'Volltext' : 'Intelligenter Auszug'}\n\n${content}`;
-    }).join('\n\n---\n\n');
+    }).join('\n\n---\n\n') : null;
+    
+    // Combine document and text content
+    const combinedContent = [documentContent, textContent].filter(Boolean).join('\n\n===\n\n');
+    return combinedContent || null;
   },
 
   // Helper: Get selected documents for display
@@ -262,6 +287,125 @@ export const useGeneratorKnowledgeStore = create(immer((set, get) => {
       state.selectedDocumentIds.includes(doc.id)
     );
   },
+
+  // New: Text management functions
+  setAvailableTexts: (texts) => set((state) => {
+    console.log('[KnowledgeStore] setAvailableTexts called with', texts?.length || 0, 'texts');
+    state.availableTexts = texts || [];
+    state.isLoadingTexts = false;
+  }),
+
+  setLoadingTexts: (isLoading) => set((state) => {
+    state.isLoadingTexts = isLoading;
+  }),
+
+  // Helper: Handle text loading errors
+  handleTextLoadError: (error) => set((state) => {
+    console.error('[KnowledgeStore] Text loading error:', error);
+    state.isLoadingTexts = false;
+    // Keep existing texts if any
+  }),
+
+  toggleTextSelection: (textId) => {
+    const currentState = get();
+    const wasSelected = currentState.selectedTextIds.includes(textId);
+    
+    set((state) => {
+      if (wasSelected) {
+        state.selectedTextIds = state.selectedTextIds.filter(id => id !== textId);
+        console.log('[KnowledgeStore] toggleTextSelection: REMOVED', textId, 'Now selected:', state.selectedTextIds);
+      } else {
+        state.selectedTextIds.push(textId);
+        console.log('[KnowledgeStore] toggleTextSelection: ADDED', textId, 'Now selected:', state.selectedTextIds);
+      }
+    });
+  },
+
+  // Helper: Fetch user texts
+  fetchTexts: async () => {
+    const state = get();
+    const { setLoadingTexts, setAvailableTexts, handleTextLoadError } = get();
+    
+    setLoadingTexts(true);
+    
+    try {
+      console.log('[KnowledgeStore] Fetching user texts');
+      
+      const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+      const response = await fetch(`${AUTH_BASE_URL}/user-texts`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      
+      if (result.success) {
+        console.log(`[KnowledgeStore] Fetched ${result.data?.length || 0} texts`);
+        setAvailableTexts(result.data || []);
+      } else {
+        throw new Error(result.message || 'Failed to fetch texts');
+      }
+    } catch (error) {
+      console.error('[KnowledgeStore] Error fetching texts:', error);
+      handleTextLoadError(error);
+      setAvailableTexts([]); // Clear texts on error
+    }
+  },
+
+  // Helper: Get selected texts for display
+  getSelectedTexts: () => {
+    const state = get();
+    return state.availableTexts.filter(text => 
+      state.selectedTextIds.includes(text.id)
+    );
+  },
+
+  // Helper: Generate text content for API
+  getTextContent: () => {
+    const state = get();
+    if (state.selectedTextIds.length === 0) return null;
+    
+    const selectedTexts = state.availableTexts.filter(text => 
+      state.selectedTextIds.includes(text.id)
+    );
+    
+    if (selectedTexts.length === 0) return null;
+
+    return selectedTexts.map(text => {
+      const textType = text.type || 'text';
+      const typeDisplayName = {
+        'antrag': 'Antrag',
+        'social': 'Social Media',
+        'universal': 'Universeller Text',
+        'press': 'Pressemitteilung',
+        'gruene_jugend': 'Grüne Jugend',
+        'text': 'Allgemeiner Text'
+      }[textType] || textType;
+      
+      const content = text.full_content || text.content || '';
+      
+      return `## Text: ${text.title}\n**Typ:** ${typeDisplayName}\n**Wörter:** ${text.word_count || 'Unbekannt'}\n**Erstellt:** ${new Date(text.created_at).toLocaleDateString()}\n\n${content}`;
+    }).join('\n\n---\n\n');
+  },
+
+  // New: UI Configuration management
+  setUIConfig: (config) => set((state) => {
+    const oldConfig = { ...state.uiConfig };
+    const newConfig = { ...state.uiConfig, ...config };
+    console.log('[KnowledgeStore] setUIConfig called:', {
+      old: oldConfig,
+      new: newConfig,
+      diff: config
+    });
+    state.uiConfig = newConfig;
+  }),
 
   reset: () => {
     console.log('[KnowledgeStore] reset() called:', {

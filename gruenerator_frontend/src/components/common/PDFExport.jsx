@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import PropTypes from 'prop-types';
-import { IoDocumentTextOutline } from "react-icons/io5";
+import { FaRegFilePdf } from "react-icons/fa6";
 import { Document, Page, Text, View, StyleSheet, PDFDownloadLink, Font } from '@react-pdf/renderer';
 
 // Register custom fonts matching the typography system
@@ -240,7 +240,7 @@ const PDFExport = ({ content, title, className = 'action-button' }) => {
           'data-tooltip-content': "Als PDF herunterladen"
         })}
       >
-        <IoDocumentTextOutline size={16} />
+        <FaRegFilePdf size={16} />
       </button>
     );
   }
@@ -268,7 +268,7 @@ const PDFExport = ({ content, title, className = 'action-button' }) => {
                 })}
                 style={{ opacity: 0.5 }}
               >
-                <IoDocumentTextOutline size={16} />
+                <FaRegFilePdf size={16} />
               </button>
             );
           }
@@ -290,7 +290,7 @@ const PDFExport = ({ content, title, className = 'action-button' }) => {
                 }
               }}
             >
-              <IoDocumentTextOutline size={16} />
+              <FaRegFilePdf size={16} />
             </button>
           );
         }}
@@ -310,7 +310,7 @@ const PDFExport = ({ content, title, className = 'action-button' }) => {
         })}
         style={{ opacity: 0.5 }}
       >
-        <IoDocumentTextOutline size={16} />
+        <FaRegFilePdf size={16} />
       </button>
     );
   }

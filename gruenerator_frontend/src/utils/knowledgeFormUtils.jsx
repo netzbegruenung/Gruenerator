@@ -20,7 +20,7 @@ export const getDocuments = async (query, userId, limit = 3) => {
   try {
     console.log('[getDocuments] Searching documents for:', { query, userId, limit });
     
-    const response = await fetch(`${AUTH_BASE_URL}/api/documents/search`, {
+    const response = await fetch(`${AUTH_BASE_URL}/documents/search`, {
       method: 'POST',
       credentials: 'include',
       headers: {

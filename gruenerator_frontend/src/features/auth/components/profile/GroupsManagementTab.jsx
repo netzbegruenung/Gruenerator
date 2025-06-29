@@ -1,14 +1,16 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useForm, FormProvider, useFieldArray } from 'react-hook-form';
 import { HiOutlineTrash, HiPlus, HiLink, HiInformationCircle, HiPencil, HiCheck, HiX } from 'react-icons/hi';
+import debounce from 'lodash.debounce';
 import Spinner from '../../../../components/common/Spinner';
-import { useGroups, getGroupInitials } from '../../utils/groupsUtils';
+import { useGroups, useGroupSharing, getGroupInitials } from '../../utils/groupsUtils';
 import useGroupDetails from '../../../../features/groups/hooks/useGroupDetails';
-import { autoResizeTextarea } from '../../utils/profileUtils';
 import { useFormFields } from '../../../../components/common/Form/hooks';
 import HelpTooltip from '../../../../components/common/HelpTooltip';
 import DeleteWarningTooltip from '../../../../components/common/DeleteWarningTooltip';
 import GroupMembersList from './GroupMembersList';
+import SharedContentSelector from '../../../../features/groups/components/SharedContentSelector';
+import { useInstructionsUiStore } from '../../../../stores/auth/instructionsUiStore';
 import { motion } from "motion/react";
 
 // Helper function moved to groupsUtils.js
@@ -19,18 +21,23 @@ const GroupDetailView = ({
     onSuccessMessage, 
     onErrorMessage,
     isActive,
-    currentView = 'anweisungen'
+    currentView = 'anweisungen-wissen'
 }) => {
     // State for editing group name and description
     const [isEditingName, setIsEditingName] = useState(false);
     const [editedGroupName, setEditedGroupName] = useState('');
     const [isEditingDescription, setIsEditingDescription] = useState(false);
     const [editedGroupDescription, setEditedGroupDescription] = useState('');
+    
+    // Auto-save refs and state
+    const isInitialized = useRef(false);
+    const lastSavedData = useRef(null);
     // React Hook Form setup for group details
     const formMethods = useForm({
         defaultValues: {
             customAntragPrompt: '',
             customSocialPrompt: '',
+            customUniversalPrompt: '',
             knowledge: []
         },
         mode: 'onChange'
@@ -50,6 +57,7 @@ const GroupDetailView = ({
         isAdmin, 
         customAntragPrompt, 
         customSocialPrompt, 
+        customUniversalPrompt,
         knowledgeEntries, 
         handleInstructionsChange, 
         handleKnowledgeChange, 
@@ -79,25 +87,87 @@ const GroupDetailView = ({
         updateGroupNameError 
     } = useGroups({ isActive });
 
-    const [joinLinkCopied, setJoinLinkCopied] = useState(false);
+    // Group sharing functionality
+    const {
+        groupContent,
+        isLoadingGroupContent,
+        unshareContent,
+        updatePermissions,
+        isUnsharing,
+        isUpdatingPermissions
+    } = useGroupSharing(groupId, { isActive });
 
-    // Refs for textareas
-    const antragTextareaRef = useRef(null);
-    const socialTextareaRef = useRef(null);
-    const knowledgeTextareaRefs = useRef({});
+    // UI state management using shared store
+    const {
+        isSaving: uiIsSaving, 
+        isDeleting: uiIsDeleting, 
+        deletingKnowledgeId: uiDeletingKnowledgeId,
+        clearMessages: clearUiMessages
+    } = useInstructionsUiStore();
+
+    const [joinLinkCopied, setJoinLinkCopied] = useState(false);
 
     // Initialize form when group data loads
     useEffect(() => {
-        if (groupInfo) {
+        if (groupInfo && !isInitialized.current) {
             reset({
                 customAntragPrompt: customAntragPrompt || '',
                 customSocialPrompt: customSocialPrompt || '',
+                customUniversalPrompt: customUniversalPrompt || '',
                 knowledge: knowledgeEntries || []
             });
             setEditedGroupName(groupInfo.name || '');
             setEditedGroupDescription(groupInfo.description || '');
+            
+            // Mark as initialized after first load
+            isInitialized.current = true;
         }
-    }, [groupInfo, customAntragPrompt, customSocialPrompt, knowledgeEntries, reset]);
+    }, [groupInfo, customAntragPrompt, customSocialPrompt, customUniversalPrompt, knowledgeEntries, reset]);
+
+    // Auto-save with debouncing (similar to AnweisungenWissenTab)
+    const debouncedSave = useCallback(
+        debounce(async (formData) => {
+            try {
+                // Use existing save mechanism through handleInstructionsChange
+                Object.entries(formData).forEach(([key, value]) => {
+                    if (key !== 'knowledge') {
+                        handleInstructionsChange(key, value);
+                    }
+                });
+                
+                // Save changes
+                saveChanges();
+            } catch (error) {
+                console.error('Auto-save error:', error);
+            }
+        }, 1000),
+        [handleInstructionsChange, saveChanges]
+    );
+    
+    // Auto-save trigger using form subscription (adapted from AnweisungenWissenTab)
+    useEffect(() => {
+        if (!groupInfo || !isInitialized.current) return; // Don't auto-save until initial load
+        
+        // Use a timer to check for form changes periodically
+        const interval = setInterval(() => {
+            const currentValues = getValues();
+            const formData = {
+                custom_antrag_prompt: currentValues.customAntragPrompt || '',
+                custom_social_prompt: currentValues.customSocialPrompt || '',
+                custom_universal_prompt: currentValues.customUniversalPrompt || '',
+                knowledge: currentValues.knowledge || []
+            };
+            
+            // Deep comparison with last saved data to prevent unnecessary saves
+            const dataToCompare = JSON.stringify(formData);
+            if (lastSavedData.current !== dataToCompare) {
+                lastSavedData.current = dataToCompare;
+                debouncedSave(formData);
+            }
+        }, 500); // Check every 500ms for changes
+        
+        return () => clearInterval(interval);
+    }, [groupInfo, getValues, debouncedSave]);
 
     // Effect for save/delete feedback
     useEffect(() => {
@@ -112,19 +182,10 @@ const GroupDetailView = ({
         }
     }, [isSaveSuccess, isSaveError, saveError, isDeleteKnowledgeError, deleteKnowledgeError, onSuccessMessage, onErrorMessage]);
 
-    // Auto-resize effect for textareas
+    // Effect to clear UI messages when view changes or component becomes inactive
     useEffect(() => {
-        if (antragTextareaRef.current) {
-            autoResizeTextarea(antragTextareaRef.current);
-        }
-        if (socialTextareaRef.current) {
-            autoResizeTextarea(socialTextareaRef.current);
-        }
-        
-        Object.values(knowledgeTextareaRefs.current).forEach(ref => {
-            if (ref) autoResizeTextarea(ref);
-        });
-    }, [customAntragPrompt, customSocialPrompt, knowledgeEntries]);
+        clearUiMessages();
+    }, [groupId, isActive, clearUiMessages]);
 
     const getJoinUrl = () => {
         if (!joinToken) return '';
@@ -170,27 +231,14 @@ const GroupDetailView = ({
         });
     };
 
-    const handleFormSave = () => {
-        const formData = getValues();
-        const changes = {
-            custom_antrag_prompt: formData.customAntragPrompt,
-            custom_social_prompt: formData.customSocialPrompt
-        };
-        
-        // Handle form save through existing save mechanism
-        Object.entries(changes).forEach(([key, value]) => {
-            handleInstructionsChange(key, value);
-        });
-        
-        saveChanges();
-    };
 
     const handleDeleteKnowledge = (entry, index) => {
         if (!entry.id || (typeof entry.id === 'string' && entry.id.startsWith('new-'))) {
-            remove(index);
+            remove(index); // Remove from form state if it's a new, unsaved entry
         } else {
             if (window.confirm("Möchtest du diesen Wissenseintrag wirklich löschen?")) {
-                handleKnowledgeDelete(entry.id);
+                // For saved entries, remove from form and let auto-save handle the backend deletion
+                remove(index);
             }
         }
     };
@@ -398,9 +446,13 @@ const GroupDetailView = ({
                             onChange={(e) => setEditedGroupDescription(e.target.value)}
                             className="form-textarea"
                             placeholder="Beschreibung der Gruppe (optional)..."
-                            rows={4}
                             maxLength={500}
                             disabled={isUpdatingGroupName}
+                            style={{ minHeight: 'auto', resize: 'none', overflow: 'hidden' }}
+                            onInput={(e) => {
+                                e.target.style.height = 'auto';
+                                e.target.style.height = (e.target.scrollHeight + 2) + 'px';
+                            }}
                         />
                         <div className="character-count">
                             {editedGroupDescription.length}/500 Zeichen
@@ -449,172 +501,229 @@ const GroupDetailView = ({
         </>
     );
 
-    // Render Instructions Tab
-    const renderInstructionsTab = () => (
-        <>
-            <div className="group-content-card">
-                <div className="group-instructions-section">
-                    <div className="group-section-header">
-                        <h3 className="group-section-title">Gruppenanweisungen</h3>
-                        <div className="form-help-text">
-                            {isSaving ? 'Wird gespeichert...' : 'Änderungen werden automatisch gespeichert'}
-                        </div>
-                    </div>
-
-                    <div className="group-instructions-grid">
-                        <div className="group-instruction-card">
-                            <div className="instruction-card-header">
-                                <h4>Anträge</h4>
-                            </div>
-                            <div className="instruction-content">
-                                {isAdmin ? (
-                                    <FormProvider {...formMethods}>
-                                        <Textarea
-                                            name="customAntragPrompt"
-                                            placeholder="Spezifische Anweisungen für Anträge..."
-                                            className="group-instruction-textarea"
-                                            disabled={isSaving}
-                                            maxLength={GROUP_MAX_CONTENT_LENGTH}
-                                            showCharacterCount={true}
-                                            minRows={3}
-                                            maxRows={8}
-                                            control={control}
-                                            onChange={(value) => handleInstructionsChange('custom_antrag_prompt', value)}
-                                        />
-                                    </FormProvider>
-                                ) : (
-                                    <div className="instruction-display">
-                                        {customAntragPrompt || 'Keine spezifischen Anweisungen für Anträge.'}
+    // Render combined Anweisungen & Wissen Tab
+    const renderAnweisungenWissenTab = () => {
+        return (
+            <>
+                <div className="group-content-card">
+                    <FormProvider {...formMethods}>
+                        <div className="auth-form">
+                            <div className="profile-cards-grid">
+                                <div className="profile-card">
+                                    <div className="profile-card-header">
+                                        <h3>Anträge</h3>
                                     </div>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="group-instruction-card">
-                            <div className="instruction-card-header">
-                                <h4>Social Media</h4>
-                            </div>
-                            <div className="instruction-content">
-                                {isAdmin ? (
-                                    <FormProvider {...formMethods}>
-                                        <Textarea
-                                            name="customSocialPrompt"
-                                            placeholder="Spezifische Anweisungen für Social Media..."
-                                            className="group-instruction-textarea"
-                                            disabled={isSaving}
-                                            maxLength={GROUP_MAX_CONTENT_LENGTH}
-                                            showCharacterCount={true}
-                                            minRows={3}
-                                            maxRows={8}
-                                            control={control}
-                                            onChange={(value) => handleInstructionsChange('custom_social_prompt', value)}
-                                        />
-                                    </FormProvider>
-                                ) : (
-                                    <div className="instruction-display">
-                                        {customSocialPrompt || 'Keine spezifischen Anweisungen für Social Media.'}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </>
-    );
-
-    // Render Knowledge Tab
-    const renderKnowledgeTab = () => (
-        <>
-            <div className="group-content-card">
-                <FormProvider {...formMethods}>
-                    <div className="profile-card">
-                        <div className="profile-card-header">
-                            <h3>Gruppenwissen</h3>
-                            {isAdmin && (
-                                <button
-                                    type="button"
-                                    className="btn-primary size-s"
-                                    onClick={handleAddKnowledge}
-                                    disabled={isSaving || isDeletingKnowledge || fields.length >= 3}
-                                >
-                                    <HiPlus className="icon" /> Wissen hinzufügen
-                                </button>
-                            )}
-                        </div>
-                        <div className="profile-card-content">
-                            {fields.length === 0 && (
-                                <div className="knowledge-empty-state centered">
-                                    <p>Noch kein Gruppenwissen vorhanden.</p>
-                                    {isAdmin ? (
-                                        <p>
-                                            Klicke auf "Wissen hinzufügen", um wiederkehrende Informationen zu speichern.
-                                        </p>
-                                    ) : (
-                                        <p>Nur Admins können Gruppenwissen hinzufügen.</p>
-                                    )}
-                                </div>
-                            )}
-
-                            {fields.map((field, index) => (
-                                <div key={field.key} className={`knowledge-entry ${index > 0 ? 'knowledge-entry-bordered' : ''}`}>
-                                    <div className="form-field-wrapper anweisungen-field">
-                                        <div className="anweisungen-header">
-                                            <label htmlFor={`knowledge.${index}.title`}>Wissen #{index + 1}: Titel</label>
-                                            {isAdmin && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleDeleteKnowledge(field, index)}
-                                                    className="knowledge-delete-button icon-button danger"
-                                                    disabled={isSaving || (isDeletingKnowledge && deletingKnowledgeId === field.id)}
-                                                    aria-label={`Wissenseintrag ${index + 1} löschen`}
-                                                >
-                                                    {(isDeletingKnowledge && deletingKnowledgeId === field.id) ? <Spinner size="xsmall" /> : <HiOutlineTrash />}
-                                                </button>
-                                            )}
-                                        </div>
+                                    <div className="profile-card-content">
                                         {isAdmin ? (
-                                            <Input
-                                                name={`knowledge.${index}.title`}
-                                                type="text"
-                                                placeholder="Kurzer, prägnanter Titel (z.B. 'Gruppenstrategie 2024')"
-                                                rules={{ maxLength: { value: 100, message: 'Titel darf maximal 100 Zeichen haben' } }}
-                                                disabled={isSaving || isDeletingKnowledge}
+                                            <Textarea
+                                                name="customAntragPrompt"
+                                                label="Gruppenanweisungen:"
+                                                placeholder="Spezifische Anweisungen für Anträge..."
+                                                helpText="z.B. bevorzugter Stil, spezielle Formulierungen, politische Schwerpunkte"
+                                                maxLength={GROUP_MAX_CONTENT_LENGTH}
+                                                showCharacterCount={true}
+                                                disabled={isSaving}
                                                 control={control}
                                             />
                                         ) : (
-                                            <div className="knowledge-display">
-                                                <strong>{field.title || 'Ohne Titel'}</strong>
+                                            <div className="instruction-display">
+                                                {customAntragPrompt || 'Keine spezifischen Anweisungen für Anträge.'}
                                             </div>
                                         )}
                                     </div>
-                                    <div className="form-field-wrapper anweisungen-field">
+                                </div>
+
+                                <div className="profile-card">
+                                    <div className="profile-card-header">
+                                        <h3>Presse & Social Media</h3>
+                                    </div>
+                                    <div className="profile-card-content">
                                         {isAdmin ? (
                                             <Textarea
-                                                name={`knowledge.${index}.content`}
-                                                label="Inhalt:"
-                                                placeholder="Füge hier den Wissensinhalt ein..."
-                                                minRows={2}
-                                                maxRows={8}
+                                                name="customSocialPrompt"
+                                                label="Gruppenanweisungen:"
+                                                placeholder="Spezifische Anweisungen für Presse- und Social Media-Inhalten..."
+                                                helpText="z.B. Tonalität, Hashtag-Präferenzen, Zielgruppen-Ansprache"
                                                 maxLength={GROUP_MAX_CONTENT_LENGTH}
                                                 showCharacterCount={true}
-                                                disabled={isSaving || isDeletingKnowledge}
+                                                disabled={isSaving}
                                                 control={control}
                                             />
                                         ) : (
-                                            <>
-                                                <label className="form-label">Inhalt:</label>
-                                                <div className="knowledge-display">
-                                                    {field.content || 'Kein Inhalt vorhanden.'}
-                                                </div>
-                                            </>
+                                            <div className="instruction-display">
+                                                {customSocialPrompt || 'Keine spezifischen Anweisungen für Social Media.'}
+                                            </div>
                                         )}
                                     </div>
                                 </div>
-                            ))}
+
+                                <div className="profile-card">
+                                    <div className="profile-card-header">
+                                        <h3>Universelle Texte</h3>
+                                    </div>
+                                    <div className="profile-card-content">
+                                        {isAdmin ? (
+                                            <Textarea
+                                                name="customUniversalPrompt"
+                                                label="Gruppenanweisungen:"
+                                                placeholder="Spezifische Anweisungen für universelle Texte..."
+                                                helpText="z.B. allgemeine Schreibweise, politische Grundhaltung, Formulierungspräferenzen"
+                                                maxLength={GROUP_MAX_CONTENT_LENGTH}
+                                                showCharacterCount={true}
+                                                disabled={isSaving}
+                                                control={control}
+                                            />
+                                        ) : (
+                                            <div className="instruction-display">
+                                                {customUniversalPrompt || 'Keine spezifischen Anweisungen für universelle Texte.'}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="profile-card">
+                                    <div className="profile-card-header">
+                                        <h3>Gruppenwissen</h3>
+                                        {isAdmin && (
+                                            <button
+                                                type="button"
+                                                className="btn-primary size-s"
+                                                onClick={handleAddKnowledge}
+                                                disabled={isSaving || isDeletingKnowledge || fields.length >= 3}
+                                            >
+                                                <HiPlus className="icon" /> Wissen hinzufügen
+                                            </button>
+                                        )}
+                                    </div>
+                                    <div className="profile-card-content">
+                                        {fields.length === 0 && !isAdmin && (
+                                            <div className="knowledge-empty-state centered">
+                                                <p>Noch kein Gruppenwissen vorhanden.</p>
+                                                <p>Nur Admins können Gruppenwissen hinzufügen.</p>
+                                            </div>
+                                        )}
+
+                                        {fields.map((field, index) => (
+                                            <div key={field.key} className={`knowledge-entry ${index > 0 ? 'knowledge-entry-bordered' : ''}`}>
+                                                <div className="form-field-wrapper anweisungen-field">
+                                                    <div className="anweisungen-header">
+                                                        <label htmlFor={`knowledge.${index}.title`}>Wissen #{index + 1}: Titel</label>
+                                                        {isAdmin && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleDeleteKnowledge(field, index)}
+                                                                className="knowledge-delete-button icon-button danger"
+                                                                disabled={isSaving || (isDeletingKnowledge && deletingKnowledgeId === field.id)}
+                                                                aria-label={`Wissenseintrag ${index + 1} löschen`}
+                                                            >
+                                                                {(isDeletingKnowledge && deletingKnowledgeId === field.id) ? <Spinner size="xsmall" /> : <HiOutlineTrash />}
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                    {isAdmin ? (
+                                                        <Input
+                                                            name={`knowledge.${index}.title`}
+                                                            type="text"
+                                                            placeholder="Kurzer, prägnanter Titel (z.B. 'Gruppenstrategie 2024')"
+                                                            rules={{ maxLength: { value: 100, message: 'Titel darf maximal 100 Zeichen haben' } }}
+                                                            disabled={isSaving || isDeletingKnowledge}
+                                                            control={control}
+                                                        />
+                                                    ) : (
+                                                        <div className="knowledge-display">
+                                                            <strong>{field.title || 'Ohne Titel'}</strong>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div className="form-field-wrapper anweisungen-field">
+                                                    {isAdmin ? (
+                                                        <Textarea
+                                                            name={`knowledge.${index}.content`}
+                                                            label="Inhalt:"
+                                                            placeholder="Füge hier den Wissensinhalt ein..."
+                                                            maxLength={GROUP_MAX_CONTENT_LENGTH}
+                                                            showCharacterCount={true}
+                                                            disabled={isSaving || isDeletingKnowledge}
+                                                            control={control}
+                                                        />
+                                                    ) : (
+                                                        <>
+                                                            <label className="form-label">Inhalt:</label>
+                                                            <div className="knowledge-display">
+                                                                {field.content || 'Kein Inhalt vorhanden.'}
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="form-help-text">
+                                {isSaving ? 'Wird gespeichert...' : 'Änderungen werden automatisch gespeichert'}
+                            </div>
+                        </div>
+                    </FormProvider>
+                </div>
+            </>
+        );
+    };
+
+    // Render Combined Shared Content Tab with both content and templates
+    const renderSharedContentTab = () => (
+        <>
+            <div className="group-content-card">
+                <div className="profile-cards-grid">
+                    <div className="profile-card">
+                        <div className="profile-card-header">
+                            <h3>Geteilte Inhalte</h3>
+                        </div>
+                        <div className="profile-card-content">
+                            <SharedContentSelector
+                                groupContent={groupContent}
+                                isLoading={isLoadingGroupContent}
+                                isAdmin={isAdmin}
+                                onUnshare={unshareContent}
+                                isUnsharing={isUnsharing}
+                                config={{
+                                    title: "",
+                                    description: "Texte und Dokumente, die mit der Gruppe geteilt wurden",
+                                    excludeTypes: ['user_content'], // Exclude templates from this section
+                                    hideFilters: ['permissions'],
+                                    cardStyle: 'content-default'
+                                }}
+                            />
                         </div>
                     </div>
-                </FormProvider>
+
+                    <div className="profile-card">
+                        <div className="profile-card-header">
+                            <h3>Geteilte Vorlagen</h3>
+                        </div>
+                        <div className="profile-card-content">
+                            <SharedContentSelector
+                                groupContent={groupContent}
+                                isLoading={isLoadingGroupContent}
+                                isAdmin={isAdmin}
+                                onUnshare={unshareContent}
+                                isUnsharing={isUnsharing}
+                                config={{
+                                    title: "",
+                                    description: "Canva-Vorlagen, die mit der Gruppe geteilt wurden",
+                                    contentFilter: 'user_content',
+                                    hideFilters: ['contentType', 'permissions'],
+                                    cardStyle: 'template-square',
+                                    gridConfig: {
+                                        minCardWidth: '280px',
+                                        aspectRatio: '1:1'
+                                    }
+                                }}
+                            />
+                        </div>
+                    </div>
+                </div>
             </div>
         </>
     );
@@ -627,8 +736,8 @@ const GroupDetailView = ({
             transition={{ duration: 0.3 }}
         >
             {currentView === 'gruppeninfo' && renderGroupInfoTab()}
-            {currentView === 'anweisungen' && renderInstructionsTab()}
-            {currentView === 'wissen' && renderKnowledgeTab()}
+            {currentView === 'anweisungen-wissen' && renderAnweisungenWissenTab()}
+            {currentView === 'shared' && renderSharedContentTab()}
 
         </motion.div>
     );
@@ -638,7 +747,7 @@ const GroupDetailView = ({
 const GroupsManagementTab = ({ onSuccessMessage, onErrorMessage, isActive }) => {
     const [currentView, setCurrentView] = useState('overview');
     const [selectedGroupId, setSelectedGroupId] = useState(null);
-    const [groupDetailView, setGroupDetailView] = useState('gruppeninfo');
+    const [groupDetailView, setGroupDetailView] = useState('anweisungen-wissen');
     
     // React Hook Form setup for create group form
     const createGroupFormMethods = useForm({
@@ -653,9 +762,6 @@ const GroupsManagementTab = ({ onSuccessMessage, onErrorMessage, isActive }) => 
 
     const { 
         userGroups, 
-        isLoadingGroups, 
-        isErrorGroups, 
-        errorGroups, 
         createGroup,
         isCreatingGroup,
         isCreateGroupError,
@@ -674,7 +780,7 @@ const GroupsManagementTab = ({ onSuccessMessage, onErrorMessage, isActive }) => 
             const newGroupId = newGroup.id;
             setSelectedGroupId(newGroupId);
             setCurrentView('group');
-            setGroupDetailView('gruppeninfo');
+            setGroupDetailView('anweisungen-wissen');
             resetCreateGroup();
             onSuccessMessage('Gruppe erfolgreich erstellt!');
           },
@@ -721,7 +827,7 @@ const GroupsManagementTab = ({ onSuccessMessage, onErrorMessage, isActive }) => 
             onErrorMessage('');
             setSelectedGroupId(groupId);
             setCurrentView('group');
-            setGroupDetailView('gruppeninfo');
+            setGroupDetailView('anweisungen-wissen');
         }
     };
 
@@ -966,16 +1072,16 @@ const GroupsManagementTab = ({ onSuccessMessage, onErrorMessage, isActive }) => 
                             Gruppeninfo
                         </button>
                         <button
-                            className={`groups-vertical-tab ${groupDetailView === 'anweisungen' ? 'active' : ''}`}
-                            onClick={() => setGroupDetailView('anweisungen')}
+                            className={`groups-vertical-tab ${groupDetailView === 'anweisungen-wissen' ? 'active' : ''}`}
+                            onClick={() => setGroupDetailView('anweisungen-wissen')}
                         >
-                            Gruppenanweisungen
+                            Anweisungen & Wissen
                         </button>
                         <button
-                            className={`groups-vertical-tab ${groupDetailView === 'wissen' ? 'active' : ''}`}
-                            onClick={() => setGroupDetailView('wissen')}
+                            className={`groups-vertical-tab ${groupDetailView === 'shared' ? 'active' : ''}`}
+                            onClick={() => setGroupDetailView('shared')}
                         >
-                            Gruppenwissen
+                            Geteilte Inhalte & Vorlagen
                         </button>
                     </div>
                     

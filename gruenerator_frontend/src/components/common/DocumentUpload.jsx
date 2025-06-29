@@ -3,10 +3,17 @@ import { HiOutlineDocumentAdd, HiOutlineTrash, HiRefresh, HiDocumentText, HiCloc
 import ReactMarkdown from 'react-markdown';
 import { useDocumentsStore } from '../../stores/documentsStore';
 import { useOptimizedAuth } from '../../hooks/useAuth';
+import { validateUrl, normalizeUrl, generateTitleFromUrl } from '../../utils/urlValidation';
 import Spinner from './Spinner';
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
-const ACCEPTED_FILE_TYPES = ['application/pdf'];
+const ACCEPTED_FILE_TYPES = [
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // DOCX
+  'application/vnd.oasis.opendocument.text', // ODT
+  'application/vnd.ms-excel', // XLS
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' // XLSX
+];
 
 // Document Preview Component
 const DocumentPreview = ({ document }) => {
@@ -26,7 +33,7 @@ const DocumentPreview = ({ document }) => {
 
     try {
       const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
-      const response = await fetch(`${AUTH_BASE_URL}/api/documents/${document.id}/content`, {
+      const response = await fetch(`${AUTH_BASE_URL}/documents/${document.id}/content`, {
         method: 'GET',
         credentials: 'include',
         headers: {
@@ -126,6 +133,11 @@ const DocumentUpload = forwardRef(({
   const [selectedFile, setSelectedFile] = useState(null);
   const [ocrMethod, setOcrMethod] = useState('tesseract');
   
+  // URL crawling mode state
+  const [uploadMode, setUploadMode] = useState('file'); // 'file' or 'url'
+  const [urlInput, setUrlInput] = useState('');
+  const [isValidatingUrl, setIsValidatingUrl] = useState(false);
+  
   // Use controlled state when forceShowUploadForm is true
   const isFormVisible = forceShowUploadForm || showUploadForm;
   const fileInputRef = useRef(null);
@@ -139,6 +151,7 @@ const DocumentUpload = forwardRef(({
     error,
     fetchDocuments,
     uploadDocument,
+    crawlUrl,
     deleteDocument,
     clearError,
     refreshDocument
@@ -167,7 +180,7 @@ const DocumentUpload = forwardRef(({
   // Validate file
   const validateFile = useCallback((file) => {
     if (!ACCEPTED_FILE_TYPES.includes(file.type)) {
-      return 'Nur PDF-Dateien sind erlaubt.';
+      return 'Nur PDF-, DOCX-, ODT- und Excel-Dateien sind erlaubt.';
     }
     
     if (file.size > MAX_FILE_SIZE) {
@@ -176,6 +189,23 @@ const DocumentUpload = forwardRef(({
     
     return null;
   }, []);
+
+  // Handle URL input changes
+  const handleUrlChange = useCallback((url) => {
+    setUrlInput(url);
+    
+    // Auto-generate title if URL is valid and title is empty
+    if (url && url.trim() && !uploadTitle) {
+      const normalized = normalizeUrl(url);
+      const validation = validateUrl(normalized);
+      if (validation.isValid) {
+        const suggestedTitle = generateTitleFromUrl(normalized);
+        setUploadTitle(suggestedTitle);
+      }
+    }
+    
+    clearError();
+  }, [uploadTitle, clearError]);
 
   // Handle file selection
   const handleFileSelect = useCallback((files) => {
@@ -189,7 +219,9 @@ const DocumentUpload = forwardRef(({
     }
 
     setSelectedFile(file);
-    setUploadTitle(file.name.replace('.pdf', ''));
+    // Remove file extension from name for title
+    const nameWithoutExtension = file.name.replace(/\.(pdf|docx|odt|xls|xlsx)$/i, '');
+    setUploadTitle(nameWithoutExtension);
     setShowUploadForm(true);
     clearError();
   }, [validateFile, clearError]);
@@ -221,29 +253,65 @@ const DocumentUpload = forwardRef(({
     handleFileSelect(files);
   }, [handleFileSelect]);
 
-  // Handle upload
+  // Handle upload (file or URL)
   const handleUpload = async () => {
-    if (!selectedFile || !uploadTitle.trim()) {
-      alert('Bitte wählen Sie eine Datei und geben Sie einen Titel ein.');
-      return;
-    }
-
-    try {
-      console.log('[DocumentUpload] Starting upload process...');
-      const result = await uploadDocument(selectedFile, uploadTitle.trim(), groupId, ocrMethod);
-      console.log('[DocumentUpload] Upload successful, hiding form and calling onUploadComplete');
-      setShowUploadForm(false);
-      setSelectedFile(null);
-      setUploadTitle('');
-      setOcrMethod('tesseract');
-      
-      if (onUploadComplete) {
-        onUploadComplete(result);
+    if (uploadMode === 'file') {
+      if (!selectedFile || !uploadTitle.trim()) {
+        alert('Bitte wählen Sie eine Datei und geben Sie einen Titel ein.');
+        return;
       }
-    } catch (error) {
-      console.error('[DocumentUpload] Upload failed:', error);
-      // Error is already set in store
+
+      try {
+        console.log('[DocumentUpload] Starting file upload process...');
+        const result = await uploadDocument(selectedFile, uploadTitle.trim(), groupId, ocrMethod);
+        console.log('[DocumentUpload] File upload successful, hiding form and calling onUploadComplete');
+        resetForm();
+        
+        if (onUploadComplete) {
+          onUploadComplete(result);
+        }
+      } catch (error) {
+        console.error('[DocumentUpload] File upload failed:', error);
+        // Error is already set in store
+      }
+    } else if (uploadMode === 'url') {
+      if (!urlInput.trim() || !uploadTitle.trim()) {
+        alert('Bitte geben Sie eine URL und einen Titel ein.');
+        return;
+      }
+
+      const normalizedUrl = normalizeUrl(urlInput.trim());
+      const validation = validateUrl(normalizedUrl);
+      
+      if (!validation.isValid) {
+        alert(validation.error);
+        return;
+      }
+
+      try {
+        console.log('[DocumentUpload] Starting URL crawl process...');
+        const result = await crawlUrl(normalizedUrl, uploadTitle.trim(), groupId);
+        console.log('[DocumentUpload] URL crawl successful, hiding form and calling onUploadComplete');
+        resetForm();
+        
+        if (onUploadComplete) {
+          onUploadComplete(result);
+        }
+      } catch (error) {
+        console.error('[DocumentUpload] URL crawl failed:', error);
+        // Error is already set in store
+      }
     }
+  };
+
+  // Reset form state
+  const resetForm = () => {
+    setShowUploadForm(false);
+    setSelectedFile(null);
+    setUploadTitle('');
+    setUrlInput('');
+    setOcrMethod('tesseract');
+    setUploadMode('file');
   };
 
   // Handle delete
@@ -315,7 +383,7 @@ const DocumentUpload = forwardRef(({
             onClick={() => setShowUploadForm(true)}
             disabled={isUploading}
           >
-            <HiOutlineDocumentAdd className="icon" /> Dokument hochladen
+            <HiOutlineDocumentAdd className="icon" /> Inhalt hinzufügen
           </button>
         </div>
       )}
@@ -374,42 +442,91 @@ const DocumentUpload = forwardRef(({
                   </button>
                 </div>
                 <div className="document-preview-content">
-                  <div className="form-field-wrapper">
-                    {/* File Drop Zone */}
-                    <div
-                      className={`file-dropzone ${dragActive ? 'active' : ''} ${selectedFile ? 'has-file' : ''}`}
-                      onDragEnter={handleDrag}
-                      onDragLeave={handleDrag}
-                      onDragOver={handleDrag}
-                      onDrop={handleDrop}
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept=".pdf"
-                        onChange={handleInputChange}
-                        style={{ display: 'none' }}
-                      />
+                  {uploadMode === 'file' ? (
+                    <>
+                      <div className="form-field-wrapper">
+                        {/* File Drop Zone */}
+                        <div
+                          className={`file-dropzone ${dragActive ? 'active' : ''} ${selectedFile ? 'has-file' : ''}`}
+                          onDragEnter={handleDrag}
+                          onDragLeave={handleDrag}
+                          onDragOver={handleDrag}
+                          onDrop={handleDrop}
+                          onClick={() => fileInputRef.current?.click()}
+                        >
+                          <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept=".pdf,.docx,.odt,.xls,.xlsx"
+                            onChange={handleInputChange}
+                            style={{ display: 'none' }}
+                          />
+                          
+                          {selectedFile ? (
+                            <div className="file-selected">
+                              <HiDocumentText className="file-icon" />
+                              <span className="file-name">{selectedFile.name}</span>
+                              <span className="file-size">({Math.round(selectedFile.size / 1024)} KB)</span>
+                            </div>
+                          ) : (
+                            <div className="file-placeholder">
+                              <HiOutlineDocumentAdd className="upload-icon" />
+                              <p>PDF-, DOCX-, ODT- oder Excel-Datei hier ablegen oder klicken zum Auswählen</p>
+                              <p className="file-requirements">Max. 1.000 Seiten, 50MB</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                       
-                      {selectedFile ? (
-                        <div className="file-selected">
-                          <HiDocumentText className="file-icon" />
-                          <span className="file-name">{selectedFile.name}</span>
-                          <span className="file-size">({Math.round(selectedFile.size / 1024)} KB)</span>
-                        </div>
-                      ) : (
-                        <div className="file-placeholder">
-                          <HiOutlineDocumentAdd className="upload-icon" />
-                          <p>PDF-Datei hier ablegen oder klicken zum Auswählen</p>
-                          <p className="file-requirements">Max. 1.000 Seiten, 50MB</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                      {/* Website crawling option */}
+                      <div className="form-field-wrapper" style={{ textAlign: 'center', marginTop: 'var(--spacing-small)' }}>
+                        <button
+                          type="button"
+                          onClick={() => setUploadMode('url')}
+                          className="upload-mode-link"
+                          disabled={isUploading}
+                        >
+                          Oder Website crawlen
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="form-field-wrapper">
+                        {/* URL Input */}
+                        <label className="form-label">
+                          Website URL *
+                        </label>
+                        <input
+                          type="url"
+                          className="form-input"
+                          value={urlInput}
+                          onChange={(e) => handleUrlChange(e.target.value)}
+                          placeholder="https://example.com/article"
+                          disabled={isUploading}
+                        />
+                        <p className="field-help">
+                          Geben Sie die URL einer Website ein, die gecrawlt werden soll. 
+                          Der Inhalt wird automatisch extrahiert und als Dokument hinzugefügt.
+                        </p>
+                      </div>
+                      
+                      {/* Back to file upload option */}
+                      <div className="form-field-wrapper" style={{ textAlign: 'center', marginTop: 'var(--spacing-small)' }}>
+                        <button
+                          type="button"
+                          onClick={() => setUploadMode('file')}
+                          className="upload-mode-link"
+                          disabled={isUploading}
+                        >
+                          Zurück zur Datei-Upload
+                        </button>
+                      </div>
+                    </>
+                  )}
 
-                  {/* OCR Method Selection */}
-                  {selectedFile && (
+                  {/* OCR Method Selection - only for PDF file uploads */}
+                  {uploadMode === 'file' && selectedFile && selectedFile.type === 'application/pdf' && (
                     <div className="form-field-wrapper">
                       <label className="form-label">
                         OCR-Methode *
@@ -442,7 +559,7 @@ const DocumentUpload = forwardRef(({
                   )}
 
                   {/* Title Input */}
-                  {selectedFile && (
+                  {(selectedFile || (uploadMode === 'url' && urlInput.trim())) && (
                     <div className="form-field-wrapper">
                       <label className="form-label">
                         Titel des Dokuments *
@@ -462,15 +579,18 @@ const DocumentUpload = forwardRef(({
                   <button 
                     onClick={handleUpload}
                     className="btn-primary"
-                    disabled={isUploading || !selectedFile || !uploadTitle.trim()}
+                    disabled={isUploading || 
+                      (uploadMode === 'file' && (!selectedFile || !uploadTitle.trim())) ||
+                      (uploadMode === 'url' && (!urlInput.trim() || !uploadTitle.trim()))
+                    }
                   >
                     {isUploading ? (
                       <>
                         <Spinner size="xsmall" />
-                        Wird hochgeladen...
+                        {uploadMode === 'file' ? 'Wird hochgeladen...' : 'Website wird verarbeitet...'}
                       </>
                     ) : (
-                      'Hochladen'
+                      uploadMode === 'file' ? 'Hochladen' : 'Website crawlen'
                     )}
                   </button>
                   <button 
@@ -479,10 +599,7 @@ const DocumentUpload = forwardRef(({
                         // When controlled by parent, notify parent to close
                         onUploadComplete && onUploadComplete(null);
                       } else {
-                        setShowUploadForm(false);
-                        setSelectedFile(null);
-                        setUploadTitle('');
-                        setOcrMethod('tesseract');
+                        resetForm();
                       }
                     }}
                     className="btn-secondary"
@@ -496,46 +613,96 @@ const DocumentUpload = forwardRef(({
           ) : (
             /* Inline Upload Form */
             <div className="knowledge-entry knowledge-entry-bordered" style={{ marginBottom: 'var(--spacing-medium)' }}>
-              <div className="form-field-wrapper">
-                <label className="form-label">
-                  Dokument hochladen
-                </label>
-                
-                {/* File Drop Zone */}
-                <div
-                  className={`file-dropzone ${dragActive ? 'active' : ''} ${selectedFile ? 'has-file' : ''}`}
-                  onDragEnter={handleDrag}
-                  onDragLeave={handleDrag}
-                  onDragOver={handleDrag}
-                  onDrop={handleDrop}
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".pdf"
-                    onChange={handleInputChange}
-                    style={{ display: 'none' }}
-                  />
+              {uploadMode === 'file' ? (
+                <>
+                  <div className="form-field-wrapper">
+                    <label className="form-label">
+                      Datei hochladen
+                    </label>
+                    
+                    {/* File Drop Zone */}
+                    <div
+                      className={`file-dropzone ${dragActive ? 'active' : ''} ${selectedFile ? 'has-file' : ''}`}
+                      onDragEnter={handleDrag}
+                      onDragLeave={handleDrag}
+                      onDragOver={handleDrag}
+                      onDrop={handleDrop}
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".pdf,.docx,.odt,.xls,.xlsx"
+                        onChange={handleInputChange}
+                        style={{ display: 'none' }}
+                      />
+                      
+                      {selectedFile ? (
+                        <div className="file-selected">
+                          <HiDocumentText className="file-icon" />
+                          <span className="file-name">{selectedFile.name}</span>
+                          <span className="file-size">({Math.round(selectedFile.size / 1024)} KB)</span>
+                        </div>
+                      ) : (
+                        <div className="file-placeholder">
+                          <HiOutlineDocumentAdd className="upload-icon" />
+                          <p>PDF-, DOCX-, ODT- oder Excel-Datei hier ablegen oder klicken zum Auswählen</p>
+                          <p className="file-requirements">Max. 50 Seiten, 50MB</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                   
-                  {selectedFile ? (
-                    <div className="file-selected">
-                      <HiDocumentText className="file-icon" />
-                      <span className="file-name">{selectedFile.name}</span>
-                      <span className="file-size">({Math.round(selectedFile.size / 1024)} KB)</span>
-                    </div>
-                  ) : (
-                    <div className="file-placeholder">
-                      <HiOutlineDocumentAdd className="upload-icon" />
-                      <p>PDF-Datei hier ablegen oder klicken zum Auswählen</p>
-                      <p className="file-requirements">Max. 50 Seiten, 50MB</p>
-                    </div>
-                  )}
-                </div>
-              </div>
+                  {/* Website crawling option */}
+                  <div className="form-field-wrapper" style={{ textAlign: 'center', marginTop: 'var(--spacing-small)' }}>
+                    <button
+                      type="button"
+                      onClick={() => setUploadMode('url')}
+                      className="upload-mode-link"
+                      disabled={isUploading}
+                    >
+                      Oder Website crawlen
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="form-field-wrapper">
+                    {/* URL Input */}
+                    <label className="form-label">
+                      Website URL *
+                    </label>
+                    <input
+                      type="url"
+                      className="form-input"
+                      value={urlInput}
+                      onChange={(e) => handleUrlChange(e.target.value)}
+                      placeholder="https://example.com/article"
+                      disabled={isUploading}
+                    />
+                    <p className="field-help">
+                      Geben Sie die URL einer Website ein, die gecrawlt werden soll. 
+                      Der Inhalt wird automatisch extrahiert und als Dokument hinzugefügt.
+                    </p>
+                  </div>
+                  
+                  {/* Back to file upload option */}
+                  <div className="form-field-wrapper" style={{ textAlign: 'center', marginTop: 'var(--spacing-small)' }}>
+                    <button
+                      type="button"
+                      onClick={() => setUploadMode('file')}
+                      className="style-as-link"
+                      style={{ fontSize: '0.9em', color: 'var(--font-color-muted)' }}
+                      disabled={isUploading}
+                    >
+                      Zurück zur Datei-Upload
+                    </button>
+                  </div>
+                </>
+              )}
 
-              {/* OCR Method Selection */}
-              {selectedFile && (
+              {/* OCR Method Selection - only for PDF file uploads */}
+              {uploadMode === 'file' && selectedFile && selectedFile.type === 'application/pdf' && (
                 <div className="form-field-wrapper">
                   <label className="form-label">
                     OCR-Methode *
@@ -568,7 +735,7 @@ const DocumentUpload = forwardRef(({
               )}
 
               {/* Title Input */}
-              {selectedFile && (
+              {(selectedFile || (uploadMode === 'url' && urlInput.trim())) && (
                 <div className="form-field-wrapper">
                   <label className="form-label">
                     Titel des Dokuments *
@@ -589,15 +756,18 @@ const DocumentUpload = forwardRef(({
                 <button 
                   onClick={handleUpload}
                   className="btn-primary"
-                  disabled={isUploading || !selectedFile || !uploadTitle.trim()}
+                  disabled={isUploading || 
+                    (uploadMode === 'file' && (!selectedFile || !uploadTitle.trim())) ||
+                    (uploadMode === 'url' && (!urlInput.trim() || !uploadTitle.trim()))
+                  }
                 >
                   {isUploading ? (
                     <>
                       <Spinner size="xsmall" />
-                      Wird hochgeladen...
+                      {uploadMode === 'file' ? 'Wird hochgeladen...' : 'Website wird verarbeitet...'}
                     </>
                   ) : (
-                    'Hochladen'
+                    uploadMode === 'file' ? 'Hochladen' : 'Website crawlen'
                   )}
                 </button>
                 <button 
@@ -606,9 +776,7 @@ const DocumentUpload = forwardRef(({
                       // When controlled by parent, notify parent to close
                       onUploadComplete && onUploadComplete(null);
                     } else {
-                      setShowUploadForm(false);
-                      setSelectedFile(null);
-                      setUploadTitle('');
+                      resetForm();
                     }
                   }}
                   className="btn-secondary"
@@ -630,7 +798,7 @@ const DocumentUpload = forwardRef(({
               <HiDocumentText size={48} className="empty-state-icon" />
               <p>Keine Dokumente vorhanden</p>
               <p className="empty-state-description">
-                Laden Sie PDF-Dokumente hoch, um sie als Wissensquelle zu nutzen.
+                Laden Sie PDF-, DOCX-, ODT- oder Excel-Dokumente hoch, um sie als Wissensquelle zu nutzen.
               </p>
             </div>
           ) : (

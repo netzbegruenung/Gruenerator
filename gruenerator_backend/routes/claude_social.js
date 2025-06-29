@@ -17,7 +17,7 @@ const {
 const router = createAuthenticatedRouter();
 
 router.post('/', async (req, res) => {
-  const { thema, details, platforms = [], was, wie, zitatgeber, pressekontakt, customPrompt } = req.body;
+  const { thema, details, platforms = [], was, wie, zitatgeber, customPrompt } = req.body;
   
   // Current date for context
   const currentDate = new Date().toISOString().split('T')[0];
@@ -57,7 +57,7 @@ ${HTML_FORMATTING_INSTRUCTIONS}`;
     if (platforms.includes('pressemitteilung')) {
       systemPrompt += `
 
-Für die Pressemitteilung agiere als Pressesprecher einer Gliederung von Bündnis 90/Die Grünen und schreibe eine Pressemitteilung für den Presseverteiler.
+Für die Pressemitteilung agiere als Pressesprecher einer Gliederung von Bündnis 90/Die Grünen und schreibe eine Pressemitteilung für den Presseverteiler. Schreibe nur den Haupttext - der Abbinder wird manuell hinzugefügt.
 
 Schreibe in folgendem Stil, Sprachstil und Tonfall:
 - Der Text ist förmlich und sachlich und verwendet einen geradlinigen Berichtsstil.
@@ -97,8 +97,7 @@ ${platforms.includes('pressemitteilung') ? '' : `Jeder Beitrag sollte:
 - Plattformen: ${platforms.join(', ')}
 ${platforms.includes('pressemitteilung') ? `- Was: ${was || ''}
 - Wie: ${wie || ''}
-- Zitat von: ${zitatgeber || ''}
-- Pressekontakt: ${pressekontakt || ''}` : ''}`;
+- Zitat von: ${zitatgeber || ''}` : ''}`;
 
       userContent = formatUserContent({
         customPrompt,
@@ -115,8 +114,7 @@ Aktuelles Datum: ${currentDate}
 ${platforms.includes('pressemitteilung') ? `
 Was: ${was}
 Wie: ${wie}
-Zitat von: ${zitatgeber}
-Pressekontakt: ${pressekontakt}` : ''}
+Zitat von: ${zitatgeber}` : ''}
         
 ${baseContent}`;
     }
