@@ -84,7 +84,9 @@ const detectPartialLogoutState = async () => {
  */
 const checkServerHealth = async (baseUrl) => {
   try {
-    const response = await fetch(`${baseUrl}/health`, {
+    // Health endpoint is always at /health, not /api/health
+    const healthUrl = baseUrl.replace('/api', '') + '/health';
+    const response = await fetch(healthUrl, {
       method: 'GET',
       signal: AbortSignal.timeout(1000), // Reduced from 2s to 1s
     });

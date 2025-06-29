@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useQuery } from '@tanstack/react-query';
 import { useGeneratorKnowledgeStore } from '../../stores/core/generatorKnowledgeStore';
@@ -12,9 +12,18 @@ const EMPTY_ARRAY = []; // Stable empty array reference
  * Orchestriert den Store und lädt Daten vom Backend
  * @param {Object} options - Configuration options
  * @param {string} options.instructionType - Type of instruction context ('antrag', 'social')
- * @param {boolean} options.enableDocuments - Whether to preload documents for the user
+ * @param {boolean} options.enableDocuments - Whether to preload documents for the user (deprecated)
+ * @param {Object} options.ui - UI configuration for KnowledgeSelector
+ * @param {boolean} options.ui.enableKnowledge - Enable knowledge selection
+ * @param {boolean} options.ui.enableDocuments - Enable document selection
+ * @param {boolean} options.ui.enableTexts - Enable text selection
+ * @param {boolean} options.ui.enableSourceSelection - Enable source selection
  */
-const useKnowledge = ({ instructionType = 'social', enableDocuments = false } = {}) => {
+const useKnowledge = ({ 
+  instructionType = 'social', 
+  enableDocuments = false, // deprecated, use ui.enableDocuments
+  ui = {}
+} = {}) => {
   const { user, betaFeatures } = useAuth();
   const { 
     source, 
@@ -31,6 +40,8 @@ const useKnowledge = ({ instructionType = 'social', enableDocuments = false } = 
     getActiveInstruction,
     // Document state and actions
     setAvailableDocuments,
+    // UI Configuration
+    setUIConfig,
     // Reset function
     reset
   } = useGeneratorKnowledgeStore();
@@ -43,6 +54,30 @@ const useKnowledge = ({ instructionType = 'social', enableDocuments = false } = 
     console.log('[useKnowledge] Resetting store on component mount to ensure clean state');
     reset();
   }, [reset]); // Reset function dependency - runs once on mount
+
+  // Memoize UI configuration to prevent infinite loops
+  const finalUIConfig = useMemo(() => {
+    const config = {
+      enableKnowledge: Boolean(ui?.enableKnowledge),
+      enableDocuments: Boolean(ui?.enableDocuments) || enableDocuments, // backward compatibility
+      enableTexts: Boolean(ui?.enableTexts),
+      enableSourceSelection: Boolean(ui?.enableSourceSelection) || Boolean(ui?.enableKnowledge) || Boolean(ui?.enableDocuments) || Boolean(ui?.enableTexts) || false
+    };
+    console.log('[useKnowledge] Computing final UI config:', { ui, enableDocuments, config });
+    return config;
+  }, [
+    ui?.enableKnowledge, 
+    ui?.enableDocuments, 
+    ui?.enableTexts, 
+    ui?.enableSourceSelection, 
+    enableDocuments
+  ]);
+
+  // Set UI configuration only when the memoized config changes
+  useEffect(() => {
+    console.log('[useKnowledge] Setting UI configuration:', finalUIConfig);
+    setUIConfig(finalUIConfig);
+  }, [finalUIConfig]); // setUIConfig should be stable from zustand
 
   // Fetch user knowledge and instructions via backend API
   const fetchUserData = async () => {

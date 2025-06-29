@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { HiOutlineTrash, HiOutlineSearch, HiOutlineDocumentText, HiOutlinePencil, HiOutlineEye, HiRefresh, HiDotsVertical, HiExclamationCircle, HiChatAlt2, HiShare } from 'react-icons/hi';
 import { motion } from "motion/react";
+import ReactMarkdown from 'react-markdown';
 import Spinner from './Spinner';
 import MenuDropdown from './MenuDropdown';
 
@@ -231,7 +232,7 @@ const DocumentOverview = ({
 
         try {
             const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
-            const response = await fetch(`${AUTH_BASE_URL}/api/documents/${item.id}/content`, {
+            const response = await fetch(`${AUTH_BASE_URL}/documents/${item.id}/content`, {
                 method: 'GET',
                 credentials: 'include',
                 headers: {
@@ -246,7 +247,8 @@ const DocumentOverview = ({
             const data = await response.json();
             const enhancedItem = {
                 ...item,
-                full_content: data.data.ocr_text || 'Kein Text extrahiert'
+                full_content: data.data.ocr_text || 'Kein Text extrahiert',
+                markdown_content: data.data.markdown_content
             };
             
             setSelectedItem(enhancedItem);
@@ -292,8 +294,8 @@ const DocumentOverview = ({
                     show: !!onEdit
                 },
                 {
-                    icon: 'HiShare', // Will be imported when needed
-                    label: 'Teilen',
+                    icon: HiShare,
+                    label: 'Mit Gruppe teilen',
                     onClick: () => handleShareItem(item),
                     show: !!onShare
                 },
@@ -333,6 +335,12 @@ const DocumentOverview = ({
                 show: !!onEdit
             },
             {
+                icon: HiShare,
+                label: 'Mit Gruppe teilen',
+                onClick: () => handleShareItem(item),
+                show: !!onShare
+            },
+            {
                 separator: true
             },
             {
@@ -355,13 +363,6 @@ const DocumentOverview = ({
             <div 
                 key={item.id} 
                 className="document-card"
-                onClick={() => {
-                    if (isDocument && item.status === 'completed') {
-                        handleEnhancedPreview(item);
-                    } else {
-                        handleViewItem(item);
-                    }
-                }}
             >
                 {/* Header with title and dropdown menu */}
                 <div className="document-card-header">
@@ -403,12 +404,22 @@ const DocumentOverview = ({
                     ) : (
                         <div className="document-title-header">
                             <h4 
-                                className={`document-card-title ${onUpdateTitle ? "editable-title" : ""}`}
+                                className={`document-card-title ${onUpdateTitle ? "editable-title" : ""} clickable-title`}
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    onUpdateTitle && handleTitleEdit(item);
+                                    if (onUpdateTitle && e.detail === 2) {
+                                        // Double-click for edit
+                                        handleTitleEdit(item);
+                                    } else if (e.detail === 1) {
+                                        // Single-click for preview
+                                        if (isDocument && item.status === 'completed') {
+                                            handleEnhancedPreview(item);
+                                        } else {
+                                            handleViewItem(item);
+                                        }
+                                    }
                                 }}
-                                title={itemTitle}
+                                title={`${itemTitle} (Klicken zum Öffnen${onUpdateTitle ? ', Doppelklick zum Bearbeiten' : ''})`}
                             >
                                 {itemTitle}
                             </h4>
@@ -428,9 +439,25 @@ const DocumentOverview = ({
                         }
                         alignRight={true}
                     >
-                        {renderDropdownContent(item)}
+                        {/* Pass onClose from MenuDropdown's cloneElement */}
+                        {({ onClose }) => renderDropdownContent(item, onClose)}
                     </MenuDropdown>
                 </div>
+
+                {/* Preview Image for Templates */}
+                {(item.preview_image_url || item.thumbnail_url) && (
+                    <div className="document-card-preview">
+                        <img 
+                            src={item.preview_image_url || item.thumbnail_url} 
+                            alt={`Vorschau von ${itemTitle}`}
+                            className="document-preview-image"
+                            onError={(e) => {
+                                e.target.style.display = 'none';
+                            }}
+                            loading="lazy"
+                        />
+                    </div>
+                )}
 
                 {/* Content */}
                 <div className="document-card-content">
@@ -504,7 +531,7 @@ const DocumentOverview = ({
     };
 
     // Render dropdown menu content
-    const renderDropdownContent = (item) => {
+    const renderDropdownContent = (item, onClose) => {
         const actions = getDefaultActionItems(item).filter(action => 
             action.separator || action.show !== false
         );
@@ -516,14 +543,17 @@ const DocumentOverview = ({
                         return <div key={index} className="menu-dropdown-separator"></div>;
                     }
 
-                    const IconComponent = typeof action.icon === 'string' ? 
-                        (action.icon === 'HiShare' ? HiShare : action.icon) : action.icon;
+                    const IconComponent = action.icon;
                     
                     return (
                         <button
                             key={index}
                             className={`menu-dropdown-item ${action.danger ? 'danger' : ''}`}
-                            onClick={action.onClick}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                action.onClick();
+                                onClose && onClose();
+                            }}
                             disabled={action.loading}
                         >
                             {action.loading ? (
@@ -629,7 +659,15 @@ const DocumentOverview = ({
                             )}
                         </div>
                         <div className="document-preview-text">
-                            {previewContent}
+                            {selectedItem.markdown_content ? (
+                                <div className="antrag-text-content">
+                                    <ReactMarkdown>
+                                        {selectedItem.markdown_content}
+                                    </ReactMarkdown>
+                                </div>
+                            ) : (
+                                previewContent
+                            )}
                         </div>
                     </div>
                     {onEdit && (

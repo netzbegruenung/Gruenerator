@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
 import PropTypes from 'prop-types';
-import { IoCopyOutline, IoCheckmarkOutline } from "react-icons/io5";
-import { HiCog, HiOutlineUsers, HiSave } from "react-icons/hi";
+import { IoCopyOutline, IoCheckmarkOutline, IoDownloadOutline } from "react-icons/io5";
+import { HiCog } from "react-icons/hi";
+import { FaRegFilePdf } from "react-icons/fa6";
+import { RiSaveLine } from "react-icons/ri";
+import { MdEdit } from "react-icons/md";
 import { copyFormattedContent } from '../utils/commonFunctions';
 import ExportToDocument from './ExportToDocument';
-import PDFExport from './PDFExport';
+import DownloadExport from './DownloadExport';
 import { useLazyAuth } from '../../hooks/useAuth';
 import { useBetaFeatures } from '../../hooks/useBetaFeatures';
 import useGeneratedTextStore from '../../stores/core/generatedTextStore';
@@ -16,16 +19,19 @@ const ActionButtons = ({
   hideEditButton = false,
   className = 'display-actions',
   showExport = false,
-  showPDF = true,
+  showDownload = true,
   showCollab = false,
   showRegenerate = false,
   showSave = false,
+  showSaveToLibrary = true,
   onCollab,
   onRegenerate,
   onSave,
+  onSaveToLibrary,
   collabLoading = false,
   regenerateLoading = false,
   saveLoading = false,
+  saveToLibraryLoading = false,
   exportableContent,
   generatedPost,
   generatedContent,
@@ -35,6 +41,8 @@ const ActionButtons = ({
   const { getBetaFeatureState } = useBetaFeatures();
   const { generatedText } = useGeneratedTextStore();
   const [copyIcon, setCopyIcon] = useState(<IoCopyOutline size={16} />);
+  const [saveToLibraryIcon, setSaveToLibraryIcon] = useState(<RiSaveLine size={16} />);
+  const [saveIcon, setSaveIcon] = useState(<RiSaveLine size={16} />);
 
   const hasDatabaseAccess = isAuthenticated && getBetaFeatureState('database');
   const hasCollabAccess = getBetaFeatureState('collab');
@@ -70,6 +78,34 @@ const ActionButtons = ({
 
   const isMobileView = window.innerWidth <= 768;
 
+  // Handle save to library with success indicator
+  const handleSaveToLibrary = () => {
+    if (onSaveToLibrary) {
+      onSaveToLibrary();
+      // Show checkmark after save attempt (we assume success for UI feedback)
+      setTimeout(() => {
+        setSaveToLibraryIcon(<IoCheckmarkOutline size={16} />);
+        setTimeout(() => {
+          setSaveToLibraryIcon(<RiSaveLine size={16} />);
+        }, 2000);
+      }, 500);
+    }
+  };
+
+  // Handle regular save with success indicator
+  const handleSave = () => {
+    if (onSave) {
+      onSave();
+      // Show checkmark after save attempt
+      setTimeout(() => {
+        setSaveIcon(<IoCheckmarkOutline size={16} />);
+        setTimeout(() => {
+          setSaveIcon(<RiSaveLine size={16} />);
+        }, 2000);
+      }, 500);
+    }
+  };
+
   return (
     <div className={className}>
       {activeContent && (
@@ -86,7 +122,7 @@ const ActionButtons = ({
             {copyIcon}
           </button>
           {showExport && <ExportToDocument content={activeContent} />}
-          {showPDF && <PDFExport content={activeContent} title={title} />}
+          {showDownload && <DownloadExport content={activeContent} title={title} />}
           {showRegenerate && generatedPost && onRegenerate && (
             <button
               onClick={onRegenerate}
@@ -103,7 +139,7 @@ const ActionButtons = ({
           )}
           {showSave && hasDatabaseAccess && generatedContent && onSave && (
             <button
-              onClick={onSave}
+              onClick={handleSave}
               className="action-button"
               aria-label="In Supabase speichern"
               disabled={saveLoading}
@@ -112,7 +148,21 @@ const ActionButtons = ({
                 'data-tooltip-content': "In Supabase speichern"
               })}
             >
-              <HiSave size={16} />
+              {saveIcon}
+            </button>
+          )}
+          {showSaveToLibrary && isAuthenticated && activeContent && onSaveToLibrary && (
+            <button
+              onClick={handleSaveToLibrary}
+              className="action-button"
+              aria-label="Speichern"
+              disabled={saveToLibraryLoading}
+              {...(!isMobileView && {
+                'data-tooltip-id': "action-tooltip",
+                'data-tooltip-content': "Speichern"
+              })}
+            >
+              {saveToLibraryIcon}
             </button>
           )}
           {showCollab && hasCollabAccess && activeContent && onCollab && (
@@ -126,7 +176,7 @@ const ActionButtons = ({
                 'data-tooltip-content': "Kollaborativ bearbeiten"
               })}
             >
-              <HiOutlineUsers size={16} />
+              <MdEdit size={16} />
             </button>
           )}
         </>
@@ -139,16 +189,19 @@ ActionButtons.propTypes = {
   isEditing: PropTypes.bool, // Legacy - no longer used
   className: PropTypes.string,
   showExport: PropTypes.bool,
-  showPDF: PropTypes.bool,
+  showDownload: PropTypes.bool,
   showCollab: PropTypes.bool,
   showRegenerate: PropTypes.bool,
   showSave: PropTypes.bool,
+  showSaveToLibrary: PropTypes.bool,
   onCollab: PropTypes.func,
   onRegenerate: PropTypes.func,
   onSave: PropTypes.func,
+  onSaveToLibrary: PropTypes.func,
   collabLoading: PropTypes.bool,
   regenerateLoading: PropTypes.bool,
   saveLoading: PropTypes.bool,
+  saveToLibraryLoading: PropTypes.bool,
   exportableContent: PropTypes.string,
   generatedPost: PropTypes.string,
   generatedContent: PropTypes.any,

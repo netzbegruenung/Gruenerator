@@ -25,8 +25,15 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   const { Input, Textarea } = useFormFields();
   const { setGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
 
-  // Initialize knowledge system with document preloading
-  useKnowledge({ instructionType: 'social', enableDocuments: true });
+  // Initialize knowledge system with UI configuration
+  useKnowledge({ 
+    instructionType: 'social', 
+    ui: {
+      enableKnowledge: true,
+      enableDocuments: true,
+      enableTexts: true
+    }
+  });
 
   // Initialize tabIndex configuration
   const tabIndex = useTabIndex('PRESS_SOCIAL');
@@ -72,7 +79,6 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
       thema: initialContent?.thema || '',
       details: initialContent?.details || '',
       zitatgeber: initialContent?.zitatgeber || '',
-      pressekontakt: initialContent?.pressekontakt || '',
       platforms: defaultPlatforms
     }
   });
@@ -131,7 +137,6 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
         details: rhfData.details,
         platforms: selectedPlatforms,
         zitatgeber: rhfData.zitatgeber,
-        pressekontakt: rhfData.pressekontakt,
       };
       
       // Extract search query from form data for intelligent document content
@@ -193,7 +198,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
       "Gib ein klares, prägnantes Thema an",
       "Füge wichtige Details und Fakten hinzu",
       "Wähle die gewünschten Plattformen aus",
-      "Bei Pressemitteilungen: Angabe von Zitatgeber und Pressekontakt erforderlich"
+      "Bei Pressemitteilungen: Angabe von Zitatgeber erforderlich - Abbinder wird automatisch hinzugefügt"
     ]
   };
 
@@ -242,16 +247,6 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
               placeholder={FORM_PLACEHOLDERS.WHO_QUOTE}
               rules={{ required: 'Zitatgeber ist ein Pflichtfeld für Pressemitteilungen' }}
               tabIndex={TabIndexHelpers.getConditional(tabIndex.zitatgeber, watchPressemitteilung)}
-            />
-            
-            <Textarea
-              name="pressekontakt"
-              control={control}
-              label={FORM_LABELS.PRESS_CONTACT}
-              placeholder={FORM_PLACEHOLDERS.PRESS_CONTACT}
-              rules={{ required: 'Pressekontakt ist ein Pflichtfeld für Pressemitteilungen' }}
-              minRows={3}
-              tabIndex={TabIndexHelpers.getConditional(tabIndex.pressekontakt, watchPressemitteilung)}
             />
           </motion.div>
         )}

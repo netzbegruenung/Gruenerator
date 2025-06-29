@@ -1,6 +1,7 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import { FaSearch } from 'react-icons/fa';
+import '../styles/SearchBarStyles.css';
 const exampleQuestions = [
   {
     icon: '🚲',
@@ -12,7 +13,7 @@ const exampleQuestions = [
   }
 ];
 
-const SearchBar = ({ onSearch, loading, value, onChange }) => {
+const SearchBar = ({ onSearch, loading, value, onChange, placeholder = 'Suchbegriff eingeben...' }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (value.trim() && !loading) {
@@ -29,6 +30,7 @@ const SearchBar = ({ onSearch, loading, value, onChange }) => {
             value={value}
             onChange={(e) => onChange(e.target.value)}
             className="search-input"
+            placeholder={placeholder}
             aria-label="Suchfeld"
             disabled={loading}
           />
@@ -72,7 +74,8 @@ SearchBar.propTypes = {
   onSearch: PropTypes.func.isRequired,
   loading: PropTypes.bool,
   value: PropTypes.string,
-  onChange: PropTypes.func
+  onChange: PropTypes.func,
+  placeholder: PropTypes.string
 };
 
 SearchBar.defaultProps = {

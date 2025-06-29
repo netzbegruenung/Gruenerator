@@ -468,6 +468,269 @@ export const useGroupMembers = (groupId, { isActive } = {}) => {
 };
 
 /**
+ * Hook for group content sharing functionality
+ */
+export const useGroupSharing = (groupId, { isActive } = {}) => {
+  const { user, isAuthenticated, loading: authLoading } = useOptimizedAuth();
+  const queryClient = useQueryClient();
+  
+  // Zustand store for UI state
+  const {
+    isSaving, setSaving,
+    clearMessages
+  } = useGroupsUiStore();
+
+  // Query key for group content
+  const groupContentQueryKey = ['groupContent', groupId];
+
+  // Fetch group content from backend API
+  const fetchGroupContentFn = async () => {
+    if (!user?.id || !groupId) {
+      throw new Error('User not authenticated or group ID missing');
+    }
+
+    console.log('[useGroupSharing] Fetching group content for group:', groupId);
+
+    const response = await fetch(`${AUTH_BASE_URL}/auth/groups/${groupId}/content`, {
+      method: 'GET',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Fehler beim Laden der Gruppeninhalte' }));
+      throw new Error(errorData.message || 'Ein unbekannter Fehler ist aufgetreten.');
+    }
+
+    const data = await response.json();
+    console.log('[useGroupSharing] Group content loaded successfully');
+    
+    return data.content || {};
+  };
+
+  // React Query for fetching group content
+  const groupContentQuery = useQuery({
+    queryKey: groupContentQueryKey,
+    queryFn: fetchGroupContentFn,
+    enabled: !!user?.id && !!groupId && isAuthenticated && !authLoading,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    cacheTime: 15 * 60 * 1000, // Keep data in cache for 15 minutes
+    refetchOnWindowFocus: false,
+    refetchOnMount: 'always',
+    refetchOnReconnect: 'always',
+    retry: (failureCount) => failureCount < 2,
+    refetchInterval: isActive ? 5 * 60 * 1000 : false, // Auto-refetch every 5 min when active
+  });
+
+  // Share content mutation
+  const shareContentMutation = useMutation({
+    mutationFn: async ({ contentType, contentId, permissions, targetGroupId }) => {
+      if (!user?.id) {
+        throw new Error('User not authenticated');
+      }
+
+      const shareGroupId = targetGroupId || groupId;
+      console.log('[useGroupSharing] Sharing content:', { contentType, contentId, shareGroupId });
+
+      const response = await fetch(`${AUTH_BASE_URL}/auth/groups/${shareGroupId}/share`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ contentType, contentId, permissions }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Fehler beim Teilen des Inhalts' }));
+        throw new Error(errorData.message || 'Ein unbekannter Fehler ist aufgetreten.');
+      }
+
+      const data = await response.json();
+      console.log('[useGroupSharing] Content shared successfully');
+      
+      return data;
+    },
+    onMutate: () => {
+      setSaving(true);
+      clearMessages();
+    },
+    onSuccess: (result, variables) => {
+      setSaving(false);
+      // Invalidate and refetch group content
+      queryClient.invalidateQueries({ queryKey: groupContentQueryKey });
+      // Also invalidate the target group's content if different
+      if (variables.targetGroupId && variables.targetGroupId !== groupId) {
+        queryClient.invalidateQueries({ queryKey: ['groupContent', variables.targetGroupId] });
+      }
+      console.log('[useGroupSharing] Content sharing successful, cache invalidated');
+    },
+    onError: (error) => {
+      setSaving(false);
+      console.error('[useGroupSharing] Content sharing failed:', error);
+    }
+  });
+
+  // Unshare content mutation
+  const unshareContentMutation = useMutation({
+    mutationFn: async ({ contentType, contentId }) => {
+      if (!user?.id) {
+        throw new Error('User not authenticated');
+      }
+
+      console.log('[useGroupSharing] Unsharing content:', { contentType, contentId, groupId });
+
+      const response = await fetch(`${AUTH_BASE_URL}/auth/groups/${groupId}/content/${contentId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ contentType }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Fehler beim Entfernen des geteilten Inhalts' }));
+        throw new Error(errorData.message || 'Ein unbekannter Fehler ist aufgetreten.');
+      }
+
+      const data = await response.json();
+      console.log('[useGroupSharing] Content unshared successfully');
+      
+      return data;
+    },
+    onMutate: () => {
+      setSaving(true);
+      clearMessages();
+    },
+    onSuccess: () => {
+      setSaving(false);
+      // Invalidate and refetch group content
+      queryClient.invalidateQueries({ queryKey: groupContentQueryKey });
+      console.log('[useGroupSharing] Content unsharing successful, cache invalidated');
+    },
+    onError: (error) => {
+      setSaving(false);
+      console.error('[useGroupSharing] Content unsharing failed:', error);
+    }
+  });
+
+  // Update permissions mutation
+  const updatePermissionsMutation = useMutation({
+    mutationFn: async ({ contentType, contentId, permissions }) => {
+      if (!user?.id) {
+        throw new Error('User not authenticated');
+      }
+
+      console.log('[useGroupSharing] Updating permissions:', { contentType, contentId, permissions });
+
+      const response = await fetch(`${AUTH_BASE_URL}/auth/groups/${groupId}/content/${contentId}/permissions`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ contentType, permissions }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Fehler beim Aktualisieren der Berechtigungen' }));
+        throw new Error(errorData.message || 'Ein unbekannter Fehler ist aufgetreten.');
+      }
+
+      const data = await response.json();
+      console.log('[useGroupSharing] Permissions updated successfully');
+      
+      return data;
+    },
+    onMutate: () => {
+      setSaving(true);
+      clearMessages();
+    },
+    onSuccess: () => {
+      setSaving(false);
+      // Invalidate and refetch group content
+      queryClient.invalidateQueries({ queryKey: groupContentQueryKey });
+      console.log('[useGroupSharing] Permissions update successful, cache invalidated');
+    },
+    onError: (error) => {
+      setSaving(false);
+      console.error('[useGroupSharing] Permissions update failed:', error);
+    }
+  });
+
+  // Wrapper functions for mutations
+  const shareContent = (contentType, contentId, options = {}) => {
+    const { permissions, targetGroupId, onSuccess, onError } = options;
+    shareContentMutation.mutate({ contentType, contentId, permissions, targetGroupId }, {
+      onSuccess: (result) => {
+        onSuccess?.(result);
+      },
+      onError: (error) => {
+        onError?.(error);
+      }
+    });
+  };
+
+  const unshareContent = (contentType, contentId, options = {}) => {
+    unshareContentMutation.mutate({ contentType, contentId }, {
+      onSuccess: (result) => {
+        options.onSuccess?.(result);
+      },
+      onError: (error) => {
+        options.onError?.(error);
+      }
+    });
+  };
+
+  const updatePermissions = (contentType, contentId, permissions, options = {}) => {
+    updatePermissionsMutation.mutate({ contentType, contentId, permissions }, {
+      onSuccess: (result) => {
+        options.onSuccess?.(result);
+      },
+      onError: (error) => {
+        options.onError?.(error);
+      }
+    });
+  };
+
+  return {
+    // Query data
+    groupContent: groupContentQuery.data || {},
+    isLoadingGroupContent: groupContentQuery.isLoading,
+    isFetchingGroupContent: groupContentQuery.isFetching,
+    isErrorGroupContent: groupContentQuery.isError,
+    errorGroupContent: groupContentQuery.error,
+    refetchGroupContent: groupContentQuery.refetch,
+
+    // Mutations
+    shareContent,
+    isSharing: shareContentMutation.isLoading,
+    isShareError: shareContentMutation.isError,
+    shareError: shareContentMutation.error,
+    isShareSuccess: shareContentMutation.isSuccess,
+
+    unshareContent,
+    isUnsharing: unshareContentMutation.isLoading,
+    isUnshareError: unshareContentMutation.isError,
+    unshareError: unshareContentMutation.error,
+    isUnshareSuccess: unshareContentMutation.isSuccess,
+
+    updatePermissions,
+    isUpdatingPermissions: updatePermissionsMutation.isLoading,
+    isUpdatePermissionsError: updatePermissionsMutation.isError,
+    updatePermissionsError: updatePermissionsMutation.error,
+    isUpdatePermissionsSuccess: updatePermissionsMutation.isSuccess,
+
+    // UI State management
+    isSaving,
+    clearMessages
+  };
+};
+
+/**
  * Helper function for group initials (moved from GroupsManagementTab)
  */
 export const getGroupInitials = (groupName) => {

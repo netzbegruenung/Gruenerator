@@ -32,7 +32,7 @@
 .form-input:focus,
 .form-textarea:focus,
 .form-select:focus {
-  box-shadow: var(--input-shadow-focus, 0 0 0 1px rgba(0, 85, 56, 0.1));
+  box-shadow: none;
 }
 
 /* Enhanced focus ring for keyboard navigation */
@@ -218,7 +218,7 @@
 }
 
 .form-checkbox:focus {
-  box-shadow: var(--input-shadow-focus, 0 0 0 3px rgba(0, 85, 56, 0.1));
+  box-shadow: none;
 }
 
 .checkbox-label {

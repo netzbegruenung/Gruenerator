@@ -1,14 +1,17 @@
-import React, { useState, useRef, useEffect, memo } from 'react';
+import React, { useState, useRef, useEffect, memo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from "motion/react";
-import { HiDocumentText, HiPlus, HiExclamationCircle, HiRefresh, HiChatAlt2, HiCollection } from 'react-icons/hi';
+import { HiDocumentText, HiPlus, HiExclamationCircle, HiRefresh, HiChatAlt2, HiCollection, HiShare } from 'react-icons/hi';
 import DocumentUpload from '../../../../components/common/DocumentUpload';
 import DocumentOverview from '../../../../components/common/DocumentOverview';
+import ShareToGroupModal from '../../../../components/common/ShareToGroupModal';
+import AddCanvaTemplateModal from '../../../../components/common/AddCanvaTemplateModal';
 // import QAList from '../../../qa/components/QAList'; // Replaced with DocumentOverview
 import QACreator from '../../../qa/components/QACreator';
 import { useQACollections } from '../../utils/profileUtils';
 import { useDocumentsStore } from '../../../../stores/documentsStore';
 import { handleError } from '../../../../components/utils/errorHandling';
+import { useOptimizedAuth } from '../../../../hooks/useAuth';
 
 // Memoized DocumentUpload wrapper to prevent re-renders
 const MemoizedDocumentUpload = memo(({ onUploadComplete, onDeleteComplete, showDocumentsList = true, showTitle = true, forceShowUploadForm = false, showAsModal = false }) => {
@@ -43,6 +46,22 @@ const DocumentsTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
     const [availableDocuments, setAvailableDocuments] = useState([]);
     const [showUploadForm, setShowUploadForm] = useState(false);
     const showUploadFormRef = useRef(false);
+    
+    // Share modal state
+    const [showShareModal, setShowShareModal] = useState(false);
+    const [shareContent, setShareContent] = useState(null);
+    
+    // Add template modal state
+    const [showAddTemplateModal, setShowAddTemplateModal] = useState(false);
+    
+    // MeineTexte functionality
+    const { user, isAuthenticated } = useOptimizedAuth();
+    const [texts, setTexts] = useState([]);
+    
+    // Templates functionality
+    const [templates, setTemplates] = useState([]);
+    
+    const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
     
     // Debug log for showUploadForm state changes
     React.useEffect(() => {
@@ -92,13 +111,75 @@ const DocumentsTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
         }
     }, [documentsError, onErrorMessage]);
 
+    // Fetch user texts for MeineTexte tab
+    const fetchTexts = useCallback(async () => {
+        if (!isAuthenticated || !user?.id) return;
+
+        try {
+            const response = await fetch(`${AUTH_BASE_URL}/user-texts`, {
+                method: 'GET',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            if (data.success) {
+                setTexts(data.data || []);
+            } else {
+                throw new Error(data.message || 'Failed to fetch texts');
+            }
+        } catch (error) {
+            console.error('[DocumentsTab] Error fetching texts:', error);
+            onErrorMessage('Fehler beim Laden der Texte: ' + error.message);
+        }
+    }, [isAuthenticated, user?.id, onErrorMessage, AUTH_BASE_URL]);
+
+    // Fetch user templates
+    const fetchTemplates = useCallback(async () => {
+        if (!isAuthenticated || !user?.id) return;
+
+        try {
+            const response = await fetch(`${AUTH_BASE_URL}/auth/user-templates`, {
+                method: 'GET',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            if (data.success) {
+                setTemplates(data.data || []);
+            } else {
+                throw new Error(data.message || 'Failed to fetch templates');
+            }
+        } catch (error) {
+            console.error('[DocumentsTab] Error fetching Canva templates:', error);
+            onErrorMessage('Fehler beim Laden der Canva Vorlagen: ' + error.message);
+        }
+    }, [isAuthenticated, user?.id, onErrorMessage, AUTH_BASE_URL]);
+
     // Fetch documents when tab becomes active
     useEffect(() => {
         if (isActive && currentView === 'documents') {
             console.log('[DocumentsTab] Fetching documents due to tab/view change');
             fetchDocuments();
+        } else if (isActive && currentView === 'texts') {
+            fetchTexts();
+        } else if (isActive && currentView === 'templates') {
+            fetchTemplates();
         }
-    }, [isActive, currentView, fetchDocuments]);
+    }, [isActive, currentView, fetchDocuments, fetchTexts, fetchTemplates]);
 
     // Monitor documents changes
     useEffect(() => {
@@ -109,6 +190,12 @@ const DocumentsTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
         setCurrentView(view);
         if (view === 'qa') {
             // Clear any previous error messages
+            onErrorMessage('');
+        } else if (view === 'texts') {
+            // Clear any previous error messages
+            onErrorMessage('');
+        } else if (view === 'templates') {
+            // Clear any previous error messages for Canva templates
             onErrorMessage('');
         }
     };
@@ -201,10 +288,22 @@ const DocumentsTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                     Meine Dokumente
                 </button>
                 <button
+                    className={`profile-vertical-tab ${currentView === 'texts' ? 'active' : ''}`}
+                    onClick={() => handleTabClick('texts')}
+                >
+                    Meine Texte
+                </button>
+                <button
                     className={`profile-vertical-tab ${currentView === 'qa' ? 'active' : ''}`}
                     onClick={() => handleTabClick('qa')}
                 >
                     Meine Q&As
+                </button>
+                <button
+                    className={`profile-vertical-tab ${currentView === 'templates' ? 'active' : ''}`}
+                    onClick={() => handleTabClick('templates')}
+                >
+                    Canva Vorlagen
                 </button>
             </div>
         );
@@ -273,6 +372,240 @@ const DocumentsTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
         'text': 'Text',
         'upload': 'Hochgeladene Datei'
     };
+    
+    // Text document types for MeineTexte tab
+    const textDocumentTypes = {
+        'text': 'Allgemeiner Text',
+        'antrag': 'Antrag',
+        'social': 'Social Media',
+        'universal': 'Universeller Text',
+        'press': 'Pressemitteilung',
+        'gruene_jugend': 'Gruene Jugend'
+    };
+    
+    // Canva template types for Templates tab
+    const canvaTemplateTypes = {
+        'canva': 'Canva Vorlage',
+        'social_media': 'Social Media',
+        'presentation': 'Präsentation',
+        'flyer': 'Flyer',
+        'poster': 'Poster',
+        'newsletter': 'Newsletter',
+        'instagram_post': 'Instagram Post',
+        'facebook_post': 'Facebook Post',
+        'story': 'Story'
+    };
+    
+    // Text management handlers
+    const updateTextTitle = async (documentId, newTitleValue) => {
+        const response = await fetch(`${AUTH_BASE_URL}/user-texts/${documentId}/metadata`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ title: newTitleValue.trim() }),
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (data.success) {
+            setTexts(prev => prev.map(text => 
+                text.id === documentId 
+                    ? { ...text, title: newTitleValue.trim() }
+                    : text
+            ));
+        } else {
+            throw new Error(data.message || 'Failed to update title');
+        }
+    };
+
+    const deleteText = async (documentId) => {
+        const response = await fetch(`${AUTH_BASE_URL}/user-texts/${documentId}`, {
+            method: 'DELETE',
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (data.success) {
+            setTexts(prev => prev.filter(text => text.id !== documentId));
+        } else {
+            throw new Error(data.message || 'Failed to delete document');
+        }
+    };
+
+    const openInEditor = (documentId) => {
+        window.open(`/editor/collab/${documentId}`, '_blank');
+    };
+
+    const handleEditText = (document) => {
+        openInEditor(document.id);
+    };
+    
+    const handleDeleteText = async (documentId) => {
+        try {
+            await deleteText(documentId);
+            onSuccessMessage('Text wurde erfolgreich gelöscht.');
+        } catch (error) {
+            console.error('[DocumentsTab] Error deleting text:', error);
+            onErrorMessage('Fehler beim Löschen des Textes: ' + error.message);
+            throw error;
+        }
+    };
+
+    const handleTextTitleUpdate = async (documentId, newTitle) => {
+        try {
+            await updateTextTitle(documentId, newTitle);
+        } catch (error) {
+            console.error('[DocumentsTab] Error updating text title:', error);
+            onErrorMessage('Fehler beim Aktualisieren des Texttitels: ' + error.message);
+            throw error;
+        }
+    };
+
+    // Template management handlers
+    const updateTemplateTitle = async (templateId, newTitleValue) => {
+        const response = await fetch(`${AUTH_BASE_URL}/auth/user-templates/${templateId}/metadata`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ title: newTitleValue.trim() }),
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (data.success) {
+            setTemplates(prev => prev.map(template => 
+                template.id === templateId 
+                    ? { ...template, title: newTitleValue.trim() }
+                    : template
+            ));
+        } else {
+            throw new Error(data.message || 'Failed to update title');
+        }
+    };
+
+    const deleteTemplate = async (templateId) => {
+        const response = await fetch(`${AUTH_BASE_URL}/auth/user-templates/${templateId}`, {
+            method: 'DELETE',
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (data.success) {
+            setTemplates(prev => prev.filter(template => template.id !== templateId));
+        } else {
+            throw new Error(data.message || 'Failed to delete template');
+        }
+    };
+
+    const openTemplateInCanva = (template) => {
+        if (template.canva_url || template.external_url) {
+            window.open(template.canva_url || template.external_url, '_blank');
+        } else {
+            onErrorMessage('Keine Canva-URL für diese Vorlage verfügbar.');
+        }
+    };
+
+    const handleEditTemplate = (template) => {
+        openTemplateInCanva(template);
+    };
+    
+    const handleDeleteTemplate = async (templateId) => {
+        try {
+            await deleteTemplate(templateId);
+            onSuccessMessage('Canva Vorlage wurde erfolgreich gelöscht.');
+        } catch (error) {
+            console.error('[DocumentsTab] Error deleting Canva template:', error);
+            onErrorMessage('Fehler beim Löschen der Canva Vorlage: ' + error.message);
+            throw error;
+        }
+    };
+
+    const handleTemplateTitleUpdate = async (templateId, newTitle) => {
+        try {
+            await updateTemplateTitle(templateId, newTitle);
+        } catch (error) {
+            console.error('[DocumentsTab] Error updating Canva template title:', error);
+            onErrorMessage('Fehler beim Aktualisieren des Canva Vorlagentitels: ' + error.message);
+            throw error;
+        }
+    };
+
+    // Share functionality handlers
+    const handleShareToGroup = (contentType, contentId, contentTitle) => {
+        setShareContent({
+            type: contentType,
+            id: contentId,
+            title: contentTitle
+        });
+        setShowShareModal(true);
+    };
+
+    const handleCloseShareModal = () => {
+        setShowShareModal(false);
+        setShareContent(null);
+    };
+
+    const handleShareSuccess = (message) => {
+        onSuccessMessage(message);
+        handleCloseShareModal();
+    };
+
+    const handleShareError = (error) => {
+        onErrorMessage(error);
+    };
+
+    // Create share action for different content types
+    const createShareAction = (contentType) => (document) => {
+        handleShareToGroup(contentType, document.id, document.title || document.name);
+    };
+
+    // Add template modal handlers
+    const handleOpenAddTemplateModal = () => {
+        setShowAddTemplateModal(true);
+    };
+
+    const handleCloseAddTemplateModal = () => {
+        setShowAddTemplateModal(false);
+    };
+
+    const handleAddTemplateSuccess = (template, message) => {
+        onSuccessMessage(message || 'Canva Vorlage wurde erfolgreich hinzugefügt.');
+        
+        // Refresh the templates list if we're currently viewing templates
+        if (currentView === 'templates') {
+            fetchTemplates();
+        }
+        
+        handleCloseAddTemplateModal();
+    };
+
+    const handleAddTemplateError = (error) => {
+        onErrorMessage(error || 'Fehler beim Hinzufügen der Canva Vorlage.');
+    };
 
     return (
         <motion.div 
@@ -298,6 +631,7 @@ const DocumentsTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                     onUpdateTitle={handleDocumentTitleUpdate}
                                     onEdit={handleDocumentEdit}
                                     onRefreshDocument={handleDocumentRefresh}
+                                    onShare={createShareAction('documents')}
                                     documentTypes={documentTypes}
                                     emptyStateConfig={{
                                         noDocuments: 'Keine Dokumente vorhanden.',
@@ -318,7 +652,7 @@ const DocumentsTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                             }}
                                         >
                                             <HiPlus className="icon" />
-                                            Dokument hochladen
+                                            Inhalt hinzufügen
                                         </button>
                                     }
                                 />
@@ -339,6 +673,27 @@ const DocumentsTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                     </>
                                 )}
                             </>
+                        )}
+
+                        {currentView === 'texts' && (
+                            <DocumentOverview
+                                documents={texts}
+                                loading={false}
+                                onFetch={fetchTexts}
+                                onDelete={handleDeleteText}
+                                onUpdateTitle={handleTextTitleUpdate}
+                                onEdit={handleEditText}
+                                onShare={createShareAction('user_documents')}
+                                documentTypes={textDocumentTypes}
+                                emptyStateConfig={{
+                                    noDocuments: 'Du hast noch keine Texte erstellt.',
+                                    createMessage: 'Erstelle deinen ersten Text mit einem der Grueneratoren und er wird hier angezeigt.'
+                                }}
+                                searchPlaceholder="Texte durchsuchen..."
+                                title="Meine Texte"
+                                onSuccessMessage={onSuccessMessage}
+                                onErrorMessage={onErrorMessage}
+                            />
                         )}
 
                         {currentView === 'qa' && (
@@ -447,7 +802,7 @@ const DocumentsTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                                     onDelete={handleDeleteQA}
                                                     onEdit={handleEditQA}
                                                     onView={handleViewQA}
-                                                    onShare={handleShareQA}
+                                                    onShare={createShareAction('qa_collections')}
                                                     itemType="qa"
                                                     searchFields={['name', 'description', 'custom_prompt']}
                                                     sortOptions={[
@@ -482,9 +837,59 @@ const DocumentsTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                 </div>
                             </div>
                         )}
+
+                        {currentView === 'templates' && (
+                            <DocumentOverview
+                                documents={templates}
+                                loading={false}
+                                onFetch={fetchTemplates}
+                                onDelete={handleDeleteTemplate}
+                                onUpdateTitle={handleTemplateTitleUpdate}
+                                onEdit={handleEditTemplate}
+                                onShare={createShareAction('user_content')}
+                                documentTypes={canvaTemplateTypes}
+                                emptyStateConfig={{
+                                    noDocuments: 'Du hast noch keine Canva Vorlagen erstellt.',
+                                    createMessage: 'Erstelle deine erste Canva Vorlage oder importiere eine aus der Galerie.'
+                                }}
+                                searchPlaceholder="Canva Vorlagen durchsuchen..."
+                                title="Meine Canva Vorlagen"
+                                onSuccessMessage={onSuccessMessage}
+                                onErrorMessage={onErrorMessage}
+                                headerActions={
+                                    <button
+                                        type="button"
+                                        className="btn-primary size-s"
+                                        onClick={handleOpenAddTemplateModal}
+                                    >
+                                        <HiPlus className="icon" />
+                                        Canva Vorlage hinzufügen
+                                    </button>
+                                }
+                            />
+                        )}
                     </div>
                 </div>
             </div>
+
+            {/* Share Modal */}
+            <ShareToGroupModal
+                isOpen={showShareModal}
+                onClose={handleCloseShareModal}
+                contentType={shareContent?.type}
+                contentId={shareContent?.id}
+                contentTitle={shareContent?.title}
+                onSuccess={handleShareSuccess}
+                onError={handleShareError}
+            />
+
+            {/* Add Template Modal */}
+            <AddCanvaTemplateModal
+                isOpen={showAddTemplateModal}
+                onClose={handleCloseAddTemplateModal}
+                onSuccess={handleAddTemplateSuccess}
+                onError={handleAddTemplateError}
+            />
         </motion.div>
     );
 };

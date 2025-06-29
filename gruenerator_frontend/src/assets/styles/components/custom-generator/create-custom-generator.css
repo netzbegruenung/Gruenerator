@@ -1,4 +1,12 @@
- h3 {
+/* Form input overrides for create generator page */
+.description-input {
+  background-color: var(--background-color);
+  color: var(--font-color);
+  resize: none;
+  overflow: hidden;
+}
+
+h3 {
     color: var(--font-color-h); 
     font-weight: 600; 
     margin-bottom: 0 !important;

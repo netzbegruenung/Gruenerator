@@ -1105,4 +1105,655 @@ router.get('/groups/:groupId/members', ensureAuthenticated, async (req, res) => 
   }
 });
 
+// === GROUP SHARING ENDPOINTS ===
+
+// Share content to a group
+router.post('/groups/:groupId/share', ensureAuthenticated, async (req, res) => {
+  try {
+    console.log('[User Groups /groups/:groupId/share POST] Share content request for user:', req.user.id);
+    const { groupId } = req.params;
+    const userId = req.user.id;
+    const { contentType, contentId, permissions } = req.body;
+    
+    console.log('[User Groups /groups/:groupId/share POST] Request parameters:', {
+      groupId,
+      userId,
+      requestBody: req.body,
+      contentType,
+      contentId,
+      permissions
+    });
+    
+    if (!groupId || !contentType || !contentId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Gruppen-ID, Content-Type und Content-ID sind erforderlich.'
+      });
+    }
+
+    // Validate content type
+    const validContentTypes = ['documents', 'custom_generators', 'qa_collections', 'user_documents', 'user_content'];
+    if (!validContentTypes.includes(contentType)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Ungültiger Content-Type.'
+      });
+    }
+
+    // Check if user is member of the group  
+    const { data: membership, error: membershipError } = await supabaseService
+      .from('group_memberships')
+      .select('role')
+      .eq('group_id', groupId)
+      .eq('user_id', userId)
+      .single();
+
+    if (membershipError) {
+      return res.status(403).json({
+        success: false,
+        message: 'Du bist nicht Mitglied dieser Gruppe.'
+      });
+    }
+
+    // Verify user owns the content
+    console.log('[User Groups /groups/:groupId/share POST] Verifying content ownership:', {
+      contentType,
+      contentId,
+      userId,
+      table: contentType
+    });
+    
+    // Handle user_content table (for templates) with type filtering
+    let ownershipQuery = supabaseService
+      .from(contentType)
+      .select('user_id')
+      .eq('id', contentId);
+    
+    // For user_content, also filter by type = 'template'
+    if (contentType === 'user_content') {
+      ownershipQuery = ownershipQuery.eq('type', 'template');
+    }
+    
+    const { data: contentOwnership, error: ownershipError } = await ownershipQuery.single();
+
+    if (ownershipError) {
+      console.error('[User Groups /groups/:groupId/share POST] Content ownership verification failed:', {
+        contentType,
+        contentId,
+        userId,
+        error: ownershipError,
+        errorCode: ownershipError.code,
+        errorMessage: ownershipError.message,
+        errorDetails: ownershipError.details
+      });
+      return res.status(404).json({
+        success: false,
+        message: 'Inhalt nicht gefunden.'
+      });
+    }
+
+    console.log('[User Groups /groups/:groupId/share POST] Content ownership verified:', {
+      contentOwnership,
+      userIdMatches: contentOwnership.user_id === userId
+    });
+
+    if (contentOwnership.user_id !== userId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Du bist nicht der Besitzer dieses Inhalts.'
+      });
+    }
+
+    // Check if content is already shared with this group via junction table
+    const { data: existingShare, error: shareCheckError } = await supabaseService
+      .from('group_content_shares')
+      .select('id')
+      .eq('content_type', contentType)
+      .eq('content_id', contentId)
+      .eq('group_id', groupId)
+      .single();
+
+    if (shareCheckError && shareCheckError.code !== 'PGRST116') {
+      console.error('[User Groups /groups/:groupId/share POST] Share check error:', shareCheckError);
+      throw new Error('Fehler beim Überprüfen der Freigabe.');
+    }
+
+    if (existingShare) {
+      return res.status(400).json({
+        success: false,
+        message: 'Inhalt ist bereits mit dieser Gruppe geteilt.'
+      });
+    }
+
+    // Set default permissions if not provided
+    const sharePermissions = permissions || {
+      read: true,
+      write: false,
+      collaborative: false
+    };
+
+    // Share content using junction table
+    const { error: shareError } = await supabaseService
+      .from('group_content_shares')
+      .insert({
+        content_type: contentType,
+        content_id: contentId,
+        group_id: groupId,
+        shared_by_user_id: userId,
+        permissions: sharePermissions
+      });
+
+    if (shareError) {
+      console.error('[User Groups /groups/:groupId/share POST] Share error:', shareError);
+      throw new Error(shareError.message);
+    }
+
+    console.log('[User Groups /groups/:groupId/share POST] Content shared successfully');
+
+    res.json({
+      success: true,
+      message: 'Inhalt erfolgreich mit der Gruppe geteilt.'
+    });
+    
+  } catch (error) {
+    console.error('[User Groups /groups/:groupId/share POST] Error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Fehler beim Teilen des Inhalts.'
+    });
+  }
+});
+
+// Unshare content from a group
+router.delete('/groups/:groupId/share', ensureAuthenticated, async (req, res) => {
+  try {
+    console.log('[User Groups /groups/:groupId/share DELETE] Unshare content request for user:', req.user.id);
+    const { groupId } = req.params;
+    const userId = req.user.id;
+    const { contentType, contentId } = req.body;
+    
+    console.log('[User Groups /groups/:groupId/share DELETE] Request parameters:', {
+      groupId,
+      userId,
+      requestBody: req.body,
+      contentType,
+      contentId
+    });
+    
+    if (!groupId || !contentType || !contentId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Gruppen-ID, Content-Type und Content-ID sind erforderlich.'
+      });
+    }
+
+    // Check if user is member of the group  
+    const { data: membership, error: membershipError } = await supabaseService
+      .from('group_memberships')
+      .select('role')
+      .eq('group_id', groupId)
+      .eq('user_id', userId)
+      .single();
+
+    if (membershipError) {
+      return res.status(403).json({
+        success: false,
+        message: 'Du bist nicht Mitglied dieser Gruppe.'
+      });
+    }
+
+    // Verify the share exists and user owns it or has permission to unshare
+    const { data: shareRecord, error: shareCheckError } = await supabaseService
+      .from('group_content_shares')
+      .select('shared_by_user_id')
+      .eq('content_type', contentType)
+      .eq('content_id', contentId)
+      .eq('group_id', groupId)
+      .single();
+
+    if (shareCheckError) {
+      return res.status(404).json({
+        success: false,
+        message: 'Geteilter Inhalt nicht gefunden.'
+      });
+    }
+
+    // Only the user who shared the content can unshare it (or group admins in future)
+    if (shareRecord.shared_by_user_id !== userId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Du kannst nur Inhalte aufheben, die du selbst geteilt hast.'
+      });
+    }
+
+    // Remove from junction table
+    const { error: unshareError } = await supabaseService
+      .from('group_content_shares')
+      .delete()
+      .eq('content_type', contentType)
+      .eq('content_id', contentId)
+      .eq('group_id', groupId);
+
+    if (unshareError) {
+      console.error('[User Groups /groups/:groupId/share DELETE] Unshare error:', unshareError);
+      throw new Error(unshareError.message);
+    }
+
+    console.log('[User Groups /groups/:groupId/share DELETE] Content unshared successfully');
+
+    res.json({
+      success: true,
+      message: 'Inhalt wurde erfolgreich aus der Gruppe entfernt.'
+    });
+    
+  } catch (error) {
+    console.error('[User Groups /groups/:groupId/share DELETE] Error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Fehler beim Entfernen des Inhalts aus der Gruppe.'
+    });
+  }
+});
+
+// Get all content shared with a group
+router.get('/groups/:groupId/content', ensureAuthenticated, async (req, res) => {
+  try {
+    console.log('[User Groups /groups/:groupId/content GET] Get group content request for user:', req.user.id);
+    const { groupId } = req.params;
+    const userId = req.user.id;
+    
+    if (!groupId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Gruppen-ID ist erforderlich.'
+      });
+    }
+
+    // Check if user is member of the group
+    const { data: membership, error: membershipError } = await supabaseService
+      .from('group_memberships')
+      .select('role')
+      .eq('group_id', groupId)
+      .eq('user_id', userId)
+      .single();
+
+    if (membershipError) {
+      return res.status(403).json({
+        success: false,
+        message: 'Du bist nicht Mitglied dieser Gruppe.'
+      });
+    }
+
+    // Fetch shared content using junction table
+    const { data: sharedContent, error: fetchError } = await supabaseService
+      .from('group_content_shares')
+      .select(`
+        content_type,
+        content_id,
+        shared_at,
+        permissions,
+        shared_by_user_id,
+        profiles!shared_by_user_id(first_name, display_name)
+      `)
+      .eq('group_id', groupId)
+      .order('shared_at', { ascending: false });
+
+    if (fetchError) {
+      console.error('Shared content fetch error:', fetchError);
+      throw new Error('Fehler beim Laden der geteilten Inhalte.');
+    }
+
+    // Group shared content by type for easier processing
+    const contentByType = {
+      documents: [],
+      custom_generators: [],
+      qa_collections: [],
+      user_documents: [],
+      user_content: []
+    };
+
+    sharedContent.forEach(share => {
+      if (contentByType[share.content_type]) {
+        contentByType[share.content_type].push(share);
+      }
+    });
+
+    // Fetch actual content details for each type
+    const contentPromises = [];
+
+    // Documents
+    if (contentByType.documents.length > 0) {
+      const documentIds = contentByType.documents.map(s => s.content_id);
+      contentPromises.push(
+        supabaseService
+          .from('documents')
+          .select('id, title, filename, file_size, status, created_at, updated_at, user_id')
+          .in('id', documentIds)
+          .then(result => ({ type: 'documents', result, shares: contentByType.documents }))
+      );
+    }
+
+    // Custom Generators
+    if (contentByType.custom_generators.length > 0) {
+      const generatorIds = contentByType.custom_generators.map(s => s.content_id);
+      contentPromises.push(
+        supabaseService
+          .from('custom_generators')
+          .select('id, name, title, description, created_at, updated_at, user_id')
+          .in('id', generatorIds)
+          .then(result => ({ type: 'custom_generators', result, shares: contentByType.custom_generators }))
+      );
+    }
+
+    // Q&A Collections
+    if (contentByType.qa_collections.length > 0) {
+      const qaIds = contentByType.qa_collections.map(s => s.content_id);
+      contentPromises.push(
+        supabaseService
+          .from('qa_collections')
+          .select('id, name, description, view_count, created_at, updated_at, user_id')
+          .in('id', qaIds)
+          .then(result => ({ type: 'qa_collections', result, shares: contentByType.qa_collections }))
+      );
+    }
+
+    // User Documents (Texts)
+    if (contentByType.user_documents.length > 0) {
+      const textIds = contentByType.user_documents.map(s => s.content_id);
+      contentPromises.push(
+        supabaseService
+          .from('user_documents')
+          .select('id, title, document_type, word_count, character_count, created_at, updated_at, user_id')
+          .in('id', textIds)
+          .then(result => ({ type: 'user_documents', result, shares: contentByType.user_documents }))
+      );
+    }
+
+    // Templates (User Content)
+    if (contentByType.user_content.length > 0) {
+      const templateIds = contentByType.user_content.map(s => s.content_id);
+      contentPromises.push(
+        supabaseService
+          .from('user_content')
+          .select('id, title, description, external_url, thumbnail_url, metadata, created_at, updated_at, user_id')
+          .in('id', templateIds)
+          .eq('type', 'template')
+          .then(result => ({ type: 'user_content', result, shares: contentByType.user_content }))
+      );
+    }
+
+    const contentResults = await Promise.all(contentPromises);
+
+    // Process and format results
+    const groupContent = {
+      documents: [],
+      generators: [],
+      qas: [],
+      texts: [],
+      templates: []
+    };
+
+    contentResults.forEach(({ type, result, shares }) => {
+      if (result.error) {
+        console.error(`${type} fetch error:`, result.error);
+        return;
+      }
+
+      const items = (result.data || []).map(item => {
+        // Find the corresponding share info
+        const shareInfo = shares.find(s => s.content_id === item.id);
+        
+        return {
+          ...item,
+          contentType: type,
+          shared_at: shareInfo?.shared_at,
+          group_permissions: shareInfo?.permissions,
+          shared_by_name: shareInfo?.profiles?.display_name || shareInfo?.profiles?.first_name || 'Unknown User',
+          // Add template-specific fields for user_content
+          ...(type === 'user_content' && {
+            template_type: item.metadata?.template_type || 'canva',
+            canva_url: item.external_url
+          })
+        };
+      });
+
+      // Map to the correct groupContent key
+      const keyMap = {
+        documents: 'documents',
+        custom_generators: 'generators',
+        qa_collections: 'qas',
+        user_documents: 'texts',
+        user_content: 'templates'
+      };
+
+      groupContent[keyMap[type]] = items;
+    });
+
+    console.log('[User Groups /groups/:groupId/content GET] Group content loaded successfully');
+
+    res.json({
+      success: true,
+      content: groupContent
+    });
+    
+  } catch (error) {
+    console.error('[User Groups /groups/:groupId/content GET] Error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Fehler beim Laden der Gruppeninhalte.'
+    });
+  }
+});
+
+// Update content permissions
+router.put('/groups/:groupId/content/:contentId/permissions', ensureAuthenticated, async (req, res) => {
+  try {
+    console.log('[User Groups /groups/:groupId/content/:contentId/permissions PUT] Update permissions request for user:', req.user.id);
+    const { groupId, contentId } = req.params;
+    const userId = req.user.id;
+    const { contentType, permissions } = req.body;
+    
+    if (!groupId || !contentId || !contentType || !permissions) {
+      return res.status(400).json({
+        success: false,
+        message: 'Alle Parameter sind erforderlich.'
+      });
+    }
+
+    // Validate content type
+    const validContentTypes = ['documents', 'custom_generators', 'qa_collections', 'user_documents', 'user_content'];
+    if (!validContentTypes.includes(contentType)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Ungültiger Content-Type.'
+      });
+    }
+
+    // Check if user is admin or content owner
+    // Handle user_content table (for templates) with type filtering
+    let contentQuery = supabaseService
+      .from(contentType)
+      .select('user_id, group_id')
+      .eq('id', contentId);
+    
+    // For user_content, also filter by type = 'template'
+    if (contentType === 'user_content') {
+      contentQuery = contentQuery.eq('type', 'template');
+    }
+    
+    const [membershipResult, contentResult] = await Promise.all([
+      supabaseService
+        .from('group_memberships')
+        .select('role')
+        .eq('group_id', groupId)
+        .eq('user_id', userId)
+        .single(),
+      contentQuery.single()
+    ]);
+
+    if (membershipResult.error) {
+      return res.status(403).json({
+        success: false,
+        message: 'Du bist nicht Mitglied dieser Gruppe.'
+      });
+    }
+
+    if (contentResult.error) {
+      return res.status(404).json({
+        success: false,
+        message: 'Inhalt nicht gefunden.'
+      });
+    }
+
+    const isAdmin = membershipResult.data.role === 'admin';
+    const isOwner = contentResult.data.user_id === userId;
+    const isInGroup = contentResult.data.group_id === groupId;
+
+    if (!isInGroup) {
+      return res.status(400).json({
+        success: false,
+        message: 'Inhalt ist nicht mit dieser Gruppe geteilt.'
+      });
+    }
+
+    if (!isAdmin && !isOwner) {
+      return res.status(403).json({
+        success: false,
+        message: 'Keine Berechtigung zum Ändern der Berechtigungen.'
+      });
+    }
+
+    // Update permissions
+    const { error: updateError } = await supabaseService
+      .from(contentType)
+      .update({
+        group_permissions: permissions
+      })
+      .eq('id', contentId);
+
+    if (updateError) {
+      console.error('[User Groups /groups/:groupId/content/:contentId/permissions PUT] Update error:', updateError);
+      throw new Error(updateError.message);
+    }
+
+    console.log('[User Groups /groups/:groupId/content/:contentId/permissions PUT] Permissions updated successfully');
+
+    res.json({
+      success: true,
+      message: 'Berechtigungen erfolgreich aktualisiert.'
+    });
+    
+  } catch (error) {
+    console.error('[User Groups /groups/:groupId/content/:contentId/permissions PUT] Error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Fehler beim Aktualisieren der Berechtigungen.'
+    });
+  }
+});
+
+// Remove content from group (unshare)
+router.delete('/groups/:groupId/content/:contentId', ensureAuthenticated, async (req, res) => {
+  try {
+    console.log('[User Groups /groups/:groupId/content/:contentId DELETE] Unshare content request for user:', req.user.id);
+    const { groupId, contentId } = req.params;
+    const userId = req.user.id;
+    const { contentType } = req.body;
+    
+    console.log('[User Groups /groups/:groupId/content/:contentId DELETE] Request parameters:', {
+      groupId,
+      contentId,
+      userId,
+      requestBody: req.body,
+      contentType
+    });
+    
+    if (!groupId || !contentId || !contentType) {
+      return res.status(400).json({
+        success: false,
+        message: 'Gruppen-ID, Content-ID und Content-Type sind erforderlich.'
+      });
+    }
+
+    // Validate content type - include user_content for templates
+    const validContentTypes = ['documents', 'custom_generators', 'qa_collections', 'user_documents', 'user_content'];
+    if (!validContentTypes.includes(contentType)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Ungültiger Content-Type.'
+      });
+    }
+
+    // Check if user is member of the group  
+    const { data: membership, error: membershipError } = await supabaseService
+      .from('group_memberships')
+      .select('role')
+      .eq('group_id', groupId)
+      .eq('user_id', userId)
+      .single();
+
+    if (membershipError) {
+      return res.status(403).json({
+        success: false,
+        message: 'Du bist nicht Mitglied dieser Gruppe.'
+      });
+    }
+
+    // Check if user is admin
+    const isAdmin = membership.role === 'admin';
+    
+    // For now, only admins can unshare content (can be extended later)
+    if (!isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: 'Nur Gruppenadministratoren können geteilte Inhalte entfernen.'
+      });
+    }
+
+    // Verify the share exists in the junction table
+    const { data: shareRecord, error: shareCheckError } = await supabaseService
+      .from('group_content_shares')
+      .select('shared_by_user_id')
+      .eq('content_type', contentType)
+      .eq('content_id', contentId)
+      .eq('group_id', groupId)
+      .single();
+
+    if (shareCheckError) {
+      console.error('[User Groups /groups/:groupId/content/:contentId DELETE] Share check error:', shareCheckError);
+      return res.status(404).json({
+        success: false,
+        message: 'Geteilter Inhalt nicht gefunden.'
+      });
+    }
+
+    // Remove from junction table (same logic as the other unshare endpoint)
+    const { error: unshareError } = await supabaseService
+      .from('group_content_shares')
+      .delete()
+      .eq('content_type', contentType)
+      .eq('content_id', contentId)
+      .eq('group_id', groupId);
+
+    if (unshareError) {
+      console.error('[User Groups /groups/:groupId/content/:contentId DELETE] Unshare error:', unshareError);
+      throw new Error(unshareError.message);
+    }
+
+    console.log('[User Groups /groups/:groupId/content/:contentId DELETE] Content unshared successfully');
+
+    res.json({
+      success: true,
+      message: 'Inhalt erfolgreich aus der Gruppe entfernt.'
+    });
+    
+  } catch (error) {
+    console.error('[User Groups /groups/:groupId/content/:contentId DELETE] Error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Fehler beim Entfernen des geteilten Inhalts.'
+    });
+  }
+});
+
 export default router;

@@ -441,6 +441,7 @@
   flex-wrap: wrap;
 }
 
+
 /* Groups join-link input styles - DISABLED to prevent conflicts with main form-inputs.css */
 /*
 .join-link-input {
@@ -1136,6 +1137,12 @@
   flex-wrap: wrap;
 }
 
+.groups-horizontal-navigation .groups-vertical-tab {
+  max-width: none;
+  width: auto;
+  flex-shrink: 0;
+}
+
 /* Override .auth-form button + button for group name editing only */
 .group-name-edit-actions button + button {
   margin-top: 0 !important;
@@ -1239,4 +1246,6 @@
 .group-name-edit-icon:disabled {
   opacity: 0.3;
   cursor: not-allowed;
-} 
+}
+
+ 

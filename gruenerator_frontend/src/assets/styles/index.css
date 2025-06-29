@@ -141,6 +141,7 @@
 
 
 @import url('../../features/groups/styles/groups.css');
+@import url('../../features/groups/styles/shared-content-selector.css');
 
 
 @import url('../../features/qa/styles/qa-creator.css');

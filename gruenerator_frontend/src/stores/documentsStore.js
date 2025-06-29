@@ -138,6 +138,60 @@ export const useDocumentsStore = create(immer((set, get) => {
       }
     },
 
+    // Crawl URL and create document
+    crawlUrl: async (url, title, groupId = null) => {
+      set((state) => {
+        state.isUploading = true; // Reuse upload state for crawling
+        state.uploadProgress = 0;
+        state.error = null;
+      });
+
+      try {
+        console.log('[DocumentsStore] Crawling URL:', { url, title, groupId });
+
+        const response = await fetch(`${AUTH_BASE_URL}/documents/crawl-url`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ 
+            url: url.trim(), 
+            title: title.trim(),
+            group_id: groupId 
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+        
+        if (result.success) {
+          set((state) => {
+            // Add new document to the list
+            state.documents.unshift(result.data);
+            state.isUploading = false;
+            state.uploadProgress = 100;
+          });
+          
+          console.log('[DocumentsStore] URL crawling started successfully:', result.data.id);
+          return result.data;
+        } else {
+          throw new Error(result.message || 'Failed to start URL crawling');
+        }
+      } catch (error) {
+        console.error('[DocumentsStore] Error crawling URL:', error);
+        set((state) => {
+          state.error = error.message;
+          state.isUploading = false;
+          state.uploadProgress = 0;
+        });
+        throw error;
+      }
+    },
+
     // Delete document
     deleteDocument: async (documentId) => {
       try {

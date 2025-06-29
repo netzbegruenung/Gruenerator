@@ -375,7 +375,7 @@ const CreateCustomGeneratorPage = ({ showHeaderFooter = true }) => {
       if (result.generator && formValues.documents && formValues.documents.length > 0) {
         try {
           const documentIds = formValues.documents.map(doc => doc.id);
-          await fetch(`${AUTH_BASE_URL}/api/custom_generator/${result.generator.id}/documents`, {
+          await fetch(`${AUTH_BASE_URL}/custom_generator/${result.generator.id}/documents`, {
             method: 'POST',
             credentials: 'include',
             headers: {
