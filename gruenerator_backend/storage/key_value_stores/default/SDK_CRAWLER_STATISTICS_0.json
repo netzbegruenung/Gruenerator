@@ -1,0 +1,51 @@
+{
+  "requestsFinished": 0,
+  "requestsFailed": 1,
+  "requestsRetries": 1,
+  "requestsFailedPerMinute": 1,
+  "requestsFinishedPerMinute": 0,
+  "requestMinDurationMillis": null,
+  "requestMaxDurationMillis": 0,
+  "requestTotalFailedDurationMillis": 20357,
+  "requestTotalFinishedDurationMillis": 0,
+  "crawlerStartedAt": "2025-06-26T21:48:15.325Z",
+  "crawlerFinishedAt": "2025-06-26T21:49:13.612Z",
+  "statsPersistedAt": "2025-06-26T21:49:13.612Z",
+  "crawlerRuntimeMillis": 58453,
+  "crawlerLastStartTimestamp": 1750974495159,
+  "requestRetryHistogram": [
+    null,
+    null,
+    1
+  ],
+  "statsId": 0,
+  "requestAvgFailedDurationMillis": 20357,
+  "requestAvgFinishedDurationMillis": null,
+  "requestTotalDurationMillis": 20357,
+  "requestsTotal": 1,
+  "requestsWithStatusCode": {
+    "200": 3
+  },
+  "errors": {
+    "/home/morit/gruenerator/gruenerator_backend/node_modules/@apify/timeout/cjs/index.cjs:64:68": {
+      "missing error code": {
+        "Error": {
+          "requestHandler timed out after 20 seconds.": {
+            "count": 1
+          }
+        }
+      }
+    }
+  },
+  "retryErrors": {
+    "/home/morit/gruenerator/gruenerator_backend/node_modules/@apify/timeout/cjs/index.cjs:64:68": {
+      "missing error code": {
+        "Error": {
+          "requestHandler timed out after 20 seconds.": {
+            "count": 2
+          }
+        }
+      }
+    }
+  }
+}

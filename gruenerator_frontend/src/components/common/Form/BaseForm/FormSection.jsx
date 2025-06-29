@@ -21,8 +21,6 @@ import useResponsive from '../hooks/useResponsive';
  * @param {Object} props.submitButtonProps - Props für den Submit-Button
  * @param {Object} props.webSearchFeatureToggle - Props für den Web Search Feature-Toggle
  * @param {boolean} props.useWebSearchFeatureToggle - Soll der Web Search Feature-Toggle verwendet werden
- * @param {boolean} props.enableKnowledgeSelector - Soll der Knowledge Selector aktiviert werden
- * @param {boolean} props.enableDocumentSelector - Soll der Document Selector aktiviert werden
  * @param {boolean} props.enablePlatformSelector - Soll der Platform Selector aktiviert werden
  * @param {Array} props.platformOptions - Optionen für Platform Selector
  * @param {Object} props.formControl - React Hook Form Control Object
@@ -56,8 +54,6 @@ const FormSection = forwardRef(({
   submitButtonProps = {},
   webSearchFeatureToggle,
   useWebSearchFeatureToggle,
-  enableKnowledgeSelector = false,
-  enableDocumentSelector = false,
   enablePlatformSelector = false,
   platformOptions = [],
   formControl = null,
@@ -150,8 +146,6 @@ const FormSection = forwardRef(({
               <FormExtrasSection
                 webSearchFeatureToggle={webSearchFeatureToggle}
                 useWebSearchFeatureToggle={useWebSearchFeatureToggle}
-                enableKnowledgeSelector={enableKnowledgeSelector}
-                enableDocumentSelector={enableDocumentSelector}
                 formControl={formControl}
                 formNotice={formNotice}
                 onSubmit={onSubmit}

@@ -25,9 +25,16 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }) => {
   const { user } = useOptimizedAuth();
   const { memoryEnabled } = useAuthStore();
 
-  // Initialize knowledge system with document preloading
+  // Initialize knowledge system with UI configuration
   const instructionType = 'gruenejugend';
-  useKnowledge({ instructionType, enableDocuments: true });
+  useKnowledge({ 
+    instructionType, 
+    ui: {
+      enableKnowledge: true,
+      enableDocuments: true,
+      enableTexts: true
+    }
+  });
 
   // Initialize tabIndex configuration
   const tabIndex = useTabIndex('GRUENE_JUGEND');

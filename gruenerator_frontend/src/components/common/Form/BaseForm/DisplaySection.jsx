@@ -55,6 +55,7 @@ const DisplaySection = forwardRef(({
   const isLoading = useGeneratedTextStore(state => state.isLoading);
   const [generatePostLoading, setGeneratePostLoading] = React.useState(false);
   const [collabLoading, setCollabLoading] = React.useState(false);
+  const [saveToLibraryLoading, setSaveToLibraryLoading] = React.useState(false);
 
   // Check if user has access to collab feature
   const hasCollabAccess = getBetaFeatureState('collab');
@@ -80,8 +81,8 @@ const DisplaySection = forwardRef(({
     activeContent = generatedContent || value || '';
   }
 
-  // Preload collab document
-  const preloadedDocId = useCollabPreload(activeContent, hasCollabAccess, true, user, title, 'text');
+  // Preload collab components but don't auto-create documents
+  const preloadedDocId = useCollabPreload(activeContent, hasCollabAccess, true, user, title, 'text', false);
 
   const currentExportableContent = React.useMemo(() => {
     return activeContent;
@@ -102,17 +103,11 @@ const DisplaySection = forwardRef(({
       console.warn("Kein Inhalt zum kollaborativen Bearbeiten vorhanden.");
       return;
     }
-    // If a document was preloaded, use its ID.
-    if (preloadedDocId) {
-      console.log(`[DisplaySection] Opening preloaded collaborative document: ${preloadedDocId}`);
-      window.open(`/editor/collab/${preloadedDocId}`, '_blank');
-      return; // Early exit
-    }
 
-    // Fallback if preloading hasn't happened or failed
+    // Always create document on-demand when user clicks collab button
     setCollabLoading(true);
     const documentId = uuidv4();
-    console.log("[DisplaySection] No preloaded doc found. Generated Document ID:", documentId);
+    console.log("[DisplaySection] Creating collaborative document on-demand. Document ID:", documentId);
     console.log("[DisplaySection] Content to send:", currentExportableContent.substring(0,100) + "...");
 
     try {
@@ -133,6 +128,32 @@ const DisplaySection = forwardRef(({
     }
   };
 
+  const handleSaveToLibrary = React.useCallback(async () => {
+    if (!currentExportableContent) {
+      console.warn("Kein Inhalt zum Speichern vorhanden.");
+      return;
+    }
+
+    setSaveToLibraryLoading(true);
+    console.log("[DisplaySection] Saving content to library...");
+
+    try {
+      const response = await apiClient.post('/auth/save-to-library', { 
+        content: currentExportableContent,
+        title: title || 'Unbenannter Text',
+        type: 'generated_text'
+      });
+
+      console.log("[DisplaySection] Content successfully saved to library");
+      // You could add a success notification here
+    } catch (error) {
+      console.error("[DisplaySection] Error saving to library:", error.message || error);
+      // You could add an error notification here
+    } finally {
+      setSaveToLibraryLoading(false);
+    }
+  }, [currentExportableContent, title]);
+
   return (
     <div className="display-container" id="display-section-container" ref={ref}>
       <div className="display-header">
@@ -140,16 +161,19 @@ const DisplaySection = forwardRef(({
             content={activeContent}
             isEditing={false}
             showExport={true}
-            showPDF={true}
+            showDownload={true}
             showCollab={hasCollabAccess}
             showRegenerate={true}
             showSave={!!onSave}
+            showSaveToLibrary={true}
             onCollab={handleOpenCollabEditor}
             onRegenerate={onGeneratePost}
             onSave={onSave}
+            onSaveToLibrary={handleSaveToLibrary}
             collabLoading={collabLoading}
             regenerateLoading={generatePostLoading || isStreaming}
             saveLoading={saveLoading}
+            saveToLibraryLoading={saveToLibraryLoading}
             exportableContent={currentExportableContent}
             generatedPost={generatedPost}
             generatedContent={activeContent}

@@ -3,9 +3,11 @@ import multer from 'multer';
 import { supabaseService } from '../utils/supabaseClient.js';
 import authMiddlewareModule from '../middleware/authMiddleware.js';
 import { ocrService } from '../services/ocrService.js';
+import { documentProcessorService } from '../services/documentProcessorService.js';
 import { vectorSearchService } from '../services/vectorSearchService.js';
 import { smartQueryExpansion } from '../services/smartQueryExpansion.js';
 import { embeddingService } from '../services/embeddingService.js';
+import { urlCrawlerService } from '../services/urlCrawlerService.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import passport from '../config/passportSetup.mjs';
@@ -25,10 +27,18 @@ const upload = multer({
     fileSize: 50 * 1024 * 1024, // 50MB limit
   },
   fileFilter: (req, file, cb) => {
-    if (file.mimetype === 'application/pdf') {
+    const allowedMimeTypes = [
+      'application/pdf',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // DOCX
+      'application/vnd.oasis.opendocument.text', // ODT
+      'application/vnd.ms-excel', // XLS
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' // XLSX
+    ];
+    
+    if (allowedMimeTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Only PDF files are allowed'), false);
+      cb(new Error('Only PDF, DOCX, ODT, and Excel files are allowed'), false);
     }
   },
 });
@@ -120,10 +130,10 @@ router.post('/upload', ensureAuthenticated, upload.single('document'), async (re
       throw new Error('Failed to save document to database');
     }
 
-    // Start OCR processing in background
-    ocrService.processDocument(document.id, filePath, ocr_method || 'tesseract')
+    // Start document processing in background
+    documentProcessorService.processDocument(document.id, filePath, file.mimetype, ocr_method || 'tesseract')
       .catch(error => {
-        console.error('[Documents /upload] OCR processing failed:', error);
+        console.error('[Documents /upload] Document processing failed:', error);
         // Update document status to failed
         supabaseService
           .from('documents')
@@ -135,7 +145,7 @@ router.post('/upload', ensureAuthenticated, upload.single('document'), async (re
     res.json({
       success: true,
       data: document,
-      message: 'Document uploaded successfully. OCR processing started.'
+      message: 'Document uploaded successfully. Processing started.'
     });
 
   } catch (error) {
@@ -143,6 +153,99 @@ router.post('/upload', ensureAuthenticated, upload.single('document'), async (re
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to upload document'
+    });
+  }
+});
+
+// Crawl URL and create document
+router.post('/crawl-url', ensureAuthenticated, async (req, res) => {
+  try {
+    const { url, title, group_id } = req.body;
+
+    if (!url || !url.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'URL is required'
+      });
+    }
+
+    if (!title || !title.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Title is required'
+      });
+    }
+
+    console.log(`[Documents /crawl-url] Starting crawl for URL: ${url} with title: ${title}`);
+
+    // Create document record with pending status
+    const documentData = {
+      user_id: req.user.id,
+      group_id: group_id || null,
+      title: title.trim(),
+      filename: `crawled_${Date.now()}.txt`,
+      file_path: null, // Will be set if we store the content as a file
+      file_size: 0, // Will be updated after crawling
+      page_count: 1, // URL crawling typically results in single "page"
+      status: 'pending',
+      ocr_method: 'url_crawl',
+      source_url: url.trim(),
+      document_type: 'url_crawl'
+    };
+
+    const { data: document, error: dbError } = await supabaseService
+      .from('documents')
+      .insert(documentData)
+      .select()
+      .single();
+
+    if (dbError) {
+      console.error('[Documents /crawl-url] Database error:', dbError);
+      throw new Error('Failed to save document to database');
+    }
+
+    // Process URL crawling and wait for completion
+    try {
+      await processCrawledDocument(document.id, url.trim());
+      
+      // Fetch the updated document with completed status and content
+      const { data: updatedDocument, error: fetchError } = await supabaseService
+        .from('documents')
+        .select('*')
+        .eq('id', document.id)
+        .single();
+
+      if (fetchError) {
+        throw new Error('Failed to fetch updated document');
+      }
+
+      res.json({
+        success: true,
+        data: updatedDocument,
+        message: 'URL crawling completed successfully.'
+      });
+
+    } catch (processingError) {
+      console.error('[Documents /crawl-url] URL crawling failed:', processingError);
+      
+      // Update document status to failed
+      await supabaseService
+        .from('documents')
+        .update({ status: 'failed' })
+        .eq('id', document.id);
+
+      // Return error response
+      return res.status(500).json({
+        success: false,
+        message: processingError.message || 'Failed to crawl and process URL'
+      });
+    }
+
+  } catch (error) {
+    console.error('[Documents /crawl-url] Error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to crawl URL'
     });
   }
 });
@@ -230,14 +333,18 @@ router.delete('/:id', ensureAuthenticated, async (req, res) => {
       });
     }
 
-    // Delete file from storage
-    const { error: storageError } = await supabaseService.storage
-      .from('documents')
-      .remove([document.file_path]);
+    // Delete file from storage (only if there's a file_path)
+    if (document.file_path) {
+      const { error: storageError } = await supabaseService.storage
+        .from('documents')
+        .remove([document.file_path]);
 
-    if (storageError) {
-      console.warn('[Documents /delete] Storage deletion warning:', storageError);
-      // Continue with database deletion even if storage fails
+      if (storageError) {
+        console.warn('[Documents /delete] Storage deletion warning:', storageError);
+        // Continue with database deletion even if storage fails
+      }
+    } else {
+      console.log('[Documents /delete] No file_path found, skipping storage deletion (likely a crawled URL document)');
     }
 
     // Delete document record
@@ -394,6 +501,7 @@ router.get('/:id/content', ensureAuthenticated, async (req, res) => {
         status: document.status,
         page_count: document.page_count,
         ocr_text: document.ocr_text,
+        markdown_content: document.markdown_content,
         created_at: document.created_at
       }
     });
@@ -1114,6 +1222,147 @@ async function generateGrundsatzDocumentEmbeddings(documentId, text) {
 
   } catch (error) {
     console.error(`[generateGrundsatzDocumentEmbeddings] Error generating embeddings for document ${documentId}:`, error);
+    throw error;
+  }
+}
+
+// Process crawled document and generate embeddings
+async function processCrawledDocument(documentId, url) {
+  console.log(`[processCrawledDocument] Starting processing for document ${documentId} from URL: ${url}`);
+
+  try {
+    // Update status to processing
+    await supabaseService
+      .from('documents')
+      .update({ status: 'processing' })
+      .eq('id', documentId);
+
+    // Crawl the URL using our crawler service
+    const crawlResult = await urlCrawlerService.crawlUrl(url);
+
+    if (!crawlResult.success) {
+      throw new Error(crawlResult.error || 'Failed to crawl URL');
+    }
+
+    const crawledData = crawlResult.data;
+    
+    // Update document with crawled content
+    await supabaseService
+      .from('documents')
+      .update({
+        status: 'processing_embeddings',
+        ocr_text: crawledData.content,
+        markdown_content: crawledData.markdownContent,
+        file_size: crawledData.characterCount,
+        page_count: 1,
+        // Store additional metadata in a metadata column if it exists
+        metadata: JSON.stringify({
+          originalUrl: crawledData.originalUrl,
+          canonical: crawledData.canonical,
+          description: crawledData.description,
+          publicationDate: crawledData.publicationDate,
+          wordCount: crawledData.wordCount,
+          characterCount: crawledData.characterCount,
+          contentSource: crawledData.contentSource,
+          extractedAt: crawledData.extractedAt
+        })
+      })
+      .eq('id', documentId);
+
+    console.log(`[processCrawledDocument] Successfully crawled content for document ${documentId}, starting embedding generation`);
+
+    // Generate embeddings for the crawled content using existing embedding logic
+    await generateDocumentEmbeddings(documentId, crawledData.content);
+
+    // Mark document as fully completed
+    await supabaseService
+      .from('documents')
+      .update({ status: 'completed' })
+      .eq('id', documentId);
+
+    console.log(`[processCrawledDocument] Successfully processed crawled document ${documentId}`);
+
+  } catch (error) {
+    console.error(`[processCrawledDocument] Error processing document ${documentId}:`, error);
+    // Mark document as failed
+    await supabaseService
+      .from('documents')
+      .update({ 
+        status: 'failed',
+        ocr_text: `Failed to crawl URL: ${error.message}`
+      })
+      .eq('id', documentId);
+    throw error;
+  }
+}
+
+// Generate embeddings for regular document chunks (reuse existing logic)
+async function generateDocumentEmbeddings(documentId, text) {
+  try {
+    console.log(`[generateDocumentEmbeddings] Generating embeddings for document ${documentId}`);
+
+    // Import text chunker (same as used in OCR service)
+    const { smartChunkDocument } = await import('../utils/textChunker.js');
+    const chunks = smartChunkDocument(text, {
+      maxTokens: 400,
+      overlapTokens: 50,
+      preserveStructure: true
+    });
+
+    if (chunks.length === 0) {
+      console.warn(`[generateDocumentEmbeddings] No chunks generated for document ${documentId}`);
+      return;
+    }
+
+    console.log(`[generateDocumentEmbeddings] Generated ${chunks.length} chunks for document ${documentId}`);
+
+    // Generate embeddings for chunks in batches
+    const batchSize = 10;
+    const allChunkData = [];
+
+    for (let i = 0; i < chunks.length; i += batchSize) {
+      const batch = chunks.slice(i, i + batchSize);
+      console.log(`[generateDocumentEmbeddings] Processing embedding batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(chunks.length/batchSize)}`);
+
+      try {
+        // Generate embeddings for this batch
+        const texts = batch.map(chunk => chunk.text);
+        const embeddings = await embeddingService.generateBatchEmbeddings(texts, 'search_document');
+
+        // Prepare chunk data for database insertion
+        const batchChunkData = batch.map((chunk, index) => ({
+          document_id: documentId,
+          chunk_index: chunk.index,
+          chunk_text: chunk.text,
+          embedding: embeddings[index],
+          token_count: chunk.tokens
+        }));
+
+        allChunkData.push(...batchChunkData);
+
+      } catch (batchError) {
+        console.error(`[generateDocumentEmbeddings] Error processing embedding batch:`, batchError);
+        // Continue with other batches
+      }
+    }
+
+    if (allChunkData.length === 0) {
+      throw new Error('No embeddings were generated successfully');
+    }
+
+    // Insert all chunks into document_chunks table
+    const { error: insertError } = await supabaseService
+      .from('document_chunks')
+      .insert(allChunkData);
+
+    if (insertError) {
+      throw new Error(`Failed to insert document chunks: ${insertError.message}`);
+    }
+
+    console.log(`[generateDocumentEmbeddings] Successfully generated embeddings for ${allChunkData.length} chunks in document ${documentId}`);
+
+  } catch (error) {
+    console.error(`[generateDocumentEmbeddings] Error generating embeddings for document ${documentId}:`, error);
     throw error;
   }
 }

@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 /**
  * Zustand store for groups UI state management
- * Follows the same pattern as anweisungenWissenUiStore
+ * Follows the same pattern as instructionsUiStore
  */
 export const useGroupsUiStore = create((set) => ({
   // Loading states

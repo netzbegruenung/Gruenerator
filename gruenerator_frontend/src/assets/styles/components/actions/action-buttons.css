@@ -84,6 +84,58 @@
   background-color: rgba(255, 255, 255, 0.2);
 }
 
+/* Download Export Component Styles */
+.download-export {
+  position: relative;
+  display: inline-block;
+}
+
+.download-export .format-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background-color: var(--background-color);
+  border: 1px solid var(--border-color, #e0e0e0);
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  min-width: 80px;
+  margin-top: 4px;
+}
+
+.download-export .format-option {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  color: var(--font-color);
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+  border-radius: 0;
+}
+
+.download-export .format-option:first-child {
+  border-radius: 4px 4px 0 0;
+}
+
+.download-export .format-option:last-child {
+  border-radius: 0 0 4px 4px;
+}
+
+.download-export .format-option:only-child {
+  border-radius: 4px;
+}
+
+.download-export .format-option:hover {
+  background-color: var(--button-hover-color);
+}
+
+.download-export .format-option:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 
 @media (max-width: 768px) {
   .content-actions,
@@ -99,5 +151,11 @@
   .action-button svg {
     width: 14px;
     height: 14px;
+  }
+
+  .download-export .format-selector {
+    font-size: 11px;
+    padding: 5px 6px;
+    min-width: 55px;
   }
 } 

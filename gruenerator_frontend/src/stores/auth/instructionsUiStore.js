@@ -1,11 +1,12 @@
 import { create } from 'zustand';
 
 /**
- * Zustand store to manage the UI state for the AnweisungenWissenTab.
- * This decouples UI state (loading, errors, etc.) from the data fetching/mutation logic
- * in the useAnweisungenWissen hook.
+ * Generic Zustand store to manage UI state for form components that handle
+ * instructions and knowledge management (AnweisungenWissenTab, GroupsManagementTab).
+ * This centralizes UI state (loading, errors, etc.) and decouples it from 
+ * the data fetching/mutation logic in hooks.
  */
-export const useAnweisungenWissenUiStore = create((set) => ({
+export const useInstructionsUiStore = create((set) => ({
   // State
   isSaving: false,
   isDeleting: false,
@@ -32,4 +33,7 @@ export const useAnweisungenWissenUiStore = create((set) => ({
     hasUnsavedChanges: false,
     deletingKnowledgeId: null,
   }),
-})); 
+}));
+
+// Legacy export for backward compatibility
+export const useAnweisungenWissenUiStore = useInstructionsUiStore;

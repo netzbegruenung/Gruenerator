@@ -22,7 +22,7 @@ router.get('/anweisungen-wissen', ensureAuthenticated, async (req, res) => {
     // Fetch profile prompts
     const { data: profileData, error: profileErr } = await supabaseService
       .from('profiles')
-      .select('custom_antrag_prompt, custom_social_prompt, custom_universal_prompt, custom_gruenejugend_prompt')
+      .select('custom_antrag_prompt, custom_social_prompt, custom_universal_prompt, custom_gruenejugend_prompt, presseabbinder')
       .eq('id', userId)
       .maybeSingle();
     if (profileErr) throw profileErr;
@@ -42,6 +42,7 @@ router.get('/anweisungen-wissen', ensureAuthenticated, async (req, res) => {
       socialPrompt: profileData?.custom_social_prompt || '',
       universalPrompt: profileData?.custom_universal_prompt || '',
       gruenejugendPrompt: profileData?.custom_gruenejugend_prompt || '',
+      presseabbinder: profileData?.presseabbinder || '',
       knowledge: knowledgeRows || []
     });
     
@@ -59,7 +60,7 @@ router.get('/anweisungen-wissen', ensureAuthenticated, async (req, res) => {
 router.put('/anweisungen-wissen', ensureAuthenticated, async (req, res) => {
   try {
     const userId = req.user.id;
-    const { custom_antrag_prompt, custom_social_prompt, custom_universal_prompt, custom_gruenejugend_prompt, knowledge = [] } = req.body || {};
+    const { custom_antrag_prompt, custom_social_prompt, custom_universal_prompt, custom_gruenejugend_prompt, presseabbinder, knowledge = [] } = req.body || {};
     console.log('[User Content /anweisungen-wissen PUT] Incoming request body for user:', userId);
     console.log(JSON.stringify(req.body, null, 2));
 
@@ -71,6 +72,7 @@ router.put('/anweisungen-wissen', ensureAuthenticated, async (req, res) => {
       custom_social_prompt: custom_social_prompt ?? null,
       custom_universal_prompt: custom_universal_prompt ?? null,
       custom_gruenejugend_prompt: custom_gruenejugend_prompt ?? null,
+      presseabbinder: presseabbinder ?? null,
     };
     console.log('[User Content /anweisungen-wissen PUT] Prepared profile payload:');
     console.log(JSON.stringify(profilePayload, null, 2));
@@ -182,6 +184,142 @@ router.delete('/anweisungen-wissen/:id', ensureAuthenticated, async (req, res) =
     res.status(500).json({ 
       success: false, 
       message: 'Fehler beim Löschen des Eintrags.', 
+      details: error.message 
+    });
+  }
+});
+
+// === SAVE TO LIBRARY ENDPOINT ===
+
+// Save generated text to user's library
+router.post('/save-to-library', ensureAuthenticated, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { content, title, type = 'generated_text' } = req.body;
+    console.log(`[User Content /save-to-library POST] Request from user ${userId}`);
+
+    // Validate input
+    if (!content || !title) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Content und Titel sind erforderlich.' 
+      });
+    }
+
+    // Insert into user_generated_texts table
+    const { data, error } = await supabaseService
+      .from('user_generated_texts')
+      .insert([{
+        user_id: userId,
+        title: title.trim(),
+        content: content.trim(),
+        type: type,
+        created_at: new Date().toISOString()
+      }])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[User Content /save-to-library POST] Database error:', error);
+      throw error;
+    }
+
+    console.log(`[User Content /save-to-library POST] Successfully saved text ${data.id} for user ${userId}`);
+    res.json({ 
+      success: true, 
+      message: 'Text erfolgreich in der Bibliothek gespeichert.',
+      data: data
+    });
+    
+  } catch (error) {
+    console.error('[User Content /save-to-library POST] Error:', error.message);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Fehler beim Speichern in der Bibliothek.', 
+      details: error.message 
+    });
+  }
+});
+
+// Get user's saved texts from library
+router.get('/saved-texts', ensureAuthenticated, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { page = 1, limit = 20, type } = req.query;
+    
+    let query = supabaseService
+      .from('user_generated_texts')
+      .select('id, title, content, type, created_at')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (type) {
+      query = query.eq('type', type);
+    }
+
+    // Pagination
+    const offset = (page - 1) * limit;
+    query = query.range(offset, offset + limit - 1);
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('[User Content /saved-texts GET] Database error:', error);
+      throw error;
+    }
+
+    res.json({ 
+      success: true, 
+      data: data || [],
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit)
+      }
+    });
+    
+  } catch (error) {
+    console.error('[User Content /saved-texts GET] Error:', error.message);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Fehler beim Laden der gespeicherten Texte.', 
+      details: error.message 
+    });
+  }
+});
+
+// Delete saved text from library
+router.delete('/saved-texts/:id', ensureAuthenticated, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Text-ID ist erforderlich.' 
+      });
+    }
+
+    const { error } = await supabaseService
+      .from('user_generated_texts')
+      .delete()
+      .match({ id: id, user_id: userId });
+
+    if (error) {
+      console.error(`[User Content /saved-texts/${id} DELETE] Database error:`, error);
+      throw error;
+    }
+
+    res.json({ 
+      success: true, 
+      message: 'Text erfolgreich gelöscht.' 
+    });
+    
+  } catch (error) {
+    console.error(`[User Content /saved-texts/${req.params.id} DELETE] Error:`, error.message);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Fehler beim Löschen des Textes.', 
       details: error.message 
     });
   }

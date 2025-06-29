@@ -5,6 +5,7 @@ import useSearch from '../hooks/useSearch';
 import ActionButtons from '../../../components/common/ActionButtons';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import { formatExportContent } from '../../../components/utils/exportUtils';
+import ContentRenderer from '../../../components/common/Form/BaseForm/ContentRenderer';
 
 const exampleQuestions = [
   {
@@ -55,6 +56,8 @@ const SourceList = ({ sources, title, recommendations = [] }) => (
     <div className="sources-list">
       {sources.map((source, index) => {
         const recommendation = recommendations.find(r => r.title === source.title);
+        const hasSnippets = source.content_snippets && source.content_snippets.trim().length > 0;
+        
         return (
           <a 
             key={index} 
@@ -67,6 +70,16 @@ const SourceList = ({ sources, title, recommendations = [] }) => (
             {recommendation && (
               <div className="source-recommendation">
                 <p className="source-summary">{recommendation.summary}</p>
+              </div>
+            )}
+            {hasSnippets && (
+              <div className="source-content-snippets">
+                <p className="content-preview">
+                  {source.content_snippets.length > 200 
+                    ? `${source.content_snippets.substring(0, 200)}...` 
+                    : source.content_snippets
+                  }
+                </p>
               </div>
             )}
             <span className="source-url">{extractMainDomain(source.url)}</span>
@@ -95,6 +108,7 @@ SourceList.propTypes = {
 
 const SearchPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchMode, setSearchMode] = useState('standard'); // 'standard' or 'deep'
   const { 
     results,
     usedSources, 
@@ -102,11 +116,18 @@ const SearchPage = () => {
     loading, 
     error, 
     search,
+    deepSearch,
+    dossier,
+    categorizedSources,
     sourceRecommendations = []
   } = useSearch();
 
   const handleSearch = async (query) => {
-    await search(query);
+    if (searchMode === 'deep') {
+      await deepSearch(query);
+    } else {
+      await search(query);
+    }
   };
 
   // Berechne die nicht verwendeten Quellen
@@ -118,8 +139,33 @@ const SearchPage = () => {
     <ErrorBoundary>
       <div className="search-page-container">
         <div className="search-header">
-          <h1>Gruugo</h1>
+          <h1>Grünerator Suche</h1>
           <p className="search-subtitle">KI-Suche des Grünerators</p>
+        </div>
+        
+        <div className="search-mode-selector">
+          <div className="mode-options">
+            <label className="mode-option">
+              <input
+                type="radio"
+                value="standard"
+                checked={searchMode === 'standard'}
+                onChange={(e) => setSearchMode(e.target.value)}
+              />
+              <span>Standard-Suche</span>
+              <small>Schnelle Suche mit sofortigen Ergebnissen</small>
+            </label>
+            <label className="mode-option">
+              <input
+                type="radio"
+                value="deep"
+                checked={searchMode === 'deep'}
+                onChange={(e) => setSearchMode(e.target.value)}
+              />
+              <span>Deep Research</span>
+              <small>Umfassende Recherche mit strukturiertem Dossier</small>
+            </label>
+          </div>
         </div>
         
         <SearchBar 
@@ -127,7 +173,18 @@ const SearchPage = () => {
           loading={loading} 
           value={searchQuery}
           onChange={setSearchQuery}
+          placeholder={searchMode === 'deep' ? 
+            'Thema für umfassende Recherche eingeben...' : 
+            'Suchbegriff eingeben...'
+          }
         />
+        
+        {loading && searchMode === 'deep' && (
+          <div className="deep-search-progress">
+            <p>🔍 Führe umfassende Recherche durch...</p>
+            <p>📋 Generiere Forschungsfragen und sammle Quellen...</p>
+          </div>
+        )}
         
         {error && (
           <div className="search-error">
@@ -135,7 +192,47 @@ const SearchPage = () => {
           </div>
         )}
 
-        {analysis && (
+        {/* Deep Research Results */}
+        {dossier && searchMode === 'deep' && (
+          <>
+            <div className="dossier-container">
+              <div className="analysis-actions">
+                <ActionButtons
+                  content={dossier}
+                  onEdit={() => {}}
+                  isEditing={false}
+                  allowEditing={false}
+                  hideEditButton={true}
+                  showExport={true}
+                />
+              </div>
+              <div className="dossier-content">
+                <ContentRenderer
+                  value={dossier}
+                  useMarkdown={true}
+                  componentName="deep-research-dossier"
+                />
+              </div>
+            </div>
+            
+            {categorizedSources && Object.keys(categorizedSources).length > 0 && (
+              <div className="categorized-sources-section">
+                <h2>Quellen nach Themenbereichen</h2>
+                {Object.entries(categorizedSources).map(([category, sources]) => (
+                  <SourceList 
+                    key={category}
+                    sources={sources} 
+                    title={category}
+                    recommendations={sourceRecommendations}
+                  />
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Standard Search Results */}
+        {analysis && searchMode === 'standard' && (
           <>
             <div className="analysis-container">
               <div className="analysis-actions">

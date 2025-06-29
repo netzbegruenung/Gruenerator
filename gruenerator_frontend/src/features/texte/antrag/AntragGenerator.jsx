@@ -23,8 +23,15 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
   const { Input, Textarea } = useFormFields();
   const { setGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
 
-  // Initialize knowledge system with document preloading
-  useKnowledge({ instructionType: 'antrag', enableDocuments: true });
+  // Initialize knowledge system with UI configuration
+  useKnowledge({ 
+    instructionType: 'antrag', 
+    ui: {
+      enableKnowledge: true,
+      enableDocuments: true,
+      enableTexts: true
+    }
+  });
 
   // Initialize tabIndex configuration
   const tabIndex = useTabIndex('ANTRAG');

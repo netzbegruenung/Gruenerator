@@ -40,11 +40,11 @@ async function addTextToImage(imagePath, outputImagePath, quote, name) {
     ]);
     console.log('Bilder erfolgreich geladen');
 
-    const canvas = createCanvas(1080, 1080);
+    const canvas = createCanvas(1080, 1350);
     const ctx = canvas.getContext('2d');
 
     const imageAspectRatio = image.width / image.height;
-    const canvasAspectRatio = 1080 / 1080;
+    const canvasAspectRatio = 1080 / 1350;
 
     let sx, sy, sWidth, sHeight;
 
@@ -62,14 +62,14 @@ async function addTextToImage(imagePath, outputImagePath, quote, name) {
       sy = (image.height - sHeight) / 2;
     }
 
-    ctx.drawImage(image, sx, sy, sWidth, sHeight, 0, 0, 1080, 1080);
+    ctx.drawImage(image, sx, sy, sWidth, sHeight, 0, 0, 1080, 1350);
     
     // Gradient Overlay hinzufügen
-    const gradient = ctx.createLinearGradient(0, 0, 0, 1080);
+    const gradient = ctx.createLinearGradient(0, 0, 0, 1350);
     gradient.addColorStop(0, 'rgba(0, 0, 0, 0.2)');
     gradient.addColorStop(1, 'rgba(0, 0, 0, 0.7)');
     ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, 1080, 1080);
+    ctx.fillRect(0, 0, 1080, 1350);
 
     // Anführungszeichen hinzufügen
     const quoteMarkSize = 100;

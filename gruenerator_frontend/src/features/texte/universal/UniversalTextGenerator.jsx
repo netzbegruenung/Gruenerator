@@ -31,8 +31,15 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
   
   useOptimizedAuth();
   
-  // Initialize knowledge system with document preloading
-  useKnowledge({ instructionType: 'universal', enableDocuments: true });
+  // Initialize knowledge system with UI configuration
+  useKnowledge({ 
+    instructionType: 'universal', 
+    ui: {
+      enableKnowledge: true,
+      enableDocuments: true,
+      enableTexts: true
+    }
+  });
 
   // Initialize tabIndex configuration
   const tabIndex = useTabIndex('UNIVERSAL');
@@ -177,8 +184,6 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
           onGeneratedContentChange={handleGeneratedContentChange}
           onSubmit={handleSubmit}
           formNotice={formNotice}
-          enableKnowledgeSelector={true}
-          enableDocumentSelector={true}
           helpContent={helpContent}
           componentName={componentName}
           firstExtrasChildren={renderTextTypeSection()}
