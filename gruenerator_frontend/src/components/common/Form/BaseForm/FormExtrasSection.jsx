@@ -11,8 +11,6 @@ import { useGeneratorKnowledgeStore } from '../../../../stores/core/generatorKno
  * @param {Object} props - Komponenten-Props
  * @param {Object} props.webSearchFeatureToggle - Props für den Web Search Feature-Toggle
  * @param {boolean} props.useWebSearchFeatureToggle - Soll der Web Search Feature-Toggle verwendet werden
- * @param {boolean} props.enableKnowledgeSelector - Soll der Knowledge Selector aktiviert werden
- * @param {boolean} props.enableDocumentSelector - Soll der Document Selector aktiviert werden
  * @param {Object} props.formControl - React Hook Form Control Object
  * @param {node} props.formNotice - Hinweis oder Information im Formular
  * @param {Function} props.onSubmit - Submit-Handler für das Formular
@@ -29,8 +27,6 @@ import { useGeneratorKnowledgeStore } from '../../../../stores/core/generatorKno
 const FormExtrasSection = ({
   webSearchFeatureToggle,
   useWebSearchFeatureToggle = false,
-  enableKnowledgeSelector = false,
-  enableDocumentSelector = false,
   formControl = null,
   formNotice = null,
   onSubmit,
@@ -53,14 +49,13 @@ const FormExtrasSection = ({
   const { getBetaFeatureState, isLoading: isLoadingBetaFeatures } = useBetaFeatures();
   const anweisungenBetaEnabled = getBetaFeatureState('anweisungen');
 
-  // Don't render if no extras are enabled
+  // Don't render if no extras are enabled  
   const hasExtras = useWebSearchFeatureToggle || 
-                   (enableKnowledgeSelector && (anweisungenBetaEnabled || isLoadingBetaFeatures)) || 
-                   enableDocumentSelector ||
                    formNotice || 
                    showSubmitButton ||
                    children ||
-                   firstExtrasChildren;
+                   firstExtrasChildren ||
+                   true; // Always show to allow KnowledgeSelector to manage its own visibility
 
   if (!hasExtras) {
     return null;
@@ -77,20 +72,15 @@ const FormExtrasSection = ({
           </div>
         )}
         
-        {/* Knowledge Selector - using existing optimized component with source selection and document selection */}
-        {(enableKnowledgeSelector || enableDocumentSelector) && (anweisungenBetaEnabled || isLoadingBetaFeatures || enableDocumentSelector) && (
-          <div className="form-extras__item">
-            <KnowledgeSelector 
-              enableSelection={enableKnowledgeSelector}
-              enableSourceSelection={enableKnowledgeSelector}
-              enableDocumentSelection={enableDocumentSelector}
-              disabled={isLoadingBetaFeatures || (!anweisungenBetaEnabled && !enableDocumentSelector)}
-              tabIndex={knowledgeSelectorTabIndex}
-              sourceTabIndex={knowledgeSourceSelectorTabIndex}
-              documentTabIndex={documentSelectorTabIndex}
-            />
-          </div>
-        )}
+        {/* Knowledge Selector - manages its own visibility based on store configuration */}
+        <div className="form-extras__item">
+          <KnowledgeSelector 
+            disabled={isLoadingBetaFeatures}
+            tabIndex={knowledgeSelectorTabIndex}
+            sourceTabIndex={knowledgeSourceSelectorTabIndex}
+            documentTabIndex={documentSelectorTabIndex}
+          />
+        </div>
 
         {/* Form Notice */}
         {formNotice && (
@@ -146,8 +136,6 @@ FormExtrasSection.propTypes = {
     statusMessage: PropTypes.string
   }),
   useWebSearchFeatureToggle: PropTypes.bool,
-  enableKnowledgeSelector: PropTypes.bool,
-  enableDocumentSelector: PropTypes.bool,
   formControl: PropTypes.object,
   formNotice: PropTypes.node,
   onSubmit: PropTypes.func,

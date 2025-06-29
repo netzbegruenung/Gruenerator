@@ -50,14 +50,29 @@ const useSearch = () => {
   const [error, setError] = useState(null);
   const [sourceRecommendations, setSourceRecommendations] = useState([]);
   
+  // Deep research specific state
+  const [dossier, setDossier] = useState(null);
+  const [categorizedSources, setCategorizedSources] = useState({});
+  const [researchQuestions, setResearchQuestions] = useState([]);
+  
   const { submitForm: submitSearch, loading: searchLoading } = useApiSubmit('search');
   const { submitForm: submitAnalysis, loading: analysisLoading } = useApiSubmit('analyze');
+  const { submitForm: submitDeepSearch, loading: deepSearchLoading } = useApiSubmit('search/deep-research');
 
-  const search = useCallback(async (query) => {
+  const clearAllResults = () => {
     setError(null);
     setAnalysis(null);
     setUsedSources([]);
     setSourceRecommendations([]);
+    setResults([]);
+    // Clear deep research results
+    setDossier(null);
+    setCategorizedSources({});
+    setResearchQuestions([]);
+  };
+
+  const search = useCallback(async (query) => {
+    clearAllResults();
 
     try {
       // 1. Tavily Suche (10 Ergebnisse)
@@ -101,14 +116,51 @@ const useSearch = () => {
     }
   }, [submitSearch, submitAnalysis]);
 
+  const deepSearch = useCallback(async (query) => {
+    clearAllResults();
+
+    try {
+      console.log('[useSearch] Starting deep search for:', query);
+      
+      const deepSearchData = await submitDeepSearch({ query });
+      
+      if (deepSearchData.status === 'success') {
+        console.log('[useSearch] Deep search successful:', deepSearchData);
+        
+        // Set deep research specific data
+        setDossier(deepSearchData.dossier);
+        setCategorizedSources(deepSearchData.categorizedSources || {});
+        setResearchQuestions(deepSearchData.researchQuestions || []);
+        
+        // Set general sources data for potential use
+        setResults(deepSearchData.sources || []);
+        
+        // For deep search, we don't use the standard analysis workflow
+        // The dossier serves as the analysis
+        
+      } else {
+        throw new Error('Ungültiges Antwortformat vom Server');
+      }
+    } catch (err) {
+      console.error('[useSearch] Deep search error:', err);
+      setError(err.message);
+      setResults([]);
+    }
+  }, [submitDeepSearch]);
+
   return {
     results,
     usedSources,
     analysis,
-    loading: searchLoading || analysisLoading,
+    loading: searchLoading || analysisLoading || deepSearchLoading,
     error,
     search,
-    sourceRecommendations
+    deepSearch,
+    sourceRecommendations,
+    // Deep research specific returns
+    dossier,
+    categorizedSources,
+    researchQuestions
   };
 };
 

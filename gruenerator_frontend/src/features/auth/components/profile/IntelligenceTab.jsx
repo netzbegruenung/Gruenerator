@@ -6,7 +6,7 @@ import { motion } from "motion/react";
 import Spinner from '../../../../components/common/Spinner';
 import { useFormFields } from '../../../../components/common/Form/hooks';
 import { useAnweisungenWissen } from '../../utils/profileUtils';
-import { useAnweisungenWissenUiStore } from '../../../../stores/auth/anweisungenWissenUiStore';
+import { useInstructionsUiStore } from '../../../../stores/auth/instructionsUiStore';
 import HelpTooltip from '../../../../components/common/HelpTooltip';
 import FeatureToggle from '../../../../components/common/FeatureToggle';
 import { useOptimizedAuth } from '../../../../hooks/useAuth';
@@ -38,7 +38,7 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
     const {
         isSaving, isDeleting, deletingKnowledgeId,
         clearMessages
-    } = useAnweisungenWissenUiStore();
+    } = useInstructionsUiStore();
     
     // React Query hook for data fetching and mutations
     const { query, saveChanges, deleteKnowledgeEntry, MAX_KNOWLEDGE_ENTRIES } = useAnweisungenWissen({ isActive });
@@ -60,6 +60,7 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
             customSocialPrompt: '',
             customUniversalPrompt: '',
             customGruenejugendPrompt: '',
+            presseabbinder: '',
             knowledge: [],
         },
         mode: 'onChange'
@@ -83,6 +84,7 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                 customSocialPrompt: data.socialPrompt || '',
                 customUniversalPrompt: data.universalPrompt || '',
                 customGruenejugendPrompt: data.gruenejugendPrompt || '',
+                presseabbinder: data.presseabbinder || '',
                 knowledge: data.knowledge || []
             });
             
@@ -113,6 +115,7 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                 customSocialPrompt: currentValues.customSocialPrompt || '',
                 customUniversalPrompt: currentValues.customUniversalPrompt || '',
                 customGruenejugendPrompt: currentValues.customGruenejugendPrompt || '',
+                presseabbinder: currentValues.presseabbinder || '',
                 knowledge: currentValues.knowledge || []
             };
             
@@ -406,6 +409,16 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                                 helpText="z.B. Tonalität, Hashtag-Präferenzen, Zielgruppen-Ansprache"
                                                 minRows={2}
                                                 maxRows={8}
+                                                disabled={isSaving}
+                                                control={control}
+                                            />
+                                            <Textarea
+                                                name="presseabbinder"
+                                                label="Presseabbinder:"
+                                                placeholder="Gib hier deinen Standard-Presseabbinder ein, der automatisch an alle Pressemitteilungen angehängt wird..."
+                                                helpText="z.B. Kontaktdaten, Öffnungszeiten, Vereinsinformationen"
+                                                minRows={2}
+                                                maxRows={6}
                                                 disabled={isSaving}
                                                 control={control}
                                             />

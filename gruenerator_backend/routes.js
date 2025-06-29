@@ -21,7 +21,7 @@ const etherpadRoute = require('./routes/etherpad/etherpadController');
 const claudeKandidatRoute = require('./routes/claude_kandidat');
 const claudeGrueneJugendRoute = require('./routes/claude_gruene_jugend');
 const claudeYouRoute = require('./routes/claude_you');
-const searchRouter = require('./routes/search/searchController');
+const searchRouter = require('./routes/search/searchRoutes');
 const searchAnalysisRouter = require('./routes/search/searchAnalysis');
 const subtitlerRouter = require('./routes/subtitler/subtitlerController');
 const subtitlerSocialRouter = require('./routes/subtitler/subtitlerSocialController');
@@ -69,6 +69,7 @@ async function setupRoutes(app) {
   const { default: userContent } = await import('./routes/auth/userContent.mjs');
   const { default: userGroups } = await import('./routes/auth/userGroups.mjs');
   const { default: userCustomGenerators } = await import('./routes/auth/userCustomGenerators.mjs');
+  const { default: userTemplates } = await import('./routes/auth/userTemplates.mjs');
   const { default: documentsRouter } = await import('./routes/documents.mjs');
   // Try to import mem0Router, fall back to null if not available
   let mem0Router = null;
@@ -97,6 +98,7 @@ async function setupRoutes(app) {
   app.use('/api/auth', userContent);
   app.use('/api/auth', userGroups);
   app.use('/api/auth', userCustomGenerators);
+  app.use('/api/auth', userTemplates);
   app.use('/api/auth/qa-collections', qaCollectionsRouter);
   app.use('/api/auth/qa', qaInteractionRouter);
   app.use('/api/documents', documentsRouter);

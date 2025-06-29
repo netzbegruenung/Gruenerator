@@ -247,7 +247,6 @@ class ModulePreloader {
         ...(betaFeatures.groups ? [{ name: 'GroupsManagementTab', importFn: () => import('../features/auth/components/profile/GroupsManagementTab'), priority: 'NORMAL' }] : []),
         ...(betaFeatures.anweisungen ? [{ name: 'AnweisungenWissenTab', importFn: () => import('../features/auth/components/profile/AnweisungenWissenTab'), priority: 'NORMAL' }] : []),
         ...(betaFeatures.customGenerators ? [{ name: 'CustomGeneratorsTab', importFn: () => import('../features/auth/components/profile/CustomGeneratorsTab'), priority: 'LOW' }] : []),
-        ...(betaFeatures.database ? [{ name: 'TexteVorlagenTab', importFn: () => import('../features/auth/components/profile/TexteVorlagenTab'), priority: 'LOW' }] : [])
       ],
       '/': [
         { name: 'PresseSocialGenerator', importFn: () => import('../features/texte/presse/PresseSocialGenerator'), priority: 'HIGH' },

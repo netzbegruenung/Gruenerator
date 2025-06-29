@@ -29,6 +29,7 @@ const useGroupDetails = (groupId, { isActive } = {}) => {
   // Local states for editing
   const [customAntragPrompt, setCustomAntragPrompt] = useState('');
   const [customSocialPrompt, setCustomSocialPrompt] = useState('');
+  const [customUniversalPrompt, setCustomUniversalPrompt] = useState('');
   const [antragInstructionsEnabled, setAntragInstructionsEnabled] = useState(false);
   const [socialInstructionsEnabled, setSocialInstructionsEnabled] = useState(false);
   const [knowledgeEntries, setKnowledgeEntries] = useState([]);
@@ -105,21 +106,14 @@ const useGroupDetails = (groupId, { isActive } = {}) => {
     
     setCustomAntragPrompt(queryData.instructions.custom_antrag_prompt || '');
     setCustomSocialPrompt(queryData.instructions.custom_social_prompt || '');
+    setCustomUniversalPrompt(queryData.instructions.custom_universal_prompt || '');
     setAntragInstructionsEnabled(queryData.instructions.antrag_instructions_enabled || false);
     setSocialInstructionsEnabled(queryData.instructions.social_instructions_enabled || false);
 
-    // Initialize knowledge entries with placeholders
+    // Initialize knowledge entries without placeholders
     const existingEntries = queryData.knowledge.map(entry => ({ ...entry, isNew: false }));
-    const emptyEntries = Array(MAX_KNOWLEDGE_ENTRIES - existingEntries.length)
-      .fill(null)
-      .map((_, index) => ({ 
-        id: `new-${Date.now()}-${index}`, 
-        title: '', 
-        content: '', 
-        isNew: true 
-      }));
     
-    setKnowledgeEntries([...existingEntries, ...emptyEntries]);
+    setKnowledgeEntries(existingEntries);
     initialDataLoaded.current = true;
     setHasUnsavedChanges(false);
   }, [queryData, isLoadingDetails, hasUnsavedChanges]);
@@ -133,6 +127,7 @@ const useGroupDetails = (groupId, { isActive } = {}) => {
     // Compare instructions
     if (customAntragPrompt !== (queryData.instructions.custom_antrag_prompt || '') ||
         customSocialPrompt !== (queryData.instructions.custom_social_prompt || '') ||
+        customUniversalPrompt !== (queryData.instructions.custom_universal_prompt || '') ||
         antragInstructionsEnabled !== (queryData.instructions.antrag_instructions_enabled || false) ||
         socialInstructionsEnabled !== (queryData.instructions.social_instructions_enabled || false)
       ) {
@@ -172,6 +167,7 @@ const useGroupDetails = (groupId, { isActive } = {}) => {
   }, [
     customAntragPrompt,
     customSocialPrompt,
+    customUniversalPrompt,
     antragInstructionsEnabled,
     socialInstructionsEnabled,
     knowledgeEntries,
@@ -185,6 +181,7 @@ const useGroupDetails = (groupId, { isActive } = {}) => {
     
     if (field === 'custom_antrag_prompt') setCustomAntragPrompt(value);
     else if (field === 'custom_social_prompt') setCustomSocialPrompt(value);
+    else if (field === 'custom_universal_prompt') setCustomUniversalPrompt(value);
     else if (field === 'antrag_instructions_enabled') setAntragInstructionsEnabled(value);
     else if (field === 'social_instructions_enabled') setSocialInstructionsEnabled(value);
   }, []);
@@ -247,6 +244,11 @@ const useGroupDetails = (groupId, { isActive } = {}) => {
     
     if (customSocialPrompt !== (queryData.instructions.custom_social_prompt || '')) {
       instructionsPayload.custom_social_prompt = customSocialPrompt;
+      instructionsChanged = true;
+    }
+    
+    if (customUniversalPrompt !== (queryData.instructions.custom_universal_prompt || '')) {
+      instructionsPayload.custom_universal_prompt = customUniversalPrompt;
       instructionsChanged = true;
     }
 
@@ -478,6 +480,7 @@ const useGroupDetails = (groupId, { isActive } = {}) => {
     // Local state
     customAntragPrompt,
     customSocialPrompt,
+    customUniversalPrompt,
     knowledgeEntries,
     
     // Handlers

@@ -12,10 +12,10 @@ const getPublicImageUrl = (relativePath) => {
 
 export const templateService = {
   /**
-   * Alle Templates mit zugehörigen Daten abrufen
+   * Alle öffentlichen Templates mit zugehörigen Daten abrufen (für Galerie)
    * @returns {Promise} - Promise mit den Templates
    */
-  async getTemplates() {
+  async getPublicTemplates() {
     try {
       const response = await fetch(`${AUTH_BASE_URL}/api/templates`, {
         method: 'GET',
@@ -165,6 +165,180 @@ export const templateService = {
     } catch (error) {
       handleError(error, 'Fehler beim Abrufen der Kategorien');
       return [];
+    }
+  },
+
+  /**
+   * Benutzer-Templates abrufen
+   * @returns {Promise} - Promise mit den Benutzer-Templates
+   */
+  async getUserTemplates() {
+    try {
+      const response = await fetch(`${AUTH_BASE_URL}/auth/user-templates`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ message: 'Failed to fetch user templates' }));
+        throw new Error(error.message || 'Fehler beim Abrufen der Benutzer-Templates');
+      }
+      
+      const data = await response.json();
+      return data.success ? data.data : [];
+    } catch (error) {
+      handleError(error, 'Fehler beim Abrufen der Benutzer-Templates');
+      return [];
+    }
+  },
+
+  /**
+   * Neues Benutzer-Template erstellen
+   * @param {Object} templateData - Template-Daten
+   * @returns {Promise} - Promise mit dem erstellten Template
+   */
+  async createUserTemplate(templateData) {
+    try {
+      const response = await fetch(`${AUTH_BASE_URL}/auth/user-templates`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(templateData),
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ message: 'Failed to create template' }));
+        throw new Error(error.message || 'Fehler beim Erstellen des Templates');
+      }
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      handleError(error, 'Fehler beim Erstellen des Templates');
+      throw error;
+    }
+  },
+
+  /**
+   * Benutzer-Template aktualisieren
+   * @param {string} templateId - Template ID
+   * @param {Object} templateData - Template-Daten
+   * @returns {Promise} - Promise mit dem aktualisierten Template
+   */
+  async updateUserTemplate(templateId, templateData) {
+    try {
+      const response = await fetch(`${AUTH_BASE_URL}/auth/user-templates/${templateId}`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(templateData),
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ message: 'Failed to update template' }));
+        throw new Error(error.message || 'Fehler beim Aktualisieren des Templates');
+      }
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      handleError(error, 'Fehler beim Aktualisieren des Templates');
+      throw error;
+    }
+  },
+
+  /**
+   * Benutzer-Template löschen
+   * @param {string} templateId - Template ID
+   * @returns {Promise} - Promise mit dem Löschstatus
+   */
+  async deleteUserTemplate(templateId) {
+    try {
+      const response = await fetch(`${AUTH_BASE_URL}/auth/user-templates/${templateId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ message: 'Failed to delete template' }));
+        throw new Error(error.message || 'Fehler beim Löschen des Templates');
+      }
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      handleError(error, 'Fehler beim Löschen des Templates');
+      throw error;
+    }
+  },
+
+  /**
+   * Template-Metadaten aktualisieren (z.B. Titel)
+   * @param {string} templateId - Template ID
+   * @param {Object} metadata - Metadaten
+   * @returns {Promise} - Promise mit dem Update-Status
+   */
+  async updateUserTemplateMetadata(templateId, metadata) {
+    try {
+      const response = await fetch(`${AUTH_BASE_URL}/auth/user-templates/${templateId}/metadata`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(metadata),
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ message: 'Failed to update template metadata' }));
+        throw new Error(error.message || 'Fehler beim Aktualisieren der Template-Metadaten');
+      }
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      handleError(error, 'Fehler beim Aktualisieren der Template-Metadaten');
+      throw error;
+    }
+  },
+
+  /**
+   * Canva Template aus URL erstellen
+   * @param {string} url - Canva URL
+   * @param {boolean} enhancedMetadata - Whether to extract enhanced metadata (preview image, dimensions, etc.)
+   * @returns {Promise} - Promise mit dem erstellten Template
+   */
+  async createUserTemplateFromUrl(url, enhancedMetadata = false) {
+    try {
+      const response = await fetch(`${AUTH_BASE_URL}/auth/user-templates/from-url`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ url, enhancedMetadata }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ message: 'Failed to create template from URL' }));
+        throw new Error(error.message || 'Fehler beim Erstellen des Templates aus URL');
+      }
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('[templateService] Error creating template from URL:', error);
+      throw error;
     }
   }
 }; 

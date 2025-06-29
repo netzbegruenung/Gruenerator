@@ -5,7 +5,7 @@ import debounce from 'lodash.debounce';
 import Spinner from '../../../../components/common/Spinner';
 import { useFormFields } from '../../../../components/common/Form/hooks';
 import { useAnweisungenWissen } from '../../utils/profileUtils';
-import { useAnweisungenWissenUiStore } from '../../../../stores/auth/anweisungenWissenUiStore';
+import { useInstructionsUiStore } from '../../../../stores/auth/instructionsUiStore';
 import HelpTooltip from '../../../../components/common/HelpTooltip';
 import { motion } from "motion/react";
 
@@ -22,7 +22,7 @@ const AnweisungenWissenTab = ({ isActive }) => {
     const {
         isSaving, isDeleting, deletingKnowledgeId,
         clearMessages
-    } = useAnweisungenWissenUiStore();
+    } = useInstructionsUiStore();
     
     // React Query hook for data fetching and mutations
     const { query, saveChanges, deleteKnowledgeEntry, MAX_KNOWLEDGE_ENTRIES } = useAnweisungenWissen({ isActive });

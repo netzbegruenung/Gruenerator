@@ -82,7 +82,36 @@
   margin-top: var(--spacing-small);
   padding: var(--spacing-small);
   background: var(--background-color-alt);
-  border-radius: var(--border-radius);
+  border-radius: var(--card-border-radius-small);
+}
+
+/* Upload Mode Switch Links */
+.upload-mode-link {
+  background: none;
+  border: none;
+  color: var(--font-color-disabled);
+  font-size: 0.9em;
+  cursor: pointer;
+  padding: var(--spacing-xsmall);
+  text-decoration: none;
+  font-family: inherit;
+}
+
+.upload-mode-link:hover {
+  color: var(--secondary-600);
+}
+
+.upload-mode-link:focus {
+  outline: none;
+}
+
+.upload-mode-link:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.upload-mode-link:disabled:hover {
+  color: var(--font-color-disabled);
 }
 
 /* Document Preview Modal Styles are now in document-overview.css */
