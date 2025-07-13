@@ -388,25 +388,32 @@ async function processFinalGeneratorResponse(responseContent, allSearchResults, 
   };
 }
 
-// GET Route zum Abrufen aller benutzerdefinierten Generatoren
-router.get('/', async (req, res) => {
+// GET Route zum Abrufen der benutzerdefinierten Generatoren für den angemeldeten Benutzer
+router.get('/', requireAuth, async (req, res) => {
   try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'Nicht authentifiziert.' });
+    }
+
     // Prüfe, ob der Client initialisiert ist
     if (!supabaseService) {
       return res.status(500).json({ error: 'Supabase client not initialized. Check backend environment variables.' });
     }
 
-    // Verwende den Anon-Client zum Abrufen der Daten
+    // Hole alle Generatoren für den angemeldeten Benutzer
     const { data: generators, error: fetchError } = await supabaseService
       .from('custom_generators')
-      .select('id, name, slug, title, description'); // Wähle nur benötigte Felder
+      .select('*') // Alle Felder für die Verwaltungsansicht
+      .eq('user_id', userId);
 
     if (fetchError) {
-      console.error('Error fetching custom generators:', fetchError);
+      console.error('Error fetching custom generators for user:', fetchError);
       return res.status(500).json({ error: fetchError.message });
     }
 
-    res.json(generators);
+    res.json(generators || []); // Sende direkt das Array
+
   } catch (error) {
     console.error('Unexpected error fetching custom generators:', error);
     res.status(500).json({ error: 'An unexpected error occurred.' });

@@ -47,7 +47,7 @@ export const useDocumentsStore = create(immer((set, get) => {
       });
 
       try {
-        console.log('[DocumentsStore] Fetching user documents');
+        // Fetching user documents
         
         const response = await fetch(`${AUTH_BASE_URL}/documents/user`, {
           method: 'GET',
@@ -68,7 +68,7 @@ export const useDocumentsStore = create(immer((set, get) => {
             state.documents = result.data || [];
             state.isLoading = false;
           });
-          console.log(`[DocumentsStore] Fetched ${result.data?.length || 0} documents`);
+          // Documents fetched
         } else {
           throw new Error(result.message || 'Failed to fetch documents');
         }

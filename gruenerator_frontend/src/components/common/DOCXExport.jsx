@@ -21,6 +21,8 @@ const downloadBlob = (blob, filename) => {
   }
 };
 
+// Filename extraction now handled by shared utility
+
 // Helper function to process HTML content for DOCX
 const processContentForDOCX = (content) => {
   if (!content) return '';
@@ -110,6 +112,7 @@ const createDOCXDocument = (content, title = 'Dokument') => {
           text: title,
           bold: true,
           size: 32, // 16pt
+          font: "PT Sans",
         }),
       ],
       heading: HeadingLevel.TITLE,
@@ -131,6 +134,7 @@ const createDOCXDocument = (content, title = 'Dokument') => {
               text: section.header,
               bold: true,
               size: 24, // 12pt
+              font: "PT Sans",
             }),
           ],
           heading: HeadingLevel.HEADING_1,
@@ -152,6 +156,7 @@ const createDOCXDocument = (content, title = 'Dokument') => {
               new TextRun({
                 text: paragraph,
                 size: 22, // 11pt
+                font: "PT Sans",
               }),
             ],
             spacing: {
@@ -169,6 +174,7 @@ const createDOCXDocument = (content, title = 'Dokument') => {
               new TextRun({
                 text: paragraph,
                 size: 22, // 11pt
+                font: "PT Sans",
               }),
             ],
             spacing: {
@@ -190,6 +196,7 @@ const createDOCXDocument = (content, title = 'Dokument') => {
           size: 18, // 9pt
           italics: true,
           color: "666666",
+          font: "PT Sans",
         }),
       ],
       alignment: AlignmentType.CENTER,
@@ -219,7 +226,8 @@ const DOCXExport = ({ content, title, className = 'action-button' }) => {
     return null;
   }
 
-  const fileName = `${title || 'Dokument'}.docx`;
+  const baseFileName = extractFilenameFromContent(content, title);
+  const fileName = `${baseFileName}.docx`;
   const isMobileView = window.innerWidth <= 768;
   
   const handleDOCXExport = async () => {

@@ -10,9 +10,6 @@ const useErrorHandling = () => {
   const [error, setError] = useState('');
   
   // For new implementations, recommend using useBaseForm
-  if (process.env.NODE_ENV === 'development') {
-    console.warn('[useErrorHandling] This hook is deprecated. Consider using useBaseForm for new implementations.');
-  }
 
   /**
    * Generiert eine benutzerfreundliche Fehlermeldung basierend auf dem Fehlercode

@@ -19,7 +19,6 @@ const legacyHelpers = {
    * Legacy compatibility - beta features are now managed via backend API
    */
   async updateUserBetaFeatures(featureKey, isEnabled) {
-    console.warn('[AuthStore] updateUserBetaFeatures is deprecated, use updateBetaFeature instead');
     // Delegate to new implementation
     const store = useAuthStore.getState();
     return store.updateBetaFeature(featureKey, isEnabled);
@@ -29,7 +28,6 @@ const legacyHelpers = {
    * Legacy compatibility - message color is now managed via backend API
    */
   async updateUserMessageColor(newColor) {
-    console.warn('[AuthStore] updateUserMessageColor is deprecated, use updateMessageColor instead');
     // Delegate to new implementation
     const store = useAuthStore.getState();
     return store.updateMessageColor(newColor);
@@ -375,17 +373,14 @@ export const useAuthStore = create((set, get) => ({
 
   // Legacy compatibility methods (deprecated with new auth system)
   handleFailedBackendSession: async () => {
-    console.warn('[AuthStore] handleFailedBackendSession is deprecated - backend now handles session creation');
     // No longer needed with new auth system
   },
 
   initializeSupabaseAuth: async () => {
-    console.warn('[AuthStore] initializeSupabaseAuth is deprecated - auth handled via backend');
     // No longer needed with new auth system
   },
 
   cleanupSupabaseAuth: () => {
-    console.warn('[AuthStore] cleanupSupabaseAuth is deprecated');
     // No longer needed with new auth system
   },
 
