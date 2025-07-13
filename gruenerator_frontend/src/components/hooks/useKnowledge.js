@@ -51,7 +51,7 @@ const useKnowledge = ({
 
   // Reset store on component mount to ensure clean state
   useEffect(() => {
-    console.log('[useKnowledge] Resetting store on component mount to ensure clean state');
+    // Resetting store on component mount
     reset();
   }, [reset]); // Reset function dependency - runs once on mount
 
@@ -63,7 +63,7 @@ const useKnowledge = ({
       enableTexts: Boolean(ui?.enableTexts),
       enableSourceSelection: Boolean(ui?.enableSourceSelection) || Boolean(ui?.enableKnowledge) || Boolean(ui?.enableDocuments) || Boolean(ui?.enableTexts) || false
     };
-    console.log('[useKnowledge] Computing final UI config:', { ui, enableDocuments, config });
+    // Computing final UI config
     return config;
   }, [
     ui?.enableKnowledge, 
@@ -75,18 +75,18 @@ const useKnowledge = ({
 
   // Set UI configuration only when the memoized config changes
   useEffect(() => {
-    console.log('[useKnowledge] Setting UI configuration:', finalUIConfig);
+    // Setting UI configuration
     setUIConfig(finalUIConfig);
   }, [finalUIConfig]); // setUIConfig should be stable from zustand
 
   // Fetch user knowledge and instructions via backend API
   const fetchUserData = async () => {
     if (!user) {
-      return { knowledge: EMPTY_ARRAY, instructions: { antrag: null, social: null, universal: null, gruenejugend: null } };
+      return { knowledge: EMPTY_ARRAY, instructions: { antrag: null, antragGliederung: null, social: null, universal: null, gruenejugend: null } };
     }
     
     try {
-      console.log('[useKnowledge] Fetching user data via fetch for user:', user.id);
+      // Fetching user data
       
       // Use same auth method as useAuth (session-based with credentials)
       const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
@@ -103,20 +103,21 @@ const useKnowledge = ({
       }
 
       const data = await response.json();
-      console.log('[useKnowledge] Backend response:', data);
+      // Backend response received
       
       if (data.success) {
         return {
           knowledge: data.knowledge || EMPTY_ARRAY,
           instructions: {
             antrag: data.antragPrompt || null,
+            antragGliederung: data.antragGliederung || null,
             social: data.socialPrompt || null,
             universal: data.universalPrompt || null,
             gruenejugend: data.gruenejugendPrompt || null
           }
         };
       }
-      return { knowledge: EMPTY_ARRAY, instructions: { antrag: null, social: null, universal: null, gruenejugend: null } };
+      return { knowledge: EMPTY_ARRAY, instructions: { antrag: null, antragGliederung: null, social: null, universal: null, gruenejugend: null } };
     } catch (error) {
       console.error('Fehler beim Laden der Benutzer-Daten:', error);
       throw new Error('Benutzer-Daten konnten nicht geladen werden');
@@ -138,13 +139,7 @@ const useKnowledge = ({
   });
 
   // Debug: Log query state
-  console.log('[useKnowledge] Query state:', {
-    user: user ? { id: user.id, email: user.email } : null,
-    sourceType: source.type,
-    queryEnabled: !!user && source.type === 'user',
-    isLoadingUserData,
-    hasUserData: !!userData
-  });
+  // Query state logged
 
   // Hook for group details (includes knowledge) - only enabled when source is group
   const { 
@@ -177,22 +172,22 @@ const useKnowledge = ({
 
   const clearKnowledge = useCallback(() => {
     setAvailableKnowledge([]);
-    setInstructions({ antrag: null, social: null, universal: null, gruenejugend: null });
+    setInstructions({ antrag: null, antragGliederung: null, social: null, universal: null, gruenejugend: null });
     setInstructionsActive(false);
     setLoading(false);
   }, [setAvailableKnowledge, setInstructions, setInstructionsActive, setLoading]);
 
   // Combined effect for data management - reduces re-render loops
   useEffect(() => {
-    console.log('[useKnowledge] Source changed to:', source);
+    // Source changed
     
     if (source.type === 'neutral') {
-      console.log('[useKnowledge] Clearing knowledge because source is neutral');
+      // Clearing knowledge - neutral source
       clearKnowledge();
     } else if (source.type === 'user') {
       // Trigger refetch if needed
       if (!!user && !userData && !isLoadingUserData) {
-        console.log('[useKnowledge] Triggering refetch because query enabled but no data');
+        // Triggering refetch - no data
         refreshUserData();
       }
       // Update knowledge when data is available
@@ -226,15 +221,17 @@ const useKnowledge = ({
   // Preload documents when enabled and user source is selected
   useEffect(() => {
     if (enableDocuments && user && source.type === 'user') {
-      console.log('[useKnowledge] Preloading documents for user source');
+      // Preloading documents
       
       // Fetch documents in background
       fetchDocuments()
         .then(() => {
-          console.log('[useKnowledge] Document preloading completed successfully');
+          // Document preloading completed
         })
         .catch((error) => {
-          console.warn('[useKnowledge] Document preloading failed (non-blocking):', error);
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('[useKnowledge] Document preloading failed (non-blocking):', error);
+          }
           // Don't throw - document preloading failures shouldn't block the UI
         });
     }

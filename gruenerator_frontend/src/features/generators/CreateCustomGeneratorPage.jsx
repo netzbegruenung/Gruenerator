@@ -10,6 +10,7 @@ import { STEPS } from './constants/steps';
 import useApiSubmit from '../../components/hooks/useApiSubmit';
 import useDebounce from '../../components/hooks/useDebounce';
 import apiClient from '../../components/utils/apiClient';
+import { profileApiService } from '../auth/services/profileApiService';
 import GeneratorStartScreen from './components/GeneratorStartScreen';
 import GeneratorCreationSuccessScreen from './components/GeneratorCreationSuccessScreen';
 import { useOptimizedAuth } from '../../hooks/useAuth';
@@ -341,48 +342,29 @@ const CreateCustomGeneratorPage = ({ showHeaderFooter = true }) => {
       }
 
       const formValues = getValues();
-      const placeholderString = formValues.fields.map(field => `{{${field.name}}}`).join(', ');
-      const finalPrompt = `${formValues.prompt.trim()}\n\nDer Benutzer stellt dir die folgenden Variablen zur Verfügung: ${placeholderString}`;
       const formSchema = { fields: formValues.fields };
+
       const dataToSave = {
         name: formValues.name,
         slug: formValues.slug,
         form_schema: formSchema,
-        prompt: finalPrompt,
+        prompt: formValues.prompt.trim(),
         title: formValues.title,
         description: formValues.description,
-        contact_email: user.email,
-        user_id: user.id
+        contact_email: formValues.contact_email || user.email,
       };
 
-      const response = await fetch(`${AUTH_BASE_URL}/auth/custom-generators`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(dataToSave),
-      });
+      const result = await profileApiService.createCustomGenerator(dataToSave);
 
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({ message: 'Failed to create generator' }));
-        throw new Error(error.message || 'Fehler beim Speichern des Generators.');
+      if (!result.success) {
+        throw new Error(result.message || 'Fehler beim Speichern des Generators.');
       }
-
-      const result = await response.json();
       
       // If generator was created successfully and has documents, associate them
       if (result.generator && formValues.documents && formValues.documents.length > 0) {
         try {
           const documentIds = formValues.documents.map(doc => doc.id);
-          await fetch(`${AUTH_BASE_URL}/custom_generator/${result.generator.id}/documents`, {
-            method: 'POST',
-            credentials: 'include',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ documentIds }),
-          });
+          await profileApiService.addDocumentsToGenerator(result.generator.id, documentIds);
           console.log(`[CreateCustomGeneratorPage] Associated ${documentIds.length} documents with generator`);
         } catch (docError) {
           console.warn('[CreateCustomGeneratorPage] Failed to associate documents:', docError);

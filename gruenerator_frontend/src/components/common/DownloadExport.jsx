@@ -9,6 +9,7 @@ import { PDFDownloadLink } from '@react-pdf/renderer';
 // DOCX imports
 import { Document as DOCXDocument, Paragraph, TextRun, HeadingLevel, AlignmentType, Packer } from 'docx';
 import { saveAs } from 'file-saver';
+import { extractFilenameFromContent } from '../utils/titleExtractor';
 
 // === PDF SETUP ===
 // Register custom fonts for PDF
@@ -91,6 +92,7 @@ const pdfStyles = StyleSheet.create({
 });
 
 // === SHARED UTILITIES ===
+
 // Helper function to process HTML content
 const processContentForExport = (content) => {
   if (!content) return '';
@@ -228,6 +230,7 @@ const createDOCXDocument = (content, title = 'Dokument') => {
           text: title,
           bold: true,
           size: 32,
+          font: "PT Sans",
         }),
       ],
       heading: HeadingLevel.TITLE,
@@ -248,6 +251,7 @@ const createDOCXDocument = (content, title = 'Dokument') => {
               text: section.header,
               bold: true,
               size: 24,
+              font: "PT Sans",
             }),
           ],
           heading: HeadingLevel.HEADING_1,
@@ -267,6 +271,7 @@ const createDOCXDocument = (content, title = 'Dokument') => {
               new TextRun({
                 text: paragraph,
                 size: 22,
+                font: "PT Sans",
               }),
             ],
             spacing: {
@@ -284,6 +289,7 @@ const createDOCXDocument = (content, title = 'Dokument') => {
               new TextRun({
                 text: paragraph,
                 size: 22,
+                font: "PT Sans",
               }),
             ],
             spacing: {
@@ -305,6 +311,7 @@ const createDOCXDocument = (content, title = 'Dokument') => {
           size: 18,
           italics: true,
           color: "666666",
+          font: "PT Sans",
         }),
       ],
       alignment: AlignmentType.CENTER,
@@ -329,7 +336,6 @@ const createDOCXDocument = (content, title = 'Dokument') => {
 
 // === MAIN COMPONENT ===
 const DownloadExport = ({ content, title, className = 'action-button' }) => {
-  const [selectedFormat, setSelectedFormat] = useState('pdf');
   const [isGenerating, setIsGenerating] = useState(false);
   const [shouldInitializePDF, setShouldInitializePDF] = useState(false);
   const [showFormatSelector, setShowFormatSelector] = useState(false);
@@ -338,12 +344,14 @@ const DownloadExport = ({ content, title, className = 'action-button' }) => {
     return null;
   }
 
-  const fileName = `${title || 'Dokument'}.${selectedFormat}`;
+  // fileName will be generated dynamically when format is selected
   const isMobileView = window.innerWidth <= 768;
   
   const handleDOCXDownload = async () => {
     try {
       setIsGenerating(true);
+      const baseFileName = extractFilenameFromContent(content, title);
+      const fileName = `${baseFileName}.docx`;
       const doc = createDOCXDocument(content, title);
       const blob = await Packer.toBlob(doc);
       downloadBlob(blob, fileName);
@@ -359,25 +367,29 @@ const DownloadExport = ({ content, title, className = 'action-button' }) => {
   };
 
   const handleFormatSelect = (format) => {
-    setSelectedFormat(format);
     setShowFormatSelector(false);
     
     if (format === 'docx') {
       handleDOCXDownload();
     } else if (format === 'pdf') {
-      // For PDF, we need to initialize the PDF component first
-      if (!shouldInitializePDF) {
-        setShouldInitializePDF(true);
-        setTimeout(() => {
-          // Trigger PDF download after initialization
-          const pdfLink = document.querySelector('.pdf-download-link');
-          if (pdfLink) {
-            pdfLink.click();
-          }
-        }, 100);
-        return;
-      }
+      handlePDFDownload();
     }
+  };
+  
+  const handlePDFDownload = () => {
+    setShouldInitializePDF(true);
+    
+    setTimeout(() => {
+      // Trigger PDF download after initialization
+      const pdfLink = document.querySelector('.pdf-download-link');
+      if (pdfLink) {
+        pdfLink.click();
+      }
+      // Clean up after download
+      setTimeout(() => {
+        setShouldInitializePDF(false);
+      }, 1000);
+    }, 100);
   };
 
   // Close dropdown when clicking outside
@@ -395,10 +407,10 @@ const DownloadExport = ({ content, title, className = 'action-button' }) => {
   }, [showFormatSelector]);
 
   // Hidden PDF Download Link for when PDF is selected
-  const pdfDownloadLink = selectedFormat === 'pdf' && shouldInitializePDF ? (
+  const pdfDownloadLink = shouldInitializePDF ? (
     <PDFDownloadLink
       document={<PDFDocumentComponent content={content} title={title} />}
-      fileName={fileName}
+      fileName={`${extractFilenameFromContent(content, title)}.pdf`}
       style={{ display: 'none' }}
       className="pdf-download-link"
     >

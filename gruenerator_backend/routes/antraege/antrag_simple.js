@@ -19,7 +19,7 @@ const webSearchTool = {
  */
 router.post('/', async (req, res) => {
   // Extract useWebSearchTool along with other flags
-  const { idee, details, gliederung, useBedrock, customPrompt, useWebSearchTool } = req.body;
+  const { requestType, idee, details, gliederung, useBedrock, customPrompt, useWebSearchTool } = req.body;
   
   // Aktuelles Datum ermitteln
   const currentDate = new Date().toISOString().split('T')[0];
@@ -27,6 +27,7 @@ router.post('/', async (req, res) => {
   try {
     // Logging der Anfrage
     console.log('Einfache Antrag-Anfrage erhalten:', {
+      requestType: requestType || 'antrag',
       idee: idee?.substring(0, 50) + (idee?.length > 50 ? '...' : ''),
       hasCustomPrompt: !!customPrompt,
       useBedrock: useBedrock,
@@ -45,9 +46,32 @@ router.post('/', async (req, res) => {
     
     // Configure tools and system prompt based on web search usage
     const tools = useWebSearchTool ? [webSearchTool] : [];
-    const systemPrompt = useWebSearchTool 
-      ? 'Du bist ein erfahrener Kommunalpolitiker von Bündnis 90/Die Grünen. Nutze die Websuche, wenn du aktuelle Informationen oder Fakten für den Antrag benötigst. Zitiere deine Quellen im Antrag. WICHTIG: Gib nur den finalen deutschen Antrag aus, keine englischen Zwischenschritte oder Gedankengänge. Beginne direkt mit dem Antrag.'
-      : 'Du bist Kommunalpolitiker einer Gliederung von Bündnis 90/Die Grünen. Entwirf einen Antrag basierend auf der gegebenen Idee.';
+    
+    // Base system prompt
+    let systemPrompt = 'Du bist ein erfahrener Kommunalpolitiker von Bündnis 90/Die Grünen. ';
+    
+    // Add request type specific instructions
+    if (requestType === 'kleine_anfrage') {
+      systemPrompt += 'Erstelle eine KLEINE ANFRAGE nach kommunalrechtlichen Standards. ';
+      systemPrompt += 'Kleine Anfragen dienen der präzisen Fachinformation, sind schriftlich und punktuell. ';
+      systemPrompt += 'Verwende folgenden Aufbau: 1) Betreff (max. 120 Zeichen), 2) Kurze Begründung (3-4 Sätze mit Rechtsgrundlage), 3) Nummerierte präzise Fragen (max. 3-5 Hauptfragen), 4) Erbetene Antwortform und Frist. ';
+      systemPrompt += 'Formuliere neutral und sachlich ohne Wertungen. ';
+    } else if (requestType === 'grosse_anfrage') {
+      systemPrompt += 'Erstelle eine GROSSE ANFRAGE nach kommunalrechtlichen Standards. ';
+      systemPrompt += 'Große Anfragen behandeln politisch bedeutsame Gesamtthemen umfassend mit höherer Öffentlichkeitswirkung. ';
+      systemPrompt += 'Verwende folgenden Aufbau: 1) Betreff (aussagekräftig), 2) Ausführliche Begründung mit politischem Kontext, 3) Nummerierte Fragen-Cluster (Hauptfragen mit Unterfragen), 4) Bitte um schriftliche UND mündliche Behandlung im Rat. ';
+      systemPrompt += 'Die Anfrage soll das Thema umfassend beleuchten und eine Debatte im Rat ermöglichen. ';
+    } else {
+      systemPrompt += 'Entwirf einen kommunalpolitischen ANTRAG basierend auf der gegebenen Idee. ';
+      systemPrompt += 'Der Antrag muss folgende Struktur haben: 1) Betreff, 2) Antragstext mit konkreten Beschlussvorschlägen, 3) Ausführliche Begründung. ';
+    }
+    
+    // Add web search instructions if enabled
+    if (useWebSearchTool) {
+      systemPrompt += 'Nutze die Websuche, wenn du aktuelle Informationen oder Fakten benötigst. Zitiere deine Quellen. ';
+    }
+    
+    systemPrompt += 'WICHTIG: Gib nur den finalen deutschen Text aus, keine englischen Zwischenschritte oder Gedankengänge. Beginne direkt mit dem fertigen Dokument.';
     
     // Erstelle den Benutzerinhalt basierend auf dem Vorhandensein eines benutzerdefinierten Prompts
     let userContent;
@@ -94,18 +118,15 @@ ${HTML_FORMATTING_INSTRUCTIONS}`;
       }
     } else {
       // Standardinhalt ohne benutzerdefinierten Prompt
-      userContent = `Erstelle einen kommunalpolitischen Antrag zum Thema: ${idee}` + 
+      const requestTypeText = requestType === 'kleine_anfrage' ? 'eine kleine Anfrage' : 
+                             requestType === 'grosse_anfrage' ? 'eine große Anfrage' : 
+                             'einen kommunalpolitischen Antrag';
+                             
+      userContent = `Erstelle ${requestTypeText} zum Thema: ${idee}` + 
                    (details ? `\n\nDetails: ${details}` : '') + 
                    (gliederung ? `\n\nFür die Gliederung: ${gliederung}` : '') +
                    `\n\nAktuelles Datum: ${currentDate}` +
-                   `\n\nDer Antrag muss folgende Struktur haben:
-1. Betreff: Eine prägnante Überschrift
-2. Antragstext: Konkrete Beschlussvorschläge
-3. Begründung: Warum der Antrag wichtig ist
-
-WICHTIG: Antworte ausschließlich auf Deutsch. Gib nur den finalen Antrag aus, keine Zwischenschritte oder Erklärungen.
-
-${HTML_FORMATTING_INSTRUCTIONS}`;
+                   `\n\nWICHTIG: Antworte ausschließlich auf Deutsch. Gib nur das finale Dokument aus, keine Zwischenschritte oder Erklärungen.\n\n${HTML_FORMATTING_INSTRUCTIONS}`;
     }
     
     // Anfrage an Claude

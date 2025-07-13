@@ -9,6 +9,7 @@ import * as Y from 'yjs';
 
 // Use Zustand store for collaborative editor state
 import useCollabEditorStore from '../../../../stores/collabEditorStore';
+import { extractTitleFromContent } from '../../../utils/titleExtractor';
 
 // Quill Editor Configuration
 const EDITOR_MODULES = {
@@ -57,7 +58,8 @@ const QuillYjsEditor = ({ documentId, initialContent, onQuillInstanceReady, onSe
   useEffect(() => {
     // 1. Initialize Quill instance if editorRef is available and Quill isn't already initialized
     if (editorRef.current && !quillInstanceRef.current) {
-      console.log('[QuillYjsEditor] Initializing Quill. DocumentId:', documentId);
+      const documentTitle = initialContent ? extractTitleFromContent(initialContent, `Doc-${documentId}`) : `Doc-${documentId}`;
+      console.log(`[QuillYjsEditor] Initializing Quill. DocumentId: ${documentId}, Title: "${documentTitle}"`);
       
       const quill = new Quill(editorRef.current, {
         theme: 'bubble',
@@ -94,7 +96,8 @@ const QuillYjsEditor = ({ documentId, initialContent, onQuillInstanceReady, onSe
       if (connectionStatus === 'connected') {
         if (!bindingRef.current) {
           // Yjs is connected, core objects available, and no binding yet: CREATE BINDING
-          console.log('[QuillYjsEditor] Yjs connected. Attempting to create QuillBinding. DocumentId:', documentId);
+          const documentTitle = initialContent ? extractTitleFromContent(initialContent, `Doc-${documentId}`) : `Doc-${documentId}`;
+          console.log(`[QuillYjsEditor] Yjs connected. Attempting to create QuillBinding. DocumentId: ${documentId}, Title: \"${documentTitle}\"`);
           const binding = new QuillBinding(ytext, quillInstanceRef.current, awareness);
           bindingRef.current = binding;
 

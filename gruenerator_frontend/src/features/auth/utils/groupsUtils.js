@@ -36,7 +36,7 @@ export const useGroups = ({ isActive } = {}) => {
       throw new Error('User not authenticated');
     }
 
-    console.log('[useGroups] Fetching groups for user:', user.id);
+    // Fetching groups for user
 
     const response = await fetch(`${AUTH_BASE_URL}/auth/groups`, {
       method: 'GET',
@@ -52,7 +52,7 @@ export const useGroups = ({ isActive } = {}) => {
     }
 
     const data = await response.json();
-    console.log('[useGroups] Groups loaded successfully:', data.groups?.length || 0);
+    // Groups loaded successfully
     
     return data.groups || [];
   };

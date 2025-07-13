@@ -1,14 +1,21 @@
 /**
  * Utility functions for the profile feature.
+ * Updated to use centralized hooks from useProfileData.js
  */
 
 import { getRobotAvatarPath, validateRobotId, getRobotAvatarAlt } from './avatarUtils';
-import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
-import { useState, useCallback, useEffect, useRef } from 'react';
-import debounce from 'lodash.debounce';
+import { useState, useCallback, useEffect } from 'react';
+import { useQueryClient, useMutation } from '@tanstack/react-query';
 import modulePreloader from '../../../utils/modulePreloader';
 import { useInstructionsUiStore } from '../../../stores/auth/instructionsUiStore';
+
+// Import centralized hooks
+import { 
+  useProfile as useProfileDataNew, 
+  useAnweisungenWissen as useAnweisungenWissenNew,
+  useQACollections as useQACollectionsNew 
+} from '../hooks/useProfileData';
 
 
 /**
@@ -143,22 +150,15 @@ class ProfileResourceManager {
   }
 
   async initializeResources(user, queryClient, userPreferences = {}) {
+    // Reduced aggressive preloading to minimize server load
+    // Only preload essential components
     const promises = [];
 
-    const preloadPromise = modulePreloader.intelligentPreload('/profile', userPreferences);
-    promises.push(preloadPromise);
-
+    // Only preload the most critical component
     promises.push(this.preloadComponent('ProfileInfoTab', () => import('../components/profile/ProfileInfoTab'), 'high'));
-    promises.push(this.preloadComponent('LaborTab', () => import('../components/profile/LaborTab'), 'high'));
 
-    await Promise.all([promises[0]]);
-
-    if (user?.id) {
-      this.prefetchQuery(queryClient, ['userData', user.id], () => console.log('Prefetching user data'));
-      this.prefetchQuery(queryClient, ['userGroups', user.id], () => console.log('Prefetching groups'));
-    }
-
-    Promise.all(promises.slice(1)).catch(err => console.warn('Background component loading error:', err));
+    // Removed aggressive query prefetching - data will load when needed
+    Promise.all(promises).catch(err => console.warn('Background component loading error:', err));
   }
 }
 
@@ -208,32 +208,10 @@ export const useProfileResourceManager = () => {
   }, [user, queryClient]);
 
   const handleTabHover = useCallback((tabName, activeTab, hoveredTab) => {
-    if (tabName === activeTab || tabName === hoveredTab) return;
-    
-    if (user?.id) {
-      switch (tabName) {
-        case 'profile':
-          resourceManager.prefetchQuery(queryClient, ['userData', user.id], () => console.log('Prefetching profile data'));
-          break;
-        case 'anweisungen':
-          resourceManager.prefetchQuery(queryClient, ['anweisungenWissen', user.id], () => console.log('Prefetching anweisungen data'));
-          break;
-        case 'groups':
-          resourceManager.prefetchQuery(queryClient, ['userGroups', user.id], () => console.log('Prefetching groups data'));
-          break;
-        case 'generators':
-          resourceManager.prefetchQuery(queryClient, ['customGenerators', user.id], () => console.log('Prefetching custom generators data'));
-          break;
-        case 'texte':
-          resourceManager.prefetchQuery(queryClient, ['canvaTemplates', user.id], () => console.log('Prefetching canva templates data'));
-          break;
-        case 'labor':
-          break;
-        default:
-          break;
-      }
-    }
-  }, [user, queryClient]);
+    // Removed aggressive prefetching to reduce server load
+    // Data will be loaded only when tabs are actually clicked/activated
+    return;
+  }, []);
 
   return {
     resourcesError,
@@ -271,57 +249,9 @@ export const initializeProfileFormFields = (profile, user) => {
   };
 };
 
+// Legacy compatibility wrapper
 export const useProfileData = (userId) => {
-  const { user, isAuthenticated, loading } = useOptimizedAuth();
-  const actualUserId = userId || user?.id;
-  const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
-
-  return useQuery({
-    queryKey: ['profileData', actualUserId],
-    queryFn: async () => {
-      if (!actualUserId) throw new Error('Kein User verfügbar');
-
-      // Fetch profile data via backend API instead of direct Supabase access
-      const response = await fetch(`${AUTH_BASE_URL}/auth/profile`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' }
-      });
-
-      if (!response.ok) {
-        // 401 bedeutet nicht eingeloggt. 404 lassen wir durchfallen.
-        const msg = `Fehler beim Laden der Profildaten. Status: ${response.status}`;
-        throw new Error(msg);
-      }
-
-      const data = await response.json();
-
-      // Die API gibt { user: {...} } zurück
-      const profile = data.user || data.profile || null;
-
-      if (!profile) {
-        throw new Error('Profil nicht gefunden');
-      }
-
-      return {
-        display_name: profile.display_name,
-        first_name: profile.first_name,
-        last_name: profile.last_name,
-        email: profile.email || null,
-        avatar_robot_id: profile.avatar_robot_id,
-        is_admin: profile.is_admin,
-        username: profile.username,
-        keycloak_id: profile.keycloak_id
-      };
-    },
-    enabled: !!actualUserId,
-    staleTime: 5 * 60 * 1000,
-    cacheTime: 15 * 60 * 1000,
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
-    refetchOnReconnect: false,
-    retry: (failureCount) => failureCount < 2
-  });
+  return useProfileDataNew(userId);
 };
 
 /**
@@ -329,13 +259,14 @@ export const useProfileData = (userId) => {
  * Uses backend API calls instead of direct Supabase access
  */
 export const useProfileManager = () => {
-  const { user, updateProfile, updateAvatar } = useOptimizedAuth();
+  const { user } = useOptimizedAuth();
   const queryClient = useQueryClient();
 
   const updateProfileMutation = useMutation({
     mutationFn: async (profileData) => {
       if (!user) throw new Error('Nicht angemeldet');
-      return await updateProfile(profileData);
+      const { profileApiService } = await import('../services/profileApiService');
+      return await profileApiService.updateProfile(profileData);
     },
     onSuccess: (updatedProfile) => {
       if (user?.id && updatedProfile) {
@@ -348,13 +279,17 @@ export const useProfileManager = () => {
     },
     onError: (error) => {
       console.error('Profile update failed:', error);
-    }
+    },
+    // Add retry configuration
+    retry: 1,
+    retryDelay: 1000
   });
 
   const updateAvatarMutation = useMutation({
     mutationFn: async (avatarRobotId) => {
       if (!user) throw new Error('Nicht angemeldet');
-      return await updateAvatar(avatarRobotId);
+      const { profileApiService } = await import('../services/profileApiService');
+      return await profileApiService.updateAvatar(avatarRobotId);
     },
     onSuccess: (updatedProfile) => {
       if (user?.id && updatedProfile) {
@@ -376,7 +311,8 @@ export const useProfileManager = () => {
     isUpdatingProfile: updateProfileMutation.isPending,
     isUpdatingAvatar: updateAvatarMutation.isPending,
     profileUpdateError: updateProfileMutation.error,
-    avatarUpdateError: updateAvatarMutation.error
+    avatarUpdateError: updateAvatarMutation.error,
+    resetProfileMutation: () => updateProfileMutation.reset()
   };
 };
 
@@ -414,13 +350,14 @@ const cleanKnowledgeEntry = (entry) => {
     return cleaned;
 };
 
+// Legacy compatibility wrapper with UI store integration
 export const useAnweisungenWissen = ({ isActive, enabled = true } = {}) => {
-  const { user } = useOptimizedAuth();
-  const queryClient = useQueryClient();
-  const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
-
-  // Use the zustand store for UI state
+  
+  // Use the zustand store for UI state (maintains existing behavior)
   const { 
+    isSaving: uiIsSaving,
+    isDeleting: uiIsDeleting,
+    deletingKnowledgeId,
     setSaving, 
     setDeleting,
     setSuccess, 
@@ -430,38 +367,6 @@ export const useAnweisungenWissen = ({ isActive, enabled = true } = {}) => {
     setHasUnsavedChanges: setStoreHasUnsavedChanges
   } = useInstructionsUiStore();
 
-  // --- React Query: Fetch Anweisungen & Wissen --- 
-  const queryKey = ['anweisungenWissen', user?.id];
-
-  const fetchAnweisungenWissenFn = async () => {
-    if (!user?.id) throw new Error('Nicht eingeloggt');
-    const resp = await fetch(`${AUTH_BASE_URL}/auth/anweisungen-wissen`, {
-      method: 'GET',
-      credentials: 'include'
-    });
-    if (!resp.ok) throw new Error('Fehler beim Laden');
-    const json = await resp.json();
-    return {
-      antragPrompt: json.antragPrompt || '',
-      socialPrompt: json.socialPrompt || '',
-      universalPrompt: json.universalPrompt || '',
-      gruenejugendPrompt: json.gruenejugendPrompt || '',
-      presseabbinder: json.presseabbinder || '',
-      knowledge: json.knowledge || []
-    };
-  };
-
-  const query = useQuery({
-      queryKey: queryKey, 
-      queryFn: fetchAnweisungenWissenFn, 
-      enabled: enabled && !!user?.id && isActive,
-      staleTime: 5 * 60 * 1000,
-      cacheTime: 15 * 60 * 1000,
-      refetchOnWindowFocus: false,
-      refetchOnMount: 'always',
-      retry: 1,
-  });
-
   // Reset store when tab becomes inactive
   useEffect(() => {
     if (!isActive) {
@@ -469,260 +374,52 @@ export const useAnweisungenWissen = ({ isActive, enabled = true } = {}) => {
     }
   }, [isActive, resetStore]);
 
+  // Use the new centralized hook
+  const hookResult = useAnweisungenWissenNew({ isActive, enabled });
 
-  // --- React Query: Save Mutation --- 
-  const saveMutation = useMutation({
-    mutationFn: async (dataToSave) => {
-      // Clean knowledge entries before saving
-      const cleanedKnowledge = dataToSave.knowledge.map(entry => ({
-          id: typeof entry.id === 'string' && entry.id.startsWith('new-') ? undefined : entry.id,
-          title: entry.title,
-          content: entry.content
-      }));
-
-      const payload = {
-          custom_antrag_prompt: dataToSave.customAntragPrompt,
-          custom_social_prompt: dataToSave.customSocialPrompt,
-          custom_universal_prompt: dataToSave.customUniversalPrompt,
-          custom_gruenejugend_prompt: dataToSave.customGruenejugendPrompt,
-          presseabbinder: dataToSave.presseabbinder,
-          knowledge: cleanedKnowledge
-      };
-
-      const resp = await fetch(`${AUTH_BASE_URL}/auth/anweisungen-wissen`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(payload)
+  // Wrap mutations to update UI store
+  const saveChanges = useCallback((data) => {
+    setSaving(true);
+    return hookResult.saveChanges(data)
+      .then((result) => {
+        setSuccess('Änderungen erfolgreich gespeichert!');
+        return result;
+      })
+      .catch((error) => {
+        setError(error.message);
+        throw error;
       });
+  }, [hookResult.saveChanges, setSaving, setSuccess, setError]);
 
-      if (!resp.ok) {
-        const errorData = await resp.json().catch(() => ({ message: 'Fehler beim Speichern' }));
-        throw new Error(errorData.message || 'Ein unbekannter Fehler ist aufgetreten.');
-      }
-      return await resp.json();
-    },
-    onMutate: () => {
-      setSaving(true);
-    },
-    onSuccess: () => {
-      setSuccess('Änderungen erfolgreich gespeichert!');
-      queryClient.invalidateQueries({ queryKey });
-    },
-    onError: (error) => {
-      setError(error.message);
-    },
-  });
-
-  // --- React Query: Delete Knowledge Mutation --- 
-  const deleteKnowledgeMutation = useMutation({
-    mutationFn: async (entryId) => {
-      if (typeof entryId === 'string' && entryId.startsWith('new-')) {
-          // This should not happen if called correctly, but as a safeguard
-          return; 
-      }
-      
-      const resp = await fetch(`${AUTH_BASE_URL}/auth/anweisungen-wissen/${entryId}`, {
-        method: 'DELETE',
-        credentials: 'include'
+  const deleteKnowledgeEntry = useCallback((entryId) => {
+    setDeleting(true, entryId);
+    return hookResult.deleteKnowledgeEntry(entryId)
+      .then((result) => {
+        setSuccess('Wissenseintrag gelöscht.');
+        return result;
+      })
+      .catch((error) => {
+        setError(error.message);
+        throw error;
       });
+  }, [hookResult.deleteKnowledgeEntry, setDeleting, setSuccess, setError]);
 
-      if (!resp.ok) {
-        const msg = await resp.text();
-        throw new Error(msg || 'Fehler beim Löschen');
-      }
-      return entryId;
-    },
-    onMutate: (entryId) => {
-      setDeleting(true, entryId);
-    },
-    onSuccess: () => {
-      setSuccess('Wissenseintrag gelöscht.');
-      queryClient.invalidateQueries({ queryKey });
-    },
-    onError: (error) => {
-      setError(error.message);
-    }
-  });
-
-   return {
-      // The main data query object
-      query,
-      // Mutation functions
-      saveChanges: saveMutation.mutate,
-      deleteKnowledgeEntry: deleteKnowledgeMutation.mutate,
-      // Constants
-      MAX_KNOWLEDGE_ENTRIES
-    };
+  return {
+    ...hookResult,
+    saveChanges,
+    deleteKnowledgeEntry,
+    isSaving: uiIsSaving,
+    isDeleting: uiIsDeleting,
+    deletingKnowledgeId
+  };
 };
 // === END PERSONAL INSTRUCTIONS & KNOWLEDGE === 
 
 // === Q&A COLLECTIONS MANAGEMENT ===
 
+// Legacy compatibility wrapper
 export const useQACollections = ({ isActive, enabled = true } = {}) => {
-  const { user } = useOptimizedAuth();
-  const queryClient = useQueryClient();
-  const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
-
-  // --- React Query: Fetch Q&A Collections --- 
-  const queryKey = ['qaCollections', user?.id];
-
-  const fetchQACollectionsFn = async () => {
-    if (!user?.id) throw new Error('Nicht eingeloggt');
-    const resp = await fetch(`${AUTH_BASE_URL}/auth/qa-collections`, {
-      method: 'GET',
-      credentials: 'include'
-    });
-    if (!resp.ok) throw new Error('Fehler beim Laden der Q&A-Sammlungen');
-    const json = await resp.json();
-    
-    if (!json.success) {
-      throw new Error(json.message || 'Failed to fetch Q&A collections');
-    }
-    
-    return json.collections || [];
-  };
-
-  const query = useQuery({
-    queryKey: queryKey, 
-    queryFn: fetchQACollectionsFn, 
-    enabled: enabled && !!user?.id && isActive,
-    staleTime: 5 * 60 * 1000,
-    cacheTime: 15 * 60 * 1000,
-    refetchOnWindowFocus: false,
-    refetchOnMount: 'always',
-    retry: 1,
-  });
-
-  // --- React Query: Create Collection Mutation --- 
-  const createCollectionMutation = useMutation({
-    mutationFn: async (collectionData) => {
-      if (!user?.id) throw new Error('Nicht eingeloggt');
-      
-      const resp = await fetch(`${AUTH_BASE_URL}/auth/qa-collections`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: collectionData.name,
-          description: collectionData.description,
-          custom_prompt: collectionData.custom_prompt,
-          documents: collectionData.documents
-        })
-      });
-      
-      if (!resp.ok) throw new Error('Fehler beim Erstellen der Q&A-Sammlung');
-      const json = await resp.json();
-      
-      if (!json.success) {
-        throw new Error(json.message || 'Failed to create Q&A collection');
-      }
-      
-      return json.collection;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey });
-    }
-  });
-
-  // --- React Query: Update Collection Mutation --- 
-  const updateCollectionMutation = useMutation({
-    mutationFn: async ({ collectionId, collectionData }) => {
-      if (!user?.id) throw new Error('Nicht eingeloggt');
-      
-      const resp = await fetch(`${AUTH_BASE_URL}/auth/qa-collections/${collectionId}`, {
-        method: 'PUT',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: collectionData.name,
-          description: collectionData.description,
-          custom_prompt: collectionData.custom_prompt,
-          documents: collectionData.documents
-        })
-      });
-      
-      if (!resp.ok) throw new Error('Fehler beim Aktualisieren der Q&A-Sammlung');
-      const json = await resp.json();
-      
-      if (!json.success) {
-        throw new Error(json.message || 'Failed to update Q&A collection');
-      }
-      
-      return json;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey });
-    }
-  });
-
-  // --- React Query: Delete Collection Mutation --- 
-  const deleteCollectionMutation = useMutation({
-    mutationFn: async (collectionId) => {
-      if (!user?.id) throw new Error('Nicht eingeloggt');
-      
-      const resp = await fetch(`${AUTH_BASE_URL}/auth/qa-collections/${collectionId}`, {
-        method: 'DELETE',
-        credentials: 'include'
-      });
-      
-      if (!resp.ok) throw new Error('Fehler beim Löschen der Q&A-Sammlung');
-      const json = await resp.json();
-      
-      if (!json.success) {
-        throw new Error(json.message || 'Failed to delete Q&A collection');
-      }
-      
-      return json;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey });
-    }
-  });
-
-  // Fetch available documents for Q&A creation
-  const fetchAvailableDocuments = async () => {
-    if (!user?.id) throw new Error('Nicht eingeloggt');
-    
-    const resp = await fetch(`${AUTH_BASE_URL}/documents/user`, {
-      method: 'GET',
-      credentials: 'include'
-    });
-    
-    if (!resp.ok) throw new Error('Fehler beim Laden der Dokumente');
-    const json = await resp.json();
-    
-    if (!json.success) {
-      throw new Error(json.message || 'Failed to fetch documents');
-    }
-
-    // Filter only completed documents
-    const completedDocuments = (json.data || []).filter(doc => doc.status === 'completed');
-    return completedDocuments;
-  };
-
-  // Helper functions
-  const getQACollection = (collectionId) => {
-    const collections = query.data || [];
-    return collections.find(c => c.id === collectionId);
-  };
-
-  return {
-    // The main data query object
-    query,
-    // Mutation functions
-    createQACollection: createCollectionMutation.mutate,
-    updateQACollection: (collectionId, collectionData) => 
-      updateCollectionMutation.mutate({ collectionId, collectionData }),
-    deleteQACollection: deleteCollectionMutation.mutate,
-    // Helper functions
-    fetchAvailableDocuments,
-    getQACollection,
-    // Loading states
-    isCreating: createCollectionMutation.isPending,
-    isUpdating: updateCollectionMutation.isPending,
-    isDeleting: deleteCollectionMutation.isPending,
-  };
+  return useQACollectionsNew({ isActive, enabled });
 };
 
 // === END Q&A COLLECTIONS MANAGEMENT ===

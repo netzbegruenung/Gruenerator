@@ -11,12 +11,21 @@ import HelpTooltip from '../../../../components/common/HelpTooltip';
 import FeatureToggle from '../../../../components/common/FeatureToggle';
 import { useOptimizedAuth } from '../../../../hooks/useAuth';
 import { useAuthStore } from '../../../../stores/authStore';
+import { useTabIndex } from '../../../../hooks/useTabIndex';
+import { useVerticalTabNavigation, useModalFocus } from '../../../../hooks/useKeyboardNavigation';
+import { announceToScreenReader, createInlineEditorFocus } from '../../../../utils/focusManagement';
 
 const MAX_CONTENT_LENGTH = 1000;
 const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
     const [currentView, setCurrentView] = useState('anweisungen');
+    const verticalNavRef = useRef(null);
+    const memoryFormRef = useRef(null);
+    const memoryInputRef = useRef(null);
+    
+    // Tab index configuration
+    const tabIndex = useTabIndex('PROFILE_INTELLIGENCE');
 
     // Check if user is on mem0ry tab but not in development - redirect to anweisungen
     useEffect(() => {
@@ -36,12 +45,11 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
     
     // Zustand store for UI state
     const {
-        isSaving, isDeleting, deletingKnowledgeId,
         clearMessages
     } = useInstructionsUiStore();
     
     // React Query hook for data fetching and mutations
-    const { query, saveChanges, deleteKnowledgeEntry, MAX_KNOWLEDGE_ENTRIES } = useAnweisungenWissen({ isActive });
+    const { query, saveChanges, deleteKnowledgeEntry, isSaving, isDeleting, deletingKnowledgeId, MAX_KNOWLEDGE_ENTRIES } = useAnweisungenWissen({ isActive });
     const { data, isLoading: isLoadingQuery, isError: isErrorQuery, error: errorQuery } = query;
 
     // Memory state
@@ -57,6 +65,7 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
     const formMethods = useForm({
         defaultValues: {
             customAntragPrompt: '',
+            customAntragGliederung: '',
             customSocialPrompt: '',
             customUniversalPrompt: '',
             customGruenejugendPrompt: '',
@@ -81,6 +90,7 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
         if (!isInitialized.current) {
             reset({
                 customAntragPrompt: data.antragPrompt || '',
+                customAntragGliederung: data.antragGliederung || '',
                 customSocialPrompt: data.socialPrompt || '',
                 customUniversalPrompt: data.universalPrompt || '',
                 customGruenejugendPrompt: data.gruenejugendPrompt || '',
@@ -112,6 +122,7 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
             const currentValues = getValues();
             const formData = {
                 customAntragPrompt: currentValues.customAntragPrompt || '',
+                customAntragGliederung: currentValues.customAntragGliederung || '',
                 customSocialPrompt: currentValues.customSocialPrompt || '',
                 customUniversalPrompt: currentValues.customUniversalPrompt || '',
                 customGruenejugendPrompt: currentValues.customGruenejugendPrompt || '',
@@ -319,9 +330,59 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
         }
     };
     
-    const handleTabClick = (view) => {
+    const handleTabClick = useCallback((view) => {
         setCurrentView(view);
-    };
+        clearMessages();
+        // Announce to screen readers
+        const viewNames = {
+            'anweisungen': 'Anweisungen',
+            'wissen': 'Wissen',
+            'mem0ry': 'Memory'
+        };
+        announceToScreenReader(`${viewNames[view]} Tab ausgewählt`);
+    }, [clearMessages]);
+    
+    // Available navigation tabs
+    const availableViews = [
+        'anweisungen',
+        'wissen',
+        ...(import.meta.env.VITE_APP_ENV === 'development' ? ['mem0ry'] : [])
+    ];
+    
+    // Vertical tab navigation setup
+    const {
+        registerItemRef,
+        tabIndex: getTabIndex,
+        ariaSelected
+    } = useVerticalTabNavigation({
+        items: availableViews,
+        activeItem: currentView,
+        onItemSelect: handleTabClick,
+        horizontal: false,
+        containerRef: verticalNavRef
+    });
+    
+    // Modal focus management for memory form
+    useModalFocus({
+        isOpen: showAddMemoryForm,
+        modalRef: memoryFormRef,
+        initialFocusRef: memoryInputRef
+    });
+    
+    // Inline editor for text areas
+    const { props: inlineEditorProps } = createInlineEditorFocus({
+        onEnter: (event) => {
+            // Let form handle saving
+            event.preventDefault();
+        },
+        onEscape: (event) => {
+            // Reset to last saved value
+            if (lastSavedData.current && lastSavedData.current[event.target.name]) {
+                event.target.value = lastSavedData.current[event.target.name];
+            }
+            event.target.blur();
+        }
+    });
 
     if (isLoadingQuery) {
         return <div className="profile-content-centered"><Spinner /></div>;
@@ -339,23 +400,47 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
         const isDevelopment = import.meta.env.VITE_APP_ENV === 'development';
         
         return (
-            <div className="profile-vertical-navigation">
+            <div 
+                ref={verticalNavRef}
+                className="profile-vertical-navigation"
+                role="tablist"
+                aria-label="Intelligence Navigation"
+                aria-orientation="vertical"
+            >
                 <button
+                    ref={(ref) => registerItemRef('anweisungen', ref)}
                     className={`profile-vertical-tab ${currentView === 'anweisungen' ? 'active' : ''}`}
                     onClick={() => handleTabClick('anweisungen')}
+                    tabIndex={getTabIndex('anweisungen')}
+                    role="tab"
+                    aria-selected={ariaSelected('anweisungen')}
+                    aria-controls="anweisungen-panel"
+                    id="anweisungen-tab"
                 >
                     Anweisungen
                 </button>
                 <button
+                    ref={(ref) => registerItemRef('wissen', ref)}
                     className={`profile-vertical-tab ${currentView === 'wissen' ? 'active' : ''}`}
                     onClick={() => handleTabClick('wissen')}
+                    tabIndex={getTabIndex('wissen')}
+                    role="tab"
+                    aria-selected={ariaSelected('wissen')}
+                    aria-controls="wissen-panel"
+                    id="wissen-tab"
                 >
                     Wissen
                 </button>
                 {isDevelopment && (
                     <button
+                        ref={(ref) => registerItemRef('mem0ry', ref)}
                         className={`profile-vertical-tab ${currentView === 'mem0ry' ? 'active' : ''}`}
                         onClick={() => handleTabClick('mem0ry')}
+                        tabIndex={getTabIndex('mem0ry')}
+                        role="tab"
+                        aria-selected={ariaSelected('mem0ry')}
+                        aria-controls="mem0ry-panel"
+                        id="mem0ry-tab"
                     >
                         Mem0ry
                     </button>
@@ -379,7 +464,13 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                     <div className="profile-content-card">
                         <div className="auth-form">
                             {currentView === 'anweisungen' && (
-                                <div className="profile-cards-grid">
+                                <div 
+                                    role="tabpanel"
+                                    id="anweisungen-panel"
+                                    aria-labelledby="anweisungen-tab"
+                                    tabIndex={-1}
+                                    className="profile-cards-grid"
+                                >
                                     <div className="profile-card">
                                         <div className="profile-card-header">
                                             <h3>Anweisungen für Anträge</h3>
@@ -392,6 +483,16 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                                 helpText="z.B. bevorzugter Stil, spezielle Formulierungen, politische Schwerpunkte"
                                                 minRows={2}
                                                 maxRows={8}
+                                                disabled={isSaving}
+                                                control={control}
+                                            />
+                                            <Textarea
+                                                name="customAntragGliederung"
+                                                label="Standard-Gliederung:"
+                                                placeholder="Gib hier deine Standard-Gliederung für Anträge ein..."
+                                                helpText="z.B. deine Fraktion, Ortsverband oder andere wiederkehrende Informationen"
+                                                minRows={1}
+                                                maxRows={4}
                                                 disabled={isSaving}
                                                 control={control}
                                             />
@@ -462,6 +563,12 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                             )}
 
                             {currentView === 'wissen' && (
+                                <div 
+                                    role="tabpanel"
+                                    id="wissen-panel"
+                                    aria-labelledby="wissen-tab"
+                                    tabIndex={-1}
+                                >
                                 <div className="profile-card">
                                     <div className="profile-card-header">
                                         <h3>Persönliches Wissen</h3>
@@ -470,6 +577,8 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                             className="btn-primary size-s"
                                             onClick={handleAddKnowledge}
                                             disabled={isSaving || isDeleting || fields.length >= MAX_KNOWLEDGE_ENTRIES}
+                                            tabIndex={tabIndex.addKnowledgeButton}
+                                            aria-label="Neues Wissen hinzufügen"
                                         >
                                             <HiPlus className="icon" /> Wissen hinzufügen
                                         </button>
@@ -495,6 +604,7 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                                             className="knowledge-delete-button icon-button danger"
                                                             disabled={isSaving || (isDeleting && deletingKnowledgeId === field.id)}
                                                             aria-label={`Wissenseintrag ${index + 1} löschen`}
+                                                            tabIndex={tabIndex.removeKnowledgeButton + index}
                                                         >
                                                             {(isDeleting && deletingKnowledgeId === field.id) ? <Spinner size="xsmall" /> : <HiOutlineTrash />}
                                                         </button>
@@ -525,10 +635,17 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                         ))}
                                     </div>
                                 </div>
+                                </div>
                             )}
 
                             {currentView === 'mem0ry' && import.meta.env.VITE_APP_ENV === 'development' && (
-                                <div className="profile-cards-grid">
+                                <div 
+                                    role="tabpanel"
+                                    id="mem0ry-panel"
+                                    aria-labelledby="mem0ry-tab"
+                                    tabIndex={-1}
+                                    className="profile-cards-grid"
+                                >
                                     <div className="profile-card">
                                         <div className="profile-card-header">
                                             <h3>Memory-Einstellungen</h3>
@@ -555,6 +672,7 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                                     ? 'Das System nutzt deine gespeicherten Memories für personalisierte Inhalte.'
                                                     : 'Das System verwendet keine Memories. Inhalte werden ohne Personalisierung generiert.'
                                                 }
+                                                tabIndex={tabIndex.memoryToggle}
                                             />
                                         </div>
                                     </div>
@@ -572,6 +690,8 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                                         onClick={() => setShowAddMemoryForm(true)}
                                                         disabled={showAddMemoryForm || loadingMemories}
                                                         title="Memory hinzufügen"
+                                                        tabIndex={tabIndex.addMemoryButton}
+                                                        aria-label="Neue Memory hinzufügen"
                                                     >
                                                         <HiPlus />
                                                     </button>
@@ -589,18 +709,28 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                             </div>
                                             <div className="profile-card-content">
                                                 {showAddMemoryForm && (
-                                                    <div className="new-memory-form knowledge-entry knowledge-entry-bordered" style={{ marginBottom: 'var(--spacing-medium)'}}>
+                                                    <div 
+                                                        ref={memoryFormRef}
+                                                        className="new-memory-form knowledge-entry knowledge-entry-bordered" 
+                                                        style={{ marginBottom: 'var(--spacing-medium)'}}
+                                                        role="dialog"
+                                                        aria-label="Neue Memory hinzufügen"
+                                                    >
                                                         <div className="form-field-wrapper">
                                                             <label className="form-label">
                                                                 Memory Text *
                                                             </label>
                                                             <textarea
+                                                                ref={memoryInputRef}
                                                                 className="form-textarea"
                                                                 value={newMemoryText}
                                                                 onChange={(e) => setNewMemoryText(e.target.value)}
                                                                 placeholder="Gib hier Informationen über dich ein, die das System sich merken soll..."
                                                                 rows={4}
                                                                 disabled={addingMemory}
+                                                                tabIndex={tabIndex.memoryInput}
+                                                                aria-label="Memory Text"
+                                                                {...inlineEditorProps}
                                                             />
                                                         </div>
                                                         <div className="form-field-wrapper">
@@ -614,6 +744,8 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                                                 onChange={(e) => setNewMemoryTopic(e.target.value)}
                                                                 placeholder="z.B. Persönliche Vorlieben, Arbeitsbereich, etc."
                                                                 disabled={addingMemory}
+                                                                tabIndex={tabIndex.memoryTagInput}
+                                                                aria-label="Memory Thema"
                                                             />
                                                         </div>
                                                         <div className="profile-actions" style={{justifyContent: 'flex-start', gap: '10px'}}>
@@ -621,6 +753,8 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                                                 onClick={addMemory}
                                                                 className="btn-primary"
                                                                 disabled={addingMemory || !newMemoryText.trim()}
+                                                                tabIndex={tabIndex.saveMemoryButton}
+                                                                aria-label="Memory speichern"
                                                             >
                                                                 {addingMemory ? 'Wird hinzugefügt...' : 'Speichern'}
                                                             </button>
@@ -628,6 +762,8 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                                                 onClick={() => setShowAddMemoryForm(false)}
                                                                 className="btn-secondary"
                                                                 disabled={addingMemory}
+                                                                tabIndex={tabIndex.cancelMemoryButton}
+                                                                aria-label="Memory hinzufügen abbrechen"
                                                             >
                                                                 Abbrechen
                                                             </button>
@@ -665,6 +801,8 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                                                                     onClick={() => deleteMemory(memory.id)}
                                                                                     className="delete-memory-button"
                                                                                     title="Memory löschen"
+                                                                                    tabIndex={tabIndex.deleteMemoryButton + index}
+                                                                                    aria-label={`Memory "${memory.memory || memory.text}" löschen`}
                                                                                 >
                                                                                     <HiTrash />
                                                                                 </button>
@@ -692,6 +830,8 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                                                 <button 
                                                                     onClick={deleteAllMemories} 
                                                                     className="delete-all-link"
+                                                                    tabIndex={tabIndex.deleteAllMemoryButton}
+                                                                    aria-label="Alle Memories löschen"
                                                                 >
                                                                     Alle Memories löschen
                                                                 </button>
