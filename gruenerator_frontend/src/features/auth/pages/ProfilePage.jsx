@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, lazy, Suspense, useRef } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { motion, useReducedMotion } from 'motion/react';
 
@@ -9,6 +9,8 @@ import {
   useProfileData 
 } from '../utils/profileUtils';
 import { useBetaFeatures } from '../../../hooks/useBetaFeatures';
+import { useTabIndex } from '../../../hooks/useTabIndex';
+import { useVerticalTabNavigation } from '../../../hooks/useKeyboardNavigation';
 
 // Components
 import Spinner from '../../../components/common/Spinner';
@@ -33,19 +35,26 @@ const TabButton = ({
   onMouseEnter, 
   className = "profile-tab",
   children,
-  underlineTransition 
+  underlineTransition,
+  tabIndex: tabIndexProp,
+  registerRef,
+  ariaSelected
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   const showUnderline = activeTab === tabKey || isHovered;
   
   return (
     <motion.button
+      ref={registerRef ? (ref) => registerRef(tabKey, ref) : undefined}
       onClick={() => onClick(tabKey)}
       className={className}
+      tabIndex={tabIndexProp}
+      role="tab"
+      aria-selected={ariaSelected || (activeTab === tabKey)}
       aria-current={activeTab === tabKey ? 'page' : undefined}
       onMouseEnter={() => {
         setIsHovered(true);
-        onMouseEnter(tabKey);
+        onMouseEnter && onMouseEnter(tabKey);
       }}
       onMouseLeave={() => setIsHovered(false)}
       animate={{ 
@@ -69,6 +78,7 @@ const TabButton = ({
 const ProfilePage = () => {
   const navigate = useNavigate();
   const { tab } = useParams();
+  const tabsContainerRef = useRef(null);
   
   // Authentication and loading states
   const { 
@@ -81,6 +91,9 @@ const ProfilePage = () => {
     deleteAccount,
     canManageAccount 
   } = useOptimizedAuth();
+  
+  // Tab index configuration
+  const tabIndex = useTabIndex('PROFILE');
 
   const shouldReduceMotion = useReducedMotion();
   
@@ -156,6 +169,25 @@ const ProfilePage = () => {
     setHoveredTab(tabName);
     handleTabHover(tabName, activeTab, hoveredTab);
   }, [activeTab, hoveredTab, handleTabHover]);
+  
+  // Available tabs (filtered based on feature flags)
+  const availableTabs = [
+    'profile',
+    ...(shouldShowTab('anweisungen') ? ['intelligence'] : []),
+    'dokumente',
+    ...(shouldShowTab('groups') ? ['gruppen'] : []),
+    ...(shouldShowTab('customGenerators') ? ['custom_generators'] : []),
+    'labor'
+  ];
+  
+  // Keyboard navigation for tabs
+  const { registerItemRef, tabIndex: getTabIndex, ariaSelected } = useVerticalTabNavigation({
+    items: availableTabs,
+    activeItem: activeTab,
+    onItemSelect: handleTabChange,
+    horizontal: true,
+    containerRef: tabsContainerRef
+  });
 
   // Reset hoveredTab when active tab changes
   useEffect(() => {
@@ -260,13 +292,22 @@ const ProfilePage = () => {
       </div>
 
       {/* Tab Navigation */}
-      <div className="profile-tabs" style={{ position: 'relative', zIndex: 5 }}>
+      <div 
+        ref={tabsContainerRef}
+        className="profile-tabs" 
+        style={{ position: 'relative', zIndex: 5 }}
+        role="tablist"
+        aria-label="Profil Navigation"
+      >
         <TabButton
           activeTab={activeTab}
           tabKey="profile"
           onClick={handleTabChange}
           onMouseEnter={() => onTabHover('profile')}
           underlineTransition={underlineTransition}
+          tabIndex={getTabIndex('profile')}
+          registerRef={registerItemRef}
+          ariaSelected={ariaSelected('profile')}
         >
           Profil
         </TabButton>
@@ -278,6 +319,9 @@ const ProfilePage = () => {
             onClick={handleTabChange}
             onMouseEnter={() => onTabHover('intelligence')}
             underlineTransition={underlineTransition}
+            tabIndex={getTabIndex('intelligence')}
+            registerRef={registerItemRef}
+            ariaSelected={ariaSelected('intelligence')}
           >
             Intelligence
           </TabButton>
@@ -289,6 +333,9 @@ const ProfilePage = () => {
           onClick={handleTabChange}
           onMouseEnter={() => onTabHover('dokumente')}
           underlineTransition={underlineTransition}
+          tabIndex={getTabIndex('dokumente')}
+          registerRef={registerItemRef}
+          ariaSelected={ariaSelected('dokumente')}
         >
           Dokumente & Texte
         </TabButton>
@@ -300,6 +347,9 @@ const ProfilePage = () => {
             onClick={handleTabChange}
             onMouseEnter={() => onTabHover('groups')}
             underlineTransition={underlineTransition}
+            tabIndex={getTabIndex('gruppen')}
+            registerRef={registerItemRef}
+            ariaSelected={ariaSelected('gruppen')}
           >
             Gruppen
           </TabButton>
@@ -313,6 +363,9 @@ const ProfilePage = () => {
             onClick={handleTabChange}
             onMouseEnter={() => onTabHover('generators')}
             underlineTransition={underlineTransition}
+            tabIndex={getTabIndex('custom_generators')}
+            registerRef={registerItemRef}
+            ariaSelected={ariaSelected('custom_generators')}
           >
             Meine Grüneratoren
           </TabButton>
@@ -325,6 +378,9 @@ const ProfilePage = () => {
           onMouseEnter={() => onTabHover('labor')}
           className="profile-tab bubble-tab-wrapper"
           underlineTransition={underlineTransition}
+          tabIndex={getTabIndex('labor')}
+          registerRef={registerItemRef}
+          ariaSelected={ariaSelected('labor')}
         >
           Labor
           <div className="bubbles-position-wrapper">
@@ -353,7 +409,7 @@ const ProfilePage = () => {
       )}
 
       {/* Tab Content */}
-      <div className="profile-tab-content">
+      <div className="profile-tab-content" role="tabpanel" aria-labelledby={`${activeTab}-tab`}>
         <Suspense fallback={<div className="profile-tab-loading"></div>}>
           {activeTab === 'profile' && (
             <ProfileInfoTab

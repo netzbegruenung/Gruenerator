@@ -1,51 +1,50 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Spinner from '../../../../components/common/Spinner';
 import { motion } from "motion/react";
 import { handleError } from '../../../../components/utils/errorHandling';
 import { HiInformationCircle, HiPlus, HiTrash, HiArrowRight } from 'react-icons/hi';
 import { useOptimizedAuth } from '../../../../hooks/useAuth';
 import HelpTooltip from '../../../../components/common/HelpTooltip';
-import apiClient from '../../../../components/utils/apiClient';
 import DocumentSelector from '../../../generators/components/DocumentSelector';
+import { useCustomGenerators, useGeneratorDocuments, useAvailableDocuments } from '../../hooks/useProfileData';
+import { useTabIndex } from '../../../../hooks/useTabIndex';
+import { useRovingTabindex } from '../../../../hooks/useKeyboardNavigation';
+import { announceToScreenReader } from '../../../../utils/focusManagement';
 
 const CustomGeneratorsTab = ({ user, onSuccessMessage, onErrorMessage, isActive }) => {
-  const [deleteLoading, setDeleteLoading] = useState(false);
   const [selectedGeneratorId, setSelectedGeneratorId] = useState(null);
   const [view, setView] = useState('overview');
-  const [documentsLoading, setDocumentsLoading] = useState(false);
-  const [generatorDocuments, setGeneratorDocuments] = useState([]);
   const [showDocumentManagement, setShowDocumentManagement] = useState(false);
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
+  
+  // Tab index configuration
+  const tabIndex = useTabIndex('PROFILE_GENERATORS');
   
   const { user: authUser, loading } = useOptimizedAuth();
 
-  const fetchGenerators = async () => {
-    if (!authUser) {
-      throw new Error('Not authenticated');
-    }
-    onErrorMessage('');
+  // Use centralized hooks
+  const { 
+    query: generatorsQuery, 
+    deleteGenerator, 
+    isDeleting, 
+    deleteError 
+  } = useCustomGenerators({ isActive });
 
-    try {
-      const response = await apiClient.get('/auth/custom-generators');
-      return response.data.generators || [];
-    } catch (error) {
-      throw error;
-    }
-  };
+  const { 
+    query: documentsQuery, 
+    addDocuments, 
+    removeDocument,
+    isAddingDocuments,
+    isRemovingDocument 
+  } = useGeneratorDocuments(selectedGeneratorId);
 
-  const { data: generatorsData = [], error: fetchError } = useQuery({
-    queryKey: ['customGenerators', authUser?.id],
-    queryFn: fetchGenerators,
-    enabled: !!authUser && !loading && isActive,
-    refetchOnMount: 'always',
-    refetchOnWindowFocus: false
-  });
+  const { data: availableDocuments } = useAvailableDocuments();
 
-  // Ensure generators is always an array
-  const generators = Array.isArray(generatorsData) ? generatorsData : [];
+  // Simplified data access
+  const generators = generatorsQuery.data || [];
+  const generatorDocuments = documentsQuery.data || [];
+  const fetchError = generatorsQuery.error;
 
   useEffect(() => {
     if (fetchError) {
@@ -54,7 +53,10 @@ const CustomGeneratorsTab = ({ user, onSuccessMessage, onErrorMessage, isActive 
       setView('overview');
       setSelectedGeneratorId(null);
     }
-  }, [fetchError, onErrorMessage]);
+    if (deleteError) {
+      handleError(deleteError, onErrorMessage);
+    }
+  }, [fetchError, deleteError, onErrorMessage]);
 
   useEffect(() => {
     if (!generators) return;
@@ -72,18 +74,14 @@ const CustomGeneratorsTab = ({ user, onSuccessMessage, onErrorMessage, isActive 
     setSelectedGeneratorId(generatorId);
     setView('detail');
     setShowDocumentManagement(false);
-    setGeneratorDocuments([]);
     onSuccessMessage('');
     onErrorMessage('');
-    // Load documents for the selected generator
-    loadGeneratorDocuments(generatorId);
   };
 
   const handleShowOverview = () => {
     setSelectedGeneratorId(null);
     setView('overview');
     setShowDocumentManagement(false);
-    setGeneratorDocuments([]);
     onSuccessMessage('');
     onErrorMessage('');
   };
@@ -93,119 +91,120 @@ const CustomGeneratorsTab = ({ user, onSuccessMessage, onErrorMessage, isActive 
       return;
     }
 
-    setDeleteLoading(true);
     onErrorMessage('');
     onSuccessMessage('');
 
     try {
-      await apiClient.delete(`/auth/custom-generators/${generatorId}`);
-
+      await deleteGenerator(generatorId);
       onSuccessMessage('Grünerator erfolgreich gelöscht.');
-      queryClient.invalidateQueries({ queryKey: ['customGenerators', authUser?.id] });
       
       if (selectedGeneratorId === generatorId) {
         handleShowOverview();
       }
-
     } catch (err) {
-      console.error('[CustomGeneratorsTab] Fehler beim Löschen des Grünerators:', err);
-      handleError(err, onErrorMessage);
-    } finally {
-      setDeleteLoading(false);
+      // Error already handled by useCustomGenerators hook
     }
   };
 
-  // Load documents for a generator
-  const loadGeneratorDocuments = async (generatorId) => {
-    if (!generatorId) return;
-    
-    setDocumentsLoading(true);
-    try {
-      const response = await apiClient.get(`/custom_generator/${generatorId}/documents`);
-      setGeneratorDocuments(response.data.documents || []);
-    } catch (error) {
-      console.error('[CustomGeneratorsTab] Error loading generator documents:', error);
-      handleError(error, onErrorMessage);
-    } finally {
-      setDocumentsLoading(false);
-    }
-  };
-
-  // Add documents to generator
+  // Add documents to generator using new hook
   const handleAddDocuments = async (generatorId, newDocuments) => {
     if (!newDocuments || newDocuments.length === 0) return;
     
-    setDocumentsLoading(true);
     onErrorMessage('');
     
+    const documentIds = newDocuments
+      .filter(doc => !generatorDocuments.find(gd => gd.id === doc.id))
+      .map(doc => doc.id);
+    
+    if (documentIds.length === 0) {
+      onErrorMessage('Alle ausgewählten Dokumente sind bereits hinzugefügt.');
+      return;
+    }
+    
     try {
-      const documentIds = newDocuments
-        .filter(doc => !generatorDocuments.find(gd => gd.id === doc.id))
-        .map(doc => doc.id);
-      
-      if (documentIds.length === 0) {
-        onErrorMessage('Alle ausgewählten Dokumente sind bereits hinzugefügt.');
-        return;
-      }
-      
-      await apiClient.post(`/custom_generator/${generatorId}/documents`, { documentIds });
-      
+      await addDocuments(documentIds);
       onSuccessMessage(`${documentIds.length} Dokument(e) erfolgreich hinzugefügt.`);
-      await loadGeneratorDocuments(generatorId);
       setShowDocumentManagement(false);
     } catch (error) {
-      console.error('[CustomGeneratorsTab] Error adding documents:', error);
       handleError(error, onErrorMessage);
-    } finally {
-      setDocumentsLoading(false);
     }
   };
 
-  // Remove document from generator
-  const handleRemoveDocument = async (generatorId, documentId, documentTitle) => {
+  // Remove document from generator using new hook
+  const handleRemoveDocument = async (documentId, documentTitle) => {
     if (!window.confirm(`Möchten Sie das Dokument "${documentTitle}" wirklich aus diesem Generator entfernen?`)) {
       return;
     }
     
-    setDocumentsLoading(true);
     onErrorMessage('');
     
     try {
-      await apiClient.delete(`/custom_generator/${generatorId}/documents/${documentId}`);
+      await removeDocument(documentId);
       onSuccessMessage('Dokument erfolgreich entfernt.');
-      await loadGeneratorDocuments(generatorId);
     } catch (error) {
-      console.error('[CustomGeneratorsTab] Error removing document:', error);
       handleError(error, onErrorMessage);
-    } finally {
-      setDocumentsLoading(false);
     }
   };
+  
+  // Navigation items for roving tabindex
+  const navigationItems = [
+    'overview',
+    ...(generators ? generators.map(g => `generator-${g.id}`) : []),
+    'create-new'
+  ];
+  
+  // Roving tabindex for navigation
+  const { getItemProps } = useRovingTabindex({
+    items: navigationItems,
+    defaultActiveItem: view === 'overview' ? 'overview' : `generator-${selectedGeneratorId}`
+  });
 
   const renderNavigationPanel = () => (
-    <div className="profile-vertical-navigation">
+    <div 
+      className="profile-vertical-navigation"
+      role="tablist"
+      aria-label="Grüneratoren Navigation"
+      aria-orientation="vertical"
+    >
       <button
+        {...getItemProps('overview')}
         className={`profile-vertical-tab ${view === 'overview' ? 'active' : ''}`}
         onClick={handleShowOverview}
+        role="tab"
+        aria-selected={view === 'overview'}
+        aria-controls="overview-panel"
+        id="overview-tab"
       >
         Übersicht
       </button>
 
       {generators && Array.isArray(generators) && generators.length > 0 && (
-        <nav className="profile-vertical-tabs" aria-label="Grüneratoren Navigation">
+        <>
           {generators.map(gen => (
             <button
               key={gen.id}
+              {...getItemProps(`generator-${gen.id}`)}
               className={`profile-vertical-tab ${selectedGeneratorId === gen.id && view === 'detail' ? 'active' : ''}`}
               onClick={() => handleSelectGenerator(gen.id)}
+              role="tab"
+              aria-selected={selectedGeneratorId === gen.id && view === 'detail'}
+              aria-controls={`generator-${gen.id}-panel`}
+              id={`generator-${gen.id}-tab`}
+              aria-label={`Generator ${gen.title || gen.name}`}
             >
               {gen.title || gen.name}
             </button>
           ))}
-        </nav>
+        </>
       )}
 
-      <Link to="/create-generator" className="groups-action-button create-new-group-button no-decoration-link">
+      <Link 
+        to="/create-generator" 
+        className="groups-action-button create-new-group-button no-decoration-link"
+        {...getItemProps('create-new')}
+        role="tab"
+        aria-label="Neuen Generator erstellen"
+      >
         Neu
         <HiPlus />
       </Link>
@@ -222,7 +221,7 @@ const CustomGeneratorsTab = ({ user, onSuccessMessage, onErrorMessage, isActive 
             <p>Deine Grüneratoren konnten nicht geladen werden.</p>
             <p><i>{fetchError.message || 'Bitte versuche es später erneut.'}</i></p>
             <button 
-              onClick={() => queryClient.refetchQueries({ queryKey: ['customGenerators', authUser?.id] })}
+              onClick={() => generatorsQuery.refetch()}
               className="profile-action-button profile-secondary-button"
             >
               Erneut versuchen
@@ -239,6 +238,9 @@ const CustomGeneratorsTab = ({ user, onSuccessMessage, onErrorMessage, isActive 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.3 }}
+          role="tabpanel"
+          id="overview-panel"
+          aria-labelledby="overview-tab"
         >
           <div className="profile-content-card">
             <div className="profile-info-panel">
@@ -275,7 +277,12 @@ const CustomGeneratorsTab = ({ user, onSuccessMessage, onErrorMessage, isActive 
                   </section>
                 )}
                 <div className="group-overview-cta">
-                  <Link to="/create-generator" className="profile-action-button profile-primary-button no-decoration-link">
+                  <Link 
+                    to="/create-generator" 
+                    className="profile-action-button profile-primary-button no-decoration-link"
+                    tabIndex={tabIndex.createNewLink}
+                    aria-label="Neuen Grünerator erstellen"
+                  >
                     Neuen Grünerator erstellen
                     <HiPlus className="plus-icon" />
                   </Link>
@@ -309,6 +316,9 @@ const CustomGeneratorsTab = ({ user, onSuccessMessage, onErrorMessage, isActive 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.3 }}
+          role="tabpanel"
+          id={`generator-${selectedGeneratorId}-panel`}
+          aria-labelledby={`generator-${selectedGeneratorId}-tab`}
         >
           <div className="profile-content-card">
             <div className="profile-info-panel">
@@ -321,16 +331,20 @@ const CustomGeneratorsTab = ({ user, onSuccessMessage, onErrorMessage, isActive 
                     to={`/generator/${generator.slug}`} 
                     className="custom-generator-button custom-generator-button-open"
                     title="Öffnen"
+                    tabIndex={tabIndex.openButton}
+                    aria-label={`Grünerator ${generator.title || generator.name} öffnen`}
                   >
                     <HiArrowRight />
                   </Link>
                   <button 
                     onClick={() => handleDeleteGenerator(generator.id)}
                     className="custom-generator-button custom-generator-button-delete"
-                    disabled={deleteLoading}
+                    disabled={isDeleting}
                     title="Löschen"
+                    tabIndex={tabIndex.deleteButton}
+                    aria-label={`Grünerator ${generator.title || generator.name} löschen`}
                   >
-                    {deleteLoading ? <Spinner size="xsmall" /> : <HiTrash />}
+                    {isDeleting ? <Spinner size="xsmall" /> : <HiTrash />}
                   </button>
                 </div>
               </div>
@@ -400,14 +414,17 @@ const CustomGeneratorsTab = ({ user, onSuccessMessage, onErrorMessage, isActive 
                   type="button"
                   onClick={() => setShowDocumentManagement(!showDocumentManagement)}
                   className="btn-secondary size-s"
-                  disabled={documentsLoading}
+                  disabled={documentsQuery.isLoading || isAddingDocuments}
+                  tabIndex={tabIndex.manageDocsButton}
+                  aria-label={showDocumentManagement ? 'Dokumentenverwaltung schließen' : 'Dokumentenverwaltung öffnen'}
+                  aria-expanded={showDocumentManagement}
                 >
                   {showDocumentManagement ? 'Schließen' : 'Dokumente verwalten'}
                 </button>
               </div>
 
               {/* Current Documents Display */}
-              {documentsLoading ? (
+              {documentsQuery.isLoading ? (
                 <div className="documents-loading">
                   <Spinner size="small" />
                   <span>Dokumente laden...</span>
@@ -432,10 +449,12 @@ const CustomGeneratorsTab = ({ user, onSuccessMessage, onErrorMessage, isActive 
                         </div>
                         <button
                           type="button"
-                          onClick={() => handleRemoveDocument(generator.id, document.id, document.title)}
+                          onClick={() => handleRemoveDocument(document.id, document.title)}
                           className="remove-document-btn"
-                          disabled={documentsLoading}
+                          disabled={isRemovingDocument}
                           title="Dokument entfernen"
+                          tabIndex={tabIndex.removeDocButton + generatorDocuments.indexOf(document)}
+                          aria-label={`Dokument ${document.title} entfernen`}
                         >
                           <HiTrash />
                         </button>
@@ -454,6 +473,7 @@ const CustomGeneratorsTab = ({ user, onSuccessMessage, onErrorMessage, isActive 
                 <div className="document-management">
                   <h5>Dokumente hinzufügen</h5>
                   <DocumentSelector 
+                    availableDocuments={availableDocuments || []}
                     selectedDocuments={generatorDocuments}
                     onDocumentsChange={(documents) => {
                       // Filter out already associated documents and add only new ones
@@ -461,9 +481,10 @@ const CustomGeneratorsTab = ({ user, onSuccessMessage, onErrorMessage, isActive 
                         !generatorDocuments.find(gd => gd.id === doc.id)
                       );
                       if (newDocuments.length > 0) {
-                        handleAddDocuments(generator.id, newDocuments);
+                        handleAddDocuments(selectedGeneratorId, newDocuments);
                       }
                     }}
+                    tabIndex={tabIndex.documentSelector}
                   />
                 </div>
               )}
@@ -475,6 +496,16 @@ const CustomGeneratorsTab = ({ user, onSuccessMessage, onErrorMessage, isActive 
     
     return null;
   };
+
+  if (generatorsQuery.isLoading && !generatorsQuery.data) {
+    return (
+      <div className="profile-tab-content">
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem' }}>
+          <Spinner size="medium" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <motion.div 

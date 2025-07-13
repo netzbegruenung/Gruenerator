@@ -68,8 +68,9 @@ async function setupRoutes(app) {
   const { default: userProfile } = await import('./routes/auth/userProfile.mjs');
   const { default: userContent } = await import('./routes/auth/userContent.mjs');
   const { default: userGroups } = await import('./routes/auth/userGroups.mjs');
-  const { default: userCustomGenerators } = await import('./routes/auth/userCustomGenerators.mjs');
+  // const { default: userCustomGenerators } = await import('./routes/auth/userCustomGenerators.mjs'); // REMOVED - consolidated
   const { default: userTemplates } = await import('./routes/auth/userTemplates.mjs');
+  const { default: mobileAuthRoutes } = await import('./routes/auth/mobile.mjs');
   const { default: documentsRouter } = await import('./routes/documents.mjs');
   // Try to import mem0Router, fall back to null if not available
   let mem0Router = null;
@@ -97,8 +98,9 @@ async function setupRoutes(app) {
   app.use('/api/auth', userProfile);
   app.use('/api/auth', userContent);
   app.use('/api/auth', userGroups);
-  app.use('/api/auth', userCustomGenerators);
+  // app.use('/api/auth', userCustomGenerators); // REMOVED - consolidated
   app.use('/api/auth', userTemplates);
+  app.use('/api/auth/mobile', mobileAuthRoutes);
   app.use('/api/auth/qa-collections', qaCollectionsRouter);
   app.use('/api/auth/qa', qaInteractionRouter);
   app.use('/api/documents', documentsRouter);
@@ -136,7 +138,7 @@ async function setupRoutes(app) {
   app.use('/api/claude_gruenerator_ask', claudeGrueneratorAskRoute);
   app.use('/api/claude_gruenerator_ask_grundsatz', claudeGrueneratorAskGrundsatzRoute);
   app.use('/api/you', claudeYouRoute);
-  app.use('/api/custom_generator', customGeneratorRoute);
+  app.use('/api/auth/custom_generator', customGeneratorRoute);
   app.use('/api/generate_generator_config', generatorConfiguratorRoute);
   app.use('/api/claude/generate-short-subtitles', claudeSubtitlesRoute);
 

@@ -16,13 +16,17 @@ import { TAB_INDEX_CONFIG, TabIndexHelpers, DEFAULT_TAB_INDEX } from '../utils/t
 export const useTabIndex = (pageType) => {
   const config = useMemo(() => {
     if (!pageType) {
-      console.warn('useTabIndex: No pageType provided, using default config');
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('useTabIndex: No pageType provided, using default config');
+      }
       return DEFAULT_TAB_INDEX;
     }
 
     const pageConfig = TAB_INDEX_CONFIG[pageType];
     if (!pageConfig) {
-      console.warn(`useTabIndex: Unknown pageType "${pageType}", using default config`);
+      if (process.env.NODE_ENV === 'development') {
+        console.warn(`useTabIndex: Unknown pageType "${pageType}", using default config`);
+      }
       return DEFAULT_TAB_INDEX;
     }
 
@@ -60,7 +64,9 @@ export const useTabIndex = (pageType) => {
     get: (elementKey) => {
       const value = config[elementKey];
       if (value === undefined) {
-        console.warn(`useTabIndex: Element key "${elementKey}" not found in ${pageType} config`);
+        if (process.env.NODE_ENV === 'development') {
+          console.warn(`useTabIndex: Element key "${elementKey}" not found in ${pageType} config`);
+        }
         return 1; // Fallback
       }
       return value;

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import apiClient from '../utils/apiClient';
+import { extractTitleFromContent } from '../utils/titleExtractor';
 
 /**
  * A hook to preload a collaborative document in the background.
@@ -29,12 +30,13 @@ export const useCollabPreload = (content, hasAccess, isEnabled, user = null, tit
       const createDoc = async () => {
         try {
           const documentId = uuidv4();
-          console.log(`[useCollabPreload] Auto-creating document with ID: ${documentId}`);
+          const documentTitle = extractTitleFromContent(content, title || 'Unbenanntes Dokument');
+          console.log(`[useCollabPreload] Auto-creating document with ID: ${documentId}, title: "${documentTitle}"`);
           await apiClient.post('/collab-editor/init-doc', { 
             documentId, 
             content,
             userId: user?.id || null,
-            title: title || 'Unbenanntes Dokument',
+            title: documentTitle,
             documentType: documentType || 'text'
           });
           preloadedDocIdRef.current = documentId;

@@ -20,18 +20,18 @@ const ADMIN_ONLY_FEATURES = BETA_FEATURES_CONFIG.filter(f => f.isAdminOnly).map(
 
 // Fetch beta features from backend API
 const fetchBetaFeatures = async (user) => {
-  console.log('[useBetaFeatures] 🔄 Fetching beta features for user:', user?.id);
+  // Fetching beta features
   
   // 1) Prefer user.beta_features (from profiles table/session) over user_metadata.beta_features
   if (user?.beta_features) {
-    console.log('[useBetaFeatures] 📋 Using user.beta_features:', user.beta_features);
+    // Using user.beta_features
     return user.beta_features;
   }
   
   // 2) Fallback: Backend API Abfrage (ersetzt direkte Supabase calls)
   try {
     if (!user?.id) {
-      console.log('[useBetaFeatures] ⚠️ No user ID, returning empty features');
+      // No user ID, returning empty features
       return {};
     }
 

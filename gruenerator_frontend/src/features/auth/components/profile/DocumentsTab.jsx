@@ -6,23 +6,18 @@ import DocumentUpload from '../../../../components/common/DocumentUpload';
 import DocumentOverview from '../../../../components/common/DocumentOverview';
 import ShareToGroupModal from '../../../../components/common/ShareToGroupModal';
 import AddCanvaTemplateModal from '../../../../components/common/AddCanvaTemplateModal';
-// import QAList from '../../../qa/components/QAList'; // Replaced with DocumentOverview
 import QACreator from '../../../qa/components/QACreator';
-import { useQACollections } from '../../utils/profileUtils';
 import { useDocumentsStore } from '../../../../stores/documentsStore';
 import { handleError } from '../../../../components/utils/errorHandling';
 import { useOptimizedAuth } from '../../../../hooks/useAuth';
+import { useQACollections, useUserTexts, useUserTemplates } from '../../hooks/useProfileData';
+import { useTabIndex } from '../../../../hooks/useTabIndex';
+import { useVerticalTabNavigation, useModalFocus } from '../../../../hooks/useKeyboardNavigation';
+import { announceToScreenReader } from '../../../../utils/focusManagement';
 
 // Memoized DocumentUpload wrapper to prevent re-renders
 const MemoizedDocumentUpload = memo(({ onUploadComplete, onDeleteComplete, showDocumentsList = true, showTitle = true, forceShowUploadForm = false, showAsModal = false }) => {
-    console.log('[MemoizedDocumentUpload] Rendering with props:', {
-        showDocumentsList,
-        showTitle,
-        forceShowUploadForm,
-        showAsModal,
-        hasOnUploadComplete: !!onUploadComplete,
-        hasOnDeleteComplete: !!onDeleteComplete
-    });
+    // MemoizedDocumentUpload rendering
     
     return (
         <DocumentUpload 
@@ -46,6 +41,10 @@ const DocumentsTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
     const [availableDocuments, setAvailableDocuments] = useState([]);
     const [showUploadForm, setShowUploadForm] = useState(false);
     const showUploadFormRef = useRef(false);
+    const verticalNavRef = useRef(null);
+    
+    // Tab index configuration
+    const tabIndex = useTabIndex('PROFILE_DOCUMENTS');
     
     // Share modal state
     const [showShareModal, setShowShareModal] = useState(false);
@@ -56,17 +55,12 @@ const DocumentsTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
     
     // MeineTexte functionality
     const { user, isAuthenticated } = useOptimizedAuth();
-    const [texts, setTexts] = useState([]);
-    
-    // Templates functionality
-    const [templates, setTemplates] = useState([]);
     
     const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
     
     // Debug log for showUploadForm state changes
     React.useEffect(() => {
-        console.log('[DocumentsTab] showUploadForm state changed to:', showUploadForm);
-        console.log('[DocumentsTab] Stack trace for state change:', new Error().stack);
+        // showUploadForm state changed
     }, [showUploadForm]);
 
     // Documents store integration
@@ -80,7 +74,7 @@ const DocumentsTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
         refreshDocument,
     } = useDocumentsStore();
 
-    // Q&A functionality with centralized hook pattern (like IntelligenceTab)
+    // Use centralized hooks
     const { 
         query: qaQuery, 
         createQACollection, 
@@ -93,112 +87,88 @@ const DocumentsTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
         isDeleting
     } = useQACollections({ isActive });
     
-    const { data: qaCollections = [], isLoading: qaLoading, error: qaError, refetch } = qaQuery;
+    const { 
+        query: textsQuery,
+        updateTextTitle,
+        deleteText,
+        isUpdatingTitle: isUpdatingTextTitle,
+        isDeleting: isDeletingText
+    } = useUserTexts({ isActive });
 
-    // Handle Q&A errors like CustomGeneratorsTab
+    const { 
+        query: templatesQuery,
+        updateTemplateTitle,
+        deleteTemplate,
+        isUpdatingTitle: isUpdatingTemplateTitle,
+        isDeleting: isDeletingTemplate
+    } = useUserTemplates({ isActive });
+    
+    const { data: qaCollections = [], isLoading: qaLoading, error: qaError } = qaQuery;
+    const { data: texts = [], isLoading: textsLoading, error: textsError } = textsQuery;
+    const { data: templates = [], isLoading: templatesLoading, error: templatesError } = templatesQuery;
+
+    // Handle errors
     useEffect(() => {
         if (qaError) {
             console.error('[DocumentsTab] Fehler beim Laden der Q&A-Sammlungen:', qaError);
             handleError(qaError, onErrorMessage);
         }
-    }, [qaError, onErrorMessage]);
-
-    // Handle documents errors
-    useEffect(() => {
+        if (textsError) {
+            console.error('[DocumentsTab] Fehler beim Laden der Texte:', textsError);
+            handleError(textsError, onErrorMessage);
+        }
+        if (templatesError) {
+            console.error('[DocumentsTab] Fehler beim Laden der Templates:', templatesError);
+            handleError(templatesError, onErrorMessage);
+        }
         if (documentsError) {
             console.error('[DocumentsTab] Fehler beim Laden der Dokumente:', documentsError);
             onErrorMessage('Fehler beim Laden der Dokumente: ' + documentsError);
         }
-    }, [documentsError, onErrorMessage]);
+    }, [qaError, textsError, templatesError, documentsError, onErrorMessage]);
 
-    // Fetch user texts for MeineTexte tab
-    const fetchTexts = useCallback(async () => {
-        if (!isAuthenticated || !user?.id) return;
-
-        try {
-            const response = await fetch(`${AUTH_BASE_URL}/user-texts`, {
-                method: 'GET',
-                credentials: 'include',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const data = await response.json();
-            if (data.success) {
-                setTexts(data.data || []);
-            } else {
-                throw new Error(data.message || 'Failed to fetch texts');
-            }
-        } catch (error) {
-            console.error('[DocumentsTab] Error fetching texts:', error);
-            onErrorMessage('Fehler beim Laden der Texte: ' + error.message);
-        }
-    }, [isAuthenticated, user?.id, onErrorMessage, AUTH_BASE_URL]);
-
-    // Fetch user templates
-    const fetchTemplates = useCallback(async () => {
-        if (!isAuthenticated || !user?.id) return;
-
-        try {
-            const response = await fetch(`${AUTH_BASE_URL}/auth/user-templates`, {
-                method: 'GET',
-                credentials: 'include',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const data = await response.json();
-            if (data.success) {
-                setTemplates(data.data || []);
-            } else {
-                throw new Error(data.message || 'Failed to fetch templates');
-            }
-        } catch (error) {
-            console.error('[DocumentsTab] Error fetching Canva templates:', error);
-            onErrorMessage('Fehler beim Laden der Canva Vorlagen: ' + error.message);
-        }
-    }, [isAuthenticated, user?.id, onErrorMessage, AUTH_BASE_URL]);
+    // Handle tab navigation
+    const handleTabClick = useCallback((view) => {
+        setCurrentView(view);
+        onErrorMessage('');
+        // Announce to screen readers
+        const viewNames = {
+            'documents': 'Meine Dokumente',
+            'texts': 'Meine Texte',
+            'qa': 'Meine Q&As',
+            'templates': 'Canva Vorlagen'
+        };
+        announceToScreenReader(`${viewNames[view]} Tab ausgewählt`);
+    }, [onErrorMessage]);
+    
+    // Available navigation tabs
+    const availableViews = ['documents', 'texts', 'qa', 'templates'];
+    
+    // Vertical tab navigation setup
+    const {
+        registerItemRef,
+        tabIndex: getTabIndex,
+        ariaSelected
+    } = useVerticalTabNavigation({
+        items: availableViews,
+        activeItem: currentView,
+        onItemSelect: handleTabClick,
+        horizontal: false,
+        containerRef: verticalNavRef
+    });
 
     // Fetch documents when tab becomes active
     useEffect(() => {
         if (isActive && currentView === 'documents') {
-            console.log('[DocumentsTab] Fetching documents due to tab/view change');
+            // Fetching documents due to tab/view change
             fetchDocuments();
-        } else if (isActive && currentView === 'texts') {
-            fetchTexts();
-        } else if (isActive && currentView === 'templates') {
-            fetchTemplates();
         }
-    }, [isActive, currentView, fetchDocuments, fetchTexts, fetchTemplates]);
+    }, [isActive, currentView, fetchDocuments]);
 
     // Monitor documents changes
     useEffect(() => {
-        console.log('[DocumentsTab] Documents changed:', documents?.length, 'loading:', documentsLoading);
+        // Documents changed
     }, [documents, documentsLoading]);
-
-    const handleTabClick = (view) => {
-        setCurrentView(view);
-        if (view === 'qa') {
-            // Clear any previous error messages
-            onErrorMessage('');
-        } else if (view === 'texts') {
-            // Clear any previous error messages
-            onErrorMessage('');
-        } else if (view === 'templates') {
-            // Clear any previous error messages for Canva templates
-            onErrorMessage('');
-        }
-    };
 
     const handleCreateQA = async () => {
         setEditingQA(null);
@@ -280,28 +250,58 @@ const DocumentsTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
 
     const renderNavigationPanel = () => {
         return (
-            <div className="profile-vertical-navigation">
+            <div 
+                ref={verticalNavRef}
+                className="profile-vertical-navigation"
+                role="tablist"
+                aria-label="Dokumente Navigation"
+                aria-orientation="vertical"
+            >
                 <button
+                    ref={(ref) => registerItemRef('documents', ref)}
                     className={`profile-vertical-tab ${currentView === 'documents' ? 'active' : ''}`}
                     onClick={() => handleTabClick('documents')}
+                    tabIndex={getTabIndex('documents')}
+                    role="tab"
+                    aria-selected={ariaSelected('documents')}
+                    aria-controls="documents-panel"
+                    id="documents-tab"
                 >
                     Meine Dokumente
                 </button>
                 <button
+                    ref={(ref) => registerItemRef('texts', ref)}
                     className={`profile-vertical-tab ${currentView === 'texts' ? 'active' : ''}`}
                     onClick={() => handleTabClick('texts')}
+                    tabIndex={getTabIndex('texts')}
+                    role="tab"
+                    aria-selected={ariaSelected('texts')}
+                    aria-controls="texts-panel"
+                    id="texts-tab"
                 >
                     Meine Texte
                 </button>
                 <button
+                    ref={(ref) => registerItemRef('qa', ref)}
                     className={`profile-vertical-tab ${currentView === 'qa' ? 'active' : ''}`}
                     onClick={() => handleTabClick('qa')}
+                    tabIndex={getTabIndex('qa')}
+                    role="tab"
+                    aria-selected={ariaSelected('qa')}
+                    aria-controls="qa-panel"
+                    id="qa-tab"
                 >
                     Meine Q&As
                 </button>
                 <button
+                    ref={(ref) => registerItemRef('templates', ref)}
                     className={`profile-vertical-tab ${currentView === 'templates' ? 'active' : ''}`}
                     onClick={() => handleTabClick('templates')}
+                    tabIndex={getTabIndex('templates')}
+                    role="tab"
+                    aria-selected={ariaSelected('templates')}
+                    aria-controls="templates-panel"
+                    id="templates-tab"
                 >
                     Canva Vorlagen
                 </button>
@@ -320,7 +320,7 @@ const DocumentsTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
 
     // Memoized upload complete callback for modal
     const handleModalUploadComplete = React.useCallback((document) => {
-        console.log('[DocumentsTab] Upload completed or cancelled, hiding form');
+        // Upload completed or cancelled, hiding form
         if (document) {
             handleUploadComplete(document);
         }
@@ -396,129 +396,9 @@ const DocumentsTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
         'story': 'Story'
     };
     
-    // Text management handlers
-    const updateTextTitle = async (documentId, newTitleValue) => {
-        const response = await fetch(`${AUTH_BASE_URL}/user-texts/${documentId}/metadata`, {
-            method: 'POST',
-            credentials: 'include',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ title: newTitleValue.trim() }),
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        if (data.success) {
-            setTexts(prev => prev.map(text => 
-                text.id === documentId 
-                    ? { ...text, title: newTitleValue.trim() }
-                    : text
-            ));
-        } else {
-            throw new Error(data.message || 'Failed to update title');
-        }
-    };
-
-    const deleteText = async (documentId) => {
-        const response = await fetch(`${AUTH_BASE_URL}/user-texts/${documentId}`, {
-            method: 'DELETE',
-            credentials: 'include',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        if (data.success) {
-            setTexts(prev => prev.filter(text => text.id !== documentId));
-        } else {
-            throw new Error(data.message || 'Failed to delete document');
-        }
-    };
-
+    // Text and template handlers (using new hooks)
     const openInEditor = (documentId) => {
         window.open(`/editor/collab/${documentId}`, '_blank');
-    };
-
-    const handleEditText = (document) => {
-        openInEditor(document.id);
-    };
-    
-    const handleDeleteText = async (documentId) => {
-        try {
-            await deleteText(documentId);
-            onSuccessMessage('Text wurde erfolgreich gelöscht.');
-        } catch (error) {
-            console.error('[DocumentsTab] Error deleting text:', error);
-            onErrorMessage('Fehler beim Löschen des Textes: ' + error.message);
-            throw error;
-        }
-    };
-
-    const handleTextTitleUpdate = async (documentId, newTitle) => {
-        try {
-            await updateTextTitle(documentId, newTitle);
-        } catch (error) {
-            console.error('[DocumentsTab] Error updating text title:', error);
-            onErrorMessage('Fehler beim Aktualisieren des Texttitels: ' + error.message);
-            throw error;
-        }
-    };
-
-    // Template management handlers
-    const updateTemplateTitle = async (templateId, newTitleValue) => {
-        const response = await fetch(`${AUTH_BASE_URL}/auth/user-templates/${templateId}/metadata`, {
-            method: 'POST',
-            credentials: 'include',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ title: newTitleValue.trim() }),
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        if (data.success) {
-            setTemplates(prev => prev.map(template => 
-                template.id === templateId 
-                    ? { ...template, title: newTitleValue.trim() }
-                    : template
-            ));
-        } else {
-            throw new Error(data.message || 'Failed to update title');
-        }
-    };
-
-    const deleteTemplate = async (templateId) => {
-        const response = await fetch(`${AUTH_BASE_URL}/auth/user-templates/${templateId}`, {
-            method: 'DELETE',
-            credentials: 'include',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        if (data.success) {
-            setTemplates(prev => prev.filter(template => template.id !== templateId));
-        } else {
-            throw new Error(data.message || 'Failed to delete template');
-        }
     };
 
     const openTemplateInCanva = (template) => {
@@ -552,6 +432,21 @@ const DocumentsTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
             onErrorMessage('Fehler beim Aktualisieren des Canva Vorlagentitels: ' + error.message);
             throw error;
         }
+    };
+
+    const handleTextTitleUpdate = async (textId, newTitle) => {
+        try {
+            await updateTextTitle(textId, newTitle);
+            onSuccessMessage('Texttitel erfolgreich aktualisiert.');
+        } catch (error) {
+            console.error('[DocumentsTab] Error updating text title:', error);
+            onErrorMessage('Fehler beim Aktualisieren des Texttitels: ' + error.message);
+            throw error;
+        }
+    };
+
+    const handleEditText = (text) => {
+        openInEditor(text.id);
     };
 
     // Share functionality handlers
@@ -621,8 +516,13 @@ const DocumentsTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                 <div className="profile-content-card">
                     <div className="auth-form">
                         {currentView === 'documents' && (
-                            <>
-                                {console.log('[DocumentsTab] Rendering documents view. showUploadForm:', showUploadForm)}
+                            <div
+                                role="tabpanel"
+                                id="documents-panel"
+                                aria-labelledby="documents-tab"
+                                tabIndex={-1}
+                            >
+                                {/* Rendering documents view */}
                                 <DocumentOverview
                                     documents={documents}
                                     loading={documentsLoading}
@@ -646,10 +546,10 @@ const DocumentsTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                             type="button"
                                             className="btn-primary size-s"
                                             onClick={() => {
-                                                console.log('[DocumentsTab] Upload button clicked, setting showUploadForm to true');
                                                 setShowUploadForm(true);
-                                                console.log('[DocumentsTab] showUploadForm state should now be true');
                                             }}
+                                            tabIndex={tabIndex.addContentButton}
+                                            aria-label="Neuen Inhalt hinzufügen"
                                         >
                                             <HiPlus className="icon" />
                                             Inhalt hinzufügen
@@ -658,10 +558,10 @@ const DocumentsTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                 />
                                 
                                 {/* Upload form modal/overlay */}
-                                {console.log('[DocumentsTab] About to check showUploadForm condition:', showUploadForm)}
+                                {/* About to check showUploadForm condition */}
                                 {showUploadForm && (
                                     <>
-                                        {console.log('[DocumentsTab] Inside showUploadForm condition - about to render DocumentUpload directly')}
+                                        {/* Inside showUploadForm condition */}
                                         <DocumentUpload 
                                             onUploadComplete={handleModalUploadComplete}
                                             onDeleteComplete={handleDeleteComplete}
@@ -672,15 +572,21 @@ const DocumentsTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                         />
                                     </>
                                 )}
-                            </>
+                            </div>
                         )}
 
                         {currentView === 'texts' && (
+                            <div
+                                role="tabpanel"
+                                id="texts-panel"
+                                aria-labelledby="texts-tab"
+                                tabIndex={-1}
+                            >
                             <DocumentOverview
                                 documents={texts}
-                                loading={false}
-                                onFetch={fetchTexts}
-                                onDelete={handleDeleteText}
+                                loading={textsLoading}
+                                onFetch={() => textsQuery.refetch()}
+                                onDelete={(textId) => deleteText(textId)}
                                 onUpdateTitle={handleTextTitleUpdate}
                                 onEdit={handleEditText}
                                 onShare={createShareAction('user_documents')}
@@ -694,9 +600,16 @@ const DocumentsTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                 onSuccessMessage={onSuccessMessage}
                                 onErrorMessage={onErrorMessage}
                             />
+                            </div>
                         )}
 
                         {currentView === 'qa' && (
+                            <div
+                                role="tabpanel"
+                                id="qa-panel"
+                                aria-labelledby="qa-tab"
+                                tabIndex={-1}
+                            >
                             <div className="profile-card">
                                 <div className="profile-card-header">
                                     <h3>{showQACreator ? (editingQA ? 'Q&A bearbeiten' : 'Neue Q&A erstellen') : 'Meine Q&A-Sammlungen'}</h3>
@@ -706,6 +619,8 @@ const DocumentsTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                             className="btn-primary size-s"
                                             onClick={handleCreateQA}
                                             disabled={qaLoading}
+                                            tabIndex={tabIndex.addContentButton}
+                                            aria-label="Neue Q&A-Sammlung erstellen"
                                         >
                                             <HiPlus className="icon" />
                                             Q&A erstellen
@@ -836,13 +751,20 @@ const DocumentsTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                     )}
                                 </div>
                             </div>
+                            </div>
                         )}
 
                         {currentView === 'templates' && (
+                            <div
+                                role="tabpanel"
+                                id="templates-panel"
+                                aria-labelledby="templates-tab"
+                                tabIndex={-1}
+                            >
                             <DocumentOverview
                                 documents={templates}
-                                loading={false}
-                                onFetch={fetchTemplates}
+                                loading={templatesLoading}
+                                onFetch={() => templatesQuery.refetch()}
                                 onDelete={handleDeleteTemplate}
                                 onUpdateTitle={handleTemplateTitleUpdate}
                                 onEdit={handleEditTemplate}
@@ -861,12 +783,15 @@ const DocumentsTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                         type="button"
                                         className="btn-primary size-s"
                                         onClick={handleOpenAddTemplateModal}
+                                        tabIndex={tabIndex.addContentButton}
+                                        aria-label="Neue Canva Vorlage hinzufügen"
                                     >
                                         <HiPlus className="icon" />
                                         Canva Vorlage hinzufügen
                                     </button>
                                 }
                             />
+                            </div>
                         )}
                     </div>
                 </div>
