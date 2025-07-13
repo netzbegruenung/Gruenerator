@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useMutation } from '@tanstack/react-query';
 import debounce from 'lodash.debounce';
 import Spinner from '../../../../components/common/Spinner';
 import TextInput from '../../../../components/common/Form/Input/TextInput';
@@ -37,7 +37,7 @@ const ProfileInfoTab = ({
   
   // Business logic hooks from profileUtils
   const { data: profile, isLoading: isLoadingProfile, isError: isErrorProfileQuery, error: errorProfileQuery } = useProfileData(user?.id);
-  const { updateProfile, updateAvatar, isUpdatingProfile, isUpdatingAvatar, profileUpdateError } = useProfileManager();
+  const { updateProfile, updateAvatar, isUpdatingProfile, isUpdatingAvatar, profileUpdateError, resetProfileMutation } = useProfileManager();
 
   // Local form states only
   const [firstName, setFirstName] = useState('');
@@ -95,11 +95,25 @@ const ProfileInfoTab = ({
   const debouncedSave = useCallback(
     debounce(async (profileData) => {
       try {
-        await updateProfile(profileData);
+        // Add a timeout to prevent hanging saves
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Save timeout')), 10000)
+        );
+        
+        await Promise.race([
+          updateProfile(profileData),
+          timeoutPromise
+        ]);
+        
         onSuccessMessage('Profil automatisch gespeichert!');
         onErrorProfileMessage('');
         setErrorProfile('');
       } catch (error) {
+        console.error('Auto-save error:', error);
+        if (error.message === 'Save timeout') {
+          setErrorProfile('Speichern dauert zu lange. Bitte versuchen Sie es erneut.');
+          onErrorProfileMessage('Speichern dauert zu lange. Bitte versuchen Sie es erneut.');
+        }
         // Error is handled by useEffect above
       }
     }, 1000),

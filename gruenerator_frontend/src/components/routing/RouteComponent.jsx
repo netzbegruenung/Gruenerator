@@ -15,20 +15,13 @@ const RouteComponent = ({
 }) => {
   const location = useLocation();
   
-  useEffect(() => {
-    console.log('RouteComponent Debug:', {
-      path,
-      currentLocation: location.pathname,
-      showHeaderFooter,
-      isSpecial
-    });
-  }, [path, location.pathname, showHeaderFooter, isSpecial]);
+  // Route debugging effect removed to reduce console noise
 
   // Finde die passende Route
   let route;
   if (!showHeaderFooter) {
     route = routes.noHeaderFooter.find(r => r.path === path);
-    console.log('No-Header-Footer Route gefunden:', route);
+    // No-Header-Footer Route found
   } else {
     route = isSpecial 
       ? routes.special.find(r => r.path === path)
@@ -36,7 +29,9 @@ const RouteComponent = ({
   }
 
   if (!route) {
-    console.warn('Keine Route gefunden für:', path);
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('Keine Route gefunden für:', path);
+    }
     return null;
   }
 
@@ -44,7 +39,7 @@ const RouteComponent = ({
   // Überprüfen, ob es sich um die CollabEditor-Route handelt
   // Der genaue Pfadstring muss mit dem in routes.js übereinstimmen
   if (route.path === '/editor/collab/:documentId') {
-    console.log('[RouteComponent] Umgehe useRouteCache für CollabEditorPage');
+    // Bypassing useRouteCache for CollabEditorPage
     ComponentToRender = route.component; // Direkt die lazy Komponente verwenden
   } else {
     ComponentToRender = useRouteCache(route.component);

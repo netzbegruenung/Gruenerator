@@ -61,10 +61,134 @@ export const TAB_INDEX_CONFIG = {
     submit: 15
   },
 
-  // Profile Page
+  // Profile Page - Main navigation
   PROFILE: {
     tabsStart: 10,
-    contentStart: 15
+    contentStart: 15,
+    // Tab navigation buttons
+    profileTab: 10,
+    intelligenceTab: 11,
+    documentsTab: 12,
+    groupsTab: 13,
+    generatorsTab: 14,
+    laborTab: 15
+  },
+
+  // Profile Page - ProfileInfoTab
+  PROFILE_INFO: {
+    avatarButton: 20,
+    emailInput: 21,
+    firstNameInput: 22,
+    lastNameInput: 23,
+    hedgehogToggle: 24,
+    deleteAccountButton: 25,
+    // Delete account form (conditional)
+    deletePasswordInput: 26,
+    deleteConfirmButton: 27,
+    deleteCancelButton: 28,
+    // Avatar modal (conditional)
+    avatarOption: 30, // Base for dynamic avatar options
+    avatarModalClose: 40
+  },
+
+  // Profile Page - GroupsManagementTab
+  PROFILE_GROUPS: {
+    // Navigation
+    overviewButton: 20,
+    createGroupButton: 21,
+    // Overview state
+    groupCard: 25, // Base for dynamic group cards
+    // Create group form
+    groupNameInput: 30,
+    createSubmitButton: 31,
+    createCancelButton: 32,
+    // Group detail view
+    groupDetailTabs: 35,
+    groupNameEdit: 36,
+    groupDescEdit: 37,
+    deleteGroupButton: 38,
+    copyLinkButton: 39,
+    // Group settings form
+    instructionTextarea: 40,
+    platformSelector: 41,
+    knowledgeSelector: 42,
+    addKnowledgeButton: 43,
+    removeKnowledgeButton: 44,
+    saveButton: 45
+  },
+
+  // Profile Page - IntelligenceTab
+  PROFILE_INTELLIGENCE: {
+    // Vertical navigation
+    generalTab: 20,
+    pressTab: 21,
+    antragTab: 22,
+    jugendTab: 23,
+    memoryTab: 24,
+    // Instruction textareas
+    instructionTextarea: 30, // Base for all instruction textareas
+    // Knowledge management
+    addKnowledgeButton: 35,
+    removeKnowledgeButton: 36,
+    knowledgeSelector: 37,
+    // Memory section (conditional)
+    memoryToggle: 40,
+    deleteAllMemoryButton: 41,
+    addMemoryButton: 42,
+    memoryInput: 43,
+    memoryTagInput: 44,
+    saveMemoryButton: 45,
+    cancelMemoryButton: 46,
+    deleteMemoryButton: 47 // Base for individual memory delete buttons
+  },
+
+  // Profile Page - DocumentsTab
+  PROFILE_DOCUMENTS: {
+    // Vertical navigation
+    documentsTab: 20,
+    qaTab: 21,
+    // Document overview
+    addContentButton: 25,
+    searchInput: 26,
+    filterSelect: 27,
+    documentCard: 30, // Base for document cards
+    editButton: 31,
+    deleteButton: 32,
+    shareButton: 33,
+    templateButton: 34,
+    // Q&A creator
+    qaQuestionInput: 40,
+    qaAnswerTextarea: 41,
+    qaSourceInput: 42,
+    qaSaveButton: 43,
+    qaCancelButton: 44,
+    // Modals (conditional)
+    modalInput: 50,
+    modalButton: 51,
+    modalClose: 52
+  },
+
+  // Profile Page - CustomGeneratorsTab
+  PROFILE_GENERATORS: {
+    // Navigation
+    overviewButton: 20,
+    createNewLink: 21,
+    generatorNavButton: 25, // Base for dynamic generator nav buttons
+    // Generator overview
+    generatorCard: 30, // Base for generator cards
+    openButton: 31,
+    deleteButton: 32,
+    // Generator detail
+    manageDocsButton: 35,
+    documentSelector: 36,
+    removeDocButton: 37,
+    backButton: 38
+  },
+
+  // Profile Page - LaborTab
+  PROFILE_LABOR: {
+    featureToggle: 20, // Base for all feature toggles
+    featureLink: 30 // Base for feature links when enabled
   },
 
   // Home Page
@@ -131,6 +255,12 @@ export const {
   GRUENE_JUGEND,
   UNIVERSAL,
   PROFILE,
+  PROFILE_INFO,
+  PROFILE_GROUPS,
+  PROFILE_INTELLIGENCE,
+  PROFILE_DOCUMENTS,
+  PROFILE_GENERATORS,
+  PROFILE_LABOR,
   HOME
 } = TAB_INDEX_CONFIG;
 

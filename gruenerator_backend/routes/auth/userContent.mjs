@@ -22,7 +22,7 @@ router.get('/anweisungen-wissen', ensureAuthenticated, async (req, res) => {
     // Fetch profile prompts
     const { data: profileData, error: profileErr } = await supabaseService
       .from('profiles')
-      .select('custom_antrag_prompt, custom_social_prompt, custom_universal_prompt, custom_gruenejugend_prompt, presseabbinder')
+      .select('custom_antrag_prompt, custom_antrag_gliederung, custom_social_prompt, custom_universal_prompt, custom_gruenejugend_prompt, presseabbinder')
       .eq('id', userId)
       .maybeSingle();
     if (profileErr) throw profileErr;
@@ -39,6 +39,7 @@ router.get('/anweisungen-wissen', ensureAuthenticated, async (req, res) => {
     res.json({
       success: true,
       antragPrompt: profileData?.custom_antrag_prompt || '',
+      antragGliederung: profileData?.custom_antrag_gliederung || '',
       socialPrompt: profileData?.custom_social_prompt || '',
       universalPrompt: profileData?.custom_universal_prompt || '',
       gruenejugendPrompt: profileData?.custom_gruenejugend_prompt || '',
@@ -60,7 +61,7 @@ router.get('/anweisungen-wissen', ensureAuthenticated, async (req, res) => {
 router.put('/anweisungen-wissen', ensureAuthenticated, async (req, res) => {
   try {
     const userId = req.user.id;
-    const { custom_antrag_prompt, custom_social_prompt, custom_universal_prompt, custom_gruenejugend_prompt, presseabbinder, knowledge = [] } = req.body || {};
+    const { custom_antrag_prompt, custom_antrag_gliederung, custom_social_prompt, custom_universal_prompt, custom_gruenejugend_prompt, presseabbinder, knowledge = [] } = req.body || {};
     console.log('[User Content /anweisungen-wissen PUT] Incoming request body for user:', userId);
     console.log(JSON.stringify(req.body, null, 2));
 
@@ -69,6 +70,7 @@ router.put('/anweisungen-wissen', ensureAuthenticated, async (req, res) => {
       id: userId,
       updated_at: new Date().toISOString(),
       custom_antrag_prompt: custom_antrag_prompt ?? null,
+      custom_antrag_gliederung: custom_antrag_gliederung ?? null,
       custom_social_prompt: custom_social_prompt ?? null,
       custom_universal_prompt: custom_universal_prompt ?? null,
       custom_gruenejugend_prompt: custom_gruenejugend_prompt ?? null,

@@ -12,6 +12,9 @@ import GroupMembersList from './GroupMembersList';
 import SharedContentSelector from '../../../../features/groups/components/SharedContentSelector';
 import { useInstructionsUiStore } from '../../../../stores/auth/instructionsUiStore';
 import { motion } from "motion/react";
+import { useTabIndex } from '../../../../hooks/useTabIndex';
+import { useModalFocus, useRovingTabindex } from '../../../../hooks/useKeyboardNavigation';
+import { announceToScreenReader, createInlineEditorFocus } from '../../../../utils/focusManagement';
 
 // Helper function moved to groupsUtils.js
 
@@ -28,6 +31,9 @@ const GroupDetailView = ({
     const [editedGroupName, setEditedGroupName] = useState('');
     const [isEditingDescription, setIsEditingDescription] = useState(false);
     const [editedGroupDescription, setEditedGroupDescription] = useState('');
+    
+    // Tab index configuration
+    const tabIndex = useTabIndex('PROFILE_GROUPS');
     
     // Auto-save refs and state
     const isInitialized = useRef(false);
@@ -331,6 +337,8 @@ const GroupDetailView = ({
                                             if (e.key === 'Escape') cancelEditingName();
                                         }}
                                         autoFocus
+                                        tabIndex={tabIndex.groupNameEdit}
+                                        aria-label="Gruppenname bearbeiten"
                                     />
                                     <div className="group-name-edit-actions">
                                         <button
@@ -360,6 +368,8 @@ const GroupDetailView = ({
                                             className="group-name-edit-icon"
                                             title="Gruppenname bearbeiten"
                                             disabled={isUpdatingGroupName}
+                                            tabIndex={tabIndex.groupNameEdit}
+                                            aria-label="Gruppenname bearbeiten"
                                         >
                                             <HiPencil />
                                         </button>
@@ -382,6 +392,7 @@ const GroupDetailView = ({
                             message="Die gesamte Gruppe wird für alle Mitglieder unwiderruflich gelöscht. Alle Gruppeninhalte und -mitgliedschaften werden permanent entfernt."
                             confirmText="Endgültig löschen"
                             cancelText="Abbrechen"
+                            tabIndex={tabIndex.deleteGroupButton}
                         />
                     )}
                 </div>
@@ -403,6 +414,8 @@ const GroupDetailView = ({
                                     type="button"
                                     title="Einladungslink kopieren"
                                     disabled={!joinToken}
+                                    tabIndex={tabIndex.copyLinkButton}
+                                    aria-label={joinLinkCopied ? 'Link wurde kopiert' : 'Einladungslink kopieren'}
                                 >
                                     {joinLinkCopied ? (
                                         'Kopiert!'
@@ -749,6 +762,9 @@ const GroupsManagementTab = ({ onSuccessMessage, onErrorMessage, isActive }) => 
     const [selectedGroupId, setSelectedGroupId] = useState(null);
     const [groupDetailView, setGroupDetailView] = useState('anweisungen-wissen');
     
+    // Tab index configuration
+    const tabIndex = useTabIndex('PROFILE_GROUPS');
+    
     // React Hook Form setup for create group form
     const createGroupFormMethods = useForm({
         defaultValues: {
@@ -851,14 +867,27 @@ const GroupsManagementTab = ({ onSuccessMessage, onErrorMessage, isActive }) => 
     };
 
     // Handle switching between main tabs
-    const handleTabClick = (view) => {
+    const handleTabClick = useCallback((view) => {
         setCurrentView(view);
         if (view === 'overview') {
             setSelectedGroupId(null);
         }
         onSuccessMessage('');
         onErrorMessage('');
-    };
+        announceToScreenReader(`${view === 'overview' ? 'Übersicht' : view} ausgewählt`);
+    }, [onSuccessMessage, onErrorMessage]);
+    
+    // Navigation items for roving tabindex
+    const navigationItems = [
+        'overview',
+        ...(userGroups ? userGroups.map(g => `group-${g.id}`) : [])
+    ];
+    
+    // Roving tabindex for navigation
+    const { getItemProps } = useRovingTabindex({
+        items: navigationItems,
+        defaultActiveItem: currentView === 'overview' ? 'overview' : `group-${selectedGroupId}`
+    });
 
     // Render Overview Tab
     const renderOverviewTab = () => (
@@ -942,6 +971,8 @@ const GroupsManagementTab = ({ onSuccessMessage, onErrorMessage, isActive }) => 
                                     onClick={handleCreateNew}
                                     className="btn-primary size-m"
                                     disabled={isCreatingGroup}
+                                    tabIndex={tabIndex.createGroupButton}
+                                    aria-label="Neue Gruppe erstellen"
                                 >
                                     <HiPlus className="icon" /> {isCreatingGroup ? 'Wird erstellt...' : 'Neue Gruppe erstellen'}
                                 </button>
@@ -956,10 +987,20 @@ const GroupsManagementTab = ({ onSuccessMessage, onErrorMessage, isActive }) => 
     // Render Navigation Panel with dynamic group tabs
     const renderNavigationPanel = () => (
         <div className="groups-navigation-panel">
-            <div className="groups-vertical-navigation">
+            <div 
+                className="groups-vertical-navigation"
+                role="tablist"
+                aria-label="Gruppen Navigation"
+                aria-orientation="vertical"
+            >
                 <button
+                    {...getItemProps('overview')}
                     className={`groups-vertical-tab ${currentView === 'overview' ? 'active' : ''}`}
                     onClick={() => handleTabClick('overview')}
+                    role="tab"
+                    aria-selected={currentView === 'overview'}
+                    aria-controls="overview-panel"
+                    id="overview-tab"
                 >
                     Übersicht
                 </button>
@@ -968,8 +1009,14 @@ const GroupsManagementTab = ({ onSuccessMessage, onErrorMessage, isActive }) => 
                 {userGroups && userGroups.map(group => (
                     <button
                         key={group.id}
+                        {...getItemProps(`group-${group.id}`)}
                         className={`groups-vertical-tab ${selectedGroupId === group.id ? 'active' : ''}`}
                         onClick={() => handleSelectGroup(group.id)}
+                        role="tab"
+                        aria-selected={selectedGroupId === group.id}
+                        aria-controls={`group-${group.id}-panel`}
+                        id={`group-${group.id}-tab`}
+                        aria-label={`Gruppe ${group.name} ${group.isAdmin ? '(Admin)' : '(Mitglied)'}`}
                     >
                         <div className="group-tab-content">
                             <div className="group-tab-avatar">
@@ -1023,6 +1070,7 @@ const GroupsManagementTab = ({ onSuccessMessage, onErrorMessage, isActive }) => 
                                         }}
                                         disabled={isCreatingGroup}
                                         control={createGroupControl}
+                                        tabIndex={tabIndex.groupNameInput}
                                     />
                                 </div>
                             </div>
@@ -1031,6 +1079,7 @@ const GroupsManagementTab = ({ onSuccessMessage, onErrorMessage, isActive }) => 
                                     type="submit" 
                                     className="profile-action-button profile-primary-button"
                                     disabled={isCreatingGroup || !getCreateGroupValues().groupName?.trim()}
+                                    tabIndex={tabIndex.createSubmitButton}
                                 >
                                     {isCreatingGroup ? <Spinner size="small" /> : 'Gruppe erstellen'}
                                 </button>
@@ -1039,6 +1088,7 @@ const GroupsManagementTab = ({ onSuccessMessage, onErrorMessage, isActive }) => 
                                     onClick={handleCancelCreate}
                                     className="profile-action-button"
                                     disabled={isCreatingGroup}
+                                    tabIndex={tabIndex.createCancelButton}
                                 >
                                     Abbrechen
                                 </button>
@@ -1064,22 +1114,34 @@ const GroupsManagementTab = ({ onSuccessMessage, onErrorMessage, isActive }) => 
             return (
                 <>
                     {/* Top horizontal navigation for group sub-tabs - outside auth-form */}
-                    <div className="groups-horizontal-navigation">
+                    <div className="groups-horizontal-navigation" role="tablist">
                         <button
                             className={`groups-vertical-tab ${groupDetailView === 'gruppeninfo' ? 'active' : ''}`}
                             onClick={() => setGroupDetailView('gruppeninfo')}
+                            tabIndex={tabIndex.groupDetailTabs}
+                            role="tab"
+                            aria-selected={groupDetailView === 'gruppeninfo'}
+                            aria-controls="gruppeninfo-panel"
                         >
                             Gruppeninfo
                         </button>
                         <button
                             className={`groups-vertical-tab ${groupDetailView === 'anweisungen-wissen' ? 'active' : ''}`}
                             onClick={() => setGroupDetailView('anweisungen-wissen')}
+                            tabIndex={tabIndex.groupDetailTabs + 1}
+                            role="tab"
+                            aria-selected={groupDetailView === 'anweisungen-wissen'}
+                            aria-controls="anweisungen-wissen-panel"
                         >
                             Anweisungen & Wissen
                         </button>
                         <button
                             className={`groups-vertical-tab ${groupDetailView === 'shared' ? 'active' : ''}`}
                             onClick={() => setGroupDetailView('shared')}
+                            tabIndex={tabIndex.groupDetailTabs + 2}
+                            role="tab"
+                            aria-selected={groupDetailView === 'shared'}
+                            aria-controls="shared-panel"
                         >
                             Geteilte Inhalte & Vorlagen
                         </button>

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { useForm } from 'react-hook-form';
 import BaseForm from '../../../components/common/BaseForm';
@@ -16,6 +16,25 @@ import useKnowledge from '../../../components/hooks/useKnowledge';
 import { useTabIndex, useBaseFormTabIndex } from '../../../hooks/useTabIndex';
 import AntragSavePopup from './components/AntragSavePopup';
 import { saveAntrag } from './antragSaveUtils';
+import FormSelect from '../../../components/common/Form/Input/FormSelect';
+
+const REQUEST_TYPES = {
+  ANTRAG: 'antrag',
+  KLEINE_ANFRAGE: 'kleine_anfrage',
+  GROSSE_ANFRAGE: 'grosse_anfrage'
+};
+
+const REQUEST_TYPE_LABELS = {
+  [REQUEST_TYPES.ANTRAG]: 'Antrag',
+  [REQUEST_TYPES.KLEINE_ANFRAGE]: 'Kleine Anfrage',
+  [REQUEST_TYPES.GROSSE_ANFRAGE]: 'Große Anfrage'
+};
+
+const REQUEST_TYPE_TITLES = {
+  [REQUEST_TYPES.ANTRAG]: 'Grünerator für Anträge',
+  [REQUEST_TYPES.KLEINE_ANFRAGE]: 'Grünerator für Kleine Anfragen',
+  [REQUEST_TYPES.GROSSE_ANFRAGE]: 'Grünerator für Große Anfragen'
+};
 
 const AntragGenerator = ({ showHeaderFooter = true }) => {
   const componentName = 'antrag-generator';
@@ -46,6 +65,7 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
     formState: { errors }
   } = useForm({
     defaultValues: {
+      requestType: REQUEST_TYPES.ANTRAG,
       idee: '',
       details: '',
       gliederung: '',
@@ -54,6 +74,7 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
   });
 
   const watchUseWebSearch = watch('useWebSearchTool');
+  const watchRequestType = watch('requestType');
 
   const [antragContent, setAntragContent] = useState('');
   const [isSavePopupOpen, setIsSavePopupOpen] = useState(false);
@@ -73,6 +94,13 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
     groupData: groupDetailsData
   } = useGeneratorKnowledgeStore();
   
+  // Set default gliederung from user's profile when instructions are loaded
+  useEffect(() => {
+    if (instructions?.antragGliederung && source.type === 'user') {
+      setValue('gliederung', instructions.antragGliederung);
+    }
+  }, [instructions?.antragGliederung, source.type, setValue]);
+  
   // Create form notice
   const formNotice = createKnowledgeFormNotice({
     source,
@@ -89,6 +117,7 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
 
     try {
       const formDataToSubmit = {
+        requestType: rhfData.requestType,
         idee: rhfData.idee,
         details: rhfData.details,
         gliederung: rhfData.gliederung,
@@ -156,8 +185,9 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
     setIsSaving(true);
     
     try {
+      const requestTypeLabel = REQUEST_TYPE_LABELS[watch('requestType')] || 'Antrag';
       const payload = {
-        title: popupData.title || watch('idee') || 'Unbenannter Antrag',
+        title: popupData.title || `${requestTypeLabel}: ${watch('idee')}` || `Unbenannte ${requestTypeLabel}`,
         antragstext: storeGeneratedText || antragContent,
         gliederung: watch('gliederung') || '',
         ...popupData,
@@ -172,18 +202,32 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
 
 
   const helpContent = {
-    content: "Dieser Grünerator erstellt strukturierte Anträge für politische Gremien basierend auf deiner Idee und den Details.",
+    content: "Dieser Grünerator erstellt strukturierte Anträge und Anfragen für politische Gremien basierend auf deiner Idee und den Details.",
     tips: [
+      "Wähle die Art: Antrag, Kleine oder Große Anfrage",
+      "Kleine Anfragen: Präzise Fachinformationen punktuell abfragen",
+      "Große Anfragen: Umfassende politische Themen mit Debatte",
       "Formuliere deine Idee klar und präzise",
-      "Füge ausführliche Begründungen hinzu",
-      "Optional: Gib eine gewünschte Gliederung vor",
       "Nutze die Websuche für aktuelle Informationen",
-      "Speichere wichtige Anträge in der Datenbank"
+      "Speichere wichtige Dokumente in der Datenbank"
     ]
   };
 
+  const requestTypeOptions = Object.entries(REQUEST_TYPE_LABELS).map(([value, label]) => ({
+    value,
+    label
+  }));
+
   const renderFormInputs = () => (
     <>
+      <FormSelect
+        name="requestType"
+        control={control}
+        label="Art der Anfrage"
+        options={requestTypeOptions}
+        tabIndex={tabIndex.requestType || 1}
+      />
+
       <Input
         name="idee"
         control={control}
@@ -230,7 +274,7 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
     <ErrorBoundary>
       <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
         <BaseForm
-          title="Grünerator für Anträge"
+          title={REQUEST_TYPE_TITLES[watchRequestType] || REQUEST_TYPE_TITLES[REQUEST_TYPES.ANTRAG]}
           onSubmit={handleSubmit(onSubmitRHF)}
           loading={loading}
           success={success}
@@ -261,7 +305,7 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
           onConfirm={handleConfirmSave}
           isSaving={isSaving}
           antragstext={storeGeneratedText || antragContent}
-          initialData={{ title: watch('idee') }}
+          initialData={{ title: `${REQUEST_TYPE_LABELS[watch('requestType')] || 'Antrag'}: ${watch('idee')}` }}
         />
       </div>
     </ErrorBoundary>
