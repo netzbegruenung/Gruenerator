@@ -143,7 +143,7 @@ router.put('/anweisungen-wissen', ensureAuthenticated, async (req, res) => {
 
     res.json({ 
       success: true, 
-      message: 'Anweisungen & Wissen gespeichert' 
+      message: 'Profil gespeichert' 
     });
     
   } catch (error) {
