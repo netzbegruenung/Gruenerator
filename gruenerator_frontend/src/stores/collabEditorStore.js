@@ -52,11 +52,8 @@ const useCollabEditorStore = create((set, get) => ({
     const ytext = ydoc.getText('quill');
     const yChatHistory = ydoc.getArray('chatHistory');
     
-    // Get WebSocket URL from environment or use defaults based on environment
-    const websocketUrl = import.meta.env.VITE_YJS_WEBSOCKET_URL || 
-      (import.meta.env.VITE_APP_ENV === 'development' 
-        ? 'ws://localhost:1234' 
-        : 'wss://gruenerator.de/yjs');
+    // Get WebSocket URL from environment or use backup URL
+    const websocketUrl = import.meta.env.VITE_YJS_WEBSOCKET_URL || 'wss://gruenerator.de/yjs';
     
     if (!websocketUrl) {
       console.error('[CollabEditorStore] Failed to determine Y.js WebSocket URL');
