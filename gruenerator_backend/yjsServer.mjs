@@ -30,7 +30,7 @@ async function start() {
     // For now, we proceed assuming setupWSConnection might pick it up or that a similar mechanism is in place.
   }
 
-  const host = process.env.HOST || '127.0.0.1'
+  const host = process.env.HOST || 'localhost'
   const port = process.env.YJS_PORT || 1234
 
   const server = http.createServer((req, res) => {
