@@ -195,6 +195,8 @@ const PlatformSelector = ({
               menuShouldScrollIntoView={false}
               tabIndex={tabIndex}
               noOptionsMessage={() => 'Keine Optionen verfügbar'}
+              menuPortalTarget={document.body}
+              menuPosition="fixed"
               {...rest}
             />
           </div>

@@ -141,7 +141,7 @@ const KnowledgeSelector = ({
     if (value === 'neutral') {
       setSource({ type: 'neutral', id: null, name: null });
     } else if (value === 'user') {
-      setSource({ type: 'user', id: null, name: 'Meine Anweisungen & Wissen' });
+      setSource({ type: 'user', id: null, name: 'Mein Profil' });
     } else if (value.startsWith('group-')) {
       const groupId = value.substring("group-".length);
       const selectedGroup = groups.find(g => g.id === groupId);
@@ -163,7 +163,7 @@ const KnowledgeSelector = ({
   const sourceOptions = useMemo(() => {
     const baseOptions = [
       { value: 'neutral', label: 'Neutral' },
-      { value: 'user', label: 'Meine Anweisungen & Wissen' }
+      { value: 'user', label: 'Mein Profil' }
     ];
 
     const loadingOptions = [];
@@ -180,7 +180,7 @@ const KnowledgeSelector = ({
     const groupOptions = (groups && !isLoadingGroups && !groupsError) 
       ? groups.map(group => ({
           value: `group-${group.id}`,
-          label: `${group.name} Anweisungen & Wissen`
+          label: `${group.name} Profil`
         }))
       : [];
 
@@ -422,7 +422,7 @@ const KnowledgeSelector = ({
   const [userInteracted, setUserInteracted] = React.useState(false);
 
   // Sync documents from documents store to knowledge store
-  // Only sync documents when "Meine Anweisungen & Wissen" is selected
+  // Only sync documents when "Mein Profil" is selected
   const { documents: documentsStoreData } = useDocumentsStore();
   React.useEffect(() => {
     if (enableDocuments && source.type === 'user' && documentsStoreData !== null) {
@@ -435,7 +435,7 @@ const KnowledgeSelector = ({
     }
   }, [enableDocuments, source.type, documentsStoreData, setAvailableDocuments]);
 
-  // Fetch texts when "Meine Anweisungen & Wissen" is selected and text selection is enabled
+  // Fetch texts when "Mein Profil" is selected and text selection is enabled
   React.useEffect(() => {
     if (enableTexts && source.type === 'user') {
       fetchTexts();
@@ -446,6 +446,11 @@ const KnowledgeSelector = ({
 
   // Note: Selection state is now managed by the store, no local state reset needed
 
+  // Hide component if user is not authenticated
+  if (!user) {
+    return null;
+  }
+  
   // Only hide component if no functionality is enabled 
   const hasAnyFeatureEnabled = enableSourceSelection || enableKnowledge || enableDocuments || enableTexts;
   
@@ -460,7 +465,7 @@ const KnowledgeSelector = ({
         <div className="knowledge-selector__source">
           <FormSelect
             name="knowledge-source"
-            label="Anweisungen & Wissensquelle"
+            label="Profil auswählen"
             options={sourceOptions}
             value={getCurrentSourceValue()}
             onChange={handleSourceChange}

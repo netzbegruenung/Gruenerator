@@ -1133,7 +1133,7 @@ const GroupsManagementTab = ({ onSuccessMessage, onErrorMessage, isActive }) => 
                             aria-selected={groupDetailView === 'anweisungen-wissen'}
                             aria-controls="anweisungen-wissen-panel"
                         >
-                            Anweisungen & Wissen
+                            Profil auswählen
                         </button>
                         <button
                             className={`groups-vertical-tab ${groupDetailView === 'shared' ? 'active' : ''}`}
