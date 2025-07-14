@@ -82,12 +82,12 @@ const LaborTab = ({
         };
       case BETA_VIEWS.ANWEISUNGEN:
         return {
-          title: 'Anweisungen & Wissen',
+          title: 'Profil auswählen',
           description: 'Verwalte persönliche Anweisungen und Wissensbausteine für die KI.',
           checked: getBetaFeatureState('anweisungen'),
           setter: (value) => updateUserBetaFeatures('anweisungen', value),
-          featureName: 'Anweisungen & Wissen',
-          checkboxLabel: '\'Anweisungen & Wissen\'-Tab anzeigen und Funktionalität aktivieren',
+          featureName: 'Profil auswählen',
+          checkboxLabel: '\'Profil auswählen\'-Tab anzeigen und Funktionalität aktivieren',
           icon: HiOutlineAcademicCap
         };
       case BETA_VIEWS.YOU:

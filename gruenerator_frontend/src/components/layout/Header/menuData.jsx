@@ -63,6 +63,13 @@ export const getMenuItems = (betaFeatures = {}) => {
           title: 'Grüne Jugend',
           description: 'Der Grünerator in jung',
           icon: GiHedgehog
+        },
+        {
+          id: 'reel',
+          path: '/reel',
+          title: 'Reel',
+          description: 'Erstelle Reels für Social Media',
+          icon: PiVideoCamera
         }
       ]
     }
@@ -114,14 +121,6 @@ export const getMenuItems = (betaFeatures = {}) => {
     });
   }
 
-  // Vector Search Test - always available for testing
-  laborItems.push({
-    id: 'vector-search-test',
-    path: '/vector-search-test',
-    title: 'Vektor-Suche Test',
-    description: 'Teste die neue semantische Dokumentensuche',
-    icon: PiRobot
-  });
 
   if (laborItems.length > 0) {
     return {
@@ -180,4 +179,35 @@ export const handleMenuInteraction = (event, type, callback) => {
     event.preventDefault();
     callback();
   }
+};
+
+// Icon-Export-Funktion für konsistente Icon-Verwendung
+export const getIconById = (id) => {
+  const iconMap = {
+    'antrag': PiFileText,
+    'presse-social': PiNewspaper,
+    'universal': PiMagicWand,
+    'gruene-jugend': GiHedgehog,
+    'reel': PiVideoCamera,
+    'suche': PiMagnifyingGlass,
+    'sharepic': PiImageSquare,
+    'datenbank': PiArchive,
+    'you': PiUser,
+    'profile': PiUser
+  };
+  return iconMap[id];
+};
+
+// Alle Icons als Objekt exportieren
+export const MENU_ICONS = {
+  antrag: PiFileText,
+  'presse-social': PiNewspaper,
+  universal: PiMagicWand,
+  'gruene-jugend': GiHedgehog,
+  reel: PiVideoCamera,
+  suche: PiMagnifyingGlass,
+  sharepic: PiImageSquare,
+  datenbank: PiArchive,
+  you: PiUser,
+  profile: PiUser
 }; 
