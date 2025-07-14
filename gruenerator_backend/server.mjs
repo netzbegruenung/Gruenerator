@@ -253,6 +253,9 @@ if (cluster.isMaster) {
           // Weiterhin lokale Entwicklungs-URLs
           "http://localhost:*",
           "http://127.0.0.1:*",
+          // WebSocket connections for Y.js collaborative editing
+          "ws://localhost:*",
+          "ws://127.0.0.1:*",
           // Falls *.netzbegruenung* genutzt wird
           "http://*.netzbegruenung.verdigado.net",
           "https://*.netzbegruenung.verdigado.net",
