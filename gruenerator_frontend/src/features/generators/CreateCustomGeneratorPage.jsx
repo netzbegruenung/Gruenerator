@@ -15,8 +15,9 @@ import GeneratorStartScreen from './components/GeneratorStartScreen';
 import GeneratorCreationSuccessScreen from './components/GeneratorCreationSuccessScreen';
 import { useOptimizedAuth } from '../../hooks/useAuth';
 import InlineValidationMessage from '../../components/common/UI/InlineValidationMessage';
-import DocumentUpload from '../../components/common/DocumentUpload';
-import DocumentSelector from './components/DocumentSelector';
+// TODO: Document upload and association feature incomplete - needs proper validation, error handling, and backend sync
+// import DocumentUpload from '../../components/common/DocumentUpload';
+// import DocumentSelector from './components/DocumentSelector';
 import '../../assets/styles/components/custom-generator/custom-generator-page.css';
 
 // Auth Backend URL aus Environment Variable oder Fallback zu aktuellem Host
@@ -360,6 +361,8 @@ const CreateCustomGeneratorPage = ({ showHeaderFooter = true }) => {
         throw new Error(result.message || 'Fehler beim Speichern des Generators.');
       }
       
+      // TODO: Document upload and association feature incomplete - needs proper validation, error handling, and backend sync
+      /*
       // If generator was created successfully and has documents, associate them
       if (result.generator && formValues.documents && formValues.documents.length > 0) {
         try {
@@ -371,6 +374,7 @@ const CreateCustomGeneratorPage = ({ showHeaderFooter = true }) => {
           // Don't fail the whole process if document association fails
         }
       }
+      */
       
       setCompletionData({ name: dataToSave.name, slug: dataToSave.slug });
     } catch (err) {
@@ -494,6 +498,8 @@ const CreateCustomGeneratorPage = ({ showHeaderFooter = true }) => {
           </>
         );
 
+      // TODO: Document upload and association feature incomplete - needs proper validation, error handling, and backend sync
+      /*
       case STEPS.DOCUMENTS:
         const currentDocuments = getValues('documents');
         return (
@@ -515,6 +521,7 @@ const CreateCustomGeneratorPage = ({ showHeaderFooter = true }) => {
             />
           </>
         );
+      */
 
       case STEPS.PROMPT:
         return (
@@ -570,6 +577,8 @@ const CreateCustomGeneratorPage = ({ showHeaderFooter = true }) => {
                   <p>Keine Felder definiert.</p>
                 )}
               </div>
+              {/* TODO: Document upload and association feature incomplete - needs proper validation, error handling, and backend sync */}
+              {/*
               <div className="review-section">
                 <h4>Dokumente</h4>
                 {reviewFormValues.documents && reviewFormValues.documents.length > 0 ? (
@@ -587,6 +596,7 @@ const CreateCustomGeneratorPage = ({ showHeaderFooter = true }) => {
                   <p>Keine Dokumente ausgewählt. Der Generator wird ohne Wissensquelle arbeiten.</p>
                 )}
               </div>
+              */}
               <div className="review-section">
                 <h4>Prompt</h4>
                 <pre className="review-prompt-display">{finalPromptReview}</pre>

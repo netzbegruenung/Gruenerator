@@ -6,7 +6,8 @@ import { handleError } from '../../../../components/utils/errorHandling';
 import { HiInformationCircle, HiPlus, HiTrash, HiArrowRight } from 'react-icons/hi';
 import { useOptimizedAuth } from '../../../../hooks/useAuth';
 import HelpTooltip from '../../../../components/common/HelpTooltip';
-import DocumentSelector from '../../../generators/components/DocumentSelector';
+// TODO: Document integration not yet complete - missing backend API integration and proper error handling
+// import DocumentSelector from '../../../generators/components/DocumentSelector';
 import { useCustomGenerators, useGeneratorDocuments, useAvailableDocuments } from '../../hooks/useProfileData';
 import { useTabIndex } from '../../../../hooks/useTabIndex';
 import { useRovingTabindex } from '../../../../hooks/useKeyboardNavigation';
@@ -404,91 +405,8 @@ const CustomGeneratorsTab = ({ user, onSuccessMessage, onErrorMessage, isActive 
               )}
             </div>
 
-            <hr className="form-divider-large" />
-
-            {/* Documents Section */}
-            <div className="generator-documents-section">
-              <div className="section-header">
-                <h4>Wissensquellen</h4>
-                <button
-                  type="button"
-                  onClick={() => setShowDocumentManagement(!showDocumentManagement)}
-                  className="btn-secondary size-s"
-                  disabled={documentsQuery.isLoading || isAddingDocuments}
-                  tabIndex={tabIndex.manageDocsButton}
-                  aria-label={showDocumentManagement ? 'Dokumentenverwaltung schließen' : 'Dokumentenverwaltung öffnen'}
-                  aria-expanded={showDocumentManagement}
-                >
-                  {showDocumentManagement ? 'Schließen' : 'Dokumente verwalten'}
-                </button>
-              </div>
-
-              {/* Current Documents Display */}
-              {documentsQuery.isLoading ? (
-                <div className="documents-loading">
-                  <Spinner size="small" />
-                  <span>Dokumente laden...</span>
-                </div>
-              ) : generatorDocuments.length > 0 ? (
-                <div className="current-documents">
-                  <p className="documents-description">
-                    Dieser Generator hat Zugang zu <strong>{generatorDocuments.length}</strong> Dokument(en) als Wissensquelle:
-                  </p>
-                  <div className="documents-list">
-                    {generatorDocuments.map((document) => (
-                      <div key={document.id} className="document-item">
-                        <div className="document-info">
-                          <div className="document-title">
-                            <strong>{document.title}</strong>
-                          </div>
-                          <div className="document-meta">
-                            <span>{document.page_count} Seiten</span>
-                            <span>{document.filename}</span>
-                            <span>Hinzugefügt: {new Date(document.added_to_generator_at).toLocaleDateString('de-DE')}</span>
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveDocument(document.id, document.title)}
-                          className="remove-document-btn"
-                          disabled={isRemovingDocument}
-                          title="Dokument entfernen"
-                          tabIndex={tabIndex.removeDocButton + generatorDocuments.indexOf(document)}
-                          aria-label={`Dokument ${document.title} entfernen`}
-                        >
-                          <HiTrash />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <div className="no-documents">
-                  <p>Dieser Generator hat noch keine Wissensquellen. Fügen Sie Dokumente hinzu, damit Claude auf spezifische Inhalte zugreifen und diese zitieren kann.</p>
-                </div>
-              )}
-
-              {/* Document Management Interface */}
-              {showDocumentManagement && (
-                <div className="document-management">
-                  <h5>Dokumente hinzufügen</h5>
-                  <DocumentSelector 
-                    availableDocuments={availableDocuments || []}
-                    selectedDocuments={generatorDocuments}
-                    onDocumentsChange={(documents) => {
-                      // Filter out already associated documents and add only new ones
-                      const newDocuments = documents.filter(doc => 
-                        !generatorDocuments.find(gd => gd.id === doc.id)
-                      );
-                      if (newDocuments.length > 0) {
-                        handleAddDocuments(selectedGeneratorId, newDocuments);
-                      }
-                    }}
-                    tabIndex={tabIndex.documentSelector}
-                  />
-                </div>
-              )}
-            </div>
+            {/* TODO: Document integration not yet complete - missing backend API integration and proper error handling */}
+            
           </div>
         </motion.div>
       );
