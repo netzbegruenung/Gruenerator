@@ -13,6 +13,7 @@ const BETA_FEATURES_CONFIG = [
   { key: 'groups', label: 'Gruppen', isAdminOnly: false },
   { key: 'database', label: 'Datenbank', isAdminOnly: true },
   { key: 'customGenerators', label: 'Grüneratoren', isAdminOnly: false },
+  { key: 'qa', label: 'Q&A Sammlungen', isAdminOnly: false },
 ];
 
 // Dynamically generated arrays from config

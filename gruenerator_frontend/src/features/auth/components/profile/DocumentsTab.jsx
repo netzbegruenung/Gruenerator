@@ -14,6 +14,7 @@ import { useQACollections, useUserTexts, useUserTemplates } from '../../hooks/us
 import { useTabIndex } from '../../../../hooks/useTabIndex';
 import { useVerticalTabNavigation, useModalFocus } from '../../../../hooks/useKeyboardNavigation';
 import { announceToScreenReader } from '../../../../utils/focusManagement';
+import { useBetaFeatures } from '../../../../hooks/useBetaFeatures';
 
 // Memoized DocumentUpload wrapper to prevent re-renders
 const MemoizedDocumentUpload = memo(({ onUploadComplete, onDeleteComplete, showDocumentsList = true, showTitle = true, forceShowUploadForm = false, showAsModal = false }) => {
@@ -55,6 +56,10 @@ const DocumentsTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
     
     // MeineTexte functionality
     const { user, isAuthenticated } = useOptimizedAuth();
+    
+    // Beta features
+    const { getBetaFeatureState } = useBetaFeatures();
+    const isQAEnabled = getBetaFeatureState('qa');
     
     const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
     
@@ -142,7 +147,14 @@ const DocumentsTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
     }, [onErrorMessage]);
     
     // Available navigation tabs
-    const availableViews = ['documents', 'texts', 'qa', 'templates'];
+    const availableViews = ['documents', 'texts', ...(isQAEnabled ? ['qa'] : []), 'templates'];
+    
+    // Ensure current view is valid when Q&A feature state changes
+    useEffect(() => {
+        if (currentView === 'qa' && !isQAEnabled) {
+            setCurrentView('documents');
+        }
+    }, [isQAEnabled, currentView]);
     
     // Vertical tab navigation setup
     const {
@@ -281,18 +293,20 @@ const DocumentsTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                 >
                     Meine Texte
                 </button>
-                <button
-                    ref={(ref) => registerItemRef('qa', ref)}
-                    className={`profile-vertical-tab ${currentView === 'qa' ? 'active' : ''}`}
-                    onClick={() => handleTabClick('qa')}
-                    tabIndex={getTabIndex('qa')}
-                    role="tab"
-                    aria-selected={ariaSelected('qa')}
-                    aria-controls="qa-panel"
-                    id="qa-tab"
-                >
-                    Meine Q&As
-                </button>
+                {isQAEnabled && (
+                    <button
+                        ref={(ref) => registerItemRef('qa', ref)}
+                        className={`profile-vertical-tab ${currentView === 'qa' ? 'active' : ''}`}
+                        onClick={() => handleTabClick('qa')}
+                        tabIndex={getTabIndex('qa')}
+                        role="tab"
+                        aria-selected={ariaSelected('qa')}
+                        aria-controls="qa-panel"
+                        id="qa-tab"
+                    >
+                        Meine Q&As
+                    </button>
+                )}
                 <button
                     ref={(ref) => registerItemRef('templates', ref)}
                     className={`profile-vertical-tab ${currentView === 'templates' ? 'active' : ''}`}
@@ -603,7 +617,7 @@ const DocumentsTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                             </div>
                         )}
 
-                        {currentView === 'qa' && (
+                        {currentView === 'qa' && isQAEnabled && (
                             <div
                                 role="tabpanel"
                                 id="qa-panel"
