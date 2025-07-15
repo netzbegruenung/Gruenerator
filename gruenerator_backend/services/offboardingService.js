@@ -108,17 +108,17 @@ class GrueneratorOffboarding {
     }
 
     try {
-      // Try to find user by email, username, or sherpa_id
-      // Adjust table name and columns according to your actual database schema
+      // Try to find user by email, username, keycloak_id, or sherpa_id
       const queries = [
         { column: 'email', value: user.email },
         { column: 'username', value: user.username },
-        { column: 'sherpa_id', value: user.sherpa_id }
+        { column: 'keycloak_id', value: user.sherpa_id }, // Map sherpa_id to keycloak_id
+        { column: 'sherpa_id', value: user.sherpa_id } // Also try direct sherpa_id if it exists
       ].filter(q => q.value); // Only query for fields that exist
 
       for (const query of queries) {
         const { data, error } = await this.supabase
-          .from('users') // Adjust table name
+          .from('profiles')
           .select('*')
           .eq(query.column, query.value)
           .single();
@@ -145,18 +145,27 @@ class GrueneratorOffboarding {
 
     try {
       // Delete user data from all relevant tables
-      // This is a simplified example - adjust according to your schema
-      
       // Delete from related tables first (foreign key constraints)
-      await this.supabase.from('user_sessions').delete().eq('user_id', userId);
-      await this.supabase.from('user_uploads').delete().eq('user_id', userId);
+      await this.supabase.from('group_memberships').delete().eq('user_id', userId);
       await this.supabase.from('user_sharepics').delete().eq('user_id', userId);
+      await this.supabase.from('user_uploads').delete().eq('user_id', userId);
+      await this.supabase.from('documents').delete().eq('user_id', userId);
       
-      // Finally delete the user
-      const { error } = await this.supabase
-        .from('users')
+      // Delete from profiles table
+      const { error: profileError } = await this.supabase
+        .from('profiles')
         .delete()
         .eq('id', userId);
+      
+      if (profileError) {
+        throw profileError;
+      }
+      
+      // Also delete from Supabase Auth
+      const { error: authError } = await this.supabase.auth.admin.deleteUser(userId);
+      if (authError) {
+        logger.warn(`Failed to delete auth user ${userId}: ${authError.message}`);
+      }
 
       if (error) {
         throw error;
@@ -178,19 +187,38 @@ class GrueneratorOffboarding {
     }
 
     try {
-      // Anonymize user data
-      const { error } = await this.supabase
-        .from('users')
+      // Anonymize user data in profiles table
+      const { error: profileError } = await this.supabase
+        .from('profiles')
         .update({
           email: `anonymized_${userId}@example.com`,
           username: `anonymized_${userId}`,
-          first_name: 'Anonymized',
-          last_name: 'User',
+          display_name: 'Anonymized User',
+          keycloak_id: null,
           sherpa_id: null,
           // Add other fields that need anonymization
           anonymized_at: new Date().toISOString()
         })
         .eq('id', userId);
+      
+      if (profileError) {
+        throw profileError;
+      }
+      
+      // Also anonymize in Supabase Auth
+      const { error: authError } = await this.supabase.auth.admin.updateUserById(userId, {
+        email: `anonymized_${userId}@example.com`,
+        user_metadata: {
+          name: 'Anonymized User',
+          username: `anonymized_${userId}`,
+          anonymized: true,
+          anonymized_at: new Date().toISOString()
+        }
+      });
+      
+      if (authError) {
+        logger.warn(`Failed to anonymize auth user ${userId}: ${authError.message}`);
+      }
 
       if (error) {
         throw error;

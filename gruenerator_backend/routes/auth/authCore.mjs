@@ -173,58 +173,7 @@ router.get('/status', async (req, res) => {
       console.log('[Auth Status] BEFORE auth user fetch - Session beta_features:', req.user?.beta_features);
       console.log('[Auth Status] BEFORE auth user fetch - Session user_metadata.beta_features:', req.user?.user_metadata?.beta_features);
       
-      let supabaseSession = req.user.supabaseSession;
-
-      const { data: authUser } = await supabaseService.auth.admin.getUserById(req.user.id);
-      
-      console.log('[Auth Status] Auth user metadata beta_features:', authUser?.user?.user_metadata?.beta_features);
-
-      if (authUser?.user?.user_metadata) {
-        // CRITICAL: Don't overwrite session beta_features with potentially stale auth metadata
-        const sessionBetaFeatures = req.user?.beta_features;
-        const authBetaFeatures = authUser.user.user_metadata.beta_features;
-        
-        req.user.user_metadata = authUser.user.user_metadata;
-        
-        // Preserve session beta_features if they exist (they're more up-to-date)
-        if (sessionBetaFeatures && Object.keys(sessionBetaFeatures).length > 0) {
-          console.log('[Auth Status] Preserving session beta_features over auth metadata');
-          req.user.user_metadata.beta_features = sessionBetaFeatures;
-        } else if (authBetaFeatures) {
-          console.log('[Auth Status] Using auth metadata beta_features (no session data)');
-          req.user.user_metadata.beta_features = authBetaFeatures;
-        }
-        
-        // Ensure memory_enabled is included in user metadata for frontend
-        if (req.user.user_metadata.memory_enabled === undefined) {
-          req.user.user_metadata.memory_enabled = false;
-        }
-      }
-      
-      console.log('[Auth Status] AFTER metadata merge - Final beta_features:', req.user?.beta_features);
-      console.log('[Auth Status] AFTER metadata merge - Final user_metadata.beta_features:', req.user?.user_metadata?.beta_features);
-
-      if (!supabaseSession || (supabaseSession.expires_at && supabaseSession.expires_at < Math.floor(Date.now() / 1000))) {
-        console.log('[Auth Status] Creating new Supabase session for user:', req.user.id);
-
-        if (authUser?.user) {
-          const { createSupabaseSessionForUser } = await import('../../config/passportSetup.mjs');
-          supabaseSession = await createSupabaseSessionForUser(authUser.user);
-
-          req.user.supabaseSession = supabaseSession;
-
-          if (req.session && req.session.passport) {
-            req.session.passport.user = req.user;
-            req.session.save((err) => {
-              if (err) {
-                console.warn('[Auth Status] Failed to persist Supabase session in express-session:', err.message);
-              } else {
-                console.log('[Auth Status] Supabase session persisted in express-session.');
-              }
-            });
-          }
-        }
-      }
+      console.log('[Auth Status] Using profile-only auth - no Supabase session needed');
 
       // Load user's groups if not already loaded and groups beta feature is enabled
       if (req.user && req.user.beta_features?.groups && !req.user.groups) {
@@ -260,15 +209,14 @@ router.get('/status', async (req, res) => {
       res.json({
         isAuthenticated: true,
         user: req.user,
-        supabaseSession: supabaseSession
+        supabaseSession: null
       });
     } catch (error) {
-      console.error('[Auth Status] Error creating Supabase session:', error);
+      console.error('[Auth Status] Error in auth status:', error);
       res.json({
         isAuthenticated: true,
         user: req.user,
-        supabaseSession: null,
-        supabaseError: 'Failed to create Supabase session'
+        supabaseSession: null
       });
     }
   } else {

@@ -27,7 +27,7 @@ const Home = () => {
               5000,
               'Social-Media-Post?',
               5000,
-              'Antrag für den Rat?',
+              'Antrag oder Anfrage?',
               5000,
               'Wahlprogramm-Kapitel?',
               5000,
@@ -48,7 +48,7 @@ const Home = () => {
         <div className="link-buttons-container">
           <div className="link-buttons primary-buttons">
             <Link to="/presse-social" aria-label="Zum Presse & Social Media Generator"><PresseIcon /> Presse & Social Media</Link>
-            <Link to="/antrag" aria-label="Zum Antragsgenerator"><AntragIcon /> Antrag</Link>
+            <Link to="/antrag" aria-label="Zu Anträge & Anfragen Generator"><AntragIcon /> Anträge & Anfragen</Link>
             <button 
               onClick={() => setShowMore(!showMore)} 
               className={`more-button ${showMore ? 'active' : ''}`}

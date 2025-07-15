@@ -183,7 +183,7 @@ async function handleUserProfile(profile, req = null) {
   }
 
   console.log('[handleUserProfile] Creating new user for identifier:', userIdentifier);
-  return await createUser({
+  return await createProfileUser({
     keycloak_id: keycloakId,
     email: email || null,
     name,
@@ -349,24 +349,57 @@ async function createUser(profileData) {
   }
 }
 
-// Update existing user
+// Create new user (profiles-only, no Supabase Auth)
+async function createProfileUser(profileData) {
+  try {
+    console.log('[createProfileUser] Creating profile-only user for:', profileData.email || profileData.username);
+    
+    // Generate UUID for new user (using built-in crypto)
+    const { randomUUID } = require('crypto');
+    const newUserId = randomUUID();
+    
+    const newProfileData = {
+      id: newUserId,
+      keycloak_id: profileData.keycloak_id,
+      username: profileData.username,
+      display_name: profileData.name,
+      email: profileData.email || null,
+      last_login: profileData.last_login,
+      // Default values
+      beta_features: {
+        memory_enabled: false // Default memory disabled for new users
+      }
+    };
+
+    const { data, error } = await supabaseService
+      .from('profiles')
+      .insert([newProfileData])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[createProfileUser] Error creating profile:', error);
+      throw new Error(`Failed to create profile: ${error.message}`);
+    }
+
+    console.log('[createProfileUser] Created profile:', data.id);
+    
+    // No Supabase Auth session creation - use only profile data
+    return data;
+  } catch (error) {
+    console.error('[createProfileUser] Error:', error);
+    throw new Error(`Failed to create profile user: ${error.message}`);
+  }
+}
+
+// Update existing user (profiles-only, no Supabase Auth)
 async function updateUser(userId, updates, authSource = null) {
   try {
-    // Update user metadata in Supabase Auth if auth_source is provided
+    console.log('[updateUser] Updating profile for user:', userId);
+    
+    // Add auth_source to updates if provided
     if (authSource) {
-      const { data: authUser } = await supabaseService.auth.admin.getUserById(userId);
-      if (authUser?.user) {
-        const updatedMetadata = {
-          ...authUser.user.user_metadata,
-          auth_source: authSource,
-        };
-        
-        await supabaseService.auth.admin.updateUserById(userId, {
-          user_metadata: updatedMetadata
-        });
-        
-        console.log('[updateUser] Updated auth_source in user metadata:', authSource);
-      }
+      updates.auth_source = authSource;
     }
 
     const { data, error } = await supabaseService
@@ -383,15 +416,7 @@ async function updateUser(userId, updates, authSource = null) {
 
     console.log('[updateUser] Updated user profile:', data.id);
 
-    // Get auth user for session creation
-    const { data: authUser } = await supabaseService.auth.admin.getUserById(userId);
-    
-    // Create/refresh Supabase session
-    if (authUser?.user) {
-      const supabaseSession = await createSupabaseSessionForUser(authUser.user);
-      data.supabaseSession = supabaseSession;
-    }
-
+    // No Supabase Auth session creation - use only profile data
     return data;
   } catch (error) {
     console.error('[updateUser] Error:', error);
@@ -399,25 +424,14 @@ async function updateUser(userId, updates, authSource = null) {
   }
 }
 
-// Link Keycloak ID to existing user
+// Link Keycloak ID to existing user (profiles-only, no Supabase Auth)
 async function linkUser(userId, updates, authSource = null) {
   try {
-    // Update user metadata in Supabase Auth if auth_source is provided
+    console.log('[linkUser] Linking Keycloak ID to user:', userId);
+    
+    // Add auth_source to updates if provided
     if (authSource) {
-      const { data: authUser } = await supabaseService.auth.admin.getUserById(userId);
-      if (authUser?.user) {
-        const updatedMetadata = {
-          ...authUser.user.user_metadata,
-          auth_source: authSource,
-          keycloak_id: updates.keycloak_id,
-        };
-        
-        await supabaseService.auth.admin.updateUserById(userId, {
-          user_metadata: updatedMetadata
-        });
-        
-        console.log('[linkUser] Updated auth_source in user metadata:', authSource);
-      }
+      updates.auth_source = authSource;
     }
 
     const { data, error } = await supabaseService
@@ -434,15 +448,7 @@ async function linkUser(userId, updates, authSource = null) {
 
     console.log('[linkUser] Linked Keycloak ID to user:', data.id);
 
-    // Get auth user for session creation
-    const { data: authUser } = await supabaseService.auth.admin.getUserById(userId);
-    
-    // Create/refresh Supabase session
-    if (authUser?.user) {
-      const supabaseSession = await createSupabaseSessionForUser(authUser.user);
-      data.supabaseSession = supabaseSession;
-    }
-
+    // No Supabase Auth session creation - use only profile data
     return data;
   } catch (error) {
     console.error('[linkUser] Error:', error);
@@ -592,20 +598,12 @@ async function createCustomJWTSession(supabaseUser) {
 }
 
 /**
- * Creates Supabase session for authenticated user
+ * No longer needed - supabaseSession eliminated from auth flow
+ * Frontend now works with user profile data only
  */
-export async function createSupabaseSessionForUser(supabaseUser) {
-  try {
-    console.log('[createSupabaseSessionForUser] Creating session for user:', supabaseUser.id);
-    
-    const session = await createAdminSession(supabaseUser);
-    
-    console.log('[createSupabaseSessionForUser] Session created successfully');
-    return session;
-  } catch (error) {
-    console.error('[createSupabaseSessionForUser] Error creating session:', error.message);
-    throw error;
-  }
+export async function createSupabaseSessionForUser(profileUser) {
+  console.log('[createSupabaseSessionForUser] Skipping session creation - using profile-only auth');
+  return null;
 }
 
 export default passport; 

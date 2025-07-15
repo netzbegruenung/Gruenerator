@@ -1,6 +1,6 @@
 //header.js
 import React, { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { PiCaretDown, PiSun, PiMoon } from 'react-icons/pi';
 import NavMenu from './NavMenu';
 import ProfileButton from './ProfileButton';
@@ -14,8 +14,8 @@ import { useBetaFeatures } from '../../../hooks/useBetaFeatures';
 
 const Header = () => {
     useLazyAuth(); // Keep for other auth functionality
+    const location = useLocation();
     const { getBetaFeatureState } = useBetaFeatures();
-    const sharepicBetaEnabled = getBetaFeatureState('sharepic');
     const databaseBetaEnabled = getBetaFeatureState('database');
     const youBetaEnabled = getBetaFeatureState('you');
     const [menuActive, setMenuActive] = useState(false);
@@ -23,9 +23,21 @@ const Header = () => {
     const [darkMode, toggleDarkMode] = useDarkMode();
     const { announce } = useAccessibility();
     const headerRef = useRef(null);
+    const isNavigatingRef = useRef(false);
 
-    const menuItems = getMenuItems({ sharepicBetaEnabled, databaseBetaEnabled, youBetaEnabled });
-    const directMenuItems = getDirectMenuItems({ sharepicBetaEnabled, databaseBetaEnabled, youBetaEnabled });
+    const menuItems = getMenuItems({ databaseBetaEnabled, youBetaEnabled });
+    const directMenuItems = getDirectMenuItems({ databaseBetaEnabled, youBetaEnabled });
+
+    // Close dropdown when location changes (navigation occurs)
+    useEffect(() => {
+        setActiveDropdown(null);
+        // Also set navigation flag to prevent immediate reopening
+        isNavigatingRef.current = true;
+        const timer = setTimeout(() => {
+            isNavigatingRef.current = false;
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [location.pathname]);
 
     // Removed deprecated setupKeyboardNav - browser handles keyboard navigation natively
 
@@ -35,7 +47,10 @@ const Header = () => {
     };
 
     const handleMouseEnter = (dropdown) => {
-        setActiveDropdown(dropdown);
+        // Don't open dropdown if navigation is in progress
+        if (!isNavigatingRef.current) {
+            setActiveDropdown(dropdown);
+        }
     };
 
     const handleMouseLeave = () => {
@@ -92,8 +107,19 @@ const Header = () => {
         }
     };
 
-    const handleLinkClick = () => {
-        // Removed custom navigation announcements - screen readers handle this natively
+    const handleLinkClick = (event) => {
+        // Prevent event from bubbling up to parent elements
+        event.stopPropagation();
+        
+        // Close dropdown and mobile menu when navigating to a new page
+        setActiveDropdown(null);
+        setMenuActive(false);
+        
+        // Prevent mouse events from reopening dropdown during navigation
+        isNavigatingRef.current = true;
+        setTimeout(() => {
+            isNavigatingRef.current = false;
+        }, 500);
     };
 
     const handleDropdownItemKeyDown = (event) => {
@@ -120,7 +146,7 @@ const Header = () => {
             <li key={item.id} role="none">
                 <Link 
                     to={item.path} 
-                    onClick={() => handleLinkClick()}
+                    onClick={(e) => handleLinkClick(e)}
                     onKeyDown={(e) => handleDropdownItemKeyDown(e)}
                     role="menuitem"
                     tabIndex="0"
@@ -192,7 +218,7 @@ const Header = () => {
                         {/* Render direct menu items like Suche */}
                         {Object.values(directMenuItems).map(item => (
                             <li key={item.id} className={`header-direct-item header-${item.id}`}>
-                                <Link to={item.path} onClick={() => handleLinkClick(item.path, item.title)} className="header-nav-item">
+                                <Link to={item.path} onClick={(e) => handleLinkClick(e)} className="header-nav-item">
                                     {/* Display icon for direct items - use class for styling */}
                                     {item.icon && <item.icon aria-hidden="true" className="header-direct-item-icon" />}
                                     <span>{item.title}</span>

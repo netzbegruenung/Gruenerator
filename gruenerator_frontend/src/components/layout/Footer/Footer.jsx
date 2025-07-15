@@ -18,20 +18,20 @@ const Footer = () => {
                             <section className="footer-section" aria-labelledby="footer-texte">
                                 <h3 id="footer-texte">Texte</h3>
                                 <ul>
-                                    <li><Link to="/antrag">Anträge</Link></li>
+                                    <li><Link to="/antrag">Anträge & Anfragen</Link></li>
                                     <li><Link to="/presse-social">Presse & Social Media</Link></li>
                                     <li><Link to="/universal">Universal Grünerator</Link></li>
                                     <li><Link to="/gruene-jugend">Grüne Jugend</Link></li>
-                                    <li><Link to="/editor">Leerer Editor</Link></li>
                                 </ul>
                             </section>
 
                             <section className="footer-section" aria-labelledby="footer-tools">
-                                <h3 id="footer-tools">Tools & Analyse</h3>
+                                <h3 id="footer-tools">Tools</h3>
                                 <ul>
                                     <li><Link to="/suche">Suche</Link></li>
                                     <li><Link to="/antragscheck">Antragscheck</Link></li>
-                                    <li><Link to="/btw-kompass">BTW Programm-Kompass</Link></li>
+                                    <li><Link to="/reel">Reel</Link></li>
+                                    <li><Link to="/sharepic">Sharepics</Link></li>
                                 </ul>
                             </section>
 
