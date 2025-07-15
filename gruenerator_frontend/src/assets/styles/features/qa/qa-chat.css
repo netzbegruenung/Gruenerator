@@ -201,7 +201,7 @@
   flex: 1;
   overflow-y: auto;
   min-height: 0;
-  padding: var(--spacing-medium);
+  padding: var(--spacing-medium) var(--spacing-medium) 100px var(--spacing-medium);
   background: var(--background-color);
 }
 
@@ -354,7 +354,7 @@
 }
 
 .editor-chat-messages-fullscreen {
-  padding: var(--spacing-medium) var(--spacing-large);
+  padding: var(--spacing-medium) var(--spacing-large) 100px var(--spacing-large);
   overflow-x: visible;
   overflow-y: auto;
 }
@@ -659,7 +659,7 @@
   }
   
   .qa-chat-ui .editor-chat-messages {
-    padding: var(--spacing-small);
+    padding: var(--spacing-small) var(--spacing-small) 120px var(--spacing-small);
   }
   
   .qa-chat-ui .editor-chat-input {
@@ -679,7 +679,7 @@
   }
   
   .editor-chat-messages-fullscreen {
-    padding: var(--spacing-small) var(--spacing-medium);
+    padding: var(--spacing-small) var(--spacing-medium) 120px var(--spacing-medium);
   }
   
   .qa-chat-floating-input {
@@ -717,7 +717,7 @@
   
   
   .qa-chat-ui .editor-chat-messages {
-    padding: var(--spacing-xsmall);
+    padding: var(--spacing-xsmall) var(--spacing-xsmall) 140px var(--spacing-xsmall);
   }
   
   .qa-chat-ui .editor-chat-input {
@@ -735,7 +735,7 @@
   }
   
   .editor-chat-messages-fullscreen {
-    padding: var(--spacing-xsmall) var(--spacing-small);
+    padding: var(--spacing-xsmall) var(--spacing-small) 140px var(--spacing-small);
   }
   
   .qa-chat-mode-selector .mode-button {

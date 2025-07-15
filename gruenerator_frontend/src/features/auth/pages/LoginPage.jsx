@@ -117,11 +117,7 @@ const LoginPage = () => {
           </div>
         </button>
 
-        <button
-          className="login-option gruenerator"
-          onClick={handleGrueneratorLogin}
-          disabled={isAuthenticating}
-        >
+        <div className="login-option gruenerator disabled">
           <div className="login-content">
             <span className="login-icon">🌱</span>
             <div className="login-text-content">
@@ -131,7 +127,7 @@ const LoginPage = () => {
               </p>
             </div>
           </div>
-        </button>
+        </div>
       </div>
 
       {isAuthenticating && (
@@ -140,12 +136,6 @@ const LoginPage = () => {
         </div>
       )}
 
-      {/* Registration Link */}
-      <div className="auth-footer">
-        <p className="auth-help-text">
-          Noch kein Konto? <Link to="/register">Hier registrieren</Link>
-        </p>
-      </div>
 
       {/* Legal Notice */}
       <div className="auth-legal">

@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from "motion/react";
 import FeatureToggle from '../../../../components/common/FeatureToggle';
-import { HiOutlineExternalLink, HiOutlineGlobe, HiOutlineUserGroup, HiOutlineDatabase, HiOutlineCog, HiOutlinePhotograph, HiOutlineAcademicCap, HiOutlineUser, HiOutlineUsers } from 'react-icons/hi';
+import { HiOutlineExternalLink, HiOutlineGlobe, HiOutlineUserGroup, HiOutlineDatabase, HiOutlineCog, HiOutlinePhotograph, HiOutlineAcademicCap, HiOutlineUser, HiOutlineUsers, HiChatAlt2 } from 'react-icons/hi';
 import { useBetaFeatures } from '../../../../hooks/useBetaFeatures';
 
 const LaborTab = ({
@@ -21,10 +21,10 @@ const LaborTab = ({
     GROUPS: 'groups',
     DATABASE: 'database',
     GENERATORS: 'customGenerators',
-    SHAREPIC: 'sharepic',
     ANWEISUNGEN: 'anweisungen',
     YOU: 'you',
     COLLAB: 'collab',
+    QA: 'qa',
   };
 
   const handleBetaToggle = (setter, currentValue, featureName) => {
@@ -68,18 +68,6 @@ const LaborTab = ({
           checkboxLabel: '\'Meine Grüneratoren\'-Tab anzeigen und Funktionalität activieren',
           icon: HiOutlineCog
         };
-      case BETA_VIEWS.SHAREPIC:
-        return {
-          title: 'Sharepic-Grünerator',
-          description: 'Erstelle ansprechende Sharepics für deine Social Media Kanäle.',
-          checked: getBetaFeatureState('sharepic'),
-          setter: (value) => updateUserBetaFeatures('sharepic', value),
-          featureName: 'Sharepic Link',
-          checkboxLabel: 'Link zum Sharepic-Grünerator anzeigen',
-          linkTo: '/sharepic',
-          linkText: 'Zum Sharepic Grünerator',
-          icon: HiOutlinePhotograph
-        };
       case BETA_VIEWS.ANWEISUNGEN:
         return {
           title: 'Profil auswählen',
@@ -111,6 +99,16 @@ const LaborTab = ({
           featureName: 'Kollaborative Bearbeitung',
           checkboxLabel: 'Kollaborative Bearbeitung aktivieren',
           icon: HiOutlineUsers
+        };
+      case BETA_VIEWS.QA:
+        return {
+          title: 'Q&A Sammlungen',
+          description: 'Erstelle intelligente Fragesysteme basierend auf deinen Dokumenten für natürliche Gespräche.',
+          checked: getBetaFeatureState('qa'),
+          setter: (value) => updateUserBetaFeatures('qa', value),
+          featureName: 'Q&A Sammlungen',
+          checkboxLabel: 'Q&A-Tab in Meine Inhalte anzeigen und Funktionalität aktivieren',
+          icon: HiChatAlt2
         };
       default:
         return null;

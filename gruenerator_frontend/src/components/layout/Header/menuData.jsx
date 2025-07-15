@@ -1,19 +1,11 @@
-import { PiFileText, PiNewspaper, PiMagicWand, PiMagnifyingGlass, PiVideoCamera, PiPencilSimple, PiImageSquare, PiArchive, PiFlask, PiUser, PiRobot } from 'react-icons/pi';
+import { PiFileText, PiNewspaper, PiMagicWand, PiMagnifyingGlass, PiVideoCamera, PiPencilSimple, PiImageSquare, PiArchive, PiFlask, PiUser, PiRobot, PiWrench } from 'react-icons/pi';
 import { GiHedgehog } from 'react-icons/gi';
 import PropTypes from 'prop-types';
 
-// Direkte Menüpunkte ohne Dropdown (z.B. Suche)
+// Direkte Menüpunkte ohne Dropdown - jetzt leer da alle in Dropdowns organisiert sind
 export const getDirectMenuItems = (betaFeatures = {}) => {
-  const items = {
-    suche: {
-      id: 'suche',
-      path: '/suche',
-      title: 'Suche',
-      description: 'Durchsuche alle Vorlagen und Texte',
-      icon: PiMagnifyingGlass
-    }
-  };
-  // Dynamische direkte Links wurden hier entfernt, da sie jetzt unter "Labor" gruppiert werden.
+  const items = {};
+  // Alle direkten Links wurden in Dropdowns organisiert
   return items;
 };
 
@@ -39,8 +31,8 @@ export const getMenuItems = (betaFeatures = {}) => {
         {
           id: 'antrag',
           path: '/antrag',
-          title: 'Anträge',
-          description: 'Anträge für Kommunalparlamente & Co.',
+          title: 'Anträge & Anfragen',
+          description: 'Anträge und Anfragen für Kommunalparlamente & Co.',
           icon: PiFileText
         },
         {
@@ -63,13 +55,32 @@ export const getMenuItems = (betaFeatures = {}) => {
           title: 'Grüne Jugend',
           description: 'Der Grünerator in jung',
           icon: GiHedgehog
+        }
+      ]
+    },
+    tools: {
+      title: 'Tools',
+      items: [
+        {
+          id: 'suche',
+          path: '/suche',
+          title: 'Suche',
+          description: 'Webrecherche für aktuelle Informationen',
+          icon: PiMagnifyingGlass
         },
         {
           id: 'reel',
           path: '/reel',
           title: 'Reel',
-          description: 'Erstelle Reels für Social Media',
+          description: 'Untertitel Reels für Social Media',
           icon: PiVideoCamera
+        },
+        {
+          id: 'sharepic',
+          path: '/sharepic',
+          title: 'Sharepics',
+          description: 'Erstelle Sharepics für Social Media',
+          icon: PiImageSquare
         }
       ]
     }
@@ -91,15 +102,6 @@ export const getMenuItems = (betaFeatures = {}) => {
   };
 
   const laborItems = [];
-  if (betaFeatures.sharepicBetaEnabled) {
-    laborItems.push({
-      id: 'sharepic',
-      path: '/sharepic',
-      title: 'Sharepics',
-      description: 'Erstelle Sharepics für Social Media',
-      icon: PiImageSquare 
-    });
-  }
 
   if (betaFeatures.databaseBetaEnabled) {
     laborItems.push({
@@ -193,7 +195,8 @@ export const getIconById = (id) => {
     'sharepic': PiImageSquare,
     'datenbank': PiArchive,
     'you': PiUser,
-    'profile': PiUser
+    'profile': PiUser,
+    'tools': PiWrench
   };
   return iconMap[id];
 };
@@ -209,5 +212,6 @@ export const MENU_ICONS = {
   sharepic: PiImageSquare,
   datenbank: PiArchive,
   you: PiUser,
-  profile: PiUser
+  profile: PiUser,
+  tools: PiWrench
 }; 

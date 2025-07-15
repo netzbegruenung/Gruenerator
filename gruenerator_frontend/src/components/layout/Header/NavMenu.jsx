@@ -41,11 +41,10 @@ const NavMenu = ({ open, onClose }) => {
   const navMenuRef = useRef(null);
   useLazyAuth(); // Keep for other auth functionality
   const { getBetaFeatureState } = useBetaFeatures();
-  const sharepicBetaEnabled = getBetaFeatureState('sharepic');
   const databaseBetaEnabled = getBetaFeatureState('database');
 
-  const menuItems = getMenuItems({ sharepicBetaEnabled, databaseBetaEnabled });
-  const directMenuItems = getDirectMenuItems({ sharepicBetaEnabled, databaseBetaEnabled });
+  const menuItems = getMenuItems({ databaseBetaEnabled });
+  const directMenuItems = getDirectMenuItems({ databaseBetaEnabled });
   const mobileOnlyItems = getMobileOnlyMenuItems();
   const dynamicTopLevelItems = [...Object.values(directMenuItems), ...Object.values(mobileOnlyItems)];
 
