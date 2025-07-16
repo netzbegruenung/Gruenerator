@@ -229,9 +229,17 @@ const SubtitleEditor = ({
           responseType: 'arraybuffer',
           timeout: 300000,
           onDownloadProgress: (progressEvent) => {
-            if (progressEvent.total && progressEvent.loaded === progressEvent.total) {
-              console.log('[SubtitleEditor] Video download complete.');
-              onExportComplete && onExportComplete();
+            const { loaded, total } = progressEvent;
+            if (total) {
+              const percent = Math.round((loaded / total) * 100);
+              // Log progress at key milestones to track download
+              if (percent % 25 === 0 || percent === 100) {
+                console.log(`[SubtitleEditor] Download progress: ${percent}% (${(loaded / 1024 / 1024).toFixed(2)}MB/${(total / 1024 / 1024).toFixed(2)}MB)`);
+              }
+              if (loaded === total) {
+                console.log('[SubtitleEditor] Video download complete.');
+                onExportComplete && onExportComplete();
+              }
             }
           }
         }
@@ -243,6 +251,18 @@ const SubtitleEditor = ({
         throw new Error(errorData.error || 'Fehler beim Exportieren (Server JSON Antwort)');
       }
 
+      // Verify response data integrity
+      if (!response.data || response.data.byteLength === 0) {
+        throw new Error('Leere Antwort vom Server erhalten');
+      }
+      
+      const expectedSize = response.headers['content-length'];
+      if (expectedSize && parseInt(expectedSize) !== response.data.byteLength) {
+        console.warn(`[SubtitleEditor] Size mismatch: expected ${expectedSize}, got ${response.data.byteLength}`);
+      }
+      
+      console.log(`[SubtitleEditor] Creating blob: ${(response.data.byteLength / 1024 / 1024).toFixed(2)}MB`);
+      
       const blob = new Blob([response.data], { 
         type: response.headers['content-type'] || 'video/mp4' 
       });
@@ -251,14 +271,21 @@ const SubtitleEditor = ({
       const extension = baseFilename.includes('.') ? baseFilename.split('.').pop() : 'mp4';
       const filename = `subtitled_${baseFilename.replace(`.${extension}`, '')}_mit_untertiteln.${extension}`;
 
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+      // Enhanced download with error handling
+      try {
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        console.log(`[SubtitleEditor] Download triggered successfully: ${filename}`);
+      } catch (downloadError) {
+        console.error('[SubtitleEditor] Download trigger failed:', downloadError);
+        throw new Error('Fehler beim Starten des Downloads');
+      }
 
     } catch (error) {
       let errorMessage = 'Ein Fehler ist beim Export aufgetreten';

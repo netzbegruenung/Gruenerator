@@ -797,27 +797,74 @@ router.post('/export', async (req, res) => {
     // though in this case, the file is streamed directly.
     // For a more robust progress system, the export might be a background job,
     // and the client would poll using this token.
-    // Here, we set it as a custom header.
+    // Production-compatible headers with proper filename sanitization
+    const sanitizedFilename = path.basename(originalFilename, path.extname(originalFilename))
+      .replace(/[^a-zA-Z0-9_-]/g, '_') + '_mit_untertiteln.mp4';
+    
     res.setHeader('X-Export-Token', exportToken);
     res.setHeader('Content-Type', 'video/mp4');
     res.setHeader('Content-Length', fileSize);
-    res.setHeader('Content-Disposition', `attachment; filename="${path.basename(originalFilename, path.extname(originalFilename))}_mit_untertiteln.mp4"`);
+    res.setHeader('Content-Disposition', `attachment; filename=${sanitizedFilename}`);
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Connection', 'keep-alive');
     
-    // Sende die Datei
+    // Smart logging for production debugging
+    const clientInfo = {
+      ip: req.ip || req.connection.remoteAddress,
+      userAgent: req.get('User-Agent'),
+      fileSize: `${(fileSize / 1024 / 1024).toFixed(2)}MB`
+    };
+    console.log(`[Export] Starting stream for ${uploadId}: ${clientInfo.fileSize} to ${clientInfo.ip}`);
+    
+    // Track stream progress and client connection
+    let streamedBytes = 0;
+    let isClientConnected = true;
+    let cleanupScheduled = false;
+    
     const fileStream = fs.createReadStream(outputPath);
+    
+    // Monitor client connection
+    res.on('close', () => {
+      isClientConnected = false;
+      console.log(`[Export] Client disconnected for ${uploadId} after ${(streamedBytes / 1024 / 1024).toFixed(2)}MB`);
+    });
+    
+    res.on('finish', () => {
+      console.log(`[Export] Response finished for ${uploadId}: ${(streamedBytes / 1024 / 1024).toFixed(2)}MB sent`);
+    });
+    
+    // Track bytes transferred
+    fileStream.on('data', (chunk) => {
+      streamedBytes += chunk.length;
+    });
+    
     fileStream.pipe(res);
 
-    // Cleanup nach erfolgreichem Senden - only output file, input file handled by session cleanup
-    fileStream.on('end', async () => {
-      await cleanupFiles(null, outputPath); // Only cleanup output file
+    // Enhanced cleanup with client connection verification
+    const scheduleCleanup = async (reason) => {
+      if (cleanupScheduled) return;
+      cleanupScheduled = true;
       
-      // TUS-Dateien werden jetzt automatisch durch das intelligente Cleanup-System verwaltet
-      console.log(`[Export] Export abgeschlossen für ${uploadId}, Output-Datei bereinigt`);
+      // Small delay to ensure client download completes
+      setTimeout(async () => {
+        await cleanupFiles(null, outputPath);
+        const success = streamedBytes === fileSize;
+        console.log(`[Export] Cleanup completed for ${uploadId} (${reason}): ${success ? 'SUCCESS' : 'PARTIAL'} - ${(streamedBytes / 1024 / 1024).toFixed(2)}MB/${(fileSize / 1024 / 1024).toFixed(2)}MB`);
+      }, 2000);
+    };
+
+    fileStream.on('end', async () => {
+      if (isClientConnected) {
+        await scheduleCleanup('stream_end');
+      } else {
+        await scheduleCleanup('client_disconnected');
+      }
     });
 
     // Error-Handling für den Stream
     fileStream.on('error', (error) => {
-      console.error('Stream-Fehler:', error);
+      console.error(`[Export] Stream error for ${uploadId}:`, error.message);
+      scheduleCleanup('stream_error');
       if (!res.headersSent) {
         res.status(500).json({ error: 'Fehler beim Senden des Videos' });
       }
