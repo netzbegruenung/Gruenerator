@@ -5,8 +5,53 @@ import { createRequire } from 'module';
 // Use createRequire for CommonJS modules
 const require = createRequire(import.meta.url);
 
-// Import the simplified Node.js SDK mem0Service directly
-const mem0Service = require('../services/mem0Service');
+// Try to import mem0Service, provide fallback if dependencies missing
+let mem0Service;
+try {
+  mem0Service = require('../services/mem0Service');
+} catch (error) {
+  console.log('[mem0.mjs] Mem0Service dependencies not available, using fallback implementation');
+  console.log('[mem0.mjs] Error:', error.message);
+  // Fallback service for when mem0ai package is not installed
+  mem0Service = {
+    async healthCheck() {
+      return {
+        status: 'disabled',
+        message: 'Mem0 Node.js SDK dependencies not installed',
+        provider: 'fallback'
+      };
+    },
+    async addMemory(messages, userId, metadata) {
+      console.log('[mem0.mjs] addMemory called but dependencies missing - skipping');
+      return {
+        success: false,
+        message: 'Mem0 dependencies not available',
+        data: null
+      };
+    },
+    async getMemories(userId) {
+      return {
+        success: true,
+        data: { results: [] },
+        message: 'Mem0 dependencies not available - no memories'
+      };
+    },
+    async searchMemories(query, userId) {
+      return {
+        success: true,
+        data: { results: [] },
+        message: 'Mem0 dependencies not available - no search results'
+      };
+    },
+    async deleteMemory(memoryId) {
+      return {
+        success: false,
+        message: 'Mem0 dependencies not available'
+      };
+    }
+  };
+}
+
 const authMiddlewareModule = require('../middleware/authMiddleware');
 
 const { requireAuth } = authMiddlewareModule;
