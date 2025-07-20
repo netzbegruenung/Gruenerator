@@ -293,7 +293,7 @@ class CanvaTokenManager {
     const missing = required.filter(key => !process.env[key]);
     
     if (missing.length > 0) {
-      console.error('[CanvaTokenManager] Missing required environment variables:', missing);
+      console.warn('[CanvaTokenManager] Missing required environment variables:', missing, '- Canva API features will be disabled');
       return false;
     }
     
