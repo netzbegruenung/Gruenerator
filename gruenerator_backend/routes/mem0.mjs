@@ -5,15 +5,8 @@ import { createRequire } from 'module';
 // Use createRequire for CommonJS modules
 const require = createRequire(import.meta.url);
 
-// Try to import the actual mem0Service, fall back to fallback implementation
-let mem0Service;
-try {
-  mem0Service = require('../services/mem0Service');
-} catch (error) {
-  console.log('[mem0.mjs] Mem0Service not available, using fallback implementation');
-  mem0Service = require('../services/mem0Service.fallback');
-}
-
+// Import the simplified Node.js SDK mem0Service directly
+const mem0Service = require('../services/mem0Service');
 const authMiddlewareModule = require('../middleware/authMiddleware');
 
 const { requireAuth } = authMiddlewareModule;

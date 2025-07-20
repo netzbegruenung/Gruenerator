@@ -22,18 +22,13 @@
     "test:errors": "NODE_ENV=test jest tests/testErrorHandling.js",
     "download-whisper": "npx nodejs-whisper download",
     "offboarding": "node scripts/offboarding-cron.js",
-    "offboarding:status": "node -e \"require('./services/offboardingService').OffboardingService.validateConfig(); console.log('✓ Offboarding configuration is valid');\"",
-    "mem0:setup": "cd mem0_service && python3 -m venv venv && venv/bin/pip install -r requirements.txt",
-    "mem0:install": "cd mem0_service && venv/bin/pip install -r requirements.txt",
-    "mem0:dev": "cd mem0_service && venv/bin/python main.py",
-    "mem0:prod": "cd mem0_service && venv/bin/uvicorn main:app --host 127.0.0.1 --port 3002",
-    "start:with-mem0": "concurrently --kill-others-on-exit --prefix-colors \"bgBlue.bold,bgMagenta.bold,bgGreen.bold\" \"npm:start:backend\" \"npm:start:yjs\" \"npm:mem0:prod\""
+    "offboarding:status": "node -e \"require('./services/offboardingService').OffboardingService.validateConfig(); console.log('✓ Offboarding configuration is valid');\""
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.21.1",
+    "@anthropic-ai/sdk": "^0.40.1",
     "@aws-sdk/client-bedrock-runtime": "^3.830.0",
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "@goauthentik/api": "^2025.4.1-1748622869",
@@ -58,6 +53,7 @@
     "fluent-ffmpeg": "^2.1.2",
     "helmet": "^4.6.0",
     "jose": "^6.0.11",
+    "mem0ai": "^2.1.36",
     "morgan": "^1.10.0",
     "multer": "^1.4.5-lts.1",
     "nodejs-whisper": "^0.2.6",

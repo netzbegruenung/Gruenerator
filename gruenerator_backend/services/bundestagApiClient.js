@@ -12,21 +12,40 @@ class BundestagApiClient {
   constructor() {
     this.baseURL = 'https://search.dip.bundestag.de/api/v1';
     this.apiKey = process.env.BUNDESTAG_API_KEY;
+    this.isConfigured = !!this.apiKey;
     
     if (!this.apiKey) {
-      console.error('[BundestagAPI] BUNDESTAG_API_KEY environment variable is not set');
-      throw new Error('BUNDESTAG_API_KEY environment variable is required');
+      console.warn('[BundestagAPI] BUNDESTAG_API_KEY environment variable is not set - Bundestag API features will be disabled');
+      this.client = null; // Don't create axios client without API key
+    } else {
+      this.client = axios.create({
+        baseURL: this.baseURL,
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent': 'Gruenerator/1.0',
+          'Authorization': `ApiKey ${this.apiKey}` // Add Authorization header for Bundestag API
+        },
+        timeout: 10000 // 10 second timeout
+      });
     }
-    
-    this.client = axios.create({
-      baseURL: this.baseURL,
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'Gruenerator/1.0',
-        'Authorization': `ApiKey ${this.apiKey}` // Add Authorization header for Bundestag API
-      },
-      timeout: 10000 // 10 second timeout
-    });
+  }
+
+  /**
+   * Check if the API client is properly configured
+   * @returns {boolean} True if API key is available
+   */
+  isApiConfigured() {
+    return this.isConfigured;
+  }
+
+  /**
+   * Validate configuration before making API calls
+   * @throws {Error} If API is not configured
+   */
+  _validateConfiguration() {
+    if (!this.isConfigured) {
+      throw new Error('Bundestag API is not configured. Please set BUNDESTAG_API_KEY environment variable.');
+    }
   }
 
   /**
@@ -37,6 +56,7 @@ class BundestagApiClient {
    * @returns {Promise<Array>} Array of document objects
    */
   async searchDrucksachenWithText(query, limit = 5, filters = {}) {
+    this._validateConfiguration();
     try {
       const params = {
         q: query,
@@ -94,6 +114,7 @@ class BundestagApiClient {
    * @returns {Promise<Array>} Array of protocol objects
    */
   async searchPlenarprotokolleWithText(query, limit = 3, filters = {}) {
+    this._validateConfiguration();
     try {
       const params = {
         q: query,
@@ -150,6 +171,7 @@ class BundestagApiClient {
    * @returns {Promise<Array>} Array of proceeding objects
    */
   async searchVorgaenge(query, limit = 3, filters = {}) {
+    this._validateConfiguration();
     try {
       const params = {
         q: query,
@@ -192,6 +214,7 @@ class BundestagApiClient {
    * @returns {Promise<Object>} Object containing results from different document types
    */
   async searchAll(query, options = {}) {
+    this._validateConfiguration();
     const {
       includeDrucksachen = true,
       includePlenarprotokolle = true,
@@ -279,6 +302,7 @@ class BundestagApiClient {
    * @returns {Promise<Object>} Document object with content
    */
   async getDocumentById(id, type) {
+    this._validateConfiguration();
     try {
       let endpoint;
       switch (type) {
@@ -337,6 +361,9 @@ class BundestagApiClient {
    * @returns {Promise<boolean>} True if connection successful
    */
   async testConnection() {
+    if (!this.isConfigured) {
+      return false;
+    }
     try {
       console.log('[BundestagAPI] Testing API connection...');
       const response = await this.client.get('/drucksache', { 

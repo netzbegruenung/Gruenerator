@@ -13,10 +13,35 @@ const router = express.Router();
 router.use(passport.session());
 
 /**
+ * Get Bundestag API configuration status
+ * GET /api/bundestag/status
+ */
+router.get('/status', (req, res) => {
+  const isConfigured = bundestagApiClient.isApiConfigured();
+  res.json({
+    success: true,
+    configured: isConfigured,
+    message: isConfigured ? 'Bundestag API is configured and ready' : 'Bundestag API is not configured - BUNDESTAG_API_KEY environment variable required'
+  });
+});
+
+// Configuration validation middleware for routes that require API access
+const validateBundestagConfig = (req, res, next) => {
+  if (!bundestagApiClient.isApiConfigured()) {
+    return res.status(503).json({
+      success: false,
+      error: 'Bundestag API is not configured',
+      details: 'This feature requires BUNDESTAG_API_KEY to be configured on the server'
+    });
+  }
+  next();
+};
+
+/**
  * Search parliamentary documents via Bundestag API
  * POST /api/bundestag/search
  */
-router.post('/search', async (req, res) => {
+router.post('/search', validateBundestagConfig, async (req, res) => {
   try {
     const { 
       query, 
@@ -77,7 +102,7 @@ router.post('/search', async (req, res) => {
  * Get specific document by ID and type
  * GET /api/bundestag/document/:type/:id
  */
-router.get('/document/:type/:id', ensureAuthenticated, async (req, res) => {
+router.get('/document/:type/:id', ensureAuthenticated, validateBundestagConfig, async (req, res) => {
   try {
     const { type, id } = req.params;
 
@@ -153,7 +178,7 @@ router.get('/test', ensureAuthenticated, async (req, res) => {
  * Save a Bundestag document to user's document library
  * POST /api/bundestag/save-to-documents
  */
-router.post('/save-to-documents', ensureAuthenticated, async (req, res) => {
+router.post('/save-to-documents', ensureAuthenticated, validateBundestagConfig, async (req, res) => {
   try {
     const { bundestagDocument } = req.body;
 
