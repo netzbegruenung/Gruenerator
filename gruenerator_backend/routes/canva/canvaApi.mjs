@@ -18,6 +18,31 @@ router.use((req, res, next) => {
 });
 
 /**
+ * Get Canva API configuration status (does not require configuration)
+ * GET /api/canva/status
+ */
+router.get('/status', (req, res) => {
+  const isConfigured = CanvaTokenManager.validateConfiguration();
+  res.json({
+    success: true,
+    configured: isConfigured,
+    message: isConfigured ? 'Canva API is configured and ready' : 'Canva API is not configured - required environment variables missing'
+  });
+});
+
+// Configuration validation middleware for all other routes
+router.use((req, res, next) => {
+  if (!CanvaTokenManager.validateConfiguration()) {
+    return res.status(503).json({
+      success: false,
+      error: 'Canva integration not configured',
+      details: 'Canva API features require CANVA_CLIENT_ID, CANVA_CLIENT_SECRET, and CANVA_REDIRECT_URI to be configured on the server'
+    });
+  }
+  next();
+});
+
+/**
  * Middleware to ensure user has valid Canva connection
  */
 async function requireCanvaConnection(req, res, next) {
