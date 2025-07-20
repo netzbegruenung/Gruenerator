@@ -73,8 +73,14 @@ async function setupRoutes(app) {
   const { default: mobileAuthRoutes } = await import('./routes/auth/mobile.mjs');
   const { default: documentsRouter } = await import('./routes/documents.mjs');
   const { default: bundestagRouter } = await import('./routes/bundestag.mjs');
-  // Import mem0Router directly with Node.js SDK
-  const { default: mem0Router } = await import('./routes/mem0.mjs');
+  // Try to import mem0Router, handle gracefully if dependencies missing
+  let mem0Router = null;
+  try {
+    const mem0Module = await import('./routes/mem0.mjs');
+    mem0Router = mem0Module.default;
+  } catch (error) {
+    console.log('[Setup] Mem0 router import failed, skipping mem0 routes:', error.message);
+  }
   
   // Import claude_social as ES6 module
   const { default: claudeSocialRoute } = await import('./routes/claude_social.js');
@@ -162,9 +168,13 @@ async function setupRoutes(app) {
   // app.use('/api/canva/webhooks', canvaWebhooksRouter); // Optional - uncomment if you need real-time webhook updates
   console.log('[Setup] Canva basic routes registered');
 
-  // Add Mem0 routes with Node.js SDK
-  app.use('/api/mem0', mem0Router);
-  console.log('[Setup] Mem0 routes registered with Node.js SDK');
+  // Add Mem0 routes if available
+  if (mem0Router) {
+    app.use('/api/mem0', mem0Router);
+    console.log('[Setup] Mem0 routes registered with Node.js SDK');
+  } else {
+    console.log('[Setup] Mem0 routes skipped - dependencies not available');
+  }
 }
 
 module.exports = { setupRoutes };
