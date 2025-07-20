@@ -313,6 +313,153 @@ router.get('/group/:groupId', ensureAuthenticated, async (req, res) => {
   }
 });
 
+// Bulk delete documents
+router.delete('/bulk', ensureAuthenticated, async (req, res) => {
+  console.log('[Documents] BULK DELETE ROUTE HIT - Route is accessible');
+  console.log('[Documents] Request method:', req.method);
+  console.log('[Documents] Request URL:', req.originalUrl);
+  console.log('[Documents] User authenticated:', !!req.user);
+  console.log('[Documents] User ID:', req.user?.id);
+  console.log('[Documents] Request body:', JSON.stringify(req.body, null, 2));
+  
+  try {
+    const { ids } = req.body;
+
+    // Validate input
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Array of document IDs is required'
+      });
+    }
+
+    console.log(`[Documents] Bulk delete request for ${ids.length} documents from user ${req.user.id}`);
+    console.log('[Documents] Document IDs to delete:', ids);
+
+    // First, verify all documents belong to the user and get their file paths
+    console.log('[Documents] Starting ownership verification...');
+    const { data: verifyDocuments, error: verifyError } = await supabaseService
+      .from('documents')
+      .select('id, file_path, title')
+      .eq('user_id', req.user.id)
+      .in('id', ids);
+
+    console.log('[Documents] Ownership verification result:', {
+      error: verifyError,
+      documentsFound: verifyDocuments?.length || 0,
+      documents: verifyDocuments
+    });
+
+    if (verifyError) {
+      console.error('[Documents] Error verifying document ownership:', verifyError);
+      throw new Error('Failed to verify document ownership');
+    }
+
+    const ownedIds = verifyDocuments.map(doc => doc.id);
+    const unauthorizedIds = ids.filter(id => !ownedIds.includes(id));
+
+    console.log('[Documents] Ownership analysis:', {
+      requestedIds: ids,
+      ownedIds: ownedIds,
+      unauthorizedIds: unauthorizedIds,
+      authorizationPassed: unauthorizedIds.length === 0
+    });
+
+    if (unauthorizedIds.length > 0) {
+      console.log('[Documents] AUTHORIZATION FAILED - returning 403');
+      return res.status(403).json({
+        success: false,
+        message: `Access denied for documents: ${unauthorizedIds.join(', ')}`,
+        unauthorized_ids: unauthorizedIds
+      });
+    }
+
+    // Collect file paths for storage cleanup
+    const filesToDelete = verifyDocuments
+      .filter(doc => doc.file_path)
+      .map(doc => doc.file_path);
+
+    let storageDeleteCount = 0;
+    let storageFailCount = 0;
+
+    // Delete files from storage in batches
+    if (filesToDelete.length > 0) {
+      console.log(`[Documents] Deleting ${filesToDelete.length} files from storage`);
+      
+      // Process in smaller batches to avoid timeouts
+      const batchSize = 10;
+      for (let i = 0; i < filesToDelete.length; i += batchSize) {
+        const batch = filesToDelete.slice(i, i + batchSize);
+        
+        try {
+          const { error: storageError } = await supabaseService.storage
+            .from('documents')
+            .remove(batch);
+
+          if (storageError) {
+            console.warn(`[Documents] Storage deletion warning for batch ${i/batchSize + 1}:`, storageError);
+            storageFailCount += batch.length;
+          } else {
+            storageDeleteCount += batch.length;
+          }
+        } catch (batchError) {
+          console.warn(`[Documents] Storage batch deletion error:`, batchError);
+          storageFailCount += batch.length;
+        }
+      }
+    }
+
+    // Delete document records from database
+    console.log('[Documents] Starting bulk delete operation...');
+    const { data: deletedData, error: deleteError } = await supabaseService
+      .from('documents')
+      .delete()
+      .eq('user_id', req.user.id)
+      .in('id', ids)
+      .select('id');
+
+    console.log('[Documents] Bulk delete operation result:', {
+      error: deleteError,
+      deletedCount: deletedData?.length || 0,
+      deletedData: deletedData
+    });
+
+    if (deleteError) {
+      console.error('[Documents] Error during bulk delete:', deleteError);
+      throw new Error('Failed to delete documents from database');
+    }
+
+    const deletedIds = deletedData ? deletedData.map(doc => doc.id) : [];
+    const failedIds = ids.filter(id => !deletedIds.includes(id));
+
+    console.log(`[Documents] Bulk delete completed: ${deletedIds.length} deleted, ${failedIds.length} failed`);
+    if (filesToDelete.length > 0) {
+      console.log(`[Documents] Storage cleanup: ${storageDeleteCount} files deleted, ${storageFailCount} files failed`);
+    }
+
+    res.json({
+      success: true,
+      message: `Bulk delete completed: ${deletedIds.length} of ${ids.length} documents deleted successfully`,
+      deleted_count: deletedIds.length,
+      failed_ids: failedIds,
+      total_requested: ids.length,
+      deleted_ids: deletedIds,
+      storage_cleanup: {
+        files_deleted: storageDeleteCount,
+        files_failed: storageFailCount,
+        total_files: filesToDelete.length
+      }
+    });
+
+  } catch (error) {
+    console.error('[Documents] Error in bulk delete:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to perform bulk delete'
+    });
+  }
+});
+
 // Delete document
 router.delete('/:id', ensureAuthenticated, async (req, res) => {
   try {

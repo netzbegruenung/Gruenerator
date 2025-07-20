@@ -37,7 +37,7 @@
 }
 
 .footer-section h3 {
-    color: var(--sand);
+    color: var(--secondary);
     margin-bottom: 15px;
     font-size: 1.2em;
     font-weight: bold;
@@ -62,7 +62,7 @@
 
 .footer-section ul li a:hover,
 .footer-section ul li a:focus {
-    color: var(--sand);
+    color: var(--secondary);
     text-decoration: underline;
 }
 
@@ -107,7 +107,7 @@
 
 .footer-social-icon:hover,
 .footer-social-icon:focus {
-    color: var(--sand);
+    color: var(--secondary);
 }
 
 .sr-only {

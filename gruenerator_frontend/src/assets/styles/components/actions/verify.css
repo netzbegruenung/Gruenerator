@@ -60,7 +60,7 @@
 }
 
 .verify-box h2 {
-  color: var(--tanne);
+  color: var(--primary);
   margin: 0 0 1rem 0;
   font-size: 1.5rem;
   text-align: center;
@@ -96,9 +96,9 @@
 }
 
 .verify-input:focus {
-  border-color: var(--tanne);
+  border-color: var(--primary);
   outline: none;
-  box-shadow: 0 0 0 3px rgba(var(--tanne-rgb), 0.1);
+  box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1);
 }
 
 .verify-password-toggle {
@@ -113,7 +113,7 @@
 }
 
 .verify-password-toggle:hover {
-  color: var(--tanne);
+  color: var(--primary);
 }
 
 .verify-error {
@@ -146,7 +146,7 @@
   font-size: 1rem;
   cursor: pointer;
   transition: all 0.2s ease;
-  background-color: var(--tanne);
+  background-color: var(--primary);
   color: var(--weiß);
 }
 
@@ -161,8 +161,8 @@
 
 .verify-button-secondary {
   background-color: var(--background-color);
-  color: var(--tanne);
-  border: 2px solid var(--tanne);
+  color: var(--primary);
+  border: 2px solid var(--primary);
 }
 
 .verify-button-secondary:hover {

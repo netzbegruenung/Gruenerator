@@ -35,10 +35,11 @@ export const TAB_INDEX_CONFIG = {
   ANTRAG: {
     idee: 10,
     details: 11,
-    gliederung: 12,
-    knowledgeSourceSelector: 13,
-    knowledgeSelector: 14,
-    webSearch: 15,
+    platformSelector: 12,
+    gliederung: 13,
+    knowledgeSourceSelector: 14,
+    knowledgeSelector: 15,
+    webSearch: 16,
     submit: 17
   },
 

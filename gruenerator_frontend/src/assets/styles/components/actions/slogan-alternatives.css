@@ -85,7 +85,7 @@
   position: absolute;
   top: 0;
   left: 0;
-  background-color: var(--tanne);
+  background-color: var(--primary);
   color: var(--weiß);
   border: 2px solid var(--weiß);
   border-radius: var(--button-border-radius);

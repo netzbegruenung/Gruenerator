@@ -68,7 +68,7 @@
 }
 
 .explanation-box li svg {
-    color: var(--tanne);
+    color: var(--primary);
     flex-shrink: 0;
     width: 24px;
     height: 24px;
@@ -150,7 +150,7 @@
 }
 
 .copy-docs-link-button.copied {
-    color: var(--tanne);
+    color: var(--primary);
 }
 
 .copy-docs-link-button.copied svg {
@@ -177,7 +177,7 @@
     border-radius: 8px;
     font-size: 1em;
     cursor: pointer;
-    background-color: var(--tanne);
+    background-color: var(--primary);
     color: var(--weiß);
     transition: all 0.2s ease;
     display: flex;

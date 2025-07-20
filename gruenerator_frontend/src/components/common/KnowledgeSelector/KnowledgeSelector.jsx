@@ -121,7 +121,7 @@ const KnowledgeSelector = ({
   
   // Get groups and beta features for source selection
   const { getBetaFeatureState, isLoading: isLoadingBetaFeatures } = useBetaFeatures();
-  const anweisungenBetaEnabled = getBetaFeatureState('anweisungen');
+  const anweisungenBetaEnabled = true;
   const { 
     userGroups: groups, 
     isLoadingGroups, 
@@ -129,7 +129,7 @@ const KnowledgeSelector = ({
   } = useGroups();
   
   // Get documents store and auth for document fetching
-  const { fetchDocuments } = useDocumentsStore();
+  const { fetchDocuments, isLoading: documentsLoading } = useDocumentsStore();
   const { user } = useAuth();
   
   // Removed console.log for performance
@@ -434,6 +434,13 @@ const KnowledgeSelector = ({
       setAvailableDocuments([]);
     }
   }, [enableDocuments, source.type, documentsStoreData, setAvailableDocuments]);
+
+  // Fetch documents when needed but not yet loaded
+  React.useEffect(() => {
+    if (enableDocuments && source.type === 'user' && documentsStoreData.length === 0 && !documentsLoading) {
+      fetchDocuments();
+    }
+  }, [enableDocuments, source.type, documentsStoreData.length, documentsLoading, fetchDocuments]);
 
   // Fetch texts when "Mein Profil" is selected and text selection is enabled
   React.useEffect(() => {

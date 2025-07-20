@@ -98,7 +98,7 @@
 }
 
 .segment-time {
-  background-color: var(--tanne);
+  background-color: var(--primary);
   color: white;
   padding: 0.5rem;
   border-radius: 4px;
@@ -261,7 +261,7 @@
 
 .segment-text:focus {
   outline: none;
-  border-color: var(--tanne);
+  border-color: var(--primary);
   box-shadow: 0 0 0 2px rgba(0, 85, 56, 0.1);
 }
 
@@ -286,7 +286,7 @@
   border-radius: var(--primary-button-radius, 72px);
   font-weight: 500;
   transition: all 0.2s ease;
-  background-color: var(--primary-button-bg, var(--tanne));
+  background-color: var(--primary-button-bg, var(--primary));
   border: none;
   color: var(--primary-button-text, white);
   box-shadow: 0 2px 4px rgba(0, 85, 56, 0.2);
@@ -301,7 +301,7 @@
 }
 
 .video-controls .btn-primary:focus {
-  outline: 2px solid var(--primary-button-bg, var(--tanne));
+  outline: 2px solid var(--primary-button-bg, var(--primary));
   outline-offset: 2px;
 }
 
@@ -393,7 +393,7 @@
 
   .segment-time-inputs {
     background-color: var(--background-color-alt);
-    border-color: var(--tanne);
+    border-color: var(--primary);
   }
 
   .segment-time-inputs input.segment-time-input {
@@ -468,12 +468,12 @@
 
 .editor-back-button:hover {
   background-color: var(--hover-color-alt);
-  border-color: var(--tanne);
+  border-color: var(--primary);
   transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(0, 85, 56, 0.15);
 }
 
 .editor-back-button:focus {
-  outline: 2px solid var(--tanne);
+  outline: 2px solid var(--primary);
   outline-offset: 2px;
 } 

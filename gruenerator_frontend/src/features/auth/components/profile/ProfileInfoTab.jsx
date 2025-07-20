@@ -11,10 +11,12 @@ import {
   initializeProfileFormFields
 } from '../../utils/profileUtils';
 import { useOptimizedAuth } from '../../../../hooks/useAuth';
+import { useBetaFeatures } from '../../../../hooks/useBetaFeatures';
 import AvatarSelectionModal from './AvatarSelectionModal';
 import HelpTooltip from '../../../../components/common/HelpTooltip';
 import { motion } from "motion/react";
 import { GiHedgehog } from "react-icons/gi";
+import { HiOutlineOfficeBuilding } from "react-icons/hi";
 
 const ProfileInfoTab = ({ 
   user: userProp, 
@@ -29,10 +31,15 @@ const ProfileInfoTab = ({
   const { 
     user: authUser, 
     loading: authLoading, 
-    isAuthenticated,
-    igelModus,
-    setIgelModus
+    isAuthenticated
   } = useOptimizedAuth();
+  
+  // Use beta features pattern for profile settings
+  const {
+    getBetaFeatureState,
+    updateUserBetaFeatures,
+    isUpdating: isBetaFeaturesUpdating
+  } = useBetaFeatures();
   const user = userProp || authUser;
   
   // Business logic hooks from profileUtils
@@ -169,10 +176,19 @@ const ProfileInfoTab = ({
 
   const handleIgelModusToggle = async (enabled) => {
     try {
-      await setIgelModus(enabled);
+      await updateUserBetaFeatures('igel_modus', enabled);
       onSuccessMessage(enabled ? 'Igel-Modus aktiviert! Du bist jetzt Mitglied der Grünen Jugend.' : 'Igel-Modus deaktiviert.');
     } catch (error) {
       onErrorProfileMessage(error.message || 'Fehler beim Aktualisieren des Igel-Modus.');
+    }
+  };
+
+  const handleBundestagApiToggle = async (enabled) => {
+    try {
+      await updateUserBetaFeatures('bundestag_api_enabled', enabled);
+      onSuccessMessage(enabled ? 'Bundestag API aktiviert! Du kannst jetzt parlamentarische Dokumente verwenden.' : 'Bundestag API deaktiviert.');
+    } catch (error) {
+      onErrorProfileMessage(error.message || 'Fehler beim Aktualisieren der Bundestag API Einstellung.');
     }
   };
 
@@ -371,12 +387,28 @@ const ProfileInfoTab = ({
           <div className="form-group">
             <div className="form-group-title">Mitgliedschaften</div>
             <FeatureToggle
-              isActive={igelModus}
+              isActive={getBetaFeatureState('igel_modus')}
               onToggle={handleIgelModusToggle}
               label="Igel-Modus"
               icon={GiHedgehog}
               description="Aktiviere den Igel-Modus, um als Mitglied der Grünen Jugend erkannt zu werden. Dies beeinflusst deine Erfahrung und verfügbare Funktionen."
               className="igel-modus-toggle"
+              disabled={isBetaFeaturesUpdating}
+            />
+          </div>
+
+          <hr className="form-divider" />
+          
+          <div className="form-group">
+            <div className="form-group-title">API Integrationen</div>
+            <FeatureToggle
+              isActive={getBetaFeatureState('bundestag_api_enabled')}
+              onToggle={handleBundestagApiToggle}
+              label="Bundestag API aktivieren"
+              icon={HiOutlineOfficeBuilding}
+              description="Aktiviere die Integration mit der Bundestag API (DIP - Dokumentations- und Informationssystem für Parlamentsmaterialien) um parlamentarische Dokumente, Drucksachen und Plenarprotokolle in deine Anträge einzubeziehen."
+              className="bundestag-api-toggle"
+              disabled={isBetaFeaturesUpdating}
             />
           </div>
 

@@ -17,8 +17,8 @@
 }
 
 .knowledge-select__control--is-focused {
-  border: var(--input-border-focus) !important;
-  box-shadow: var(--input-shadow-focus) !important;
+  border-color: var(--secondary-500) !important;
+  box-shadow: inset 0 0 0 1px var(--secondary-500) !important;
 }
 
 .knowledge-select__control:hover {

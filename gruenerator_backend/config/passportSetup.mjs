@@ -67,15 +67,35 @@ passport.use('oidc', new OidcClientStrategy({
 // Serialize user for session
 passport.serializeUser((user, done) => {
   console.log('[Passport] Serializing user:', user.id, 'Has id_token:', !!user.id_token);
+  // Debug session serialization for bundestag API issue
+  console.log('[Passport] Serializing profile settings:', {
+    igel_modus: user.igel_modus,
+    bundestag_api_enabled: user.bundestag_api_enabled,
+    source: 'serializeUser'
+  });
   done(null, user);
 });
 
 // Deserialize user from session
 passport.deserializeUser(async (userData, done) => {
   try {
+    // Debug session deserialization for bundestag API issue
+    console.log('[Passport] Deserializing user - session data:', {
+      userId: userData?.id,
+      sessionIgelModus: userData?.igel_modus,
+      sessionBundestagApi: userData?.bundestag_api_enabled,
+      source: 'deserializeUser-input'
+    });
+    
     if (typeof userData === 'object' && userData.id) {
       const userToReturn = await getUserById(userData.id);
       if (userToReturn) {
+        console.log('[Passport] Deserializing user - database data:', {
+          userId: userToReturn.id,
+          dbIgelModus: userToReturn.igel_modus,
+          dbBundestagApi: userToReturn.bundestag_api_enabled,
+          source: 'deserializeUser-database'
+        });
         // Preserve session data that might have been updated
         if (userData.id_token) {
           userToReturn.id_token = userData.id_token;
@@ -92,6 +112,25 @@ passport.deserializeUser(async (userData, done) => {
         if (userData.supabaseSession) {
           userToReturn.supabaseSession = userData.supabaseSession;
         }
+        // CRITICAL: Preserve profile settings that may have been updated in session
+        if (userData.hasOwnProperty('bundestag_api_enabled')) {
+          userToReturn.bundestag_api_enabled = userData.bundestag_api_enabled;
+        }
+        if (userData.hasOwnProperty('igel_modus')) {
+          userToReturn.igel_modus = userData.igel_modus;
+        }
+        
+        // Debug final merged result
+        console.log('[Passport] Deserializing user - final merged data:', {
+          userId: userToReturn.id,
+          finalIgelModus: userToReturn.igel_modus,
+          finalBundestagApi: userToReturn.bundestag_api_enabled,
+          sessionPreserved: {
+            bundestag: userData.hasOwnProperty('bundestag_api_enabled'),
+            igel: userData.hasOwnProperty('igel_modus')
+          },
+          source: 'deserializeUser-final'
+        });
       }
       return done(null, userToReturn || userData);
     }
@@ -286,68 +325,6 @@ async function getUserById(id) {
   }
 }
 
-// Create new user
-async function createUser(profileData) {
-  try {
-    const { data: authUser, error: authError } = await supabaseService.auth.admin.createUser({
-      email: profileData.email,
-      email_confirm: true,
-      user_metadata: {
-        name: profileData.name,
-        username: profileData.username,
-        keycloak_id: profileData.keycloak_id,
-        auth_source: profileData.auth_source,
-        memory_enabled: false, // Default memory disabled for new users
-      }
-    });
-
-    if (authError) {
-      // Handle email_exists error by linking to existing auth user
-      if (authError.code === 'email_exists') {
-        console.log('[createUser] Email exists in auth, attempting to link existing user:', profileData.email);
-        return await linkExistingAuthUser(profileData);
-      }
-      
-      console.error('[createUser] Error creating auth user:', authError);
-      throw new Error(`Failed to create auth user: ${authError.message}`);
-    }
-
-    console.log('[createUser] Created auth user:', authUser.user.id);
-
-    const newProfileData = {
-      id: authUser.user.id,
-      keycloak_id: profileData.keycloak_id,
-      username: profileData.username,
-      display_name: profileData.name,
-      email: profileData.email || null, // Sync email from auth.users to profiles
-      last_login: profileData.last_login,
-    };
-
-    const { data, error } = await supabaseService
-      .from('profiles')
-      .upsert([newProfileData])
-      .select()
-      .single();
-
-    if (error) {
-      console.error('[createUser] Error creating/updating profile:', error);
-      throw new Error(`Failed to create profile: ${error.message}`);
-    }
-
-    console.log('[createUser] Created/updated profile:', data.id);
-
-    // Create Supabase session for frontend
-    const supabaseSession = await createSupabaseSessionForUser(authUser.user);
-    
-    // Attach session info to user object for frontend consumption
-    data.supabaseSession = supabaseSession;
-    
-    return data;
-  } catch (error) {
-    console.error('[createUser] Error:', error);
-    throw new Error(`Failed to create user: ${error.message}`);
-  }
-}
 
 // Create new user (profiles-only, no Supabase Auth)
 async function createProfileUser(profileData) {
@@ -456,154 +433,8 @@ async function linkUser(userId, updates, authSource = null) {
   }
 }
 
-// Link existing auth user to profile when email exists
-async function linkExistingAuthUser(profileData) {
-  try {
-    console.log('[linkExistingAuthUser] Searching for existing auth user with email:', profileData.email);
-    
-    // Get existing auth user by email
-    const { data: listResponse, error: listError } = await supabaseService.auth.admin.listUsers();
-    
-    if (listError) {
-      throw new Error(`Failed to list users: ${listError.message}`);
-    }
-    
-    const existingAuthUser = listResponse.users.find(u => 
-      u.email?.toLowerCase() === profileData.email.toLowerCase()
-    );
-    
-    if (!existingAuthUser) {
-      throw new Error(`No auth user found with email: ${profileData.email}`);
-    }
-    
-    console.log('[linkExistingAuthUser] Found existing auth user:', existingAuthUser.id);
-    
-    // Update auth user metadata with new Keycloak ID and auth_source
-    const { error: updateError } = await supabaseService.auth.admin.updateUserById(
-      existingAuthUser.id,
-      {
-        user_metadata: {
-          ...existingAuthUser.user_metadata,
-          name: profileData.name,
-          username: profileData.username,
-          keycloak_id: profileData.keycloak_id,
-          auth_source: profileData.auth_source,
-          memory_enabled: existingAuthUser.user_metadata?.memory_enabled || false, // Preserve existing memory settings
-        }
-      }
-    );
-    
-    if (updateError) {
-      console.error('[linkExistingAuthUser] Error updating auth user metadata:', updateError);
-    }
-    
-    // Create or update profile record, sync email from auth
-    const newProfileData = {
-      id: existingAuthUser.id,
-      keycloak_id: profileData.keycloak_id,
-      username: profileData.username,
-      display_name: profileData.name,
-      email: profileData.email || null, // Sync email from auth.users to profiles
-      last_login: profileData.last_login,
-    };
 
-    const { data, error } = await supabaseService
-      .from('profiles')
-      .upsert([newProfileData])
-      .select()
-      .single();
 
-    if (error) {
-      console.error('[linkExistingAuthUser] Error creating/updating profile:', error);
-      throw new Error(`Failed to create profile: ${error.message}`);
-    }
 
-    console.log('[linkExistingAuthUser] Successfully linked auth user to profile:', data.id);
-
-    // Create Supabase session
-    const supabaseSession = await createSupabaseSessionForUser(existingAuthUser);
-    data.supabaseSession = supabaseSession;
-    
-    return data;
-  } catch (error) {
-    console.error('[linkExistingAuthUser] Error:', error);
-    throw new Error(`Failed to link existing user: ${error.message}`);
-  }
-}
-
-/**
- * Creates session using admin session exchange approach
- */
-async function createAdminSession(supabaseUser) {
-  try {
-    console.log('[createAdminSession] Creating session for user:', supabaseUser.id);
-    
-    // Method 1: Try generateLink with session access
-    const { data, error } = await supabaseService.auth.admin.generateLink({
-      type: 'invite',
-      email: supabaseUser.email,
-      options: {
-        data: {
-          session_access: true
-        }
-      }
-    });
-
-    if (!error && data?.properties?.action_link) {
-      const url = new URL(data.properties.action_link);
-      const accessToken = url.searchParams.get('access_token');
-      const refreshToken = url.searchParams.get('refresh_token');
-      
-      if (accessToken) {
-        console.log('[createAdminSession] Session created via generateLink method');
-        return {
-          access_token: accessToken,
-          refresh_token: refreshToken,
-          expires_in: 3600,
-          expires_at: Math.floor(Date.now() / 1000) + 3600,
-          token_type: 'bearer',
-          user: supabaseUser
-        };
-      }
-    }
-
-    // Method 2: Create custom JWT session
-    console.log('[createAdminSession] Fallback to custom JWT method');
-    return await createCustomJWTSession(supabaseUser);
-    
-  } catch (error) {
-    console.error('[createAdminSession] Error creating admin session:', error);
-    throw error;
-  }
-}
-
-/**
- * Creates custom JWT session as fallback
- */
-async function createCustomJWTSession(supabaseUser) {
-  // Create a minimal session object for frontend
-  const customSession = {
-    access_token: 'custom-backend-session',
-    refresh_token: null,
-    expires_in: 3600,
-    expires_at: Math.floor(Date.now() / 1000) + 3600,
-    token_type: 'bearer',
-    user: supabaseUser,
-    provider_token: null,
-    provider_refresh_token: null
-  };
-
-  console.log('[createCustomJWTSession] Created custom session for user:', supabaseUser.id);
-  return customSession;
-}
-
-/**
- * No longer needed - supabaseSession eliminated from auth flow
- * Frontend now works with user profile data only
- */
-export async function createSupabaseSessionForUser(profileUser) {
-  console.log('[createSupabaseSessionForUser] Skipping session creation - using profile-only auth');
-  return null;
-}
 
 export default passport; 

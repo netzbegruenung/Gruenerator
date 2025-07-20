@@ -206,6 +206,14 @@ router.get('/status', async (req, res) => {
         }
       }
 
+      // Log for debugging bundestag API slider issue
+      console.log('[Auth Status] Returning user data:', {
+        userId: req.user?.id,
+        igelModus: req.user?.igel_modus,
+        bundestagApiEnabled: req.user?.bundestag_api_enabled,
+        source: '/auth/status'
+      });
+
       res.json({
         isAuthenticated: true,
         user: req.user,

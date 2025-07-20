@@ -173,7 +173,7 @@ const ProfilePage = () => {
   // Available tabs (filtered based on feature flags)
   const availableTabs = [
     'profile',
-    ...(shouldShowTab('anweisungen') ? ['intelligence'] : []),
+    'intelligence',
     'dokumente',
     ...(shouldShowTab('groups') ? ['gruppen'] : []),
     ...(shouldShowTab('customGenerators') ? ['custom_generators'] : []),
@@ -312,20 +312,18 @@ const ProfilePage = () => {
           Profil
         </TabButton>
         
-        {shouldShowTab('anweisungen') && (
-          <TabButton
-            activeTab={activeTab}
-            tabKey="intelligence"
-            onClick={handleTabChange}
-            onMouseEnter={() => onTabHover('intelligence')}
-            underlineTransition={underlineTransition}
-            tabIndex={getTabIndex('intelligence')}
-            registerRef={registerItemRef}
-            ariaSelected={ariaSelected('intelligence')}
-          >
-            Intelligence
-          </TabButton>
-        )}
+        <TabButton
+          activeTab={activeTab}
+          tabKey="intelligence"
+          onClick={handleTabChange}
+          onMouseEnter={() => onTabHover('intelligence')}
+          underlineTransition={underlineTransition}
+          tabIndex={getTabIndex('intelligence')}
+          registerRef={registerItemRef}
+          ariaSelected={ariaSelected('intelligence')}
+        >
+          Intelligence
+        </TabButton>
         
         <TabButton
           activeTab={activeTab}
@@ -423,7 +421,7 @@ const ProfilePage = () => {
             />
           )}
           
-          {activeTab === 'intelligence' && shouldShowTab('anweisungen') && (
+          {activeTab === 'intelligence' && (
             <IntelligenceTab
               user={user}
               onSuccessMessage={handleSuccessMessage}
