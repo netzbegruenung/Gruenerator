@@ -70,6 +70,7 @@ const loadPersistedAuthState = () => {
           selectedMessageColor: authState.selectedMessageColor || '#008939',
           memoryEnabled: authState.memoryEnabled || false,
           igelModus: authState.igelModus || false,
+          bundestagApiEnabled: authState.bundestagApiEnabled || false,
           isLoading: false, // Don't start in loading state if we have persisted data
         };
       } else {
@@ -94,6 +95,7 @@ const persistAuthState = (authState) => {
         selectedMessageColor: authState.selectedMessageColor,
         memoryEnabled: authState.memoryEnabled,
         igelModus: authState.igelModus,
+        bundestagApiEnabled: authState.bundestagApiEnabled,
       },
       timestamp: Date.now(),
       cacheVersion: AUTH_CACHE_VERSION,
@@ -132,6 +134,9 @@ export const useAuthStore = create((set, get) => ({
   
   // Igel-Modus (Grüne Jugend membership)
   igelModus: persistedState?.igelModus || false, // Default OFF
+  
+  // Bundestag API integration
+  bundestagApiEnabled: persistedState?.bundestagApiEnabled || false, // Default OFF
 
   // Supabase specific state
   supabaseSession: null,
@@ -139,6 +144,14 @@ export const useAuthStore = create((set, get) => ({
 
   // Main actions
   setAuthState: (data) => {
+    // Log for debugging bundestag API slider issue
+    console.log('[AuthStore] setAuthState called with data:', {
+      userId: data.user?.id,
+      igelModus: data.user?.igel_modus,
+      bundestagApiEnabled: data.user?.bundestag_api_enabled,
+      source: 'setAuthState'
+    });
+    
     set({
       user: data.user,
       isAuthenticated: data.isAuthenticated,
@@ -149,6 +162,7 @@ export const useAuthStore = create((set, get) => ({
       selectedMessageColor: data.user?.user_metadata?.chat_color || '#008939',
       memoryEnabled: data.user?.user_metadata?.memory_enabled || false,
       igelModus: data.user?.igel_modus || false, // Read from profiles table instead of user_metadata
+      bundestagApiEnabled: data.user?.bundestag_api_enabled || false, // Read from profiles table
     });
   },
 
@@ -192,6 +206,7 @@ export const useAuthStore = create((set, get) => ({
       selectedMessageColor: '#008939',
       memoryEnabled: false,
       igelModus: false,
+      bundestagApiEnabled: false,
       supabaseSession: null,
       _supabaseAuthCleanup: null,
     });
@@ -367,6 +382,35 @@ export const useAuthStore = create((set, get) => ({
     } catch (error) {
       // Revert optimistic update on failure
       set({ igelModus: !enabled });
+      throw error;
+    }
+  },
+
+  // Bundestag API management via Backend API
+  setBundestagApiEnabled: async (enabled) => {
+    // Optimistic update
+    set({ bundestagApiEnabled: enabled });
+
+    try {
+      const response = await fetch(`${AUTH_BASE_URL}/auth/profile/bundestag-api`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ bundestag_api_enabled: enabled })
+      });
+      
+      const result = await response.json();
+      
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || 'Bundestag API Update fehlgeschlagen');
+      }
+      
+      return result.bundestagApiEnabled;
+    } catch (error) {
+      // Revert optimistic update on failure
+      set({ bundestagApiEnabled: !enabled });
       throw error;
     }
   },
@@ -663,6 +707,7 @@ useAuthStore.subscribe(
     selectedMessageColor: state.selectedMessageColor,
     memoryEnabled: state.memoryEnabled,
     igelModus: state.igelModus,
+    bundestagApiEnabled: state.bundestagApiEnabled,
   })
 );
 

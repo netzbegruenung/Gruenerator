@@ -42,7 +42,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   const platformOptions = useMemo(() => [
     { id: 'instagram', label: 'Instagram' },
     { id: 'facebook', label: 'Facebook' },
-    { id: 'twitter', label: 'Twitter/X' },
+    { id: 'twitter', label: 'Twitter/X, Mastodon & Bluesky' },
     { id: 'linkedin', label: 'LinkedIn' },
     { id: 'actionIdeas', label: 'Aktionsideen' },
     { id: 'reelScript', label: 'Instagram Reel' },

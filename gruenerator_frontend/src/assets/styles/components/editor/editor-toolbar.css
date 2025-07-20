@@ -6,7 +6,7 @@
     top: 0;
     z-index: 100;
     border: none;
-    color: var(--tanne);
+    color: var(--primary);
     padding: 5px 0px;
 }
 
@@ -103,5 +103,5 @@
 }
 
 .ql-emoji-list .emoji-item:hover {
-    background-color: var(--sand);
+    background-color: var(--secondary);
 } 

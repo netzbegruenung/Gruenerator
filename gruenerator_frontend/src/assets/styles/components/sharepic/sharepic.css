@@ -146,7 +146,7 @@
 }
 
 .color-scheme-option.active .color-scheme-image {
-    border-color: var(--sand);
+    border-color: var(--secondary);
     transform: scale(0.95);
 }
 
@@ -428,7 +428,7 @@
 
 .sharepic-unsplash-search-button {
     padding: 0.5rem 1rem;
-    background-color: var(--tanne);
+    background-color: var(--primary);
     color: var(--weiß);
     border: 2px solid var(--weiß);
     border-radius: 4px;

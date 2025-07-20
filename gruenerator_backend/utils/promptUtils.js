@@ -498,6 +498,138 @@ function processAIResponseWithCitations(responseContent, documentContext, logPre
   };
 }
 
+/**
+ * Detects the precise content type based on route and form data
+ * @param {string} routePath - The route path (e.g., '/antraege/generate-simple')
+ * @param {Object} formData - The form data from the request
+ * @returns {string} The precise content type
+ */
+function detectContentType(routePath, formData = {}) {
+  // Antrag routes
+  if (routePath.includes('antrag') || routePath.includes('antraege')) {
+    const requestType = formData.requestType || 'antrag';
+    if (requestType === 'kleine_anfrage') return 'kleine_anfrage';
+    if (requestType === 'grosse_anfrage') return 'grosse_anfrage';
+    return 'antrag';
+  }
+  
+  // Social media routes
+  if (routePath.includes('claude_social')) {
+    const platforms = formData.platforms || [];
+    if (platforms.includes('pressemitteilung')) return 'pressemitteilung';
+    if (platforms.includes('instagram')) return 'instagram';
+    if (platforms.includes('facebook')) return 'facebook';
+    if (platforms.includes('twitter')) return 'twitter';
+    if (platforms.includes('linkedin')) return 'linkedin';
+    if (platforms.includes('actionIdeas')) return 'actionIdeas';
+    if (platforms.includes('reelScript')) return 'reelScript';
+    // Default to first platform or pressemitteilung
+    return platforms[0] || 'pressemitteilung';
+  }
+  
+  // Grüne Jugend routes
+  if (routePath.includes('gruene_jugend')) {
+    const platforms = formData.platforms || [];
+    if (platforms.includes('instagram')) return 'gruene_jugend_instagram';
+    if (platforms.includes('twitter')) return 'gruene_jugend_twitter';
+    if (platforms.includes('tiktok')) return 'gruene_jugend_tiktok';
+    if (platforms.includes('messenger')) return 'gruene_jugend_messenger';
+    if (platforms.includes('reelScript')) return 'gruene_jugend_reelScript';
+    if (platforms.includes('actionIdeas')) return 'gruene_jugend_actionIdeas';
+    // Default to first platform or instagram
+    return platforms[0] ? `gruene_jugend_${platforms[0]}` : 'gruene_jugend_instagram';
+  }
+  
+  // Universal routes
+  if (routePath.includes('claude_universal')) {
+    const textForm = formData.textForm;
+    if (textForm && typeof textForm === 'string') {
+      // Clean and normalize the text form
+      const cleanTextForm = textForm.toLowerCase().trim()
+        .replace(/\s+/g, '_')
+        .replace(/[^a-z0-9_]/g, '');
+      
+      // Map common text forms to specific types
+      if (cleanTextForm.includes('antrag')) return 'antrag';
+      if (cleanTextForm.includes('pressemitteilung')) return 'pressemitteilung';
+      if (cleanTextForm.includes('rede')) return 'rede';
+      if (cleanTextForm.includes('wahlprogramm')) return 'wahlprogramm';
+      if (cleanTextForm.includes('instagram')) return 'instagram';
+      if (cleanTextForm.includes('facebook')) return 'facebook';
+      if (cleanTextForm.includes('twitter')) return 'twitter';
+      
+      // Return the cleaned form as is for other types
+      return cleanTextForm;
+    }
+    return 'universal';
+  }
+  
+  // Speech routes
+  if (routePath.includes('claude_rede')) {
+    return 'rede';
+  }
+  
+  // Election program routes
+  if (routePath.includes('claude_wahlprogramm')) {
+    return 'wahlprogramm';
+  }
+  
+  // Default fallback
+  return 'universal';
+}
+
+/**
+ * Generates a smart title based on content type and form data
+ * @param {string} contentType - The content type
+ * @param {Object} formData - The form data
+ * @param {string} extractedTitle - Title extracted from content
+ * @returns {string} Generated title
+ */
+function generateSmartTitle(contentType, formData = {}, extractedTitle = null) {
+  // Use extracted title if available
+  if (extractedTitle && extractedTitle.trim()) {
+    return extractedTitle.trim();
+  }
+  
+  // Generate title based on content type and form data
+  const date = new Date().toLocaleDateString('de-DE');
+  
+  switch (contentType) {
+    case 'antrag':
+      return `Antrag: ${formData.idee || formData.thema || 'Unbenannt'}`;
+    case 'kleine_anfrage':
+      return `Kleine Anfrage: ${formData.idee || formData.thema || 'Unbenannt'}`;
+    case 'grosse_anfrage':
+      return `Große Anfrage: ${formData.idee || formData.thema || 'Unbenannt'}`;
+    case 'pressemitteilung':
+      return `Pressemitteilung: ${formData.thema || 'Unbenannt'}`;
+    case 'rede':
+      return `Rede: ${formData.thema || 'Unbenannt'}`;
+    case 'wahlprogramm':
+      return `Wahlprogramm-Kapitel: ${formData.thema || 'Unbenannt'}`;
+    case 'instagram':
+      return `Instagram-Post: ${formData.thema || 'Unbenannt'}`;
+    case 'facebook':
+      return `Facebook-Post: ${formData.thema || 'Unbenannt'}`;
+    case 'twitter':
+      return `Twitter-Post: ${formData.thema || 'Unbenannt'}`;
+    case 'linkedin':
+      return `LinkedIn-Post: ${formData.thema || 'Unbenannt'}`;
+    case 'actionIdeas':
+      return `Aktionsideen: ${formData.thema || 'Unbenannt'}`;
+    case 'reelScript':
+      return `Reel-Script: ${formData.thema || 'Unbenannt'}`;
+    case 'universal':
+      return `${formData.textForm || 'Text'}: ${formData.thema || 'Unbenannt'}`;
+    default:
+      if (contentType.startsWith('gruene_jugend_')) {
+        const platform = contentType.replace('gruene_jugend_', '');
+        return `Grüne Jugend ${platform}: ${formData.thema || 'Unbenannt'}`;
+      }
+      return `${contentType}: ${formData.thema || formData.idee || 'Unbenannt'}`;
+  }
+}
+
 module.exports = {
   HTML_FORMATTING_INSTRUCTIONS,
   PLATFORM_SPECIFIC_GUIDELINES,
@@ -509,5 +641,7 @@ module.exports = {
   extractCitationsFromText,
   processAIResponseWithCitations,
   isStructuredPrompt,
-  formatUserContent
+  formatUserContent,
+  detectContentType,
+  generateSmartTitle
 }; 

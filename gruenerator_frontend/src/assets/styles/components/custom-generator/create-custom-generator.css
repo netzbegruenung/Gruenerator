@@ -49,14 +49,14 @@ h3 {
 }
 
 .list-group-item .btn-outline-secondary {
-    color: var(--sand); 
-    border-color: var(--sand);
+    color: var(--secondary); 
+    border-color: var(--secondary);
     padding: 0.25rem 0.5rem; 
 
 }
 
 .list-group-item .btn-outline-secondary:hover {
-    background-color: var(--sand);
+    background-color: var(--secondary);
     color: var(--dunkelgruen);
 }
 
@@ -87,7 +87,7 @@ h3 {
   font-weight: 400;
   line-height: 1.5;
   color: var(--weiß);
-  background-color: var(--tanne); 
+  background-color: var(--primary); 
   text-align: center;
   text-decoration: none;
   vertical-align: middle;
@@ -172,14 +172,14 @@ h3 {
 
 .mode-card:hover {
     transform: translateY(-4px); 
-    border-color: var(--sand); 
+    border-color: var(--secondary); 
     box-shadow: var(--shadow-md); 
 }
 
 
 .mode-card.selected {
-    border-color: var(--tanne); 
-    background-color: rgba(var(--tanne-rgb, 0, 85, 56), 0.1); 
+    border-color: var(--primary); 
+    background-color: rgba(var(--primary-rgb, 0, 85, 56), 0.1); 
     box-shadow: var(--shadow-md); 
 }
 
@@ -243,7 +243,7 @@ h3 {
 }
 
 .success-message strong {
-    color: var(--tanne); 
+    color: var(--primary); 
     font-weight: 600;
 }
 

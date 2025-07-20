@@ -97,7 +97,7 @@
 }
 
 [data-theme="dark"] .result-title {
-  color: var(--sand);
+  color: var(--secondary);
 }
 
 [data-theme="dark"] .result-title:hover {

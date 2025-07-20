@@ -216,6 +216,7 @@ export const useAuth = (options = {}) => {
     betaFeatures,
     selectedMessageColor,
     igelModus,
+    bundestagApiEnabled,
     setAuthState,
     setLoading,
     setError,
@@ -223,6 +224,7 @@ export const useAuth = (options = {}) => {
     updateBetaFeature,
     updateMessageColor,
     setIgelModus,
+    setBundestagApiEnabled,
     login,
     logout,
     register,
@@ -447,6 +449,7 @@ export const useAuth = (options = {}) => {
     hasCachedData, // New: indicates if using cached data
     selectedMessageColor,
     igelModus,
+    bundestagApiEnabled,
     
     login,
     logout,
@@ -454,6 +457,7 @@ export const useAuth = (options = {}) => {
     
     updateUserMessageColor,
     setIgelModus,
+    setBundestagApiEnabled,
     
     register,
     deleteAccount,

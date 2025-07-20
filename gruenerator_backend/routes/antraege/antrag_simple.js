@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { HTML_FORMATTING_INSTRUCTIONS } = require('../../utils/promptUtils');
+const { processBundestagDocuments } = require('../../utils/bundestagUtils');
 
 // Web Search Tool Configuration
 const webSearchTool = {
@@ -19,7 +20,7 @@ const webSearchTool = {
  */
 router.post('/', async (req, res) => {
   // Extract useWebSearchTool along with other flags
-  const { requestType, idee, details, gliederung, useBedrock, customPrompt, useWebSearchTool } = req.body;
+  const { requestType, idee, details, gliederung, useBedrock, customPrompt, useWebSearchTool, useBundestagApi, selectedBundestagDocuments } = req.body;
   
   // Aktuelles Datum ermitteln
   const currentDate = new Date().toISOString().split('T')[0];
@@ -31,7 +32,8 @@ router.post('/', async (req, res) => {
       idee: idee?.substring(0, 50) + (idee?.length > 50 ? '...' : ''),
       hasCustomPrompt: !!customPrompt,
       useBedrock: useBedrock,
-      useWebSearchTool: useWebSearchTool
+      useWebSearchTool: useWebSearchTool,
+      useBundestagApi: useBundestagApi
     });
 
     // Validiere die Eingabedaten
@@ -42,7 +44,22 @@ router.post('/', async (req, res) => {
       });
     }
 
-    console.log('Sende vereinfachte Anfrage an Claude' + (useWebSearchTool ? ' mit Web Search Tool' : ''));
+    // Bundestag API Integration - Use selected documents with full text
+    let bundestagDocuments = null;
+    if (useBundestagApi && selectedBundestagDocuments && selectedBundestagDocuments.length > 0) {
+      try {
+        const processedDocs = await processBundestagDocuments(selectedBundestagDocuments);
+        bundestagDocuments = processedDocs.enhancedDocuments;
+      } catch (error) {
+        console.error('Bundestag document processing error (non-critical):', error.message);
+        // Continue without parliamentary documents if processing fails
+        bundestagDocuments = null;
+      }
+    }
+
+    console.log('Sende vereinfachte Anfrage an Claude' + 
+      (useWebSearchTool ? ' mit Web Search Tool' : '') + 
+      (useBundestagApi && bundestagDocuments ? ` mit ${bundestagDocuments.totalResults} parlamentarischen Dokumenten` : ''));
     
     // Configure tools and system prompt based on web search usage
     const tools = useWebSearchTool ? [webSearchTool] : [];
@@ -71,7 +88,16 @@ router.post('/', async (req, res) => {
       systemPrompt += 'Nutze die Websuche, wenn du aktuelle Informationen oder Fakten benötigst. Zitiere deine Quellen. ';
     }
     
+    // Add parliamentary documents instructions if available
+    if (useBundestagApi && bundestagDocuments && bundestagDocuments.totalResults > 0) {
+      systemPrompt += 'Du hast Zugang zu relevanten parlamentarischen Dokumenten (Drucksachen und Plenarprotokolle) aus dem Bundestag. Nutze diese Informationen, um den Antrag zu fundieren und auf bereits diskutierte oder beschlossene Themen zu verweisen. Zitiere spezifische Dokumente mit ihrer Nummer und dem Datum. ';
+    }
+    
     systemPrompt += 'WICHTIG: Gib nur den finalen deutschen Text aus, keine englischen Zwischenschritte oder Gedankengänge. Beginne direkt mit dem fertigen Dokument.';
+    
+    // Format parliamentary documents if available
+    const { formatDocumentsForPrompt } = require('../../utils/bundestagUtils');
+    const parlamentaryDocsText = useBundestagApi && bundestagDocuments ? formatDocumentsForPrompt(bundestagDocuments) : '';
     
     // Erstelle den Benutzerinhalt basierend auf dem Vorhandensein eines benutzerdefinierten Prompts
     let userContent;
@@ -94,6 +120,8 @@ ${idee ? `- Antragsidee: ${idee}` : ''}
 ${gliederung ? `- Gliederung: ${gliederung}` : ''}
 ${details ? `- Details: ${details}` : ''}
 
+${parlamentaryDocsText}
+
 Der Antrag sollte eine klare Struktur mit Betreff, Antragstext und Begründung haben.
 
 WICHTIG: Antworte ausschließlich auf Deutsch. Gib nur den finalen Antrag aus, keine Zwischenschritte oder Erklärungen.
@@ -109,6 +137,8 @@ Zusätzliche Informationen (falls relevant):
 ${idee ? `- Antragsidee: ${idee}` : ''}
 ${gliederung ? `- Gliederung: ${gliederung}` : ''}
 ${details ? `- Details: ${details}` : ''}
+
+${parlamentaryDocsText}
 
 Der Antrag sollte eine klare Struktur mit Betreff, Antragstext und Begründung haben.
 
@@ -126,8 +156,15 @@ ${HTML_FORMATTING_INSTRUCTIONS}`;
                    (details ? `\n\nDetails: ${details}` : '') + 
                    (gliederung ? `\n\nFür die Gliederung: ${gliederung}` : '') +
                    `\n\nAktuelles Datum: ${currentDate}` +
+                   (parlamentaryDocsText ? `\n\n${parlamentaryDocsText}` : '') +
                    `\n\nWICHTIG: Antworte ausschließlich auf Deutsch. Gib nur das finale Dokument aus, keine Zwischenschritte oder Erklärungen.\n\n${HTML_FORMATTING_INSTRUCTIONS}`;
     }
+    
+    // Simple debug logging for prompt visualization
+    console.log('\n📄 [ANTRAG DEBUG] Vollständiger Prompt:');
+    console.log('System:', systemPrompt);
+    console.log('User Content:', userContent);
+    console.log('─'.repeat(50));
     
     // Anfrage an Claude
     const payload = {
@@ -153,12 +190,14 @@ ${HTML_FORMATTING_INSTRUCTIONS}`;
       throw new Error(result.error);
     }
     
-    // Enhanced response with web search metadata
+    // Enhanced response with web search and Bundestag API metadata
     const responseData = {
       content: result.content,
       metadata: {
         ...result.metadata,
-        webSearchUsed: useWebSearchTool || false
+        webSearchUsed: useWebSearchTool || false,
+        bundestagApiUsed: useBundestagApi || false,
+        bundestagDocumentsUsed: bundestagDocuments ? bundestagDocuments.totalResults : 0
       }
     };
     

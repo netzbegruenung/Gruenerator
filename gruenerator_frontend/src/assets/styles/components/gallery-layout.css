@@ -86,7 +86,7 @@
 .gallery-category-filter .category-button.active {
   background: var(--background-color-alt);
   color: var(--font-color);
-  border-color: var(--tanne); 
+  border-color: var(--primary); 
 }
 
 .gallery-grid {
@@ -174,7 +174,7 @@
 
 .antrag-card-tag-more {
   font-size: 0.8em;
-  color: var(--tanne);
+  color: var(--primary);
   margin-left: 0.2rem; 
   display: inline-block; 
   vertical-align: bottom; 
@@ -246,12 +246,12 @@
 
 .advanced-search-options .category-button:hover {
   background: var(--background-color-alt);
-  border-color: var(--tanne);
+  border-color: var(--primary);
   transform: translateY(-1px);
 }
 
 .advanced-search-options .category-button.active {
-  background: var(--tanne);
+  background: var(--primary);
   color: var(--weiß);
-  border-color: var(--tanne);
+  border-color: var(--primary);
 }

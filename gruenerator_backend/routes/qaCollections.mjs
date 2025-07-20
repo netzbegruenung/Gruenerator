@@ -345,4 +345,86 @@ router.delete('/:id/share', requireAuth, async (req, res) => {
     }
 });
 
+// DELETE /api/qa-collections/bulk - Bulk delete Q&A collections
+router.delete('/bulk', requireAuth, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { ids } = req.body;
+
+        // Validate input
+        if (!Array.isArray(ids) || ids.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Array of collection IDs is required'
+            });
+        }
+
+        if (ids.length > 100) {
+            return res.status(400).json({
+                success: false,
+                message: 'Maximum 100 collections can be deleted at once'
+            });
+        }
+
+        console.log(`[QA Collections] Bulk delete request for ${ids.length} collections from user ${userId}`);
+
+        // First, verify all collections belong to the user
+        const { data: verifyCollections, error: verifyError } = await supabase
+            .from('qa_collections')
+            .select('id, name')
+            .eq('user_id', userId)
+            .in('id', ids);
+
+        if (verifyError) {
+            console.error('[QA Collections] Error verifying collection ownership:', verifyError);
+            throw new Error('Failed to verify collection ownership');
+        }
+
+        const ownedIds = verifyCollections.map(collection => collection.id);
+        const unauthorizedIds = ids.filter(id => !ownedIds.includes(id));
+
+        if (unauthorizedIds.length > 0) {
+            return res.status(403).json({
+                success: false,
+                message: `Access denied for collections: ${unauthorizedIds.join(', ')}`,
+                unauthorized_ids: unauthorizedIds
+            });
+        }
+
+        // Perform bulk delete (cascade will handle related records)
+        const { data: deletedData, error: deleteError } = await supabase
+            .from('qa_collections')
+            .delete()
+            .eq('user_id', userId)
+            .in('id', ids)
+            .select('id');
+
+        if (deleteError) {
+            console.error('[QA Collections] Error during bulk delete:', deleteError);
+            throw new Error('Failed to delete collections');
+        }
+
+        const deletedIds = deletedData ? deletedData.map(collection => collection.id) : [];
+        const failedIds = ids.filter(id => !deletedIds.includes(id));
+
+        console.log(`[QA Collections] Bulk delete completed: ${deletedIds.length} deleted, ${failedIds.length} failed`);
+
+        res.json({
+            success: true,
+            message: `Bulk delete completed: ${deletedIds.length} of ${ids.length} Q&A collections deleted successfully`,
+            deleted_count: deletedIds.length,
+            failed_ids: failedIds,
+            total_requested: ids.length,
+            deleted_ids: deletedIds
+        });
+
+    } catch (error) {
+        console.error('[QA Collections] Error in bulk delete:', error);
+        res.status(500).json({
+            success: false,
+            message: error.message || 'Failed to perform bulk delete of Q&A collections'
+        });
+    }
+});
+
 export default router;

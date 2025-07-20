@@ -241,7 +241,7 @@
 .delete-warning-button.confirm-first {
   background: var(--warning-orange, #ffc107);
   border-color: var(--warning-orange, #ffc107);
-  color: var(--tanne);
+  color: var(--primary);
 }
 
 .delete-warning-button.confirm-first:hover {

@@ -23,7 +23,7 @@ export const profileApiService = {
       throw new Error('Profil nicht gefunden');
     }
 
-    return {
+    const profileData = {
       display_name: profile.display_name,
       first_name: profile.first_name,
       last_name: profile.last_name,
@@ -31,8 +31,23 @@ export const profileApiService = {
       avatar_robot_id: profile.avatar_robot_id,
       is_admin: profile.is_admin,
       username: profile.username,
-      keycloak_id: profile.keycloak_id
+      keycloak_id: profile.keycloak_id,
+      // Add missing profile fields that are needed for frontend state management
+      bundestag_api_enabled: profile.bundestag_api_enabled || false,
+      igel_modus: profile.igel_modus || false,
+      beta_features: profile.beta_features || {},
+      memory_enabled: profile.memory_enabled || false
     };
+
+    // Log for debugging bundestag API slider issue
+    console.log('[ProfileAPI] getProfile returning data:', {
+      userId: profile.id || 'unknown',
+      igelModus: profileData.igel_modus,
+      bundestagApiEnabled: profileData.bundestag_api_enabled,
+      source: 'profileApiService.getProfile'
+    });
+
+    return profileData;
   },
 
   async getBundledProfileData(options = {}) {

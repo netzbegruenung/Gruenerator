@@ -19,7 +19,7 @@
 .not-found-content h1 {
     font-size: 8em;
     font-weight: 700;
-    color: var(--tanne);
+    color: var(--primary);
     margin: 0;
     font-family: 'GrueneType', Arial, sans-serif;
     line-height: 1;
@@ -44,7 +44,7 @@
     align-items: center;
     gap: 0.5rem;
     padding: 1rem 2rem;
-    background-color: var(--tanne);
+    background-color: var(--primary);
     color: white;
     text-decoration: none;
     border-radius: 10px;

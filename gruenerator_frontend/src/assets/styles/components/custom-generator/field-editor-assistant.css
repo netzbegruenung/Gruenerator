@@ -5,7 +5,7 @@
 }
 
 .field-editor-assistant h5 {
-    color: var(--font-color-h, var(--sand)); 
+    color: var(--font-color-h, var(--secondary)); 
     margin-top: 20px;
     margin-bottom: var(--spacing-medium, 16px);
     font-weight: 600; 
@@ -57,7 +57,7 @@
     padding: var(--spacing-small, 12px) var(--spacing-medium, 16px);
     border: none; 
     background-color: transparent; 
-    color: var(--font-color, var(--sand));
+    color: var(--font-color, var(--secondary));
     cursor: pointer;
     transition: background-color 0.2s ease, color 0.2s ease;
     text-align: center;
@@ -103,7 +103,7 @@
 
 .field-editor-assistant code {
     background-color: var(--anthrazit, #222);
-    color: var(--font-color, var(--sand));
+    color: var(--font-color, var(--secondary));
     padding: var(--spacing-xxsmall, 4px) var(--spacing-xsmall, 8px);
     border-radius: 4px;
     font-family: monospace;
@@ -133,7 +133,7 @@
 
 .field-editor-assistant .btn {
     
-    background-color: var(--tanne, #006A4E);
+    background-color: var(--primary, #006A4E);
     border: 2px solid var(--weiß, #ffffff);
     color: var(--weiß, #ffffff);
     padding: 10px 20px; 
@@ -161,14 +161,14 @@
 }
 
 .field-editor-assistant .btn-primary:hover {
-    border-color: var(--sand);
+    border-color: var(--secondary);
 }
 
 .field-editor-assistant .btn-secondary {
     
     background-color: transparent;
     border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.3));
-    color: var(--font-color, var(--sand));
+    color: var(--font-color, var(--secondary));
 }
 
 .field-editor-assistant .btn-secondary:hover {

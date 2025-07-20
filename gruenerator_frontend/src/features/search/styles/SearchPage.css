@@ -67,7 +67,7 @@
 }
 
 .analyze-button:hover {
-  background-color: var(--tanne);
+  background-color: var(--primary);
 }
 
 .analyze-button:disabled {
@@ -279,7 +279,7 @@
 }
 
 [data-theme="dark"] .search-header h1 {
-  color: var(--sand);
+  color: var(--secondary);
 }
 
 [data-theme="dark"] .search-subtitle {
@@ -300,12 +300,12 @@
 }
 
 [data-theme="dark"] .analysis-content ul li::before {
-  color: var(--sand);
+  color: var(--secondary);
 }
 
 [data-theme="dark"] .source-content-snippets {
   background-color: var(--background-color-alt);
-  border-left-color: var(--sand);
+  border-left-color: var(--secondary);
 }
 
 @media (max-width: 768px) {
@@ -631,16 +631,16 @@
 
 [data-theme="dark"] .dossier-content .antrag-text-content blockquote {
   background-color: var(--hover-color-alt);
-  border-left-color: var(--sand);
+  border-left-color: var(--secondary);
 }
 
 [data-theme="dark"] .dossier-content .antrag-text-content code {
   background-color: var(--background-color);
-  color: var(--sand);
+  color: var(--secondary);
 }
 
 [data-theme="dark"] .dossier-content .antrag-text-content h1 {
-  border-bottom-color: var(--sand);
+  border-bottom-color: var(--secondary);
 }
 
 /* Mobile responsiveness */
