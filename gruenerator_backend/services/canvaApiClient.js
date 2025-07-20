@@ -12,6 +12,7 @@ class CanvaApiClient {
   constructor(accessToken = null) {
     this.baseURL = 'https://api.canva.com/rest/v1';
     this.accessToken = accessToken;
+    this.isConfigured = !!accessToken;
     
     this.client = axios.create({
       baseURL: this.baseURL,
@@ -54,12 +55,35 @@ class CanvaApiClient {
   }
 
   /**
+   * Check if the API client is properly configured with an access token
+   * @returns {boolean} True if access token is available
+   */
+  isApiConfigured() {
+    return this.isConfigured;
+  }
+
+  /**
+   * Validate configuration before making API calls
+   * @throws {Error} If API is not configured
+   */
+  _validateConfiguration() {
+    if (!this.isConfigured) {
+      throw new Error('Canva API client is not configured with an access token.');
+    }
+  }
+
+  /**
    * Update the access token for this client instance
    * @param {string} accessToken - New access token
    */
   setAccessToken(accessToken) {
     this.accessToken = accessToken;
-    this.client.defaults.headers['Authorization'] = `Bearer ${accessToken}`;
+    this.isConfigured = !!accessToken;
+    if (accessToken) {
+      this.client.defaults.headers['Authorization'] = `Bearer ${accessToken}`;
+    } else {
+      delete this.client.defaults.headers['Authorization'];
+    }
   }
 
   /**
@@ -67,6 +91,7 @@ class CanvaApiClient {
    * @returns {Promise<Object>} User object with profile information
    */
   async getCurrentUser() {
+    this._validateConfiguration();
     try {
       console.log('[CanvaAPI] Fetching current user information');
       const response = await this.client.get('/users/me');
@@ -89,6 +114,7 @@ class CanvaApiClient {
    * @returns {Promise<Object>} Created design object
    */
   async createDesign(designData) {
+    this._validateConfiguration();
     try {
       const { title, design_type, template_id, ...options } = designData;
       
@@ -287,6 +313,9 @@ class CanvaApiClient {
    * @returns {Promise<boolean>} True if connection successful
    */
   async testConnection() {
+    if (!this.isConfigured) {
+      return false;
+    }
     try {
       console.log('[CanvaAPI] Testing API connection...');
       await this.getCurrentUser();
