@@ -434,7 +434,7 @@
 }
 
 .floating-toolbar-button-success:hover:not(.floating-toolbar-button-disabled) {
-  background-color: var(--tanne);
+  background-color: var(--primary);
   color: var(--weiß);
 }
 

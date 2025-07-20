@@ -176,8 +176,8 @@
 }
 
 .reject-adjust {
-    background-color: var(--sand);
-    color: var(--tanne);
+    background-color: var(--secondary);
+    color: var(--primary);
 }
 
 .confirm-adjust:hover, .reject-adjust:hover {

@@ -38,6 +38,7 @@ const offboardingRouter = require('./routes/internal/offboardingController'); //
 // mem0Router will be imported dynamically like auth routes
 // Auth routes will be imported dynamically
 
+
 async function setupRoutes(app) {
   // Add debug middleware to trace ALL requests before anything else
   app.use('*', (req, res, next) => {
@@ -68,10 +69,10 @@ async function setupRoutes(app) {
   const { default: userProfile } = await import('./routes/auth/userProfile.mjs');
   const { default: userContent } = await import('./routes/auth/userContent.mjs');
   const { default: userGroups } = await import('./routes/auth/userGroups.mjs');
-  // const { default: userCustomGenerators } = await import('./routes/auth/userCustomGenerators.mjs'); // REMOVED - consolidated
   const { default: userTemplates } = await import('./routes/auth/userTemplates.mjs');
   const { default: mobileAuthRoutes } = await import('./routes/auth/mobile.mjs');
   const { default: documentsRouter } = await import('./routes/documents.mjs');
+  const { default: bundestagRouter } = await import('./routes/bundestag.mjs');
   // Try to import mem0Router, fall back to null if not available
   let mem0Router = null;
   try {
@@ -93,6 +94,10 @@ async function setupRoutes(app) {
   // Import Q&A routes as ES6 modules
   const { default: qaCollectionsRouter } = await import('./routes/qaCollections.mjs');
   const { default: qaInteractionRouter } = await import('./routes/qaInteraction.mjs');
+  // Import Canva routes as ES6 modules
+  const { default: canvaAuthRouter } = await import('./routes/canva/canvaAuth.mjs');
+  const { default: canvaApiRouter } = await import('./routes/canva/canvaApi.mjs');
+  // const { default: canvaWebhooksRouter } = await import('./routes/canva/canvaWebhooks.mjs'); // Optional - only needed for real-time updates
   
   app.use('/api/auth', authCore);
   app.use('/api/auth', userProfile);
@@ -104,6 +109,7 @@ async function setupRoutes(app) {
   app.use('/api/auth/qa-collections', qaCollectionsRouter);
   app.use('/api/auth/qa', qaInteractionRouter);
   app.use('/api/documents', documentsRouter);
+  app.use('/api/bundestag', bundestagRouter);
 
   // Import and use userTexts route (ES6 module)
   const userTextsRouter = await import('./routes/userTexts.mjs');
@@ -155,6 +161,12 @@ async function setupRoutes(app) {
   // Add internal routes like snapshotting trigger
   app.use('/api/internal', snapshottingRouter);
   app.use('/api/internal/offboarding', offboardingRouter);
+
+  // Add Canva routes (basic functionality)
+  app.use('/api/canva/auth', canvaAuthRouter);
+  app.use('/api/canva', canvaApiRouter);
+  // app.use('/api/canva/webhooks', canvaWebhooksRouter); // Optional - uncomment if you need real-time webhook updates
+  console.log('[Setup] Canva basic routes registered');
 
   // Add Mem0 routes only if available
   if (mem0Router) {

@@ -85,7 +85,7 @@
   bottom: 0.5rem;
   right: 0.5rem;
   font-size: 0.9rem;
-  color: var(--tanne);
+  color: var(--primary);
   opacity: 0;
   transition: opacity 0.3s ease;
 }
@@ -101,7 +101,7 @@
 
 .welcome-2025-card-clickable:hover {
   background-color: var(--hover-color-alt);
-  border: 1px solid var(--tanne);
+  border: 1px solid var(--primary);
   padding: calc(0.75rem - 1px);
 }
 
@@ -161,7 +161,7 @@
 }
 
 .welcome-2025-button-primary {
-  background-color: var(--tanne);
+  background-color: var(--primary);
   color: white;
 }
 

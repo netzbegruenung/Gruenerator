@@ -219,7 +219,7 @@
     margin-top: 0; 
     margin-bottom: var(--spacing-large); 
     color: var(--font-color-h);
-    border-bottom: 2px solid var(--tanne); 
+    border-bottom: 2px solid var(--primary); 
     padding-bottom: var(--spacing-small);
     display: inline-block; 
   }

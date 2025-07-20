@@ -62,7 +62,7 @@
 
 
 .segmented-control-button.active {
-  background-color: var(--tanne, #4CAF50); 
+  background-color: var(--primary, #4CAF50); 
   color: white;
   font-weight: 500;
   box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
@@ -193,12 +193,12 @@
 
 .discrete-slider-container.disabled .discrete-slider-input::-webkit-slider-thumb {
   cursor: not-allowed;
-  background: var(--sand); 
+  background: var(--secondary); 
 }
 
 .discrete-slider-container.disabled .discrete-slider-input::-moz-range-thumb {
   cursor: not-allowed;
-  background: var(--sand); 
+  background: var(--secondary); 
 }
 
 
@@ -248,7 +248,7 @@
 
 
 .discrete-slider-label.disabled {
-  color: var(--sand); 
+  color: var(--secondary); 
   cursor: default;
   opacity: 0.7;
 }

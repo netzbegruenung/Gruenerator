@@ -9,11 +9,13 @@ const BETA_FEATURES_CONFIG = [
   { key: 'sharepic', label: 'Sharepic', isAdminOnly: false },
   { key: 'you', label: 'You Generator', isAdminOnly: false },
   { key: 'collab', label: 'Kollaborative Bearbeitung', isAdminOnly: false },
-  { key: 'anweisungen', label: 'Profil auswählen', isAdminOnly: false },
   { key: 'groups', label: 'Gruppen', isAdminOnly: false },
   { key: 'database', label: 'Datenbank', isAdminOnly: true },
   { key: 'customGenerators', label: 'Grüneratoren', isAdminOnly: false },
   { key: 'qa', label: 'Q&A Sammlungen', isAdminOnly: false },
+  // Profile settings treated as beta features for consistency
+  { key: 'igel_modus', label: 'Igel-Modus', isAdminOnly: false, isProfileSetting: true },
+  { key: 'bundestag_api_enabled', label: 'Bundestag API', isAdminOnly: false, isProfileSetting: true },
 ];
 
 // Dynamically generated arrays from config

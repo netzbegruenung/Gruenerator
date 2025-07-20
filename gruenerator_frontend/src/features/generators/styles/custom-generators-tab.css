@@ -21,14 +21,14 @@
 }
 
 .custom-generator-button-open {
-  color: var(--tanne);
-  border: 1px solid var(--tanne);
+  color: var(--primary);
+  border: 1px solid var(--primary);
 }
 
 .custom-generator-button-open:hover {
   color: var(--weiß);
-  background-color: var(--tanne);
-  border-color: var(--tanne);
+  background-color: var(--primary);
+  border-color: var(--primary);
 }
 
 .custom-generator-button-delete {
@@ -47,14 +47,14 @@
 }
 
 [data-theme="dark"] .custom-generator-button-open {
-  color: var(--sand);
-  border-color: var(--sand);
+  color: var(--secondary);
+  border-color: var(--secondary);
 }
 
 [data-theme="dark"] .custom-generator-button-open:hover {
   color: var(--background-color);
-  background-color: var(--sand);
-  border-color: var(--sand);
+  background-color: var(--secondary);
+  border-color: var(--secondary);
 }
 
 [data-theme="dark"] .custom-generator-button-delete {
@@ -243,7 +243,7 @@
 }
 
 .document-item:hover {
-  border-color: var(--tanne);
+  border-color: var(--primary);
   background: var(--background-hover-color);
 }
 
