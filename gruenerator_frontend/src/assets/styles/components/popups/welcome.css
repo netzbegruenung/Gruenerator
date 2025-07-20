@@ -8,8 +8,8 @@
   background-color: var(--background-color);
   background-image: 
     radial-gradient(circle at 5% 10%, var(--klee-transparent) 0%, transparent 15%),
-    radial-gradient(circle at 95% 90%, var(--tanne-transparent) 0%, transparent 12%),
-    radial-gradient(circle at 90% 5%, var(--sand-transparent) 0%, transparent 8%);
+    radial-gradient(circle at 95% 90%, var(--primary-transparent) 0%, transparent 12%),
+    radial-gradient(circle at 90% 5%, var(--secondary-transparent) 0%, transparent 8%);
   display: flex;
   justify-content: flex-start;
   align-items: flex-start;
@@ -137,7 +137,7 @@
 .step-number {
   width: clamp(32px, 4vw, 36px);
   height: clamp(32px, 4vw, 36px);
-  background: linear-gradient(135deg, var(--klee) 0%, var(--tanne) 150%);
+  background: linear-gradient(135deg, var(--klee) 0%, var(--primary) 150%);
   color: var(--weiß);
   border-radius: 50%;
   display: flex;
@@ -166,7 +166,7 @@
 }
 
 .start-button {
-  background: linear-gradient(135deg, var(--klee) 0%, var(--tanne) 150%);
+  background: linear-gradient(135deg, var(--klee) 0%, var(--primary) 150%);
   color: var(--weiß);
   border: none;
   padding: clamp(14px, 2vw, 16px) clamp(35px, 4vw, 40px);
@@ -187,7 +187,7 @@
 .start-button:hover {
   transform: translateY(-2px) scale(1.02);
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-  background: linear-gradient(135deg, var(--tanne) -50%, var(--klee) 150%);
+  background: linear-gradient(135deg, var(--primary) -50%, var(--klee) 150%);
 }
 
 

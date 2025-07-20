@@ -144,7 +144,7 @@
 }
 
 [data-theme="dark"] .you-header h1 {
-  color: var(--sand);
+  color: var(--secondary);
 }
 
 

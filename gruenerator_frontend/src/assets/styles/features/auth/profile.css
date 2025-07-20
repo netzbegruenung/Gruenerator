@@ -56,8 +56,8 @@
    da diese nun über motion.div gesteuert werden */
 /* 
 .profile-tab.active {
-  border-bottom: 2px solid var(--tanne);
-  color: var(--tanne);
+  border-bottom: 2px solid var(--primary);
+  color: var(--primary);
   font-weight: bold;
 }
 
@@ -74,7 +74,7 @@
   left: 0;
   right: 0;
   height: 2px;
-  background-color: var(--tanne);
+  background-color: var(--primary);
   border-radius: 1px;
 }
 
@@ -182,7 +182,7 @@
   height: 120px;
   border-radius: 50%;
   overflow: hidden;
-  border: 2px solid var(--tanne);
+  border: 2px solid var(--primary);
   position: relative;
   box-shadow: var(--shadow-md);
   background-color: var(--background-color-alt);
@@ -271,7 +271,7 @@
 }
 
 .profile-primary-button {
-  background-color: var(--tanne);
+  background-color: var(--primary);
   color: white;
   border: none;
 }
@@ -371,7 +371,7 @@
 }
 
 .antrag-item-link:hover .antrag-title {
-  color: var(--tanne);
+  color: var(--primary);
   text-decoration: underline;
 }
 
@@ -869,7 +869,7 @@
   margin-top: var(--spacing-large);
   padding: var(--spacing-medium);
   background-color: var(--background-color-alt);
-  border-left: 4px solid var(--tanne);
+  border-left: 4px solid var(--primary);
   border-radius: 4px;
 }
 

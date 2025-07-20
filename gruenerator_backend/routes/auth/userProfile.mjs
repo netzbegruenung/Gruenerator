@@ -288,10 +288,10 @@ router.get('/profile/beta-features', ensureAuthenticated, async (req, res) => {
       console.error('[User Profile /profile/beta-features GET] Auth user error:', authError);
     }
     
-    // Get profile from database to access beta_features
+    // Get profile from database to access beta_features and individual profile settings
     const { data: profile, error: profileError } = await supabaseService
       .from('profiles')
-      .select('beta_features')
+      .select('beta_features, igel_modus, bundestag_api_enabled')
       .eq('id', req.user.id)
       .single();
     
@@ -304,10 +304,24 @@ router.get('/profile/beta-features', ensureAuthenticated, async (req, res) => {
     const authBetaFeatures = authUser?.user?.raw_user_meta_data?.beta_features || {};
     const profileBetaFeatures = profile?.beta_features || {};
     
+    // Include individual profile settings as beta features for consistency
+    const profileSettingsAsBetaFeatures = {
+      igel_modus: profile?.igel_modus || false,
+      bundestag_api_enabled: profile?.bundestag_api_enabled || false
+    };
+    
     const mergedBetaFeatures = {
       ...authBetaFeatures,
-      ...profileBetaFeatures
+      ...profileBetaFeatures,
+      ...profileSettingsAsBetaFeatures
     };
+    
+    console.log('[User Profile /profile/beta-features GET] Merged beta features with profile settings:', {
+      userId: req.user.id,
+      igelModus: mergedBetaFeatures.igel_modus,
+      bundestagApiEnabled: mergedBetaFeatures.bundestag_api_enabled,
+      source: 'beta-features-get'
+    });
     
     
     res.json({ 
@@ -347,7 +361,10 @@ router.patch('/profile/beta-features', ensureAuthenticated, async (req, res) => 
       'collab',
       'advanced_editor',
       'collaborative_editing',
-      'customGruenerator'
+      'customGruenerator',
+      // Profile settings treated as beta features for consistency
+      'igel_modus',
+      'bundestag_api_enabled'
     ];
     if (!allowedFeatures.includes(feature)) {
       return res.status(400).json({
@@ -393,13 +410,26 @@ router.patch('/profile/beta-features', ensureAuthenticated, async (req, res) => 
     
     // Primary storage: Always store in profiles table for reliability
     try {
+      // Prepare update data with beta features
+      const updateData = {
+        id: req.user.id,
+        beta_features: updatedBetaFeatures,
+        updated_at: new Date().toISOString()
+      };
+      
+      // Special handling: Also update individual columns for profile settings treated as beta features
+      if (feature === 'igel_modus') {
+        updateData.igel_modus = Boolean(enabled);
+        console.log('[User Profile /profile/beta-features PATCH] Also updating igel_modus column:', enabled);
+      }
+      if (feature === 'bundestag_api_enabled') {
+        updateData.bundestag_api_enabled = Boolean(enabled);
+        console.log('[User Profile /profile/beta-features PATCH] Also updating bundestag_api_enabled column:', enabled);
+      }
+      
       const { error: profileUpdateError } = await supabaseService
         .from('profiles')
-        .upsert({
-          id: req.user.id,
-          beta_features: updatedBetaFeatures,
-          updated_at: new Date().toISOString()
-        });
+        .upsert(updateData);
       
       if (profileUpdateError) {
         console.error('[User Profile /profile/beta-features PATCH] Profile storage failed:', profileUpdateError);
@@ -417,6 +447,16 @@ router.patch('/profile/beta-features', ensureAuthenticated, async (req, res) => 
       // Update beta_features directly on user object (from profiles table)
       req.user.beta_features = updatedBetaFeatures;
       
+      // Special handling: Also update individual profile settings in session for compatibility
+      if (feature === 'igel_modus') {
+        req.user.igel_modus = Boolean(enabled);
+        console.log('[User Profile /profile/beta-features PATCH] Also updating req.user.igel_modus in session:', enabled);
+      }
+      if (feature === 'bundestag_api_enabled') {
+        req.user.bundestag_api_enabled = Boolean(enabled);
+        console.log('[User Profile /profile/beta-features PATCH] Also updating req.user.bundestag_api_enabled in session:', enabled);
+      }
+      
       // Also update in user_metadata for consistency
       if (req.user.user_metadata) {
         req.user.user_metadata.beta_features = updatedBetaFeatures;
@@ -427,12 +467,22 @@ router.patch('/profile/beta-features', ensureAuthenticated, async (req, res) => 
       // CRITICAL: Force session to update by modifying session.passport.user directly
       if (req.session.passport && req.session.passport.user) {
         req.session.passport.user = req.user;
+        
+        // Special handling: Also update individual profile settings in session.passport.user
+        if (feature === 'igel_modus') {
+          req.session.passport.user.igel_modus = Boolean(enabled);
+        }
+        if (feature === 'bundestag_api_enabled') {
+          req.session.passport.user.bundestag_api_enabled = Boolean(enabled);
+        }
       }
       
       // Force session save to persist the updated user object
       req.session.save((err) => {
         if (err) {
           console.error('[User Profile /profile/beta-features PATCH] Session save error:', err);
+        } else {
+          console.log('[User Profile /profile/beta-features PATCH] Session saved successfully');
         }
       });
     }
@@ -645,6 +695,27 @@ router.patch('/profile/igel-modus', ensureAuthenticated, async (req, res) => {
     
     console.log(`[User Profile /profile/igel-modus PATCH] Igel-Modus updated to ${igel_modus}`);
     
+    // Update user object in session to keep it in sync with database
+    if (req.user) {
+      req.user.igel_modus = Boolean(igel_modus);
+      console.log('[User Profile /profile/igel-modus PATCH] Updated req.user.igel_modus in session');
+      
+      // CRITICAL: Also update req.session.passport.user to ensure session.save() persists the change
+      if (req.session.passport && req.session.passport.user) {
+        req.session.passport.user.igel_modus = Boolean(igel_modus);
+        console.log('[User Profile /profile/igel-modus PATCH] Updated req.session.passport.user.igel_modus');
+      }
+      
+      // CRITICAL: Save session to persist the change across page reloads
+      req.session.save((err) => {
+        if (err) {
+          console.error('[User Profile /profile/igel-modus PATCH] Session save error:', err);
+        } else {
+          console.log('[User Profile /profile/igel-modus PATCH] Session saved successfully');
+        }
+      });
+    }
+    
     res.json({ 
       success: true, 
       igelModus: igel_modus,
@@ -656,6 +727,107 @@ router.patch('/profile/igel-modus', ensureAuthenticated, async (req, res) => {
     res.status(500).json({ 
       success: false, 
       message: error.message || 'Fehler beim Aktualisieren des Igel-Modus.'
+    });
+  }
+});
+
+// Update user Bundestag API setting
+router.patch('/profile/bundestag-api', ensureAuthenticated, async (req, res) => {
+  try {
+    console.log('[User Profile /profile/bundestag-api PATCH] Bundestag API update for user:', req.user.id);
+    const { bundestag_api_enabled } = req.body;
+    
+    if (typeof bundestag_api_enabled !== 'boolean') {
+      return res.status(400).json({
+        success: false,
+        message: 'Bundestag API Status ist erforderlich.'
+      });
+    }
+    
+    // Get current user metadata from Supabase Auth
+    const { data: authUser, error: getUserError } = await supabaseService.auth.admin.getUserById(req.user.id);
+    
+    if (getUserError) {
+      console.error('[User Profile /profile/bundestag-api PATCH] Get user error:', getUserError);
+      throw new Error('Benutzer nicht gefunden');
+    }
+    
+    const currentMetadata = authUser.user.user_metadata || {};
+    
+    // Update Bundestag API settings - ensure we have a clean object
+    const updatedMetadata = {
+      ...currentMetadata,
+      bundestag_api_enabled: Boolean(bundestag_api_enabled) // Ensure it's a proper boolean
+    };
+    
+    console.log('[User Profile /profile/bundestag-api PATCH] Using direct profiles table update (bypassing problematic Admin API)');
+    console.log('[User Profile /profile/bundestag-api PATCH] Bundestag API value:', bundestag_api_enabled, typeof bundestag_api_enabled);
+    
+    // Primary approach: Update profiles table directly, then update auth metadata  
+    // This bypasses Admin API restrictions for SSO/invited users
+    const { error: profileUpdateError } = await supabaseService
+      .from('profiles')
+      .upsert({
+        id: req.user.id,
+        bundestag_api_enabled: Boolean(bundestag_api_enabled),
+        updated_at: new Date().toISOString()
+      });
+    
+    if (profileUpdateError) {
+      console.error('[User Profile /profile/bundestag-api PATCH] Profile update failed:', profileUpdateError);
+      throw new Error('Bundestag API Einstellung konnte nicht aktualisiert werden');
+    }
+    
+    // Secondary: Also try to update auth metadata for consistency (best effort)
+    try {
+      const { error: authUpdateError } = await supabaseService.auth.admin.updateUserById(req.user.id, {
+        user_metadata: updatedMetadata
+      });
+      
+      if (authUpdateError) {
+        console.warn('[User Profile /profile/bundestag-api PATCH] Auth metadata update failed (non-critical):', authUpdateError.message);
+        // Don't fail the request - profiles table is our primary source
+      } else {
+        console.log('[User Profile /profile/bundestag-api PATCH] Auth metadata also updated successfully');
+      }
+    } catch (authError) {
+      console.warn('[User Profile /profile/bundestag-api PATCH] Auth metadata update failed (non-critical):', authError.message);
+    }
+    
+    console.log(`[User Profile /profile/bundestag-api PATCH] Bundestag API updated to ${bundestag_api_enabled}`);
+    
+    // Update user object in session to keep it in sync with database
+    if (req.user) {
+      req.user.bundestag_api_enabled = Boolean(bundestag_api_enabled);
+      console.log('[User Profile /profile/bundestag-api PATCH] Updated req.user.bundestag_api_enabled in session');
+      
+      // CRITICAL: Also update req.session.passport.user to ensure session.save() persists the change
+      if (req.session.passport && req.session.passport.user) {
+        req.session.passport.user.bundestag_api_enabled = Boolean(bundestag_api_enabled);
+        console.log('[User Profile /profile/bundestag-api PATCH] Updated req.session.passport.user.bundestag_api_enabled');
+      }
+      
+      // CRITICAL: Save session to persist the change across page reloads
+      req.session.save((err) => {
+        if (err) {
+          console.error('[User Profile /profile/bundestag-api PATCH] Session save error:', err);
+        } else {
+          console.log('[User Profile /profile/bundestag-api PATCH] Session saved successfully');
+        }
+      });
+    }
+    
+    res.json({ 
+      success: true, 
+      bundestagApiEnabled: bundestag_api_enabled,
+      message: `Bundestag API ${bundestag_api_enabled ? 'aktiviert' : 'deaktiviert'}! ${bundestag_api_enabled ? 'Du kannst jetzt parlamentarische Dokumente in deine Anträge einbeziehen.' : 'Parlamentarische Dokumente werden nicht mehr einbezogen.'}`
+    });
+    
+  } catch (error) {
+    console.error('[User Profile /profile/bundestag-api PATCH] Error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message || 'Fehler beim Aktualisieren der Bundestag API Einstellung.'
     });
   }
 });

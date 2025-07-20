@@ -720,4 +720,88 @@ router.post('/user-templates/:id/metadata', ensureAuthenticated, async (req, res
   }
 });
 
+// Bulk delete templates
+router.delete('/user-templates/bulk', ensureAuthenticated, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { ids } = req.body;
+
+    // Validate input
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Array of template IDs is required'
+      });
+    }
+
+    if (ids.length > 100) {
+      return res.status(400).json({
+        success: false,
+        message: 'Maximum 100 templates can be deleted at once'
+      });
+    }
+
+    console.log(`[User Templates /user-templates/bulk DELETE] Bulk delete request for ${ids.length} templates from user ${userId}`);
+
+    // First, verify all templates belong to the user
+    const { data: verifyTemplates, error: verifyError } = await supabaseService
+      .from('user_content')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('type', 'template')
+      .in('id', ids);
+
+    if (verifyError) {
+      console.error('[User Templates /user-templates/bulk DELETE] Error verifying template ownership:', verifyError);
+      throw new Error('Failed to verify template ownership');
+    }
+
+    const ownedIds = verifyTemplates.map(template => template.id);
+    const unauthorizedIds = ids.filter(id => !ownedIds.includes(id));
+
+    if (unauthorizedIds.length > 0) {
+      return res.status(403).json({
+        success: false,
+        message: `Access denied for templates: ${unauthorizedIds.join(', ')}`,
+        unauthorized_ids: unauthorizedIds
+      });
+    }
+
+    // Perform bulk delete
+    const { data: deletedData, error: deleteError } = await supabaseService
+      .from('user_content')
+      .delete()
+      .eq('user_id', userId)
+      .eq('type', 'template')
+      .in('id', ids)
+      .select('id');
+
+    if (deleteError) {
+      console.error('[User Templates /user-templates/bulk DELETE] Error during bulk delete:', deleteError);
+      throw new Error('Failed to delete templates');
+    }
+
+    const deletedIds = deletedData ? deletedData.map(template => template.id) : [];
+    const failedIds = ids.filter(id => !deletedIds.includes(id));
+
+    console.log(`[User Templates /user-templates/bulk DELETE] Bulk delete completed: ${deletedIds.length} deleted, ${failedIds.length} failed`);
+
+    res.json({
+      success: true,
+      message: `Bulk delete completed: ${deletedIds.length} of ${ids.length} templates deleted successfully`,
+      deleted_count: deletedIds.length,
+      failed_ids: failedIds,
+      total_requested: ids.length,
+      deleted_ids: deletedIds
+    });
+
+  } catch (error) {
+    console.error('[User Templates /user-templates/bulk DELETE] Error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to perform bulk delete of templates'
+    });
+  }
+});
+
 export default router;

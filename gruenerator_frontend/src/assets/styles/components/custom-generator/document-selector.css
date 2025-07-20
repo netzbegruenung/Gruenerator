@@ -42,7 +42,7 @@
 }
 
 .selected-document-item:hover {
-  border-color: var(--tanne);
+  border-color: var(--primary);
   background: var(--background-hover-color);
 }
 
@@ -151,15 +151,15 @@
 }
 
 .document-option:hover {
-  border-color: var(--tanne);
+  border-color: var(--primary);
   background: var(--background-hover-color);
   transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .document-option.selected {
-  border-color: var(--tanne);
-  background: var(--tanne-light);
+  border-color: var(--primary);
+  background: var(--primary-light);
 }
 
 .document-option-header {
@@ -179,7 +179,7 @@
 }
 
 .selected-indicator {
-  color: var(--tanne);
+  color: var(--primary);
   font-size: 1.2rem;
   margin-left: var(--spacing-small);
 }

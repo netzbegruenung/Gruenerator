@@ -582,7 +582,7 @@
 .qa-source-score {
   font-size: 0.8rem;
   color: var(--font-color-muted);
-  background: var(--sand);
+  background: var(--secondary);
   padding: 2px 6px;
   border-radius: 3px;
 }

@@ -26,6 +26,7 @@ const Datenschutz = lazy(() => import('../components/pages/Impressum_Datenschutz
 const Impressum = lazy(() => import('../components/pages/Impressum_Datenschutz_Terms/Impressum'));
 const NotFound = lazy(() => import('../components/pages/NotFound'));
 const Search = lazy(() => import('../features/search/components/SearchPage'));
+const BundestagSearch = lazy(() => import('../features/bundestag/components/BundestagSearchPage'));
 const AskPage = lazy(() => import('../features/ask/AskPage'));
 const AskGrundsatzPage = lazy(() => import('../features/ask/AskGrundsatzPage'));
 const DocumentViewPage = lazy(() => import('../features/documents/DocumentViewPage'));
@@ -58,6 +59,7 @@ export const GrueneratorenBundle = {
   Wahlprogramm: UniversalTextGenerator,
   Kandidat: lazy(() => import('../components/pages/Grüneratoren/Kandidatengenerator')),
   Search: Search,
+  BundestagSearch: BundestagSearch,
   Ask: AskPage,
   AskGrundsatz: AskGrundsatzPage,
   DocumentView: DocumentViewPage,
@@ -89,6 +91,7 @@ const standardRoutes = [
   { path: '/datenbank/antraege', component: GrueneratorenBundle.AntraegeListe },
   { path: '/datenbank/antraege/:antragId', component: GrueneratorenBundle.AntragDetail },
   { path: '/suche', component: GrueneratorenBundle.Search, withForm: true },
+  { path: '/bundestag', component: GrueneratorenBundle.BundestagSearch, withForm: true },
   { path: '/ask', component: GrueneratorenBundle.Ask, withForm: true },
   { path: '/ask-grundsatz', component: GrueneratorenBundle.AskGrundsatz, withForm: true },
   { path: '/documents/:documentId', component: GrueneratorenBundle.DocumentView },

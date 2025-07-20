@@ -135,6 +135,110 @@ router.post('/:documentId/metadata', ensureAuthenticated, async (req, res) => {
   }
 });
 
+// Bulk delete documents
+router.delete('/bulk', ensureAuthenticated, async (req, res) => {
+  console.log('[UserTexts] BULK DELETE ROUTE HIT - Route is accessible');
+  console.log('[UserTexts] Request method:', req.method);
+  console.log('[UserTexts] Request URL:', req.originalUrl);
+  console.log('[UserTexts] User authenticated:', !!req.user);
+  console.log('[UserTexts] User ID:', req.user?.id);
+  console.log('[UserTexts] Request body:', JSON.stringify(req.body, null, 2));
+  
+  try {
+    const { ids } = req.body;
+
+    // Validate input
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Array of document IDs is required'
+      });
+    }
+
+    console.log(`[UserTexts] Bulk delete request for ${ids.length} documents from user ${req.user.id}`);
+    console.log('[UserTexts] Document IDs to delete:', ids);
+
+    // First, verify all documents belong to the user
+    console.log('[UserTexts] Starting ownership verification...');
+    const { data: verifyDocuments, error: verifyError } = await supabaseService
+      .from('user_documents')
+      .select('document_id')
+      .eq('user_id', req.user.id)
+      .in('document_id', ids);
+
+    console.log('[UserTexts] Ownership verification result:', {
+      error: verifyError,
+      documentsFound: verifyDocuments?.length || 0,
+      documents: verifyDocuments
+    });
+
+    if (verifyError) {
+      console.error('[UserTexts] Error verifying document ownership:', verifyError);
+      throw new Error('Failed to verify document ownership');
+    }
+
+    const ownedIds = verifyDocuments.map(doc => doc.document_id);
+    const unauthorizedIds = ids.filter(id => !ownedIds.includes(id));
+
+    console.log('[UserTexts] Ownership analysis:', {
+      requestedIds: ids,
+      ownedIds: ownedIds,
+      unauthorizedIds: unauthorizedIds,
+      authorizationPassed: unauthorizedIds.length === 0
+    });
+
+    if (unauthorizedIds.length > 0) {
+      console.log('[UserTexts] AUTHORIZATION FAILED - returning 403');
+      return res.status(403).json({
+        success: false,
+        message: `Access denied for documents: ${unauthorizedIds.join(', ')}`,
+        unauthorized_ids: unauthorizedIds
+      });
+    }
+
+    // Perform bulk delete
+    console.log('[UserTexts] Starting bulk delete operation...');
+    const { data: deletedData, error: deleteError } = await supabaseService
+      .from('user_documents')
+      .delete()
+      .eq('user_id', req.user.id)
+      .in('document_id', ids)
+      .select('document_id');
+
+    console.log('[UserTexts] Bulk delete operation result:', {
+      error: deleteError,
+      deletedCount: deletedData?.length || 0,
+      deletedData: deletedData
+    });
+
+    if (deleteError) {
+      console.error('[UserTexts] Error during bulk delete:', deleteError);
+      throw new Error('Failed to delete documents');
+    }
+
+    const deletedIds = deletedData ? deletedData.map(doc => doc.document_id) : [];
+    const failedIds = ids.filter(id => !deletedIds.includes(id));
+
+    console.log(`[UserTexts] Bulk delete completed: ${deletedIds.length} deleted, ${failedIds.length} failed`);
+
+    res.json({
+      success: true,
+      message: `Bulk delete completed: ${deletedIds.length} of ${ids.length} documents deleted successfully`,
+      deleted_count: deletedIds.length,
+      failed_ids: failedIds,
+      total_requested: ids.length,
+      deleted_ids: deletedIds
+    });
+
+  } catch (error) {
+    console.error('[UserTexts] Error in bulk delete:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to perform bulk delete'
+    });
+  }
+});
+
 // Delete document
 router.delete('/:documentId', ensureAuthenticated, async (req, res) => {
   try {

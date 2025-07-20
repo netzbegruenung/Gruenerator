@@ -107,7 +107,7 @@
 }
 
 .download-button {
-  background-color: var(--tanne);
+  background-color: var(--primary);
   color: var(--weiß);
   text-decoration: none;
   display: flex;
@@ -120,7 +120,7 @@
   padding: 10px 20px;
   border: none;
   border-radius: 5px;
-  background-color: var(--tanne);
+  background-color: var(--primary);
   color: white;
   cursor: pointer;
   font-size: 16px;
@@ -132,7 +132,7 @@
 
 .file-input-wrapper,
 .unsplash-search-button {
-  background-color: var(--tanne);
+  background-color: var(--primary);
   color: var(--weiß);
   border: 2px solid var(--weiß);
 }
@@ -145,7 +145,7 @@
   transition: background-color 0.3s, transform 0.3s;
   border-radius: var(--button-border-radius);
   padding: 10px 15px; 
-  background-color: var(--tanne);
+  background-color: var(--primary);
   color: var(--weiß);
   border: 2px solid var(--weiß);
 }
@@ -290,7 +290,7 @@
   border: 2px solid var(--weiß);
   border-radius: var(--button-border-radius);
   font-size: var(--button-font-size);
-  background-color: var(--tanne);
+  background-color: var(--primary);
   color: var(--weiß);
   cursor: pointer;
   transition: background-color var(--button-transition), transform var(--button-transition);
@@ -345,7 +345,7 @@
   opacity: 0;
   justify-content: center;
   cursor: pointer;
-  background-color: var(--sand)
+  background-color: var(--secondary)
 }
 
 @keyframes spin {
@@ -388,7 +388,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--tanne);
+  background-color: var(--primary);
   color: var(--weiß);
   gap: 8px;
   white-space: nowrap;
@@ -447,7 +447,7 @@
   width: 100%;
   font-size: 0.9em;
   padding: 0.5rem 1rem;
-  background-color: var(--tanne);
+  background-color: var(--primary);
   color: var(--weiß);
   border: 2px solid var(--weiß);
   border-radius: var(--button-border-radius);
@@ -513,7 +513,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--tanne);
+  background-color: var(--primary);
   color: var(--weiß);
   gap: 8px;
   white-space: nowrap;
@@ -574,7 +574,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--tanne);
+  background-color: var(--primary);
   color: var(--weiß);
   gap: 8px;
   white-space: nowrap;
@@ -607,7 +607,7 @@
   padding: 10px 20px;
   border: none;
   border-radius: 5px;
-  background-color: var(--tanne);
+  background-color: var(--primary);
   color: white;
   cursor: pointer;
   font-size: 16px;
@@ -663,7 +663,7 @@
 
 
 .button.button-primary {
-  background-color: var(--tanne);
+  background-color: var(--primary);
   color: var(--weiß);
 }
 
@@ -673,7 +673,7 @@
 
 
 .btn.btn-tanne-bordered {
-    background-color: var(--tanne, #006A4E); 
+    background-color: var(--primary, #006A4E); 
     border: 2px solid var(--weiß, #ffffff); 
     border-radius: 10px;
     color: var(--weiß, #ffffff); 

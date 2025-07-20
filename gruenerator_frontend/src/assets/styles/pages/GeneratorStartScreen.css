@@ -143,8 +143,8 @@
   justify-content: center;
   gap: 12px;
   border-radius: 8px;
-  background-color: var(--tanne);
-  color: var(--sand);
+  background-color: var(--primary);
+  color: var(--secondary);
   border: none;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -188,9 +188,9 @@
   display: inline-block;
   width: 20px;
   height: 20px;
-  border: 3px solid color-mix(in srgb, var(--sand) 30%, transparent);
+  border: 3px solid color-mix(in srgb, var(--secondary) 30%, transparent);
   border-radius: 50%;
-  border-top-color: var(--sand);
+  border-top-color: var(--secondary);
   animation: spin 1s linear infinite;
 }
 

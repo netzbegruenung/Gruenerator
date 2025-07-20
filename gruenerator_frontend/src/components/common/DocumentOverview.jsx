@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { HiOutlineTrash, HiOutlineSearch, HiOutlineDocumentText, HiOutlinePencil, HiOutlineEye, HiRefresh, HiDotsVertical, HiExclamationCircle, HiChatAlt2, HiShare } from 'react-icons/hi';
+import { HiOutlineTrash, HiOutlineSearch, HiOutlineDocumentText, HiOutlinePencil, HiOutlineEye, HiRefresh, HiDotsVertical, HiExclamationCircle, HiChatAlt2, HiShare, HiClipboard, HiChevronRight } from 'react-icons/hi';
 import { motion } from "motion/react";
 import ReactMarkdown from 'react-markdown';
 import Spinner from './Spinner';
 import MenuDropdown from './MenuDropdown';
+import BulkDeleteConfirmModal from './BulkDeleteConfirmModal';
 
 // Define default values outside component to prevent re-creation on every render
 const DEFAULT_SEARCH_FIELDS = ['title', 'content_preview', 'full_content'];
@@ -20,6 +21,7 @@ const DocumentOverview = ({
     loading = false,
     onFetch,
     onDelete,
+    onBulkDelete, // new prop for bulk delete functionality
     onUpdateTitle,
     onEdit,
     onView,
@@ -38,7 +40,8 @@ const DocumentOverview = ({
     onErrorMessage,
     title = "Dokumente",
     showRefreshButton = true,
-    headerActions // custom action buttons/elements to render in header
+    headerActions, // custom action buttons/elements to render in header
+    enableBulkSelect = true // new prop to enable/disable bulk selection
 }) => {
     // Support both 'documents' (backward compatibility) and 'items' props
     const allItems = items || documents;
@@ -56,6 +59,11 @@ const DocumentOverview = ({
     const [previewError, setPreviewError] = useState(null);
     const [sortBy, setSortBy] = useState(sortOptions[0]?.value || 'updated_at');
     const [sortOrder, setSortOrder] = useState('desc');
+    
+    // Bulk selection state
+    const [selectedItemIds, setSelectedItemIds] = useState(new Set());
+    const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+    const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
     // Generic search field getter
     const getSearchValue = useCallback((item, field) => {
@@ -184,6 +192,67 @@ const DocumentOverview = ({
         setEditingTitle(null);
         setNewTitle('');
     };
+
+    // Bulk selection handlers
+    const handleSelectItem = (itemId, isSelected) => {
+        setSelectedItemIds(prev => {
+            const newSet = new Set(prev);
+            if (isSelected) {
+                newSet.add(itemId);
+            } else {
+                newSet.delete(itemId);
+            }
+            return newSet;
+        });
+    };
+
+    const handleSelectAll = (isSelected) => {
+        if (isSelected) {
+            setSelectedItemIds(new Set(filteredItems.map(item => item.id)));
+        } else {
+            setSelectedItemIds(new Set());
+        }
+    };
+
+    const handleBulkDelete = async () => {
+        if (!onBulkDelete || selectedItemIds.size === 0) return;
+
+        setIsBulkDeleting(true);
+        try {
+            const idsArray = Array.from(selectedItemIds);
+            await onBulkDelete(idsArray);
+            
+            // Clear selection after successful delete
+            setSelectedItemIds(new Set());
+            setShowBulkDeleteModal(false);
+            
+            onSuccessMessage && onSuccessMessage(
+                `${idsArray.length} ${idsArray.length === 1 ? 'Element' : 'Elemente'} erfolgreich gelöscht.`
+            );
+        } catch (error) {
+            onErrorMessage && onErrorMessage('Fehler beim Bulk-Löschen: ' + error.message);
+        } finally {
+            setIsBulkDeleting(false);
+        }
+    };
+
+    const clearSelection = () => {
+        setSelectedItemIds(new Set());
+    };
+
+    // Reset selection when items change
+    useEffect(() => {
+        setSelectedItemIds(prev => {
+            const newSet = new Set();
+            const currentIds = new Set(allItems.map(item => item.id));
+            prev.forEach(id => {
+                if (currentIds.has(id)) {
+                    newSet.add(id);
+                }
+            });
+            return newSet;
+        });
+    }, [allItems]);
 
     // Item action handlers
     const handleViewItem = (item) => {
@@ -366,6 +435,21 @@ const DocumentOverview = ({
             >
                 {/* Header with title and dropdown menu */}
                 <div className="document-card-header">
+                    {/* Bulk selection checkbox */}
+                    {enableBulkSelect && onBulkDelete && (
+                        <div className="document-card-checkbox">
+                            <input
+                                type="checkbox"
+                                checked={selectedItemIds.has(item.id)}
+                                onChange={(e) => {
+                                    e.stopPropagation();
+                                    handleSelectItem(item.id, e.target.checked);
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                            />
+                        </div>
+                    )}
+                    
                     {editingTitle === item.id ? (
                         <div className="document-title-edit">
                             <input
@@ -543,6 +627,43 @@ const DocumentOverview = ({
                         return <div key={index} className="menu-dropdown-separator"></div>;
                     }
 
+                    // Handle submenu items (like Copy Links)
+                    if (action.submenu && action.submenuItems) {
+                        const IconComponent = action.icon;
+                        
+                        return (
+                            <div key={index} className="menu-dropdown-submenu-container">
+                                <div className="menu-dropdown-submenu-trigger">
+                                    <button className="menu-dropdown-item submenu-trigger">
+                                        <IconComponent />
+                                        {action.label}
+                                        <HiChevronRight className="submenu-arrow" />
+                                    </button>
+                                    <div className="menu-dropdown-submenu-content">
+                                        {action.submenuItems.map((subItem, subIndex) => (
+                                            <button
+                                                key={subIndex}
+                                                className="menu-dropdown-item submenu-item"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    // Call the copy function if it exists on the subItem
+                                                    if (subItem.onClick) {
+                                                        subItem.onClick(onClose);
+                                                    }
+                                                }}
+                                                title={subItem.description}
+                                            >
+                                                <HiClipboard />
+                                                {subItem.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    }
+
+                    // Regular menu items
                     const IconComponent = action.icon;
                     
                     return (
@@ -693,8 +814,26 @@ const DocumentOverview = ({
         <div className="document-overview-container">
             <div className="document-overview-card">
                 <div className="document-overview-header">
-                    <h3>{title} ({filteredItems.length})</h3>
+                    <div className="document-overview-header-left">
+                        <h3>{title} ({filteredItems.length})</h3>
+                    </div>
+                    
                     <div className="document-overview-header-actions">
+                        {/* Bulk delete button */}
+                        {enableBulkSelect && onBulkDelete && selectedItemIds.size > 0 && (
+                            <div className="document-overview-bulk-actions">
+                                <button
+                                    type="button"
+                                    className="btn-danger size-s"
+                                    onClick={() => setShowBulkDeleteModal(true)}
+                                    disabled={isBulkDeleting}
+                                >
+                                    <HiOutlineTrash />
+                                    {selectedItemIds.size} löschen
+                                </button>
+                            </div>
+                        )}
+                        
                         {headerActions && (
                             <div className="document-overview-custom-actions">
                                 {headerActions}
@@ -717,7 +856,7 @@ const DocumentOverview = ({
                 <div className="document-overview-content">
                     {/* Search and Sort Controls */}
                     <div className="document-overview-controls">
-                        <div className="search-container">
+                        <div className="search-container" style={{ maxWidth: '250px', flexShrink: 0 }}>
                             <HiOutlineSearch className="search-icon" />
                             <input
                                 type="text"
@@ -725,6 +864,7 @@ const DocumentOverview = ({
                                 placeholder={searchPlaceholder}
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
+                                style={{ fontSize: '14px' }}
                             />
                         </div>
                         <div className="sort-controls">
@@ -746,6 +886,23 @@ const DocumentOverview = ({
                             >
                                 {sortOrder === 'asc' ? '↑' : '↓'}
                             </button>
+                            
+                            {/* Select all checkbox - positioned next to sort controls */}
+                            {enableBulkSelect && onBulkDelete && filteredItems.length > 0 && (
+                                <div className="document-overview-select-all">
+                                    <input
+                                        type="checkbox"
+                                        id="select-all-checkbox"
+                                        checked={selectedItemIds.size > 0 && selectedItemIds.size === filteredItems.length}
+                                        onChange={(e) => handleSelectAll(e.target.checked)}
+                                        ref={(input) => {
+                                            if (input) {
+                                                input.indeterminate = selectedItemIds.size > 0 && selectedItemIds.size < filteredItems.length;
+                                            }
+                                        }}
+                                    />
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -768,6 +925,16 @@ const DocumentOverview = ({
 
             {/* Preview Modal */}
             {showPreview && renderPreview()}
+
+            {/* Bulk Delete Confirmation Modal */}
+            <BulkDeleteConfirmModal
+                isOpen={showBulkDeleteModal}
+                onClose={() => setShowBulkDeleteModal(false)}
+                onConfirm={handleBulkDelete}
+                itemCount={selectedItemIds.size}
+                itemType={itemType === 'qa' ? 'qas' : itemType === 'document' ? 'documents' : 'texts'}
+                isDeleting={isBulkDeleting}
+            />
         </div>
     );
 };

@@ -304,6 +304,30 @@ const useApiSubmit = (endpoint) => {
           setSuccess(true);
           return { content: response };
         }
+      } else if (endpoint === '/bundestag/search' || endpoint === 'bundestag/search') {
+        console.log('[useApiSubmit] Processing bundestag/search response:', response);
+        console.log('[useApiSubmit] Response structure check:', {
+          hasResponse: !!response,
+          hasSuccess: !!response?.success,
+          hasResults: response?.results !== undefined,
+          resultsType: typeof response?.results,
+          isResultsArray: Array.isArray(response?.results),
+          resultsLength: response?.results?.length
+        });
+        
+        if (response && response.success && Array.isArray(response.results)) {
+          setSuccess(true);
+          console.log('[useApiSubmit] Bundestag search successful, returning response with', response.results.length, 'results');
+          return response; // Return full response with success, query, and results
+        } else {
+          console.error('[useApiSubmit] Invalid bundestag response structure:', {
+            response: response,
+            hasSuccess: response?.success,
+            resultsType: typeof response?.results,
+            isArray: Array.isArray(response?.results)
+          });
+          throw new Error('Invalid response format from Bundestag API');
+        }
       }
 
       // Fallback für alle anderen Endpoints

@@ -106,7 +106,6 @@ export const createKnowledgeFormNotice = ({
   if (source.type === 'group' && isLoadingGroupDetails) {
     return (
       <div className="custom-prompt-notice">
-        <HiInformationCircle className="info-icon" />
         <span>Lade Gruppenanweisungen & Wissen...</span>
       </div>
     );
@@ -133,9 +132,7 @@ export const createKnowledgeFormNotice = ({
   const hasLoadedKnowledge = availableKnowledge.length > 0;
 
   if (source.type !== 'neutral' && hasLoadedKnowledge) {
-    if (source.type === 'user') {
-      noticeParts.push('gesamtes persönliches Wissen');
-    } else if (source.type === 'group') {
+    if (source.type === 'group') {
       noticeParts.push(`gesamtes Wissen der Gruppe "${sourceNameForNotice}"`);
     }
   }
@@ -151,7 +148,6 @@ export const createKnowledgeFormNotice = ({
 
   return (
     <div className="custom-prompt-notice">
-      <HiInformationCircle className="info-icon" />
       <span>{fullNoticeText}.</span>
     </div>
   );

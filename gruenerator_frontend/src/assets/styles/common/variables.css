@@ -48,12 +48,15 @@
     --neutral-700: #e8e0d4;
     
     /* Legacy compatibility - maintaining old variable names */
-    --tanne: var(--secondary-600);
+    --primary: var(--secondary-600);
     --klee: var(--primary-600);
-    --grashalm: var(--grashalm-600);
-    --sand: var(--neutral-600);
-    --himmel: var(--himmel-600);
-    --sonne: var(--sun-600);
+    --secondary: var(--neutral-600);
+
+    /* Semantic color mapping based on brand guidelines */
+    --primary: var(--secondary-600);     /* Tanne - main digital interactions */
+    --secondary: var(--neutral-600);     /* Sand - backgrounds, subtle hover */
+    --accent: var(--primary-600);        /* Klee - limited use, illustrations */
+
     --weiß: var(--white);
     --dunkelgruen: var(--secondary-700);
     --dunkelgruen-alt: var(--secondary-800); 

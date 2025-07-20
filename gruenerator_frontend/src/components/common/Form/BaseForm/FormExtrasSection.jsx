@@ -47,7 +47,7 @@ const FormExtrasSection = ({
   const { source, availableKnowledge } = useGeneratorKnowledgeStore();
   
   const { getBetaFeatureState, isLoading: isLoadingBetaFeatures } = useBetaFeatures();
-  const anweisungenBetaEnabled = getBetaFeatureState('anweisungen');
+  const anweisungenBetaEnabled = true;
 
   // Don't render if no extras are enabled  
   const hasExtras = useWebSearchFeatureToggle || 

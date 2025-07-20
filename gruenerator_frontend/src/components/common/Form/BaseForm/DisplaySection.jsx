@@ -13,6 +13,7 @@ import { useLazyAuth } from '../../../../hooks/useAuth';
 import { useBetaFeatures } from '../../../../hooks/useBetaFeatures';
 import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
 import { useCollabPreload } from '../../../hooks/useCollabPreload';
+import { useSaveToLibrary } from '../../../../hooks/useSaveToLibrary';
 
 /**
  * Komponente für den Anzeigebereich des Formulars
@@ -55,7 +56,7 @@ const DisplaySection = forwardRef(({
   const isLoading = useGeneratedTextStore(state => state.isLoading);
   const [generatePostLoading, setGeneratePostLoading] = React.useState(false);
   const [collabLoading, setCollabLoading] = React.useState(false);
-  const [saveToLibraryLoading, setSaveToLibraryLoading] = React.useState(false);
+  const { saveToLibrary, isLoading: saveToLibraryLoading, error: saveToLibraryError, success: saveToLibrarySuccess } = useSaveToLibrary();
 
   // Check if user has access to collab feature
   const hasCollabAccess = getBetaFeatureState('collab');
@@ -129,30 +130,13 @@ const DisplaySection = forwardRef(({
   };
 
   const handleSaveToLibrary = React.useCallback(async () => {
-    if (!currentExportableContent) {
-      console.warn("Kein Inhalt zum Speichern vorhanden.");
-      return;
-    }
-
-    setSaveToLibraryLoading(true);
-    console.log("[DisplaySection] Saving content to library...");
-
     try {
-      const response = await apiClient.post('/auth/save-to-library', { 
-        content: currentExportableContent,
-        title: title || 'Unbenannter Text',
-        type: 'generated_text'
-      });
-
-      console.log("[DisplaySection] Content successfully saved to library");
-      // You could add a success notification here
+      await saveToLibrary(currentExportableContent, title || 'Unbenannter Text', 'universal');
     } catch (error) {
-      console.error("[DisplaySection] Error saving to library:", error.message || error);
-      // You could add an error notification here
-    } finally {
-      setSaveToLibraryLoading(false);
+      // Error handling is managed by the hook
+      console.error("[DisplaySection] Save to library failed:", error);
     }
-  }, [currentExportableContent, title]);
+  }, [currentExportableContent, title, saveToLibrary]);
 
   return (
     <div className="display-container" id="display-section-container" ref={ref}>

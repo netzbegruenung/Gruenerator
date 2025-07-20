@@ -17,6 +17,7 @@ import { useTabIndex, useBaseFormTabIndex } from '../../../hooks/useTabIndex';
 import AntragSavePopup from './components/AntragSavePopup';
 import { saveAntrag } from './antragSaveUtils';
 import FormSelect from '../../../components/common/Form/Input/FormSelect';
+import BundestagDocumentSelector from '../../../components/common/BundestagDocumentSelector/BundestagDocumentSelector';
 
 const REQUEST_TYPES = {
   ANTRAG: 'antrag',
@@ -38,7 +39,7 @@ const REQUEST_TYPE_TITLES = {
 
 const AntragGenerator = ({ showHeaderFooter = true }) => {
   const componentName = 'antrag-generator';
-  const { user } = useOptimizedAuth();
+  const { user, bundestagApiEnabled } = useOptimizedAuth();
   const { Input, Textarea } = useFormFields();
   const { setGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
 
@@ -61,6 +62,7 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
     handleSubmit,
     reset,
     watch,
+    getValues,
     setValue,
     formState: { errors }
   } = useForm({
@@ -79,6 +81,7 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
   const [antragContent, setAntragContent] = useState('');
   const [isSavePopupOpen, setIsSavePopupOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [selectedBundestagDocuments, setSelectedBundestagDocuments] = useState([]);
   const { submitForm, loading, success, resetSuccess, error } = useApiSubmit('/antraege/generate-simple');
   const storeGeneratedText = useGeneratedTextStore(state => state.getGeneratedText(componentName));
   
@@ -121,7 +124,9 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
         idee: rhfData.idee,
         details: rhfData.details,
         gliederung: rhfData.gliederung,
-        useWebSearchTool: rhfData.useWebSearchTool
+        useWebSearchTool: rhfData.useWebSearchTool,
+        useBundestagApi: bundestagApiEnabled && selectedBundestagDocuments.length > 0,
+        selectedBundestagDocuments: selectedBundestagDocuments
       };
       
       // Extract search query from form data for intelligent document content
@@ -169,7 +174,7 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
     } finally {
       setStoreIsLoading(false);
     }
-  }, [submitForm, resetSuccess, setGeneratedText, setStoreIsLoading, componentName, source, isInstructionsActive, getActiveInstruction, groupDetailsData, getKnowledgeContent, getDocumentContent]);
+  }, [submitForm, resetSuccess, setGeneratedText, setStoreIsLoading, componentName, source, isInstructionsActive, getActiveInstruction, groupDetailsData, getKnowledgeContent, getDocumentContent, bundestagApiEnabled, selectedBundestagDocuments]);
 
   const handleGeneratedContentChange = useCallback((content) => {
     setAntragContent(content);
@@ -185,11 +190,11 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
     setIsSaving(true);
     
     try {
-      const requestTypeLabel = REQUEST_TYPE_LABELS[watch('requestType')] || 'Antrag';
+      const requestTypeLabel = REQUEST_TYPE_LABELS[getValues('requestType')] || 'Antrag';
       const payload = {
-        title: popupData.title || `${requestTypeLabel}: ${watch('idee')}` || `Unbenannte ${requestTypeLabel}`,
+        title: popupData.title || `${requestTypeLabel}: ${getValues('idee')}` || `Unbenannte ${requestTypeLabel}`,
         antragstext: storeGeneratedText || antragContent,
-        gliederung: watch('gliederung') || '',
+        gliederung: getValues('gliederung') || '',
         ...popupData,
       };
       await saveAntrag(payload);
@@ -202,13 +207,14 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
 
 
   const helpContent = {
-    content: "Dieser Grünerator erstellt strukturierte Anträge und Anfragen für politische Gremien basierend auf deiner Idee und den Details.",
+    content: `Dieser Grünerator erstellt strukturierte Anträge und Anfragen für politische Gremien basierend auf deiner Idee und den Details.${bundestagApiEnabled ? ' Du kannst relevante parlamentarische Dokumente aus dem Bundestag zur Fundierung auswählen.' : ''}`,
     tips: [
       "Wähle die Art: Antrag, Kleine oder Große Anfrage",
       "Kleine Anfragen: Präzise Fachinformationen punktuell abfragen",
       "Große Anfragen: Umfassende politische Themen mit Debatte",
       "Formuliere deine Idee klar und präzise",
       "Nutze die Websuche für aktuelle Informationen",
+      ...(bundestagApiEnabled ? ["Suche und wähle parlamentarische Dokumente zur Fundierung deines Antrags"] : []),
       "Speichere wichtige Dokumente in der Datenbank"
     ]
   };
@@ -270,6 +276,15 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
     tabIndex: tabIndex.webSearch
   };
 
+  const bundestagDocumentSelector = bundestagApiEnabled ? (
+    <BundestagDocumentSelector
+      onDocumentSelection={setSelectedBundestagDocuments}
+      disabled={loading}
+      tabIndex={tabIndex.bundestagDocuments}
+      searchQuery={`${getValues('idee')} ${getValues('details')}`.trim()}
+    />
+  ) : null;
+
   return (
     <ErrorBoundary>
       <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
@@ -295,6 +310,7 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
           knowledgeSourceSelectorTabIndex={baseFormTabIndex.knowledgeSourceSelectorTabIndex}
           documentSelectorTabIndex={baseFormTabIndex.documentSelectorTabIndex}
           submitButtonTabIndex={baseFormTabIndex.submitButtonTabIndex}
+          firstExtrasChildren={bundestagDocumentSelector}
         >
           {renderFormInputs()}
         </BaseForm>
@@ -305,7 +321,7 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
           onConfirm={handleConfirmSave}
           isSaving={isSaving}
           antragstext={storeGeneratedText || antragContent}
-          initialData={{ title: `${REQUEST_TYPE_LABELS[watch('requestType')] || 'Antrag'}: ${watch('idee')}` }}
+          initialData={{ title: `${REQUEST_TYPE_LABELS[getValues('requestType')] || 'Antrag'}: ${getValues('idee')}` }}
         />
       </div>
     </ErrorBoundary>

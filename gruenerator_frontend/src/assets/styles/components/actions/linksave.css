@@ -75,8 +75,8 @@
 }
 
 .cancel-button {
-    background-color: var(--sand);
-    color: var(--tanne);
+    background-color: var(--secondary);
+    color: var(--primary);
 }
 
 .cancel-button:hover {
@@ -145,7 +145,7 @@
 
 .saved-links button:last-of-type {
     background-color: var(--sonne);
-    color: var(--tanne);
+    color: var(--primary);
 }
 
 .saved-links button:last-of-type:hover {

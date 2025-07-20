@@ -21,7 +21,6 @@ const LaborTab = ({
     GROUPS: 'groups',
     DATABASE: 'database',
     GENERATORS: 'customGenerators',
-    ANWEISUNGEN: 'anweisungen',
     YOU: 'you',
     COLLAB: 'collab',
     QA: 'qa',
@@ -67,16 +66,6 @@ const LaborTab = ({
           featureName: 'Grüneratoren',
           checkboxLabel: '\'Meine Grüneratoren\'-Tab anzeigen und Funktionalität activieren',
           icon: HiOutlineCog
-        };
-      case BETA_VIEWS.ANWEISUNGEN:
-        return {
-          title: 'Profil auswählen',
-          description: 'Verwalte persönliche Anweisungen und Wissensbausteine für die KI.',
-          checked: getBetaFeatureState('anweisungen'),
-          setter: (value) => updateUserBetaFeatures('anweisungen', value),
-          featureName: 'Profil auswählen',
-          checkboxLabel: '\'Profil auswählen\'-Tab anzeigen und Funktionalität aktivieren',
-          icon: HiOutlineAcademicCap
         };
       case BETA_VIEWS.YOU:
         return {

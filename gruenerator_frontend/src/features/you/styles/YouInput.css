@@ -95,7 +95,7 @@
 }
 
 .you-submit-button:hover {
-  background-color: var(--tanne);
+  background-color: var(--primary);
 }
 
 .you-submit-button:disabled {

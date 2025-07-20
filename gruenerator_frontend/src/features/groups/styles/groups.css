@@ -500,7 +500,7 @@
 
 .save-feedback.error {
   background-color: var(--sonne);
-  color: var(--tanne);
+  color: var(--primary);
 }
 
 
@@ -740,8 +740,8 @@
 
 .copy-join-link-button:hover:not(:disabled) {
   background-color: var(--button-hover-background-color, var(--background-color-alt));
-  border-color: var(--button-hover-border-color, var(--tanne));
-  color: var(--button-hover-text-color, var(--tanne));
+  border-color: var(--button-hover-border-color, var(--primary));
+  color: var(--button-hover-text-color, var(--primary));
 }
 
 .copy-join-link-button:disabled {
@@ -812,7 +812,7 @@
 .group-overview-section li strong {
   font-weight: 600;
   /* Optional: Farbe für hervorgehobenen Text, falls gewünscht
-  color: var(--font-color-emphasis, var(--tanne)); 
+  color: var(--font-color-emphasis, var(--primary)); 
   */
 }
 
@@ -913,8 +913,8 @@
 
 .copy-join-link-button-inline:hover:not(:disabled) {
   background-color: var(--button-hover-background-color, var(--background-color-alt));
-  border-color: var(--button-hover-border-color, var(--tanne));
-  color: var(--button-hover-text-color, var(--tanne));
+  border-color: var(--button-hover-border-color, var(--primary));
+  color: var(--button-hover-text-color, var(--primary));
 }
 
 .copy-join-link-button-inline:disabled {
@@ -1174,7 +1174,7 @@
 
 .group-name-edit-input:focus {
   outline: none;
-  border-color: var(--tanne);
+  border-color: var(--primary);
   box-shadow: 0 0 0 2px rgba(0, 106, 78, 0.2);
 }
 
@@ -1202,7 +1202,7 @@
 }
 
 .group-name-edit-button.save:hover:not(:disabled) {
-  background-color: var(--tanne);
+  background-color: var(--primary);
 }
 
 .group-name-edit-button.cancel {

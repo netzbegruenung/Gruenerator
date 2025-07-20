@@ -45,7 +45,7 @@
 
 .file-upload-playground {
     position: relative;
-    background: var(--tanne);
+    background: var(--primary);
     border: 3px dashed transparent;
     border-radius: 16px;
     padding: var(--spacing-large);
@@ -97,7 +97,7 @@
     width: 64px;
     height: 64px;
     border-radius: 50%;
-    background: var(--tanne);
+    background: var(--primary);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -155,7 +155,7 @@
 .file-icon {
     width: 40px;
     height: 40px;
-    background: var(--tanne);
+    background: var(--primary);
     border-radius: 8px;
     display: flex;
     align-items: center;
@@ -222,7 +222,7 @@
     bottom: calc(100% + 8px);
     left: 50%;
     transform: translateX(-50%);
-    background: var(--tanne);
+    background: var(--primary);
     color: var(--weiß);
     padding: 6px 10px;
     border-radius: 6px;
@@ -248,7 +248,7 @@
     height: 0;
     border-left: 4px solid transparent;
     border-right: 4px solid transparent;
-    border-top: 4px solid var(--tanne);
+    border-top: 4px solid var(--primary);
     opacity: 0;
     transition: all 0.2s ease;
     z-index: 1001;
@@ -279,7 +279,7 @@
 
 .checkbox-item:hover {
     background: rgba(255, 255, 255, 0.05);
-    border-color: var(--tanne);
+    border-color: var(--primary);
 }
 
 .checkbox-text {
@@ -290,7 +290,7 @@
 }
 
 .checkbox-link {
-    color: var(--tanne);
+    color: var(--primary);
     text-decoration: underline;
     transition: color 0.2s ease;
 }
@@ -307,7 +307,7 @@
 .custom-submit-button {
     width: 100%;
     padding: var(--spacing-large);
-    background: var(--tanne);
+    background: var(--primary);
     color: var(--weiß);
     border: none;
     border-radius: 12px;
@@ -337,7 +337,7 @@
 }
 
 .custom-submit-button.loading {
-    background: var(--tanne);
+    background: var(--primary);
     opacity: 0.8;
 }
 
@@ -386,7 +386,7 @@
 .analysis-icon {
     width: 48px;
     height: 48px;
-    background: var(--tanne);
+    background: var(--primary);
     border-radius: 12px;
     display: flex;
     align-items: center;
@@ -422,7 +422,7 @@
     width: 64px;
     height: 64px;
     border: 4px solid var(--border-subtle);
-    border-top: 4px solid var(--tanne);
+    border-top: 4px solid var(--primary);
     border-radius: 50%;
     animation: spin 1s linear infinite;
 }

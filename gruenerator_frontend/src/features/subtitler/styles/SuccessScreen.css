@@ -255,8 +255,8 @@
 }
 
 [data-theme="dark"] .success-screen .copy-button {
-  border-color: var(--sand);
-  color: var(--sand);
+  border-color: var(--secondary);
+  color: var(--secondary);
 }
 
 [data-theme="dark"] .success-screen .copy-button:hover {
@@ -265,8 +265,8 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .success-screen .copy-button {
-    border-color: var(--sand);
-    color: var(--sand);
+    border-color: var(--secondary);
+    color: var(--secondary);
   }
 
   :root:not([data-theme="light"]) .success-screen .copy-button:hover {
