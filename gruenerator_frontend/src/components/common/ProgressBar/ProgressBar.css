@@ -1,0 +1,95 @@
+@import '../../../assets/styles/common/variables.css';
+
+.progress-bar-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-xsmall);
+  margin: 0;
+  padding: 0;
+}
+
+.progress-bar-container.progress-bar-fixed {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  pointer-events: none;
+  margin: 0;
+  padding: 0;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 6px;
+  background-color: transparent;
+  border-radius: 0 3px 3px 0;
+  overflow: visible;
+  position: relative;
+  margin: 0;
+  padding: 0;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background-color: var(--primary);
+  transition: width 0.4s ease-in-out;
+  border-radius: 0 3px 3px 0;
+  box-shadow: 
+    0 -2px 8px var(--primary),
+    0 -4px 16px var(--primary),
+    0 -6px 24px rgba(0, 85, 56, 0.4),
+    inset 0 0 4px rgba(255, 255, 255, 0.3);
+  position: relative;
+  animation: lightsaber-glow 3s ease-in-out infinite;
+}
+
+.progress-bar-text {
+  font-size: var(--form-element-font-size);
+  color: var(--font-color);
+  font-weight: 600;
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .progress-bar-container.progress-bar-fixed {
+    left: 0;
+    right: 0;
+  }
+
+  .progress-bar {
+    height: 4px;
+  }
+
+  .progress-bar-fill {
+    border-radius: 0 2px 2px 0;
+    box-shadow: 
+      0 -2px 6px var(--primary),
+      0 -4px 12px var(--primary),
+      0 -6px 18px rgba(0, 85, 56, 0.3);
+  }
+
+  .progress-bar-text {
+    font-size: 11px;
+  }
+}
+
+@keyframes lightsaber-glow {
+  0%, 100% {
+    box-shadow: 
+      0 -2px 8px var(--primary),
+      0 -4px 16px var(--primary),
+      0 -6px 24px rgba(0, 85, 56, 0.4),
+      inset 0 0 4px rgba(255, 255, 255, 0.3);
+  }
+  50% {
+    box-shadow: 
+      0 -3px 12px var(--primary),
+      0 -6px 20px var(--primary),
+      0 -9px 28px rgba(0, 85, 56, 0.6),
+      inset 0 0 6px rgba(255, 255, 255, 0.4);
+  }
+}
+
