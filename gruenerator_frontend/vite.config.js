@@ -27,13 +27,12 @@ export default defineConfig(({ command }) => ({
   build: {
     target: 'es2022',
     sourcemap: false,
-    minify: 'esbuild',
+    minify: 'terser',
     cssCodeSplit: true,
     assetsInlineLimit: 0,
     chunkSizeWarningLimit: 1000,
     outDir: 'build',
     rollupOptions: {
-      maxParallelFileOps: 16,
       treeshake: { 
         moduleSideEffects: false,
         propertyReadSideEffects: false,
