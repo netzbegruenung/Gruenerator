@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useForm, FormProvider, useFieldArray } from 'react-hook-form';
 import { HiOutlineTrash, HiPlus, HiLink, HiInformationCircle, HiPencil, HiCheck, HiX } from 'react-icons/hi';
-import debounce from 'lodash.debounce';
+import { useAutosave } from '../../../../hooks/useAutosave';
 import Spinner from '../../../../components/common/Spinner';
 import { useGroups, useGroupSharing, getGroupInitials } from '../../utils/groupsUtils';
 import useGroupDetails from '../../../../features/groups/hooks/useGroupDetails';
@@ -35,9 +35,8 @@ const GroupDetailView = ({
     // Tab index configuration
     const tabIndex = useTabIndex('PROFILE_GROUPS');
     
-    // Auto-save refs and state
+    // Ref to track initialization
     const isInitialized = useRef(false);
-    const lastSavedData = useRef(null);
     // React Hook Form setup for group details
     const formMethods = useForm({
         defaultValues: {
@@ -49,7 +48,7 @@ const GroupDetailView = ({
         mode: 'onChange'
     });
     
-    const { control, reset, getValues } = formMethods;
+    const { control, reset, getValues, watch } = formMethods;
     const { fields, append, remove } = useFieldArray({ 
         control, 
         name: "knowledge",
@@ -113,6 +112,33 @@ const GroupDetailView = ({
 
     const [joinLinkCopied, setJoinLinkCopied] = useState(false);
 
+    // Auto-save using shared hook (moved before initialization to prevent "cannot access before initialization" error)
+    const { resetTracking } = useAutosave({
+        saveFunction: useCallback(async (changedFields) => {
+            // Use existing save mechanism through handleInstructionsChange
+            Object.entries(changedFields).forEach(([key, value]) => {
+                if (key !== 'knowledge') {
+                    handleInstructionsChange(key, value);
+                }
+            });
+            
+            // Save changes
+            return await saveChanges();
+        }, [handleInstructionsChange, saveChanges]),
+        formRef: { getValues, watch },
+        enabled: groupInfo && isInitialized.current,
+        debounceMs: 2000,
+        getFieldsToTrack: () => [
+            'customAntragPrompt',
+            'customSocialPrompt',
+            'customUniversalPrompt',
+            'knowledge'
+        ],
+        onError: (error) => {
+            console.error('Groups autosave failed:', error);
+        }
+    });
+
     // Initialize form when group data loads
     useEffect(() => {
         if (groupInfo && !isInitialized.current) {
@@ -127,53 +153,10 @@ const GroupDetailView = ({
             
             // Mark as initialized after first load
             isInitialized.current = true;
+            // Reset autosave tracking after initial form setup
+            setTimeout(() => resetTracking(), 100);
         }
-    }, [groupInfo, customAntragPrompt, customSocialPrompt, customUniversalPrompt, knowledgeEntries, reset]);
-
-    // Auto-save with debouncing (similar to AnweisungenWissenTab)
-    const debouncedSave = useCallback(
-        debounce(async (formData) => {
-            try {
-                // Use existing save mechanism through handleInstructionsChange
-                Object.entries(formData).forEach(([key, value]) => {
-                    if (key !== 'knowledge') {
-                        handleInstructionsChange(key, value);
-                    }
-                });
-                
-                // Save changes
-                saveChanges();
-            } catch (error) {
-                console.error('Auto-save error:', error);
-            }
-        }, 1000),
-        [handleInstructionsChange, saveChanges]
-    );
-    
-    // Auto-save trigger using form subscription (adapted from AnweisungenWissenTab)
-    useEffect(() => {
-        if (!groupInfo || !isInitialized.current) return; // Don't auto-save until initial load
-        
-        // Use a timer to check for form changes periodically
-        const interval = setInterval(() => {
-            const currentValues = getValues();
-            const formData = {
-                custom_antrag_prompt: currentValues.customAntragPrompt || '',
-                custom_social_prompt: currentValues.customSocialPrompt || '',
-                custom_universal_prompt: currentValues.customUniversalPrompt || '',
-                knowledge: currentValues.knowledge || []
-            };
-            
-            // Deep comparison with last saved data to prevent unnecessary saves
-            const dataToCompare = JSON.stringify(formData);
-            if (lastSavedData.current !== dataToCompare) {
-                lastSavedData.current = dataToCompare;
-                debouncedSave(formData);
-            }
-        }, 500); // Check every 500ms for changes
-        
-        return () => clearInterval(interval);
-    }, [groupInfo, getValues, debouncedSave]);
+    }, [groupInfo, customAntragPrompt, customSocialPrompt, customUniversalPrompt, knowledgeEntries, reset, resetTracking]);
 
     // Effect for save/delete feedback
     useEffect(() => {
@@ -535,7 +518,6 @@ const GroupDetailView = ({
                                                 helpText="z.B. bevorzugter Stil, spezielle Formulierungen, politische Schwerpunkte"
                                                 maxLength={GROUP_MAX_CONTENT_LENGTH}
                                                 showCharacterCount={true}
-                                                disabled={isSaving}
                                                 control={control}
                                             />
                                         ) : (
@@ -559,7 +541,6 @@ const GroupDetailView = ({
                                                 helpText="z.B. Tonalität, Hashtag-Präferenzen, Zielgruppen-Ansprache"
                                                 maxLength={GROUP_MAX_CONTENT_LENGTH}
                                                 showCharacterCount={true}
-                                                disabled={isSaving}
                                                 control={control}
                                             />
                                         ) : (
@@ -583,7 +564,6 @@ const GroupDetailView = ({
                                                 helpText="z.B. allgemeine Schreibweise, politische Grundhaltung, Formulierungspräferenzen"
                                                 maxLength={GROUP_MAX_CONTENT_LENGTH}
                                                 showCharacterCount={true}
-                                                disabled={isSaving}
                                                 control={control}
                                             />
                                         ) : (
@@ -602,7 +582,7 @@ const GroupDetailView = ({
                                                 type="button"
                                                 className="btn-primary size-s"
                                                 onClick={handleAddKnowledge}
-                                                disabled={isSaving || isDeletingKnowledge || fields.length >= 3}
+                                                disabled={isDeletingKnowledge || fields.length >= 3}
                                             >
                                                 <HiPlus className="icon" /> Wissen hinzufügen
                                             </button>
@@ -626,7 +606,7 @@ const GroupDetailView = ({
                                                                 type="button"
                                                                 onClick={() => handleDeleteKnowledge(field, index)}
                                                                 className="knowledge-delete-button icon-button danger"
-                                                                disabled={isSaving || (isDeletingKnowledge && deletingKnowledgeId === field.id)}
+                                                                disabled={isDeletingKnowledge && deletingKnowledgeId === field.id}
                                                                 aria-label={`Wissenseintrag ${index + 1} löschen`}
                                                             >
                                                                 {(isDeletingKnowledge && deletingKnowledgeId === field.id) ? <Spinner size="xsmall" /> : <HiOutlineTrash />}
@@ -639,7 +619,7 @@ const GroupDetailView = ({
                                                             type="text"
                                                             placeholder="Kurzer, prägnanter Titel (z.B. 'Gruppenstrategie 2024')"
                                                             rules={{ maxLength: { value: 100, message: 'Titel darf maximal 100 Zeichen haben' } }}
-                                                            disabled={isSaving || isDeletingKnowledge}
+                                                            disabled={isDeletingKnowledge}
                                                             control={control}
                                                         />
                                                     ) : (
@@ -656,7 +636,7 @@ const GroupDetailView = ({
                                                             placeholder="Füge hier den Wissensinhalt ein..."
                                                             maxLength={GROUP_MAX_CONTENT_LENGTH}
                                                             showCharacterCount={true}
-                                                            disabled={isSaving || isDeletingKnowledge}
+                                                            disabled={isDeletingKnowledge}
                                                             control={control}
                                                         />
                                                     ) : (
@@ -675,7 +655,7 @@ const GroupDetailView = ({
                             </div>
 
                             <div className="form-help-text">
-                                {isSaving ? 'Wird gespeichert...' : 'Änderungen werden automatisch gespeichert'}
+                                Änderungen werden automatisch gespeichert
                             </div>
                         </div>
                     </FormProvider>

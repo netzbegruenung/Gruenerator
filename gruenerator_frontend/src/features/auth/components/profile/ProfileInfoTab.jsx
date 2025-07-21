@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
-import debounce from 'lodash.debounce';
+import { useAutosave } from '../../../../hooks/useAutosave';
 import Spinner from '../../../../components/common/Spinner';
 import TextInput from '../../../../components/common/Form/Input/TextInput';
 import FeatureToggle from '../../../../components/common/FeatureToggle';
@@ -16,7 +16,7 @@ import AvatarSelectionModal from './AvatarSelectionModal';
 import HelpTooltip from '../../../../components/common/HelpTooltip';
 import { motion } from "motion/react";
 import { GiHedgehog } from "react-icons/gi";
-import { HiOutlineOfficeBuilding } from "react-icons/hi";
+import { HiOutlineOfficeBuilding, HiOutlineAcademicCap } from "react-icons/hi";
 
 const ProfileInfoTab = ({ 
   user: userProp, 
@@ -53,9 +53,8 @@ const ProfileInfoTab = ({
   const [email, setEmail] = useState('');
   const [errorProfile, setErrorProfile] = useState('');
   
-  // Refs to track initialization and prevent loops
+  // Ref to track initialization
   const isInitialized = useRef(false);
-  const lastSavedData = useRef(null);
   
   
   // UI states
@@ -79,57 +78,12 @@ const ProfileInfoTab = ({
     );
   }
 
-  // Initialize form fields when profile data loads (centralized logic from profileUtils)
-  useEffect(() => {
-    if (!profile || !user) return;
-    
-    const formFields = initializeProfileFormFields(profile, user);
-    
-    // Only initialize once or when switching users
-    if (!isInitialized.current) {
-      setFirstName(formFields.firstName);
-      setLastName(formFields.lastName);
-      setDisplayName(formFields.displayName);
-      setEmail(formFields.email);
-      isInitialized.current = true;
-    }
-  }, [profile, user]);
-
   // Define avatarRobotId early since it's used in auto-save
   const avatarRobotId = profile?.avatar_robot_id ?? 1;
 
-  // Auto-save profile data with debouncing
-  const debouncedSave = useCallback(
-    debounce(async (profileData) => {
-      try {
-        // Add a timeout to prevent hanging saves
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Save timeout')), 10000)
-        );
-        
-        await Promise.race([
-          updateProfile(profileData),
-          timeoutPromise
-        ]);
-        
-        onSuccessMessage('Profil automatisch gespeichert!');
-        onErrorProfileMessage('');
-        setErrorProfile('');
-      } catch (error) {
-        console.error('Auto-save error:', error);
-        if (error.message === 'Save timeout') {
-          setErrorProfile('Speichern dauert zu lange. Bitte versuchen Sie es erneut.');
-          onErrorProfileMessage('Speichern dauert zu lange. Bitte versuchen Sie es erneut.');
-        }
-        // Error is handled by useEffect above
-      }
-    }, 1000),
-    [updateProfile, onSuccessMessage, onErrorProfileMessage]
-  );
-
-  // Trigger auto-save when form fields change
-  useEffect(() => {
-    if (!profile || !isInitialized.current) return; // Don't auto-save until initial load and initialization
+  // State-based autosave using shared hook pattern (moved before initialization to prevent "cannot access before initialization" error)
+  const stateBasedSave = useCallback(async () => {
+    if (!profile || !isInitialized.current) return;
     
     const fullDisplayName = firstName || lastName ? `${firstName} ${lastName}`.trim() : (displayName || email || user?.username || 'Benutzer');
     
@@ -144,13 +98,71 @@ const ProfileInfoTab = ({
       profileUpdateData.email = email?.trim() || null;
     }
 
-    // Deep comparison with last saved data to prevent unnecessary saves
-    const dataToCompare = JSON.stringify(profileUpdateData);
-    if (lastSavedData.current !== dataToCompare) {
-      lastSavedData.current = dataToCompare;
-      debouncedSave(profileUpdateData);
+    try {
+      // Add a timeout to prevent hanging saves
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Save timeout')), 10000)
+      );
+      
+      await Promise.race([
+        updateProfile(profileUpdateData),
+        timeoutPromise
+      ]);
+      
+      setErrorProfile('');
+    } catch (error) {
+      console.error('Auto-save error:', error);
+      if (error.message === 'Save timeout') {
+        setErrorProfile('Speichern dauert zu lange. Bitte versuchen Sie es erneut.');
+        onErrorProfileMessage('Speichern dauert zu lange. Bitte versuchen Sie es erneut.');
+      }
     }
-  }, [firstName, lastName, displayName, email, avatarRobotId, canManageCurrentAccount, user?.username, profile, debouncedSave]);
+  }, [firstName, lastName, displayName, email, avatarRobotId, canManageCurrentAccount, user?.username, profile, updateProfile, onErrorProfileMessage]);
+
+  // Auto-save using shared hook with state variables  
+  const { resetTracking } = useAutosave({
+    saveFunction: stateBasedSave,
+    formRef: {
+      getValues: () => ({ firstName, lastName, displayName, email, avatarRobotId }),
+      watch: () => {} // Not needed for state-based
+    },
+    enabled: profile && isInitialized.current,
+    debounceMs: 2000,
+    getFieldsToTrack: () => ['firstName', 'lastName', 'displayName', 'email', 'avatarRobotId'],
+    onError: (error) => {
+      console.error('Profile autosave failed:', error);
+      setErrorProfile('Automatisches Speichern fehlgeschlagen.');
+    }
+  });
+
+  // Initialize form fields when profile data loads (centralized logic from profileUtils)
+  useEffect(() => {
+    if (!profile || !user) return;
+    
+    const formFields = initializeProfileFormFields(profile, user);
+    
+    // Only initialize once or when switching users
+    if (!isInitialized.current) {
+      setFirstName(formFields.firstName);
+      setLastName(formFields.lastName);
+      setDisplayName(formFields.displayName);
+      setEmail(formFields.email);
+      isInitialized.current = true;
+      // Reset autosave tracking after initial setup
+      setTimeout(() => resetTracking(), 100);
+    }
+  }, [profile, user, resetTracking]);
+
+  // Trigger autosave when state changes
+  useEffect(() => {
+    if (profile && isInitialized.current) {
+      // Small delay to allow focus detection
+      const timer = setTimeout(() => {
+        resetTracking();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [firstName, lastName, displayName, email, avatarRobotId, resetTracking, profile, isInitialized]);
 
   // Handle profile update error from hook
   useEffect(() => {
@@ -189,6 +201,15 @@ const ProfileInfoTab = ({
       onSuccessMessage(enabled ? 'Bundestag API aktiviert! Du kannst jetzt parlamentarische Dokumente verwenden.' : 'Bundestag API deaktiviert.');
     } catch (error) {
       onErrorProfileMessage(error.message || 'Fehler beim Aktualisieren der Bundestag API Einstellung.');
+    }
+  };
+
+  const handleELearningToggle = async (enabled) => {
+    try {
+      await updateUserBetaFeatures('e_learning', enabled);
+      onSuccessMessage(enabled ? 'E-Learning aktiviert! Du kannst jetzt auf die Lernmodule zugreifen.' : 'E-Learning deaktiviert.');
+    } catch (error) {
+      onErrorProfileMessage(error.message || 'Fehler beim Aktualisieren der E-Learning Einstellung.');
     }
   };
 
@@ -378,7 +399,7 @@ const ProfileInfoTab = ({
               </div>
             </div>
             <div className="form-help-text">
-              {isSaving ? 'Wird gespeichert...' : 'Änderungen werden automatisch gespeichert'}
+              Änderungen werden automatisch gespeichert
             </div>
           </div>
 
@@ -410,6 +431,26 @@ const ProfileInfoTab = ({
               className="bundestag-api-toggle"
               disabled={isBetaFeaturesUpdating}
             />
+          </div>
+
+          <hr className="form-divider" />
+          
+          <div className="form-group">
+            <div className="form-group-title">Bildung & Lernen</div>
+            <FeatureToggle
+              isActive={getBetaFeatureState('e_learning')}
+              onToggle={handleELearningToggle}
+              label="E-Learning aktivieren"
+              icon={HiOutlineAcademicCap}
+              description="Aktiviere den Zugang zu interaktiven E-Learning Modulen über grüne Politik, Klimaschutz und nachhaltiges Engagement. Erweitere dein Wissen mit strukturierten Lernpfaden."
+              className="elearning-toggle"
+              disabled={isBetaFeaturesUpdating}
+            />
+            {getBetaFeatureState('e_learning') && (
+              <div className="form-help-text form-help-text-success" style={{ marginTop: 'var(--spacing-small)' }}>
+                ✅ E-Learning aktiviert! <a href="/e-learning" style={{ color: 'var(--link-color)', textDecoration: 'underline' }}>Zu den Lernmodulen →</a>
+              </div>
+            )}
           </div>
 
           {canManageCurrentAccount && !showDeleteAccountForm && (

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useForm, FormProvider, useFieldArray } from 'react-hook-form';
 import { HiOutlineTrash, HiPlus } from 'react-icons/hi';
-import debounce from 'lodash.debounce';
+import { useAutosave } from '../../../../hooks/useAutosave';
 import Spinner from '../../../../components/common/Spinner';
 import { useFormFields } from '../../../../components/common/Form/hooks';
 import { useAnweisungenWissen } from '../../utils/profileUtils';
@@ -14,9 +14,8 @@ const MAX_CONTENT_LENGTH = 1000;
 const AnweisungenWissenTab = ({ isActive }) => {
     const [currentView, setCurrentView] = useState('antraege');
 
-    // Refs to track initialization and prevent loops (ProfileInfoTab pattern)
+    // Ref to track initialization
     const isInitialized = useRef(false);
-    const lastSavedData = useRef(null);
     
     // Zustand store for UI state
     const {
@@ -40,7 +39,7 @@ const AnweisungenWissenTab = ({ isActive }) => {
         mode: 'onChange'
     });
 
-    const { control, getValues, reset } = formMethods;
+    const { control, getValues, reset, watch } = formMethods;
     const { fields, append, remove } = useFieldArray({ 
         control, 
         name: "knowledge",
@@ -48,11 +47,41 @@ const AnweisungenWissenTab = ({ isActive }) => {
     });
     const { Input, Textarea } = useFormFields();
 
-    // Initialize form when data loads (ProfileInfoTab pattern)
+    // Auto-save using shared hook (moved before initialization to prevent "cannot access before initialization" error)
+    const { resetTracking } = useAutosave({
+        saveFunction: useCallback(async (changedFields) => {
+            // Convert changed fields to the format expected by saveChanges
+            const currentValues = getValues();
+            const formData = {
+                customAntragPrompt: changedFields.customAntragPrompt !== undefined ? changedFields.customAntragPrompt : currentValues.customAntragPrompt || '',
+                customSocialPrompt: changedFields.customSocialPrompt !== undefined ? changedFields.customSocialPrompt : currentValues.customSocialPrompt || '',
+                customUniversalPrompt: changedFields.customUniversalPrompt !== undefined ? changedFields.customUniversalPrompt : currentValues.customUniversalPrompt || '',
+                customGruenejugendPrompt: changedFields.customGruenejugendPrompt !== undefined ? changedFields.customGruenejugendPrompt : currentValues.customGruenejugendPrompt || '',
+                knowledge: changedFields.knowledge !== undefined ? changedFields.knowledge : currentValues.knowledge || []
+            };
+            
+            return await saveChanges(formData);
+        }, [saveChanges, getValues]),
+        formRef: { getValues, watch },
+        enabled: data && isInitialized.current,
+        debounceMs: 2000,
+        getFieldsToTrack: () => [
+            'customAntragPrompt',
+            'customSocialPrompt',
+            'customUniversalPrompt',
+            'customGruenejugendPrompt',
+            'knowledge'
+        ],
+        onError: (error) => {
+            console.error('AnweisungenWissen autosave failed:', error);
+        }
+    });
+
+    // Initialize form when data loads
     useEffect(() => {
         if (!data) return;
         
-        // Only initialize once (ProfileInfoTab pattern)
+        // Only initialize once
         if (!isInitialized.current) {
             reset({
                 customAntragPrompt: data.antragPrompt || '',
@@ -63,47 +92,10 @@ const AnweisungenWissenTab = ({ isActive }) => {
             });
             
             isInitialized.current = true;
+            // Reset autosave tracking after initial form setup
+            setTimeout(() => resetTracking(), 100);
         }
-    }, [data, reset]);
-
-    // Auto-save with debouncing (ProfileInfoTab pattern)
-    const debouncedSave = useCallback(
-        debounce(async (formData) => {
-            try {
-                await saveChanges(formData);
-                // Success is handled by the saveChanges function
-            } catch (error) {
-                // Error is handled by saveChanges function
-            }
-        }, 1000),
-        [saveChanges]
-    );
-    
-    // Auto-save trigger using form subscription (adapted ProfileInfoTab pattern)
-    useEffect(() => {
-        if (!data || !isInitialized.current) return; // Don't auto-save until initial load
-        
-        // Use a timer to check for form changes periodically
-        const interval = setInterval(() => {
-            const currentValues = getValues();
-            const formData = {
-                customAntragPrompt: currentValues.customAntragPrompt || '',
-                customSocialPrompt: currentValues.customSocialPrompt || '',
-                customUniversalPrompt: currentValues.customUniversalPrompt || '',
-                customGruenejugendPrompt: currentValues.customGruenejugendPrompt || '',
-                knowledge: currentValues.knowledge || []
-            };
-            
-            // Deep comparison with last saved data to prevent unnecessary saves (ProfileInfoTab pattern)
-            const dataToCompare = JSON.stringify(formData);
-            if (lastSavedData.current !== dataToCompare) {
-                lastSavedData.current = dataToCompare;
-                debouncedSave(formData);
-            }
-        }, 500); // Check every 500ms for changes
-        
-        return () => clearInterval(interval);
-    }, [data, getValues, debouncedSave]);
+    }, [data, reset, resetTracking]);
 
     // Effect to clear messages when view changes or component becomes inactive
     useEffect(() => {
@@ -213,7 +205,7 @@ const AnweisungenWissenTab = ({ isActive }) => {
                                             placeholder="Gib hier deine Anweisungen für die Erstellung von Anträgen ein..."
                                             helpText="z.B. bevorzugter Stil, spezielle Formulierungen, politische Schwerpunkte"
                                             minRows={4}
-                                            disabled={isSaving}
+                                            disabled={false}
                                             control={control}
                                         />
                                     </div>
@@ -235,7 +227,7 @@ const AnweisungenWissenTab = ({ isActive }) => {
                                             placeholder="Gib hier deine Anweisungen für die Erstellung von Presse- und Social Media-Inhalten ein..."
                                             helpText="z.B. Tonalität, Hashtag-Präferenzen, Zielgruppen-Ansprache"
                                             minRows={4}
-                                            disabled={isSaving}
+                                            disabled={false}
                                             control={control}
                                         />
                                     </div>
@@ -257,7 +249,7 @@ const AnweisungenWissenTab = ({ isActive }) => {
                                             placeholder="Gib hier deine Anweisungen für die Erstellung von universellen Texten ein..."
                                             helpText="z.B. allgemeine Schreibweise, politische Grundhaltung, Formulierungspräferenzen"
                                             minRows={4}
-                                            disabled={isSaving}
+                                            disabled={false}
                                             control={control}
                                         />
                                     </div>
@@ -279,7 +271,7 @@ const AnweisungenWissenTab = ({ isActive }) => {
                                             placeholder="Gib hier deine Anweisungen für die Erstellung von Grüne Jugend-Inhalten ein..."
                                             helpText="z.B. jugendgerechte Sprache, spezielle Themen, Aktivismus-Fokus"
                                             minRows={4}
-                                            disabled={isSaving}
+                                            disabled={false}
                                             control={control}
                                         />
                                     </div>
@@ -293,7 +285,7 @@ const AnweisungenWissenTab = ({ isActive }) => {
                                                 type="button"
                                                 className="btn-primary size-s"
                                                 onClick={handleAddKnowledge}
-                                                disabled={isSaving || isDeleting || fields.length >= MAX_KNOWLEDGE_ENTRIES}
+                                                disabled={isDeleting || fields.length >= MAX_KNOWLEDGE_ENTRIES}
                                             >
                                                 <HiPlus className="icon" /> Wissen hinzufügen
                                             </button>
@@ -317,7 +309,7 @@ const AnweisungenWissenTab = ({ isActive }) => {
                                                             type="button"
                                                             onClick={() => handleDeleteKnowledge(field, index)}
                                                             className="knowledge-delete-button icon-button danger"
-                                                            disabled={isSaving || (isDeleting && deletingKnowledgeId === field.id)}
+                                                            disabled={isDeleting && deletingKnowledgeId === field.id}
                                                             aria-label={`Wissenseintrag ${index + 1} löschen`}
                                                         >
                                                             {(isDeleting && deletingKnowledgeId === field.id) ? <Spinner size="xsmall" /> : <HiOutlineTrash />}
@@ -328,7 +320,7 @@ const AnweisungenWissenTab = ({ isActive }) => {
                                                         type="text"
                                                         placeholder="Kurzer, prägnanter Titel (z.B. 'OV Musterstadt Vorstand')"
                                                         rules={{ maxLength: { value: 100, message: 'Titel darf maximal 100 Zeichen haben' } }}
-                                                        disabled={isSaving || isDeleting}
+                                                        disabled={isDeleting}
                                                         control={control}
                                                     />
                                                 </div>
@@ -340,7 +332,7 @@ const AnweisungenWissenTab = ({ isActive }) => {
                                                         minRows={3}
                                                         maxLength={MAX_CONTENT_LENGTH}
                                                         showCharacterCount={true}
-                                                        disabled={isSaving || isDeleting}
+                                                        disabled={isDeleting}
                                                         control={control}
                                                     />
                                                 </div>
@@ -350,7 +342,7 @@ const AnweisungenWissenTab = ({ isActive }) => {
                                 )}
                                 
                                 <div className="form-help-text">
-                                    {isSaving ? 'Wird gespeichert...' : 'Änderungen werden automatisch gespeichert'}
+                                    Änderungen werden automatisch gespeichert
                                 </div>
                             </div>
                         </div>
