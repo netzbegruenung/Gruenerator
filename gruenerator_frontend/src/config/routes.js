@@ -43,6 +43,10 @@ const CollabEditorPage = lazy(() => import('../pages/CollabEditorPage/CollabEdit
 // Q&A Chat Komponente importieren
 const QAChat = lazy(() => import('../features/qa/components/QAChat'));
 
+// E-Learning Komponente importieren
+const ELearningPage = lazy(() => import('../features/elearning'));
+const ELearningTutorial = lazy(() => import('../features/elearning/components/ELearningTutorial'));
+
 // Test-Komponenten importieren
 const ButtonTest = lazy(() => import('../components/test/ButtonTest'));
 
@@ -73,7 +77,9 @@ export const GrueneratorenBundle = {
   CustomGenerator: CustomGeneratorPage,
   CreateCustomGenerator: CreateCustomGeneratorPage,
   ContentGallery: ContentGallery,
-  QAChat: QAChat
+  QAChat: QAChat,
+  ELearning: ELearningPage,
+  ELearningTutorial: ELearningTutorial
 };
 
 // Route Konfigurationen
@@ -120,6 +126,9 @@ const standardRoutes = [
   { path: '/editor/collab/:documentId/preview', component: CollabEditorPage, showHeaderFooter: false }, // Preview-Modus ohne Header/Footer
   // Q&A Chat Routen
   { path: '/qa/:id', component: GrueneratorenBundle.QAChat },
+  // E-Learning Routes
+  { path: '/e-learning', component: GrueneratorenBundle.ELearning },
+  { path: '/e-learning/gruenerator-tutorial', component: GrueneratorenBundle.ELearningTutorial },
   { path: '/button-test', component: ButtonTest },
   { path: '*', component: NotFound }
 ];

@@ -165,3 +165,6 @@
 
 @import url('./pages/collab-editor.css');
 @import url('./features/qa/qa-collections.css');
+
+/* E-Learning Feature Styles */
+@import url('../../features/elearning/styles/elearning.css');
