@@ -6,11 +6,6 @@ const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
 
 const router = express.Router();
 
-// Add debugging middleware to all profile routes
-router.use((req, res, next) => {
-  console.log(`[User Profile] ${req.method} ${req.originalUrl} - User ID: ${req.user?.id}`);
-  next();
-});
 
 // === PROFILE MANAGEMENT ENDPOINTS ===
 
@@ -58,21 +53,11 @@ router.get('/profile', ensureAuthenticated, async (req, res) => {
         throw new Error(createError.message);
       }
       
-      // Enhance new profile with auth email information and beta features
-      const authBetaFeatures = authUser?.user?.raw_user_meta_data?.beta_features || {};
-      const profileBetaFeatures = newProfile.beta_features || {};
-      
-      // Merge beta features: profiles table takes precedence over auth metadata
-      const mergedBetaFeatures = {
-        ...authBetaFeatures,
-        ...profileBetaFeatures
-      };
-      
+      // Enhance new profile with auth email information
       const enhancedNewProfile = {
         ...newProfile,
         auth_email: authUser?.user?.email || null, // Email from auth.users
-        is_sso_user: !!newProfile.keycloak_id, // Detect SSO users
-        beta_features: mergedBetaFeatures // Merged beta features
+        is_sso_user: !!newProfile.keycloak_id // Detect SSO users
       };
       
       return res.json({ 
@@ -81,23 +66,11 @@ router.get('/profile', ensureAuthenticated, async (req, res) => {
       });
     }
     
-    // Enhance profile with auth email information and beta features
-    const authBetaFeatures = authUser?.user?.raw_user_meta_data?.beta_features || {};
-    const profileBetaFeatures = profile.beta_features || {};
-    const sessionBetaFeatures = req.user?.beta_features || {};
-    
-    // Merge beta features: session takes precedence over profiles table, which takes precedence over auth metadata
-    const mergedBetaFeatures = {
-      ...authBetaFeatures,
-      ...profileBetaFeatures,
-      ...sessionBetaFeatures
-    };
-    
+    // Enhance profile with auth email information
     const enhancedProfile = {
       ...profile,
       auth_email: authUser?.user?.email || null, // Email from auth.users
-      is_sso_user: !!profile.keycloak_id, // Detect SSO users
-      beta_features: mergedBetaFeatures // Merged beta features with session priority
+      is_sso_user: !!profile.keycloak_id // Detect SSO users
     };
     
     res.json({ 
@@ -127,32 +100,7 @@ router.put('/profile', ensureAuthenticated, async (req, res) => {
       });
     }
     
-    // Check user's auth source to determine if email updates are allowed
-    let canUpdateEmail = false;
-    if (email !== undefined) {
-      try {
-        const { data: authUser, error: authError } = await supabaseService.auth.admin.getUserById(req.user.id);
-        if (authError) {
-          console.error('[User Profile /profile PUT] Auth user lookup error:', authError);
-        } else {
-          const authSource = authUser?.user?.raw_user_meta_data?.auth_source;
-          
-          // Allow email updates for gruenerator-login users or users without auth_source (legacy)
-          canUpdateEmail = authSource === 'gruenerator-login' || authSource === null || authSource === undefined;
-          
-          if (!canUpdateEmail) {
-            return res.status(400).json({
-              success: false,
-              message: 'E-Mail kann nicht geändert werden. Bitte wenden Sie sich an den Administrator oder loggen Sie sich über das ursprüngliche System ein.'
-            });
-          }
-        }
-      } catch (authCheckError) {
-        console.error('[User Profile /profile PUT] Auth check error:', authCheckError);
-        // If we can't check auth source, allow the update (will be caught by DB trigger if needed)
-        canUpdateEmail = true;
-      }
-    }
+    // Allow all users to update their display email in profiles table
     
     // Prepare update data - NEVER include beta_features here
     // Beta features are managed exclusively via /profile/beta-features endpoint
@@ -167,8 +115,8 @@ router.put('/profile', ensureAuthenticated, async (req, res) => {
     if (avatar_robot_id !== undefined) updateData.avatar_robot_id = avatar_robot_id;
     
     
-    // Handle email updates manually if user is allowed to change it
-    if (email !== undefined && canUpdateEmail) {
+    // Handle email updates - update both profiles table and auth.users (best effort)
+    if (email !== undefined) {
       updateData.email = email || null;
       
       // Also update the email in auth.users directly to avoid trigger permission issues
@@ -207,11 +155,7 @@ router.put('/profile', ensureAuthenticated, async (req, res) => {
       }
     }
     
-    // Inform user if email update was skipped
     let message = 'Profil erfolgreich aktualisiert!';
-    if (email !== undefined && !canUpdateEmail) {
-      message = 'Profil aktualisiert! E-Mail konnte nicht geändert werden - diese wird über Ihr Authentifizierungssystem verwaltet.';
-    }
     
     res.json({ 
       success: true, 
@@ -282,16 +226,12 @@ router.patch('/profile/avatar', ensureAuthenticated, async (req, res) => {
 router.get('/profile/beta-features', ensureAuthenticated, async (req, res) => {
   try {
     
-    // Get auth user to access metadata
-    const { data: authUser, error: authError } = await supabaseService.auth.admin.getUserById(req.user.id);
-    if (authError) {
-      console.error('[User Profile /profile/beta-features GET] Auth user error:', authError);
-    }
+    // No longer need auth metadata - use profiles table only
     
-    // Get profile from database to access beta_features and individual profile settings
+    // Get profile from database to access beta_features and ALL individual beta feature columns
     const { data: profile, error: profileError } = await supabaseService
       .from('profiles')
-      .select('beta_features, igel_modus, bundestag_api_enabled')
+      .select('beta_features, igel_modus, bundestag_api_enabled, groups, custom_generators, database_access, you_generator, collab, qa, sharepic, anweisungen')
       .eq('id', req.user.id)
       .single();
     
@@ -300,28 +240,28 @@ router.get('/profile/beta-features', ensureAuthenticated, async (req, res) => {
       throw new Error('Fehler beim Laden der Beta Features aus der Datenbank');
     }
     
-    // Merge beta features: auth metadata as base, profiles table takes precedence
-    const authBetaFeatures = authUser?.user?.raw_user_meta_data?.beta_features || {};
+    // Use profiles table data only
     const profileBetaFeatures = profile?.beta_features || {};
     
-    // Include individual profile settings as beta features for consistency
+    // Include ALL individual profile settings as beta features for consistency
     const profileSettingsAsBetaFeatures = {
       igel_modus: profile?.igel_modus || false,
-      bundestag_api_enabled: profile?.bundestag_api_enabled || false
+      bundestag_api_enabled: profile?.bundestag_api_enabled || false,
+      groups: profile?.groups || false,
+      customGenerators: profile?.custom_generators || false,
+      database: profile?.database_access || false,
+      you: profile?.you_generator || false,
+      collab: profile?.collab || false,
+      qa: profile?.qa || false,
+      sharepic: profile?.sharepic || false,
+      anweisungen: profile?.anweisungen || false
     };
     
     const mergedBetaFeatures = {
-      ...authBetaFeatures,
       ...profileBetaFeatures,
       ...profileSettingsAsBetaFeatures
     };
     
-    console.log('[User Profile /profile/beta-features GET] Merged beta features with profile settings:', {
-      userId: req.user.id,
-      igelModus: mergedBetaFeatures.igel_modus,
-      bundestagApiEnabled: mergedBetaFeatures.bundestag_api_enabled,
-      source: 'beta-features-get'
-    });
     
     
     res.json({ 
@@ -359,9 +299,11 @@ router.patch('/profile/beta-features', ensureAuthenticated, async (req, res) => 
       'anweisungen', 
       'you', 
       'collab',
+      'qa',
       'advanced_editor',
       'collaborative_editing',
       'customGruenerator',
+      'e_learning',
       // Profile settings treated as beta features for consistency
       'igel_modus',
       'bundestag_api_enabled'
@@ -373,16 +315,19 @@ router.patch('/profile/beta-features', ensureAuthenticated, async (req, res) => 
       });
     }
     
-    // Get current user metadata from Supabase Auth
-    const { data: authUser, error: getUserError } = await supabaseService.auth.admin.getUserById(req.user.id);
+    // Get current beta features from profiles table
+    const { data: currentProfile, error: profileError } = await supabaseService
+      .from('profiles')
+      .select('beta_features')
+      .eq('id', req.user.id)
+      .single();
     
-    if (getUserError) {
-      console.error('[User Profile /profile/beta-features PATCH] Get user error:', getUserError);
-      throw new Error('Benutzer nicht gefunden');
+    if (profileError && profileError.code !== 'PGRST116') {
+      console.error('[User Profile /profile/beta-features PATCH] Profile error:', profileError);
+      throw new Error('Fehler beim Laden der aktuellen Beta Features');
     }
     
-    const currentMetadata = authUser.user.user_metadata || {};
-    const currentBetaFeatures = currentMetadata.beta_features || {};
+    const currentBetaFeatures = currentProfile?.beta_features || {};
     
     // Update beta features
     const updatedBetaFeatures = {
@@ -390,25 +335,7 @@ router.patch('/profile/beta-features', ensureAuthenticated, async (req, res) => 
       [feature]: enabled
     };
     
-    const updatedMetadata = {
-      ...currentMetadata,
-      beta_features: updatedBetaFeatures
-    };
-    
-    // Try to update user metadata in Supabase Auth (best effort for non-SSO users)
-    try {
-      const { error: updateError } = await supabaseService.auth.admin.updateUserById(req.user.id, {
-        user_metadata: updatedMetadata
-      });
-      
-      if (updateError) {
-        console.warn('[User Profile /profile/beta-features PATCH] Auth metadata update failed (may be SSO user):', updateError.message);
-      }
-    } catch (authError) {
-      console.warn('[User Profile /profile/beta-features PATCH] Auth metadata update failed (non-critical):', authError.message);
-    }
-    
-    // Primary storage: Always store in profiles table for reliability
+    // Store in profiles table
     try {
       // Prepare update data with beta features
       const updateData = {
@@ -417,14 +344,39 @@ router.patch('/profile/beta-features', ensureAuthenticated, async (req, res) => 
         updated_at: new Date().toISOString()
       };
       
-      // Special handling: Also update individual columns for profile settings treated as beta features
+      // Special handling: Also update individual columns for all beta features
       if (feature === 'igel_modus') {
         updateData.igel_modus = Boolean(enabled);
-        console.log('[User Profile /profile/beta-features PATCH] Also updating igel_modus column:', enabled);
       }
       if (feature === 'bundestag_api_enabled') {
         updateData.bundestag_api_enabled = Boolean(enabled);
-        console.log('[User Profile /profile/beta-features PATCH] Also updating bundestag_api_enabled column:', enabled);
+      }
+      if (feature === 'groups') {
+        updateData.groups = Boolean(enabled);
+      }
+      if (feature === 'customGenerators') {
+        updateData.custom_generators = Boolean(enabled);
+      }
+      if (feature === 'database') {
+        updateData.database_access = Boolean(enabled);
+      }
+      if (feature === 'you') {
+        updateData.you_generator = Boolean(enabled);
+      }
+      if (feature === 'collab') {
+        updateData.collab = Boolean(enabled);
+      }
+      if (feature === 'qa') {
+        updateData.qa = Boolean(enabled);
+      }
+      if (feature === 'sharepic') {
+        updateData.sharepic = Boolean(enabled);
+      }
+      if (feature === 'anweisungen') {
+        updateData.anweisungen = Boolean(enabled);
+      }
+      if (feature === 'qa') {
+        updateData.qa = Boolean(enabled);
       }
       
       const { error: profileUpdateError } = await supabaseService
@@ -440,29 +392,50 @@ router.patch('/profile/beta-features', ensureAuthenticated, async (req, res) => 
       throw new Error('Fehler beim Speichern der Beta Features');
     }
     
+    // Log beta feature change
+    console.log(`[Beta Feature Change] User ${req.user.id}: ${feature} ${enabled ? 'ENABLED' : 'DISABLED'}`);
+    
     // Also update session for immediate UI feedback
     if (req.user) {
-      console.log(`[User Profile] Beta feature '${feature}' ${enabled ? 'enabled' : 'disabled'}`);
-      
       // Update beta_features directly on user object (from profiles table)
       req.user.beta_features = updatedBetaFeatures;
       
       // Special handling: Also update individual profile settings in session for compatibility
       if (feature === 'igel_modus') {
         req.user.igel_modus = Boolean(enabled);
-        console.log('[User Profile /profile/beta-features PATCH] Also updating req.user.igel_modus in session:', enabled);
       }
       if (feature === 'bundestag_api_enabled') {
         req.user.bundestag_api_enabled = Boolean(enabled);
-        console.log('[User Profile /profile/beta-features PATCH] Also updating req.user.bundestag_api_enabled in session:', enabled);
+      }
+      if (feature === 'groups') {
+        req.user.groups = Boolean(enabled);
+      }
+      if (feature === 'customGenerators') {
+        req.user.custom_generators = Boolean(enabled);
+      }
+      if (feature === 'database') {
+        req.user.database_access = Boolean(enabled);
+      }
+      if (feature === 'you') {
+        req.user.you_generator = Boolean(enabled);
+      }
+      if (feature === 'collab') {
+        req.user.collab = Boolean(enabled);
+      }
+      if (feature === 'qa') {
+        req.user.qa = Boolean(enabled);
+      }
+      if (feature === 'sharepic') {
+        req.user.sharepic = Boolean(enabled);
+      }
+      if (feature === 'anweisungen') {
+        req.user.anweisungen = Boolean(enabled);
+      }
+      if (feature === 'qa') {
+        req.user.qa = Boolean(enabled);
       }
       
-      // Also update in user_metadata for consistency
-      if (req.user.user_metadata) {
-        req.user.user_metadata.beta_features = updatedBetaFeatures;
-      } else {
-        req.user.user_metadata = { beta_features: updatedBetaFeatures };
-      }
+      // Remove user_metadata - no longer needed
       
       // CRITICAL: Force session to update by modifying session.passport.user directly
       if (req.session.passport && req.session.passport.user) {
@@ -475,14 +448,39 @@ router.patch('/profile/beta-features', ensureAuthenticated, async (req, res) => 
         if (feature === 'bundestag_api_enabled') {
           req.session.passport.user.bundestag_api_enabled = Boolean(enabled);
         }
+        if (feature === 'groups') {
+          req.session.passport.user.groups = Boolean(enabled);
+        }
+        if (feature === 'customGenerators') {
+          req.session.passport.user.custom_generators = Boolean(enabled);
+        }
+        if (feature === 'database') {
+          req.session.passport.user.database_access = Boolean(enabled);
+        }
+        if (feature === 'you') {
+          req.session.passport.user.you_generator = Boolean(enabled);
+        }
+        if (feature === 'collab') {
+          req.session.passport.user.collab = Boolean(enabled);
+        }
+        if (feature === 'qa') {
+          req.session.passport.user.qa = Boolean(enabled);
+        }
+        if (feature === 'sharepic') {
+          req.session.passport.user.sharepic = Boolean(enabled);
+        }
+        if (feature === 'anweisungen') {
+          req.session.passport.user.anweisungen = Boolean(enabled);
+        }
+        if (feature === 'qa') {
+          req.session.passport.user.qa = Boolean(enabled);
+        }
       }
       
       // Force session save to persist the updated user object
       req.session.save((err) => {
         if (err) {
           console.error('[User Profile /profile/beta-features PATCH] Session save error:', err);
-        } else {
-          console.log('[User Profile /profile/beta-features PATCH] Session saved successfully');
         }
       });
     }
@@ -514,26 +512,14 @@ router.patch('/profile/message-color', ensureAuthenticated, async (req, res) => 
       });
     }
     
-    // Get current user metadata from Supabase Auth
-    const { data: authUser, error: getUserError } = await supabaseService.auth.admin.getUserById(req.user.id);
-    
-    if (getUserError) {
-      console.error('[User Profile /profile/message-color PATCH] Get user error:', getUserError);
-      throw new Error('Benutzer nicht gefunden');
-    }
-    
-    const currentMetadata = authUser.user.user_metadata || {};
-    
-    // Update message color
-    const updatedMetadata = {
-      ...currentMetadata,
-      chat_color: color
-    };
-    
-    // Update user metadata in Supabase Auth
-    const { error: updateError } = await supabaseService.auth.admin.updateUserById(req.user.id, {
-      user_metadata: updatedMetadata
-    });
+    // Update chat_color in profiles table
+    const { error: updateError } = await supabaseService
+      .from('profiles')
+      .upsert({
+        id: req.user.id,
+        chat_color: color,
+        updated_at: new Date().toISOString()
+      });
     
     if (updateError) {
       console.error('[User Profile /profile/message-color PATCH] Update error:', updateError);
@@ -559,7 +545,6 @@ router.patch('/profile/message-color', ensureAuthenticated, async (req, res) => 
 // Update user memory settings
 router.patch('/profile/memory-settings', ensureAuthenticated, async (req, res) => {
   try {
-    console.log('[User Profile /profile/memory-settings PATCH] Memory settings update for user:', req.user.id);
     const { memory_enabled } = req.body;
     
     if (typeof memory_enabled !== 'boolean') {
@@ -569,33 +554,7 @@ router.patch('/profile/memory-settings', ensureAuthenticated, async (req, res) =
       });
     }
     
-    // Get current user metadata from Supabase Auth
-    const { data: authUser, error: getUserError } = await supabaseService.auth.admin.getUserById(req.user.id);
-    
-    if (getUserError) {
-      console.error('[User Profile /profile/memory-settings PATCH] Get user error:', getUserError);
-      throw new Error('Benutzer nicht gefunden');
-    }
-    
-    const currentMetadata = authUser.user.user_metadata || {};
-    
-    // Update memory settings
-    const updatedMetadata = {
-      ...currentMetadata,
-      memory_enabled: memory_enabled
-    };
-    
-    // Update user metadata in Supabase Auth
-    const { error: updateError } = await supabaseService.auth.admin.updateUserById(req.user.id, {
-      user_metadata: updatedMetadata
-    });
-    
-    if (updateError) {
-      console.error('[User Profile /profile/memory-settings PATCH] Update error:', updateError);
-      throw new Error('Memory-Einstellungen konnten nicht aktualisiert werden');
-    }
-    
-    // Also update the profiles table for consistency (the trigger should handle this, but let's be explicit)
+    // Update memory_enabled in profiles table only
     try {
       const { error: profileUpdateError } = await supabaseService
         .from('profiles')
@@ -612,8 +571,6 @@ router.patch('/profile/memory-settings', ensureAuthenticated, async (req, res) =
     } catch (profileError) {
       console.warn('[User Profile /profile/memory-settings PATCH] Profile update failed:', profileError);
     }
-    
-    console.log(`[User Profile /profile/memory-settings PATCH] Memory settings updated to ${memory_enabled}`);
     
     res.json({ 
       success: true, 
@@ -633,7 +590,6 @@ router.patch('/profile/memory-settings', ensureAuthenticated, async (req, res) =
 // Update user Igel-Modus (Grüne Jugend membership)
 router.patch('/profile/igel-modus', ensureAuthenticated, async (req, res) => {
   try {
-    console.log('[User Profile /profile/igel-modus PATCH] Igel-Modus update for user:', req.user.id);
     const { igel_modus } = req.body;
     
     if (typeof igel_modus !== 'boolean') {
@@ -643,27 +599,7 @@ router.patch('/profile/igel-modus', ensureAuthenticated, async (req, res) => {
       });
     }
     
-    // Get current user metadata from Supabase Auth
-    const { data: authUser, error: getUserError } = await supabaseService.auth.admin.getUserById(req.user.id);
-    
-    if (getUserError) {
-      console.error('[User Profile /profile/igel-modus PATCH] Get user error:', getUserError);
-      throw new Error('Benutzer nicht gefunden');
-    }
-    
-    const currentMetadata = authUser.user.user_metadata || {};
-    
-    // Update Igel-Modus settings - ensure we have a clean object
-    const updatedMetadata = {
-      ...currentMetadata,
-      igel_modus: Boolean(igel_modus) // Ensure it's a proper boolean
-    };
-    
-    console.log('[User Profile /profile/igel-modus PATCH] Using direct profiles table update (bypassing problematic Admin API)');
-    console.log('[User Profile /profile/igel-modus PATCH] Igel modus value:', igel_modus, typeof igel_modus);
-    
-    // Primary approach: Update profiles table directly, then update auth metadata  
-    // This bypasses Admin API restrictions for SSO/invited users
+    // Update igel_modus in profiles table only
     const { error: profileUpdateError } = await supabaseService
       .from('profiles')
       .upsert({
@@ -677,41 +613,22 @@ router.patch('/profile/igel-modus', ensureAuthenticated, async (req, res) => {
       throw new Error('Igel-Modus konnte nicht aktualisiert werden');
     }
     
-    // Secondary: Also try to update auth metadata for consistency (best effort)
-    try {
-      const { error: authUpdateError } = await supabaseService.auth.admin.updateUserById(req.user.id, {
-        user_metadata: updatedMetadata
-      });
-      
-      if (authUpdateError) {
-        console.warn('[User Profile /profile/igel-modus PATCH] Auth metadata update failed (non-critical):', authUpdateError.message);
-        // Don't fail the request - profiles table is our primary source
-      } else {
-        console.log('[User Profile /profile/igel-modus PATCH] Auth metadata also updated successfully');
-      }
-    } catch (authError) {
-      console.warn('[User Profile /profile/igel-modus PATCH] Auth metadata update failed (non-critical):', authError.message);
-    }
-    
-    console.log(`[User Profile /profile/igel-modus PATCH] Igel-Modus updated to ${igel_modus}`);
+    // Log igel modus change
+    console.log(`[Igel Modus Change] User ${req.user.id}: igel_modus ${igel_modus ? 'ENABLED' : 'DISABLED'}`);
     
     // Update user object in session to keep it in sync with database
     if (req.user) {
       req.user.igel_modus = Boolean(igel_modus);
-      console.log('[User Profile /profile/igel-modus PATCH] Updated req.user.igel_modus in session');
       
       // CRITICAL: Also update req.session.passport.user to ensure session.save() persists the change
       if (req.session.passport && req.session.passport.user) {
         req.session.passport.user.igel_modus = Boolean(igel_modus);
-        console.log('[User Profile /profile/igel-modus PATCH] Updated req.session.passport.user.igel_modus');
       }
       
       // CRITICAL: Save session to persist the change across page reloads
       req.session.save((err) => {
         if (err) {
           console.error('[User Profile /profile/igel-modus PATCH] Session save error:', err);
-        } else {
-          console.log('[User Profile /profile/igel-modus PATCH] Session saved successfully');
         }
       });
     }
@@ -734,7 +651,6 @@ router.patch('/profile/igel-modus', ensureAuthenticated, async (req, res) => {
 // Update user Bundestag API setting
 router.patch('/profile/bundestag-api', ensureAuthenticated, async (req, res) => {
   try {
-    console.log('[User Profile /profile/bundestag-api PATCH] Bundestag API update for user:', req.user.id);
     const { bundestag_api_enabled } = req.body;
     
     if (typeof bundestag_api_enabled !== 'boolean') {
@@ -744,27 +660,7 @@ router.patch('/profile/bundestag-api', ensureAuthenticated, async (req, res) => 
       });
     }
     
-    // Get current user metadata from Supabase Auth
-    const { data: authUser, error: getUserError } = await supabaseService.auth.admin.getUserById(req.user.id);
-    
-    if (getUserError) {
-      console.error('[User Profile /profile/bundestag-api PATCH] Get user error:', getUserError);
-      throw new Error('Benutzer nicht gefunden');
-    }
-    
-    const currentMetadata = authUser.user.user_metadata || {};
-    
-    // Update Bundestag API settings - ensure we have a clean object
-    const updatedMetadata = {
-      ...currentMetadata,
-      bundestag_api_enabled: Boolean(bundestag_api_enabled) // Ensure it's a proper boolean
-    };
-    
-    console.log('[User Profile /profile/bundestag-api PATCH] Using direct profiles table update (bypassing problematic Admin API)');
-    console.log('[User Profile /profile/bundestag-api PATCH] Bundestag API value:', bundestag_api_enabled, typeof bundestag_api_enabled);
-    
-    // Primary approach: Update profiles table directly, then update auth metadata  
-    // This bypasses Admin API restrictions for SSO/invited users
+    // Update bundestag_api_enabled in profiles table only
     const { error: profileUpdateError } = await supabaseService
       .from('profiles')
       .upsert({
@@ -778,41 +674,22 @@ router.patch('/profile/bundestag-api', ensureAuthenticated, async (req, res) => 
       throw new Error('Bundestag API Einstellung konnte nicht aktualisiert werden');
     }
     
-    // Secondary: Also try to update auth metadata for consistency (best effort)
-    try {
-      const { error: authUpdateError } = await supabaseService.auth.admin.updateUserById(req.user.id, {
-        user_metadata: updatedMetadata
-      });
-      
-      if (authUpdateError) {
-        console.warn('[User Profile /profile/bundestag-api PATCH] Auth metadata update failed (non-critical):', authUpdateError.message);
-        // Don't fail the request - profiles table is our primary source
-      } else {
-        console.log('[User Profile /profile/bundestag-api PATCH] Auth metadata also updated successfully');
-      }
-    } catch (authError) {
-      console.warn('[User Profile /profile/bundestag-api PATCH] Auth metadata update failed (non-critical):', authError.message);
-    }
-    
-    console.log(`[User Profile /profile/bundestag-api PATCH] Bundestag API updated to ${bundestag_api_enabled}`);
+    // Log bundestag API change
+    console.log(`[Bundestag API Change] User ${req.user.id}: bundestag_api_enabled ${bundestag_api_enabled ? 'ENABLED' : 'DISABLED'}`);
     
     // Update user object in session to keep it in sync with database
     if (req.user) {
       req.user.bundestag_api_enabled = Boolean(bundestag_api_enabled);
-      console.log('[User Profile /profile/bundestag-api PATCH] Updated req.user.bundestag_api_enabled in session');
       
       // CRITICAL: Also update req.session.passport.user to ensure session.save() persists the change
       if (req.session.passport && req.session.passport.user) {
         req.session.passport.user.bundestag_api_enabled = Boolean(bundestag_api_enabled);
-        console.log('[User Profile /profile/bundestag-api PATCH] Updated req.session.passport.user.bundestag_api_enabled');
       }
       
       // CRITICAL: Save session to persist the change across page reloads
       req.session.save((err) => {
         if (err) {
           console.error('[User Profile /profile/bundestag-api PATCH] Session save error:', err);
-        } else {
-          console.log('[User Profile /profile/bundestag-api PATCH] Session saved successfully');
         }
       });
     }

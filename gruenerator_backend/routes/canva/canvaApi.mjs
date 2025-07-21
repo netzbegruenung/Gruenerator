@@ -11,11 +11,6 @@ const router = express.Router();
 // Add Passport session middleware for Canva API routes
 router.use(passport.session());
 
-// Add debugging middleware to all Canva API routes
-router.use((req, res, next) => {
-  console.log(`[Canva API] ${req.method} ${req.originalUrl} - User: ${req.user?.id}`);
-  next();
-});
 
 /**
  * Get Canva API configuration status (does not require configuration)
@@ -78,8 +73,6 @@ async function requireCanvaConnection(req, res, next) {
  */
 router.get('/test', ensureAuthenticated, requireCanvaConnection, async (req, res) => {
   try {
-    console.log(`[Canva API] Connection test for user: ${req.user?.id}`);
-    
     const isConnected = await req.canvaClient.testConnection();
     
     res.json({
@@ -106,8 +99,6 @@ router.get('/test', ensureAuthenticated, requireCanvaConnection, async (req, res
  */
 router.get('/user', ensureAuthenticated, requireCanvaConnection, async (req, res) => {
   try {
-    console.log(`[Canva API] Fetching user info for: ${req.user?.id}`);
-    
     const canvaUser = await req.canvaClient.getCurrentUser();
     
     res.json({
@@ -137,13 +128,6 @@ router.get('/designs', ensureAuthenticated, requireCanvaConnection, async (req, 
       ownership,
       query
     } = req.query;
-    
-    console.log(`[Canva API] Listing designs for user: ${req.user?.id}`, {
-      limit: parseInt(limit),
-      hasToken: !!continuation_token,
-      ownership,
-      query
-    });
     
     const options = {
       limit: Math.min(parseInt(limit), 50), // Cap at 50
@@ -180,8 +164,6 @@ router.get('/designs/:designId', ensureAuthenticated, requireCanvaConnection, as
   try {
     const { designId } = req.params;
     
-    console.log(`[Canva API] Fetching design ${designId} for user: ${req.user?.id}`);
-    
     const design = await req.canvaClient.getDesign(designId);
     
     res.json({
@@ -214,8 +196,6 @@ router.post('/designs', ensureAuthenticated, requireCanvaConnection, async (req,
         error: 'Title and design_type are required'
       });
     }
-    
-    console.log(`[Canva API] Creating design "${title}" (${design_type}) for user: ${req.user?.id}`);
     
     const designData = {
       title,
@@ -255,13 +235,6 @@ router.get('/assets', ensureAuthenticated, requireCanvaConnection, async (req, r
       query
     } = req.query;
     
-    console.log(`[Canva API] Listing assets for user: ${req.user?.id}`, {
-      limit: parseInt(limit),
-      hasToken: !!continuation_token,
-      types,
-      query
-    });
-    
     const options = {
       limit: Math.min(parseInt(limit), 50),
       ...(continuation_token && { continuation_token }),
@@ -297,8 +270,6 @@ router.get('/assets/:assetId', ensureAuthenticated, requireCanvaConnection, asyn
   try {
     const { assetId } = req.params;
     
-    console.log(`[Canva API] Fetching asset ${assetId} for user: ${req.user?.id}`);
-    
     const asset = await req.canvaClient.getAsset(assetId);
     
     res.json({
@@ -332,8 +303,6 @@ router.post('/assets/upload', ensureAuthenticated, requireCanvaConnection, async
       });
     }
     
-    console.log(`[Canva API] Uploading asset "${name}" for user: ${req.user?.id}`);
-    
     const assetData = {
       name,
       upload_url,
@@ -366,8 +335,6 @@ router.post('/assets/upload', ensureAuthenticated, requireCanvaConnection, async
 router.get('/assets/upload/:jobId', ensureAuthenticated, requireCanvaConnection, async (req, res) => {
   try {
     const { jobId } = req.params;
-    
-    console.log(`[Canva API] Checking upload job ${jobId} for user: ${req.user?.id}`);
     
     const job = await req.canvaClient.getUploadJobStatus(jobId);
     
@@ -408,9 +375,6 @@ router.post('/create-from-content', ensureAuthenticated, requireCanvaConnection,
       });
     }
     
-    console.log(`[Canva API] Creating design from Grünerator content for user: ${req.user?.id}`);
-    console.log(`[Canva API] Content preview: ${content.substring(0, 100)}...`);
-    
     // Create design with content
     const designData = {
       title: `${title} - Grünerator`,
@@ -448,8 +412,6 @@ router.post('/create-from-content', ensureAuthenticated, requireCanvaConnection,
  */
 router.get('/design-types', ensureAuthenticated, requireCanvaConnection, async (req, res) => {
   try {
-    console.log(`[Canva API] Fetching design types for user: ${req.user?.id}`);
-    
     // Common design types for Grünerator use cases
     const commonDesignTypes = [
       {

@@ -4,7 +4,7 @@ import { Issuer, Strategy as OidcClientStrategy } from 'openid-client';
 // Import Supabase clients using CommonJS require
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
-const { supabaseAnon, supabaseService } = require('../utils/supabaseClient.js');
+const { supabaseService } = require('../utils/supabaseClient.js');
 
 // Configure OIDC client for Keycloak
 const keycloakIssuer = await Issuer.discover(`${process.env.KEYCLOAK_BASE_URL}/realms/${process.env.KEYCLOAK_REALM}`);
@@ -16,7 +16,7 @@ const client = new keycloakIssuer.Client({
   response_types: ['code'],
   token_endpoint_auth_method: 'client_secret_post'
 });
-console.log('[PassportSetup] Keycloak OIDC client created:', client ? 'Client object exists' : 'Client object IS NULL OR UNDEFINED');
+console.log('[PassportSetup] Keycloak OIDC client initialized');
 
 // Passport OIDC Strategy Configuration for Keycloak
 passport.use('oidc', new OidcClientStrategy({
@@ -28,10 +28,6 @@ passport.use('oidc', new OidcClientStrategy({
   usePKCE: false,
   sessionKey: 'passport:oidc:keycloak'
 }, async (req, tokenset, userinfo, done) => {
-  console.log('[PassportSetup OIDC Verify Callback] Reached verify callback.');
-  console.log('[PassportSetup OIDC Verify Callback] req.session:', JSON.stringify(req.session, null, 2));
-  console.log('[PassportSetup OIDC Verify Callback] Tokenset:', JSON.stringify(tokenset, null, 2));
-  console.log('[PassportSetup OIDC Verify Callback] Userinfo:', JSON.stringify(userinfo, null, 2));
   try {
     if (!tokenset || !userinfo) {
       console.error('[PassportSetup OIDC Verify Callback] Tokenset or userinfo is undefined');
@@ -54,7 +50,6 @@ passport.use('oidc', new OidcClientStrategy({
 
     if (user && tokenset.id_token) {
       user.id_token = tokenset.id_token;
-      console.log('[Passport OIDC - Keycloak] Attached id_token to user object.');
     }
 
     return done(null, user);
@@ -66,36 +61,15 @@ passport.use('oidc', new OidcClientStrategy({
 
 // Serialize user for session
 passport.serializeUser((user, done) => {
-  console.log('[Passport] Serializing user:', user.id, 'Has id_token:', !!user.id_token);
-  // Debug session serialization for bundestag API issue
-  console.log('[Passport] Serializing profile settings:', {
-    igel_modus: user.igel_modus,
-    bundestag_api_enabled: user.bundestag_api_enabled,
-    source: 'serializeUser'
-  });
   done(null, user);
 });
 
 // Deserialize user from session
 passport.deserializeUser(async (userData, done) => {
   try {
-    // Debug session deserialization for bundestag API issue
-    console.log('[Passport] Deserializing user - session data:', {
-      userId: userData?.id,
-      sessionIgelModus: userData?.igel_modus,
-      sessionBundestagApi: userData?.bundestag_api_enabled,
-      source: 'deserializeUser-input'
-    });
-    
     if (typeof userData === 'object' && userData.id) {
       const userToReturn = await getUserById(userData.id);
       if (userToReturn) {
-        console.log('[Passport] Deserializing user - database data:', {
-          userId: userToReturn.id,
-          dbIgelModus: userToReturn.igel_modus,
-          dbBundestagApi: userToReturn.bundestag_api_enabled,
-          source: 'deserializeUser-database'
-        });
         // Preserve session data that might have been updated
         if (userData.id_token) {
           userToReturn.id_token = userData.id_token;
@@ -119,18 +93,6 @@ passport.deserializeUser(async (userData, done) => {
         if (userData.hasOwnProperty('igel_modus')) {
           userToReturn.igel_modus = userData.igel_modus;
         }
-        
-        // Debug final merged result
-        console.log('[Passport] Deserializing user - final merged data:', {
-          userId: userToReturn.id,
-          finalIgelModus: userToReturn.igel_modus,
-          finalBundestagApi: userToReturn.bundestag_api_enabled,
-          sessionPreserved: {
-            bundestag: userData.hasOwnProperty('bundestag_api_enabled'),
-            igel: userData.hasOwnProperty('igel_modus')
-          },
-          source: 'deserializeUser-final'
-        });
       }
       return done(null, userToReturn || userData);
     }
@@ -145,8 +107,7 @@ passport.deserializeUser(async (userData, done) => {
 
 // Helper function to handle user profile from Keycloak
 async function handleUserProfile(profile, req = null) {
-  console.log('[handleUserProfile] Processing profile from Keycloak for ID:', profile.id);
-  console.log('[handleUserProfile] Full profile object:', JSON.stringify(profile, null, 2));
+  console.log('[handleUserProfile] Processing profile for ID:', profile.id);
 
   const keycloakId = profile.id;
   const email = profile.emails?.[0]?.value;
@@ -158,15 +119,7 @@ async function handleUserProfile(profile, req = null) {
   }
 
   // Determine auth source based on session data or claims
-  let authSource = null;
-  if (req?.session?.preferredSource) {
-    authSource = req.session.preferredSource;
-    console.log('[handleUserProfile] Auth source from session:', authSource);
-  } else {
-    // Fallback: try to determine from profile data or default to gruenerator-login
-    authSource = 'gruenerator-login';
-    console.log('[handleUserProfile] Auth source defaulted to:', authSource);
-  }
+  let authSource = req?.session?.preferredSource || 'gruenerator-login';
 
   // Allow users without email (use username or keycloak ID as fallback)
   const userIdentifier = email || username || keycloakId;
@@ -175,7 +128,6 @@ async function handleUserProfile(profile, req = null) {
   let existingUser = await getUserByKeycloakId(keycloakId);
   
   if (existingUser) {
-    console.log('[handleUserProfile] Found existing user by Keycloak ID:', existingUser.id);
     
     // Check if email change would cause conflict
     if (existingUser.email !== email) {
@@ -211,7 +163,6 @@ async function handleUserProfile(profile, req = null) {
     const userByEmail = await getUserByEmail(email);
     
     if (userByEmail) {
-      console.log('[handleUserProfile] Found existing user by email, linking Keycloak ID:', userByEmail.id);
       return await linkUser(userByEmail.id, {
         keycloak_id: keycloakId,
         display_name: name,
@@ -221,7 +172,6 @@ async function handleUserProfile(profile, req = null) {
     }
   }
 
-  console.log('[handleUserProfile] Creating new user for identifier:', userIdentifier);
   return await createProfileUser({
     keycloak_id: keycloakId,
     email: email || null,
@@ -329,7 +279,6 @@ async function getUserById(id) {
 // Create new user (profiles-only, no Supabase Auth)
 async function createProfileUser(profileData) {
   try {
-    console.log('[createProfileUser] Creating profile-only user for:', profileData.email || profileData.username);
     
     // Generate UUID for new user (using built-in crypto)
     const { randomUUID } = require('crypto');
@@ -359,7 +308,6 @@ async function createProfileUser(profileData) {
       throw new Error(`Failed to create profile: ${error.message}`);
     }
 
-    console.log('[createProfileUser] Created profile:', data.id);
     
     // No Supabase Auth session creation - use only profile data
     return data;
@@ -372,7 +320,6 @@ async function createProfileUser(profileData) {
 // Update existing user (profiles-only, no Supabase Auth)
 async function updateUser(userId, updates, authSource = null) {
   try {
-    console.log('[updateUser] Updating profile for user:', userId);
     
     // Add auth_source to updates if provided
     if (authSource) {
@@ -391,7 +338,6 @@ async function updateUser(userId, updates, authSource = null) {
       throw new Error(`Failed to update user: ${error.message}`);
     }
 
-    console.log('[updateUser] Updated user profile:', data.id);
 
     // No Supabase Auth session creation - use only profile data
     return data;
@@ -404,7 +350,6 @@ async function updateUser(userId, updates, authSource = null) {
 // Link Keycloak ID to existing user (profiles-only, no Supabase Auth)
 async function linkUser(userId, updates, authSource = null) {
   try {
-    console.log('[linkUser] Linking Keycloak ID to user:', userId);
     
     // Add auth_source to updates if provided
     if (authSource) {
@@ -423,7 +368,6 @@ async function linkUser(userId, updates, authSource = null) {
       throw new Error(`Failed to link user: ${error.message}`);
     }
 
-    console.log('[linkUser] Linked Keycloak ID to user:', data.id);
 
     // No Supabase Auth session creation - use only profile data
     return data;
