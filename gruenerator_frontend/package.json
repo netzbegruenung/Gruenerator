@@ -57,6 +57,7 @@
     "eslint": "^9.23.0",
     "eslint-plugin-react": "^7.37.4",
     "semantic-release": "^24.2.3",
+    "terser": "^5.43.1",
     "vite": "^6.3.5"
   },
   "jest": {
@@ -69,7 +70,7 @@
   },
   "scripts": {
     "start": "vite",
-    "build": "NODE_OPTIONS=--max-old-space-size=4096 vite build",
+    "build": "NODE_OPTIONS=--max-old-space-size=6144 vite build",
     "preview": "vite preview",
     "test": "jest",
     "release": "semantic-release",
