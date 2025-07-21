@@ -13,6 +13,7 @@ const BETA_FEATURES_CONFIG = [
   { key: 'database', label: 'Datenbank', isAdminOnly: true },
   { key: 'customGenerators', label: 'Grüneratoren', isAdminOnly: false },
   { key: 'qa', label: 'Q&A Sammlungen', isAdminOnly: false },
+  { key: 'e_learning', label: 'E-Learning', isAdminOnly: false },
   // Profile settings treated as beta features for consistency
   { key: 'igel_modus', label: 'Igel-Modus', isAdminOnly: false, isProfileSetting: true },
   { key: 'bundestag_api_enabled', label: 'Bundestag API', isAdminOnly: false, isProfileSetting: true },
@@ -27,8 +28,34 @@ const fetchBetaFeatures = async (user) => {
   
   // 1) Prefer user.beta_features (from profiles table/session) over user_metadata.beta_features
   if (user?.beta_features) {
-    // Using user.beta_features
-    return user.beta_features;
+    // Extract ALL individual profile settings from user object and merge with beta features
+    const profileSettings = {
+      igel_modus: user.igel_modus || false,
+      bundestag_api_enabled: user.bundestag_api_enabled || false,
+      groups: user.groups || false,
+      customGenerators: user.custom_generators || false,
+      database: user.database_access || false,
+      you: user.you_generator || false,
+      collab: user.collab || false,
+      qa: user.qa || false,
+      sharepic: user.sharepic || false,
+      anweisungen: user.anweisungen || false
+    };
+    
+    // Merge beta features with ALL individual profile settings for complete data
+    const mergedFeatures = {
+      ...user.beta_features,
+      ...profileSettings
+    };
+    
+    console.log('[useBetaFeatures] Merged beta features with ALL profile settings:', {
+      userId: user.id,
+      betaFeatures: user.beta_features,
+      profileSettings,
+      mergedFeatures
+    });
+    
+    return mergedFeatures;
   }
   
   // 2) Fallback: Backend API Abfrage (ersetzt direkte Supabase calls)
