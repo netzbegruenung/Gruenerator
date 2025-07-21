@@ -27,57 +27,22 @@ export default defineConfig(({ command }) => ({
   build: {
     target: ['es2022', 'chrome88', 'firefox86', 'safari14'],
     sourcemap: false,
-    minify: 'terser',
     cssCodeSplit: true,
     assetsInlineLimit: 4096, // Inline small assets to reduce HTTP requests
     chunkSizeWarningLimit: 800, // Lower threshold to catch bundle growth
     outDir: 'build',
-    // Improve build performance
-    reportCompressedSize: false, // Skip gzip reporting to save time
+    // Aggressive build optimizations for server memory constraints
+    reportCompressedSize: false, // Skip gzip reporting
+    minify: false, // Disable minification to reduce memory usage
+    cssMinify: false, // Disable CSS minification  
     emptyOutDir: true,
     rollupOptions: {
-      treeshake: { 
-        moduleSideEffects: false,
-        propertyReadSideEffects: false,
-        unknownGlobalSideEffects: false
-      },
+      // Simplified treeshaking for reduced memory usage
+      treeshake: false, // Disable to reduce analysis memory overhead
+      // Sequential processing to prevent concurrent memory spikes
+      maxParallelFileOps: 1,
+      // Single chunk build - no complex chunking to reduce memory pressure
       output: {
-        manualChunks(id) {
-          if (id.includes('node_modules')) {
-            // Group ALL React-related libraries together to prevent import issues
-            if (id.includes('react') || 
-                id.includes('react-dom') || 
-                id.includes('react-') ||
-                id.includes('motion') ||
-                id.includes('react-icons') ||
-                id.includes('@tanstack') ||
-                id.includes('use-') || 
-                id.includes('hook') ||
-                id.includes('framer')) {
-              return 'react-vendor';
-            }
-            
-            // Only separate truly independent libraries
-            if (id.includes('@supabase')) return 'supabase-vendor';
-            if (id.includes('quill')) return 'quill-vendor';
-            if (id.includes('marked')) return 'markdown-vendor';
-            if (id.includes('turndown')) return 'turndown-vendor';
-            if (id.includes('lodash') || id.includes('uuid') || id.includes('dompurify')) return 'utils-vendor';
-            
-            return 'misc-vendor';
-          }
-          // Be more conservative with feature splitting to prevent circular dependencies
-          if (id.includes('src/features/auth')) return 'auth-feature';
-          if (id.includes('src/features/texte') || 
-              id.includes('src/features/templates') ||
-              id.includes('src/features/generators')) return 'content-features';
-          if (id.includes('src/features/sharepic') ||
-              id.includes('src/features/groups')) return 'ui-features';
-          if (id.includes('src/components/common') ||
-              id.includes('src/components/layout') ||
-              id.includes('src/hooks') || 
-              id.includes('src/stores')) return 'core-ui';
-        },
         entryFileNames: 'assets/js/[name].[hash].js',
         chunkFileNames: 'assets/js/[name].[hash].js',
         assetFileNames(assetInfo) {
@@ -99,7 +64,6 @@ export default defineConfig(({ command }) => ({
         }
       }
     },
-    cssMinify: 'esbuild'
   },
   server: {
     port: 3000,
