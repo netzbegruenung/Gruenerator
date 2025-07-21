@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useForm, FormProvider, useFieldArray } from 'react-hook-form';
 import { HiOutlineTrash, HiPlus, HiRefresh, HiInformationCircle, HiTrash, HiChip } from 'react-icons/hi';
-import debounce from 'lodash.debounce';
+import { useAutosave } from '../../../../hooks/useAutosave';
 import { motion } from "motion/react";
 import Spinner from '../../../../components/common/Spinner';
 import { useFormFields } from '../../../../components/common/Form/hooks';
@@ -39,9 +39,8 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
     const { user, isAuthenticated, loading: authLoading } = useOptimizedAuth();
     const { memoryEnabled, setMemoryEnabled } = useAuthStore();
 
-    // Refs to track initialization and prevent loops
+    // Ref to track initialization
     const isInitialized = useRef(false);
-    const lastSavedData = useRef(null);
     
     // Zustand store for UI state
     const {
@@ -75,13 +74,47 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
         mode: 'onChange'
     });
 
-    const { control, getValues, reset } = formMethods;
+    const { control, getValues, reset, watch } = formMethods;
     const { fields, append, remove } = useFieldArray({ 
         control, 
         name: "knowledge",
         keyName: "key"
     });
     const { Input, Textarea } = useFormFields();
+
+    // Auto-save using shared hook (moved before initialization to prevent "cannot access before initialization" error)
+    const { resetTracking } = useAutosave({
+        saveFunction: useCallback(async (changedFields) => {
+            // Convert changed fields to the format expected by saveChanges
+            const currentValues = getValues();
+            const formData = {
+                customAntragPrompt: changedFields.customAntragPrompt !== undefined ? changedFields.customAntragPrompt : currentValues.customAntragPrompt || '',
+                customAntragGliederung: changedFields.customAntragGliederung !== undefined ? changedFields.customAntragGliederung : currentValues.customAntragGliederung || '',
+                customSocialPrompt: changedFields.customSocialPrompt !== undefined ? changedFields.customSocialPrompt : currentValues.customSocialPrompt || '',
+                customUniversalPrompt: changedFields.customUniversalPrompt !== undefined ? changedFields.customUniversalPrompt : currentValues.customUniversalPrompt || '',
+                customGruenejugendPrompt: changedFields.customGruenejugendPrompt !== undefined ? changedFields.customGruenejugendPrompt : currentValues.customGruenejugendPrompt || '',
+                presseabbinder: changedFields.presseabbinder !== undefined ? changedFields.presseabbinder : currentValues.presseabbinder || '',
+                knowledge: changedFields.knowledge !== undefined ? changedFields.knowledge : currentValues.knowledge || []
+            };
+            
+            return await saveChanges(formData);
+        }, [saveChanges, getValues]),
+        formRef: { getValues, watch },
+        enabled: data && isInitialized.current,
+        debounceMs: 2000,
+        getFieldsToTrack: () => [
+            'customAntragPrompt',
+            'customAntragGliederung', 
+            'customSocialPrompt',
+            'customUniversalPrompt',
+            'customGruenejugendPrompt',
+            'presseabbinder',
+            'knowledge'
+        ],
+        onError: (error) => {
+            console.error('Intelligence autosave failed:', error);
+        }
+    });
 
     // Initialize form when data loads
     useEffect(() => {
@@ -99,46 +132,10 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
             });
             
             isInitialized.current = true;
+            // Reset autosave tracking after initial form setup
+            setTimeout(() => resetTracking(), 100);
         }
-    }, [data, reset]);
-
-    // Auto-save with debouncing
-    const debouncedSave = useCallback(
-        debounce(async (formData) => {
-            try {
-                await saveChanges(formData);
-            } catch (error) {
-                // Error is handled by saveChanges function
-            }
-        }, 1000),
-        [saveChanges]
-    );
-    
-    // Auto-save trigger using form subscription
-    useEffect(() => {
-        if (!data || !isInitialized.current) return;
-        
-        const interval = setInterval(() => {
-            const currentValues = getValues();
-            const formData = {
-                customAntragPrompt: currentValues.customAntragPrompt || '',
-                customAntragGliederung: currentValues.customAntragGliederung || '',
-                customSocialPrompt: currentValues.customSocialPrompt || '',
-                customUniversalPrompt: currentValues.customUniversalPrompt || '',
-                customGruenejugendPrompt: currentValues.customGruenejugendPrompt || '',
-                presseabbinder: currentValues.presseabbinder || '',
-                knowledge: currentValues.knowledge || []
-            };
-            
-            const dataToCompare = JSON.stringify(formData);
-            if (lastSavedData.current !== dataToCompare) {
-                lastSavedData.current = dataToCompare;
-                debouncedSave(formData);
-            }
-        }, 500);
-        
-        return () => clearInterval(interval);
-    }, [data, getValues, debouncedSave]);
+    }, [data, reset, resetTracking]);
 
     // Fetch memories when tab becomes active and user is authenticated
     useEffect(() => {
@@ -483,7 +480,6 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                                 helpText="z.B. bevorzugter Stil, spezielle Formulierungen, politische Schwerpunkte"
                                                 minRows={2}
                                                 maxRows={8}
-                                                disabled={isSaving}
                                                 control={control}
                                             />
                                             <Textarea
@@ -493,7 +489,6 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                                 helpText="z.B. deine Fraktion, Ortsverband oder andere wiederkehrende Informationen"
                                                 minRows={1}
                                                 maxRows={4}
-                                                disabled={isSaving}
                                                 control={control}
                                             />
                                         </div>
@@ -510,7 +505,6 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                                 helpText="z.B. Tonalität, Hashtag-Präferenzen, Zielgruppen-Ansprache"
                                                 minRows={2}
                                                 maxRows={8}
-                                                disabled={isSaving}
                                                 control={control}
                                             />
                                             <Textarea
@@ -520,7 +514,6 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                                 helpText="z.B. Kontaktdaten, Öffnungszeiten, Vereinsinformationen"
                                                 minRows={2}
                                                 maxRows={6}
-                                                disabled={isSaving}
                                                 control={control}
                                             />
                                         </div>
@@ -537,7 +530,6 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                                 helpText="z.B. allgemeine Schreibweise, politische Grundhaltung, Formulierungspräferenzen"
                                                 minRows={2}
                                                 maxRows={8}
-                                                disabled={isSaving}
                                                 control={control}
                                             />
                                         </div>
@@ -554,7 +546,6 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                                 helpText="z.B. jugendgerechte Sprache, spezielle Themen, Aktivismus-Fokus"
                                                 minRows={2}
                                                 maxRows={8}
-                                                disabled={isSaving}
                                                 control={control}
                                             />
                                         </div>
@@ -576,7 +567,7 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                             type="button"
                                             className="btn-primary size-s"
                                             onClick={handleAddKnowledge}
-                                            disabled={isSaving || isDeleting || fields.length >= MAX_KNOWLEDGE_ENTRIES}
+                                            disabled={isDeleting || fields.length >= MAX_KNOWLEDGE_ENTRIES}
                                             tabIndex={tabIndex.addKnowledgeButton}
                                             aria-label="Neues Wissen hinzufügen"
                                         >
@@ -602,7 +593,7 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                                             type="button"
                                                             onClick={() => handleDeleteKnowledge(field, index)}
                                                             className="knowledge-delete-button icon-button danger"
-                                                            disabled={isSaving || (isDeleting && deletingKnowledgeId === field.id)}
+                                                            disabled={isDeleting && deletingKnowledgeId === field.id}
                                                             aria-label={`Wissenseintrag ${index + 1} löschen`}
                                                             tabIndex={tabIndex.removeKnowledgeButton + index}
                                                         >
@@ -614,7 +605,7 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                                         type="text"
                                                         placeholder="Kurzer, prägnanter Titel (z.B. 'OV Musterstadt Vorstand')"
                                                         rules={{ maxLength: { value: 100, message: 'Titel darf maximal 100 Zeichen haben' } }}
-                                                        disabled={isSaving || isDeleting}
+                                                        disabled={isDeleting}
                                                         control={control}
                                                     />
                                                 </div>
@@ -627,7 +618,7 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                                         maxRows={8}
                                                         maxLength={MAX_CONTENT_LENGTH}
                                                         showCharacterCount={true}
-                                                        disabled={isSaving || isDeleting}
+                                                        disabled={isDeleting}
                                                         control={control}
                                                     />
                                                 </div>
@@ -846,7 +837,7 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                             )}
 
                             <div className="form-help-text">
-                                {isSaving ? 'Wird gespeichert...' : 'Änderungen werden automatisch gespeichert'}
+                                Änderungen werden automatisch gespeichert
                             </div>
                         </div>
                     </div>
