@@ -25,13 +25,16 @@ export default defineConfig(({ command }) => ({
     }
   },
   build: {
-    target: 'es2022',
+    target: ['es2022', 'chrome88', 'firefox86', 'safari14'],
     sourcemap: false,
     minify: 'terser',
     cssCodeSplit: true,
-    assetsInlineLimit: 0,
-    chunkSizeWarningLimit: 1000,
+    assetsInlineLimit: 4096, // Inline small assets to reduce HTTP requests
+    chunkSizeWarningLimit: 800, // Lower threshold to catch bundle growth
     outDir: 'build',
+    // Improve build performance
+    reportCompressedSize: false, // Skip gzip reporting to save time
+    emptyOutDir: true,
     rollupOptions: {
       treeshake: { 
         moduleSideEffects: false,
@@ -101,7 +104,19 @@ export default defineConfig(({ command }) => ({
   server: {
     port: 3000,
     open: command === 'serve',
-    watch: { usePolling: true },
+    watch: { 
+      usePolling: true,
+      ignored: [
+        '**/node_modules/**',
+        '**/dist/**', 
+        '**/build/**',
+        '**/.git/**',
+        '**/coverage/**',
+        '**/.nyc_output/**',
+        '**/tmp/**',
+        '**/temp/**'
+      ]
+    },
     hmr: { overlay: false }
   }
 }));

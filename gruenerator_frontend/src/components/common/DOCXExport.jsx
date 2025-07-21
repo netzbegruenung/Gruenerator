@@ -1,15 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { IoDocumentTextOutline } from "react-icons/io5";
-import { Document, Paragraph, TextRun, HeadingLevel, AlignmentType, Packer } from 'docx';
-import { saveAs } from 'file-saver';
+import { FaSpinner } from "react-icons/fa6";
+import { extractFilenameFromContent } from '../utils/titleExtractor.js';
 
 // Fallback for file-saver if not available
 const downloadBlob = (blob, filename) => {
-  if (typeof saveAs === 'function') {
-    saveAs(blob, filename);
+  // Try dynamic saveAs first, then fallback
+  if (typeof window.saveAs === 'function') {
+    window.saveAs(blob, filename);
   } else {
-    // Fallback method
+    // Manual download fallback
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -20,8 +21,6 @@ const downloadBlob = (blob, filename) => {
     window.URL.revokeObjectURL(url);
   }
 };
-
-// Filename extraction now handled by shared utility
 
 // Helper function to process HTML content for DOCX
 const processContentForDOCX = (content) => {
@@ -99,128 +98,148 @@ const parseContentSections = (content) => {
   return sections;
 };
 
-// Create DOCX document
-const createDOCXDocument = (content, title = 'Dokument') => {
-  const sections = parseContentSections(content);
-  const children = [];
+// Lazy load DOCX library and create document generator
+const loadDOCXLibrary = async () => {
+  const [docxModule, fileSaverModule] = await Promise.all([
+    import('docx'),
+    import('file-saver').catch(() => ({ saveAs: null })) // Graceful fallback if file-saver fails
+  ]);
+  
+  const { Document, Paragraph, TextRun, HeadingLevel, AlignmentType, Packer } = docxModule;
+  
+  // Set up saveAs if available
+  if (fileSaverModule.saveAs) {
+    window.saveAs = fileSaverModule.saveAs;
+  }
 
-  // Add title
-  children.push(
-    new Paragraph({
-      children: [
-        new TextRun({
-          text: title,
-          bold: true,
-          size: 32, // 16pt
-          font: "PT Sans",
-        }),
-      ],
-      heading: HeadingLevel.TITLE,
-      alignment: AlignmentType.CENTER,
-      spacing: {
-        after: 400,
-      },
-    })
-  );
+  // Create DOCX document function
+  const createDOCXDocument = (content, title = 'Dokument') => {
+    const sections = parseContentSections(content);
+    const children = [];
 
-  // Add sections
-  sections.forEach((section) => {
-    // Add section header if exists
-    if (section.header) {
-      children.push(
-        new Paragraph({
-          children: [
-            new TextRun({
-              text: section.header,
-              bold: true,
-              size: 24, // 12pt
-              font: "PT Sans",
-            }),
-          ],
-          heading: HeadingLevel.HEADING_1,
-          spacing: {
-            before: 300,
-            after: 200,
-          },
-        })
-      );
-    }
+    // Add title
+    children.push(
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: title,
+            bold: true,
+            size: 32, // 16pt
+            font: "PT Sans",
+          }),
+        ],
+        heading: HeadingLevel.TITLE,
+        alignment: AlignmentType.CENTER,
+        spacing: {
+          after: 400,
+        },
+      })
+    );
 
-    // Add section content
-    section.content.forEach((paragraph) => {
-      // Check if paragraph contains bullet points
-      if (paragraph.startsWith('•') || paragraph.match(/^\d+\./)) {
+    // Add sections
+    sections.forEach((section) => {
+      // Add section header if exists
+      if (section.header) {
         children.push(
           new Paragraph({
             children: [
               new TextRun({
-                text: paragraph,
-                size: 22, // 11pt
+                text: section.header,
+                bold: true,
+                size: 24, // 12pt
                 font: "PT Sans",
               }),
             ],
+            heading: HeadingLevel.HEADING_1,
             spacing: {
-              after: 100,
-            },
-            indent: {
-              left: 360, // Indent for list items
-            },
-          })
-        );
-      } else {
-        children.push(
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: paragraph,
-                size: 22, // 11pt
-                font: "PT Sans",
-              }),
-            ],
-            spacing: {
+              before: 300,
               after: 200,
             },
-            alignment: AlignmentType.JUSTIFIED,
           })
         );
       }
+
+      // Add section content
+      section.content.forEach((paragraph) => {
+        // Check if paragraph contains bullet points
+        if (paragraph.startsWith('•') || paragraph.match(/^\d+\./)) {
+          children.push(
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: paragraph,
+                  size: 22, // 11pt
+                  font: "PT Sans",
+                }),
+              ],
+              spacing: {
+                after: 100,
+              },
+              indent: {
+                left: 360, // Indent for list items
+              },
+            })
+          );
+        } else {
+          children.push(
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: paragraph,
+                  size: 22, // 11pt
+                  font: "PT Sans",
+                }),
+              ],
+              spacing: {
+                after: 200,
+              },
+              alignment: AlignmentType.JUSTIFIED,
+            })
+          );
+        }
+      });
     });
-  });
 
-  // Add footer
-  children.push(
-    new Paragraph({
-      children: [
-        new TextRun({
-          text: `Erstellt mit Grünerator • ${new Date().toLocaleDateString('de-DE')}`,
-          size: 18, // 9pt
-          italics: true,
-          color: "666666",
-          font: "PT Sans",
-        }),
+    // Add footer
+    children.push(
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: `Erstellt mit Grünerator • ${new Date().toLocaleDateString('de-DE')}`,
+            size: 18, // 9pt
+            italics: true,
+            color: "666666",
+            font: "PT Sans",
+          }),
+        ],
+        alignment: AlignmentType.CENTER,
+        spacing: {
+          before: 600,
+        },
+      })
+    );
+
+    return new Document({
+      sections: [
+        {
+          properties: {},
+          children: children,
+        },
       ],
-      alignment: AlignmentType.CENTER,
-      spacing: {
-        before: 600,
-      },
-    })
-  );
+      title: title,
+      creator: "Grünerator",
+      description: "Generated document from Grünerator",
+    });
+  };
 
-  return new Document({
-    sections: [
-      {
-        properties: {},
-        children: children,
-      },
-    ],
-    title: title,
-    creator: "Grünerator",
-    description: "Generated document from Grünerator",
-  });
+  return { createDOCXDocument, Packer };
 };
 
 const DOCXExport = ({ content, title, className = 'action-button' }) => {
+  const [isLoading, setIsLoading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [DOCXLibrary, setDOCXLibrary] = useState(null);
+  const [loadError, setLoadError] = useState(null);
   
   if (!content) {
     return null;
@@ -230,9 +249,33 @@ const DOCXExport = ({ content, title, className = 'action-button' }) => {
   const fileName = `${baseFileName}.docx`;
   const isMobileView = window.innerWidth <= 768;
   
+  const handleLoadDOCX = useCallback(async () => {
+    if (DOCXLibrary || isLoading) return;
+    
+    setIsLoading(true);
+    setLoadError(null);
+    
+    try {
+      const library = await loadDOCXLibrary();
+      setDOCXLibrary(library);
+    } catch (error) {
+      console.error('Failed to load DOCX library:', error);
+      setLoadError(error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [DOCXLibrary, isLoading]);
+  
   const handleDOCXExport = async () => {
+    if (!DOCXLibrary) {
+      await handleLoadDOCX();
+      return;
+    }
+    
     try {
       setIsGenerating(true);
+      
+      const { createDOCXDocument, Packer } = DOCXLibrary;
       
       // Create the DOCX document
       const doc = createDOCXDocument(content, title);
@@ -250,18 +293,57 @@ const DOCXExport = ({ content, title, className = 'action-button' }) => {
     }
   };
 
+  // If DOCX library hasn't been loaded yet, show a button that loads it
+  if (!DOCXLibrary && !loadError) {
+    return (
+      <button
+        className={className}
+        onClick={handleLoadDOCX}
+        onMouseEnter={handleLoadDOCX}
+        onFocus={handleLoadDOCX}
+        disabled={isLoading}
+        aria-label={isLoading ? "DOCX wird geladen..." : "Als DOCX herunterladen"}
+        {...(!isMobileView && {
+          'data-tooltip-id': "action-tooltip",
+          'data-tooltip-content': isLoading ? "DOCX wird geladen..." : "Als DOCX herunterladen"
+        })}
+      >
+        {isLoading ? <FaSpinner className="spinning" size={16} /> : <IoDocumentTextOutline size={16} />}
+      </button>
+    );
+  }
+
+  // If there was a loading error, show a disabled button
+  if (loadError) {
+    return (
+      <button
+        className={className}
+        disabled
+        aria-label="DOCX-Export nicht verfügbar"
+        {...(!isMobileView && {
+          'data-tooltip-id': "action-tooltip",
+          'data-tooltip-content': "DOCX-Export temporär nicht verfügbar"
+        })}
+        style={{ opacity: 0.5 }}
+      >
+        <IoDocumentTextOutline size={16} />
+      </button>
+    );
+  }
+
+  // Once DOCX library is loaded, show the export button
   return (
     <button
       className={className}
       onClick={handleDOCXExport}
       disabled={isGenerating}
-      aria-label="Als DOCX herunterladen"
+      aria-label={isGenerating ? "DOCX wird erstellt..." : "Als DOCX herunterladen"}
       {...(!isMobileView && {
         'data-tooltip-id': "action-tooltip",
-        'data-tooltip-content': "Als DOCX herunterladen"
+        'data-tooltip-content': isGenerating ? "DOCX wird erstellt..." : "Als DOCX herunterladen"
       })}
     >
-      <IoDocumentTextOutline size={16} />
+      {isGenerating ? <FaSpinner className="spinning" size={16} /> : <IoDocumentTextOutline size={16} />}
     </button>
   );
 };
