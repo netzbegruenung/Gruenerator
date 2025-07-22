@@ -29,19 +29,22 @@ export default defineConfig(({ command }) => ({
     sourcemap: false,
     cssCodeSplit: true,
     assetsInlineLimit: 4096, // Inline small assets to reduce HTTP requests
-    chunkSizeWarningLimit: 800, // Lower threshold to catch bundle growth
+    chunkSizeWarningLimit: 300, // Smaller chunks to reduce memory pressure
     outDir: 'build',
-    // Aggressive build optimizations for server memory constraints
-    reportCompressedSize: false, // Skip gzip reporting
-    minify: false, // Disable minification to reduce memory usage
-    cssMinify: false, // Disable CSS minification  
+    // Selective optimizations - balance memory usage with performance
+    reportCompressedSize: false, // Skip gzip reporting to save memory
+    minify: 'terser', // Keep JS minification (critical for performance)
+    cssMinify: false, // Disable CSS minification (minor performance impact)
     emptyOutDir: true,
     rollupOptions: {
-      // Simplified treeshaking for reduced memory usage
-      treeshake: false, // Disable to reduce analysis memory overhead
-      // Sequential processing to prevent concurrent memory spikes
-      maxParallelFileOps: 1,
-      // Single chunk build - no complex chunking to reduce memory pressure
+      // Memory-efficient treeshaking
+      treeshake: {
+        preset: 'smallest', // Lighter analysis to reduce memory overhead
+        moduleSideEffects: false
+      },
+      // Controlled parallel processing (compromise between speed and memory)
+      maxParallelFileOps: 2,
+      // Manual vendor chunking for memory efficiency
       output: {
         entryFileNames: 'assets/js/[name].[hash].js',
         chunkFileNames: 'assets/js/[name].[hash].js',
@@ -61,6 +64,18 @@ export default defineConfig(({ command }) => ({
             return 'assets/fonts/[name].[hash][extname]';
           }
           return 'assets/[name].[hash][extname]';
+        },
+        // Intelligent vendor chunking to reduce build memory pressure
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom'],
+          'router-vendor': ['react-router-dom'],
+          'query-vendor': ['@tanstack/react-query', '@tanstack/react-query-devtools'],
+          'editor-vendor': ['quill', 'quilljs-markdown', 'y-quill', 'yjs', 'y-websocket'],
+          'ui-vendor': ['react-icons', 'react-select', 'react-tooltip'],
+          'form-vendor': ['react-hook-form', 'react-dropzone'],
+          'utils-vendor': ['lodash', 'lodash.debounce', 'uuid', 'marked', 'turndown'],
+          // Heavy libraries that are already lazy-loaded
+          'heavy-async': ['@react-pdf/renderer', 'docx', 'react-image-gallery']
         }
       }
     },
