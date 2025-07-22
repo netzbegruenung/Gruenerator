@@ -31,9 +31,9 @@ export default defineConfig(({ command }) => ({
     assetsInlineLimit: 4096, // Inline small assets to reduce HTTP requests
     chunkSizeWarningLimit: 300, // Smaller chunks to reduce memory pressure
     outDir: 'build',
-    // Selective optimizations - balance memory usage with performance
+    // Memory-optimized build settings for server compatibility
     reportCompressedSize: false, // Skip gzip reporting to save memory
-    minify: 'terser', // Keep JS minification (critical for performance)
+    minify: 'esbuild', // Use esbuild (10x more memory efficient than Terser)
     cssMinify: false, // Disable CSS minification (minor performance impact)
     emptyOutDir: true,
     rollupOptions: {
@@ -42,8 +42,8 @@ export default defineConfig(({ command }) => ({
         preset: 'smallest', // Lighter analysis to reduce memory overhead
         moduleSideEffects: false
       },
-      // Controlled parallel processing (compromise between speed and memory)
-      maxParallelFileOps: 2,
+      // Sequential processing to prevent memory spikes on server
+      maxParallelFileOps: 1,
       // Manual vendor chunking for memory efficiency
       output: {
         entryFileNames: 'assets/js/[name].[hash].js',
