@@ -73,9 +73,8 @@ export default defineConfig(({ command }) => ({
           'editor-vendor': ['quill', 'quilljs-markdown', 'y-quill', 'yjs', 'y-websocket'],
           'ui-vendor': ['react-icons', 'react-select', 'react-tooltip'],
           'form-vendor': ['react-hook-form', 'react-dropzone'],
-          'utils-vendor': ['lodash', 'lodash.debounce', 'uuid', 'marked', 'turndown'],
-          // Heavy libraries that are already lazy-loaded
-          'heavy-async': ['@react-pdf/renderer', 'docx', 'react-image-gallery']
+          'utils-vendor': ['lodash', 'lodash.debounce', 'uuid', 'marked', 'turndown']
+          // Heavy libraries removed from manual chunks - they're already lazy-loaded as dynamic imports
         }
       }
     },
