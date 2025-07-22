@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useContext } from 'react';
 import PropTypes from 'prop-types';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { PiCaretDown, PiCaretUp } from 'react-icons/pi';
-import { CSSTransition } from 'react-transition-group';
+import { motion, AnimatePresence } from 'motion/react';
 import useAccessibility from '../../hooks/useAccessibility';
 import { getMenuItems, getDirectMenuItems, getMobileOnlyMenuItems, handleMenuInteraction as commonHandleMenuInteraction } from './menuData';
 import { useLazyAuth } from '../../../hooks/useAuth';
@@ -48,15 +48,6 @@ const NavMenu = ({ open, onClose }) => {
   const mobileOnlyItems = getMobileOnlyMenuItems();
   const dynamicTopLevelItems = [...Object.values(directMenuItems), ...Object.values(mobileOnlyItems)];
 
-  // Fixed: Create refs statically to avoid hooks order issues
-  const nodeRefs = useRef({});
-  
-  // Initialize refs for menu items if they don't exist
-  Object.keys(menuItems).forEach(key => {
-    if (!nodeRefs.current[key]) {
-      nodeRefs.current[key] = React.createRef();
-    }
-  });
 
   useEffect(() => {
     if (onClose) {
@@ -121,26 +112,21 @@ const NavMenu = ({ open, onClose }) => {
               <PiCaretDown className="nav-menu__icon nav-menu__icon--down" aria-hidden="true" />
             }
           </span>
-          <CSSTransition
-            in={activeDropdown === key}
-            timeout={300}
-            classNames={{
-              enter: 'dropdown-enter',
-              enterActive: 'dropdown-enter-active',
-              exit: 'dropdown-exit',
-              exitActive: 'dropdown-exit-active'
-            }}
-            unmountOnExit
-            nodeRef={nodeRefs.current[key]}
-          >
-            <ul 
-              className="nav-menu__dropdown-content"
-              ref={nodeRefs.current[key]}
-              aria-label={`${menu.title} Untermenü`}
-            >
-              {renderDropdownContent(key)}
-            </ul>
-          </CSSTransition>
+          <AnimatePresence>
+            {activeDropdown === key && (
+              <motion.ul 
+                className="nav-menu__dropdown-content"
+                aria-label={`${menu.title} Untermenü`}
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.3, ease: 'easeInOut' }}
+                style={{ overflow: 'hidden' }}
+              >
+                {renderDropdownContent(key)}
+              </motion.ul>
+            )}
+          </AnimatePresence>
         </div>
       ))}
       

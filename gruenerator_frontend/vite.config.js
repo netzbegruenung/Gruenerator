@@ -71,10 +71,9 @@ export default defineConfig(({ command }) => ({
           'router-vendor': ['react-router-dom'],
           'query-vendor': ['@tanstack/react-query', '@tanstack/react-query-devtools'],
           'editor-vendor': ['quill', 'quilljs-markdown', 'y-quill', 'yjs', 'y-websocket'],
-          'ui-vendor': ['react-icons', 'react-select', 'react-tooltip', 'react-responsive'],
+          'ui-vendor': ['react-icons', 'react-select', 'react-tooltip'],
           'form-vendor': ['react-hook-form', 'react-dropzone'],
           'utils-vendor': ['lodash', 'lodash.debounce', 'uuid', 'marked', 'turndown'],
-          'supabase-vendor': ['@supabase/supabase-js'],
           // Heavy libraries that are already lazy-loaded
           'heavy-async': ['@react-pdf/renderer', 'docx', 'react-image-gallery']
         }
