@@ -42,3 +42,14 @@ gruenerator_frontend/node_modules/.cache
 #claudecode files
 .claude
 
+# AWS deployment
+aws/
+.aws/
+*.pem
+*.key
+aws-*.json
+aws-*.yaml
+aws-*.yml
+.aws-credentials
+aws-exports.js
+
