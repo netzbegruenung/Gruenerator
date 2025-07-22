@@ -57,7 +57,7 @@
     "eslint-plugin-react": "^7.37.4",
     "semantic-release": "^24.2.3",
     "terser": "^5.43.1",
-    "vite": "^6.3.5",
+    "vite": "^7.0.5",
     "vite-bundle-analyzer": "^1.1.0"
   },
   "jest": {
