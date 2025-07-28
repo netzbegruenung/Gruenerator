@@ -24,6 +24,7 @@ const ProfileInfoTab = lazy(() => import('../components/profile/ProfileInfoTab')
 const GroupsManagementTab = lazy(() => import('../components/profile/GroupsManagementTab'));
 const IntelligenceTab = lazy(() => import('../components/profile/IntelligenceTab'));
 const DocumentsTab = lazy(() => import('../components/profile/DocumentsTab'));
+const CanvaTab = lazy(() => import('../components/profile/CanvaTab'));
 const CustomGeneratorsTab = lazy(() => import('../components/profile/CustomGeneratorsTab'));
 const LaborTab = lazy(() => import('../components/profile/LaborTab'));
 
@@ -122,6 +123,7 @@ const ProfilePage = () => {
     'profil': 'profile',
     'intelligence': 'intelligence', 
     'dokumente': 'dokumente',
+    'grafik': 'grafik',
     'gruppen': 'gruppen',
     'generatoren': 'custom_generators',
     'labor': 'labor'
@@ -175,6 +177,7 @@ const ProfilePage = () => {
     'profile',
     'intelligence',
     'dokumente',
+    'grafik',
     ...(shouldShowTab('groups') ? ['gruppen'] : []),
     ...(shouldShowTab('customGenerators') ? ['custom_generators'] : []),
     'labor'
@@ -338,6 +341,19 @@ const ProfilePage = () => {
           Dokumente & Texte
         </TabButton>
         
+        <TabButton
+          activeTab={activeTab}
+          tabKey="grafik"
+          onClick={handleTabChange}
+          onMouseEnter={() => onTabHover('grafik')}
+          underlineTransition={underlineTransition}
+          tabIndex={getTabIndex('grafik')}
+          registerRef={registerItemRef}
+          ariaSelected={ariaSelected('grafik')}
+        >
+          Canva-Vorlagen
+        </TabButton>
+        
         {shouldShowTab('groups') && (
           <TabButton
             activeTab={activeTab}
@@ -436,6 +452,15 @@ const ProfilePage = () => {
               onSuccessMessage={handleSuccessMessage}
               onErrorMessage={handleErrorMessage}
               isActive={activeTab === 'dokumente'}
+            />
+          )}
+          
+          {activeTab === 'grafik' && (
+            <CanvaTab
+              user={user}
+              onSuccessMessage={handleSuccessMessage}
+              onErrorMessage={handleErrorMessage}
+              isActive={activeTab === 'grafik'}
             />
           )}
           

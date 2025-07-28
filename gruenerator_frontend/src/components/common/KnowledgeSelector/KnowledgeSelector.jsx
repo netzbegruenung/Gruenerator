@@ -4,7 +4,7 @@ import Select from 'react-select';
 import FormSelect from '../Form/Input/FormSelect';
 import FormFieldWrapper from '../Form/Input/FormFieldWrapper';
 import { useGeneratorKnowledgeStore } from '../../../stores/core/generatorKnowledgeStore';
-import { useGroups } from '../../../features/auth/utils/groupsUtils';
+import { useGroups, useAllGroupsContent } from '../../../features/auth/utils/groupsUtils';
 import { useBetaFeatures } from '../../../hooks/useBetaFeatures';
 import { useDocumentsStore } from '../../../stores/documentsStore';
 import { useAuth } from '../../../hooks/useAuth';
@@ -37,6 +37,7 @@ const KnowledgeIcon = memo(({ type, size = 16 }) => {
     case 'document':
     case 'dokument':
     case 'user_document':
+    case 'group_document':
       return (
         <svg className={iconClass} width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
           <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9l-7-7z"/>
@@ -71,56 +72,30 @@ KnowledgeIcon.propTypes = {
   size: PropTypes.number
 };
 
+// Source tag component for showing content origin
+const SourceTag = memo(({ source, groupName }) => {
+  if (source === 'user') {
+    return <span className="source-tag source-tag--user">[Mein Profil]</span>;
+  }
+  return <span className="source-tag source-tag--group">[Gruppe: {groupName}]</span>;
+});
+
+SourceTag.propTypes = {
+  source: PropTypes.oneOf(['user', 'group']).isRequired,
+  groupName: PropTypes.string
+};
+
 /**
- * KnowledgeSelector-Komponente zur Anzeige und Auswahl von Wissen.
+ * ProfileSelector - Separate component for custom instructions only
  */
-const KnowledgeSelector = ({ 
-  onKnowledgeSelection, 
-  disabled = false,
-  tabIndex,
-  sourceTabIndex,
-  documentTabIndex
-}) => {
+const ProfileSelector = ({ disabled = false, tabIndex }) => {
   const { 
     source, 
-    setSource,
-    availableKnowledge, 
-    selectedKnowledgeIds, 
-    toggleSelection,
-    // New: Document state
-    availableDocuments,
-    selectedDocumentIds,
-    isLoadingDocuments,
-    setAvailableDocuments,
-    setLoadingDocuments,
-    toggleDocumentSelection,
-    handleDocumentLoadError,
-    isExtractingDocumentContent,
-    documentExtractionInfo,
-    // New: Text state
-    availableTexts,
-    selectedTextIds,
-    isLoadingTexts,
-    setAvailableTexts,
-    setLoadingTexts,
-    toggleTextSelection,
-    handleTextLoadError,
-    fetchTexts,
-    // UI Configuration
-    uiConfig
+    setSource
   } = useGeneratorKnowledgeStore();
-
-  // Extract UI config values for cleaner code
-  const {
-    enableKnowledge = false,
-    enableDocuments = false,
-    enableTexts = false,
-    enableSourceSelection = false
-  } = uiConfig;
-
   
   // Get groups and beta features for source selection
-  const { getBetaFeatureState, isLoading: isLoadingBetaFeatures } = useBetaFeatures();
+  const { isLoading: isLoadingBetaFeatures } = useBetaFeatures();
   const anweisungenBetaEnabled = true;
   const { 
     userGroups: groups, 
@@ -128,13 +103,7 @@ const KnowledgeSelector = ({
     errorGroups: groupsError 
   } = useGroups();
   
-  // Get documents store and auth for document fetching
-  const { fetchDocuments, isLoading: documentsLoading } = useDocumentsStore();
-  const { user } = useAuth();
-  
-  // Removed console.log for performance
-
-  // Handle knowledge source selection
+  // Handle profile source selection (for instructions only)
   const handleSourceChange = useCallback((e) => {
     const value = e.target.value;
     
@@ -151,7 +120,7 @@ const KnowledgeSelector = ({
     }
   }, [groups, setSource]);
 
-  // Get current source value for the select - memoized for performance
+  // Get current source value for the select
   const getCurrentSourceValue = useCallback(() => {
     if (source.type === 'neutral') return 'neutral';
     if (source.type === 'user') return 'user';
@@ -186,6 +155,103 @@ const KnowledgeSelector = ({
 
     return [...baseOptions, ...loadingOptions, ...groupOptions];
   }, [groups, isLoadingGroups, isLoadingBetaFeatures, groupsError]);
+  
+  return (
+    <div className="profile-selector">
+      <FormSelect
+        name="profile-source"
+        label="Profil für Anweisungen auswählen"
+        options={sourceOptions}
+        value={getCurrentSourceValue()}
+        onChange={handleSourceChange}
+        disabled={isLoadingGroups || isLoadingBetaFeatures || !anweisungenBetaEnabled || disabled}
+        placeholder=""
+        tabIndex={tabIndex}
+        helpText="Wähle das Profil aus, dessen Anweisungen verwendet werden sollen"
+      />
+    </div>
+  );
+};
+
+ProfileSelector.propTypes = {
+  disabled: PropTypes.bool,
+  tabIndex: PropTypes.number
+};
+
+/**
+ * EnhancedKnowledgeSelector - Unified knowledge selector for all sources with React Portal
+ */
+const EnhancedKnowledgeSelector = ({ 
+  onKnowledgeSelection, 
+  disabled = false,
+  tabIndex
+}) => {
+  const { 
+    availableKnowledge, 
+    selectedKnowledgeIds, 
+    toggleSelection,
+    // Document state
+    selectedDocumentIds,
+    toggleDocumentSelection,
+    isExtractingDocumentContent,
+    documentExtractionInfo,
+    // Text state
+    availableTexts,
+    selectedTextIds,
+    isLoadingTexts,
+    toggleTextSelection,
+    fetchTexts,
+    // UI Configuration
+    uiConfig
+  } = useGeneratorKnowledgeStore();
+
+  // Extract UI config values for cleaner code
+  const {
+    enableKnowledge = false,
+    enableDocuments = false,
+    enableTexts = false
+  } = uiConfig;
+
+  // Get user groups and authentication
+  const { 
+    userGroups: groups
+  } = useGroups();
+  
+  const { fetchDocuments, isLoading: documentsLoading } = useDocumentsStore();
+  const { user } = useAuth();
+  
+  // Load content from all groups using the new hook
+  const {
+    allGroupContent,
+    groupContentErrors,
+    hasGroupErrors,
+    isLoadingAllGroupsContent,
+    isErrorAllGroupsContent,
+    errorAllGroupsContent
+  } = useAllGroupsContent({ 
+    isActive: true,
+    enabled: enableKnowledge // Only load group content when knowledge is enabled
+  });
+  
+  // For backwards compatibility, alias the loading state
+  const isLoadingAllGroups = isLoadingAllGroupsContent;
+  
+  // Removed console.log for performance
+
+  // Load user documents and texts
+  const { documents: documentsStoreData } = useDocumentsStore();
+  
+  useEffect(() => {
+    if (enableDocuments && documentsStoreData.length === 0 && !documentsLoading) {
+      fetchDocuments();
+    }
+  }, [enableDocuments, documentsStoreData.length, documentsLoading, fetchDocuments]);
+
+  useEffect(() => {
+    if (enableTexts) {
+      fetchTexts();
+    }
+  }, [enableTexts, fetchTexts]);
 
   // State for current search term to trigger re-sorting
   const [currentSearchTerm, setCurrentSearchTerm] = useState('');
@@ -254,64 +320,126 @@ const KnowledgeSelector = ({
     return highlightedText;
   }, []);
 
-  // Memoize expensive computations to prevent unnecessary re-renders
-  // Merge knowledge and documents into single options array when user source is selected
-  const baseKnowledgeOptions = useMemo(() => {
-    const knowledgeItems = availableKnowledge.map(item => ({
-      value: `knowledge_${item.id}`,
-      label: item.title,
-      type: item.type || 'knowledge',
-      itemType: 'knowledge',
-      originalId: item.id,
-      searchableContent: `${item.title} ${item.content || ''}`.toLowerCase(),
-      created_at: item.created_at || null
-    }));
+  // Unified options from all sources (user + all groups)
+  const allKnowledgeOptions = useMemo(() => {
+    const allOptions = [];
     
-    // Only include documents when source is 'user' and documents are available
-    const documentItems = (source.type === 'user' && enableDocuments) 
-      ? availableDocuments.map(doc => ({
+    // User knowledge
+    if (enableKnowledge && availableKnowledge.length > 0) {
+      const userKnowledgeItems = availableKnowledge.map(item => ({
+        value: `knowledge_${item.id}`,
+        label: item.title,
+        type: item.type || 'knowledge',
+        itemType: 'knowledge',
+        originalId: item.id,
+        sourceType: 'user',
+        sourceTag: { source: 'user' },
+        searchableContent: `${item.title} ${item.content || ''}`.toLowerCase(),
+        created_at: item.created_at || null
+      }));
+      allOptions.push(...userKnowledgeItems);
+    }
+    
+    // User documents
+    if (enableDocuments && documentsStoreData.length > 0) {
+      const userDocumentItems = documentsStoreData
+        .filter(doc => doc.status === 'completed')
+        .map(doc => ({
           value: `document_${doc.id}`,
           label: doc.title,
           type: 'user_document',
           itemType: 'document',
           originalId: doc.id,
+          sourceType: 'user',
+          sourceTag: { source: 'user' },
           subtitle: doc.filename,
           searchableContent: `${doc.title} ${doc.filename || ''} ${doc.ocr_text || ''}`.toLowerCase(),
           created_at: doc.created_at || null
-        }))
-      : [];
+        }));
+      allOptions.push(...userDocumentItems);
+    }
     
-    // Only include texts when source is 'user' and texts are available
-    const textItems = (source.type === 'user' && enableTexts) 
-      ? availableTexts.map(text => ({
-          value: `text_${text.id}`,
-          label: text.title,
-          type: 'user_text',
-          itemType: 'text',
-          originalId: text.id,
-          subtitle: text.type || 'Text',
-          searchableContent: `${text.title} ${text.type || ''} ${text.full_content || text.content || ''}`.toLowerCase(),
-          created_at: text.created_at || null
-        }))
-      : [];
+    // User texts
+    if (enableTexts && availableTexts.length > 0) {
+      const userTextItems = availableTexts.map(text => ({
+        value: `text_${text.id}`,
+        label: text.title,
+        type: 'user_text',
+        itemType: 'text',
+        originalId: text.id,
+        sourceType: 'user',
+        sourceTag: { source: 'user' },
+        subtitle: text.type || 'Text',
+        searchableContent: `${text.title} ${text.type || ''} ${text.full_content || text.content || ''}`.toLowerCase(),
+        created_at: text.created_at || null
+      }));
+      allOptions.push(...userTextItems);
+    }
     
-    const allOptions = [...knowledgeItems, ...documentItems, ...textItems];
-    
+    // Group content from all groups
+    if (allGroupContent.length > 0) {
+      const groupItems = allGroupContent.map(item => {
+        const baseItem = {
+          originalId: item.id,
+          sourceType: 'group',
+          sourceTag: { source: 'group', groupName: item.groupName },
+          created_at: item.created_at || null
+        };
+        
+        // Determine item type and create appropriate option
+        if (item.type === 'knowledge' || (!item.filename && !item.full_content)) {
+          return {
+            ...baseItem,
+            value: `group_knowledge_${item.id}`,
+            label: item.title,
+            type: 'group_knowledge',
+            itemType: 'knowledge',
+            searchableContent: `${item.title} ${item.content || ''}`.toLowerCase()
+          };
+        } else if (item.filename || item.ocr_text) {
+          return {
+            ...baseItem,
+            value: `group_document_${item.id}`,
+            label: item.title,
+            type: 'group_document',
+            itemType: 'document',
+            subtitle: item.filename,
+            searchableContent: `${item.title} ${item.filename || ''} ${item.ocr_text || ''}`.toLowerCase()
+          };
+        } else {
+          return {
+            ...baseItem,
+            value: `group_text_${item.id}`,
+            label: item.title,
+            type: 'group_text',
+            itemType: 'text',
+            subtitle: item.type || 'Text',
+            searchableContent: `${item.title} ${item.type || ''} ${item.full_content || item.content || ''}`.toLowerCase()
+          };
+        }
+      });
+      allOptions.push(...groupItems);
+    }
     
     return allOptions;
-  }, [availableKnowledge, availableDocuments, availableTexts, source.type, enableDocuments, enableTexts]);
+  }, [enableKnowledge, enableDocuments, enableTexts, availableKnowledge, documentsStoreData, availableTexts, allGroupContent]);
 
   // Sorted and filtered options based on current search term
   const knowledgeOptions = useMemo(() => {
     if (!currentSearchTerm || currentSearchTerm.trim() === '') {
-      // No search term - return all options sorted by type priority and recency
-      return baseKnowledgeOptions.sort((a, b) => {
-        // Primary sort: content type priority
+      // No search term - return all options sorted by source, type priority and recency
+      return allKnowledgeOptions.sort((a, b) => {
+        // Primary sort: source type (user first, then groups)
+        const sourceOrder = { user: 0, group: 1 };
+        const sourceDiff = (sourceOrder[a.sourceType] || 2) - (sourceOrder[b.sourceType] || 2);
+        if (sourceDiff !== 0) return sourceDiff;
+        
+        // Secondary sort: content type priority
         const typeOrder = { knowledge: 0, text: 1, document: 2 };
         const typeDiff = (typeOrder[a.itemType] || 3) - (typeOrder[b.itemType] || 3);
         if (typeDiff !== 0) return typeDiff;
         
-        // Secondary sort: recency (newer first)
+        // Tertiary sort: recency (newer first)
         const aDate = new Date(a.created_at || 0);
         const bDate = new Date(b.created_at || 0);
         return bDate - aDate;
@@ -321,7 +449,7 @@ const KnowledgeSelector = ({
     const searchTerm = currentSearchTerm.trim();
     
     // Score and filter options
-    const scoredOptions = baseKnowledgeOptions
+    const scoredOptions = allKnowledgeOptions
       .map(option => ({
         ...option,
         relevanceScore: calculateRelevanceScore(option, searchTerm)
@@ -329,13 +457,12 @@ const KnowledgeSelector = ({
       .filter(option => option.relevanceScore > 0) // Only show items with matches
       .sort((a, b) => b.relevanceScore - a.relevanceScore); // Sort by relevance score (highest first)
     
-    
     return scoredOptions;
-  }, [baseKnowledgeOptions, currentSearchTerm, calculateRelevanceScore]);
+  }, [allKnowledgeOptions, currentSearchTerm, calculateRelevanceScore]);
 
-  // Memoized option formatter for performance with search highlighting
-  const formatOptionLabel = useCallback(({ type, label, subtitle, relevanceScore }, { context }) => {
-    // Show icons only in the dropdown menu, not in selected values to save space
+  // Enhanced option formatter with source tags and larger size
+  const formatOptionLabel = useCallback(({ type, label, subtitle, sourceTag }, { context }) => {
+    // Show enhanced layout only in the dropdown menu
     if (context === 'menu') {
       const highlightedLabel = currentSearchTerm ? 
         highlightSearchTerm(label, currentSearchTerm) : label;
@@ -343,13 +470,16 @@ const KnowledgeSelector = ({
         highlightSearchTerm(subtitle, currentSearchTerm) : subtitle;
       
       return (
-        <div className="knowledge-option">
-          <KnowledgeIcon type={type} size={16} />
+        <div className="knowledge-option-enhanced">
+          <KnowledgeIcon type={type} size={20} />
           <div className="knowledge-option__content">
-            <span 
-              className="knowledge-option__label"
-              dangerouslySetInnerHTML={{ __html: highlightedLabel }}
-            />
+            <div className="knowledge-option__main">
+              <span 
+                className="knowledge-option__label"
+                dangerouslySetInnerHTML={{ __html: highlightedLabel }}
+              />
+              {sourceTag && <SourceTag {...sourceTag} />}
+            </div>
             {subtitle && (
               <span 
                 className="knowledge-option__subtitle"
@@ -360,30 +490,42 @@ const KnowledgeSelector = ({
         </div>
       );
     }
-    // For selected values, show only text without highlighting
-    return <span>{label}</span>;
+    // For selected values, show text with source indicator
+    return (
+      <span className="knowledge-selected-option">
+        {label}
+        {sourceTag && sourceTag.source === 'group' && (
+          <span className="knowledge-selected-source">[{sourceTag.groupName}]</span>
+        )}
+      </span>
+    );
   }, [currentSearchTerm, highlightSearchTerm]);
 
   const handleKnowledgeChange = useCallback((selectedOptions) => {
     const newSelectedValues = selectedOptions ? selectedOptions.map(option => option.value) : [];
     
-    // Separate knowledge, document, and text selections
+    // Separate different types of selections (including group content)
     const newKnowledgeIds = newSelectedValues
-      .filter(value => value.startsWith('knowledge_'))
-      .map(value => value.replace('knowledge_', ''));
+      .filter(value => value.startsWith('knowledge_') || value.startsWith('group_knowledge_'))
+      .map(value => value.replace(/^(knowledge_|group_knowledge_)/, ''));
     const newDocumentIds = newSelectedValues
-      .filter(value => value.startsWith('document_'))
-      .map(value => value.replace('document_', ''));
+      .filter(value => value.startsWith('document_') || value.startsWith('group_document_'))
+      .map(value => value.replace(/^(document_|group_document_)/, ''));
     const newTextIds = newSelectedValues
-      .filter(value => value.startsWith('text_'))
-      .map(value => value.replace('text_', ''));
+      .filter(value => value.startsWith('text_') || value.startsWith('group_text_'))
+      .map(value => value.replace(/^(text_|group_text_)/, ''));
     
-    // Handle knowledge changes
+    // Handle knowledge changes (user + group)
     const addedKnowledgeIds = newKnowledgeIds.filter(id => !selectedKnowledgeIds.includes(id));
     const removedKnowledgeIds = selectedKnowledgeIds.filter(id => !newKnowledgeIds.includes(id));
     
     addedKnowledgeIds.forEach(knowledgeId => {
-      const selectedItem = availableKnowledge.find(item => item.id === knowledgeId);
+      // Try to find in user knowledge first, then in group content
+      let selectedItem = availableKnowledge.find(item => item.id === knowledgeId);
+      if (!selectedItem) {
+        selectedItem = allGroupContent.find(item => item.id === knowledgeId);
+      }
+      
       if (selectedItem) {
         toggleSelection(knowledgeId);
         if (onKnowledgeSelection) {
@@ -396,7 +538,7 @@ const KnowledgeSelector = ({
       toggleSelection(knowledgeId);
     });
     
-    // Handle document changes
+    // Handle document changes (user + group)
     const addedDocumentIds = newDocumentIds.filter(id => !selectedDocumentIds.includes(id));
     const removedDocumentIds = selectedDocumentIds.filter(id => !newDocumentIds.includes(id));
     
@@ -404,52 +546,20 @@ const KnowledgeSelector = ({
       toggleDocumentSelection(documentId);
     });
     
-    // Handle text changes
+    // Handle text changes (user + group)
     const addedTextIds = newTextIds.filter(id => !selectedTextIds.includes(id));
     const removedTextIds = selectedTextIds.filter(id => !newTextIds.includes(id));
     
     [...addedTextIds, ...removedTextIds].forEach(textId => {
       toggleTextSelection(textId);
     });
-  }, [selectedKnowledgeIds, selectedDocumentIds, selectedTextIds, availableKnowledge, toggleSelection, toggleDocumentSelection, toggleTextSelection, onKnowledgeSelection]);
+  }, [selectedKnowledgeIds, selectedDocumentIds, selectedTextIds, availableKnowledge, allGroupContent, toggleSelection, toggleDocumentSelection, toggleTextSelection, onKnowledgeSelection]);
 
 
   // Note: Document preloading is now handled by useKnowledge hook in parent components
   // This eliminates the flash of "keine dokumente vorhanden" message
   // Note: Document selection clearing is handled by store reset in useKnowledge hook
 
-  // Simplified loading logic since documents are preloaded by useKnowledge
-  const [userInteracted, setUserInteracted] = React.useState(false);
-
-  // Sync documents from documents store to knowledge store
-  // Only sync documents when "Mein Profil" is selected
-  const { documents: documentsStoreData } = useDocumentsStore();
-  React.useEffect(() => {
-    if (enableDocuments && source.type === 'user' && documentsStoreData !== null) {
-      // Filter only completed documents for selection
-      const completedDocuments = documentsStoreData.filter(doc => doc.status === 'completed');
-      setAvailableDocuments(completedDocuments); // This will clear loading state regardless of count
-    } else if (source.type !== 'user') {
-      // Clear documents when source is not user
-      setAvailableDocuments([]);
-    }
-  }, [enableDocuments, source.type, documentsStoreData, setAvailableDocuments]);
-
-  // Fetch documents when needed but not yet loaded
-  React.useEffect(() => {
-    if (enableDocuments && source.type === 'user' && documentsStoreData.length === 0 && !documentsLoading) {
-      fetchDocuments();
-    }
-  }, [enableDocuments, source.type, documentsStoreData.length, documentsLoading, fetchDocuments]);
-
-  // Fetch texts when "Mein Profil" is selected and text selection is enabled
-  React.useEffect(() => {
-    if (enableTexts && source.type === 'user') {
-      fetchTexts();
-    } else if (source.type !== 'user') {
-      setAvailableTexts([]);
-    }
-  }, [enableTexts, source.type, fetchTexts, setAvailableTexts, availableTexts.length]);
 
   // Note: Selection state is now managed by the store, no local state reset needed
 
@@ -459,124 +569,105 @@ const KnowledgeSelector = ({
   }
   
   // Only hide component if no functionality is enabled 
-  const hasAnyFeatureEnabled = enableSourceSelection || enableKnowledge || enableDocuments || enableTexts;
+  const hasAnyFeatureEnabled = enableKnowledge || enableDocuments || enableTexts;
   
   if (!hasAnyFeatureEnabled) {
     return null;
   }
 
   return (
-    <div className="knowledge-selector__wrapper">
-      {/* Knowledge Source Selection */}
-      {enableSourceSelection && (
-        <div className="knowledge-selector__source">
-          <FormSelect
-            name="knowledge-source"
-            label="Profil auswählen"
-            options={sourceOptions}
-            value={getCurrentSourceValue()}
-            onChange={handleSourceChange}
-            disabled={isLoadingGroups || isLoadingBetaFeatures || !anweisungenBetaEnabled}
-            placeholder=""
-            tabIndex={sourceTabIndex || tabIndex}
-          />
-        </div>
-      )}
-
-      {/* Knowledge and documents selection with react-select multi-dropdown */}
-      {enableKnowledge && knowledgeOptions.length > 0 && (
-        <div className="knowledge-selector">
-          <FormFieldWrapper
-            label={source.type === 'user' && (enableDocuments || enableTexts) 
-              ? `Wissen${enableDocuments ? ' & Dokumente' : ''}${enableTexts ? ' & Texte' : ''} auswählen`
-              : "Wissen auswählen"}
-            helpText={source.type === 'user' && (enableDocuments || enableTexts)
-              ? `Wähle Wissen, Anweisungen${enableDocuments ? ', Dokumente' : ''}${enableTexts ? ' und Texte' : ''} aus, die bei der Generierung berücksichtigt werden sollen`
-              : "Wähle Wissen und Anweisungen aus, die bei der Generierung berücksichtigt werden sollen"
+    <div className="enhanced-knowledge-selector">
+      <FormFieldWrapper
+        label="Wissen, Dokumente & Texte auswählen"
+        helpText="Wähle aus allen verfügbaren Quellen (dein Profil und Gruppen) das Wissen aus, das bei der Generierung berücksichtigt werden soll"
+        htmlFor="enhanced-knowledge-select"
+      >
+        <Select
+          inputId="enhanced-knowledge-select"
+          classNamePrefix="enhanced-knowledge-select"
+          className="enhanced-knowledge-select"
+          isMulti
+          options={knowledgeOptions}
+          placeholder="Wissen, Dokumente und Texte auswählen..."
+          isDisabled={disabled}
+          formatOptionLabel={formatOptionLabel}
+          filterOption={() => true} // Disable default filtering since we handle it
+          onInputChange={(inputValue) => {
+            setCurrentSearchTerm(inputValue);
+          }}
+          value={[
+            // Find selected options from all sources
+            ...selectedKnowledgeIds.map(id => 
+              allKnowledgeOptions.find(option => 
+                option.value === `knowledge_${id}` || option.value === `group_knowledge_${id}`
+              )
+            ).filter(Boolean),
+            ...selectedDocumentIds.map(id => 
+              allKnowledgeOptions.find(option => 
+                option.value === `document_${id}` || option.value === `group_document_${id}`
+              )
+            ).filter(Boolean),
+            ...selectedTextIds.map(id => 
+              allKnowledgeOptions.find(option => 
+                option.value === `text_${id}` || option.value === `group_text_${id}`
+              )
+            ).filter(Boolean)
+          ]}
+          onChange={handleKnowledgeChange}
+          closeMenuOnSelect={false}
+          hideSelectedOptions={true}
+          isClearable={false}
+          isSearchable={true}
+          blurInputOnSelect={true}
+          openMenuOnFocus={false}
+          tabSelectsValue={true}
+          captureMenuScroll={false}
+          menuShouldBlockScroll={false}
+          menuShouldScrollIntoView={false}
+          // React Portal implementation for larger dropdown
+          menuPortalTarget={document.body}
+          menuPosition="fixed"
+          tabIndex={tabIndex}
+          noOptionsMessage={() => {
+            if (currentSearchTerm && currentSearchTerm.trim()) {
+              return `Keine Ergebnisse für "${currentSearchTerm}"`;
             }
-            htmlFor="knowledge-select"
-          >
-            <Select
-              inputId="knowledge-select"
-              classNamePrefix="knowledge-select"
-              isMulti
-              options={knowledgeOptions}
-              placeholder={source.type === 'user' && (enableDocuments || enableTexts) 
-                ? `Wissen${enableDocuments ? ' & Dokumente' : ''}${enableTexts ? ' & Texte' : ''} auswählen...`
-                : "Wissen auswählen..."}
-              isDisabled={disabled}
-              formatOptionLabel={formatOptionLabel}
-              filterOption={() => true} // Disable react-select's default filtering since we handle it
-              onInputChange={(inputValue) => {
-                setCurrentSearchTerm(inputValue);
-              }}
-              value={[
-                ...selectedKnowledgeIds.map(id => 
-                  baseKnowledgeOptions.find(option => option.value === `knowledge_${id}`)
-                ).filter(Boolean),
-                ...selectedDocumentIds.map(id => 
-                  baseKnowledgeOptions.find(option => option.value === `document_${id}`)
-                ).filter(Boolean),
-                ...selectedTextIds.map(id => 
-                  baseKnowledgeOptions.find(option => option.value === `text_${id}`)
-                ).filter(Boolean)
-              ]}
-              onChange={handleKnowledgeChange}
-              onFocus={() => {
-                if (!userInteracted) {
-                  setUserInteracted(true);
-                }
-              }}
-              onMenuOpen={() => {
-                if (!userInteracted) {
-                  setUserInteracted(true);
-                }
-              }}
-              closeMenuOnSelect={false}
-              hideSelectedOptions={true}
-              isClearable={false}
-              isSearchable={true}
-              blurInputOnSelect={true}
-              openMenuOnFocus={false}
-              tabSelectsValue={true}
-              captureMenuScroll={false}
-              menuShouldBlockScroll={false}
-              menuShouldScrollIntoView={false}
-              menuPortalTarget={null}
-              tabIndex={tabIndex}
-              noOptionsMessage={() => {
-                if (currentSearchTerm && currentSearchTerm.trim()) {
-                  return `Keine Ergebnisse für "${currentSearchTerm}"`;
-                }
-                return source.type === 'user' && (enableDocuments || enableTexts) 
-                  ? `Kein Wissen${enableDocuments ? ' oder Dokumente' : ''}${enableTexts ? ' oder Texte' : ''} verfügbar`
-                  : 'Kein Wissen verfügbar';
-              }}
-            />
-          </FormFieldWrapper>
+            if (isLoadingAllGroups || documentsLoading || isLoadingTexts) {
+              return 'Lade verfügbare Inhalte...';
+            }
+            if (hasGroupErrors) {
+              return 'Fehler beim Laden einiger Gruppeninhalte';
+            }
+            return 'Keine Inhalte verfügbar. Erstelle Wissen, lade Dokumente hoch oder teile Inhalte mit Gruppen.';
+          }}
+        />
+      </FormFieldWrapper>
+
+      {/* Loading status for groups */}
+      {isLoadingAllGroups && (
+        <div className="enhanced-knowledge-selector__loading">
+          Lade Gruppeninhalte...
         </div>
       )}
 
-      {/* Show message when no knowledge/documents/texts are available for selection (but not when neutral source) */}
-      {enableKnowledge && knowledgeOptions.length === 0 && !disabled && source.type !== 'neutral' && (
-        <p className="knowledge-selector__no-options">
-          {source.type === 'user' && (enableDocuments || enableTexts) ? (
-            <>
-              Kein Wissen{enableDocuments ? ', Dokumente' : ''}{enableTexts ? ' oder Texte' : ''} verfügbar.<br />
-              {enableDocuments && 'Lade zuerst Dokumente in deinem Profil hoch, '}
-              {enableTexts && 'erstelle Texte mit den Generatoren, '}
-              oder erstelle Wissen.
-            </>
-          ) : (
-            'Kein Wissen verfügbar für die aktuelle Auswahl.'
-          )}
+      {/* Error status for groups */}
+      {groupContentErrors.length > 0 && (
+        <div className="enhanced-knowledge-selector__errors">
+          Einige Gruppeninhalte konnten nicht geladen werden: {groupContentErrors.map(e => e.groupName).join(', ')}
+        </div>
+      )}
+
+      {/* Show message when no content is available */}
+      {knowledgeOptions.length === 0 && !disabled && !isLoadingAllGroups && (
+        <p className="enhanced-knowledge-selector__no-options">
+          Keine Inhalte verfügbar.<br />
+          Erstelle Wissen in deinem Profil, lade Dokumente hoch, generiere Texte oder teile Inhalte mit Gruppen.
         </p>
       )}
 
-
       {/* Document Content Extraction Status */}
       {enableDocuments && selectedDocumentIds.length > 0 && isExtractingDocumentContent && documentExtractionInfo && (
-        <div className={`knowledge-selector__extraction-status extraction-status--${documentExtractionInfo.type}`}>
+        <div className={`enhanced-knowledge-selector__extraction-status extraction-status--${documentExtractionInfo.type}`}>
           <div className="extraction-status__icon">
             {documentExtractionInfo.type === 'vector_search' && (
               <div className="extraction-status__spinner"></div>
@@ -594,25 +685,62 @@ const KnowledgeSelector = ({
   );
 };
 
+EnhancedKnowledgeSelector.propTypes = {
+  onKnowledgeSelection: PropTypes.func,
+  disabled: PropTypes.bool,
+  tabIndex: PropTypes.number
+};
+
+EnhancedKnowledgeSelector.displayName = 'EnhancedKnowledgeSelector';
+
+/**
+ * Main KnowledgeSelector component - now combines ProfileSelector and EnhancedKnowledgeSelector
+ */
+const KnowledgeSelector = ({ 
+  onKnowledgeSelection, 
+  disabled = false,
+  tabIndex,
+  sourceTabIndex,
+  showProfileSelector = true,
+  ...rest
+}) => {
+  const { user } = useAuth();
+  
+  if (!user) {
+    return null;
+  }
+
+  return (
+    <div className="knowledge-selector-wrapper">
+      {/* Profile selector for instructions only */}
+      {showProfileSelector && (
+        <ProfileSelector 
+          disabled={disabled}
+          tabIndex={sourceTabIndex || tabIndex}
+        />
+      )}
+      
+      {/* Enhanced knowledge selector for all content */}
+      <EnhancedKnowledgeSelector
+        onKnowledgeSelection={onKnowledgeSelection}
+        disabled={disabled}
+        tabIndex={tabIndex}
+        {...rest}
+      />
+    </div>
+  );
+};
+
 KnowledgeSelector.propTypes = {
   onKnowledgeSelection: PropTypes.func,
   disabled: PropTypes.bool,
   tabIndex: PropTypes.number,
   sourceTabIndex: PropTypes.number,
-  documentTabIndex: PropTypes.number
+  showProfileSelector: PropTypes.bool
 };
 
 KnowledgeSelector.displayName = 'KnowledgeSelector';
 
-// Memoize the component with optimized comparison to prevent unnecessary re-renders
-const areEqual = (prevProps, nextProps) => {
-  return (
-    prevProps.disabled === nextProps.disabled &&
-    prevProps.onKnowledgeSelection === nextProps.onKnowledgeSelection &&
-    prevProps.tabIndex === nextProps.tabIndex &&
-    prevProps.sourceTabIndex === nextProps.sourceTabIndex &&
-    prevProps.documentTabIndex === nextProps.documentTabIndex
-  );
-};
-
-export default memo(KnowledgeSelector, areEqual); 
+// Export both components
+export { ProfileSelector, EnhancedKnowledgeSelector };
+export default memo(KnowledgeSelector); 
