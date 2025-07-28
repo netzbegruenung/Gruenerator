@@ -54,20 +54,21 @@ router.post('/', async (req, res) => {
 
     const generator = generators[0];
     
-    // Check if generator has associated documents
-    const { data: generatorDocuments, error: documentsError } = await supabaseService
-      .from('custom_generator_documents')
-      .select('document_id')
-      .eq('custom_generator_id', generator.id);
+    // Check if user has completed documents (using user-level access pattern)
+    const { data: userDocuments, error: documentsError } = await supabaseService
+      .from('documents')
+      .select('id')
+      .eq('user_id', generator.user_id)
+      .eq('status', 'completed');
 
     if (documentsError) {
-      console.warn('[custom_generator] Error fetching generator documents:', documentsError);
+      console.warn('[custom_generator] Error fetching user documents:', documentsError);
     }
 
-    const hasDocuments = generatorDocuments && generatorDocuments.length > 0;
-    const documentIds = hasDocuments ? generatorDocuments.map(gd => gd.document_id) : null;
+    const hasDocuments = userDocuments && userDocuments.length > 0;
+    const documentIds = hasDocuments ? userDocuments.map(doc => doc.id) : null;
 
-    console.log(`[custom_generator] Generator "${generator.name}" has ${hasDocuments ? documentIds.length : 0} associated documents`);
+    console.log(`[custom_generator] Generator "${generator.name}" has access to ${hasDocuments ? documentIds.length : 0} user documents`);
 
     // Platzhalter im Prompt mit den Formulardaten ersetzen
     let processedPrompt = generator.prompt;
@@ -600,44 +601,23 @@ router.get('/:id/documents', requireAuth, async (req, res) => {
       return res.status(403).json({ error: 'Keine Berechtigung zum Zugriff auf diesen Generator.' });
     }
 
-    // Fetch associated documents
-    const { data: generatorDocuments, error: documentsError } = await supabaseService
-      .from('custom_generator_documents')
-      .select(`
-        id,
-        document_id,
-        created_at,
-        documents:document_id (
-          id,
-          title,
-          filename,
-          status,
-          page_count,
-          created_at
-        )
-      `)
-      .eq('custom_generator_id', id);
+    // Fetch user's completed documents (using existing user-level access pattern)
+    const { data: documents, error: documentsError } = await supabaseService
+      .from('documents')
+      .select('id, title, filename, status, page_count, created_at')
+      .eq('user_id', generator.user_id)
+      .eq('status', 'completed')
+      .order('created_at', { ascending: false });
 
     if (documentsError) {
       console.error('[custom_generator_documents_get] Error fetching documents:', documentsError);
       return res.status(500).json({ error: 'Fehler beim Laden der Dokumente: ' + documentsError.message });
     }
 
-    // Format the response
-    const documents = (generatorDocuments || []).map(gd => ({
-      id: gd.documents.id,
-      title: gd.documents.title,
-      filename: gd.documents.filename,
-      status: gd.documents.status,
-      page_count: gd.documents.page_count,
-      created_at: gd.documents.created_at,
-      added_to_generator_at: gd.created_at
-    }));
-
-    console.log(`[custom_generator_documents_get] Found ${documents.length} documents for generator ${generator.name}`);
+    console.log(`[custom_generator_documents_get] Found ${documents?.length || 0} documents for generator ${generator.name}`);
     res.json({ 
       success: true, 
-      documents,
+      documents: documents || [],
       generator: {
         id: generator.id,
         name: generator.name
@@ -714,32 +694,13 @@ router.post('/:id/documents', requireAuth, async (req, res) => {
       });
     }
 
-    // Prepare data for insertion (avoiding duplicates)
-    const documentsToAdd = documentIds.map(docId => ({
-      custom_generator_id: id,
-      document_id: docId,
-      created_at: new Date().toISOString()
-    }));
-
-    // Insert documents (using upsert to handle duplicates gracefully)
-    const { data: insertedDocs, error: insertError } = await supabaseService
-      .from('custom_generator_documents')
-      .upsert(documentsToAdd, { 
-        onConflict: 'custom_generator_id,document_id',
-        ignoreDuplicates: true 
-      })
-      .select();
-
-    if (insertError) {
-      console.error('[custom_generator_documents_post] Error inserting documents:', insertError);
-      return res.status(500).json({ error: 'Fehler beim Hinzufügen der Dokumente: ' + insertError.message });
-    }
-
-    console.log(`[custom_generator_documents_post] Added ${insertedDocs?.length || 0} documents to generator ${generator.name}`);
+    // With user-level access, all user's completed documents are automatically available to their generators
+    // So we just validate the documents and return success
+    console.log(`[custom_generator_documents_post] All ${documentIds.length} documents are automatically available to generator ${generator.name} via user-level access`);
     res.json({ 
       success: true, 
-      message: `${documentIds.length} Dokument(e) erfolgreich hinzugefügt.`,
-      addedCount: insertedDocs?.length || 0
+      message: `Alle Ihre abgeschlossenen Dokumente sind automatisch für diesen Generator verfügbar.`,
+      note: 'Mit der vereinfachten Zugriffskontrolle sind alle Ihre Dokumente automatisch für Ihre Generatoren verfügbar.'
     });
 
   } catch (error) {
@@ -783,22 +744,12 @@ router.delete('/:id/documents/:documentId', requireAuth, async (req, res) => {
       return res.status(403).json({ error: 'Keine Berechtigung zum Bearbeiten dieses Generators.' });
     }
 
-    // Remove the document association
-    const { error: deleteError } = await supabaseService
-      .from('custom_generator_documents')
-      .delete()
-      .eq('custom_generator_id', id)
-      .eq('document_id', documentId);
-
-    if (deleteError) {
-      console.error('[custom_generator_documents_delete] Error removing document:', deleteError);
-      return res.status(500).json({ error: 'Fehler beim Entfernen des Dokuments: ' + deleteError.message });
-    }
-
-    console.log(`[custom_generator_documents_delete] Removed document ${documentId} from generator ${generator.name}`);
+    // With user-level access, documents are automatically managed and cannot be individually removed
+    console.log(`[custom_generator_documents_delete] Document removal not needed - all user documents are automatically available to generator ${generator.name}`);
     res.json({ 
       success: true, 
-      message: 'Dokument erfolgreich entfernt.'
+      message: 'Mit der vereinfachten Zugriffskontrolle sind alle Ihre Dokumente automatisch verfügbar.',
+      note: 'Einzelne Dokumente können nicht mehr entfernt werden, da alle Ihre abgeschlossenen Dokumente automatisch für Ihre Generatoren verfügbar sind.'
     });
 
   } catch (error) {

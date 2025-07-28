@@ -173,11 +173,17 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
         console.log('[PresseSocialGenerator] No custom instructions or knowledge for generation.');
       }
 
-      const content = await submitForm(formDataToSubmit);
-      if (content) {
-        setSocialMediaContent(content);
-        setGeneratedText(componentName, content);
-        setTimeout(resetSuccess, 3000);
+      const response = await submitForm(formDataToSubmit);
+      if (response) {
+        // Handle both old string format and new {content, metadata} format
+        const content = typeof response === 'string' ? response : response.content;
+        const metadata = typeof response === 'object' ? response.metadata : {};
+        
+        if (content) {
+          setSocialMediaContent(content);
+          setGeneratedText(componentName, content, metadata);
+          setTimeout(resetSuccess, 3000);
+        }
       }
     } catch (submitError) {
       console.error('[PresseSocialGenerator] Error submitting form:', submitError);

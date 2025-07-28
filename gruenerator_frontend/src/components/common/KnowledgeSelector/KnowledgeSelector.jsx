@@ -8,6 +8,8 @@ import { useGroups, useAllGroupsContent } from '../../../features/auth/utils/gro
 import { useBetaFeatures } from '../../../hooks/useBetaFeatures';
 import { useDocumentsStore } from '../../../stores/documentsStore';
 import { useAuth } from '../../../hooks/useAuth';
+import { FaBrain } from 'react-icons/fa';
+import { HiDocument, HiDocumentText } from 'react-icons/hi';
 
 // Knowledge type icons (SVG icons as components) - Extracted outside for performance
 const KnowledgeIcon = memo(({ type, size = 16 }) => {
@@ -28,32 +30,19 @@ const KnowledgeIcon = memo(({ type, size = 16 }) => {
     case 'knowledge':
     case 'wissen':
       return (
-        <svg className={iconClass} width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
-          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H6.5A2.5 2.5 0 0 0 4 4.5v15z"/>
-          <path d="M4 11h16"/>
-          <path d="M4 7h16"/>
-        </svg>
+        <FaBrain className={iconClass} size={size} />
       );
     case 'document':
     case 'dokument':
     case 'user_document':
     case 'group_document':
       return (
-        <svg className={iconClass} width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
-          <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9l-7-7z"/>
-          <polyline points="13,2 13,9 20,9"/>
-        </svg>
+        <HiDocument className={iconClass} size={size} />
       );
     case 'text':
     case 'user_text':
       return (
-        <svg className={iconClass} width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z"/>
-          <polyline points="14,2 14,8 20,8"/>
-          <line x1="16" y1="13" x2="8" y2="13"/>
-          <line x1="16" y1="17" x2="8" y2="17"/>
-          <line x1="12" y1="9" x2="8" y2="9"/>
-        </svg>
+        <HiDocumentText className={iconClass} size={size} />
       );
     default:
       return (
@@ -75,9 +64,16 @@ KnowledgeIcon.propTypes = {
 // Source tag component for showing content origin
 const SourceTag = memo(({ source, groupName }) => {
   if (source === 'user') {
-    return <span className="source-tag source-tag--user">[Mein Profil]</span>;
+    return <span className="source-tag source-tag--user">Mein Profil</span>;
   }
-  return <span className="source-tag source-tag--group">[Gruppe: {groupName}]</span>;
+  return (
+    <span className="source-tag source-tag--group">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" className="source-tag__icon">
+        <path d="M16 4c0-1.11.89-2 2-2s2 .89 2 2c0 1.11-.89 2-2 2s-2-.89-2-2zM4 18v-1c0-2.66 5.33-4 8-4s8 1.34 8 4v1H4zM12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4z"/>
+      </svg>
+      {groupName}
+    </span>
+  );
 });
 
 SourceTag.propTypes = {
@@ -427,19 +423,23 @@ const EnhancedKnowledgeSelector = ({
   // Sorted and filtered options based on current search term
   const knowledgeOptions = useMemo(() => {
     if (!currentSearchTerm || currentSearchTerm.trim() === '') {
-      // No search term - return all options sorted by source, type priority and recency
+      // No search term - return all options sorted with knowledge items first
       return allKnowledgeOptions.sort((a, b) => {
-        // Primary sort: source type (user first, then groups)
-        const sourceOrder = { user: 0, group: 1 };
-        const sourceDiff = (sourceOrder[a.sourceType] || 2) - (sourceOrder[b.sourceType] || 2);
-        if (sourceDiff !== 0) return sourceDiff;
+        // Primary sort: knowledge items first (user knowledge, then group knowledge)
+        const getPriority = (item) => {
+          if (item.sourceType === 'user' && item.itemType === 'knowledge') return 0;
+          if (item.sourceType === 'group' && item.itemType === 'knowledge') return 1;
+          if (item.sourceType === 'user' && item.itemType === 'text') return 2;
+          if (item.sourceType === 'group' && item.itemType === 'text') return 3;
+          if (item.sourceType === 'user' && item.itemType === 'document') return 4;
+          if (item.sourceType === 'group' && item.itemType === 'document') return 5;
+          return 6; // fallback
+        };
         
-        // Secondary sort: content type priority
-        const typeOrder = { knowledge: 0, text: 1, document: 2 };
-        const typeDiff = (typeOrder[a.itemType] || 3) - (typeOrder[b.itemType] || 3);
-        if (typeDiff !== 0) return typeDiff;
+        const priorityDiff = getPriority(a) - getPriority(b);
+        if (priorityDiff !== 0) return priorityDiff;
         
-        // Tertiary sort: recency (newer first)
+        // Secondary sort: recency (newer first)
         const aDate = new Date(a.created_at || 0);
         const bDate = new Date(b.created_at || 0);
         return bDate - aDate;
@@ -460,33 +460,23 @@ const EnhancedKnowledgeSelector = ({
     return scoredOptions;
   }, [allKnowledgeOptions, currentSearchTerm, calculateRelevanceScore]);
 
-  // Enhanced option formatter with source tags and larger size
-  const formatOptionLabel = useCallback(({ type, label, subtitle, sourceTag }, { context }) => {
+  // Enhanced option formatter with source tags - title only for compact display
+  const formatOptionLabel = useCallback(({ type, label, sourceTag }, { context }) => {
     // Show enhanced layout only in the dropdown menu
     if (context === 'menu') {
       const highlightedLabel = currentSearchTerm ? 
         highlightSearchTerm(label, currentSearchTerm) : label;
-      const highlightedSubtitle = currentSearchTerm && subtitle ? 
-        highlightSearchTerm(subtitle, currentSearchTerm) : subtitle;
       
       return (
         <div className="knowledge-option-enhanced">
-          <KnowledgeIcon type={type} size={20} />
+          <KnowledgeIcon type={type} size={16} />
           <div className="knowledge-option__content">
-            <div className="knowledge-option__main">
-              <span 
-                className="knowledge-option__label"
-                dangerouslySetInnerHTML={{ __html: highlightedLabel }}
-              />
-              {sourceTag && <SourceTag {...sourceTag} />}
-            </div>
-            {subtitle && (
-              <span 
-                className="knowledge-option__subtitle"
-                dangerouslySetInnerHTML={{ __html: highlightedSubtitle }}
-              />
-            )}
+            <span 
+              className="knowledge-option__label"
+              dangerouslySetInnerHTML={{ __html: highlightedLabel }}
+            />
           </div>
+          {sourceTag && <SourceTag {...sourceTag} />}
         </div>
       );
     }
