@@ -163,11 +163,17 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
         console.log('[AntragGenerator] No custom instructions or knowledge for generation.');
       }
 
-      const content = await submitForm(formDataToSubmit);
-      if (content) {
-        setAntragContent(content);
-        setGeneratedText(componentName, content);
-        setTimeout(resetSuccess, 3000);
+      const response = await submitForm(formDataToSubmit);
+      if (response) {
+        // Handle both old string format and new {content, metadata} format
+        const content = typeof response === 'string' ? response : response.content;
+        const metadata = typeof response === 'object' ? response.metadata : {};
+        
+        if (content) {
+          setAntragContent(content);
+          setGeneratedText(componentName, content, metadata);
+          setTimeout(resetSuccess, 3000);
+        }
       }
     } catch (submitError) {
       console.error('[AntragGenerator] Error submitting form:', submitError);
@@ -276,14 +282,14 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
     tabIndex: tabIndex.webSearch
   };
 
-  const bundestagDocumentSelector = bundestagApiEnabled ? (
-    <BundestagDocumentSelector
-      onDocumentSelection={setSelectedBundestagDocuments}
-      disabled={loading}
-      tabIndex={tabIndex.bundestagDocuments}
-      searchQuery={`${getValues('idee')} ${getValues('details')}`.trim()}
-    />
-  ) : null;
+  // const bundestagDocumentSelector = bundestagApiEnabled ? (
+  //   <BundestagDocumentSelector
+  //     onDocumentSelection={setSelectedBundestagDocuments}
+  //     disabled={loading}
+  //     tabIndex={tabIndex.bundestagDocuments}
+  //     searchQuery={`${getValues('idee')} ${getValues('details')}`.trim()}
+  //   />
+  // ) : null;
 
   return (
     <ErrorBoundary>
@@ -310,7 +316,7 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
           knowledgeSourceSelectorTabIndex={baseFormTabIndex.knowledgeSourceSelectorTabIndex}
           documentSelectorTabIndex={baseFormTabIndex.documentSelectorTabIndex}
           submitButtonTabIndex={baseFormTabIndex.submitButtonTabIndex}
-          firstExtrasChildren={bundestagDocumentSelector}
+          // firstExtrasChildren={bundestagDocumentSelector}
         >
           {renderFormInputs()}
         </BaseForm>

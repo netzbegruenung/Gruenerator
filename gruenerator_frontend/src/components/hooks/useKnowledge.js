@@ -132,7 +132,7 @@ const useKnowledge = ({
   } = useQuery({
     queryKey: ['userData', user?.id], 
     queryFn: fetchUserData,
-    enabled: !!user && source.type === 'user',
+    enabled: !!user, // Always load user data when user is authenticated
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 15 * 60 * 1000, // 15 minutes (was cacheTime in v4)
     refetchOnWindowFocus: false,
@@ -182,8 +182,15 @@ const useKnowledge = ({
     // Source changed
     
     if (source.type === 'neutral') {
-      // Clearing knowledge - neutral source
-      clearKnowledge();
+      // For neutral source, still load user knowledge but no instructions
+      if (userData) {
+        setAvailableKnowledge(userData.knowledge);
+        setInstructions({ antrag: null, antragGliederung: null, social: null, universal: null, gruenejugend: null });
+        setInstructionsActive(false);
+      } else {
+        clearKnowledge();
+      }
+      setLoading(isLoadingUserData);
     } else if (source.type === 'user') {
       // Trigger refetch if needed
       if (!!user && !userData && !isLoadingUserData) {
@@ -197,12 +204,17 @@ const useKnowledge = ({
       // Update loading state
       setLoading(isLoadingUserData);
     } else if (source.type === 'group') {
-      // Update knowledge when data is available
+      // For group source, load user knowledge but use group instructions (if any)
+      if (userData) {
+        setAvailableKnowledge(userData.knowledge);
+      }
       if (groupKnowledge && groupKnowledge.length >= 0) {
-        updateGroupKnowledge(groupKnowledge);
+        // Group knowledge is handled separately in the KnowledgeSelector via useAllGroupsContent
+        // We just need to activate instructions
+        setInstructionsActive(true);
       }
       // Update loading state
-      setLoading(isLoadingGroupKnowledge);
+      setLoading(isLoadingUserData || isLoadingGroupKnowledge);
     }
   }, [
     source, 
@@ -215,7 +227,10 @@ const useKnowledge = ({
     updateUserKnowledge,
     updateGroupKnowledge, 
     clearKnowledge,
-    setLoading
+    setLoading,
+    setAvailableKnowledge,
+    setInstructions,
+    setInstructionsActive
   ]);
 
   // Preload documents when enabled and user source is selected

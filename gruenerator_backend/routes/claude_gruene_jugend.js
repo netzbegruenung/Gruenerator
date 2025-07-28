@@ -3,7 +3,9 @@ const router = express.Router();
 const {
   HTML_FORMATTING_INSTRUCTIONS,
   isStructuredPrompt,
-  formatUserContent
+  formatUserContent,
+  TITLE_GENERATION_INSTRUCTION,
+  processResponseWithTitle
 } = require('../utils/promptUtils');
 
 const platformGuidelines = {
@@ -158,6 +160,9 @@ Aktuelles Datum: ${currentDate}
 ${baseContent}`;
     }
 
+    // Add title generation instruction to user content
+    userContent += TITLE_GENERATION_INSTRUCTION;
+
     const payload = {
       systemPrompt,
       messages: [{
@@ -187,9 +192,10 @@ ${baseContent}`;
       throw new Error(result.error);
     }
 
+    const processedResult = processResponseWithTitle(result, '/claude_gruene_jugend', { thema, details, platforms });
     const response = { 
-      content: result.content,
-      metadata: result.metadata
+      content: processedResult.content,
+      metadata: processedResult.metadata
     };
     console.log('[claude_gruene_jugend] Sende erfolgreiche Antwort:', {
       contentLength: response.content?.length,

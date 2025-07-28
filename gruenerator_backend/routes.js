@@ -144,7 +144,8 @@ async function setupRoutes(app) {
   app.use('/api/claude_gruenerator_ask', claudeGrueneratorAskRoute);
   app.use('/api/claude_gruenerator_ask_grundsatz', claudeGrueneratorAskGrundsatzRoute);
   app.use('/api/you', claudeYouRoute);
-  app.use('/api/auth/custom_generator', customGeneratorRoute);
+  app.use('/api/custom_generator', customGeneratorRoute); // Public access for view operations
+  app.use('/api/auth/custom_generator', customGeneratorRoute); // Authenticated access for management operations
   app.use('/api/generate_generator_config', generatorConfiguratorRoute);
   app.use('/api/claude/generate-short-subtitles', claudeSubtitlesRoute);
 

@@ -25,12 +25,24 @@ const useGeneratedTextStore = create((set, get) => ({
   },
   
   // Set generated text for a specific component
-  setGeneratedText: (componentName, text) => set((state) => ({
-    generatedTexts: {
-      ...state.generatedTexts,
-      [componentName]: text
+  setGeneratedText: (componentName, text, metadata = null) => set((state) => {
+    const newState = {
+      generatedTexts: {
+        ...state.generatedTexts,
+        [componentName]: text
+      }
+    };
+    
+    // Also set metadata if provided
+    if (metadata) {
+      newState.generatedTextMetadata = {
+        ...state.generatedTextMetadata,
+        [componentName]: metadata
+      };
     }
-  })),
+    
+    return newState;
+  }),
   
   // Set metadata for a specific component (e.g., sources for ask feature)
   setGeneratedTextMetadata: (componentName, metadata) => set((state) => ({

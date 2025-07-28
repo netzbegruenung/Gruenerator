@@ -10,6 +10,9 @@ import ErrorBoundary from '../../components/ErrorBoundary';
 import '../../assets/styles/components/custom-generator/custom-generator-page.css';
 import apiClient from '../../components/utils/apiClient';
 import useGeneratedTextStore from '../../stores/core/generatedTextStore';
+import { useGeneratorKnowledgeStore } from '../../stores/core/generatorKnowledgeStore';
+import useKnowledge from '../../components/hooks/useKnowledge';
+import { createKnowledgePrompt } from '../../utils/knowledgeFormUtils';
 
 const CustomGeneratorPage = ({ showHeaderFooter = true }) => {
   const { slug } = useParams();
@@ -22,6 +25,22 @@ const CustomGeneratorPage = ({ showHeaderFooter = true }) => {
   
   // Use generatedTextStore instead of FormContext
   const { setGeneratedText } = useGeneratedTextStore();
+
+  // Initialize knowledge system with UI configuration
+  useKnowledge({ 
+    instructionType: 'custom_generator', 
+    ui: {
+      enableKnowledge: true,
+      enableDocuments: true,
+      enableTexts: true
+    }
+  });
+
+  // Store integration - all knowledge and instructions from store
+  const {
+    getKnowledgeContent,
+    getDocumentContent
+  } = useGeneratorKnowledgeStore();
 
   // Create default values for react-hook-form
   const defaultValues = {};
@@ -102,9 +121,17 @@ const CustomGeneratorPage = ({ showHeaderFooter = true }) => {
         });
       }
 
+      // Add knowledge content to the submission
+      const knowledgePrompt = createKnowledgePrompt({
+        instructionType: 'custom_generator',
+        getKnowledgeContent,
+        getDocumentContent
+      });
+
       const response = await submitForm({
         slug,
-        formData: formDataToSubmit
+        formData: formDataToSubmit,
+        knowledgeContent: knowledgePrompt
       });
       
       const content = response?.content || (typeof response === 'string' ? response : '');
@@ -188,6 +215,7 @@ const CustomGeneratorPage = ({ showHeaderFooter = true }) => {
               <p className="generator-description">{generatorConfig.description}</p>
             )
           }
+          showProfileSelector={false}
         >
           {renderFormInputs()}
         </BaseForm>

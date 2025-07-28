@@ -1,6 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const { HTML_FORMATTING_INSTRUCTIONS } = require('../../utils/promptUtils');
+const { 
+  HTML_FORMATTING_INSTRUCTIONS,
+  TITLE_GENERATION_INSTRUCTION,
+  processResponseWithTitle
+} = require('../../utils/promptUtils');
 const { processBundestagDocuments } = require('../../utils/bundestagUtils');
 
 // Web Search Tool Configuration
@@ -160,6 +164,9 @@ ${HTML_FORMATTING_INSTRUCTIONS}`;
                    `\n\nWICHTIG: Antworte ausschließlich auf Deutsch. Gib nur das finale Dokument aus, keine Zwischenschritte oder Erklärungen.\n\n${HTML_FORMATTING_INSTRUCTIONS}`;
     }
     
+    // Add title generation instruction to user content
+    userContent += TITLE_GENERATION_INSTRUCTION;
+    
     // Simple debug logging for prompt visualization
     console.log('\n📄 [ANTRAG DEBUG] Vollständiger Prompt:');
     console.log('System:', systemPrompt);
@@ -190,11 +197,12 @@ ${HTML_FORMATTING_INSTRUCTIONS}`;
       throw new Error(result.error);
     }
     
-    // Enhanced response with web search and Bundestag API metadata
+    // Process response with title generation and preserve existing metadata
+    const processedResult = processResponseWithTitle(result, '/antraege/antrag_simple', { requestType, idee, details, gliederung });
     const responseData = {
-      content: result.content,
+      content: processedResult.content,
       metadata: {
-        ...result.metadata,
+        ...processedResult.metadata,
         webSearchUsed: useWebSearchTool || false,
         bundestagApiUsed: useBundestagApi || false,
         bundestagDocumentsUsed: bundestagDocuments ? bundestagDocuments.totalResults : 0

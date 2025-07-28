@@ -232,6 +232,7 @@
 .source-tag {
   display: inline-flex;
   align-items: center;
+  gap: var(--spacing-xxsmall);
   padding: var(--spacing-xxsmall) var(--spacing-xsmall);
   border-radius: var(--card-border-radius-small);
   font-size: 0.75rem;
@@ -239,20 +240,26 @@
   line-height: 1.2;
   margin-left: var(--spacing-xsmall);
   border: 1px solid var(--grey-300);
-  background-color: var(--grey-100);
-  color: var(--grey-700);
+  background-color: transparent;
+  color: var(--font-color);
+}
+
+.source-tag__icon {
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
 }
 
 .source-tag--user {
-  background-color: var(--secondary-50);
+  background-color: transparent;
   border-color: var(--secondary-200);
-  color: var(--secondary-700);
+  color: var(--font-color);
 }
 
 .source-tag--group {
-  background-color: var(--primary-50);
+  background-color: transparent;
   border-color: var(--primary-200);
-  color: var(--primary-700);
+  color: var(--font-color);
 }
 
 /* Enhanced Knowledge Selector */
@@ -333,12 +340,17 @@
   border-radius: var(--card-border-radius-medium) !important;
   box-shadow: var(--card-shadow-elevated) !important;
   z-index: 2000 !important; /* Higher than default for React Portal */
+  max-height: 400px !important; /* Increased from default ~300px to show more options */
+  min-width: 320px !important; /* Minimum width for readability */
+  max-width: 450px !important; /* Maximum width to prevent excessive expansion */
+  width: 400px !important; /* Fixed width for consistency */
+  transform: translateX(-20%) !important; /* Adjusted centering for new width */
 }
 
 .enhanced-knowledge-select__option {
   background-color: transparent !important;
   color: var(--font-color) !important;
-  padding: var(--spacing-small) var(--spacing-medium) !important;
+  padding: var(--spacing-xsmall) var(--spacing-small) !important;
   cursor: pointer !important;
   font-size: var(--form-element-font-size) !important;
 }
@@ -393,37 +405,39 @@
   display: flex;
   align-items: center;
   gap: var(--spacing-small);
-  padding: var(--spacing-small) 0;
+  padding: var(--spacing-xxsmall) 0;
 }
 
 .knowledge-option-enhanced .knowledge-option__icon {
   flex-shrink: 0;
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
 }
 
 .knowledge-option-enhanced .knowledge-option__content {
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-xxsmall);
-}
-
-.knowledge-option-enhanced .knowledge-option__main {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-xsmall);
+  min-width: 0; /* Allow flex items to shrink below content size */
+  max-width: 280px; /* Constrain content width to allow space for source tag */
 }
 
 .knowledge-option-enhanced .knowledge-option__label {
   font-weight: 500;
-  line-height: 1.3;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%; /* Ensure ellipsis works within content container */
+  display: block;
 }
 
-.knowledge-option-enhanced .knowledge-option__subtitle {
-  font-size: 0.75rem;
-  color: var(--font-color-disabled);
-  line-height: 1.2;
+.knowledge-option-enhanced .source-tag {
+  margin-left: var(--spacing-small);
+  align-self: center;
+  flex-shrink: 0;
+  max-width: 100px; /* Limit source tag width */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Selected Option Display */
@@ -483,21 +497,21 @@
 
 /* Dark theme support for new elements */
 [data-theme="dark"] .source-tag {
-  background-color: var(--grey-800);
+  background-color: transparent;
   border-color: var(--grey-600);
-  color: var(--grey-300);
+  color: var(--font-color);
 }
 
 [data-theme="dark"] .source-tag--user {
-  background-color: var(--secondary-800);
+  background-color: transparent;
   border-color: var(--secondary-600);
-  color: var(--secondary-300);
+  color: var(--font-color);
 }
 
 [data-theme="dark"] .source-tag--group {
-  background-color: var(--primary-800);
+  background-color: transparent;
   border-color: var(--primary-600);
-  color: var(--primary-300);
+  color: var(--font-color);
 }
 
 [data-theme="dark"] .enhanced-knowledge-selector__errors {
@@ -509,21 +523,21 @@
 /* prefers-color-scheme: dark support */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .source-tag {
-    background-color: var(--grey-800);
+    background-color: transparent;
     border-color: var(--grey-600);
-    color: var(--grey-300);
+    color: var(--font-color);
   }
 
   :root:not([data-theme="light"]) .source-tag--user {
-    background-color: var(--secondary-800);
+    background-color: transparent;
     border-color: var(--secondary-600);
-    color: var(--secondary-300);
+    color: var(--font-color);
   }
 
   :root:not([data-theme="light"]) .source-tag--group {
-    background-color: var(--primary-800);
+    background-color: transparent;
     border-color: var(--primary-600);
-    color: var(--primary-300);
+    color: var(--font-color);
   }
 
   :root:not([data-theme="light"]) .enhanced-knowledge-selector__errors {

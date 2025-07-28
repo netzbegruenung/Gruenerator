@@ -38,6 +38,7 @@ import useResponsive from '../hooks/useResponsive';
  * @param {node} props.firstExtrasChildren - Zusätzliche Extras-Komponenten am Anfang des Formulars
  * @param {boolean} props.hideExtrasSection - Verstecke die Extras-Sektion komplett
  * @param {boolean} props.showSubmitButtonInInputSection - Zeige Submit-Button in der Input-Sektion statt Extras-Sektion
+ * @param {boolean} props.showProfileSelector - Zeige Profile Selector in KnowledgeSelector
  * @returns {JSX.Element} Formular-Sektion
  */
 const FormSection = forwardRef(({
@@ -75,7 +76,8 @@ const FormSection = forwardRef(({
   knowledgeSelectorTabIndex = 14,
   knowledgeSourceSelectorTabIndex = 13,
   documentSelectorTabIndex = 15,
-  submitButtonTabIndex = 17
+  submitButtonTabIndex = 17,
+  showProfileSelector = true
 }, ref) => {
   const formContainerClasses = `form-container ${isFormVisible ? 'visible' : ''}`;
   const { isMobileView } = useResponsive();
@@ -160,6 +162,7 @@ const FormSection = forwardRef(({
                 knowledgeSourceSelectorTabIndex={knowledgeSourceSelectorTabIndex}
                 documentSelectorTabIndex={documentSelectorTabIndex}
                 submitButtonTabIndex={submitButtonTabIndex}
+                showProfileSelector={showProfileSelector}
               >
                 {extrasChildren}
               </FormExtrasSection>
