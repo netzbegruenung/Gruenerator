@@ -10,7 +10,9 @@ const {
   HTML_FORMATTING_INSTRUCTIONS,
   PLATFORM_SPECIFIC_GUIDELINES,
   isStructuredPrompt,
-  formatUserContent
+  formatUserContent,
+  TITLE_GENERATION_INSTRUCTION,
+  processResponseWithTitle
 } = require('../utils/promptUtils');
 
 // Create authenticated router (same pattern as authCore.mjs and mem0.mjs)
@@ -119,6 +121,9 @@ Zitat von: ${zitatgeber}` : ''}
 ${baseContent}`;
     }
 
+    // Add title generation instruction to user content
+    userContent += TITLE_GENERATION_INSTRUCTION;
+
     // Prepare AI Worker payload
     const payload = {
       systemPrompt,
@@ -157,10 +162,11 @@ ${baseContent}`;
       throw new Error(result.error);
     }
 
-    // Prepare response
+    // Prepare response with title processing
+    const processedResult = processResponseWithTitle(result, '/claude_social', { thema, details, platforms, was, wie, zitatgeber });
     const response = { 
-      content: result.content,
-      metadata: result.metadata
+      content: processedResult.content,
+      metadata: processedResult.metadata
     };
     
     console.log('[claude_social] Sending successful response:', {

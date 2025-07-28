@@ -22,6 +22,7 @@ import { useGeneratorKnowledgeStore } from '../../../../stores/core/generatorKno
  * @param {boolean} props.showSubmitButton - Soll Submit-Button angezeigt werden
  * @param {node} props.children - Zusätzliche Extra-Komponenten
  * @param {node} props.firstExtrasChildren - Zusätzliche Extra-Komponenten als erstes Element
+ * @param {boolean} props.showProfileSelector - Zeige Profile Selector in KnowledgeSelector
  * @returns {JSX.Element} Formular-Extras Sektion
  */
 const FormExtrasSection = ({
@@ -41,7 +42,8 @@ const FormExtrasSection = ({
   knowledgeSelectorTabIndex = 14,
   knowledgeSourceSelectorTabIndex = 13,
   documentSelectorTabIndex = 15,
-  submitButtonTabIndex = 17
+  submitButtonTabIndex = 17,
+  showProfileSelector = true
 }) => {
   // Simplified store access
   const { source, availableKnowledge } = useGeneratorKnowledgeStore();
@@ -79,6 +81,7 @@ const FormExtrasSection = ({
             tabIndex={knowledgeSelectorTabIndex}
             sourceTabIndex={knowledgeSourceSelectorTabIndex}
             documentTabIndex={documentSelectorTabIndex}
+            showProfileSelector={showProfileSelector}
           />
         </div>
 

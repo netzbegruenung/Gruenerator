@@ -742,6 +742,9 @@ const GroupsManagementTab = ({ onSuccessMessage, onErrorMessage, isActive }) => 
     const [selectedGroupId, setSelectedGroupId] = useState(null);
     const [groupDetailView, setGroupDetailView] = useState('anweisungen-wissen');
     
+    // Track whether initial auto-selection has been performed
+    const hasInitialAutoSelection = useRef(false);
+    
     // Tab index configuration
     const tabIndex = useTabIndex('PROFILE_GROUPS');
     
@@ -789,10 +792,17 @@ const GroupsManagementTab = ({ onSuccessMessage, onErrorMessage, isActive }) => 
     // Auto-select logic & handle group deletion side effects
     useEffect(() => {
         if (userGroups) {
-            if (userGroups.length === 1 && !selectedGroupId && currentView === 'overview') {
-                setSelectedGroupId(userGroups[0].id);
-                setCurrentView('group');
-            } else if (userGroups.length === 0) {
+            // Only auto-select on initial load, not when user manually navigates
+            if (!hasInitialAutoSelection.current) {
+                if (userGroups.length === 1 && !selectedGroupId && currentView === 'overview') {
+                    setSelectedGroupId(userGroups[0].id);
+                    setCurrentView('group');
+                }
+                hasInitialAutoSelection.current = true;
+            }
+            
+            // Always handle the case where user has no groups
+            if (userGroups.length === 0) {
                 setSelectedGroupId(null);
                 if (currentView !== 'overview') {
                     setCurrentView('overview');
@@ -1057,7 +1067,7 @@ const GroupsManagementTab = ({ onSuccessMessage, onErrorMessage, isActive }) => 
                             <div className="profile-actions">
                                 <button 
                                     type="submit" 
-                                    className="profile-action-button profile-primary-button"
+                                    className="btn-primary size-m"
                                     disabled={isCreatingGroup || !getCreateGroupValues().groupName?.trim()}
                                     tabIndex={tabIndex.createSubmitButton}
                                 >
@@ -1066,7 +1076,7 @@ const GroupsManagementTab = ({ onSuccessMessage, onErrorMessage, isActive }) => 
                                 <button 
                                     type="button" 
                                     onClick={handleCancelCreate}
-                                    className="profile-action-button"
+                                    className="btn-primary size-m"
                                     disabled={isCreatingGroup}
                                     tabIndex={tabIndex.createCancelButton}
                                 >

@@ -102,6 +102,7 @@ const BaseForm = ({
   platformSelectorTabIndex = 12,
   knowledgeSelectorTabIndex = 14,
   knowledgeSourceSelectorTabIndex = 13,
+  showProfileSelector = true,
   documentSelectorTabIndex = 15,
   submitButtonTabIndex = 17
 }) => {
@@ -363,6 +364,7 @@ const BaseForm = ({
                   knowledgeSourceSelectorTabIndex={knowledgeSourceSelectorTabIndex}
                   documentSelectorTabIndex={documentSelectorTabIndex}
                   submitButtonTabIndex={submitButtonTabIndex}
+                  showProfileSelector={showProfileSelector}
                 >
                   {children}
                 </FormSection>

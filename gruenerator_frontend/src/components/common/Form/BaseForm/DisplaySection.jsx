@@ -51,6 +51,7 @@ const DisplaySection = forwardRef(({
   const { user } = useLazyAuth(); // Keep for other auth functionality
   const { getBetaFeatureState } = useBetaFeatures();
   const storeGeneratedText = useGeneratedTextStore(state => state.getGeneratedText(componentName));
+  const storeGeneratedTextMetadata = useGeneratedTextStore(state => state.getGeneratedTextMetadata(componentName));
   const streamingContent = useGeneratedTextStore(state => state.streamingContent);
   const isStreaming = useGeneratedTextStore(state => state.isStreaming);
   const isLoading = useGeneratedTextStore(state => state.isLoading);
@@ -116,7 +117,7 @@ const DisplaySection = forwardRef(({
         documentId: documentId, 
         content: currentExportableContent,
         userId: user?.id || null,
-        title: title || 'Unbenanntes Dokument',
+        title: storeGeneratedTextMetadata?.title || title || 'Unbenanntes Dokument',
         documentType: 'text'
       });
 
@@ -131,12 +132,16 @@ const DisplaySection = forwardRef(({
 
   const handleSaveToLibrary = React.useCallback(async () => {
     try {
-      await saveToLibrary(currentExportableContent, title || 'Unbenannter Text', 'universal');
+      // Priority: metadata title > prop title > fallback
+      const titleToUse = storeGeneratedTextMetadata?.title || title || 'Unbenannter Text';
+      console.log('[DisplaySection] Saving with title:', titleToUse, 'from metadata:', !!storeGeneratedTextMetadata?.title);
+      
+      await saveToLibrary(currentExportableContent, titleToUse, storeGeneratedTextMetadata?.contentType || 'universal');
     } catch (error) {
       // Error handling is managed by the hook
       console.error("[DisplaySection] Save to library failed:", error);
     }
-  }, [currentExportableContent, title, saveToLibrary]);
+  }, [currentExportableContent, title, storeGeneratedTextMetadata, saveToLibrary]);
 
   return (
     <div className="display-container" id="display-section-container" ref={ref}>
@@ -161,7 +166,7 @@ const DisplaySection = forwardRef(({
             exportableContent={currentExportableContent}
             generatedPost={generatedPost}
             generatedContent={activeContent}
-            title={title}
+            title={storeGeneratedTextMetadata?.title || title}
           />
       </div>
       {helpContent && (
