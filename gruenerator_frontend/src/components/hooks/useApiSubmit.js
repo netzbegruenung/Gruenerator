@@ -206,17 +206,17 @@ const useApiSubmit = (endpoint) => {
             setSuccess(true);
             // Add memory for successful antrag generation
             addMemoryInBackground(endpoint, formData, response, memoryEnabled);
-            return response.content; // Return just the content string
+            return response; // Return full response with metadata for title extraction
           } else if (response.metadata && response.metadata.content) {
             setSuccess(true);
             // Add memory for successful antrag generation
             addMemoryInBackground(endpoint, formData, response, memoryEnabled);
-            return response.metadata.content; // Return just the content string
+            return { content: response.metadata.content, metadata: response.metadata }; // Return structured response
           } else if (typeof response === 'string') {
             setSuccess(true);
             // Add memory for successful antrag generation
             addMemoryInBackground(endpoint, formData, response, memoryEnabled);
-            return response;
+            return { content: response, metadata: {} }; // Wrap string response for consistency
           }
         }
       } else if (endpoint === 'analyze') {
@@ -266,13 +266,13 @@ const useApiSubmit = (endpoint) => {
           setSuccess(true);
           // Add memory for successful social media generation
           addMemoryInBackground(endpoint, formData, response, memoryEnabled);
-          return response.content; // Return only the content string
+          return response; // Return full response with metadata for title extraction
         } else if (response && typeof response === 'string') {
           // Fallback if response is already a string
           setSuccess(true);
           // Add memory for successful social media generation
           addMemoryInBackground(endpoint, formData, response, memoryEnabled);
-          return response;
+          return { content: response, metadata: {} }; // Wrap string response for consistency
         }
       } else if (endpoint === '/claude_gruene_jugend') {
         console.log('[useApiSubmit] Processing claude_gruene_jugend response:', response);
@@ -280,13 +280,13 @@ const useApiSubmit = (endpoint) => {
           setSuccess(true);
           // Add memory for successful gruene jugend generation
           addMemoryInBackground(endpoint, formData, response, memoryEnabled);
-          return response.content; // Return only the content string
+          return response; // Return full response with metadata for title extraction
         } else if (response && typeof response === 'string') {
           // Fallback if response is already a string
           setSuccess(true);
           // Add memory for successful gruene jugend generation
           addMemoryInBackground(endpoint, formData, response, memoryEnabled);
-          return response;
+          return { content: response, metadata: {} }; // Wrap string response for consistency
         }
       } else if (endpoint === '/claude_gruenerator_ask') {
         console.log('[useApiSubmit] Processing claude_gruenerator_ask response:', response);
@@ -336,7 +336,13 @@ const useApiSubmit = (endpoint) => {
         setSuccess(true);
         // Add memory for successful generation (fallback)
         addMemoryInBackground(endpoint, formData, response, memoryEnabled);
-        return response;
+        // If response has content and metadata structure, preserve it; otherwise return as-is
+        if (response.content && response.metadata) {
+          return response; // Already structured response
+        } else if (typeof response === 'string') {
+          return { content: response, metadata: {} }; // Wrap string for consistency
+        }
+        return response; // Return as-is for other structured responses
       }
 
       throw new Error('Leere Antwort von der KI erhalten.');

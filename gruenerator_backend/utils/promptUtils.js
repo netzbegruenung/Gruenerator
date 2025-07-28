@@ -630,6 +630,132 @@ function generateSmartTitle(contentType, formData = {}, extractedTitle = null) {
   }
 }
 
+// Title generation instruction to append to user content
+const TITLE_GENERATION_INSTRUCTION = `\n\nBeende mit: <GRUEN_TITLE>[Kurzer Titel]</GRUEN_TITLE>`;
+
+/**
+ * Extracts title from AI response content
+ * @param {string} content - The AI response content
+ * @param {string} contentType - The detected content type
+ * @param {Object} formData - The original form data for fallback title generation
+ * @returns {string} Extracted or generated title
+ */
+function extractTitleFromResponse(content, contentType, formData = {}) {
+  if (!content || typeof content !== 'string') {
+    return generateSmartTitle(contentType, formData);
+  }
+
+  console.log('[extractTitleFromResponse] Processing content length:', content.length);
+  console.log('[extractTitleFromResponse] Content preview (last 200 chars):', content.substring(content.length - 200));
+
+  // Multiple regex patterns to handle different title formats
+  const titlePatterns = [
+    // Primary: Custom XML-style markers
+    /<GRUEN_TITLE>(.*?)<\/GRUEN_TITLE>/s,
+    
+    // Legacy HTML format: "<h2>Titel:</h2><p>Title Here</p>" (with possible whitespace)
+    /<h[2-6]>Titel:<\/h[2-6]>\s*<p>(.+?)<\/p>/i,
+    
+    // Legacy HTML format: "<h2>Titel:</h2>\n\n<p>Title Here</p>" (with newlines)
+    /<h[2-6]>Titel:<\/h[2-6]>\s*\n\s*<p>(.+?)<\/p>/i,
+    
+    // Legacy plain text format: "Titel: Title Here"
+    /Titel:\s*(.+)$/im,
+    
+    // Alternative HTML format: "<p>Title Here</p>" as last paragraph after "Titel:"
+    /Titel:<\/h[2-6]>\s*(?:\n\s*)*<p>(.+?)<\/p>/i,
+    
+    // Final fallback: Last <p> tag in content (might contain title)
+    /<p>([^<]+)<\/p>\s*$/i
+  ];
+  
+  for (let i = 0; i < titlePatterns.length; i++) {
+    const pattern = titlePatterns[i];
+    const titleMatch = content.match(pattern);
+    
+    console.log(`[extractTitleFromResponse] Trying pattern ${i + 1}:`, pattern.toString());
+    
+    if (titleMatch && titleMatch[1]) {
+      let extractedTitle = titleMatch[1].trim();
+      
+      console.log(`[extractTitleFromResponse] Pattern ${i + 1} matched:`, extractedTitle);
+      
+      // Skip if extracted text contains HTML tags (except for pattern 1 which is our primary method)
+      if (i > 0 && (extractedTitle.includes('<') || extractedTitle.includes('>'))) {
+        console.log(`[extractTitleFromResponse] Skipping pattern ${i + 1} - contains HTML tags`);
+        continue;
+      }
+      
+      // Remove common punctuation at the end
+      extractedTitle = extractedTitle.replace(/[.!?]+$/, '');
+      
+      // Truncate to reasonable length for UI
+      if (extractedTitle.length > 60) {
+        extractedTitle = extractedTitle.substring(0, 60).trim() + '...';
+      }
+      
+      if (extractedTitle.length > 0) {
+        console.log(`[extractTitleFromResponse] Successfully extracted title using pattern ${i + 1}:`, extractedTitle);
+        return extractedTitle;
+      }
+    } else {
+      console.log(`[extractTitleFromResponse] Pattern ${i + 1} did not match`);
+    }
+  }
+  
+  console.log('[extractTitleFromResponse] No title pattern matched, falling back to smart title generation');
+  
+  // Fallback to smart title generation
+  return generateSmartTitle(contentType, formData);
+}
+
+
+/**
+ * Processes AI response to extract title and enhance metadata
+ * @param {Object} result - AI worker result object
+ * @param {string} routePath - Route path for content type detection
+ * @param {Object} formData - Original form data
+ * @returns {Object} Enhanced result with title in metadata
+ */
+function processResponseWithTitle(result, routePath, formData = {}) {
+  if (!result || !result.success || !result.content) {
+    return result;
+  }
+  
+  // Detect content type based on route and form data
+  const contentType = detectContentType(routePath, formData);
+  
+  // Extract title from response
+  const extractedTitle = extractTitleFromResponse(result.content, contentType, formData);
+  
+  // Clean content by removing title markers if they were extracted
+  let cleanContent = result.content;
+  
+  // Remove GRUEN_TITLE markers if present
+  const gruentitleMatch = result.content.match(/<GRUEN_TITLE>.*?<\/GRUEN_TITLE>/s);
+  if (gruentitleMatch) {
+    cleanContent = result.content.replace(/<GRUEN_TITLE>.*?<\/GRUEN_TITLE>/s, '').trim();
+    console.log('[processResponseWithTitle] Removed GRUEN_TITLE markers from content');
+  } else {
+    // Fallback: Remove legacy title line if present
+    const titleMatch = result.content.match(/Titel:\s*(.+)$/im);
+    if (titleMatch) {
+      cleanContent = result.content.replace(/\n*Titel:\s*(.+)$/im, '').trim();
+      console.log('[processResponseWithTitle] Removed legacy title line from content');
+    }
+  }
+  
+  return {
+    ...result,
+    content: cleanContent,
+    metadata: {
+      ...result.metadata,
+      title: extractedTitle,
+      contentType: contentType
+    }
+  };
+}
+
 module.exports = {
   HTML_FORMATTING_INSTRUCTIONS,
   PLATFORM_SPECIFIC_GUIDELINES,
@@ -638,10 +764,13 @@ module.exports = {
   JSON_OUTPUT_FORMATTING_INSTRUCTIONS,
   SEARCH_DOCUMENTS_TOOL,
   WEB_SEARCH_TOOL,
+  TITLE_GENERATION_INSTRUCTION,
   extractCitationsFromText,
   processAIResponseWithCitations,
   isStructuredPrompt,
   formatUserContent,
   detectContentType,
-  generateSmartTitle
+  generateSmartTitle,
+  extractTitleFromResponse,
+  processResponseWithTitle
 }; 

@@ -1,7 +1,9 @@
 const express = require('express');
 const {
   HTML_FORMATTING_INSTRUCTIONS,
-  formatUserContent
+  formatUserContent,
+  TITLE_GENERATION_INSTRUCTION,
+  processResponseWithTitle
 } = require('../utils/promptUtils');
 
 // Router for Universal Text Generation
@@ -76,6 +78,9 @@ Aktuelles Datum: ${currentDate}
 ${baseContent}`;
   }
 
+  // Add title generation instruction to user content
+  userContent += TITLE_GENERATION_INSTRUCTION;
+
   const payload = {
     systemPrompt,
     messages: [
@@ -101,9 +106,10 @@ ${baseContent}`;
       throw new Error(result.error);
     }
 
+    const processedResult = processResponseWithTitle(result, '/claude_universal', { textForm, sprache, thema, details });
     res.json({ 
-      content: result.content.trim(),
-      metadata: result.metadata
+      content: processedResult.content.trim(),
+      metadata: processedResult.metadata
     });
   } catch (error) {
     console.error('Fehler bei der Texterstellung:', error);
@@ -185,6 +191,9 @@ Aktuelles Datum: ${currentDate}
 ${speechBaseContent}`;
     }
 
+    // Add title generation instruction to user content
+    userContent += TITLE_GENERATION_INSTRUCTION;
+
     const payload = {
       systemPrompt,
       messages: [{
@@ -207,7 +216,12 @@ ${speechBaseContent}`;
     });
 
     if (!result.success) throw new Error(result.error);
-    res.json({ content: result.content });
+    
+    const processedResult = processResponseWithTitle(result, '/claude_rede', { rolle, thema, Zielgruppe, schwerpunkte, redezeit });
+    res.json({ 
+      content: processedResult.content,
+      metadata: processedResult.metadata
+    });
   } catch (error) {
     console.error('Fehler bei der Redenerstellung:', error);
     res.status(500).json({ error: error.message });
@@ -272,6 +286,9 @@ Das Kapitel soll etwa ${zeichenanzahl} Zeichen umfassen.
 ${wahlprogrammBaseContent}`;
   }
 
+  // Add title generation instruction to user content
+  userContent += TITLE_GENERATION_INSTRUCTION;
+
   const payload = {
     systemPrompt,
     messages: [{ role: 'user', content: userContent }],
@@ -291,9 +308,11 @@ ${wahlprogrammBaseContent}`;
     });
 
     if (!result.success) throw new Error(result.error);
+    
+    const processedResult = processResponseWithTitle(result, '/claude_wahlprogramm', { thema, details, zeichenanzahl });
     res.json({ 
-      content: result.content,
-      metadata: result.metadata
+      content: processedResult.content,
+      metadata: processedResult.metadata
     });
   } catch (error) {
     console.error('Fehler bei der Wahlprogramm-Erstellung:', error);
