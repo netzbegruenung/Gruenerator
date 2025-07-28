@@ -215,7 +215,7 @@ class CanvaApiClient {
         ...assetOptions
       };
 
-      const response = await this.client.post('/assets/uploads', payload);
+      const response = await this.client.post('/asset-uploads', payload);
       
       if (response.data && response.data.job) {
         console.log('[CanvaAPI] Successfully initiated asset upload:', response.data.job.id);
@@ -237,7 +237,7 @@ class CanvaApiClient {
   async getUploadJobStatus(jobId) {
     try {
       console.log(`[CanvaAPI] Checking upload job status: ${jobId}`);
-      const response = await this.client.get(`/assets/uploads/${jobId}`);
+      const response = await this.client.get(`/asset-uploads/${jobId}`);
       
       if (response.data && response.data.job) {
         console.log(`[CanvaAPI] Upload job ${jobId} status: ${response.data.job.status}`);
@@ -252,37 +252,99 @@ class CanvaApiClient {
   }
 
   /**
-   * List user's assets
+   * List user's assets using folders API
    * @param {Object} options - Query options
    * @returns {Promise<Object>} Object containing assets array and pagination info
    */
   async listAssets(options = {}) {
     try {
-      const { limit = 10, continuation_token, ...filters } = options;
+      const { limit = 10, continuation, sort_by = 'created_descending', ...filters } = options;
       
-      console.log('[CanvaAPI] Listing assets with options:', { limit, ...filters });
+      console.log('[CanvaAPI] Listing assets via folders API with options:', { limit, sort_by, ...filters });
       
       const params = {
+        item_types: 'image', // Only get image assets for now
         limit: Math.min(limit, 100),
-        ...(continuation_token && { continuation_token }),
+        sort_by,
+        ...(continuation && { continuation }),
         ...filters
       };
 
-      const response = await this.client.get('/assets', { params });
+      // Use folders API to list assets from user's root folder
+      const response = await this.client.get('/folders/root/items', { params });
       
-      if (response.data) {
-        console.log(`[CanvaAPI] Successfully listed ${response.data.assets?.length || 0} assets`);
+      if (response.data && response.data.items) {
+        // Extract image assets from the items array
+        const assets = response.data.items
+          .filter(item => item.type === 'image' && item.image)
+          .map(item => item.image);
+        
+        console.log(`[CanvaAPI] Successfully listed ${assets.length} assets from folders API`);
         return {
-          assets: response.data.assets || [],
-          has_more: response.data.has_more || false,
-          continuation_token: response.data.continuation_token || null
+          assets: assets,
+          has_more: !!response.data.continuation,
+          continuation_token: response.data.continuation || null
         };
       }
       
       return { assets: [], has_more: false, continuation_token: null };
     } catch (error) {
-      console.error('[CanvaAPI] Error listing assets:', error.message);
+      console.error('[CanvaAPI] Error listing assets via folders API:', error.message);
       throw new Error(`Failed to list assets: ${error.message}`);
+    }
+  }
+
+  /**
+   * Upload an asset from URL to Canva
+   * @param {Object} assetData - Asset URL upload parameters
+   * @returns {Promise<Object>} Upload job object
+   */
+  async uploadAssetFromUrl(assetData) {
+    try {
+      const { name, url, tags, ...options } = assetData;
+      
+      console.log(`[CanvaAPI] Uploading asset from URL: "${name}"`);
+      
+      const payload = {
+        name,
+        url,
+        ...(tags && tags.length > 0 && { tags }),
+        ...options
+      };
+
+      const response = await this.client.post('/url-asset-uploads', payload);
+      
+      if (response.data && response.data.job) {
+        console.log('[CanvaAPI] Successfully initiated URL asset upload:', response.data.job.id);
+        return response.data.job;
+      }
+      
+      throw new Error('No upload job data returned');
+    } catch (error) {
+      console.error('[CanvaAPI] Error uploading asset from URL:', error.message);
+      throw new Error(`Failed to upload asset from URL: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get URL upload job status
+   * @param {string} jobId - Upload job ID
+   * @returns {Promise<Object>} Job status object
+   */
+  async getUrlUploadJobStatus(jobId) {
+    try {
+      console.log(`[CanvaAPI] Checking URL upload job status: ${jobId}`);
+      const response = await this.client.get(`/url-asset-uploads/${jobId}`);
+      
+      if (response.data && response.data.job) {
+        console.log(`[CanvaAPI] URL upload job ${jobId} status: ${response.data.job.status}`);
+        return response.data.job;
+      }
+      
+      throw new Error('Job not found');
+    } catch (error) {
+      console.error(`[CanvaAPI] Error checking URL upload job ${jobId}:`, error.message);
+      throw new Error(`Failed to get URL upload job status: ${error.message}`);
     }
   }
 
