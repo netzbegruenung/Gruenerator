@@ -577,7 +577,7 @@ class OCRService {
   }
 
   /**
-   * Extract text from PDF using Mistral AI
+   * Extract text from PDF using Mistral AI OCR API
    * @param {string} pdfPath - Path to PDF file
    * @returns {Promise<{text: string, pageCount: number}>} Extracted text and page count
    */
@@ -598,7 +598,7 @@ class OCRService {
       const pdfBuffer = await fs.readFile(pdfPath);
       console.log(`[OCRService] Uploading ${Math.round(pdfBuffer.length / 1024)} KB PDF to Mistral`);
       
-      // Upload PDF file to Mistral
+      // Upload PDF file to Mistral for OCR processing
       const uploadedFile = await client.files.upload({
         file: {
           fileName: path.basename(pdfPath),
@@ -607,30 +607,41 @@ class OCRService {
         purpose: "ocr"
       });
       
-      // Process with vision model for markdown output
-      const response = await client.chat.complete({
-        model: "pixtral-large-latest",
-        messages: [{
-          role: "user", 
-          content: [
-            { 
-              type: "text", 
-              text: "Extrahiere den gesamten Text aus diesem PDF und formatiere ihn als sauberes Markdown mit ordentlichen Überschriften, Listen und Struktur. Verwende ## für Seitenüberschriften wie '## Seite 1', '## Seite 2' usw. Behalte die ursprüngliche Struktur und Formatierung bei. Erstelle eine professionelle, lesbare Markdown-Version des Dokuments."
-            },
-            { 
-              type: "file", 
-              file_id: uploadedFile.id 
-            }
-          ]
-        }],
-        temperature: 0.1 // Low temperature for consistent OCR results
+      // Get signed URL for the uploaded file
+      const signedUrl = await client.files.getSignedUrl({
+        fileId: uploadedFile.id,
+        expiry: 1 // 1 hour expiry
       });
       
-      const markdownText = response.choices[0].message.content;
-      console.log(`[OCRService] Mistral OCR completed: ${markdownText.length} characters extracted`);
+      console.log(`[OCRService] File uploaded, processing with Mistral OCR API`);
       
-      // Estimate page count from markdown headers
-      const pageCount = this.estimatePageCountFromMarkdown(markdownText);
+      // Process with dedicated OCR endpoint
+      const response = await client.ocr.process({
+        model: "mistral-ocr-latest",
+        document: {
+          type: "document_url",
+          documentUrl: signedUrl.url,
+          documentName: path.basename(pdfPath)
+        },
+        includeImageBase64: true // Include images for comprehensive extraction
+      });
+      
+      // Extract markdown content from OCR response
+      let markdownText = '';
+      if (response.pages && response.pages.length > 0) {
+        markdownText = response.pages.map((page, index) => {
+          let pageContent = `## Seite ${page.index || index + 1}\n\n`;
+          if (page.markdown) {
+            pageContent += page.markdown;
+          }
+          return pageContent;
+        }).join('\n\n');
+      }
+      
+      console.log(`[OCRService] Mistral OCR completed: ${markdownText.length} characters extracted from ${response.pages?.length || 0} pages`);
+      
+      // Get actual page count from response
+      const pageCount = response.pages?.length || this.estimatePageCountFromMarkdown(markdownText);
       
       // Clean up the uploaded file (optional, Mistral will auto-delete after some time)
       try {
