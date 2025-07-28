@@ -15,6 +15,30 @@ const DEFAULT_SORT_OPTIONS = [
     { value: 'word_count', label: 'Wortanzahl' }
 ];
 
+// Helper function to truncate content for preview display
+const truncateForPreview = (content, maxLength = 300) => {
+    if (!content || typeof content !== 'string') return '';
+    if (content.length <= maxLength) return content;
+    
+    // Try to cut at sentence boundaries
+    const truncated = content.substring(0, maxLength);
+    const lastSentence = truncated.lastIndexOf('.');
+    const lastSpace = truncated.lastIndexOf(' ');
+    
+    // If we have a sentence boundary within reasonable distance, use it
+    if (lastSentence > maxLength * 0.7) {
+        return truncated.substring(0, lastSentence + 1);
+    }
+    // Otherwise, cut at word boundary
+    else if (lastSpace > maxLength * 0.8) {
+        return truncated.substring(0, lastSpace) + '...';
+    }
+    // Fallback: hard cut with ellipsis
+    else {
+        return truncated + '...';
+    }
+};
+
 const DocumentOverview = ({
     documents = [], // backward compatibility - will also accept 'items'
     items, // new generic prop for any type of items
@@ -561,7 +585,7 @@ const DocumentOverview = ({
                         </>
                     ) : (
                         <p className="content-preview">
-                            {item.full_content || item.content_preview || 'Kein Inhalt verfügbar'}
+                            {truncateForPreview(item.full_content || item.content_preview || item.ocr_text) || 'Kein Inhalt verfügbar'}
                         </p>
                     )}
                 </div>
@@ -719,7 +743,7 @@ const DocumentOverview = ({
         const itemTitle = itemType === 'qa' ? selectedItem.name : selectedItem.title;
         const previewContent = itemType === 'qa' 
             ? selectedItem.description || selectedItem.custom_prompt || 'Keine Beschreibung verfügbar'
-            : selectedItem.full_content || selectedItem.content_preview || 'Kein Inhalt verfügbar';
+            : selectedItem.full_content || selectedItem.content_preview || selectedItem.ocr_text || 'Kein Inhalt verfügbar';
 
         return (
             <motion.div 

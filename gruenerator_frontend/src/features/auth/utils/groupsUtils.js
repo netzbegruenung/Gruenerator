@@ -3,7 +3,7 @@
  * Similar to anweisungenWissen but for groups functionality
  */
 
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { useGroupsUiStore } from '../../../stores/auth/groupsUiStore';
@@ -727,6 +727,145 @@ export const useGroupSharing = (groupId, { isActive } = {}) => {
     // UI State management
     isSaving,
     clearMessages
+  };
+};
+
+/**
+ * Hook for loading content from all user groups simultaneously
+ * This is used by KnowledgeSelector to get a unified view of all group content
+ */
+export const useAllGroupsContent = ({ isActive, enabled = true } = {}) => {
+  const { user, isAuthenticated, loading: authLoading } = useOptimizedAuth();
+  const { userGroups: groups, isLoadingGroups } = useGroups({ isActive });
+  
+  // We'll use individual useGroupSharing hooks for each group
+  // This ensures we reuse the existing, working logic
+  const groupContentQueries = useMemo(() => {
+    if (!groups?.length) return [];
+    
+    return groups.map(group => ({
+      groupId: group.id,
+      groupName: group.name
+    }));
+  }, [groups]);
+
+  // For now, we'll create a custom hook that fetches from all groups
+  // We can't use multiple useGroupSharing hooks dynamically, so we'll implement
+  // a similar pattern but for multiple groups
+  const queryClient = useQueryClient();
+  
+  // Query key for all groups content
+  const allGroupsContentQueryKey = ['allGroupsContent', user?.id];
+  
+  // Fetch content from all groups using the same pattern as useGroupSharing
+  const fetchAllGroupsContentFn = async () => {
+    if (!user?.id || !groups?.length) {
+      return { allContent: [], errors: [] };
+    }
+
+    const allContent = [];
+    const errors = [];
+    
+    for (const group of groups) {
+      try {
+        console.log('[useAllGroupsContent] Fetching content for group:', group.name);
+        
+        const response = await fetch(`${AUTH_BASE_URL}/auth/groups/${group.id}/content`, {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ 
+            message: `Fehler beim Laden der Inhalte für Gruppe ${group.name}` 
+          }));
+          throw new Error(errorData.message || 'Ein unbekannter Fehler ist aufgetreten.');
+        }
+
+        const data = await response.json();
+        
+        if (data.content) {
+          // Add group context to all items (same as KnowledgeSelector was doing)
+          const groupKnowledge = (data.content.knowledge || []).map(item => ({
+            ...item,
+            sourceType: 'group',
+            groupId: group.id,
+            groupName: group.name
+          }));
+          
+          const groupDocuments = (data.content.documents || []).map(item => ({
+            ...item,
+            sourceType: 'group',
+            groupId: group.id,
+            groupName: group.name
+          }));
+          
+          const groupTexts = (data.content.texts || []).map(item => ({
+            ...item,
+            sourceType: 'group',
+            groupId: group.id,
+            groupName: group.name
+          }));
+          
+          allContent.push(...groupKnowledge, ...groupDocuments, ...groupTexts);
+        }
+        
+        console.log('[useAllGroupsContent] Successfully loaded content for group:', group.name);
+      } catch (error) {
+        console.error(`[useAllGroupsContent] Error loading content for group ${group.name}:`, error);
+        errors.push({ groupName: group.name, error: error.message });
+      }
+    }
+    
+    return { allContent, errors };
+  };
+
+  // React Query for fetching all groups content
+  const query = useQuery({
+    queryKey: allGroupsContentQueryKey,
+    queryFn: fetchAllGroupsContentFn,
+    enabled: enabled && !!user?.id && !!groups?.length && isAuthenticated && !authLoading && !isLoadingGroups,
+    staleTime: 2 * 60 * 1000, // 2 minutes (same as useGroupSharing)
+    cacheTime: 15 * 60 * 1000, // Keep data in cache for 15 minutes
+    refetchOnWindowFocus: false,
+    refetchOnMount: 'always',
+    refetchOnReconnect: 'always',
+    retry: (failureCount) => failureCount < 2,
+    refetchInterval: isActive ? 5 * 60 * 1000 : false, // Auto-refetch every 5 min when active
+  });
+
+  // Force refetch when tab becomes active and data is stale
+  useEffect(() => {
+    if (isActive && query.isStale && !query.isFetching) {
+      console.log('[useAllGroupsContent] Tab activated and data is stale, refetching all groups content');
+      query.refetch();
+    }
+  }, [isActive, query.isStale, query.isFetching, query.refetch]);
+
+  return {
+    // Data
+    allGroupContent: query.data?.allContent || [],
+    groupContentErrors: query.data?.errors || [],
+    hasGroupErrors: (query.data?.errors || []).length > 0,
+    
+    // Loading states
+    isLoadingAllGroupsContent: query.isLoading || isLoadingGroups,
+    isFetchingAllGroupsContent: query.isFetching,
+    
+    // Error states
+    isErrorAllGroupsContent: query.isError,
+    errorAllGroupsContent: query.error,
+    
+    // Actions
+    refetchAllGroupsContent: query.refetch,
+    
+    // Invalidate cache when needed
+    invalidateAllGroupsContent: () => {
+      queryClient.invalidateQueries({ queryKey: allGroupsContentQueryKey });
+    }
   };
 };
 

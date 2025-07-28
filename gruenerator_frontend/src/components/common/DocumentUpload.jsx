@@ -5,6 +5,7 @@ import { useDocumentsStore } from '../../stores/documentsStore';
 import { useOptimizedAuth } from '../../hooks/useAuth';
 import { validateUrl, normalizeUrl, generateTitleFromUrl } from '../../utils/urlValidation';
 import Spinner from './Spinner';
+import FeatureToggle from './FeatureToggle';
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 const ACCEPTED_FILE_TYPES = [
@@ -445,49 +446,34 @@ const DocumentUpload = forwardRef(({
                   {uploadMode === 'file' ? (
                     <>
                       <div className="form-field-wrapper">
-                        {/* File Drop Zone */}
-                        <div
-                          className={`file-dropzone ${dragActive ? 'active' : ''} ${selectedFile ? 'has-file' : ''}`}
-                          onDragEnter={handleDrag}
-                          onDragLeave={handleDrag}
-                          onDragOver={handleDrag}
-                          onDrop={handleDrop}
-                          onClick={() => fileInputRef.current?.click()}
-                        >
-                          <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept=".pdf,.docx,.odt,.xls,.xlsx"
-                            onChange={handleInputChange}
-                            style={{ display: 'none' }}
-                          />
-                          
-                          {selectedFile ? (
-                            <div className="file-selected">
-                              <HiDocumentText className="file-icon" />
-                              <span className="file-name">{selectedFile.name}</span>
-                              <span className="file-size">({Math.round(selectedFile.size / 1024)} KB)</span>
-                            </div>
-                          ) : (
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept=".pdf,.docx,.odt,.xls,.xlsx"
+                          onChange={handleInputChange}
+                          style={{ display: 'none' }}
+                        />
+                        
+                        {selectedFile ? (
+                          <div className="file-selected-simple">
+                            <span className="file-name">{selectedFile.name}</span>
+                          </div>
+                        ) : (
+                          <div
+                            className={`file-dropzone ${dragActive ? 'active' : ''}`}
+                            onDragEnter={handleDrag}
+                            onDragLeave={handleDrag}
+                            onDragOver={handleDrag}
+                            onDrop={handleDrop}
+                            onClick={() => fileInputRef.current?.click()}
+                          >
                             <div className="file-placeholder">
                               <HiOutlineDocumentAdd className="upload-icon" />
                               <p>PDF-, DOCX-, ODT- oder Excel-Datei hier ablegen oder klicken zum Auswählen</p>
                               <p className="file-requirements">Max. 1.000 Seiten, 50MB</p>
                             </div>
-                          )}
-                        </div>
-                      </div>
-                      
-                      {/* Website crawling option */}
-                      <div className="form-field-wrapper" style={{ textAlign: 'center', marginTop: 'var(--spacing-small)' }}>
-                        <button
-                          type="button"
-                          onClick={() => setUploadMode('url')}
-                          className="upload-mode-link"
-                          disabled={isUploading}
-                        >
-                          Oder Website crawlen
-                        </button>
+                          </div>
+                        )}
                       </div>
                     </>
                   ) : (
@@ -525,39 +511,6 @@ const DocumentUpload = forwardRef(({
                     </>
                   )}
 
-                  {/* OCR Method Selection - only for PDF file uploads */}
-                  {uploadMode === 'file' && selectedFile && selectedFile.type === 'application/pdf' && (
-                    <div className="form-field-wrapper">
-                      <label className="form-label">
-                        OCR-Methode *
-                      </label>
-                      <div className="ocr-method-selector">
-                        <label className="radio-option">
-                          <input
-                            type="radio"
-                            name="ocrMethod"
-                            value="tesseract"
-                            checked={ocrMethod === 'tesseract'}
-                            onChange={(e) => setOcrMethod(e.target.value)}
-                            disabled={isUploading}
-                          />
-                          <span>Lokale OCR (Tesseract) - Kostenlos</span>
-                        </label>
-                        <label className="radio-option">
-                          <input
-                            type="radio"
-                            name="ocrMethod"
-                            value="mistral"
-                            checked={ocrMethod === 'mistral'}
-                            onChange={(e) => setOcrMethod(e.target.value)}
-                            disabled={isUploading}
-                          />
-                          <span>Mistral AI OCR - Bessere Qualität, strukturiertes Markdown</span>
-                        </label>
-                      </div>
-                    </div>
-                  )}
-
                   {/* Title Input */}
                   {(selectedFile || (uploadMode === 'url' && urlInput.trim())) && (
                     <div className="form-field-wrapper">
@@ -574,6 +527,24 @@ const DocumentUpload = forwardRef(({
                       />
                     </div>
                   )}
+
+                  {/* OCR Method Selection - only for PDF file uploads */}
+                  {/* TEMPORARILY HIDDEN: Mistral OCR option
+                  {uploadMode === 'file' && selectedFile && selectedFile.type === 'application/pdf' && (
+                    <div className="form-field-wrapper">
+                      <label className="form-label">
+                        OCR-Methode
+                      </label>
+                      <FeatureToggle
+                        isActive={ocrMethod === 'mistral'}
+                        onToggle={(enabled) => setOcrMethod(enabled ? 'mistral' : 'tesseract')}
+                        label="Mistral AI OCR"
+                        icon={HiDocumentText}
+                        description="Nicht notwendig für normale Nutzung"
+                      />
+                    </div>
+                  )}
+                  */}
                 </div>
                 <div className="document-preview-actions">
                   <button 
@@ -593,6 +564,16 @@ const DocumentUpload = forwardRef(({
                       uploadMode === 'file' ? 'Hochladen' : 'Website crawlen'
                     )}
                   </button>
+                  {uploadMode === 'file' && selectedFile && (
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="btn-secondary"
+                      disabled={isUploading}
+                    >
+                      Datei ändern
+                    </button>
+                  )}
                   <button 
                     onClick={() => {
                       if (forceShowUploadForm) {
@@ -620,49 +601,34 @@ const DocumentUpload = forwardRef(({
                       Datei hochladen
                     </label>
                     
-                    {/* File Drop Zone */}
-                    <div
-                      className={`file-dropzone ${dragActive ? 'active' : ''} ${selectedFile ? 'has-file' : ''}`}
-                      onDragEnter={handleDrag}
-                      onDragLeave={handleDrag}
-                      onDragOver={handleDrag}
-                      onDrop={handleDrop}
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept=".pdf,.docx,.odt,.xls,.xlsx"
-                        onChange={handleInputChange}
-                        style={{ display: 'none' }}
-                      />
-                      
-                      {selectedFile ? (
-                        <div className="file-selected">
-                          <HiDocumentText className="file-icon" />
-                          <span className="file-name">{selectedFile.name}</span>
-                          <span className="file-size">({Math.round(selectedFile.size / 1024)} KB)</span>
-                        </div>
-                      ) : (
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".pdf,.docx,.odt,.xls,.xlsx"
+                      onChange={handleInputChange}
+                      style={{ display: 'none' }}
+                    />
+                    
+                    {selectedFile ? (
+                      <div className="file-selected-simple">
+                        <span className="file-name">{selectedFile.name}</span>
+                      </div>
+                    ) : (
+                      <div
+                        className={`file-dropzone ${dragActive ? 'active' : ''}`}
+                        onDragEnter={handleDrag}
+                        onDragLeave={handleDrag}
+                        onDragOver={handleDrag}
+                        onDrop={handleDrop}
+                        onClick={() => fileInputRef.current?.click()}
+                      >
                         <div className="file-placeholder">
                           <HiOutlineDocumentAdd className="upload-icon" />
                           <p>PDF-, DOCX-, ODT- oder Excel-Datei hier ablegen oder klicken zum Auswählen</p>
                           <p className="file-requirements">Max. 50 Seiten, 50MB</p>
                         </div>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {/* Website crawling option */}
-                  <div className="form-field-wrapper" style={{ textAlign: 'center', marginTop: 'var(--spacing-small)' }}>
-                    <button
-                      type="button"
-                      onClick={() => setUploadMode('url')}
-                      className="upload-mode-link"
-                      disabled={isUploading}
-                    >
-                      Oder Website crawlen
-                    </button>
+                      </div>
+                    )}
                   </div>
                 </>
               ) : (
@@ -701,39 +667,6 @@ const DocumentUpload = forwardRef(({
                 </>
               )}
 
-              {/* OCR Method Selection - only for PDF file uploads */}
-              {uploadMode === 'file' && selectedFile && selectedFile.type === 'application/pdf' && (
-                <div className="form-field-wrapper">
-                  <label className="form-label">
-                    OCR-Methode *
-                  </label>
-                  <div className="ocr-method-selector">
-                    <label className="radio-option">
-                      <input
-                        type="radio"
-                        name="ocrMethod"
-                        value="tesseract"
-                        checked={ocrMethod === 'tesseract'}
-                        onChange={(e) => setOcrMethod(e.target.value)}
-                        disabled={isUploading}
-                      />
-                      <span>Lokale OCR (Tesseract) - Kostenlos</span>
-                    </label>
-                    <label className="radio-option">
-                      <input
-                        type="radio"
-                        name="ocrMethod"
-                        value="mistral"
-                        checked={ocrMethod === 'mistral'}
-                        onChange={(e) => setOcrMethod(e.target.value)}
-                        disabled={isUploading}
-                      />
-                      <span>Mistral AI OCR - Bessere Qualität, strukturiertes Markdown</span>
-                    </label>
-                  </div>
-                </div>
-              )}
-
               {/* Title Input */}
               {(selectedFile || (uploadMode === 'url' && urlInput.trim())) && (
                 <div className="form-field-wrapper">
@@ -750,6 +683,24 @@ const DocumentUpload = forwardRef(({
                   />
                 </div>
               )}
+
+              {/* OCR Method Selection - only for PDF file uploads */}
+              {/* TEMPORARILY HIDDEN: Mistral OCR option
+              {uploadMode === 'file' && selectedFile && selectedFile.type === 'application/pdf' && (
+                <div className="form-field-wrapper">
+                  <label className="form-label">
+                    OCR-Methode
+                  </label>
+                  <FeatureToggle
+                    isActive={ocrMethod === 'mistral'}
+                    onToggle={(enabled) => setOcrMethod(enabled ? 'mistral' : 'tesseract')}
+                    label="Mistral AI OCR"
+                    icon={HiDocumentText}
+                    description="Nicht notwendig für normale Nutzung"
+                  />
+                </div>
+              )}
+              */}
 
               {/* Action Buttons */}
               <div className="profile-actions" style={{justifyContent: 'flex-start', gap: '10px'}}>
@@ -770,6 +721,16 @@ const DocumentUpload = forwardRef(({
                     uploadMode === 'file' ? 'Hochladen' : 'Website crawlen'
                   )}
                 </button>
+                {uploadMode === 'file' && selectedFile && (
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="btn-secondary"
+                    disabled={isUploading}
+                  >
+                    Datei ändern
+                  </button>
+                )}
                 <button 
                   onClick={() => {
                     if (forceShowUploadForm) {
