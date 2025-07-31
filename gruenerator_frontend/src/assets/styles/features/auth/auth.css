@@ -622,6 +622,11 @@
   margin-top: var(--spacing-small);
 }
 
+/* Override vertical margin for horizontal button layouts in profile-actions */
+.auth-form .profile-actions button + button {
+  margin-top: 0;
+}
+
 .auth-form button.auth-submit-button:hover {
   transform: translateY(-1px);
   box-shadow: var(--shadow-md);
