@@ -9,7 +9,6 @@ import SuspenseWrapper from './components/common/SuspenseWrapper';
 import RouteComponent from './components/routing/RouteComponent';
 import { routes } from './config/routes';
 
-import CustomGeneratorPage from './features/generators/CustomGeneratorPage';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 const PopupNutzungsbedingungen = lazy(() => import('./components/Popups/popup_nutzungsbedingungen'));
@@ -144,7 +143,6 @@ function App() {
                       );
                     })}
 
-                    <Route path="/generator/:slug" element={<CustomGeneratorPage />} />
                   </Routes>
                 </SuspenseWrapper>
               </Router>
