@@ -69,7 +69,7 @@
   "scripts": {
     "start": "vite",
     "start:debug": "NODE_OPTIONS=\"--inspect --max-old-space-size=4096\" vite",
-    "build": "NODE_OPTIONS='--max-old-space-size=1024 --max-semi-space-size=32' vite build",
+    "build": "NODE_OPTIONS='--max-old-space-size=4096 --max-semi-space-size=64' vite build",
     "build:server": "node --max-semi-space-size=32 --gc-global ./node_modules/.bin/vite build",
     "build:debug": "NODE_OPTIONS=\"--inspect --max-old-space-size=6144\" vite build",
     "build:profile": "NODE_OPTIONS=\"--prof --max-old-space-size=6144\" vite build",

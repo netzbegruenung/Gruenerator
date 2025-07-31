@@ -40,12 +40,14 @@ export default defineConfig(({ command }) => ({
       // Memory-efficient treeshaking
       treeshake: {
         preset: 'smallest', // Lighter analysis to reduce memory overhead
-        moduleSideEffects: false
+        moduleSideEffects: false,
+        propertyReadSideEffects: false, // Skip property read side-effect analysis
+        tryCatchDeoptimization: false   // Skip try-catch deoptimization analysis
       },
       // Sequential processing to prevent memory spikes on server
       maxParallelFileOps: 1,
       // Additional memory optimizations
-      experimentalMinChunkSize: 100, // Prevent tiny chunks that increase memory overhead
+      perf: false, // Disable performance timings to save memory
       shimMissingExports: false, // Reduce analysis overhead
       // Manual vendor chunking for memory efficiency
       output: {
