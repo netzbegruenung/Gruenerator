@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { useForm, FormProvider, useFieldArray } from 'react-hook-form';
 import { HiOutlineTrash, HiPlus, HiLink, HiInformationCircle, HiPencil, HiCheck, HiX } from 'react-icons/hi';
 import { useAutosave } from '../../../../hooks/useAutosave';
@@ -19,7 +19,7 @@ import { announceToScreenReader, createInlineEditorFocus } from '../../../../uti
 // Helper function moved to groupsUtils.js
 
 // Component for the Group Detail View
-const GroupDetailView = ({ 
+const GroupDetailView = memo(({ 
     groupId, 
     onSuccessMessage, 
     onErrorMessage,
@@ -45,7 +45,7 @@ const GroupDetailView = ({
             customUniversalPrompt: '',
             knowledge: []
         },
-        mode: 'onChange'
+        mode: 'onSubmit'
     });
     
     const { control, reset, getValues, watch } = formMethods;
@@ -734,7 +734,7 @@ const GroupDetailView = ({
 
         </motion.div>
     );
-};
+});
 
 // Main component for the Groups Management Tab
 const GroupsManagementTab = ({ onSuccessMessage, onErrorMessage, isActive }) => {
@@ -753,7 +753,7 @@ const GroupsManagementTab = ({ onSuccessMessage, onErrorMessage, isActive }) => 
         defaultValues: {
             groupName: ''
         },
-        mode: 'onChange'
+        mode: 'onSubmit'
     });
     
     const { control: createGroupControl, reset: resetCreateGroup, handleSubmit: handleCreateGroupSubmit, getValues: getCreateGroupValues } = createGroupFormMethods;
@@ -770,52 +770,59 @@ const GroupsManagementTab = ({ onSuccessMessage, onErrorMessage, isActive }) => 
     } = useGroups({ isActive });
 
     // Handle Group Creation Submit
-    const handleCreateGroupFormSubmit = (data) => {
-        if (!data.groupName.trim() || isCreatingGroup) return;
+    const handleCreateGroupFormSubmit = useCallback((data) => {
+        if (isCreatingGroup) return;
+        
+        // Use "unbenannte Gruppe" as default if no name provided
+        const groupName = data.groupName?.trim() || 'unbenannte Gruppe';
+        
         onSuccessMessage(''); 
         onErrorMessage('');
-        createGroup(data.groupName, {
+        createGroup(groupName, {
           onSuccess: (newGroup) => {
             const newGroupId = newGroup.id;
             setSelectedGroupId(newGroupId);
             setCurrentView('group');
             setGroupDetailView('anweisungen-wissen');
             resetCreateGroup();
-            onSuccessMessage('Gruppe erfolgreich erstellt!');
+            onSuccessMessage(`Gruppe "${groupName}" erfolgreich erstellt!`);
           },
           onError: (error) => {
             onErrorMessage(error?.message || 'Gruppe konnte nicht erstellt werden.');
           }
         });
-    };
+    }, [isCreatingGroup, onSuccessMessage, onErrorMessage, createGroup, setSelectedGroupId, setCurrentView, setGroupDetailView, resetCreateGroup]);
 
     // Auto-select logic & handle group deletion side effects
     useEffect(() => {
-        if (userGroups) {
-            // Only auto-select on initial load, not when user manually navigates
-            if (!hasInitialAutoSelection.current) {
-                if (userGroups.length === 1 && !selectedGroupId && currentView === 'overview') {
-                    setSelectedGroupId(userGroups[0].id);
-                    setCurrentView('group');
-                }
-                hasInitialAutoSelection.current = true;
+        if (!userGroups) return;
+
+        // Only auto-select on initial load, not when user manually navigates
+        if (!hasInitialAutoSelection.current) {
+            if (userGroups.length === 1 && !selectedGroupId && currentView === 'overview') {
+                setSelectedGroupId(userGroups[0].id);
+                setCurrentView('group');
             }
-            
-            // Always handle the case where user has no groups
-            if (userGroups.length === 0) {
-                setSelectedGroupId(null);
-                if (currentView !== 'overview') {
-                    setCurrentView('overview');
-                }
+            hasInitialAutoSelection.current = true;
+            return;
+        }
+        
+        // Handle the case where user has no groups
+        if (userGroups.length === 0) {
+            setSelectedGroupId(null);
+            if (currentView !== 'overview') {
+                setCurrentView('overview');
             }
         }
+    }, [userGroups, selectedGroupId, currentView]);
 
-        // Handle view update after successful group deletion
-        if (isDeleteGroupSuccess && selectedGroupId) {
-            const deletedGroupWasSelected = !userGroups || !userGroups.some(g => g.id === selectedGroupId);
+    // Handle group deletion side effects (separate effect for clarity)
+    useEffect(() => {
+        if (isDeleteGroupSuccess && selectedGroupId && userGroups) {
+            const deletedGroupWasSelected = !userGroups.some(g => g.id === selectedGroupId);
             if (deletedGroupWasSelected) {
                 onSuccessMessage('Gruppe erfolgreich gelöscht!');
-                if (userGroups && userGroups.length > 0) {
+                if (userGroups.length > 0) {
                     setSelectedGroupId(userGroups[0].id);
                     setCurrentView('group');
                 } else {
@@ -824,10 +831,10 @@ const GroupsManagementTab = ({ onSuccessMessage, onErrorMessage, isActive }) => 
                 }
             }
         }
-    }, [userGroups, selectedGroupId, isDeleteGroupSuccess, rawDeleteGroupError, onSuccessMessage, currentView]);
+    }, [isDeleteGroupSuccess, selectedGroupId, userGroups, onSuccessMessage]);
 
     // Function to switch view
-    const handleSelectGroup = (groupId) => {
+    const handleSelectGroup = useCallback((groupId) => {
         if (selectedGroupId !== groupId) {
             onSuccessMessage('');
             onErrorMessage('');
@@ -835,17 +842,17 @@ const GroupsManagementTab = ({ onSuccessMessage, onErrorMessage, isActive }) => 
             setCurrentView('group');
             setGroupDetailView('anweisungen-wissen');
         }
-    };
+    }, [selectedGroupId, onSuccessMessage, onErrorMessage, setSelectedGroupId, setCurrentView, setGroupDetailView]);
 
-    const handleCreateNew = () => {
+    const handleCreateNew = useCallback(() => {
         setCurrentView('create');
         setSelectedGroupId(null);
         resetCreateGroup();
         onSuccessMessage('');
         onErrorMessage('');
-    };
+    }, [setCurrentView, setSelectedGroupId, resetCreateGroup, onSuccessMessage, onErrorMessage]);
 
-    const handleCancelCreate = () => {
+    const handleCancelCreate = useCallback(() => {
         if (userGroups && userGroups.length > 0) {
             setSelectedGroupId(userGroups[0].id);
             setCurrentView('group');
@@ -854,7 +861,7 @@ const GroupsManagementTab = ({ onSuccessMessage, onErrorMessage, isActive }) => 
         }
         onSuccessMessage('');
         onErrorMessage('');
-    };
+    }, [userGroups, setSelectedGroupId, setCurrentView, onSuccessMessage, onErrorMessage]);
 
     // Handle switching between main tabs
     const handleTabClick = useCallback((view) => {
@@ -1053,9 +1060,8 @@ const GroupsManagementTab = ({ onSuccessMessage, onErrorMessage, isActive }) => 
                                         name="groupName"
                                         type="text"
                                         label="Gruppenname:"
-                                        placeholder="Name der neuen Gruppe"
+                                        placeholder="Name der neuen Gruppe (optional - falls leer: 'unbenannte Gruppe')"
                                         rules={{ 
-                                            required: 'Gruppenname ist erforderlich',
                                             maxLength: { value: 100, message: 'Gruppenname darf maximal 100 Zeichen haben' }
                                         }}
                                         disabled={isCreatingGroup}
@@ -1068,7 +1074,7 @@ const GroupsManagementTab = ({ onSuccessMessage, onErrorMessage, isActive }) => 
                                 <button 
                                     type="submit" 
                                     className="btn-primary size-m"
-                                    disabled={isCreatingGroup || !getCreateGroupValues().groupName?.trim()}
+                                    disabled={isCreatingGroup}
                                     tabIndex={tabIndex.createSubmitButton}
                                 >
                                     {isCreatingGroup ? <Spinner size="small" /> : 'Gruppe erstellen'}

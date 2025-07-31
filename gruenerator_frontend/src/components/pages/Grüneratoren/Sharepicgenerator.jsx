@@ -3,7 +3,6 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
 import { SharepicGeneratorProvider, useSharepicGeneratorContext } from '../../../features/sharepic/core/utils/SharepicGeneratorContext';
 import { useSharepicGeneration } from '../../../features/sharepic/core/hooks/useSharepicGeneration';
-import { useSharepicRendering } from '../../../features/sharepic/core/hooks/useSharepicRendering';
 import BaseForm from '../../../features/sharepic/core/components/BaseForm-Sharepic';
 import WelcomePage from '../../common/WelcomePage';
 import ErrorBoundary from '../../ErrorBoundary';
@@ -11,13 +10,13 @@ import { processImageForUpload } from '../../../components/utils/imageCompressio
 import HelpDisplay from '../../common/HelpDisplay';
 import VerifyFeature from '../../common/VerifyFeature';
 import { SloganAlternativesDisplay } from '../../../features/sharepic/core/components/SloganAlternatives';
-import SharepicTypeSelector from '../../../features/sharepic/core/components/SharepicTypeSelector';
 
 import { 
   FORM_STEPS, 
   BUTTON_LABELS, 
   SHAREPIC_GENERATOR, 
-  ERROR_MESSAGES, 
+  ERROR_MESSAGES,
+  SHAREPIC_TYPES,
 } from '../../utils/constants';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
@@ -59,6 +58,117 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
     return localStorage.getItem('hasSeenSharepicWelcome') === 'true';
   });
 
+  // Moved from useSharepicRendering hook - inline renderFormFields function
+  const renderFormFields = (currentStep, formData, handleChange, formErrors = {}, defaultSharepicType) => {
+    let fields = null;
+
+    if (currentStep === FORM_STEPS.INPUT) {
+      fields = (
+        <>
+          <input
+            type="hidden"
+            id="type"
+            name="type"
+            value={defaultSharepicType}
+          />
+          
+          <h3><label htmlFor="thema">Thema</label></h3>
+          <input
+            id="thema"
+            name="thema"
+            type="text"
+            placeholder="Klimaschutzinitiative"
+            value={formData.thema || ''}
+            onChange={handleChange}
+            className={`form-input ${formErrors.thema ? 'error-input' : ''}`}
+          />
+          {formErrors.thema && <div className="error-message">{formErrors.thema}</div>}
+          
+          <h3><label htmlFor="details">Details</label></h3>
+          <textarea
+            id="details"
+            name="details"
+            placeholder="Details zur Initiative, beteiligte Personen und geplante Aktionen."
+            value={formData.details || ''}
+            onChange={handleChange}
+            className={`form-textarea ${formErrors.details ? 'error-input' : ''}`}
+          />
+          {formErrors.details && <div className="error-message">{formErrors.details}</div>}
+        </>
+      );
+    }
+
+    if (currentStep === FORM_STEPS.PREVIEW || currentStep === FORM_STEPS.RESULT) {
+      if (formData.type === 'Zitat') {
+        fields = (
+          <>
+            <h3><label htmlFor="quote">Zitat</label></h3>
+            <textarea
+              id="quote"
+              name="quote"
+              value={formData.quote || ''}
+              onChange={handleChange}
+              className={`form-textarea ${formErrors.quote ? 'error-input' : ''}`}
+              placeholder="Gib hier das Zitat ein..."
+              rows={4}
+            />
+            {formErrors.quote && <div className="error-message">{formErrors.quote}</div>}
+
+            <h3><label htmlFor="name">Name</label></h3>
+            <input
+              id="name"
+              type="text"
+              name="name"
+              value={formData.name || ''}
+              onChange={handleChange}
+              className={`form-input ${formErrors.name ? 'error-input' : ''}`}
+              placeholder="Name der zitierten Person"
+            />
+            {formErrors.name && <div className="error-message">{formErrors.name}</div>}
+          </>
+        );
+      } else {
+        fields = (
+          <>
+            <h3><label htmlFor="line1">Zeile 1</label></h3>
+            <input
+              id="line1"
+              type="text"
+              name="line1"
+              value={formData.line1 || ''}
+              onChange={handleChange}
+              className={`form-input ${formErrors.line1 ? 'error-input' : ''}`}
+            />
+            {formErrors.line1 && <div className="error-message">{formErrors.line1}</div>}
+
+            <h3><label htmlFor="line2">Zeile 2</label></h3>
+            <input
+              id="line2"
+              type="text"
+              name="line2"
+              value={formData.line2 || ''}
+              onChange={handleChange}
+              className={`form-input ${formErrors.line2 ? 'error-input' : ''}`}
+            />
+            {formErrors.line2 && <div className="error-message">{formErrors.line2}</div>}
+
+            <h3><label htmlFor="line3">Zeile 3</label></h3>
+            <input
+              id="line3"
+              type="text"
+              name="line3"
+              value={formData.line3 || ''}
+              onChange={handleChange}
+              className={`form-input ${formErrors.line3 ? 'error-input' : ''}`}
+            />
+            {formErrors.line3 && <div className="error-message">{formErrors.line3}</div>}
+          </>
+        );
+      }
+    }
+    return fields;
+  };
+
   const { 
     state, 
     setFile,
@@ -71,7 +181,6 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
 
   const { generateText, generateImage, loading: generationLoading, error: generationError } = useSharepicGeneration();
 
-  const { renderFormFields } = useSharepicRendering();
   const [errors, setErrors] = useState({});
   const [showAlternatives, setShowAlternatives] = useState(false);
 
@@ -388,7 +497,30 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
   }
 
   if (state.currentStep === FORM_STEPS.TYPE_SELECT) {
-    return <SharepicTypeSelector onTypeSelect={handleTypeSelect} />;
+    return (
+      <div className="type-selector-screen">
+        <div className="type-selector-content">
+          <h1>Wähle dein Sharepic-Format</h1>
+          <p className="type-selector-intro">
+            Jedes Format ist für einen bestimmten Zweck optimiert.
+          </p>
+          
+          <div className="type-options-grid">
+            <div className="type-card" onClick={() => handleTypeSelect(SHAREPIC_TYPES.THREE_LINES)}>
+              <div className="type-icon">📝</div>
+              <h3>Standard-Sharepic</h3>
+              <p>Perfekt für kurze, prägnante Botschaften in drei Zeilen. Ideal für Forderungen oder Statements.</p>
+            </div>
+
+            <div className="type-card" onClick={() => handleTypeSelect(SHAREPIC_TYPES.QUOTE)}>
+              <div className="type-icon">💬</div>
+              <h3>Zitat</h3>
+              <p>Gestalte eindrucksvolle Zitate. Optimal für Aussagen und Stellungnahmen.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (

@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import { FormProvider } from 'react-hook-form';
 import SubmitButton from '../../SubmitButton';
 import PlatformSelector from '../../../common/PlatformSelector';
+import FileUpload from '../../../common/FileUpload';
 import { useBaseForm } from '../hooks';
 
 // Inline utility functions (moved from classNameUtils and errorUtils)
@@ -51,7 +52,10 @@ const FormInputSection = forwardRef(({
   enablePlatformSelector = false,
   platformOptions = [],
   platformSelectorTabIndex = 12,
-  formControl = null
+  formControl = null,
+  showImageUpload = false,
+  uploadedImage = null,
+  onImageChange = null
 }, ref) => {
   const formContentClasses = getFormContentClasses(hasFormErrors(formErrors));
   const buttonContainerClasses = getButtonContainerClasses(showBackButton);
@@ -110,6 +114,19 @@ const FormInputSection = forwardRef(({
                 required={true}
                 helpText="Wähle eine oder mehrere Plattformen für die dein Content optimiert werden soll"
                 tabIndex={platformSelectorTabIndex}
+              />
+            </div>
+          )}
+          
+          {/* Image Upload for Sharepic */}
+          {showImageUpload && (
+            <div className="form-inputs__image-upload">
+              <FileUpload
+                handleChange={onImageChange}
+                allowedTypes={['.jpg', '.jpeg', '.png', '.webp']}
+                file={uploadedImage}
+                loading={loading}
+                label="Bild für Sharepic (optional)"
               />
             </div>
           )}
@@ -175,7 +192,10 @@ FormInputSection.propTypes = {
     })
   ),
   platformSelectorTabIndex: PropTypes.number,
-  formControl: PropTypes.object
+  formControl: PropTypes.object,
+  showImageUpload: PropTypes.bool,
+  uploadedImage: PropTypes.object,
+  onImageChange: PropTypes.func
 };
 
 FormInputSection.defaultProps = {
@@ -193,7 +213,10 @@ FormInputSection.defaultProps = {
   enablePlatformSelector: false,
   platformOptions: [],
   platformSelectorTabIndex: 12,
-  formControl: null
+  formControl: null,
+  showImageUpload: false,
+  uploadedImage: null,
+  onImageChange: null
 };
 
 FormInputSection.displayName = 'FormInputSection';
