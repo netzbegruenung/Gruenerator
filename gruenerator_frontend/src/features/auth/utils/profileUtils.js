@@ -9,6 +9,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
 import modulePreloader from '../../../utils/modulePreloader';
 import { useInstructionsUiStore } from '../../../stores/auth/instructionsUiStore';
+import { profileApiService } from '../services/profileApiService';
 
 // Import centralized hooks
 import { 
@@ -265,7 +266,6 @@ export const useProfileManager = () => {
   const updateProfileMutation = useMutation({
     mutationFn: async (profileData) => {
       if (!user) throw new Error('Nicht angemeldet');
-      const { profileApiService } = await import('../services/profileApiService');
       return await profileApiService.updateProfile(profileData);
     },
     onSuccess: (updatedProfile) => {
@@ -288,7 +288,6 @@ export const useProfileManager = () => {
   const updateAvatarMutation = useMutation({
     mutationFn: async (avatarRobotId) => {
       if (!user) throw new Error('Nicht angemeldet');
-      const { profileApiService } = await import('../services/profileApiService');
       return await profileApiService.updateAvatar(avatarRobotId);
     },
     onSuccess: (updatedProfile) => {
