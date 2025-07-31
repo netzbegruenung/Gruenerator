@@ -83,22 +83,40 @@ const DisplaySection = forwardRef(({
     activeContent = generatedContent || value || '';
   }
 
+  // Check if activeContent is mixed content (has both social and sharepic)
+  const isMixedContent = activeContent && typeof activeContent === 'object' && 
+    (activeContent.sharepic || activeContent.social);
+
+  // For collab and export, use the social content string if it's mixed content
+  const collabContent = isMixedContent 
+    ? (activeContent.social?.content || activeContent.content || '')
+    : activeContent;
+
   // Preload collab components but don't auto-create documents
-  const preloadedDocId = useCollabPreload(activeContent, hasCollabAccess, true, user, title, 'text', false);
+  const preloadedDocId = useCollabPreload(collabContent, hasCollabAccess, true, user, title, 'text', false);
 
   const currentExportableContent = React.useMemo(() => {
-    return activeContent;
-  }, [activeContent]);
+    // For export, use the social content string if it's mixed content
+    return isMixedContent 
+      ? (activeContent.social?.content || activeContent.content || '')
+      : activeContent;
+  }, [activeContent, isMixedContent]);
 
-  // Debug logging
+  // Enhanced debug logging
   React.useEffect(() => {
     if (process.env.NODE_ENV === 'development') {
       console.log('[DisplaySection] Content update:', {
-        storeGeneratedTextLength: storeGeneratedText?.length,
-        activeContentLength: activeContent?.length,
+        storeGeneratedTextType: typeof storeGeneratedText,
+        storeGeneratedTextLength: typeof storeGeneratedText === 'string' ? storeGeneratedText?.length : 'object',
+        activeContentType: typeof activeContent,
+        activeContentLength: typeof activeContent === 'string' ? activeContent?.length : 'object',
+        isMixedContent,
+        hasSharepic: !!(activeContent && typeof activeContent === 'object' && activeContent.sharepic),
+        hasSocial: !!(activeContent && typeof activeContent === 'object' && activeContent.social),
+        exportableContentLength: currentExportableContent?.length
       });
     }
-  }, [storeGeneratedText, activeContent]);
+  }, [storeGeneratedText, activeContent, isMixedContent, currentExportableContent]);
 
   const handleOpenCollabEditor = async () => {
     if (!currentExportableContent) {

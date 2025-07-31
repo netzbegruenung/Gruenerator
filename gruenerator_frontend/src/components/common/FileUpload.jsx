@@ -1,7 +1,8 @@
 import React, { useRef } from 'react';
 import PropTypes from 'prop-types';
+import { HiX } from 'react-icons/hi';
 
-const FileUpload = ({ handleChange, error, allowedTypes, loading, file }) => {
+const FileUpload = ({ handleChange, error, allowedTypes, loading, file, label = "Datei auswählen" }) => {
   const fileInputRef = useRef(null);
 
   const onFileSelect = (e) => {
@@ -11,8 +12,18 @@ const FileUpload = ({ handleChange, error, allowedTypes, loading, file }) => {
     }
   };
 
+  const handleRemoveFile = (e) => {
+    e.stopPropagation(); // Prevent file input from opening
+    handleChange(null);
+  };
+
   return (
-    <div className="file-upload-container">
+    <div className="form-field-wrapper">
+      {label && (
+        <label className="form-field-label">
+          {label}
+        </label>
+      )}
       <input
         type="file"
         onChange={onFileSelect}
@@ -21,22 +32,32 @@ const FileUpload = ({ handleChange, error, allowedTypes, loading, file }) => {
         style={{ display: 'none' }}
         disabled={loading}
       />
-      <div className="file-upload-wrapper">
+      <div className="file-upload-input-wrapper">
         <button
           type="button"
           onClick={() => fileInputRef.current.click()}
           disabled={loading}
-          className="file-input-text"
+          className={`file-upload-button ${file ? 'file-upload-button--with-file' : ''}`}
         >
-          Datei auswählen
+          {file ? (
+            <>
+              <span className="file-upload-filename">{file.name}</span>
+              <button
+                type="button"
+                onClick={handleRemoveFile}
+                className="file-upload-remove"
+                aria-label="Datei entfernen"
+                disabled={loading}
+              >
+                <HiX />
+              </button>
+            </>
+          ) : (
+            loading ? 'Laden...' : 'Datei auswählen'
+          )}
         </button>
-        {file && (
-          <span className="selected-filename">
-            {file.name}
-          </span>
-        )}
       </div>
-      {error && <div className="error-message">{error}</div>}
+      {error && <div className="form-field-error">{error}</div>}
     </div>
   );
 };
@@ -46,7 +67,8 @@ FileUpload.propTypes = {
   error: PropTypes.string,
   allowedTypes: PropTypes.arrayOf(PropTypes.string),
   loading: PropTypes.bool,
-  file: PropTypes.object
+  file: PropTypes.object,
+  label: PropTypes.string
 };
 
 export default FileUpload;

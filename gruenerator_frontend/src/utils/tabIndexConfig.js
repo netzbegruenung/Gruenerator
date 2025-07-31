@@ -26,9 +26,11 @@ export const TAB_INDEX_CONFIG = {
     knowledgeSourceSelector: 13,
     knowledgeSelector: 14,
     // Conditional fields (AnimatePresence)
-    zitatgeber: 15,
-    pressekontakt: 16,
-    submit: 17
+    sharepicType: 15,
+    zitatAuthor: 16,
+    zitatgeber: 17,
+    pressekontakt: 18,
+    submit: 19
   },
 
   // Antrag Generator

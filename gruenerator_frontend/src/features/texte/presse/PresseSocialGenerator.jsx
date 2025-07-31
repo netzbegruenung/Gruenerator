@@ -17,12 +17,14 @@ import { useGeneratorKnowledgeStore } from '../../../stores/core/generatorKnowle
 import useKnowledge from '../../../components/hooks/useKnowledge';
 import { useTabIndex, useBaseFormTabIndex } from '../../../hooks/useTabIndex';
 import { TabIndexHelpers } from '../../../utils/tabIndexConfig';
+import useSharepicGeneration from '../../../hooks/useSharepicGeneration';
+import FileUpload from '../../../components/common/FileUpload';
 
 const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   const componentName = 'presse-social';
   const { initialContent } = useSharedContent();
   const { user } = useOptimizedAuth();
-  const { Input, Textarea } = useFormFields();
+  const { Input, Textarea, Select } = useFormFields();
   const { setGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
 
   // Initialize knowledge system with UI configuration
@@ -46,7 +48,8 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
     { id: 'linkedin', label: 'LinkedIn' },
     { id: 'actionIdeas', label: 'Aktionsideen' },
     { id: 'reelScript', label: 'Instagram Reel' },
-    { id: 'pressemitteilung', label: 'Pressemitteilung' }
+    { id: 'pressemitteilung', label: 'Pressemitteilung' },
+    { id: 'sharepic', label: 'Sharepic' }
   ], []);
 
   const defaultPlatforms = useMemo(() => {
@@ -79,16 +82,26 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
       thema: initialContent?.thema || '',
       details: initialContent?.details || '',
       zitatgeber: initialContent?.zitatgeber || '',
-      platforms: defaultPlatforms
+      platforms: defaultPlatforms,
+      sharepicType: 'dreizeilen',
+      zitatAuthor: ''
     }
   });
 
   const watchPlatforms = watch('platforms');
   const watchPressemitteilung = watchPlatforms && watchPlatforms.includes('pressemitteilung');
+  const watchSharepic = watchPlatforms && watchPlatforms.includes('sharepic');
+  const watchSharepicType = watch('sharepicType');
+
+  const handleImageChange = useCallback((file) => {
+    setUploadedImage(file);
+  }, []);
 
   const [socialMediaContent, setSocialMediaContent] = useState('');
+  const [uploadedImage, setUploadedImage] = useState(null);
   // const textSize = useDynamicTextSize(socialMediaContent, 1.2, 0.8, [1000, 2000]);
   const { submitForm, loading, success, resetSuccess, error } = useApiSubmit('/claude_social');
+  const { generateSharepic, loading: sharepicLoading } = useSharepicGeneration();
   const storeGeneratedText = useGeneratedTextStore(state => state.getGeneratedText(componentName));
   
   // Store integration - all knowledge and instructions from store
@@ -131,6 +144,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
     try {
       // Use platforms array directly from multi-select
       const selectedPlatforms = rhfData.platforms || [];
+      const hasSharepic = selectedPlatforms.includes('sharepic');
 
       const formDataToSubmit = {
         thema: rhfData.thema,
@@ -173,24 +187,63 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
         console.log('[PresseSocialGenerator] No custom instructions or knowledge for generation.');
       }
 
-      const response = await submitForm(formDataToSubmit);
-      if (response) {
-        // Handle both old string format and new {content, metadata} format
-        const content = typeof response === 'string' ? response : response.content;
-        const metadata = typeof response === 'object' ? response.metadata : {};
-        
-        if (content) {
-          setSocialMediaContent(content);
-          setGeneratedText(componentName, content, metadata);
-          setTimeout(resetSuccess, 3000);
+      let combinedResults = {};
+
+      // Generate sharepic if requested
+      if (hasSharepic) {
+        console.log('[PresseSocialGenerator] Generating sharepic...');
+        try {
+          const sharepicResult = await generateSharepic(
+            rhfData.thema, 
+            rhfData.details, 
+            uploadedImage,
+            rhfData.sharepicType || 'dreizeilen',
+            rhfData.zitatAuthor
+          );
+          combinedResults.sharepic = sharepicResult;
+          console.log('[PresseSocialGenerator] Sharepic generated successfully');
+        } catch (sharepicError) {
+          console.error('[PresseSocialGenerator] Sharepic generation failed:', sharepicError);
+          // Continue with social generation even if sharepic fails
         }
+      }
+
+      // Generate regular social content for other platforms
+      const otherPlatforms = selectedPlatforms.filter(p => p !== 'sharepic');
+      if (otherPlatforms.length > 0) {
+        console.log('[PresseSocialGenerator] Generating social content for platforms:', otherPlatforms);
+        const response = await submitForm({
+          ...formDataToSubmit,
+          platforms: otherPlatforms
+        });
+        
+        if (response) {
+          // Handle both old string format and new {content, metadata} format
+          const content = typeof response === 'string' ? response : response.content;
+          const metadata = typeof response === 'object' ? response.metadata : {};
+          combinedResults.social = { content, metadata };
+        }
+      }
+
+      // Set combined content
+      if (combinedResults.sharepic || combinedResults.social) {
+        const finalContent = {
+          ...combinedResults,
+          // For backward compatibility, also set the main content
+          content: combinedResults.social?.content || '',
+          metadata: combinedResults.social?.metadata || {}
+        };
+        
+        setSocialMediaContent(finalContent);
+        setGeneratedText(componentName, finalContent, finalContent.metadata);
+        setTimeout(resetSuccess, 3000);
       }
     } catch (submitError) {
       console.error('[PresseSocialGenerator] Error submitting form:', submitError);
     } finally {
       setStoreIsLoading(false);
     }
-  }, [submitForm, resetSuccess, setGeneratedText, setStoreIsLoading, source, isInstructionsActive, getActiveInstruction, groupDetailsData, getKnowledgeContent, getDocumentContent]);
+  }, [submitForm, resetSuccess, setGeneratedText, setStoreIsLoading, source, isInstructionsActive, getActiveInstruction, groupDetailsData, getKnowledgeContent, getDocumentContent, generateSharepic, uploadedImage]);
 
   const handleGeneratedContentChange = useCallback((content) => {
     setSocialMediaContent(content);
@@ -204,7 +257,8 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
       "Gib ein klares, prägnantes Thema an",
       "Füge wichtige Details und Fakten hinzu",
       "Wähle die gewünschten Plattformen aus",
-      "Bei Pressemitteilungen: Angabe von Zitatgeber erforderlich - Abbinder wird automatisch hinzugefügt"
+      "Bei Pressemitteilungen: Angabe von Zitatgeber erforderlich - Abbinder wird automatisch hinzugefügt",
+      "Bei Sharepics: Wähle zwischen 3-Zeilen Slogan oder Zitat - bei Zitat ist die Angabe des Autors erforderlich"
     ]
   };
 
@@ -230,6 +284,68 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
         className="form-textarea-large"
         tabIndex={tabIndex.details}
       />
+
+      <AnimatePresence>
+        {watchSharepic && (
+          <motion.div 
+            className="sharepic-upload-fields"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 8 }}
+            transition={{ 
+              type: "spring", 
+              stiffness: 400, 
+              damping: 25,
+              duration: 0.25 
+            }}
+          >
+            <Select
+              name="sharepicType"
+              control={control}
+              label="Sharepic Art"
+              options={[
+                { value: 'dreizeilen', label: '3-Zeilen Slogan' },
+                { value: 'quote', label: 'Zitat' }
+              ]}
+              defaultValue="dreizeilen"
+              tabIndex={tabIndex.sharepicType}
+            />
+
+            <AnimatePresence>
+              {watchSharepicType === 'quote' && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 8 }}
+                  transition={{ 
+                    type: "spring", 
+                    stiffness: 400, 
+                    damping: 25,
+                    duration: 0.25 
+                  }}
+                >
+                  <Input
+                    name="zitatAuthor"
+                    control={control}
+                    label="Autor/Urheber des Zitats"
+                    placeholder="z.B. Anton Hofreiter"
+                    rules={{ required: 'Autor ist für Zitat-Sharepics erforderlich' }}
+                    tabIndex={TabIndexHelpers.getConditional(tabIndex.zitatAuthor, watchSharepicType === 'quote')}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <FileUpload
+              handleChange={handleImageChange}
+              allowedTypes={['.jpg', '.jpeg', '.png', '.webp']}
+              file={uploadedImage}
+              loading={loading || sharepicLoading}
+              label="Bild für Sharepic (optional)"
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {watchPressemitteilung && (
@@ -267,7 +383,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
         <BaseForm
           title="Presse- & Social Media Grünerator"
           onSubmit={handleSubmit(onSubmitRHF)}
-          loading={loading}
+          loading={loading || sharepicLoading}
           success={success}
           error={error}
           generatedContent={storeGeneratedText || socialMediaContent}

@@ -133,13 +133,13 @@ export const useBaseFormTabIndex = (pageType) => {
     platformSelector: tabIndex.get('platformSelector') || 12,
     knowledgeSourceSelector: tabIndex.get('knowledgeSourceSelector') || 13,
     knowledgeSelector: tabIndex.get('knowledgeSelector') || 14,
-    submit: tabIndex.get('submit') || 17,
+    submit: tabIndex.get('submit') || 19,
     
     // For passing to child components
     platformSelectorTabIndex: tabIndex.get('platformSelector') || 12,
     knowledgeSourceSelectorTabIndex: tabIndex.get('knowledgeSourceSelector') || 13,
     knowledgeSelectorTabIndex: tabIndex.get('knowledgeSelector') || 14,
-    submitButtonTabIndex: tabIndex.get('submit') || 17
+    submitButtonTabIndex: tabIndex.get('submit') || 19
   }), [tabIndex]);
 };
 
