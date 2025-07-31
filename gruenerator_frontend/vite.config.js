@@ -41,6 +41,7 @@ export default defineConfig(({ command }) => ({
       external: [
         '@react-pdf/renderer',
         'docx',
+        'motion',
         'quill',
         'quilljs-markdown', 
         'y-quill',
