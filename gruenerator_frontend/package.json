@@ -19,6 +19,7 @@
     "lodash": "^4.17.21",
     "lodash.debounce": "^4.0.8",
     "marked": "^15.0.11",
+    "motion": "^12.23.12",
     "prop-types": "^15.8.1",
     "quill": "^2.0.2",
     "quilljs-markdown": "^1.2.0",
