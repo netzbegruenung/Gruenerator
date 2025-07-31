@@ -73,7 +73,7 @@ async function addTextToImage(imagePath, outputImagePath, quote, name) {
 
     // Anführungszeichen hinzufügen
     const quoteMarkSize = 100;
-    const quoteMarkY = 450;
+    const quoteMarkY = 750; // Balanced position in lower half with proper margins (750/1350 = 56% down)
     ctx.fillStyle = 'white';
     ctx.drawImage(quotationMark, 50, quoteMarkY, quoteMarkSize, quoteMarkSize);
 

@@ -104,7 +104,10 @@ const BaseForm = ({
   knowledgeSourceSelectorTabIndex = 13,
   showProfileSelector = true,
   documentSelectorTabIndex = 15,
-  submitButtonTabIndex = 17
+  submitButtonTabIndex = 17,
+  showImageUpload = false,
+  uploadedImage = null,
+  onImageChange = null
 }) => {
 
   const baseFormRef = useRef(null);
@@ -167,9 +170,21 @@ const BaseForm = ({
   // Update store when generatedContent changes
   useEffect(() => {
     if (generatedContent) {
-      if (typeof generatedContent === 'object' && 'content' in generatedContent) {
+      // Check if it's mixed content (has both social and sharepic)
+      const isMixedContent = typeof generatedContent === 'object' && 
+        (generatedContent.sharepic || generatedContent.social);
+      
+      if (isMixedContent) {
+        // Store the full mixed content object
+        setGeneratedText(componentName, generatedContent);
+      } else if (typeof generatedContent === 'object' && 'content' in generatedContent) {
+        // Regular object with content property - extract content
         setGeneratedText(componentName, generatedContent.content);
       } else if (typeof generatedContent === 'string') {
+        // Plain string content
+        setGeneratedText(componentName, generatedContent);
+      } else {
+        // Any other object type - store as-is
         setGeneratedText(componentName, generatedContent);
       }
     }
@@ -365,6 +380,9 @@ const BaseForm = ({
                   documentSelectorTabIndex={documentSelectorTabIndex}
                   submitButtonTabIndex={submitButtonTabIndex}
                   showProfileSelector={showProfileSelector}
+                  showImageUpload={showImageUpload}
+                  uploadedImage={uploadedImage}
+                  onImageChange={onImageChange}
                 >
                   {children}
                 </FormSection>
@@ -424,6 +442,12 @@ BaseForm.propTypes = {
     PropTypes.string,
     PropTypes.shape({
       content: PropTypes.string
+    }),
+    PropTypes.shape({
+      sharepic: PropTypes.object,
+      social: PropTypes.object,
+      content: PropTypes.string,
+      metadata: PropTypes.object
     })
   ]),
   hideDisplayContainer: PropTypes.bool,
@@ -485,7 +509,10 @@ BaseForm.propTypes = {
   platformSelectorTabIndex: PropTypes.number,
   knowledgeSelectorTabIndex: PropTypes.number,
   knowledgeSourceSelectorTabIndex: PropTypes.number,
-  submitButtonTabIndex: PropTypes.number
+  submitButtonTabIndex: PropTypes.number,
+  showImageUpload: PropTypes.bool,
+  uploadedImage: PropTypes.object,
+  onImageChange: PropTypes.func
 };
 
 BaseForm.defaultProps = {
@@ -509,7 +536,10 @@ BaseForm.defaultProps = {
   platformSelectorTabIndex: 12,
   knowledgeSelectorTabIndex: 14,
   knowledgeSourceSelectorTabIndex: 13,
-  submitButtonTabIndex: 17
+  submitButtonTabIndex: 17,
+  showImageUpload: false,
+  uploadedImage: null,
+  onImageChange: null
 };
 
 export default React.memo(BaseForm); 

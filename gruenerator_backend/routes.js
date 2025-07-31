@@ -12,7 +12,6 @@ const wahlpruefsteinBundestagswahlRoute = require('./routes/wahlpruefsteinbundes
 const sharepicDreizeilenCanvasRoute = require('./routes/sharepic/sharepic_canvas/dreizeilen_canvas');
 const zitatSharepicCanvasRoute = require('./routes/sharepic/sharepic_canvas/zitat_canvas');
 const sharepicDreizeilenClaudeRoute = require('./routes/sharepic/sharepic_claude/dreizeilen_claude');
-const zitatSharepicClaudeRoute = require('./routes/sharepic/sharepic_claude/zitat_claude');
 const aiImageModificationRouter = require('./routes/sharepic/sharepic_canvas/aiImageModification');
 const imageUploadRouter = require('./routes/sharepic/sharepic_canvas/imageUploadRouter');
 const processTextRouter = require('./routes/sharepic/sharepic_canvas/processTextRouter');
@@ -131,7 +130,11 @@ async function setupRoutes(app) {
   app.use('/api/dreizeilen_canvas', sharepicDreizeilenCanvasRoute);
   app.use('/api/zitat_canvas', zitatSharepicCanvasRoute);
   app.use('/api/dreizeilen_claude', sharepicDreizeilenClaudeRoute);
-  app.use('/api/zitat_claude', zitatSharepicClaudeRoute);
+  
+  // Use unified handler for zitat_claude route
+  app.post('/api/zitat_claude', async (req, res) => {
+    await sharepicDreizeilenClaudeRoute.handleClaudeRequest(req, res, 'zitat');
+  });
   app.use('/api/ai-image-modification', aiImageModificationRouter);
   app.use('/api/imageupload', imageUploadRouter);
   app.use('/api/processText', processTextRouter);

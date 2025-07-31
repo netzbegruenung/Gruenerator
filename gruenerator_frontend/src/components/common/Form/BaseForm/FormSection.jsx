@@ -77,7 +77,10 @@ const FormSection = forwardRef(({
   knowledgeSourceSelectorTabIndex = 13,
   documentSelectorTabIndex = 15,
   submitButtonTabIndex = 17,
-  showProfileSelector = true
+  showProfileSelector = true,
+  showImageUpload = false,
+  uploadedImage = null,
+  onImageChange = null
 }, ref) => {
   const formContainerClasses = `form-container ${isFormVisible ? 'visible' : ''}`;
   const { isMobileView } = useResponsive();
@@ -139,6 +142,9 @@ const FormSection = forwardRef(({
               platformOptions={platformOptions}
               platformSelectorTabIndex={platformSelectorTabIndex}
               formControl={formControl}
+              showImageUpload={showImageUpload}
+              uploadedImage={uploadedImage}
+              onImageChange={onImageChange}
             >
               {children}
             </FormInputSection>

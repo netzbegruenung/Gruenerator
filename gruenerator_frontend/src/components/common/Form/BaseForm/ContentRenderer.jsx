@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import ReactMarkdown from 'react-markdown';
 import { isReactElement, isMarkdownContent } from '../utils/contentUtils';
 import { CitationBadge } from '../../Citation';
+import SharepicDisplay from '../../SharepicDisplay';
 import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
 
 
@@ -65,7 +66,14 @@ const ContentRenderer = ({
 }) => {
   // ALL HOOKS MUST BE CALLED AT THE TOP LEVEL - BEFORE ANY EARLY RETURNS
   const { getGeneratedTextMetadata } = useGeneratedTextStore();
-  const contentToRender = value || generatedContent || '';
+  
+  // Check if we have mixed content (social + sharepic)
+  const isMixedContent = generatedContent && typeof generatedContent === 'object' && 
+    (generatedContent.sharepic || generatedContent.social);
+  
+  const contentToRender = isMixedContent 
+    ? (generatedContent.social?.content || generatedContent.content || '')
+    : (value || generatedContent || '');
   
   // Get citations from metadata if componentName is provided
   const metadata = getGeneratedTextMetadata(componentName);
@@ -87,6 +95,34 @@ const ContentRenderer = ({
   }, [contentToRender, citations, useMarkdown, componentName]);
 
   // NOW we can do conditional logic and early returns
+  
+  // Handle mixed content (social + sharepic)
+  if (isMixedContent) {
+    return (
+      <div className="generated-content-wrapper mixed-content">
+        {/* Render social content if available */}
+        {contentToRender && (
+          <div className="social-content-section">
+            <div className="content-display" style={{ whiteSpace: 'pre-wrap' }}>
+              {typeof contentToRender === 'string' ? (
+                <div dangerouslySetInnerHTML={{ __html: contentToRender }} />
+              ) : (
+                contentToRender
+              )}
+            </div>
+          </div>
+        )}
+        
+        {/* Render sharepic if available */}
+        {generatedContent.sharepic && (
+          <div className="sharepic-content-section">
+            <SharepicDisplay sharepicData={generatedContent.sharepic} />
+          </div>
+        )}
+      </div>
+    );
+  }
+  
   // Wenn kein Content vorhanden ist, zeige nichts an (HelpDisplay wird in DisplaySection gehandhabt)
   if (!contentToRender) {
     return null;

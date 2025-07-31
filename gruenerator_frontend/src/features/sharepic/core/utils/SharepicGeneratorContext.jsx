@@ -1,9 +1,8 @@
 // SharepicGeneratorContext.js
 import React, { createContext, useReducer, useCallback, useContext, useMemo } from 'react';
 import PropTypes from 'prop-types';
-import { prepareDataForDreizeilenCanvas } from '../../dreizeilen/utils/dataPreparation';
+import { prepareDataForDreizeilenCanvas, prepareDataForQuoteCanvas } from '../../dreizeilen/utils/dataPreparation';
 import { debounce } from 'lodash';
-import { prepareDataForQuoteCanvas } from '../../quote/utils/dataPreparation';
 
 import {
   SHAREPIC_TYPES,

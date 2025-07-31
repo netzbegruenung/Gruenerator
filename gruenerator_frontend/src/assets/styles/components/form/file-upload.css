@@ -1,0 +1,236 @@
+/* File Upload Styles - Matching Form Input Design */
+
+/* File Upload Button - Styled to match form inputs */
+.file-upload-button {
+  width: 100%;
+  font-family: 'PT Sans', Arial, sans-serif;
+  font-size: var(--form-element-font-size, 12px);
+  line-height: var(--form-element-line-height, 1.5);
+  color: var(--input-text-color, var(--font-color));
+  background-color: var(--input-background);
+  border: 0px solid var(--font-color-h);
+  border-radius: var(--card-border-radius-small);
+  padding: var(--form-element-padding-y, var(--spacing-small)) var(--form-element-padding-x, var(--spacing-small));
+  min-height: var(--form-element-min-height, 44px);
+  transition: var(--input-transition, all 0.25s ease-out);
+  box-sizing: border-box;
+  outline: none;
+  cursor: pointer;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+/* File Upload Button with selected file */
+.file-upload-button--with-file {
+  justify-content: space-between;
+  padding-right: var(--spacing-xsmall);
+}
+
+/* File Upload Filename Display */
+.file-upload-filename {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-right: var(--spacing-small);
+}
+
+/* File Upload Remove Button (X) */
+.file-upload-remove {
+  background: none;
+  border: none;
+  color: var(--font-color-disabled);
+  cursor: pointer;
+  padding: var(--spacing-xxsmall);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  min-height: 20px;
+  transition: var(--input-transition, all 0.25s ease-out);
+  flex-shrink: 0;
+}
+
+.file-upload-remove:hover:not(:disabled) {
+  background-color: var(--error-red);
+  color: var(--white);
+}
+
+.file-upload-remove:focus {
+  outline: 1px solid var(--interactive-accent-color);
+  outline-offset: 1px;
+}
+
+.file-upload-remove:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.file-upload-remove svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* Hover state */
+.file-upload-button:hover:not(:disabled) {
+  background-color: var(--hover-color-alt);
+}
+
+/* Focus state - matching form inputs */
+.file-upload-button:focus {
+  box-shadow: none;
+}
+
+/* Enhanced focus ring for keyboard navigation */
+.user-is-tabbing .file-upload-button:focus {
+  outline: 1px solid var(--interactive-accent-color);
+  outline-offset: 1px;
+}
+
+/* Disabled state */
+.file-upload-button:disabled {
+  background-color: var(--background-color-alt);
+  color: var(--font-color-disabled);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* Loading state */
+.file-upload-button:disabled {
+  cursor: not-allowed;
+}
+
+/* File Upload Input Wrapper */
+.file-upload-input-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+/* Sharepic Upload Fields Container - ensure proper spacing */
+.sharepic-upload-fields {
+  width: 100%;
+  /* Ensure motion container doesn't interfere with form field wrapper spacing */
+}
+
+/* Selected file styling - make filename stand out */
+.file-upload-button:not(:disabled):not(:hover) {
+  /* When file is selected, we could add some visual indication */
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .file-upload-button {
+    font-size: 16px;
+    min-height: 44px;
+  }
+  
+  .file-upload-remove {
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
+    min-height: 24px;
+  }
+  
+  .file-upload-remove svg {
+    width: 14px;
+    height: 14px;
+  }
+}
+
+/* High contrast mode support */
+@media (forced-colors: active) {
+  .file-upload-button {
+    border: 1px solid ButtonText;
+    background: ButtonFace;
+    color: ButtonText;
+    forced-color-adjust: none;
+  }
+
+  .file-upload-button:focus {
+    border: 2px solid Highlight;
+    outline: 2px solid Highlight;
+    outline-offset: 2px;
+    background: ButtonFace;
+  }
+
+  .file-upload-button:disabled {
+    border-color: GrayText;
+    background: ButtonFace;
+    color: GrayText;
+  }
+  
+  .file-upload-remove {
+    border: 1px solid ButtonText;
+    color: ButtonText;
+    forced-color-adjust: none;
+  }
+  
+  .file-upload-remove:focus {
+    outline: 2px solid Highlight;
+    outline-offset: 2px;
+  }
+  
+  .file-upload-remove:hover:not(:disabled) {
+    background: Highlight;
+    color: HighlightText;
+    border-color: Highlight;
+  }
+}
+
+@media (prefers-contrast: high) {
+  .file-upload-button {
+    border-width: 2px;
+    border-color: var(--font-color);
+  }
+
+  .file-upload-button:focus {
+    border-width: 3px;
+    box-shadow: 0 0 0 2px var(--interactive-accent-color);
+  }
+  
+  .file-upload-remove {
+    border: 2px solid var(--font-color);
+  }
+  
+  .file-upload-remove:focus {
+    border-width: 3px;
+    box-shadow: 0 0 0 2px var(--interactive-accent-color);
+  }
+}
+
+/* Accessibility - Screen reader support */
+.file-upload-button[aria-label],
+.file-upload-button[title] {
+  /* Ensure proper accessibility attributes are supported */
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .file-upload-button {
+    transition: none;
+  }
+}
+
+/* Touch target optimization */
+@media (pointer: coarse) {
+  .file-upload-button {
+    min-height: 44px;
+  }
+  
+  .file-upload-remove {
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    min-height: 28px;
+  }
+  
+  .file-upload-remove svg {
+    width: 16px;
+    height: 16px;
+  }
+}

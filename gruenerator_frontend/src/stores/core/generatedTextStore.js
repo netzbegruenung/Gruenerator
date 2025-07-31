@@ -15,7 +15,22 @@ const useGeneratedTextStore = create((set, get) => ({
   // Get generated text for a specific component
   getGeneratedText: (componentName) => {
     const state = get();
-    return state.generatedTexts[componentName] || '';
+    const content = state.generatedTexts[componentName] || '';
+    
+    // Debug logging for mixed content retrieval
+    if (process.env.NODE_ENV === 'development' && content) {
+      const isMixedContent = content && typeof content === 'object' && (content.sharepic || content.social);
+      console.log('[generatedTextStore] getGeneratedText:', {
+        componentName,
+        contentType: typeof content,
+        isMixedContent,
+        hasSharepic: !!(content && typeof content === 'object' && content.sharepic),
+        hasSocial: !!(content && typeof content === 'object' && content.social),
+        contentLength: typeof content === 'string' ? content.length : 'object'
+      });
+    }
+    
+    return content;
   },
   
   // Get metadata for a specific component
@@ -26,10 +41,23 @@ const useGeneratedTextStore = create((set, get) => ({
   
   // Set generated text for a specific component
   setGeneratedText: (componentName, text, metadata = null) => set((state) => {
+    // Debug logging for mixed content
+    if (process.env.NODE_ENV === 'development') {
+      const isMixedContent = text && typeof text === 'object' && (text.sharepic || text.social);
+      console.log('[generatedTextStore] setGeneratedText:', {
+        componentName,
+        contentType: typeof text,
+        isMixedContent,
+        hasSharepic: !!(text && typeof text === 'object' && text.sharepic),
+        hasSocial: !!(text && typeof text === 'object' && text.social),
+        contentLength: typeof text === 'string' ? text.length : 'object'
+      });
+    }
+    
     const newState = {
       generatedTexts: {
         ...state.generatedTexts,
-        [componentName]: text
+        [componentName]: text // Store the full content (string or mixed object)
       }
     };
     
