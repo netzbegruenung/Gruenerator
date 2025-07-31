@@ -38,8 +38,11 @@ const CustomGeneratorPage = ({ showHeaderFooter = true }) => {
 
   // Store integration - all knowledge and instructions from store
   const {
+    source,
+    isInstructionsActive,
     getKnowledgeContent,
-    getDocumentContent
+    getDocumentContent,
+    getActiveInstruction
   } = useGeneratorKnowledgeStore();
 
   // Create default values for react-hook-form
@@ -122,10 +125,18 @@ const CustomGeneratorPage = ({ showHeaderFooter = true }) => {
       }
 
       // Add knowledge content to the submission
-      const knowledgePrompt = createKnowledgePrompt({
+      const knowledgePrompt = await createKnowledgePrompt({
+        source,
+        isInstructionsActive,
+        getActiveInstruction,
         instructionType: 'custom_generator',
+        groupDetailsData: null, // Custom generators don't use group data
         getKnowledgeContent,
-        getDocumentContent
+        getDocumentContent,
+        memoryOptions: {
+          enableMemories: false,
+          query: null
+        }
       });
 
       const response = await submitForm({
