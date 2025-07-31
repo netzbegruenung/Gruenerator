@@ -27,8 +27,8 @@ export default defineConfig(({ command }) => ({
   build: {
     target: ['es2022', 'chrome88', 'firefox86', 'safari14'],
     sourcemap: false,
-    cssCodeSplit: true,
-    assetsInlineLimit: 4096, // Inline small assets to reduce HTTP requests
+    cssCodeSplit: false, // Disable CSS code splitting to reduce memory usage
+    assetsInlineLimit: 8192, // Increase inline limit to reduce file operations
     chunkSizeWarningLimit: 300, // Smaller chunks to reduce memory pressure
     outDir: 'build',
     // Memory-optimized build settings for server compatibility
@@ -44,6 +44,9 @@ export default defineConfig(({ command }) => ({
       },
       // Sequential processing to prevent memory spikes on server
       maxParallelFileOps: 1,
+      // Additional memory optimizations
+      experimentalMinChunkSize: 100, // Prevent tiny chunks that increase memory overhead
+      shimMissingExports: false, // Reduce analysis overhead
       // Manual vendor chunking for memory efficiency
       output: {
         entryFileNames: 'assets/js/[name].[hash].js',
