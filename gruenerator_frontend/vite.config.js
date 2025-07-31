@@ -37,6 +37,16 @@ export default defineConfig(({ command }) => ({
     cssMinify: false, // Disable CSS minification (minor performance impact)
     emptyOutDir: true,
     rollupOptions: {
+      // Externalize heavy dependencies to reduce build memory usage
+      external: [
+        '@react-pdf/renderer',
+        'docx',
+        'quill',
+        'quilljs-markdown', 
+        'y-quill',
+        'yjs',
+        'y-websocket'
+      ],
       // Memory-efficient treeshaking
       treeshake: {
         preset: 'smallest', // Lighter analysis to reduce memory overhead
@@ -74,12 +84,11 @@ export default defineConfig(({ command }) => ({
         manualChunks: {
           'react-vendor': ['react', 'react-dom'],
           'router-vendor': ['react-router-dom'],
-          'query-vendor': ['@tanstack/react-query', '@tanstack/react-query-devtools'],
-          'editor-vendor': ['quill', 'quilljs-markdown', 'y-quill', 'yjs', 'y-websocket'],
+          'query-vendor': ['@tanstack/react-query'],
           'ui-vendor': ['react-icons', 'react-select', 'react-tooltip'],
           'form-vendor': ['react-hook-form', 'react-dropzone'],
           'utils-vendor': ['lodash', 'lodash.debounce', 'uuid', 'marked', 'turndown']
-          // Heavy libraries removed from manual chunks - they're already lazy-loaded as dynamic imports
+          // Heavy libraries externalized - they're loaded dynamically when needed
         }
       }
     },
