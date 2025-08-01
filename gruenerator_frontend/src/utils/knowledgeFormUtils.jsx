@@ -131,11 +131,6 @@ export const createKnowledgeFormNotice = ({
 
   const hasLoadedKnowledge = availableKnowledge.length > 0;
 
-  if (source.type !== 'neutral' && hasLoadedKnowledge) {
-    if (source.type === 'group') {
-      noticeParts.push(`gesamtes Wissen der Gruppe "${sourceNameForNotice}"`);
-    }
-  }
   
 
   if (noticeParts.length === 0 && source.type === 'neutral') {
