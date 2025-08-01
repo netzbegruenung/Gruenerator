@@ -99,7 +99,8 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
     }
 
     if (currentStep === FORM_STEPS.PREVIEW || currentStep === FORM_STEPS.RESULT) {
-      if (formData.type === 'Zitat') {
+      if (formData.type === 'Zitat' || formData.type === 'Zitat_Pure') {
+        // Both Zitat types use quote + name fields
         fields = (
           <>
             <h3><label htmlFor="quote">Zitat</label></h3>
@@ -127,7 +128,49 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
             {formErrors.name && <div className="error-message">{formErrors.name}</div>}
           </>
         );
+      } else if (formData.type === 'Info') {
+        // Info type uses header + subheader + body fields
+        fields = (
+          <>
+            <h3><label htmlFor="header">Überschrift</label></h3>
+            <input
+              id="header"
+              type="text"
+              name="header"
+              value={formData.header || ''}
+              onChange={handleChange}
+              className={`form-input ${formErrors.header ? 'error-input' : ''}`}
+              placeholder="Hauptüberschrift des Infoposts"
+            />
+            {formErrors.header && <div className="error-message">{formErrors.header}</div>}
+
+            <h3><label htmlFor="subheader">Untertitel</label></h3>
+            <input
+              id="subheader"
+              type="text"
+              name="subheader"
+              value={formData.subheader || ''}
+              onChange={handleChange}
+              className={`form-input ${formErrors.subheader ? 'error-input' : ''}`}
+              placeholder="Wichtigster Fakt oder Beleg"
+            />
+            {formErrors.subheader && <div className="error-message">{formErrors.subheader}</div>}
+
+            <h3><label htmlFor="body">Text</label></h3>
+            <textarea
+              id="body"
+              name="body"
+              value={formData.body || ''}
+              onChange={handleChange}
+              className={`form-textarea ${formErrors.body ? 'error-input' : ''}`}
+              placeholder="Haupttext des Infoposts..."
+              rows={6}
+            />
+            {formErrors.body && <div className="error-message">{formErrors.body}</div>}
+          </>
+        );
       } else {
+        // Dreizeilen and Headline types use 3-line fields
         fields = (
           <>
             <h3><label htmlFor="line1">Zeile 1</label></h3>
@@ -241,7 +284,7 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
         
         if (!result) throw new Error(ERROR_MESSAGES.NO_TEXT_DATA);
         
-        if (state.formData.type === 'Zitat') {
+        if (state.formData.type === 'Zitat' || state.formData.type === 'Zitat_Pure') {
           await updateFormData({ 
             ...state.formData,
             quote: result.quote,
@@ -250,7 +293,18 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
             sloganAlternatives: result.alternatives || []
           });
           setAlternatives(result.alternatives || []);
+        } else if (state.formData.type === 'Info') {
+          await updateFormData({ 
+            ...state.formData,
+            header: result.header,
+            subheader: result.subheader,
+            body: result.body,
+            currentStep: FORM_STEPS.PREVIEW,
+            sloganAlternatives: result.alternatives || []
+          });
+          setAlternatives(result.alternatives || []);
         } else {
+          // Dreizeilen and Headline types
           await updateFormData({ 
             ...result.mainSlogan,
             type: state.formData.type, 
@@ -261,52 +315,100 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
           setAlternatives(result.alternatives || []);
         }
       } else if (state.currentStep === FORM_STEPS.PREVIEW) {
-        if (!state.file) {
-          setError("Bitte wählen Sie ein Bild aus");
-          return;
+        // Handle image generation based on sharepic type
+        if (state.formData.type === 'Zitat_Pure') {
+          // Zitat Pure doesn't need an image upload - generate directly
+          const imageResult = await generateImage({ 
+            ...state.formData
+          });
+
+          if (!imageResult) {
+            throw new Error("Keine Bilddaten empfangen");
+          }
+
+          await updateFormData({ 
+            generatedImageSrc: imageResult, 
+            currentStep: FORM_STEPS.RESULT
+          });
+        } else if (state.formData.type === 'Headline' || state.formData.type === 'Info') {
+          // Headline and Info also generate directly without image upload
+          const imageResult = await generateImage({ 
+            ...state.formData
+          });
+
+          if (!imageResult) {
+            throw new Error("Keine Bilddaten empfangen");
+          }
+
+          await updateFormData({ 
+            generatedImageSrc: imageResult, 
+            currentStep: FORM_STEPS.RESULT
+          });
+        } else {
+          // Regular types (Dreizeilen, Zitat) need image upload
+          if (!state.file) {
+            setError("Bitte wählen Sie ein Bild aus");
+            return;
+          }
+
+          const imageResult = await generateImage({ 
+            ...state.formData,
+            image: state.file
+          });
+
+          if (!imageResult) {
+            throw new Error("Keine Bilddaten empfangen");
+          }
+
+          await updateFormData({ 
+            generatedImageSrc: imageResult, 
+            currentStep: FORM_STEPS.RESULT
+          });
         }
-
-        const imageResult = await generateImage({ 
-          ...state.formData,
-          image: state.file
-        });
-
-        if (!imageResult) {
-          throw new Error("Keine Bilddaten empfangen");
-        }
-
-        await updateFormData({ 
-          generatedImageSrc: imageResult, 
-          currentStep: FORM_STEPS.RESULT
-        });
       } else if (state.currentStep === FORM_STEPS.RESULT) {
-        const { fontSize, balkenOffset, colorScheme, credit, uploadedImage, image } = state.formData;
-        const imageToUse = uploadedImage || image || state.file;
-        
-        if (!imageToUse) {
-          throw new Error("Kein Bild zum Modifizieren gefunden");
-        }
+        if (state.formData.type === 'Info') {
+          // For info posts: direct regeneration using generateImage()
+          const imageResult = await generateImage({ 
+            ...state.formData
+          });
+          
+          if (!imageResult) {
+            throw new Error("Keine Bilddaten empfangen");
+          }
+          
+          await updateFormData({ 
+            generatedImageSrc: imageResult
+          });
+        } else {
+          // For other types: existing modifyImage() logic
+          const { fontSize, balkenOffset, colorScheme, credit, uploadedImage, image } = state.formData;
+          const imageToUse = uploadedImage || image || state.file;
+          
+          if (!imageToUse) {
+            throw new Error("Kein Bild zum Modifizieren gefunden");
+          }
 
-        const modifiedImage = await modifyImage({ 
-          fontSize, 
-          balkenOffset, 
-          colorScheme, 
-          credit,
-          image: imageToUse
-        });
-        
-        if (!modifiedImage) {
-          throw new Error(ERROR_MESSAGES.NO_MODIFIED_IMAGE_DATA);
+          const modifiedImage = await modifyImage({ 
+            fontSize, 
+            balkenOffset, 
+            colorScheme, 
+            credit,
+            image: imageToUse
+          });
+          
+          if (!modifiedImage) {
+            throw new Error(ERROR_MESSAGES.NO_MODIFIED_IMAGE_DATA);
+          }
+          
+          await updateFormData({ 
+            generatedImageSrc: modifiedImage,
+            fontSize,
+            balkenOffset,
+            colorScheme,
+            credit,
+            image: imageToUse
+          });
         }
-        
-        await updateFormData({ 
-          generatedImageSrc: modifiedImage,
-          fontSize,
-          balkenOffset,
-          colorScheme,
-          credit,
-          image: imageToUse
-        });
       }
     } catch (error) {
       setError(error.message);
@@ -399,10 +501,15 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
 
   const handleSloganSelect = useCallback((selected) => {
     console.log('[SharepicGenerator] handleSloganSelect called. Type:', state.formData.type, 'Selected Slogan:', JSON.stringify(selected));
-    if (state.formData.type === 'Zitat') {
+    if (state.formData.type === 'Zitat' || state.formData.type === 'Zitat_Pure') {
       console.log('[SharepicGenerator] Quote slogan selected. Current state.formData from closure:', JSON.stringify(state.formData));
       updateFormData({
         quote: selected.quote
+      });
+    } else if (state.formData.type === 'Info') {
+      updateFormData({
+        header: selected.header,
+        body: selected.body
       });
     } else {
       selectSlogan(selected);
@@ -440,8 +547,10 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
           {showAlternatives && (
             <SloganAlternativesDisplay
               currentSlogan={
-                state.formData.type === 'Zitat'
+                (state.formData.type === 'Zitat' || state.formData.type === 'Zitat_Pure')
                   ? { quote: state.formData.quote }
+                  : state.formData.type === 'Info'
+                  ? { header: state.formData.header, body: state.formData.body }
                   : {
                       line1: state.formData.line1,
                       line2: state.formData.line2,
@@ -459,8 +568,24 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
   }, [state.currentStep, state.formData, helpDisplay, showAlternatives, handleSloganSelect]);
 
   const handleTypeSelect = useCallback((selectedType) => {
+    if (selectedType === SHAREPIC_TYPES.QUOTE) {
+      // For Zitat, go to sub-selection first
+      updateFormData({ 
+        type: selectedType,
+        currentStep: FORM_STEPS.ZITAT_SUB_SELECT 
+      });
+    } else {
+      // For other types, go directly to input
+      updateFormData({ 
+        type: selectedType,
+        currentStep: FORM_STEPS.INPUT 
+      });
+    }
+  }, [updateFormData]);
+
+  const handleZitatSubSelect = useCallback((zitatSubType) => {
     updateFormData({ 
-      type: selectedType,
+      type: zitatSubType, // This will be either 'Zitat' or 'Zitat_Pure'
       currentStep: FORM_STEPS.INPUT 
     });
   }, [updateFormData]);
@@ -505,6 +630,7 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
             Jedes Format ist für einen bestimmten Zweck optimiert.
           </p>
           
+          
           <div className="type-options-grid">
             <div className="type-card" onClick={() => handleTypeSelect(SHAREPIC_TYPES.THREE_LINES)}>
               <div className="type-icon">📝</div>
@@ -517,6 +643,55 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
               <h3>Zitat</h3>
               <p>Gestalte eindrucksvolle Zitate. Optimal für Aussagen und Stellungnahmen.</p>
             </div>
+
+            <div className="type-card" onClick={() => handleTypeSelect(SHAREPIC_TYPES.INFO)}>
+              <div className="type-icon">📋</div>
+              <h3>Infopost</h3>
+              <p>Strukturierte Informationsposts mit Überschrift und Text. Ideal für Erklärungen und Details.</p>
+            </div>
+
+            <div className="type-card" onClick={() => handleTypeSelect(SHAREPIC_TYPES.HEADLINE)}>
+              <div className="type-icon">📰</div>
+              <h3>Header</h3>
+              <p>Große, markante Headlines in drei Zeilen. Perfect für Schlagzeilen und wichtige Botschaften.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (state.currentStep === FORM_STEPS.ZITAT_SUB_SELECT) {
+    return (
+      <div className="type-selector-screen">
+        <div className="type-selector-content">
+          <h1>Zitat-Format wählen</h1>
+          <p className="type-selector-intro">
+            Wähle zwischen einem Zitat mit Hintergrundbild oder einem reinen Text-Zitat.
+          </p>
+          
+          <div className="type-options-grid">
+            <div className="type-card" onClick={() => handleZitatSubSelect(SHAREPIC_TYPES.QUOTE)}>
+              <div className="type-icon">🖼️</div>
+              <h3>Zitat mit Bild</h3>
+              <p>Klassisches Zitat mit eigenem Hintergrundbild. Du kannst ein Bild hochladen oder aus Unsplash wählen.</p>
+            </div>
+
+            <div className="type-card" onClick={() => handleZitatSubSelect(SHAREPIC_TYPES.QUOTE_PURE)}>
+              <div className="type-icon">📝</div>
+              <h3>Zitat Pure</h3>
+              <p>Reines Text-Zitat auf grünem Hintergrund. Schnell und ohne Bildauswahl.</p>
+            </div>
+          </div>
+          
+          <div className="back-button-container">
+            <button 
+              type="button" 
+              className="back-button"
+              onClick={() => updateFormData({ currentStep: FORM_STEPS.TYPE_SELECT })}
+            >
+              ← Zurück zur Format-Auswahl
+            </button>
           </div>
         </div>
       </div>

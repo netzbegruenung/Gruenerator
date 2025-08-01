@@ -1,34 +1,30 @@
-const { createCanvas, loadImage, registerFont } = require('canvas');
+const { createCanvas, loadImage } = require('canvas');
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
 
+const { checkFiles, registerFonts } = require('./fileManagement');
+
 const router = express.Router();
 const upload = multer({ dest: 'uploads/' });
 
 // Pfade definieren
-const fontPath = path.resolve(__dirname, '../../../public/fonts/GrueneType.ttf');
 const quotationMarkPath = path.resolve(__dirname, '../../../public/quote.svg');
 
-// Überprüfen, ob notwendige Dateien existieren
-[
-  { path: fontPath, name: 'Schriftartdatei' },
-  { path: quotationMarkPath, name: 'Anführungszeichen-SVG' }
-].forEach(file => {
-  if (!fs.existsSync(file.path)) {
-    throw new Error(`${file.name} nicht gefunden: ${file.path}`);
-  }
-});
-
-// Schriftart registrieren
+// Initialize fonts using shared system
 try {
-  registerFont(fontPath, { family: 'GrueneType' });
-  console.log('Schriftart erfolgreich registriert:', fontPath);
+  registerFonts();
+  console.log('All fonts registered successfully via shared system');
 } catch (err) {
-  console.error('Fehler beim Registrieren der Schriftart:', err);
+  console.error('Fehler beim Registrieren der Schriftarten:', err);
   process.exit(1);
+}
+
+// Check if quotation mark file exists
+if (!fs.existsSync(quotationMarkPath)) {
+  throw new Error(`Anführungszeichen-SVG nicht gefunden: ${quotationMarkPath}`);
 }
 
 async function addTextToImage(imagePath, outputImagePath, quote, name) {

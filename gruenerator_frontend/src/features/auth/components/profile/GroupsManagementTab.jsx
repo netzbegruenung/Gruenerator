@@ -37,6 +37,12 @@ const GroupDetailView = memo(({
     
     // Ref to track initialization
     const isInitialized = useRef(false);
+    
+    // Reset initialization tracking when groupId changes
+    useEffect(() => {
+        isInitialized.current = false;
+    }, [groupId]);
+    
     // React Hook Form setup for group details
     const formMethods = useForm({
         defaultValues: {
@@ -57,13 +63,10 @@ const GroupDetailView = memo(({
     const { Input, Textarea } = useFormFields();
     
     const { 
-        groupInfo, 
-        joinToken, 
-        isAdmin, 
-        customAntragPrompt, 
-        customSocialPrompt, 
-        customUniversalPrompt,
-        knowledgeEntries, 
+        data, 
+        isLoading: isLoadingDetails,
+        isError: isErrorDetails, 
+        error: errorDetails,
         handleInstructionsChange, 
         handleKnowledgeChange, 
         handleKnowledgeDelete,
@@ -76,8 +79,6 @@ const GroupDetailView = memo(({
         deletingKnowledgeId, 
         isDeleteKnowledgeError, 
         deleteKnowledgeError,
-        isErrorDetails, 
-        errorDetails,
         hasUnsavedChanges,
         MAX_CONTENT_LENGTH: GROUP_MAX_CONTENT_LENGTH 
     } = useGroupDetails(groupId, { isActive });
@@ -115,10 +116,18 @@ const GroupDetailView = memo(({
     // Auto-save using shared hook (moved before initialization to prevent "cannot access before initialization" error)
     const { resetTracking } = useAutosave({
         saveFunction: useCallback(async (changedFields) => {
-            // Use existing save mechanism through handleInstructionsChange
+            // Map form field names to API field names
+            const fieldMapping = {
+                'customAntragPrompt': 'custom_antrag_prompt',
+                'customSocialPrompt': 'custom_social_prompt', 
+                'customUniversalPrompt': 'custom_universal_prompt'
+            };
+            
+            // Update instructions through the hook with correct field names
             Object.entries(changedFields).forEach(([key, value]) => {
                 if (key !== 'knowledge') {
-                    handleInstructionsChange(key, value);
+                    const mappedKey = fieldMapping[key] || key;
+                    handleInstructionsChange(mappedKey, value);
                 }
             });
             
@@ -126,7 +135,7 @@ const GroupDetailView = memo(({
             return await saveChanges();
         }, [handleInstructionsChange, saveChanges]),
         formRef: { getValues, watch },
-        enabled: groupInfo && isInitialized.current,
+        enabled: data && isInitialized.current,
         debounceMs: 2000,
         getFieldsToTrack: () => [
             'customAntragPrompt',
@@ -139,24 +148,26 @@ const GroupDetailView = memo(({
         }
     });
 
-    // Initialize form when group data loads
+    // Initialize form when data loads (simplified single-data dependency pattern like IntelligenceTab)
     useEffect(() => {
-        if (groupInfo && !isInitialized.current) {
+        if (!data) return;
+        
+        if (!isInitialized.current) {
             reset({
-                customAntragPrompt: customAntragPrompt || '',
-                customSocialPrompt: customSocialPrompt || '',
-                customUniversalPrompt: customUniversalPrompt || '',
-                knowledge: knowledgeEntries || []
+                customAntragPrompt: data.antragPrompt || '',
+                customSocialPrompt: data.socialPrompt || '',
+                customUniversalPrompt: data.universalPrompt || '',
+                knowledge: data.knowledge || []
             });
-            setEditedGroupName(groupInfo.name || '');
-            setEditedGroupDescription(groupInfo.description || '');
+            setEditedGroupName(data.groupInfo?.name || '');
+            setEditedGroupDescription(data.groupInfo?.description || '');
             
             // Mark as initialized after first load
             isInitialized.current = true;
             // Reset autosave tracking after initial form setup
             setTimeout(() => resetTracking(), 100);
         }
-    }, [groupInfo, customAntragPrompt, customSocialPrompt, customUniversalPrompt, knowledgeEntries, reset, resetTracking]);
+    }, [data, reset, resetTracking]);
 
     // Effect for save/delete feedback
     useEffect(() => {
@@ -177,9 +188,9 @@ const GroupDetailView = memo(({
     }, [groupId, isActive, clearUiMessages]);
 
     const getJoinUrl = () => {
-        if (!joinToken) return '';
+        if (!data?.joinToken) return '';
         const baseUrl = window.location.origin;
-        return `${baseUrl}/join-group/${joinToken}`;
+        return `${baseUrl}/join-group/${data.joinToken}`;
     };
 
     const copyJoinLink = () => {
@@ -191,22 +202,20 @@ const GroupDetailView = memo(({
         .catch(err => console.error('Failed to copy link:', err));
     };
 
+    if (isLoadingDetails || !data) {
+        return <div className="profile-content-centered"><Spinner /></div>;
+    }
+    
     if (isErrorDetails) {
         return (
-            <>
-                <div className="auth-error-message">
-                    Fehler beim Laden der Gruppendetails: {errorDetails?.message || 'Unbekannter Fehler'}
-                </div>
-            </>
+            <div className="auth-error-message">
+                Fehler beim Laden der Gruppendetails: {errorDetails?.message || 'Unbekannter Fehler'}
+            </div>
         );
     }
 
-    if (!groupInfo) {
-        return <p>Gruppendaten nicht gefunden oder Du hast keinen Zugriff.</p>; 
-    }
-
     const confirmDeleteGroup = () => {
-        if (!groupId || !isAdmin) return;
+        if (!groupId || !data?.isAdmin) return;
         
         onSuccessMessage('');
         onErrorMessage('');
@@ -240,19 +249,19 @@ const GroupDetailView = memo(({
 
     // Group name editing functions
     const startEditingName = () => {
-        if (isAdmin) {
+        if (data?.isAdmin) {
             setIsEditingName(true);
-            setEditedGroupName(groupInfo?.name || '');
+            setEditedGroupName(data?.groupInfo?.name || '');
         }
     };
 
     const cancelEditingName = () => {
         setIsEditingName(false);
-        setEditedGroupName(groupInfo?.name || '');
+        setEditedGroupName(data?.groupInfo?.name || '');
     };
 
     const saveGroupName = async () => {
-        if (!editedGroupName.trim() || editedGroupName === groupInfo?.name) {
+        if (!editedGroupName.trim() || editedGroupName === data?.groupInfo?.name) {
             cancelEditingName();
             return;
         }
@@ -264,26 +273,26 @@ const GroupDetailView = memo(({
             },
             onError: (error) => {
                 onErrorMessage('Fehler beim Ändern des Gruppennamens: ' + error.message);
-                setEditedGroupName(groupInfo?.name || '');
+                setEditedGroupName(data?.groupInfo?.name || '');
             }
         });
     };
 
     // Group description editing functions
     const startEditingDescription = () => {
-        if (isAdmin) {
+        if (data?.isAdmin) {
             setIsEditingDescription(true);
-            setEditedGroupDescription(groupInfo?.description || '');
+            setEditedGroupDescription(data?.groupInfo?.description || '');
         }
     };
 
     const cancelEditingDescription = () => {
         setIsEditingDescription(false);
-        setEditedGroupDescription(groupInfo?.description || '');
+        setEditedGroupDescription(data?.groupInfo?.description || '');
     };
 
     const saveGroupDescription = async () => {
-        if (editedGroupDescription === (groupInfo?.description || '')) {
+        if (editedGroupDescription === (data?.groupInfo?.description || '')) {
             cancelEditingDescription();
             return;
         }
@@ -295,7 +304,7 @@ const GroupDetailView = memo(({
             },
             onError: (error) => {
                 onErrorMessage('Fehler beim Ändern der Gruppenbeschreibung: ' + error.message);
-                setEditedGroupDescription(groupInfo?.description || '');
+                setEditedGroupDescription(data?.groupInfo?.description || '');
             }
         });
     };
@@ -344,8 +353,8 @@ const GroupDetailView = memo(({
                                 </div>
                             ) : (
                                 <>
-                                    <h2 className="profile-user-name large-profile-title">{groupInfo?.name}</h2>
-                                    {isAdmin && (
+                                    <h2 className="profile-user-name large-profile-title">{data?.groupInfo?.name}</h2>
+                                    {data?.isAdmin && (
                                         <button
                                             onClick={startEditingName}
                                             className="group-name-edit-icon"
@@ -359,15 +368,15 @@ const GroupDetailView = memo(({
                                     )}
                                 </>
                             )}
-                            {isAdmin && <span className="admin-badge">Admin</span>}
+                            {data?.isAdmin && <span className="admin-badge">Admin</span>}
                         </div>
-                        {!isAdmin && (
+                        {!data?.isAdmin && (
                             <p className="group-membership-status">
                                 Du bist Mitglied dieser Gruppe
                             </p>
                         )}
                     </div>
-                    {isAdmin && (
+                    {data?.isAdmin && (
                         <DeleteWarningTooltip
                             onConfirm={confirmDeleteGroup}
                             disabled={isDeletingGroup || isUpdatingGroupName}
@@ -380,7 +389,7 @@ const GroupDetailView = memo(({
                     )}
                 </div>
 
-                {isAdmin && joinToken && (
+                {data?.isAdmin && data?.joinToken && (
                     <div className="join-link-section">
                         <div className="join-link-display">
                             <div className="join-link-label">
@@ -396,7 +405,7 @@ const GroupDetailView = memo(({
                                     className="copy-join-link-button-inline"
                                     type="button"
                                     title="Einladungslink kopieren"
-                                    disabled={!joinToken}
+                                    disabled={!data?.joinToken}
                                     tabIndex={tabIndex.copyLinkButton}
                                     aria-label={joinLinkCopied ? 'Link wurde kopiert' : 'Einladungslink kopieren'}
                                 >
@@ -423,7 +432,7 @@ const GroupDetailView = memo(({
             <div className="group-content-card">
                 <div className="group-section-header">
                     <h4 className="group-section-title">Gruppenbeschreibung</h4>
-                    {isAdmin && !isEditingDescription && (
+                    {data?.isAdmin && !isEditingDescription && (
                         <button
                             onClick={startEditingDescription}
                             className="group-name-edit-icon"
@@ -474,13 +483,13 @@ const GroupDetailView = memo(({
                     </div>
                 ) : (
                     <div className="form-field-wrapper">
-                        {groupInfo?.description ? (
+                        {data?.groupInfo?.description ? (
                             <div className="knowledge-display" style={{ whiteSpace: 'pre-wrap' }}>
-                                {groupInfo.description}
+                                {data.groupInfo.description}
                             </div>
                         ) : (
                             <div className="knowledge-display" style={{ fontStyle: 'italic', color: 'var(--font-color-subtle)' }}>
-                                {isAdmin ? 'Keine Beschreibung vorhanden. Klicke auf das Bearbeiten-Symbol, um eine hinzuzufügen.' : 'Keine Beschreibung vorhanden.'}
+                                {data?.isAdmin ? 'Keine Beschreibung vorhanden. Klicke auf das Bearbeiten-Symbol, um eine hinzuzufügen.' : 'Keine Beschreibung vorhanden.'}
                             </div>
                         )}
                     </div>
@@ -510,7 +519,7 @@ const GroupDetailView = memo(({
                                         <h3>Anträge</h3>
                                     </div>
                                     <div className="profile-card-content">
-                                        {isAdmin ? (
+                                        {data?.isAdmin ? (
                                             <Textarea
                                                 name="customAntragPrompt"
                                                 label="Gruppenanweisungen:"
@@ -522,7 +531,7 @@ const GroupDetailView = memo(({
                                             />
                                         ) : (
                                             <div className="instruction-display">
-                                                {customAntragPrompt || 'Keine spezifischen Anweisungen für Anträge.'}
+                                                {data?.antragPrompt || 'Keine spezifischen Anweisungen für Anträge.'}
                                             </div>
                                         )}
                                     </div>
@@ -533,7 +542,7 @@ const GroupDetailView = memo(({
                                         <h3>Presse & Social Media</h3>
                                     </div>
                                     <div className="profile-card-content">
-                                        {isAdmin ? (
+                                        {data?.isAdmin ? (
                                             <Textarea
                                                 name="customSocialPrompt"
                                                 label="Gruppenanweisungen:"
@@ -545,7 +554,7 @@ const GroupDetailView = memo(({
                                             />
                                         ) : (
                                             <div className="instruction-display">
-                                                {customSocialPrompt || 'Keine spezifischen Anweisungen für Social Media.'}
+                                                {data?.socialPrompt || 'Keine spezifischen Anweisungen für Social Media.'}
                                             </div>
                                         )}
                                     </div>
@@ -556,7 +565,7 @@ const GroupDetailView = memo(({
                                         <h3>Universelle Texte</h3>
                                     </div>
                                     <div className="profile-card-content">
-                                        {isAdmin ? (
+                                        {data?.isAdmin ? (
                                             <Textarea
                                                 name="customUniversalPrompt"
                                                 label="Gruppenanweisungen:"
@@ -568,7 +577,7 @@ const GroupDetailView = memo(({
                                             />
                                         ) : (
                                             <div className="instruction-display">
-                                                {customUniversalPrompt || 'Keine spezifischen Anweisungen für universelle Texte.'}
+                                                {data?.universalPrompt || 'Keine spezifischen Anweisungen für universelle Texte.'}
                                             </div>
                                         )}
                                     </div>
@@ -577,7 +586,7 @@ const GroupDetailView = memo(({
                                 <div className="profile-card">
                                     <div className="profile-card-header">
                                         <h3>Gruppenwissen</h3>
-                                        {isAdmin && (
+                                        {data?.isAdmin && (
                                             <button
                                                 type="button"
                                                 className="btn-primary size-s"
@@ -589,7 +598,7 @@ const GroupDetailView = memo(({
                                         )}
                                     </div>
                                     <div className="profile-card-content">
-                                        {fields.length === 0 && !isAdmin && (
+                                        {fields.length === 0 && !data?.isAdmin && (
                                             <div className="knowledge-empty-state centered">
                                                 <p>Noch kein Gruppenwissen vorhanden.</p>
                                                 <p>Nur Admins können Gruppenwissen hinzufügen.</p>
@@ -601,7 +610,7 @@ const GroupDetailView = memo(({
                                                 <div className="form-field-wrapper anweisungen-field">
                                                     <div className="anweisungen-header">
                                                         <label htmlFor={`knowledge.${index}.title`}>Wissen #{index + 1}: Titel</label>
-                                                        {isAdmin && (
+                                                        {data?.isAdmin && (
                                                             <button
                                                                 type="button"
                                                                 onClick={() => handleDeleteKnowledge(field, index)}
@@ -613,7 +622,7 @@ const GroupDetailView = memo(({
                                                             </button>
                                                         )}
                                                     </div>
-                                                    {isAdmin ? (
+                                                    {data?.isAdmin ? (
                                                         <Input
                                                             name={`knowledge.${index}.title`}
                                                             type="text"
@@ -629,7 +638,7 @@ const GroupDetailView = memo(({
                                                     )}
                                                 </div>
                                                 <div className="form-field-wrapper anweisungen-field">
-                                                    {isAdmin ? (
+                                                    {data?.isAdmin ? (
                                                         <Textarea
                                                             name={`knowledge.${index}.content`}
                                                             label="Inhalt:"
@@ -677,7 +686,7 @@ const GroupDetailView = memo(({
                             <SharedContentSelector
                                 groupContent={groupContent}
                                 isLoading={isLoadingGroupContent}
-                                isAdmin={isAdmin}
+                                isAdmin={data?.isAdmin}
                                 onUnshare={unshareContent}
                                 isUnsharing={isUnsharing}
                                 config={{
@@ -699,7 +708,7 @@ const GroupDetailView = memo(({
                             <SharedContentSelector
                                 groupContent={groupContent}
                                 isLoading={isLoadingGroupContent}
-                                isAdmin={isAdmin}
+                                isAdmin={data?.isAdmin}
                                 onUnshare={unshareContent}
                                 isUnsharing={isUnsharing}
                                 config={{

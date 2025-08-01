@@ -470,18 +470,37 @@ const useGroupDetails = (groupId, { isActive } = {}) => {
     deleteKnowledgeEntry(entryId);
   }, [deleteKnowledgeEntry, isDeletingKnowledge]);
 
-  return {
-    // Group info
+  // Create consolidated data object (following IntelligenceTab pattern)
+  const data = queryData && initialDataLoaded.current ? {
+    // Group information
     groupInfo,
     joinToken,
     userRole,
     isAdmin: queryData?.membership?.isAdmin || false,
     
-    // Local state
-    customAntragPrompt,
-    customSocialPrompt,
-    customUniversalPrompt,
-    knowledgeEntries,
+    // Instructions content (matching IntelligenceTab naming pattern)
+    antragPrompt: customAntragPrompt || '',
+    socialPrompt: customSocialPrompt || '',
+    universalPrompt: customUniversalPrompt || '',
+    
+    // Instruction enablement flags
+    antragInstructionsEnabled,
+    socialInstructionsEnabled,
+    
+    // Knowledge entries
+    knowledge: knowledgeEntries || []
+  } : null;
+
+  return {
+    // Single consolidated data object (like IntelligenceTab)
+    data,
+    
+    // Query status (like IntelligenceTab)
+    isLoading: isLoadingDetails,
+    isFetching: isFetchingDetails,
+    isError: isErrorDetails,
+    error: errorDetails,
+    refetch: refetchDetails,
     
     // Handlers
     handleInstructionsChange,
@@ -500,13 +519,6 @@ const useGroupDetails = (groupId, { isActive } = {}) => {
     deletingKnowledgeId,
     isDeleteKnowledgeError,
     deleteKnowledgeError,
-    
-    // Query status
-    isLoadingDetails,
-    isFetchingDetails,
-    isErrorDetails,
-    errorDetails,
-    refetchDetails,
     
     // Other
     hasUnsavedChanges,

@@ -198,7 +198,8 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
             rhfData.details, 
             uploadedImage,
             rhfData.sharepicType || 'dreizeilen',
-            rhfData.zitatAuthor
+            rhfData.zitatAuthor,
+            finalPrompt // Pass knowledge prompt to sharepic generation
           );
           combinedResults.sharepic = sharepicResult;
           console.log('[PresseSocialGenerator] Sharepic generated successfully');
@@ -258,7 +259,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
       "Füge wichtige Details und Fakten hinzu",
       "Wähle die gewünschten Plattformen aus",
       "Bei Pressemitteilungen: Angabe von Zitatgeber erforderlich - Abbinder wird automatisch hinzugefügt",
-      "Bei Sharepics: Wähle zwischen 3-Zeilen Slogan oder Zitat - bei Zitat ist die Angabe des Autors erforderlich"
+      "Bei Sharepics: Wähle zwischen 5 Formaten - 3-Zeilen Slogan (mit Bild), Zitat mit Bild, Zitat (Nur Text), Infopost oder Nur Text (Groß). Bei Zitat-Formaten ist die Angabe des Autors erforderlich"
     ]
   };
 
@@ -304,15 +305,18 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
               control={control}
               label="Sharepic Art"
               options={[
-                { value: 'dreizeilen', label: '3-Zeilen Slogan' },
-                { value: 'quote', label: 'Zitat' }
+                { value: 'dreizeilen', label: '3-Zeilen Slogan (mit Bild)' },
+                { value: 'quote', label: 'Zitat mit Bild' },
+                { value: 'quote_pure', label: 'Zitat (Nur Text)' },
+                { value: 'info', label: 'Infopost' },
+                { value: 'headline', label: 'Nur Text (Groß)' }
               ]}
               defaultValue="dreizeilen"
               tabIndex={tabIndex.sharepicType}
             />
 
             <AnimatePresence>
-              {watchSharepicType === 'quote' && (
+              {(watchSharepicType === 'quote' || watchSharepicType === 'quote_pure') && (
                 <motion.div
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -330,19 +334,21 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
                     label="Autor/Urheber des Zitats"
                     placeholder="z.B. Anton Hofreiter"
                     rules={{ required: 'Autor ist für Zitat-Sharepics erforderlich' }}
-                    tabIndex={TabIndexHelpers.getConditional(tabIndex.zitatAuthor, watchSharepicType === 'quote')}
+                    tabIndex={TabIndexHelpers.getConditional(tabIndex.zitatAuthor, watchSharepicType === 'quote' || watchSharepicType === 'quote_pure')}
                   />
                 </motion.div>
               )}
             </AnimatePresence>
 
-            <FileUpload
-              handleChange={handleImageChange}
-              allowedTypes={['.jpg', '.jpeg', '.png', '.webp']}
-              file={uploadedImage}
-              loading={loading || sharepicLoading}
-              label="Bild für Sharepic (optional)"
-            />
+            {(watchSharepicType === 'dreizeilen' || watchSharepicType === 'quote') && (
+              <FileUpload
+                handleChange={handleImageChange}
+                allowedTypes={['.jpg', '.jpeg', '.png', '.webp']}
+                file={uploadedImage}
+                loading={loading || sharepicLoading}
+                label="Bild für Sharepic (optional)"
+              />
+            )}
           </motion.div>
         )}
       </AnimatePresence>

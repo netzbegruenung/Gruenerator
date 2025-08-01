@@ -1,10 +1,12 @@
 const fs = require('fs').promises;
 const { registerFont } = require('canvas');
-const { FONT_PATH, SUNFLOWER_PATH, TESTBILD_PATH, TEMP_UPLOAD_DIR  } = require('./config');
+const { FONT_PATH, PTSANS_REGULAR_PATH, PTSANS_BOLD_PATH, SUNFLOWER_PATH, TESTBILD_PATH, TEMP_UPLOAD_DIR  } = require('./config');
 
 async function checkFiles() {
   const files = [
-    { path: FONT_PATH, name: 'Schriftartdatei' },
+    { path: FONT_PATH, name: 'GrueneType Schriftartdatei' },
+    { path: PTSANS_REGULAR_PATH, name: 'PTSans Regular Schriftartdatei' },
+    { path: PTSANS_BOLD_PATH, name: 'PTSans Bold Schriftartdatei' },
     { path: SUNFLOWER_PATH, name: 'Sonnenblumen-Bild' }
   ];
 
@@ -19,22 +21,31 @@ async function checkFiles() {
 }
 
 function registerFonts() {
-  try {
-    console.log('Attempting to register font from:', FONT_PATH);
-    registerFont(FONT_PATH, { family: 'GrueneType' });
-    console.log('Schriftart erfolgreich registriert:', FONT_PATH);
-    
-    // Verify the font file exists and is readable
-    const fs = require('fs');
-    const stats = fs.statSync(FONT_PATH);
-    console.log('Font file stats:', {
-      size: stats.size,
-      isFile: stats.isFile(),
-      readable: fs.constants.R_OK
-    });
-  } catch (err) {
-    console.error('Fehler beim Registrieren der Schriftart:', err);
-    throw err;
+  const fs = require('fs');
+  
+  const fonts = [
+    { path: FONT_PATH, family: 'GrueneType', name: 'GrueneType' },
+    { path: PTSANS_REGULAR_PATH, family: 'PTSans-Regular', name: 'PTSans Regular' },
+    { path: PTSANS_BOLD_PATH, family: 'PTSans-Bold', name: 'PTSans Bold' }
+  ];
+
+  for (const font of fonts) {
+    try {
+      console.log(`Attempting to register ${font.name} font from:`, font.path);
+      registerFont(font.path, { family: font.family });
+      console.log(`${font.name} erfolgreich registriert:`, font.path);
+      
+      // Verify the font file exists and is readable
+      const stats = fs.statSync(font.path);
+      console.log(`${font.name} file stats:`, {
+        size: stats.size,
+        isFile: stats.isFile(),
+        readable: fs.constants.R_OK
+      });
+    } catch (err) {
+      console.error(`Fehler beim Registrieren der ${font.name} Schriftart:`, err);
+      throw err;
+    }
   }
 }
 
