@@ -3,6 +3,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useQuery } from '@tanstack/react-query';
 import { useGeneratorKnowledgeStore } from '../../stores/core/generatorKnowledgeStore';
 import { useDocumentsStore } from '../../stores/documentsStore';
+import { useAnweisungenWissen } from '../../features/auth/hooks/useProfileData';
 
 const EMPTY_ARRAY = []; // Stable empty array reference
 
@@ -141,15 +142,18 @@ const useKnowledge = ({
   // Query state logged
 
   // Hook for group details (includes knowledge) - only enabled when source is group
+  const groupDetailsResult = useAnweisungenWissen({ 
+    isActive: source.type === 'group',
+    context: 'group',
+    groupId: source.type === 'group' ? source.id : null
+  });
+  
   const { 
     data: groupDetailsData,
     isLoading: isLoadingGroupDetails,
     error: groupDetailsError,
     refetch: refetchGroupDetails
-  } = useGroupDetails(
-    source.type === 'group' ? source.id : null,
-    { isActive: source.type === 'group' }
-  );
+  } = groupDetailsResult?.query || {};
   
   // Extract group knowledge from group details (with stable references)
   const groupKnowledge = groupDetailsData?.knowledge || EMPTY_ARRAY; // Use stable empty array
