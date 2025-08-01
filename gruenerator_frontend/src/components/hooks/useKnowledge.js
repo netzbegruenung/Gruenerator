@@ -184,41 +184,35 @@ const useKnowledge = ({
   useEffect(() => {
     // Source changed
     
+    // ALWAYS load user knowledge regardless of source selection
+    if (userData) {
+      setAvailableKnowledge(userData.knowledge);
+    } else {
+      setAvailableKnowledge([]);
+    }
+    
+    // Trigger refetch if needed (for any source type)
+    if (!!user && !userData && !isLoadingUserData) {
+      // Triggering refetch - no data
+      refreshUserData();
+    }
+    
+    // ONLY change instructions based on source selection
     if (source.type === 'neutral') {
-      // For neutral source, still load user knowledge but no instructions
-      if (userData) {
-        setAvailableKnowledge(userData.knowledge);
-        setInstructions({ antrag: null, antragGliederung: null, social: null, universal: null, gruenejugend: null });
-        setInstructionsActive(false);
-      } else {
-        clearKnowledge();
-      }
-      setLoading(isLoadingUserData);
+      setInstructions({ antrag: null, antragGliederung: null, social: null, universal: null, gruenejugend: null });
+      setInstructionsActive(false);
     } else if (source.type === 'user') {
-      // Trigger refetch if needed
-      if (!!user && !userData && !isLoadingUserData) {
-        // Triggering refetch - no data
-        refreshUserData();
-      }
-      // Update knowledge when data is available
       if (userData) {
-        updateUserKnowledge(userData.knowledge, userData.instructions);
-      }
-      // Update loading state
-      setLoading(isLoadingUserData);
-    } else if (source.type === 'group') {
-      // For group source, load user knowledge but use group instructions (if any)
-      if (userData) {
-        setAvailableKnowledge(userData.knowledge);
-      }
-      if (groupKnowledge && groupKnowledge.length >= 0) {
-        // Group knowledge is handled separately in the KnowledgeSelector via useAllGroupsContent
-        // We just need to activate instructions
+        setInstructions(userData.instructions);
         setInstructionsActive(true);
       }
-      // Update loading state
-      setLoading(isLoadingUserData || isLoadingGroupKnowledge);
+    } else if (source.type === 'group') {
+      // Group instructions come from groupDetailsData, knowledge comes from allGroupContent in KnowledgeSelector
+      setInstructionsActive(true);
     }
+    
+    // Update loading state
+    setLoading(isLoadingUserData || isLoadingGroupKnowledge);
   }, [
     source, 
     user, 

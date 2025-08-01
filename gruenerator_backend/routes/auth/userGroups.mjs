@@ -1384,6 +1384,17 @@ router.get('/groups/:groupId/content', ensureAuthenticated, async (req, res) => 
       });
     }
 
+    // Fetch group knowledge entries
+    const { data: groupKnowledge, error: knowledgeError } = await supabaseService
+      .from('group_knowledge')
+      .select('id, title, content, created_by, created_at, updated_at')
+      .eq('group_id', groupId)
+      .order('created_at', { ascending: true });
+
+    if (knowledgeError) {
+      console.error('[User Groups /groups/:groupId/content GET] Knowledge error:', knowledgeError);
+    }
+
     // Fetch shared content using junction table
     const { data: sharedContent, error: fetchError } = await supabaseService
       .from('group_content_shares')
@@ -1486,6 +1497,7 @@ router.get('/groups/:groupId/content', ensureAuthenticated, async (req, res) => 
 
     // Process and format results
     const groupContent = {
+      knowledge: groupKnowledge || [],
       documents: [],
       generators: [],
       qas: [],

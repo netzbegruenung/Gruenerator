@@ -29,6 +29,7 @@ const KnowledgeIcon = memo(({ type, size = 16 }) => {
       );
     case 'knowledge':
     case 'wissen':
+    case 'group_knowledge':
       return (
         <FaBrain className={iconClass} size={size} />
       );
@@ -226,7 +227,7 @@ const EnhancedKnowledgeSelector = ({
     errorAllGroupsContent
   } = useAllGroupsContent({ 
     isActive: true,
-    enabled: enableKnowledge // Only load group content when knowledge is enabled
+    enabled: true // Always load group content
   });
   
   // For backwards compatibility, alias the loading state
