@@ -245,7 +245,6 @@ class ModulePreloader {
         { name: 'ProfileInfoTab', importFn: () => import('../features/auth/components/profile/ProfileInfoTab'), priority: 'CRITICAL' },
         { name: 'LaborTab', importFn: () => import('../features/auth/components/profile/LaborTab'), priority: 'HIGH' },
         ...(betaFeatures.groups ? [{ name: 'GroupsManagementTab', importFn: () => import('../features/auth/components/profile/GroupsManagementTab'), priority: 'NORMAL' }] : []),
-        ...(betaFeatures.anweisungen ? [{ name: 'AnweisungenWissenTab', importFn: () => import('../features/auth/components/profile/AnweisungenWissenTab'), priority: 'NORMAL' }] : []),
         ...(betaFeatures.customGenerators ? [{ name: 'CustomGeneratorsTab', importFn: () => import('../features/auth/components/profile/CustomGeneratorsTab'), priority: 'LOW' }] : []),
       ],
       '/': [

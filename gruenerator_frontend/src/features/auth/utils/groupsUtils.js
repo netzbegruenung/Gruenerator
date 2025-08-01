@@ -63,12 +63,12 @@ export const useGroups = ({ isActive } = {}) => {
     queryFn: fetchGroupsFn,
     enabled: !!user?.id && isAuthenticated && !authLoading,
     staleTime: 2 * 60 * 1000, // Reduced to 2 minutes for better UX
-    cacheTime: 15 * 60 * 1000, // Keep data in cache for 15 minutes
+    gcTime: 15 * 60 * 1000, // Fixed: was cacheTime (React Query v5)
     refetchOnWindowFocus: false,
-    refetchOnMount: 'always', // Always refetch when component mounts
-    refetchOnReconnect: 'always', // Refetch when reconnecting
+    refetchOnMount: true, // Fixed: was 'always' (React Query v5)
+    refetchOnReconnect: true, // Fixed: was 'always' (React Query v5)
     retry: (failureCount) => failureCount < 2,
-    refetchInterval: isActive ? 5 * 60 * 1000 : false, // Auto-refetch every 5 min when tab is active
+    refetchInterval: isActive ? 5 * 60 * 1000 : false // Auto-refetch every 5 min when tab is active
   });
 
   // Force refetch when tab becomes active and data is stale
@@ -366,7 +366,7 @@ export const useGroups = ({ isActive } = {}) => {
   return {
     // Query data
     userGroups: query.data || [],
-    isLoadingGroups: query.isLoading,
+    isLoadingGroups: query.isPending, // Fixed: was isLoading (React Query v5)
     isFetchingGroups: query.isFetching,
     isErrorGroups: query.isError,
     errorGroups: query.error,
@@ -451,17 +451,17 @@ export const useGroupMembers = (groupId, { isActive } = {}) => {
     queryFn: fetchMembersFn,
     enabled: !!user?.id && !!groupId && isAuthenticated && !authLoading,
     staleTime: 5 * 60 * 1000, // 5 minutes
-    cacheTime: 15 * 60 * 1000, // Keep data in cache for 15 minutes
+    gcTime: 15 * 60 * 1000, // Fixed: was cacheTime (React Query v5)
     refetchOnWindowFocus: false,
-    refetchOnMount: 'always',
-    refetchOnReconnect: 'always',
+    refetchOnMount: true, // Fixed: was 'always' (React Query v5)
+    refetchOnReconnect: true, // Fixed: was 'always' (React Query v5)
     retry: (failureCount) => failureCount < 2,
-    refetchInterval: isActive ? 10 * 60 * 1000 : false, // Auto-refetch every 10 min when active
+    refetchInterval: isActive ? 10 * 60 * 1000 : false // Auto-refetch every 10 min when active
   });
 
   return {
     members: query.data || [],
-    isLoadingMembers: query.isLoading,
+    isLoadingMembers: query.isPending, // Fixed: was isLoading (React Query v5)
     isFetchingMembers: query.isFetching,
     isErrorMembers: query.isError,
     errorMembers: query.error,
@@ -518,12 +518,12 @@ export const useGroupSharing = (groupId, { isActive } = {}) => {
     queryFn: fetchGroupContentFn,
     enabled: !!user?.id && !!groupId && isAuthenticated && !authLoading,
     staleTime: 2 * 60 * 1000, // 2 minutes
-    cacheTime: 15 * 60 * 1000, // Keep data in cache for 15 minutes
+    gcTime: 15 * 60 * 1000, // Fixed: was cacheTime (React Query v5)
     refetchOnWindowFocus: false,
-    refetchOnMount: 'always',
-    refetchOnReconnect: 'always',
+    refetchOnMount: true, // Fixed: was 'always' (React Query v5)
+    refetchOnReconnect: true, // Fixed: was 'always' (React Query v5)
     retry: (failureCount) => failureCount < 2,
-    refetchInterval: isActive ? 5 * 60 * 1000 : false, // Auto-refetch every 5 min when active
+    refetchInterval: isActive ? 5 * 60 * 1000 : false // Auto-refetch every 5 min when active
   });
 
   // Share content mutation
@@ -701,7 +701,7 @@ export const useGroupSharing = (groupId, { isActive } = {}) => {
   return {
     // Query data
     groupContent: groupContentQuery.data || {},
-    isLoadingGroupContent: groupContentQuery.isLoading,
+    isLoadingGroupContent: groupContentQuery.isPending, // Fixed: was isLoading (React Query v5)
     isFetchingGroupContent: groupContentQuery.isFetching,
     isErrorGroupContent: groupContentQuery.isError,
     errorGroupContent: groupContentQuery.error,
@@ -709,19 +709,19 @@ export const useGroupSharing = (groupId, { isActive } = {}) => {
 
     // Mutations
     shareContent,
-    isSharing: shareContentMutation.isLoading,
+    isSharing: shareContentMutation.isPending, // Fixed: was isLoading (React Query v5)
     isShareError: shareContentMutation.isError,
     shareError: shareContentMutation.error,
     isShareSuccess: shareContentMutation.isSuccess,
 
     unshareContent,
-    isUnsharing: unshareContentMutation.isLoading,
+    isUnsharing: unshareContentMutation.isPending, // Fixed: was isLoading (React Query v5)
     isUnshareError: unshareContentMutation.isError,
     unshareError: unshareContentMutation.error,
     isUnshareSuccess: unshareContentMutation.isSuccess,
 
     updatePermissions,
-    isUpdatingPermissions: updatePermissionsMutation.isLoading,
+    isUpdatingPermissions: updatePermissionsMutation.isPending, // Fixed: was isLoading (React Query v5)
     isUpdatePermissionsError: updatePermissionsMutation.isError,
     updatePermissionsError: updatePermissionsMutation.error,
     isUpdatePermissionsSuccess: updatePermissionsMutation.isSuccess,
@@ -831,12 +831,12 @@ export const useAllGroupsContent = ({ isActive, enabled = true } = {}) => {
     queryFn: fetchAllGroupsContentFn,
     enabled: enabled && !!user?.id && !!groups?.length && isAuthenticated && !authLoading && !isLoadingGroups,
     staleTime: 2 * 60 * 1000, // 2 minutes (same as useGroupSharing)
-    cacheTime: 15 * 60 * 1000, // Keep data in cache for 15 minutes
+    gcTime: 15 * 60 * 1000, // Fixed: was cacheTime (React Query v5)
     refetchOnWindowFocus: false,
-    refetchOnMount: 'always',
-    refetchOnReconnect: 'always',
+    refetchOnMount: true, // Fixed: was 'always' (React Query v5)
+    refetchOnReconnect: true, // Fixed: was 'always' (React Query v5)
     retry: (failureCount) => failureCount < 2,
-    refetchInterval: isActive ? 5 * 60 * 1000 : false, // Auto-refetch every 5 min when active
+    refetchInterval: isActive ? 5 * 60 * 1000 : false // Auto-refetch every 5 min when active
   });
 
   // Force refetch when tab becomes active and data is stale
@@ -854,7 +854,7 @@ export const useAllGroupsContent = ({ isActive, enabled = true } = {}) => {
     hasGroupErrors: (query.data?.errors || []).length > 0,
     
     // Loading states
-    isLoadingAllGroupsContent: query.isLoading || isLoadingGroups,
+    isLoadingAllGroupsContent: query.isPending || isLoadingGroups, // Fixed: was isLoading (React Query v5)
     isFetchingAllGroupsContent: query.isFetching,
     
     // Error states

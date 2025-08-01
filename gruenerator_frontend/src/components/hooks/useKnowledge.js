@@ -3,7 +3,6 @@ import { useAuth } from '../../hooks/useAuth';
 import { useQuery } from '@tanstack/react-query';
 import { useGeneratorKnowledgeStore } from '../../stores/core/generatorKnowledgeStore';
 import { useDocumentsStore } from '../../stores/documentsStore';
-import useGroupDetails from '../../features/groups/hooks/useGroupDetails';
 
 const EMPTY_ARRAY = []; // Stable empty array reference
 
