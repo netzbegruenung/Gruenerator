@@ -191,6 +191,12 @@ const useApiSubmit = (endpoint) => {
           setSuccess(true);
           return response;
         }
+      } else if (endpoint === 'zitat_abyssale') {
+        console.log('[useApiSubmit] Processing zitat_abyssale response:', response);
+        if (response && response.success && response.quote && response.image) {
+          setSuccess(true);
+          return response;
+        }
       } else if (endpoint === 'search') {
         console.log('[useApiSubmit] Verarbeite Suchantwort:', response);
         // Überprüfe verschiedene mögliche Antwortstrukturen
@@ -327,6 +333,25 @@ const useApiSubmit = (endpoint) => {
             isArray: Array.isArray(response?.results)
           });
           throw new Error('Invalid response format from Bundestag API');
+        }
+      } else if (endpoint === 'info_claude') {
+        console.log('[useApiSubmit] Processing info_claude response:', response);
+        if (response && response.mainInfo) {
+          setSuccess(true);
+          return {
+            header: response.mainInfo.header,
+            subheader: response.mainInfo.subheader,
+            body: response.mainInfo.body,
+            alternatives: response.alternatives || [],
+            searchTerms: response.searchTerms || []
+          };
+        } else {
+          console.error('[useApiSubmit] Invalid info_claude response structure:', {
+            response: response,
+            hasMainInfo: !!response?.mainInfo,
+            mainInfoKeys: response?.mainInfo ? Object.keys(response.mainInfo) : []
+          });
+          throw new Error('Invalid response format from Info Claude API');
         }
       }
 

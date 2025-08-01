@@ -3,13 +3,17 @@
 // Sharepic Types
 export const SHAREPIC_TYPES = {
   QUOTE: 'Zitat',
-  THREE_LINES: 'Dreizeilen'
+  QUOTE_PURE: 'Zitat_Pure',
+  THREE_LINES: 'Dreizeilen',
+  HEADLINE: 'Headline',
+  INFO: 'Info'
 };
 
 // Form Steps
 export const FORM_STEPS = {
   WELCOME: 'welcome',
   TYPE_SELECT: 'type_select',
+  ZITAT_SUB_SELECT: 'zitat_sub_select',
   INPUT: 'input',
   PREVIEW: 'preview',
   RESULT: 'result'

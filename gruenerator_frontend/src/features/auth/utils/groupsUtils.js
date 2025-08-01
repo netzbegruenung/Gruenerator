@@ -115,6 +115,8 @@ export const useGroups = ({ isActive } = {}) => {
       setCreating(false);
       // Invalidate and refetch groups
       queryClient.invalidateQueries({ queryKey: groupsQueryKey });
+      // Pre-emptively clear any cached details for the new group to prevent stale data
+      queryClient.removeQueries({ queryKey: ['groupDetails', newGroup.id] });
       console.log('[useGroups] Group creation successful, cache invalidated');
     },
     onError: (error) => {

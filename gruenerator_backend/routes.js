@@ -11,7 +11,10 @@ const antragsversteherRoute = require('./routes/claude_antragsversteher');
 const wahlpruefsteinBundestagswahlRoute = require('./routes/wahlpruefsteinbundestagswahl');
 const sharepicDreizeilenCanvasRoute = require('./routes/sharepic/sharepic_canvas/dreizeilen_canvas');
 const zitatSharepicCanvasRoute = require('./routes/sharepic/sharepic_canvas/zitat_canvas');
-const sharepicDreizeilenClaudeRoute = require('./routes/sharepic/sharepic_claude/dreizeilen_claude');
+const zitatPureSharepicCanvasRoute = require('./routes/sharepic/sharepic_canvas/zitat_pure_canvas');
+const headlineSharepicCanvasRoute = require('./routes/sharepic/sharepic_canvas/headline_canvas');
+const infoSharepicCanvasRoute = require('./routes/sharepic/sharepic_canvas/info_canvas');
+const sharepicClaudeRoute = require('./routes/sharepic/sharepic_claude/sharepic_claude');
 const aiImageModificationRouter = require('./routes/sharepic/sharepic_canvas/aiImageModification');
 const imageUploadRouter = require('./routes/sharepic/sharepic_canvas/imageUploadRouter');
 const processTextRouter = require('./routes/sharepic/sharepic_canvas/processTextRouter');
@@ -98,6 +101,9 @@ async function setupRoutes(app) {
   const { default: canvaApiRouter } = await import('./routes/canva/canvaApi.mjs');
   // const { default: canvaWebhooksRouter } = await import('./routes/canva/canvaWebhooks.mjs'); // Optional - only needed for real-time updates
   
+  // Import Abyssale routes as ES6 module
+  const { default: abyssaleRouter } = await import('./routes/abyssale.mjs');
+  
   app.use('/api/auth', authCore);
   app.use('/api/auth', userProfile);
   app.use('/api/auth', userContent);
@@ -129,11 +135,118 @@ async function setupRoutes(app) {
   app.use('/api/wahlpruefsteinbundestagswahl', wahlpruefsteinBundestagswahlRoute);
   app.use('/api/dreizeilen_canvas', sharepicDreizeilenCanvasRoute);
   app.use('/api/zitat_canvas', zitatSharepicCanvasRoute);
-  app.use('/api/dreizeilen_claude', sharepicDreizeilenClaudeRoute);
+  app.use('/api/zitat_pure_canvas', zitatPureSharepicCanvasRoute);
+  app.use('/api/headline_canvas', headlineSharepicCanvasRoute);
+  app.use('/api/info_canvas', infoSharepicCanvasRoute);
+  app.use('/api/dreizeilen_claude', sharepicClaudeRoute);
   
-  // Use unified handler for zitat_claude route
+  // Use unified handler for all sharepic claude routes
   app.post('/api/zitat_claude', async (req, res) => {
-    await sharepicDreizeilenClaudeRoute.handleClaudeRequest(req, res, 'zitat');
+    await sharepicClaudeRoute.handleClaudeRequest(req, res, 'zitat');
+  });
+
+  app.post('/api/headline_claude', async (req, res) => {
+    await sharepicClaudeRoute.handleClaudeRequest(req, res, 'headline');
+  });
+
+  app.post('/api/info_claude', async (req, res) => {
+    await sharepicClaudeRoute.handleClaudeRequest(req, res, 'info');
+  });
+
+  app.post('/api/zitat_pure_claude', async (req, res) => {
+    await sharepicClaudeRoute.handleClaudeRequest(req, res, 'zitat_pure');
+  });
+
+  // Zitat with Abyssale generation route - combines text generation + professional template
+  app.post('/api/zitat_abyssale', async (req, res) => {
+    try {
+      console.log('[Zitat-Abyssale] Processing request with body:', req.body);
+      
+      // Step 1: Generate text using existing zitat handler
+      const textResponse = await new Promise((resolve, reject) => {
+        const mockRes = {
+          json: (data) => resolve(data),
+          status: (code) => ({
+            json: (data) => reject(new Error(`Status ${code}: ${JSON.stringify(data)}`)),
+            send: (message) => reject(new Error(`Status ${code}: ${message}`))
+          })
+        };
+        
+        sharepicClaudeRoute.handleClaudeRequest(req, mockRes, 'zitat').catch(reject);
+      });
+      
+      console.log('[Zitat-Abyssale] Text generation response:', textResponse);
+      
+      if (!textResponse || !textResponse.quote) {
+        throw new Error('Failed to generate quote text');
+      }
+      
+      // Step 2: Map to Abyssale elements format
+      const abyssaleData = {
+        designId: 'fc939548-a4e4-426c-be66-66034d612542',
+        elements: {
+          text_0: {
+            payload: textResponse.quote
+          },
+          text_1: {
+            payload: req.body.name || 'Moritz Wächter'
+          }
+        }
+      };
+      
+      console.log('[Zitat-Abyssale] Sending to Abyssale API:', abyssaleData);
+      
+      // Step 3: Generate image using Abyssale
+      const axios = require('axios');
+      const abyssaleResponse = await axios.post(
+        `${req.protocol}://${req.get('host')}/api/abyssale/generate`,
+        abyssaleData,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Cookie': req.headers.cookie // Forward auth cookies
+          }
+        }
+      );
+      
+      console.log('[Zitat-Abyssale] Abyssale API response:', abyssaleResponse.data);
+      
+      if (!abyssaleResponse.data || !abyssaleResponse.data.success) {
+        throw new Error('Abyssale image generation failed');
+      }
+      
+      // Step 4: Convert local image to base64 (like regular generation)
+      const fs = require('fs');
+      const localImagePath = abyssaleResponse.data.data.local?.path;
+      
+      if (!localImagePath || !fs.existsSync(localImagePath)) {
+        throw new Error('Local image file not found');
+      }
+      
+      // Read image file and convert to base64
+      const imageBuffer = fs.readFileSync(localImagePath);
+      const base64Image = `data:image/jpeg;base64,${imageBuffer.toString('base64')}`;
+      
+      // Step 5: Return response in same format as regular generation
+      const result = {
+        success: true,
+        quote: textResponse.quote,
+        name: req.body.name || 'Moritz Wächter',
+        alternatives: textResponse.alternatives || [],
+        image: base64Image, // Same format as regular generation
+        imageData: abyssaleResponse.data.data // Keep for debugging if needed
+      };
+      
+      console.log('[Zitat-Abyssale] Final response:', result);
+      res.json(result);
+      
+    } catch (error) {
+      console.error('[Zitat-Abyssale] Error:', error.message);
+      res.status(500).json({
+        success: false,
+        error: error.message || 'Failed to generate Abyssale sharepic'
+      });
+    }
   });
   app.use('/api/ai-image-modification', aiImageModificationRouter);
   app.use('/api/imageupload', imageUploadRouter);
@@ -171,6 +284,10 @@ async function setupRoutes(app) {
   app.use('/api/canva', canvaApiRouter);
   // app.use('/api/canva/webhooks', canvaWebhooksRouter); // Optional - uncomment if you need real-time webhook updates
   console.log('[Setup] Canva basic routes registered');
+
+  // Add Abyssale routes
+  app.use('/api/abyssale', abyssaleRouter);
+  console.log('[Setup] Abyssale routes registered');
 
   // Add Mem0 routes if available
   if (mem0Router) {

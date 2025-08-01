@@ -63,7 +63,7 @@ function sharepicGeneratorReducer(state, action) {
         formData: updatedFormData,
         currentStep: action.payload.currentStep !== undefined ? action.payload.currentStep : state.currentStep,
         loading: action.payload.loading !== undefined ? action.payload.loading : state.loading,
-        generatedImageSrc: action.payload.generatedImageSrc || state.generatedImageSrc,
+        generatedImageSrc: action.payload.generatedImageSrc !== undefined ? action.payload.generatedImageSrc : state.generatedImageSrc,
         selectedImage: action.payload.selectedImage || state.selectedImage,
       };
     }
