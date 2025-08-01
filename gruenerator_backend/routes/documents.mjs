@@ -284,8 +284,23 @@ router.get('/user', ensureAuthenticated, async (req, res) => {
 router.get('/group/:groupId', ensureAuthenticated, async (req, res) => {
   try {
     const { groupId } = req.params;
+    const userId = req.user.id;
 
-    // TODO: Add group membership verification
+    // Verify user is a member of the group
+    const { data: membership, error: membershipError } = await supabaseService
+      .from('group_memberships')
+      .select('group_id')
+      .eq('group_id', groupId)
+      .eq('user_id', userId)
+      .single();
+
+    if (membershipError || !membership) {
+      console.warn(`[Documents /group] Unauthorized access attempt by user ${userId} to group ${groupId}`);
+      return res.status(403).json({
+        success: false,
+        message: 'Du bist nicht Mitglied dieser Gruppe.'
+      });
+    }
 
     const { data: documents, error } = await supabaseService
       .from('documents')
