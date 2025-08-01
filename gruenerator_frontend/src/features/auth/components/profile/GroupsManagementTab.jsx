@@ -259,7 +259,7 @@ const GroupDetailView = memo(({
     };
 
     if (isLoadingDetails || !data) {
-        return <div className="profile-content-centered">Lädt...</div>;
+        return null;
     }
     
     if (isErrorDetails) {
