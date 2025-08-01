@@ -145,8 +145,8 @@ export const TAB_INDEX_CONFIG = {
     deleteMemoryButton: 47 // Base for individual memory delete buttons
   },
 
-  // Profile Page - DocumentsTab
-  PROFILE_DOCUMENTS: {
+  // Profile Page - ContentManagementTab (merged DocumentsTab and CanvaTab)
+  PROFILE_CONTENT_MANAGEMENT: {
     // Vertical navigation
     documentsTab: 20,
     qaTab: 21,
@@ -261,7 +261,7 @@ export const {
   PROFILE_INFO,
   PROFILE_GROUPS,
   PROFILE_INTELLIGENCE,
-  PROFILE_DOCUMENTS,
+  PROFILE_CONTENT_MANAGEMENT,
   PROFILE_GENERATORS,
   PROFILE_LABOR,
   HOME

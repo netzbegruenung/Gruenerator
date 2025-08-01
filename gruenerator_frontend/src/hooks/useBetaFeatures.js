@@ -14,9 +14,10 @@ const BETA_FEATURES_CONFIG = [
   { key: 'customGenerators', label: 'Grüneratoren', isAdminOnly: false },
   { key: 'qa', label: 'Q&A Sammlungen', isAdminOnly: false },
   { key: 'e_learning', label: 'E-Learning', isAdminOnly: false },
-  // Profile settings treated as beta features for consistency
+  { key: 'bundestag_api_enabled', label: 'Bundestag API', isAdminOnly: false },
+  { key: 'memory', label: 'Memory (Mem0ry)', isAdminOnly: false },
+  // Profile-only settings (not shown in Labor tab)
   { key: 'igel_modus', label: 'Igel-Modus', isAdminOnly: false, isProfileSetting: true },
-  { key: 'bundestag_api_enabled', label: 'Bundestag API', isAdminOnly: false, isProfileSetting: true },
 ];
 
 // Dynamically generated arrays from config
@@ -39,7 +40,8 @@ const fetchBetaFeatures = async (user) => {
       collab: user.collab || false,
       qa: user.qa || false,
       sharepic: user.sharepic || false,
-      anweisungen: user.anweisungen || false
+      anweisungen: user.anweisungen || false,
+      memory: user.memory || false
     };
     
     // Merge beta features with ALL individual profile settings for complete data
@@ -216,7 +218,9 @@ export const useBetaFeatures = (options = {}) => {
   };
 
   const getAvailableFeatures = () => {
-    return BETA_FEATURES_CONFIG.filter(feature => !feature.isAdminOnly || isAdmin);
+    return BETA_FEATURES_CONFIG.filter(feature => 
+      (!feature.isAdminOnly || isAdmin) && !feature.isProfileSetting
+    );
   };
 
   const updateUserBetaFeatures = (featureKey, isEnabled) => {
