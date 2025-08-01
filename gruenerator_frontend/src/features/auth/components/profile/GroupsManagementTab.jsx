@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { useForm, FormProvider, useFieldArray } from 'react-hook-form';
 import { HiOutlineTrash, HiPlus, HiLink, HiInformationCircle, HiPencil, HiCheck, HiX } from 'react-icons/hi';
 import { useAutosave } from '../../../../hooks/useAutosave';
-import Spinner from '../../../../components/common/Spinner';
 import { useGroups, useGroupSharing, getGroupInitials } from '../../utils/groupsUtils';
 import { useAnweisungenWissen } from '../../hooks/useProfileData';
 import { useFormFields } from '../../../../components/common/Form/hooks';
@@ -260,7 +259,7 @@ const GroupDetailView = memo(({
     };
 
     if (isLoadingDetails || !data) {
-        return <div className="profile-content-centered"><Spinner /></div>;
+        return <div className="profile-content-centered">Lädt...</div>;
     }
     
     if (isErrorDetails) {
@@ -669,7 +668,7 @@ const GroupDetailView = memo(({
                                                                 disabled={isDeletingKnowledge && deletingKnowledgeId === field.id}
                                                                 aria-label={`Wissenseintrag ${index + 1} löschen`}
                                                             >
-                                                                {(isDeletingKnowledge && deletingKnowledgeId === field.id) ? <Spinner size="xsmall" /> : <HiOutlineTrash />}
+                                                                <HiOutlineTrash />
                                                             </button>
                                                         )}
                                                     </div>
@@ -1137,7 +1136,7 @@ const GroupsManagementTab = ({ onSuccessMessage, onErrorMessage, isActive }) => 
                                     disabled={isCreatingGroup}
                                     tabIndex={tabIndex.createSubmitButton}
                                 >
-                                    {isCreatingGroup ? <Spinner size="small" /> : 'Gruppe erstellen'}
+                                    Gruppe erstellen
                                 </button>
                                 <button 
                                     type="button" 

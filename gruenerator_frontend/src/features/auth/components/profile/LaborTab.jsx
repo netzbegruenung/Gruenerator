@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from "motion/react";
 import FeatureToggle from '../../../../components/common/FeatureToggle';
-import { HiOutlineExternalLink, HiOutlineGlobe, HiOutlineUserGroup, HiOutlineDatabase, HiOutlineCog, HiOutlinePhotograph, HiOutlineAcademicCap, HiOutlineUser, HiOutlineUsers, HiChatAlt2 } from 'react-icons/hi';
+import { HiOutlineExternalLink, HiOutlineGlobe, HiOutlineUserGroup, HiOutlineDatabase, HiOutlineCog, HiOutlinePhotograph, HiOutlineAcademicCap, HiOutlineUser, HiOutlineUsers, HiChatAlt2, HiOutlineOfficeBuilding, HiChip } from 'react-icons/hi';
 import { useBetaFeatures } from '../../../../hooks/useBetaFeatures';
 
 const LaborTab = ({
@@ -24,6 +24,9 @@ const LaborTab = ({
     YOU: 'you',
     COLLAB: 'collab',
     QA: 'qa',
+    ELEARNING: 'e_learning',
+    BUNDESTAG_API: 'bundestag_api_enabled',
+    MEMORY: 'memory',
   };
 
   const handleBetaToggle = (setter, currentValue, featureName) => {
@@ -96,8 +99,42 @@ const LaborTab = ({
           checked: getBetaFeatureState('qa'),
           setter: (value) => updateUserBetaFeatures('qa', value),
           featureName: 'Q&A Sammlungen',
-          checkboxLabel: 'Q&A-Tab in Meine Inhalte anzeigen und Funktionalität aktivieren',
+          checkboxLabel: 'Q&A-Tab in Texte & Grafik anzeigen und Funktionalität aktivieren',
           icon: HiChatAlt2
+        };
+      case BETA_VIEWS.ELEARNING:
+        return {
+          title: 'E-Learning',
+          description: 'Interaktive E-Learning Module über grüne Politik, Klimaschutz und nachhaltiges Engagement. Erweitere dein Wissen mit strukturierten Lernpfaden.',
+          checked: getBetaFeatureState('e_learning'),
+          setter: (value) => updateUserBetaFeatures('e_learning', value),
+          featureName: 'E-Learning',
+          checkboxLabel: 'E-Learning Module aktivieren',
+          linkTo: '/e-learning',
+          linkText: 'Zu den Lernmodulen',
+          icon: HiOutlineAcademicCap
+        };
+      case BETA_VIEWS.BUNDESTAG_API:
+        return {
+          title: 'Bundestag API',
+          description: 'Integration mit der Bundestag API (DIP - Dokumentations- und Informationssystem für Parlamentsmaterialien) um parlamentarische Dokumente, Drucksachen und Plenarprotokolle in deine Anträge einzubeziehen.',
+          checked: getBetaFeatureState('bundestag_api_enabled'),
+          setter: (value) => updateUserBetaFeatures('bundestag_api_enabled', value),
+          featureName: 'Bundestag API',
+          checkboxLabel: 'Bundestag API für parlamentarische Dokumente aktivieren',
+          linkTo: '/bundestag',
+          linkText: 'Zum Bundestag-Suchportal',
+          icon: HiOutlineOfficeBuilding
+        };
+      case BETA_VIEWS.MEMORY:
+        return {
+          title: 'Memory (Mem0ry)',
+          description: 'Personalisierte KI-Memories, die sich wichtige Informationen über dich merken und bei der Texterstellung berücksichtigen. Aktiviere diese Funktion, um individualisierte Inhalte zu erhalten.',
+          checked: getBetaFeatureState('memory'),
+          setter: (value) => updateUserBetaFeatures('memory', value),
+          featureName: 'Memory',
+          checkboxLabel: 'Memory-Tab in der Intelligenz-Sektion aktivieren',
+          icon: HiChip
         };
       default:
         return null;

@@ -231,7 +231,7 @@ router.get('/profile/beta-features', ensureAuthenticated, async (req, res) => {
     // Get profile from database to access beta_features and ALL individual beta feature columns
     const { data: profile, error: profileError } = await supabaseService
       .from('profiles')
-      .select('beta_features, igel_modus, bundestag_api_enabled, groups, custom_generators, database_access, you_generator, collab, qa, sharepic, anweisungen')
+      .select('beta_features, igel_modus, bundestag_api_enabled, groups, custom_generators, database_access, you_generator, collab, qa, sharepic, anweisungen, memory')
       .eq('id', req.user.id)
       .single();
     
@@ -254,7 +254,8 @@ router.get('/profile/beta-features', ensureAuthenticated, async (req, res) => {
       collab: profile?.collab || false,
       qa: profile?.qa || false,
       sharepic: profile?.sharepic || false,
-      anweisungen: profile?.anweisungen || false
+      anweisungen: profile?.anweisungen || false,
+      memory: profile?.memory || false
     };
     
     const mergedBetaFeatures = {
@@ -304,6 +305,7 @@ router.patch('/profile/beta-features', ensureAuthenticated, async (req, res) => 
       'collaborative_editing',
       'customGruenerator',
       'e_learning',
+      'memory',
       // Profile settings treated as beta features for consistency
       'igel_modus',
       'bundestag_api_enabled'
@@ -378,6 +380,9 @@ router.patch('/profile/beta-features', ensureAuthenticated, async (req, res) => 
       if (feature === 'qa') {
         updateData.qa = Boolean(enabled);
       }
+      if (feature === 'memory') {
+        updateData.memory = Boolean(enabled);
+      }
       
       const { error: profileUpdateError } = await supabaseService
         .from('profiles')
@@ -434,6 +439,9 @@ router.patch('/profile/beta-features', ensureAuthenticated, async (req, res) => 
       if (feature === 'qa') {
         req.user.qa = Boolean(enabled);
       }
+      if (feature === 'memory') {
+        req.user.memory = Boolean(enabled);
+      }
       
       // Remove user_metadata - no longer needed
       
@@ -474,6 +482,9 @@ router.patch('/profile/beta-features', ensureAuthenticated, async (req, res) => 
         }
         if (feature === 'qa') {
           req.session.passport.user.qa = Boolean(enabled);
+        }
+        if (feature === 'memory') {
+          req.session.passport.user.memory = Boolean(enabled);
         }
       }
       
