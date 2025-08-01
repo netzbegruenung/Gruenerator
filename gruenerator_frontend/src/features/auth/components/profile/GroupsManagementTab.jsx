@@ -82,7 +82,8 @@ const GroupDetailView = memo(({
         data, 
         isLoading: isLoadingDetails, 
         isError: isErrorDetails, 
-        error: errorDetails 
+        error: errorDetails,
+        refetch: refetchGroupData
     } = query;
     
     // Constants for compatibility
@@ -316,6 +317,8 @@ const GroupDetailView = memo(({
             onSuccess: () => {
                 setIsEditingName(false);
                 onSuccessMessage('Gruppenname erfolgreich geändert!');
+                // Refetch group data to update UI with latest changes
+                refetchGroupData();
             },
             onError: (error) => {
                 onErrorMessage('Fehler beim Ändern des Gruppennamens: ' + error.message);
@@ -347,6 +350,8 @@ const GroupDetailView = memo(({
             onSuccess: () => {
                 setIsEditingDescription(false);
                 onSuccessMessage('Gruppenbeschreibung erfolgreich geändert!');
+                // Refetch group data to update UI with latest changes
+                refetchGroupData();
             },
             onError: (error) => {
                 onErrorMessage('Fehler beim Ändern der Gruppenbeschreibung: ' + error.message);
