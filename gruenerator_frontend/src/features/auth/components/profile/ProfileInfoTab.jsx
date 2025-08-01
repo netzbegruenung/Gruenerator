@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
+import { profileApiService } from '../../services/profileApiService';
 import { useAutosave } from '../../../../hooks/useAutosave';
 import Spinner from '../../../../components/common/Spinner';
 import TextInput from '../../../../components/common/Form/Input/TextInput';
 import FeatureToggle from '../../../../components/common/FeatureToggle';
 import { 
   getAvatarDisplayProps, 
-  useProfileData, 
-  useProfileManager,
   initializeProfileFormFields
-} from '../../utils/profileUtils';
+} from '../../services/profileApiService';
+import { useProfile } from '../../hooks/useProfileData';
 import { useOptimizedAuth } from '../../../../hooks/useAuth';
 import { useBetaFeatures } from '../../../../hooks/useBetaFeatures';
 import AvatarSelectionModal from './AvatarSelectionModal';
@@ -42,9 +42,55 @@ const ProfileInfoTab = ({
   } = useBetaFeatures();
   const user = userProp || authUser;
   
-  // Business logic hooks from profileUtils
-  const { data: profile, isLoading: isLoadingProfile, isError: isErrorProfileQuery, error: errorProfileQuery } = useProfileData(user?.id);
-  const { updateProfile, updateAvatar, isUpdatingProfile, isUpdatingAvatar, profileUpdateError, resetProfileMutation } = useProfileManager();
+  // Business logic hooks from useProfileData
+  const { data: profile, isLoading: isLoadingProfile, isError: isErrorProfileQuery, error: errorProfileQuery } = useProfile(user?.id);
+
+  // Profile update mutations (moved from useProfileManager)
+  const updateProfileMutation = useMutation({
+    mutationFn: async (profileData) => {
+      if (!user) throw new Error('Nicht angemeldet');
+      return await profileApiService.updateProfile(profileData);
+    },
+    onSuccess: (updatedProfile) => {
+      if (user?.id && updatedProfile) {
+        queryClient.setQueryData(['profileData', user.id], (oldData) => ({
+          ...oldData,
+          ...updatedProfile
+        }));
+      }
+    },
+    onError: (error) => {
+      console.error('Profile update failed:', error);
+    },
+    retry: 1,
+    retryDelay: 1000
+  });
+
+  const updateAvatarMutation = useMutation({
+    mutationFn: async (avatarRobotId) => {
+      if (!user) throw new Error('Nicht angemeldet');
+      return await profileApiService.updateAvatar(avatarRobotId);
+    },
+    onSuccess: (updatedProfile) => {
+      if (user?.id && updatedProfile) {
+        queryClient.setQueryData(['profileData', user.id], (oldData) => ({
+          ...oldData,
+          ...updatedProfile
+        }));
+      }
+    },
+    onError: (error) => {
+      console.error('Avatar update failed:', error);
+    }
+  });
+
+  // Extract mutation functions for easier use
+  const updateProfile = updateProfileMutation.mutate;
+  const updateAvatar = updateAvatarMutation.mutate;
+  const isUpdatingProfile = updateProfileMutation.isPending;
+  const isUpdatingAvatar = updateAvatarMutation.isPending;
+  const profileUpdateError = updateProfileMutation.error;
+  const resetProfileMutation = () => updateProfileMutation.reset();
 
   // Local form states only
   const [firstName, setFirstName] = useState('');
@@ -135,7 +181,7 @@ const ProfileInfoTab = ({
     }
   });
 
-  // Initialize form fields when profile data loads (centralized logic from profileUtils)
+  // Initialize form fields when profile data loads (centralized logic from profileApiService)
   useEffect(() => {
     if (!profile || !user) return;
     

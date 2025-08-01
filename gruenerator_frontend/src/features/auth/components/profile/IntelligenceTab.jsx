@@ -5,7 +5,7 @@ import { useAutosave } from '../../../../hooks/useAutosave';
 import { motion } from "motion/react";
 import Spinner from '../../../../components/common/Spinner';
 import { useFormFields } from '../../../../components/common/Form/hooks';
-import { useAnweisungenWissen } from '../../utils/profileUtils';
+import { useAnweisungenWissen } from '../../hooks/useProfileData';
 import { useInstructionsUiStore } from '../../../../stores/auth/instructionsUiStore';
 import HelpTooltip from '../../../../components/common/HelpTooltip';
 import FeatureToggle from '../../../../components/common/FeatureToggle';
