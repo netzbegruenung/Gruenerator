@@ -172,7 +172,7 @@ const ProfilePage = () => {
     'profile',
     'intelligence',
     'inhalte',
-    ...(shouldShowTab('groups') ? ['gruppen'] : []),
+    'gruppen',
     ...(shouldShowTab('customGenerators') ? ['custom_generators'] : []),
     'labor'
   ];
@@ -341,20 +341,18 @@ const ProfilePage = () => {
           Texte & Grafik
         </TabButton>
         
-        {shouldShowTab('groups') && (
-          <TabButton
-            activeTab={activeTab}
-            tabKey="gruppen"
-            onClick={handleTabChange}
-            onMouseEnter={() => onTabHover('groups')}
-            underlineTransition={underlineTransition}
-            tabIndex={getTabIndex('gruppen')}
-            registerRef={registerItemRef}
-            ariaSelected={ariaSelected('gruppen')}
-          >
-            Gruppen
-          </TabButton>
-        )}
+        <TabButton
+          activeTab={activeTab}
+          tabKey="gruppen"
+          onClick={handleTabChange}
+          onMouseEnter={() => onTabHover('groups')}
+          underlineTransition={underlineTransition}
+          tabIndex={getTabIndex('gruppen')}
+          registerRef={registerItemRef}
+          ariaSelected={ariaSelected('gruppen')}
+        >
+          Gruppen
+        </TabButton>
         
         
         {shouldShowTab('customGenerators') && (
@@ -442,7 +440,7 @@ const ProfilePage = () => {
             />
           )}
           
-          {activeTab === 'gruppen' && shouldShowTab('groups') && (
+          {activeTab === 'gruppen' && (
             <GroupsManagementTab
               user={user}
               onSuccessMessage={handleSuccessMessage}

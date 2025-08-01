@@ -366,8 +366,8 @@ export const useAuth = (options = {}) => {
             supabaseSession: authData.supabaseSession
           });
 
-          // Prefetch groups if groups beta feature is enabled and user doesn't already have groups loaded
-          if (authData.user.beta_features?.groups && !authData.user.groups) {
+          // Prefetch groups if user doesn't already have groups loaded
+          if (!authData.user.groups) {
             queryClient.prefetchQuery({
               queryKey: ['userGroups', authData.user.id],
               queryFn: async () => {

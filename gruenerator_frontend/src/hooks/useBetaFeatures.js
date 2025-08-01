@@ -9,7 +9,6 @@ const BETA_FEATURES_CONFIG = [
   { key: 'sharepic', label: 'Sharepic', isAdminOnly: false },
   { key: 'you', label: 'You Generator', isAdminOnly: false },
   { key: 'collab', label: 'Kollaborative Bearbeitung', isAdminOnly: false },
-  { key: 'groups', label: 'Gruppen', isAdminOnly: false },
   { key: 'database', label: 'Datenbank', isAdminOnly: true },
   { key: 'customGenerators', label: 'Grüneratoren', isAdminOnly: false },
   { key: 'qa', label: 'Q&A Sammlungen', isAdminOnly: false },
