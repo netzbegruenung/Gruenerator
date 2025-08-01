@@ -15,9 +15,6 @@ import GeneratorStartScreen from './components/GeneratorStartScreen';
 import GeneratorCreationSuccessScreen from './components/GeneratorCreationSuccessScreen';
 import { useOptimizedAuth } from '../../hooks/useAuth';
 import InlineValidationMessage from '../../components/common/UI/InlineValidationMessage';
-// TODO: Document upload and association feature incomplete - needs proper validation, error handling, and backend sync
-// import DocumentUpload from '../../components/common/DocumentUpload';
-// import DocumentSelector from './components/DocumentSelector';
 import '../../assets/styles/components/custom-generator/custom-generator-page.css';
 
 // Auth Backend URL aus Environment Variable oder Fallback zu aktuellem Host
@@ -361,21 +358,6 @@ const CreateCustomGeneratorPage = ({ showHeaderFooter = true }) => {
         throw new Error(result.message || 'Fehler beim Speichern des Generators.');
       }
       
-      // TODO: Document upload and association feature incomplete - needs proper validation, error handling, and backend sync
-      /*
-      // If generator was created successfully and has documents, associate them
-      if (result.generator && formValues.documents && formValues.documents.length > 0) {
-        try {
-          const documentIds = formValues.documents.map(doc => doc.id);
-          await profileApiService.addDocumentsToGenerator(result.generator.id, documentIds);
-          console.log(`[CreateCustomGeneratorPage] Associated ${documentIds.length} documents with generator`);
-        } catch (docError) {
-          console.warn('[CreateCustomGeneratorPage] Failed to associate documents:', docError);
-          // Don't fail the whole process if document association fails
-        }
-      }
-      */
-      
       setCompletionData({ name: dataToSave.name, slug: dataToSave.slug });
     } catch (err) {
       console.error("Error saving generator:", err);
@@ -498,31 +480,6 @@ const CreateCustomGeneratorPage = ({ showHeaderFooter = true }) => {
           </>
         );
 
-      // TODO: Document upload and association feature incomplete - needs proper validation, error handling, and backend sync
-      /*
-      case STEPS.DOCUMENTS:
-        const currentDocuments = getValues('documents');
-        return (
-          <>
-            <h3>Dokumente hinzufügen (optional)</h3>
-            <div className="documents-step-description">
-              <p>
-                Hier können Sie Dokumente als Wissensquelle für Ihren Generator hinzufügen. 
-                Der Generator kann dann während der Texterstellung auf Inhalte aus diesen Dokumenten zugreifen und sie zitieren.
-              </p>
-              <p className="help-text">
-                <strong>Hinweis:</strong> Nur vollständig verarbeitete PDF-Dokumente können hinzugefügt werden.
-              </p>
-            </div>
-            
-            <DocumentSelector 
-              selectedDocuments={currentDocuments}
-              onDocumentsChange={(documents) => setValue('documents', documents)}
-            />
-          </>
-        );
-      */
-
       case STEPS.PROMPT:
         return (
           <>
@@ -577,26 +534,6 @@ const CreateCustomGeneratorPage = ({ showHeaderFooter = true }) => {
                   <p>Keine Felder definiert.</p>
                 )}
               </div>
-              {/* TODO: Document upload and association feature incomplete - needs proper validation, error handling, and backend sync */}
-              {/*
-              <div className="review-section">
-                <h4>Dokumente</h4>
-                {reviewFormValues.documents && reviewFormValues.documents.length > 0 ? (
-                  <ul className="list-group">
-                    {reviewFormValues.documents.map((document, index) => (
-                      <li key={index} className="list-group-item">
-                        <strong>{document.title}</strong><br />
-                        <small>
-                          {document.filename} • {document.page_count} Seiten
-                        </small>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p>Keine Dokumente ausgewählt. Der Generator wird ohne Wissensquelle arbeiten.</p>
-                )}
-              </div>
-              */}
               <div className="review-section">
                 <h4>Prompt</h4>
                 <pre className="review-prompt-display">{finalPromptReview}</pre>
