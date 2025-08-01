@@ -20,8 +20,7 @@ import '../../../assets/styles/features/auth/profile-bubbles.css';
 const ProfileInfoTab = lazy(() => import('../components/profile/ProfileInfoTab'));
 const GroupsManagementTab = lazy(() => import('../components/profile/GroupsManagementTab'));
 const IntelligenceTab = lazy(() => import('../components/profile/IntelligenceTab'));
-const DocumentsTab = lazy(() => import('../components/profile/DocumentsTab'));
-const CanvaTab = lazy(() => import('../components/profile/CanvaTab'));
+const ContentManagementTab = lazy(() => import('../components/profile/ContentManagementTab'));
 const CustomGeneratorsTab = lazy(() => import('../components/profile/CustomGeneratorsTab'));
 const LaborTab = lazy(() => import('../components/profile/LaborTab'));
 
@@ -119,8 +118,7 @@ const ProfilePage = () => {
   const TAB_MAPPING = {
     'profil': 'profile',
     'intelligence': 'intelligence', 
-    'dokumente': 'dokumente',
-    'grafik': 'grafik',
+    'inhalte': 'inhalte',
     'gruppen': 'gruppen',
     'generatoren': 'custom_generators',
     'labor': 'labor'
@@ -173,8 +171,7 @@ const ProfilePage = () => {
   const availableTabs = [
     'profile',
     'intelligence',
-    'dokumente',
-    'grafik',
+    'inhalte',
     ...(shouldShowTab('groups') ? ['gruppen'] : []),
     ...(shouldShowTab('customGenerators') ? ['custom_generators'] : []),
     'labor'
@@ -194,8 +191,14 @@ const ProfilePage = () => {
     setHoveredTab(null);
   }, [activeTab]);
 
-  // Handle invalid tab URLs
+  // Handle invalid tab URLs and redirects for merged tabs
   useEffect(() => {
+    // Redirect old separate tabs to new unified content tab
+    if (tab === 'dokumente' || tab === 'grafik') {
+      navigate('/profile/inhalte', { replace: true });
+      return;
+    }
+    
     if (tab && !TAB_MAPPING[tab]) {
       // Invalid tab in URL, redirect to default
       navigate('/profile', { replace: true });
@@ -322,33 +325,20 @@ const ProfilePage = () => {
           registerRef={registerItemRef}
           ariaSelected={ariaSelected('intelligence')}
         >
-          Intelligence
+          Anweisungen & Wissen
         </TabButton>
         
         <TabButton
           activeTab={activeTab}
-          tabKey="dokumente"
+          tabKey="inhalte"
           onClick={handleTabChange}
-          onMouseEnter={() => onTabHover('dokumente')}
+          onMouseEnter={() => onTabHover('inhalte')}
           underlineTransition={underlineTransition}
-          tabIndex={getTabIndex('dokumente')}
+          tabIndex={getTabIndex('inhalte')}
           registerRef={registerItemRef}
-          ariaSelected={ariaSelected('dokumente')}
+          ariaSelected={ariaSelected('inhalte')}
         >
-          Dokumente & Texte
-        </TabButton>
-        
-        <TabButton
-          activeTab={activeTab}
-          tabKey="grafik"
-          onClick={handleTabChange}
-          onMouseEnter={() => onTabHover('grafik')}
-          underlineTransition={underlineTransition}
-          tabIndex={getTabIndex('grafik')}
-          registerRef={registerItemRef}
-          ariaSelected={ariaSelected('grafik')}
-        >
-          Canva-Vorlagen
+          Texte & Grafik
         </TabButton>
         
         {shouldShowTab('groups') && (
@@ -443,21 +433,12 @@ const ProfilePage = () => {
             />
           )}
           
-          {activeTab === 'dokumente' && (
-            <DocumentsTab
+          {activeTab === 'inhalte' && (
+            <ContentManagementTab
               user={user}
               onSuccessMessage={handleSuccessMessage}
               onErrorMessage={handleErrorMessage}
-              isActive={activeTab === 'dokumente'}
-            />
-          )}
-          
-          {activeTab === 'grafik' && (
-            <CanvaTab
-              user={user}
-              onSuccessMessage={handleSuccessMessage}
-              onErrorMessage={handleErrorMessage}
-              isActive={activeTab === 'grafik'}
+              isActive={activeTab === 'inhalte'}
             />
           )}
           
