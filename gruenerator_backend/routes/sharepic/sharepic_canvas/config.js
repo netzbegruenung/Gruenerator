@@ -2,6 +2,8 @@ const path = require('path');
 
 module.exports = {
   FONT_PATH: path.resolve(__dirname, '../../../public/fonts/GrueneType.ttf'),
+  PTSANS_REGULAR_PATH: path.resolve(__dirname, '../../../public/fonts/PTSans-Regular.ttf'),
+  PTSANS_BOLD_PATH: path.resolve(__dirname, '../../../public/fonts/PTSans-Bold.ttf'),
   SUNFLOWER_PATH: path.resolve(__dirname, '../../../public/Sonnenblume.png'),
   TESTBILD_PATH: path.resolve(__dirname, '../../../public/testbild.jpg'),
   TEMP_UPLOAD_DIR: path.resolve(__dirname, '../../../temp_uploads'),
@@ -11,7 +13,8 @@ module.exports = {
     TANNE: '#005538',
     KLEE: '#008939', 
     GRASHALM: '#8ABD24',
-    SAND: '#F5F1E9'
+    SAND: '#F5F1E9',
+    ZITAT_BG: '#6ccd87'
   },
 
   params: {
