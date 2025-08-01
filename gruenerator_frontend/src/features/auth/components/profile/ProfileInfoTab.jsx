@@ -16,7 +16,6 @@ import AvatarSelectionModal from './AvatarSelectionModal';
 import HelpTooltip from '../../../../components/common/HelpTooltip';
 import { motion } from "motion/react";
 import { GiHedgehog } from "react-icons/gi";
-import { HiOutlineOfficeBuilding, HiOutlineAcademicCap } from "react-icons/hi";
 
 const ProfileInfoTab = ({ 
   user: userProp, 
@@ -241,23 +240,6 @@ const ProfileInfoTab = ({
     }
   };
 
-  const handleBundestagApiToggle = async (enabled) => {
-    try {
-      await updateUserBetaFeatures('bundestag_api_enabled', enabled);
-      onSuccessMessage(enabled ? 'Bundestag API aktiviert! Du kannst jetzt parlamentarische Dokumente verwenden.' : 'Bundestag API deaktiviert.');
-    } catch (error) {
-      onErrorProfileMessage(error.message || 'Fehler beim Aktualisieren der Bundestag API Einstellung.');
-    }
-  };
-
-  const handleELearningToggle = async (enabled) => {
-    try {
-      await updateUserBetaFeatures('e_learning', enabled);
-      onSuccessMessage(enabled ? 'E-Learning aktiviert! Du kannst jetzt auf die Lernmodule zugreifen.' : 'E-Learning deaktiviert.');
-    } catch (error) {
-      onErrorProfileMessage(error.message || 'Fehler beim Aktualisieren der E-Learning Einstellung.');
-    }
-  };
 
 
   const handleToggleDeleteAccountForm = () => {
@@ -464,40 +446,6 @@ const ProfileInfoTab = ({
             />
           </div>
 
-          <hr className="form-divider" />
-          
-          <div className="form-group">
-            <div className="form-group-title">API Integrationen</div>
-            <FeatureToggle
-              isActive={getBetaFeatureState('bundestag_api_enabled')}
-              onToggle={handleBundestagApiToggle}
-              label="Bundestag API aktivieren"
-              icon={HiOutlineOfficeBuilding}
-              description="Aktiviere die Integration mit der Bundestag API (DIP - Dokumentations- und Informationssystem für Parlamentsmaterialien) um parlamentarische Dokumente, Drucksachen und Plenarprotokolle in deine Anträge einzubeziehen."
-              className="bundestag-api-toggle"
-              disabled={isBetaFeaturesUpdating}
-            />
-          </div>
-
-          <hr className="form-divider" />
-          
-          <div className="form-group">
-            <div className="form-group-title">Bildung & Lernen</div>
-            <FeatureToggle
-              isActive={getBetaFeatureState('e_learning')}
-              onToggle={handleELearningToggle}
-              label="E-Learning aktivieren"
-              icon={HiOutlineAcademicCap}
-              description="Aktiviere den Zugang zu interaktiven E-Learning Modulen über grüne Politik, Klimaschutz und nachhaltiges Engagement. Erweitere dein Wissen mit strukturierten Lernpfaden."
-              className="elearning-toggle"
-              disabled={isBetaFeaturesUpdating}
-            />
-            {getBetaFeatureState('e_learning') && (
-              <div className="form-help-text form-help-text-success" style={{ marginTop: 'var(--spacing-small)' }}>
-                ✅ E-Learning aktiviert! <a href="/e-learning" style={{ color: 'var(--link-color)', textDecoration: 'underline' }}>Zu den Lernmodulen →</a>
-              </div>
-            )}
-          </div>
 
           {canManageCurrentAccount && !showDeleteAccountForm && (
             <>

@@ -11,6 +11,7 @@ import HelpTooltip from '../../../../components/common/HelpTooltip';
 import FeatureToggle from '../../../../components/common/FeatureToggle';
 import { useOptimizedAuth } from '../../../../hooks/useAuth';
 import { useAuthStore } from '../../../../stores/authStore';
+import { useBetaFeatures } from '../../../../hooks/useBetaFeatures';
 import { useTabIndex } from '../../../../hooks/useTabIndex';
 import { useVerticalTabNavigation, useModalFocus } from '../../../../hooks/useKeyboardNavigation';
 import { announceToScreenReader, createInlineEditorFocus } from '../../../../utils/focusManagement';
@@ -27,13 +28,16 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
     // Tab index configuration
     const tabIndex = useTabIndex('PROFILE_INTELLIGENCE');
 
-    // Check if user is on mem0ry tab but not in development - redirect to anweisungen
+    // Beta features
+    const { getBetaFeatureState } = useBetaFeatures();
+    const isMemoryEnabled = getBetaFeatureState('memory');
+
+    // Check if user is on mem0ry tab but memory feature is not enabled - redirect to anweisungen
     useEffect(() => {
-        const isDevelopment = import.meta.env.VITE_APP_ENV === 'development';
-        if (currentView === 'mem0ry' && !isDevelopment) {
+        if (currentView === 'mem0ry' && !isMemoryEnabled) {
             setCurrentView('anweisungen');
         }
-    }, [currentView]);
+    }, [currentView, isMemoryEnabled]);
 
     // Auth and memory state
     const { user, isAuthenticated, loading: authLoading } = useOptimizedAuth();
@@ -139,10 +143,10 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
 
     // Fetch memories when tab becomes active and user is authenticated
     useEffect(() => {
-        if (isActive && currentView === 'mem0ry' && isAuthenticated && user?.id && !authLoading && memoryEnabled) {
+        if (isActive && currentView === 'mem0ry' && isAuthenticated && user?.id && !authLoading && memoryEnabled && isMemoryEnabled) {
             fetchMemories();
         }
-    }, [isActive, currentView, isAuthenticated, user?.id, authLoading, memoryEnabled]);
+    }, [isActive, currentView, isAuthenticated, user?.id, authLoading, memoryEnabled, isMemoryEnabled]);
 
     // Effect to clear messages when view changes or component becomes inactive
     useEffect(() => {
@@ -179,7 +183,9 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
             
             const data = await response.json();
             console.log('[IntelligenceTab] API Response:', data);
-            setMemories(data.memories || []);
+            // Ensure memories is always an array
+            const memoriesArray = Array.isArray(data.memories) ? data.memories : [];
+            setMemories(memoriesArray);
             
             if (!data.memories || data.memories.length === 0) {
                 console.log('[IntelligenceTab] No memories found for user');
@@ -271,12 +277,15 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
     };
 
     const deleteAllMemories = async () => {
-        if (!window.confirm(`Wirklich alle ${memories.length} Memories löschen?\n\nDiese Aktion kann nicht rückgängig gemacht werden und alle deine gespeicherten persönlichen Informationen gehen verloren.`)) {
+        const memoriesCount = Array.isArray(memories) ? memories.length : 0;
+        if (!window.confirm(`Wirklich alle ${memoriesCount} Memories löschen?\n\nDiese Aktion kann nicht rückgängig gemacht werden und alle deine gespeicherten persönlichen Informationen gehen verloren.`)) {
             return;
         }
 
         try {
-            const deletePromises = memories.map(memory => 
+            // Ensure memories is an array before mapping
+            const memoriesArray = Array.isArray(memories) ? memories : [];
+            const deletePromises = memoriesArray.map(memory => 
                 fetch(`${AUTH_BASE_URL}/mem0/${memory.id}`, {
                     method: 'DELETE',
                     credentials: 'include',
@@ -311,7 +320,7 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
     };
 
     const handleAddKnowledge = () => {
-        if (fields.length < MAX_KNOWLEDGE_ENTRIES) {
+        if (Array.isArray(fields) && fields.length < MAX_KNOWLEDGE_ENTRIES) {
             append({ id: `new-${Date.now()}`, title: '', content: '' });
         }
     };
@@ -343,7 +352,7 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
     const availableViews = [
         'anweisungen',
         'wissen',
-        ...(import.meta.env.VITE_APP_ENV === 'development' ? ['mem0ry'] : [])
+        ...(isMemoryEnabled ? ['mem0ry'] : [])
     ];
     
     // Vertical tab navigation setup
@@ -394,8 +403,6 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
     }
 
     const renderNavigationPanel = () => {
-        const isDevelopment = import.meta.env.VITE_APP_ENV === 'development';
-        
         return (
             <div 
                 ref={verticalNavRef}
@@ -428,7 +435,7 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                 >
                     Wissen
                 </button>
-                {isDevelopment && (
+                {isMemoryEnabled && (
                     <button
                         ref={(ref) => registerItemRef('mem0ry', ref)}
                         className={`profile-vertical-tab ${currentView === 'mem0ry' ? 'active' : ''}`}
@@ -567,7 +574,7 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                             type="button"
                                             className="btn-primary size-s"
                                             onClick={handleAddKnowledge}
-                                            disabled={isDeleting || fields.length >= MAX_KNOWLEDGE_ENTRIES}
+                                            disabled={isDeleting || (Array.isArray(fields) && fields.length >= MAX_KNOWLEDGE_ENTRIES)}
                                             tabIndex={tabIndex.addKnowledgeButton}
                                             aria-label="Neues Wissen hinzufügen"
                                         >
@@ -575,7 +582,7 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                         </button>
                                     </div>
                                     <div className="profile-card-content">
-                                        {fields.length === 0 && (
+                                        {(!Array.isArray(fields) || fields.length === 0) && (
                                             <div className="knowledge-empty-state centered">
                                                 <p>Du hast noch keine Wissensbausteine hinterlegt.</p>
                                                 <p>
@@ -584,7 +591,7 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                             </div>
                                         )}
 
-                                        {fields.map((field, index) => (
+                                        {Array.isArray(fields) && fields.map((field, index) => (
                                             <div key={field.key} className={`knowledge-entry ${index > 0 ? 'knowledge-entry-bordered' : ''}`}>
                                                 <div className="form-field-wrapper anweisungen-field">
                                                     <div className="anweisungen-header">
@@ -629,7 +636,7 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                 </div>
                             )}
 
-                            {currentView === 'mem0ry' && import.meta.env.VITE_APP_ENV === 'development' && (
+                            {currentView === 'mem0ry' && isMemoryEnabled && (
                                 <div 
                                     role="tabpanel"
                                     id="mem0ry-panel"
@@ -672,7 +679,7 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                         <div className="profile-card">
                                             <div className="profile-card-header">
                                                 <h3>
-                                                    Mem0ries ({memories.length})
+                                                    Mem0ries ({Array.isArray(memories) ? memories.length : 0})
                                                 </h3>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-xsmall)' }}>
                                                     <button
@@ -769,7 +776,7 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                                     </div>
                                                 )}
 
-                                                {memories.length === 0 && !showAddMemoryForm ? (
+                                                {(!Array.isArray(memories) || memories.length === 0) && !showAddMemoryForm ? (
                                                     <div className="knowledge-empty-state">
                                                         <HiInformationCircle size={48} className="empty-state-icon" />
                                                         <p>Keine Memories gefunden</p>
@@ -780,7 +787,7 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                                 ) : (
                                                     <>
                                                         <div className="memories-list memories-grid">
-                                                            {memories.map((memory, index) => (
+                                                            {Array.isArray(memories) && memories.map((memory, index) => (
                                                                 <div key={memory.id || index} className="knowledge-entry knowledge-entry-bordered">
                                                                     <div className="form-field-wrapper">
                                                                         <div className="memory-content">
@@ -816,7 +823,7 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                                             ))}
                                                         </div>
                                                         
-                                                        {memories.length > 0 && (
+                                                        {Array.isArray(memories) && memories.length > 0 && (
                                                             <div className="delete-all-container">
                                                                 <button 
                                                                     onClick={deleteAllMemories} 
