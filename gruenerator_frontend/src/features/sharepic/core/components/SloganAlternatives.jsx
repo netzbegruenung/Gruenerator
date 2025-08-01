@@ -75,6 +75,15 @@ export const SloganAlternativesDisplay = ({ currentSlogan, alternatives, onSloga
         </div>
       );
     }
+    if (item.header || item.subheader || item.body) {
+      return (
+        <div className="slogan-item-content info-content">
+          {item.header && <h5 className="info-header">{item.header}</h5>}
+          {item.subheader && <p className="info-subheader">{item.subheader}</p>}
+          {item.body && <p className="info-body">{item.body}</p>}
+        </div>
+      );
+    }
     return (
       <div className="slogan-item-content">
         {item.line1 && <p>{item.line1}</p>}
@@ -120,6 +129,11 @@ SloganAlternativesDisplay.propTypes = {
     }),
     PropTypes.shape({
       quote: PropTypes.string
+    }),
+    PropTypes.shape({
+      header: PropTypes.string,
+      subheader: PropTypes.string,
+      body: PropTypes.string
     })
   ]).isRequired,
   alternatives: PropTypes.arrayOf(
@@ -131,6 +145,11 @@ SloganAlternativesDisplay.propTypes = {
       }),
       PropTypes.shape({
         quote: PropTypes.string
+      }),
+      PropTypes.shape({
+        header: PropTypes.string,
+        subheader: PropTypes.string,
+        body: PropTypes.string
       })
     ])
   ).isRequired,
