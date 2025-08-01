@@ -4,7 +4,7 @@ import { HiOutlineTrash, HiPlus, HiLink, HiInformationCircle, HiPencil, HiCheck,
 import { useAutosave } from '../../../../hooks/useAutosave';
 import Spinner from '../../../../components/common/Spinner';
 import { useGroups, useGroupSharing, getGroupInitials } from '../../utils/groupsUtils';
-import useGroupDetails from '../../../../features/groups/hooks/useGroupDetails';
+import { useAnweisungenWissen } from '../../hooks/useProfileData';
 import { useFormFields } from '../../../../components/common/Form/hooks';
 import HelpTooltip from '../../../../components/common/HelpTooltip';
 import DeleteWarningTooltip from '../../../../components/common/DeleteWarningTooltip';
@@ -62,26 +62,81 @@ const GroupDetailView = memo(({
     });
     const { Input, Textarea } = useFormFields();
     
+    // Use extended anweisungen/wissen hook for groups context
+    const { 
+        query, 
+        saveChanges, 
+        deleteKnowledgeEntry, 
+        isSaving, 
+        isDeleting: isDeletingKnowledge, 
+        saveError, 
+        deleteError: deleteKnowledgeError,
+        MAX_KNOWLEDGE_ENTRIES 
+    } = useAnweisungenWissen({ 
+        isActive, 
+        context: 'group', 
+        groupId 
+    });
+    
     const { 
         data, 
-        isLoading: isLoadingDetails,
+        isLoading: isLoadingDetails, 
         isError: isErrorDetails, 
-        error: errorDetails,
-        handleInstructionsChange, 
-        handleKnowledgeChange, 
-        handleKnowledgeDelete,
-        saveChanges, 
-        isSaving, 
-        isSaveSuccess, 
-        isSaveError, 
-        saveError,
-        isDeletingKnowledge, 
-        deletingKnowledgeId, 
-        isDeleteKnowledgeError, 
-        deleteKnowledgeError,
-        hasUnsavedChanges,
-        MAX_CONTENT_LENGTH: GROUP_MAX_CONTENT_LENGTH 
-    } = useGroupDetails(groupId, { isActive });
+        error: errorDetails 
+    } = query;
+    
+    // Constants for compatibility
+    const GROUP_MAX_CONTENT_LENGTH = 1000;
+    const isSaveSuccess = false; // Will be handled differently
+    const isSaveError = !!saveError;
+    const isDeleteKnowledgeError = !!deleteKnowledgeError;
+    const deletingKnowledgeId = null; // Simplified for now
+    
+    // Form management handlers (previously in useGroupDetails)
+    const handleInstructionsChange = useCallback((field, value) => {
+        const fieldMap = {
+            'custom_antrag_prompt': 'customAntragPrompt',
+            'custom_social_prompt': 'customSocialPrompt', 
+            'custom_universal_prompt': 'customUniversalPrompt'
+        };
+        
+        const formField = fieldMap[field] || field;
+        // This will be handled by the form system and autosave
+        console.log(`Instruction change: ${field} -> ${formField} = ${value}`);
+    }, []);
+    
+    const handleKnowledgeChange = useCallback((id, content, action = 'update') => {
+        if (action === 'add') {
+            append({
+                id: `new-${Date.now()}`,
+                title: 'Untitled',
+                content: ''
+            });
+        } else {
+            // Form array changes are handled by React Hook Form
+            console.log(`Knowledge change: ${id} = ${content}`);
+        }
+    }, [append]);
+    
+    const handleDeleteKnowledge = useCallback(async (field, index) => {
+        const entryId = field.id;
+        
+        if (typeof entryId === 'string' && entryId.startsWith('new-')) {
+            // Remove from form array only
+            remove(index);
+            return;
+        }
+        
+        // Delete from backend
+        try {
+            await deleteKnowledgeEntry(entryId);
+            remove(index);
+        } catch (error) {
+            console.error('Failed to delete knowledge entry:', error);
+        }
+    }, [deleteKnowledgeEntry, remove]);
+    
+    const hasUnsavedChanges = false; // Will be handled by autosave
     
     const { 
         deleteGroup, 
@@ -116,24 +171,25 @@ const GroupDetailView = memo(({
     // Auto-save using shared hook (moved before initialization to prevent "cannot access before initialization" error)
     const { resetTracking } = useAutosave({
         saveFunction: useCallback(async (changedFields) => {
-            // Map form field names to API field names
-            const fieldMapping = {
-                'customAntragPrompt': 'custom_antrag_prompt',
-                'customSocialPrompt': 'custom_social_prompt', 
-                'customUniversalPrompt': 'custom_universal_prompt'
+            // Get current form values
+            const formValues = getValues();
+            
+            // Prepare data for save (matching the format expected by the API)
+            const saveData = {
+                customAntragPrompt: formValues.customAntragPrompt || '',
+                customSocialPrompt: formValues.customSocialPrompt || '',
+                customUniversalPrompt: formValues.customUniversalPrompt || '',
+                customGruenejugendPrompt: '', // Not used in groups
+                presseabbinder: '', // Not used in groups
+                knowledge: formValues.knowledge || [],
+                // Add group-specific fields
+                antragInstructionsEnabled: data?.antragInstructionsEnabled || false,
+                socialInstructionsEnabled: data?.socialInstructionsEnabled || false
             };
             
-            // Update instructions through the hook with correct field names
-            Object.entries(changedFields).forEach(([key, value]) => {
-                if (key !== 'knowledge') {
-                    const mappedKey = fieldMapping[key] || key;
-                    handleInstructionsChange(mappedKey, value);
-                }
-            });
-            
-            // Save changes
-            return await saveChanges();
-        }, [handleInstructionsChange, saveChanges]),
+            // Save changes through the extended hook
+            return await saveChanges(saveData);
+        }, [saveChanges, getValues, data]),
         formRef: { getValues, watch },
         enabled: data && isInitialized.current,
         debounceMs: 2000,
@@ -230,16 +286,6 @@ const GroupDetailView = memo(({
     };
 
 
-    const handleDeleteKnowledge = (entry, index) => {
-        if (!entry.id || (typeof entry.id === 'string' && entry.id.startsWith('new-'))) {
-            remove(index); // Remove from form state if it's a new, unsaved entry
-        } else {
-            if (window.confirm("Möchtest du diesen Wissenseintrag wirklich löschen?")) {
-                // For saved entries, remove from form and let auto-save handle the backend deletion
-                remove(index);
-            }
-        }
-    };
 
     const handleAddKnowledge = () => {
         if (fields.length < 3) {

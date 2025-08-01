@@ -68,32 +68,47 @@ export const useBundledProfileData = (options = {}) => {
 };
 
 // === ANWEISUNGEN & WISSEN ===
-export const useAnweisungenWissen = ({ isActive, enabled = true } = {}) => {
+export const useAnweisungenWissen = ({ 
+  isActive, 
+  enabled = true,
+  context = 'user',     // 'user' | 'group'
+  groupId = null        // required when context = 'group'
+} = {}) => {
   const { user } = useOptimizedAuth();
   const queryClient = useQueryClient();
 
+  // Context-aware query key
+  const queryKey = context === 'group' 
+    ? ['groupAnweisungenWissen', groupId]
+    : QUERY_KEYS.anweisungenWissen(user?.id);
+
+  // Context-aware query function
+  const queryFn = context === 'group'
+    ? () => profileApiService.getAnweisungenWissen(context, groupId)
+    : profileApiService.getAnweisungenWissen;
+
   const query = useQuery({
-    queryKey: QUERY_KEYS.anweisungenWissen(user?.id),
-    queryFn: profileApiService.getAnweisungenWissen,
-    enabled: enabled && !!user?.id && isActive,
+    queryKey,
+    queryFn,
+    enabled: enabled && !!user?.id && isActive && (context === 'user' || !!groupId),
     staleTime: 15 * 60 * 1000, // Increased from 5 to 15 minutes
-    cacheTime: 30 * 60 * 1000, // Increased from 15 to 30 minutes
+    gcTime: 30 * 60 * 1000, // Fixed: was cacheTime (React Query v5)
     refetchOnWindowFocus: false,
-    refetchOnMount: 'always',
+    refetchOnMount: true, // Fixed: was 'always' (React Query v5)
     retry: 1
   });
 
   const saveMutation = useMutation({
-    mutationFn: profileApiService.saveAnweisungenWissen,
+    mutationFn: (data) => profileApiService.saveAnweisungenWissen(data, context, groupId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.anweisungenWissen(user?.id) });
+      queryClient.invalidateQueries({ queryKey });
     }
   });
 
   const deleteMutation = useMutation({
-    mutationFn: profileApiService.deleteKnowledgeEntry,
+    mutationFn: (entryId) => profileApiService.deleteKnowledgeEntry(entryId, context, groupId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.anweisungenWissen(user?.id) });
+      queryClient.invalidateQueries({ queryKey });
     }
   });
 
