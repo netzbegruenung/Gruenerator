@@ -18,7 +18,6 @@ const LaborTab = ({
     isAdmin 
   } = useBetaFeatures();
   const BETA_VIEWS = {
-    GROUPS: 'groups',
     DATABASE: 'database',
     GENERATORS: 'customGenerators',
     YOU: 'you',
@@ -38,16 +37,6 @@ const LaborTab = ({
 
   const getBetaFeatureConfig = (viewKey) => {
     switch (viewKey) {
-      case BETA_VIEWS.GROUPS:
-        return {
-          title: 'Gruppen-Verwaltung',
-          description: 'Verwalte deine Gruppen und arbeite gemeinsam an Projekten.',
-          checked: getBetaFeatureState('groups'),
-          setter: (value) => updateUserBetaFeatures('groups', value),
-          featureName: 'Gruppen',
-          checkboxLabel: 'Gruppen-Tab anzeigen und Funktionalität aktivieren',
-          icon: HiOutlineUserGroup
-        };
       case BETA_VIEWS.DATABASE:
         return {
           title: 'Texte & Vorlagen',
