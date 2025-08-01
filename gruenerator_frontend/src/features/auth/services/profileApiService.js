@@ -239,9 +239,59 @@ export const profileApiService = {
 
       promises.push(instructionsPromise);
 
-      // Handle knowledge entries (this is complex, simplified for now)
-      // In a full implementation, we'd need to handle create/update/delete operations
-      // For now, we'll return the instructions update result
+      // Handle knowledge entries - implement proper create/update operations
+      if (cleanedKnowledge && cleanedKnowledge.length > 0) {
+        const knowledgePromises = cleanedKnowledge.map(async (entry) => {
+          // Determine if this is a new entry or an update
+          const isNewEntry = !entry.id || (typeof entry.id === 'string' && entry.id.startsWith('new-'));
+          
+          if (isNewEntry) {
+            // Create new knowledge entry
+            const response = await fetch(`${AUTH_BASE_URL}/auth/groups/${groupId}/knowledge`, {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                title: entry.title || 'Untitled',
+                content: entry.content || ''
+              })
+            });
+            
+            if (!response.ok) {
+              throw new Error(`Failed to create knowledge entry: ${response.status}`);
+            }
+            
+            return await response.json();
+          } else {
+            // Update existing knowledge entry
+            const response = await fetch(`${AUTH_BASE_URL}/auth/groups/${groupId}/knowledge/${entry.id}`, {
+              method: 'PUT',
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                title: entry.title || 'Untitled',
+                content: entry.content || ''
+              })
+            });
+            
+            if (!response.ok) {
+              throw new Error(`Failed to update knowledge entry: ${response.status}`);
+            }
+            
+            return await response.json();
+          }
+        });
+        
+        // Wait for all knowledge operations to complete
+        const knowledgeResults = await Promise.all(knowledgePromises);
+        
+        // Check if any knowledge operations failed
+        const failedKnowledge = knowledgeResults.filter(result => !result.success);
+        if (failedKnowledge.length > 0) {
+          throw new Error(`Failed to save ${failedKnowledge.length} knowledge entries`);
+        }
+      }
+
       const results = await Promise.all(promises);
       return results[0];
 
