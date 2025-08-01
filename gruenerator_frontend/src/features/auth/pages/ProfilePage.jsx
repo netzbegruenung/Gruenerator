@@ -2,12 +2,9 @@ import React, { useState, useEffect, useCallback, lazy, Suspense, useRef } from 
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { motion, useReducedMotion } from 'motion/react';
 
-// Hooks from profileUtils (centralized business logic)
+// Hooks from useProfileData (centralized business logic)
 import { useOptimizedAuth } from '../../../hooks/useAuth';
-import { 
-  useProfileResourceManager, 
-  useProfileData 
-} from '../utils/profileUtils';
+import { useProfile } from '../hooks/useProfileData';
 import { useBetaFeatures } from '../../../hooks/useBetaFeatures';
 import { useTabIndex } from '../../../hooks/useTabIndex';
 import { useVerticalTabNavigation } from '../../../hooks/useKeyboardNavigation';
@@ -98,12 +95,12 @@ const ProfilePage = () => {
 
   const shouldReduceMotion = useReducedMotion();
   
-  // Business logic hooks (centralized in profileUtils)
-  const { 
-    resourcesError, 
-    isLoadingResources, 
-    handleTabHover 
-  } = useProfileResourceManager();
+  // Simplified resource management (removed complex prefetching)
+  const [resourcesError] = useState('');
+  const [isLoadingResources] = useState(false);
+  const handleTabHover = useCallback(() => {
+    // Simplified: no aggressive prefetching to reduce server load
+  }, []);
   
   const { 
     shouldShowTab, 
@@ -116,7 +113,7 @@ const ProfilePage = () => {
   } = useBetaFeatures();
   
   
-  const { data: profile, isLoading: isLoadingProfile } = useProfileData();
+  const { data: profile, isLoading: isLoadingProfile } = useProfile();
 
   // Tab mapping for URL paths to internal tab names
   const TAB_MAPPING = {
