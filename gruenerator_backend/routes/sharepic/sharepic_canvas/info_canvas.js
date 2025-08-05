@@ -26,7 +26,7 @@ function parseBodyText(bodyText) {
   
   if (match) {
     const firstSentenceEnd = match.index + 1; // Include the punctuation
-    const firstSentence = bodyText.substring(0, firstSentenceEnd).trim();
+    const firstSentence = bodyText.substring(0, match.index).trim();
     const remainingText = bodyText.substring(firstSentenceEnd).trim();
     return { firstSentence, remainingText };
   }

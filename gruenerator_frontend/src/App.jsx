@@ -90,7 +90,7 @@ function App() {
                 <RouteLogger />
                 <SuspenseWrapper>
                   <PopupNutzungsbedingungen />
-                  <WelcomePopup />
+                  {/* <WelcomePopup /> */}
                   <div id="aria-live-region" aria-live="polite" className="sr-only"></div>
                   
                   <Routes>

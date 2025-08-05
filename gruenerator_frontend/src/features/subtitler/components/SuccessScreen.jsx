@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { motion } from 'motion/react';
 import CopyButton from '../../../components/common/CopyButton';
+import { useSubtitlerExportStore } from '../../../stores/subtitlerExportStore';
 
 const AnimatedCheckmark = () => {
   return (
@@ -53,10 +54,27 @@ const AnimatedCheckmark = () => {
 
 const SuccessScreen = ({ onReset, onEditAgain, isLoading, socialText, uploadId }) => {
   const [showSpinner, setShowSpinner] = useState(isLoading);
-  const [progress, setProgress] = useState(0);
+  
+  // Use centralized export store for progress tracking
+  const exportStore = useSubtitlerExportStore();
+  const {
+    status: exportStatus,
+    progress: exportProgress,
+    error: exportError,
+    subscribe
+  } = exportStore;
 
+  // Subscribe to export store
   useEffect(() => {
-    if (!isLoading) {
+    const unsubscribe = subscribe();
+    return unsubscribe;
+  }, [subscribe]);
+  
+  // Update spinner based on export status or legacy isLoading prop
+  useEffect(() => {
+    const shouldShowSpinner = isLoading || exportStatus === 'starting' || exportStatus === 'exporting';
+    
+    if (!shouldShowSpinner) {
       // Kurze Verzögerung, damit die Animation sauber beendet werden kann
       const timer = setTimeout(() => {
         setShowSpinner(false);
@@ -65,27 +83,7 @@ const SuccessScreen = ({ onReset, onEditAgain, isLoading, socialText, uploadId }
     } else {
       setShowSpinner(true);
     }
-  }, [isLoading]);
-
-  // Progress Polling
-  useEffect(() => {
-    if (!isLoading || !uploadId) return;
-
-    const pollProgress = async () => {
-      try {
-        const response = await fetch(`/api/subtitler/export-progress/${uploadId}`);
-        if (response.ok) {
-          const data = await response.json();
-          setProgress(data.progress || 0);
-        }
-      } catch (error) {
-        console.warn('Progress polling error:', error);
-      }
-    };
-
-    const interval = setInterval(pollProgress, 2000);
-    return () => clearInterval(interval);
-  }, [isLoading, uploadId]);
+  }, [isLoading, exportStatus]);
 
   return (
     <div className="success-screen">
@@ -98,26 +96,34 @@ const SuccessScreen = ({ onReset, onEditAgain, isLoading, socialText, uploadId }
               <AnimatedCheckmark />
             )}
           </div>
-          <h2>{isLoading ? 'Dein Video wird verarbeitet' : 'Dein Video wurde heruntergeladen'}</h2>
+          <h2>{showSpinner ? 'Dein Video wird verarbeitet' : 'Dein Video wurde heruntergeladen'}</h2>
           <p>
-            {isLoading 
+            {showSpinner
               ? 'Während dein Video mit Untertiteln versehen wird, kannst du dir schon den generierten Beitragstext ansehen.' 
               : 'Dein Video wurde erfolgreich mit Untertiteln versehen und heruntergeladen.'}
           </p>
           
-          {isLoading && progress > 0 && (
+          {/* Show error if export failed */}
+          {exportError && (
+            <div className="error-message" style={{ marginBottom: 'var(--spacing-medium)' }}>
+              <p>Fehler beim Export: {exportError}</p>
+            </div>
+          )}
+          
+          {/* Show progress from store */}
+          {showSpinner && exportProgress > 0 && (
             <div className="progress-container">
               <div className="progress-bar">
                 <div 
                   className="progress-fill" 
-                  style={{ width: `${progress}%` }}
+                  style={{ width: `${exportProgress}%` }}
                 />
               </div>
-              <span className="progress-text">{progress}%</span>
+              <span className="progress-text">{exportProgress}%</span>
             </div>
           )}
 
-          {!isLoading && (
+          {!showSpinner && (
             <div className="success-buttons">
               <button 
                 className="btn-primary"

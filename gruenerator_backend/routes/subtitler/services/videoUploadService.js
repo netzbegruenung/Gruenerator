@@ -66,10 +66,10 @@ async function extractAudio(videoPath, outputPath) {
       const command = ffmpeg(videoPath)
         .outputOptions([
           '-vn',                // Remove video stream
-          '-ar 16000',          // Sample rate to 16kHz (optimized for Whisper)
-          '-ac 1',              // Mono (Whisper uses one channel)
-          '-c:a libmp3lame',    // MP3 codec for better compression
-          '-q:a 4',             // Good quality, smaller file size (0-9, lower is better)
+          '-ar', '16000',       // Sample rate to 16kHz (optimized for Whisper)
+          '-ac', '1',           // Mono (Whisper uses one channel)
+          '-c:a', 'libmp3lame', // MP3 codec for better compression
+          '-q:a', '4',          // Good quality, smaller file size (0-9, lower is better)
           '-y'                  // Overwrite output file
         ]);
 

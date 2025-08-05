@@ -5,6 +5,7 @@ import SubtitleStyleSelector from './SubtitleStyleSelector';
 import SubtitleEditor from './SubtitleEditor';
 import SuccessScreen from './SuccessScreen';
 import useSocialTextGenerator from '../hooks/useSocialTextGenerator';
+import { useSubtitlerExportStore } from '../../../stores/subtitlerExportStore';
 import { FaVideo, FaFileVideo, FaRuler, FaClock, FaUserCog } from 'react-icons/fa';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import MaintenanceNotice from '../../../components/common/MaintenanceNotice'; // Import the MaintenanceNotice component
@@ -24,13 +25,16 @@ const SubtitlerPage = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState(null);
   const [isExiting, setIsExiting] = useState(false);
-  const [isExporting, setIsExporting] = useState(false);
   const { socialText, isGenerating, error: socialError, generateSocialText, reset: resetSocialText } = useSocialTextGenerator();
   const [subtitlePreference, setSubtitlePreference] = useState('manual'); // Legacy parameter kept for backward compatibility
   const [stylePreference, setStylePreference] = useState('standard'); // Style preference for subtitle appearance
   const [modePreference, setModePreference] = useState('manual'); // New mode preference for subtitle generation type
   const [heightPreference, setHeightPreference] = useState('standard'); // Height preference for subtitle positioning
   const [isProModeActive, setIsProModeActive] = useState(false);
+  
+  // Use centralized export store
+  const exportStore = useSubtitlerExportStore();
+  const { status: exportStatus, exportToken, resetExport } = exportStore;
   
   // Get Igel mode status from auth store
   const { igelModus } = useAuthStore();
@@ -193,19 +197,22 @@ const SubtitlerPage = () => {
 
   }, [isProcessing, uploadInfo?.uploadId, modePreference, stylePreference]); // Dependencies: run effect when isProcessing or uploadId changes
 
-  const handleExport = useCallback(async () => {
-    setIsExporting(true);
+  const handleExport = useCallback(async (receivedExportToken) => {
+    // The export token is now managed by the store
+    console.log('[SubtitlerPage] Export initiated with token:', receivedExportToken);
+    
     try {
       await generateSocialText(subtitles);
       setStep('success');
     } catch (err) {
-      console.error('[SubtitlerPage] Export error:', err);
+      console.error('[SubtitlerPage] Social text generation error:', err);
       setError('Fehler beim Generieren des Beitragstextes');
     }
   }, [generateSocialText, subtitles]);
 
   const handleExportComplete = useCallback(() => {
-    setIsExporting(false);
+    // Export completion is now handled by the store
+    console.log('[SubtitlerPage] Export completed');
   }, []);
 
   const handleReset = useCallback(() => {
@@ -224,6 +231,10 @@ const SubtitlerPage = () => {
       clearInterval(pollingIntervalRef.current);
       pollingIntervalRef.current = null;
     }
+    
+    // Reset export store
+    resetExport();
+    
     setTimeout(() => {
       setStep('upload');
       setOriginalVideoFile(null);
@@ -231,11 +242,10 @@ const SubtitlerPage = () => {
       setSubtitles(null);
       setError(null);
       setIsExiting(false);
-      setIsExporting(false);
       setIsProcessing(false); // Ensure processing is false
       resetSocialText();
     }, 300);
-  }, [resetSocialText, uploadInfo?.uploadId, baseURL]);
+  }, [resetSocialText, uploadInfo?.uploadId, baseURL, resetExport]);
 
   // Function to go back to the editor without resetting everything
   const handleEditAgain = useCallback(() => {
@@ -407,7 +417,7 @@ const SubtitlerPage = () => {
                     heightPreference={heightPreference} // Pass height preference
                     onExportSuccess={handleExport}
                     onExportComplete={handleExportComplete}
-                    isExporting={isExporting || isGenerating}
+                    isExporting={exportStatus === 'starting' || exportStatus === 'exporting' || isGenerating}
                     onBackToStyling={handleBackToStyling} // Allow going back to styling
                   />
                 </>
@@ -417,9 +427,9 @@ const SubtitlerPage = () => {
                 <SuccessScreen 
                   onReset={handleReset}
                   onEditAgain={handleEditAgain}
-                  isLoading={isExporting}
+                  isLoading={exportStatus === 'starting' || exportStatus === 'exporting'}
                   socialText={socialText}
-                  uploadId={uploadInfo?.uploadId}
+                  uploadId={exportToken || uploadInfo?.uploadId} // Use exportToken for progress polling, fallback to uploadId
                   isGeneratingSocial={isGenerating}
                   socialError={socialError}
                 />

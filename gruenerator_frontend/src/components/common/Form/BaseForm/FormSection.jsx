@@ -57,6 +57,9 @@ const FormSection = forwardRef(({
   useWebSearchFeatureToggle,
   enablePlatformSelector = false,
   platformOptions = [],
+  platformSelectorLabel = undefined,
+  platformSelectorPlaceholder = undefined,
+  platformSelectorHelpText = undefined,
   formControl = null,
   children,
   showSubmitButton = true,
@@ -140,6 +143,9 @@ const FormSection = forwardRef(({
               submitButtonProps={submitButtonProps}
               enablePlatformSelector={enablePlatformSelector}
               platformOptions={platformOptions}
+              platformSelectorLabel={platformSelectorLabel}
+              platformSelectorPlaceholder={platformSelectorPlaceholder}
+              platformSelectorHelpText={platformSelectorHelpText}
               platformSelectorTabIndex={platformSelectorTabIndex}
               formControl={formControl}
               showImageUpload={showImageUpload}
@@ -221,6 +227,9 @@ FormSection.propTypes = {
       label: PropTypes.string.isRequired
     })
   ),
+  platformSelectorLabel: PropTypes.string,
+  platformSelectorPlaceholder: PropTypes.string,
+  platformSelectorHelpText: PropTypes.string,
   formControl: PropTypes.object,
   children: PropTypes.oneOfType([PropTypes.node, PropTypes.func]).isRequired,
   showSubmitButton: PropTypes.bool,
@@ -251,6 +260,9 @@ FormSection.defaultProps = {
   enableDocumentSelector: false,
   enablePlatformSelector: false,
   platformOptions: [],
+  platformSelectorLabel: undefined,
+  platformSelectorPlaceholder: undefined,
+  platformSelectorHelpText: undefined,
   formControl: null,
   showSubmitButton: true,
   formNotice: null,
