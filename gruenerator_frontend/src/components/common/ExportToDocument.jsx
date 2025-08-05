@@ -6,7 +6,7 @@ import { IoDocumentOutline, IoCopyOutline, IoOpenOutline, IoCloseOutline, IoPeop
 import { useLocation } from 'react-router-dom';
 import { useUnmount } from 'react-use';
 import useGeneratedTextStore from '../../stores/core/generatedTextStore';
-import { formatExportContent } from '../utils/exportUtils';
+import { extractHTMLContent } from '../utils/contentExtractor';
 
 const ExportToDocument = () => {
   const location = useLocation();
@@ -47,9 +47,8 @@ const ExportToDocument = () => {
 
   const handleDocsExport = async () => {
     try {
-      const htmlContent = formatExportContent({
-        analysis: generatedText
-      });
+      // Use centralized content extractor which intelligently handles search exports
+      const htmlContent = extractHTMLContent(generatedText);
       
       const response = await submitForm({ 
         text: htmlContent,

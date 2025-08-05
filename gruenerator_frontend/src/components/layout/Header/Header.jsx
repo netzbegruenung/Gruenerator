@@ -1,13 +1,13 @@
 //header.js
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { PiCaretDown, PiSun, PiMoon } from 'react-icons/pi';
 import NavMenu from './NavMenu';
 import ProfileButton from './ProfileButton';
 import ThemeToggleButton from './ThemeToggleButton';
 import useDarkMode from '../../hooks/useDarkMode';
 import useAccessibility from '../../hooks/useAccessibility';
 import { getMenuItems, getDirectMenuItems, MenuItem, menuStyles, handleMenuInteraction } from './menuData';
+import Icon from '../../common/Icon';
 
 import { useLazyAuth } from '../../../hooks/useAuth';
 import { useBetaFeatures } from '../../../hooks/useBetaFeatures';
@@ -201,7 +201,9 @@ const Header = () => {
                                     {/* Icon for top-level item like Labor - REMOVED FOR CONSISTENCY */}
                                     {/* {menu.icon && <menu.icon aria-hidden="true" />} */}
                                     <span>{menu.title}</span>
-                                    <PiCaretDown 
+                                    <Icon 
+                                        category="ui" 
+                                        name="caretDown" 
                                         className={activeDropdown === key ? 'open' : ''} 
                                         aria-hidden="true" 
                                     />

@@ -116,7 +116,10 @@ const ContentRenderer = ({
         {/* Render sharepic if available */}
         {generatedContent.sharepic && (
           <div className="sharepic-content-section">
-            <SharepicDisplay sharepicData={generatedContent.sharepic} />
+            <SharepicDisplay 
+              sharepicData={generatedContent.sharepic} 
+              componentName={componentName}
+            />
           </div>
         )}
       </div>

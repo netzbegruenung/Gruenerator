@@ -1043,6 +1043,269 @@ class VectorSearchService {
   }
 
   /**
+   * Expand chunks with hierarchical context based on metadata
+   * @param {Array} chunks - Array of chunks to expand
+   * @param {Object} options - Expansion options
+   * @returns {Promise<Array>} Expanded chunks with context
+   */
+  async expandChunksWithContext(chunks, options = {}) {
+    const {
+      maxContextTokens = 2000,
+      includePrevious = true,
+      includeNext = true,
+      includeRelated = true,
+      preserveStructure = true
+    } = options;
+
+    console.log(`[VectorSearchService] Expanding ${chunks.length} chunks with context`);
+
+    const expandedChunks = [];
+
+    for (const chunk of chunks) {
+      try {
+        const expandedChunk = await this.expandSingleChunk(chunk, {
+          maxContextTokens,
+          includePrevious,
+          includeNext,
+          includeRelated,
+          preserveStructure
+        });
+        expandedChunks.push(expandedChunk);
+      } catch (error) {
+        console.warn(`[VectorSearchService] Failed to expand chunk ${chunk.id}:`, error);
+        // Fallback to original chunk
+        expandedChunks.push(chunk);
+      }
+    }
+
+    return expandedChunks;
+  }
+
+  /**
+   * Expand a single chunk with hierarchical context
+   * @private
+   */
+  async expandSingleChunk(chunk, options) {
+    const { maxContextTokens, includePrevious, includeNext, includeRelated, preserveStructure } = options;
+    
+    // Get chunk metadata
+    const { data: chunkWithMetadata, error } = await supabaseService
+      .from('document_chunks')
+      .select('*, metadata')
+      .eq('id', chunk.id)
+      .single();
+
+    if (error || !chunkWithMetadata) {
+      console.warn(`[VectorSearchService] Could not get metadata for chunk ${chunk.id}`);
+      return chunk;
+    }
+
+    const metadata = chunkWithMetadata.metadata || {};
+    let contextChunks = [chunkWithMetadata];
+    let totalTokens = chunkWithMetadata.token_count || 0;
+
+    // Add previous chunk if available and within token limit
+    if (includePrevious && metadata.previous_chunk && totalTokens < maxContextTokens * 0.8) {
+      try {
+        const previousChunk = await this.getChunkById(metadata.previous_chunk);
+        if (previousChunk && (totalTokens + previousChunk.token_count) <= maxContextTokens) {
+          contextChunks.unshift(previousChunk);
+          totalTokens += previousChunk.token_count;
+        }
+      } catch (error) {
+        console.debug(`[VectorSearchService] Could not fetch previous chunk: ${error.message}`);
+      }
+    }
+
+    // Add next chunk if available and within token limit
+    if (includeNext && metadata.next_chunk && totalTokens < maxContextTokens * 0.8) {
+      try {
+        const nextChunk = await this.getChunkById(metadata.next_chunk);
+        if (nextChunk && (totalTokens + nextChunk.token_count) <= maxContextTokens) {
+          contextChunks.push(nextChunk);
+          totalTokens += nextChunk.token_count;
+        }
+      } catch (error) {
+        console.debug(`[VectorSearchService] Could not fetch next chunk: ${error.message}`);
+      }
+    }
+
+    // Add related chunks from same section if specified
+    if (includeRelated && metadata.related_chunks && totalTokens < maxContextTokens * 0.9) {
+      const relatedChunkIds = metadata.related_chunks
+        .filter(rel => rel.relationship === 'same_section' && rel.strength > 0.8)
+        .slice(0, 2) // Limit to 2 most related chunks
+        .map(rel => rel.chunk_index);
+
+      for (const relatedId of relatedChunkIds) {
+        if (totalTokens >= maxContextTokens) break;
+        
+        try {
+          const relatedChunk = await this.getChunkById(relatedId);
+          if (relatedChunk && (totalTokens + relatedChunk.token_count) <= maxContextTokens) {
+            // Avoid duplicates
+            if (!contextChunks.find(c => c.id === relatedChunk.id)) {
+              contextChunks.push(relatedChunk);
+              totalTokens += relatedChunk.token_count;
+            }
+          }
+        } catch (error) {
+          console.debug(`[VectorSearchService] Could not fetch related chunk: ${error.message}`);
+        }
+      }
+    }
+
+    // Build expanded content
+    const expandedContent = this.buildExpandedContent(contextChunks, chunk, metadata, preserveStructure);
+
+    return {
+      ...chunk,
+      expanded_content: expandedContent,
+      context_metadata: {
+        original_chunk_id: chunk.id,
+        context_chunks_count: contextChunks.length,
+        total_tokens: totalTokens,
+        section_title: metadata.section_title,
+        chapter_title: metadata.chapter_title,
+        chunk_type: metadata.chunk_type,
+        expansion_method: 'hierarchical'
+      }
+    };
+  }
+
+  /**
+   * Get chunk by ID with metadata
+   * @private
+   */
+  async getChunkById(chunkId) {
+    const { data, error } = await supabaseService
+      .from('document_chunks')
+      .select('*')
+      .eq('chunk_index', chunkId) // Note: using chunk_index as the identifier
+      .single();
+
+    if (error) {
+      throw new Error(`Failed to fetch chunk ${chunkId}: ${error.message}`);
+    }
+
+    return data;
+  }
+
+  /**
+   * Build expanded content with structure preservation
+   * @private
+   */
+  buildExpandedContent(contextChunks, originalChunk, metadata, preserveStructure) {
+    if (!preserveStructure || contextChunks.length === 1) {
+      return contextChunks.map(c => c.chunk_text).join('\n\n');
+    }
+
+    // Build structured content with headers
+    let expandedText = '';
+
+    // Add document/section context if available
+    if (metadata.chapter_title) {
+      expandedText += `# ${metadata.chapter_title}\n\n`;
+    }
+    if (metadata.section_title && metadata.section_title !== metadata.chapter_title) {
+      expandedText += `## ${metadata.section_title}\n\n`;
+    }
+
+    // Add chunks with indicators
+    contextChunks.forEach((chunk, index) => {
+      const isOriginal = chunk.id === originalChunk.id;
+      
+      if (isOriginal) {
+        expandedText += `**[RELEVANT SECTION]**\n${chunk.chunk_text}\n\n`;
+      } else {
+        const position = index < contextChunks.findIndex(c => c.id === originalChunk.id) ? 'CONTEXT BEFORE' : 'CONTEXT AFTER';
+        expandedText += `[${position}]\n${chunk.chunk_text}\n\n`;
+      }
+    });
+
+    return expandedText.trim();
+  }
+
+  /**
+   * Search with automatic context expansion
+   * @param {Object} searchParams - Search parameters
+   * @returns {Promise<Object>} Search results with expanded context
+   */
+  async searchWithContext(searchParams) {
+    const { 
+      expandContext = true,
+      contextOptions = {},
+      ...baseSearchParams 
+    } = searchParams;
+
+    // Perform base search
+    const baseResults = await this.search(baseSearchParams);
+
+    if (!expandContext || !baseResults.success || baseResults.results.length === 0) {
+      return baseResults;
+    }
+
+    console.log(`[VectorSearchService] Expanding context for ${baseResults.results.length} results`);
+
+    // Extract chunks from results (if they have chunk information)
+    const chunksToExpand = [];
+    baseResults.results.forEach(result => {
+      if (result.chunks) {
+        // Multi-chunk result
+        result.chunks.forEach(chunk => chunksToExpand.push({
+          id: chunk.chunk_id,
+          document_id: result.document_id,
+          chunk_index: chunk.chunk_index,
+          chunk_text: chunk.text,
+          similarity: chunk.similarity,
+          token_count: chunk.token_count
+        }));
+      } else {
+        // Single result - try to find associated chunks
+        // This is a simplified approach - in practice you might need to query chunks
+        chunksToExpand.push({
+          id: `${result.document_id}_0`, // Placeholder
+          document_id: result.document_id,
+          chunk_text: result.relevant_content,
+          similarity: result.similarity_score
+        });
+      }
+    });
+
+    // Expand chunks with context
+    const expandedChunks = await this.expandChunksWithContext(chunksToExpand, contextOptions);
+
+    // Merge expanded content back into results
+    const enhancedResults = baseResults.results.map(result => {
+      const relatedExpandedChunks = expandedChunks.filter(chunk => 
+        chunk.document_id === result.document_id
+      );
+
+      if (relatedExpandedChunks.length > 0) {
+        // Use expanded content
+        const expandedContent = relatedExpandedChunks
+          .map(chunk => chunk.expanded_content || chunk.chunk_text)
+          .join('\n\n--- \n\n');
+
+        return {
+          ...result,
+          relevant_content: expandedContent,
+          context_expanded: true,
+          context_metadata: relatedExpandedChunks[0]?.context_metadata
+        };
+      }
+
+      return result;
+    });
+
+    return {
+      ...baseResults,
+      results: enhancedResults,
+      context_expanded: true
+    };
+  }
+
+  /**
    * Check if a document has embeddings generated
    */
   async hasEmbeddings(documentId) {

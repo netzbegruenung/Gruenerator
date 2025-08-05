@@ -1,7 +1,7 @@
 // SharepicGeneratorneu
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
-import { SharepicGeneratorProvider, useSharepicGeneratorContext } from '../../../features/sharepic/core/utils/SharepicGeneratorContext';
+import { useSharepicStore } from '../../../stores';
 import { useSharepicGeneration } from '../../../features/sharepic/core/hooks/useSharepicGeneration';
 import BaseForm from '../../../features/sharepic/core/components/BaseForm-Sharepic';
 import WelcomePage from '../../common/WelcomePage';
@@ -212,15 +212,31 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
     return fields;
   };
 
-  const { 
-    state, 
-    setFile,
-    setError, 
-    updateFormData, 
-    modifyImage,
-    setAlternatives,
-    selectSlogan
-  } = useSharepicGeneratorContext();
+  const {
+    // State
+    type, thema, details, line1, line2, line3, quote, name, fontSize,
+    balkenOffset, colorScheme, balkenGruppenOffset, sunflowerOffset, credit,
+    searchTerms, sloganAlternatives, currentStep, isAdvancedEditingOpen,
+    isSearchBarActive, isSubmitting, currentSubmittingStep, loading, error,
+    isLoadingUnsplashImages, unsplashError, uploadedImage, file, selectedImage,
+    generatedImageSrc, unsplashImages,
+    // Actions
+    setFile, setError, updateFormData, modifyImage, setSloganAlternatives,
+    selectSlogan, setAlternatives
+  } = useSharepicStore();
+
+  // Create state object for compatibility with existing code
+  const state = {
+    formData: {
+      type, thema, details, line1, line2, line3, quote, name, fontSize,
+      balkenOffset, colorScheme, balkenGruppenOffset, sunflowerOffset, credit,
+      searchTerms, sloganAlternatives
+    },
+    currentStep, isAdvancedEditingOpen, isSearchBarActive, isSubmitting,
+    currentSubmittingStep, loading, error, isLoadingUnsplashImages,
+    unsplashError, uploadedImage, file, selectedImage, generatedImageSrc,
+    unsplashImages
+  };
 
   const { generateText, generateImage, loading: generationLoading, error: generationError } = useSharepicGeneration();
 
@@ -743,10 +759,8 @@ SharepicGeneratorContent.propTypes = {
 
 export default function SharepicGenerator(props) {
   return (
-    <SharepicGeneratorProvider>
-      <ErrorBoundary>
-        <SharepicGeneratorContent {...props} />
-      </ErrorBoundary>
-    </SharepicGeneratorProvider>
+    <ErrorBoundary>
+      <SharepicGeneratorContent {...props} />
+    </ErrorBoundary>
   );
 }

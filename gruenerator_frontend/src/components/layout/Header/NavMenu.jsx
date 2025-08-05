@@ -1,18 +1,18 @@
 import React, { useState, useRef, useEffect, useContext } from 'react';
 import PropTypes from 'prop-types';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { PiCaretDown, PiCaretUp } from 'react-icons/pi';
 import { motion, AnimatePresence } from 'motion/react';
 import useAccessibility from '../../hooks/useAccessibility';
 import { getMenuItems, getDirectMenuItems, getMobileOnlyMenuItems, handleMenuInteraction as commonHandleMenuInteraction } from './menuData';
 import { useLazyAuth } from '../../../hooks/useAuth';
 import { useBetaFeatures } from '../../../hooks/useBetaFeatures';
+import Icon from '../../common/Icon';
 
-const MenuItem = ({ icon: Icon, title, description, path, onClick, isTopLevel = false }) => (
+const MenuItem = ({ icon: IconComponent, title, description, path, onClick, isTopLevel = false }) => (
   <div className={`menu-item ${isTopLevel ? 'menu-item--top-level' : ''}`}>
     <Link to={path} onClick={onClick} className="menu-item__link">
       <div className="menu-item__content">
-        {!isTopLevel && Icon && <Icon className="menu-item__icon" aria-hidden="true" />}
+        {!isTopLevel && IconComponent && <IconComponent className="menu-item__icon" aria-hidden="true" />}
         <div className="menu-item__text">
           <span className="menu-item__title">{title}</span>
           {description && (
@@ -108,8 +108,8 @@ const NavMenu = ({ open, onClose }) => {
             {menu.icon && <menu.icon style={{ marginRight: '8px' }} />}
             {menu.title}
             {activeDropdown === key ? 
-              <PiCaretUp className="nav-menu__icon nav-menu__icon--up" aria-hidden="true" /> : 
-              <PiCaretDown className="nav-menu__icon nav-menu__icon--down" aria-hidden="true" />
+              <Icon category="ui" name="caretUp" className="nav-menu__icon nav-menu__icon--up" aria-hidden="true" /> : 
+              <Icon category="ui" name="caretDown" className="nav-menu__icon nav-menu__icon--down" aria-hidden="true" />
             }
           </span>
           <AnimatePresence>

@@ -86,6 +86,8 @@ async function setupRoutes(app) {
   
   // Import claude_social as ES6 module
   const { default: claudeSocialRoute } = await import('./routes/claude_social.js');
+  // Import claude_alttext as ES6 module
+  const { default: claudeAlttextRoute } = await import('./routes/claude_alttext.js');
   // Import claude_gruenerator_ask as ES6 module
   const { default: claudeGrueneratorAskRoute } = await import('./routes/claude_gruenerator_ask.js');
   // Import claude_gruenerator_ask_grundsatz as ES6 module
@@ -129,6 +131,7 @@ async function setupRoutes(app) {
   // app.use('/api/antrag-save', saveAntragRoute);
 
   app.use('/api/claude_social', claudeSocialRoute);
+  app.use('/api/claude_alttext', claudeAlttextRoute);
   app.use('/api/claude_rede', redeRouter);
   app.use('/api/claude_chat', claudeChatRoute);
   app.use('/api/antragsversteher', antragsversteherRoute);

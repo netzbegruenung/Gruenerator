@@ -871,7 +871,7 @@ const DocumentOverview = ({
                                 disabled={loading}
                                 title="Aktualisieren"
                             >
-                                <HiRefresh />
+                                <HiRefresh className={loading ? 'spinning' : ''} />
                             </button>
                         )}
                     </div>

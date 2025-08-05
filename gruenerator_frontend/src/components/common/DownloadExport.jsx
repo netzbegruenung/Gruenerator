@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import { IoDownloadOutline } from "react-icons/io5";
 import { FaSpinner } from "react-icons/fa6";
 import { useExportStore } from '../../stores/core/exportStore';
+import { extractFormattedText } from '../utils/contentExtractor';
 
 // === MAIN COMPONENT ===
 const DownloadExport = ({ content, title, className = 'action-button' }) => {
@@ -11,11 +12,11 @@ const DownloadExport = ({ content, title, className = 'action-button' }) => {
   // Use export store for state and actions
   const {
     isGenerating,
-    loadingPDF,
+    // loadingPDF, // Temporarily disabled
     loadingDOCX,
-    loadPDFLibrary,
+    // loadPDFLibrary, // Temporarily disabled
     loadDOCXLibrary,
-    generatePDF,
+    // generatePDF, // Temporarily disabled
     generateDOCX
   } = useExportStore();
   
@@ -27,27 +28,33 @@ const DownloadExport = ({ content, title, className = 'action-button' }) => {
   
   const handleDOCXDownload = useCallback(async () => {
     try {
-      await generateDOCX(content, title);
+      // Preprocess content to ensure consistent formatting for export
+      const formattedContent = extractFormattedText(content);
+      await generateDOCX(formattedContent, title);
     } catch (error) {
       console.error('DOCX download failed:', error);
     }
   }, [generateDOCX, content, title]);
 
-  const handlePDFDownload = useCallback(async () => {
-    try {
-      await generatePDF(content, title);
-    } catch (error) {
-      console.error('PDF download failed:', error);
-    }
-  }, [generatePDF, content, title]);
+  // Temporarily disabled PDF export
+  // const handlePDFDownload = useCallback(async () => {
+  //   try {
+  //     // Preprocess content to ensure consistent formatting for export
+  //     const formattedContent = extractFormattedText(content);
+  //     await generatePDF(formattedContent, title);
+  //   } catch (error) {
+  //     console.error('PDF download failed:', error);
+  //   }
+  // }, [generatePDF, content, title]);
 
-  const loadPDF = useCallback(async () => {
-    try {
-      await loadPDFLibrary();
-    } catch (error) {
-      console.error('Failed to load PDF library:', error);
-    }
-  }, [loadPDFLibrary]);
+  // Temporarily disabled PDF library loading
+  // const loadPDF = useCallback(async () => {
+  //   try {
+  //     await loadPDFLibrary();
+  //   } catch (error) {
+  //     console.error('Failed to load PDF library:', error);
+  //   }
+  // }, [loadPDFLibrary]);
 
   const loadDOCX = useCallback(async () => {
     try {
@@ -67,9 +74,10 @@ const DownloadExport = ({ content, title, className = 'action-button' }) => {
     if (format === 'docx') {
       handleDOCXDownload();
     } else if (format === 'pdf') {
-      handlePDFDownload();
+      // PDF export temporarily disabled
+      console.log('PDF export is temporarily disabled');
     }
-  }, [handleDOCXDownload, handlePDFDownload]);
+  }, [handleDOCXDownload]);
 
   // Close dropdown when clicking outside
   React.useEffect(() => {
@@ -102,13 +110,14 @@ const DownloadExport = ({ content, title, className = 'action-button' }) => {
 
       {showFormatSelector && (
         <div className="format-dropdown">
-          <button
+          {/* PDF option temporarily hidden */}
+          {/* <button
             className="format-option"
             onClick={() => handleFormatSelect('pdf')}
             disabled={isGenerating}
           >
-            {loadingPDF ? <FaSpinner className="spinning" size={12} /> : 'PDF'}
-          </button>
+            PDF
+          </button> */}
           <button
             className="format-option"
             onClick={() => handleFormatSelect('docx')}

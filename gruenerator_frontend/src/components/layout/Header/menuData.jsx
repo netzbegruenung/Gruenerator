@@ -1,5 +1,4 @@
-import { PiFileText, PiNewspaper, PiMagicWand, PiMagnifyingGlass, PiVideoCamera, PiPencilSimple, PiImageSquare, PiArchive, PiFlask, PiUser, PiRobot, PiWrench } from 'react-icons/pi';
-import { GiHedgehog } from 'react-icons/gi';
+import { getIcon, getIconById as getIconFromRegistry } from '../../../config/icons';
 import PropTypes from 'prop-types';
 
 // Direkte Menüpunkte ohne Dropdown - jetzt leer da alle in Dropdowns organisiert sind
@@ -17,7 +16,7 @@ export const getMobileOnlyMenuItems = () => {
       path: '/profile',
       title: 'Mein Konto',
       description: 'Profil und Einstellungen verwalten',
-      icon: PiUser
+      icon: getIcon('navigation', 'you')
     }
   };
 };
@@ -33,28 +32,28 @@ export const getMenuItems = (betaFeatures = {}) => {
           path: '/antrag',
           title: 'Anträge & Anfragen',
           description: 'Anträge und Anfragen für Kommunalparlamente & Co.',
-          icon: PiFileText
+          icon: getIcon('navigation', 'antrag')
         },
         {
           id: 'presse-social',
           path: '/presse-social',
           title: 'Presse & Social Media',
           description: 'Pressemitteilungen und Social-Media-Posts',
-          icon: PiNewspaper
+          icon: getIcon('navigation', 'presse-social')
         },
         {
           id: 'universal',
           path: '/universal',
           title: 'Universal',
           description: 'Wahlprogramme, Reden oder freie Textformen',
-          icon: PiMagicWand
+          icon: getIcon('navigation', 'universal')
         },
         {
           id: 'gruene-jugend',
           path: '/gruene-jugend',
           title: 'Grüne Jugend',
           description: 'Der Grünerator in jung',
-          icon: GiHedgehog
+          icon: getIcon('navigation', 'gruene-jugend')
         }
       ]
     },
@@ -66,21 +65,21 @@ export const getMenuItems = (betaFeatures = {}) => {
           path: '/suche',
           title: 'Suche',
           description: 'Webrecherche für aktuelle Informationen',
-          icon: PiMagnifyingGlass
+          icon: getIcon('navigation', 'suche')
         },
         {
           id: 'reel',
           path: '/reel',
           title: 'Reel',
           description: 'Untertitel Reels für Social Media',
-          icon: PiVideoCamera
+          icon: getIcon('navigation', 'reel')
         },
         {
           id: 'sharepic',
           path: '/sharepic',
           title: 'Sharepics',
           description: 'Erstelle Sharepics für Social Media',
-          icon: PiImageSquare
+          icon: getIcon('navigation', 'sharepic')
         }
       ]
     }
@@ -109,7 +108,7 @@ export const getMenuItems = (betaFeatures = {}) => {
       path: '/datenbank',
       title: 'Datenbank',
       description: 'Texte, Vorlagen und Anträge finden',
-      icon: PiArchive
+      icon: getIcon('navigation', 'datenbank')
     });
   }
 
@@ -119,7 +118,7 @@ export const getMenuItems = (betaFeatures = {}) => {
       path: '/you',
       title: 'You Grünerator',
       description: 'Universeller KI-Assistent für alle Texte',
-      icon: PiUser
+      icon: getIcon('navigation', 'you')
     });
   }
 
@@ -183,35 +182,22 @@ export const handleMenuInteraction = (event, type, callback) => {
   }
 };
 
-// Icon-Export-Funktion für konsistente Icon-Verwendung
+// Icon-Export-Funktion für konsistente Icon-Verwendung (backward compatibility)
 export const getIconById = (id) => {
-  const iconMap = {
-    'antrag': PiFileText,
-    'presse-social': PiNewspaper,
-    'universal': PiMagicWand,
-    'gruene-jugend': GiHedgehog,
-    'reel': PiVideoCamera,
-    'suche': PiMagnifyingGlass,
-    'sharepic': PiImageSquare,
-    'datenbank': PiArchive,
-    'you': PiUser,
-    'profile': PiUser,
-    'tools': PiWrench
-  };
-  return iconMap[id];
+  return getIconFromRegistry(id);
 };
 
-// Alle Icons als Objekt exportieren
+// Alle Icons als Objekt exportieren (backward compatibility)
 export const MENU_ICONS = {
-  antrag: PiFileText,
-  'presse-social': PiNewspaper,
-  universal: PiMagicWand,
-  'gruene-jugend': GiHedgehog,
-  reel: PiVideoCamera,
-  suche: PiMagnifyingGlass,
-  sharepic: PiImageSquare,
-  datenbank: PiArchive,
-  you: PiUser,
-  profile: PiUser,
-  tools: PiWrench
+  antrag: getIcon('navigation', 'antrag'),
+  'presse-social': getIcon('navigation', 'presse-social'),
+  universal: getIcon('navigation', 'universal'),
+  'gruene-jugend': getIcon('navigation', 'gruene-jugend'),
+  reel: getIcon('navigation', 'reel'),
+  suche: getIcon('navigation', 'suche'),
+  sharepic: getIcon('navigation', 'sharepic'),
+  datenbank: getIcon('navigation', 'datenbank'),
+  you: getIcon('navigation', 'you'),
+  profile: getIcon('navigation', 'you'),
+  tools: getIcon('navigation', 'tools')
 }; 
