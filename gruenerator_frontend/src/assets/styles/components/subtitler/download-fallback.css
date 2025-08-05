@@ -113,6 +113,41 @@
   to { transform: rotate(360deg); }
 }
 
+/* Spinner with percentage overlay */
+.spinner-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 60px;
+}
+
+.spinner-container .spinner {
+  width: 100%;
+  height: 100%;
+  border: 3px solid var(--weiß);
+  border-top-color: var(--tanne);
+  border-radius: 50%;
+  animation: spin 1s ease-in-out infinite;
+}
+
+.spinner-percentage {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 0.8rem;
+  font-weight: bold;
+  color: var(--font-color);
+  text-align: center;
+  line-height: 1;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .progress-content p {
   margin: 0 0 var(--spacing-medium);
   font-weight: 500;
