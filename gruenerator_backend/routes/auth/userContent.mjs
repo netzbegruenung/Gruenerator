@@ -303,15 +303,22 @@ router.post('/save-to-library', ensureAuthenticated, async (req, res) => {
     console.log(`[User Content /save-to-library POST] Content received (first 200 chars):`, content?.substring(0, 200));
     console.log(`[User Content /save-to-library POST] Manual title provided:`, manualTitle);
 
-    // Valid content types for user_documents
+    // Valid content types (now matching expanded database constraint)
     const validTypes = [
-      'antrag', 'kleine_anfrage', 'grosse_anfrage',
-      'pressemitteilung', 'instagram', 'facebook', 'twitter', 'linkedin', 
+      // General types
+      'text', 'antrag', 'social', 'universal', 'press', 'gruene_jugend', 'template',
+      // Social media types
+      'instagram', 'facebook', 'twitter', 'linkedin',
+      // Content format types  
       'actionIdeas', 'reelScript',
-      'gruene_jugend_instagram', 'gruene_jugend_twitter', 'gruene_jugend_tiktok',
-      'gruene_jugend_messenger', 'gruene_jugend_reelScript', 'gruene_jugend_actionIdeas',
-      'rede', 'wahlprogramm', 'universal', 'social',
-      'template', 'pr_text', 'text'
+      // Grüne Jugend social media
+      'gruene_jugend_instagram', 'gruene_jugend_twitter', 'gruene_jugend_tiktok', 'gruene_jugend_messenger',
+      // Grüne Jugend content formats
+      'gruene_jugend_reelScript', 'gruene_jugend_actionIdeas', 
+      // Parliamentary types
+      'kleine_anfrage', 'grosse_anfrage', 'rede', 'wahlprogramm',
+      // Press types
+      'pressemitteilung', 'pr_text'
     ];
 
     // Validate input
@@ -360,7 +367,7 @@ router.post('/save-to-library', ensureAuthenticated, async (req, res) => {
         user_id: userId,
         document_id: documentId,
         title: finalTitle.trim(),
-        document_type: type,
+        document_type: type, // Use original frontend type directly
         content: plainTextContent,
         content_html: content.trim(),
         word_count: wordCount,
@@ -376,7 +383,7 @@ router.post('/save-to-library', ensureAuthenticated, async (req, res) => {
       throw error;
     }
 
-    console.log(`[User Content /save-to-library POST] Successfully saved text ${data.document_id} for user ${userId} with title: "${finalTitle}"`);
+    console.log(`[User Content /save-to-library POST] Successfully saved text ${data.document_id} for user ${userId} with title: "${finalTitle}" (type: ${type})`);
     res.json({ 
       success: true, 
       message: 'Text erfolgreich in der Bibliothek gespeichert.',

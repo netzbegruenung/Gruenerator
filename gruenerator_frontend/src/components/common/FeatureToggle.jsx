@@ -33,9 +33,11 @@ const FeatureToggle = ({
         </div>
       </div>
 
-      <div className="feature-description">
-        {description}
-      </div>
+      {description && description.trim() && (
+        <div className="feature-description">
+          {description}
+        </div>
+      )}
     </div>
   );
 };
@@ -45,7 +47,7 @@ FeatureToggle.propTypes = {
   onToggle: PropTypes.func.isRequired,
   label: PropTypes.string.isRequired,
   icon: PropTypes.elementType.isRequired,
-  description: PropTypes.string.isRequired,
+  description: PropTypes.string,
   className: PropTypes.string,
   tabIndex: PropTypes.number
 };

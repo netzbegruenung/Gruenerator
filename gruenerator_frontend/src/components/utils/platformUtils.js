@@ -1,7 +1,7 @@
 export const formatPlatformContent = (content, platform) => {
   const displayName = platform === 'pressemitteilung' ? 'Pressemitteilung' :
                      platform === 'actionIdeas' ? 'Aktionsideen' :
-                     platform === 'reelScript' ? 'Instagram Reel' :
+                     platform === 'reelScript' ? 'Skript für Reels & Tiktoks' :
                      platform.charAt(0).toUpperCase() + platform.slice(1);
   return {
     title: displayName,
@@ -26,7 +26,7 @@ export const combinePlatformContents = (platformValues, platforms) => {
       const content = platformValues[platform] || '';
       const displayName = platform === 'pressemitteilung' ? 'Pressemitteilung' :
                          platform === 'actionIdeas' ? 'Aktionsideen' :
-                         platform === 'reelScript' ? 'Instagram Reel' :
+                         platform === 'reelScript' ? 'Skript für Reels & Tiktoks' :
                          platform.charAt(0).toUpperCase() + platform.slice(1);
       return `# ${displayName}\n\n${content}`;
     })

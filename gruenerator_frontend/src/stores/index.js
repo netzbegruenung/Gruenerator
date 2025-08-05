@@ -9,10 +9,11 @@ export { apiCheckMiddleware, createApiValidationConfig } from './middlewares/api
 export { crossTabSyncMiddleware, createCrossTabSyncConfig } from './middlewares/crossTabSyncMiddleware';
 
 // Test Components
-export { default as BetaFeaturesMigrationTest } from '../components/test/BetaFeaturesMigrationTest';
+// export { default as BetaFeaturesMigrationTest } from '../components/test/BetaFeaturesMigrationTest'; // Component not found
 
 // Active stores:
 export { default as useGeneratedTextStore } from './core/generatedTextStore';
+export { default as useSharepicStore } from './sharepicStore';
 
 // Future stores will be exported here:
 // export { useCollabEditorStore } from './collabEditorStore';

@@ -19,6 +19,7 @@ import { useTabIndex, useBaseFormTabIndex } from '../../../hooks/useTabIndex';
 import { TabIndexHelpers } from '../../../utils/tabIndexConfig';
 import useSharepicGeneration from '../../../hooks/useSharepicGeneration';
 import FileUpload from '../../../components/common/FileUpload';
+import Icon from '../../../components/common/Icon';
 
 const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   const componentName = 'presse-social';
@@ -42,14 +43,14 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   const baseFormTabIndex = useBaseFormTabIndex('PRESS_SOCIAL');
 
   const platformOptions = useMemo(() => [
-    { id: 'instagram', label: 'Instagram' },
-    { id: 'facebook', label: 'Facebook' },
-    { id: 'twitter', label: 'Twitter/X, Mastodon & Bluesky' },
-    { id: 'linkedin', label: 'LinkedIn' },
-    { id: 'actionIdeas', label: 'Aktionsideen' },
-    { id: 'reelScript', label: 'Instagram Reel' },
-    { id: 'pressemitteilung', label: 'Pressemitteilung' },
-    { id: 'sharepic', label: 'Sharepic' }
+    { id: 'instagram', label: 'Instagram', icon: <Icon category="platforms" name="instagram" size={16} /> },
+    { id: 'facebook', label: 'Facebook', icon: <Icon category="platforms" name="facebook" size={16} /> },
+    { id: 'twitter', label: 'Twitter/X, Mastodon & Bluesky', icon: <Icon category="platforms" name="twitter" size={16} /> },
+    { id: 'linkedin', label: 'LinkedIn', icon: <Icon category="platforms" name="linkedin" size={16} /> },
+    { id: 'sharepic', label: 'Sharepic', icon: <Icon category="platforms" name="sharepic" size={16} /> },
+    { id: 'actionIdeas', label: 'Aktionsideen', icon: <Icon category="platforms" name="actionIdeas" size={16} /> },
+    { id: 'reelScript', label: 'Skript für Reels & Tiktoks', icon: <Icon category="platforms" name="reelScript" size={16} /> },
+    { id: 'pressemitteilung', label: 'Pressemitteilung', icon: <Icon category="platforms" name="pressemitteilung" size={16} /> }
   ], []);
 
   const defaultPlatforms = useMemo(() => {

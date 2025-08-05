@@ -2,7 +2,7 @@ import React, { useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { HiCog, HiChevronDown, HiChevronUp } from "react-icons/hi";
 import Button from '../../../../components/common/SubmitButton';
-import { useSharepicGeneratorContext } from '../utils/SharepicGeneratorContext';
+import { useSharepicStore } from '../../../../stores';
 import AdvancedEditingSection from '../../dreizeilen/components/AdvancedEditingSection';
 
 import { 
@@ -26,14 +26,14 @@ const SharepicBackendResult = ({
   balkenGruppenOffset,
   sunflowerOffset,
   credit,
-  formData
+  formData,
+  generatedImage, // Add generatedImage prop to access the current sharepic
+  onAltTextClick // Handler for alt-text button click
 }) => {
   const { 
-    state: { 
-      isAdvancedEditingOpen,
-    },
+    isAdvancedEditingOpen,
     toggleAdvancedEditing,
-  } = useSharepicGeneratorContext();
+  } = useSharepicStore();
 
   const handleSocialMediaClick = useCallback(() => {
     const url = new URL(window.location.origin + '/presse-social');
@@ -41,6 +41,7 @@ const SharepicBackendResult = ({
     url.searchParams.append('details', formData.details || '');
     window.open(url.toString(), '_blank');
   }, [formData]);
+
 
   return (
     <>
@@ -117,13 +118,22 @@ const SharepicBackendResult = ({
           )}
           <div className="social-media-group">
             <h3>Social Media</h3>
-            <p>Erstelle passende Beitragstexte für deine Social-Media-Kanäle.</p>
-            <Button
-              onClick={handleSocialMediaClick}
-              text="Beitragstext erstellen"
-              className="social-media-button"
-              ariaLabel={ARIA_LABELS.SOCIAL_MEDIA}
-            />
+            <p>Erstelle passende Beitragstexte für deine Social-Media-Kanäle und barrierefreie Bildbeschreibungen.</p>
+            <div className="social-media-buttons">
+              <Button
+                onClick={handleSocialMediaClick}
+                text="Beitragstext erstellen"
+                className="social-media-button"
+                ariaLabel={ARIA_LABELS.SOCIAL_MEDIA}
+              />
+              <Button
+                onClick={onAltTextClick}
+                text="Alt-Text erstellen"
+                className="alttext-button"
+                ariaLabel="Alt-Text für Barrierefreiheit erstellen"
+                disabled={!generatedImage}
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -168,6 +178,8 @@ SharepicBackendResult.propTypes = {
   sunflowerOffset: PropTypes.arrayOf(PropTypes.number).isRequired,
   credit: PropTypes.string,
   formData: PropTypes.object.isRequired,
+  generatedImage: PropTypes.string, // Base64 encoded image for alt text generation
+  onAltTextClick: PropTypes.func.isRequired, // Handler for alt-text button click
 };
 
 export default SharepicBackendResult;
