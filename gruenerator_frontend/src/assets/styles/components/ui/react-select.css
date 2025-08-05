@@ -25,7 +25,8 @@
 
 /* Placeholder text */
 .react-select__placeholder {
-  color: var(--input-placeholder-color) !important;
+  color: var(--font-color) !important;
+  opacity: 0.95 !important;
   margin-left: 2px !important;
   margin-right: 2px !important;
   font-size: var(--form-element-font-size) !important;

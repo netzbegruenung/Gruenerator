@@ -51,6 +51,9 @@ const FormInputSection = forwardRef(({
   submitButtonProps = {},
   enablePlatformSelector = false,
   platformOptions = [],
+  platformSelectorLabel = undefined,
+  platformSelectorPlaceholder = undefined,
+  platformSelectorHelpText = undefined,
   platformSelectorTabIndex = 12,
   formControl = null,
   showImageUpload = false,
@@ -109,10 +112,10 @@ const FormInputSection = forwardRef(({
                 name="platforms"
                 control={formControl || modernForm.control}
                 platformOptions={platformOptions}
-                label="Plattformen & Formate"
-                placeholder="Plattformen auswählen..."
+                label={platformSelectorLabel}
+                placeholder={platformSelectorPlaceholder}
                 required={true}
-                helpText="Wähle eine oder mehrere Plattformen für die dein Content optimiert werden soll"
+                helpText={platformSelectorHelpText}
                 tabIndex={platformSelectorTabIndex}
               />
             </div>
@@ -191,6 +194,9 @@ FormInputSection.propTypes = {
       label: PropTypes.string.isRequired
     })
   ),
+  platformSelectorLabel: PropTypes.string,
+  platformSelectorPlaceholder: PropTypes.string,
+  platformSelectorHelpText: PropTypes.string,
   platformSelectorTabIndex: PropTypes.number,
   formControl: PropTypes.object,
   showImageUpload: PropTypes.bool,

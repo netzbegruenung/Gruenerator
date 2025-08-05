@@ -78,6 +78,21 @@ const ActionButtons = ({
 
   const isMobileView = window.innerWidth <= 768;
 
+  // Helper function to detect sharepic-only content
+  const isSharepicOnlyContent = (content) => {
+    if (!content || typeof content !== 'object') return false;
+    
+    // Check if we have sharepic but no social content
+    const hasSharepic = content.sharepic && Object.keys(content.sharepic).length > 0;
+    const hasSocialContent = content.social?.content || 
+                            (content.content && !content.sharepic);
+    
+    return hasSharepic && !hasSocialContent;
+  };
+
+  // Determine if buttons should be hidden (sharepic-only content)
+  const shouldHideButtons = isSharepicOnlyContent(activeContent);
+
   // Handle save to library with success indicator
   const handleSaveToLibrary = () => {
     if (onSaveToLibrary) {
@@ -108,7 +123,7 @@ const ActionButtons = ({
 
   return (
     <div className={className}>
-      {activeContent && (
+      {activeContent && !shouldHideButtons && (
         <>
           <button
             onClick={handleCopyToClipboard}

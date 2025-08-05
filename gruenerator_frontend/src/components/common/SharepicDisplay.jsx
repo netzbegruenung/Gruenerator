@@ -1,6 +1,7 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import { IoAccessibility } from 'react-icons/io5';
+import { HiPencil } from 'react-icons/hi';
 import DownloadButton from '../../features/sharepic/core/components/DownloadButton';
 import CopyButton from './CopyButton';
 import HelpTooltip from './HelpTooltip';
@@ -13,9 +14,12 @@ import useSharepicStore from '../../stores/sharepicStore';
  * @param {Object} props.sharepicData - The sharepic data containing text and image
  * @param {string} props.sharepicData.text - The generated text/slogan
  * @param {string} props.sharepicData.image - Base64 encoded image data
+ * @param {string} props.sharepicData.type - The type of sharepic (info, quote, etc.)
+ * @param {Function} props.onEdit - Callback function when edit button is clicked
+ * @param {boolean} props.showEditButton - Whether to show the edit button
  * @returns {JSX.Element} SharepicDisplay component
  */
-const SharepicDisplay = ({ sharepicData }) => {
+const SharepicDisplay = ({ sharepicData, onEdit, showEditButton = false }) => {
   // Alt text functionality
   const { generateAltTextForImage } = useAltTextGeneration();
   const {
@@ -74,6 +78,15 @@ const SharepicDisplay = ({ sharepicData }) => {
               alt="Generiertes Sharepic" 
               className="sharepic-preview-image"
             />
+            {showEditButton && onEdit && (
+              <button 
+                className="sharepic-edit-button-overlay"
+                onClick={() => onEdit(sharepicData)}
+                title="Sharepic bearbeiten"
+              >
+                <HiPencil />
+              </button>
+            )}
             <button 
               className="sharepic-alt-button"
               onClick={handleGenerateAltText}
@@ -147,9 +160,12 @@ SharepicDisplay.propTypes = {
   sharepicData: PropTypes.shape({
     text: PropTypes.string,
     image: PropTypes.string.isRequired,
+    type: PropTypes.string,
     slogans: PropTypes.array
   }).isRequired,
-  componentName: PropTypes.string
+  componentName: PropTypes.string,
+  onEdit: PropTypes.func,
+  showEditButton: PropTypes.bool
 };
 
 export default SharepicDisplay;

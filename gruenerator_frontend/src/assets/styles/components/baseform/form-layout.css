@@ -9,9 +9,9 @@
 /* FormCard Header Styles */
 .form-card__header {
   background-color: var(--card-background);
-  padding: var(--spacing-small) var(--spacing-xlarge) var(--spacing-medium);
+  padding: var(--spacing-medium) var(--spacing-xlarge) var(--spacing-medium);
   border-bottom: 1px solid var(--border-subtle, rgba(0, 0, 0, 0.1));
-  margin: calc(-1 * var(--spacing-xlarge)) calc(-1 * var(--spacing-xlarge)) 0;
+  margin: calc(-1 * var(--spacing-medium)) calc(-1 * var(--spacing-xlarge)) 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -203,7 +203,7 @@
 
 /* Form Field Layouts */
 .form-section .form-field {
-  margin-bottom: var(--spacing-large);
+  margin-bottom: var(--spacing-medium);
 }
 
 .form-section .form-field:last-child {
@@ -251,8 +251,8 @@
   }
   
   .form-card__header {
-    margin: -1;
-    padding-top: var(--spacing-xlarge);
+    margin: calc(-1 * var(--spacing-small)) calc(-1 * var(--spacing-medium)) 0;
+    padding: var(--spacing-medium) var(--spacing-medium) var(--spacing-medium);
   }
   
   /* Split Layout Mobile */
@@ -332,6 +332,8 @@
 /* New styles for the bottom section */
 .form-section__bottom {
   border-top: 1px solid var(--border-subtle);
+  padding: var(--spacing-medium) 0 var(--spacing-small);
+  margin-top: var(--spacing-small);
 }
 
 .form-section__bottom h3 {
@@ -358,6 +360,22 @@
 
 .press-release-fields .form-field:last-child {
   margin-bottom: 0;
+}
+
+/* Section headers for conditional form sections */
+.sharepic-upload-fields h4,
+.press-release-fields h4 {
+  margin: 0 0 var(--spacing-medium) 0;
+  padding: 0;
+}
+
+/* Add spacing when press release follows another conditional section */
+.press-release-fields.has-preceding-section {
+  margin-top: var(--spacing-large);
+}
+
+.press-release-fields.has-preceding-section h4 {
+  margin-top: 0;
 }
 
 /* Motion wrapper layout classes */
