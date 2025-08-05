@@ -33,6 +33,11 @@
     width: 100%;
 }
 
+.sharepic-image-container {
+    position: relative;
+    display: inline-block;
+}
+
 .sharepic-preview-image {
     max-width: 300px;
     width: 100%;
@@ -46,6 +51,40 @@
 .sharepic-preview-image:hover {
     transform: scale(1.02);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.sharepic-alt-button {
+    position: absolute;
+    top: var(--spacing-small);
+    right: var(--spacing-small);
+    padding: var(--spacing-xsmall) var(--spacing-small);
+    background-color: var(--klee);
+    color: var(--weiß);
+    border: none;
+    border-radius: var(--card-border-radius-small);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xsmall);
+    font-size: 0.875rem;
+    font-weight: 600;
+    opacity: 0.9;
+    transition: transform 0.3s ease;
+    z-index: 2;
+}
+
+.sharepic-alt-button:hover {
+    transform: scale(1.05);
+}
+
+.sharepic-alt-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.sharepic-alt-button svg {
+    width: 16px;
+    height: 16px;
 }
 
 .sharepic-display__actions {
@@ -68,6 +107,16 @@
     .sharepic-display__title {
         font-size: var(--font-size-small);
     }
+    
+    .sharepic-alt-button {
+        font-size: 0.75rem;
+        padding: var(--spacing-xsmall);
+    }
+    
+    .sharepic-alt-button svg {
+        width: 14px;
+        height: 14px;
+    }
 }
 
 @media (max-width: 480px) {
@@ -84,5 +133,9 @@
     
     .sharepic-preview-image:hover {
         transform: none;
+    }
+    
+    .sharepic-alt-button {
+        transition: none;
     }
 }

@@ -1,6 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import PropTypes from 'prop-types';
-import { FiUpload, FiFile, FiX, FiFileText, FiCheck } from 'react-icons/fi';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import ErrorBoundary from '../../ErrorBoundary';
 // import { useDynamicTextSize } from '../../utils/commonFunctions';
@@ -8,6 +7,7 @@ import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 import AnimatedCheckbox from '../../common/AnimatedCheckbox';
 import Spinner from '../../common/Spinner';
 import apiClient from '../../utils/apiClient';
+import Icon from '../../common/Icon';
 
 // Simple markdown processing function
 const processMarkdown = (text) => {
@@ -258,7 +258,7 @@ const Antragsversteher = ({ showHeaderFooter = true }) => {
                   whileHover={shouldReduceMotion ? {} : { scale: 1.1 }}
                   transition={{ duration: 0.2 }}
                 >
-                  <FiX size={16} />
+                  <Icon category="actions" name="close" size={16} />
                 </motion.button>
               )}
             </AnimatePresence>
@@ -274,7 +274,7 @@ const Antragsversteher = ({ showHeaderFooter = true }) => {
                     transition={{ duration: 0.2 }}
                   >
                     <div className="file-icon">
-                      <FiFile />
+                      <Icon category="ui" name="fileAlt" />
                     </div>
                     <div className="file-details">
                       <h4 title={selectedFile.name}>{selectedFile.name}</h4>
@@ -289,7 +289,7 @@ const Antragsversteher = ({ showHeaderFooter = true }) => {
                     transition={{ duration: 0.2 }}
                   >
                     <div className="upload-icon-container">
-                      <FiUpload className="upload-icon" />
+                      <Icon category="actions" name="upload" className="upload-icon" />
                     </div>
                     <div className="upload-text">
                       PDF-Datei hier ablegen oder klicken
@@ -372,7 +372,7 @@ const Antragsversteher = ({ showHeaderFooter = true }) => {
                       transition={{ duration: 0.2 }}
                       className="button-content"
                     >
-                      <FiCheck />
+                      <Icon category="actions" name="check" />
                       <span>Erfolgreich analysiert</span>
                     </motion.div>
                   ) : (
@@ -384,7 +384,7 @@ const Antragsversteher = ({ showHeaderFooter = true }) => {
                       transition={{ duration: 0.2 }}
                       className="button-content"
                     >
-                      <FiFileText />
+                      <Icon category="ui" name="fileTextAlt" />
                       <span>PDF analysieren</span>
                     </motion.div>
                   )}
@@ -405,7 +405,7 @@ const Antragsversteher = ({ showHeaderFooter = true }) => {
             >
               <div className="analysis-header">
                 <div className="analysis-icon">
-                  <FiFileText />
+                  <Icon category="ui" name="fileTextAlt" />
                 </div>
                 <h2 className="analysis-title">Analyse-Ergebnis</h2>
               </div>

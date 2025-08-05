@@ -105,6 +105,7 @@ export const processText = async (endpoint, formData) => {
   }
 };
 
+
 const handleApiError = (error) => {
   if (error.response) {
     const { status, data, config } = error.response;

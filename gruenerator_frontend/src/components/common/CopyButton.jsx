@@ -9,21 +9,47 @@ const CopyButton = ({
   size = 'medium',
   position = 'left',
   className = '',
-  content
+  content,
+  directContent
 }) => {
   const [isCopied, setIsCopied] = useState(false);
   const isMobileView = window.innerWidth <= 768;
 
   const handleCopy = () => {
-    copyFormattedContent(
-      () => {
-        setIsCopied(true);
-        setTimeout(() => setIsCopied(false), 2000);
-      },
-      (error) => {
-        console.error('Fehler beim Kopieren:', error);
-      }
-    );
+    if (directContent) {
+      // Use direct content for copying
+      navigator.clipboard.writeText(directContent)
+        .then(() => {
+          setIsCopied(true);
+          setTimeout(() => setIsCopied(false), 2000);
+        })
+        .catch((error) => {
+          console.error('Fehler beim Kopieren:', error);
+        });
+    } else if (content) {
+      // Use provided content with the updated copyFormattedContent
+      copyFormattedContent(
+        content,
+        () => {
+          setIsCopied(true);
+          setTimeout(() => setIsCopied(false), 2000);
+        },
+        (error) => {
+          console.error('Fehler beim Kopieren:', error);
+        }
+      );
+    } else {
+      // Use store-based copying for backward compatibility (old signature)
+      copyFormattedContent(
+        () => {
+          setIsCopied(true);
+          setTimeout(() => setIsCopied(false), 2000);
+        },
+        (error) => {
+          console.error('Fehler beim Kopieren:', error);
+        }
+      );
+    }
   };
 
   if (variant === 'icon') {
@@ -74,7 +100,8 @@ CopyButton.propTypes = {
   size: PropTypes.string,
   position: PropTypes.string,
   className: PropTypes.string,
-  content: PropTypes.string
+  content: PropTypes.string,
+  directContent: PropTypes.string
 };
 
 export default CopyButton;

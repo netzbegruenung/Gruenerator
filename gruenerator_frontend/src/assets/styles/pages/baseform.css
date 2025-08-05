@@ -77,6 +77,12 @@
     min-height: 40px;
 }
 
+/* Hide empty display header when no generated content */
+.display-container:not(.has-generated-content) .display-header:empty,
+.display-container:not(.has-generated-content) .display-header:has(> :empty) {
+    display: none;
+}
+
 
 
 .display-container h3 {
@@ -99,7 +105,7 @@
     /* FormSection responsive */
     .form-section,
     .display-container {
-        flex: 1 1 100%;
+        flex: 0 1 100%;
         max-width: 100%;
         width: 100%;
         margin: 0;
@@ -120,7 +126,7 @@
     /* FormSection responsive layouts */
     .form-section.has-generated-content,
     .display-container.has-generated-content {
-        flex: 1 1 100%;
+        flex: 0 1 100%;
         max-width: 100%;
         width: 100%;
     }
@@ -134,7 +140,7 @@
     .form-section,
     .display-container.has-generated-content,
     .display-container {
-        flex: 1 1 100%;
+        flex: 0 1 100%;
         max-width: 100%;
         width: 100%;
     }

@@ -144,6 +144,12 @@ async function processAIRequest(requestId, data) {
           system: "Du bist ein hilfsreicher Assistent, der Fragen zu hochgeladenen Dokumenten beantwortet. Analysiere die bereitgestellten Dokumente und beantworte die Nutzerfrage präzise und hilfreich auf Deutsch.",
           model: "claude-3-5-haiku-latest",
           temperature: 0.3
+        },
+        'alttext': {
+          system: "Du erstellst Alternativtexte (Alt-Text) für Bilder basierend auf den DBSV-Richtlinien für Barrierefreiheit.",
+          model: "claude-3-5-sonnet-latest",
+          temperature: 0.3,
+          max_tokens: 2000
         }
       };
 

@@ -23,7 +23,7 @@ export const TEXT_DOCUMENT_TYPES = {
     'text': 'Allgemeiner Text',
     'antrag': 'Antrag',
     'social': 'Social Media',
-    'universal': 'Universeller Text',
+    'universal': 'Universal',
     'press': 'Pressemitteilung',
     'gruene_jugend': 'Gruene Jugend'
 };

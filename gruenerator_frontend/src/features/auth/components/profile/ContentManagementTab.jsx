@@ -1062,7 +1062,14 @@ const ContentManagementTab = ({ isActive, onSuccessMessage, onErrorMessage }) =>
             <DocumentOverview
                 documents={texts}
                 loading={textsLoading}
-                onFetch={() => textsQuery.refetch()}
+                onFetch={async () => {
+                    try {
+                        await textsQuery.refetch();
+                    } catch (error) {
+                        console.error('[ContentManagementTab] Error refreshing texts:', error);
+                        onErrorMessage('Fehler beim Aktualisieren der Texte: ' + error.message);
+                    }
+                }}
                 onDelete={(textId) => deleteText(textId)}
                 onBulkDelete={handleBulkDeleteTexts}
                 onUpdateTitle={handleTextTitleUpdate}

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import useGeneratedTextStore from '../../stores/core/generatedTextStore';
+import { extractPlainText } from './contentExtractor';
 
 // Function to handle form changes
 export const handleChange = (e, setFormData) => {
@@ -132,117 +133,53 @@ export const handleDrop = (e, setDragging, setFile, setFileName) => {
   setDragging(false);
 };
 
-export const copyFormattedContent = (onSuccess, onError) => {
-  const { generatedText } = useGeneratedTextStore.getState();
+export const copyFormattedContent = (contentOrOnSuccess, onSuccessOrOnError, onError) => {
+  // Handle backward compatibility: if first param is a function, use old signature
+  let content, onSuccess, onErrorCallback;
   
-  console.log('1. Kopiervorgang startet mit:', { 
-    contentLength: generatedText?.length,
+  if (typeof contentOrOnSuccess === 'function') {
+    // Old signature: copyFormattedContent(onSuccess, onError)
+    onSuccess = contentOrOnSuccess;
+    onErrorCallback = onSuccessOrOnError;
+    const { generatedText } = useGeneratedTextStore.getState();
+    content = generatedText;
+  } else {
+    // New signature: copyFormattedContent(content, onSuccess, onError)
+    content = contentOrOnSuccess;
+    onSuccess = onSuccessOrOnError;
+    onErrorCallback = onError;
+  }
+
+  console.log('Kopiervorgang startet mit:', { 
+    contentProvided: !!content,
+    contentType: typeof content,
     hasOnSuccess: !!onSuccess,
-    hasOnError: !!onError 
+    hasOnError: !!onErrorCallback 
   });
 
-  const isSearchExport = typeof generatedText === 'object' && generatedText.analysis;
-  
-  if (isSearchExport) {
-    let formattedText = generatedText.analysis;
+  try {
+    // Use the centralized content extractor for consistent plain text output
+    const plainText = extractPlainText(content);
     
-    formattedText = formattedText
-      .replace(/<\/?[^>]+(>|$)/g, '')
-      .replace(/\n\s+•/g, '\n•')
-      .replace(/•\s+/g, '• ')
-      .replace(/\n[ \t]+/g, '\n')
-      .replace(/[ \t]+/g, ' ')
-      .replace(/\n{2,}/g, '\n\n')
-      .trim();
+    console.log('Formatierter Text erstellt:', plainText?.length, 'Zeichen');
 
-    if (generatedText.sourceRecommendations?.length > 0) {
-      formattedText += '\n\nQuellenempfehlungen:';
-      generatedText.sourceRecommendations.forEach(rec => {
-        formattedText += `\n• ${rec.title} - ${rec.summary}`;
-      });
-    }
-    
-    if (generatedText.unusedSources?.length > 0) {
-      formattedText += '\n\nWeitere relevante Quellen:';
-      generatedText.unusedSources.forEach(source => {
-        formattedText += `\n• ${source.title}`;
-      });
-    }
-
-    const cleanText = formattedText
-      .replace(/\n[ \t]+/g, '\n')
-      .replace(/[ \t]+/g, ' ')
-      .replace(/•\s+/g, '• ')
-      .replace(/\n\s*\n(\s*• )/g, '\n$1')
-      .replace(/(\n• [^\n]+)\n\s*\n(\s*• )/g, '$1\n$2')
-      .replace(/\n{3,}/g, '\n\n')
-      .trim();
-
-    navigator.clipboard.writeText(cleanText)
+    navigator.clipboard.writeText(plainText)
       .then(() => {
-        console.log('5. Suchseiten-Export erfolgreich kopiert');
-        if (onSuccess) onSuccess();
-      })
-      .catch(err => {
-        console.error('Fehler beim Kopieren des Suchseiten-Exports:', err);
-        if (onError) onError(err);
-      });
-    return;
-  }
-  
-  const quillEditor = document.querySelector('.ql-editor');
-  console.log('2. Quill Editor gefunden:', !!quillEditor);
-  
-  if (quillEditor) {
-    const currentContent = quillEditor.innerHTML;
-    console.log('3. Aktueller Editor-Inhalt geholt:', currentContent?.length);
-    
-    const tempElement = document.createElement('div');
-    tempElement.innerHTML = currentContent;
-    
-    const blockElements = tempElement.querySelectorAll('p, div, li, h1, h2, h3, h4, h5, h6, blockquote');
-    blockElements.forEach(element => {
-      element.insertAdjacentHTML('afterend', '\n');
-      if (element.tagName === 'LI') {
-        element.insertAdjacentHTML('beforebegin', '• ');
-      }
-    });
-
-    const lists = tempElement.querySelectorAll('ul, ol');
-    lists.forEach(list => {
-      list.insertAdjacentHTML('afterend', '\n');
-    });
-
-    const cleanText = tempElement.innerText
-      .replace(/\n{2,}/g, '\n')
-      .replace(/•\s+/g, '• ')
-      .trim();
-      
-    console.log('4. Formatierter Text erstellt:', cleanText);
-
-    navigator.clipboard.writeText(cleanText)
-      .then(() => {
-        console.log('5. Text erfolgreich in Zwischenablage kopiert');
+        console.log('Text erfolgreich in Zwischenablage kopiert');
         if (onSuccess) {
-          console.log('6. onSuccess Callback wird aufgerufen');
           onSuccess();
         }
       })
       .catch(err => {
-        console.error('5. Fehler beim Kopieren:', err);
-        console.log('Fallback wird verwendet');
-        copyPlainText(generatedText);
-        if (onError) {
-          console.log('6. onError Callback wird aufgerufen');
-          onError(err);
+        console.error('Fehler beim Kopieren:', err);
+        if (onErrorCallback) {
+          onErrorCallback(err);
         }
       });
-  } else {
-    console.log('2b. Kein Quill Editor gefunden, verwende Fallback');
-    copyPlainText(generatedText);
-    if (onSuccess) {
-      console.log('3b. onSuccess Callback wird aufgerufen (Fallback)');
-      onSuccess();
+  } catch (err) {
+    console.error('Fehler bei der Textextraktion:', err);
+    if (onErrorCallback) {
+      onErrorCallback(err);
     }
   }
 };

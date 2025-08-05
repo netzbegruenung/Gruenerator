@@ -513,18 +513,36 @@ function detectContentType(routePath, formData = {}) {
     return 'antrag';
   }
   
-  // Social media routes
+  // Social media routes - Smart multi-platform categorization
   if (routePath.includes('claude_social')) {
     const platforms = formData.platforms || [];
-    if (platforms.includes('pressemitteilung')) return 'pressemitteilung';
-    if (platforms.includes('instagram')) return 'instagram';
-    if (platforms.includes('facebook')) return 'facebook';
-    if (platforms.includes('twitter')) return 'twitter';
-    if (platforms.includes('linkedin')) return 'linkedin';
-    if (platforms.includes('actionIdeas')) return 'actionIdeas';
-    if (platforms.includes('reelScript')) return 'reelScript';
-    // Default to first platform or pressemitteilung
-    return platforms[0] || 'pressemitteilung';
+    const socialPlatforms = platforms.filter(p => 
+      ['instagram', 'facebook', 'twitter', 'linkedin', 'actionIdeas', 'reelScript'].includes(p)
+    );
+    const hasPress = platforms.includes('pressemitteilung');
+    
+    // If press + social media → 'press' 
+    if (hasPress && socialPlatforms.length > 0) {
+      return 'press';
+    }
+    
+    // If only press → 'pressemitteilung' 
+    if (hasPress && socialPlatforms.length === 0) {
+      return 'pressemitteilung';
+    }
+    
+    // If multiple social platforms → 'social'
+    if (socialPlatforms.length > 1) {
+      return 'social';
+    }
+    
+    // If single social platform → specific platform name
+    if (socialPlatforms.length === 1) {
+      return socialPlatforms[0];
+    }
+    
+    // Fallback for edge cases
+    return platforms[0] || 'social';
   }
   
   // Grüne Jugend routes

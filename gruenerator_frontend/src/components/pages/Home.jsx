@@ -1,20 +1,20 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { PiArrowRight, PiCaretDown } from 'react-icons/pi';
 import { TypeAnimation } from 'react-type-animation';
-import { MENU_ICONS } from '../layout/Header/menuData';
+import { getIcon } from '../../config/icons';
+import Icon from '../common/Icon';
 
 const Home = () => {
   const email = 'info' + '@' + 'moritz-waechter.de';
   const [showMore, setShowMore] = useState(false);
 
   // Icon-Komponenten für bessere JSX-Lesbarkeit
-  const PresseIcon = MENU_ICONS['presse-social'];
-  const AntragIcon = MENU_ICONS.antrag;
-  const UniversalIcon = MENU_ICONS.universal;
-  const GrueneJugendIcon = MENU_ICONS['gruene-jugend'];
-  const ReelIcon = MENU_ICONS.reel;
-  const SucheIcon = MENU_ICONS.suche;
+  const PresseIcon = getIcon('navigation', 'presse-social');
+  const AntragIcon = getIcon('navigation', 'antrag');
+  const UniversalIcon = getIcon('navigation', 'universal');
+  const GrueneJugendIcon = getIcon('navigation', 'gruene-jugend');
+  const ReelIcon = getIcon('navigation', 'reel');
+  const SucheIcon = getIcon('navigation', 'suche');
 
   return (
     <main role="main" id="main-content">
@@ -55,14 +55,14 @@ const Home = () => {
               aria-expanded={showMore}
               aria-label="Weitere Grüneratoren anzeigen"
             >
-              <PiCaretDown /> Mehr
+              <Icon category="ui" name="caretDown" /> Mehr
             </button>
             <a href="https://896ca129.sibforms.com/serve/MUIFAFnH3lov98jrw3d75u_DFByChA39XRS6JkBKqjTsN9gx0MxCvDn1FMnkvHLgzxEh1JBcEOiyHEkyzRC-XUO2DffKsVccZ4r7CCaYiugoiLf1a-yoTxDwoctxuzCsmDuodwrVwEwnofr7K42jQc-saIKeVuB_8UxrwS18QIaahZml1qMExNno2sEC7HyMy9Nz4f2f8-UJ4QmW" 
               target="_blank" 
               rel="noopener noreferrer" 
               className="newsletter-button desktop-only"
               aria-label="Zum Newsletter anmelden">
-              Newsletter <PiArrowRight />
+              Newsletter <Icon category="actions" name="arrowRight" />
             </a>
           </div>
           <div className={`link-buttons secondary-buttons ${showMore ? 'show' : ''}`}>
@@ -76,7 +76,7 @@ const Home = () => {
             rel="noopener noreferrer" 
             className="newsletter-button mobile-only"
             aria-label="Zum Newsletter anmelden">
-            Newsletter <PiArrowRight />
+            Newsletter <Icon category="actions" name="arrowRight" />
           </a>
         </div>
       </section>
