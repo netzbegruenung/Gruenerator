@@ -8,6 +8,7 @@ const { extractAudio } = require('./videoUploadService');
 // const { generateShortSubtitlesViaAI } = require('./shortSubtitleGeneratorService');
 const { generateManualSubtitles } = require('./manualSubtitleGeneratorService');
 const { generateWordHighlightSubtitles } = require('./wordHighlightSubtitleService');
+const { startBackgroundCompression } = require('./backgroundCompressionService');
 
 // UNUSED: parseTimestamp function commented out - only manual mode is used
 /*
@@ -201,6 +202,18 @@ async function transcribeVideo(videoPath, subtitlePreference = 'manual', aiWorke
     
     // Extrahiere Audio
     await extractAudio(videoPath, audioPath);
+    
+    // Try to start background video compression right after audio extraction
+    // Extract uploadId from video path (assuming format: .../uploads/{uploadId})
+    const uploadId = path.basename(path.dirname(videoPath));
+    try {
+      console.log(`[transcriptionService] Attempting background compression for uploadId: ${uploadId}`);
+      startBackgroundCompression(videoPath, uploadId);
+      console.log(`[transcriptionService] Background compression started successfully for: ${uploadId}`);
+    } catch (compressionError) {
+      console.warn(`[transcriptionService] Background compression failed for ${uploadId}, continuing with transcription:`, compressionError.message);
+      // Continue with transcription even if compression fails
+    }
     
     let finalTranscription = null;
     

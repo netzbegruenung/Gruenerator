@@ -45,18 +45,12 @@
     border-radius: 8px;
     border: 1px solid var(--border-subtle);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    transition: all 0.3s ease;
-}
-
-.sharepic-preview-image:hover {
-    transform: scale(1.02);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .sharepic-alt-button {
     position: absolute;
     top: var(--spacing-small);
-    right: var(--spacing-small);
+    right: calc(var(--spacing-small) + 40px + var(--spacing-xsmall));
     padding: var(--spacing-xsmall) var(--spacing-small);
     background-color: var(--klee);
     color: var(--weiß);
@@ -87,10 +81,67 @@
     height: 16px;
 }
 
+.sharepic-edit-button-overlay {
+    position: absolute;
+    top: var(--spacing-small);
+    right: var(--spacing-small);
+    padding: var(--spacing-xsmall) var(--spacing-small);
+    background-color: var(--klee);
+    color: var(--weiß);
+    border: none;
+    border-radius: var(--card-border-radius-small);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xsmall);
+    font-size: 0.875rem;
+    font-weight: 600;
+    opacity: 0.9;
+    transition: transform 0.3s ease;
+    z-index: 2;
+}
+
+.sharepic-edit-button-overlay:hover {
+    transform: scale(1.05);
+}
+
+.sharepic-edit-button-overlay svg {
+    width: 16px;
+    height: 16px;
+}
+
 .sharepic-display__actions {
     display: flex;
     justify-content: center;
+    gap: var(--spacing-small);
     width: 100%;
+}
+
+.sharepic-edit-button {
+    padding: var(--spacing-small) var(--spacing-medium);
+    background-color: var(--tanne);
+    color: var(--weiß);
+    border: none;
+    border-radius: var(--card-border-radius);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xsmall);
+    font-size: var(--font-size-small);
+    font-weight: 600;
+    font-family: inherit;
+    transition: all 0.2s ease;
+}
+
+.sharepic-edit-button:hover {
+    background-color: var(--tanne-dark);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.sharepic-edit-button svg {
+    width: 16px;
+    height: 16px;
 }
 
 /* Responsive styles */
@@ -117,6 +168,16 @@
         width: 14px;
         height: 14px;
     }
+    
+    .sharepic-edit-button-overlay {
+        font-size: 0.75rem;
+        padding: var(--spacing-xsmall);
+    }
+    
+    .sharepic-edit-button-overlay svg {
+        width: 14px;
+        height: 14px;
+    }
 }
 
 @media (max-width: 480px) {
@@ -127,15 +188,11 @@
 
 /* Reduce motion for accessibility */
 @media (prefers-reduced-motion: reduce) {
-    .sharepic-preview-image {
+    .sharepic-alt-button {
         transition: none;
     }
     
-    .sharepic-preview-image:hover {
-        transform: none;
-    }
-    
-    .sharepic-alt-button {
+    .sharepic-edit-button-overlay {
         transition: none;
     }
 }

@@ -43,14 +43,14 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   const baseFormTabIndex = useBaseFormTabIndex('PRESS_SOCIAL');
 
   const platformOptions = useMemo(() => [
+    { id: 'pressemitteilung', label: 'Pressemitteilung', icon: <Icon category="platforms" name="pressemitteilung" size={16} /> },
     { id: 'instagram', label: 'Instagram', icon: <Icon category="platforms" name="instagram" size={16} /> },
     { id: 'facebook', label: 'Facebook', icon: <Icon category="platforms" name="facebook" size={16} /> },
     { id: 'twitter', label: 'Twitter/X, Mastodon & Bluesky', icon: <Icon category="platforms" name="twitter" size={16} /> },
     { id: 'linkedin', label: 'LinkedIn', icon: <Icon category="platforms" name="linkedin" size={16} /> },
     { id: 'sharepic', label: 'Sharepic', icon: <Icon category="platforms" name="sharepic" size={16} /> },
     { id: 'actionIdeas', label: 'Aktionsideen', icon: <Icon category="platforms" name="actionIdeas" size={16} /> },
-    { id: 'reelScript', label: 'Skript für Reels & Tiktoks', icon: <Icon category="platforms" name="reelScript" size={16} /> },
-    { id: 'pressemitteilung', label: 'Pressemitteilung', icon: <Icon category="platforms" name="pressemitteilung" size={16} /> }
+    { id: 'reelScript', label: 'Skript für Reels & Tiktoks', icon: <Icon category="platforms" name="reelScript" size={16} /> }
   ], []);
 
   const defaultPlatforms = useMemo(() => {
@@ -233,7 +233,9 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
           ...combinedResults,
           // For backward compatibility, also set the main content
           content: combinedResults.social?.content || '',
-          metadata: combinedResults.social?.metadata || {}
+          metadata: combinedResults.social?.metadata || {},
+          // Add edit handler for sharepics
+          onEditSharepic: handleEditSharepic
         };
         
         setSocialMediaContent(finalContent);
@@ -252,13 +254,30 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
     setGeneratedText(componentName, content);
   }, [setGeneratedText, componentName]);
 
+  const handleEditSharepic = useCallback((sharepicData) => {
+    // Create unique editing session ID
+    const editingSessionId = `sharepic-edit-${Date.now()}`;
+    
+    // Store data in sessionStorage for cross-tab access
+    sessionStorage.setItem(editingSessionId, JSON.stringify({
+      source: 'presseSocial',
+      data: sharepicData,
+      timestamp: Date.now()
+    }));
+    
+    // Open Sharepicgenerator in new tab with editing session
+    const url = new URL(window.location.origin + '/sharepic');
+    url.searchParams.append('editSession', editingSessionId);
+    window.open(url.toString(), '_blank');
+  }, []);
+
 
   const helpContent = {
     content: "Dieser Grünerator erstellt professionelle Pressemitteilungen und Social Media Inhalte basierend auf deinen Angaben.",
     tips: [
       "Gib ein klares, prägnantes Thema an",
       "Füge wichtige Details und Fakten hinzu",
-      "Wähle die gewünschten Plattformen aus",
+      "Wähle die gewünschten Formate aus",
       "Bei Pressemitteilungen: Angabe von Zitatgeber erforderlich - Abbinder wird automatisch hinzugefügt",
       "Bei Sharepics: Wähle zwischen 5 Formaten - 3-Zeilen Slogan (mit Bild), Zitat mit Bild, Zitat (Nur Text), Infopost oder Nur Text (Groß). Bei Zitat-Formaten ist die Angabe des Autors erforderlich"
     ]
@@ -301,6 +320,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
               duration: 0.25 
             }}
           >
+            <h4>Sharepic:</h4>
             <Select
               name="sharepicType"
               control={control}
@@ -357,7 +377,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
       <AnimatePresence>
         {watchPressemitteilung && (
           <motion.div 
-            className="press-release-fields"
+            className={`press-release-fields ${watchSharepic ? 'has-preceding-section' : ''}`.trim()}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 8 }}
@@ -368,6 +388,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
               duration: 0.25 
             }}
           >
+            <h4>Pressemitteilung:</h4>
             <Input
               name="zitatgeber"
               control={control}
@@ -400,6 +421,9 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
           enableDocumentSelector={true}
           enablePlatformSelector={true}
           platformOptions={platformOptions}
+          platformSelectorLabel="Formate"
+          platformSelectorPlaceholder="Formate auswählen..."
+          platformSelectorHelpText="Wähle ein oder mehrere Formate für die dein Content optimiert werden soll"
           formControl={control}
           helpContent={helpContent}
           componentName={componentName}

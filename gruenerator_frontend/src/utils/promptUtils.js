@@ -124,7 +124,7 @@ export const createBasePromptFromFormData = (formData) => {
   }
   
   if (platforms.length > 0) {
-    basePrompt += `\nPlattformen: ${platforms.join(', ')}`;
+    basePrompt += `\nFormate: ${platforms.join(', ')}`;
   }
   
   if (platforms.includes('pressemitteilung')) {

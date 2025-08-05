@@ -71,26 +71,26 @@
 .form-input::placeholder,
 .form-textarea::placeholder {
   color: var(--font-color) !important;
-  opacity: 0.8 !important;
+  opacity: 0.95;
 }
 
 /* Browser-specific placeholder styles for better compatibility */
 .form-input::-webkit-input-placeholder,
 .form-textarea::-webkit-input-placeholder {
   color: var(--font-color) !important;
-  opacity: 0.8 !important;
+  opacity: 0.95;
 }
 
 .form-input::-moz-placeholder,
 .form-textarea::-moz-placeholder {
   color: var(--font-color) !important;
-  opacity: 0.8 !important;
+  opacity: 0.95;
 }
 
 .form-input:-ms-input-placeholder,
 .form-textarea:-ms-input-placeholder {
   color: var(--font-color) !important;
-  opacity: 0.8 !important;
+  opacity: 0.95;
 }
 
 /* ===== Autofill Styles - Remove browser defaults ===== */

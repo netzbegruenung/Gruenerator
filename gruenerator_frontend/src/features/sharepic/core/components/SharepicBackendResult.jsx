@@ -28,7 +28,8 @@ const SharepicBackendResult = ({
   credit,
   formData,
   generatedImage, // Add generatedImage prop to access the current sharepic
-  onAltTextClick // Handler for alt-text button click
+  onAltTextClick, // Handler for alt-text button click
+  hidePostTextButton = false // Hide the "Beitragstext erstellen" button when coming from press social
 }) => {
   const { 
     isAdvancedEditingOpen,
@@ -52,6 +53,16 @@ const SharepicBackendResult = ({
               <div className="textzeilen-group">
                 <h3>Zitat</h3>
                 <p>Hier änderst du das Zitat und den Namen</p>
+                <div className="input-fields-wrapper">
+                  {children}
+                </div>
+              </div>
+            </>
+          ) : formData.type === 'Info' ? (
+            <>
+              <div className="textzeilen-group">
+                <h3>Info-Post Inhalte</h3>
+                <p>Bearbeite die Inhalte deines Info-Posts</p>
                 <div className="input-fields-wrapper">
                   {children}
                 </div>
@@ -91,9 +102,7 @@ const SharepicBackendResult = ({
         <div className="right-column">
           {formData.type !== 'Zitat' && (
             <>
-              {/* TODO: Implement color scheme support for Info posts */}
-              {/* TODO: Implement color scheme support for Zitat_Pure posts */}
-              {/* TODO: Implement color scheme support for Headline posts */}
+              {/* Note: Color scheme and font size controls are not supported for Info, Zitat_Pure, and Headline types */}
               {formData.type !== 'Info' && formData.type !== 'Zitat_Pure' && formData.type !== 'Headline' && (
                 <div className="color-controls">
                   <h3>Farbschema</h3>
@@ -120,12 +129,14 @@ const SharepicBackendResult = ({
             <h3>Social Media</h3>
             <p>Erstelle passende Beitragstexte für deine Social-Media-Kanäle und barrierefreie Bildbeschreibungen.</p>
             <div className="social-media-buttons">
-              <Button
-                onClick={handleSocialMediaClick}
-                text="Beitragstext erstellen"
-                className="social-media-button"
-                ariaLabel={ARIA_LABELS.SOCIAL_MEDIA}
-              />
+              {!hidePostTextButton && (
+                <Button
+                  onClick={handleSocialMediaClick}
+                  text="Beitragstext erstellen"
+                  className="social-media-button"
+                  ariaLabel={ARIA_LABELS.SOCIAL_MEDIA}
+                />
+              )}
               <Button
                 onClick={onAltTextClick}
                 text="Alt-Text erstellen"
@@ -180,6 +191,7 @@ SharepicBackendResult.propTypes = {
   formData: PropTypes.object.isRequired,
   generatedImage: PropTypes.string, // Base64 encoded image for alt text generation
   onAltTextClick: PropTypes.func.isRequired, // Handler for alt-text button click
+  hidePostTextButton: PropTypes.bool, // Hide the "Beitragstext erstellen" button when coming from press social
 };
 
 export default SharepicBackendResult;

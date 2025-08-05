@@ -119,6 +119,8 @@ const ContentRenderer = ({
             <SharepicDisplay 
               sharepicData={generatedContent.sharepic} 
               componentName={componentName}
+              showEditButton={componentName === 'presse-social' && generatedContent.sharepic.type === 'info'}
+              onEdit={generatedContent.onEditSharepic}
             />
           </div>
         )}

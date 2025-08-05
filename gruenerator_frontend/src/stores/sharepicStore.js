@@ -1,6 +1,4 @@
 import { create } from 'zustand';
-import { debounce } from 'lodash';
-import { prepareDataForDreizeilenCanvas, prepareDataForQuoteCanvas } from '../features/sharepic/dreizeilen/utils/dataPreparation';
 import {
   SHAREPIC_TYPES,
   FORM_STEPS,
@@ -19,6 +17,10 @@ const initialState = {
   line3: '',
   quote: '',
   name: '',
+  // Info sharepic fields
+  header: '',
+  subheader: '',
+  body: '',
   fontSize: FONT_SIZES.M,
   balkenOffset: [50, -100, 50],
   colorScheme: DEFAULT_COLORS,
@@ -27,6 +29,10 @@ const initialState = {
   credit: '',
   searchTerms: [],
   sloganAlternatives: [],
+  
+  // Cross-component editing state
+  editingSource: null, // null, 'presseSocial', 'sharepicGenerator'
+  originalSharepicData: null, // Store original data for reference
   
   // UI State
   currentStep: FORM_STEPS.WELCOME,
@@ -182,7 +188,7 @@ const useSharepicStore = create((set, get) => ({
     window.open(searchUrl, '_blank');
   },
 
-  // Image modification
+  // Image modification state updates
   updateImageModification: (modificationData) => {
     console.log('[SharepicStore] updateImageModification:', modificationData);
     
@@ -195,106 +201,60 @@ const useSharepicStore = create((set, get) => ({
         : (Array.isArray(state.balkenOffset) ? state.balkenOffset : [50, -100, 50]),
     }));
 
-    const { currentStep } = get();
-    if (currentStep === FORM_STEPS.RESULT) {
-      get().debouncedModifyImage(modificationData);
-    }
+    // Note: Image modification API call is now handled by useSharepicModification hook
   },
 
-  // Image generation and modification
-  modifyImage: async (modificationData) => {
+
+
+
+
+  // Load sharepic data for cross-component editing
+  loadSharepicForEditing: (sharepicData, source = 'presseSocial') => {
+    console.log('[SharepicStore] Loading sharepic for editing:', { sharepicData, source });
+    
     const state = get();
-    try {
-      console.log('Modifying image with data:', modificationData);
-      const formDataToSend = prepareDataForDreizeilenCanvas(state, modificationData, state.file);
+    const newState = {
+      editingSource: source,
+      originalSharepicData: sharepicData,
+      generatedImageSrc: sharepicData.image,
+      currentStep: FORM_STEPS.RESULT,
+    };
 
-      const response = await fetch('/api/dreizeilen_canvas', {
-        method: 'POST',
-        body: formDataToSend,
-      });
-
-      if (!response.ok) {
-        throw new Error(ERROR_MESSAGES.NETWORK_ERROR);
+    // Map sharepic data to store fields based on type
+    if (sharepicData.type === 'info') {
+      // Parse the text back into Info fields
+      const lines = sharepicData.text.split('\n').filter(line => line.trim());
+      newState.type = 'Info';
+      newState.header = lines[0] || '';
+      newState.subheader = lines[1] || '';
+      newState.body = lines.slice(2).join('\n') || '';
+    } else if (sharepicData.type === 'quote' || sharepicData.type === 'quote_pure') {
+      // Parse quote data
+      const quoteMatch = sharepicData.text.match(/^"(.*)" - (.*)$/);
+      if (quoteMatch) {
+        newState.type = sharepicData.type === 'quote_pure' ? 'Zitat_Pure' : 'Zitat';
+        newState.quote = quoteMatch[1];
+        newState.name = quoteMatch[2];
       }
-
-      const result = await response.json();
-      if (!result.image) {
-        throw new Error(ERROR_MESSAGES.NO_IMAGE_DATA);
-      }
-
-      set({
-        generatedImageSrc: result.image,
-        fontSize: modificationData.fontSize,
-        balkenOffset: modificationData.balkenOffset,
-        colorScheme: modificationData.colorScheme,
-        credit: modificationData.credit,
-      });
-
-      console.log('Image successfully modified');
-      return result.image;
-    } catch (error) {
-      console.error('Error in modifyImage:', error);
-      set({ error: error.message });
-      throw error;
+    } else if (sharepicData.type === 'dreizeilen' || sharepicData.type === 'headline') {
+      // Parse three-line data
+      const lines = sharepicData.text.split('\n').filter(line => line.trim());
+      newState.type = sharepicData.type === 'headline' ? 'Headline' : 'Dreizeilen';
+      newState.line1 = lines[0] || '';
+      newState.line2 = lines[1] || '';
+      newState.line3 = lines[2] || '';
     }
+
+    set(newState);
   },
 
-  // Create debounced version of modifyImage (will be set after store creation)
-  debouncedModifyImage: null,
 
-  // Generate image function
-  generateImage: async (modificationData) => {
-    const state = get();
-    try {
-      const isQuote = state.type === 'Zitat';
-      const formDataToSend = isQuote 
-        ? prepareDataForQuoteCanvas(state, modificationData)
-        : prepareDataForDreizeilenCanvas(state, modificationData);
-
-      const endpoint = isQuote ? 'zitat_canvas' : 'dreizeilen_canvas';
-      const response = await fetch(`/api/${endpoint}`, {
-        method: 'POST',
-        body: formDataToSend
-      });
-
-      if (!response.ok) {
-        throw new Error('Fehler beim Generieren des Bildes');
-      }
-
-      const data = await response.json();
-      return data.image;
-    } catch (error) {
-      console.error('Fehler beim Generieren des Bildes:', error);
-      throw error;
-    }
-  },
-
-  // Generate quote function
-  generateQuote: async (thema, details, existingQuote = '', name = '') => {
-    try {
-      const response = await fetch('/api/zitat_claude', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          thema,
-          details,
-          quote: existingQuote,
-          name
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error('Fehler bei der Zitat-Generierung');
-      }
-
-      const data = await response.json();
-      return data;
-    } catch (error) {
-      console.error('Fehler bei der Zitat-Generierung:', error);
-      throw error;
-    }
+  // Clear editing state
+  clearEditingState: () => {
+    set({
+      editingSource: null,
+      originalSharepicData: null
+    });
   },
 
   // Constants access
@@ -304,9 +264,5 @@ const useSharepicStore = create((set, get) => ({
   ERROR_MESSAGES,
 }));
 
-// Initialize the debounced modify image function after store creation
-useSharepicStore.setState((state) => ({
-  debouncedModifyImage: debounce(state.modifyImage, 300)
-}));
 
 export default useSharepicStore;
