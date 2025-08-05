@@ -355,6 +355,82 @@ router.get('/download-chunk/:uploadId/:chunkIndex', async (req, res) => {
   }
 });
 
+// Route for downloading completed exports
+router.get('/export-download/:exportToken', async (req, res) => {
+  const { exportToken } = req.params;
+  
+  try {
+    // Get export completion data from Redis
+    const exportDataString = await redisClient.get(`export:${exportToken}`);
+    
+    if (!exportDataString) {
+      return res.status(404).json({ error: 'Export token not found or expired' });
+    }
+    
+    const exportData = JSON.parse(exportDataString);
+    
+    if (exportData.status !== 'complete') {
+      return res.status(400).json({ 
+        error: 'Export not complete', 
+        status: exportData.status,
+        progress: exportData.progress 
+      });
+    }
+    
+    const { outputPath, originalFilename } = exportData;
+    
+    if (!outputPath || !await checkFileExists(outputPath)) {
+      return res.status(404).json({ error: 'Export file not found' });
+    }
+    
+    // Get file stats
+    const stats = await fsPromises.stat(outputPath);
+    const fileSize = stats.size;
+    
+    // Prepare filename
+    const sanitizedFilename = path.basename(originalFilename, path.extname(originalFilename))
+      .replace(/[^a-zA-Z0-9_-]/g, '_') + '_gruenerator.mp4';
+    
+    // Set response headers
+    res.setHeader('Content-Type', 'video/mp4');
+    res.setHeader('Content-Length', fileSize);
+    res.setHeader('Content-Disposition', `attachment; filename=${sanitizedFilename}`);
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    
+    console.log(`[Export Download] Streaming completed export: ${exportToken} (${(fileSize / 1024 / 1024).toFixed(2)}MB)`);
+    
+    // Stream the file
+    const fileStream = fs.createReadStream(outputPath);
+    fileStream.pipe(res);
+    
+    // Clean up after download completes
+    fileStream.on('end', async () => {
+      setTimeout(async () => {
+        try {
+          await cleanupFiles(null, outputPath);
+          await redisClient.del(`export:${exportToken}`);
+          console.log(`[Export Download] Cleaned up completed export: ${exportToken}`);
+        } catch (cleanupError) {
+          console.warn(`[Export Download] Cleanup failed for ${exportToken}:`, cleanupError.message);
+        }
+      }, 2000);
+    });
+    
+    fileStream.on('error', (error) => {
+      console.error(`[Export Download] Stream error for ${exportToken}:`, error.message);
+      if (!res.headersSent) {
+        res.status(500).json({ error: 'Error streaming export file' });
+      }
+    });
+    
+  } catch (error) {
+    console.error(`[Export Download] Error for token ${exportToken}:`, error);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+});
+
 // Route zum Herunterladen des fertigen Videos (Legacy - kept for backward compatibility)
 router.post('/export', async (req, res) => {
   // Expect uploadId, subtitles, subtitlePreference, and stylePreference in body
@@ -704,289 +780,35 @@ router.post('/export', async (req, res) => {
       assFilePath = null; // Proceed without subtitles
     }
 
-    // FFmpeg-Verarbeitung
-    await new Promise((resolve, reject) => {
-      const command = ffmpeg(inputPath);
-      
-      // ---- Start: Intelligent quality optimization ----
-      const inputFileSize = fileStats.size;
-      const fileSizeMB = inputFileSize / 1024 / 1024;
-      
-      // Speed-optimized settings for large files (prioritize speed over compression)
-      let crf, preset, tune;
-      
-      // Optimized settings for large files (>200MB) - balance speed and file size
-      if (fileSizeMB > 200) {
-        console.log(`[FFmpeg] Large file detected (${fileSizeMB.toFixed(1)}MB), using size-optimized settings`);
-        preset = 'fast'; // Good speed while maintaining compression efficiency
-        tune = 'film'; // Better compression for video content
-        
-        if (referenceDimension >= 2160) { // 4K+
-          crf = 26; // Higher CRF for smaller file size, still good quality
-        } else if (referenceDimension >= 1440) { // 2K
-          crf = 25; // Balanced quality/size for 2K
-        } else if (referenceDimension >= 1080) { // FullHD
-          crf = 25; // Good compression for FullHD
-        } else { // HD and below
-          crf = 26; // Aggressive compression for smaller dimensions
-        }
-      } else {
-        // Standard quality settings for smaller files
-        if (referenceDimension >= 2160) { // 4K+
-          crf = 18; // Sehr hohe Qualität für 4K
-          preset = fileSizeMB > 100 ? 'fast' : 'slow';
-          tune = 'film';
-        } else if (referenceDimension >= 1440) { // 2K
-          crf = 19; // Hohe Qualität für 2K
-          preset = fileSizeMB > 80 ? 'fast' : 'slow';
-          tune = 'film';
-        } else if (referenceDimension >= 1080) { // FullHD
-          crf = 20; // Gute Qualität für FullHD
-          preset = fileSizeMB > 60 ? 'medium' : 'slow';
-          tune = 'film';
-        } else if (referenceDimension >= 720) { // HD
-          crf = 21; // Solide Qualität für HD
-          preset = fileSizeMB > 40 ? 'medium' : 'slower';
-          tune = 'film';
-        } else { // SD
-          crf = 22; // Erhaltung für niedrige Auflösungen
-          preset = 'slower'; // Mehr Zeit für bessere Kompression bei SD
-          tune = 'film';
-        }
-      }
-      
-      console.log(`[FFmpeg] ${referenceDimension}p, CRF: ${crf}, Preset: ${preset}`);
-
-      // ---- Start: Audio preservation analysis ----
-      let audioCodec, audioBitrate;
-      const originalAudioCodec = metadata.originalFormat?.audioCodec;
-      const originalAudioBitrate = metadata.originalFormat?.audioBitrate;
-      
-      // Speed-optimized audio settings
-      if (originalAudioCodec === 'aac' && originalAudioBitrate && originalAudioBitrate >= 128) {
-        audioCodec = 'copy'; // No re-encoding - fastest option
-        audioBitrate = null;
-        console.log(`[FFmpeg] Copying original AAC audio (fastest option)`);
-      } else {
-        audioCodec = 'aac';
-        // For large files, optimize audio bitrate for smaller output
-        if (fileSizeMB > 200) {
-          audioBitrate = '96k'; // Lower bitrate for smaller files, still acceptable quality
-          console.log(`[FFmpeg] Using 96k audio for large file (size optimized)`);
-        } else {
-          // Standard quality settings for smaller files
-          if (referenceDimension >= 1440) {
-            audioBitrate = '256k'; // Higher quality for 2K+
-          } else if (referenceDimension >= 1080) {
-            audioBitrate = '192k'; // Standard for FullHD
-          } else {
-            audioBitrate = '128k'; // Sufficient for HD/SD
-          }
-        }
-      }
-      // ---- End: Audio preservation analysis ----
-
-      // Codec choice - use H.264 for compatibility and good compression
-      let videoCodec;
-      if (fileSizeMB > 200) {
-        videoCodec = 'libx264'; // H.264 provides good compression for large files
-        console.log(`[FFmpeg] Using H.264 for large file (good compression/compatibility balance)`);
-      } else if (referenceDimension >= 2160 && metadata.originalFormat?.codec === 'hevc') {
-        videoCodec = 'libx265'; // HEVC for 4K if original was also HEVC (small files only)
-      } else {
-        videoCodec = 'libx264'; // H.264 for better compatibility
-      }
-
-      // Speed-optimized output options
-      const outputOptions = [
-        '-y',
-        '-c:v', videoCodec,
-        '-preset', preset,
-        '-crf', crf.toString(),
-        // Add tune only if specified (large files skip tune for speed)
-        ...(tune ? ['-tune', tune] : []),
-        // Profile selection for optimal compression
-        '-profile:v', fileSizeMB > 200 
-          ? 'main' // Main profile for better compression than baseline
-          : (videoCodec === 'libx264' ? 'high' : 'main'),
-        // Level settings
-        '-level', videoCodec === 'libx264' ? '4.1' : '4.0',
-        // Audio settings
-        '-c:a', audioCodec,
-        ...(audioBitrate ? ['-b:a', audioBitrate] : []),
-        // Container optimizations
-        '-movflags', '+faststart',
-        '-avoid_negative_ts', 'make_zero'
-      ];
-      
-      // Add size-specific optimizations for large files
-      if (fileSizeMB > 200) {
-        outputOptions.push(
-          '-threads', '0', // Use all available CPU threads
-          '-me_method', 'umh', // Better motion estimation for compression
-          '-subq', '6', // Good subpixel motion estimation
-          '-bf', '3', // Use B-frames for better compression
-          '-refs', '3', // Multiple reference frames for better compression
-          '-trellis', '1' // Trellis quantization for better compression
-        );
-        console.log(`[FFmpeg] Added compression optimizations for large file`);
-      }
-
-      // Setze Rotations-Metadaten
-      if (metadata.rotation && metadata.rotation !== '0') {
-        outputOptions.push('-metadata:s:v:0', `rotate=${metadata.rotation}`);
-      }
-
-      command.outputOptions(outputOptions);
-
-      // Apply ASS subtitles filter if available
-      if (assFilePath) {
-        // Use fontdir option to specify font directory for ASS subtitles
-        const fontDir = path.dirname(tempFontPath);
-        command.videoFilters([`subtitles=${assFilePath}:fontsdir=${fontDir}`]);
-        console.log(`[FFmpeg] Applied ASS filter with font directory: ${assFilePath}:fontsdir=${fontDir}`);
-      } else {
-        console.log('[FFmpeg] No ASS subtitles available, proceeding without subtitles');
-      }
-
-      command
-        .on('start', () => {
-          console.log('[FFmpeg] Processing started');
-        })
-        .on('progress', async (progress) => {
-          const progressPercent = progress.percent ? Math.round(progress.percent) : 0;
-          console.log('Fortschritt:', `${progressPercent}%`);
-          
-          // Speichere Progress in Redis
-          const progressData = {
-            status: 'exporting',
-            progress: progressPercent,
-            timeRemaining: progress.timemark
-          };
-          try {
-            await redisClient.set(`export:${exportToken}`, JSON.stringify(progressData), { EX: 60 * 60 });
-          } catch (redisError) {
-            console.warn('Redis Progress Update Fehler:', redisError.message);
-          }
-        })
-        .on('error', (err) => {
-          console.error('FFmpeg Fehler:', err);
-          // Try to remove progress key on error
-          redisClient.del(`export:${exportToken}`).catch(delErr => console.warn(`[FFmpeg Error Cleanup] Failed to delete progress key export:${exportToken}`, delErr));
-          // Cleanup ASS file and temp font on error
-          if (assFilePath) {
-            assService.cleanupTempFile(assFilePath).catch(cleanupErr => console.warn('[FFmpeg Error] ASS cleanup failed:', cleanupErr));
-            if (tempFontPath) {
-              fsPromises.unlink(tempFontPath).catch(fontErr => console.warn('[FFmpeg Error] Font cleanup failed:', fontErr.message));
-            }
-          }
-          reject(err);
-        })
-        .on('end', async () => {
-          console.log('FFmpeg Verarbeitung abgeschlossen');
-          // Lösche Progress aus Redis
-          try {
-            await redisClient.del(`export:${exportToken}`);
-          } catch (redisError) {
-            console.warn('Redis Progress Cleanup Fehler:', redisError.message);
-          }
-          // Cleanup ASS file and temp font on success
-          if (assFilePath) {
-            await assService.cleanupTempFile(assFilePath).catch(cleanupErr => console.warn('[FFmpeg Success] ASS cleanup failed:', cleanupErr));
-            if (tempFontPath) {
-              await fsPromises.unlink(tempFontPath).catch(fontErr => console.warn('[FFmpeg Success] Font cleanup failed:', fontErr.message));
-            }
-          }
-          resolve();
-        });
-
-      command.save(outputPath);
+    // Return JSON response immediately to enable progress polling
+    res.status(202).json({
+      status: 'exporting',
+      exportToken: exportToken,
+      message: 'Export started. Use the token to poll for progress.'
     });
 
-    // Warte kurz, um sicherzustellen, dass die Datei vollständig geschrieben wurde
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    // Dateistatistiken abrufen
-    const stats = await fsPromises.stat(outputPath);
-    const fileSize = stats.size;
-
-    // Send the exportToken back to the client with the file stream.
-    // The client will need this token to poll for progress if it's a long operation,
-    // though in this case, the file is streamed directly.
-    // For a more robust progress system, the export might be a background job,
-    // and the client would poll using this token.
-    // Production-compatible headers with proper filename sanitization
-    const sanitizedFilename = path.basename(originalFilename, path.extname(originalFilename))
-      .replace(/[^a-zA-Z0-9_-]/g, '_') + '_gruenerator.mp4';
-    
-    res.setHeader('X-Export-Token', exportToken);
-    res.setHeader('Content-Type', 'video/mp4');
-    res.setHeader('Content-Length', fileSize);
-    res.setHeader('Content-Disposition', `attachment; filename=${sanitizedFilename}`);
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.setHeader('Connection', 'keep-alive');
-    
-    // Smart logging for production debugging
-    const clientInfo = {
-      ip: req.ip || req.socket.remoteAddress,
-      userAgent: req.get('User-Agent'),
-      fileSize: `${(fileSize / 1024 / 1024).toFixed(2)}MB`
-    };
-    console.log(`[Export] Starting stream for ${uploadId}: ${clientInfo.fileSize} to ${clientInfo.ip}`);
-    
-    // Track stream progress and client connection
-    let streamedBytes = 0;
-    let isClientConnected = true;
-    let cleanupScheduled = false;
-    
-    const fileStream = fs.createReadStream(outputPath);
-    
-    // Monitor client connection
-    res.on('close', () => {
-      isClientConnected = false;
-      console.log(`[Export] Client disconnected for ${uploadId} after ${(streamedBytes / 1024 / 1024).toFixed(2)}MB`);
-    });
-    
-    res.on('finish', () => {
-      console.log(`[Export] Response finished for ${uploadId}: ${(streamedBytes / 1024 / 1024).toFixed(2)}MB sent`);
-    });
-    
-    // Track bytes transferred
-    fileStream.on('data', (chunk) => {
-      streamedBytes += chunk.length;
-    });
-    
-    fileStream.pipe(res);
-
-    // Enhanced cleanup with client connection verification
-    const scheduleCleanup = async (reason) => {
-      if (cleanupScheduled) return;
-      cleanupScheduled = true;
-      
-      // Small delay to ensure client download completes
-      setTimeout(async () => {
-        await cleanupFiles(null, outputPath);
-        const success = streamedBytes === fileSize;
-        console.log(`[Export] Cleanup completed for ${uploadId} (${reason}): ${success ? 'SUCCESS' : 'PARTIAL'} - ${(streamedBytes / 1024 / 1024).toFixed(2)}MB/${(fileSize / 1024 / 1024).toFixed(2)}MB`);
-      }, 2000);
+    // Start background processing after response is sent
+    const backgroundParams = {
+      inputPath,
+      outputPath,
+      segments,
+      metadata,
+      fileStats,
+      exportToken,
+      subtitlePreference,
+      stylePreference,
+      heightPreference,
+      finalFontSize,
+      uploadId,
+      originalFilename
     };
 
-    fileStream.on('end', async () => {
-      if (isClientConnected) {
-        await scheduleCleanup('stream_end');
-      } else {
-        await scheduleCleanup('client_disconnected');
-      }
-    });
-
-    // Error-Handling für den Stream
-    fileStream.on('error', (error) => {
-      console.error(`[Export] Stream error for ${uploadId}:`, error.message);
-      scheduleCleanup('stream_error');
-      if (!res.headersSent) {
-        res.status(500).json({ error: 'Fehler beim Senden des Videos' });
-      }
-    });
+    // Start background processing (fire and forget)
+    processVideoExportInBackground(backgroundParams)
+      .catch(error => {
+        console.error('[Export] Background processing failed:', error);
+        // Error handling is done inside the background function
+      });
 
   } catch (error) {
     console.error('Export-Fehler:', error);
@@ -1000,5 +822,298 @@ router.post('/export', async (req, res) => {
     }
   }
 });
+
+// Background processing function for video export
+async function processVideoExportInBackground(params) {
+  const {
+    inputPath,
+    outputPath,
+    segments,
+    metadata,
+    fileStats,
+    exportToken,
+    subtitlePreference,
+    stylePreference,
+    heightPreference,
+    finalFontSize,
+    uploadId,
+    originalFilename
+  } = params;
+
+  try {
+    console.log(`[Export Background] Starting background processing for token: ${exportToken}`);
+    
+    // Set initial progress
+    await redisClient.set(`export:${exportToken}`, JSON.stringify({
+      status: 'exporting',
+      progress: 0,
+      message: 'Starting video processing...'
+    }), { EX: 60 * 60 });
+
+    // Get reference dimension for quality settings
+    const isVertical = metadata.width < metadata.height;
+    const referenceDimension = isVertical ? metadata.width : metadata.height;
+    const fileSizeMB = fileStats.size / 1024 / 1024;
+
+    // Create cache key and generate ASS subtitles
+    const cacheKey = `${uploadId}_${subtitlePreference}_${stylePreference}_${heightPreference}_${metadata.width}x${metadata.height}`;
+    let assFilePath = null;
+    let tempFontPath = null;
+
+    try {
+      // Check for cached ASS content first
+      let assContent = await assService.getCachedAssContent(cacheKey);
+      
+      if (!assContent) {
+        // Generate new ASS content with optimized styling
+        const styleOptions = {
+          fontSize: Math.floor(finalFontSize / 2),
+          marginL: 10,
+          marginR: 10,
+          marginV: subtitlePreference === 'word' 
+            ? Math.floor(metadata.height * 0.50)
+            : (heightPreference === 'tief' 
+                ? Math.floor(metadata.height * 0.20)
+                : Math.floor(metadata.height * 0.33)),
+          alignment: subtitlePreference === 'word' ? 5 : 2
+        };
+        
+        assContent = assService.generateAssContent(
+          segments, 
+          metadata, 
+          styleOptions, 
+          subtitlePreference,
+          stylePreference
+        );
+        
+        await assService.cacheAssContent(cacheKey, assContent);
+      }
+      
+      // Create temporary ASS file
+      assFilePath = await assService.createTempAssFile(assContent, uploadId);
+      
+      // Copy font to temp directory
+      tempFontPath = path.join(path.dirname(assFilePath), 'GrueneType.ttf');
+      try {
+        await fsPromises.copyFile(FONT_PATH, tempFontPath);
+        console.log(`[ASS] Copied font to temp: ${tempFontPath}`);
+      } catch (fontCopyError) {
+        console.warn('[ASS] Font copy failed, using system fallback:', fontCopyError.message);
+        tempFontPath = null;
+      }
+      
+      console.log(`[ASS] Created ASS file with mode: ${subtitlePreference}, style: ${stylePreference}, height: ${heightPreference}`);
+      
+    } catch (assError) {
+      console.error('[ASS] Error generating ASS subtitles:', assError);
+      assFilePath = null;
+    }
+
+    // FFmpeg processing
+    await new Promise((resolve, reject) => {
+      const command = ffmpeg(inputPath);
+      
+      // Quality settings
+      let crf, preset, tune;
+      
+      if (fileSizeMB > 200) {
+        console.log(`[FFmpeg] Large file detected (${fileSizeMB.toFixed(1)}MB), using size-optimized settings`);
+        preset = 'superfast';
+        tune = 'film';
+        
+        if (referenceDimension >= 2160) {
+          crf = 26;
+        } else if (referenceDimension >= 1440) {
+          crf = 25;
+        } else if (referenceDimension >= 1080) {
+          crf = 25;
+        } else {
+          crf = 26;
+        }
+      } else {
+        if (referenceDimension >= 2160) {
+          crf = 18;
+          preset = fileSizeMB > 100 ? 'fast' : 'slow';
+          tune = 'film';
+        } else if (referenceDimension >= 1440) {
+          crf = 19;
+          preset = fileSizeMB > 80 ? 'fast' : 'slow';
+          tune = 'film';
+        } else if (referenceDimension >= 1080) {
+          crf = 20;
+          preset = fileSizeMB > 60 ? 'medium' : 'slow';
+          tune = 'film';
+        } else if (referenceDimension >= 720) {
+          crf = 21;
+          preset = fileSizeMB > 40 ? 'medium' : 'slower';
+          tune = 'film';
+        } else {
+          crf = 22;
+          preset = 'slower';
+          tune = 'film';
+        }
+      }
+      
+      console.log(`[FFmpeg] ${referenceDimension}p, CRF: ${crf}, Preset: ${preset}`);
+
+      // Audio settings
+      let audioCodec, audioBitrate;
+      const originalAudioCodec = metadata.originalFormat?.audioCodec;
+      const originalAudioBitrate = metadata.originalFormat?.audioBitrate;
+      
+      if (originalAudioCodec === 'aac' && originalAudioBitrate && originalAudioBitrate >= 128) {
+        audioCodec = 'copy';
+        audioBitrate = null;
+        console.log(`[FFmpeg] Copying original AAC audio (fastest option)`);
+      } else {
+        audioCodec = 'aac';
+        if (fileSizeMB > 200) {
+          audioBitrate = '96k';
+          console.log(`[FFmpeg] Using 96k audio for large file (size optimized)`);
+        } else {
+          if (referenceDimension >= 1440) {
+            audioBitrate = '256k';
+          } else if (referenceDimension >= 1080) {
+            audioBitrate = '192k';
+          } else {
+            audioBitrate = '128k';
+          }
+        }
+      }
+
+      // Video codec
+      let videoCodec;
+      if (fileSizeMB > 200) {
+        videoCodec = 'libx264';
+        console.log(`[FFmpeg] Using H.264 for large file (good compression/compatibility balance)`);
+      } else if (referenceDimension >= 2160 && metadata.originalFormat?.codec === 'hevc') {
+        videoCodec = 'libx265';
+      } else {
+        videoCodec = 'libx264';
+      }
+
+      // Output options
+      const outputOptions = [
+        '-y',
+        '-c:v', videoCodec,
+        '-preset', preset,
+        '-crf', crf.toString(),
+        ...(tune ? ['-tune', tune] : []),
+        '-profile:v', fileSizeMB > 200 ? 'main' : (videoCodec === 'libx264' ? 'high' : 'main'),
+        '-level', videoCodec === 'libx264' ? '4.1' : '4.0',
+        '-c:a', audioCodec,
+        ...(audioBitrate ? ['-b:a', audioBitrate] : []),
+        '-movflags', '+faststart',
+        '-avoid_negative_ts', 'make_zero'
+      ];
+      
+      if (fileSizeMB > 200) {
+        outputOptions.push(
+          '-threads', '0',
+          '-me_method', 'umh',
+          '-subq', '6',
+          '-bf', '3',
+          '-refs', '3',
+          '-trellis', '1'
+        );
+        console.log(`[FFmpeg] Added compression optimizations for large file`);
+      }
+
+      if (metadata.rotation && metadata.rotation !== '0') {
+        outputOptions.push('-metadata:s:v:0', `rotate=${metadata.rotation}`);
+      }
+
+      command.outputOptions(outputOptions);
+
+      // Apply ASS subtitles filter if available
+      if (assFilePath) {
+        const fontDir = path.dirname(tempFontPath);
+        command.videoFilters([`subtitles=${assFilePath}:fontsdir=${fontDir}`]);
+        console.log(`[FFmpeg] Applied ASS filter with font directory: ${assFilePath}:fontsdir=${fontDir}`);
+      }
+
+      command
+        .on('start', () => {
+          console.log('[FFmpeg] Processing started');
+        })
+        .on('progress', async (progress) => {
+          const progressPercent = progress.percent ? Math.round(progress.percent) : 0;
+          console.log('Fortschritt:', `${progressPercent}%`);
+          
+          // Store progress in Redis
+          const progressData = {
+            status: 'exporting',
+            progress: progressPercent,
+            timeRemaining: progress.timemark
+          };
+          try {
+            await redisClient.set(`export:${exportToken}`, JSON.stringify(progressData), { EX: 60 * 60 });
+          } catch (redisError) {
+            console.warn('Redis Progress Update Fehler:', redisError.message);
+          }
+        })
+        .on('error', (err) => {
+          console.error('FFmpeg Fehler:', err);
+          // Store error status in Redis
+          redisClient.set(`export:${exportToken}`, JSON.stringify({
+            status: 'error',
+            error: err.message || 'FFmpeg processing failed'
+          }), { EX: 60 * 60 }).catch(redisErr => console.warn('Redis error storage failed:', redisErr));
+          
+          // Cleanup ASS files
+          if (assFilePath) {
+            assService.cleanupTempFile(assFilePath).catch(cleanupErr => console.warn('[FFmpeg Error] ASS cleanup failed:', cleanupErr));
+            if (tempFontPath) {
+              fsPromises.unlink(tempFontPath).catch(fontErr => console.warn('[FFmpeg Error] Font cleanup failed:', fontErr.message));
+            }
+          }
+          reject(err);
+        })
+        .on('end', async () => {
+          console.log('FFmpeg Verarbeitung abgeschlossen');
+          
+          // Store completion status with file path in Redis
+          try {
+            const completionData = {
+              status: 'complete',
+              progress: 100,
+              outputPath: outputPath,
+              originalFilename: originalFilename
+            };
+            await redisClient.set(`export:${exportToken}`, JSON.stringify(completionData), { EX: 60 * 60 });
+            console.log(`[Export Background] Stored completion status for token: ${exportToken}`);
+          } catch (redisError) {
+            console.warn('Redis completion status storage failed:', redisError.message);
+          }
+          
+          // Cleanup ASS files
+          if (assFilePath) {
+            await assService.cleanupTempFile(assFilePath).catch(cleanupErr => console.warn('[FFmpeg Success] ASS cleanup failed:', cleanupErr));
+            if (tempFontPath) {
+              await fsPromises.unlink(tempFontPath).catch(fontErr => console.warn('[FFmpeg Success] Font cleanup failed:', fontErr.message));
+            }
+          }
+          resolve();
+        });
+
+      command.save(outputPath);
+    });
+
+    console.log(`[Export Background] Background processing completed for token: ${exportToken}`);
+
+  } catch (error) {
+    console.error(`[Export Background] Background processing failed for token ${exportToken}:`, error);
+    
+    // Store error status in Redis
+    try {
+      await redisClient.set(`export:${exportToken}`, JSON.stringify({
+        status: 'error',
+        error: error.message || 'Background processing failed'
+      }), { EX: 60 * 60 });
+    } catch (redisError) {
+      console.warn('Redis error storage failed:', redisError.message);
+    }
+  }
+}
 
 module.exports = router; 

@@ -92,29 +92,39 @@ export const useSubtitlerExportStore = create((set, get) => ({
 
       // Check content type to determine response type
       const contentType = response.headers.get('Content-Type');
-      const exportToken = response.headers.get('X-Export-Token');
+      const headerExportToken = response.headers.get('X-Export-Token');
       
       console.log('[SubtitlerExportStore] Response headers:', {
         contentType,
-        exportToken,
+        headerExportToken,
         contentLength: response.headers.get('Content-Length')
       });
 
-      // Handle direct video stream download
+      // Handle direct video stream download (legacy mode)
       if (contentType && contentType.includes('video/')) {
         console.log('[SubtitlerExportStore] Handling direct video stream download');
         
         set({
           status: EXPORT_STATUS.EXPORTING,
-          exportToken: exportToken || null,
+          exportToken: headerExportToken || null,
         });
 
         // Process streaming download
         await get().handleStreamingDownload(response, exportParams);
         
-      } else if (exportToken) {
-        // Handle progress-tracked export
-        console.log('[SubtitlerExportStore] Starting progress-tracked export with token:', exportToken);
+      } else if (contentType && contentType.includes('application/json')) {
+        // Handle JSON response with background processing
+        console.log('[SubtitlerExportStore] Handling JSON response for background processing');
+        
+        const jsonData = await response.json();
+        const exportToken = jsonData.exportToken;
+        
+        console.log('[SubtitlerExportStore] JSON response data:', jsonData);
+        
+        if (!exportToken) {
+          throw new Error('No export token in JSON response');
+        }
+        
         set({
           status: EXPORT_STATUS.EXPORTING,
           exportToken,
@@ -123,9 +133,24 @@ export const useSubtitlerExportStore = create((set, get) => ({
         // Start polling for progress
         get().startPolling();
         
+      } else if (headerExportToken) {
+        // Handle progress-tracked export with header token (legacy)
+        console.log('[SubtitlerExportStore] Starting progress-tracked export with header token:', headerExportToken);
+        set({
+          status: EXPORT_STATUS.EXPORTING,
+          exportToken: headerExportToken,
+        });
+
+        // Start polling for progress
+        get().startPolling();
+        
       } else {
         // Unexpected response
-        console.warn('[SubtitlerExportStore] Unexpected response type');
+        console.warn('[SubtitlerExportStore] Unexpected response type:', {
+          contentType,
+          headerExportToken,
+          status: response.status
+        });
         throw new Error('Unexpected response from export API');
       }
 
@@ -193,6 +218,20 @@ export const useSubtitlerExportStore = create((set, get) => ({
             progress: 100,
           });
           get().stopPolling();
+          
+          // Automatically trigger download when export is complete
+          setTimeout(async () => {
+            try {
+              console.log('[SubtitlerExportStore] Export complete, triggering download');
+              await get().downloadCompletedExport();
+            } catch (downloadError) {
+              console.error('[SubtitlerExportStore] Download failed:', downloadError);
+              set({
+                status: EXPORT_STATUS.ERROR,
+                error: 'Download failed: ' + (downloadError.message || 'Unknown error')
+              });
+            }
+          }, 500); // Small delay to ensure UI updates
         } else if (progressData.status === 'error') {
           set({
             status: EXPORT_STATUS.ERROR,
@@ -374,6 +413,38 @@ export const useSubtitlerExportStore = create((set, get) => ({
     } catch (error) {
       console.error('[SubtitlerExportStore] Failed to trigger download:', error);
       throw new Error('Failed to start download');
+    }
+  },
+
+  // Download completed export from backend
+  downloadCompletedExport: async () => {
+    const state = get();
+    const { exportToken } = state;
+    
+    if (!exportToken) {
+      throw new Error('No export token available for download');
+    }
+    
+    try {
+      console.log(`[SubtitlerExportStore] Downloading completed export with token: ${exportToken}`);
+      
+      // Create download URL for completed export
+      const downloadUrl = `${baseURL}/subtitler/export-download/${exportToken}`;
+      
+      // Create and trigger download link
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.style.display = 'none';
+      
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      console.log(`[SubtitlerExportStore] Download triggered for completed export: ${exportToken}`);
+      
+    } catch (error) {
+      console.error('[SubtitlerExportStore] Failed to download completed export:', error);
+      throw error;
     }
   },
 
