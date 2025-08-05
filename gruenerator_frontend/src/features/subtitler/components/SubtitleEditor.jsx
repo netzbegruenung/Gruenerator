@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import PropTypes from 'prop-types';
-import apiClient from '../../../components/utils/apiClient';
 import LiveSubtitlePreview from './LiveSubtitlePreview';
+import { useSubtitlerExportStore } from '../../../stores/subtitlerExportStore';
+import '../../../assets/styles/components/subtitler/download-fallback.css';
 
 const SubtitleEditor = ({ 
   videoFile, 
@@ -15,12 +16,43 @@ const SubtitleEditor = ({
   onExportComplete,
   onBackToStyling
 }) => {
+  // Use the centralized export store
+  const exportStore = useSubtitlerExportStore();
+  const {
+    status: exportStatus,
+    progress: exportProgress,
+    error: exportError,
+    exportToken,
+    startExport,
+    resetExport,
+    subscribe
+  } = exportStore;
   const videoRef = useRef(null);
   const [videoUrl, setVideoUrl] = useState(null);
   const [editableSubtitles, setEditableSubtitles] = useState([]);
   const [error, setError] = useState(null);
   const [currentTimeInSeconds, setCurrentTimeInSeconds] = useState(0);
   const [videoMetadata, setVideoMetadata] = useState(null);
+  const [showFallbackButton, setShowFallbackButton] = useState(null); // For fallback download button
+  
+  // Subscribe to export store for cleanup
+  useEffect(() => {
+    const unsubscribe = subscribe();
+    return unsubscribe;
+  }, [subscribe]);
+  
+  // Watch for export completion and call callbacks
+  useEffect(() => {
+    if (exportStatus === 'complete') {
+      console.log('[SubtitleEditor] Export completed, calling success callback with token:', exportToken);
+      onExportSuccess && onExportSuccess(exportToken);
+      onExportComplete && onExportComplete();
+    } else if (exportStatus === 'error' && exportError) {
+      console.error('[SubtitleEditor] Export failed:', exportError);
+      setError(exportError);
+      onExportComplete && onExportComplete();
+    }
+  }, [exportStatus, exportToken, exportError, onExportSuccess, onExportComplete]);
 
   // Emoji detection function
   const detectEmojis = (text) => {
@@ -194,6 +226,8 @@ const SubtitleEditor = ({
 
     try {
       setError(null);
+      
+      // Format subtitles text
       const subtitlesText = editableSubtitles
         .map(segment => {
           const startMin = Math.floor(segment.startTime / 60);
@@ -208,111 +242,32 @@ const SubtitleEditor = ({
         })
         .join('\n\n');
 
-      onExportSuccess(); 
-
-      console.log('[SubtitleEditor] Exporting with:', { 
+      console.log('[SubtitleEditor] Starting export via store:', { 
         uploadId, 
         subtitlesLength: subtitlesText.length,
         stylePreference,
         heightPreference 
       });
 
-      const response = await apiClient.post('/subtitler/export', 
-        { 
-          uploadId: uploadId, 
-          subtitles: subtitlesText, 
-          subtitlePreference: subtitlePreference,
-          stylePreference: stylePreference,
-          heightPreference: heightPreference
-        }, 
-        {
-          responseType: 'arraybuffer',
-          timeout: 300000,
-          onDownloadProgress: (progressEvent) => {
-            const { loaded, total } = progressEvent;
-            if (total) {
-              const percent = Math.round((loaded / total) * 100);
-              // Log progress at key milestones to track download
-              if (percent % 25 === 0 || percent === 100) {
-                console.log(`[SubtitleEditor] Download progress: ${percent}% (${(loaded / 1024 / 1024).toFixed(2)}MB/${(total / 1024 / 1024).toFixed(2)}MB)`);
-              }
-              if (loaded === total) {
-                console.log('[SubtitleEditor] Video download complete.');
-                onExportComplete && onExportComplete();
-              }
-            }
-          }
-        }
-      );
-
-      const contentType = response.headers['content-type'];
-      if (contentType && contentType.includes('application/json')) {
-        const errorData = JSON.parse(new TextDecoder().decode(response.data));
-        throw new Error(errorData.error || 'Fehler beim Exportieren (Server JSON Antwort)');
-      }
-
-      // Verify response data integrity
-      if (!response.data || response.data.byteLength === 0) {
-        throw new Error('Leere Antwort vom Server erhalten');
-      }
-      
-      const expectedSize = response.headers['content-length'];
-      if (expectedSize && parseInt(expectedSize) !== response.data.byteLength) {
-        console.warn(`[SubtitleEditor] Size mismatch: expected ${expectedSize}, got ${response.data.byteLength}`);
-      }
-      
-      console.log(`[SubtitleEditor] Creating blob: ${(response.data.byteLength / 1024 / 1024).toFixed(2)}MB`);
-      
-      const blob = new Blob([response.data], { 
-        type: response.headers['content-type'] || 'video/mp4' 
+      // Use the centralized store for export
+      await startExport(subtitlesText, {
+        uploadId,
+        subtitlePreference,
+        stylePreference,
+        heightPreference
       });
 
-      const baseFilename = videoFile?.name || `video_${uploadId}`;
-      const extension = baseFilename.includes('.') ? baseFilename.split('.').pop() : 'mp4';
-      const filename = `subtitled_${baseFilename.replace(`.${extension}`, '')}_mit_untertiteln.${extension}`;
-
-      // Enhanced download with error handling
-      try {
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = filename;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-        console.log(`[SubtitleEditor] Download triggered successfully: ${filename}`);
-      } catch (downloadError) {
-        console.error('[SubtitleEditor] Download trigger failed:', downloadError);
-        throw new Error('Fehler beim Starten des Downloads');
-      }
-
     } catch (error) {
-      let errorMessage = 'Ein Fehler ist beim Export aufgetreten';
-      
-      if (error.code === 'ECONNABORTED') {
-        errorMessage = 'Die Verarbeitung hat zu lange gedauert. Bitte versuchen Sie es mit einem kürzeren Video oder überprüfen Sie die Serverlast.';
-      } else if (error.response) {
-        if (error.response.data instanceof ArrayBuffer) {
-          try {
-            const text = new TextDecoder().decode(error.response.data);
-            const errorData = JSON.parse(text);
-            errorMessage = errorData.error || `Serverfehler (${error.response.status})`;
-          } catch (parseError) {
-            errorMessage = `Fehler beim Exportieren des Videos (Serverfehler ${error.response.status})`;
-          }
-        } else {
-          errorMessage = error.response.data?.error || error.message || `Serverfehler (${error.response.status})`;
-        }
-      } else {
-         errorMessage = error.message || errorMessage;
-      }
-      
-      console.error('[SubtitleEditor] Export error details:', error);
-      setError(errorMessage);
-      onExportComplete && onExportComplete(); 
+      console.error('[SubtitleEditor] Export initiation error:', error);
+      setError(error.message || 'Fehler beim Starten des Exports');
     }
   };
+
+
+
+
+
+
 
   return (
     <div className="subtitle-editor-container">
@@ -322,6 +277,33 @@ const SubtitleEditor = ({
           <button className="btn-secondary" onClick={() => setError(null)}>
             Schließen
           </button>
+        </div>
+      )}
+
+      {/* **Workaround #2: Fallback Download Button** */}
+      {showFallbackButton && (
+        <div className="download-fallback">
+          <div className="fallback-message">
+            <p>⚠️ Automatischer Download fehlgeschlagen?</p>
+            <div className="fallback-buttons">
+              <a 
+                href={showFallbackButton.url || showFallbackButton}
+                download={showFallbackButton.filename}
+                className="btn-primary"
+                onClick={() => setShowFallbackButton(null)}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Video manuell herunterladen
+              </a>
+              <button 
+                className="btn-secondary"
+                onClick={() => setShowFallbackButton(null)}
+              >
+                Schließen
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -361,6 +343,25 @@ const SubtitleEditor = ({
                   stylePreference={stylePreference}
                   heightPreference={heightPreference}
                 />
+                
+                {/* Show progress overlay during export */}
+                {(exportStatus === 'starting' || exportStatus === 'exporting') && (
+                  <div className="export-progress-overlay">
+                    <div className="progress-content">
+                      <div className="progress-spinner" />
+                      <p>Video wird verarbeitet...</p>
+                      {exportProgress > 0 && (
+                        <div className="progress-bar">
+                          <div 
+                            className="progress-fill" 
+                            style={{ width: `${exportProgress}%` }}
+                          />
+                          <span className="progress-text">{exportProgress}%</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="video-loading">
@@ -375,12 +376,13 @@ const SubtitleEditor = ({
             <button 
               className="btn-primary"
               onClick={handleExport}
-              disabled={isExporting}
+              disabled={isExporting || exportStatus === 'starting' || exportStatus === 'exporting'}
             >
-              {isExporting ? (
+              {(isExporting || exportStatus === 'starting' || exportStatus === 'exporting') ? (
                 <div className="button-loading-content">
                   <div className="button-spinner" />
                   <span>Video wird verarbeitet...</span>
+                  {exportProgress > 0 && <span> ({exportProgress}%)</span>}
                 </div>
               ) : (
                 'Video herunterladen'
@@ -423,12 +425,13 @@ const SubtitleEditor = ({
         <button 
           className="btn-primary"
           onClick={handleExport}
-          disabled={isExporting}
+          disabled={isExporting || exportStatus === 'starting' || exportStatus === 'exporting'}
         >
-          {isExporting ? (
+          {(isExporting || exportStatus === 'starting' || exportStatus === 'exporting') ? (
             <div className="button-loading-content">
               <div className="button-spinner" />
               <span>Video wird verarbeitet...</span>
+              {exportProgress > 0 && <span> ({exportProgress}%)</span>}
             </div>
           ) : (
             'Video mit Untertiteln herunterladen'

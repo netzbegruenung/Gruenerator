@@ -86,6 +86,9 @@ const BaseForm = ({
   formNotice = null,
   enablePlatformSelector = false,
   platformOptions = [],
+  platformSelectorLabel = undefined,
+  platformSelectorPlaceholder = undefined,
+  platformSelectorHelpText = undefined,
   formControl = null,
   onSave,
   saveLoading = false,
@@ -363,6 +366,9 @@ const BaseForm = ({
                   useWebSearchFeatureToggle={resolvedWebSearchConfig.enabled}
                   enablePlatformSelector={enablePlatformSelector}
                   platformOptions={platformOptions}
+                  platformSelectorLabel={platformSelectorLabel}
+                  platformSelectorPlaceholder={platformSelectorPlaceholder}
+                  platformSelectorHelpText={platformSelectorHelpText}
                   formControl={formControl}
                   showSubmitButton={resolvedSubmitConfig.showButton}
                   formNotice={formNotice}
@@ -493,6 +499,9 @@ BaseForm.propTypes = {
       label: PropTypes.string.isRequired
     })
   ),
+  platformSelectorLabel: PropTypes.string,
+  platformSelectorPlaceholder: PropTypes.string,
+  platformSelectorHelpText: PropTypes.string,
   formControl: PropTypes.object,
   onSave: PropTypes.func,
   saveLoading: PropTypes.bool,
@@ -524,6 +533,9 @@ BaseForm.defaultProps = {
   enableKnowledgeSelector: false,
   enablePlatformSelector: false,
   platformOptions: [],
+  platformSelectorLabel: undefined,
+  platformSelectorPlaceholder: undefined,
+  platformSelectorHelpText: undefined,
   formControl: null,
   defaultValues: {},
   validationRules: {},

@@ -10,6 +10,8 @@ const { getFilePathFromUploadId, checkFileExists, markUploadAsProcessed, schedul
 const redisClient = require('../../utils/redisClient'); // Import Redis client
 const { v4: uuidv4 } = require('uuid'); // Import uuid
 const AssSubtitleService = require('./services/assSubtitleService'); // Import ASS service
+const { generateDownloadToken, processDirectDownload, processChunkedDownload } = require('./services/downloadUtils'); // Import download utilities
+const { getCompressionStatus } = require('./services/backgroundCompressionService'); // Import compression service
 
 // Font configuration
 const FONT_PATH = path.resolve(__dirname, '../../public/fonts/GrueneType.ttf');
@@ -223,13 +225,27 @@ router.get('/result/:uploadId', async (req, res) => {
         const job = JSON.parse(jobDataString);
         console.log(`Statusabfrage für Job ${jobKey}: ${job.status}`);
 
+        // Get compression status for additional info
+        const compressionStatus = await getCompressionStatus(uploadId);
+
         switch (job.status) {
             case 'processing':
-                return res.status(200).json({ status: 'processing' });
+                return res.status(200).json({ 
+                    status: 'processing',
+                    compression: compressionStatus
+                });
             case 'complete':
-                return res.status(200).json({ status: 'complete', subtitles: job.data });
+                return res.status(200).json({ 
+                    status: 'complete', 
+                    subtitles: job.data,
+                    compression: compressionStatus
+                });
             case 'error':
-                return res.status(200).json({ status: 'error', error: job.data });
+                return res.status(200).json({ 
+                    status: 'error', 
+                    error: job.data,
+                    compression: compressionStatus
+                });
             default:
                 console.error(`Unbekannter Job-Status in Redis für ${jobKey}:`, job.status);
                 return res.status(500).json({ status: 'unknown', error: 'Unbekannter Job-Status.' });
@@ -261,6 +277,19 @@ router.get('/export-progress/:exportToken', async (req, res) => {
     }
 });
 
+// Route to get compression status
+router.get('/compression-status/:uploadId', async (req, res) => {
+    const { uploadId } = req.params;
+    
+    try {
+        const compressionStatus = await getCompressionStatus(uploadId);
+        return res.status(200).json(compressionStatus);
+    } catch (error) {
+        console.error(`Fehler beim Abrufen des Compression-Status für ${uploadId}:`, error);
+        return res.status(500).json({ status: 'error', error: 'Fehler beim Abrufen des Compression-Status' });
+    }
+});
+
 // Route for cleanup of uploaded files
 router.delete('/cleanup/:uploadId', async (req, res) => {
   const { uploadId } = req.params;
@@ -282,7 +311,51 @@ router.delete('/cleanup/:uploadId', async (req, res) => {
   }
 });
 
-// Route zum Herunterladen des fertigen Videos
+// Route to generate download token (Phase 1: Direct URL Download)
+router.post('/export-token', async (req, res) => {
+  try {
+    const result = await generateDownloadToken(req.body);
+    res.json({ 
+      success: true, 
+      ...result
+    });
+  } catch (error) {
+    console.error('[Export Token] Error:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Route for direct download via token (Phase 1: Direct URL Download)
+router.get('/download/:token', async (req, res) => {
+  const { token } = req.params;
+  
+  try {
+    await processDirectDownload(token, res);
+  } catch (error) {
+    console.error(`[Direct Download] Error processing token ${token}:`, error);
+    if (!res.headersSent) {
+      res.status(error.message.includes('ungültig') ? 404 : 500).json({ 
+        error: error.message 
+      });
+    }
+  }
+});
+
+// Route for chunked download (Phase 3: Chunked Downloads for Large Files)
+router.get('/download-chunk/:uploadId/:chunkIndex', async (req, res) => {
+  const { uploadId, chunkIndex } = req.params;
+  
+  try {
+    await processChunkedDownload(uploadId, parseInt(chunkIndex), res);
+  } catch (error) {
+    console.error(`[Chunked Download] Error for ${uploadId} chunk ${chunkIndex}:`, error);
+    if (!res.headersSent) {
+      res.status(404).json({ error: error.message });
+    }
+  }
+});
+
+// Route zum Herunterladen des fertigen Videos (Legacy - kept for backward compatibility)
 router.post('/export', async (req, res) => {
   // Expect uploadId, subtitles, subtitlePreference, and stylePreference in body
   const { 
@@ -342,7 +415,7 @@ router.post('/export', async (req, res) => {
     
     // Use original filename (or fallback) for output
     const outputBaseName = path.basename(originalFilename, path.extname(originalFilename));
-    outputPath = path.join(outputDir, `subtitled_${outputBaseName}_${Date.now()}${path.extname(originalFilename)}`);
+    outputPath = path.join(outputDir, `${outputBaseName}_${Date.now()}${path.extname(originalFilename)}`);
     console.log('Ausgabepfad:', outputPath);
 
     // Intelligent font size calculation for short subtitle segments
@@ -639,29 +712,47 @@ router.post('/export', async (req, res) => {
       const inputFileSize = fileStats.size;
       const fileSizeMB = inputFileSize / 1024 / 1024;
       
-      // Resolution-based CRF values for optimal quality
+      // Speed-optimized settings for large files (prioritize speed over compression)
       let crf, preset, tune;
       
-      if (referenceDimension >= 2160) { // 4K+
-        crf = 18; // Sehr hohe Qualität für 4K
-        preset = fileSizeMB > 200 ? 'fast' : 'slow';
-        tune = 'film';
-      } else if (referenceDimension >= 1440) { // 2K
-        crf = 19; // Hohe Qualität für 2K
-        preset = fileSizeMB > 150 ? 'fast' : 'slow';
-        tune = 'film';
-      } else if (referenceDimension >= 1080) { // FullHD
-        crf = 20; // Gute Qualität für FullHD
-        preset = fileSizeMB > 100 ? 'medium' : 'slow';
-        tune = 'film';
-      } else if (referenceDimension >= 720) { // HD
-        crf = 21; // Solide Qualität für HD
-        preset = fileSizeMB > 50 ? 'medium' : 'slower';
-        tune = 'film';
-      } else { // SD
-        crf = 22; // Erhaltung für niedrige Auflösungen
-        preset = 'slower'; // Mehr Zeit für bessere Kompression bei SD
-        tune = 'film';
+      // Optimized settings for large files (>200MB) - balance speed and file size
+      if (fileSizeMB > 200) {
+        console.log(`[FFmpeg] Large file detected (${fileSizeMB.toFixed(1)}MB), using size-optimized settings`);
+        preset = 'fast'; // Good speed while maintaining compression efficiency
+        tune = 'film'; // Better compression for video content
+        
+        if (referenceDimension >= 2160) { // 4K+
+          crf = 26; // Higher CRF for smaller file size, still good quality
+        } else if (referenceDimension >= 1440) { // 2K
+          crf = 25; // Balanced quality/size for 2K
+        } else if (referenceDimension >= 1080) { // FullHD
+          crf = 25; // Good compression for FullHD
+        } else { // HD and below
+          crf = 26; // Aggressive compression for smaller dimensions
+        }
+      } else {
+        // Standard quality settings for smaller files
+        if (referenceDimension >= 2160) { // 4K+
+          crf = 18; // Sehr hohe Qualität für 4K
+          preset = fileSizeMB > 100 ? 'fast' : 'slow';
+          tune = 'film';
+        } else if (referenceDimension >= 1440) { // 2K
+          crf = 19; // Hohe Qualität für 2K
+          preset = fileSizeMB > 80 ? 'fast' : 'slow';
+          tune = 'film';
+        } else if (referenceDimension >= 1080) { // FullHD
+          crf = 20; // Gute Qualität für FullHD
+          preset = fileSizeMB > 60 ? 'medium' : 'slow';
+          tune = 'film';
+        } else if (referenceDimension >= 720) { // HD
+          crf = 21; // Solide Qualität für HD
+          preset = fileSizeMB > 40 ? 'medium' : 'slower';
+          tune = 'film';
+        } else { // SD
+          crf = 22; // Erhaltung für niedrige Auflösungen
+          preset = 'slower'; // Mehr Zeit für bessere Kompression bei SD
+          tune = 'film';
+        }
       }
       
       console.log(`[FFmpeg] ${referenceDimension}p, CRF: ${crf}, Preset: ${preset}`);
@@ -671,52 +762,79 @@ router.post('/export', async (req, res) => {
       const originalAudioCodec = metadata.originalFormat?.audioCodec;
       const originalAudioBitrate = metadata.originalFormat?.audioBitrate;
       
-      // Keep original audio if it's already AAC and has good quality
+      // Speed-optimized audio settings
       if (originalAudioCodec === 'aac' && originalAudioBitrate && originalAudioBitrate >= 128) {
-        audioCodec = 'copy'; // No re-encoding
+        audioCodec = 'copy'; // No re-encoding - fastest option
         audioBitrate = null;
+        console.log(`[FFmpeg] Copying original AAC audio (fastest option)`);
       } else {
-        // Resolution-based audio quality
         audioCodec = 'aac';
-        if (referenceDimension >= 1440) {
-          audioBitrate = '256k'; // Higher quality for 2K+
-        } else if (referenceDimension >= 1080) {
-          audioBitrate = '192k'; // Standard for FullHD
+        // For large files, optimize audio bitrate for smaller output
+        if (fileSizeMB > 200) {
+          audioBitrate = '96k'; // Lower bitrate for smaller files, still acceptable quality
+          console.log(`[FFmpeg] Using 96k audio for large file (size optimized)`);
         } else {
-          audioBitrate = '128k'; // Sufficient for HD/SD
+          // Standard quality settings for smaller files
+          if (referenceDimension >= 1440) {
+            audioBitrate = '256k'; // Higher quality for 2K+
+          } else if (referenceDimension >= 1080) {
+            audioBitrate = '192k'; // Standard for FullHD
+          } else {
+            audioBitrate = '128k'; // Sufficient for HD/SD
+          }
         }
       }
       // ---- End: Audio preservation analysis ----
 
-      // Intelligent codec choice based on resolution and compatibility
+      // Codec choice - use H.264 for compatibility and good compression
       let videoCodec;
-      if (referenceDimension >= 2160 && metadata.originalFormat?.codec === 'hevc') {
-        videoCodec = 'libx265'; // HEVC for 4K if original was also HEVC
+      if (fileSizeMB > 200) {
+        videoCodec = 'libx264'; // H.264 provides good compression for large files
+        console.log(`[FFmpeg] Using H.264 for large file (good compression/compatibility balance)`);
+      } else if (referenceDimension >= 2160 && metadata.originalFormat?.codec === 'hevc') {
+        videoCodec = 'libx265'; // HEVC for 4K if original was also HEVC (small files only)
       } else {
         videoCodec = 'libx264'; // H.264 for better compatibility
       }
 
-      // Optimized output options
+      // Speed-optimized output options
       const outputOptions = [
         '-y',
-        `-c:v ${videoCodec}`,
-        `-preset ${preset}`,
-        `-crf ${crf}`,
-        `-tune ${tune}`,
-        // Erweiterte H.264/H.265 Optimierungen
-        videoCodec === 'libx264' ? '-profile:v high' : '-profile:v main',
-        videoCodec === 'libx264' ? '-level 4.1' : '-level 4.0',
-        // Audio-Einstellungen
-        `-c:a ${audioCodec}`,
-        ...(audioBitrate ? [`-b:a ${audioBitrate}`] : []),
-        // Optimierte Container-Einstellungen
-        '-movflags +faststart',
-        '-avoid_negative_ts make_zero'
+        '-c:v', videoCodec,
+        '-preset', preset,
+        '-crf', crf.toString(),
+        // Add tune only if specified (large files skip tune for speed)
+        ...(tune ? ['-tune', tune] : []),
+        // Profile selection for optimal compression
+        '-profile:v', fileSizeMB > 200 
+          ? 'main' // Main profile for better compression than baseline
+          : (videoCodec === 'libx264' ? 'high' : 'main'),
+        // Level settings
+        '-level', videoCodec === 'libx264' ? '4.1' : '4.0',
+        // Audio settings
+        '-c:a', audioCodec,
+        ...(audioBitrate ? ['-b:a', audioBitrate] : []),
+        // Container optimizations
+        '-movflags', '+faststart',
+        '-avoid_negative_ts', 'make_zero'
       ];
+      
+      // Add size-specific optimizations for large files
+      if (fileSizeMB > 200) {
+        outputOptions.push(
+          '-threads', '0', // Use all available CPU threads
+          '-me_method', 'umh', // Better motion estimation for compression
+          '-subq', '6', // Good subpixel motion estimation
+          '-bf', '3', // Use B-frames for better compression
+          '-refs', '3', // Multiple reference frames for better compression
+          '-trellis', '1' // Trellis quantization for better compression
+        );
+        console.log(`[FFmpeg] Added compression optimizations for large file`);
+      }
 
       // Setze Rotations-Metadaten
       if (metadata.rotation && metadata.rotation !== '0') {
-        outputOptions.push(`-metadata:s:v:0 rotate=${metadata.rotation}`);
+        outputOptions.push('-metadata:s:v:0', `rotate=${metadata.rotation}`);
       }
 
       command.outputOptions(outputOptions);
@@ -732,7 +850,7 @@ router.post('/export', async (req, res) => {
       }
 
       command
-        .on('start', cmd => {
+        .on('start', () => {
           console.log('[FFmpeg] Processing started');
         })
         .on('progress', async (progress) => {
@@ -799,7 +917,7 @@ router.post('/export', async (req, res) => {
     // and the client would poll using this token.
     // Production-compatible headers with proper filename sanitization
     const sanitizedFilename = path.basename(originalFilename, path.extname(originalFilename))
-      .replace(/[^a-zA-Z0-9_-]/g, '_') + '_mit_untertiteln.mp4';
+      .replace(/[^a-zA-Z0-9_-]/g, '_') + '_gruenerator.mp4';
     
     res.setHeader('X-Export-Token', exportToken);
     res.setHeader('Content-Type', 'video/mp4');
@@ -810,7 +928,7 @@ router.post('/export', async (req, res) => {
     
     // Smart logging for production debugging
     const clientInfo = {
-      ip: req.ip || req.connection.remoteAddress,
+      ip: req.ip || req.socket.remoteAddress,
       userAgent: req.get('User-Agent'),
       fileSize: `${(fileSize / 1024 / 1024).toFixed(2)}MB`
     };

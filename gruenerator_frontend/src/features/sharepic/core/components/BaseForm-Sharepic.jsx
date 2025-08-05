@@ -26,6 +26,16 @@ import {
 } from '../../../../components/utils/constants';
 import { SloganAlternativesButton, SloganAlternativesDisplay } from '../components/SloganAlternatives';
 
+// Utility function to safely extract text from error objects
+const getErrorText = (error) => {
+  if (!error) return '';
+  if (typeof error === 'string') return error;
+  if (typeof error === 'object') {
+    return error.message || error.title || 'Ein Fehler ist aufgetreten';
+  }
+  return String(error);
+};
+
 const BaseForm = ({
   title,
   children,
@@ -49,7 +59,8 @@ const BaseForm = ({
   balkenGruppenOffset,
   sunflowerOffset,
   credit,
-  helpContent
+  helpContent,
+  hidePostTextButton = false
 }) => {
   const {
     // State
@@ -249,6 +260,7 @@ const BaseForm = ({
         formData={formData}
         generatedImage={generatedImageSrc}
         onAltTextClick={handleAltTextClick}
+        hidePostTextButton={hidePostTextButton}
       >
         {children}
       </SharepicBackendResult>
@@ -449,7 +461,7 @@ const BaseForm = ({
       <div className="display-container">
         <h3>{helpContent?.title || title}</h3>
         {error && (
-          <p role="alert" aria-live="assertive" className="error-message">{error}</p>
+          <p role="alert" aria-live="assertive" className="error-message">{getErrorText(error)}</p>
         )}
         {Object.keys(formErrors).length > 0 && <FormErrors errors={formErrors} />}
         {renderDisplayContent}
@@ -465,7 +477,7 @@ BaseForm.propTypes = {
   onBack: PropTypes.func,
   loading: PropTypes.bool.isRequired,
   success: PropTypes.bool,
-  error: PropTypes.string,
+  error: PropTypes.oneOfType([PropTypes.string, PropTypes.object]),
   formErrors: PropTypes.object,
   generatedContent: PropTypes.oneOfType([PropTypes.string, PropTypes.node]),
   fileUploadProps: PropTypes.shape({
@@ -502,7 +514,8 @@ BaseForm.propTypes = {
     title: PropTypes.string,
     content: PropTypes.string,
     tips: PropTypes.arrayOf(PropTypes.string)
-  })
+  }),
+  hidePostTextButton: PropTypes.bool
 };
 
 export default BaseForm;

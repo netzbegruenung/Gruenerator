@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
 import { useSharepicStore } from '../../../stores';
 import { useSharepicGeneration } from '../../../features/sharepic/core/hooks/useSharepicGeneration';
+import useSharepicModification from '../../../hooks/useSharepicModification';
 import BaseForm from '../../../features/sharepic/core/components/BaseForm-Sharepic';
 import WelcomePage from '../../common/WelcomePage';
 import ErrorBoundary from '../../ErrorBoundary';
@@ -19,7 +20,7 @@ import {
   SHAREPIC_TYPES,
 } from '../../utils/constants';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 const getHelpContent = (step, showingAlternatives = false) => {
   switch (step) {
@@ -215,13 +216,14 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
   const {
     // State
     type, thema, details, line1, line2, line3, quote, name, fontSize,
+    header, subheader, body, // Info type fields
     balkenOffset, colorScheme, balkenGruppenOffset, sunflowerOffset, credit,
     searchTerms, sloganAlternatives, currentStep, isAdvancedEditingOpen,
     isSearchBarActive, isSubmitting, currentSubmittingStep, loading, error,
     isLoadingUnsplashImages, unsplashError, uploadedImage, file, selectedImage,
     generatedImageSrc, unsplashImages,
     // Actions
-    setFile, setError, updateFormData, modifyImage, setSloganAlternatives,
+    setFile, setError, updateFormData, setSloganAlternatives,
     selectSlogan, setAlternatives
   } = useSharepicStore();
 
@@ -229,6 +231,7 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
   const state = {
     formData: {
       type, thema, details, line1, line2, line3, quote, name, fontSize,
+      header, subheader, body, // Info type fields
       balkenOffset, colorScheme, balkenGruppenOffset, sunflowerOffset, credit,
       searchTerms, sloganAlternatives
     },
@@ -239,12 +242,15 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
   };
 
   const { generateText, generateImage, loading: generationLoading, error: generationError } = useSharepicGeneration();
+  const { modifySharepic, loading: modificationLoading, error: modificationError } = useSharepicModification();
 
   const [errors, setErrors] = useState({});
   const [showAlternatives, setShowAlternatives] = useState(false);
+  const [isFromPresseSocial, setIsFromPresseSocial] = useState(false);
 
   const { user, loading: authLoading, isAuthResolved } = useOptimizedAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   useEffect(() => {
     if (isAuthResolved && !authLoading && !user) {
@@ -252,11 +258,59 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
     }
   }, [authLoading, user, navigate, isAuthResolved]);
 
+  // Handle editing mode from PresseSocialGenerator
   useEffect(() => {
-    if (hasSeenWelcome && state.currentStep === FORM_STEPS.WELCOME) {
+    const editSessionId = searchParams.get('editSession');
+    if (editSessionId) {
+      try {
+        const sessionData = sessionStorage.getItem(editSessionId);
+        if (sessionData) {
+          const { source, data, timestamp } = JSON.parse(sessionData);
+          
+          // Check if session is not too old (1 hour max)
+          const oneHour = 60 * 60 * 1000;
+          if (Date.now() - timestamp < oneHour && source === 'presseSocial' && data) {
+            console.log('[Sharepicgenerator] Loading editing session:', { source, dataType: data.type });
+            
+            // Set flag to indicate this came from PresseSocialGenerator
+            setIsFromPresseSocial(true);
+            
+            // Load the sharepic data into the store
+            updateFormData({
+              type: data.type === 'info' ? 'Info' : data.type,
+              currentStep: FORM_STEPS.RESULT,
+              generatedImageSrc: data.image
+            });
+
+            // Parse and set the text content based on type
+            if (data.type === 'info') {
+              const lines = data.text.split('\n').filter(line => line.trim());
+              updateFormData({
+                header: lines[0] || '',
+                subheader: lines[1] || '',
+                body: lines.slice(2).join('\n') || ''
+              });
+            }
+            
+            // Clean up the session data
+            sessionStorage.removeItem(editSessionId);
+          } else {
+            console.warn('[Sharepicgenerator] Invalid or expired editing session');
+            sessionStorage.removeItem(editSessionId);
+          }
+        }
+      } catch (error) {
+        console.error('[Sharepicgenerator] Error loading editing session:', error);
+      }
+    }
+  }, [searchParams, updateFormData]);
+
+  useEffect(() => {
+    const editSessionId = searchParams.get('editSession');
+    if (hasSeenWelcome && state.currentStep === FORM_STEPS.WELCOME && !editSessionId) {
       updateFormData({ currentStep: FORM_STEPS.TYPE_SELECT });
     }
-  }, [hasSeenWelcome, state.currentStep, updateFormData]);
+  }, [hasSeenWelcome, state.currentStep, updateFormData, searchParams]);
 
   useEffect(() => {
     if (!hasSeenWelcome) {
@@ -265,9 +319,20 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
     }
   }, [hasSeenWelcome]);
 
-  const validateForm = useCallback((formData) => {
+  const validateForm = useCallback((formData, currentStep) => {
     const newErrors = {};
-    if (!formData.thema) newErrors.thema = ERROR_MESSAGES.THEMA;
+    
+    // Context-aware validation based on sharepic type and current step
+    if (formData.type === 'Info' && (currentStep === FORM_STEPS.RESULT || currentStep === FORM_STEPS.PREVIEW)) {
+      // For Info sharepics in RESULT/PREVIEW steps, validate Info-specific fields
+      if (!formData.header) newErrors.header = "Überschrift ist erforderlich";
+      if (!formData.subheader) newErrors.subheader = "Untertitel ist erforderlich";
+      if (!formData.body) newErrors.body = "Text ist erforderlich";
+    } else {
+      // For other types or INPUT step, validate thema
+      if (!formData.thema) newErrors.thema = ERROR_MESSAGES.THEMA;
+    }
+    
     if (!formData.type) newErrors.type = ERROR_MESSAGES.TYPE;
 
     setErrors(newErrors);
@@ -286,7 +351,7 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
     setError(''); // Reset error state
     
     try {
-      if (!validateForm(state.formData)) {
+      if (!validateForm(state.formData, state.currentStep)) {
         throw new Error(ERROR_MESSAGES.FORM_VALIDATION_FAILED);
       }
   
@@ -382,10 +447,18 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
           });
         }
       } else if (state.currentStep === FORM_STEPS.RESULT) {
-        if (state.formData.type === 'Info') {
-          // For info posts: direct regeneration using generateImage()
-          const imageResult = await generateImage({ 
-            ...state.formData
+        if (state.formData.type === 'Info' || state.formData.type === 'Zitat_Pure' || state.formData.type === 'Headline') {
+          // For types that don't need image upload: regenerate with current form data
+          const imageResult = await generateImage({
+            type: state.formData.type,
+            header: state.formData.header,
+            subheader: state.formData.subheader,
+            body: state.formData.body,
+            quote: state.formData.quote,
+            name: state.formData.name,
+            line1: state.formData.line1,
+            line2: state.formData.line2,
+            line3: state.formData.line3
           });
           
           if (!imageResult) {
@@ -396,7 +469,7 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
             generatedImageSrc: imageResult
           });
         } else {
-          // For other types: existing modifyImage() logic
+          // For types that need image upload (Zitat, Dreizeilen): use modifySharepic
           const { fontSize, balkenOffset, colorScheme, credit, uploadedImage, image } = state.formData;
           const imageToUse = uploadedImage || image || state.file;
           
@@ -404,13 +477,37 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
             throw new Error("Kein Bild zum Modifizieren gefunden");
           }
 
-          const modifiedImage = await modifyImage({ 
-            fontSize, 
-            balkenOffset, 
-            colorScheme, 
-            credit,
-            image: imageToUse
-          });
+          const result = await modifySharepic(
+            // Form data
+            {
+              type: state.formData.type,
+              thema: state.formData.thema,
+              details: state.formData.details,
+              line1: state.formData.line1,
+              line2: state.formData.line2,
+              line3: state.formData.line3,
+              quote: state.formData.quote,
+              name: state.formData.name,
+              fontSize: state.formData.fontSize,
+              balkenOffset: state.formData.balkenOffset,
+              colorScheme: state.formData.colorScheme,
+              balkenGruppenOffset: state.formData.balkenGruppenOffset,
+              sunflowerOffset: state.formData.sunflowerOffset,
+              credit: state.formData.credit,
+              uploadedImage: uploadedImage,
+              image: imageToUse
+            },
+            // Modification data
+            {
+              fontSize, 
+              balkenOffset, 
+              colorScheme, 
+              credit,
+              image: imageToUse
+            }
+          );
+
+          const modifiedImage = result.image;
           
           if (!modifiedImage) {
             throw new Error(ERROR_MESSAGES.NO_MODIFIED_IMAGE_DATA);
@@ -437,7 +534,7 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
     validateForm,
     generateText,
     generateImage,
-    modifyImage,
+    modifySharepic,
     updateFormData,
     setError,
     setAlternatives,
@@ -725,8 +822,8 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
           title={helpContent ? helpContent.title : SHAREPIC_GENERATOR.TITLE}
           onSubmit={handleFormSubmit}
           onBack={handleBack}
-          loading={state.loading || generationLoading}
-          error={state.error || generationError}
+          loading={state.loading || generationLoading || modificationLoading}
+          error={state.error || generationError || modificationError}
           generatedContent={state.generatedImageSrc || displayContent}
           useDownloadButton={state.currentStep === FORM_STEPS.RESULT}
           showBackButton={state.currentStep > FORM_STEPS.INPUT}
@@ -743,6 +840,7 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
           balkenGruppenOffset={state.formData.balkenGruppenOffset || [0, 0]}
           sunflowerOffset={state.formData.sunflowerOffset || [0, 0]}
           onControlChange={handleControlChange}
+          hidePostTextButton={isFromPresseSocial}
         >
           {memoizedFormFields}
         </BaseForm>

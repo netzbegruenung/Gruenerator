@@ -13,8 +13,8 @@ const PlatformSelector = ({
   name = 'platforms',
   control,
   platformOptions = [],
-  label = 'Plattformen wählen',
-  placeholder = 'Plattformen auswählen...',
+  label = 'Formate wählen',
+  placeholder = 'Formate auswählen...',
   required = true,
   disabled = false,
   helpText,
@@ -74,10 +74,10 @@ const PlatformSelector = ({
       name={name}
       control={control}
       rules={{
-        required: required ? 'Bitte wählen Sie mindestens eine Plattform' : false,
+        required: required ? 'Bitte wählen Sie mindestens ein Format' : false,
         validate: required ? (value) => {
           if (!value || (Array.isArray(value) && value.length === 0)) {
-            return 'Bitte wählen Sie mindestens eine Plattform';
+            return 'Bitte wählen Sie mindestens ein Format';
           }
           return true;
         } : undefined,
