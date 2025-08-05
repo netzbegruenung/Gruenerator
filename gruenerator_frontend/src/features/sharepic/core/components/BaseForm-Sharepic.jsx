@@ -1,15 +1,18 @@
-import React, { useEffect, useMemo, useCallback } from 'react';
+import React, { useEffect, useMemo, useCallback, useState } from 'react';
 import PropTypes from 'prop-types';
 import { HiCog, HiChevronDown, HiChevronUp } from "react-icons/hi";
 import Button from '../../../../components/common/SubmitButton';
 import DownloadButton from './DownloadButton';
 import FileUpload from '../../../../components/utils/FileUpload';
 import UnsplashButton from './UnsplashButton';
-import { useSharepicGeneratorContext } from '../utils/SharepicGeneratorContext';
+import { useSharepicStore } from '../../../../stores';
 import AdvancedEditingSection from '../../dreizeilen/components/AdvancedEditingSection';
 import HelpDisplay from '../../../../components/common/HelpDisplay';
 import FormErrors from '../../../../components/common/FormErrors';
 import SharepicBackendResult from './SharepicBackendResult';
+import CopyButton from '../../../../components/common/CopyButton';
+import HelpTooltip from '../../../../components/common/HelpTooltip';
+import useAltTextGeneration from '../../../../components/hooks/useAltTextGeneration';
 
 import { 
   ColorSchemeControl, 
@@ -48,17 +51,37 @@ const BaseForm = ({
   credit,
   helpContent
 }) => {
+  const {
+    // State
+    currentStep, generatedImageSrc, isAdvancedEditingOpen, selectedImage,
+    type, thema, details, line1, line2, line3, quote, name, fontSize: storeFontSize,
+    balkenOffset: storeBalkenOffset, colorScheme: storeColorScheme, 
+    balkenGruppenOffset: storeBalkenGruppenOffset, sunflowerOffset: storeSunflowerOffset,
+    credit: storeCredit, searchTerms, sloganAlternatives, uploadedImage,
+    // Actions
+    toggleAdvancedEditing, handleChange
+  } = useSharepicStore();
+
+  // Create formData object for compatibility with existing code
+  const formData = {
+    type, thema, details, line1, line2, line3, quote, name,
+    fontSize: storeFontSize, balkenOffset: storeBalkenOffset, 
+    colorScheme: storeColorScheme, balkenGruppenOffset: storeBalkenGruppenOffset,
+    sunflowerOffset: storeSunflowerOffset, credit: storeCredit, 
+    searchTerms, sloganAlternatives, uploadedImage
+  };
+
+  // Alt text state management
+  const [showAltTextSection, setShowAltTextSection] = useState(false);
+  const [generatedAltText, setGeneratedAltText] = useState('');
+  
+  // Alt text generation hook
   const { 
-    state: { 
-      currentStep, 
-      generatedImageSrc,
-      isAdvancedEditingOpen,
-      formData,
-      selectedImage
-    },
-    toggleAdvancedEditing,
-    handleChange
-  } = useSharepicGeneratorContext();
+    loading: altTextLoading, 
+    error: altTextError, 
+    generateAltTextForImage,
+    resetState: resetAltTextState 
+  } = useAltTextGeneration();
 
   useEffect(() => {
     console.log('BaseForm: Current step changed to', currentStep);
@@ -80,6 +103,42 @@ const BaseForm = ({
       }
     }
   }, [isAdvancedEditingOpen]);
+
+  const handleAltTextClick = useCallback(async () => {
+    if (!generatedImageSrc) {
+      console.error('[BaseForm] No generated image available for alt text generation');
+      return;
+    }
+
+    // Show the section and reset states
+    setShowAltTextSection(true);
+    setGeneratedAltText('');
+    resetAltTextState();
+
+    try {
+      // Create image description from form data for better alt text context
+      let imageDescription = '';
+      if (formData.type === 'Zitat' && formData.quote) {
+        imageDescription = `Zitat-Sharepic mit dem Text: "${formData.quote}"`;
+        if (formData.name) {
+          imageDescription += ` von ${formData.name}`;
+        }
+      } else if (formData.line1 || formData.line2 || formData.line3) {
+        const lines = [formData.line1, formData.line2, formData.line3].filter(Boolean);
+        imageDescription = `Sharepic mit dem Text: "${lines.join(' ')}"`;
+      } else if (formData.thema) {
+        imageDescription = `Sharepic zum Thema: ${formData.thema}`;
+      }
+
+      const response = await generateAltTextForImage(generatedImageSrc, imageDescription);
+      if (response && response.altText) {
+        setGeneratedAltText(response.altText);
+      }
+    } catch (error) {
+      console.error('[BaseForm] Alt text generation failed:', error);
+      // Error state is handled by the hook and displayed inline
+    }
+  }, [generatedImageSrc, formData, generateAltTextForImage, resetAltTextState]);
 
   const formButtons = useMemo(() => ({
     showBack: showBackButton,
@@ -148,16 +207,18 @@ const BaseForm = ({
         <div className="button-wrapper">
           <SloganAlternativesButton {...fileUploadProps.alternativesButtonProps} buttonText={formData.type === 'Zitat' ? "Andere Zitate" : "Anderer Slogan"} />
         </div>
-        {formData.type !== 'Zitat' && (
-          <div className="button-wrapper">
-            <UnsplashButton 
-              searchTerms={formData.searchTerms}
-            />
-          </div>
+        {(formData.type === 'Dreizeilen' || formData.type === 'Zitat') && (
+          <>
+            <div className="button-wrapper">
+              <UnsplashButton 
+                searchTerms={formData.searchTerms}
+              />
+            </div>
+            <div className="button-wrapper">
+              <FileUpload {...fileUploadProps} buttonText="Upload" />
+            </div>
+          </>
         )}
-        <div className="button-wrapper">
-          <FileUpload {...fileUploadProps} buttonText="Upload" />
-        </div>
       </div>
       <div className="button-container">
         {renderFormButtons()}
@@ -186,6 +247,8 @@ const BaseForm = ({
         sunflowerOffset={sunflowerOffset}
         credit={credit}
         formData={formData}
+        generatedImage={generatedImageSrc}
+        onAltTextClick={handleAltTextClick}
       >
         {children}
       </SharepicBackendResult>
@@ -297,12 +360,63 @@ const BaseForm = ({
           </>
         )}
         {currentStep === FORM_STEPS.RESULT && typeof generatedImageSrc === 'string' && (generatedImageSrc.startsWith('data:image') || generatedImageSrc.startsWith('/api/')) && (
-          <div className="sticky-sharepic-container">
-            <img src={generatedImageSrc} alt="Generiertes Sharepic" className="sticky-sharepic" />
-            <div className="button-container" style={{ fontSize: 'initial' }}>
-              {useDownloadButton && <DownloadButton imageUrl={generatedImageSrc} />}
+          <>
+            <div className="sticky-sharepic-container">
+              <img src={generatedImageSrc} alt="Generiertes Sharepic" className="sticky-sharepic" />
+              <div className="button-container" style={{ fontSize: 'initial' }}>
+                {useDownloadButton && <DownloadButton imageUrl={generatedImageSrc} />}
+              </div>
             </div>
-          </div>
+            
+            {/* Alt Text Inline Section */}
+            {showAltTextSection && (
+              <div className="alt-text-inline-section" style={{ fontSize: 'initial' }}>
+                <div className="alt-text-header">
+                  <h3>Alt-Text für Barrierefreiheit</h3>
+                  <HelpTooltip>
+                    <p>
+                      Alt-Text beschreibt Bilder für Menschen mit Sehbehinderung. 
+                      Er wird von Screenreadern vorgelesen und macht Inhalte barrierefrei.
+                    </p>
+                    <p>
+                      <a href="https://www.dbsv.org/bildbeschreibung-4-regeln.html" 
+                         target="_blank" 
+                         rel="noopener noreferrer">
+                        DBSV-Richtlinien für Bildbeschreibungen →
+                      </a>
+                    </p>
+                  </HelpTooltip>
+                  {generatedAltText && !altTextLoading && (
+                    <CopyButton 
+                      directContent={generatedAltText}
+                      variant="icon"
+                      className="alt-text-copy-button"
+                    />
+                  )}
+                </div>
+                
+                {altTextLoading && (
+                  <div className="alt-text-loading">
+                    <span className="loading-spinner">⏳</span>
+                    <span>Alt-Text wird generiert...</span>
+                  </div>
+                )}
+                
+                {altTextError && (
+                  <div className="alt-text-error">
+                    <span>⚠️</span>
+                    <span>Fehler bei der Alt-Text-Generierung: {altTextError}</span>
+                  </div>
+                )}
+                
+                {generatedAltText && !altTextLoading && (
+                  <div className="alt-text-content">
+                    {generatedAltText}
+                  </div>
+                )}
+              </div>
+            )}
+          </>
         )}
       </div>
     );
@@ -313,7 +427,11 @@ const BaseForm = ({
     useDownloadButton, 
     fontSize,
     formData,
-    selectedImage
+    selectedImage,
+    showAltTextSection,
+    altTextLoading,
+    altTextError,
+    generatedAltText
   ]);
 
   return (

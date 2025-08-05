@@ -26,7 +26,6 @@ class YouConversationManager {
         systemPrompt: this.getSystemPrompt(),
         messages: messages,
         options: {
-          model: "claude-3-7-sonnet-latest",
           max_tokens: 4000,
           temperature: 0.7,
           tools: CORE_TOOLS

@@ -390,7 +390,7 @@ export const useGeneratorKnowledgeStore = create(immer((set, get) => {
       const typeDisplayName = {
         'antrag': 'Antrag',
         'social': 'Social Media',
-        'universal': 'Universeller Text',
+        'universal': 'Universal',
         'press': 'Pressemitteilung',
         'gruene_jugend': 'Grüne Jugend',
         'text': 'Allgemeiner Text'

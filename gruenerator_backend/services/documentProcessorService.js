@@ -226,17 +226,18 @@ class DocumentProcessorService {
   }
 
   /**
-   * Generate embeddings for document chunks
+   * Generate embeddings for document chunks with hierarchical structure
    */
   async generateDocumentEmbeddings(documentId, text) {
     try {
-      console.log(`[DocumentProcessor] Generating embeddings for document ${documentId}`);
+      console.log(`[DocumentProcessor] Generating hierarchical embeddings for document ${documentId}`);
 
-      // Split document into chunks
+      // Use enhanced hierarchical chunking
       const chunks = smartChunkDocument(text, {
-        maxTokens: 400,
-        overlapTokens: 50,
-        preserveStructure: true
+        maxTokens: 600, // Increased for better context
+        overlapTokens: 150, // Increased overlap
+        preserveStructure: true,
+        useHierarchicalChunking: true
       });
 
       if (chunks.length === 0) {
@@ -244,10 +245,15 @@ class DocumentProcessorService {
         return;
       }
 
-      console.log(`[DocumentProcessor] Generated ${chunks.length} chunks for document ${documentId}`);
+      console.log(`[DocumentProcessor] Generated ${chunks.length} hierarchical chunks for document ${documentId}`);
+      
+      // Log chunking method used
+      const chunkingMethod = chunks[0]?.metadata?.chunkingMethod || 'unknown';
+      const structureDetected = chunks[0]?.metadata?.structure_detected || false;
+      console.log(`[DocumentProcessor] Chunking method: ${chunkingMethod}, structure detected: ${structureDetected}`);
 
       // Generate embeddings for chunks in batches
-      const batchSize = 10;
+      const batchSize = 8; // Reduced batch size for larger chunks
       const allChunkData = [];
 
       for (let i = 0; i < chunks.length; i += batchSize) {
@@ -259,13 +265,14 @@ class DocumentProcessorService {
           const texts = batch.map(chunk => chunk.text);
           const embeddings = await embeddingService.generateBatchEmbeddings(texts, 'search_document');
 
-          // Prepare chunk data for database insertion
+          // Prepare enhanced chunk data for database insertion
           const batchChunkData = batch.map((chunk, index) => ({
             document_id: documentId,
             chunk_index: chunk.index,
             chunk_text: chunk.text,
             embedding: embeddings[index],
-            token_count: chunk.tokens
+            token_count: chunk.tokens,
+            metadata: this.sanitizeMetadata(chunk.metadata || {})
           }));
 
           allChunkData.push(...batchChunkData);
@@ -289,12 +296,71 @@ class DocumentProcessorService {
         throw new Error(`Failed to insert document chunks: ${insertError.message}`);
       }
 
-      console.log(`[DocumentProcessor] Successfully generated embeddings for ${allChunkData.length} chunks in document ${documentId}`);
+      console.log(`[DocumentProcessor] Successfully generated embeddings for ${allChunkData.length} hierarchical chunks in document ${documentId}`);
+
+      // Log structure statistics
+      const structureStats = this.calculateStructureStats(allChunkData);
+      console.log(`[DocumentProcessor] Structure statistics:`, structureStats);
 
     } catch (error) {
       console.error(`[DocumentProcessor] Error generating embeddings for document ${documentId}:`, error);
       throw error;
     }
+  }
+
+  /**
+   * Sanitize metadata for database storage
+   * @private
+   */
+  sanitizeMetadata(metadata) {
+    // Ensure all metadata values are JSON-serializable
+    const sanitized = {};
+    
+    for (const [key, value] of Object.entries(metadata)) {
+      if (value !== undefined && value !== null) {
+        // Convert non-serializable values to strings
+        if (typeof value === 'function') {
+          sanitized[key] = '[Function]';
+        } else if (typeof value === 'object' && value.constructor !== Object && value.constructor !== Array) {
+          sanitized[key] = value.toString();
+        } else {
+          sanitized[key] = value;
+        }
+      }
+    }
+    
+    return sanitized;
+  }
+
+  /**
+   * Calculate structure statistics from chunk metadata
+   * @private
+   */
+  calculateStructureStats(chunkData) {
+    const stats = {
+      total_chunks: chunkData.length,
+      with_chapter_info: 0,
+      with_section_info: 0,
+      chunk_types: {},
+      structure_detected: false,
+      chunking_methods: {}
+    };
+
+    chunkData.forEach(chunk => {
+      const metadata = chunk.metadata || {};
+      
+      if (metadata.chapter_title) stats.with_chapter_info++;
+      if (metadata.section_title) stats.with_section_info++;
+      if (metadata.structure_detected) stats.structure_detected = true;
+      
+      const chunkType = metadata.chunk_type || 'unknown';
+      stats.chunk_types[chunkType] = (stats.chunk_types[chunkType] || 0) + 1;
+      
+      const method = metadata.chunkingMethod || 'unknown';
+      stats.chunking_methods[method] = (stats.chunking_methods[method] || 0) + 1;
+    });
+
+    return stats;
   }
 
   /**

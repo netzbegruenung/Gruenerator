@@ -855,44 +855,85 @@ router.post('/search-content', ensureAuthenticated, async (req, res) => {
             return res.status(403).json({ error: 'Access denied to requested documents' });
         }
 
-        // Perform vector search across the specified documents
+        // Perform enhanced vector search with hierarchical context expansion
         let searchResults = [];
+        let contextExpanded = false;
         try {
-            const searchResponse = await vectorSearchService.search({
+            const searchResponse = await vectorSearchService.searchWithContext({
                 query: trimmedQuery,
                 user_id: userId,
                 documentIds: filteredDocumentIds,
                 limit: limit * 2, // Get more results for better content selection
-                mode: mode
+                mode: mode,
+                expandContext: true,
+                contextOptions: {
+                    maxContextTokens: 2000, // Allow larger context for better results
+                    includePrevious: true,
+                    includeNext: true,
+                    includeRelated: true,
+                    preserveStructure: true
+                }
             });
             searchResults = searchResponse.results || [];
+            contextExpanded = searchResponse.context_expanded || false;
             
-            console.log(`[Documents API] Vector search found ${searchResults.length} results`);
+            console.log(`[Documents API] Enhanced vector search found ${searchResults.length} results (context expanded: ${contextExpanded})`);
         } catch (searchError) {
-            console.error('[Documents API] Vector search error:', searchError);
-            // Continue with fallback approach if vector search fails
+            console.error('[Documents API] Enhanced vector search error:', searchError);
+            
+            // Fallback to regular vector search
+            try {
+                const fallbackResponse = await vectorSearchService.search({
+                    query: trimmedQuery,
+                    user_id: userId,
+                    documentIds: filteredDocumentIds,
+                    limit: limit * 2,
+                    mode: mode
+                });
+                searchResults = fallbackResponse.results || [];
+                console.log(`[Documents API] Fallback vector search found ${searchResults.length} results`);
+            } catch (fallbackError) {
+                console.error('[Documents API] Fallback vector search error:', fallbackError);
+                // Continue with text-based fallback approach
+            }
         }
 
         // Process results and create intelligent content extracts
         const documentContents = new Map();
         
         if (searchResults.length > 0) {
-            // Use vector search results to create intelligent content
+            // Use enhanced vector search results to create intelligent content
             searchResults.forEach(result => {
                 const docId = result.document_id;
                 const content = result.relevant_content || result.chunk_text || '';
                 
                 if (!documentContents.has(docId)) {
                     const docInfo = userDocuments.find(d => d.id === docId);
+                    
+                    // Determine content type based on whether context was expanded
+                    let contentType = 'vector_search';
+                    let searchInfo = result.relevance_info || `Vector search found relevant content`;
+                    
+                    if (result.context_expanded) {
+                        contentType = 'hierarchical_search';
+                        const contextMeta = result.context_metadata;
+                        if (contextMeta) {
+                            searchInfo = `Enhanced search with hierarchical context: ${contextMeta.context_chunks_count} chunks, ${contextMeta.section_title || 'multiple sections'}`;
+                        } else {
+                            searchInfo = 'Enhanced search with expanded context';
+                        }
+                    }
+                    
                     documentContents.set(docId, {
                         document_id: docId,
                         title: docInfo?.title || result.title,
                         filename: docInfo?.filename || result.filename,
                         page_count: docInfo?.page_count || null,
-                        content_type: 'vector_search',
+                        content_type: contentType,
                         content: content,
                         similarity_score: result.similarity_score,
-                        search_info: result.relevance_info || `Vector search found relevant content`
+                        search_info: searchInfo,
+                        context_metadata: result.context_metadata || null
                     });
                 } else {
                     // Append additional content if we have more chunks from the same document
@@ -901,6 +942,12 @@ router.post('/search-content', ensureAuthenticated, async (req, res) => {
                     // Keep the higher similarity score
                     if (result.similarity_score > existing.similarity_score) {
                         existing.similarity_score = result.similarity_score;
+                    }
+                    // Update search info if this result has better context
+                    if (result.context_expanded && !existing.context_metadata) {
+                        existing.content_type = 'hierarchical_search';
+                        existing.context_metadata = result.context_metadata;
+                        existing.search_info = `Enhanced search with hierarchical context`;
                     }
                 }
             });
@@ -945,7 +992,14 @@ router.post('/search-content', ensureAuthenticated, async (req, res) => {
         const results = Array.from(documentContents.values());
         const responseTime = Date.now() - startTime;
 
-        console.log(`[Documents API] Returning ${results.length} document contents (${responseTime}ms)`);
+        console.log(`[Documents API] Returning ${results.length} document contents (${responseTime}ms, context expanded: ${contextExpanded})`);
+
+        // Count different content types for metadata
+        const contentTypeCounts = {};
+        results.forEach(result => {
+            const type = result.content_type || 'unknown';
+            contentTypeCounts[type] = (contentTypeCounts[type] || 0) + 1;
+        });
 
         res.json({
             success: true,
@@ -956,6 +1010,9 @@ router.post('/search-content', ensureAuthenticated, async (req, res) => {
                 response_time_ms: responseTime,
                 documents_processed: results.length,
                 vector_search_results: searchResults.length,
+                context_expanded: contextExpanded,
+                content_type_breakdown: contentTypeCounts,
+                processing_version: '2.0_hierarchical',
                 user_id: userId
             }
         });
@@ -1322,12 +1379,13 @@ async function generateGrundsatzDocumentEmbeddings(documentId, text) {
   try {
     console.log(`[generateGrundsatzDocumentEmbeddings] Generating embeddings for document ${documentId}`);
 
-    // Split document into chunks
+    // Split document into chunks using new hierarchical chunking
     const { smartChunkDocument } = await import('../utils/textChunker.js');
     const chunks = smartChunkDocument(text, {
-      maxTokens: 400,
-      overlapTokens: 50,
-      preserveStructure: true
+      maxTokens: 600, // Increased for better context
+      overlapTokens: 150, // Increased overlap
+      preserveStructure: true,
+      useHierarchicalChunking: true // Enable new hierarchical chunking
     });
 
     if (chunks.length === 0) {
@@ -1335,7 +1393,12 @@ async function generateGrundsatzDocumentEmbeddings(documentId, text) {
       return;
     }
 
-    console.log(`[generateGrundsatzDocumentEmbeddings] Generated ${chunks.length} chunks for document ${documentId}`);
+    console.log(`[generateGrundsatzDocumentEmbeddings] Generated ${chunks.length} hierarchical chunks for document ${documentId}`);
+    
+    // Log chunking method used
+    const chunkingMethod = chunks[0]?.metadata?.chunkingMethod || 'unknown';
+    const structureDetected = chunks[0]?.metadata?.structure_detected || false;
+    console.log(`[generateGrundsatzDocumentEmbeddings] Chunking method: ${chunkingMethod}, structure detected: ${structureDetected}`);
 
     // Generate embeddings for chunks in batches
     const batchSize = 10;
@@ -1350,13 +1413,14 @@ async function generateGrundsatzDocumentEmbeddings(documentId, text) {
         const texts = batch.map(chunk => chunk.text);
         const embeddings = await embeddingService.generateBatchEmbeddings(texts, 'search_document');
 
-        // Prepare chunk data for database insertion
+        // Prepare enhanced chunk data for database insertion with metadata
         const batchChunkData = batch.map((chunk, index) => ({
           document_id: documentId,
           chunk_index: chunk.index,
           chunk_text: chunk.text,
           embedding: embeddings[index],
-          token_count: chunk.tokens
+          token_count: chunk.tokens,
+          metadata: sanitizeMetadata(chunk.metadata || {})
         }));
 
         allChunkData.push(...batchChunkData);
@@ -1386,6 +1450,30 @@ async function generateGrundsatzDocumentEmbeddings(documentId, text) {
     console.error(`[generateGrundsatzDocumentEmbeddings] Error generating embeddings for document ${documentId}:`, error);
     throw error;
   }
+}
+
+/**
+ * Sanitize metadata for database storage
+ * @private
+ */
+function sanitizeMetadata(metadata) {
+  // Ensure all metadata values are JSON-serializable
+  const sanitized = {};
+  
+  for (const [key, value] of Object.entries(metadata)) {
+    if (value !== undefined && value !== null) {
+      // Convert non-serializable values to strings
+      if (typeof value === 'function') {
+        sanitized[key] = '[Function]';
+      } else if (typeof value === 'object' && value.constructor !== Object && value.constructor !== Array) {
+        sanitized[key] = value.toString();
+      } else {
+        sanitized[key] = value;
+      }
+    }
+  }
+  
+  return sanitized;
 }
 
 // Process crawled document and generate embeddings

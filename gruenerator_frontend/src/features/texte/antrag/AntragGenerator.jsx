@@ -278,7 +278,7 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
     },
     label: "Websuche verwenden",
     icon: HiGlobeAlt,
-    description: "Nutzt aktuelle Informationen aus dem Web für den Antrag.",
+    description: "",
     tabIndex: tabIndex.webSearch
   };
 

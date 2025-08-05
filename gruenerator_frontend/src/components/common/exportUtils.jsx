@@ -319,7 +319,7 @@ export const loadDOCXLibrary = async () => {
       new Paragraph({
         children: [
           new TextRun({
-            text: `Erstellt mit Grünerator • ${new Date().toLocaleDateString('de-DE')}`,
+            text: `Erstellt mit dem Grünerator von Moritz Wächter • ${new Date().toLocaleDateString('de-DE')}`,
             size: 18,
             italics: true,
             color: "666666",

@@ -353,6 +353,34 @@ const useApiSubmit = (endpoint) => {
           });
           throw new Error('Invalid response format from Info Claude API');
         }
+      } else if (endpoint === 'headline_claude') {
+        console.log('[useApiSubmit] Processing headline_claude response:', response);
+        if (response && response.mainSlogan) {
+          setSuccess(true);
+          return {
+            mainSlogan: response.mainSlogan,
+            alternatives: response.alternatives || [],
+            searchTerms: response.searchTerms || []
+          };
+        } else {
+          console.error('[useApiSubmit] Invalid headline_claude response structure:', {
+            response: response,
+            hasMainSlogan: !!response?.mainSlogan
+          });
+          throw new Error('Invalid response format from Headline Claude API');
+        }
+      } else if (endpoint === '/claude_alttext') {
+        console.log('[useApiSubmit] Processing claude_alttext response:', response);
+        if (response && response.altText) {
+          setSuccess(true);
+          return response; // Return full response with altText and metadata
+        } else {
+          console.error('[useApiSubmit] Invalid claude_alttext response structure:', {
+            response: response,
+            hasAltText: !!response?.altText
+          });
+          throw new Error('Keine Alt-Text-Antwort von der KI erhalten.');
+        }
       }
 
       // Fallback für alle anderen Endpoints

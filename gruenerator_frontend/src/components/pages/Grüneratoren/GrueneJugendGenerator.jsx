@@ -68,7 +68,7 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }) => {
     { id: 'twitter', label: 'Twitter/X' },
     { id: 'tiktok', label: 'TikTok' },
     { id: 'messenger', label: 'Messenger' },
-    { id: 'reelScript', label: 'Instagram Reel' },
+    { id: 'reelScript', label: 'Skript für Reels & Tiktoks' },
     { id: 'actionIdeas', label: 'Aktionsideen' }
   ], []);
 
