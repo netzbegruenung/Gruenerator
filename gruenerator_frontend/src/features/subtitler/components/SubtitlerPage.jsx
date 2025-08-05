@@ -201,9 +201,12 @@ const SubtitlerPage = () => {
     // The export token is now managed by the store
     console.log('[SubtitlerPage] Export initiated with token:', receivedExportToken);
     
+    // Move to success screen immediately when export starts
+    setStep('success');
+    
     try {
+      // Generate social text in parallel while export is processing
       await generateSocialText(subtitles);
-      setStep('success');
     } catch (err) {
       console.error('[SubtitlerPage] Social text generation error:', err);
       setError('Fehler beim Generieren des Beitragstextes');

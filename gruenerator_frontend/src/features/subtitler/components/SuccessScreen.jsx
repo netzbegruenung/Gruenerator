@@ -24,7 +24,7 @@ const AnimatedCheckmark = () => {
         cy="30"
         r="25"
         fill="none"
-        stroke="var(--klee, #4CAF50)"
+        stroke="var(--weiß, #ffffff)"
         strokeWidth="3"
         initial={{ pathLength: 0 }}
         animate={{ pathLength: 1 }}
@@ -36,7 +36,7 @@ const AnimatedCheckmark = () => {
       <motion.path
         d="M18 30l8 8 16-16"
         fill="none"
-        stroke="var(--klee, #4CAF50)"
+        stroke="var(--weiß, #ffffff)"
         strokeWidth="3"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -91,7 +91,14 @@ const SuccessScreen = ({ onReset, onEditAgain, isLoading, socialText, uploadId }
         <div className="success-main">
           <div className={`success-icon ${showSpinner ? 'loading' : ''}`}>
             {showSpinner ? (
-              <div className="spinner" />
+              <div className="spinner-container">
+                <div className="spinner" />
+                {exportProgress > 0 && (
+                  <div className="spinner-percentage">
+                    {exportProgress}%
+                  </div>
+                )}
+              </div>
             ) : (
               <AnimatedCheckmark />
             )}
@@ -110,18 +117,6 @@ const SuccessScreen = ({ onReset, onEditAgain, isLoading, socialText, uploadId }
             </div>
           )}
           
-          {/* Show progress from store */}
-          {showSpinner && exportProgress > 0 && (
-            <div className="progress-container">
-              <div className="progress-bar">
-                <div 
-                  className="progress-fill" 
-                  style={{ width: `${exportProgress}%` }}
-                />
-              </div>
-              <span className="progress-text">{exportProgress}%</span>
-            </div>
-          )}
 
           {!showSpinner && (
             <div className="success-buttons">

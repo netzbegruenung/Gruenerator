@@ -41,11 +41,14 @@ const SubtitleEditor = ({
     return unsubscribe;
   }, [subscribe]);
   
-  // Watch for export completion and call callbacks
+  // Watch for export start and completion
   useEffect(() => {
-    if (exportStatus === 'complete') {
-      console.log('[SubtitleEditor] Export completed, calling success callback with token:', exportToken);
+    if (exportStatus === 'starting' || exportStatus === 'exporting') {
+      // Move to success screen immediately when export starts
+      console.log('[SubtitleEditor] Export started, calling success callback with token:', exportToken);
       onExportSuccess && onExportSuccess(exportToken);
+    } else if (exportStatus === 'complete') {
+      console.log('[SubtitleEditor] Export completed');
       onExportComplete && onExportComplete();
     } else if (exportStatus === 'error' && exportError) {
       console.error('[SubtitleEditor] Export failed:', exportError);
@@ -344,24 +347,6 @@ const SubtitleEditor = ({
                   heightPreference={heightPreference}
                 />
                 
-                {/* Show progress overlay during export */}
-                {(exportStatus === 'starting' || exportStatus === 'exporting') && (
-                  <div className="export-progress-overlay">
-                    <div className="progress-content">
-                      <div className="progress-spinner" />
-                      <p>Video wird verarbeitet...</p>
-                      {exportProgress > 0 && (
-                        <div className="progress-bar">
-                          <div 
-                            className="progress-fill" 
-                            style={{ width: `${exportProgress}%` }}
-                          />
-                          <span className="progress-text">{exportProgress}%</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
               </div>
             ) : (
               <div className="video-loading">
