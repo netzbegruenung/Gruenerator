@@ -12,7 +12,6 @@ const ProfileButton = () => {
 
   // Avatar und Name mit intelligent fallbacks für instant rendering
   const displayName = profile?.display_name || '';
-  const firstName = profile?.first_name || '';
   // Use default avatar (robot #1) while loading for immediate visual feedback
   const avatarRobotId = profile?.avatar_robot_id ?? 1;
 
@@ -54,16 +53,6 @@ const ProfileButton = () => {
     setIsDropdownOpen((prev) => !prev);
   };
 
-  // Initialen für Avatar erstellen
-  const getInitials = () => {
-    if (firstName) {
-      return firstName.charAt(0).toUpperCase();
-    }
-    if (user && user.email) {
-      return user.email.charAt(0).toUpperCase();
-    }
-    return "?";
-  };
   
   // Korrekte Genitiv-Form mit Apostroph
   const getPossessiveForm = (name) => {
@@ -81,8 +70,7 @@ const ProfileButton = () => {
   // Avatar-Eigenschaften für Header und Dropdown bestimmen
   const avatarProps = getAvatarDisplayProps({
     avatar_robot_id: avatarRobotId,
-    first_name: firstName,
-    last_name: '', // Wird im Header nicht verwendet
+    display_name: displayName,
     email: user?.email
   });
 
@@ -159,7 +147,7 @@ const ProfileButton = () => {
             </div>
             <div className="profile-dropdown-info">
               <div className="profile-dropdown-greeting">
-                {firstName ? getPossessiveForm(firstName) : "Dein"} Grünerator
+                {displayName ? getPossessiveForm(displayName.split(' ')[0]) : "Dein"} Grünerator
               </div>
               <div className="profile-dropdown-email">
                 {user?.email || ''}
