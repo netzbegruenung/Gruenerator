@@ -40,7 +40,6 @@ const loadPersistedAuthState = () => {
     // Check if user recently logged out
     const logoutTimestamp = localStorage.getItem(LOGOUT_TIMESTAMP_KEY);
     if (logoutTimestamp && Date.now() - parseInt(logoutTimestamp) < LOGOUT_COOLDOWN_TIME) {
-      console.log('[AuthStore] Recently logged out, skipping persisted state');
       return null;
     }
 
@@ -144,13 +143,6 @@ export const useAuthStore = create((set, get) => ({
 
   // Main actions
   setAuthState: (data) => {
-    // Log for debugging bundestag API slider issue
-    console.log('[AuthStore] setAuthState called with data:', {
-      userId: data.user?.id,
-      igelModus: data.user?.igel_modus,
-      bundestagApiEnabled: data.user?.bundestag_api_enabled,
-      source: 'setAuthState'
-    });
     
     set({
       user: data.user,
@@ -325,7 +317,6 @@ export const useAuthStore = create((set, get) => ({
     // Check if in development environment
     const isDevelopment = import.meta.env.VITE_APP_ENV === 'development';
     if (!isDevelopment) {
-      console.log('[AuthStore] Memory disabled - not in development environment');
       set({ memoryEnabled: false });
       return false;
     }
@@ -444,12 +435,10 @@ export const useAuthStore = create((set, get) => ({
     
     // Prevent multiple concurrent logout attempts
     if (state.isLoggingOut) {
-      console.log('[AuthStore] Logout already in progress, skipping duplicate request');
       return;
     }
     
     try {
-      console.log('[AuthStore] Starting logout process...');
       
       // Step 1: Set logging out state immediately for smooth UX
       set({ isLoggingOut: true });
@@ -459,13 +448,11 @@ export const useAuthStore = create((set, get) => ({
         try {
           state._supabaseAuthCleanup();
         } catch (error) {
-          console.warn('[AuthStore] Supabase cleanup error:', error);
         }
       }
       
       // Step 3: Call backend logout API FIRST (before clearing local state)
       const authUrl = `${AUTH_BASE_URL}/auth/logout`;
-      console.log('[AuthStore] Calling backend logout API...');
       
       let backendResponse = null;
       try {
