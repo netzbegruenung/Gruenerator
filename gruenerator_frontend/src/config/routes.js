@@ -50,6 +50,11 @@ const ELearningTutorial = lazy(() => import('../features/elearning/components/EL
 // Test-Komponenten importieren
 const ButtonTest = lazy(() => import('../components/test/ButtonTest'));
 
+// Pages-Feature importieren
+const DynamicPageView = lazy(() => import('../features/pages/components/DynamicPageView'));
+const StructuredExamplePage = lazy(() => import('../features/pages/ExamplePage').then(module => ({ default: module.StructuredExamplePage })));
+const CustomExamplePage = lazy(() => import('../features/pages/ExamplePage').then(module => ({ default: module.CustomExamplePage })));
+
 // Lazy loading für Grüneratoren Bundle
 export const GrueneratorenBundle = {
   Universal: UniversalTextGenerator,
@@ -79,7 +84,10 @@ export const GrueneratorenBundle = {
   ContentGallery: ContentGallery,
   QAChat: QAChat,
   ELearning: ELearningPage,
-  ELearningTutorial: ELearningTutorial
+  ELearningTutorial: ELearningTutorial,
+  DynamicPageView: DynamicPageView,
+  StructuredExamplePage: StructuredExamplePage,
+  CustomExamplePage: CustomExamplePage
 };
 
 // Route Konfigurationen
@@ -129,6 +137,10 @@ const standardRoutes = [
   // E-Learning Routes
   { path: '/e-learning', component: GrueneratorenBundle.ELearning },
   { path: '/e-learning/gruenerator-tutorial', component: GrueneratorenBundle.ELearningTutorial },
+  // Pages Feature Routes
+  { path: '/pages/example-structured', component: GrueneratorenBundle.StructuredExamplePage },
+  { path: '/pages/example-custom', component: GrueneratorenBundle.CustomExamplePage },
+  { path: '/pages/:pageId', component: GrueneratorenBundle.DynamicPageView },
   { path: '/button-test', component: ButtonTest },
   { path: '*', component: NotFound }
 ];

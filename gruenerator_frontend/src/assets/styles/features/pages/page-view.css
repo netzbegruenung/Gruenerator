@@ -1,0 +1,84 @@
+/* Page View - Main container styles */
+.page-view-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: var(--spacing-xlarge) var(--spacing-medium);
+    background-color: var(--background-color);
+    min-height: 100vh;
+}
+
+.page-view__inner {
+    background-color: var(--background-color);
+    padding: var(--spacing-xxlarge) var(--spacing-xlarge);
+}
+
+/* Page loading states */
+.page-view--loading {
+    opacity: 0.7;
+}
+
+.page-view__loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 200px;
+    color: var(--font-color-disabled);
+    font-size: 1.125rem;
+}
+
+/* Page error states */
+.page-view__error {
+    text-align: center;
+    padding: var(--spacing-xxlarge);
+    color: var(--error-red);
+    background-color: var(--background-red-light);
+    border-radius: var(--card-border-radius-medium);
+    margin: var(--spacing-xlarge) 0;
+}
+
+/* Desktop enhancements */
+@media (min-width: 1025px) {
+    .page-view-container {
+        padding: var(--spacing-xxlarge) var(--spacing-xlarge);
+    }
+    
+    .page-view__inner {
+        padding: var(--spacing-xxlarge) calc(var(--spacing-xxlarge) * 1.5);
+        max-width: none;
+    }
+}
+
+/* Responsive design */
+@media (max-width: 1024px) and (min-width: 769px) {
+    .page-view__inner {
+        border-radius: var(--card-border-radius-large);
+        box-shadow: var(--card-shadow-subtle);
+        transition: box-shadow 0.3s ease;
+    }
+    
+    .page-view__inner:hover {
+        box-shadow: var(--card-shadow-elevated);
+    }
+}
+
+@media (max-width: 768px) {
+    .page-view-container {
+        padding: var(--spacing-large) var(--spacing-small);
+    }
+    
+    .page-view__inner {
+        padding: var(--spacing-xlarge) var(--spacing-medium);
+        box-shadow: none;
+        border-radius: 0;
+    }
+}
+
+@media (max-width: 480px) {
+    .page-view-container {
+        padding: var(--spacing-medium) var(--spacing-xsmall);
+    }
+    
+    .page-view__inner {
+        padding: var(--spacing-large) var(--spacing-small);
+    }
+}
