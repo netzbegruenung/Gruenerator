@@ -90,7 +90,7 @@ router.get('/profile', ensureAuthenticated, async (req, res) => {
 // Update user profile
 router.put('/profile', ensureAuthenticated, async (req, res) => {
   try {
-    const { first_name, last_name, display_name, avatar_robot_id, email } = req.body;
+    const { display_name, username, avatar_robot_id, email } = req.body;
     
     // Validate input
     if (avatar_robot_id && (avatar_robot_id < 1 || avatar_robot_id > 9)) {
@@ -109,9 +109,8 @@ router.put('/profile', ensureAuthenticated, async (req, res) => {
       updated_at: new Date().toISOString()
     };
     
-    if (first_name !== undefined) updateData.first_name = first_name || null;
-    if (last_name !== undefined) updateData.last_name = last_name || null;
     if (display_name !== undefined) updateData.display_name = display_name || null;
+    if (username !== undefined) updateData.username = username || null;
     if (avatar_robot_id !== undefined) updateData.avatar_robot_id = avatar_robot_id;
     
     
