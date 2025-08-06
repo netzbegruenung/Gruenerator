@@ -238,7 +238,7 @@ if (cluster.isMaster) {
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "data:"],
         styleSrc: ["'self'", "'unsafe-inline'"],
         imgSrc: ["'self'", "data:", "blob:", "https://*.unsplash.com"],
         connectSrc: [
