@@ -185,14 +185,19 @@ const GroupDetailView = memo(({
                 knowledge: formValues.knowledge || [],
                 // Add group-specific fields
                 antragInstructionsEnabled: data?.antragInstructionsEnabled || false,
-                socialInstructionsEnabled: data?.socialInstructionsEnabled || false
+                socialInstructionsEnabled: data?.socialInstructionsEnabled || false,
+                // Add group membership info for permission checking in API service
+                _groupMembership: {
+                    isAdmin: data?.isAdmin || false,
+                    role: data?.membership?.role || 'member'
+                }
             };
             
             // Save changes through the extended hook
             return await saveChanges(saveData);
         }, [saveChanges, getValues, data]),
         formRef: { getValues, watch },
-        enabled: data && isInitialized.current,
+        enabled: data && isInitialized.current && data?.isAdmin,
         debounceMs: 2000,
         getFieldsToTrack: () => [
             'customAntragPrompt',
@@ -561,6 +566,19 @@ const GroupDetailView = memo(({
     const renderAnweisungenWissenTab = () => {
         return (
             <>
+                {/* Read-only notification for non-admin members */}
+                {!data?.isAdmin && (
+                    <div className="group-readonly-notice">
+                        <HiInformationCircle className="group-readonly-notice-icon" />
+                        <div className="group-readonly-notice-content">
+                            <div className="group-readonly-notice-title">Nur-Lesen-Modus</div>
+                            <p className="group-readonly-notice-text">
+                                Du kannst die Gruppeninhalte einsehen, aber nur Gruppenadministratoren können sie bearbeiten.
+                            </p>
+                        </div>
+                    </div>
+                )}
+                
                 <div className="group-content-card">
                     <FormProvider {...formMethods}>
                         <div className="auth-form">
