@@ -26,8 +26,6 @@ export const profileApiService = {
 
     const profileData = {
       display_name: profile.display_name,
-      first_name: profile.first_name,
-      last_name: profile.last_name,
       email: profile.email || null,
       avatar_robot_id: profile.avatar_robot_id,
       is_admin: profile.is_admin,
@@ -695,19 +693,19 @@ export const profileApiService = {
 
 // === AVATAR UTILITIES ===
 /**
- * Get initials from first name, last name, or email
- * @param {string} fname - First name
- * @param {string} lname - Last name  
+ * Get initials from display name or email
+ * @param {string} displayName - Full display name
  * @param {string} mail - Email address
  * @returns {string} Initials (2 characters)
  */
-export const getInitials = (fname, lname, mail) => {
-  if (fname && lname) {
-    return (fname.charAt(0) + lname.charAt(0)).toUpperCase();
-  } else if (fname) {
-    return fname.substring(0, 2).toUpperCase();
-  } else if (lname) {
-    return lname.substring(0, 2).toUpperCase();
+export const getInitials = (displayName, mail) => {
+  if (displayName && displayName.trim()) {
+    const nameParts = displayName.trim().split(/\s+/);
+    if (nameParts.length >= 2) {
+      return (nameParts[0].charAt(0) + nameParts[nameParts.length - 1].charAt(0)).toUpperCase();
+    } else {
+      return displayName.substring(0, 2).toUpperCase();
+    }
   } else if (mail) {
     return mail.substring(0, 2).toUpperCase();
   }
@@ -730,7 +728,7 @@ export const shouldShowRobotAvatar = (avatarRobotId) => {
  * @returns {object} Avatar display properties
  */
 export const getAvatarDisplayProps = (profile) => {
-  const { avatar_robot_id, first_name, last_name, email } = profile || {};
+  const { avatar_robot_id, display_name, email } = profile || {};
   
   if (shouldShowRobotAvatar(avatar_robot_id)) {
     return {
@@ -743,7 +741,7 @@ export const getAvatarDisplayProps = (profile) => {
   
   return {
     type: 'initials',
-    initials: getInitials(first_name, last_name, email || 'User')
+    initials: getInitials(display_name, email || 'User')
   };
 };
 
@@ -756,9 +754,9 @@ export const getAvatarDisplayProps = (profile) => {
  */
 export const initializeProfileFormFields = (profile, user) => {
   const safeName = profile?.display_name || 
-                   (profile?.first_name && profile?.last_name ? 
-                    `${profile.first_name} ${profile.last_name}`.trim() : 
-                    user?.email || user?.username || 'User');
+                   user?.email || user?.username || 'User';
+  
+  const safeUsername = profile?.username || user?.username || '';
   
   // Prioritize auth user email if profile email is empty/null
   const syncedEmail = (profile?.email && profile.email.trim()) ? 
@@ -766,9 +764,8 @@ export const initializeProfileFormFields = (profile, user) => {
                       (user?.email || '');
   
   return {
-    firstName: profile?.first_name || '',
-    lastName: profile?.last_name || '',
     displayName: safeName,
+    username: safeUsername,
     email: syncedEmail
   };
 };
