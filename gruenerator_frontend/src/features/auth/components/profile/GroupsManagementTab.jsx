@@ -4,6 +4,7 @@ import { HiOutlineTrash, HiPlus, HiLink, HiInformationCircle, HiPencil, HiCheck,
 import { useAutosave } from '../../../../hooks/useAutosave';
 import { useGroups, useGroupSharing, getGroupInitials } from '../../utils/groupsUtils';
 import { useAnweisungenWissen } from '../../hooks/useProfileData';
+import { useOptimizedAuth } from '../../../../hooks/useAuth';
 import { useFormFields } from '../../../../components/common/Form/hooks';
 import HelpTooltip from '../../../../components/common/HelpTooltip';
 import DeleteWarningTooltip from '../../../../components/common/DeleteWarningTooltip';
@@ -817,6 +818,9 @@ const GroupsManagementTab = ({ onSuccessMessage, onErrorMessage, isActive }) => 
     
     const { control: createGroupControl, reset: resetCreateGroup, handleSubmit: handleCreateGroupSubmit, getValues: getCreateGroupValues } = createGroupFormMethods;
     const { Input } = useFormFields();
+    
+    // Get user data for logging
+    const { user } = useOptimizedAuth();
 
     const { 
         userGroups, 
