@@ -885,7 +885,7 @@ const GroupsManagementTab = ({ onSuccessMessage, onErrorMessage, isActive }) => 
         // Handle the case where user has no groups
         if (userGroups.length === 0) {
             setSelectedGroupId(null);
-            if (currentView !== 'overview') {
+            if (currentView !== 'overview' && currentView !== 'create') {
                 setCurrentView('overview');
             }
         }
