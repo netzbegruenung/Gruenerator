@@ -830,15 +830,26 @@ const GroupsManagementTab = ({ onSuccessMessage, onErrorMessage, isActive }) => 
 
     // Handle Group Creation Submit
     const handleCreateGroupFormSubmit = useCallback((data) => {
-        if (isCreatingGroup) return;
+        console.log('[GroupsManagementTab] Form submitted - handleCreateGroupFormSubmit');
+        console.log('[GroupsManagementTab] Form data:', data);
+        console.log('[GroupsManagementTab] Is creating group:', isCreatingGroup);
+        
+        if (isCreatingGroup) {
+            console.log('[GroupsManagementTab] Already creating group, returning early');
+            return;
+        }
         
         // Use "unbenannte Gruppe" as default if no name provided
         const groupName = data.groupName?.trim() || 'unbenannte Gruppe';
+        console.log('[GroupsManagementTab] Group name to create:', groupName);
         
         onSuccessMessage(''); 
         onErrorMessage('');
+        
+        console.log('[GroupsManagementTab] Calling createGroup function');
         createGroup(groupName, {
           onSuccess: (newGroup) => {
+            console.log('[GroupsManagementTab] Create group SUCCESS callback:', newGroup);
             const newGroupId = newGroup.id;
             setSelectedGroupId(newGroupId);
             setCurrentView('group');
@@ -847,6 +858,7 @@ const GroupsManagementTab = ({ onSuccessMessage, onErrorMessage, isActive }) => 
             onSuccessMessage(`Gruppe "${groupName}" erfolgreich erstellt!`);
           },
           onError: (error) => {
+            console.log('[GroupsManagementTab] Create group ERROR callback:', error);
             onErrorMessage(error?.message || 'Gruppe konnte nicht erstellt werden.');
           }
         });
@@ -904,12 +916,19 @@ const GroupsManagementTab = ({ onSuccessMessage, onErrorMessage, isActive }) => 
     }, [selectedGroupId, onSuccessMessage, onErrorMessage, setSelectedGroupId, setCurrentView, setGroupDetailView]);
 
     const handleCreateNew = useCallback(() => {
+        console.log('[GroupsManagementTab] Button clicked - handleCreateNew');
+        console.log('[GroupsManagementTab] Current user:', user);
+        console.log('[GroupsManagementTab] Current view before change:', currentView);
+        console.log('[GroupsManagementTab] Is creating group:', isCreatingGroup);
+        
         setCurrentView('create');
         setSelectedGroupId(null);
         resetCreateGroup();
         onSuccessMessage('');
         onErrorMessage('');
-    }, [setCurrentView, setSelectedGroupId, resetCreateGroup, onSuccessMessage, onErrorMessage]);
+        
+        console.log('[GroupsManagementTab] View set to create, form reset complete');
+    }, [setCurrentView, setSelectedGroupId, resetCreateGroup, onSuccessMessage, onErrorMessage, user, currentView, isCreatingGroup]);
 
     const handleCancelCreate = useCallback(() => {
         if (userGroups && userGroups.length > 0) {
