@@ -683,6 +683,69 @@ router.put('/groups/:groupId/name', ensureAuthenticated, async (req, res) => {
   }
 });
 
+// Get group instructions
+router.get('/groups/:groupId/instructions', ensureAuthenticated, async (req, res) => {
+  try {
+    console.log('[User Groups /groups/:groupId/instructions GET] Get instructions request for user:', req.user.id);
+    const { groupId } = req.params;
+    const userId = req.user.id;
+    
+    if (!groupId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Gruppen-ID ist erforderlich.'
+      });
+    }
+
+    // Check if user is member of the group
+    const { data: membership, error: membershipError } = await supabaseService
+      .from('group_memberships')
+      .select('role')
+      .eq('group_id', groupId)
+      .eq('user_id', userId)
+      .single();
+
+    if (membershipError) {
+      return res.status(403).json({
+        success: false,
+        message: 'Du bist nicht Mitglied dieser Gruppe.'
+      });
+    }
+
+    // Fetch instructions
+    const { data: instructions, error: instructionsError } = await supabaseService
+      .from('group_instructions')
+      .select('group_id, custom_antrag_prompt, custom_social_prompt, antrag_instructions_enabled, social_instructions_enabled')
+      .eq('group_id', groupId)
+      .maybeSingle();
+
+    if (instructionsError && instructionsError.code !== 'PGRST116') {
+      console.error('[User Groups /groups/:groupId/instructions GET] Instructions error:', instructionsError);
+      throw new Error(instructionsError.message);
+    }
+
+    console.log('[User Groups /groups/:groupId/instructions GET] Instructions loaded successfully');
+
+    res.json({
+      success: true,
+      instructions: instructions || { 
+        group_id: groupId,
+        custom_antrag_prompt: '',
+        custom_social_prompt: '',
+        antrag_instructions_enabled: false,
+        social_instructions_enabled: false
+      }
+    });
+    
+  } catch (error) {
+    console.error('[User Groups /groups/:groupId/instructions GET] Error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Fehler beim Laden der Gruppenanweisungen.'
+    });
+  }
+});
+
 // Update group instructions
 router.put('/groups/:groupId/instructions', ensureAuthenticated, async (req, res) => {
   try {
@@ -862,6 +925,70 @@ router.post('/groups/:groupId/knowledge', ensureAuthenticated, async (req, res) 
     res.status(500).json({
       success: false,
       message: error.message || 'Fehler beim Hinzufügen des Gruppenwissens.'
+    });
+  }
+});
+
+// Get individual knowledge entry
+router.get('/groups/:groupId/knowledge/:knowledgeId', ensureAuthenticated, async (req, res) => {
+  try {
+    console.log('[User Groups /groups/:groupId/knowledge/:knowledgeId GET] Get knowledge entry request for user:', req.user.id);
+    const { groupId, knowledgeId } = req.params;
+    const userId = req.user.id;
+    
+    if (!groupId || !knowledgeId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Gruppen-ID und Wissens-ID sind erforderlich.'
+      });
+    }
+
+    // Check if user is member of the group
+    const { data: membership, error: membershipError } = await supabaseService
+      .from('group_memberships')
+      .select('role')
+      .eq('group_id', groupId)
+      .eq('user_id', userId)
+      .single();
+
+    if (membershipError) {
+      return res.status(403).json({
+        success: false,
+        message: 'Du bist nicht Mitglied dieser Gruppe.'
+      });
+    }
+
+    // Fetch the specific knowledge entry
+    const { data: knowledge, error: knowledgeError } = await supabaseService
+      .from('group_knowledge')
+      .select('id, title, content, created_by, created_at, updated_at')
+      .eq('id', knowledgeId)
+      .eq('group_id', groupId)
+      .single();
+
+    if (knowledgeError) {
+      console.error('[User Groups /groups/:groupId/knowledge/:knowledgeId GET] Knowledge error:', knowledgeError);
+      if (knowledgeError.code === 'PGRST116') {
+        return res.status(404).json({
+          success: false,
+          message: 'Wissenseintrag nicht gefunden.'
+        });
+      }
+      throw new Error(knowledgeError.message);
+    }
+
+    console.log('[User Groups /groups/:groupId/knowledge/:knowledgeId GET] Knowledge entry loaded successfully');
+
+    res.json({
+      success: true,
+      knowledge: knowledge
+    });
+    
+  } catch (error) {
+    console.error('[User Groups /groups/:groupId/knowledge/:knowledgeId GET] Error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Fehler beim Laden des Wissenseintrags.'
     });
   }
 });
