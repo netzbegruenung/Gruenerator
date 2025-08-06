@@ -205,6 +205,16 @@ export const profileApiService = {
     }));
 
     if (context === 'group' && groupId) {
+      // Check if user has permission to edit group content before making API calls
+      // This prevents 403 errors for non-admin group members
+      if (data._groupMembership && !data._groupMembership.isAdmin) {
+        console.log('[saveAnweisungenWissen] User is not admin, skipping group save to prevent 403 errors');
+        return {
+          success: true,
+          message: 'Nur Gruppenadministratoren können Gruppeninhalte bearbeiten.',
+          skipSave: true
+        };
+      }
       // Group endpoint - save instructions and knowledge separately
       const promises = [];
 
