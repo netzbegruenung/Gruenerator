@@ -1248,4 +1248,42 @@
   cursor: not-allowed;
 }
 
+/* Read-only notice for non-admin group members */
+.group-readonly-notice {
+  background-color: var(--background-color-alt);
+  border: 1px solid var(--border-subtle);
+  border-left: 4px solid var(--interactive-accent-color);
+  border-radius: var(--border-radius-medium);
+  padding: var(--spacing-medium);
+  margin-bottom: var(--spacing-medium);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-small);
+}
+
+.group-readonly-notice-icon {
+  color: var(--interactive-accent-color);
+  font-size: 1.2em;
+  flex-shrink: 0;
+}
+
+.group-readonly-notice-content {
+  flex: 1;
+}
+
+.group-readonly-notice-title {
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--font-color);
+  margin: 0 0 var(--spacing-xxsmall) 0;
+}
+
+.group-readonly-notice-text {
+  font-size: 0.9em;
+  color: var(--font-color-subtle);
+  margin: 0;
+  line-height: 1.4;
+  opacity: 0.8;
+}
+
  
