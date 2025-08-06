@@ -170,3 +170,8 @@
 
 /* E-Learning Feature Styles */
 @import url('../../features/elearning/styles/elearning.css');
+
+/* Pages Feature Styles */
+@import url('./features/pages/page-view.css');
+@import url('./features/pages/page-header.css');
+@import url('./features/pages/page-blocks.css');

@@ -60,12 +60,13 @@
 /* ===== Disabled States ===== */
 .form-input:disabled,
 .form-textarea:disabled,
-/* .form-select:disabled { */
-  /* background-color: var(--background-color-alt); */
-  /* color: var(--input-placeholder-color, var(--font-color-disabled)); */
-  /* cursor: not-allowed; */
-  /* opacity: 0.7; */
-/* } */
+.form-select:disabled {
+  background-color: var(--background-color-alt);
+  color: var(--font-color);
+  cursor: not-allowed;
+  opacity: 0.8;
+  border-color: var(--border-color-disabled);
+}
 
 /* ===== Placeholder Styles ===== */
 .form-input::placeholder,

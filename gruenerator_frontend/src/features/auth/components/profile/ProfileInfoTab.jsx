@@ -92,9 +92,8 @@ const ProfileInfoTab = ({
   const resetProfileMutation = () => updateProfileMutation.reset();
 
   // Local form states only
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [errorProfile, setErrorProfile] = useState('');
   
@@ -130,18 +129,16 @@ const ProfileInfoTab = ({
   const stateBasedSave = useCallback(async () => {
     if (!profile || !isInitialized.current) return;
     
-    const fullDisplayName = firstName || lastName ? `${firstName} ${lastName}`.trim() : (displayName || email || user?.username || 'Benutzer');
+    const fullDisplayName = displayName || email || user?.username || 'Benutzer';
     
     const profileUpdateData = {
       display_name: fullDisplayName,
-      first_name: firstName || null,
-      last_name: lastName || null,
+      username: username || null,
       avatar_robot_id: avatarRobotId
     };
 
-    if (canManageCurrentAccount) {
-      profileUpdateData.email = email?.trim() || null;
-    }
+    // Always include email in update data - backend will handle permissions
+    profileUpdateData.email = email?.trim() || null;
 
     try {
       // Add a timeout to prevent hanging saves
@@ -162,18 +159,18 @@ const ProfileInfoTab = ({
         onErrorProfileMessage('Speichern dauert zu lange. Bitte versuchen Sie es erneut.');
       }
     }
-  }, [firstName, lastName, displayName, email, avatarRobotId, canManageCurrentAccount, user?.username, profile, updateProfile, onErrorProfileMessage]);
+  }, [displayName, username, email, avatarRobotId, user?.username, profile, updateProfile, onErrorProfileMessage]);
 
   // Auto-save using shared hook with state variables  
   const { resetTracking } = useAutosave({
     saveFunction: stateBasedSave,
     formRef: {
-      getValues: () => ({ firstName, lastName, displayName, email, avatarRobotId }),
+      getValues: () => ({ displayName, username, email, avatarRobotId }),
       watch: () => {} // Not needed for state-based
     },
     enabled: profile && isInitialized.current,
     debounceMs: 2000,
-    getFieldsToTrack: () => ['firstName', 'lastName', 'displayName', 'email', 'avatarRobotId'],
+    getFieldsToTrack: () => ['displayName', 'username', 'email', 'avatarRobotId'],
     onError: (error) => {
       console.error('Profile autosave failed:', error);
       setErrorProfile('Automatisches Speichern fehlgeschlagen.');
@@ -188,9 +185,8 @@ const ProfileInfoTab = ({
     
     // Only initialize once or when switching users
     if (!isInitialized.current) {
-      setFirstName(formFields.firstName);
-      setLastName(formFields.lastName);
       setDisplayName(formFields.displayName);
+      setUsername(formFields.username);
       setEmail(formFields.email);
       isInitialized.current = true;
       // Reset autosave tracking after initial setup
@@ -207,7 +203,7 @@ const ProfileInfoTab = ({
       }, 100);
       return () => clearTimeout(timer);
     }
-  }, [firstName, lastName, displayName, email, avatarRobotId, resetTracking, profile, isInitialized]);
+  }, [displayName, username, email, avatarRobotId, resetTracking, profile, isInitialized]);
 
   // Handle profile update error from hook
   useEffect(() => {
@@ -294,12 +290,11 @@ const ProfileInfoTab = ({
   };
 
   // UI Helper functions
-  const calculatedDisplayName = displayName || (firstName && lastName ? `${firstName} ${lastName}`.trim() : email || user?.username || 'Benutzer');
+  const calculatedDisplayName = displayName || email || user?.username || 'Benutzer';
 
   const avatarProps = getAvatarDisplayProps({
     avatar_robot_id: avatarRobotId,
-    first_name: firstName,
-    last_name: lastName,
+    display_name: displayName,
     email: email || user?.email || user?.username
   });
 
@@ -353,7 +348,7 @@ const ProfileInfoTab = ({
           </div>
           <div className="profile-user-info">
             <div className="profile-user-name">
-              {firstName ? getPossessiveForm(firstName) : "Dein"} Grünerator
+              {displayName ? getPossessiveForm(displayName.split(' ')[0]) : "Dein"} Grünerator
             </div>
             {(email || user?.email || user?.username) && <div className="profile-user-email">{email || user?.email || user?.username}</div>}
             {user?.id && <div className="profile-user-id user-id-display">ID: {user.id}</div>}
@@ -386,43 +381,33 @@ const ProfileInfoTab = ({
                   type="email" 
                   value={email} 
                   onChange={(e) => setEmail(e.target.value)} 
-                  placeholder={!canManageCurrentAccount ? "E-Mail wird von deinem Login-Anbieter verwaltet" : "Deine E-Mail-Adresse"} 
+                  placeholder={profile?.keycloak_id && (profile?.email || profile?.auth_email) ? "E-Mail wird von deinem Login-Anbieter verwaltet" : "Deine E-Mail-Adresse"} 
                   aria-label="E-Mail" 
-                  disabled={!canManageCurrentAccount}
-                />
-                {!canManageCurrentAccount && profile?.is_sso_user && (
-                  <div className="form-help-text">
-                    Deine E-Mail-Adresse wird von deinem Login-Anbieter (SSO) verwaltet und kann hier nicht geändert werden.
-                  </div>
-                )}
-                {canManageCurrentAccount && profile?.is_sso_user && !profile?.auth_email && (
-                  <div className="form-help-text form-help-text-success">
-                    Du kannst hier deine E-Mail-Adresse hinzufügen, da keine von deinem Login-Anbieter bereitgestellt wurde.
-                  </div>
-                )}
-              </div>
-              <div className="form-field-wrapper">
-                <label htmlFor="firstName">Vorname:</label>
-                <TextInput 
-                  id="firstName" 
-                  type="text" 
-                  value={firstName} 
-                  onChange={(e) => setFirstName(e.target.value)} 
-                  placeholder="Dein Vorname" 
-                  aria-label="Vorname" 
-                  disabled={false}
+                  disabled={isLoading || (profile?.keycloak_id && (profile?.email || profile?.auth_email))}
                 />
               </div>
               <div className="form-field-wrapper">
-                <label htmlFor="lastName">Nachname:</label>
+                <label htmlFor="displayName">Name:</label>
                 <TextInput 
-                  id="lastName" 
+                  id="displayName" 
                   type="text" 
-                  value={lastName} 
-                  onChange={(e) => setLastName(e.target.value)} 
-                  placeholder="Dein Nachname" 
-                  aria-label="Nachname" 
-                  disabled={isLoading}
+                  value={displayName} 
+                  onChange={(e) => setDisplayName(e.target.value)} 
+                  placeholder={profile?.keycloak_id && profile?.display_name ? "Name wird von deinem Login-Anbieter verwaltet" : "Dein vollständiger Name"} 
+                  aria-label="Name" 
+                  disabled={isLoading || (profile?.keycloak_id && profile?.display_name)}
+                />
+              </div>
+              <div className="form-field-wrapper">
+                <label htmlFor="username">Benutzername:</label>
+                <TextInput 
+                  id="username" 
+                  type="text" 
+                  value={username} 
+                  onChange={(e) => setUsername(e.target.value)} 
+                  placeholder={profile?.keycloak_id && profile?.username ? "Benutzername wird von deinem Login-Anbieter verwaltet" : "Dein Benutzername"} 
+                  aria-label="Benutzername" 
+                  disabled={isLoading || (profile?.keycloak_id && profile?.username)}
                 />
               </div>
             </div>
