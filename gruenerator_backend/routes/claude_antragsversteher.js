@@ -70,7 +70,7 @@ router.post('/upload-pdf', upload.single('file'), async (req, res) => {
         fileName: fileName,
         usePromptCaching: true
       }
-    });
+    }, req);
 
     if (!result.success) {
       throw new Error(result.error || 'Fehler bei der PDF-Analyse');

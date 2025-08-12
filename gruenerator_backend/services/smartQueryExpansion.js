@@ -84,16 +84,32 @@ class SmartQueryExpansion {
         return { terms: [], confidence: 0 };
       }
 
-      // Find similar terms from document chunks in user's corpus using existing function
+      // Find similar terms from document chunks using appropriate function based on userId
       const embeddingString = `[${queryEmbedding.join(',')}]`;
       
-      const { data: similarChunks, error } = await supabaseService
-        .rpc('similarity_search_optimized', {
-          query_embedding: embeddingString,
-          user_id_filter: userId,
-          similarity_threshold: this.semanticThreshold,
-          match_count: 20 // Get more candidates for term extraction
-        });
+      let similarChunks, error;
+      if (userId && userId !== 'system') {
+        // Use user-specific search
+        const result = await supabaseService
+          .rpc('similarity_search_optimized', {
+            query_embedding: embeddingString,
+            user_id_filter: userId,
+            similarity_threshold: this.semanticThreshold,
+            match_count: 20
+          });
+        similarChunks = result.data;
+        error = result.error;
+      } else {
+        // Use public search for system/null user queries
+        const result = await supabaseService
+          .rpc('similarity_search', {
+            query_embedding: embeddingString,
+            similarity_threshold: this.semanticThreshold,
+            match_count: 20
+          });
+        similarChunks = result.data;
+        error = result.error;
+      }
 
       if (error) {
         console.warn('[SmartQueryExpansion] Semantic neighbors RPC failed:', error);
@@ -139,13 +155,29 @@ class SmartQueryExpansion {
       // Perform loose similarity search to find potentially relevant documents
       const embeddingString = `[${queryEmbedding.join(',')}]`;
       
-      const { data: feedbackChunks, error } = await supabaseService
-        .rpc('similarity_search_optimized', {
-          query_embedding: embeddingString,
-          user_id_filter: userId,
-          similarity_threshold: this.feedbackThreshold, // Very permissive
-          match_count: 15 // Get more documents for better term extraction
-        });
+      let feedbackChunks, error;
+      if (userId && userId !== 'system') {
+        // Use user-specific search
+        const result = await supabaseService
+          .rpc('similarity_search_optimized', {
+            query_embedding: embeddingString,
+            user_id_filter: userId,
+            similarity_threshold: this.feedbackThreshold,
+            match_count: 15
+          });
+        feedbackChunks = result.data;
+        error = result.error;
+      } else {
+        // Use public search for system/null user queries
+        const result = await supabaseService
+          .rpc('similarity_search', {
+            query_embedding: embeddingString,
+            similarity_threshold: this.feedbackThreshold,
+            match_count: 15
+          });
+        feedbackChunks = result.data;
+        error = result.error;
+      }
 
       if (error || !feedbackChunks || feedbackChunks.length === 0) {
         console.log('[SmartQueryExpansion] No feedback documents found');
@@ -213,9 +245,16 @@ class SmartQueryExpansion {
       .sort((a, b) => b[1] - a[1]) // Sort by frequency
       .map(([term]) => term);
 
+    // Add German municipal/infrastructure terms if query contains them
+    const municipalEnhancement = this.getGermanMunicipalTerms(originalQuery);
+    const enhancedTerms = [...municipalEnhancement, ...sortedTerms];
+
     console.log(`[SmartQueryExpansion] Extracted ${sortedTerms.length} terms from ${chunks.length} chunks:`, sortedTerms.slice(0, 8));
+    if (municipalEnhancement.length > 0) {
+      console.log(`[SmartQueryExpansion] Added ${municipalEnhancement.length} German municipal terms:`, municipalEnhancement);
+    }
     
-    return sortedTerms;
+    return enhancedTerms;
   }
 
   /**
@@ -269,6 +308,42 @@ class SmartQueryExpansion {
       feedbackConfidence: feedbackExpansion.confidence,
       totalExpansions: uniqueQueries.length - 1
     };
+  }
+
+  /**
+   * Get German municipal/infrastructure expansion terms
+   * @private
+   */
+  getGermanMunicipalTerms(originalQuery) {
+    const queryLower = originalQuery.toLowerCase();
+    const expansions = [];
+    
+    // German municipal/infrastructure term mappings
+    const municipalMappings = {
+      'hochwasser': ['überflutung', 'wassermanagement'],
+      'hochwasserschutz': ['überflutung', 'wassermanagement', 'deich', 'klimaanpassung'],
+      'radweg': ['fahrrad', 'mobilität', 'verkehrswende'],
+      'radwege': ['fahrrad', 'mobilität', 'verkehrswende', 'radinfrastruktur'],
+      'stadtentwicklung': ['urbanisierung', 'quartier', 'städtebau'],
+      'stadt': ['kommune', 'kommunal', 'gemeinde'],
+      'muster': ['beispiel', 'vorlage', 'kommune'],
+      'musterstadt': ['kommune', 'gemeinde', 'kommunal'],
+      'infrastruktur': ['verkehr', 'versorgung', 'baumaßnahmen'],
+      'verkehrswende': ['mobilität', 'fahrrad', 'öpnv', 'verkehr'],
+      'luftqualität': ['emission', 'umwelt', 'verkehr', 'luft'],
+      'nachhaltig': ['umwelt', 'ökologie', 'grün', 'klima'],
+      'klimaanpassung': ['klimawandel', 'umwelt', 'nachhaltigkeit']
+    };
+    
+    // Check for matches and add appropriate expansions
+    Object.entries(municipalMappings).forEach(([key, values]) => {
+      if (queryLower.includes(key)) {
+        expansions.push(...values.slice(0, 2)); // Add top 2 expansion terms per match
+      }
+    });
+    
+    // Remove duplicates and limit to reasonable number
+    return [...new Set(expansions)].slice(0, 3);
   }
 
   /**

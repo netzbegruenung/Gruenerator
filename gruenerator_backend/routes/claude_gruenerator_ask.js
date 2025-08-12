@@ -1,6 +1,7 @@
 import express from 'express';
 import authMiddlewareModule from '../middleware/authMiddleware.js';
 import { vectorSearchService } from '../services/vectorSearchService.js';
+import { multiStageRetrieval } from '../services/multiStageRetrieval.js';
 import passport from '../config/passportSetup.mjs';
 import { 
   MARKDOWN_FORMATTING_INSTRUCTIONS, 
@@ -176,6 +177,39 @@ ${MARKDOWN_FORMATTING_INSTRUCTIONS}`;
 }
 
 /**
+ * Assess query complexity to determine optimal search strategy
+ */
+function assessQueryComplexity(query) {
+  const words = query.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+  const wordCount = words.length;
+  
+  // Detect complex concepts and relationships
+  const complexIndicators = [
+    'wie', 'warum', 'wann', 'wo', 'zusammenhang', 'beziehung', 'vergleich', 
+    'unterschied', 'entwicklung', 'auswirkung', 'folgen', 'ursachen'
+  ];
+  
+  const concepts = words.filter(word => 
+    complexIndicators.some(indicator => word.includes(indicator)) ||
+    word.length > 8 // Long words often indicate complex concepts
+  );
+  
+  const isComplex = wordCount > 5 || 
+                   concepts.length > 2 || 
+                   query.includes('?') || 
+                   complexIndicators.some(indicator => query.includes(indicator));
+  
+  const needsDiversity = wordCount > 8 || concepts.length > 3;
+  
+  return {
+    isComplex,
+    wordCount,
+    concepts,
+    needsDiversity
+  };
+}
+
+/**
  * Execute search_documents tool call
  */
 async function executeSearchTool(toolInput, userId, groupId) {
@@ -184,13 +218,52 @@ async function executeSearchTool(toolInput, userId, groupId) {
     
     console.log(`[claude_gruenerator_ask] Executing search: "${query}" (mode: ${search_mode})`);
     
-    const searchResults = await vectorSearchService.search({
-      query: query,
-      user_id: userId,
-      group_id: groupId || null,
-      limit: 5,
-      mode: search_mode
-    });
+    // Intelligent search routing: Use MultiStageRetrieval for complex queries
+    let searchResults;
+    const queryComplexity = assessQueryComplexity(query);
+    
+    if (queryComplexity.isComplex && search_mode === 'vector') {
+      console.log(`[claude_gruenerator_ask] Using MultiStageRetrieval for complex query (${queryComplexity.wordCount} words, ${queryComplexity.concepts.length} concepts)`);
+      
+      try {
+        searchResults = await multiStageRetrieval.search(query, userId, {
+          limit: 5,
+          groupId: groupId || null,
+          enableStages: {
+            approximateSearch: true,
+            semanticFilter: true,
+            contextualRerank: true,
+            diversityInjection: queryComplexity.needsDiversity
+          }
+        });
+        
+        // Convert MultiStageRetrieval format to expected format
+        if (searchResults.success) {
+          searchResults = {
+            results: searchResults.results,
+            success: true
+          };
+        }
+      } catch (multiStageError) {
+        console.warn(`[claude_gruenerator_ask] MultiStageRetrieval failed, falling back to standard search:`, multiStageError.message);
+        searchResults = await vectorSearchService.search({
+          query: query,
+          user_id: userId,
+          group_id: groupId || null,
+          limit: 5,
+          mode: search_mode
+        });
+      }
+    } else {
+      // Use standard search for simple queries or other modes
+      searchResults = await vectorSearchService.search({
+        query: query,
+        user_id: userId,
+        group_id: groupId || null,
+        limit: 5,
+        mode: search_mode
+      });
+    }
     
     // Format results for Claude
     const formattedResults = (searchResults.results || []).map((result, index) => {

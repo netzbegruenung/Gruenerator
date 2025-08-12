@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { HiShieldCheck } from 'react-icons/hi';
 import PropTypes from 'prop-types';
 // import { useDynamicTextSize } from '../../../components/utils/commonFunctions';
 import useApiSubmit from '../../../components/hooks/useApiSubmit';
@@ -15,6 +16,8 @@ import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { createKnowledgeFormNotice, createKnowledgePrompt } from '../../../utils/knowledgeFormUtils';
 import { useGeneratorKnowledgeStore } from '../../../stores/core/generatorKnowledgeStore';
 import { useTabIndex, useBaseFormTabIndex } from '../../../hooks/useTabIndex';
+import { prepareFilesForSubmission } from '../../../utils/fileAttachmentUtils';
+import { HiGlobeAlt } from 'react-icons/hi';
 
 const API_ENDPOINTS = {
   [TEXT_TYPES.REDE]: '/claude_rede',
@@ -26,6 +29,10 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
   const componentName = 'universal-text';
   const [selectedType, setSelectedType] = useState(TEXT_TYPES.UNIVERSAL);
   const [generatedContent, setGeneratedContent] = useState('');
+  const [useWebSearchTool, setUseWebSearchTool] = useState(false);
+  const [usePrivacyMode, setUsePrivacyMode] = useState(false);
+  const [attachedFiles, setAttachedFiles] = useState([]);
+  const [processedAttachments, setProcessedAttachments] = useState([]);
   const formRef = useRef();
   const { setGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
   
@@ -81,6 +88,11 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
     const formData = formRef.current.getFormData();
     if (!formData) return;
 
+    // Add web search, privacy mode and attachments to form data
+    formData.useWebSearchTool = useWebSearchTool;
+    formData.usePrivacyMode = usePrivacyMode;
+    formData.attachments = processedAttachments;
+
     try {
       // Extract search query from form data for intelligent document content
       const extractQueryFromFormData = (data) => {
@@ -134,22 +146,68 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
     } catch (error) {
       console.error('Error submitting form:', error);
     }
-  }, [submitForm, resetSuccess, setGeneratedText, selectedType, componentName, source, isInstructionsActive, getActiveInstruction, groupDetailsData, getKnowledgeContent, getDocumentContent]);
+  }, [submitForm, resetSuccess, setGeneratedText, selectedType, componentName, source, isInstructionsActive, getActiveInstruction, groupDetailsData, getKnowledgeContent, getDocumentContent, useWebSearchTool, usePrivacyMode, processedAttachments]);
 
   const handleGeneratedContentChange = useCallback((content) => {
     setGeneratedContent(content);
     setGeneratedText(componentName, content);
   }, [setGeneratedText, componentName]);
 
+  const handleAttachmentClick = useCallback(async (files) => {
+    try {
+      console.log(`[UniversalTextGenerator] Processing ${files.length} new attached files`);
+      const processed = await prepareFilesForSubmission(files);
+      
+      // Accumulate files instead of replacing
+      setAttachedFiles(prevFiles => [...prevFiles, ...files]);
+      setProcessedAttachments(prevProcessed => [...prevProcessed, ...processed]);
+      
+      console.log('[UniversalTextGenerator] Files successfully processed for submission');
+    } catch (error) {
+      console.error('[UniversalTextGenerator] File processing error:', error);
+      // Here you could show a toast notification or error message to the user
+      // For now, we'll just log the error
+    }
+  }, []);
+
+  const handleRemoveFile = useCallback((index) => {
+    console.log(`[UniversalTextGenerator] Removing file at index ${index}`);
+    setAttachedFiles(prevFiles => prevFiles.filter((_, i) => i !== index));
+    setProcessedAttachments(prevProcessed => prevProcessed.filter((_, i) => i !== index));
+  }, []);
+
   const helpContent = {
-    content: "Der Universal Text Grünerator erstellt verschiedene Textarten - von Reden über Wahlprogramme bis hin zu allgemeinen Texten.",
+    content: "Der Universal Text Grünerator erstellt verschiedene Textarten - von Reden über Wahlprogramme bis hin zu allgemeinen Texten. Du kannst auch PDFs und Bilder als Hintergrundinformation anhängen.",
     tips: [
       "Wähle zunächst den passenden Texttyp aus",
       "Reden: Perfekt für Veranstaltungen und öffentliche Auftritte",
       "Wahlprogramme: Strukturierte politische Inhalte",
       "Universal: Für alle anderen Textarten geeignet",
+      "Hänge PDFs oder Bilder als Kontext an (max. 5MB pro Datei)",
       "Gib spezifische Details für bessere Ergebnisse an"
     ]
+  };
+
+  const webSearchFeatureToggle = {
+    isActive: useWebSearchTool,
+    onToggle: (checked) => {
+      setUseWebSearchTool(checked);
+    },
+    label: "Websuche verwenden",
+    icon: HiGlobeAlt,
+    description: "",
+    tabIndex: tabIndex.webSearch || 11
+  };
+
+  const privacyModeToggle = {
+    isActive: usePrivacyMode,
+    onToggle: (checked) => {
+      setUsePrivacyMode(checked);
+    },
+    label: "Privacy-Mode",
+    icon: HiShieldCheck,
+    description: "Verwendet deutsche Server der Netzbegrünung.",
+    tabIndex: tabIndex.privacyMode || 13
   };
 
   const renderForm = () => {
@@ -186,6 +244,14 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
           formNotice={formNotice}
           helpContent={helpContent}
           componentName={componentName}
+          webSearchFeatureToggle={webSearchFeatureToggle}
+          useWebSearchFeatureToggle={true}
+          privacyModeToggle={privacyModeToggle}
+          usePrivacyModeToggle={true}
+          useFeatureIcons={true}
+          onAttachmentClick={handleAttachmentClick}
+          onRemoveFile={handleRemoveFile}
+          attachedFiles={attachedFiles}
           firstExtrasChildren={renderTextTypeSection()}
           platformSelectorTabIndex={baseFormTabIndex.platformSelectorTabIndex}
           knowledgeSelectorTabIndex={baseFormTabIndex.knowledgeSelectorTabIndex}

@@ -167,12 +167,13 @@ router.get('/user-templates', ensureAuthenticated, async (req, res) => {
   try {
     const userId = req.user.id;
     
-    // Fetch user's Canva templates from user_content table
+    // Fetch user's Canva templates from database table (excluding examples)
     const { data: templates, error } = await supabaseService
-      .from('user_content')
+      .from('database')
       .select('*')
       .eq('user_id', userId)
       .eq('type', 'template')
+      .eq('is_example', false)
       .order('updated_at', { ascending: false });
       
     if (error) {
@@ -240,7 +241,7 @@ router.post('/user-templates', ensureAuthenticated, async (req, res) => {
       });
     }
     
-    // Prepare template data for user_content table
+    // Prepare template data for database table
     const templateData = {
       user_id: userId,
       type: 'template',
@@ -257,6 +258,7 @@ router.post('/user-templates', ensureAuthenticated, async (req, res) => {
       tags: Array.isArray(tags) ? tags : [],
       images: Array.isArray(images) ? images : [],
       is_private: is_private !== false, // Default to private
+      is_example: false, // User templates are not examples
       status: 'published'
     };
     
@@ -269,7 +271,7 @@ router.post('/user-templates', ensureAuthenticated, async (req, res) => {
       try {
         const templateDataWithStatus = { ...templateData, status: statusValue };
         const result = await supabaseService
-          .from('user_content')
+          .from('database')
           .insert(templateDataWithStatus)
           .select()
           .single();
@@ -357,7 +359,7 @@ router.put('/user-templates/:id', ensureAuthenticated, async (req, res) => {
     
     // Verify ownership
     const { data: existingTemplate, error: checkError } = await supabaseService
-      .from('user_content')
+      .from('database')
       .select('user_id, metadata')
       .eq('id', id)
       .eq('type', 'template')
@@ -406,7 +408,7 @@ router.put('/user-templates/:id', ensureAuthenticated, async (req, res) => {
     
     // Update template
     const { data: updatedTemplate, error } = await supabaseService
-      .from('user_content')
+      .from('database')
       .update(updateData)
       .eq('id', id)
       .eq('user_id', userId)
@@ -461,7 +463,7 @@ router.delete('/user-templates/:id', ensureAuthenticated, async (req, res) => {
     
     // Verify ownership and delete
     const { data: deletedTemplate, error } = await supabaseService
-      .from('user_content')
+      .from('database')
       .delete()
       .eq('id', id)
       .eq('user_id', userId)
@@ -522,7 +524,7 @@ router.post('/user-templates/from-url', ensureAuthenticated, async (req, res) =>
     
     // Check if a template with this Canva URL already exists for this user
     const { data: existingTemplate } = await supabaseService
-      .from('user_content')
+      .from('database')
       .select('id, title')
       .eq('user_id', userId)
       .eq('type', 'template')
@@ -536,7 +538,7 @@ router.post('/user-templates/from-url', ensureAuthenticated, async (req, res) =>
       });
     }
     
-    // Prepare template data for user_content table
+    // Prepare template data for database table
     const newTemplateData = {
       user_id: userId,
       type: 'template',
@@ -564,6 +566,7 @@ router.post('/user-templates/from-url', ensureAuthenticated, async (req, res) =>
         : ['imported'], // Default tag
       images: [],
       is_private: true,      // Default to private
+      is_example: false,     // User templates are not examples
       status: 'published'
     };
     
@@ -576,7 +579,7 @@ router.post('/user-templates/from-url', ensureAuthenticated, async (req, res) =>
       try {
         const templateDataWithStatus = { ...newTemplateData, status: statusValue };
         const result = await supabaseService
-          .from('user_content')
+          .from('database')
           .insert(templateDataWithStatus)
           .select()
           .single();
@@ -652,7 +655,7 @@ router.post('/user-templates/:id/metadata', ensureAuthenticated, async (req, res
     
     // Verify ownership
     const { data: existingTemplate, error: checkError } = await supabaseService
-      .from('user_content')
+      .from('database')
       .select('user_id, metadata')
       .eq('id', id)
       .eq('type', 'template')
@@ -694,7 +697,7 @@ router.post('/user-templates/:id/metadata', ensureAuthenticated, async (req, res
     
     // Update template
     const { data: updatedTemplate, error } = await supabaseService
-      .from('user_content')
+      .from('database')
       .update(updateData)
       .eq('id', id)
       .eq('user_id', userId)
@@ -745,7 +748,7 @@ router.delete('/user-templates/bulk', ensureAuthenticated, async (req, res) => {
 
     // First, verify all templates belong to the user
     const { data: verifyTemplates, error: verifyError } = await supabaseService
-      .from('user_content')
+      .from('database')
       .select('id')
       .eq('user_id', userId)
       .eq('type', 'template')
@@ -769,7 +772,7 @@ router.delete('/user-templates/bulk', ensureAuthenticated, async (req, res) => {
 
     // Perform bulk delete
     const { data: deletedData, error: deleteError } = await supabaseService
-      .from('user_content')
+      .from('database')
       .delete()
       .eq('user_id', userId)
       .eq('type', 'template')
@@ -800,6 +803,174 @@ router.delete('/user-templates/bulk', ensureAuthenticated, async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to perform bulk delete of templates'
+    });
+  }
+});
+
+// Get examples (templates marked as examples)
+router.get('/examples', ensureAuthenticated, async (req, res) => {
+  try {
+    const { type, limit = 20 } = req.query;
+    
+    // Build query for examples
+    let query = supabaseService
+      .from('database')
+      .select('id, title, description, content_data, metadata, categories, tags, thumbnail_url, external_url, created_at, updated_at')
+      .eq('is_example', true)
+      .eq('status', 'published')
+      .order('created_at', { ascending: false })
+      .limit(parseInt(limit));
+    
+    // Filter by type if specified
+    if (type) {
+      query = query.eq('type', type);
+    }
+    
+    const { data: examples, error } = await query;
+      
+    if (error) {
+      console.error('[User Templates /examples GET] Supabase error:', error);
+      throw new Error(error.message);
+    }
+    
+    // Transform data to match frontend expectations
+    const formattedExamples = examples.map(example => ({
+      id: example.id,
+      title: example.title,
+      description: example.description,
+      type: example.type || 'template',
+      template_type: example.metadata?.template_type || 'example',
+      canva_url: example.external_url,
+      preview_image_url: example.thumbnail_url,
+      content_data: example.content_data,
+      metadata: example.metadata,
+      categories: example.categories || [],
+      tags: example.tags || [],
+      is_example: true,
+      created_at: example.created_at,
+      updated_at: example.updated_at
+    }));
+    
+    res.json({ 
+      success: true, 
+      data: formattedExamples,
+      count: formattedExamples.length
+    });
+    
+  } catch (error) {
+    console.error('[User Templates /examples GET] Error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message || 'Fehler beim Laden der Beispiele.'
+    });
+  }
+});
+
+// Find similar examples using vector search
+router.post('/examples/similar', ensureAuthenticated, async (req, res) => {
+  try {
+    const { query, type, limit = 5 } = req.body;
+    
+    if (!query) {
+      return res.status(400).json({
+        success: false,
+        message: 'Suchanfrage ist erforderlich.'
+      });
+    }
+    
+    // Use vectorSearchService which uses dedicated RPCs (no execute_sql dependency)
+    const { vectorSearchService } = await import('../../services/vectorSearchService.js');
+
+    let vectorResults = [];
+    try {
+      const search = await vectorSearchService.searchDatabaseExamples(
+        String(query).trim(),
+        type || null,
+        parseInt(limit),
+        0.25
+      );
+      if (search.success && Array.isArray(search.results)) {
+        vectorResults = search.results;
+      }
+    } catch (vecErr) {
+      console.warn('[User Templates /examples/similar POST] Vector examples search failed, falling back:', vecErr?.message);
+    }
+
+    if (!vectorResults || vectorResults.length === 0) {
+      // Fallback to text search
+      const fallbackQuery = supabaseService
+        .from('database')
+        .select('id, title, description, content_data, metadata, categories, tags, thumbnail_url, external_url, type, created_at, updated_at')
+        .eq('is_example', true)
+        .eq('status', 'published')
+        .textSearch('title', String(query).trim())
+        .limit(parseInt(limit));
+
+      if (type) {
+        fallbackQuery.eq('type', type);
+      }
+
+      const { data: fallbackResults, error: fallbackError } = await fallbackQuery;
+      if (fallbackError) {
+        throw new Error(`Textsuche fehlgeschlagen: ${fallbackError.message}`);
+      }
+
+      return res.json({
+        success: true,
+        data: fallbackResults || [],
+        search_method: 'text_search',
+        message: 'Verwendet Textsuche als Fallback'
+      });
+    }
+
+    // Fetch full database rows to ensure consistent shape for frontend
+    const ids = vectorResults.map(r => r.id).filter(Boolean);
+    let fullRows = [];
+    if (ids.length > 0) {
+      const { data: rows, error: fetchErr } = await supabaseService
+        .from('database')
+        .select('id, title, description, content_data, metadata, categories, tags, thumbnail_url, external_url, type, created_at, updated_at')
+        .eq('is_example', true)
+        .eq('status', 'published')
+        .in('id', ids);
+      if (!fetchErr && Array.isArray(rows)) {
+        // Keep the vector order
+        const rowMap = new Map(rows.map(r => [r.id, r]));
+        fullRows = ids.map(id => rowMap.get(id)).filter(Boolean);
+      }
+    }
+
+    const formattedResults = (fullRows.length > 0 ? fullRows : vectorResults).map(example => ({
+      id: example.id,
+      title: example.title,
+      description: example.description,
+      type: example.type,
+      template_type: example.metadata?.template_type || 'example',
+      canva_url: example.external_url,
+      preview_image_url: example.thumbnail_url,
+      content_data: example.content_data,
+      metadata: example.metadata,
+      categories: example.categories || [],
+      tags: example.tags || [],
+      similarity: example.similarity || example.similarity_score || null,
+      is_example: true,
+      created_at: example.created_at,
+      updated_at: example.updated_at
+    }));
+
+    res.json({
+      success: true,
+      data: formattedResults,
+      query: String(query).trim(),
+      search_method: 'vector_search',
+      count: formattedResults.length
+    });
+    
+  } catch (error) {
+    console.error('[User Templates /examples/similar POST] Error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Fehler bei der Ähnlichkeitssuche.'
     });
   }
 });

@@ -1,0 +1,195 @@
+.feature-icons {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xsmall);
+  border: 1px solid var(--font-color);
+  border-radius: var(--card-border-radius-small);
+  background-color: transparent;
+  transition: var(--input-transition);
+  padding: var(--spacing-xsmall);
+}
+
+.feature-icons-row {
+  display: flex;
+  justify-content: center;
+  gap: var(--spacing-small);
+}
+
+
+.feature-icon-button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  background-color: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--card-border-radius-small);
+  cursor: pointer;
+  transition: var(--input-transition);
+  outline: none;
+}
+
+.feature-icon-button:hover {
+}
+
+.feature-icon-button:focus-visible {
+  outline: 2px solid var(--interactive-accent-color);
+  outline-offset: 2px;
+}
+
+.feature-icon-button.active {
+  background-color: var(--secondary-50);
+  border-color: var(--interactive-accent-color);
+}
+
+.feature-icon-button.active .feature-icon {
+  color: var(--interactive-accent-color);
+}
+
+/* Click animation */
+.feature-icon-button.clicked {
+  animation: iconClick 0.3s ease-out;
+}
+
+@keyframes iconClick {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.02);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.feature-icons .feature-icon {
+  font-size: 1.4rem;
+  color: var(--font-color);
+  opacity: 0.7;
+  transition: var(--input-transition);
+  margin: 0; /* Override any margin from FeatureToggle */
+}
+
+.feature-icon-button:hover .feature-icon,
+.feature-icon-button.active .feature-icon {
+  opacity: 1;
+}
+
+/* Button Label (unique class name to avoid tooltip CSS conflicts) */
+.feature-icons-button__label {
+  position: absolute;
+  bottom: -28px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: var(--spacing-xxsmall) var(--spacing-xsmall);
+  background-color: var(--grey-900);
+  color: var(--white);
+  font-size: 0.75rem;
+  white-space: nowrap;
+  border-radius: 4px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease-out;
+  z-index: 1000;
+}
+
+.feature-icon-button:hover .feature-icons-button__label {
+  opacity: 0.9;
+}
+
+/* Dark mode adjustments */
+[data-theme="dark"] .feature-icons {
+  background-color: transparent;
+}
+
+[data-theme="dark"] .feature-icon-button.active {
+  background-color: var(--grey-700);
+}
+
+[data-theme="dark"] .feature-icons-button__label {
+  background-color: var(--grey-700);
+  color: var(--neutral-600);
+}
+
+/* Attachment badge removed */
+
+/* Hidden file input */
+.feature-icons .attachment-file-input {
+  display: none;
+}
+
+/* Privacy info inline message */
+.feature-icons__privacy-info {
+  margin-top: var(--spacing-xsmall);
+  color: var(--font-color);
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.feature-icons__info-link {
+  background: none;
+  border: none;
+  color: var(--interactive-accent-color);
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font: inherit;
+}
+
+.feature-icons__info-link:hover {
+  opacity: 0.9;
+}
+
+.feature-icons__info-link:focus-visible {
+  outline: 2px solid var(--interactive-accent-color);
+  outline-offset: 2px;
+  border-radius: var(--card-border-radius-small);
+}
+
+.feature-icons__websearch-info {
+  margin-top: var(--spacing-xxsmall);
+  color: var(--font-color);
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .feature-icons {
+    gap: var(--spacing-xsmall);
+    padding: var(--spacing-xxsmall);
+  }
+  
+  .feature-icon-button {
+    width: 32px;
+    height: 32px;
+  }
+  
+  .feature-icons .feature-icon {
+    font-size: 1.1rem;
+  }
+  
+  .feature-icon-button .attachment-badge {
+    width: 16px;
+    height: 16px;
+    font-size: 0.6rem;
+    min-width: 16px;
+  }
+  
+  .attachment-badge .attachment-remove-button {
+    width: 10px;
+    height: 10px;
+    top: -5px;
+    right: -5px;
+  }
+  
+  .attachment-badge .attachment-remove-button .remove-icon {
+    font-size: 0.45rem;
+  }
+}

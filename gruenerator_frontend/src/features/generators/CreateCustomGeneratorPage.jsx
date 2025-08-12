@@ -242,25 +242,14 @@ const CreateCustomGeneratorPage = ({ showHeaderFooter = true }) => {
     setValue('fields', currentFields.filter((_, i) => i !== index));
   };
 
-  // Validation
-  const validateStep = () => {
+  // Validation - only handle special cases not covered by React Hook Form
+  const validateStep = async () => {
     setError(null);
-    const formValues = getValues();
-
+    
+    // Special validations that React Hook Form doesn't handle
     switch (currentStep) {
       case STEPS.BASICS:
-        if (!formValues.name) {
-          setError('Der Name des Grünerators darf nicht leer sein.');
-          return false;
-        }
-        if (!formValues.slug) {
-          setError('Der URL-Pfad darf nicht leer sein.');
-          return false;
-        }
-        if (!/^[a-z0-9-]+$/.test(formValues.slug)) {
-          setError('Der URL-Pfad darf nur Kleinbuchstaben, Zahlen und Bindestriche enthalten.');
-          return false;
-        }
+        // Only check slug availability (async validation)
         if (slugAvailabilityError) {
           setError(slugAvailabilityError);
           return false;
@@ -269,45 +258,32 @@ const CreateCustomGeneratorPage = ({ showHeaderFooter = true }) => {
           setError('Die Verfügbarkeit des URL-Pfads wird noch geprüft...');
           return false;
         }
-        if (!formValues.title) {
-          setError('Der Titel darf nicht leer sein.');
-          return false;
-        }
-        if (!formValues.description) {
-          setError('Die Beschreibung darf nicht leer sein.');
-          return false;
-        }
         return true;
-
+        
       case STEPS.FIELDS:
         if (isEditingField) {
           setError('Bitte schließe zuerst den Feld-Editor (Speichern oder Abbrechen).');
           return false;
         }
         return true;
-
-      case STEPS.DOCUMENTS:
+        
+      // case STEPS.DOCUMENTS:
         // Documents are optional, so always valid
-        return true;
-
+        // return true;
+        
       case STEPS.PROMPT:
-        if (!formValues.prompt) {
-          setError('Die Prompt-Vorlage darf nicht leer sein.');
-          return false;
-        }
-        return true;
-
       case STEPS.REVIEW:
         return true;
-
+        
       default:
         return true;
     }
   };
 
   // Navigation with React Hook Form
-  const onSubmit = (data) => {
-    if (!validateStep()) {
+  const onSubmit = async (data) => {
+    const isValid = await validateStep();
+    if (!isValid) {
       return;
     }
     if (currentStep < STEPS.REVIEW) {
@@ -598,6 +574,7 @@ const CreateCustomGeneratorPage = ({ showHeaderFooter = true }) => {
           showBackButton={currentStep > STEPS.BASICS && !isEditingField}
           nextButtonText={currentStep === STEPS.REVIEW ? 'Speichern' : 'Weiter'}
           useModernForm={true}
+          formControl={control}
           defaultValues={INITIAL_FORM_DATA}
           hideExtrasSection={true}
           showSubmitButtonInInputSection={true}

@@ -1,13 +1,15 @@
-import React from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { Controller } from 'react-hook-form';
 import TextareaAutosize from 'react-textarea-autosize';
 import FormFieldWrapper from './FormFieldWrapper';
 import { useSimpleFormStore } from '../../../../stores/core/simpleFormStore';
+import { detectUrls } from '../../../../utils/urlDetection';
+import useDebounce from '../../../../components/hooks/useDebounce';
 
 /**
  * FormTextarea - Modern textarea component with auto-resize and react-hook-form integration
- * Features: Auto-resize, Controller integration, character count, accessibility
+ * Features: Auto-resize, Controller integration, character count, accessibility, URL detection
  */
 const FormTextarea = ({
   name,
@@ -27,10 +29,36 @@ const FormTextarea = ({
   textareaProps = {},
   labelProps = {},
   tabIndex,
+  // URL detection (no UI rendering)
+  enableUrlDetection = false,
+  onUrlsDetected,
   ...rest
 }) => {
   const textareaId = `form-textarea-${name}`;
   const textareaClassName = `form-textarea ${className}`.trim();
+
+  // URL detection state
+  const [detectedUrls, setDetectedUrls] = useState([]);
+  const [fieldValue, setFieldValue] = useState('');
+  
+  const debouncedValue = useDebounce(fieldValue, 1000); // 1 second debounce
+
+  // URL detection effect
+  useEffect(() => {
+    if (enableUrlDetection && debouncedValue) {
+      const urls = detectUrls(debouncedValue);
+      setDetectedUrls(urls);
+      
+      if (urls.length > 0) {
+        console.log(`[FormTextarea] Detected ${urls.length} URLs: ${urls.join(', ')}`);
+        if (onUrlsDetected) {
+          onUrlsDetected(urls);
+        }
+      }
+    }
+  }, [debouncedValue, enableUrlDetection, onUrlsDetected]);
+
+  // No crawl UI rendered here by design
 
   // Character count component
   const CharacterCount = ({ value }) => {
@@ -83,6 +111,12 @@ const FormTextarea = ({
                 tabIndex={tabIndex}
                 onChange={(e) => {
                   field.onChange(e);
+                  
+                  // Update field value for URL detection
+                  if (enableUrlDetection) {
+                    setFieldValue(e.target.value);
+                  }
+                  
                   // Call external onChange if provided
                   if (rest.onChange) {
                     rest.onChange(e.target.value);
@@ -125,6 +159,12 @@ const FormTextarea = ({
           onChange={(e) => {
             const newVal = e.target.value;
             setField(name, newVal);
+            
+            // Update field value for URL detection
+            if (enableUrlDetection) {
+              setFieldValue(newVal);
+            }
+            
             if (rest.onChange) {
               rest.onChange(newVal);
             }
@@ -155,7 +195,10 @@ FormTextarea.propTypes = {
   maxLength: PropTypes.number,
   textareaProps: PropTypes.object,
   labelProps: PropTypes.object,
-  tabIndex: PropTypes.number
+  tabIndex: PropTypes.number,
+  // URL-aware props (callback only, no UI)
+  enableUrlDetection: PropTypes.bool,
+  onUrlsDetected: PropTypes.func
 };
 
 export default FormTextarea; 

@@ -57,7 +57,9 @@ class ToolHandler {
         }));
       
       case 'openai':
-        // OpenAI uses a different format
+      case 'litellm':
+      case 'ionos':
+        // OpenAI, LiteLLM, and IONOS use the same format
         return tools.map(tool => ({
           type: 'function',
           function: {

@@ -1,61 +1,115 @@
 const express = require('express');
+// Import unified prompt building architecture
 const {
   HTML_FORMATTING_INSTRUCTIONS,
   formatUserContent,
   TITLE_GENERATION_INSTRUCTION,
-  processResponseWithTitle
-} = require('../utils/promptUtils');
+  processResponseWithTitle,
+  PromptBuilder
+} = require('../utils/promptBuilderCompat');
+
+// Import attachment utilities
+const {
+  processAndBuildAttachments
+} = require('../utils/attachmentUtils');
+
+// Import response and error handling utilities
+const { sendSuccessResponseWithAttachments, sendSuccessResponse } = require('../utils/responseFormatter');
+const { withErrorHandler, handleValidationError } = require('../utils/errorHandler');
 
 // Router for Universal Text Generation
 const universalRouter = express.Router();
 
-universalRouter.post('/', async (req, res) => {
-  const { textForm, sprache, thema, details, customPrompt } = req.body;
+const universalHandler = withErrorHandler(async (req, res) => {
+  const { textForm, sprache, thema, details, customPrompt, usePrivacyMode, provider, attachments } = req.body;
 
   // Aktuelles Datum ermitteln
   const currentDate = new Date().toISOString().split('T')[0];
 
-  // Wenn ein benutzerdefinierter Prompt vorhanden ist, sind die anderen Felder optional
+  // Validate required fields
   if (!customPrompt && (!textForm || !sprache || !thema)) {
-    return res.status(400).json({ 
-      error: 'Alle Pflichtfelder (Textform, Sprache, Thema) müssen ausgefüllt sein oder ein benutzerdefinierter Prompt muss angegeben werden.' 
-    });
+    return handleValidationError(
+      res, 
+      '/claude_universal',
+      'Alle Pflichtfelder (Textform, Sprache, Thema) müssen ausgefüllt sein oder ein benutzerdefinierter Prompt muss angegeben werden.'
+    );
   }
 
-  // Systemanweisung für die Texterstellung
-  const systemPrompt = `Du bist ein erfahrener politischer Texter für Bündnis 90/Die Grünen mit Expertise in verschiedenen Textformen.
+  // Process attachments using consolidated utility
+  const attachmentResult = await processAndBuildAttachments(
+    attachments, 
+    usePrivacyMode, 
+    'claude_universal', 
+    req.user?.id || 'unknown'
+  );
+
+  // Handle attachment errors
+  if (attachmentResult.error) {
+    return handleValidationError(res, '/claude_universal', attachmentResult.error);
+  }
+
+  console.log('[claude_universal] Request received:', {
+    textForm,
+    sprache, 
+    thema,
+    hasCustomPrompt: !!customPrompt,
+    usePrivacyMode: usePrivacyMode || false,
+    provider: usePrivacyMode && provider ? provider : 'default',
+    hasAttachments: attachmentResult.hasAttachments,
+    attachmentsCount: attachmentResult.summary?.count || 0,
+    attachmentsTotalSizeMB: attachmentResult.summary?.totalSizeMB || 0
+  });
+    console.log('[claude_universal] Starting AI Worker request');
+
+    // Build prompt using new Context-First Architecture
+    console.log('[claude_universal] Building prompt with new Context-First Architecture');
+    
+    const builder = new PromptBuilder('universal')
+      .enableDebug(process.env.NODE_ENV === 'development');
+
+    // Set system role for universal text generation
+    const systemRole = `Du bist ein erfahrener politischer Texter für Bündnis 90/Die Grünen mit Expertise in verschiedenen Textformen.
 Deine Hauptaufgabe ist es, politische Texte zu erstellen, die die grünen Werte und Ziele optimal kommunizieren.
 Achte besonders auf:
 - Klare politische Positionierung im Sinne der Grünen
 - Zielgruppengerechte Ansprache
 - Aktuelle politische Themen und deren Einordnung
 - Lokale und regionale Bezüge, wo sinnvoll
-- Handlungsaufforderungen und Lösungsvorschläge`;
+- Handlungsaufforderungen und Lösungsvorschläge
 
-  // Erstelle den Benutzerinhalt basierend auf dem Vorhandensein eines benutzerdefinierten Prompts
-  let userContent;
-  
-  // Build the specialized base content for universal text generation
-  const baseContent = `Passe Struktur, Länge und Aufbau an die gewählte Textform an. Der Text soll im angegebenen Stil verfasst sein und dabei authentisch und überzeugend wirken.
+Passe Struktur, Länge und Aufbau an die gewählte Textform an. Der Text soll im angegebenen Stil verfasst sein und dabei authentisch und überzeugend wirken.`;
+    
+    builder
+      .setSystemRole(systemRole)
+      .setFormatting(HTML_FORMATTING_INSTRUCTIONS);
+      
+    // Note: Universal text generation doesn't use platform constraints (flexible lengths)
 
-${HTML_FORMATTING_INSTRUCTIONS}`;
-  
-  if (customPrompt) {
-    const additionalInfo = `Zusätzliche Informationen (falls relevant):
-${textForm ? `- Textform: ${textForm}` : ''}
-${sprache ? `- Stil/Sprache: ${sprache}` : ''}
-${thema ? `- Thema: ${thema}` : ''}
-${details ? `- Details: ${details}` : ''}`;
+    // Add documents if present
+    if (attachmentResult.documents.length > 0) {
+      await builder.addDocuments(attachmentResult.documents, usePrivacyMode);
+    }
 
-    userContent = formatUserContent({
-      customPrompt,
-      baseContent,
-      currentDate,
-      additionalInfo
-    });
-  } else {
-    // Standardinhalt ohne benutzerdefinierten Prompt
-    userContent = `Erstelle einen Text mit folgenden Anforderungen:
+    // Add custom instructions if present
+    if (customPrompt) {
+      builder.setInstructions(customPrompt);
+    }
+
+    // Build the request content
+    let requestContent;
+    
+    if (customPrompt) {
+      // For custom prompts, provide structured data
+      requestContent = {
+        textForm: textForm || 'Nicht angegeben',
+        sprache: sprache || 'Nicht angegeben', 
+        thema: thema || 'Nicht angegeben',
+        details: details || '',
+        currentDate
+      };
+    } else {
+      // For standard requests, build descriptive content
+      requestContent = `Erstelle einen Text mit folgenden Anforderungen:
 
 <textform>
 ${textForm}
@@ -75,68 +129,84 @@ ${details}
 
 Aktuelles Datum: ${currentDate}
 
-${baseContent}`;
-  }
+${TITLE_GENERATION_INSTRUCTION}`;
+    }
 
-  // Add title generation instruction to user content
-  userContent += TITLE_GENERATION_INSTRUCTION;
+    builder.setRequest(requestContent);
 
-  const payload = {
-    systemPrompt,
-    messages: [
-      {
-        role: "user",
-        content: userContent
+    // Build the final prompt
+    const promptResult = builder.build();
+    const systemPrompt = promptResult.system;
+    const messages = promptResult.messages;
+
+    const payload = {
+      systemPrompt,
+      messages,
+      options: {
+        max_tokens: 4000,
+        temperature: 0.9,
+        ...(usePrivacyMode && provider && { provider: provider })
       }
-    ],
-    options: {
-      max_tokens: 4000,
-      temperature: 0.9
-    },
+    };
     
-  };
-  
-  try {
     const result = await req.app.locals.aiWorkerPool.processRequest({
       type: 'universal_generator',
       ...payload
+    }, req);
+
+    console.log('[claude_universal] AI Worker response received:', {
+      success: result.success,
+      contentLength: result.content?.length,
+      error: result.error
     });
 
     if (!result.success) {
+      console.error('[claude_universal] AI Worker error:', result.error);
       throw new Error(result.error);
     }
 
-    const processedResult = processResponseWithTitle(result, '/claude_universal', { textForm, sprache, thema, details });
-    res.json({ 
-      content: processedResult.content.trim(),
-      metadata: processedResult.metadata
-    });
-  } catch (error) {
-    console.error('Fehler bei der Texterstellung:', error);
-    res.status(500).json({ 
-      error: 'Fehler bei der Erstellung des Textes',
-      details: error.message 
-    });
-  }
-});
+    // Send standardized success response
+    sendSuccessResponseWithAttachments(
+      res,
+      result,
+      '/claude_universal',
+      { textForm, sprache, thema, details },
+      attachmentResult,
+      usePrivacyMode,
+      provider
+    );
+}, '/claude_universal');
+
+universalRouter.post('/', universalHandler);
 
 // Router for Speech Generation (Rede)
 const redeRouter = express.Router();
 
-redeRouter.post('/', async (req, res) => {
+const redeHandler = withErrorHandler(async (req, res) => {
   const { rolle, thema, Zielgruppe, schwerpunkte, redezeit, customPrompt } = req.body;
 
   // Aktuelles Datum ermitteln
   const currentDate = new Date().toISOString().split('T')[0];
 
-  try {
-    // Systemanweisung für die Redenerstellung
-    const systemPrompt = `Sie sind damit beauftragt, eine politische Rede für ein Mitglied von Bündnis 90/Die Grünen zu schreiben. Ihr Ziel ist es, eine überzeugende und mitreißende Rede zu erstellen, die den Werten und Positionen der Partei entspricht und das gegebene Thema behandelt. 
+  console.log('[claude_rede] Request received:', {
+    rolle: rolle?.substring(0, 50) + (rolle?.length > 50 ? '...' : ''),
+    thema: thema?.substring(0, 50) + (thema?.length > 50 ? '...' : ''),
+    hasCustomPrompt: !!customPrompt,
+    redezeit: redezeit || 'Nicht angegeben'
+  });
+    console.log('[claude_rede] Starting AI Worker request');
+
+    // Build prompt using new Context-First Architecture
+    console.log('[claude_rede] Building prompt with new Context-First Architecture');
+    
+    const builder = new PromptBuilder('rede')
+      .enableDebug(process.env.NODE_ENV === 'development');
+
+    // Set system role for speech generation
+    const systemRole = `Sie sind damit beauftragt, eine politische Rede für ein Mitglied von Bündnis 90/Die Grünen zu schreiben. Ihr Ziel ist es, eine überzeugende und mitreißende Rede zu erstellen, die den Werten und Positionen der Partei entspricht und das gegebene Thema behandelt.
 
 Geben Sie vor der rede an: 1. 2-3 Unterschiedliche Ideen für den Einstieg, dann 2-3 Kernargumente, dann 2-3 gute Ideen für ein Ende. Gib dem Redner 2-3 Tipps, worauf er bei dieser rede und diesem thema achten muss, um zu überzeugen.
 Schreibe anschließend eine Rede.
-
-${HTML_FORMATTING_INSTRUCTIONS}
 
 Befolgen Sie diese Richtlinien, um die Rede zu verfassen:
 
@@ -158,91 +228,114 @@ Befolgen Sie diese Richtlinien, um die Rede zu verfassen:
 5. Abschluss:
  - Enden Sie mit einer starken, inspirierenden Botschaft, die die Hauptpunkte verstärkt und das Publikum motiviert, die Position des redners zu unterstützen oder Maßnahmen zu ergreifen.`;
 
-    // Erstelle den Benutzerinhalt basierend auf dem Vorhandensein eines benutzerdefinierten Prompts
-    let userContent;
-    
-    // Build the specialized base content for speech generation
-    const speechBaseContent = `Erstelle eine überzeugende politische Rede für Bündnis 90/Die Grünen gemäß den gegebenen Parametern.`;
+    builder
+      .setSystemRole(systemRole)
+      .setFormatting(HTML_FORMATTING_INSTRUCTIONS);
+      
+    // Note: Speech generation doesn't use platform constraints (flexible lengths)
+
+    // Add custom instructions if present
+    if (customPrompt) {
+      builder.setInstructions(customPrompt);
+    }
+
+    // Build the request content
+    let requestContent;
     
     if (customPrompt) {
-      // Bei benutzerdefiniertem Prompt diesen verwenden, aber mit Redeinformationen ergänzen
-      const additionalInfo = `Zusätzliche Informationen zur Rede:
-- Rolle/Position des Redners: ${rolle || 'Nicht angegeben'}
-- Spezifisches Thema oder Anlass der Rede: ${thema || 'Nicht angegeben'}
-- Zielgruppe: ${Zielgruppe || 'Nicht angegeben'}
-- Besondere Schwerpunkte oder lokale Aspekte: ${schwerpunkte || 'Nicht angegeben'}
-- Gewünschte Redezeit (in Minuten): ${redezeit || 'Nicht angegeben'}`;
-
-      userContent = formatUserContent({
-        customPrompt,
-        baseContent: speechBaseContent,
-        currentDate,
-        additionalInfo
-      });
+      // For custom prompts, provide structured data
+      requestContent = {
+        rolle: rolle || 'Nicht angegeben',
+        thema: thema || 'Nicht angegeben',
+        Zielgruppe: Zielgruppe || 'Nicht angegeben',
+        schwerpunkte: schwerpunkte || 'Nicht angegeben',
+        redezeit: redezeit || 'Nicht angegeben',
+        currentDate
+      };
     } else {
-      // Standardinhalt ohne benutzerdefinierten Prompt
-      userContent = `Rolle/Position des Redners: ${rolle}
+      // For standard requests, build descriptive content
+      requestContent = `Erstelle eine überzeugende politische Rede für Bündnis 90/Die Grünen gemäß den gegebenen Parametern:
+
+Rolle/Position des Redners: ${rolle}
 Spezifisches Thema oder Anlass der Rede: ${thema}
 Zielgruppe: ${Zielgruppe}
 Besondere Schwerpunkte oder lokale Aspekte: ${schwerpunkte}
 Gewünschte Redezeit (in Minuten): ${redezeit}
 Aktuelles Datum: ${currentDate}
 
-${speechBaseContent}`;
+${TITLE_GENERATION_INSTRUCTION}`;
     }
 
-    // Add title generation instruction to user content
-    userContent += TITLE_GENERATION_INSTRUCTION;
+    builder.setRequest(requestContent);
+
+    // Build the final prompt
+    const promptResult = builder.build();
+    const systemPrompt = promptResult.system;
+    const messages = promptResult.messages;
 
     const payload = {
       systemPrompt,
-      messages: [{
-        role: "user",
-        content: [{
-          type: "text",
-          text: userContent
-        }]
-      }],
+      messages,
       options: {
         max_tokens: 4000,
         temperature: 0.3
-      },
-
+      }
     };
     
     const result = await req.app.locals.aiWorkerPool.processRequest({
       type: 'rede',
       ...payload
+    }, req);
+
+    console.log('[claude_rede] AI Worker response received:', {
+      success: result.success,
+      contentLength: result.content?.length,
+      error: result.error
     });
 
-    if (!result.success) throw new Error(result.error);
+    if (!result.success) {
+      console.error('[claude_rede] AI Worker error:', result.error);
+      throw new Error(result.error);
+    }
     
-    const processedResult = processResponseWithTitle(result, '/claude_rede', { rolle, thema, Zielgruppe, schwerpunkte, redezeit });
-    res.json({ 
-      content: processedResult.content,
-      metadata: processedResult.metadata
-    });
-  } catch (error) {
-    console.error('Fehler bei der Redenerstellung:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
+    // Send standardized success response
+    sendSuccessResponse(
+      res,
+      result,
+      '/claude_rede',
+      { rolle, thema, Zielgruppe, schwerpunkte, redezeit }
+    );
+}, '/claude_rede');
+
+redeRouter.post('/', redeHandler);
 
 // Router for Election Program Generation (Wahlprogramm)
 const wahlprogrammRouter = express.Router();
 
-wahlprogrammRouter.post('/', async (req, res) => {
+const wahlprogrammHandler = withErrorHandler(async (req, res) => {
   const { thema, details, zeichenanzahl, customPrompt } = req.body;
 
   // Aktuelles Datum ermitteln
   const currentDate = new Date().toISOString().split('T')[0];
 
-  const systemPrompt = 'Du bist Schreiber des Wahlprogramms einer Gliederung von Bündnis 90/Die Grünen.';
-  
-  let userContent;
-  
-  // Build the specialized base content for election program generation
-  const wahlprogrammBaseContent = `Beachte dabei folgende Punkte:
+  console.log('[claude_wahlprogramm] Request received:', {
+    thema: thema?.substring(0, 50) + (thema?.length > 50 ? '...' : ''),
+    hasDetails: !!details,
+    zeichenanzahl: zeichenanzahl || 'Nicht angegeben',
+    hasCustomPrompt: !!customPrompt
+  });
+    console.log('[claude_wahlprogramm] Starting AI Worker request');
+
+    // Build prompt using new Context-First Architecture
+    console.log('[claude_wahlprogramm] Building prompt with new Context-First Architecture');
+    
+    const builder = new PromptBuilder('wahlprogramm')
+      .enableDebug(process.env.NODE_ENV === 'development');
+
+    // Set system role for election program generation
+    const systemRole = `Du bist Schreiber des Wahlprogramms einer Gliederung von Bündnis 90/Die Grünen.
+
+Beachte dabei folgende Punkte:
 
 1. Beginne mit einer kurzen Einleitung (2-3 Sätze), die die Bedeutung des Themas hervorhebt.
 2. Gliedere den Text in 3-4 Unterkapitel mit jeweils aussagekräftigen Überschriften.
@@ -257,71 +350,90 @@ Beachte zusätzlich diese sprachlichen Aspekte:
 - Verbindende Elemente
 - Konkrete Beispiele
 - Starke Verben
-- Abwechslungsreicher Satzbau
+- Abwechslungsreicher Satzbau`;
 
-${HTML_FORMATTING_INSTRUCTIONS}`;
-  
-  if (customPrompt) {
-    const additionalInfo = `Zusätzliche Informationen (falls relevant):
-- Thema: ${thema || 'Nicht angegeben'}
-- Details: ${details || 'Nicht angegeben'}
-- Gewünschte Zeichenanzahl: ${zeichenanzahl || 'Nicht angegeben'}`;
+    builder
+      .setSystemRole(systemRole)
+      .setFormatting(HTML_FORMATTING_INSTRUCTIONS);
+      
+    // Add length constraint if specified
+    if (zeichenanzahl && !isNaN(parseInt(zeichenanzahl))) {
+      const lengthConstraint = `LÄNGENANFORDERUNG: Das Kapitel soll etwa ${zeichenanzahl} Zeichen umfassen.`;
+      builder.setConstraints(lengthConstraint);
+    }
 
-    userContent = formatUserContent({
-      customPrompt,
-      baseContent: wahlprogrammBaseContent,
-      currentDate,
-      additionalInfo
-    });
-  } else {
-    userContent = `Erstelle ein Kapitel für ein Wahlprogramm zum Thema ${thema} im Stil des vorliegenden Dokuments.
+    // Add custom instructions if present
+    if (customPrompt) {
+      builder.setInstructions(customPrompt);
+    }
+
+    // Build the request content
+    let requestContent;
+    
+    if (customPrompt) {
+      // For custom prompts, provide structured data
+      requestContent = {
+        thema: thema || 'Nicht angegeben',
+        details: details || '',
+        zeichenanzahl: zeichenanzahl || 'Nicht angegeben',
+        currentDate
+      };
+    } else {
+      // For standard requests, build descriptive content
+      requestContent = `Erstelle ein Kapitel für ein Wahlprogramm zum Thema ${thema} im Stil des vorliegenden Dokuments.
 
 Aktuelles Datum: ${currentDate}
 
 Berücksichtige dabei folgende Details und Schwerpunkte:
 ${details}
 
-Das Kapitel soll etwa ${zeichenanzahl} Zeichen umfassen.
+${zeichenanzahl ? `Das Kapitel soll etwa ${zeichenanzahl} Zeichen umfassen.` : ''}
 
-${wahlprogrammBaseContent}`;
-  }
+${TITLE_GENERATION_INSTRUCTION}`;
+    }
 
-  // Add title generation instruction to user content
-  userContent += TITLE_GENERATION_INSTRUCTION;
+    builder.setRequest(requestContent);
 
-  const payload = {
-    systemPrompt,
-    messages: [{ role: 'user', content: userContent }],
-    options: {
-      max_tokens: 4000,
-      temperature: 0.3
-          }
-  };
-  
-  try {
+    // Build the final prompt
+    const promptResult = builder.build();
+    const systemPrompt = promptResult.system;
+    const messages = promptResult.messages;
+
+    const payload = {
+      systemPrompt,
+      messages,
+      options: {
+        max_tokens: 4000,
+        temperature: 0.3
+      }
+    };
+    
     const result = await req.app.locals.aiWorkerPool.processRequest({
       type: 'wahlprogramm',
-      systemPrompt: payload.systemPrompt,
-      prompt: userContent, // Worker expects 'prompt' for this type
-      options: payload.options,
+      ...payload
+    }, req);
 
+    console.log('[claude_wahlprogramm] AI Worker response received:', {
+      success: result.success,
+      contentLength: result.content?.length,
+      error: result.error
     });
 
-    if (!result.success) throw new Error(result.error);
+    if (!result.success) {
+      console.error('[claude_wahlprogramm] AI Worker error:', result.error);
+      throw new Error(result.error);
+    }
     
-    const processedResult = processResponseWithTitle(result, '/claude_wahlprogramm', { thema, details, zeichenanzahl });
-    res.json({ 
-      content: processedResult.content,
-      metadata: processedResult.metadata
-    });
-  } catch (error) {
-    console.error('Fehler bei der Wahlprogramm-Erstellung:', error);
-    res.status(500).json({ 
-      error: 'Fehler bei der Erstellung des Wahlprogramms',
-      details: error.message
-    });
-  }
-});
+    // Send standardized success response
+    sendSuccessResponse(
+      res,
+      result,
+      '/claude_wahlprogramm',
+      { thema, details, zeichenanzahl }
+    );
+}, '/claude_wahlprogramm');
+
+wahlprogrammRouter.post('/', wahlprogrammHandler);
 
 module.exports = {
   universalRouter,

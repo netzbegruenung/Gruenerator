@@ -426,6 +426,364 @@ export const handleBulkDeleteTemplates = async (templateIds, onError = null) => 
 };
 
 // ============================================================================
+// OVERVIEW FUNCTIONS - For Canva Overview subtab
+// ============================================================================
+
+/**
+ * Get comprehensive Canva overview statistics
+ * @param {boolean} isAuthenticated - Whether user is authenticated
+ * @param {boolean} canvaConnected - Whether Canva is connected
+ * @param {Object} canvaUser - Canva user information
+ * @returns {Promise<Object>} Overview statistics object
+ */
+export const getCanvaOverviewStats = async (isAuthenticated, canvaConnected, canvaUser = null) => {
+    if (!isAuthenticated || !canvaConnected) {
+        return {
+            designCount: 0,
+            assetCount: 0,
+            lastSync: null,
+            connectionStatus: 'disconnected',
+            canvaUser: null,
+            error: null
+        };
+    }
+
+    try {
+        // Fetch both designs and assets count in parallel
+        const [designsResponse, assetsResponse] = await Promise.allSettled([
+            apiClient.get('/canva/designs', { params: { limit: 1 } }),
+            apiClient.get('/canva/assets', { params: { limit: 1 } })
+        ]);
+
+        const designCount = designsResponse.status === 'fulfilled' && designsResponse.value.data.success ? 
+            (designsResponse.value.data.total_count || 0) : 0;
+        
+        const assetCount = assetsResponse.status === 'fulfilled' && assetsResponse.value.data.success ? 
+            (assetsResponse.value.data.total_count || 0) : 0;
+
+        return {
+            designCount,
+            assetCount,
+            lastSync: new Date().toISOString(),
+            connectionStatus: 'connected',
+            canvaUser: canvaUser || null,
+            error: null
+        };
+    } catch (error) {
+        console.error('[CanvaUtils] Error getting overview stats:', error);
+        return {
+            designCount: 0,
+            assetCount: 0,
+            lastSync: null,
+            connectionStatus: 'error',
+            canvaUser: canvaUser || null,
+            error: error.message
+        };
+    }
+};
+
+/**
+ * Fetch recent Canva designs for overview display
+ * @param {boolean} canvaConnected - Whether Canva is connected
+ * @param {boolean} isAuthenticated - Whether user is authenticated
+ * @param {number} limit - Number of recent designs to fetch (default: 5)
+ * @returns {Promise<Array>} Array of recent designs
+ */
+export const fetchRecentCanvaDesigns = async (canvaConnected, isAuthenticated, limit = 5) => {
+    if (!canvaConnected || !isAuthenticated) {
+        return [];
+    }
+
+    try {
+        console.log(`[CanvaUtils] Fetching ${limit} recent Canva designs for overview`);
+        const response = await apiClient.get('/canva/designs', {
+            params: {
+                limit,
+                sort_by: 'modified_descending'
+            }
+        });
+
+        if (response.data.success) {
+            const designs = response.data.designs || [];
+            console.log(`[CanvaUtils] Fetched ${designs.length} recent designs for overview`);
+            return transformCanvaDesigns(designs);
+        } else {
+            console.warn('[CanvaUtils] No recent designs found or API returned error');
+            return [];
+        }
+    } catch (error) {
+        console.error('[CanvaUtils] Error fetching recent designs:', error);
+        return [];
+    }
+};
+
+/**
+ * Generate connection status badge configuration
+ * @param {boolean} canvaConnected - Whether Canva is connected
+ * @param {Object} canvaUser - Canva user information
+ * @param {boolean} canvaLoading - Whether connection is loading
+ * @returns {Object} Badge configuration object
+ */
+export const getCanvaConnectionBadge = (canvaConnected, canvaUser = null, canvaLoading = false) => {
+    if (canvaLoading) {
+        return {
+            type: 'loading',
+            text: 'Verbindung wird geprüft...',
+            color: 'var(--grey-500)',
+            icon: 'loading',
+            className: 'canva-connection-badge loading'
+        };
+    }
+
+    if (canvaConnected && canvaUser) {
+        return {
+            type: 'connected',
+            text: `Verbunden als ${canvaUser.display_name || canvaUser.email || 'Canva User'}`,
+            color: 'var(--success-color, #10b981)',
+            icon: 'check',
+            className: 'canva-connection-badge connected',
+            userInfo: {
+                name: canvaUser.display_name,
+                email: canvaUser.email,
+                avatar: canvaUser.avatar_url
+            }
+        };
+    }
+
+    return {
+        type: 'disconnected',
+        text: 'Nicht verbunden',
+        color: 'var(--error-red)',
+        icon: 'disconnect',
+        className: 'canva-connection-badge disconnected'
+    };
+};
+
+/**
+ * Generate quick action buttons configuration for overview
+ * @param {boolean} canvaConnected - Whether Canva is connected
+ * @param {Object} handlers - Object containing handler functions
+ * @returns {Array} Array of quick action configurations
+ */
+export const generateOverviewQuickActions = (canvaConnected, handlers = {}) => {
+    const baseActions = [
+        {
+            id: 'connect',
+            title: 'Mit Canva verbinden',
+            description: 'Verbinde dein Canva-Konto um Designs zu synchronisieren',
+            icon: 'HiExternalLink',
+            className: 'btn-primary',
+            onClick: handlers.onLogin,
+            visible: !canvaConnected,
+            disabled: handlers.loading
+        },
+        {
+            id: 'create',
+            title: 'Neues Design erstellen',
+            description: 'Öffne Canva in einem neuen Tab zum Erstellen',
+            icon: 'HiPlus',
+            className: 'btn-primary',
+            onClick: () => window.open('https://www.canva.com/design', '_blank'),
+            visible: canvaConnected,
+            disabled: false
+        },
+        {
+            id: 'sync',
+            title: 'Designs synchronisieren',
+            description: 'Lade die neuesten Designs von Canva',
+            icon: 'HiRefresh',
+            className: 'btn-secondary',
+            onClick: handlers.onSync,
+            visible: canvaConnected,
+            disabled: handlers.syncing
+        },
+        {
+            id: 'templates',
+            title: 'Vorlagen durchsuchen',
+            description: 'Verwalte deine Canva Vorlagen und Designs',
+            icon: 'HiTemplate',
+            className: 'btn-secondary',
+            onClick: () => handlers.onNavigate?.('vorlagen'),
+            visible: canvaConnected,
+            disabled: false
+        },
+        {
+            id: 'assets',
+            title: 'Assets verwalten',
+            description: 'Verwalte deine Canva Assets und Medien',
+            icon: 'HiPhotograph',
+            className: 'btn-secondary',
+            onClick: () => handlers.onNavigate?.('assets'),
+            visible: canvaConnected,
+            disabled: false
+        }
+    ];
+
+    return baseActions.filter(action => action.visible);
+};
+
+/**
+ * Get Canva logo configuration following brand guidelines
+ * @param {string} size - Size context ('large', 'medium', 'small')
+ * @param {string} context - Usage context ('overview', 'header', 'button')
+ * @returns {Object} Logo configuration object
+ */
+export const getCanvaLogoConfig = (size = 'large', context = 'overview') => {
+    const baseConfig = {
+        alt: 'Canva Logo',
+        brandMessage: 'works with Canva',
+        poweredByMessage: 'Powered by Canva',
+        minimumPadding: '8px',
+        maintainAspectRatio: true,
+        allowColorChange: false
+    };
+
+    switch (size) {
+        case 'large':
+            return {
+                ...baseConfig,
+                src: '/images/canva/Canva type logo.svg',
+                width: 'auto',
+                height: '60px',
+                minHeight: '50px',
+                className: 'canva-logo-large',
+                showPoweredBy: context === 'overview',
+                usage: 'For surfaces above 50px - main branding areas'
+            };
+        
+        case 'medium':
+            return {
+                ...baseConfig,
+                src: '/images/canva/Canva type logo.svg',
+                width: 'auto',
+                height: '40px',
+                minHeight: '35px',
+                className: 'canva-logo-medium',
+                showPoweredBy: false,
+                usage: 'For medium surfaces - section headers'
+            };
+        
+        case 'small':
+        case 'icon':
+            return {
+                ...baseConfig,
+                src: '/images/canva/Canva Icon logo.svg',
+                width: '24px',
+                height: '24px',
+                minWidth: '20px',
+                minHeight: '20px',
+                className: 'canva-logo-small',
+                showPoweredBy: false,
+                usage: 'For surfaces below 50px - UI elements and buttons'
+            };
+        
+        default:
+            return baseConfig;
+    }
+};
+
+/**
+ * Format last sync time for display
+ * @param {string|Date} timestamp - Timestamp to format
+ * @returns {string} Formatted time string
+ */
+export const formatLastSyncTime = (timestamp) => {
+    if (!timestamp) {
+        return 'Nie synchronisiert';
+    }
+
+    try {
+        const date = new Date(timestamp);
+        const now = new Date();
+        const diffMinutes = Math.floor((now - date) / (1000 * 60));
+        
+        if (diffMinutes < 1) {
+            return 'Gerade synchronisiert';
+        } else if (diffMinutes < 60) {
+            return `Vor ${diffMinutes} Min. synchronisiert`;
+        } else if (diffMinutes < 1440) { // Less than 24 hours
+            const hours = Math.floor(diffMinutes / 60);
+            return `Vor ${hours} Std. synchronisiert`;
+        } else {
+            return `Zuletzt: ${date.toLocaleDateString('de-DE', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            })}`;
+        }
+    } catch (error) {
+        console.error('[CanvaUtils] Error formatting sync time:', error);
+        return 'Ungültige Zeit';
+    }
+};
+
+/**
+ * Get overview statistics cards configuration
+ * @param {Object} stats - Statistics object from getCanvaOverviewStats
+ * @returns {Array} Array of statistics card configurations
+ */
+export const getOverviewStatsCards = (stats) => {
+    return [
+        {
+            id: 'designs',
+            title: 'Designs',
+            value: stats.designCount.toLocaleString('de-DE'),
+            description: 'Canva Designs verfügbar',
+            icon: 'HiTemplate',
+            color: 'var(--secondary-600)',
+            trend: null // Could be enhanced with historical data
+        },
+        {
+            id: 'assets',
+            title: 'Assets',
+            value: stats.assetCount.toLocaleString('de-DE'),
+            description: 'Medien in Canva Bibliothek',
+            icon: 'HiPhotograph',
+            color: 'var(--primary-600)',
+            trend: null
+        },
+        {
+            id: 'sync',
+            title: 'Letzter Sync',
+            value: formatLastSyncTime(stats.lastSync),
+            description: 'Daten-Synchronisation',
+            icon: 'HiRefresh',
+            color: 'var(--grey-600)',
+            trend: null
+        }
+    ];
+};
+
+/**
+ * Disconnect from Canva (utility function)
+ * @param {Function} onSuccess - Success callback
+ * @param {Function} onError - Error callback
+ * @returns {Promise<Object>} Disconnect result
+ */
+export const disconnectFromCanva = async (onSuccess = null, onError = null) => {
+    try {
+        console.log('[CanvaUtils] Disconnecting from Canva...');
+        const response = await apiClient.post('/canva/auth/disconnect');
+        
+        if (response.data.success) {
+            const successMsg = 'Canva-Verbindung wurde erfolgreich getrennt.';
+            onSuccess?.(successMsg);
+            console.log('[CanvaUtils] Successfully disconnected from Canva');
+            return response.data;
+        } else {
+            throw new Error(response.data.error || 'Failed to disconnect from Canva');
+        }
+    } catch (error) {
+        console.error('[CanvaUtils] Error disconnecting from Canva:', error);
+        const errorMsg = 'Fehler beim Trennen der Canva-Verbindung: ' + error.message;
+        onError?.(errorMsg);
+        throw new Error(errorMsg);
+    }
+};
+
+// ============================================================================
 // UI HELPERS & ACTION GENERATORS
 // ============================================================================
 

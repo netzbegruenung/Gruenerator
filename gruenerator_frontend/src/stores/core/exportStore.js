@@ -23,7 +23,7 @@ export const useExportStore = create((set, get) => ({
     
     set({ loadingPDF: true });
     try {
-      const { loadPDFRenderer } = await import('../../components/common/exportUtils.jsx');
+      const { loadPDFRenderer } = await import('../../components/common/exportUtils');
       const library = await loadPDFRenderer();
       set({ PDFLibrary: library, loadingPDF: false });
       return library;
@@ -41,7 +41,7 @@ export const useExportStore = create((set, get) => ({
     
     set({ loadingDOCX: true });
     try {
-      const { loadDOCXLibrary } = await import('../../components/common/exportUtils.jsx');
+      const { loadDOCXLibrary } = await import('../../components/common/exportUtils');
       const library = await loadDOCXLibrary();
       set({ DOCXLibrary: library, loadingDOCX: false });
       return library;

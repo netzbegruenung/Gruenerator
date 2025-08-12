@@ -1,12 +1,14 @@
 const { Worker } = require('worker_threads');
 const path = require('path');
 const config = require('./worker.config');
+const PrivacyCounter = require('../utils/privacyCounter');
 
 class AIWorkerPool {
-  constructor(numWorkers = config.worker.workersPerNode) {
+  constructor(numWorkers = config.worker.workersPerNode, redisClient = null) {
     this.workers = [];
     this.currentWorker = 0;
     this.pendingRequests = new Map();
+    this.privacyCounter = redisClient ? new PrivacyCounter(redisClient) : null;
     
     for (let i = 0; i < numWorkers; i++) {
       this.createWorker(i);
@@ -78,8 +80,8 @@ class AIWorkerPool {
       });
     } 
     else if (type === 'progress') {
-      // Optional: Handle progress updates (not resolving the promise)
-      console.log(`[AIWorkerPool] Progress update for ${requestId}: ${data.progress}%`);
+      // Progress updates removed for cleaner logs
+      // Only log critical milestones if needed
     }
     else if (type === 'error') {
       // Remove from pending and clear timeout
@@ -137,11 +139,38 @@ class AIWorkerPool {
     return { workerIndex, worker: this.workers[workerIndex].instance };
   }
 
-  async processRequest(data) {
+  async processRequest(data, req = null) {
     const requestId = `req_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
     
+    // Handle privacy mode provider selection
+    let processedData = { ...data };
+    
+    if (data.usePrivacyMode && this.privacyCounter && req) {
+      try {
+        // Get user ID from request (prioritize user.id, fallback to sessionID)
+        const userId = req.user?.id || req.sessionID;
+        
+        if (userId) {
+          // Get provider based on request count
+          const privacyProvider = await this.privacyCounter.getProviderForUser(userId);
+          
+          // Override any existing provider selection for privacy mode
+          processedData.provider = privacyProvider;
+          
+          console.log(`[AIWorkerPool] Privacy mode: User ${userId} routed to ${privacyProvider}`);
+        } else {
+          console.warn('[AIWorkerPool] Privacy mode enabled but no user ID found, using default provider');
+        }
+      } catch (error) {
+        console.error('[AIWorkerPool] Privacy mode error:', error);
+        // Continue with original data on error
+      }
+    }
+    
     console.log(`[AIWorkerPool] Processing request ${requestId}:`, {
-      type: data.type
+      type: processedData.type,
+      usePrivacyMode: processedData.usePrivacyMode,
+      provider: processedData.provider || 'default'
     });
 
     return new Promise((resolve, reject) => {
@@ -163,7 +192,7 @@ class AIWorkerPool {
       const message = {
         type: 'request',
         requestId,
-        data
+        data: processedData
       };
       
       worker.postMessage(message);

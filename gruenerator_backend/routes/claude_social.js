@@ -13,25 +13,49 @@ const {
   formatUserContent,
   TITLE_GENERATION_INSTRUCTION,
   processResponseWithTitle
-} = require('../utils/promptUtils');
+} = require('../utils/promptBuilderCompat');
+
+// Import unified prompt building architecture
+const { PromptBuilderWithExamples, addExamplesFromService } = require('../utils/promptBuilderCompat');
+
+// Import attachment utilities
+const {
+  processAndBuildAttachments
+} = require('../utils/attachmentUtils');
+
+// Import response and error handling utilities
+const { sendSuccessResponseWithAttachments } = require('../utils/responseFormatter');
+const { withErrorHandler } = require('../utils/errorHandler');
+
+// Import content examples service
+import { contentExamplesService } from '../services/contentExamplesService.js';
 
 // Create authenticated router (same pattern as authCore.mjs and mem0.mjs)
 const router = createAuthenticatedRouter();
 
-router.post('/', async (req, res) => {
-  const { thema, details, platforms = [], was, wie, zitatgeber, customPrompt } = req.body;
+const routeHandler = withErrorHandler(async (req, res) => {
+  const { thema, details, platforms = [], was, wie, zitatgeber, customPrompt, usePrivacyMode, provider, attachments } = req.body;
   
   // Current date for context
   const currentDate = new Date().toISOString().split('T')[0];
   
-  console.log('[claude_social] Request received:', { 
-    thema, 
-    details, 
-    platforms,
-    hasCustomPrompt: !!customPrompt,
-    customPromptLength: customPrompt?.length || 0,
-    userId: req.user?.id || 'No user'
-  });
+  // Process attachments using consolidated utility
+  const attachmentResult = await processAndBuildAttachments(
+    attachments, 
+    usePrivacyMode, 
+    'claude_social', 
+    req.user?.id || 'unknown'
+  );
+
+  // Handle attachment errors
+  if (attachmentResult.error) {
+    return res.status(400).json({
+      error: 'Fehler bei der Verarbeitung der Anhänge',
+      details: attachmentResult.error
+    });
+  }
+
+  console.log(`[claude_social] Request: ${thema} (${platforms.join(',')}) - User: ${req.user?.id}`);
 
   // Log custom prompt analysis for debugging
   if (customPrompt) {
@@ -39,27 +63,26 @@ router.post('/', async (req, res) => {
     const hasInstructions = customPrompt.includes('Der User gibt dir folgende Anweisungen');
     const hasKnowledge = customPrompt.includes('Der User stellt dir folgendes, wichtiges Wissen');
 
-    console.log('[claude_social] Custom prompt analysis:', {
-      isStructured,
-      hasInstructions,
-      hasKnowledge,
-      promptLength: customPrompt.length
-    });
+    // Custom prompt debug info removed for cleaner logs
   }
 
-  try {
-    console.log('[claude_social] Starting AI Worker request');
+  console.log('[claude_social] Processing social media generation');
+    
+    const builder = new PromptBuilderWithExamples('social')
+      .enableDebug(process.env.NODE_ENV === 'development')
+      .configureExamples({
+        maxExamples: 3,
+        maxCharactersPerExample: 400,
+        includeSimilarityInfo: true,
+        formatStyle: 'structured'
+      });
 
-    // Build system prompt
-    let systemPrompt = `Du bist Social Media Manager für Bündnis 90/Die Grünen. Erstelle Vorschläge für Social-Media-Beiträge für die angegebenen Plattformen.
-
-${HTML_FORMATTING_INSTRUCTIONS}`;
-
-    // Add press release specific instructions if needed
+    // Set system role
+    let systemRole = 'Du bist Social Media Manager für Bündnis 90/Die Grünen. Erstelle Vorschläge für Social-Media-Beiträge für die angegebenen Plattformen.\n\nWICHTIG: Gib NUR die fertigen Social-Media-Posts aus. Keine Erklärungen, keine Zwischenschritte, keine zusätzlichen Kommentare. Nur die Posts selbst.';
+    
+    // Add press release specific role modification
     if (platforms.includes('pressemitteilung')) {
-      systemPrompt += `
-
-Für die Pressemitteilung agiere als Pressesprecher einer Gliederung von Bündnis 90/Die Grünen und schreibe eine Pressemitteilung für den Presseverteiler. Schreibe nur den Haupttext - der Abbinder wird manuell hinzugefügt.
+      systemRole += `\n\nFür die Pressemitteilung agiere als Pressesprecher einer Gliederung von Bündnis 90/Die Grünen und schreibe eine Pressemitteilung für den Presseverteiler. Schreibe nur den Haupttext - der Abbinder wird manuell hinzugefügt.
 
 Schreibe in folgendem Stil, Sprachstil und Tonfall:
 - Der Text ist förmlich und sachlich und verwendet einen geradlinigen Berichtsstil.
@@ -69,121 +92,138 @@ Schreibe in folgendem Stil, Sprachstil und Tonfall:
 
 Achte bei der Umsetzung dieses Stils auf Klarheit, Präzision und eine ausgewogene Struktur deiner Sätze, um eine formale und objektive Darstellung der Informationen zu gewährleisten.`;
     }
-
-    // Build user content based on custom prompt or standard format
-    let userContent;
     
-    // Build the specialized base content for social media generation
-    const baseContent = `Erstelle einen maßgeschneiderten Social-Media-Beitrag für jede ausgewählte Plattform zu diesem Thema, der den Stil und die Werte von Bündnis 90/Die Grünen widerspiegelt. Berücksichtige diese plattformspezifischen Richtlinien:
+    builder.setSystemRole(systemRole);
+    
+    // Set formatting instructions
+    builder.setFormatting(HTML_FORMATTING_INSTRUCTIONS);
+    
+    // Set platform constraints (PROTECTED - cannot be overridden by documents)
+    builder.setConstraints(platforms);
+
+    // Add documents if present
+    if (attachmentResult.documents.length > 0) {
+      await builder.addDocuments(attachmentResult.documents, usePrivacyMode);
+    }
+
+    // Add custom instructions if present
+    if (customPrompt) {
+      builder.setInstructions(customPrompt);
+    }
+
+    // Build request content
+    const requestData = {
+      thema,
+      details,
+      platforms
+    };
+    
+    // Add press-specific data if relevant
+    if (platforms.includes('pressemitteilung')) {
+      if (was) requestData.was = was;
+      if (wie) requestData.wie = wie;
+      if (zitatgeber) requestData.zitatgeber = zitatgeber;
+    }
+
+    // Build the request content
+    let requestContent;
+    
+    if (customPrompt) {
+      // For custom prompts, provide structured data
+      requestContent = requestData;
+    } else {
+      // For standard requests, build descriptive content
+      requestContent = `Erstelle einen maßgeschneiderten Social-Media-Beitrag für jede ausgewählte Plattform zu diesem Thema, der den Stil und die Werte von Bündnis 90/Die Grünen widerspiegelt. Berücksichtige diese plattformspezifischen Richtlinien:
 
 ${platforms.map(platform => {
   if (platform === 'pressemitteilung') return '';
   const upperPlatform = platform === 'reelScript' ? 'INSTAGRAM REEL' : platform.toUpperCase();
   const guidelines = PLATFORM_SPECIFIC_GUIDELINES[platform] || {};
-  return `${upperPlatform}: Maximale Länge: ${guidelines.maxLength || 'N/A'} Zeichen. Stil: ${guidelines.style || 'N/A'} Fokus: ${guidelines.focus || 'N/A'} Zusätzliche Richtlinien: ${guidelines.additionalGuidelines || ''}`;
+  return `${upperPlatform}: Stil: ${guidelines.style || 'N/A'} Fokus: ${guidelines.focus || 'N/A'} Zusätzliche Richtlinien: ${guidelines.additionalGuidelines || ''}`;
 }).filter(Boolean).join('\n')}
 
-${platforms.includes('pressemitteilung') ? '' : `Jeder Beitrag sollte:
-1. Ein eigener Beitragstext angepasst an die spezifische Plattform und deren Zielgruppe sein.
-2. Mit einer aufmerksamkeitsstarken Einleitung beginnen.
-3. Wichtige Botschaften klar und prägnant vermitteln.
-4. Emojis und Hashtags passend zur Plattform verwenden.
-5. Themen wie Klimaschutz, soziale Gerechtigkeit und Vielfalt betonen.
-6. Aktuelle Positionen der Grünen Partei einbeziehen.
-7. Bei Bedarf auf weiterführende Informationen verweisen (z.B. Webseite).`}`;
-    
-    if (customPrompt) {
-      const additionalInfo = `Zusätzliche Informationen (falls relevant):
-- Thema: ${thema}
-- Details: ${details}
-- Plattformen: ${platforms.join(', ')}
-${platforms.includes('pressemitteilung') ? `- Was: ${was || ''}
-- Wie: ${wie || ''}
-- Zitat von: ${zitatgeber || ''}` : ''}`;
+${platforms.includes('pressemitteilung') ? '' : `Inhaltliche Fokuspunkte:
+- Themen wie Klimaschutz, soziale Gerechtigkeit und Vielfalt betonen
+- Aktuelle Positionen der Grünen Partei einbeziehen
+- Emojis und Hashtags passend zur Plattform verwenden
+- Bei Bedarf auf weiterführende Informationen verweisen`}
 
-      userContent = formatUserContent({
-        customPrompt,
-        baseContent,
-        currentDate,
-        additionalInfo
-      });
-    } else {
-      // Standard content without custom prompt
-      userContent = `Thema: ${thema}
+Aktuelles Datum: ${currentDate}
+
+Bitte erstelle die Inhalte für folgende Angaben:
+Thema: ${thema}
 Details: ${details}
 Plattformen: ${platforms.join(', ')}
-Aktuelles Datum: ${currentDate}
-${platforms.includes('pressemitteilung') ? `
-Was: ${was}
-Wie: ${wie}
-Zitat von: ${zitatgeber}` : ''}
-        
-${baseContent}`;
+${platforms.includes('pressemitteilung') && was ? `Was: ${was}` : ''}
+${platforms.includes('pressemitteilung') && wie ? `Wie: ${wie}` : ''}
+${platforms.includes('pressemitteilung') && zitatgeber ? `Zitat von: ${zitatgeber}` : ''}
+
+${TITLE_GENERATION_INSTRUCTION}`;
     }
 
-    // Add title generation instruction to user content
-    userContent += TITLE_GENERATION_INSTRUCTION;
+    builder.setRequest(requestContent);
+
+    // Fetch and add relevant examples for supported platforms
+    const supportedPlatformsForExamples = ['instagram', 'facebook', 'twitter'];
+    const relevantPlatforms = platforms.filter(p => supportedPlatformsForExamples.includes(p));
+    
+    if (relevantPlatforms.length > 0) {
+      // Fetching examples for platforms (logging removed)
+      
+      // Create search query from theme and details
+      const searchQuery = `${thema} ${details || ''}`.trim();
+      
+      // Fetch examples for each relevant platform and add to builder
+      for (const platform of relevantPlatforms) {
+        await addExamplesFromService(builder, platform, searchQuery, {
+          limit: 3,
+          useCache: true,
+          formatStyle: 'structured'
+        }, req);
+      }
+    } else {
+    }
+
+    // Build the final prompt
+    const promptResult = builder.build();
+    const systemPrompt = promptResult.system;
+    const messages = promptResult.messages;
 
     // Prepare AI Worker payload
     const payload = {
       systemPrompt,
-      messages: [{
-        role: 'user',
-        content: userContent
-      }],
+      messages,
       options: {
-        max_tokens: 4000,
-        temperature: 0.9
+        temperature: 0.9,
+        ...(usePrivacyMode && provider && { provider: provider })
       }
     };
-
-    console.log('[claude_social] Payload overview:', {
-      systemPromptLength: systemPrompt.length,
-      userContentLength: userContent.length,
-      messageCount: payload.messages.length,
-      userId: req.user?.id
-    });
 
     // Process AI request
     const result = await req.app.locals.aiWorkerPool.processRequest({
       type: 'social',
       ...payload
-    });
+    }, req);
 
-    console.log('[claude_social] AI Worker response received:', {
-      success: result.success,
-      contentLength: result.content?.length,
-      error: result.error,
-      userId: req.user?.id
-    });
+    // AI Worker response logging simplified
 
     if (!result.success) {
       console.error('[claude_social] AI Worker error:', result.error);
       throw new Error(result.error);
     }
 
-    // Prepare response with title processing
-    const processedResult = processResponseWithTitle(result, '/claude_social', { thema, details, platforms, was, wie, zitatgeber });
-    const response = { 
-      content: processedResult.content,
-      metadata: processedResult.metadata
-    };
-    
-    console.log('[claude_social] Sending successful response:', {
-      contentLength: response.content?.length,
-      hasMetadata: !!response.metadata,
-      userId: req.user?.id
-    });
+    // Send standardized success response
+    sendSuccessResponseWithAttachments(
+      res,
+      result,
+      '/claude_social',
+      { thema, details, platforms, was, wie, zitatgeber },
+      attachmentResult,
+      usePrivacyMode,
+      provider
+    );
+}, '/claude_social');
 
-    res.json(response);
-
-  } catch (error) {
-    console.error('[claude_social] Error creating social media posts:', error);
-    res.status(500).json({ 
-      error: 'Fehler bei der Erstellung der Social Media Posts',
-      details: error.message 
-    });
-  }
-});
+router.post('/', routeHandler);
 
 export default router;

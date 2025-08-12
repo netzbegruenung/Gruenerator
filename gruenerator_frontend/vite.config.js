@@ -88,7 +88,8 @@ export default defineConfig(({ command }) => ({
           'query-vendor': ['@tanstack/react-query'],
           'ui-vendor': ['react-icons', 'react-select', 'react-tooltip'],
           'form-vendor': ['react-hook-form', 'react-dropzone'],
-          'utils-vendor': ['lodash', 'lodash.debounce', 'uuid', 'marked', 'turndown']
+          'utils-vendor': ['lodash', 'lodash.debounce', 'uuid', 'marked', 'turndown'],
+          'pdf-vendor': ['pdf-lib']
           // Heavy libraries externalized - they're loaded dynamically when needed
         }
       }

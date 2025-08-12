@@ -82,7 +82,7 @@ const ShareToGroupModal = ({
       'custom_generators': 'Custom Generator',
       'qa_collections': 'Q&A-Sammlung',
       'user_documents': 'Text',
-      'user_content': 'Template'
+      'database': 'Template'
     };
     return labels[type] || 'Inhalt';
   };

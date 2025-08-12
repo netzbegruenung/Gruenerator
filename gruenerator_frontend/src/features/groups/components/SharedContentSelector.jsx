@@ -29,8 +29,8 @@ const SharedContentSelector = ({
   config = {
     title: "Geteilte Inhalte",
     description: "Hier findest du alle Inhalte, die mit dieser Gruppe geteilt wurden",
-    contentFilter: null, // null = show all, 'user_content' = templates only, etc.
-    excludeTypes: [], // ['user_content'] = exclude templates, etc.
+    contentFilter: null, // null = show all, 'database' = templates only, etc.
+    excludeTypes: [], // ['database'] = exclude templates, etc.
     hideFilters: [], // ['contentType', 'permissions', 'sortBy']
     cardStyle: 'default', // 'default' | 'template-square'
     gridConfig: {
@@ -150,11 +150,11 @@ const SharedContentSelector = ({
     
     // Add templates
     if (groupContent.templates && 
-        (!config.contentFilter || config.contentFilter === 'user_content') &&
-        !(config.excludeTypes && config.excludeTypes.includes('user_content'))) {
+        (!config.contentFilter || config.contentFilter === 'database') &&
+        !(config.excludeTypes && config.excludeTypes.includes('database'))) {
       content.push(...groupContent.templates.map(item => ({
         ...item,
-        contentType: 'user_content',
+        contentType: 'database',
         icon: HiCollection,
         typeLabel: 'Template'
       })));
@@ -328,7 +328,7 @@ const SharedContentSelector = ({
         // Show document in modal popup
         handleEnhancedPreview(item);
         break;
-      case 'user_content':
+      case 'database':
         // Open template (Canva URL) in new tab
         if (item.canva_url || item.external_url) {
           window.open(item.canva_url || item.external_url, '_blank', 'noopener,noreferrer');

@@ -75,4 +75,30 @@ export const isMarkdownContent = (content) => {
  */
 export const isReactElement = (content) => {
   return React.isValidElement(content);
+};
+
+/**
+ * Normalisiert überschüssige Zeilenumbrüche im Text
+ * @param {string} content - Text zu normalisieren
+ * @returns {string} Text mit normalisierten Zeilenumbrüchen
+ */
+export const normalizeLineBreaks = (content) => {
+  if (!content || typeof content !== 'string') return content;
+  
+  // Detect if content is HTML
+  const isHtml = /<[^>]+>/.test(content);
+  
+  if (isHtml) {
+    // For HTML: Remove newlines between tags to prevent double spacing
+    return content
+      .replace(/>\s*\n+\s*</g, '><')  // Remove all newlines between tags
+      .replace(/(<\/p>|<\/div>|<\/h\d>)\s*\n+/gi, '$1') // Remove newlines after block elements
+      .trim();
+  } else {
+    // For plain text/markdown: Current normalization
+    return content
+      .replace(/\n{3,}/g, '\n\n')  // Mehr als 2 Zeilenumbrüche -> 2
+      .replace(/\r\n{3,}/g, '\r\n\r\n')  // Windows Zeilenumbrüche
+      .replace(/(\r?\n\s*){3,}/g, '\n\n'); // Zeilenumbrüche mit Whitespace
+  }
 }; 

@@ -82,6 +82,14 @@ const BaseForm = ({
   useWebSearchFeatureToggle = false,
   // New consolidated prop (optional, backward compatible)
   webSearchConfig = null,
+  privacyModeToggle = null,
+  usePrivacyModeToggle = false,
+  // New consolidated prop (optional, backward compatible)
+  privacyModeConfig = null,
+  useFeatureIcons = false,
+  onAttachmentClick,
+  onRemoveFile,
+  attachedFiles = [],
   displayActions = null,
   formNotice = null,
   enablePlatformSelector = false,
@@ -116,6 +124,7 @@ const BaseForm = ({
   const baseFormRef = useRef(null);
   const formSectionRef = useRef(null);
   const displaySectionRef = useRef(null);
+  const [inlineHelpContentOverride, setInlineHelpContentOverride] = useState(null);
 
   const {
     error,
@@ -156,6 +165,21 @@ const BaseForm = ({
       toggle: webSearchFeatureToggle
     };
   }, [webSearchConfig, useWebSearchFeatureToggle, webSearchFeatureToggle]);
+
+  // Consolidated privacyMode config with backward compatibility
+  const resolvedPrivacyModeConfig = React.useMemo(() => {
+    if (privacyModeConfig) {
+      return {
+        enabled: privacyModeConfig.enabled ?? usePrivacyModeToggle,
+        toggle: privacyModeConfig.toggle ?? privacyModeToggle,
+        ...privacyModeConfig
+      };
+    }
+    return {
+      enabled: usePrivacyModeToggle,
+      toggle: privacyModeToggle
+    };
+  }, [privacyModeConfig, usePrivacyModeToggle, privacyModeToggle]);
   
   const { isFormVisible, toggleFormVisibility } = useFormVisibility(hasContent, disableAutoCollapse);
 
@@ -317,6 +341,24 @@ const BaseForm = ({
     }
   };
 
+  // Inline privacy info help
+  const handlePrivacyInfoClick = useCallback(() => {
+    setInlineHelpContentOverride({
+      content: 'Privacy-Mode: Alles wird in Deutschland verarbeitet - beste Datenschutz-Standards.',
+      tips: [
+        'Server: IONOS und netzbegruenung.de',
+        'PDFs: maximal 10 Seiten',
+        'Bilder werden ignoriert'
+      ]
+    });
+  }, []);
+
+  const handleWebSearchInfoClick = useCallback(() => {
+    setInlineHelpContentOverride({
+      content: 'Die Websuche durchsucht das Internet nach aktuellen und relevanten Informationen, um deine Eingaben zu ergänzen. Nützlich, wenn du wenig Vorwissen zum Thema hast oder aktuelle Daten benötigst.'
+    });
+  }, []);
+
   return (
     <>
       { headerContent }
@@ -364,6 +406,13 @@ const BaseForm = ({
                   submitButtonProps={resolvedSubmitConfig.buttonProps}
                   webSearchFeatureToggle={resolvedWebSearchConfig.toggle}
                   useWebSearchFeatureToggle={resolvedWebSearchConfig.enabled}
+                  privacyModeToggle={resolvedPrivacyModeConfig.toggle}
+                  usePrivacyModeToggle={resolvedPrivacyModeConfig.enabled}
+                  useFeatureIcons={useFeatureIcons}
+                  onAttachmentClick={onAttachmentClick}
+                  onRemoveFile={onRemoveFile}
+                  attachedFiles={attachedFiles}
+                  onPrivacyInfoClick={handlePrivacyInfoClick}
                   enablePlatformSelector={enablePlatformSelector}
                   platformOptions={platformOptions}
                   platformSelectorLabel={platformSelectorLabel}
@@ -389,6 +438,8 @@ const BaseForm = ({
                   showImageUpload={showImageUpload}
                   uploadedImage={uploadedImage}
                   onImageChange={onImageChange}
+                  componentName={componentName}
+                  onWebSearchInfoClick={handleWebSearchInfoClick}
                 >
                   {children}
                 </FormSection>
@@ -409,7 +460,7 @@ const BaseForm = ({
             generatedContent={generatedContent}
             useMarkdown={useMarkdown}
 
-            helpContent={helpContent}
+            helpContent={inlineHelpContentOverride || helpContent}
             generatedPost={generatedPost}
             onGeneratePost={onGeneratePost}
             getExportableContent={getExportableContentCallback}
@@ -489,6 +540,18 @@ BaseForm.propTypes = {
     enabled: PropTypes.bool,
     toggle: PropTypes.object
   }),
+  privacyModeToggle: PropTypes.shape({
+    isActive: PropTypes.bool,
+    onToggle: PropTypes.func,
+    label: PropTypes.string,
+    icon: PropTypes.elementType,
+    description: PropTypes.string
+  }),
+  usePrivacyModeToggle: PropTypes.bool,
+  privacyModeConfig: PropTypes.shape({
+    enabled: PropTypes.bool,
+    toggle: PropTypes.object
+  }),
   displayActions: PropTypes.node,
   formNotice: PropTypes.node,
   enableKnowledgeSelector: PropTypes.bool,
@@ -528,6 +591,8 @@ BaseForm.defaultProps = {
   showNextButton: true,
   webSearchFeatureToggle: null,
   useWebSearchFeatureToggle: false,
+  privacyModeToggle: null,
+  usePrivacyModeToggle: false,
   displayActions: null,
   formNotice: null,
   enableKnowledgeSelector: false,
