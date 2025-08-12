@@ -35,15 +35,71 @@
     font-display: swap;
 }
 
+/* Typography Scale - Fluid responsive font sizes */
+:root {
+    --font-size-base: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);
+    
+    /* Typography Scale - Based on Major Third (1.25) ratio */
+    --font-size-xxs: clamp(0.75rem, 0.72rem + 0.15vw, 0.875rem);
+    --font-size-xs: clamp(0.875rem, 0.85rem + 0.125vw, 1rem);
+    --font-size-sm: clamp(0.9375rem, 0.9rem + 0.1875vw, 1.0625rem);
+    --font-size-md: var(--font-size-base); /* 1rem → 1.125rem */
+    --font-size-lg: clamp(1.125rem, 1.05rem + 0.375vw, 1.25rem);
+    --font-size-xl: clamp(1.25rem, 1.15rem + 0.5vw, 1.5rem);
+    --font-size-2xl: clamp(1.5rem, 1.35rem + 0.75vw, 1.875rem);
+    --font-size-3xl: clamp(1.875rem, 1.65rem + 1.125vw, 2.25rem);
+    --font-size-4xl: clamp(2.25rem, 1.95rem + 1.5vw, 3rem);
+    --font-size-5xl: clamp(3rem, 2.5rem + 2.5vw, 4rem);
+    
+    /* Line Height Scale */
+    --line-height-tight: 1.2;
+    --line-height-snug: 1.4;
+    --line-height-normal: 1.6;
+    --line-height-relaxed: 1.8;
+    --line-height-loose: 2;
+    
+    /* Display Content Specific (for generated text) */
+    --display-font-size: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);
+    --display-font-size-large: clamp(1.0625rem, 1rem + 0.3125vw, 1.1875rem);
+    --display-line-height: 1.7;
+    --display-paragraph-spacing: clamp(1rem, 0.9rem + 0.5vw, 1.25rem);
+    
+    /* Reading Width Constraints */
+    --reading-max-width: 65ch;
+    --reading-optimal-width: clamp(45ch, 50vw, 65ch);
+}
+
+/* Desktop/Large Screen Overrides */
+@media (min-width: 1920px) {
+    :root {
+        --font-size-base: 1.125rem;
+        --display-font-size: 1.1875rem;
+        --display-font-size-large: 1.25rem;
+    }
+}
+
+/* Ultra-wide Screen Support */
+@media (min-width: 2560px) {
+    :root {
+        --font-size-base: 1.25rem;
+        --display-font-size: 1.3125rem;
+        --display-font-size-large: 1.375rem;
+    }
+}
+
 
 body {
     font-family: 'PT Sans', Arial, sans-serif;
+    font-size: var(--font-size-base);
+    line-height: var(--line-height-normal);
     background-color: var(--background-color);
     color: var(--font-color);
     margin: 0;
     padding: 0;
     -webkit-tap-highlight-color: transparent;
     transition: background-color 0.5s, color 0.5s;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 h1, h2 {
@@ -52,68 +108,75 @@ h1, h2 {
 }
 
 h1 {
-    font-size: 2.25em;
+    font-size: var(--font-size-4xl);
+    line-height: var(--line-height-tight);
+    margin: 0 0 0.5em 0;
 }
 
 h2 {
-    font-size: 2em;
+    font-size: var(--font-size-3xl);
+    line-height: var(--line-height-tight);
+    margin: 1.5em 0 0.5em 0;
+}
+
+h2:first-child {
+    margin-top: 0;
 }
 
 h3 {
     font-family: 'GrueneType', Arial, sans-serif;
     color: var(--font-color-h3);
-    font-size: 1.5em;
+    font-size: var(--font-size-2xl);
+    line-height: var(--line-height-snug);
+    margin: 1.5em 0 0.5em 0;
+}
+
+h3:first-child {
+    margin-top: 0;
 }
 
 h4 {
     font-family: 'GrueneType', Arial, sans-serif;
     color: var(--font-color-h3);
-    font-size: 1.125rem;
+    font-size: var(--font-size-xl);
+    line-height: var(--line-height-snug);
     font-weight: normal;
-    margin: 0;
-    line-height: 1.3;
+    margin: 1.25em 0 0.5em 0;
+}
+
+h4:first-child {
+    margin-top: 0;
 }
 
 h5 {
     font-family: 'PT Sans', Arial, sans-serif;
     color: var(--font-color);
-    font-size: 0.95rem;
+    font-size: var(--font-size-lg);
+    line-height: var(--line-height-normal);
     font-weight: 600;
-    margin: 0;
-    line-height: 1.4;
+    margin: 1em 0 0.5em 0;
+}
+
+h5:first-child {
+    margin-top: 0;
 }
 
 h6 {
     font-family: 'PT Sans', Arial, sans-serif;
     color: var(--font-color-subtle);
-    font-size: 0.85rem;
+    font-size: var(--font-size-md);
+    line-height: var(--line-height-normal);
     font-weight: 500;
-    margin: 0;
-    line-height: 1.4;
+    margin: 1em 0 0.5em 0;
 }
 
+h6:first-child {
+    margin-top: 0;
+}
+
+/* Mobile adjustments - minimal since clamp() handles most scaling */
 @media (max-width: 768px) {
-    body {
-        font-size: 1em;
-        line-height: 1.6;
-    }
-    h1 {
-        font-size: 1.8em !important;
-        line-height: 1.4;
-    }
-    h2 {
-        font-size: 1.5em;
-    }
-    h3 {
-        font-size: 1.15em;
-    }
-    h4 {
-        font-size: 1rem;
-    }
-    h5 {
-        font-size: 0.9rem;
-    }
-    h6 {
-        font-size: 0.8rem;
+    :root {
+        --display-line-height: 1.6;
     }
 }

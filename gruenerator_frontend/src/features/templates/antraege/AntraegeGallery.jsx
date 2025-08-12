@@ -82,7 +82,7 @@ const AntraegeGallery = ({ searchTerm, selectedCategory, searchMode }) => {
       )}
 
       {!loading && error && (
-        <p className="error-message">{error}</p>
+        <p className="error-message">{error?.message || String(error)}</p>
       )}
 
       {!loading && !error && antraege.length === 0 && (

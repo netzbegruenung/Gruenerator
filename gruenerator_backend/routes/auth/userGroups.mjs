@@ -1259,7 +1259,7 @@ router.post('/groups/:groupId/share', ensureAuthenticated, async (req, res) => {
     }
 
     // Validate content type
-    const validContentTypes = ['documents', 'custom_generators', 'qa_collections', 'user_documents', 'user_content'];
+    const validContentTypes = ['documents', 'custom_generators', 'qa_collections', 'user_documents', 'database'];
     if (!validContentTypes.includes(contentType)) {
       return res.status(400).json({
         success: false,
@@ -1290,14 +1290,14 @@ router.post('/groups/:groupId/share', ensureAuthenticated, async (req, res) => {
       table: contentType
     });
     
-    // Handle user_content table (for templates) with type filtering
+    // Handle database table (for templates) with type filtering
     let ownershipQuery = supabaseService
       .from(contentType)
       .select('user_id')
       .eq('id', contentId);
     
-    // For user_content, also filter by type = 'template'
-    if (contentType === 'user_content') {
+    // For database, also filter by type = 'template'
+    if (contentType === 'database') {
       ownershipQuery = ownershipQuery.eq('type', 'template');
     }
     
@@ -1547,7 +1547,7 @@ router.get('/groups/:groupId/content', ensureAuthenticated, async (req, res) => 
       custom_generators: [],
       qa_collections: [],
       user_documents: [],
-      user_content: []
+      database: []
     };
 
     sharedContent.forEach(share => {
@@ -1608,15 +1608,15 @@ router.get('/groups/:groupId/content', ensureAuthenticated, async (req, res) => 
     }
 
     // Templates (User Content)
-    if (contentByType.user_content.length > 0) {
-      const templateIds = contentByType.user_content.map(s => s.content_id);
+    if (contentByType.database.length > 0) {
+      const templateIds = contentByType.database.map(s => s.content_id);
       contentPromises.push(
         supabaseService
-          .from('user_content')
+          .from('database')
           .select('id, title, description, external_url, thumbnail_url, metadata, created_at, updated_at, user_id')
           .in('id', templateIds)
           .eq('type', 'template')
-          .then(result => ({ type: 'user_content', result, shares: contentByType.user_content }))
+          .then(result => ({ type: 'database', result, shares: contentByType.database }))
       );
     }
 
@@ -1648,8 +1648,8 @@ router.get('/groups/:groupId/content', ensureAuthenticated, async (req, res) => 
           shared_at: shareInfo?.shared_at,
           group_permissions: shareInfo?.permissions,
           shared_by_name: shareInfo?.profiles?.display_name || shareInfo?.profiles?.first_name || 'Unknown User',
-          // Add template-specific fields for user_content
-          ...(type === 'user_content' && {
+          // Add template-specific fields for database
+          ...(type === 'database' && {
             template_type: item.metadata?.template_type || 'canva',
             canva_url: item.external_url
           })
@@ -1662,7 +1662,7 @@ router.get('/groups/:groupId/content', ensureAuthenticated, async (req, res) => 
         custom_generators: 'generators',
         qa_collections: 'qas',
         user_documents: 'texts',
-        user_content: 'templates'
+        database: 'templates'
       };
 
       groupContent[keyMap[type]] = items;
@@ -1700,7 +1700,7 @@ router.put('/groups/:groupId/content/:contentId/permissions', ensureAuthenticate
     }
 
     // Validate content type
-    const validContentTypes = ['documents', 'custom_generators', 'qa_collections', 'user_documents', 'user_content'];
+    const validContentTypes = ['documents', 'custom_generators', 'qa_collections', 'user_documents', 'database'];
     if (!validContentTypes.includes(contentType)) {
       return res.status(400).json({
         success: false,
@@ -1709,14 +1709,14 @@ router.put('/groups/:groupId/content/:contentId/permissions', ensureAuthenticate
     }
 
     // Check if user is admin or content owner
-    // Handle user_content table (for templates) with type filtering
+    // Handle database table (for templates) with type filtering
     let contentQuery = supabaseService
       .from(contentType)
       .select('user_id, group_id')
       .eq('id', contentId);
     
-    // For user_content, also filter by type = 'template'
-    if (contentType === 'user_content') {
+    // For database, also filter by type = 'template'
+    if (contentType === 'database') {
       contentQuery = contentQuery.eq('type', 'template');
     }
     
@@ -1814,8 +1814,8 @@ router.delete('/groups/:groupId/content/:contentId', ensureAuthenticated, async 
       });
     }
 
-    // Validate content type - include user_content for templates
-    const validContentTypes = ['documents', 'custom_generators', 'qa_collections', 'user_documents', 'user_content'];
+    // Validate content type - include database for templates
+    const validContentTypes = ['documents', 'custom_generators', 'qa_collections', 'user_documents', 'database'];
     if (!validContentTypes.includes(contentType)) {
       return res.status(400).json({
         success: false,

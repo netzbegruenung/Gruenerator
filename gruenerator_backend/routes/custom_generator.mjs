@@ -564,6 +564,99 @@ router.delete('/:id', requireAuth, async (req, res) => {
   }
 });
 
+// POST Route zum Erstellen eines neuen benutzerdefinierten Generators
+router.post('/create', requireAuth, async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'Nicht authentifiziert.' });
+    }
+
+    if (!supabaseService) {
+      console.error('[custom_generator_create] Supabase service client not initialized.');
+      return res.status(500).json({ error: 'Custom generator service is currently unavailable.' });
+    }
+
+    const { name, slug, form_schema, prompt, title, description, contact_email } = req.body;
+
+    // Validate required fields
+    if (!name || !slug || !form_schema || !prompt) {
+      return res.status(400).json({ 
+        error: 'Folgende Felder sind erforderlich: name, slug, form_schema, prompt' 
+      });
+    }
+
+    // Validate form_schema structure
+    if (!form_schema.fields || !Array.isArray(form_schema.fields)) {
+      return res.status(400).json({ 
+        error: 'form_schema muss ein fields Array enthalten' 
+      });
+    }
+
+    // Check if slug already exists for this user
+    const { data: existingGenerator, error: slugCheckError } = await supabaseService
+      .from('custom_generators')
+      .select('id, slug')
+      .eq('slug', slug)
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (slugCheckError) {
+      console.error('[custom_generator_create] Error checking slug uniqueness:', slugCheckError);
+      return res.status(500).json({ error: 'Fehler bei der Slug-Überprüfung: ' + slugCheckError.message });
+    }
+
+    if (existingGenerator) {
+      return res.status(409).json({ 
+        error: 'Ein Generator mit diesem URL-Pfad existiert bereits für Ihren Account.' 
+      });
+    }
+
+    // Prepare data for insertion
+    const generatorData = {
+      user_id: userId,
+      name: name.trim(),
+      slug: slug.trim(),
+      form_schema,
+      prompt: prompt.trim(),
+      title: title ? title.trim() : null,
+      description: description ? description.trim() : null,
+      contact_email: contact_email ? contact_email.trim() : null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    // Insert the generator
+    const { data: newGenerator, error: insertError } = await supabaseService
+      .from('custom_generators')
+      .insert(generatorData)
+      .select('*')
+      .single();
+
+    if (insertError) {
+      console.error('[custom_generator_create] Error creating custom generator:', insertError);
+      return res.status(500).json({ 
+        error: 'Fehler beim Erstellen des Generators: ' + insertError.message 
+      });
+    }
+
+    console.log(`[custom_generator_create] Successfully created generator ${newGenerator.id} (${newGenerator.name}) for user ${userId}`);
+    
+    res.status(201).json({
+      success: true,
+      message: 'Generator erfolgreich erstellt',
+      generator: newGenerator
+    });
+
+  } catch (error) {
+    console.error('[custom_generator_create] Unexpected error during creation:', error);
+    res.status(500).json({ 
+      error: 'Ein unerwarteter Fehler ist aufgetreten.', 
+      details: error.message 
+    });
+  }
+});
+
 // === DOCUMENT MANAGEMENT ENDPOINTS ===
 
 // Get documents associated with a custom generator

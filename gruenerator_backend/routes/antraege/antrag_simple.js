@@ -1,10 +1,20 @@
 const express = require('express');
 const router = express.Router();
+// Import unified prompt building architecture
 const { 
   HTML_FORMATTING_INSTRUCTIONS,
   TITLE_GENERATION_INSTRUCTION,
-  processResponseWithTitle
-} = require('../../utils/promptUtils');
+  processResponseWithTitle,
+  PromptBuilder
+} = require('../../utils/promptBuilderCompat');
+
+const {
+  processAndBuildAttachments
+} = require('../../utils/attachmentUtils');
+
+// Import response and error handling utilities
+const { createSuccessResponseWithAttachments } = require('../../utils/responseFormatter');
+const { withErrorHandler, handleValidationError } = require('../../utils/errorHandler');
 const { processBundestagDocuments } = require('../../utils/bundestagUtils');
 
 // Web Search Tool Configuration
@@ -22,31 +32,49 @@ const webSearchTool = {
 /**
  * Vereinfachter Endpunkt zum Generieren eines Antrags mit optionaler Websuche
  */
-router.post('/', async (req, res) => {
+const routeHandler = withErrorHandler(async (req, res) => {
   // Extract useWebSearchTool along with other flags
-  const { requestType, idee, details, gliederung, useBedrock, customPrompt, useWebSearchTool, useBundestagApi, selectedBundestagDocuments } = req.body;
+  const { requestType, idee, details, gliederung, useBedrock, customPrompt, useWebSearchTool, useBundestagApi, selectedBundestagDocuments, usePrivacyMode, provider, attachments } = req.body;
   
   // Aktuelles Datum ermitteln
   const currentDate = new Date().toISOString().split('T')[0];
 
-  try {
-    // Logging der Anfrage
-    console.log('Einfache Antrag-Anfrage erhalten:', {
-      requestType: requestType || 'antrag',
-      idee: idee?.substring(0, 50) + (idee?.length > 50 ? '...' : ''),
-      hasCustomPrompt: !!customPrompt,
-      useBedrock: useBedrock,
-      useWebSearchTool: useWebSearchTool,
-      useBundestagApi: useBundestagApi
-    });
+  // Validiere die Eingabedaten
+  if (!customPrompt && !idee) {
+    return handleValidationError(
+      res,
+      '/antraege/antrag_simple',
+      'Idee oder ein benutzerdefinierter Prompt ist erforderlich'
+    );
+  }
 
-    // Validiere die Eingabedaten
-    if (!customPrompt && !idee) {
-      return res.status(400).json({ 
-        error: 'Fehlende Eingabedaten',
-        details: 'Idee oder ein benutzerdefinierter Prompt ist erforderlich'
-      });
-    }
+  // Process attachments using consolidated utility
+  const attachmentResult = await processAndBuildAttachments(
+    attachments, 
+    usePrivacyMode, 
+    'antrag_simple', 
+    req.user?.id || 'unknown'
+  );
+
+  // Handle attachment errors
+  if (attachmentResult.error) {
+    return handleValidationError(res, '/antraege/antrag_simple', attachmentResult.error);
+  }
+
+  // Logging der Anfrage
+  console.log('Einfache Antrag-Anfrage erhalten:', {
+    requestType: requestType || 'antrag',
+    idee: idee?.substring(0, 50) + (idee?.length > 50 ? '...' : ''),
+    hasCustomPrompt: !!customPrompt,
+    useBedrock: useBedrock,
+    useWebSearchTool: useWebSearchTool,
+    useBundestagApi: useBundestagApi,
+    usePrivacyMode: usePrivacyMode,
+    provider: provider || 'default',
+    hasAttachments: attachmentResult.hasAttachments,
+    attachmentsCount: attachmentResult.summary?.count || 0,
+    attachmentsTotalSizeMB: attachmentResult.summary?.totalSizeMB || 0
+  });
 
     // Bundestag API Integration - Use selected documents with full text
     let bundestagDocuments = null;
@@ -63,160 +91,173 @@ router.post('/', async (req, res) => {
 
     console.log('Sende vereinfachte Anfrage an Claude' + 
       (useWebSearchTool ? ' mit Web Search Tool' : '') + 
-      (useBundestagApi && bundestagDocuments ? ` mit ${bundestagDocuments.totalResults} parlamentarischen Dokumenten` : ''));
+      (useBundestagApi && bundestagDocuments ? ` mit ${bundestagDocuments.totalResults} parlamentarischen Dokumenten` : '') +
+      (hasAttachments ? ` mit ${attachmentsSummary.count} Anhängen (${attachmentsSummary.totalSizeMB}MB)` : ''));
     
-    // Configure tools and system prompt based on web search usage
+    // Build prompt using new Context-First Architecture
+    console.log('[antrag_simple] Building prompt with new Context-First Architecture');
+    
+    const builder = new PromptBuilder('antrag')
+      .enableDebug(process.env.NODE_ENV === 'development');
+
+    // Configure tools based on web search usage
     const tools = useWebSearchTool ? [webSearchTool] : [];
-    
-    // Base system prompt
-    let systemPrompt = 'Du bist ein erfahrener Kommunalpolitiker von Bündnis 90/Die Grünen. ';
+
+    // Build system role based on request type
+    let systemRole = 'Du bist ein erfahrener Kommunalpolitiker von Bündnis 90/Die Grünen. ';
     
     // Add request type specific instructions
     if (requestType === 'kleine_anfrage') {
-      systemPrompt += 'Erstelle eine KLEINE ANFRAGE nach kommunalrechtlichen Standards. ';
-      systemPrompt += 'Kleine Anfragen dienen der präzisen Fachinformation, sind schriftlich und punktuell. ';
-      systemPrompt += 'Verwende folgenden Aufbau: 1) Betreff (max. 120 Zeichen), 2) Kurze Begründung (3-4 Sätze mit Rechtsgrundlage), 3) Nummerierte präzise Fragen (max. 3-5 Hauptfragen), 4) Erbetene Antwortform und Frist. ';
-      systemPrompt += 'Formuliere neutral und sachlich ohne Wertungen. ';
+      systemRole += 'Erstelle eine KLEINE ANFRAGE nach kommunalrechtlichen Standards. ';
+      systemRole += 'Kleine Anfragen dienen der präzisen Fachinformation, sind schriftlich und punktuell. ';
+      systemRole += 'Verwende folgenden Aufbau: 1) Betreff (max. 120 Zeichen), 2) Kurze Begründung (3-4 Sätze mit Rechtsgrundlage), 3) Nummerierte präzise Fragen (max. 3-5 Hauptfragen), 4) Erbetene Antwortform und Frist. ';
+      systemRole += 'Formuliere neutral und sachlich ohne Wertungen. ';
     } else if (requestType === 'grosse_anfrage') {
-      systemPrompt += 'Erstelle eine GROSSE ANFRAGE nach kommunalrechtlichen Standards. ';
-      systemPrompt += 'Große Anfragen behandeln politisch bedeutsame Gesamtthemen umfassend mit höherer Öffentlichkeitswirkung. ';
-      systemPrompt += 'Verwende folgenden Aufbau: 1) Betreff (aussagekräftig), 2) Ausführliche Begründung mit politischem Kontext, 3) Nummerierte Fragen-Cluster (Hauptfragen mit Unterfragen), 4) Bitte um schriftliche UND mündliche Behandlung im Rat. ';
-      systemPrompt += 'Die Anfrage soll das Thema umfassend beleuchten und eine Debatte im Rat ermöglichen. ';
+      systemRole += 'Erstelle eine GROSSE ANFRAGE nach kommunalrechtlichen Standards. ';
+      systemRole += 'Große Anfragen behandeln politisch bedeutsame Gesamtthemen umfassend mit höherer Öffentlichkeitswirkung. ';
+      systemRole += 'Verwende folgenden Aufbau: 1) Betreff (aussagekräftig), 2) Ausführliche Begründung mit politischem Kontext, 3) Nummerierte Fragen-Cluster (Hauptfragen mit Unterfragen), 4) Bitte um schriftliche UND mündliche Behandlung im Rat. ';
+      systemRole += 'Die Anfrage soll das Thema umfassend beleuchten und eine Debatte im Rat ermöglichen. ';
     } else {
-      systemPrompt += 'Entwirf einen kommunalpolitischen ANTRAG basierend auf der gegebenen Idee. ';
-      systemPrompt += 'Der Antrag muss folgende Struktur haben: 1) Betreff, 2) Antragstext mit konkreten Beschlussvorschlägen, 3) Ausführliche Begründung. ';
+      systemRole += 'Entwirf einen kommunalpolitischen ANTRAG basierend auf der gegebenen Idee. ';
+      systemRole += 'Der Antrag muss folgende Struktur haben: 1) Betreff, 2) Antragstext mit konkreten Beschlussvorschlägen, 3) Ausführliche Begründung. ';
     }
     
     // Add web search instructions if enabled
     if (useWebSearchTool) {
-      systemPrompt += 'Nutze die Websuche, wenn du aktuelle Informationen oder Fakten benötigst. Zitiere deine Quellen. ';
+      systemRole += 'Nutze die Websuche, wenn du aktuelle Informationen oder Fakten benötigst. Zitiere deine Quellen. ';
     }
     
     // Add parliamentary documents instructions if available
     if (useBundestagApi && bundestagDocuments && bundestagDocuments.totalResults > 0) {
-      systemPrompt += 'Du hast Zugang zu relevanten parlamentarischen Dokumenten (Drucksachen und Plenarprotokolle) aus dem Bundestag. Nutze diese Informationen, um den Antrag zu fundieren und auf bereits diskutierte oder beschlossene Themen zu verweisen. Zitiere spezifische Dokumente mit ihrer Nummer und dem Datum. ';
+      systemRole += 'Du hast Zugang zu relevanten parlamentarischen Dokumenten (Drucksachen und Plenarprotokolle) aus dem Bundestag. Nutze diese Informationen, um den Antrag zu fundieren und auf bereits diskutierte oder beschlossene Themen zu verweisen. Zitiere spezifische Dokumente mit ihrer Nummer und dem Datum. ';
     }
     
-    systemPrompt += 'WICHTIG: Gib nur den finalen deutschen Text aus, keine englischen Zwischenschritte oder Gedankengänge. Beginne direkt mit dem fertigen Dokument.';
+    systemRole += 'WICHTIG: Gib nur den finalen deutschen Text aus, keine englischen Zwischenschritte oder Gedankengänge. Beginne direkt mit dem fertigen Dokument.';
+
+    builder
+      .setSystemRole(systemRole)
+      .setFormatting(HTML_FORMATTING_INSTRUCTIONS);
     
-    // Format parliamentary documents if available
+    // Note: Antrag generation doesn't use platform constraints (flexible lengths based on document type)
+    
+    // Add documents if present (both attachments and parliamentary documents)
+    if (attachmentResult.documents.length > 0) {
+      await builder.addDocuments(attachmentResult.documents, usePrivacyMode);
+    }
+
+    // Add parliamentary documents as knowledge if available
     const { formatDocumentsForPrompt } = require('../../utils/bundestagUtils');
-    const parlamentaryDocsText = useBundestagApi && bundestagDocuments ? formatDocumentsForPrompt(bundestagDocuments) : '';
-    
-    // Erstelle den Benutzerinhalt basierend auf dem Vorhandensein eines benutzerdefinierten Prompts
-    let userContent;
-    
+    if (useBundestagApi && bundestagDocuments && bundestagDocuments.totalResults > 0) {
+      const parlamentaryDocsText = formatDocumentsForPrompt(bundestagDocuments);
+      builder.addKnowledge([parlamentaryDocsText]);
+    }
+
+    // Handle custom instructions with structure detection
     if (customPrompt) {
       // Prüfe ob es sich um strukturierte Anweisungen/Wissen handelt
       const isStructured = customPrompt.includes('Der User gibt dir folgende Anweisungen') || 
                           customPrompt.includes('Der User stellt dir folgendes, wichtiges Wissen');
       
       if (isStructured) {
-        // Strukturierte Anweisungen und Wissen direkt verwenden
-        userContent = `${customPrompt}
-
----
-
-Aktuelles Datum: ${currentDate}
-
-Zusätzliche Informationen (falls relevant):
-${idee ? `- Antragsidee: ${idee}` : ''}
-${gliederung ? `- Gliederung: ${gliederung}` : ''}
-${details ? `- Details: ${details}` : ''}
-
-${parlamentaryDocsText}
-
-Der Antrag sollte eine klare Struktur mit Betreff, Antragstext und Begründung haben.
-
-WICHTIG: Antworte ausschließlich auf Deutsch. Gib nur den finalen Antrag aus, keine Zwischenschritte oder Erklärungen.
-
-${HTML_FORMATTING_INSTRUCTIONS}`;
+        // Structured prompts are passed directly as instructions
+        builder.setInstructions(customPrompt);
       } else {
-        // Legacy: Bei benutzerdefiniertem Prompt diesen verwenden, aber mit Standardinformationen ergänzen
-        userContent = `Benutzerdefinierter Prompt: ${customPrompt}
-
-Aktuelles Datum: ${currentDate}
-
-Zusätzliche Informationen (falls relevant):
-${idee ? `- Antragsidee: ${idee}` : ''}
-${gliederung ? `- Gliederung: ${gliederung}` : ''}
-${details ? `- Details: ${details}` : ''}
-
-${parlamentaryDocsText}
-
-Der Antrag sollte eine klare Struktur mit Betreff, Antragstext und Begründung haben.
-
-WICHTIG: Antworte ausschließlich auf Deutsch. Gib nur den finalen Antrag aus, keine Zwischenschritte oder Erklärungen.
-
-${HTML_FORMATTING_INSTRUCTIONS}`;
+        // Legacy custom prompts are wrapped
+        builder.setInstructions(`Benutzerdefinierter Prompt: ${customPrompt}`);
       }
-    } else {
-      // Standardinhalt ohne benutzerdefinierten Prompt
-      const requestTypeText = requestType === 'kleine_anfrage' ? 'eine kleine Anfrage' : 
-                             requestType === 'grosse_anfrage' ? 'eine große Anfrage' : 
-                             'einen kommunalpolitischen Antrag';
-                             
-      userContent = `Erstelle ${requestTypeText} zum Thema: ${idee}` + 
-                   (details ? `\n\nDetails: ${details}` : '') + 
-                   (gliederung ? `\n\nFür die Gliederung: ${gliederung}` : '') +
-                   `\n\nAktuelles Datum: ${currentDate}` +
-                   (parlamentaryDocsText ? `\n\n${parlamentaryDocsText}` : '') +
-                   `\n\nWICHTIG: Antworte ausschließlich auf Deutsch. Gib nur das finale Dokument aus, keine Zwischenschritte oder Erklärungen.\n\n${HTML_FORMATTING_INSTRUCTIONS}`;
     }
-    
-    // Add title generation instruction to user content
-    userContent += TITLE_GENERATION_INSTRUCTION;
+
+    // Build the request content
+    let requestContent;
+    const requestTypeText = requestType === 'kleine_anfrage' ? 'eine kleine Anfrage' : 
+                           requestType === 'grosse_anfrage' ? 'eine große Anfrage' : 
+                           'einen kommunalpolitischen Antrag';
+
+    if (customPrompt) {
+      // For custom prompts, provide structured data
+      requestContent = {
+        requestType: requestTypeText,
+        idee: idee || 'Nicht angegeben',
+        details: details || '',
+        gliederung: gliederung || '',
+        currentDate
+      };
+    } else {
+      // For standard requests, build descriptive content
+      requestContent = `Erstelle ${requestTypeText} zum Thema: ${idee}` + 
+                      (details ? `\n\nDetails: ${details}` : '') + 
+                      (gliederung ? `\n\nFür die Gliederung: ${gliederung}` : '') +
+                      `\n\nAktuelles Datum: ${currentDate}` +
+                      `\n\nWICHTIG: Antworte ausschließlich auf Deutsch. Gib nur das finale Dokument aus, keine Zwischenschritte oder Erklärungen.` +
+                      `\n\n${TITLE_GENERATION_INSTRUCTION}`;
+    }
+
+    builder.setRequest(requestContent);
+
+    // Build the final prompt
+    const promptResult = builder.build();
+    const systemPrompt = promptResult.system;
+    const messages = promptResult.messages;
     
     // Simple debug logging for prompt visualization
-    console.log('\n📄 [ANTRAG DEBUG] Vollständiger Prompt:');
-    console.log('System:', systemPrompt);
-    console.log('User Content:', userContent);
+    console.log('\n📄 [ANTRAG DEBUG] New Context-First Architecture:');
+    console.log('System:', systemPrompt.substring(0, 200) + '...');
+    console.log('Messages Count:', messages.length);
+    console.log('Has Attachments:', hasAttachments);
+    console.log('Has Parliamentary Docs:', !!(useBundestagApi && bundestagDocuments && bundestagDocuments.totalResults > 0));
+    console.log('Web Search Enabled:', useWebSearchTool);
     console.log('─'.repeat(50));
     
-    // Anfrage an Claude
+    // Prepare payload for AI Worker
     const payload = {
       systemPrompt,
-      messages: [{
-        role: "user",
-        content: userContent
-      }],
+      messages,
       tools,
       options: {
         temperature: 0.3,
-        useBedrock: useBedrock
+        max_tokens: 8000, // Ensure sufficient tokens for complete document generation
+        useBedrock: useBedrock,
+        // Add provider selection for privacy mode
+        ...(usePrivacyMode && provider && { provider: provider })
       }
     };
     
     const result = await req.app.locals.aiWorkerPool.processRequest({
       type: 'antrag',
       ...payload
-    });
+    }, req);
 
     if (!result.success) {
       console.error('Fehler bei Claude-Anfrage:', result.error);
       throw new Error(result.error);
     }
     
-    // Process response with title generation and preserve existing metadata
-    const processedResult = processResponseWithTitle(result, '/antraege/antrag_simple', { requestType, idee, details, gliederung });
-    const responseData = {
-      content: processedResult.content,
-      metadata: {
-        ...processedResult.metadata,
-        webSearchUsed: useWebSearchTool || false,
-        bundestagApiUsed: useBundestagApi || false,
-        bundestagDocumentsUsed: bundestagDocuments ? bundestagDocuments.totalResults : 0
-      }
+    // Create response with special antrag metadata
+    const specialMetadata = {
+      webSearchUsed: useWebSearchTool || false,
+      bundestagApiUsed: useBundestagApi || false,
+      bundestagDocumentsUsed: bundestagDocuments ? bundestagDocuments.totalResults : 0
+    };
+
+    const response = createSuccessResponseWithAttachments(
+      result,
+      '/antraege/antrag_simple',
+      { requestType, idee, details, gliederung },
+      attachmentResult,
+      usePrivacyMode,
+      provider
+    );
+
+    // Add special metadata
+    response.metadata = {
+      ...response.metadata,
+      ...specialMetadata
     };
     
-    res.json(responseData);
-  } catch (error) {
-    console.error('Fehler bei der einfachen Antragserstellung:', error);
-    res.status(500).json({ 
-      error: 'Fehler bei der Erstellung des Antrags',
-      details: error.message
-    });
-  }
-});
+    console.log(`[antrag_simple] Success: ${response.content?.length || 0} chars generated`);
+    res.json(response);
+}, '/antraege/antrag_simple');
+
+router.post('/', routeHandler);
 
 module.exports = router; 

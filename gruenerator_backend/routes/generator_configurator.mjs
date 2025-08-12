@@ -31,11 +31,18 @@ router.post('/', async (req, res) => {
     // Simplified system prompt
     const systemPrompt = `Du bist ein Assistent, der JSON-Konfigurationen für Textgeneratoren erstellt.`;
 
-    // Detailed instructions moved to the user message
+    // Enhanced user message with explicit JSON format requirements
     const userContent = `Erstelle eine Generator-Konfiguration für folgende Beschreibung:
 \"${description}\"
 
-Deine Antwort muss ausschließlich ein valides JSON-Objekt sein, ohne Erklärungen davor oder danach. Das JSON-Objekt muss folgende Schlüssel enthalten:
+WICHTIG - ANTWORTFORMAT:
+Antworte NUR mit dem JSON-Objekt. Verwende KEINE Markdown-Formatierung, KEINE Codeblöcke (\`\`\`), KEINE Erklärungen.
+Beginne deine Antwort direkt mit { und ende mit }. Nichts davor, nichts danach.
+
+FALSCH: \`\`\`json {...} \`\`\`
+RICHTIG: {"name": "...", "slug": "..."}
+
+Das JSON-Objekt muss folgende Schlüssel enthalten:
 1.  \`name\`: Ein kurzer, aussagekräftiger Name für den Generator (string).
 2.  \`slug\`: Ein URL-freundlicher Bezeichner (nur Kleinbuchstaben, Zahlen, Bindestriche) (string).
 3.  \`fields\`: Ein Array von Formularfeld-Objekten (maximal 5). Jedes Feld-Objekt muss enthalten:
@@ -53,6 +60,7 @@ Beachte:
 *   Der 'slug' darf nur Kleinbuchstaben, Zahlen und Bindestriche enthalten.
 *   Der 'name' jedes Feldes muss korrekt vom 'label' abgeleitet werden (Kleinbuchstaben, Unterstriche statt Leerzeichen, keine Sonderzeichen).
 *   Maximal 5 Felder definieren.
+*   Antworte ausschließlich mit dem JSON-Objekt, keine Markdown-Formatierung!
 `;
 
     const result = await req.app.locals.aiWorkerPool.processRequest({

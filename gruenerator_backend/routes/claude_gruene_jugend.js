@@ -1,12 +1,23 @@
 const express = require('express');
 const router = express.Router();
+// Import unified prompt building architecture
 const {
   HTML_FORMATTING_INSTRUCTIONS,
   isStructuredPrompt,
   formatUserContent,
   TITLE_GENERATION_INSTRUCTION,
-  processResponseWithTitle
-} = require('../utils/promptUtils');
+  processResponseWithTitle,
+  PromptBuilder
+} = require('../utils/promptBuilderCompat');
+
+// Import attachment utilities
+const {
+  processAndBuildAttachments
+} = require('../utils/attachmentUtils');
+
+// Import response and error handling utilities
+const { sendSuccessResponseWithAttachments } = require('../utils/responseFormatter');
+const { withErrorHandler } = require('../utils/errorHandler');
 
 const platformGuidelines = {
   instagram: {
@@ -81,44 +92,91 @@ const platformGuidelines = {
   }
 };
 
-router.post('/', async (req, res) => {
-  const { thema, details, platforms = [], customPrompt } = req.body;
+const routeHandler = withErrorHandler(async (req, res) => {
+  const { thema, details, platforms = [], customPrompt, usePrivacyMode, provider, attachments } = req.body;
   
   // Aktuelles Datum ermitteln
   const currentDate = new Date().toISOString().split('T')[0];
+  
+  // Process attachments using consolidated utility
+  const attachmentResult = await processAndBuildAttachments(
+    attachments, 
+    usePrivacyMode, 
+    'claude_gruene_jugend', 
+    req.user?.id || 'unknown'
+  );
+
+  // Handle attachment errors
+  if (attachmentResult.error) {
+    return res.status(400).json({
+      error: 'Fehler bei der Verarbeitung der Anhänge',
+      details: attachmentResult.error
+    });
+  }
+
   console.log('[claude_gruene_jugend] Anfrage erhalten:', { 
     thema, 
     details, 
     platforms,
-    hasCustomPrompt: !!customPrompt
+    hasCustomPrompt: !!customPrompt,
+    usePrivacyMode: usePrivacyMode || false,
+    provider: usePrivacyMode && provider ? provider : 'default',
+    hasAttachments: attachmentResult.hasAttachments,
+    attachmentsCount: attachmentResult.summary?.count || 0,
+    attachmentsTotalSizeMB: attachmentResult.summary?.totalSizeMB || 0
   });
-
-  try {
     console.log('[claude_gruene_jugend] Starte AI Worker Request');
 
-    // Systemanweisung für die GRÜNE JUGEND Inhalte
-    const systemPrompt = `Du bist Social Media Manager für die GRÜNE JUGEND. 
-      Erstelle Vorschläge für Social-Media-Beiträge im typischen Stil der GRÜNEN JUGEND.
-
-      Allgemeine Richtlinien für alle Plattformen:
-      - Klare linke politische Positionierung
-      - Direkte, jugendliche Ansprache ("Leute", "ihr", "wir")
-      - Klare Handlungsaufforderungen ("Kommt vorbei!", "Seid dabei!")
-      - Solidarische Botschaften mit marginalisierten Gruppen
-      - Fragen zur Interaktion stellen ("Bist du dabei?", "Was würdet ihr tun?")
-      - Aufruf zu direktem Aktivismus
-
-      Formatiere deine Antwort als Text mit Überschriften für die verschiedenen Plattformen. 
-      WICHTIG: Jede Plattform muss mit einem eigenen Header in Großbuchstaben und einem Doppelpunkt 
-      beginnen, z.B. "TWITTER:" oder "INSTAGRAM:"
-      
-      ${HTML_FORMATTING_INSTRUCTIONS}`;
-
-    // Erstelle den Benutzerinhalt basierend auf dem Vorhandensein eines benutzerdefinierten Prompts
-    let userContent;
+    // Build prompt using new Context-First Architecture
+    console.log('[claude_gruene_jugend] Building prompt with new Context-First Architecture');
     
-    // Build the specialized base content for Grüne Jugend social media generation
-    const baseContent = `Erstelle einen maßgeschneiderten Social-Media-Beitrag für jede ausgewählte Plattform zu diesem Thema im charakteristischen Stil der GRÜNEN JUGEND. Berücksichtige diese plattformspezifischen Richtlinien:
+    const builder = new PromptBuilder('gruene_jugend')
+      .enableDebug(process.env.NODE_ENV === 'development');
+
+    // Set system role with Grüne Jugend specific style
+    const systemRole = `Du bist Social Media Manager für die GRÜNE JUGEND. 
+Erstelle Vorschläge für Social-Media-Beiträge im typischen Stil der GRÜNEN JUGEND.
+
+Allgemeine Richtlinien für alle Plattformen:
+- Klare linke politische Positionierung
+- Direkte, jugendliche Ansprache ("Leute", "ihr", "wir")
+- Klare Handlungsaufforderungen ("Kommt vorbei!", "Seid dabei!")
+- Solidarische Botschaften mit marginalisierten Gruppen
+- Fragen zur Interaktion stellen ("Bist du dabei?", "Was würdet ihr tun?")
+- Aufruf zu direktem Aktivismus
+
+Formatiere deine Antwort als Text mit Überschriften für die verschiedenen Plattformen. 
+WICHTIG: Jede Plattform muss mit einem eigenen Header in Großbuchstaben und einem Doppelpunkt 
+beginnen, z.B. "TWITTER:" oder "INSTAGRAM:"`;
+    
+    builder
+      .setSystemRole(systemRole)
+      .setFormatting(HTML_FORMATTING_INSTRUCTIONS)
+      .setConstraints(platforms); // Automatic platform constraints using PLATFORM_SPECIFIC_GUIDELINES
+
+    // Add documents if present
+    if (attachmentResult.documents.length > 0) {
+      await builder.addDocuments(attachmentResult.documents, usePrivacyMode);
+    }
+
+    // Add custom instructions if present
+    if (customPrompt) {
+      builder.setInstructions(customPrompt);
+    }
+
+    // Build the request content
+    let requestContent;
+    
+    if (customPrompt) {
+      // For custom prompts, provide structured data
+      requestContent = {
+        thema,
+        details,
+        platforms
+      };
+    } else {
+      // For standard requests, build descriptive content
+      requestContent = `Erstelle einen maßgeschneiderten Social-Media-Beitrag für jede ausgewählte Plattform zu diesem Thema im charakteristischen Stil der GRÜNEN JUGEND. Berücksichtige diese plattformspezifischen Richtlinien:
 
 ${platforms.map(platform => {
   const guidelines = platformGuidelines[platform];
@@ -135,43 +193,30 @@ Jeder Beitrag sollte:
 7. Eine jugendliche, authentische Sprache nutzen
 8. Zum direkten politischen Handeln aufrufen
 
-${HTML_FORMATTING_INSTRUCTIONS}`;
-    
-    if (customPrompt) {
-      // Bei benutzerdefiniertem Prompt diesen verwenden, aber mit Plattforminformationen ergänzen
-      const additionalInfo = `Zusätzliche Informationen (falls relevant):
-- Thema: ${thema}
-- Details: ${details}
-- Plattformen: ${platforms.join(', ')}`;
+Aktuelles Datum: ${currentDate}
 
-      userContent = formatUserContent({
-        customPrompt,
-        baseContent,
-        currentDate, 
-        additionalInfo
-      });
-    } else {
-      // Standardinhalt ohne benutzerdefinierten Prompt
-      userContent = `Thema: ${thema}
+Bitte erstelle die Inhalte für folgende Angaben:
+Thema: ${thema}
 Details: ${details}
 Plattformen: ${platforms.join(', ')}
-Aktuelles Datum: ${currentDate}
-        
-${baseContent}`;
+
+${TITLE_GENERATION_INSTRUCTION}`;
     }
 
-    // Add title generation instruction to user content
-    userContent += TITLE_GENERATION_INSTRUCTION;
+    builder.setRequest(requestContent);
+
+    // Build the final prompt
+    const promptResult = builder.build();
+    const systemPrompt = promptResult.system;
+    const messages = promptResult.messages;
 
     const payload = {
       systemPrompt,
-      messages: [{
-        role: 'user',
-        content: userContent
-      }],
+      messages,
       options: {
         max_tokens: 8000,
-        temperature: 0.9
+        temperature: 0.9,
+        ...(usePrivacyMode && provider && { provider: provider })
       },
 
     };
@@ -179,7 +224,7 @@ ${baseContent}`;
     const result = await req.app.locals.aiWorkerPool.processRequest({
       type: 'gruene_jugend',
       ...payload
-    });
+    }, req);
 
     console.log('[claude_gruene_jugend] AI Worker Antwort erhalten:', {
       success: result.success,
@@ -192,23 +237,18 @@ ${baseContent}`;
       throw new Error(result.error);
     }
 
-    const processedResult = processResponseWithTitle(result, '/claude_gruene_jugend', { thema, details, platforms });
-    const response = { 
-      content: processedResult.content,
-      metadata: processedResult.metadata
-    };
-    console.log('[claude_gruene_jugend] Sende erfolgreiche Antwort:', {
-      contentLength: response.content?.length,
-      hasMetadata: !!response.metadata
-    });
-    res.json(response);
-  } catch (error) {
-    console.error('[claude_gruene_jugend] Fehler bei der Social Media Post Erstellung:', error);
-    res.status(500).json({ 
-      error: 'Fehler bei der Erstellung der Social Media Posts',
-      details: error.message 
-    });
-  }
-});
+    // Send standardized success response
+    sendSuccessResponseWithAttachments(
+      res,
+      result,
+      '/claude_gruene_jugend',
+      { thema, details, platforms },
+      attachmentResult,
+      usePrivacyMode,
+      provider
+    );
+}, '/claude_gruene_jugend');
+
+router.post('/', routeHandler);
 
 module.exports = router; 

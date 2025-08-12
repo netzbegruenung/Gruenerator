@@ -1,18 +1,23 @@
 import React, { useState, useCallback } from 'react';
 import { HiPhotograph, HiExternalLink } from 'react-icons/hi';
 import AssetPackageCard from './AssetPackageCard';
+import CanvaButton from './CanvaButton';
 import * as canvaUtils from '../../../../components/utils/canvaUtils';
 
 /**
  * Canva Assets Panel Component
  * Displays available asset packages and handles import functionality
+ * Note: Authentication is handled by parent component (ContentManagementTab)
+ * This component assumes user is already authenticated
  */
 const CanvaAssetsPanel = ({ 
     canvaConnected, 
-    canvaLoading, 
+    canvaLoading,
+    isAuthenticated = true, // Default to true for backward compatibility
     onCanvaLogin, 
     onSuccessMessage, 
-    onErrorMessage
+    onErrorMessage,
+    onNavigateToOverview
 }) => {
     const [importingPackage, setImportingPackage] = useState(null);
     const [importProgress, setImportProgress] = useState('');
@@ -54,15 +59,14 @@ const CanvaAssetsPanel = ({
                     <div className="empty-state">
                         <HiPhotograph size={48} style={{ color: 'var(--font-color-muted)' }} />
                         <p>Verbinde dein Canva-Konto, um Asset-Pakete zu verwenden.</p>
-                        <button
-                            type="button"
-                            className="btn-primary"
+                        <CanvaButton
                             onClick={onCanvaLogin}
-                            disabled={canvaLoading}
+                            loading={canvaLoading}
+                            size="medium"
+                            ariaLabel="Mit Canva verbinden für Asset-Pakete"
                         >
-                            <HiExternalLink className="icon" />
-                            {canvaLoading ? 'Verbinde...' : 'Mit Canva verbinden'}
-                        </button>
+                            Mit Canva verbinden
+                        </CanvaButton>
                     </div>
                 </div>
             </div>

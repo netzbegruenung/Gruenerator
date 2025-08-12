@@ -6,6 +6,33 @@ import { createPromptWithMemories } from './promptUtils';
 const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 /**
+ * CONTEXT-FIRST ARCHITECTURE INTEGRATION
+ * 
+ * This module has been updated to work with the new backend Context-First Architecture.
+ * The backend now uses PromptBuilder which separates:
+ * 
+ * - System Role: AI's role and capabilities
+ * - Constraints: Inviolable rules (e.g. Twitter 280 chars) 
+ * - Documents: Context information (PDFs, images) - NOT instructions
+ * - Instructions: Custom user instructions/prompts
+ * - Request: The actual user request/data
+ * 
+ * Frontend Compatibility:
+ * - Existing structured prompts work seamlessly with new backend
+ * - "Der User gibt dir folgende Anweisungen" detected as instructions
+ * - "Der User stellt dir folgendes, wichtiges Wissen" detected as knowledge
+ * - Documents are automatically placed in context layer (not instruction layer)
+ * - Platform constraints (Twitter 280 chars) are protected and cannot be overridden
+ * 
+ * Migration Status:
+ * - ✅ claude_social.js - Migrated with protected platform constraints
+ * - ✅ claude_gruene_jugend.js - Migrated with protected platform constraints  
+ * - ✅ claude_universal.js - Migrated (universal, rede, wahlprogramm routers)
+ * - ✅ antraege/antrag_simple.js - Migrated with web search and Bundestag API support
+ * - ✅ Frontend compatibility layer added
+ */
+
+/**
  * Search documents for relevant content based on query
  * @param {string} query - Search query
  * @param {string} userId - User ID for document access
@@ -250,6 +277,55 @@ export const formatMemories = (memories, generatorType) => {
 };
 
 /**
+ * Creates a Context-First Architecture compatible prompt optimized for new backend
+ * This function aligns with the new backend PromptBuilder architecture that separates
+ * system role, constraints, documents (as context), instructions, and requests.
+ * 
+ * @param {Object} params - Parameters for creating the prompt
+ * @param {Object} params.source - Knowledge source from store
+ * @param {boolean} params.isInstructionsActive - Whether instructions are active
+ * @param {Function} params.getActiveInstruction - Function to get active instruction
+ * @param {string} params.instructionType - Type of instruction ('antrag' or 'social')
+ * @param {Object} params.groupDetailsData - Group details data
+ * @param {Function} params.getKnowledgeContent - Function to get knowledge content
+ * @param {Function} params.getDocumentContent - Function to get selected document content
+ * @param {string} params.additionalContent - Additional content to include
+ * @param {Object} params.memoryOptions - Options for memory retrieval
+ * @param {Object} params.documentOptions - Options for document retrieval
+ * @param {boolean} params.useContextFirst - Whether to use Context-First format (default: true)
+ * @returns {Promise<string|null>} Context-First compatible prompt or null
+ */
+export const createContextFirstPrompt = async (params) => {
+  const { useContextFirst = true, ...otherParams } = params;
+  
+  console.log('[createContextFirstPrompt] Creating Context-First compatible prompt');
+  
+  // Use the existing createKnowledgePrompt function for now, as it already creates
+  // a well-structured format that the backend PromptBuilder can parse
+  const structuredPrompt = await createKnowledgePrompt(otherParams);
+  
+  if (!structuredPrompt) {
+    return null;
+  }
+
+  // The structured prompt format from createPromptWithMemories() is already
+  // compatible with the backend Context-First Architecture:
+  // - Instructions sections are detected by "Der User gibt dir folgende Anweisungen"
+  // - Knowledge sections are detected by "Der User stellt dir folgendes, wichtiges Wissen"
+  // - The backend PromptBuilder.setInstructions() handles this structured format
+  
+  console.log('[createContextFirstPrompt] Context-First prompt created:', {
+    promptLength: structuredPrompt.length,
+    hasInstructions: structuredPrompt.includes('Der User gibt dir folgende Anweisungen'),
+    hasKnowledge: structuredPrompt.includes('Der User stellt dir folgendes, wichtiges Wissen'),
+    hasMemories: structuredPrompt.includes('Aus früheren Interaktionen'),
+    hasDocuments: structuredPrompt.includes('Der User hat') && structuredPrompt.includes('Dokumente')
+  });
+
+  return structuredPrompt;
+};
+
+/**
  * Creates a structured prompt with knowledge, instructions, memories, and documents
  * @param {Object} params - Parameters for creating the prompt
  * @param {Object} params.source - Knowledge source from store
@@ -270,6 +346,7 @@ export const formatMemories = (memories, generatorType) => {
  * @param {string} params.documentOptions.userId - User ID for document retrieval
  * @param {boolean} params.documentOptions.enableDocuments - Whether to include documents
  * @returns {Promise<string|null>} Structured prompt or null
+ * @deprecated Consider using createContextFirstPrompt for better backend compatibility
  */
 export const createKnowledgePrompt = async ({
   source,
@@ -430,4 +507,51 @@ export const createKnowledgePrompt = async ({
   });
   
   return finalPrompt;
+};
+
+/**
+ * Validates that a prompt is compatible with the Context-First Architecture
+ * @param {string} prompt - The prompt to validate
+ * @returns {Object} Validation results with compatibility info
+ */
+export const validateContextFirstCompatibility = (prompt) => {
+  if (!prompt || typeof prompt !== 'string') {
+    return {
+      isCompatible: false,
+      reason: 'No prompt provided',
+      suggestions: []
+    };
+  }
+
+  const hasInstructions = prompt.includes('Der User gibt dir folgende Anweisungen');
+  const hasKnowledge = prompt.includes('Der User stellt dir folgendes, wichtiges Wissen');
+  const hasMemories = prompt.includes('Aus früheren Interaktionen');
+  const hasDocuments = prompt.includes('Der User hat') && prompt.includes('Dokumente');
+  const hasStructuredSections = hasInstructions || hasKnowledge || hasMemories || hasDocuments;
+
+  const validation = {
+    isCompatible: true,
+    hasStructuredSections,
+    sections: {
+      instructions: hasInstructions,
+      knowledge: hasKnowledge,
+      memories: hasMemories,
+      documents: hasDocuments
+    },
+    promptLength: prompt.length,
+    suggestions: []
+  };
+
+  // Add suggestions for better compatibility
+  if (!hasStructuredSections) {
+    validation.suggestions.push('Consider using createContextFirstPrompt() for better backend compatibility');
+  }
+
+  if (prompt.length > 8000) {
+    validation.suggestions.push('Prompt is very long - consider reducing content for better performance');
+  }
+
+  console.log('[validateContextFirstCompatibility] Prompt validation:', validation);
+  
+  return validation;
 };

@@ -85,7 +85,7 @@ Gib deinen Alt-Text in <alt_text> Tags aus.`;
     const result = await req.app.locals.aiWorkerPool.processRequest({
       type: 'alttext',
       ...payload
-    });
+    }, req);
 
     console.log('[claude_alttext] AI Worker response received:', {
       success: result.success,

@@ -1,11 +1,33 @@
 import { supabaseService } from '../utils/supabaseClient.js';
 import { embeddingService } from './embeddingService.js';
 import { smartQueryExpansion } from './smartQueryExpansion.js';
+import { InputValidator, ValidationError } from '../utils/inputValidation.js';
+import { BaseSearchService, SearchError } from './BaseSearchService.js';
+import { grundsatzSearchService } from './GrundsatzSearchService.js';
+import { createBatchProcessor } from '../utils/batchProcessor.js';
+import { vectorConfig } from '../config/vectorConfig.js';
 
 /**
  * Vector search service for semantic document search
+ * Extends BaseSearchService to eliminate code duplication
  */
-class VectorSearchService {
+class VectorSearchService extends BaseSearchService {
+  
+  constructor() {
+    super({
+      serviceName: 'VectorSearch',
+      defaultLimit: 5,
+      defaultThreshold: 0.3,
+      cacheSize: 200,
+      cacheTTL: 1800000, // 30 minutes
+      cacheType: 'searchResults'
+    });
+    
+    // Initialize batch processors for optimized performance
+    this.embeddingBatchProcessor = createBatchProcessor.embeddings(embeddingService);
+    this.chunkExpansionBatchProcessor = createBatchProcessor.chunkExpansion(this);
+    this.databaseOptimizer = createBatchProcessor.databaseOptimizer(supabaseService);
+  }
   
   /**
    * Main search method that routes to appropriate search function based on mode
@@ -19,112 +41,148 @@ class VectorSearchService {
    * @returns {Promise<Object>} Search results
    */
   async search(searchParams) {
-    const { 
-      query, 
-      user_id, 
-      group_id, 
-      documentIds,
-      limit = 5, 
-      mode = 'vector',
-      threshold = null
-    } = searchParams;
+    try {
+      // Validate and sanitize all search parameters
+      const validatedParams = InputValidator.validateSearchParams(searchParams);
+      
+      const { 
+        query, 
+        user_id, 
+        group_id, 
+        documentIds,
+        limit, 
+        mode,
+        threshold
+      } = validatedParams;
 
-    console.log(`[VectorSearchService] Search request: query="${query}", mode="${mode}", user_id="${user_id}", documentIds=${documentIds ? `[${documentIds.length} docs]` : 'all'}`);
+      console.log(`[VectorSearchService] Search request: query="${query}", mode="${mode}", user_id="${user_id}", documentIds=${documentIds ? `[${documentIds.length} docs]` : 'all'}`);
 
-    // Route to appropriate search method based on mode
-    switch (mode) {
-      case 'hybrid':
-        return await this.hybridSearch(query, user_id, { limit, threshold, documentIds });
-      case 'keyword':
-        return await this.fallbackKeywordSearch(query, user_id, limit, documentIds);
-      case 'vector':
-      default:
-        return await this.searchDocuments(query, user_id, { limit, threshold, documentIds });
+      // Route to appropriate search method based on mode
+      switch (mode) {
+        case 'hybrid':
+          return await this.hybridSearch(query, user_id, { limit, threshold, documentIds });
+        case 'keyword':
+          return await this.fallbackKeywordSearch(query, user_id, limit, documentIds);
+        case 'vector':
+        default:
+          // Use base class performSimilaritySearch with user document filters
+          return await this.performSimilaritySearch({
+            query,
+            userId: user_id,
+            filters: { documentIds, group_id },
+            options: { 
+              limit, 
+              threshold, 
+              useCache: true,
+              useSmartExpansion: true
+            }
+          });
+      }
+    } catch (error) {
+      return this.createErrorResponse(error, searchParams.query);
     }
   }
 
   /**
-   * Search documents using vector similarity
+   * Generate query embedding with smart expansion support (overrides base class)
+   * @param {string} query - Search query
+   * @param {Object} options - Generation options
+   * @returns {Promise<Array>} Query embedding
+   * @protected
+   */
+  async generateQueryEmbedding(query, options = {}) {
+    if (options.useSmartExpansion) {
+      return await this.smartEnhanceAndEmbedQuery(query, options.userId || 'system');
+    }
+    
+    return await embeddingService.generateQueryEmbedding(query);
+  }
+
+  /**
+   * Get RPC function name based on filters (overrides base class)
+   * @param {Object} filters - Search filters
+   * @returns {string} RPC function name
+   * @protected
+   */
+  getRPCFunction(filters) {
+    if (filters.documentIds && filters.documentIds.length > 0) {
+      return 'similarity_search_with_documents';
+    }
+    return 'similarity_search_optimized';
+  }
+
+  /**
+   * Build RPC parameters (overrides base class)
+   * @param {Object} params - Parameter object
+   * @returns {Object} RPC parameters
+   * @protected
+   */
+  buildRPCParams(params) {
+    const { embeddingString, userId, filters, limit, threshold } = params;
+    
+    const baseParams = {
+      query_embedding: embeddingString,
+      user_id_filter: userId,
+      similarity_threshold: threshold,
+      match_count: limit
+    };
+    
+    // Add document filtering if specified
+    if (filters.documentIds && filters.documentIds.length > 0) {
+      baseParams.document_ids_filter = filters.documentIds;
+    }
+    
+    return baseParams;
+  }
+
+  /**
+   * Handle empty search results with keyword fallback (overrides base class)
+   * @param {string} query - Original query
+   * @param {Object} options - Search options
+   * @param {string} userId - User ID (passed from base class)
+   * @returns {Object} Empty results response or keyword fallback results
+   * @protected
+   */
+  async handleEmptyResults(query, options, userId = null) {
+    if (options.includeKeywordFallback && userId) {
+      console.log(`[VectorSearchService] No vector results found, trying keyword search`);
+      return await this.fallbackKeywordSearch(query, userId, options.limit, options.filters?.documentIds);
+    }
+    
+    return super.handleEmptyResults(query, options);
+  }
+
+  /**
+   * Search documents using vector similarity (legacy method for backward compatibility)
    * @param {string} query - Search query
    * @param {string} userId - User ID for access control
    * @param {Object} options - Search options
    * @returns {Promise<Object>} Search results
    */
   async searchDocuments(query, userId, options = {}) {
-    const {
-      limit = 5,
-      threshold = null, // Will be calculated dynamically if not provided
-      includeKeywordSearch = true,
-      documentIds = null
-    } = options;
-
-    try {
-      console.log(`[VectorSearchService] Searching for: "${query}" (user: ${userId})`);
-
-      // Generate enhanced embedding for the query using smart expansion
-      console.log(`[VectorSearchService] Processing and generating embedding for query: "${query}"`);
-      const queryEmbedding = await this.smartEnhanceAndEmbedQuery(query, userId);
-      
-      console.log(`[VectorSearchService] Generated embedding dimensions: ${queryEmbedding?.length}`);
-      console.log(`[VectorSearchService] First 5 embedding values: ${queryEmbedding?.slice(0, 5)}`);
-      
-      if (!embeddingService.validateEmbedding(queryEmbedding)) {
-        throw new Error('Invalid query embedding generated');
+    // Convert legacy options to new format and use base class
+    return await this.performSimilaritySearch({
+      query,
+      userId,
+      filters: { documentIds: options.documentIds },
+      options: {
+        limit: options.limit || 5,
+        threshold: options.threshold,
+        useCache: true,
+        useSmartExpansion: true,
+        includeKeywordFallback: options.includeKeywordSearch !== false
       }
+    });
+  }
 
-      // Calculate dynamic threshold if not provided
-      const dynamicThreshold = threshold ?? this.calculateDynamicThreshold(query);
-      console.log(`[VectorSearchService] Using similarity threshold: ${dynamicThreshold}`);
-
-      // Search for similar document chunks
-      const chunks = await this.findSimilarChunks(queryEmbedding, userId, limit * 3, dynamicThreshold, documentIds);
-      
-      if (chunks.length === 0) {
-        console.log(`[VectorSearchService] No vector results found, ${includeKeywordSearch ? 'trying keyword search' : 'returning empty'}`);
-        
-        if (includeKeywordSearch) {
-          return await this.fallbackKeywordSearch(query, userId, limit, documentIds);
-        }
-        
-        return {
-          success: true,
-          results: [],
-          query: query.trim(),
-          searchType: 'vector',
-          message: 'No relevant documents found'
-        };
-      }
-
-      // Group chunks by document and rank
-      const documentResults = await this.groupAndRankResults(chunks, limit);
-
-      console.log(`[VectorSearchService] Found ${documentResults.length} relevant documents`);
-
-      return {
-        success: true,
-        results: documentResults,
-        query: query.trim(),
-        searchType: 'vector',
-        message: `Found ${documentResults.length} relevant document(s)`
-      };
-
-    } catch (error) {
-      console.error('[VectorSearchService] Search error:', error);
-      
-      // Fallback to keyword search on error
-      if (includeKeywordSearch) {
-        console.log('[VectorSearchService] Falling back to keyword search due to error');
-        return await this.fallbackKeywordSearch(query, userId, limit, documentIds);
-      }
-      
-      return {
-        success: false,
-        error: error.message,
-        results: [],
-        query: query.trim(),
-        searchType: 'error'
-      };
-    }
+  /**
+   * Search Grundsatz documents using specialized service
+   * @param {Object} searchParams - Search parameters
+   * @returns {Promise<Object>} Search results from Grundsatz documents
+   */
+  async searchGrundsatz(searchParams) {
+    // Delegate to specialized Grundsatz search service
+    return await grundsatzSearchService.searchGrundsatz(searchParams);
   }
 
   /**
@@ -318,29 +376,33 @@ class VectorSearchService {
         return await embeddingService.generateQueryEmbedding(originalQuery);
       }
 
-      // Generate embeddings for all expanded queries
+      // Generate embeddings for all expanded queries using batch processing (OPTIMIZED)
+      console.log(`[VectorSearchService] Generating embeddings for ${expansion.expandedQueries.length} expanded queries using batch processing`);
+      
+      const embeddingResults = await this.embeddingBatchProcessor.generateEmbeddings(expansion.expandedQueries);
+      
+      // Process results and calculate weights using configuration
+      const queryConfig = vectorConfig.get('queryExpansion');
       const embeddings = [];
       const weights = [];
       
-      for (let i = 0; i < expansion.expandedQueries.length; i++) {
-        const query = expansion.expandedQueries[i];
-        try {
-          const embedding = await embeddingService.generateQueryEmbedding(query);
-          embeddings.push(embedding);
+      embeddingResults.forEach((result, i) => {
+        if (result.embedding && result.embedding.length > 0) {
+          embeddings.push(result.embedding);
           
-          // Weight the original query higher, then decrease for expansions
+          // Weight the original query higher, then decrease for expansions using config
           if (i === 0) {
-            weights.push(1.0); // Original query gets full weight
+            weights.push(queryConfig.originalWeight);
           } else {
             // Expansion queries get decreasing weights based on confidence
-            const baseWeight = 0.6;
-            const confidenceBoost = (expansion.semanticConfidence + expansion.feedbackConfidence) / 2;
-            weights.push(baseWeight * confidenceBoost);
+            const confidenceBoost = (expansion.semanticConfidence * queryConfig.semanticConfidenceWeight + 
+                                   expansion.feedbackConfidence * queryConfig.feedbackConfidenceWeight) / 2;
+            weights.push(queryConfig.expansionBaseWeight * confidenceBoost * queryConfig.confidenceBoostWeight);
           }
-        } catch (error) {
-          console.warn(`[VectorSearchService] Failed to generate embedding for: "${query}"`, error);
+        } else {
+          console.warn(`[VectorSearchService] Failed to generate embedding for: "${result.query}"`);
         }
-      }
+      });
 
       if (embeddings.length === 0) {
         throw new Error('Failed to generate any embeddings for expanded queries');
@@ -358,92 +420,12 @@ class VectorSearchService {
       return weightedEmbedding;
 
     } catch (error) {
-      console.warn('[VectorSearchService] Smart expansion failed, using fallback:', error);
-      // Fallback to old hardcoded method
-      return await this.enhanceAndEmbedQuery(originalQuery);
+      console.warn('[VectorSearchService] Smart expansion failed, using simple embedding:', error);
+      // Fallback to simple embedding without expansion
+      return await embeddingService.generateQueryEmbedding(originalQuery);
     }
   }
 
-  /**
-   * Legacy: Enhance query with German political synonyms and generate weighted embedding
-   * @param {string} originalQuery - Original search query
-   * @returns {Promise<Array>} Enhanced query embedding
-   * @private
-   */
-  async enhanceAndEmbedQuery(originalQuery) {
-    // German political synonyms and semantic expansions
-    const germanSynonyms = {
-      'umwelt': ['klimaschutz', 'nachhaltigkeit', 'ökologie', 'naturschutz'],
-      'klimaschutz': ['umwelt', 'nachhaltigkeit', 'co2', 'emission'],
-      'bildung': ['schule', 'universität', 'ausbildung', 'lernen', 'lehren'],
-      'wirtschaft': ['finanzen', 'arbeitsplätze', 'unternehmen', 'arbeit'],
-      'sozial': ['gesellschaft', 'gemeinschaft', 'solidarität', 'gerechtigkeit'],
-      'energie': ['strom', 'erneuerbar', 'solar', 'wind', 'photovoltaik'],
-      'verkehr': ['mobilität', 'transport', 'öpnv', 'bahn', 'fahrrad'],
-      'wohnen': ['miete', 'bauen', 'stadt', 'quartier', 'sozialwohnung'],
-      'gesundheit': ['medizin', 'pflege', 'krankenhaus', 'vorsorge'],
-      'europa': ['eu', 'europäisch', 'international', 'grenzüberschreitend'],
-      'essen': ['ernährung', 'landwirtschaft', 'lebensmittel', 'nahrung'],
-      'ernährung': ['essen', 'landwirtschaft', 'lebensmittel', 'gesundheit'],
-      'landwirtschaft': ['ernährung', 'essen', 'bauern', 'agrar', 'lebensmittel'],
-      'lebensmittel': ['essen', 'ernährung', 'landwirtschaft', 'qualität']
-    };
-
-    // Create query variants
-    const queryVariants = [originalQuery];
-    const queryLower = originalQuery.toLowerCase();
-    
-    // Add semantic expansions for recognized terms
-    Object.entries(germanSynonyms).forEach(([term, synonyms]) => {
-      if (queryLower.includes(term)) {
-        // Add the most relevant synonym
-        if (synonyms.length > 0) {
-          const expandedQuery = `${originalQuery} ${synonyms[0]}`;
-          queryVariants.push(expandedQuery);
-        }
-      }
-    });
-
-    // Add specific political context if query seems policy-related
-    const politicalTerms = ['politik', 'partei', 'wahl', 'bundestag', 'regierung', 'minister', 'grün', 'grüne'];
-    const isPolitical = politicalTerms.some(term => queryLower.includes(term));
-    
-    if (isPolitical && !queryLower.includes('grün')) {
-      queryVariants.push(`${originalQuery} grüne politik`);
-    }
-
-    console.log(`[VectorSearchService] Query variants:`, queryVariants);
-
-    // Generate embeddings for all variants
-    const embeddings = [];
-    const weights = [1.0]; // Original query gets full weight
-    
-    for (let i = 0; i < queryVariants.length; i++) {
-      try {
-        const embedding = await embeddingService.generateQueryEmbedding(queryVariants[i]);
-        embeddings.push(embedding);
-        
-        // Assign decreasing weights to expanded queries
-        if (i > 0) {
-          weights.push(Math.max(0.3, 0.8 - (i - 1) * 0.2));
-        }
-      } catch (error) {
-        console.warn(`[VectorSearchService] Failed to generate embedding for variant: "${queryVariants[i]}"`, error);
-      }
-    }
-
-    if (embeddings.length === 0) {
-      throw new Error('Failed to generate any query embeddings');
-    }
-
-    // If only one embedding (original), return it
-    if (embeddings.length === 1) {
-      return embeddings[0];
-    }
-
-    // Calculate weighted average embedding
-    return this.calculateWeightedAverageEmbedding(embeddings, weights);
-  }
 
   /**
    * Calculate weighted average of multiple embeddings
@@ -497,15 +479,8 @@ class VectorSearchService {
       lengthAdjustment = -0.1; // Longer queries can be more permissive
     }
     
-    // Content type adjustment: German political terms
-    let contentAdjustment = 0;
-    const politicalTerms = ['politik', 'partei', 'wahl', 'bundestag', 'regierung', 'minister', 'grün', 'grüne', 'umwelt', 'klima', 'energie', 'bildung', 'sozial', 'essen', 'ernährung', 'landwirtschaft', 'lebensmittel'];
-    const queryLower = query.toLowerCase();
-    const hasPoliticalTerms = politicalTerms.some(term => queryLower.includes(term));
-    
-    if (hasPoliticalTerms) {
-      contentAdjustment = -0.05; // Political content can be slightly more permissive
-    }
+    // No hardcoded content type adjustments - rely on dynamic calculation only
+    const contentAdjustment = 0;
     
     // Calculate final threshold
     const finalThreshold = baseThreshold + lengthAdjustment + contentAdjustment;
@@ -530,30 +505,41 @@ class VectorSearchService {
    * @private
    */
   async findSimilarChunks(queryEmbedding, userId, limit, threshold, documentIds = null) {
-    const embeddingString = `[${queryEmbedding.join(',')}]`;
-    
     try {
-      console.log(`[VectorSearchService] Calling similarity_search with threshold: ${threshold}, documentIds: ${documentIds ? `[${documentIds.length} docs]` : 'all'}`);
+      // Secure embedding validation and sanitization
+      const embeddingString = InputValidator.validateEmbedding(queryEmbedding);
+      
+      // Validate other parameters
+      const validUserId = InputValidator.validateUserId(userId);
+      const validLimit = InputValidator.validateNumber(limit, 'limit', { min: 1, max: 100 });
+      const validThreshold = InputValidator.validateNumber(threshold, 'threshold', { min: 0, max: 1 });
+      
+      let validDocumentIds = null;
+      if (documentIds && documentIds.length > 0) {
+        validDocumentIds = InputValidator.validateDocumentIds(documentIds);
+      }
+      
+      console.log(`[VectorSearchService] Calling similarity_search with threshold: ${validThreshold}, documentIds: ${validDocumentIds ? `[${validDocumentIds.length} docs]` : 'all'}`);
       
       let chunks, error;
       
-      if (documentIds && documentIds.length > 0) {
+      if (validDocumentIds && validDocumentIds.length > 0) {
         // Use document-filtered search for QA collections
         console.log(`[VectorSearchService] Document-filtered search parameters:`, {
-          user_id_filter: userId,
-          document_ids_filter: documentIds,
-          similarity_threshold: threshold,
-          match_count: limit,
+          user_id_filter: validUserId,
+          document_ids_filter: validDocumentIds,
+          similarity_threshold: validThreshold,
+          match_count: validLimit,
           embedding_length: queryEmbedding.length
         });
         
         const result = await supabaseService
           .rpc('similarity_search_with_documents', {
             query_embedding: embeddingString,
-            user_id_filter: userId,
-            document_ids_filter: documentIds,
-            similarity_threshold: threshold,
-            match_count: limit
+            user_id_filter: validUserId,
+            document_ids_filter: validDocumentIds,
+            similarity_threshold: validThreshold,
+            match_count: validLimit
           });
         chunks = result.data;
         error = result.error;
@@ -567,9 +553,9 @@ class VectorSearchService {
         const result = await supabaseService
           .rpc('similarity_search_optimized', {
             query_embedding: embeddingString,
-            user_id_filter: userId,
-            similarity_threshold: threshold,
-            match_count: limit
+            user_id_filter: validUserId,
+            similarity_threshold: validThreshold,
+            match_count: validLimit
           });
         chunks = result.data;
         error = result.error;
@@ -921,17 +907,20 @@ class VectorSearchService {
    * @private
    */
   async findSimilarGrundsatzChunks(queryEmbedding, limit, threshold) {
-    const embeddingString = `[${queryEmbedding.join(',')}]`;
-    
     try {
-      console.log(`[VectorSearchService] Calling Grundsatz similarity_search with threshold: ${threshold}`);
+      // Secure embedding validation and sanitization
+      const embeddingString = InputValidator.validateEmbedding(queryEmbedding);
+      const validLimit = InputValidator.validateNumber(limit, 'limit', { min: 1, max: 100 });
+      const validThreshold = InputValidator.validateNumber(threshold, 'threshold', { min: 0, max: 1 });
+      
+      console.log(`[VectorSearchService] Calling Grundsatz similarity_search with threshold: ${validThreshold}`);
       
       // Call the RPC function specifically for Grundsatz documents
       const { data: chunks, error } = await supabaseService
         .rpc('similarity_search_grundsatz', {
           query_embedding: embeddingString,
-          similarity_threshold: threshold,
-          match_count: limit
+          similarity_threshold: validThreshold,
+          match_count: validLimit
         });
 
       if (error) {
@@ -1043,42 +1032,30 @@ class VectorSearchService {
   }
 
   /**
-   * Expand chunks with hierarchical context based on metadata
+   * Expand chunks with hierarchical context based on metadata (OPTIMIZED with batching)
    * @param {Array} chunks - Array of chunks to expand
    * @param {Object} options - Expansion options
    * @returns {Promise<Array>} Expanded chunks with context
    */
   async expandChunksWithContext(chunks, options = {}) {
-    const {
-      maxContextTokens = 2000,
-      includePrevious = true,
-      includeNext = true,
-      includeRelated = true,
-      preserveStructure = true
-    } = options;
-
-    console.log(`[VectorSearchService] Expanding ${chunks.length} chunks with context`);
-
-    const expandedChunks = [];
-
-    for (const chunk of chunks) {
-      try {
-        const expandedChunk = await this.expandSingleChunk(chunk, {
-          maxContextTokens,
-          includePrevious,
-          includeNext,
-          includeRelated,
-          preserveStructure
-        });
-        expandedChunks.push(expandedChunk);
-      } catch (error) {
-        console.warn(`[VectorSearchService] Failed to expand chunk ${chunk.id}:`, error);
-        // Fallback to original chunk
-        expandedChunks.push(chunk);
-      }
+    if (!chunks || chunks.length === 0) {
+      return [];
     }
 
-    return expandedChunks;
+    // Use centralized configuration for context expansion
+    const contextConfig = vectorConfig.get('contextExpansion');
+    const expandOptions = {
+      maxContextTokens: options.maxContextTokens || contextConfig.maxContextTokens,
+      includePrevious: options.includePrevious !== false && contextConfig.includePrevious,
+      includeNext: options.includeNext !== false && contextConfig.includeNext,
+      includeRelated: options.includeRelated !== false && contextConfig.includeRelated,
+      preserveStructure: options.preserveStructure !== false && contextConfig.preserveStructure
+    };
+
+    console.log(`[VectorSearchService] Expanding ${chunks.length} chunks with context using batch processing`);
+
+    // Use batch processor for optimized performance
+    return await this.chunkExpansionBatchProcessor.expandChunks(chunks, expandOptions);
   }
 
   /**
@@ -1356,6 +1333,71 @@ class VectorSearchService {
     } catch (error) {
       console.error('[VectorSearchService] Error getting stats:', error);
       return { totalDocuments: 0, documentsWithEmbeddings: 0 };
+    }
+  }
+
+  /**
+   * Search database examples using vector similarity
+   * @param {string} query - Search query text
+   * @param {string} contentType - Type of content to search (e.g., 'instagram')
+   * @param {number} limit - Maximum results to return
+   * @param {number} threshold - Similarity threshold (0-1)
+   * @returns {Promise<Object>} Search results with similarity scores
+   */
+  async searchDatabaseExamples(query, contentType, limit = 5, threshold = 0.3) {
+    try {
+      // Validate input parameters
+      const validQuery = InputValidator.validateSearchQuery(query);
+      const validContentType = InputValidator.validateContentType(contentType);
+      const validLimit = InputValidator.validateNumber(limit, 'limit', { min: 1, max: 100 });
+      const validThreshold = InputValidator.validateNumber(threshold, 'threshold', { min: 0, max: 1 });
+      
+      console.log(`[VectorSearchService] Searching database examples: "${validQuery}" for type: ${validContentType}`);
+
+      // Generate embedding for the query
+      const queryEmbedding = await embeddingService.generateQueryEmbedding(validQuery);
+      
+      if (!embeddingService.validateEmbedding(queryEmbedding)) {
+        throw new Error('Invalid query embedding generated');
+      }
+
+      // Secure embedding validation and conversion
+      const embeddingString = InputValidator.validateEmbedding(queryEmbedding);
+      
+      const { data: examples, error } = await supabaseService
+        .rpc('similarity_search_database_examples', {
+          query_embedding: embeddingString,
+          content_type_filter: validContentType,
+          similarity_threshold: validThreshold,
+          match_count: validLimit
+        });
+
+      if (error) {
+        console.error('[VectorSearchService] Database examples search error:', error);
+        throw new Error(`Database examples search failed: ${error.message}`);
+      }
+
+      // Transform results to include similarity score
+      const results = (examples || []).map(example => ({
+        ...example,
+        similarity_score: example.similarity || 0
+      }));
+
+      console.log(`[VectorSearchService] Found ${results.length} similar examples with scores:`,
+        results.map(r => ({ title: r.title?.substring(0, 50) + '...', score: r.similarity_score?.toFixed(3) })));
+
+      return {
+        success: true,
+        results: results
+      };
+
+    } catch (error) {
+      console.error('[VectorSearchService] searchDatabaseExamples error:', error);
+      return {
+        success: false,
+        error: error.message,
+        results: []
+      };
     }
   }
 }

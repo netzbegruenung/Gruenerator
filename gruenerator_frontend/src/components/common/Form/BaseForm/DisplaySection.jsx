@@ -196,7 +196,7 @@ const DisplaySection = forwardRef(({
           />
         </div>
       )}
-      <div className="display-content" style={{ fontSize: '16px' }}>
+      <div className="display-content">
         <ErrorDisplay error={error} />
         <ContentRenderer
           value={activeContent}

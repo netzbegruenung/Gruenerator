@@ -78,14 +78,14 @@ const PLATFORM_SPECIFIC_GUIDELINES = {
   },
   instagram: {
     maxLength: 600,
-    style: "Visual, fun, and snappy. Heavy use of emojis and hashtags.",
+    style: "Visual, fun, and snappy.",
     focus: "Visual appeal, lifestyle content, behind-the-scenes glimpses.",
     additionalGuidelines: `
-      - Use plenty of emojis to visually emphasize emotions and messages.
+      - Use a few emojis to visually emphasize emotions and messages, at the beginning or end of a sentence for accessibility.
       - Keep paragraphs short and scannable.
       - Share clear, engaging political messages that resonate emotionally.
       - Use hashtags strategically to increase reach.
-      - End the post with a call to action or a question.
+      - End the post with a call to action or a question if useful.
     `
   },
   twitter: {
@@ -774,6 +774,27 @@ function processResponseWithTitle(result, routePath, formData = {}) {
   };
 }
 
+// Attachment-aware system prompt enhancement
+const ATTACHMENT_INSTRUCTIONS = `
+Du hast Zugang zu beigefügten Dokumenten und Bildern. Nutze diese als Kontext und Referenz für deine Antwort:
+- Analysiere den Inhalt der Dokumente sorgfältig
+- Beziehe relevante Informationen in deine Erstellung mit ein
+- Wenn du Inhalte aus den Dokumenten verwendest, weise darauf hin
+- Die Dokumente dienen als Hintergrundinformation und Kontext für deine Aufgabe`;
+
+/**
+ * Enhances system prompt with attachment-aware instructions
+ * @param {string} baseSystemPrompt - Original system prompt
+ * @param {boolean} hasAttachments - Whether attachments are present
+ * @returns {string} Enhanced system prompt
+ */
+const enhanceSystemPromptWithAttachments = (baseSystemPrompt, hasAttachments) => {
+  if (!hasAttachments) {
+    return baseSystemPrompt;
+  }
+  return baseSystemPrompt + ATTACHMENT_INSTRUCTIONS;
+};
+
 module.exports = {
   HTML_FORMATTING_INSTRUCTIONS,
   PLATFORM_SPECIFIC_GUIDELINES,
@@ -783,6 +804,7 @@ module.exports = {
   SEARCH_DOCUMENTS_TOOL,
   WEB_SEARCH_TOOL,
   TITLE_GENERATION_INSTRUCTION,
+  ATTACHMENT_INSTRUCTIONS,
   extractCitationsFromText,
   processAIResponseWithCitations,
   isStructuredPrompt,
@@ -790,5 +812,6 @@ module.exports = {
   detectContentType,
   generateSmartTitle,
   extractTitleFromResponse,
-  processResponseWithTitle
+  processResponseWithTitle,
+  enhanceSystemPromptWithAttachments
 }; 

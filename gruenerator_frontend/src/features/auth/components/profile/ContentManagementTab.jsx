@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, memo, useCallback } from 'react';
+import React, { useState, useRef, useEffect, memo, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from "motion/react";
 import { HiPlus, HiExclamationCircle, HiRefresh, HiShare, HiExternalLink, HiDownload, HiOutlineEye, HiOutlineTrash, HiX, HiCheck, HiClipboard, HiUpload, HiPhotograph, HiPencil, HiChatAlt2 } from 'react-icons/hi';
@@ -9,9 +9,14 @@ import DocumentUpload from '../../../../components/common/DocumentUpload';
 import ShareToGroupModal from '../../../../components/common/ShareToGroupModal';
 import AddCanvaTemplateModal from '../../../../components/common/AddCanvaTemplateModal';
 import TemplateLinkModal from '../../../../components/common/TemplateLinkModal';
+import ProfileCard from '../../../../components/common/ProfileCard';
+import EmptyState from '../../../../components/common/EmptyState';
+import TabNavigation from '../../../../components/common/TabNavigation';
 
 // Canva components
+import CanvaOverview from '../../../templates/canva/components/CanvaOverview';
 import CanvaAssetsPanel from '../../../templates/canva/components/CanvaAssetsPanel';
+import CanvaButton from '../../../templates/canva/components/CanvaButton';
 
 // Feature-specific components
 import QACreator from '../../../qa/components/QACreator';
@@ -21,8 +26,8 @@ import { useDocumentsStore } from '../../../../stores/documentsStore';
 import { useOptimizedAuth } from '../../../../hooks/useAuth';
 import { useQACollections, useUserTexts, useUserTemplates } from '../../hooks/useProfileData';
 import { useTabIndex } from '../../../../hooks/useTabIndex';
-import { useVerticalTabNavigation } from '../../../../hooks/useKeyboardNavigation';
-import { useBetaFeatures } from '../../../../hooks/useBetaFeatures';
+import { useTabNavigation } from '../../../../hooks/useTabNavigation';
+import { useMessageHandling } from '../../../../hooks/useMessageHandling';
 
 // Utils
 import { handleError } from '../../../../components/utils/errorHandling';
@@ -47,30 +52,87 @@ const MemoizedDocumentUpload = memo(({ onUploadComplete, onDeleteComplete, showD
 
 MemoizedDocumentUpload.displayName = 'MemoizedDocumentUpload';
 
-const ContentManagementTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
+const ContentManagementTab = ({ 
+    isActive, 
+    onSuccessMessage, 
+    onErrorMessage,
+    initialTab = 'dokumente',
+    canvaSubsection = 'overview',
+    onTabChange
+}) => {
     const navigate = useNavigate();
     
-    // Main navigation state
-    const [currentMainTab, setCurrentMainTab] = useState('documents'); // 'canva' | 'documents'
+    // Message handling
+    const { clearMessages, showSuccess, showError } = useMessageHandling(onSuccessMessage, onErrorMessage);
     
-    // Canva subtab state
-    const [canvaSubtab, setCanvaSubtab] = useState('vorlagen'); // 'vorlagen' | 'assets'
+    // Available tabs - combine Dokumente & Texte into one tab
+    const availableTabs = [
+        { key: 'dokumente', label: 'Dokumente & Texte' },
+        { key: 'canva', label: 'Canva' }
+    ];
     
-    // Documents subtab state  
-    const [documentsSubtab, setDocumentsSubtab] = useState('documents'); // 'documents' | 'texts' | 'qa'
+    // Normalize initialTab: map 'texte' -> 'dokumente'
+    const normalizedInitialTab = initialTab === 'texte' ? 'dokumente' : initialTab;
+
+    // Simple tab navigation like IntelligenceTab
+    const { currentTab, handleTabClick, setCurrentTab } = useTabNavigation(
+        normalizedInitialTab,
+        availableTabs,
+        (tabKey) => {
+            clearMessages();
+            onTabChange?.(tabKey);
+        }
+    );
+    
+    // Sync tab state with URL changes
+    useEffect(() => {
+        const nextTab = initialTab === 'texte' ? 'dokumente' : initialTab;
+        if (currentTab !== nextTab) {
+            setCurrentTab(nextTab);
+        }
+    }, [initialTab, currentTab, setCurrentTab]);
     
     // Tab index configuration
     const tabIndex = useTabIndex('PROFILE_CONTENT_MANAGEMENT');
     
-    // Navigation refs
-    const verticalNavRef = useRef(null);
-    
     // Auth state
     const { user, isAuthenticated } = useOptimizedAuth();
+
+    // =====================================================================
+    // CANVA SUBSECTION HANDLING
+    // =====================================================================
     
-    // Beta features
-    const { getBetaFeatureState } = useBetaFeatures();
-    const isQAEnabled = getBetaFeatureState('qa');
+    // Simple internal state for Canva subsections
+    const [currentCanvaSubsection, setCurrentCanvaSubsection] = useState(canvaSubsection);
+    
+    // Keep Canva subtab state local to avoid flicker from URL sync
+    
+    // Handle Canva subsection changes
+    const handleCanvaSubsectionChange = useCallback((subsection) => {
+        setCurrentCanvaSubsection(subsection);
+    }, []);
+
+    // =====================================================================
+    // CONTENT (DOCUMENTS & TEXTS) SUBSECTION HANDLING
+    // =====================================================================
+
+    // Local state for Documents/Texts subsections
+    const [currentContentSubsection, setCurrentContentSubsection] = useState(
+        initialTab === 'texte' ? 'texte' : 'dokumente'
+    );
+
+    // Update local content subsection when initialTab changes externally
+    useEffect(() => {
+        if (initialTab === 'texte') {
+            setCurrentContentSubsection('texte');
+        } else if (initialTab === 'dokumente') {
+            setCurrentContentSubsection('dokumente');
+        }
+    }, [initialTab]);
+
+    const handleContentSubsectionChange = useCallback((subsection) => {
+        setCurrentContentSubsection(subsection);
+    }, []);
 
     // =====================================================================
     // CANVA-RELATED STATE AND FUNCTIONALITY
@@ -160,79 +222,6 @@ const ContentManagementTab = ({ isActive, onSuccessMessage, onErrorMessage }) =>
     const { data: qaCollections = [], isLoading: qaLoading, error: qaError } = qaQuery;
     const { data: texts = [], isLoading: textsLoading, error: textsError } = textsQuery;
 
-    // =====================================================================
-    // NAVIGATION LOGIC
-    // =====================================================================
-    
-    // Available main tabs
-    const availableMainTabs = ['canva', 'documents'];
-    
-    // Available subtabs based on current main tab
-    const getAvailableSubtabs = () => {
-        if (currentMainTab === 'canva') {
-            return ['vorlagen', 'assets'];
-        } else if (currentMainTab === 'documents') {
-            return ['documents', 'texts', ...(isQAEnabled ? ['qa'] : [])];
-        }
-        return [];
-    };
-    
-    const getCurrentSubtab = () => {
-        return currentMainTab === 'canva' ? canvaSubtab : documentsSubtab;
-    };
-    
-    const setCurrentSubtab = (subtab) => {
-        if (currentMainTab === 'canva') {
-            setCanvaSubtab(subtab);
-        } else {
-            setDocumentsSubtab(subtab);
-        }
-    };
-
-    // Vertical tab navigation setup for main tabs
-    const {
-        registerItemRef,
-        tabIndex: getMainTabIndex,
-        ariaSelected: getMainTabAriaSelected
-    } = useVerticalTabNavigation({
-        items: availableMainTabs,
-        activeItem: currentMainTab,
-        onItemSelect: setCurrentMainTab,
-        horizontal: false,
-        containerRef: verticalNavRef
-    });
-
-    // Handle main tab changes
-    const handleMainTabClick = useCallback((mainTab) => {
-        setCurrentMainTab(mainTab);
-        onErrorMessage('');
-        
-        // Reset subtab to first available when switching main tabs
-        if (mainTab === 'canva') {
-            setCanvaSubtab('vorlagen');
-        } else if (mainTab === 'documents') {
-            setDocumentsSubtab('documents');
-        }
-        
-        // Announce to screen readers
-        const tabNames = {
-            'canva': 'Canva',
-            'documents': 'Dokumente & Texte'
-        };
-        announceToScreenReader(`${tabNames[mainTab]} Tab ausgewählt`);
-    }, [onErrorMessage]);
-
-    // Handle subtab changes
-    const handleSubtabClick = useCallback((subtab) => {
-        setCurrentSubtab(subtab);
-        onErrorMessage('');
-        
-        // Clear any existing data when switching subtabs
-        if (currentMainTab === 'canva' && subtab === 'vorlagen') {
-            setCanvaDesigns([]);
-            setCanvaDesignsError(null);
-        }
-    }, [currentMainTab, onErrorMessage]);
 
     // =====================================================================
     // CANVA FUNCTIONALITY
@@ -363,10 +352,10 @@ const ContentManagementTab = ({ isActive, onSuccessMessage, onErrorMessage }) =>
         try {
             if (qaData.id) {
                 await updateQACollection(qaData.id, qaData);
-                onSuccessMessage('Q&A-Sammlung wurde erfolgreich aktualisiert.');
+                showSuccess('Q&A-Sammlung wurde erfolgreich aktualisiert.');
             } else {
                 await createQACollection(qaData);
-                onSuccessMessage('Q&A-Sammlung wurde erfolgreich erstellt.');
+                showSuccess('Q&A-Sammlung wurde erfolgreich erstellt.');
             }
             setShowQACreator(false);
             setEditingQA(null);
@@ -386,7 +375,7 @@ const ContentManagementTab = ({ isActive, onSuccessMessage, onErrorMessage }) =>
         
         try {
             await deleteQACollection(qaId);
-            onSuccessMessage('Q&A-Sammlung wurde erfolgreich gelöscht.');
+            showSuccess('Q&A-Sammlung wurde erfolgreich gelöscht.');
         } catch (error) {
             console.error('[ContentManagementTab] Fehler beim Löschen der Q&A:', error);
             handleError(error, onErrorMessage);
@@ -401,7 +390,7 @@ const ContentManagementTab = ({ isActive, onSuccessMessage, onErrorMessage }) =>
     const handleDocumentDelete = async (documentId) => {
         try {
             await deleteDocument(documentId);
-            onSuccessMessage('Dokument wurde erfolgreich gelöscht.');
+            showSuccess('Dokument wurde erfolgreich gelöscht.');
         } catch (error) {
             console.error('[ContentManagementTab] Error deleting document:', error);
             onErrorMessage('Fehler beim Löschen des Dokuments: ' + error.message);
@@ -437,7 +426,7 @@ const ContentManagementTab = ({ isActive, onSuccessMessage, onErrorMessage }) =>
     const handleTextTitleUpdate = async (textId, newTitle) => {
         try {
             await updateTextTitle(textId, newTitle);
-            onSuccessMessage('Texttitel erfolgreich aktualisiert.');
+            showSuccess('Texttitel erfolgreich aktualisiert.');
         } catch (error) {
             console.error('[ContentManagementTab] Error updating text title:', error);
             onErrorMessage('Fehler beim Aktualisieren des Texttitels: ' + error.message);
@@ -456,7 +445,7 @@ const ContentManagementTab = ({ isActive, onSuccessMessage, onErrorMessage }) =>
     // Share functionality
     const handleShareToGroup = useCallback(async (contentType, contentId, contentTitle) => {
         // Handle Canva-specific sharing logic
-        if (contentType === 'user_content' && contentId.startsWith('canva_')) {
+        if (contentType === 'database' && contentId.startsWith('canva_')) {
             const template = canvaDesigns.find(t => t.id === contentId);
             if (template && template.has_user_link) {
                 try {
@@ -548,109 +537,129 @@ const ContentManagementTab = ({ isActive, onSuccessMessage, onErrorMessage }) =>
 
     // Check Canva connection when tab becomes active
     useEffect(() => {
-        if (isActive && currentMainTab === 'canva' && isAuthenticated) {
+        if (isActive && currentTab === 'canva' && isAuthenticated) {
             checkCanvaConnectionStatus();
         }
-    }, [isActive, currentMainTab, isAuthenticated, checkCanvaConnectionStatus]);
+    }, [isActive, currentTab, isAuthenticated, checkCanvaConnectionStatus]);
 
-    // Fetch Canva designs when connected
+    // Fetch Canva designs when connected and on templates subsection
     useEffect(() => {
-        if (isActive && currentMainTab === 'canva' && canvaSubtab === 'vorlagen' && canvaConnected && isAuthenticated) {
+        if (isActive && currentTab === 'canva' && currentCanvaSubsection === 'vorlagen' && canvaConnected && isAuthenticated) {
             fetchCanvaDesigns();
         }
-    }, [isActive, currentMainTab, canvaSubtab, canvaConnected, isAuthenticated, fetchCanvaDesigns]);
+    }, [isActive, currentTab, currentCanvaSubsection, canvaConnected, isAuthenticated, fetchCanvaDesigns]);
 
     // Fetch documents when documents tab becomes active
     useEffect(() => {
-        if (isActive && currentMainTab === 'documents' && documentsSubtab === 'documents') {
+        if (isActive && currentTab === 'dokumente') {
             fetchDocuments();
         }
-    }, [isActive, currentMainTab, documentsSubtab, fetchDocuments]);
+    }, [isActive, currentTab, fetchDocuments]);
 
-    // Ensure valid subtab when QA feature state changes
+    // Reset to overview when user disconnects from Canva while on restricted subsections
     useEffect(() => {
-        if (currentMainTab === 'documents' && documentsSubtab === 'qa' && !isQAEnabled) {
-            setDocumentsSubtab('documents');
+        if (currentTab === 'canva' && !canvaConnected) {
+            if (currentCanvaSubsection === 'vorlagen' || currentCanvaSubsection === 'assets') {
+                // Switch back to overview subsection
+                handleCanvaSubsectionChange('overview');
+                announceToScreenReader('Zurück zur Übersicht - Canva-Verbindung erforderlich für diese Funktion');
+            }
         }
-    }, [isQAEnabled, currentMainTab, documentsSubtab]);
+    }, [canvaConnected, currentTab, currentCanvaSubsection, handleCanvaSubsectionChange]);
 
     // =====================================================================
     // RENDER METHODS
     // =====================================================================
 
-    // Render main navigation panel
-    const renderMainNavigationPanel = () => (
-        <div className="profile-navigation-panel">
-            <nav 
-                ref={verticalNavRef}
-                className="profile-vertical-navigation"
+
+    // Render Canva subsections when on Canva tab
+    const renderCanvaSubsections = () => {
+        if (currentTab !== 'canva') return null;
+        
+        const canvaSubsectionTabs = [
+            { key: 'overview', label: 'Übersicht' },
+            ...(canvaConnected ? [
+                { key: 'vorlagen', label: 'Vorlagen' },
+                { key: 'assets', label: 'Assets' }
+            ] : [])
+        ];
+
+        return (
+            <div
+                className="groups-horizontal-navigation"
                 role="tablist"
-                aria-label="Content Management Navigation"
-                aria-orientation="vertical"
+                aria-label="Canva Navigation"
+                style={{ marginTop: 'var(--spacing-medium)' }}
             >
                 <button
-                    ref={(ref) => registerItemRef('canva', ref)}
-                    className={`profile-vertical-tab ${currentMainTab === 'canva' ? 'active' : ''}`}
-                    onClick={() => handleMainTabClick('canva')}
-                    tabIndex={getMainTabIndex('canva')}
+                    className={`groups-vertical-tab ${currentCanvaSubsection === 'overview' ? 'active' : ''}`}
+                    onClick={() => handleCanvaSubsectionChange('overview')}
                     role="tab"
-                    aria-selected={getMainTabAriaSelected('canva')}
-                    aria-controls="canva-panel"
-                    id="canva-main-tab"
+                    aria-selected={currentCanvaSubsection === 'overview'}
+                    aria-controls="canva-overview-panel"
+                    id="canva-overview-tab"
                 >
-                    Canva
+                    Übersicht
+                </button>
+                {canvaConnected && (
+                    <>
+                        <button
+                            className={`groups-vertical-tab ${currentCanvaSubsection === 'vorlagen' ? 'active' : ''}`}
+                            onClick={() => handleCanvaSubsectionChange('vorlagen')}
+                            role="tab"
+                            aria-selected={currentCanvaSubsection === 'vorlagen'}
+                            aria-controls="canva-vorlagen-panel"
+                            id="canva-vorlagen-tab"
+                        >
+                            Vorlagen
+                        </button>
+                        <button
+                            className={`groups-vertical-tab ${currentCanvaSubsection === 'assets' ? 'active' : ''}`}
+                            onClick={() => handleCanvaSubsectionChange('assets')}
+                            role="tab"
+                            aria-selected={currentCanvaSubsection === 'assets'}
+                            aria-controls="canva-assets-panel"
+                            id="canva-assets-tab"
+                        >
+                            Assets
+                        </button>
+                    </>
+                )}
+            </div>
+        );
+    };
+
+    // Render Documents & Texts subsections when on combined tab
+    const renderContentSubsections = () => {
+        if (currentTab !== 'dokumente') return null;
+
+        return (
+            <div
+                className="groups-horizontal-navigation"
+                role="tablist"
+                aria-label="Inhalte Navigation"
+                style={{ marginTop: 'var(--spacing-medium)' }}
+            >
+                <button
+                    className={`groups-vertical-tab ${currentContentSubsection === 'dokumente' ? 'active' : ''}`}
+                    onClick={() => handleContentSubsectionChange('dokumente')}
+                    role="tab"
+                    aria-selected={currentContentSubsection === 'dokumente'}
+                    aria-controls="documents-panel"
+                    id="documents-tab"
+                >
+                    Dokumente
                 </button>
                 <button
-                    ref={(ref) => registerItemRef('documents', ref)}
-                    className={`profile-vertical-tab ${currentMainTab === 'documents' ? 'active' : ''}`}
-                    onClick={() => handleMainTabClick('documents')}
-                    tabIndex={getMainTabIndex('documents')}
+                    className={`groups-vertical-tab ${currentContentSubsection === 'texte' ? 'active' : ''}`}
+                    onClick={() => handleContentSubsectionChange('texte')}
                     role="tab"
-                    aria-selected={getMainTabAriaSelected('documents')}
-                    aria-controls="documents-panel"
-                    id="documents-main-tab"
+                    aria-selected={currentContentSubsection === 'texte'}
+                    aria-controls="texts-panel"
+                    id="texts-tab"
                 >
-                    Dokumente & Texte
+                    Texte
                 </button>
-            </nav>
-        </div>
-    );
-
-    // Render horizontal subtab navigation
-    const renderSubtabNavigation = () => {
-        const availableSubtabs = getAvailableSubtabs();
-        const currentSubtab = getCurrentSubtab();
-        
-        if (availableSubtabs.length <= 1) return null;
-        
-        const getSubtabLabel = (subtab) => {
-            const labels = {
-                // Canva subtabs
-                'vorlagen': 'Canva Vorlagen',
-                'assets': 'Assets',
-                // Documents subtabs
-                'documents': 'Meine Dokumente',
-                'texts': 'Meine Texte',
-                'qa': 'Meine Q&As'
-            };
-            return labels[subtab] || subtab;
-        };
-        
-        return (
-            <div className="groups-horizontal-navigation" role="tablist">
-                {availableSubtabs.map((subtab, index) => (
-                    <button
-                        key={subtab}
-                        className={`groups-vertical-tab ${currentSubtab === subtab ? 'active' : ''}`}
-                        onClick={() => handleSubtabClick(subtab)}
-                        tabIndex={tabIndex.subtabs + index}
-                        role="tab"
-                        aria-selected={currentSubtab === subtab}
-                        aria-controls={`${subtab}-panel`}
-                    >
-                        {getSubtabLabel(subtab)}
-                    </button>
-                ))}
             </div>
         );
     };
@@ -713,7 +722,6 @@ const ContentManagementTab = ({ isActive, onSuccessMessage, onErrorMessage }) =>
         if (!templateToLink) return;
 
         try {
-            console.log(`[ContentManagementTab] Adding user URL to server template: ${templateToLink.title}`);
             
             const enhancedTemplate = canvaTemplateUtils.enhanceTemplateWithUserUrl(templateToLink, canvaUrl);
 
@@ -727,10 +735,9 @@ const ContentManagementTab = ({ isActive, onSuccessMessage, onErrorMessage }) =>
                 setSavedCanvaDesigns(prev => new Set(prev).add(templateToLink.canva_id));
             }
             
-            onSuccessMessage(`Template Link für "${templateToLink.title}" wurde erfolgreich hinzugefügt.`);
+            showSuccess(`Template Link für "${templateToLink.title}" wurde erfolgreich hinzugefügt.`);
             setShowTemplateLinkModal(false);
             setTemplateToLink(null);
-            console.log('[ContentManagementTab] Template enhanced with user URL:', enhancedTemplate);
         } catch (error) {
             console.error('[ContentManagementTab] Error adding template link:', error);
             onErrorMessage('Fehler beim Hinzufügen des Template Links: ' + error.message);
@@ -747,7 +754,7 @@ const ContentManagementTab = ({ isActive, onSuccessMessage, onErrorMessage }) =>
     };
 
     const handleAddTemplateSuccess = (template, message) => {
-        onSuccessMessage(message || 'Canva Vorlage wurde erfolgreich hinzugefügt.');
+        showSuccess(message || 'Canva Vorlage wurde erfolgreich hinzugefügt.');
         templatesQuery.refetch();
         handleCloseAddTemplateModal();
     };
@@ -893,15 +900,86 @@ const ContentManagementTab = ({ isActive, onSuccessMessage, onErrorMessage }) =>
     // CONTENT RENDERING METHODS
     // =====================================================================
 
-    // Render Canva Vorlagen content
-    const renderCanvaVorlagenContent = () => (
+    // Render Canva Overview content
+    const renderCanvaOverviewContent = () => (
         <div
             role="tabpanel"
-            id="canva-vorlagen-panel"
-            aria-labelledby="canva-vorlagen-tab"
+            id="canva-overview-panel"
+            aria-labelledby="canva-overview-tab"
             tabIndex={-1}
         >
-            <DocumentOverview
+            <CanvaOverview
+                canvaConnected={canvaConnected}
+                canvaUser={canvaUser}
+                canvaLoading={canvaLoading}
+                isAuthenticated={isAuthenticated}
+                onCanvaLogin={handleCanvaLogin}
+                onSuccessMessage={onSuccessMessage}
+                onErrorMessage={onErrorMessage}
+                onNavigateToSubtab={(subsection) => handleCanvaSubsectionChange(subsection)}
+            />
+        </div>
+    );
+
+    // Render Canva Login Required message for unauthenticated users
+    const renderCanvaLoginRequired = (featureName) => (
+        <ProfileCard title={featureName}>
+            <div className="login-required-card">
+                <div className="login-required-header">
+                    <div className="login-required-icon">🔒</div>
+                    <h4>Anmeldung erforderlich</h4>
+                </div>
+                <p className="login-required-message">
+                    Diese Canva-Funktionen stehen nur angemeldeten Nutzer*innen zur Verfügung. 
+                    Bitte melde dich an, um deine Canva-Integration zu verwalten.
+                </p>
+                <div className="login-required-actions">
+                    <button 
+                        onClick={() => {
+                            // Save current location for redirect after login
+                            const currentPath = window.location.pathname + window.location.search;
+                            sessionStorage.setItem('redirectAfterLogin', currentPath);
+                            navigate('/login');
+                        }}
+                        className="btn-primary"
+                    >
+                        <span className="login-icon">👤</span> Anmelden
+                    </button>
+                    <button 
+                        onClick={() => handleCanvaSubsectionChange('overview')}
+                        className="btn-secondary"
+                        style={{ marginLeft: 'var(--spacing-small)' }}
+                    >
+                        Zur Übersicht
+                    </button>
+                </div>
+            </div>
+        </ProfileCard>
+    );
+
+    // Render Canva Vorlagen content
+    const renderCanvaVorlagenContent = () => {
+        if (!isAuthenticated) {
+            return (
+                <div
+                    role="tabpanel"
+                    id="canva-vorlagen-panel"
+                    aria-labelledby="canva-vorlagen-tab"
+                    tabIndex={-1}
+                >
+                    {renderCanvaLoginRequired("Canva Vorlagen")}
+                </div>
+            );
+        }
+
+        return (
+            <div
+                role="tabpanel"
+                id="canva-vorlagen-panel"
+                aria-labelledby="canva-vorlagen-tab"
+                tabIndex={-1}
+            >
+                <DocumentOverview
                 documents={[...templates, ...canvaDesigns]}
                 loading={templatesLoading || fetchingCanvaDesigns}
                 onFetch={() => {
@@ -914,7 +992,7 @@ const ContentManagementTab = ({ isActive, onSuccessMessage, onErrorMessage }) =>
                 onBulkDelete={handleBulkDeleteTemplates}
                 onUpdateTitle={handleTemplateTitleUpdate}
                 onEdit={handleEditTemplate}
-                onShare={createShareAction('user_content')}
+                onShare={createShareAction('database')}
                 actionItems={getCanvaTemplateActionItems}
                 documentTypes={canvaTemplateTypes}
                 metaRenderer={renderTemplateMetadata}
@@ -939,7 +1017,13 @@ const ContentManagementTab = ({ isActive, onSuccessMessage, onErrorMessage }) =>
                                 <button
                                     type="button"
                                     className="btn-secondary size-s"
-                                    onClick={fetchCanvaDesigns}
+                                    onClick={async () => {
+                                        // Refresh both local designs and React Query templates
+                                        await Promise.all([
+                                            fetchCanvaDesigns(),
+                                            templatesQuery.refetch()
+                                        ]);
+                                    }}
                                     aria-label="Mit Canva synchronisieren"
                                     disabled={fetchingCanvaDesigns || canvaLoading}
                                     title="Aktuelle Designs von Canva laden"
@@ -960,41 +1044,57 @@ const ContentManagementTab = ({ isActive, onSuccessMessage, onErrorMessage }) =>
                                 </button>
                             </>
                         ) : (
-                            <button
-                                type="button"
-                                className="btn-primary size-s"
+                            <CanvaButton
                                 onClick={handleCanvaLogin}
+                                loading={canvaLoading}
+                                size="small"
                                 tabIndex={tabIndex.addContentButton}
-                                aria-label="Mit Canva verbinden"
-                                disabled={canvaLoading}
+                                ariaLabel="Mit Canva verbinden"
                             >
-                                <HiExternalLink className="icon" />
                                 Mit Canva verbinden
-                            </button>
+                            </CanvaButton>
                         )}
                     </div>
                 }
-            />
-        </div>
-    );
+                />
+            </div>
+        );
+    };
 
     // Render Canva Assets content
-    const renderCanvaAssetsContent = () => (
-        <div
-            role="tabpanel"
-            id="canva-assets-panel"
-            aria-labelledby="canva-assets-tab"
-            tabIndex={-1}
-        >
-            <CanvaAssetsPanel
-                canvaConnected={canvaConnected}
-                canvaLoading={canvaLoading}
-                onCanvaLogin={handleCanvaLogin}
-                onSuccessMessage={onSuccessMessage}
-                onErrorMessage={onErrorMessage}
-            />
-        </div>
-    );
+    const renderCanvaAssetsContent = () => {
+        if (!isAuthenticated) {
+            return (
+                <div
+                    role="tabpanel"
+                    id="canva-assets-panel"
+                    aria-labelledby="canva-assets-tab"
+                    tabIndex={-1}
+                >
+                    {renderCanvaLoginRequired("Assets")}
+                </div>
+            );
+        }
+
+        return (
+            <div
+                role="tabpanel"
+                id="canva-assets-panel"
+                aria-labelledby="canva-assets-tab"
+                tabIndex={-1}
+            >
+                <CanvaAssetsPanel
+                    canvaConnected={canvaConnected}
+                    canvaLoading={canvaLoading}
+                    isAuthenticated={isAuthenticated}
+                    onCanvaLogin={handleCanvaLogin}
+                    onSuccessMessage={onSuccessMessage}
+                    onErrorMessage={onErrorMessage}
+                    onNavigateToOverview={() => handleCanvaSubsectionChange('overview')}
+                />
+            </div>
+        );
+    };
 
     // Render Documents content
     const renderDocumentsContent = () => (
@@ -1096,24 +1196,22 @@ const ContentManagementTab = ({ isActive, onSuccessMessage, onErrorMessage }) =>
             aria-labelledby="qa-tab"
             tabIndex={-1}
         >
-            <div className="profile-card">
-                <div className="profile-card-header">
-                    <h3>{showQACreator ? (editingQA ? 'Q&A bearbeiten' : 'Neue Q&A erstellen') : 'Meine Q&A-Sammlungen'}</h3>
-                    {!showQACreator && qaCollections && qaCollections.length === 0 && (
-                        <button
-                            type="button"
-                            className="btn-primary size-s"
-                            onClick={handleCreateQA}
-                            disabled={qaLoading}
-                            tabIndex={tabIndex.addContentButton}
-                            aria-label="Neue Q&A-Sammlung erstellen"
-                        >
-                            <HiPlus className="icon" />
-                            Q&A erstellen
-                        </button>
-                    )}
-                </div>
-                <div className="profile-card-content">
+            <ProfileCard 
+                title={showQACreator ? (editingQA ? 'Q&A bearbeiten' : 'Neue Q&A erstellen') : 'Meine Q&A-Sammlungen'}
+                headerActions={!showQACreator && qaCollections && qaCollections.length === 0 ? (
+                    <button
+                        type="button"
+                        className="btn-primary size-s"
+                        onClick={handleCreateQA}
+                        disabled={qaLoading}
+                        tabIndex={tabIndex.addContentButton}
+                        aria-label="Neue Q&A-Sammlung erstellen"
+                    >
+                        <HiPlus className="icon" />
+                        Q&A erstellen
+                    </button>
+                ) : null}
+            >
                     {showQACreator ? (
                         <>
                             <div style={{ marginBottom: 'var(--spacing-medium)' }}>
@@ -1165,12 +1263,12 @@ const ContentManagementTab = ({ isActive, onSuccessMessage, onErrorMessage }) =>
                                     </button>
                                 </div>
                             ) : qaCollections && qaCollections.length === 0 ? (
-                                <div className="knowledge-empty-state centered">
-                                    <HiChatAlt2 size={48} className="empty-state-icon" />
-                                    <p>Keine Q&A-Sammlungen vorhanden</p>
-                                    <p className="empty-state-description">
-                                        Erstelle intelligente Fragesysteme basierend auf deinen Dokumenten.
-                                    </p>
+                                <EmptyState
+                                    icon={HiChatAlt2}
+                                    iconSize={48}
+                                    title="Keine Q&A-Sammlungen vorhanden"
+                                    description="Erstelle intelligente Fragesysteme basierend auf deinen Dokumenten."
+                                >
                                     <div className="qa-empty-features">
                                         <div className="qa-feature-item">
                                             <div className="qa-feature-icon">📚</div>
@@ -1194,7 +1292,7 @@ const ContentManagementTab = ({ isActive, onSuccessMessage, onErrorMessage }) =>
                                         <HiPlus className="icon" />
                                         Erste Q&A erstellen
                                     </button>
-                                </div>
+                                </EmptyState>
                             ) : (
                                 <DocumentOverview
                                     items={qaCollections}
@@ -1236,27 +1334,22 @@ const ContentManagementTab = ({ isActive, onSuccessMessage, onErrorMessage }) =>
                             )}
                         </>
                     )}
-                </div>
-            </div>
+            </ProfileCard>
         </div>
     );
 
     // Render main content based on current tabs
     const renderMainContent = () => {
-        if (currentMainTab === 'canva') {
-            if (canvaSubtab === 'vorlagen') {
+        if (currentTab === 'canva') {
+            if (currentCanvaSubsection === 'overview') {
+                return renderCanvaOverviewContent();
+            } else if (currentCanvaSubsection === 'vorlagen') {
                 return renderCanvaVorlagenContent();
-            } else if (canvaSubtab === 'assets') {
+            } else if (currentCanvaSubsection === 'assets') {
                 return renderCanvaAssetsContent();
             }
-        } else if (currentMainTab === 'documents') {
-            if (documentsSubtab === 'documents') {
-                return renderDocumentsContent();
-            } else if (documentsSubtab === 'texts') {
-                return renderTextsContent();
-            } else if (documentsSubtab === 'qa' && isQAEnabled) {
-                return renderQAContent();
-            }
+        } else if (currentTab === 'dokumente') {
+            return currentContentSubsection === 'texte' ? renderTextsContent() : renderDocumentsContent();
         }
         
         return <div>Content not found</div>;
@@ -1264,16 +1357,24 @@ const ContentManagementTab = ({ isActive, onSuccessMessage, onErrorMessage }) =>
 
     return (
         <motion.div 
-            className="profile-content groups-management-layout"
+            className="profile-content profile-management-layout"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.3 }}
         >
-            {renderMainNavigationPanel()}
-            <div className="groups-content-panel profile-form-section">
-                <div className="group-content-card">
+            <div className="profile-navigation-panel">
+                <TabNavigation
+                    tabs={availableTabs}
+                    currentTab={currentTab}
+                    onTabClick={handleTabClick}
+                    orientation="vertical"
+                />
+            </div>
+            <div className="profile-content-panel profile-form-section">
+                <div className="profile-content-card">
                     <div className="auth-form">
-                        {renderSubtabNavigation()}
+                        {renderCanvaSubsections()}
+                        {renderContentSubsections()}
                         {renderMainContent()}
                     </div>
                 </div>

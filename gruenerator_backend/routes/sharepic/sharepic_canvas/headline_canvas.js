@@ -23,8 +23,8 @@ async function processText(textData) {
 
   const processedTextData = [line1, line2, line3].map((line, index) => ({
     text: line || '',
-    // Validation: each line should be 6-10 characters for headline format
-    isValid: line ? line.length >= 6 && line.length <= 10 : true
+    // Validation: each line should be 6-12 characters for headline format
+    isValid: line ? line.length >= 6 && line.length <= 12 : true
   }));
 
   return processedTextData;
@@ -155,7 +155,7 @@ async function createHeadlineImage(uploadedImageBuffer, processedText, validated
       
       // Validation warning for character count
       if (!line.isValid) {
-        console.warn(`Line ${index + 1} has ${line.text.length} characters, recommended 6-10 characters`);
+        console.warn(`Line ${index + 1} has ${line.text.length} characters, recommended 6-12 characters`);
       }
     });
 

@@ -21,6 +21,7 @@ import {
 } from '../../utils/constants';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { withAuthRequired } from '../../common/LoginRequired';
 
 const getHelpContent = (step, showingAlternatives = false) => {
   switch (step) {
@@ -251,12 +252,6 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
   const { user, loading: authLoading, isAuthResolved } = useOptimizedAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-
-  useEffect(() => {
-    if (isAuthResolved && !authLoading && !user) {
-      navigate('/');
-    }
-  }, [authLoading, user, navigate, isAuthResolved]);
 
   // Handle editing mode from PresseSocialGenerator
   useEffect(() => {
@@ -855,10 +850,16 @@ SharepicGeneratorContent.propTypes = {
   darkMode: PropTypes.bool,
 };
 
-export default function SharepicGenerator(props) {
-  return (
-    <ErrorBoundary>
-      <SharepicGeneratorContent {...props} />
-    </ErrorBoundary>
-  );
-}
+const SharepicGenerator = withAuthRequired(
+  function SharepicGeneratorComponent(props) {
+    return (
+      <ErrorBoundary>
+        <SharepicGeneratorContent {...props} />
+      </ErrorBoundary>
+    );
+  }
+  // No configuration needed - will auto-detect "Sharepic Generator" from route
+  // and use standard message "Diese Seite steht nur angemeldeten Nutzer:innen zur Verfügung..."
+);
+
+export default SharepicGenerator;

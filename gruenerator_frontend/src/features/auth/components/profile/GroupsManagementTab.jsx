@@ -103,7 +103,6 @@ const GroupDetailView = memo(({
         
         const formField = fieldMap[field] || field;
         // This will be handled by the form system and autosave
-        console.log(`Instruction change: ${field} -> ${formField} = ${value}`);
     }, []);
     
     const handleKnowledgeChange = useCallback((id, content, action = 'update') => {
@@ -115,7 +114,6 @@ const GroupDetailView = memo(({
             });
         } else {
             // Form array changes are handled by React Hook Form
-            console.log(`Knowledge change: ${id} = ${content}`);
         }
     }, [append]);
     
@@ -761,7 +759,7 @@ const GroupDetailView = memo(({
                                 config={{
                                     title: "",
                                     description: "Texte und Dokumente, die mit der Gruppe geteilt wurden",
-                                    excludeTypes: ['user_content'], // Exclude templates from this section
+                                    excludeTypes: ['database'], // Exclude templates from this section
                                     hideFilters: ['permissions'],
                                     cardStyle: 'content-default'
                                 }}
@@ -783,7 +781,7 @@ const GroupDetailView = memo(({
                                 config={{
                                     title: "",
                                     description: "Canva-Vorlagen, die mit der Gruppe geteilt wurden",
-                                    contentFilter: 'user_content',
+                                    contentFilter: 'database',
                                     hideFilters: ['contentType', 'permissions'],
                                     cardStyle: 'template-square',
                                     gridConfig: {
@@ -852,26 +850,17 @@ const GroupsManagementTab = ({ onSuccessMessage, onErrorMessage, isActive }) => 
 
     // Handle Group Creation Submit
     const handleCreateGroupFormSubmit = useCallback((data) => {
-        console.log('[GroupsManagementTab] Form submitted - handleCreateGroupFormSubmit');
-        console.log('[GroupsManagementTab] Form data:', data);
-        console.log('[GroupsManagementTab] Is creating group:', isCreatingGroup);
-        
         if (isCreatingGroup) {
-            console.log('[GroupsManagementTab] Already creating group, returning early');
             return;
         }
         
         // Use "unbenannte Gruppe" as default if no name provided
         const groupName = data.groupName?.trim() || 'unbenannte Gruppe';
-        console.log('[GroupsManagementTab] Group name to create:', groupName);
         
         onSuccessMessage(''); 
         onErrorMessage('');
-        
-        console.log('[GroupsManagementTab] Calling createGroup function');
         createGroup(groupName, {
           onSuccess: (newGroup) => {
-            console.log('[GroupsManagementTab] Create group SUCCESS callback:', newGroup);
             const newGroupId = newGroup.id;
             setSelectedGroupId(newGroupId);
             setCurrentView('group');
@@ -880,7 +869,6 @@ const GroupsManagementTab = ({ onSuccessMessage, onErrorMessage, isActive }) => 
             onSuccessMessage(`Gruppe "${groupName}" erfolgreich erstellt!`);
           },
           onError: (error) => {
-            console.log('[GroupsManagementTab] Create group ERROR callback:', error);
             onErrorMessage(error?.message || 'Gruppe konnte nicht erstellt werden.');
           }
         });
@@ -938,19 +926,12 @@ const GroupsManagementTab = ({ onSuccessMessage, onErrorMessage, isActive }) => 
     }, [selectedGroupId, onSuccessMessage, onErrorMessage, setSelectedGroupId, setCurrentView, setGroupDetailView]);
 
     const handleCreateNew = useCallback(() => {
-        console.log('[GroupsManagementTab] Button clicked - handleCreateNew');
-        console.log('[GroupsManagementTab] Current user:', user);
-        console.log('[GroupsManagementTab] Current view before change:', currentView);
-        console.log('[GroupsManagementTab] Is creating group:', isCreatingGroup);
-        
         setCurrentView('create');
         setSelectedGroupId(null);
         resetCreateGroup();
         onSuccessMessage('');
         onErrorMessage('');
-        
-        console.log('[GroupsManagementTab] View set to create, form reset complete');
-    }, [setCurrentView, setSelectedGroupId, resetCreateGroup, onSuccessMessage, onErrorMessage, user, currentView, isCreatingGroup]);
+    }, [setCurrentView, setSelectedGroupId, resetCreateGroup, onSuccessMessage, onErrorMessage]);
 
     const handleCancelCreate = useCallback(() => {
         if (userGroups && userGroups.length > 0) {
