@@ -68,6 +68,31 @@
     min-height: 0;
 }
 
+.content-display {
+    white-space: normal;
+    font-size: var(--display-font-size);
+    line-height: var(--display-line-height);
+}
+
+/* Consistent paragraph spacing */
+.content-display p {
+    margin: 0 0 var(--display-paragraph-spacing) 0;
+}
+
+.content-display p:last-child {
+    margin-bottom: 0;
+}
+
+.content-display h2,
+.content-display h3 {
+    margin: calc(var(--display-paragraph-spacing) * 1.5) 0 calc(var(--display-paragraph-spacing) * 0.5) 0;
+}
+
+.content-display h2:first-child,
+.content-display h3:first-child {
+    margin-top: 0;
+}
+
 .display-header {
     display: flex;
     justify-content: flex-end;

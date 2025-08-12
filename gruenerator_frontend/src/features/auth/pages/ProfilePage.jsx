@@ -74,7 +74,7 @@ const TabButton = ({
 
 const ProfilePage = () => {
   const navigate = useNavigate();
-  const { tab } = useParams();
+  const { tab, subtab, subsubtab } = useParams();
   const tabsContainerRef = useRef(null);
   
   // Authentication and loading states
@@ -202,8 +202,27 @@ const ProfilePage = () => {
     if (tab && !TAB_MAPPING[tab]) {
       // Invalid tab in URL, redirect to default
       navigate('/profile', { replace: true });
+      return;
     }
-  }, [tab, navigate, TAB_MAPPING]);
+    
+    // Validate subtab URLs for content management tab
+    if (tab === 'inhalte' && subtab) {
+      const validSubtabs = ['canva', 'dokumente', 'texte', 'qa'];
+      if (!validSubtabs.includes(subtab)) {
+        navigate('/profile/inhalte', { replace: true });
+        return;
+      }
+      
+      // Validate subsubtabs for Canva
+      if (subtab === 'canva' && subsubtab) {
+        const validCanvaSubtabs = ['overview', 'vorlagen', 'assets'];
+        if (!validCanvaSubtabs.includes(subsubtab)) {
+          navigate('/profile/inhalte/canva', { replace: true });
+          return;
+        }
+      }
+    }
+  }, [tab, subtab, subsubtab, navigate, TAB_MAPPING]);
 
   // Message timeout handling
   useEffect(() => {
@@ -232,6 +251,28 @@ const ProfilePage = () => {
     setSuccessMessage('');
     setErrorMessage(message);
   }, []);
+
+  // Handle tab changes for content management tab
+  const handleContentSubtabChange = useCallback((tabKey, subsection = null) => {
+    if (activeTab !== 'inhalte') return;
+    
+    // Build the appropriate URL based on the active tab
+    if (tabKey === 'canva') {
+      if (subsection && subsection !== 'overview') {
+        navigate(`/profile/inhalte/canva/${subsection}`, { replace: true });
+      } else {
+        navigate('/profile/inhalte/canva', { replace: true });
+      }
+    } else if (tabKey === 'dokumente') {
+      navigate('/profile/inhalte/dokumente', { replace: true });
+    } else if (tabKey === 'texte') {
+      navigate('/profile/inhalte/texte', { replace: true });
+    } else if (tabKey === 'qa') {
+      navigate('/profile/inhalte/qa', { replace: true });
+    } else {
+      navigate(`/profile/inhalte/${tabKey}`, { replace: true });
+    }
+  }, [activeTab, navigate]);
 
   // Motion animation config
   const tabTransition = {
@@ -437,6 +478,9 @@ const ProfilePage = () => {
               onSuccessMessage={handleSuccessMessage}
               onErrorMessage={handleErrorMessage}
               isActive={activeTab === 'inhalte'}
+              initialTab={subtab || 'dokumente'}
+              canvaSubsection={subtab === 'canva' ? (subsubtab || 'overview') : 'overview'}
+              onTabChange={handleContentSubtabChange}
             />
           )}
           

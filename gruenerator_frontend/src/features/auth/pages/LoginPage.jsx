@@ -141,8 +141,7 @@ const LoginPage = () => {
       <div className="auth-legal">
         <p>
           Mit der Anmeldung stimmst du unseren{' '}
-          <Link to="/legal/terms">Nutzungsbedingungen</Link> und der{' '}
-          <Link to="/legal/privacy">Datenschutzerklärung</Link> zu.
+          <Link to="/datenschutz">Nutzungsbedingungen und der Datenschutzerklärung</Link> zu.
         </p>
       </div>
     </div>

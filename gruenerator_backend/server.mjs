@@ -218,9 +218,20 @@ if (cluster.isMaster) {
 
   // Worker-Pool für AI-Anfragen initialisieren
   const aiWorkerCount = parseInt(process.env.AI_WORKER_COUNT, 10) || 6;
-  console.log(`Initializing AI worker pool with ${aiWorkerCount} workers`);
-  aiWorkerPool = new AIWorkerPool(aiWorkerCount);
+  console.log(`Initializing AI worker pool with ${aiWorkerCount} workers (with Redis support for privacy mode)`);
+  aiWorkerPool = new AIWorkerPool(aiWorkerCount, redisClient);
   app.locals.aiWorkerPool = aiWorkerPool;
+
+  // Initialize AI Search Agent with worker pool
+  try {
+    const { createRequire } = await import('module');
+    const require = createRequire(import.meta.url);
+    const aiSearchAgent = require('./services/aiSearchAgent.js');
+    aiSearchAgent.setAIWorkerPool(aiWorkerPool);
+    console.log('AI Search Agent initialized with worker pool');
+  } catch (error) {
+    console.error('Warning: Could not initialize AI Search Agent:', error.message);
+  }
 
   // Compression Middleware
   app.use(compression({

@@ -30,12 +30,14 @@ const useKnowledge = ({
     availableKnowledge, 
     selectedKnowledgeIds,
     isLoading,
+    instructionType: storeInstructionType,
     instructions,
     isInstructionsActive,
     setAvailableKnowledge, 
     setLoading,
     setInstructions,
     setInstructionsActive,
+    setInstructionType,
     getKnowledgeContent,
     getActiveInstruction,
     // Document state and actions
@@ -54,6 +56,14 @@ const useKnowledge = ({
     // Resetting store on component mount
     reset();
   }, [reset]); // Reset function dependency - runs once on mount
+
+  // Set instruction type context in store
+  useEffect(() => {
+    if (instructionType && instructionType !== storeInstructionType) {
+      // Setting instruction type context
+      setInstructionType(instructionType);
+    }
+  }, [instructionType, storeInstructionType, setInstructionType]);
 
   // Memoize UI configuration to prevent infinite loops
   const finalUIConfig = useMemo(() => {

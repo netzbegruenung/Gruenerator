@@ -21,6 +21,8 @@ import useResponsive from '../hooks/useResponsive';
  * @param {Object} props.submitButtonProps - Props für den Submit-Button
  * @param {Object} props.webSearchFeatureToggle - Props für den Web Search Feature-Toggle
  * @param {boolean} props.useWebSearchFeatureToggle - Soll der Web Search Feature-Toggle verwendet werden
+ * @param {Object} props.privacyModeToggle - Props für den Privacy-Mode Feature-Toggle
+ * @param {boolean} props.usePrivacyModeToggle - Soll der Privacy-Mode Feature-Toggle verwendet werden
  * @param {boolean} props.enablePlatformSelector - Soll der Platform Selector aktiviert werden
  * @param {Array} props.platformOptions - Optionen für Platform Selector
  * @param {Object} props.formControl - React Hook Form Control Object
@@ -55,6 +57,12 @@ const FormSection = forwardRef(({
   submitButtonProps = {},
   webSearchFeatureToggle,
   useWebSearchFeatureToggle,
+  privacyModeToggle,
+  usePrivacyModeToggle,
+  useFeatureIcons = false,
+  onAttachmentClick,
+  onRemoveFile,
+  attachedFiles = [],
   enablePlatformSelector = false,
   platformOptions = [],
   platformSelectorLabel = undefined,
@@ -83,7 +91,10 @@ const FormSection = forwardRef(({
   showProfileSelector = true,
   showImageUpload = false,
   uploadedImage = null,
-  onImageChange = null
+  onImageChange = null,
+  onPrivacyInfoClick,
+  onWebSearchInfoClick,
+  componentName
 }, ref) => {
   const formContainerClasses = `form-container ${isFormVisible ? 'visible' : ''}`;
   const { isMobileView } = useResponsive();
@@ -160,6 +171,12 @@ const FormSection = forwardRef(({
               <FormExtrasSection
                 webSearchFeatureToggle={webSearchFeatureToggle}
                 useWebSearchFeatureToggle={useWebSearchFeatureToggle}
+                privacyModeToggle={privacyModeToggle}
+                usePrivacyModeToggle={usePrivacyModeToggle}
+                useFeatureIcons={useFeatureIcons}
+                onAttachmentClick={onAttachmentClick}
+                onRemoveFile={onRemoveFile}
+                attachedFiles={attachedFiles}
                 formControl={formControl}
                 formNotice={formNotice}
                 onSubmit={onSubmit}
@@ -175,6 +192,9 @@ const FormSection = forwardRef(({
                 documentSelectorTabIndex={documentSelectorTabIndex}
                 submitButtonTabIndex={submitButtonTabIndex}
                 showProfileSelector={showProfileSelector}
+                onPrivacyInfoClick={onPrivacyInfoClick}
+                onWebSearchInfoClick={onWebSearchInfoClick}
+                componentName={componentName}
               >
                 {extrasChildren}
               </FormExtrasSection>
@@ -218,6 +238,14 @@ FormSection.propTypes = {
     statusMessage: PropTypes.string
   }),
   useWebSearchFeatureToggle: PropTypes.bool,
+  privacyModeToggle: PropTypes.shape({
+    isActive: PropTypes.bool,
+    onToggle: PropTypes.func,
+    label: PropTypes.string,
+    icon: PropTypes.elementType,
+    description: PropTypes.string
+  }),
+  usePrivacyModeToggle: PropTypes.bool,
   enableKnowledgeSelector: PropTypes.bool,
   enableDocumentSelector: PropTypes.bool,
   enablePlatformSelector: PropTypes.bool,
@@ -256,6 +284,7 @@ FormSection.defaultProps = {
   isMultiStep: false,
   showBackButton: false,
   useWebSearchFeatureToggle: false,
+  usePrivacyModeToggle: false,
   enableKnowledgeSelector: false,
   enableDocumentSelector: false,
   enablePlatformSelector: false,
@@ -281,6 +310,9 @@ FormSection.defaultProps = {
   knowledgeSelectorTabIndex: 14,
   submitButtonTabIndex: 17
 };
+
+FormSection.propTypes.onPrivacyInfoClick = PropTypes.func;
+FormSection.propTypes.componentName = PropTypes.string;
 
 FormSection.displayName = 'FormSection';
 

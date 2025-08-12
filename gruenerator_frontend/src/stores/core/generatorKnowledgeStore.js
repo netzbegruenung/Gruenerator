@@ -6,6 +6,8 @@ const initialState = {
   availableKnowledge: [],
   selectedKnowledgeIds: [],
   isLoading: false,
+  // New: Instruction type context
+  instructionType: null,
   // New: Instructions state
   instructions: {
     antrag: null,
@@ -97,6 +99,11 @@ export const useGeneratorKnowledgeStore = create(immer((set, get) => {
 
   setInstructionsActive: (active) => set((state) => {
     state.isInstructionsActive = active;
+  }),
+
+  // New: Set instruction type context
+  setInstructionType: (type) => set((state) => {
+    state.instructionType = type;
   }),
 
   // Helper: Get active instruction for current context

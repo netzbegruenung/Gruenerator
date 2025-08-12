@@ -106,6 +106,9 @@ async function setupRoutes(app) {
   // Import Abyssale routes as ES6 module
   const { default: abyssaleRouter } = await import('./routes/abyssale.mjs');
   
+  // Import URL crawler route as ES6 module
+  const { default: crawlUrlRouter } = await import('./routes/crawlUrl.js');
+  
   app.use('/api/auth', authCore);
   app.use('/api/auth', userProfile);
   app.use('/api/auth', userContent);
@@ -117,6 +120,7 @@ async function setupRoutes(app) {
   app.use('/api/auth/qa', qaInteractionRouter);
   app.use('/api/documents', documentsRouter);
   app.use('/api/bundestag', bundestagRouter);
+  app.use('/api/crawl-url', crawlUrlRouter);
 
   // Import and use userTexts route (ES6 module)
   const userTextsRouter = await import('./routes/userTexts.mjs');

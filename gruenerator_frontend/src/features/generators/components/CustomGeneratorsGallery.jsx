@@ -59,7 +59,7 @@ const CustomGeneratorsGallery = ({ searchTerm, selectedCategory }) => {
       )}
 
       {!loading && error && (
-        <p className="error-message">{error}</p>
+        <p className="error-message">{error?.message || String(error)}</p>
       )}
 
       {!loading && !error && generators.length === 0 && (

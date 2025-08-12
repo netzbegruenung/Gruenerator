@@ -187,7 +187,7 @@ router.get('/callback', async (req, res) => {
     // Validate required parameters first
     if (!code || !state) {
       console.error('[Canva Auth] Missing code or state in callback');
-      return res.redirect(`${process.env.BASE_URL}/profile?canva_error=missing_parameters`);
+      return res.redirect(`${process.env.BASE_URL}/profile/inhalte/canva?canva_error=missing_parameters`);
     }
     
     // Retrieve OAuth state from Redis (with session fallback)
@@ -231,13 +231,13 @@ router.get('/callback', async (req, res) => {
         hasCodeVerifier: !!codeVerifier,
         redisAvailable: redisOAuthStateManager.isAvailable()
       });
-      return res.redirect(`${process.env.BASE_URL}/profile?canva_error=session_lost`);
+      return res.redirect(`${process.env.BASE_URL}/profile/inhalte/canva?canva_error=session_lost`);
     }
     
     // Handle OAuth errors
     if (oauthError) {
       console.error('[Canva Auth] OAuth error in callback:', oauthError);
-      return res.redirect(`${process.env.BASE_URL}/profile?canva_error=${encodeURIComponent(oauthError)}`);
+      return res.redirect(`${process.env.BASE_URL}/profile/inhalte/canva?canva_error=${encodeURIComponent(oauthError)}`);
     }
     
     console.log('[Canva Auth] State verified, exchanging code for tokens');
@@ -267,8 +267,8 @@ router.get('/callback', async (req, res) => {
     
     console.log(`[Canva Auth] Successfully connected Canva account for user: ${userId}`);
     
-    // Redirect to success page
-    res.redirect(`${process.env.BASE_URL}/profile?canva_connected=true`);
+    // Redirect to Canva overview page with success indicator
+    res.redirect(`${process.env.BASE_URL}/profile/inhalte/canva?canva_connected=true`);
     
   } catch (error) {
     console.error('[Canva Auth] Error in callback:', {
@@ -277,7 +277,7 @@ router.get('/callback', async (req, res) => {
       redisAvailable: redisOAuthStateManager.isAvailable()
     });
     
-    res.redirect(`${process.env.BASE_URL}/profile?canva_error=${encodeURIComponent(error.message)}`);
+    res.redirect(`${process.env.BASE_URL}/profile/inhalte/canva?canva_error=${encodeURIComponent(error.message)}`);
   }
 });
 

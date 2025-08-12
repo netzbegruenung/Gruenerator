@@ -86,6 +86,8 @@ const useApiSubmit = (endpoint) => {
       const requestData = {
         ...formData,
         useBedrock: true, // Always use Bedrock now
+        // Privacy mode provider selection is now handled by backend automatically
+        // Remove hardcoded provider selection - let backend determine provider based on request count
         onRetry: (attempt, delay) => {
           setRetryCount(attempt);
           setError(`Verbindungsprobleme. Neuer Versuch in ${Math.round(delay/1000)} Sekunden... (Versuch ${attempt}/3)`);
@@ -94,6 +96,8 @@ const useApiSubmit = (endpoint) => {
       
       console.log(`[useApiSubmit] Submitting to ${endpoint}:`, {
         useBedrock: true,
+        provider: requestData.provider || 'default',
+        usePrivacyMode: formData.usePrivacyMode,
         formData: requestData,
         endpoint
       });

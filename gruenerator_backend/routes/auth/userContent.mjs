@@ -15,6 +15,260 @@ router.use((req, res, next) => {
 
 // === PERSONAL INSTRUCTIONS & KNOWLEDGE ENDPOINTS ===
 
+// Check if user has instructions for a specific generator type (context-aware)
+router.get('/instructions-status/:instructionType', ensureAuthenticated, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { instructionType } = req.params;
+    
+    // Validate instruction type
+    const validInstructionTypes = ['antrag', 'social', 'universal', 'gruenejugend'];
+    if (!validInstructionTypes.includes(instructionType)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid instruction type. Valid types: ${validInstructionTypes.join(', ')}`
+      });
+    }
+    
+    // Map instruction types to database fields
+    const fieldMapping = {
+      antrag: ['custom_antrag_prompt', 'custom_antrag_gliederung'],
+      social: ['custom_social_prompt', 'presseabbinder'], 
+      universal: ['custom_universal_prompt'],
+      gruenejugend: ['custom_gruenejugend_prompt']
+    };
+    
+    const fieldsToCheck = fieldMapping[instructionType];
+    
+    // Check user instructions in profiles table
+    const { data: profile, error: profileError } = await supabaseService
+      .from('profiles')
+      .select(fieldsToCheck.join(', '))
+      .eq('id', userId)
+      .single();
+    
+    if (profileError && profileError.code !== 'PGRST116') {
+      throw new Error(`Failed to check user instructions: ${profileError.message}`);
+    }
+    
+    // Check if user has any instructions for this type
+    const hasUserInstructions = fieldsToCheck.some(field => {
+      const value = profile?.[field];
+      return value && value.trim().length > 0;
+    });
+    
+    // Get user's groups
+    const { data: memberships, error: membershipError } = await supabaseService
+      .from('group_memberships')
+      .select('group_id')
+      .eq('user_id', userId);
+    
+    if (membershipError) {
+      throw new Error(`Failed to fetch user groups: ${membershipError.message}`);
+    }
+    
+    const groupIds = memberships?.map(m => m.group_id) || [];
+    let groupsWithInstructions = [];
+    
+    // Map instruction type to group instruction fields (function-scoped for response object access)
+    const groupFieldMapping = {
+      antrag: ['custom_antrag_prompt'],
+      social: ['custom_social_prompt']
+    };
+    
+    // Only check groups for instruction types that support group instructions
+    if (groupIds.length > 0 && ['antrag', 'social'].includes(instructionType)) {
+      
+      const groupFieldsToCheck = groupFieldMapping[instructionType];
+      
+      if (groupFieldsToCheck) {
+        const { data: groupInstructions, error: groupInstructionsError } = await supabaseService
+          .from('group_instructions')
+          .select(`group_id, ${groupFieldsToCheck.join(', ')}`)
+          .in('group_id', groupIds);
+        
+        if (groupInstructionsError) {
+          console.warn(`[Instructions Status] Warning checking group instructions for ${instructionType}:`, groupInstructionsError);
+        } else {
+          // Filter groups that have instructions for this type
+          groupsWithInstructions = groupInstructions
+            ?.filter(group => {
+              return groupFieldsToCheck.some(field => {
+                const value = group[field];
+                return value && value.trim().length > 0;
+              });
+            })
+            ?.map(group => group.group_id) || [];
+        }
+      }
+    }
+    
+    const hasAnyInstructions = hasUserInstructions || groupsWithInstructions.length > 0;
+    
+    console.log(`[Instructions Status ${instructionType.toUpperCase()}] User ${userId}: hasUser=${hasUserInstructions}, groupsWithInstructions=[${groupsWithInstructions.join(',')}], hasAny=${hasAnyInstructions}`);
+    
+    res.json({
+      success: true,
+      instructionType,
+      hasUserInstructions,
+      groupsWithInstructions,
+      totalGroups: groupIds.length,
+      hasAnyInstructions,
+      checkedFields: {
+        user: fieldsToCheck,
+        groups: ['antrag', 'social'].includes(instructionType) ? groupFieldMapping[instructionType] || [] : []
+      }
+    });
+    
+  } catch (error) {
+    console.error(`[User Content /instructions-status/${req.params.instructionType} GET] Error:`, error);
+    res.status(500).json({
+      success: false,
+      message: 'Error checking instructions status',
+      details: error.message
+    });
+  }
+});
+
+// Unified database listing for ContentGallery (examples by default)
+router.get('/database', ensureAuthenticated, async (req, res) => {
+  try {
+    const {
+      searchTerm = '',
+      searchMode = 'title',
+      category,
+      types, // comma-separated types
+      onlyExamples = 'true',
+      status = 'published',
+      limit = '200'
+    } = req.query;
+
+    // Precompute type list for both SQL and query builder paths
+    const typeList = types
+      ? String(types)
+          .split(',')
+          .map(t => t.trim())
+          .filter(Boolean)
+      : [];
+
+    // If we have a search term, prefer RPC with SQL to enable ranking (exact, prefix, substring)
+    if (searchTerm && String(searchTerm).trim().length > 0) {
+      const raw = String(searchTerm).trim();
+      // Escape for LIKE and regex
+      const likeTerm = raw.replace(/'/g, "''");
+      const escapedRegex = raw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/'/g, "''");
+      const patternExact = `E'\\m${escapedRegex}\\M'`;
+      const patternPrefix = `E'\\m${escapedRegex}'`;
+
+      const conditions = [];
+      if (status) conditions.push(`status = '${String(status).replace(/'/g, "''")}'`);
+      if (onlyExamples === 'true') conditions.push(`is_example = true`);
+      if (typeList.length > 0) {
+        const typeIn = typeList.map(t => `'${t.replace(/'/g, "''")}'`).join(',');
+        conditions.push(`type IN (${typeIn})`);
+      }
+      if (category && category !== 'all') {
+        const catJson = `[\"${String(category).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}\"]`;
+        conditions.push(`categories @> '${catJson.replace(/'/g, "''")}'::jsonb`);
+      }
+
+      const likeExpr = `('%${likeTerm}%' )`;
+      const searchOr = `(
+        title ILIKE '%${likeTerm}%' OR
+        description ILIKE '%${likeTerm}%' OR
+        content_data->>'content' ILIKE '%${likeTerm}%' OR
+        content_data->>'caption' ILIKE '%${likeTerm}%' OR
+        content_data->>'text' ILIKE '%${likeTerm}%'
+      )`;
+
+      conditions.push(searchOr);
+
+      const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+      const sql = `
+        SELECT 
+          id, type, title, description, content_data, categories, tags, created_at, status, is_example, is_private,
+          CASE 
+            WHEN (title ~* ${patternExact} OR description ~* ${patternExact} OR content_data->>'content' ~* ${patternExact} OR content_data->>'caption' ~* ${patternExact} OR content_data->>'text' ~* ${patternExact}) THEN 0
+            WHEN (title ~* ${patternPrefix} OR description ~* ${patternPrefix} OR content_data->>'content' ~* ${patternPrefix} OR content_data->>'caption' ~* ${patternPrefix} OR content_data->>'text' ~* ${patternPrefix}) THEN 1
+            WHEN ${searchOr} THEN 2
+            ELSE 3
+          END AS rank_bucket
+        FROM database
+        ${where}
+        ORDER BY rank_bucket ASC, created_at DESC
+        LIMIT ${parseInt(limit)}
+      `;
+
+      const { data: rankedData, error: sqlError } = await supabaseService.rpc('execute_sql', { sql });
+      if (!sqlError) {
+        return res.json({ success: true, data: rankedData || [] });
+      }
+      console.warn('[Gallery] execute_sql RPC unavailable or failed, falling back to query builder:', sqlError?.message || sqlError);
+    }
+
+    // No search term: use query builder
+    let query = supabaseService
+      .from('database')
+      .select('id, type, title, description, content_data, categories, tags, created_at, status, is_example, is_private')
+      .order('created_at', { ascending: false })
+      .limit(parseInt(limit));
+
+    if (status) {
+      query = query.eq('status', status);
+    }
+    if (onlyExamples === 'true') {
+      query = query.eq('is_example', true);
+    }
+    if (typeList.length > 0) {
+      query = query.in('type', typeList);
+    }
+    if (category && category !== 'all') {
+      query = query.contains('categories', [category]);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    // If we had a search term, apply ranking in Node as fallback
+    let responseData = data || [];
+    if (searchTerm && String(searchTerm).trim().length > 0) {
+      const q = String(searchTerm).trim();
+      const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const wordRe = new RegExp(`\\b${escaped}\\b`, 'i');
+      const prefixRe = new RegExp(`\\b${escaped}\\w+`, 'i');
+      const substringRe = new RegExp(escaped, 'i');
+      const scoreItem = (row) => {
+        const textParts = [
+          row?.title || '',
+          row?.description || '',
+          row?.content_data?.content || '',
+          row?.content_data?.caption || '',
+          row?.content_data?.text || ''
+        ];
+        const combined = textParts.join(' ');
+        if (wordRe.test(combined)) return 0;
+        if (prefixRe.test(combined)) return 1;
+        if (substringRe.test(combined)) return 2;
+        return 3;
+      };
+      responseData = responseData
+        .map(r => ({ r, s: scoreItem(r) }))
+        .sort((a, b) => {
+          if (a.s !== b.s) return a.s - b.s;
+          const at = new Date(a.r.created_at).getTime();
+          const bt = new Date(b.r.created_at).getTime();
+          return bt - at;
+        })
+        .map(x => x.r);
+    }
+
+    res.json({ success: true, data: responseData });
+  } catch (err) {
+    console.error('[Gallery] /database GET error:', err);
+    res.status(500).json({ success: false, message: 'Fehler beim Laden der Datenbank-Inhalte', details: err.message, data: [] });
+  }
+});
+
 // Get user instructions and knowledge
 router.get('/anweisungen-wissen', ensureAuthenticated, async (req, res) => {
   try {
@@ -416,7 +670,7 @@ router.get('/saved-texts', ensureAuthenticated, async (req, res) => {
     const { page = 1, limit = 20, type } = req.query;
     
     let query = supabaseService
-      .from('user_content')
+      .from('database')
       .select('id, title, description, content_data, type, created_at')
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
@@ -479,7 +733,7 @@ router.delete('/saved-texts/:id', ensureAuthenticated, async (req, res) => {
     }
 
     const { error } = await supabaseService
-      .from('user_content')
+      .from('database')
       .delete()
       .match({ id: id, user_id: userId });
 
@@ -528,7 +782,7 @@ router.delete('/saved-texts/bulk', ensureAuthenticated, async (req, res) => {
 
     // First, verify all texts belong to the user
     const { data: verifyTexts, error: verifyError } = await supabaseService
-      .from('user_content')
+      .from('database')
       .select('id')
       .eq('user_id', userId)
       .in('id', ids);
@@ -551,7 +805,7 @@ router.delete('/saved-texts/bulk', ensureAuthenticated, async (req, res) => {
 
     // Perform bulk delete
     const { data: deletedData, error: deleteError } = await supabaseService
-      .from('user_content')
+      .from('database')
       .delete()
       .eq('user_id', userId)
       .in('id', ids)
@@ -583,6 +837,208 @@ router.delete('/saved-texts/bulk', ensureAuthenticated, async (req, res) => {
       message: error.message || 'Failed to perform bulk delete of texts',
       details: error.message
     });
+  }
+});
+
+// === GALLERY SUPPORT ENDPOINTS ===
+
+// Categories for Anträge gallery
+router.get('/antraege-categories', ensureAuthenticated, async (req, res) => {
+  try {
+    const { data, error } = await supabaseService
+      .from('database')
+      .select('categories')
+      .eq('type', 'antrag')
+      .eq('status', 'published')
+      .eq('is_private', false);
+
+    if (error) throw error;
+
+    const allCategories = (data || [])
+      .flatMap(row => Array.isArray(row.categories) ? row.categories : [])
+      .filter(Boolean);
+
+    const unique = [...new Set(allCategories)].sort();
+    const categories = unique.map(c => ({ id: c, label: c }));
+
+    res.json({ success: true, categories });
+  } catch (err) {
+    console.error('[Gallery] /antraege-categories error:', err);
+    res.status(500).json({ success: false, message: 'Fehler beim Laden der Kategorien', details: err.message });
+  }
+});
+
+// List Anträge for gallery with optional search and category
+router.get('/antraege', ensureAuthenticated, async (req, res) => {
+  try {
+    const { searchTerm = '', searchMode = 'title', categoryId } = req.query;
+
+    let query = supabaseService
+      .from('database')
+      .select('id, title, description, tags, categories, created_at')
+      .eq('type', 'antrag')
+      .eq('status', 'published')
+      .eq('is_private', false)
+      .order('created_at', { ascending: false });
+
+    if (categoryId && categoryId !== 'all') {
+      query = query.contains('categories', [categoryId]);
+    }
+
+    if (searchTerm && String(searchTerm).trim().length > 0) {
+      const term = `%${searchTerm.trim()}%`;
+      if (searchMode === 'fulltext') {
+        query = query.or(
+          `title.ilike.${term},description.ilike.${term}`
+        );
+      } else {
+        // default: title search
+        query = query.ilike('title', term);
+      }
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    res.json({ success: true, antraege: data || [] });
+  } catch (err) {
+    console.error('[Gallery] /antraege GET error:', err);
+    res.status(500).json({ success: false, message: 'Fehler beim Laden der Anträge', details: err.message, antraege: [] });
+  }
+});
+
+// List Custom Generators for gallery
+router.get('/custom-generators', ensureAuthenticated, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { searchTerm = '', category } = req.query;
+
+    let query = supabaseService
+      .from('custom_generators')
+      .select('id, name, slug, description, created_at, user_id')
+      .order('created_at', { ascending: false });
+
+    if (category === 'own') {
+      query = query.eq('user_id', userId);
+    }
+    // category === 'shared' or 'popular' not implemented yet; return all for now
+
+    if (searchTerm && String(searchTerm).trim().length > 0) {
+      const term = `%${searchTerm.trim()}%`;
+      query = query.or(`name.ilike.${term},description.ilike.${term}`);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    // Map to expected minimal fields
+    const generators = (data || []).map(g => ({
+      id: g.id,
+      name: g.name,
+      slug: g.slug,
+      description: g.description,
+      created_at: g.created_at
+    }));
+
+    res.json({ success: true, generators });
+  } catch (err) {
+    console.error('[Gallery] /custom-generators GET error:', err);
+    res.status(500).json({ success: false, message: 'Fehler beim Laden der Grüneratoren', details: err.message, generators: [] });
+  }
+});
+
+// List PR texts (Öffentlichkeitsarbeit) including social platforms and press examples
+router.get('/pr-texts', ensureAuthenticated, async (req, res) => {
+  try {
+    const { searchTerm = '', searchMode = 'title', categoryId } = req.query;
+
+    const prTypes = ['instagram', 'facebook', 'twitter', 'linkedin', 'pressemitteilung', 'pr_text'];
+
+    let query = supabaseService
+      .from('database')
+      .select('id, title, description, content_data, type, categories, tags, created_at')
+      .in('type', prTypes)
+      .eq('status', 'published')
+      .eq('is_example', true)
+      .order('created_at', { ascending: false });
+
+    if (categoryId && categoryId !== 'all') {
+      if (prTypes.includes(categoryId)) {
+        query = query.eq('type', categoryId);
+      } else {
+        query = query.contains('categories', [categoryId]);
+      }
+    }
+
+    if (searchTerm && String(searchTerm).trim().length > 0) {
+      const term = `%${searchTerm.trim()}%`;
+      if (searchMode === 'fulltext') {
+        query = query.or(`title.ilike.${term},description.ilike.${term}`);
+      } else {
+        query = query.ilike('title', term);
+      }
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    // Format for frontend consumption
+    const results = (data || []).map(row => {
+      let content = '';
+      if (row?.content_data?.content) content = row.content_data.content;
+      else if (row?.content_data?.caption) content = row.content_data.caption;
+      else if (row?.description) content = row.description;
+      else if (typeof row?.content_data === 'string') content = row.content_data;
+      return {
+        id: row.id,
+        title: row.title,
+        content,
+        type: row.type,
+        categories: row.categories || [],
+        tags: row.tags || [],
+        created_at: row.created_at
+      };
+    });
+
+    // Return raw array to match current frontend expectations
+    res.json(results);
+  } catch (err) {
+    console.error('[Gallery] /pr-texts GET error:', err);
+    res.status(500).json({ success: false, message: 'Fehler beim Laden der PR-Texte', details: err.message });
+  }
+});
+
+// Categories for PR texts (returns list of {id,label})
+router.get('/pr-texts/categories', ensureAuthenticated, async (req, res) => {
+  try {
+    const prTypes = ['instagram', 'facebook', 'twitter', 'linkedin', 'pressemitteilung', 'pr_text'];
+
+    const { data, error } = await supabaseService
+      .from('database')
+      .select('type')
+      .in('type', prTypes)
+      .eq('status', 'published')
+      .eq('is_example', true);
+
+    if (error) throw error;
+
+    const presentTypes = [...new Set((data || []).map(r => r.type))];
+    const labelMap = {
+      instagram: 'Instagram',
+      facebook: 'Facebook',
+      twitter: 'Twitter',
+      linkedin: 'LinkedIn',
+      pressemitteilung: 'Pressemitteilung',
+      pr_text: 'PR-Text'
+    };
+    const categories = [{ id: 'all', label: 'Alle Kategorien' }].concat(
+      presentTypes.sort().map(t => ({ id: t, label: labelMap[t] || t }))
+    );
+
+    res.json({ success: true, categories });
+  } catch (err) {
+    console.error('[Gallery] /pr-texts/categories GET error:', err);
+    res.status(500).json({ success: false, message: 'Fehler beim Laden der PR-Kategorien', details: err.message });
   }
 });
 

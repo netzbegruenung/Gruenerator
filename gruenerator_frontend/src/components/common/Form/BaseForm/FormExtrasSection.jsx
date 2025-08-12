@@ -1,16 +1,20 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import FeatureToggle from '../../FeatureToggle';
+import FeatureIcons from '../../FeatureIcons';
 import SubmitButton from '../../SubmitButton';
 import KnowledgeSelector from '../../../common/KnowledgeSelector/KnowledgeSelector';
 import { useBetaFeatures } from '../../../../hooks/useBetaFeatures';
 import { useGeneratorKnowledgeStore } from '../../../../stores/core/generatorKnowledgeStore';
+import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
 
 /**
  * Komponente für zusätzliche Formular-Features (Extras)
  * @param {Object} props - Komponenten-Props
  * @param {Object} props.webSearchFeatureToggle - Props für den Web Search Feature-Toggle
  * @param {boolean} props.useWebSearchFeatureToggle - Soll der Web Search Feature-Toggle verwendet werden
+ * @param {Object} props.privacyModeToggle - Props für den Privacy-Mode Feature-Toggle
+ * @param {boolean} props.usePrivacyModeToggle - Soll der Privacy-Mode Feature-Toggle verwendet werden
  * @param {Object} props.formControl - React Hook Form Control Object
  * @param {node} props.formNotice - Hinweis oder Information im Formular
  * @param {Function} props.onSubmit - Submit-Handler für das Formular
@@ -28,6 +32,12 @@ import { useGeneratorKnowledgeStore } from '../../../../stores/core/generatorKno
 const FormExtrasSection = ({
   webSearchFeatureToggle,
   useWebSearchFeatureToggle = false,
+  privacyModeToggle,
+  usePrivacyModeToggle = false,
+  useFeatureIcons = false,
+  onAttachmentClick,
+  onRemoveFile,
+  attachedFiles = [],
   formControl = null,
   formNotice = null,
   onSubmit,
@@ -43,10 +53,14 @@ const FormExtrasSection = ({
   knowledgeSourceSelectorTabIndex = 13,
   documentSelectorTabIndex = 15,
   submitButtonTabIndex = 17,
-  showProfileSelector = true
+  showProfileSelector = true,
+  onPrivacyInfoClick,
+  onWebSearchInfoClick,
+  componentName
 }) => {
   // Simplified store access
   const { source, availableKnowledge } = useGeneratorKnowledgeStore();
+  const currentGeneratedContent = useGeneratedTextStore(state => state.generatedTexts[componentName] || '');
   
   const { getBetaFeatureState, isLoading: isLoadingBetaFeatures } = useBetaFeatures();
   const anweisungenBetaEnabled = true;
@@ -85,6 +99,30 @@ const FormExtrasSection = ({
           />
         </div>
 
+        {/* Feature Icons - alternative to feature toggles */}
+        {useFeatureIcons && webSearchFeatureToggle && privacyModeToggle && (
+          <div className="form-extras__item">
+            <FeatureIcons
+              onWebSearchClick={() => webSearchFeatureToggle.onToggle(!webSearchFeatureToggle.isActive)}
+              onPrivacyModeClick={() => privacyModeToggle.onToggle(!privacyModeToggle.isActive)}
+              onAttachmentClick={onAttachmentClick}
+              onRemoveFile={onRemoveFile}
+              webSearchActive={webSearchFeatureToggle.isActive}
+              privacyModeActive={privacyModeToggle.isActive}
+              attachedFiles={attachedFiles}
+              className="form-extras__feature-icons"
+              tabIndex={{
+                webSearch: webSearchFeatureToggle.tabIndex,
+                privacyMode: privacyModeToggle.tabIndex
+              }}
+              showPrivacyInfoLink={privacyModeToggle.isActive && !currentGeneratedContent}
+              onPrivacyInfoClick={onPrivacyInfoClick}
+              showWebSearchInfoLink={webSearchFeatureToggle.isActive && !currentGeneratedContent}
+              onWebSearchInfoClick={onWebSearchInfoClick}
+            />
+          </div>
+        )}
+
         {/* Form Notice */}
         {formNotice && (
           <div className="form-extras__item form-extras__notice">
@@ -92,10 +130,17 @@ const FormExtrasSection = ({
           </div>
         )}
 
-        {/* Web Search Feature Toggle */}
-        {webSearchFeatureToggle && useWebSearchFeatureToggle && (
+        {/* Web Search Feature Toggle - only show if not using feature icons */}
+        {!useFeatureIcons && webSearchFeatureToggle && useWebSearchFeatureToggle && (
           <div className="form-extras__item">
             <FeatureToggle {...webSearchFeatureToggle} className="form-feature-toggle" />
+          </div>
+        )}
+
+        {/* Privacy-Mode Feature Toggle - only show if not using feature icons */}
+        {!useFeatureIcons && privacyModeToggle && usePrivacyModeToggle && (
+          <div className="form-extras__item">
+            <FeatureToggle {...privacyModeToggle} className="form-feature-toggle" />
           </div>
         )}
 
@@ -136,9 +181,23 @@ FormExtrasSection.propTypes = {
     icon: PropTypes.elementType,
     description: PropTypes.string,
     isSearching: PropTypes.bool,
-    statusMessage: PropTypes.string
+    statusMessage: PropTypes.string,
+    tabIndex: PropTypes.number
   }),
   useWebSearchFeatureToggle: PropTypes.bool,
+  privacyModeToggle: PropTypes.shape({
+    isActive: PropTypes.bool,
+    onToggle: PropTypes.func,
+    label: PropTypes.string,
+    icon: PropTypes.elementType,
+    description: PropTypes.string,
+    tabIndex: PropTypes.number
+  }),
+  usePrivacyModeToggle: PropTypes.bool,
+  useFeatureIcons: PropTypes.bool,
+  onAttachmentClick: PropTypes.func,
+  onRemoveFile: PropTypes.func,
+  attachedFiles: PropTypes.array,
   formControl: PropTypes.object,
   formNotice: PropTypes.node,
   onSubmit: PropTypes.func,
@@ -157,11 +216,16 @@ FormExtrasSection.propTypes = {
   knowledgeSelectorTabIndex: PropTypes.number,
   knowledgeSourceSelectorTabIndex: PropTypes.number,
   documentSelectorTabIndex: PropTypes.number,
-  submitButtonTabIndex: PropTypes.number
+  submitButtonTabIndex: PropTypes.number,
+  onPrivacyInfoClick: PropTypes.func,
+  onWebSearchInfoClick: PropTypes.func,
+  componentName: PropTypes.string
 };
 
 FormExtrasSection.defaultProps = {
   useWebSearchFeatureToggle: false,
+  usePrivacyModeToggle: false,
+  useFeatureIcons: false,
   enableKnowledgeSelector: false,
   enableDocumentSelector: false,
   formControl: null,
@@ -175,7 +239,9 @@ FormExtrasSection.defaultProps = {
   knowledgeSelectorTabIndex: 14,
   knowledgeSourceSelectorTabIndex: 13,
   documentSelectorTabIndex: 15,
-  submitButtonTabIndex: 17
+  submitButtonTabIndex: 17,
+  onPrivacyInfoClick: undefined,
+  componentName: 'default'
 };
 
 FormExtrasSection.displayName = 'FormExtrasSection';

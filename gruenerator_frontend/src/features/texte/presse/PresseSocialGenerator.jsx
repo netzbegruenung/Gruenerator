@@ -9,7 +9,7 @@ import useApiSubmit from '../../../components/hooks/useApiSubmit';
 import { useSharedContent } from '../../../components/hooks/useSharedContent';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
-import { HiInformationCircle } from 'react-icons/hi';
+import { HiInformationCircle, HiShieldCheck } from 'react-icons/hi';
 import { createKnowledgeFormNotice, createKnowledgePrompt } from '../../../utils/knowledgeFormUtils';
 import { useFormFields } from '../../../components/common/Form/hooks';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
@@ -20,11 +20,14 @@ import { TabIndexHelpers } from '../../../utils/tabIndexConfig';
 import useSharepicGeneration from '../../../hooks/useSharepicGeneration';
 import FileUpload from '../../../components/common/FileUpload';
 import Icon from '../../../components/common/Icon';
+import { prepareFilesForSubmission } from '../../../utils/fileAttachmentUtils';
+import { HiGlobeAlt } from 'react-icons/hi';
+import { useUrlCrawler } from '../../../hooks/useUrlCrawler';
 
 const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   const componentName = 'presse-social';
   const { initialContent } = useSharedContent();
-  const { user } = useOptimizedAuth();
+  const { isAuthenticated } = useOptimizedAuth();
   const { Input, Textarea, Select } = useFormFields();
   const { setGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
 
@@ -42,41 +45,46 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   const tabIndex = useTabIndex('PRESS_SOCIAL');
   const baseFormTabIndex = useBaseFormTabIndex('PRESS_SOCIAL');
 
-  const platformOptions = useMemo(() => [
-    { id: 'pressemitteilung', label: 'Pressemitteilung', icon: <Icon category="platforms" name="pressemitteilung" size={16} /> },
-    { id: 'instagram', label: 'Instagram', icon: <Icon category="platforms" name="instagram" size={16} /> },
-    { id: 'facebook', label: 'Facebook', icon: <Icon category="platforms" name="facebook" size={16} /> },
-    { id: 'twitter', label: 'Twitter/X, Mastodon & Bluesky', icon: <Icon category="platforms" name="twitter" size={16} /> },
-    { id: 'linkedin', label: 'LinkedIn', icon: <Icon category="platforms" name="linkedin" size={16} /> },
-    { id: 'sharepic', label: 'Sharepic', icon: <Icon category="platforms" name="sharepic" size={16} /> },
-    { id: 'actionIdeas', label: 'Aktionsideen', icon: <Icon category="platforms" name="actionIdeas" size={16} /> },
-    { id: 'reelScript', label: 'Skript für Reels & Tiktoks', icon: <Icon category="platforms" name="reelScript" size={16} /> }
-  ], []);
+  const platformOptions = useMemo(() => {
+    const options = [
+      { id: 'pressemitteilung', label: 'Pressemitteilung', icon: <Icon category="platforms" name="pressemitteilung" size={16} /> },
+      { id: 'instagram', label: 'Instagram', icon: <Icon category="platforms" name="instagram" size={16} /> },
+      { id: 'facebook', label: 'Facebook', icon: <Icon category="platforms" name="facebook" size={16} /> },
+      { id: 'twitter', label: 'Twitter/X, Mastodon & Bluesky', icon: <Icon category="platforms" name="twitter" size={16} /> },
+      { id: 'linkedin', label: 'LinkedIn', icon: <Icon category="platforms" name="linkedin" size={16} /> },
+      { id: 'sharepic', label: 'Sharepic', icon: <Icon category="platforms" name="sharepic" size={16} /> },
+      { id: 'actionIdeas', label: 'Aktionsideen', icon: <Icon category="platforms" name="actionIdeas" size={16} /> },
+      { id: 'reelScript', label: 'Skript für Reels & Tiktoks', icon: <Icon category="platforms" name="reelScript" size={16} /> }
+    ];
+    return isAuthenticated ? options : options.filter(opt => opt.id !== 'sharepic');
+  }, [isAuthenticated]);
 
   const defaultPlatforms = useMemo(() => {
     // Determine default platforms based on initial content
+    let selectedPlatforms = [];
     if (initialContent?.platforms) {
-      const selectedPlatforms = Object.keys(initialContent.platforms).filter(
+      selectedPlatforms = Object.keys(initialContent.platforms).filter(
         key => initialContent.platforms[key]
       );
       if (selectedPlatforms.length > 0) {
-        return selectedPlatforms; // Return all selected platforms
+        return isAuthenticated ? selectedPlatforms : selectedPlatforms.filter(p => p !== 'sharepic');
       }
     }
-    
+
     // Default for sharepic content
     if (initialContent?.isFromSharepic) {
-      return ['instagram'];
+      selectedPlatforms = ['instagram'];
     }
-    
-    return []; // No default selection
-  }, [initialContent]);
+
+    return isAuthenticated ? selectedPlatforms : selectedPlatforms.filter(p => p !== 'sharepic'); // No default selection or filtered
+  }, [initialContent, isAuthenticated]);
 
   const {
     control,
     handleSubmit,
     reset,
     watch,
+    setValue,
     formState: { errors }
   } = useForm({
     defaultValues: {
@@ -85,14 +93,26 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
       zitatgeber: initialContent?.zitatgeber || '',
       platforms: defaultPlatforms,
       sharepicType: 'dreizeilen',
-      zitatAuthor: ''
+      zitatAuthor: '',
+      useWebSearchTool: false,
+      usePrivacyMode: false
     }
   });
 
   const watchPlatforms = watch('platforms');
   const watchPressemitteilung = watchPlatforms && watchPlatforms.includes('pressemitteilung');
-  const watchSharepic = watchPlatforms && watchPlatforms.includes('sharepic');
+  const watchSharepic = isAuthenticated && watchPlatforms && watchPlatforms.includes('sharepic');
   const watchSharepicType = watch('sharepicType');
+  const watchUseWebSearch = watch('useWebSearchTool');
+  const watchUsePrivacyMode = watch('usePrivacyMode');
+
+  // Ensure sharepic is not selected when user is not authenticated
+  useEffect(() => {
+    if (!isAuthenticated && Array.isArray(watchPlatforms) && watchPlatforms.includes('sharepic')) {
+      const filtered = watchPlatforms.filter(p => p !== 'sharepic');
+      setValue('platforms', filtered);
+    }
+  }, [isAuthenticated, watchPlatforms, setValue]);
 
   const handleImageChange = useCallback((file) => {
     setUploadedImage(file);
@@ -100,6 +120,34 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
 
   const [socialMediaContent, setSocialMediaContent] = useState('');
   const [uploadedImage, setUploadedImage] = useState(null);
+  const [attachedFiles, setAttachedFiles] = useState([]);
+  const [processedAttachments, setProcessedAttachments] = useState([]);
+
+  // URL crawler hook for automatic link processing
+  const {
+    crawledUrls,
+    crawlingUrls,
+    crawlErrors,
+    detectAndCrawlUrls,
+    removeCrawledUrl,
+    retryUrl,
+    isCrawling
+  } = useUrlCrawler();
+
+  // Handle URL detection and crawling
+  const handleUrlsDetected = useCallback(async (urls) => {
+    // Only crawl if not already crawling and URLs are detected
+    if (!isCrawling && urls.length > 0) {
+      console.log(`[PresseSocialGenerator] Detected ${urls.length} URLs, starting crawl with privacy mode: ${watchUsePrivacyMode}`);
+      await detectAndCrawlUrls(urls.join(' '), watchUsePrivacyMode);
+    }
+  }, [detectAndCrawlUrls, isCrawling, watchUsePrivacyMode]);
+
+  // Handle URL retry
+  const handleRetryUrl = useCallback(async (url) => {
+    console.log(`[PresseSocialGenerator] Retrying URL: ${url}`);
+    await retryUrl(url, watchUsePrivacyMode);
+  }, [retryUrl, watchUsePrivacyMode]);
   // const textSize = useDynamicTextSize(socialMediaContent, 1.2, 0.8, [1000, 2000]);
   const { submitForm, loading, success, resetSuccess, error } = useApiSubmit('/claude_social');
   const { generateSharepic, loading: sharepicLoading } = useSharepicGeneration();
@@ -145,13 +193,24 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
     try {
       // Use platforms array directly from multi-select
       const selectedPlatforms = rhfData.platforms || [];
-      const hasSharepic = selectedPlatforms.includes('sharepic');
+      const hasSharepic = isAuthenticated && selectedPlatforms.includes('sharepic');
+
+      // Combine file attachments with crawled URLs
+      const allAttachments = [
+        ...processedAttachments,
+        ...crawledUrls
+      ];
+
+      console.log(`[PresseSocialGenerator] Submitting form with ${processedAttachments.length} file attachments and ${crawledUrls.length} crawled URLs`);
 
       const formDataToSubmit = {
         thema: rhfData.thema,
         details: rhfData.details,
         platforms: selectedPlatforms,
         zitatgeber: rhfData.zitatgeber,
+        useWebSearchTool: rhfData.useWebSearchTool,
+        usePrivacyMode: rhfData.usePrivacyMode,
+        attachments: allAttachments
       };
       
       // Extract search query from form data for intelligent document content
@@ -247,7 +306,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
     } finally {
       setStoreIsLoading(false);
     }
-  }, [submitForm, resetSuccess, setGeneratedText, setStoreIsLoading, source, isInstructionsActive, getActiveInstruction, groupDetailsData, getKnowledgeContent, getDocumentContent, generateSharepic, uploadedImage]);
+  }, [submitForm, resetSuccess, setGeneratedText, setStoreIsLoading, source, isInstructionsActive, getActiveInstruction, groupDetailsData, getKnowledgeContent, getDocumentContent, generateSharepic, uploadedImage, processedAttachments, crawledUrls]);
 
   const handleGeneratedContentChange = useCallback((content) => {
     setSocialMediaContent(content);
@@ -271,16 +330,63 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
     window.open(url.toString(), '_blank');
   }, []);
 
+  const handleAttachmentClick = useCallback(async (files) => {
+    try {
+      console.log(`[PresseSocialGenerator] Processing ${files.length} new attached files`);
+      const processed = await prepareFilesForSubmission(files);
+      
+      // Accumulate files instead of replacing
+      setAttachedFiles(prevFiles => [...prevFiles, ...files]);
+      setProcessedAttachments(prevProcessed => [...prevProcessed, ...processed]);
+      
+      console.log('[PresseSocialGenerator] Files successfully processed for submission');
+    } catch (error) {
+      console.error('[PresseSocialGenerator] File processing error:', error);
+      // Here you could show a toast notification or error message to the user
+      // For now, we'll just log the error
+    }
+  }, []);
+
+  const handleRemoveFile = useCallback((index) => {
+    console.log(`[PresseSocialGenerator] Removing file at index ${index}`);
+    setAttachedFiles(prevFiles => prevFiles.filter((_, i) => i !== index));
+    setProcessedAttachments(prevProcessed => prevProcessed.filter((_, i) => i !== index));
+  }, []);
+
 
   const helpContent = {
-    content: "Dieser Grünerator erstellt professionelle Pressemitteilungen und Social Media Inhalte basierend auf deinen Angaben.",
+    content: "Dieser Grünerator erstellt professionelle Pressemitteilungen und Social Media Inhalte basierend auf deinen Angaben. Du kannst auch PDFs, Bilder und URLs als Hintergrundinformation verwenden.",
     tips: [
       "Gib ein klares, prägnantes Thema an",
       "Füge wichtige Details und Fakten hinzu",
       "Wähle die gewünschten Formate aus",
+      "Hänge PDFs oder Bilder als Kontext an (max. 5MB pro Datei)",
+      "URLs werden automatisch erkannt und der Inhalt als Kontext hinzugefügt",
       "Bei Pressemitteilungen: Angabe von Zitatgeber erforderlich - Abbinder wird automatisch hinzugefügt",
       "Bei Sharepics: Wähle zwischen 5 Formaten - 3-Zeilen Slogan (mit Bild), Zitat mit Bild, Zitat (Nur Text), Infopost oder Nur Text (Groß). Bei Zitat-Formaten ist die Angabe des Autors erforderlich"
     ]
+  };
+
+  const webSearchFeatureToggle = {
+    isActive: watchUseWebSearch,
+    onToggle: (checked) => {
+      setValue('useWebSearchTool', checked);
+    },
+    label: "Websuche verwenden",
+    icon: HiGlobeAlt,
+    description: "",
+    tabIndex: tabIndex.webSearch || 11
+  };
+
+  const privacyModeToggle = {
+    isActive: watchUsePrivacyMode,
+    onToggle: (checked) => {
+      setValue('usePrivacyMode', checked);
+    },
+    label: "Privacy-Mode",
+    icon: HiShieldCheck,
+    description: "Verwendet deutsche Server der Netzbegrünung.",
+    tabIndex: tabIndex.privacyMode || 13
   };
 
   const renderFormInputs = () => (
@@ -304,6 +410,8 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
         maxRows={10}
         className="form-textarea-large"
         tabIndex={tabIndex.details}
+        enableUrlDetection={true}
+        onUrlsDetected={handleUrlsDetected}
       />
 
       <AnimatePresence>
@@ -427,6 +535,14 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
           formControl={control}
           helpContent={helpContent}
           componentName={componentName}
+          webSearchFeatureToggle={webSearchFeatureToggle}
+          useWebSearchFeatureToggle={true}
+          privacyModeToggle={privacyModeToggle}
+          usePrivacyModeToggle={true}
+          useFeatureIcons={true}
+          onAttachmentClick={handleAttachmentClick}
+          onRemoveFile={handleRemoveFile}
+          attachedFiles={attachedFiles}
           platformSelectorTabIndex={baseFormTabIndex.platformSelectorTabIndex}
           knowledgeSelectorTabIndex={baseFormTabIndex.knowledgeSelectorTabIndex}
           knowledgeSourceSelectorTabIndex={baseFormTabIndex.knowledgeSourceSelectorTabIndex}

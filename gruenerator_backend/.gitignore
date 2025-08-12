@@ -80,6 +80,9 @@ typings/
 # Audio files
 uploads/voice/*.wav
 
+# Test results and reports
+test-results/
+
 /test/
 /tests/
 

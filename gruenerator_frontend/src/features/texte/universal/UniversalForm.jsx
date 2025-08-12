@@ -14,7 +14,8 @@ const UniversalForm = forwardRef(({ tabIndex = {} }, ref) => {
       textForm: '',
       sprache: '',
       thema: '',
-      details: ''
+      details: '',
+      usePrivacyMode: false
     }
   });
 

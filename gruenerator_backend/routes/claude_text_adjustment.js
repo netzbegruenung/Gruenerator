@@ -32,7 +32,7 @@ Bitte schlage eine verbesserte Version des Abschnitts vor, die die gewünschten 
         temperature: 0.5
       },
 
-    });
+    }, req);
 
     if (result.success) {
       res.json({ suggestions: [result.content.trim()] });

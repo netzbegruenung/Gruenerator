@@ -11,26 +11,36 @@ const useSharepicGeneration = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const generateSharepic = useCallback(async (thema, details, uploadedImage = null, sharepicType = 'dreizeilen', zitatAuthor = null, customPrompt = null) => {
+  const generateSharepic = useCallback(async (thema, details, uploadedImage = null, sharepicType = 'dreizeilen', zitatAuthor = null, customPrompt = null, attachments = null, usePrivacyMode = false, provider = null) => {
     setLoading(true);
     setError(null);
 
     try {
-      console.log('[useSharepicGeneration] Starting sharepic generation:', { thema, details, hasImage: !!uploadedImage, sharepicType, zitatAuthor, hasCustomPrompt: !!customPrompt });
+      console.log('[useSharepicGeneration] Starting sharepic generation:', { 
+        thema, 
+        details, 
+        hasImage: !!uploadedImage, 
+        sharepicType, 
+        zitatAuthor, 
+        hasCustomPrompt: !!customPrompt,
+        hasAttachments: attachments && attachments.length > 0,
+        usePrivacyMode,
+        provider
+      });
 
       // Route to appropriate generation function based on type
       switch (sharepicType) {
         case 'quote':
-          return await generateQuoteSharepic(thema, details, zitatAuthor, uploadedImage, customPrompt);
+          return await generateQuoteSharepic(thema, details, zitatAuthor, uploadedImage, customPrompt, attachments, usePrivacyMode, provider);
         case 'quote_pure':
-          return await generateQuotePureSharepic(thema, details, zitatAuthor, customPrompt);
+          return await generateQuotePureSharepic(thema, details, zitatAuthor, customPrompt, attachments, usePrivacyMode, provider);
         case 'info':
-          return await generateInfoSharepic(thema, details, customPrompt);
+          return await generateInfoSharepic(thema, details, customPrompt, attachments, usePrivacyMode, provider);
         case 'headline':
-          return await generateHeadlineSharepic(thema, details, customPrompt);
+          return await generateHeadlineSharepic(thema, details, customPrompt, attachments, usePrivacyMode, provider);
         case 'dreizeilen':
         default:
-          return await generateDreizeilenSharepic(thema, details, uploadedImage, customPrompt);
+          return await generateDreizeilenSharepic(thema, details, uploadedImage, customPrompt, attachments, usePrivacyMode, provider);
       }
 
     } catch (err) {
@@ -42,7 +52,7 @@ const useSharepicGeneration = () => {
     }
   }, []);
 
-  const generateDreizeilenSharepic = useCallback(async (thema, details, uploadedImage, customPrompt = null) => {
+  const generateDreizeilenSharepic = useCallback(async (thema, details, uploadedImage, customPrompt = null, attachments = null, usePrivacyMode = false, provider = null) => {
     console.log('[useSharepicGeneration] Starting dreizeilen sharepic generation');
 
     // Step 1: Generate text using existing dreizeilen_claude endpoint
@@ -54,6 +64,19 @@ const useSharepicGeneration = () => {
     // Add customPrompt if provided (knowledge from KnowledgeSelector)
     if (customPrompt) {
       requestData.customPrompt = customPrompt;
+    }
+
+    // Add attachments if provided
+    if (attachments && attachments.length > 0) {
+      requestData.attachments = attachments;
+    }
+
+    // Add privacy mode and provider if specified
+    if (usePrivacyMode) {
+      requestData.usePrivacyMode = usePrivacyMode;
+      if (provider) {
+        requestData.provider = provider;
+      }
     }
 
     const textResponse = await apiClient.post('/dreizeilen_claude', requestData);
@@ -116,7 +139,7 @@ const useSharepicGeneration = () => {
     };
   }, []);
 
-  const generateQuoteSharepic = useCallback(async (thema, details, zitatAuthor, uploadedImage, customPrompt = null) => {
+  const generateQuoteSharepic = useCallback(async (thema, details, zitatAuthor, uploadedImage, customPrompt = null, attachments = null, usePrivacyMode = false, provider = null) => {
     console.log('[useSharepicGeneration] Starting quote sharepic generation');
 
     if (!zitatAuthor) {
@@ -132,6 +155,19 @@ const useSharepicGeneration = () => {
     // Add customPrompt if provided (knowledge from KnowledgeSelector)
     if (customPrompt) {
       requestData.customPrompt = customPrompt;
+    }
+
+    // Add attachments if provided
+    if (attachments && attachments.length > 0) {
+      requestData.attachments = attachments;
+    }
+
+    // Add privacy mode and provider if specified
+    if (usePrivacyMode) {
+      requestData.usePrivacyMode = usePrivacyMode;
+      if (provider) {
+        requestData.provider = provider;
+      }
     }
 
     const textResponse = await apiClient.post('/zitat_claude', requestData);
@@ -196,7 +232,7 @@ const useSharepicGeneration = () => {
     };
   }, []);
 
-  const generateQuotePureSharepic = useCallback(async (thema, details, zitatAuthor, customPrompt = null) => {
+  const generateQuotePureSharepic = useCallback(async (thema, details, zitatAuthor, customPrompt = null, attachments = null, usePrivacyMode = false, provider = null) => {
     console.log('[useSharepicGeneration] Starting quote pure sharepic generation');
 
     if (!zitatAuthor) {
@@ -212,6 +248,19 @@ const useSharepicGeneration = () => {
     // Add customPrompt if provided (knowledge from KnowledgeSelector)
     if (customPrompt) {
       requestData.customPrompt = customPrompt;
+    }
+
+    // Add attachments if provided
+    if (attachments && attachments.length > 0) {
+      requestData.attachments = attachments;
+    }
+
+    // Add privacy mode and provider if specified
+    if (usePrivacyMode) {
+      requestData.usePrivacyMode = usePrivacyMode;
+      if (provider) {
+        requestData.provider = provider;
+      }
     }
 
     const textResponse = await apiClient.post('/zitat_pure_claude', requestData);
@@ -260,7 +309,7 @@ const useSharepicGeneration = () => {
     };
   }, []);
 
-  const generateInfoSharepic = useCallback(async (thema, details, customPrompt = null) => {
+  const generateInfoSharepic = useCallback(async (thema, details, customPrompt = null, attachments = null, usePrivacyMode = false, provider = null) => {
     console.log('[useSharepicGeneration] Starting info sharepic generation');
 
     // Step 1: Generate info text using existing info_claude endpoint
@@ -272,6 +321,19 @@ const useSharepicGeneration = () => {
     // Add customPrompt if provided (knowledge from KnowledgeSelector)
     if (customPrompt) {
       requestData.customPrompt = customPrompt;
+    }
+
+    // Add attachments if provided
+    if (attachments && attachments.length > 0) {
+      requestData.attachments = attachments;
+    }
+
+    // Add privacy mode and provider if specified
+    if (usePrivacyMode) {
+      requestData.usePrivacyMode = usePrivacyMode;
+      if (provider) {
+        requestData.provider = provider;
+      }
     }
 
     const textResponse = await apiClient.post('/info_claude', requestData);
@@ -325,7 +387,7 @@ const useSharepicGeneration = () => {
     };
   }, []);
 
-  const generateHeadlineSharepic = useCallback(async (thema, details, customPrompt = null) => {
+  const generateHeadlineSharepic = useCallback(async (thema, details, customPrompt = null, attachments = null, usePrivacyMode = false, provider = null) => {
     console.log('[useSharepicGeneration] Starting headline sharepic generation');
 
     // Step 1: Generate headline text using existing headline_claude endpoint
@@ -337,6 +399,19 @@ const useSharepicGeneration = () => {
     // Add customPrompt if provided (knowledge from KnowledgeSelector)
     if (customPrompt) {
       requestData.customPrompt = customPrompt;
+    }
+
+    // Add attachments if provided
+    if (attachments && attachments.length > 0) {
+      requestData.attachments = attachments;
+    }
+
+    // Add privacy mode and provider if specified
+    if (usePrivacyMode) {
+      requestData.usePrivacyMode = usePrivacyMode;
+      if (provider) {
+        requestData.provider = provider;
+      }
     }
 
     const textResponse = await apiClient.post('/headline_claude', requestData);

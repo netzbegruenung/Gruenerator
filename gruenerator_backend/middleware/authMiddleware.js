@@ -15,6 +15,21 @@ function requireAuth(req, res, next) {
     }
     
     // Fall back to session-based auth
+    // In this app, Passport session middleware is only attached on auth routes.
+    // For API routes, recognize an authenticated session by checking req.session.passport.user
+    if (!req.user && req.session?.passport?.user) {
+      try {
+        // Attach the passport user from the session to req.user for downstream handlers
+        req.user = req.session.passport.user;
+        // Provide isAuthenticated compatibility when passport.session() is not globally enabled
+        if (typeof req.isAuthenticated !== 'function') {
+          req.isAuthenticated = () => true;
+        }
+      } catch (attachErr) {
+        // If anything goes wrong, continue to standard checks/logging
+      }
+    }
+
     console.log('[Auth] Checking authentication status:', {
       isAuthenticated: req.isAuthenticated ? req.isAuthenticated() : false,
       hasUser: !!req.user,

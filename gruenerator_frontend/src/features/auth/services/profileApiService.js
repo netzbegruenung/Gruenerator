@@ -130,6 +130,25 @@ export const profileApiService = {
   },
 
   // === ANWEISUNGEN & WISSEN ===
+  async getInstructionsStatusForType(instructionType) {
+    const response = await fetch(`${AUTH_BASE_URL}/auth/instructions-status/${instructionType}`, {
+      method: 'GET',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch instructions status for ${instructionType}. Status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    if (!data.success) {
+      throw new Error(data.message || `Failed to check ${instructionType} instructions status`);
+    }
+
+    return data;
+  },
+
   async getAnweisungenWissen(context = 'user', groupId = null) {
     let url, response;
     
