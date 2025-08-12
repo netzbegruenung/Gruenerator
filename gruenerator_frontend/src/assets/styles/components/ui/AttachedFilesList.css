@@ -1,0 +1,100 @@
+/* Minimal styling for attached files list */
+.attached-files-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xsmall);
+  margin-top: var(--spacing-small);
+}
+
+.file-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--spacing-xxsmall) var(--spacing-xsmall);
+  background-color: var(--secondary-50);
+  border: 1px solid var(--secondary-200);
+  border-radius: var(--card-border-radius-small);
+  font-size: 0.8rem;
+  max-width: 600px;
+}
+
+.file-tag .file-name {
+  /* Allow the filename to take available space without CSS truncation */
+  flex: 1 1 auto;
+  min-width: 0;
+  display: block;
+  color: var(--font-color);
+  max-width: none !important;
+  overflow: visible !important;
+  text-overflow: initial !important;
+  white-space: normal !important;
+  /* Removed CSS truncation since we handle it in JavaScript */
+}
+
+.file-remove-btn {
+  margin-left: var(--spacing-xxsmall);
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--error-500);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  transition: var(--input-transition);
+}
+
+.file-remove-btn:hover {
+  background-color: var(--error-50);
+}
+
+/* Warning state for privacy mode conflicts */
+.file-tag--warning {
+  border-color: var(--error-500) !important;
+  background-color: rgba(211, 47, 47, 0.05);
+  position: relative;
+}
+
+.file-tag.file-tag--warning .file-name {
+  color: var(--error-700) !important;
+}
+
+.file-tag--warning .file-remove-btn {
+  color: var(--error-600);
+}
+
+.file-tag--warning .file-remove-btn:hover {
+  background-color: var(--error-100);
+  color: var(--error-700);
+}
+
+/* Dark theme */
+[data-theme="dark"] .file-tag {
+  background-color: var(--grey-700);
+  border-color: var(--grey-600);
+}
+
+[data-theme="dark"] .file-remove-btn:hover {
+  background-color: var(--grey-600);
+}
+
+/* Dark theme warning state */
+[data-theme="dark"] .file-tag--warning {
+  background-color: rgba(211, 47, 47, 0.1);
+  border-color: var(--error-400) !important;
+}
+
+[data-theme="dark"] .file-tag.file-tag--warning .file-name {
+  color: var(--error-300) !important;
+}
+
+[data-theme="dark"] .file-tag--warning .file-remove-btn {
+  color: var(--error-400);
+}
+
+[data-theme="dark"] .file-tag--warning .file-remove-btn:hover {
+  background-color: var(--error-900);
+  color: var(--error-300);
+}

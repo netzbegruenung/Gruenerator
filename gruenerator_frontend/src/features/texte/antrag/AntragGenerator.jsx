@@ -7,7 +7,7 @@ import useApiSubmit from '../../../components/hooks/useApiSubmit';
 import StyledCheckbox from '../../../components/common/AnimatedCheckbox';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
-import { HiInformationCircle, HiGlobeAlt } from 'react-icons/hi';
+import { HiInformationCircle, HiGlobeAlt, HiShieldCheck } from 'react-icons/hi';
 import { createKnowledgeFormNotice, createKnowledgePrompt } from '../../../utils/knowledgeFormUtils';
 import { useFormFields } from '../../../components/common/Form/hooks';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
@@ -18,6 +18,7 @@ import AntragSavePopup from './components/AntragSavePopup';
 import { saveAntrag } from './antragSaveUtils';
 import FormSelect from '../../../components/common/Form/Input/FormSelect';
 import BundestagDocumentSelector from '../../../components/common/BundestagDocumentSelector/BundestagDocumentSelector';
+import { prepareFilesForSubmission } from '../../../utils/fileAttachmentUtils';
 
 const REQUEST_TYPES = {
   ANTRAG: 'antrag',
@@ -71,17 +72,21 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
       idee: '',
       details: '',
       gliederung: '',
-      useWebSearchTool: false
+      useWebSearchTool: false,
+      usePrivacyMode: false
     }
   });
 
   const watchUseWebSearch = watch('useWebSearchTool');
+  const watchUsePrivacyMode = watch('usePrivacyMode');
   const watchRequestType = watch('requestType');
 
   const [antragContent, setAntragContent] = useState('');
   const [isSavePopupOpen, setIsSavePopupOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [selectedBundestagDocuments, setSelectedBundestagDocuments] = useState([]);
+  const [attachedFiles, setAttachedFiles] = useState([]);
+  const [processedAttachments, setProcessedAttachments] = useState([]);
   const { submitForm, loading, success, resetSuccess, error } = useApiSubmit('/antraege/generate-simple');
   const storeGeneratedText = useGeneratedTextStore(state => state.getGeneratedText(componentName));
   
@@ -125,8 +130,10 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
         details: rhfData.details,
         gliederung: rhfData.gliederung,
         useWebSearchTool: rhfData.useWebSearchTool,
+        usePrivacyMode: rhfData.usePrivacyMode,
         useBundestagApi: bundestagApiEnabled && selectedBundestagDocuments.length > 0,
-        selectedBundestagDocuments: selectedBundestagDocuments
+        selectedBundestagDocuments: selectedBundestagDocuments,
+        attachments: processedAttachments
       };
       
       // Extract search query from form data for intelligent document content
@@ -180,7 +187,7 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
     } finally {
       setStoreIsLoading(false);
     }
-  }, [submitForm, resetSuccess, setGeneratedText, setStoreIsLoading, componentName, source, isInstructionsActive, getActiveInstruction, groupDetailsData, getKnowledgeContent, getDocumentContent, bundestagApiEnabled, selectedBundestagDocuments]);
+  }, [submitForm, resetSuccess, setGeneratedText, setStoreIsLoading, componentName, source, isInstructionsActive, getActiveInstruction, groupDetailsData, getKnowledgeContent, getDocumentContent, bundestagApiEnabled, selectedBundestagDocuments, processedAttachments]);
 
   const handleGeneratedContentChange = useCallback((content) => {
     setAntragContent(content);
@@ -211,14 +218,38 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
     }
   }, [watch, storeGeneratedText, antragContent]);
 
+  const handleAttachmentClick = useCallback(async (files) => {
+    try {
+      console.log(`[AntragGenerator] Processing ${files.length} new attached files`);
+      const processed = await prepareFilesForSubmission(files);
+      
+      // Accumulate files instead of replacing
+      setAttachedFiles(prevFiles => [...prevFiles, ...files]);
+      setProcessedAttachments(prevProcessed => [...prevProcessed, ...processed]);
+      
+      console.log('[AntragGenerator] Files successfully processed for submission');
+    } catch (error) {
+      console.error('[AntragGenerator] File processing error:', error);
+      // Here you could show a toast notification or error message to the user
+      // For now, we'll just log the error
+    }
+  }, []);
+
+  const handleRemoveFile = useCallback((index) => {
+    console.log(`[AntragGenerator] Removing file at index ${index}`);
+    setAttachedFiles(prevFiles => prevFiles.filter((_, i) => i !== index));
+    setProcessedAttachments(prevProcessed => prevProcessed.filter((_, i) => i !== index));
+  }, []);
+
 
   const helpContent = {
-    content: `Dieser Grünerator erstellt strukturierte Anträge und Anfragen für politische Gremien basierend auf deiner Idee und den Details.${bundestagApiEnabled ? ' Du kannst relevante parlamentarische Dokumente aus dem Bundestag zur Fundierung auswählen.' : ''}`,
+    content: `Dieser Grünerator erstellt strukturierte Anträge und Anfragen für politische Gremien basierend auf deiner Idee und den Details.${bundestagApiEnabled ? ' Du kannst relevante parlamentarische Dokumente aus dem Bundestag zur Fundierung auswählen.' : ''} Du kannst auch PDFs und Bilder als Hintergrundinformation anhängen.`,
     tips: [
       "Wähle die Art: Antrag, Kleine oder Große Anfrage",
       "Kleine Anfragen: Präzise Fachinformationen punktuell abfragen",
       "Große Anfragen: Umfassende politische Themen mit Debatte",
       "Formuliere deine Idee klar und präzise",
+      "Hänge PDFs oder Bilder als Kontext an (max. 5MB pro Datei)",
       "Nutze die Websuche für aktuelle Informationen",
       ...(bundestagApiEnabled ? ["Suche und wähle parlamentarische Dokumente zur Fundierung deines Antrags"] : []),
       "Speichere wichtige Dokumente in der Datenbank"
@@ -282,6 +313,17 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
     tabIndex: tabIndex.webSearch
   };
 
+  const privacyModeToggle = {
+    isActive: watchUsePrivacyMode,
+    onToggle: (checked) => {
+      setValue('usePrivacyMode', checked);
+    },
+    label: "Privacy-Mode",
+    icon: HiShieldCheck,
+    description: "Verwendet deutsche Server der Netzbegrünung.",
+    tabIndex: tabIndex.privacyMode || 13
+  };
+
   // const bundestagDocumentSelector = bundestagApiEnabled ? (
   //   <BundestagDocumentSelector
   //     onDocumentSelection={setSelectedBundestagDocuments}
@@ -310,6 +352,12 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
           helpContent={helpContent}
           webSearchFeatureToggle={webSearchFeatureToggle}
           useWebSearchFeatureToggle={true}
+          privacyModeToggle={privacyModeToggle}
+          usePrivacyModeToggle={true}
+          useFeatureIcons={true}
+          onAttachmentClick={handleAttachmentClick}
+          onRemoveFile={handleRemoveFile}
+          attachedFiles={attachedFiles}
           componentName={componentName}
           platformSelectorTabIndex={baseFormTabIndex.platformSelectorTabIndex}
           knowledgeSelectorTabIndex={baseFormTabIndex.knowledgeSelectorTabIndex}

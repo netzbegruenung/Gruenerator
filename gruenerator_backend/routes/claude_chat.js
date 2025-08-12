@@ -307,7 +307,7 @@ ${JSON_OUTPUT_FORMATTING_INSTRUCTIONS}`;
       systemPrompt,
       messages: apiMessages,
       ...(Object.keys(requestOptions).length > 0 && { options: requestOptions })
-    });
+    }, req);
 
     if (!result.success) {
       return res.status(500).json({ error: result.error });
@@ -533,7 +533,7 @@ ${JSON_OUTPUT_FORMATTING_INSTRUCTIONS}`;
           systemPrompt, // Re-send system prompt
           messages: apiMessages, // Send updated messages including tool use and result
           ...(Object.keys(requestOptions).length > 0 && { options: requestOptions }) // Re-send tools in options
-        });
+        }, req);
 
         if (!result.success) {
           return res.status(500).json({ error: result.error });

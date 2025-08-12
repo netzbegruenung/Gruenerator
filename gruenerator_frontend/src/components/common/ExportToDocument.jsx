@@ -14,7 +14,7 @@ const ExportToDocument = () => {
   const [docURL, setDocURL] = useState('');
   const [hasExistingDoc, setHasExistingDoc] = useState(false);
   const { submitForm, loading, error } = useApiSubmit('etherpad/create');
-  const { generatedText } = useGeneratedTextStore();
+  const { getGeneratedText } = useGeneratedTextStore();
   const [isCopied, setIsCopied] = useState(false);
 
   // Cleanup beim Unmount (Seitenwechsel, Neuladen, etc.)
@@ -34,6 +34,67 @@ const ExportToDocument = () => {
     return 'Dokument'; // Fallback
   };
 
+  // Funktion zur Bestimmung des Komponentennamens basierend auf der Route
+  const getComponentName = () => {
+    const path = location.pathname;
+    
+    // Accurate mapping from routes to actual component names used by generators
+    if (path.includes('pressemitteilung') || path.includes('social')) return 'presse-social';
+    if (path.includes('antrag')) return 'antrag-generator';
+    if (path.includes('universal') || path.includes('rede') || path.includes('wahlprogramm')) return 'universal-text';
+    if (path.includes('gruene-jugend')) return 'gruene-jugend';
+    if (path.includes('ask-grundsatz')) return 'ask-grundsatz';
+    if (path.includes('ask')) return 'ask';
+    
+    // Fallback - extract from pathname and try common patterns
+    const pathParts = path.split('/').filter(Boolean);
+    const lastPart = pathParts[pathParts.length - 1] || 'default';
+    
+    // Try common generator patterns
+    if (lastPart.includes('text')) return 'universal-text';
+    if (lastPart.includes('generator')) return lastPart;
+    
+    return lastPart;
+  };
+
+  // Fallback-Funktion für alternative Komponentennamen
+  const tryGetTextWithFallbacks = (primaryComponentName) => {
+    // Try primary component name first
+    let text = getGeneratedText(primaryComponentName);
+    if (text) return { text, componentName: primaryComponentName };
+    
+    // Define fallback patterns based on route
+    const path = location.pathname;
+    const fallbacks = [];
+    
+    if (path.includes('social') || path.includes('pressemitteilung')) {
+      fallbacks.push('presse-social', 'social', 'pressemitteilung');
+    } else if (path.includes('antrag')) {
+      fallbacks.push('antrag-generator', 'antrag');
+    } else if (path.includes('universal') || path.includes('rede') || path.includes('wahlprogramm')) {
+      fallbacks.push('universal-text', 'universal', 'rede', 'wahlprogramm');
+    } else if (path.includes('gruene-jugend')) {
+      fallbacks.push('gruene-jugend', 'gruene_jugend');
+    } else if (path.includes('ask')) {
+      fallbacks.push('ask', 'ask-grundsatz');
+    }
+    
+    // Try fallbacks
+    for (const fallback of fallbacks) {
+      text = getGeneratedText(fallback);
+      if (text) return { text, componentName: fallback };
+    }
+    
+    // Try common generic names as last resort
+    const genericFallbacks = ['default', 'main', 'content'];
+    for (const fallback of genericFallbacks) {
+      text = getGeneratedText(fallback);
+      if (text) return { text, componentName: fallback };
+    }
+    
+    return { text: null, componentName: primaryComponentName };
+  };
+
   // Generiere einen eindeutigen Storage-Key basierend auf Pathname und Dokumenttyp
   const documentType = getDocumentType();
 
@@ -47,8 +108,57 @@ const ExportToDocument = () => {
 
   const handleDocsExport = async () => {
     try {
+      // Get the appropriate component name and retrieve generated text with fallbacks
+      const primaryComponentName = getComponentName();
+      const { text: generatedText, componentName: actualComponentName } = tryGetTextWithFallbacks(primaryComponentName);
+      
+      // Enhanced debug logging
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Export debug:', {
+          route: location.pathname,
+          primaryComponentName,
+          actualComponentName,
+          hasText: !!generatedText,
+          textType: typeof generatedText,
+          textLength: typeof generatedText === 'string' ? generatedText.length : 'object'
+        });
+      }
+      
+      // Check if we have text to export
+      if (!generatedText) {
+        const helpfulError = `Kein Text zum Exportieren verfügbar. 
+        
+Bitte generiere erst einen Text auf dieser Seite.
+
+Debug Info:
+- Aktuelle Route: ${location.pathname}
+- Erwarteter Komponenten-Name: ${primaryComponentName}
+- Geprüfte Alternativen: ${actualComponentName !== primaryComponentName ? actualComponentName : 'keine'}`;
+        
+        throw new Error(helpfulError);
+      }
+      
       // Use centralized content extractor which intelligently handles search exports
       const htmlContent = extractHTMLContent(generatedText);
+      
+      // Final check that we have content after extraction
+      if (!htmlContent || htmlContent.trim().length === 0) {
+        throw new Error(`Der extrahierte Text ist leer. 
+        
+Gefundener Text-Typ: ${typeof generatedText}
+Komponenten-Name: ${actualComponentName}
+
+Bitte überprüfe den generierten Text oder kontaktiere den Support.`);
+      }
+      
+      // Log successful extraction
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Export successful:', {
+          actualComponentName,
+          htmlContentLength: htmlContent.length,
+          documentType
+        });
+      }
       
       const response = await submitForm({ 
         text: htmlContent,

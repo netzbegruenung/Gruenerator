@@ -81,7 +81,7 @@ export const generateCanvaTemplateActionItems = (template, options) => {
             actions.push({
                 icon: HiShare,
                 label: 'Mit Gruppe teilen',
-                onClick: () => onShareToGroup('user_content', template.id, template.title),
+                onClick: () => onShareToGroup('database', template.id, template.title),
                 show: true
             });
         }
@@ -115,7 +115,7 @@ export const generateCanvaTemplateActionItems = (template, options) => {
             {
                 icon: HiShare,
                 label: 'Mit Gruppe teilen',
-                onClick: () => onShareToGroup('user_content', template.id, template.title),
+                onClick: () => onShareToGroup('database', template.id, template.title),
                 show: true
             }
         ];

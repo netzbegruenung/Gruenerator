@@ -1,27 +1,43 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useForm, FormProvider, useFieldArray } from 'react-hook-form';
 import { HiOutlineTrash, HiPlus, HiRefresh, HiInformationCircle, HiTrash, HiChip } from 'react-icons/hi';
-import { useAutosave } from '../../../../hooks/useAutosave';
 import { motion } from "motion/react";
+
+// Common components
 import Spinner from '../../../../components/common/Spinner';
-import { useFormFields } from '../../../../components/common/Form/hooks';
-import { useAnweisungenWissen } from '../../hooks/useProfileData';
-import { useInstructionsUiStore } from '../../../../stores/auth/instructionsUiStore';
+import ProfileCard from '../../../../components/common/ProfileCard';
+import EmptyState from '../../../../components/common/EmptyState';
+import TabNavigation from '../../../../components/common/TabNavigation';
 import HelpTooltip from '../../../../components/common/HelpTooltip';
 import FeatureToggle from '../../../../components/common/FeatureToggle';
+
+// Hooks
+import { useAutosave } from '../../../../hooks/useAutosave';
+import { useFormFields } from '../../../../components/common/Form/hooks';
+import { useTabNavigation } from '../../../../hooks/useTabNavigation';
+import { useMessageHandling } from '../../../../hooks/useMessageHandling';
+import { useAnweisungenWissen } from '../../hooks/useProfileData';
 import { useOptimizedAuth } from '../../../../hooks/useAuth';
 import { useAuthStore } from '../../../../stores/authStore';
 import { useBetaFeatures } from '../../../../hooks/useBetaFeatures';
 import { useTabIndex } from '../../../../hooks/useTabIndex';
 import { useVerticalTabNavigation, useModalFocus } from '../../../../hooks/useKeyboardNavigation';
+
+
+// Constants
+import { 
+    MAX_CONTENT_LENGTH, 
+    AUTH_BASE_URL, 
+    INTELLIGENCE_TABS, 
+    ERROR_MESSAGES, 
+    SUCCESS_MESSAGES,
+    VALIDATION_RULES 
+} from '../../../../constants/profileConstants';
+
+// Utils
 import { announceToScreenReader, createInlineEditorFocus } from '../../../../utils/focusManagement';
 
-const MAX_CONTENT_LENGTH = 1000;
-const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
-
 const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
-    const [currentView, setCurrentView] = useState('anweisungen');
-    const verticalNavRef = useRef(null);
     const memoryFormRef = useRef(null);
     const memoryInputRef = useRef(null);
     
@@ -32,12 +48,28 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
     const { getBetaFeatureState } = useBetaFeatures();
     const isMemoryEnabled = getBetaFeatureState('memory');
 
+    // Available tabs based on features
+    const availableTabs = [
+        ...INTELLIGENCE_TABS,
+        ...(isMemoryEnabled ? [{ key: 'mem0ry', label: 'Memory' }] : [])
+    ];
+
+    // Tab navigation
+    const { currentTab: currentView, handleTabClick, setCurrentTab } = useTabNavigation(
+        'anweisungen', 
+        availableTabs,
+        () => clearMessages() // Clear messages when tab changes
+    );
+
+    // Message handling
+    const { clearMessages, showSuccess, showError } = useMessageHandling(onSuccessMessage, onErrorMessage);
+
     // Check if user is on mem0ry tab but memory feature is not enabled - redirect to anweisungen
     useEffect(() => {
         if (currentView === 'mem0ry' && !isMemoryEnabled) {
-            setCurrentView('anweisungen');
+            setCurrentTab('anweisungen');
         }
-    }, [currentView, isMemoryEnabled]);
+    }, [currentView, isMemoryEnabled, setCurrentTab]);
 
     // Auth and memory state
     const { user, isAuthenticated, loading: authLoading } = useOptimizedAuth();
@@ -45,11 +77,6 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
 
     // Ref to track initialization
     const isInitialized = useRef(false);
-    
-    // Zustand store for UI state
-    const {
-        clearMessages
-    } = useInstructionsUiStore();
     
     // React Query hook for data fetching and mutations
     const { query, saveChanges, deleteKnowledgeEntry, isSaving, isDeleting, deletingKnowledgeId, MAX_KNOWLEDGE_ENTRIES } = useAnweisungenWissen({ isActive });
@@ -155,12 +182,11 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
 
     const fetchMemories = async () => {
         if (!user?.id) {
-            onErrorMessage('Benutzer nicht authentifiziert');
+            showError(ERROR_MESSAGES.AUTH_REQUIRED);
             return;
         }
 
         if (!memoryEnabled) {
-            console.log('[IntelligenceTab] Memory disabled, skipping fetch');
             return;
         }
 
@@ -168,7 +194,6 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
         setMemoryError(null);
         
         try {
-            console.log('[IntelligenceTab] Fetching memories for user:', user.id);
             const response = await fetch(`${AUTH_BASE_URL}/mem0/user/${user.id}`, {
                 method: 'GET',
                 credentials: 'include',
@@ -182,19 +207,13 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
             }
             
             const data = await response.json();
-            console.log('[IntelligenceTab] API Response:', data);
             // Ensure memories is always an array
             const memoriesArray = Array.isArray(data.memories) ? data.memories : [];
             setMemories(memoriesArray);
-            
-            if (!data.memories || data.memories.length === 0) {
-                console.log('[IntelligenceTab] No memories found for user');
-            }
         } catch (err) {
-            console.error('[IntelligenceTab] Error fetching memories:', err);
-            const errorMessage = err.message || 'Unbekannter Fehler';
+            const errorMessage = err.message || ERROR_MESSAGES.UNKNOWN_ERROR;
             setMemoryError(errorMessage);
-            onErrorMessage('Fehler beim Laden der Memories: ' + errorMessage);
+            showError(`${ERROR_MESSAGES.MEMORY_LOAD_ERROR}: ${errorMessage}`);
         } finally {
             setLoadingMemories(false);
         }
@@ -206,7 +225,7 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
 
     const addMemory = async () => {
         if (!newMemoryText.trim()) {
-            onErrorMessage('Bitte gib einen Text ein');
+            showError('Bitte gib einen Text ein');
             return;
         }
 
@@ -231,18 +250,17 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
             const data = await response.json();
             
             if (data.success) {
-                onSuccessMessage('Memory erfolgreich hinzugefügt');
+                showSuccess(SUCCESS_MESSAGES.MEMORY_ADDED);
                 setNewMemoryText('');
                 setNewMemoryTopic('');
                 setShowAddMemoryForm(false);
                 fetchMemories();
             } else {
-                onErrorMessage('Fehler beim Hinzufügen der Memory');
+                showError(ERROR_MESSAGES.MEMORY_ADD_ERROR);
             }
         } catch (err) {
-            console.error('[IntelligenceTab] Error adding memory:', err);
-            const errorMessage = err.message || 'Unbekannter Fehler';
-            onErrorMessage('Fehler beim Hinzufügen der Memory: ' + errorMessage);
+            const errorMessage = err.message || ERROR_MESSAGES.UNKNOWN_ERROR;
+            showError(`${ERROR_MESSAGES.MEMORY_ADD_ERROR}: ${errorMessage}`);
         } finally {
             setAddingMemory(false);
         }
@@ -265,14 +283,13 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
             const data = await response.json();
             
             if (data.success) {
-                onSuccessMessage('Memory erfolgreich gelöscht');
+                showSuccess(SUCCESS_MESSAGES.MEMORY_DELETED);
                 setMemories(prev => prev.filter(m => m.id !== memoryId));
             } else {
-                onErrorMessage('Fehler beim Löschen der Memory');
+                showError(ERROR_MESSAGES.MEMORY_DELETE_ERROR);
             }
         } catch (err) {
-            console.error('[IntelligenceTab] Error deleting memory:', err);
-            onErrorMessage('Fehler beim Löschen der Memory: ' + err.message);
+            showError(`${ERROR_MESSAGES.MEMORY_DELETE_ERROR}: ${err.message}`);
         }
     };
 
@@ -297,11 +314,10 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
 
             await Promise.all(deletePromises);
             
-            onSuccessMessage('Alle Memories erfolgreich gelöscht');
+            showSuccess('Alle Memories erfolgreich gelöscht');
             setMemories([]);
         } catch (err) {
-            console.error('[IntelligenceTab] Error deleting all memories:', err);
-            onErrorMessage('Fehler beim Löschen aller Memories: ' + err.message);
+            showError(`Fehler beim Löschen aller Memories: ${err.message}`);
         }
     };
 
@@ -331,37 +347,18 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
         try {
             await setMemoryEnabled(newState);
         } catch (error) {
-            console.error('[IntelligenceTab] Failed to update memory settings:', error);
-            onErrorMessage('Fehler beim Speichern der Memory-Einstellungen: ' + error.message);
+            showError(`Fehler beim Speichern der Memory-Einstellungen: ${error.message}`);
         }
     };
     
-    const handleTabClick = useCallback((view) => {
-        setCurrentView(view);
-        clearMessages();
-        // Announce to screen readers
-        const viewNames = {
-            'anweisungen': 'Anweisungen',
-            'wissen': 'Wissen',
-            'mem0ry': 'Memory'
-        };
-        announceToScreenReader(`${viewNames[view]} Tab ausgewählt`);
-    }, [clearMessages]);
-    
-    // Available navigation tabs
-    const availableViews = [
-        'anweisungen',
-        'wissen',
-        ...(isMemoryEnabled ? ['mem0ry'] : [])
-    ];
-    
-    // Vertical tab navigation setup
+    // Vertical tab navigation setup (for keyboard navigation)
+    const verticalNavRef = useRef(null);
     const {
         registerItemRef,
         tabIndex: getTabIndex,
         ariaSelected
     } = useVerticalTabNavigation({
-        items: availableViews,
+        items: availableTabs.map(t => t.key),
         activeItem: currentView,
         onItemSelect: handleTabClick,
         horizontal: false,
@@ -402,56 +399,6 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
         );
     }
 
-    const renderNavigationPanel = () => {
-        return (
-            <div 
-                ref={verticalNavRef}
-                className="profile-vertical-navigation"
-                role="tablist"
-                aria-label="Intelligence Navigation"
-                aria-orientation="vertical"
-            >
-                <button
-                    ref={(ref) => registerItemRef('anweisungen', ref)}
-                    className={`profile-vertical-tab ${currentView === 'anweisungen' ? 'active' : ''}`}
-                    onClick={() => handleTabClick('anweisungen')}
-                    tabIndex={getTabIndex('anweisungen')}
-                    role="tab"
-                    aria-selected={ariaSelected('anweisungen')}
-                    aria-controls="anweisungen-panel"
-                    id="anweisungen-tab"
-                >
-                    Anweisungen
-                </button>
-                <button
-                    ref={(ref) => registerItemRef('wissen', ref)}
-                    className={`profile-vertical-tab ${currentView === 'wissen' ? 'active' : ''}`}
-                    onClick={() => handleTabClick('wissen')}
-                    tabIndex={getTabIndex('wissen')}
-                    role="tab"
-                    aria-selected={ariaSelected('wissen')}
-                    aria-controls="wissen-panel"
-                    id="wissen-tab"
-                >
-                    Wissen
-                </button>
-                {isMemoryEnabled && (
-                    <button
-                        ref={(ref) => registerItemRef('mem0ry', ref)}
-                        className={`profile-vertical-tab ${currentView === 'mem0ry' ? 'active' : ''}`}
-                        onClick={() => handleTabClick('mem0ry')}
-                        tabIndex={getTabIndex('mem0ry')}
-                        role="tab"
-                        aria-selected={ariaSelected('mem0ry')}
-                        aria-controls="mem0ry-panel"
-                        id="mem0ry-tab"
-                    >
-                        Mem0ry
-                    </button>
-                )}
-            </div>
-        );
-    };
 
     return (
         <FormProvider {...formMethods}>
@@ -462,7 +409,19 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                 transition={{ duration: 0.3 }}
             >
                 <div className="profile-navigation-panel">
-                    {renderNavigationPanel()}
+                    <div ref={verticalNavRef}>
+                        <TabNavigation
+                            tabs={availableTabs}
+                            currentTab={currentView}
+                            onTabClick={handleTabClick}
+                            orientation="vertical"
+                            getTabProps={(tabKey) => ({
+                                ref: (ref) => registerItemRef(tabKey, ref),
+                                tabIndex: getTabIndex(tabKey),
+                                'aria-selected': ariaSelected(tabKey)
+                            })}
+                        />
+                    </div>
                 </div>
                 <div className="profile-content-panel profile-form-section">
                     <div className="profile-content-card">
@@ -475,88 +434,68 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                     tabIndex={-1}
                                     className="profile-cards-grid"
                                 >
-                                    <div className="profile-card">
-                                        <div className="profile-card-header">
-                                            <h3>Anweisungen für Anträge</h3>
-                                        </div>
-                                        <div className="profile-card-content">
-                                            <Textarea
-                                                name="customAntragPrompt"
-                                                label="Persönliche Anweisungen:"
-                                                placeholder="Gib hier deine Anweisungen für die Erstellung von Anträgen ein..."
-                                                helpText="z.B. bevorzugter Stil, spezielle Formulierungen, politische Schwerpunkte"
-                                                minRows={2}
-                                                maxRows={8}
-                                                control={control}
-                                            />
-                                            <Textarea
-                                                name="customAntragGliederung"
-                                                label="Standard-Gliederung:"
-                                                placeholder="Gib hier deine Standard-Gliederung für Anträge ein..."
-                                                helpText="z.B. deine Fraktion, Ortsverband oder andere wiederkehrende Informationen"
-                                                minRows={1}
-                                                maxRows={4}
-                                                control={control}
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="profile-card">
-                                        <div className="profile-card-header">
-                                            <h3>Anweisungen für Presse & Social Media</h3>
-                                        </div>
-                                        <div className="profile-card-content">
-                                            <Textarea
-                                                name="customSocialPrompt"
-                                                label="Persönliche Anweisungen:"
-                                                placeholder="Gib hier deine Anweisungen für die Erstellung von Presse- und Social Media-Inhalten ein..."
-                                                helpText="z.B. Tonalität, Hashtag-Präferenzen, Zielgruppen-Ansprache"
-                                                minRows={2}
-                                                maxRows={8}
-                                                control={control}
-                                            />
-                                            <Textarea
-                                                name="presseabbinder"
-                                                label="Presseabbinder:"
-                                                placeholder="Gib hier deinen Standard-Presseabbinder ein, der automatisch an alle Pressemitteilungen angehängt wird..."
-                                                helpText="z.B. Kontaktdaten, Öffnungszeiten, Vereinsinformationen"
-                                                minRows={2}
-                                                maxRows={6}
-                                                control={control}
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="profile-card">
-                                        <div className="profile-card-header">
-                                            <h3>Anweisungen für Universelle Texte</h3>
-                                        </div>
-                                        <div className="profile-card-content">
-                                            <Textarea
-                                                name="customUniversalPrompt"
-                                                label="Persönliche Anweisungen:"
-                                                placeholder="Gib hier deine Anweisungen für die Erstellung von universellen Texten ein..."
-                                                helpText="z.B. allgemeine Schreibweise, politische Grundhaltung, Formulierungspräferenzen"
-                                                minRows={2}
-                                                maxRows={8}
-                                                control={control}
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="profile-card">
-                                        <div className="profile-card-header">
-                                            <h3>Anweisungen für Grüne Jugend</h3>
-                                        </div>
-                                        <div className="profile-card-content">
-                                            <Textarea
-                                                name="customGruenejugendPrompt"
-                                                label="Persönliche Anweisungen:"
-                                                placeholder="Gib hier deine Anweisungen für die Erstellung von Grüne Jugend-Inhalten ein..."
-                                                helpText="z.B. jugendgerechte Sprache, spezielle Themen, Aktivismus-Fokus"
-                                                minRows={2}
-                                                maxRows={8}
-                                                control={control}
-                                            />
-                                        </div>
-                                    </div>
+                                    <ProfileCard title="Anweisungen für Anträge">
+                                        <Textarea
+                                            name="customAntragPrompt"
+                                            label="Persönliche Anweisungen:"
+                                            placeholder="Gib hier deine Anweisungen für die Erstellung von Anträgen ein..."
+                                            helpText="z.B. bevorzugter Stil, spezielle Formulierungen, politische Schwerpunkte"
+                                            minRows={2}
+                                            maxRows={8}
+                                            control={control}
+                                        />
+                                        <Textarea
+                                            name="customAntragGliederung"
+                                            label="Standard-Gliederung:"
+                                            placeholder="Gib hier deine Standard-Gliederung für Anträge ein..."
+                                            helpText="z.B. deine Fraktion, Ortsverband oder andere wiederkehrende Informationen"
+                                            minRows={1}
+                                            maxRows={4}
+                                            control={control}
+                                        />
+                                    </ProfileCard>
+                                    <ProfileCard title="Anweisungen für Presse & Social Media">
+                                        <Textarea
+                                            name="customSocialPrompt"
+                                            label="Persönliche Anweisungen:"
+                                            placeholder="Gib hier deine Anweisungen für die Erstellung von Presse- und Social Media-Inhalten ein..."
+                                            helpText="z.B. Tonalität, Hashtag-Präferenzen, Zielgruppen-Ansprache"
+                                            minRows={2}
+                                            maxRows={8}
+                                            control={control}
+                                        />
+                                        <Textarea
+                                            name="presseabbinder"
+                                            label="Presseabbinder:"
+                                            placeholder="Gib hier deinen Standard-Presseabbinder ein, der automatisch an alle Pressemitteilungen angehängt wird..."
+                                            helpText="z.B. Kontaktdaten, Öffnungszeiten, Vereinsinformationen"
+                                            minRows={2}
+                                            maxRows={6}
+                                            control={control}
+                                        />
+                                    </ProfileCard>
+                                    <ProfileCard title="Anweisungen für Universelle Texte">
+                                        <Textarea
+                                            name="customUniversalPrompt"
+                                            label="Persönliche Anweisungen:"
+                                            placeholder="Gib hier deine Anweisungen für die Erstellung von universellen Texten ein..."
+                                            helpText="z.B. allgemeine Schreibweise, politische Grundhaltung, Formulierungspräferenzen"
+                                            minRows={2}
+                                            maxRows={8}
+                                            control={control}
+                                        />
+                                    </ProfileCard>
+                                    <ProfileCard title="Anweisungen für Grüne Jugend">
+                                        <Textarea
+                                            name="customGruenejugendPrompt"
+                                            label="Persönliche Anweisungen:"
+                                            placeholder="Gib hier deine Anweisungen für die Erstellung von Grüne Jugend-Inhalten ein..."
+                                            helpText="z.B. jugendgerechte Sprache, spezielle Themen, Aktivismus-Fokus"
+                                            minRows={2}
+                                            maxRows={8}
+                                            control={control}
+                                        />
+                                    </ProfileCard>
                                 </div>
                             )}
 
@@ -567,9 +506,9 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                     aria-labelledby="wissen-tab"
                                     tabIndex={-1}
                                 >
-                                <div className="profile-card">
-                                    <div className="profile-card-header">
-                                        <h3>Persönliches Wissen</h3>
+                                <ProfileCard 
+                                    title="Persönliches Wissen"
+                                    headerActions={
                                         <button
                                             type="button"
                                             className="btn-primary size-s"
@@ -580,15 +519,13 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                         >
                                             <HiPlus className="icon" /> Wissen hinzufügen
                                         </button>
-                                    </div>
-                                    <div className="profile-card-content">
+                                    }
+                                >
                                         {(!Array.isArray(fields) || fields.length === 0) && (
-                                            <div className="knowledge-empty-state centered">
-                                                <p>Du hast noch keine Wissensbausteine hinterlegt.</p>
-                                                <p>
-                                                    Klicke auf "Wissen hinzufügen", um wiederkehrende Informationen zu speichern.
-                                                </p>
-                                            </div>
+                                            <EmptyState
+                                                title="Du hast noch keine Wissensbausteine hinterlegt."
+                                                description="Klicke auf 'Wissen hinzufügen', um wiederkehrende Informationen zu speichern."
+                                            />
                                         )}
 
                                         {Array.isArray(fields) && fields.map((field, index) => (
@@ -611,7 +548,7 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                                         name={`knowledge.${index}.title`}
                                                         type="text"
                                                         placeholder="Kurzer, prägnanter Titel (z.B. 'OV Musterstadt Vorstand')"
-                                                        rules={{ maxLength: { value: 100, message: 'Titel darf maximal 100 Zeichen haben' } }}
+                                                        rules={VALIDATION_RULES.KNOWLEDGE_TITLE}
                                                         disabled={isDeleting}
                                                         control={control}
                                                     />
@@ -631,8 +568,7 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                                 </div>
                                             </div>
                                         ))}
-                                    </div>
-                                </div>
+                                </ProfileCard>
                                 </div>
                             )}
 
@@ -644,9 +580,9 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                     tabIndex={-1}
                                     className="profile-cards-grid"
                                 >
-                                    <div className="profile-card">
-                                        <div className="profile-card-header">
-                                            <h3>Memory-Einstellungen</h3>
+                                    <ProfileCard 
+                                        title="Memory-Einstellungen"
+                                        headerActions={
                                             <HelpTooltip>
                                                 <p>
                                                     Hier kannst du persönliche Informationen speichern, die das KI-System über dich wissen soll.
@@ -655,8 +591,8 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                                     <strong>Tipp:</strong> Füge Informationen über deine Vorlieben, deinen Arbeitsbereich oder andere wichtige Details hinzu.
                                                 </p>
                                             </HelpTooltip>
-                                        </div>
-                                        <div className="profile-card-content">
+                                        }
+                                    >
                                             <p className="group-description">
                                                 Aktiviere die Memory-Personalisierung, um dass das KI-System deine gespeicherten Informationen beim Generieren von Inhalten berücksichtigt.
                                             </p>
@@ -672,15 +608,12 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                                 }
                                                 tabIndex={tabIndex.memoryToggle}
                                             />
-                                        </div>
-                                    </div>
+                                    </ProfileCard>
 
                                     {memoryEnabled && (
-                                        <div className="profile-card">
-                                            <div className="profile-card-header">
-                                                <h3>
-                                                    Mem0ries ({Array.isArray(memories) ? memories.length : 0})
-                                                </h3>
+                                        <ProfileCard
+                                            title={`Mem0ries (${Array.isArray(memories) ? memories.length : 0})`}
+                                            headerActions={
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-xsmall)' }}>
                                                     <button
                                                         type="button"
@@ -693,19 +626,17 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                                     >
                                                         <HiPlus />
                                                     </button>
-                                                    <div>
-                                                        <button 
-                                                            onClick={refreshMemories} 
-                                                            className="icon-button style-as-link"
-                                                            disabled={loadingMemories}
-                                                            title="Memories aktualisieren"
-                                                        >
-                                                            <HiRefresh />
-                                                        </button>
-                                                    </div>
+                                                    <button 
+                                                        onClick={refreshMemories} 
+                                                        className="icon-button style-as-link"
+                                                        disabled={loadingMemories}
+                                                        title="Memories aktualisieren"
+                                                    >
+                                                        <HiRefresh />
+                                                    </button>
                                                 </div>
-                                            </div>
-                                            <div className="profile-card-content">
+                                            }
+                                        >
                                                 {showAddMemoryForm && (
                                                     <div 
                                                         ref={memoryFormRef}
@@ -777,13 +708,11 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                                 )}
 
                                                 {(!Array.isArray(memories) || memories.length === 0) && !showAddMemoryForm ? (
-                                                    <div className="knowledge-empty-state">
-                                                        <HiInformationCircle size={48} className="empty-state-icon" />
-                                                        <p>Keine Memories gefunden</p>
-                                                        <p className="empty-state-description">
-                                                            Du hast noch keine Memories gespeichert.
-                                                        </p>
-                                                    </div>
+                                                    <EmptyState
+                                                        icon={HiInformationCircle}
+                                                        title="Keine Memories gefunden"
+                                                        description="Du hast noch keine Memories gespeichert."
+                                                    />
                                                 ) : (
                                                     <>
                                                         <div className="memories-list memories-grid">
@@ -837,8 +766,7 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                                         )}
                                                     </>
                                                 )}
-                                            </div>
-                                        </div>
+                                        </ProfileCard>
                                     )}
                                 </div>
                             )}

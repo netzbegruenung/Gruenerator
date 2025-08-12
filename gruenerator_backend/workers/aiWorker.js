@@ -63,17 +63,11 @@ parentPort.on('message', async (message) => {
   }
 });
 
-// Helper function to send progress updates
+// Helper function to send progress updates (disabled for cleaner logs)
 function sendProgress(requestId, progress) {
-  try {
-    parentPort.postMessage({
-      type: 'progress',
-      requestId,
-      data: { progress }
-    });
-  } catch (e) {
-    // Ignore errors in progress reporting
-  }
+  // Progress updates disabled to reduce log noise
+  // Only enable for debugging if needed
+  return;
 }
 
 // Main AI request processing function
@@ -88,14 +82,47 @@ async function processAIRequest(requestId, data) {
 
   try {
     let result;
+    
+    // Check for explicit provider override
+    if (effectiveOptions.provider) {
+      switch (effectiveOptions.provider) {
+        case 'litellm':
+          console.log(`[AI Worker] Using LiteLLM provider for request ${requestId}`);
+          sendProgress(requestId, 15);
+          result = await processWithLiteLLM(requestId, data);
+          break;
+        case 'bedrock':
+          console.log(`[AI Worker] Using AWS Bedrock provider for request ${requestId}`);
+          sendProgress(requestId, 15);
+          result = await processWithBedrock(requestId, { ...data, options: effectiveOptions });
+          break;
+        case 'claude':
+          console.log(`[AI Worker] Using Claude API provider for request ${requestId}`);
+          sendProgress(requestId, 15);
+          // Claude processing logic will continue below
+          break;
+        case 'openai':
+          console.log(`[AI Worker] Using OpenAI provider for request ${requestId}`);
+          sendProgress(requestId, 15);
+          result = await processWithOpenAI(requestId, data);
+          break;
+        case 'ionos':
+          console.log(`[AI Worker] Using IONOS provider for request ${requestId}`);
+          sendProgress(requestId, 15);
+          result = await processWithIONOS(requestId, data);
+          break;
+        default:
+          throw new Error(`Unknown provider: ${effectiveOptions.provider}`);
+      }
+    }
+    
     // Use Bedrock by default (Deutschland mode), only fall back to Claude API if explicitly disabled
-    if (effectiveOptions.useBedrock !== false) {
+    if (!result && effectiveOptions.useBedrock !== false && !effectiveOptions.provider) {
       console.log(`[AI Worker] Using AWS Bedrock provider for request ${requestId}`);
       sendProgress(requestId, 15);
       // Übergebe die ursprünglichen 'data', da processWithBedrock die Optionen ggf. intern neu prüft
       result = await processWithBedrock(requestId, { ...data, options: effectiveOptions });
-    } else {
-              console.log(`[AI Worker] Using primary provider (Claude) for request ${requestId}`);
+    } else if (!result) {
       sendProgress(requestId, 15);
       
               // Remove internal flags and betas from options before sending to Claude
@@ -149,6 +176,12 @@ async function processAIRequest(requestId, data) {
           system: "Du erstellst Alternativtexte (Alt-Text) für Bilder basierend auf den DBSV-Richtlinien für Barrierefreiheit.",
           model: "claude-3-5-sonnet-latest",
           temperature: 0.3,
+          max_tokens: 2000
+        },
+        'search_enhancement': {
+          system: "Du bist ein intelligenter Suchagent für deutsche politische und kommunale Inhalte. Du kannst Suchanfragen erweitern oder autonome Datenbanksuchen durchführen. Nutze verfügbare Tools für komplexe Suchen oder antworte mit JSON für einfache Abfragen.",
+          model: "claude-3-5-haiku-latest",
+          temperature: 0.2,
           max_tokens: 2000
         }
       };
@@ -222,15 +255,7 @@ async function processAIRequest(requestId, data) {
       
       sendProgress(requestId, 90);
       
-      // Log and validate the response (crucial step)
-      const contentLength = response.content?.[0]?.text?.length || 0;
-      console.log(`[AI Worker] Claude Antwort erhalten für ${requestId}:`, {
-        type,
-        contentLength,
-        contentPreview: response.content?.[0]?.text?.substring(0, 100) + '...',
-        id: response.id || 'unknown',
-        modelUsed: requestConfig.model
-      });
+      // Validate the response (crucial step)
       
       // Validate the response
       if (!response.content || !response.content[0] || !response.content[0].text) {
@@ -366,23 +391,20 @@ async function processWithOpenAI(requestId, data) {
 // Function to process request with AWS Bedrock
 async function processWithBedrock(requestId, data) {
   const { messages, systemPrompt, options = {}, type } = data;
-  // Use model from options if provided (for gruenerator_ask), otherwise use EU cross-region inference profile for Claude 4 Sonnet
-  const modelIdentifier = options.model || process.env.BEDROCK_CLAUDE_MODEL_ARN || process.env.BEDROCK_CLAUDE_MODEL_ID || 'eu.anthropic.claude-sonnet-4-20250514-v1:0';
+  // Use model from options if provided (for gruenerator_ask), otherwise hardcoded Claude 4 ARN
+  const modelIdentifier = options.model || 'arn:aws:bedrock:eu-central-1:481665093592:inference-profile/eu.anthropic.claude-sonnet-4-20250514-v1:0';
+  
+  // Track timing for summary log
+  const startTime = Date.now();
 
   if (!modelIdentifier) {
-    throw new Error('No model identifier provided and neither BEDROCK_CLAUDE_MODEL_ARN nor BEDROCK_CLAUDE_MODEL_ID environment variable is set.');
+    throw new Error('No model identifier provided in options.');
   }
 
   if (!messages || messages.length === 0) {
     throw new Error('Messages are required for Bedrock request.');
   }
 
-  console.log(`[AI Worker] Processing with Bedrock. Request ID: ${requestId}, Type: ${type}, Model: ${modelIdentifier}`);
-  
-  // Special logging for gruenerator_ask and gruenerator_ask_grundsatz to confirm Haiku usage for faster responses
-  if (type === 'gruenerator_ask' || type === 'gruenerator_ask_grundsatz') {
-    console.log(`[AI Worker] Using Haiku for Ask feature (faster and cheaper) - Model: ${modelIdentifier}`);
-  }
 
   // Construct the payload for Bedrock Claude
   // Note: Bedrock API structure differs from direct Anthropic API
@@ -412,8 +434,6 @@ async function processWithBedrock(requestId, data) {
   try {
     sendProgress(requestId, 20);
 
-    // Log the exact payload being prepared for Bedrock
-    console.log(`[AI Worker] Preparing Bedrock Payload for ${requestId}:`, JSON.stringify(bedrockPayload, null, 2));
 
     const command = new InvokeModelCommand({
       modelId: modelIdentifier, // Use ARN or ID
@@ -422,24 +442,22 @@ async function processWithBedrock(requestId, data) {
       body: JSON.stringify(bedrockPayload),
     });
 
-    console.log(`[AI Worker] Sending request to Bedrock: ${requestId}`);
     
     // Add retry logic with EU model hierarchy fallback
     let retryCount = 0;
     const maxRetries = 3;
     let response;
     
-    // EU model hierarchy for fallbacks
-    const euModelHierarchy = [
-      'eu.anthropic.claude-sonnet-4-20250514-v1:0',
-      'eu.anthropic.claude-3-7-sonnet-20250219-v1:0', 
-      'eu.anthropic.claude-3-5-sonnet-20240620-v1:0'
+    // Bedrock model hierarchy for fallbacks (ARN format for EU region)
+    const bedrockModelHierarchy = [
+      'arn:aws:bedrock:eu-central-1:481665093592:inference-profile/eu.anthropic.claude-sonnet-4-20250514-v1:0',      // Claude 4 - Primary
+      'arn:aws:bedrock:eu-central-1:481665093592:inference-profile/eu.anthropic.claude-3-7-sonnet-20250219-v1:0',   // Claude 3.7 - First fallback
+      'arn:aws:bedrock:eu-central-1:481665093592:inference-profile/eu.anthropic.claude-3-5-sonnet-20240620-v1:0'    // Claude 3.5 - Second fallback
     ];
     
     // Start with the provided model, then fallback to hierarchy
-    const modelsToTry = modelIdentifier.startsWith('eu.') 
-      ? [modelIdentifier, ...euModelHierarchy.filter(m => m !== modelIdentifier)]
-      : [modelIdentifier, ...euModelHierarchy];
+    const modelsToTry = [modelIdentifier, ...bedrockModelHierarchy.filter(m => m !== modelIdentifier)];
+    
     
     let modelIndex = 0;
     let currentModelId = modelsToTry[modelIndex];
@@ -454,7 +472,6 @@ async function processWithBedrock(requestId, data) {
         });
         
         response = await bedrockClient.send(currentCommand);
-        console.log(`[AI Worker] Request successful with model: ${currentModelId}`);
         break; // Success, exit retry loop
       } catch (error) {
         if (error.name === 'ThrottlingException' && retryCount < maxRetries) {
@@ -467,11 +484,16 @@ async function processWithBedrock(requestId, data) {
           modelIndex++;
           currentModelId = modelsToTry[modelIndex];
           retryCount = 0; // Reset retry count for new model
-          console.log(`[AI Worker] Switching to backup EU model: ${currentModelId}`);
+          console.log(`[AI Worker] Fallback to model ${modelIndex + 1}: ${currentModelId.split('/').pop()}`);
         } else {
-          // No more models to try or non-recoverable error
-          console.error(`[AI Worker] All EU models failed for ${requestId}. Last error:`, error.message);
-          throw new Error(`All EU Bedrock models failed: ${error.message}`);
+          // No more Bedrock models to try - attempt IONOS fallback
+          console.log(`[AI Worker] All Bedrock models failed for ${requestId}, falling back to IONOS provider`);
+          try {
+            return await processWithIONOS(requestId, data);
+          } catch (ionosError) {
+            console.error(`[AI Worker] IONOS fallback also failed for ${requestId}. IONOS error:`, ionosError.message);
+            throw new Error(`All providers failed. Bedrock: ${error.message}, IONOS: ${ionosError.message}`);
+          }
         }
       }
     }
@@ -501,11 +523,10 @@ async function processWithBedrock(requestId, data) {
       input: block.input
     }));
 
-    console.log(`[AI Worker] Bedrock response received for ${requestId}:`, {
-      contentLength: responseText?.length || 0,
-      stopReason: parsedResponse.stop_reason,
-      toolCallCount: toolCalls.length
-    });
+    // Single summary log
+    const duration = Date.now() - startTime;
+    const modelName = currentModelId.split('/').pop() || currentModelId;
+    console.log(`[AI Worker] Request ${requestId}: ${type} → ${modelName} (${duration}ms)`);
 
     return {
       content: responseText,
@@ -526,5 +547,213 @@ async function processWithBedrock(requestId, data) {
     console.error(`[AI Worker] AWS Bedrock Error for request ${requestId}:`, error);
     // Distinguish SDK/AWS errors from application logic errors if possible
     throw new Error(`AWS Bedrock Error: ${error.message || 'Unknown error during Bedrock API call'}`);
+  }
+}
+
+// Function to process request with LiteLLM
+async function processWithLiteLLM(requestId, data) {
+  const { messages, systemPrompt, options = {}, type } = data;
+  
+  // LiteLLM configuration
+  const litellmApiKey = process.env.LITTELLM_API_KEY;
+  const model = options.model || 'llama3.3';
+  
+  if (!litellmApiKey) {
+    throw new Error('LITTELLM_API_KEY environment variable is required for LiteLLM requests');
+  }
+
+  console.log(`[AI Worker] Processing with LiteLLM. Request ID: ${requestId}, Type: ${type}, Model: ${model}`);
+
+  // Create LiteLLM client using OpenAI SDK with custom base URL
+  const litellmClient = new OpenAI({
+    apiKey: litellmApiKey,
+    baseURL: 'https://litellm.netzbegruenung.verdigado.net'
+  });
+
+  // Format messages for OpenAI compatible format
+  const litellmMessages = [];
+  
+  if (systemPrompt) {
+    litellmMessages.push({
+      role: 'system',
+      content: systemPrompt
+    });
+  }
+
+  if (messages) {
+    messages.forEach(msg => {
+      litellmMessages.push({
+        role: msg.role,
+        content: typeof msg.content === 'string' 
+          ? msg.content 
+          : Array.isArray(msg.content) 
+            ? msg.content.map(c => c.text || c.content || '').join('\n')
+            : String(msg.content)
+      });
+    });
+  }
+
+  // LiteLLM configuration - match OpenAI chat completions format
+  const litellmConfig = {
+    model: model,
+    messages: litellmMessages,
+    max_tokens: options.max_tokens || 4096,
+    temperature: options.temperature || 0.7,
+    top_p: options.top_p || 1.0,
+    stream: false
+  };
+
+  // Add tools support using ToolHandler
+  const toolsPayload = ToolHandler.prepareToolsPayload(options, 'litellm', requestId, type);
+  if (toolsPayload.tools) {
+    litellmConfig.tools = toolsPayload.tools;
+    if (toolsPayload.tool_choice) {
+      litellmConfig.tool_choice = toolsPayload.tool_choice;
+    }
+  }
+
+  try {
+    sendProgress(requestId, 30);
+
+    console.log(`[AI Worker] Sending LiteLLM request for ${requestId}`);
+    
+    const response = await litellmClient.chat.completions.create(litellmConfig);
+    
+    sendProgress(requestId, 90);
+
+    // Extract response content
+    const responseContent = response.choices[0]?.message?.content || null;
+    const toolCalls = response.choices[0]?.message?.tool_calls || [];
+    const stopReason = response.choices[0]?.finish_reason || 'stop';
+
+    console.log(`[AI Worker] LiteLLM response received for ${requestId}:`, {
+      contentLength: responseContent?.length || 0,
+      stopReason: stopReason,
+      toolCallCount: toolCalls.length,
+      model: response.model || model
+    });
+
+    return {
+      content: responseContent,
+      stop_reason: stopReason,
+      tool_calls: toolCalls.length > 0 ? toolCalls : undefined,
+      raw_content_blocks: [{ type: 'text', text: responseContent }],
+      success: true,
+      metadata: {
+        provider: 'litellm',
+        model: response.model || model,
+        timestamp: new Date().toISOString(),
+        requestId: requestId,
+        usage: response.usage
+      }
+    };
+
+  } catch (error) {
+    console.error(`[AI Worker] LiteLLM Error for request ${requestId}:`, error);
+    throw new Error(`LiteLLM Error: ${error.message || 'Unknown error during LiteLLM API call'}`);
+  }
+}
+
+// Function to process request with IONOS
+async function processWithIONOS(requestId, data) {
+  const { messages, systemPrompt, options = {}, type } = data;
+  
+  // IONOS configuration
+  const ionosApiToken = process.env.IONOS_API_TOKEN;
+  const model = options.model || 'meta-llama/Llama-3.3-70B-Instruct';
+  
+  if (!ionosApiToken) {
+    throw new Error('IONOS_API_TOKEN environment variable is required for IONOS requests');
+  }
+
+  console.log(`[AI Worker] Processing with IONOS. Request ID: ${requestId}, Type: ${type}, Model: ${model}`);
+
+  // Create IONOS client using OpenAI SDK with custom base URL
+  const ionosClient = new OpenAI({
+    apiKey: ionosApiToken,
+    baseURL: 'https://openai.inference.de-txl.ionos.com/v1'
+  });
+
+  // Format messages for OpenAI compatible format
+  const ionosMessages = [];
+  
+  if (systemPrompt) {
+    ionosMessages.push({
+      role: 'system',
+      content: systemPrompt
+    });
+  }
+
+  if (messages) {
+    messages.forEach(msg => {
+      ionosMessages.push({
+        role: msg.role,
+        content: typeof msg.content === 'string' 
+          ? msg.content 
+          : Array.isArray(msg.content) 
+            ? msg.content.map(c => c.text || c.content || '').join('\n')
+            : String(msg.content)
+      });
+    });
+  }
+
+  // IONOS configuration - match Python example parameters
+  const ionosConfig = {
+    model: model,
+    messages: ionosMessages,
+    max_tokens: options.max_tokens || 4096, // Match other providers for consistent output
+    temperature: options.temperature || 0,
+    top_p: options.top_p || 0.1,
+    stream: false // Disable streaming for Llama models
+  };
+
+  // Add tools support using ToolHandler
+  const toolsPayload = ToolHandler.prepareToolsPayload(options, 'ionos', requestId, type);
+  if (toolsPayload.tools) {
+    ionosConfig.tools = toolsPayload.tools;
+    if (toolsPayload.tool_choice) {
+      ionosConfig.tool_choice = toolsPayload.tool_choice;
+    }
+  }
+
+  try {
+    sendProgress(requestId, 30);
+
+    console.log(`[AI Worker] Sending IONOS request for ${requestId}`);
+    
+    const response = await ionosClient.chat.completions.create(ionosConfig);
+    
+    sendProgress(requestId, 90);
+
+    // Extract response content
+    const responseContent = response.choices[0]?.message?.content || null;
+    const toolCalls = response.choices[0]?.message?.tool_calls || [];
+    const stopReason = response.choices[0]?.finish_reason || 'stop';
+
+    console.log(`[AI Worker] IONOS response received for ${requestId}:`, {
+      contentLength: responseContent?.length || 0,
+      stopReason: stopReason,
+      toolCallCount: toolCalls.length,
+      model: response.model || model
+    });
+
+    return {
+      content: responseContent,
+      stop_reason: stopReason,
+      tool_calls: toolCalls.length > 0 ? toolCalls : undefined,
+      raw_content_blocks: [{ type: 'text', text: responseContent }],
+      success: true,
+      metadata: {
+        provider: 'ionos',
+        model: response.model || model,
+        timestamp: new Date().toISOString(),
+        requestId: requestId,
+        usage: response.usage
+      }
+    };
+
+  } catch (error) {
+    console.error(`[AI Worker] IONOS Error for request ${requestId}:`, error);
+    throw new Error(`IONOS Error: ${error.message || 'Unknown error during IONOS API call'}`);
   }
 }

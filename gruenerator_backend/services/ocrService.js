@@ -40,15 +40,33 @@ class OCRService {
       const tempFilePath = await this.downloadFile(filePath);
       
       try {
-        // Choose OCR method and extract text
-        const { text, pageCount } = ocrMethod === 'mistral' 
+        // Choose extraction method and extract text
+        const extractionResult = ocrMethod === 'mistral' 
           ? await this.extractTextWithMistral(tempFilePath)
           : await this.extractTextFromPDF(tempFilePath);
         
-        // Update document with OCR results
-        await this.updateDocumentWithResults(documentId, text, pageCount);
+        const { text, pageCount, extractionMethod, parseabilityStats, totalProcessingTimeMs, stats } = extractionResult;
         
-        console.log(`[OCRService] Successfully processed document ${documentId} - ${pageCount} pages, ${text.length} characters`);
+        // Log performance metrics
+        const extractionInfo = {
+          method: extractionMethod || (ocrMethod === 'mistral' ? 'mistral' : 'unknown'),
+          processingTime: totalProcessingTimeMs,
+          pageCount,
+          textLength: text.length
+        };
+        
+        if (parseabilityStats) {
+          extractionInfo.parseability = parseabilityStats;
+        }
+        
+        if (stats) {
+          extractionInfo.extractionStats = stats;
+        }
+        
+        console.log(`[OCRService] Successfully processed document ${documentId}:`, extractionInfo);
+        
+        // Update document with extraction results
+        await this.updateDocumentWithResults(documentId, text, pageCount, extractionInfo);
         
       } finally {
         // Clean up temp file
@@ -90,9 +108,56 @@ class OCRService {
   }
 
   /**
-   * Extract text from PDF using pdf.js and Tesseract
+   * Extract text from PDF using the optimal method based on content type
+   * First attempts direct text extraction for parseable PDFs, falls back to OCR if needed
    */
   async extractTextFromPDF(pdfPath) {
+    const startTime = Date.now();
+    console.log(`[OCRService] Starting PDF text extraction: ${pdfPath}`);
+
+    try {
+      // Step 1: Quick parseability check
+      const parseCheck = await this.canExtractTextDirectly(pdfPath);
+      
+      if (parseCheck.isParseable && parseCheck.confidence >= 0.8) {
+        // Fast path: Direct text extraction
+        console.log(`[OCRService] Using direct text extraction (confidence: ${parseCheck.confidence.toFixed(2)})`);
+        const result = await this.extractTextDirectlyFromPDF(pdfPath);
+        const totalTime = Date.now() - startTime;
+        
+        console.log(`[OCRService] PDF extraction completed via direct method in ${totalTime}ms`);
+        return {
+          ...result,
+          extractionMethod: 'direct',
+          parseabilityStats: parseCheck.stats,
+          totalProcessingTimeMs: totalTime
+        };
+      } else {
+        // Slow path: OCR extraction
+        console.log(`[OCRService] Using OCR extraction (confidence: ${parseCheck.confidence.toFixed(2)}, reason: ${parseCheck.isParseable ? 'low confidence' : 'not parseable'})`);
+        const result = await this.extractTextWithOCR(pdfPath);
+        const totalTime = Date.now() - startTime;
+        
+        console.log(`[OCRService] PDF extraction completed via OCR method in ${totalTime}ms`);
+        return {
+          ...result,
+          extractionMethod: 'ocr',
+          parseabilityStats: parseCheck.stats,
+          totalProcessingTimeMs: totalTime
+        };
+      }
+    } catch (error) {
+      const totalTime = Date.now() - startTime;
+      console.error(`[OCRService] PDF extraction failed after ${totalTime}ms:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Extract text from PDF using OCR pipeline (pdf.js + Tesseract)
+   * This is the original extractTextFromPDF logic, now renamed for clarity
+   */
+  async extractTextWithOCR(pdfPath) {
     console.log(`[OCRService] Converting PDF to images: ${pdfPath}`);
     
     // Dynamically import pdf.js (legacy build for Node.js)
@@ -212,13 +277,18 @@ class OCRService {
         }
       }
       
-      console.log(`[OCRService] Completed processing: ${pagesWithText} pages via direct extraction, ${pagesWithOCR} pages via OCR`);
+      console.log(`[OCRService] Completed OCR processing: ${pagesWithText} pages via direct extraction, ${pagesWithOCR} pages via OCR`);
 
       const finalText = allText.join('\n\n');
       
       return {
         text: finalText,
-        pageCount: actualPageCount
+        pageCount: actualPageCount,
+        stats: {
+          pagesWithDirectText: pagesWithText,
+          pagesWithOCR: pagesWithOCR,
+          method: 'ocr'
+        }
       };
 
     } finally {
@@ -391,6 +461,212 @@ class OCRService {
   }
 
   /**
+   * Quick check to determine if PDF has extractable text without OCR
+   * Samples first few pages to determine parseability
+   * @param {string} pdfPath - Path to PDF file
+   * @returns {Promise<{isParseable: boolean, confidence: number, sampleText: string}>}
+   */
+  async canExtractTextDirectly(pdfPath) {
+    try {
+      console.log(`[OCRService] Checking PDF parseability: ${pdfPath}`);
+      const startTime = Date.now();
+      
+      // Use pdf.js to load document
+      const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
+      const workerPath = path.resolve(__dirname, '../node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs');
+      pdfjsLib.GlobalWorkerOptions.workerSrc = `file://${workerPath}`;
+      
+      const pdfBuffer = await fs.readFile(pdfPath);
+      const pdfUint8Array = new Uint8Array(pdfBuffer);
+      const pdfDoc = await pdfjsLib.getDocument({
+        data: pdfUint8Array,
+        verbosity: 0
+      }).promise;
+      
+      const totalPages = pdfDoc.numPages;
+      // Sample up to first 3 pages or all pages if fewer
+      const samplesToCheck = Math.min(3, totalPages);
+      
+      let totalTextLength = 0;
+      let pagesWithText = 0;
+      let sampleTexts = [];
+      
+      for (let pageNum = 1; pageNum <= samplesToCheck; pageNum++) {
+        try {
+          const page = await pdfDoc.getPage(pageNum);
+          const textContent = await page.getTextContent();
+          const pageText = textContent.items.map(item => item.str).join(' ').trim();
+          
+          if (pageText.length > 20) { // Minimum meaningful text threshold
+            totalTextLength += pageText.length;
+            pagesWithText++;
+            sampleTexts.push(pageText.substring(0, 200)); // Keep sample for analysis
+          }
+        } catch (pageError) {
+          console.warn(`[OCRService] Error sampling page ${pageNum}:`, pageError.message);
+        }
+      }
+      
+      // Calculate confidence score
+      const textDensity = totalTextLength / samplesToCheck;
+      const pageSuccessRate = pagesWithText / samplesToCheck;
+      
+      // Confidence calculation: combination of text density and success rate
+      let confidence = 0;
+      
+      if (textDensity > 500 && pageSuccessRate > 0.8) {
+        confidence = 0.95; // Very high confidence
+      } else if (textDensity > 200 && pageSuccessRate > 0.6) {
+        confidence = 0.85; // High confidence
+      } else if (textDensity > 100 && pageSuccessRate > 0.4) {
+        confidence = 0.7; // Medium confidence
+      } else if (textDensity > 50 && pageSuccessRate > 0.2) {
+        confidence = 0.5; // Low confidence
+      } else {
+        confidence = 0.1; // Very low confidence, likely scanned
+      }
+      
+      const isParseable = confidence >= 0.8;
+      const processingTime = Date.now() - startTime;
+      
+      console.log(`[OCRService] Parseability check completed in ${processingTime}ms: parseable=${isParseable}, confidence=${confidence.toFixed(2)}, textDensity=${textDensity.toFixed(0)}, successRate=${pageSuccessRate.toFixed(2)}`);
+      
+      return {
+        isParseable,
+        confidence,
+        sampleText: sampleTexts.join(' ').substring(0, 300),
+        stats: {
+          totalPages,
+          sampledPages: samplesToCheck,
+          pagesWithText,
+          textDensity: Math.round(textDensity),
+          pageSuccessRate: Math.round(pageSuccessRate * 100) / 100,
+          processingTimeMs: processingTime
+        }
+      };
+      
+    } catch (error) {
+      console.error(`[OCRService] Error checking PDF parseability:`, error.message);
+      // On error, assume OCR is needed
+      return {
+        isParseable: false,
+        confidence: 0.1,
+        sampleText: '',
+        stats: {
+          error: error.message
+        }
+      };
+    }
+  }
+
+  /**
+   * Extract text directly from PDF using only pdf.js (fast path for parseable PDFs)
+   * @param {string} pdfPath - Path to PDF file
+   * @returns {Promise<{text: string, pageCount: number}>}
+   */
+  async extractTextDirectlyFromPDF(pdfPath) {
+    console.log(`[OCRService] Extracting text directly from PDF: ${pdfPath}`);
+    const startTime = Date.now();
+    
+    try {
+      // Use pdf.js to load document
+      const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
+      const workerPath = path.resolve(__dirname, '../node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs');
+      pdfjsLib.GlobalWorkerOptions.workerSrc = `file://${workerPath}`;
+      
+      const pdfBuffer = await fs.readFile(pdfPath);
+      const pdfUint8Array = new Uint8Array(pdfBuffer);
+      const pdfDoc = await pdfjsLib.getDocument({
+        data: pdfUint8Array,
+        verbosity: 0
+      }).promise;
+      
+      const totalPages = Math.min(pdfDoc.numPages, this.maxPages);
+      const allText = [];
+      let successfulPages = 0;
+      
+      // Process pages in batches for better performance
+      const batchSize = 10;
+      
+      for (let batchStart = 1; batchStart <= totalPages; batchStart += batchSize) {
+        const batchEnd = Math.min(batchStart + batchSize - 1, totalPages);
+        const batchPromises = [];
+        
+        // Create batch of page processing promises
+        for (let pageNum = batchStart; pageNum <= batchEnd; pageNum++) {
+          batchPromises.push(this.extractPageTextDirectly(pdfDoc, pageNum));
+        }
+        
+        // Process batch in parallel
+        const batchResults = await Promise.allSettled(batchPromises);
+        
+        // Collect results
+        batchResults.forEach((result, index) => {
+          const pageNum = batchStart + index;
+          if (result.status === 'fulfilled' && result.value.success) {
+            allText.push(`## Seite ${pageNum}\n\n${result.value.text.trim()}`);
+            successfulPages++;
+          } else {
+            console.warn(`[OCRService] Failed to extract text from page ${pageNum}:`, result.reason?.message || 'Unknown error');
+            allText.push(`## Seite ${pageNum}\n\n[Text extraction failed for this page]`);
+          }
+        });
+        
+        // Log progress for large documents
+        if (totalPages > 20 && batchEnd % 50 === 0) {
+          console.log(`[OCRService] Direct extraction progress: ${batchEnd}/${totalPages} pages (${Math.round((batchEnd/totalPages)*100)}%)`);
+        }
+      }
+      
+      const finalText = allText.join('\n\n');
+      const processingTime = Date.now() - startTime;
+      
+      console.log(`[OCRService] Direct text extraction completed in ${processingTime}ms: ${successfulPages}/${totalPages} pages successful, ${finalText.length} characters extracted`);
+      
+      return {
+        text: finalText,
+        pageCount: totalPages,
+        stats: {
+          successfulPages,
+          processingTimeMs: processingTime,
+          method: 'direct'
+        }
+      };
+      
+    } catch (error) {
+      console.error(`[OCRService] Error in direct text extraction:`, error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Extract text from a single page directly (helper method)
+   * @private
+   */
+  async extractPageTextDirectly(pdfDoc, pageNum) {
+    try {
+      const page = await pdfDoc.getPage(pageNum);
+      const textContent = await page.getTextContent();
+      const rawText = textContent.items.map(item => item.str).join(' ');
+      
+      if (rawText.trim().length < 10) {
+        return { success: false, text: '', error: 'Insufficient text content' };
+      }
+      
+      // Apply markdown formatting
+      const formattedText = this.applyMarkdownFormatting(rawText.trim());
+      
+      return {
+        success: true,
+        text: formattedText
+      };
+      
+    } catch (error) {
+      return { success: false, text: '', error: error.message };
+    }
+  }
+
+  /**
    * Get PDF information (page count, etc.) using pdf.js
    */
   async getPDFInfo(pdfPath) {
@@ -441,25 +717,41 @@ class OCRService {
   }
 
   /**
-   * Update document with OCR results and generate embeddings
+   * Update document with extraction results and generate embeddings
    */
-  async updateDocumentWithResults(documentId, text, pageCount) {
+  async updateDocumentWithResults(documentId, text, pageCount, extractionInfo = null) {
     try {
-      // First update the document with OCR results
+      // Prepare update data
+      const updateData = {
+        status: 'processing_embeddings',
+        ocr_text: text,
+        page_count: pageCount
+      };
+
+      // Add extraction metadata if available (for future database schema enhancement)
+      if (extractionInfo) {
+        // Note: These fields would need to be added to the database schema
+        // For now, we'll just log the information
+        console.log(`[OCRService] Extraction metadata for document ${documentId}:`, {
+          method: extractionInfo.method,
+          processingTime: extractionInfo.processingTime,
+          parseability: extractionInfo.parseability,
+          stats: extractionInfo.extractionStats
+        });
+      }
+
+      // First update the document with extraction results
       const { error: updateError } = await supabaseService
         .from('documents')
-        .update({
-          status: 'processing_embeddings',
-          ocr_text: text,
-          page_count: pageCount
-        })
+        .update(updateData)
         .eq('id', documentId);
 
       if (updateError) {
-        throw new Error(`Failed to update document with OCR results: ${updateError.message}`);
+        throw new Error(`Failed to update document with extraction results: ${updateError.message}`);
       }
 
-      console.log(`[OCRService] OCR completed for document ${documentId}, starting embedding generation`);
+      const methodName = extractionInfo?.method || 'unknown';
+      console.log(`[OCRService] ${methodName} extraction completed for document ${documentId}, starting embedding generation`);
 
       // Generate embeddings for the document
       await this.generateDocumentEmbeddings(documentId, text);
@@ -681,6 +973,51 @@ class OCRService {
     // Rough estimate: 2000 characters per page for political documents
     const estimatedPages = Math.ceil(markdownText.length / 2000);
     return Math.max(1, estimatedPages);
+  }
+
+  /**
+   * Extract text from base64 PDF for privacy mode processing
+   * @param {string} base64Data - Base64 encoded PDF data
+   * @param {string} filename - Original filename for logging
+   * @returns {Promise<{text: string, pageCount: number, method: string}>}
+   */
+  async extractTextFromBase64PDF(base64Data, filename = 'unknown.pdf') {
+    console.log(`[OCRService] Extracting text from base64 PDF for privacy mode: ${filename}`);
+    
+    const tempDir = os.tmpdir();
+    const tempFileName = `privacy_pdf_${Date.now()}_${path.basename(filename)}`;
+    const tempFilePath = path.join(tempDir, tempFileName);
+    
+    try {
+      // Write base64 data to temporary file
+      const buffer = Buffer.from(base64Data, 'base64');
+      await fs.writeFile(tempFilePath, buffer);
+      
+      console.log(`[OCRService] Created temp file: ${tempFilePath} (${Math.round(buffer.length / 1024)} KB)`);
+      
+      // Use existing PDF extraction logic
+      const result = await this.extractTextFromPDF(tempFilePath);
+      
+      // Return simplified result for privacy mode
+      return {
+        text: result.text,
+        pageCount: result.pageCount,
+        method: result.extractionMethod || 'unknown',
+        processingTime: result.totalProcessingTimeMs
+      };
+      
+    } catch (error) {
+      console.error(`[OCRService] Error extracting text from base64 PDF ${filename}:`, error);
+      throw new Error(`PDF text extraction failed for ${filename}: ${error.message}`);
+    } finally {
+      // Clean up temporary file
+      try {
+        await fs.unlink(tempFilePath);
+        console.log(`[OCRService] Cleaned up temp file: ${tempFilePath}`);
+      } catch (cleanupError) {
+        console.warn(`[OCRService] Failed to cleanup temp file ${tempFilePath}:`, cleanupError.message);
+      }
+    }
   }
 
   /**

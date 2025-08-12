@@ -8,6 +8,7 @@ import { useGroups, useAllGroupsContent } from '../../../features/auth/utils/gro
 import { useBetaFeatures } from '../../../hooks/useBetaFeatures';
 import { useDocumentsStore } from '../../../stores/documentsStore';
 import { useAuth } from '../../../hooks/useAuth';
+import { useInstructionsStatusForType } from '../../../features/auth/hooks/useInstructionsStatus';
 import { FaBrain } from 'react-icons/fa';
 import { HiDocument, HiDocumentText } from 'react-icons/hi';
 
@@ -85,7 +86,7 @@ SourceTag.propTypes = {
 /**
  * ProfileSelector - Separate component for custom instructions only
  */
-const ProfileSelector = ({ disabled = false, tabIndex }) => {
+const ProfileSelector = ({ disabled = false, tabIndex, instructionType = 'social' }) => {
   const { 
     source, 
     setSource
@@ -172,7 +173,8 @@ const ProfileSelector = ({ disabled = false, tabIndex }) => {
 
 ProfileSelector.propTypes = {
   disabled: PropTypes.bool,
-  tabIndex: PropTypes.number
+  tabIndex: PropTypes.number,
+  instructionType: PropTypes.oneOf(['antrag', 'social', 'universal', 'gruenejugend'])
 };
 
 /**
@@ -570,7 +572,7 @@ const EnhancedKnowledgeSelector = ({
     <div className="enhanced-knowledge-selector">
       <FormFieldWrapper
         label="Wissen, Dokumente & Texte auswählen"
-        helpText="Wähle aus allen verfügbaren Quellen (dein Profil und Gruppen) das Wissen aus, das bei der Generierung berücksichtigt werden soll"
+        helpText="Wähle Wissen, Dokumente und Texte aus"
         htmlFor="enhanced-knowledge-select"
       >
         <Select
@@ -693,9 +695,35 @@ const KnowledgeSelector = ({
   tabIndex,
   sourceTabIndex,
   showProfileSelector = true,
+  instructionType: propInstructionType = null, // Optional override prop
   ...rest
 }) => {
   const { user } = useAuth();
+  
+  // Get instruction type from store (set by useKnowledge hook) or prop override
+  const { instructionType: storeInstructionType } = useGeneratorKnowledgeStore();
+  const instructionType = propInstructionType || storeInstructionType;
+  
+  // Check if user has instructions for this specific generator type
+  const { data: instructionsStatus, isLoading: isLoadingStatus } = useInstructionsStatusForType(
+    instructionType,
+    { enabled: !!(instructionType && user?.id) }
+  );
+  
+  // Determine if ProfileSelector should be shown
+  const shouldShowProfileSelector = useMemo(() => {
+    // Allow prop override to force hide
+    if (!showProfileSelector) return false;
+    
+    // If no instructionType provided, use legacy behavior (always show)
+    if (!instructionType) return true;
+    
+    // While loading, show based on prop default
+    if (isLoadingStatus) return showProfileSelector;
+    
+    // Show only if instructions exist for this specific type
+    return instructionsStatus?.hasAnyInstructions || false;
+  }, [showProfileSelector, instructionType, isLoadingStatus, instructionsStatus]);
   
   if (!user) {
     return null;
@@ -703,11 +731,12 @@ const KnowledgeSelector = ({
 
   return (
     <div className="knowledge-selector-wrapper">
-      {/* Profile selector for instructions only */}
-      {showProfileSelector && (
+      {/* Profile selector for instructions only - conditionally rendered based on instruction existence */}
+      {shouldShowProfileSelector && (
         <ProfileSelector 
           disabled={disabled}
           tabIndex={sourceTabIndex || tabIndex}
+          instructionType={instructionType}
         />
       )}
       
@@ -727,7 +756,8 @@ KnowledgeSelector.propTypes = {
   disabled: PropTypes.bool,
   tabIndex: PropTypes.number,
   sourceTabIndex: PropTypes.number,
-  showProfileSelector: PropTypes.bool
+  showProfileSelector: PropTypes.bool,
+  instructionType: PropTypes.oneOf(['antrag', 'social', 'universal', 'gruenejugend'])
 };
 
 KnowledgeSelector.displayName = 'KnowledgeSelector';

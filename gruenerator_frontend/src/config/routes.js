@@ -124,6 +124,8 @@ const standardRoutes = [
   { path: '/logged-out', component: LoggedOutPage },
   { path: '/profile', component: ProfilePage },
   { path: '/profile/:tab', component: ProfilePage },
+  { path: '/profile/:tab/:subtab', component: ProfilePage },
+  { path: '/profile/:tab/:subtab/:subsubtab', component: ProfilePage },
   // Note: Other auth routes (password reset, email verification, MFA, etc.) are now handled by Authentic
   // Gruppen-Route
   { path: '/join-group/:joinToken', component: JoinGroupPage },

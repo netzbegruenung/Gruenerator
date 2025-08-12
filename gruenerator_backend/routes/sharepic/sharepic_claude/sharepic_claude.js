@@ -1,16 +1,45 @@
 const express = require('express');
 const router = express.Router();
 const { formatUserContent } = require('../../../utils/promptUtils');
+const { 
+  processAndBuildAttachments,
+  hasValidAttachments
+} = require('../../../utils/attachmentUtils');
+const { 
+  PromptBuilderWithExamples 
+} = require('../../../utils/promptBuilderCompat');
 
 // Unified handler for all sharepic types: dreizeilen, zitat, headline, info
 const handleClaudeRequest = async (req, res, type = 'dreizeilen') => {
   const logPrefix = `[${type.charAt(0).toUpperCase() + type.slice(1)}-Claude API]`;
   console.log(`${logPrefix} Received request:`, req.body);
   
-  const { thema, details, line1, line2, line3, quote, name, customPrompt } = req.body;
+  const { thema, details, line1, line2, line3, quote, name, customPrompt, attachments, usePrivacyMode, provider } = req.body;
   
   if (customPrompt) {
     console.log(`${logPrefix} Using custom prompt (knowledge) with length:`, customPrompt.length);
+  }
+
+  // Process attachments if provided
+  let attachmentResult = { documents: [], error: null, hasAttachments: false };
+  if (hasValidAttachments(attachments)) {
+    attachmentResult = await processAndBuildAttachments(
+      attachments,
+      usePrivacyMode,
+      `sharepic_${type}`,
+      req.user?.id || 'unknown'
+    );
+
+    if (attachmentResult.error) {
+      console.error(`${logPrefix} Attachment processing error:`, attachmentResult.error);
+      return res.status(400).json({
+        success: false,
+        error: 'Fehler bei der Verarbeitung der Anhänge',
+        details: attachmentResult.error
+      });
+    }
+
+    console.log(`${logPrefix} Processed ${attachmentResult.documents.length} attachments`);
   }
 
   try {
@@ -20,6 +49,20 @@ const handleClaudeRequest = async (req, res, type = 'dreizeilen') => {
     let aiRequest;
     
     if (type === 'dreizeilen') {
+      // Use PromptBuilder for better structure and attachment support
+      const builder = new PromptBuilderWithExamples('sharepic_dreizeilen')
+        .setSystemRole('Du bist ein erfahrener Texter für Bündnis 90/Die Grünen. Deine Aufgabe ist es, kurze, prägnante Slogans für Sharepics zu erstellen.');
+
+      // Add documents if present
+      if (attachmentResult.documents.length > 0) {
+        await builder.addDocuments(attachmentResult.documents, usePrivacyMode);
+      }
+
+      // Add custom instructions if present
+      if (customPrompt) {
+        builder.setInstructions(customPrompt);
+      }
+
       const baseXmlPrompt = `
 <context>
 Du bist ein erfahrener Texter für Bündnis 90/Die Grünen. Deine Aufgabe ist es, kurze, prägnante Slogans für Sharepics zu erstellen.
@@ -98,60 +141,68 @@ Zeile 3: ${line3}
 </task>
 `;
 
-      // Use formatUserContent to integrate knowledge if customPrompt is provided
-      const currentDate = new Date().toISOString().split('T')[0];
-      const finalPrompt = customPrompt 
-        ? formatUserContent({ 
-            customPrompt, 
-            baseContent: baseXmlPrompt, 
-            currentDate,
-            additionalInfo: 'Verwende das bereitgestellte Wissen zur Verbesserung der Slogan-Generierung.'
-          })
-        : baseXmlPrompt;
+      builder.setRequest(baseXmlPrompt);
+
+      // Build the final prompt
+      const promptResult = builder.build();
 
       aiRequest = {
         type: 'dreizeilen',
-        systemPrompt: `Du bist ein erfahrener Texter für Bündnis 90/Die Grünen. Deine Aufgabe ist es, kurze, prägnante Slogans für Sharepics zu erstellen.`,
-        messages: [{
-          role: "user",
-          content: finalPrompt
-        }],
+        systemPrompt: promptResult.system,
+        messages: promptResult.messages,
         options: {
           max_tokens: 4000,
-          temperature: 1.0
+          temperature: 1.0,
+          ...(usePrivacyMode && provider && { provider: provider })
         }
       };
     } else if (type === 'zitat') {
-      // Original zitat type (for picture-based zitat)
+      // Use PromptBuilder for zitat type
+      const builder = new PromptBuilderWithExamples('sharepic_zitat')
+        .setSystemRole('Du bist ein erfahrener Social-Media-Manager für Bündnis 90/Die Grünen. Deine Aufgabe ist es, prägnante und aussagekräftige Zitate mit maximal 140 Zeichen im Stil von Bündnis 90/Die Grünen zu erstellen. Die Zitate sollen KEINE Hashtags enthalten und als klare, lesbare Aussagen formuliert sein. Gib die Zitate immer als JSON-Array zurück.');
+
+      // Add documents if present
+      if (attachmentResult.documents.length > 0) {
+        await builder.addDocuments(attachmentResult.documents, usePrivacyMode);
+      }
+
+      // Add custom instructions if present
+      if (customPrompt) {
+        builder.setInstructions(customPrompt);
+      }
+
       const basePrompt = thema && details
         ? `Erstelle 4 verschiedene Zitate zum Thema "${thema}" basierend auf folgenden Details: ${details}. Ist unter Details kein Inhalt, nimm nur das Thema. Die Zitate sollen KEINE Hashtags enthalten und als klare, aussagekräftige Statements formuliert sein. Gib die Zitate in einem JSON-Array zurück, wobei jedes Objekt ein "quote" Feld hat.`
         : `Optimiere folgendes Zitat: "${quote}" und erstelle 3 weitere Varianten. Die Zitate sollen KEINE Hashtags enthalten und als klare, aussagekräftige Statements formuliert sein. Gib die Zitate in einem JSON-Array zurück, wobei jedes Objekt ein "quote" Feld hat.`;
 
-      // Use formatUserContent to integrate knowledge if customPrompt is provided
-      const currentDate = new Date().toISOString().split('T')[0];
-      const finalPrompt = customPrompt 
-        ? formatUserContent({ 
-            customPrompt, 
-            baseContent: basePrompt, 
-            currentDate,
-            additionalInfo: 'Verwende das bereitgestellte Wissen zur Verbesserung der Zitat-Generierung.'
-          })
-        : basePrompt;
+      builder.setRequest(basePrompt);
+      const promptResult = builder.build();
 
       aiRequest = {
         type: 'zitat',
-        systemPrompt: "Du bist ein erfahrener Social-Media-Manager für Bündnis 90/Die Grünen. Deine Aufgabe ist es, prägnante und aussagekräftige Zitate mit maximal 140 Zeichen im Stil von Bündnis 90/Die Grünen zu erstellen. Die Zitate sollen KEINE Hashtags enthalten und als klare, lesbare Aussagen formuliert sein. Gib die Zitate immer als JSON-Array zurück.",
-        messages: [{ 
-          role: "user", 
-          content: finalPrompt 
-        }],
+        systemPrompt: promptResult.system,
+        messages: promptResult.messages,
         options: {
           max_tokens: 1000,
-          temperature: 0.7
+          temperature: 0.7,
+          ...(usePrivacyMode && provider && { provider: provider })
         }
       };
     } else if (type === 'zitat_pure') {
-      // New zitat_pure type (for color-based zitat template - precise character count)
+      // Use PromptBuilder for zitat_pure type
+      const builder = new PromptBuilderWithExamples('sharepic_zitat_pure')
+        .setSystemRole('Du bist ein erfahrener Social-Media-Manager für Bündnis 90/Die Grünen. Deine Aufgabe ist es, prägnante und aussagekräftige Zitate mit exakt 100-160 Zeichen im Stil von Bündnis 90/Die Grünen zu erstellen. Die Zitate sollen KEINE Hashtags enthalten und als klare, lesbare Aussagen formuliert sein. Achte penibel auf die Zeichenzahl! Gib die Zitate immer als JSON-Array zurück.');
+
+      // Add documents if present
+      if (attachmentResult.documents.length > 0) {
+        await builder.addDocuments(attachmentResult.documents, usePrivacyMode);
+      }
+
+      // Add custom instructions if present
+      if (customPrompt) {
+        builder.setInstructions(customPrompt);
+      }
+
       const basePrompt = thema && details
         ? `Erstelle 4 verschiedene Zitate zum Thema "${thema}" basierend auf folgenden Details: ${details}. Ist unter Details kein Inhalt, nimm nur das Thema. Die Zitate sollen:
 - Exakt 100-160 Zeichen lang sein (inklusive Leerzeichen und Satzzeichen)
@@ -168,31 +219,34 @@ Gib die Zitate in einem JSON-Array zurück, wobei jedes Objekt ein "quote" Feld 
 - Vollständige, bedeutungsvolle Aussagen sein
 Gib die Zitate in einem JSON-Array zurück, wobei jedes Objekt ein "quote" Feld hat. WICHTIG: Zähle die Zeichen genau!`;
 
-      // Use formatUserContent to integrate knowledge if customPrompt is provided
-      const currentDate = new Date().toISOString().split('T')[0];
-      const finalPrompt = customPrompt 
-        ? formatUserContent({ 
-            customPrompt, 
-            baseContent: basePrompt, 
-            currentDate,
-            additionalInfo: 'Verwende das bereitgestellte Wissen zur Verbesserung der Zitat-Pure-Generierung.'
-          })
-        : basePrompt;
+      builder.setRequest(basePrompt);
+      const promptResult = builder.build();
 
       aiRequest = {
         type: 'zitat_pure',
-        systemPrompt: "Du bist ein erfahrener Social-Media-Manager für Bündnis 90/Die Grünen. Deine Aufgabe ist es, prägnante und aussagekräftige Zitate mit exakt 100-160 Zeichen im Stil von Bündnis 90/Die Grünen zu erstellen. Die Zitate sollen KEINE Hashtags enthalten und als klare, lesbare Aussagen formuliert sein. Achte penibel auf die Zeichenzahl! Gib die Zitate immer als JSON-Array zurück.",
-        messages: [{ 
-          role: "user", 
-          content: finalPrompt 
-        }],
+        systemPrompt: promptResult.system,
+        messages: promptResult.messages,
         options: {
           max_tokens: 1000,
-          temperature: 0.7
+          temperature: 0.7,
+          ...(usePrivacyMode && provider && { provider: provider })
         }
       };
     } else if (type === 'headline') {
-      // New headline type - short, punchy headlines
+      // Use PromptBuilder for headline type
+      const builder = new PromptBuilderWithExamples('sharepic_headline')
+        .setSystemRole('Du bist ein erfahrener Headline-Texter für Bündnis 90/Die Grünen. Deine Aufgabe ist es, kraftvolle, prägnante Headlines zu erstellen.');
+
+      // Add documents if present
+      if (attachmentResult.documents.length > 0) {
+        await builder.addDocuments(attachmentResult.documents, usePrivacyMode);
+      }
+
+      // Add custom instructions if present
+      if (customPrompt) {
+        builder.setInstructions(customPrompt);
+      }
+
       const baseXmlPrompt = `
 <context>
 Du bist ein erfahrener Headline-Texter für Bündnis 90/Die Grünen. Deine Aufgabe ist es, kraftvolle, prägnante Headlines für Sharepics zu erstellen.
@@ -201,7 +255,7 @@ Du bist ein erfahrener Headline-Texter für Bündnis 90/Die Grünen. Deine Aufga
 <instructions>
 Erstelle 5 verschiedene kraftvolle Headlines zum gegebenen Thema. Jede Headline soll:
 - Exakt 3 Zeilen haben
-- Pro Zeile 6-10 Zeichen (inklusive Leerzeichen)
+- Pro Zeile 6-12 Zeichen (inklusive Leerzeichen)
 - Sehr kraftvoll und direkt sein
 - Die grüne Botschaft klar vermitteln
 - Emotional aktivierend wirken
@@ -211,11 +265,11 @@ Erstelle 5 verschiedene kraftvolle Headlines zum gegebenen Thema. Jede Headline 
 
 <format>
 - Jede Headline besteht aus exakt 3 Zeilen
-- 6-10 Zeichen pro Zeile (inklusive Leerzeichen)
+- 6-12 Zeichen pro Zeile (inklusive Leerzeichen)
 - Verwende starke, emotionale Begriffe
 - Gib die Headlines im Format "Headline 1:", "Headline 2:" etc. aus
 - Schlage zusätzlich einen Suchbegriff für ein passendes Unsplash-Hintergrundbild vor
-- WICHTIG: Zähle die Zeichen pro Zeile genau!
+- WICHTIG: Zähle die Zeichen pro Zeile genau (6-12 Zeichen)!
 </format>
 
 <examples>
@@ -250,6 +304,11 @@ Umwelt
 retten
 gemeinsam
 
+Headline 6:
+Für unsere
+grüne Zukunft
+kämpfen!
+
 Suchbegriff: Klimaschutz, Umwelt
 </output>
 </example>
@@ -271,31 +330,34 @@ Zeile 3: ${line3}
 </task>
 `;
 
-      // Use formatUserContent to integrate knowledge if customPrompt is provided
-      const currentDate = new Date().toISOString().split('T')[0];
-      const finalPrompt = customPrompt 
-        ? formatUserContent({ 
-            customPrompt, 
-            baseContent: baseXmlPrompt, 
-            currentDate,
-            additionalInfo: 'Verwende das bereitgestellte Wissen zur Verbesserung der Headline-Generierung.'
-          })
-        : baseXmlPrompt;
+      builder.setRequest(baseXmlPrompt);
+      const promptResult = builder.build();
 
       aiRequest = {
         type: 'headline',
-        systemPrompt: `Du bist ein erfahrener Headline-Texter für Bündnis 90/Die Grünen. Deine Aufgabe ist es, kraftvolle, prägnante Headlines zu erstellen.`,
-        messages: [{
-          role: "user",
-          content: finalPrompt
-        }],
+        systemPrompt: promptResult.system,
+        messages: promptResult.messages,
         options: {
           max_tokens: 2000,
-          temperature: 0.8
+          temperature: 0.8,
+          ...(usePrivacyMode && provider && { provider: provider })
         }
       };
     } else if (type === 'info') {
-      // New info type - structured information content
+      // Use PromptBuilder for info type
+      const builder = new PromptBuilderWithExamples('sharepic_info')
+        .setSystemRole('Du bist ein erfahrener Kommunikationsexperte für Bündnis 90/Die Grünen. Deine Aufgabe ist es, strukturierte, informative Inhalte zu erstellen.');
+
+      // Add documents if present
+      if (attachmentResult.documents.length > 0) {
+        await builder.addDocuments(attachmentResult.documents, usePrivacyMode);
+      }
+
+      // Add custom instructions if present
+      if (customPrompt) {
+        builder.setInstructions(customPrompt);
+      }
+
       const baseXmlPrompt = `
 <context>
 Du bist ein erfahrener Kommunikationsexperte für Bündnis 90/Die Grünen. Deine Aufgabe ist es, strukturierte Informations-Inhalte für Sharepics zu erstellen.
@@ -363,27 +425,17 @@ Details: ${details}
 </task>
 `;
 
-      // Use formatUserContent to integrate knowledge if customPrompt is provided
-      const currentDate = new Date().toISOString().split('T')[0];
-      const finalPrompt = customPrompt 
-        ? formatUserContent({ 
-            customPrompt, 
-            baseContent: baseXmlPrompt, 
-            currentDate,
-            additionalInfo: 'Verwende das bereitgestellte Wissen zur Verbesserung der Info-Generierung.'
-          })
-        : baseXmlPrompt;
+      builder.setRequest(baseXmlPrompt);
+      const promptResult = builder.build();
 
       aiRequest = {
         type: 'info',
-        systemPrompt: `Du bist ein erfahrener Kommunikationsexperte für Bündnis 90/Die Grünen. Deine Aufgabe ist es, strukturierte, informative Inhalte zu erstellen.`,
-        messages: [{
-          role: "user",
-          content: finalPrompt
-        }],
+        systemPrompt: promptResult.system,
+        messages: promptResult.messages,
         options: {
           max_tokens: 3000,
-          temperature: 0.7
+          temperature: 0.7,
+          ...(usePrivacyMode && provider && { provider: provider })
         }
       };
     }

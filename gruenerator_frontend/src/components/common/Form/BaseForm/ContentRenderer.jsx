@@ -1,7 +1,7 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import ReactMarkdown from 'react-markdown';
-import { isReactElement, isMarkdownContent } from '../utils/contentUtils';
+import { isReactElement, isMarkdownContent, normalizeLineBreaks } from '../utils/contentUtils';
 import { CitationBadge } from '../../Citation';
 import SharepicDisplay from '../../SharepicDisplay';
 import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
@@ -71,9 +71,14 @@ const ContentRenderer = ({
   const isMixedContent = generatedContent && typeof generatedContent === 'object' && 
     (generatedContent.sharepic || generatedContent.social);
   
-  const contentToRender = isMixedContent 
+  const rawContent = isMixedContent 
     ? (generatedContent.social?.content || generatedContent.content || '')
     : (value || generatedContent || '');
+    
+  // Normalize line breaks to fix double spacing issue
+  const contentToRender = typeof rawContent === 'string' 
+    ? normalizeLineBreaks(rawContent) 
+    : rawContent;
   
   // Get citations from metadata if componentName is provided
   const metadata = getGeneratedTextMetadata(componentName);
@@ -103,7 +108,7 @@ const ContentRenderer = ({
         {/* Render social content if available */}
         {contentToRender && (
           <div className="social-content-section">
-            <div className="content-display" style={{ whiteSpace: 'pre-wrap' }}>
+            <div className="content-display">
               {typeof contentToRender === 'string' ? (
                 <div dangerouslySetInnerHTML={{ __html: contentToRender }} />
               ) : (
@@ -268,8 +273,7 @@ const ContentRenderer = ({
     return (
       <div className="generated-content-wrapper">
         <div 
-          className="content-display" 
-          style={{ whiteSpace: 'pre-wrap' }}
+          className="content-display"
         >
           {typeof enhancedContent === 'string' ? (
             <div dangerouslySetInnerHTML={{ __html: enhancedContent }} />
