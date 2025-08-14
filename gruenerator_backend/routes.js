@@ -103,6 +103,9 @@ async function setupRoutes(app) {
   const { default: canvaApiRouter } = await import('./routes/canva/canvaApi.mjs');
   // const { default: canvaWebhooksRouter } = await import('./routes/canva/canvaWebhooks.mjs'); // Optional - only needed for real-time updates
   
+  // Import Nextcloud routes as ES6 module
+  const { default: nextcloudApiRouter } = await import('./routes/nextcloud/nextcloudApi.mjs');
+  
   // Import Abyssale routes as ES6 module
   const { default: abyssaleRouter } = await import('./routes/abyssale.mjs');
   
@@ -291,6 +294,10 @@ async function setupRoutes(app) {
   app.use('/api/canva', canvaApiRouter);
   // app.use('/api/canva/webhooks', canvaWebhooksRouter); // Optional - uncomment if you need real-time webhook updates
   console.log('[Setup] Canva basic routes registered');
+
+  // Add Nextcloud routes
+  app.use('/api/nextcloud', nextcloudApiRouter);
+  console.log('[Setup] Nextcloud routes registered');
 
   // Add Abyssale routes
   app.use('/api/abyssale', abyssaleRouter);

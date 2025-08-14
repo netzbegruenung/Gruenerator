@@ -37,22 +37,31 @@ const createSuccessResponse = (result, routePath, formData = {}, additionalMetad
 };
 
 /**
- * Creates a standardized success response with attachment metadata
- * @param {Object} result - AI worker result
+ * Creates a standardized success response with attachment and web search source metadata
+ * @param {Object} result - AI worker result (may include webSearchSources in metadata)
  * @param {string} routePath - Route path for content type detection
  * @param {Object} formData - Original form data
  * @param {Object} attachmentInfo - Attachment processing information
  * @param {boolean} usePrivacyMode - Whether privacy mode was used
  * @param {string} provider - AI provider used (if privacy mode)
- * @returns {Object} Formatted success response with attachment metadata
+ * @returns {Object} Formatted success response with attachment and source metadata
  */
 const createSuccessResponseWithAttachments = (result, routePath, formData, attachmentInfo, usePrivacyMode = false, provider = null) => {
+  // Extract web search sources from result metadata
+  const webSearchSources = result?.metadata?.webSearchSources || null;
+  const hasWebSearchSources = webSearchSources && Array.isArray(webSearchSources) && webSearchSources.length > 0;
+  
   const attachmentMetadata = {
     privacyModeUsed: usePrivacyMode,
     provider: usePrivacyMode && provider ? provider : 'default',
     attachmentsUsed: attachmentInfo.hasAttachments,
     attachmentsCount: attachmentInfo.summary?.count || 0,
-    attachmentsTotalSizeMB: attachmentInfo.summary?.totalSizeMB || 0
+    attachmentsTotalSizeMB: attachmentInfo.summary?.totalSizeMB || 0,
+    // Add web search source information
+    webSearchUsed: hasWebSearchSources,
+    webSearchSourcesCount: hasWebSearchSources ? webSearchSources.length : 0,
+    // Preserve sources for frontend display
+    webSearchSources: webSearchSources
   };
 
   return createSuccessResponse(result, routePath, formData, attachmentMetadata);
@@ -113,7 +122,10 @@ const sendSuccessResponseWithAttachments = (res, result, routePath, formData, at
   
   // Extract route name for logging
   const routeName = routePath.replace('/api/', '').replace('/', '_');
-  console.log(`[${routeName}] Success: ${response.content?.length || 0} chars generated`);
+  
+  // Enhanced logging with source information
+  const sourcesInfo = response.metadata?.webSearchUsed ? ` with ${response.metadata.webSearchSourcesCount} web search sources` : '';
+  console.log(`[${routeName}] Success: ${response.content?.length || 0} chars generated${sourcesInfo}`);
   
   res.json(response);
 };

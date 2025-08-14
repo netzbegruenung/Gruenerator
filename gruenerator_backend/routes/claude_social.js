@@ -27,6 +27,9 @@ const {
 const { sendSuccessResponseWithAttachments } = require('../utils/responseFormatter');
 const { withErrorHandler } = require('../utils/errorHandler');
 
+// Import tool handler for web search continuation
+const ToolHandler = require('../services/toolHandler');
+
 // Import content examples service
 import { contentExamplesService } from '../services/contentExamplesService.js';
 
@@ -34,7 +37,7 @@ import { contentExamplesService } from '../services/contentExamplesService.js';
 const router = createAuthenticatedRouter();
 
 const routeHandler = withErrorHandler(async (req, res) => {
-  const { thema, details, platforms = [], was, wie, zitatgeber, customPrompt, usePrivacyMode, provider, attachments } = req.body;
+  const { thema, details, platforms = [], was, wie, zitatgeber, customPrompt, useWebSearchTool, usePrivacyMode, provider, attachments } = req.body;
   
   // Current date for context
   const currentDate = new Date().toISOString().split('T')[0];
@@ -55,7 +58,7 @@ const routeHandler = withErrorHandler(async (req, res) => {
     });
   }
 
-  console.log(`[claude_social] Request: ${thema} (${platforms.join(',')}) - User: ${req.user?.id}`);
+  console.log(`[claude_social] Request: ${thema} (${platforms.join(',')}) - User: ${req.user?.id} - WebSearch: ${useWebSearchTool ? 'ENABLED' : 'disabled'}`);
 
   // Log custom prompt analysis for debugging
   if (customPrompt) {
@@ -100,6 +103,13 @@ Achte bei der Umsetzung dieses Stils auf Klarheit, Präzision und eine ausgewoge
     
     // Set platform constraints (PROTECTED - cannot be overridden by documents)
     builder.setConstraints(platforms);
+
+    // Enable web search if requested
+    if (useWebSearchTool) {
+      const searchQuery = `${thema} ${details || ''} Bündnis 90 Die Grünen Politik`;
+      console.log(`[claude_social] 🔍 Web search enabled for: "${searchQuery}"`);
+      await builder.handleWebSearch(searchQuery, 'content');
+    }
 
     // Add documents if present
     if (attachmentResult.documents.length > 0) {
@@ -179,7 +189,7 @@ ${TITLE_GENERATION_INSTRUCTION}`;
           limit: 3,
           useCache: true,
           formatStyle: 'structured'
-        }, req);
+        }, req, 'press/social', platforms);
       }
     } else {
     }
@@ -188,6 +198,10 @@ ${TITLE_GENERATION_INSTRUCTION}`;
     const promptResult = builder.build();
     const systemPrompt = promptResult.system;
     const messages = promptResult.messages;
+    const tools = promptResult.tools;
+    
+    // Extract web search sources for frontend display (separate from Claude prompt)
+    const webSearchSources = builder.getWebSearchSources();
 
     // Prepare AI Worker payload
     const payload = {
@@ -195,9 +209,22 @@ ${TITLE_GENERATION_INSTRUCTION}`;
       messages,
       options: {
         temperature: 0.9,
+        ...(tools.length > 0 && { tools }),
         ...(usePrivacyMode && provider && { provider: provider })
+      },
+      metadata: {
+        webSearchSources: webSearchSources.length > 0 ? webSearchSources : null
       }
     };
+
+    // Log web search status
+    if (useWebSearchTool) {
+      if (tools.length > 0) {
+        console.log(`[claude_social] 🔍 Web search ENABLED - Tool: ${tools[0].name} (${tools[0].max_uses} max uses)`);
+      } else {
+        console.log(`[claude_social] 🔍 Web search results pre-fetched and added to context`);
+      }
+    }
 
     // Process AI request
     const result = await req.app.locals.aiWorkerPool.processRequest({
@@ -210,6 +237,68 @@ ${TITLE_GENERATION_INSTRUCTION}`;
     if (!result.success) {
       console.error('[claude_social] AI Worker error:', result.error);
       throw new Error(result.error);
+    }
+
+    // Handle tool_use responses (e.g., web search) - continue conversation
+    if (result.stop_reason === 'tool_use') {
+      console.log('[claude_social] Received tool_use response, continuing conversation with ToolHandler');
+      
+      try {
+        // Continue conversation using ToolHandler
+        const finalResult = await ToolHandler.continueWithToolUse(
+          req.app.locals.aiWorkerPool,
+          result,
+          systemPrompt,
+          messages,
+          payload.options,
+          req
+        );
+        
+        console.log('[claude_social] Tool continuation successful, sending final result');
+        
+        // Send the final result
+        sendSuccessResponseWithAttachments(
+          res,
+          finalResult,
+          '/claude_social',
+          { thema, details, platforms, was, wie, zitatgeber },
+          attachmentResult,
+          usePrivacyMode,
+          provider
+        );
+        return;
+        
+      } catch (toolError) {
+        console.error('[claude_social] Tool continuation failed:', toolError);
+        
+        // Fallback to informative message if tool continuation fails
+        const toolErrorMessage = {
+          content: 'Die Websuche konnte nicht abgeschlossen werden. Bitte versuchen Sie es ohne Websuche oder versuchen Sie es später erneut.',
+          metadata: {
+            toolCallsDetected: true,
+            stopReason: result.stop_reason,
+            toolCalls: result.tool_calls || [],
+            continuationError: toolError.message
+          }
+        };
+        
+        sendSuccessResponseWithAttachments(
+          res,
+          toolErrorMessage,
+          '/claude_social',
+          { thema, details, platforms, was, wie, zitatgeber },
+          attachmentResult,
+          usePrivacyMode,
+          provider
+        );
+        return;
+      }
+    }
+
+    // Validate that we have actual content for non-tool responses
+    if (!result.content || (typeof result.content !== 'string' && !result.content.length)) {
+      console.error('[claude_social] Empty content in AI Worker result:', result);
+      throw new Error('Keine Inhalte von der KI erhalten');
     }
 
     // Send standardized success response

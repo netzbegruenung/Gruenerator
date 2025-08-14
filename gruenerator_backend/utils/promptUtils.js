@@ -262,6 +262,16 @@ const WEB_SEARCH_TOOL = {
   name: "web_search",
   description: "Führt eine Websuche durch, um aktuelle Informationen oder spezifische Fragen zu beantworten, die nicht aus dem gegebenen Text oder allgemeinem Wissen beantwortet werden können. Nutze dies, wenn externe Informationen benötigt werden.",
   max_uses: 3,
+  input_schema: {
+    type: "object",
+    properties: {
+      query: {
+        type: "string",
+        description: "Die Suchanfrage für die Websuche"
+      }
+    },
+    required: ["query"]
+  },
   user_location: {
     type: "approximate",
     country: "DE",
