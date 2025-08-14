@@ -1,11 +1,10 @@
 import React, { useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
-import Quill from 'quill';
+// Quill will be dynamically imported
 import 'quill/dist/quill.bubble.css'; // Für das Bubble Theme
 
 // Yjs-spezifische Importe
-import { QuillBinding } from 'y-quill';
-import * as Y from 'yjs';
+// Editor libraries will be dynamically imported
 
 // Use Zustand store for collaborative editor state
 import useCollabEditorStore from '../../../../stores/collabEditorStore';
@@ -58,10 +57,14 @@ const QuillYjsEditor = ({ documentId, initialContent, onQuillInstanceReady, onSe
   useEffect(() => {
     // 1. Initialize Quill instance if editorRef is available and Quill isn't already initialized
     if (editorRef.current && !quillInstanceRef.current) {
-      const documentTitle = initialContent ? extractTitleFromContent(initialContent, `Doc-${documentId}`) : `Doc-${documentId}`;
-      console.log(`[QuillYjsEditor] Initializing Quill. DocumentId: ${documentId}, Title: "${documentTitle}"`);
-      
-      const quill = new Quill(editorRef.current, {
+      const initializeQuill = async () => {
+        const documentTitle = initialContent ? extractTitleFromContent(initialContent, `Doc-${documentId}`) : `Doc-${documentId}`;
+        console.log(`[QuillYjsEditor] Initializing Quill. DocumentId: ${documentId}, Title: "${documentTitle}"`);
+        
+        // Dynamic import for Quill
+        const { default: Quill } = await import('quill');
+        
+        const quill = new Quill(editorRef.current, {
         theme: 'bubble',
         modules: EDITOR_MODULES,
         formats: EDITOR_FORMATS,
@@ -89,22 +92,33 @@ const QuillYjsEditor = ({ documentId, initialContent, onQuillInstanceReady, onSe
           }
         });
       }
+      };
+      
+      initializeQuill();
     }
 
     // 2. Manage Yjs binding and editor interactivity based on Yjs objects and connectionStatus
     if (quillInstanceRef.current && ydoc && ytext && provider && awareness) { // Ensure Yjs core objects are present
       if (connectionStatus === 'connected') {
         if (!bindingRef.current) {
-          // Yjs is connected, core objects available, and no binding yet: CREATE BINDING
-          const documentTitle = initialContent ? extractTitleFromContent(initialContent, `Doc-${documentId}`) : `Doc-${documentId}`;
-          console.log(`[QuillYjsEditor] Yjs connected. Attempting to create QuillBinding. DocumentId: ${documentId}, Title: \"${documentTitle}\"`);
-          const binding = new QuillBinding(ytext, quillInstanceRef.current, awareness);
-          bindingRef.current = binding;
+          const initializeBinding = async () => {
+            // Yjs is connected, core objects available, and no binding yet: CREATE BINDING
+            const documentTitle = initialContent ? extractTitleFromContent(initialContent, `Doc-${documentId}`) : `Doc-${documentId}`;
+            console.log(`[QuillYjsEditor] Yjs connected. Attempting to create QuillBinding. DocumentId: ${documentId}, Title: \"${documentTitle}\"`);
+            
+            // Dynamic imports for Y.js binding
+            const [{ QuillBinding }, Y] = await Promise.all([
+              import('y-quill'),
+              import('yjs')
+            ]);
+            
+            const binding = new QuillBinding(ytext, quillInstanceRef.current, awareness);
+            bindingRef.current = binding;
 
-          // Create Y.js UndoManager after QuillBinding
-          if (!undoManagerRef.current) {
-            console.log('[QuillYjsEditor] Creating Y.js UndoManager');
-            const undoManager = new Y.UndoManager(ytext, {
+            // Create Y.js UndoManager after QuillBinding
+            if (!undoManagerRef.current) {
+              console.log('[QuillYjsEditor] Creating Y.js UndoManager');
+              const undoManager = new Y.UndoManager(ytext, {
               captureTimeout: 500,
               deleteFilter: () => true,
               trackedOrigins: new Set([null, binding, 'ai-assistant', 'form-context-set', 'initial-content']) // Track user, QuillBinding, AI, and initial content operations
@@ -116,15 +130,18 @@ const QuillYjsEditor = ({ documentId, initialContent, onQuillInstanceReady, onSe
             console.log('[QuillYjsEditor] Y.js UndoManager created and stored');
           }
 
-          if (!readOnly) {
-            quillInstanceRef.current.enable(); // Make editable only if not in readOnly mode
-            quillInstanceRef.current.root.dataset.placeholder = 'Beginne mit der Bearbeitung...';
-            console.log('[QuillYjsEditor] QuillBinding created. Editor is now interactive.');
-          } else {
-            quillInstanceRef.current.disable(); // Keep disabled in readOnly mode
-            quillInstanceRef.current.root.dataset.placeholder = 'Vorschaumodus - Nur Lesen';
-            console.log('[QuillYjsEditor] QuillBinding created. Editor remains read-only (preview mode).');
-          }
+            if (!readOnly) {
+              quillInstanceRef.current.enable(); // Make editable only if not in readOnly mode
+              quillInstanceRef.current.root.dataset.placeholder = 'Beginne mit der Bearbeitung...';
+              console.log('[QuillYjsEditor] QuillBinding created. Editor is now interactive.');
+            } else {
+              quillInstanceRef.current.disable(); // Keep disabled in readOnly mode
+              quillInstanceRef.current.root.dataset.placeholder = 'Vorschaumodus - Nur Lesen';
+              console.log('[QuillYjsEditor] QuillBinding created. Editor remains read-only (preview mode).');
+            }
+          };
+          
+          initializeBinding();
         } else {
            // Already connected and bound, ensure editor is interactive (e.g. if it was re-enabled after a disconnect)
           if (quillInstanceRef.current.options.readOnly && !readOnly) { // Check if it's currently read-only and not in readOnly mode
