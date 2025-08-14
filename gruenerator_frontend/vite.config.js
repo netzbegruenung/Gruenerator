@@ -83,7 +83,6 @@ export default defineConfig(({ command }) => ({
           'icons-vendor': ['react-icons'],
           'ui-vendor': ['react-select', 'react-tooltip', 'react-hook-form', 'react-dropzone'],
           'editor-vendor': ['quill', 'y-quill', 'yjs', 'y-websocket'],
-          'docs-vendor': ['@react-pdf/renderer', 'docx', 'pdf-lib'],
           'utils-vendor': ['lodash', 'uuid', 'marked', 'turndown', 'dompurify'],
           'motion-vendor': ['motion']
         }

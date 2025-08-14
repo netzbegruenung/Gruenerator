@@ -5,7 +5,6 @@
  * with direct upload approach (minimal preprocessing)
  */
 
-import { PDFDocument } from 'pdf-lib';
 
 // File type validation
 const ALLOWED_FILE_TYPES = {
@@ -215,6 +214,8 @@ export const getPDFPageCount = async (file) => {
   }
   
   try {
+    // Dynamic import for pdf-lib to reduce initial bundle size
+    const { PDFDocument } = await import('pdf-lib');
     const arrayBuffer = await file.arrayBuffer();
     const pdfDoc = await PDFDocument.load(arrayBuffer);
     return pdfDoc.getPageCount();

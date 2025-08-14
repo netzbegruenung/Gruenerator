@@ -1,8 +1,6 @@
 import React, { useState, useRef } from 'react';
 import PropTypes from 'prop-types';
-import { HiGlobeAlt } from 'react-icons/hi';
-import { RiSpyLine } from 'react-icons/ri';
-import { FaPaperclip } from 'react-icons/fa6';
+import { HiGlobeAlt, HiEye, HiPaperClip } from 'react-icons/hi';
 import AttachedFilesList from './AttachedFilesList';
 import { validateFilesForPrivacyMode, getPDFPageCount } from '../../utils/fileAttachmentUtils';
 
@@ -204,7 +202,7 @@ const FeatureIcons = ({
           tabIndex={tabIndex.privacyMode}
           type="button"
         >
-          <RiSpyLine className="feature-icon" />
+          <HiEye className="feature-icon" />
           <span className="feature-icons-button__label">Privacy Mode</span>
         </button>
         
@@ -216,7 +214,7 @@ const FeatureIcons = ({
           type="button"
           disabled={isValidatingFiles}
         >
-          <FaPaperclip className="feature-icon" />
+          <HiPaperClip className="feature-icon" />
           <span className="feature-icons-button__label">
             {isValidatingFiles ? 'Prüfe Dateien...' : 'Anhang hinzufügen'}
           </span>
