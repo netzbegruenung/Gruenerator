@@ -1,7 +1,4 @@
 import { create } from 'zustand';
-import * as Y from 'yjs';
-import { WebsocketProvider } from 'y-websocket';
-import Quill from 'quill';
 
 // Collaborative Editor Store using Zustand
 const useCollabEditorStore = create((set, get) => ({
@@ -31,7 +28,7 @@ const useCollabEditorStore = create((set, get) => ({
   isInitialized: false,
   
   // Actions
-  initializeDocument: (documentId) => {
+  initializeDocument: async (documentId) => {
     const state = get();
     
     // Don't reinitialize if already initialized with the same document
@@ -46,6 +43,12 @@ const useCollabEditorStore = create((set, get) => ({
     }
     
     console.log('[CollabEditorStore] Initializing document:', documentId);
+    
+    // Dynamic imports to avoid loading editor libraries on every page
+    const [{ default: Y }, { WebsocketProvider }] = await Promise.all([
+      import('yjs'),
+      import('y-websocket')
+    ]);
     
     // Create new Yjs document
     const ydoc = new Y.Doc();

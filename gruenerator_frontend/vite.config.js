@@ -21,7 +21,7 @@ export default defineConfig(({ command }) => ({
       'prop-types', 'turndown'
     ],
     exclude: [
-      'react-icons', '@react-pdf/renderer', 'docx', 'pdf-lib',
+      'react-icons', 'docx', 'pdf-lib',
       'quill', 'y-quill', 'yjs', 'y-websocket',
       'motion', 'lodash', 'browser-image-compression'
     ],
@@ -82,7 +82,6 @@ export default defineConfig(({ command }) => ({
           'state-vendor': ['@tanstack/react-query', 'zustand'],
           'icons-vendor': ['react-icons'],
           'ui-vendor': ['react-select', 'react-tooltip', 'react-hook-form', 'react-dropzone'],
-          'editor-vendor': ['quill', 'y-quill', 'yjs', 'y-websocket'],
           'utils-vendor': ['lodash', 'uuid', 'marked', 'turndown', 'dompurify'],
           'motion-vendor': ['motion']
         }
