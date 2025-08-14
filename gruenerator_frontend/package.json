@@ -6,7 +6,6 @@
   "dependencies": {
     "@radix-ui/react-checkbox": "^1.3.2",
     "@radix-ui/react-switch": "^1.2.5",
-    "@react-pdf/renderer": "^4.3.0",
     "@tanstack/react-query": "^5.84.0",
     "axios": "^1.8.4",
     "browser-image-compression": "^2.0.2",
@@ -69,8 +68,12 @@
   "scripts": {
     "start": "vite",
     "start:debug": "NODE_OPTIONS=\"--inspect --max-old-space-size=4096\" vite",
-    "build": "vite build",
+    "build": "NODE_OPTIONS=\"--max-old-space-size=2048\" vite build",
+    "build:low-memory": "NODE_OPTIONS=\"--max-old-space-size=1536 --gc-interval=100\" vite build",
     "build:profile": "NODE_OPTIONS=\"--prof\" vite build",
+    "build:sequential": "NODE_OPTIONS=\"--max-old-space-size=2048\" npm run build:clean && npm run build:chunks",
+    "build:clean": "rm -rf build && npm run deps:clean",
+    "build:chunks": "NODE_OPTIONS=\"--max-old-space-size=2048\" vite build --mode=production",
     "preview": "vite preview",
     "test": "jest",
     "release": "semantic-release",

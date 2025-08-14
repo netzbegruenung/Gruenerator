@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, lazy, Suspense } from 'react';
 import PropTypes from 'prop-types';
 import { IoCopyOutline, IoCheckmarkOutline, IoDownloadOutline } from "react-icons/io5";
 import { HiCog, HiPencil, HiDocumentText, HiSave } from "react-icons/hi";
 import { copyFormattedContent } from '../utils/commonFunctions';
 import ExportToDocument from './ExportToDocument';
-import DownloadExport from './DownloadExport';
+
+// Lazy load DownloadExport to prevent bundling of export dependencies
+const DownloadExport = lazy(() => import('./DownloadExport'));
 import { useLazyAuth } from '../../hooks/useAuth';
 import { useBetaFeatures } from '../../hooks/useBetaFeatures';
 import useGeneratedTextStore from '../../stores/core/generatedTextStore';
@@ -134,7 +136,11 @@ const ActionButtons = ({
             {copyIcon}
           </button>
           {showExport && <ExportToDocument content={activeContent} />}
-          {showDownload && <DownloadExport content={activeContent} title={title} />}
+          {showDownload && (
+            <Suspense fallback={<IoDownloadOutline size={16} />}>
+              <DownloadExport content={activeContent} title={title} />
+            </Suspense>
+          )}
           {showRegenerate && generatedPost && onRegenerate && (
             <button
               onClick={onRegenerate}

@@ -99,105 +99,131 @@ const registerFonts = (Font) => {
   });
 };
 
-// Lazy load PDF renderer and create document
+// Lazy load PDF library and create document using pdf-lib (much lighter than @react-pdf/renderer)
 export const loadPDFRenderer = async () => {
-  const { Document, Page, Text, View, StyleSheet, PDFDownloadLink, Font } = await import('@react-pdf/renderer');
+  const { PDFDocument, rgb, StandardFonts } = await import('pdf-lib');
   
-  // Register custom fonts
-  registerFonts(Font);
-
-  // PDF Styles
-  const pdfStyles = StyleSheet.create({
-    page: {
-      flexDirection: 'column',
-      backgroundColor: '#FFFFFF',
-      padding: 40,
-      fontSize: 12,
-      lineHeight: 1.6,
-      fontFamily: 'PT Sans',
-      color: '#464646'
-    },
-    title: {
-      fontSize: 20,
-      marginBottom: 20,
-      fontWeight: 'bold',
-      textAlign: 'center',
-      color: '#262626',
-      fontFamily: 'GrueneType'
-    },
-    subtitle: {
-      fontSize: 14,
-      marginBottom: 10,
-      marginTop: 15,
-      fontWeight: 'bold',
-      color: '#262626'
-    },
-    paragraph: {
-      fontSize: 11,
-      marginBottom: 8,
-      textAlign: 'justify',
-      lineHeight: 1.5
-    },
-    listItem: {
-      fontSize: 11,
-      marginBottom: 5,
-      marginLeft: 20,
-      lineHeight: 1.4
-    },
-    section: {
-      marginBottom: 15
-    },
-    footer: {
-      position: 'absolute',
-      bottom: 30,
-      left: 40,
-      right: 40,
-      textAlign: 'center',
-      fontSize: 9,
-      color: '#888888'
-    }
-  });
-
-  // PDF Document Component
-  const PDFDocumentComponent = ({ content, title = 'Dokument' }) => {
+  // PDF generation function using pdf-lib
+  const generatePDFBuffer = async (content, title = 'Dokument') => {
+    const pdfDoc = await PDFDocument.create();
+    const page = pdfDoc.addPage([595.28, 841.89]); // A4 size
+    
+    // Load standard fonts
+    const titleFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    const subtitleFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    const bodyFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    
+    const { width, height } = page.getSize();
+    const margin = 40;
+    let currentY = height - margin;
+    
+    // Colors (converted to RGB)
+    const titleColor = rgb(0.15, 0.15, 0.15); // #262626
+    const subtitleColor = rgb(0.15, 0.15, 0.15); // #262626
+    const bodyColor = rgb(0.27, 0.27, 0.27); // #464646
+    const footerColor = rgb(0.53, 0.53, 0.53); // #888888
+    
+    // Title
+    const titleSize = 20;
+    const titleWidth = titleFont.widthOfTextAtSize(title, titleSize);
+    page.drawText(title, {
+      x: (width - titleWidth) / 2, // Center align
+      y: currentY,
+      size: titleSize,
+      font: titleFont,
+      color: titleColor,
+    });
+    currentY -= 40; // Title margin bottom
+    
+    // Parse content sections
     const sections = parseContentSections(content);
     
-    return (
-      <Document>
-        <Page size="A4" style={pdfStyles.page}>
-          <Text style={pdfStyles.title}>{title}</Text>
+    // Process sections
+    for (const section of sections) {
+      // Section header
+      if (section.header && currentY > margin + 50) {
+        const subtitleSize = 14;
+        page.drawText(section.header, {
+          x: margin,
+          y: currentY,
+          size: subtitleSize,
+          font: subtitleFont,
+          color: subtitleColor,
+        });
+        currentY -= 25; // Subtitle margin
+      }
+      
+      // Section content
+      for (const paragraph of section.content) {
+        if (currentY < margin + 50) {
+          // Add new page if needed
+          const newPage = pdfDoc.addPage([595.28, 841.89]);
+          currentY = height - margin;
+          // Continue with new page logic if needed
+          break;
+        }
+        
+        const fontSize = 11;
+        const lineHeight = fontSize * 1.5;
+        const maxWidth = width - (margin * 2);
+        
+        // Handle list items
+        const isListItem = paragraph.startsWith('•') || paragraph.match(/^\d+\./);
+        const textX = isListItem ? margin + 20 : margin;
+        const availableWidth = isListItem ? maxWidth - 20 : maxWidth;
+        
+        // Simple text wrapping
+        const words = paragraph.split(' ');
+        let currentLine = '';
+        const lines = [];
+        
+        for (const word of words) {
+          const testLine = currentLine ? `${currentLine} ${word}` : word;
+          const testWidth = bodyFont.widthOfTextAtSize(testLine, fontSize);
           
-          {sections.map((section, index) => (
-            <View key={index} style={pdfStyles.section}>
-              {section.header && (
-                <Text style={pdfStyles.subtitle}>{section.header}</Text>
-              )}
-              {section.content.map((paragraph, pIndex) => {
-                if (paragraph.startsWith('•') || paragraph.match(/^\d+\./)) {
-                  return (
-                    <Text key={pIndex} style={pdfStyles.listItem}>
-                      {paragraph}
-                    </Text>
-                  );
-                }
-                return (
-                  <Text key={pIndex} style={pdfStyles.paragraph}>
-                    {paragraph}
-                  </Text>
-                );
-              })}
-            </View>
-          ))}
-          
-          <Text style={pdfStyles.footer}>
-            Erstellt mit Grünerator • {new Date().toLocaleDateString('de-DE')}
-          </Text>
-        </Page>
-      </Document>
-    );
+          if (testWidth <= availableWidth) {
+            currentLine = testLine;
+          } else {
+            if (currentLine) lines.push(currentLine);
+            currentLine = word;
+          }
+        }
+        if (currentLine) lines.push(currentLine);
+        
+        // Draw lines
+        for (const line of lines) {
+          page.drawText(line, {
+            x: textX,
+            y: currentY,
+            size: fontSize,
+            font: bodyFont,
+            color: bodyColor,
+          });
+          currentY -= lineHeight;
+        }
+        
+        currentY -= 8; // Paragraph margin
+      }
+      
+      currentY -= 15; // Section margin
+    }
+    
+    // Footer
+    const footerText = `Erstellt mit Grünerator • ${new Date().toLocaleDateString('de-DE')}`;
+    const footerSize = 9;
+    const footerWidth = bodyFont.widthOfTextAtSize(footerText, footerSize);
+    page.drawText(footerText, {
+      x: (width - footerWidth) / 2,
+      y: 30,
+      size: footerSize,
+      font: bodyFont,
+      color: footerColor,
+    });
+    
+    return await pdfDoc.save();
   };
 
-  return { PDFDocumentComponent, PDFDownloadLink };
+  return { generatePDFBuffer };
 };
 
 // Download blob fallback function
