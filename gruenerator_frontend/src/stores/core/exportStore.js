@@ -1,6 +1,4 @@
 import { create } from 'zustand';
-import { createRoot } from 'react-dom/client';
-import React from 'react';
 
 // Export store for managing PDF and DOCX generation
 export const useExportStore = create((set, get) => ({
@@ -52,7 +50,7 @@ export const useExportStore = create((set, get) => ({
     }
   },
   
-  // PDF Generation with static ReactDOM
+  // PDF Generation using pdf-lib (much lighter than @react-pdf/renderer)
   generatePDF: async (content, title) => {
     const state = get();
     let library = state.PDFLibrary;
@@ -68,46 +66,23 @@ export const useExportStore = create((set, get) => ({
     set({ isGenerating: true });
     
     try {
-      const { PDFDocumentComponent, PDFDownloadLink } = library;
+      const { generatePDFBuffer } = library;
       const { extractFilenameFromContent } = await import('../../components/utils/titleExtractor');
       
-      // Create temporary container for PDF generation using static ReactDOM
-      const tempDiv = document.createElement('div');
-      tempDiv.style.display = 'none';
-      document.body.appendChild(tempDiv);
+      // Generate PDF buffer
+      const pdfBytes = await generatePDFBuffer(content, title);
       
-      const root = createRoot(tempDiv);
+      // Create blob and download
+      const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
       
-      await new Promise((resolve, reject) => {
-        root.render(
-          React.createElement(PDFDownloadLink, {
-            document: React.createElement(PDFDocumentComponent, { content, title }),
-            fileName: `${extractFilenameFromContent(content, title)}.pdf`,
-            style: { display: 'none' }
-          }, ({ blob, url, loading, error }) => {
-            if (error) {
-              reject(error);
-              return null;
-            }
-            
-            if (!loading && url) {
-              // Trigger download
-              const link = document.createElement('a');
-              link.href = url;
-              link.download = `${extractFilenameFromContent(content, title)}.pdf`;
-              link.click();
-              resolve();
-            }
-            return null;
-          })
-        );
-      });
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${extractFilenameFromContent(content, title)}.pdf`;
+      link.click();
       
       // Clean up
-      setTimeout(() => {
-        root.unmount();
-        document.body.removeChild(tempDiv);
-      }, 2000);
+      URL.revokeObjectURL(url);
       
     } catch (error) {
       console.error('PDF generation error:', error);
