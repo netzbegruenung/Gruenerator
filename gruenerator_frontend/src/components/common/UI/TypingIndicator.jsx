@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { TbRobot } from "react-icons/tb";
+import { HiChip } from "react-icons/hi";
 import '../../../assets/styles/components/ui/TypingIndicator.css';
 
 const TypingIndicator = () => {
@@ -24,7 +24,7 @@ const TypingIndicator = () => {
 
   return (
     <div className="chat-message assistant typing-indicator">
-      <TbRobot className="assistant-icon" />
+      <HiChip className="assistant-icon" />
       <motion.span
         variants={dotVariants}
         initial="initial"

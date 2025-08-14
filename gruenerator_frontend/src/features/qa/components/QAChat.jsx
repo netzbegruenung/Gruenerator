@@ -1,8 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { HiOutlineQuestionMarkCircle, HiDocumentText, HiChatAlt2, HiInformationCircle } from 'react-icons/hi';
-import { TbRobot } from "react-icons/tb";
+import { HiOutlineQuestionMarkCircle, HiDocumentText, HiChatAlt2, HiInformationCircle, HiChip } from 'react-icons/hi';
 import ReactMarkdown from 'react-markdown';
 import ChatUI from '../../../components/common/Chat/ChatUI';
 import ModeSelector from '../../../components/common/Chat/ModeSelector';
@@ -152,7 +151,7 @@ const QAChat = () => {
       {msg.type === 'assistant' && viewMode === 'chat' && (
         <div className="chat-message-user-name">{collection.name}</div>
       )}
-      {msg.type === 'assistant' && <TbRobot className="assistant-icon" />}
+      {msg.type === 'assistant' && <HiChip className="assistant-icon" />}
       
       <div className="chat-message-content">
         {msg.type === 'assistant' && msg.content === 'Hier ist meine Antwort basierend auf Ihren Dokumenten:' && storeGeneratedText ? (

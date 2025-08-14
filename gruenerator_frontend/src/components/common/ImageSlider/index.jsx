@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import PropTypes from 'prop-types';
-import { FaSpinner } from 'react-icons/fa6';
+import { HiRefresh } from 'react-icons/hi';
 
 // Lazy load react-image-gallery and its styles
 const loadImageGallery = async () => {
@@ -73,7 +73,7 @@ const ImageSlider = ({
         minHeight: '200px',
         opacity: 0.7
       }}>
-        <FaSpinner className="spinning" size={24} />
+        <HiRefresh className="spinning" size={24} />
         <span style={{ marginLeft: '8px', fontSize: '14px' }}>Bildergalerie wird geladen...</span>
       </div>
     );
