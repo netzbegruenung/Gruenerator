@@ -17,17 +17,7 @@ const { createSuccessResponseWithAttachments } = require('../../utils/responseFo
 const { withErrorHandler, handleValidationError } = require('../../utils/errorHandler');
 const { processBundestagDocuments } = require('../../utils/bundestagUtils');
 
-// Web Search Tool Configuration
-const webSearchTool = {
-  type: "web_search_20250305",
-  name: "web_search",
-  max_uses: 3,
-  user_location: {
-    type: "approximate",
-    country: "DE",
-    timezone: "Europe/Berlin"
-  }
-};
+// Web search tool now centralized in PromptBuilder
 
 /**
  * Vereinfachter Endpunkt zum Generieren eines Antrags mit optionaler Websuche
@@ -92,16 +82,13 @@ const routeHandler = withErrorHandler(async (req, res) => {
     console.log('Sende vereinfachte Anfrage an Claude' + 
       (useWebSearchTool ? ' mit Web Search Tool' : '') + 
       (useBundestagApi && bundestagDocuments ? ` mit ${bundestagDocuments.totalResults} parlamentarischen Dokumenten` : '') +
-      (hasAttachments ? ` mit ${attachmentsSummary.count} Anhängen (${attachmentsSummary.totalSizeMB}MB)` : ''));
+      (attachmentResult.hasAttachments ? ` mit ${attachmentResult.summary.count} Anhängen (${attachmentResult.summary.totalSizeMB}MB)` : ''));
     
     // Build prompt using new Context-First Architecture
     console.log('[antrag_simple] Building prompt with new Context-First Architecture');
     
     const builder = new PromptBuilder('antrag')
       .enableDebug(process.env.NODE_ENV === 'development');
-
-    // Configure tools based on web search usage
-    const tools = useWebSearchTool ? [webSearchTool] : [];
 
     // Build system role based on request type
     let systemRole = 'Du bist ein erfahrener Kommunalpolitiker von Bündnis 90/Die Grünen. ';
@@ -122,11 +109,6 @@ const routeHandler = withErrorHandler(async (req, res) => {
       systemRole += 'Der Antrag muss folgende Struktur haben: 1) Betreff, 2) Antragstext mit konkreten Beschlussvorschlägen, 3) Ausführliche Begründung. ';
     }
     
-    // Add web search instructions if enabled
-    if (useWebSearchTool) {
-      systemRole += 'Nutze die Websuche, wenn du aktuelle Informationen oder Fakten benötigst. Zitiere deine Quellen. ';
-    }
-    
     // Add parliamentary documents instructions if available
     if (useBundestagApi && bundestagDocuments && bundestagDocuments.totalResults > 0) {
       systemRole += 'Du hast Zugang zu relevanten parlamentarischen Dokumenten (Drucksachen und Plenarprotokolle) aus dem Bundestag. Nutze diese Informationen, um den Antrag zu fundieren und auf bereits diskutierte oder beschlossene Themen zu verweisen. Zitiere spezifische Dokumente mit ihrer Nummer und dem Datum. ';
@@ -139,6 +121,13 @@ const routeHandler = withErrorHandler(async (req, res) => {
       .setFormatting(HTML_FORMATTING_INSTRUCTIONS);
     
     // Note: Antrag generation doesn't use platform constraints (flexible lengths based on document type)
+    
+    // Enable web search if requested
+    if (useWebSearchTool) {
+      const searchQuery = `${idee} ${details || ''} Bündnis 90 Die Grünen Politik`;
+      console.log(`[antrag_simple] 🔍 Web search enabled for: "${searchQuery}"`);
+      await builder.handleWebSearch(searchQuery, 'content');
+    }
     
     // Add documents if present (both attachments and parliamentary documents)
     if (attachmentResult.documents.length > 0) {
@@ -198,12 +187,26 @@ const routeHandler = withErrorHandler(async (req, res) => {
     const promptResult = builder.build();
     const systemPrompt = promptResult.system;
     const messages = promptResult.messages;
+    const tools = promptResult.tools;
+    
+    // Extract web search sources for frontend display (separate from Claude prompt)
+    const webSearchSources = builder.getWebSearchSources();
+    
+    // Log web search status
+    if (useWebSearchTool) {
+      if (tools.length > 0) {
+        console.log(`[antrag_simple] 🔍 Web search ENABLED - Tool: ${tools[0].name}`);
+      } else {
+        console.log(`[antrag_simple] 🔍 Web search results pre-fetched and added to context`);
+      }
+    }
     
     // Simple debug logging for prompt visualization
     console.log('\n📄 [ANTRAG DEBUG] New Context-First Architecture:');
     console.log('System:', systemPrompt.substring(0, 200) + '...');
     console.log('Messages Count:', messages.length);
-    console.log('Has Attachments:', hasAttachments);
+    console.log('Tools Count:', tools.length);
+    console.log('Has Attachments:', attachmentResult.hasAttachments);
     console.log('Has Parliamentary Docs:', !!(useBundestagApi && bundestagDocuments && bundestagDocuments.totalResults > 0));
     console.log('Web Search Enabled:', useWebSearchTool);
     console.log('─'.repeat(50));
@@ -219,6 +222,9 @@ const routeHandler = withErrorHandler(async (req, res) => {
         useBedrock: useBedrock,
         // Add provider selection for privacy mode
         ...(usePrivacyMode && provider && { provider: provider })
+      },
+      metadata: {
+        webSearchSources: webSearchSources.length > 0 ? webSearchSources : null
       }
     };
     

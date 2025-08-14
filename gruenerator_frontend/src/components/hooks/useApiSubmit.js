@@ -272,6 +272,19 @@ const useApiSubmit = (endpoint) => {
         }
       } else if (endpoint === '/claude_social') {
         console.log('[useApiSubmit] Processing claude_social response:', response);
+        
+        // Check for unexpected object structures that could cause React rendering errors
+        if (response && typeof response === 'object' && response.tool_calls) {
+          console.error('[useApiSubmit] Received raw AI response with tool_calls - this should have been handled by backend:', response);
+          throw new Error('Unexpected response format. Please try again without web search enabled.');
+        }
+        
+        // Check for other problematic object structures
+        if (response && typeof response === 'object' && (response.stop_reason || response.raw_content_blocks)) {
+          console.error('[useApiSubmit] Received raw AI worker response structure:', response);
+          throw new Error('Server returned invalid response format. Please try again.');
+        }
+        
         if (response && response.content) {
           setSuccess(true);
           // Add memory for successful social media generation

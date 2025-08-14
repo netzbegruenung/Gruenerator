@@ -93,7 +93,7 @@ const platformGuidelines = {
 };
 
 const routeHandler = withErrorHandler(async (req, res) => {
-  const { thema, details, platforms = [], customPrompt, usePrivacyMode, provider, attachments } = req.body;
+  const { thema, details, platforms = [], customPrompt, useWebSearchTool, usePrivacyMode, provider, attachments } = req.body;
   
   // Aktuelles Datum ermitteln
   const currentDate = new Date().toISOString().split('T')[0];
@@ -119,6 +119,7 @@ const routeHandler = withErrorHandler(async (req, res) => {
     details, 
     platforms,
     hasCustomPrompt: !!customPrompt,
+    useWebSearchTool: useWebSearchTool || false,
     usePrivacyMode: usePrivacyMode || false,
     provider: usePrivacyMode && provider ? provider : 'default',
     hasAttachments: attachmentResult.hasAttachments,
@@ -153,6 +154,13 @@ beginnen, z.B. "TWITTER:" oder "INSTAGRAM:"`;
       .setSystemRole(systemRole)
       .setFormatting(HTML_FORMATTING_INSTRUCTIONS)
       .setConstraints(platforms); // Automatic platform constraints using PLATFORM_SPECIFIC_GUIDELINES
+
+    // Enable web search if requested
+    if (useWebSearchTool) {
+      const searchQuery = `${thema} ${details || ''} Bündnis 90 Die Grünen Politik`;
+      console.log(`[claude_gruene_jugend] 🔍 Web search enabled for: "${searchQuery}"`);
+      await builder.handleWebSearch(searchQuery, 'content');
+    }
 
     // Add documents if present
     if (attachmentResult.documents.length > 0) {
@@ -209,17 +217,33 @@ ${TITLE_GENERATION_INSTRUCTION}`;
     const promptResult = builder.build();
     const systemPrompt = promptResult.system;
     const messages = promptResult.messages;
+    const tools = promptResult.tools;
+    
+    // Extract web search sources for frontend display (separate from Claude prompt)
+    const webSearchSources = builder.getWebSearchSources();
 
     const payload = {
       systemPrompt,
       messages,
+      tools,
       options: {
         max_tokens: 8000,
         temperature: 0.9,
         ...(usePrivacyMode && provider && { provider: provider })
       },
-
+      metadata: {
+        webSearchSources: webSearchSources.length > 0 ? webSearchSources : null
+      }
     };
+
+    // Log web search status
+    if (useWebSearchTool) {
+      if (tools.length > 0) {
+        console.log(`[claude_gruene_jugend] 🔍 Web search ENABLED - Tool: ${tools[0].name}`);
+      } else {
+        console.log(`[claude_gruene_jugend] 🔍 Web search results pre-fetched and added to context`);
+      }
+    }
     
     const result = await req.app.locals.aiWorkerPool.processRequest({
       type: 'gruene_jugend',

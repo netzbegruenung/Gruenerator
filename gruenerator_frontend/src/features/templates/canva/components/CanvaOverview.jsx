@@ -58,7 +58,7 @@ const CanvaOverview = ({
         } finally {
             setSyncing(false);
         }
-    }, [syncing, canvaConnected, refetchStats, refetchDesigns, queryClient, onSuccessMessage, onErrorMessage]);
+    }, [syncing, canvaConnected, refetchDesigns, queryClient, onSuccessMessage, onErrorMessage]);
 
     // Handle disconnect
     const handleDisconnect = useCallback(async () => {
