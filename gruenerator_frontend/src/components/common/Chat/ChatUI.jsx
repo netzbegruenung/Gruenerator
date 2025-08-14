@@ -1,7 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { motion, AnimatePresence } from 'motion/react';
-import { TbRobot } from "react-icons/tb";
+import { HiChip } from "react-icons/hi";
 import ReactMarkdown from 'react-markdown';
 import TypingIndicator from '../UI/TypingIndicator';
 
@@ -82,7 +82,7 @@ const ChatUI = ({
         {msg.type === 'user' && msg.userName && (
           <div className="chat-message-user-name">{msg.userName}</div>
         )}
-        {msg.type === 'assistant' && <TbRobot className="assistant-icon" />}
+        {msg.type === 'assistant' && <HiChip className="assistant-icon" />}
         
         {msg.quotedText && (
           <div className="chat-message-quote">
@@ -137,7 +137,7 @@ const ChatUI = ({
               exit={{ opacity: 0, scale: 0.99, transition: { duration: 0.15, ease: "easeOut" } }}
               transition={{ type: "tween", ease: "easeOut", duration: 0.25 }}
             >
-              <TbRobot className="assistant-icon" />
+              <HiChip className="assistant-icon" />
               <TypingIndicator />
             </motion.div>
           )}

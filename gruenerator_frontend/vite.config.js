@@ -17,13 +17,13 @@ export default defineConfig(({ command }) => ({
       'react', 'react-dom', 'react-router-dom',
       '@tanstack/react-query', 'zustand',
       '@supabase/supabase-js',
-      'motion/react',
-      'axios', 'lodash', 'uuid', 'marked', 'dompurify', 'file-saver',
-      'react-icons', 'react-select', 'react-hook-form', 'react-dropzone',
-      'immer', 'browser-image-compression', 'prop-types', 'react-use',
+      'axios', 'uuid', 'dompurify', 'file-saver',
+      'prop-types', 'turndown'
+    ],
+    exclude: [
+      'react-icons', '@react-pdf/renderer', 'docx', 'pdf-lib',
       'quill', 'y-quill', 'yjs', 'y-websocket',
-      '@react-pdf/renderer', 'docx', 'pdf-lib',
-      'turndown', 'tus-js-client'
+      'motion', 'lodash', 'browser-image-compression'
     ],
     esbuildOptions: { 
       target: 'es2022',
@@ -78,14 +78,13 @@ export default defineConfig(({ command }) => ({
         },
         // Intelligent vendor chunking to reduce build memory pressure
         manualChunks: {
-          'react-vendor': ['react', 'react-dom'],
-          'router-vendor': ['react-router-dom'],
-          'query-vendor': ['@tanstack/react-query'],
-          'ui-vendor': ['react-icons', 'react-select', 'react-tooltip'],
-          'form-vendor': ['react-hook-form', 'react-dropzone'],
-          'utils-vendor': ['lodash', 'lodash.debounce', 'uuid', 'marked', 'turndown'],
-          'pdf-vendor': ['pdf-lib']
-          // Heavy libraries externalized - they're loaded dynamically when needed
+          'core-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'state-vendor': ['@tanstack/react-query', 'zustand'],
+          'icons-vendor': ['react-icons'],
+          'ui-vendor': ['react-select', 'react-tooltip', 'react-hook-form', 'react-dropzone'],
+          'editor-vendor': ['quill', 'y-quill', 'yjs', 'y-websocket'],
+          'utils-vendor': ['lodash', 'uuid', 'marked', 'turndown', 'dompurify'],
+          'motion-vendor': ['motion']
         }
       }
     },
