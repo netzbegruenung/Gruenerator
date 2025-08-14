@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { IoDownloadOutline } from "react-icons/io5";
-import { FaSpinner } from "react-icons/fa6";
+import { HiRefresh } from "react-icons/hi";
 import { useExportStore } from '../../stores/core/exportStore';
 import { extractFormattedText } from '../utils/contentExtractor';
 
@@ -105,7 +105,7 @@ const DownloadExport = ({ content, title, className = 'action-button' }) => {
           'data-tooltip-content': "Herunterladen"
         })}
       >
-        {isGenerating ? <FaSpinner className="spinning" size={16} /> : <IoDownloadOutline size={16} />}
+        {isGenerating ? <HiRefresh className="spinning" size={16} /> : <IoDownloadOutline size={16} />}
       </button>
 
       {showFormatSelector && (
@@ -123,7 +123,7 @@ const DownloadExport = ({ content, title, className = 'action-button' }) => {
             onClick={() => handleFormatSelect('docx')}
             disabled={isGenerating}
           >
-            {loadingDOCX ? <FaSpinner className="spinning" size={12} /> : 'DOCX'}
+            {loadingDOCX ? <HiRefresh className="spinning" size={12} /> : 'DOCX'}
           </button>
         </div>
       )}

@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
-import { TbRobot, TbMessages } from "react-icons/tb";
+import { HiChip, HiChatAlt2 } from "react-icons/hi";
 import { useClaudeResponse } from './hooks/useClaudeResponse';
 import { motion, AnimatePresence } from 'motion/react';
 import useCollabEditorStore from '../../../stores/collabEditorStore';
@@ -516,7 +516,7 @@ const EditorChat = ({
     if (isPreviewMode) return null;
     
     const isGrueneratorMode = chatMode === 'gruenerator';
-    const IconToShow = isGrueneratorMode ? TbMessages : TbRobot;
+    const IconToShow = isGrueneratorMode ? HiChatAlt2 : HiChip;
     const baseTitle = isGrueneratorMode ? "Zum Chat-Modus wechseln" : "Zum Grünerator-Modus wechseln";
     const title = `${baseTitle} (Lange drücken für Review-Modus)`;
 
@@ -687,7 +687,7 @@ const EditorChat = ({
                       )}
                     </div>
                   )}
-                  {msg.type === 'assistant' && <TbRobot className="assistant-icon" />}
+                  {msg.type === 'assistant' && <HiChip className="assistant-icon" />}
                   
                   {msg.quotedText && (
                     <div className="chat-message-quote">
@@ -716,14 +716,14 @@ const EditorChat = ({
                 exit={{ opacity: 0, scale: 0.99, transition: { duration: 0.15, ease: "easeOut" } }}
                 transition={{ type: "tween", ease: "easeOut", duration: 0.25 }}
               >
-                <TbRobot className="assistant-icon" />
+                <HiChip className="assistant-icon" />
                 <TypingIndicator />
               </motion.div>
             )}
           </AnimatePresence>
           {isInitialTyping && displayedChatHistory.length <= 1 && !isProcessing && (
             <div className="chat-message assistant">
-              <TbRobot className="assistant-icon" />
+              <HiChip className="assistant-icon" />
               <ReactMarkdown>...</ReactMarkdown>
             </div>
           )}

@@ -1,10 +1,7 @@
 import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import { IoCopyOutline, IoCheckmarkOutline, IoDownloadOutline } from "react-icons/io5";
-import { HiCog } from "react-icons/hi";
-import { FaRegFilePdf } from "react-icons/fa6";
-import { RiSaveLine } from "react-icons/ri";
-import { MdEdit } from "react-icons/md";
+import { HiCog, HiPencil, HiDocumentText, HiSave } from "react-icons/hi";
 import { copyFormattedContent } from '../utils/commonFunctions';
 import ExportToDocument from './ExportToDocument';
 import DownloadExport from './DownloadExport';
@@ -41,8 +38,8 @@ const ActionButtons = ({
   const { getBetaFeatureState } = useBetaFeatures();
   const { generatedText } = useGeneratedTextStore();
   const [copyIcon, setCopyIcon] = useState(<IoCopyOutline size={16} />);
-  const [saveToLibraryIcon, setSaveToLibraryIcon] = useState(<RiSaveLine size={16} />);
-  const [saveIcon, setSaveIcon] = useState(<RiSaveLine size={16} />);
+  const [saveToLibraryIcon, setSaveToLibraryIcon] = useState(<HiSave size={16} />);
+  const [saveIcon, setSaveIcon] = useState(<HiSave size={16} />);
 
   const hasDatabaseAccess = isAuthenticated && getBetaFeatureState('database');
   const hasCollabAccess = getBetaFeatureState('collab');
@@ -101,7 +98,7 @@ const ActionButtons = ({
       setTimeout(() => {
         setSaveToLibraryIcon(<IoCheckmarkOutline size={16} />);
         setTimeout(() => {
-          setSaveToLibraryIcon(<RiSaveLine size={16} />);
+          setSaveToLibraryIcon(<HiSave size={16} />);
         }, 2000);
       }, 500);
     }
@@ -115,7 +112,7 @@ const ActionButtons = ({
       setTimeout(() => {
         setSaveIcon(<IoCheckmarkOutline size={16} />);
         setTimeout(() => {
-          setSaveIcon(<RiSaveLine size={16} />);
+          setSaveIcon(<HiSave size={16} />);
         }, 2000);
       }, 500);
     }
@@ -191,7 +188,7 @@ const ActionButtons = ({
                 'data-tooltip-content': "Kollaborativ bearbeiten"
               })}
             >
-              <MdEdit size={16} />
+              <HiPencil size={16} />
             </button>
           )}
         </>
