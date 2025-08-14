@@ -17,7 +17,13 @@ export default defineConfig(({ command }) => ({
       'react', 'react-dom', 'react-router-dom',
       '@tanstack/react-query', 'zustand',
       '@supabase/supabase-js',
-      'motion/react'
+      'motion/react',
+      'axios', 'lodash', 'uuid', 'marked', 'dompurify', 'file-saver',
+      'react-icons', 'react-select', 'react-hook-form', 'react-dropzone',
+      'immer', 'browser-image-compression', 'prop-types', 'react-use',
+      'quill', 'y-quill', 'yjs', 'y-websocket',
+      '@react-pdf/renderer', 'docx', 'pdf-lib',
+      'turndown', 'tus-js-client'
     ],
     esbuildOptions: { 
       target: 'es2022',
@@ -37,17 +43,6 @@ export default defineConfig(({ command }) => ({
     cssMinify: false, // Disable CSS minification (minor performance impact)
     emptyOutDir: true,
     rollupOptions: {
-      // Externalize heavy dependencies to reduce build memory usage
-      external: [
-        '@react-pdf/renderer',
-        'docx',
-        'motion',
-        'quill',
-        'quilljs-markdown', 
-        'y-quill',
-        'yjs',
-        'y-websocket'
-      ],
       // Memory-efficient treeshaking
       treeshake: {
         preset: 'smallest', // Lighter analysis to reduce memory overhead

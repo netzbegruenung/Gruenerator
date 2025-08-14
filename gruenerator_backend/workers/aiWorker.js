@@ -70,10 +70,27 @@ function sendProgress(requestId, progress) {
   return;
 }
 
+/**
+ * Merge request metadata with response metadata
+ * @param {Object} requestMetadata - Original metadata from the request
+ * @param {Object} responseMetadata - Metadata from the AI provider response
+ * @returns {Object} Merged metadata object
+ */
+function mergeMetadata(requestMetadata, responseMetadata) {
+  return {
+    ...requestMetadata, // Preserve original metadata (including webSearchSources)
+    ...responseMetadata, // Add response metadata (provider, model, etc.)
+    // Ensure request metadata doesn't override critical response metadata
+    provider: responseMetadata.provider,
+    model: responseMetadata.model,
+    timestamp: responseMetadata.timestamp
+  };
+}
+
 // Main AI request processing function
 async function processAIRequest(requestId, data) {
-  // Destructure data, ensuring options exists
-  const { type, prompt, options = {}, systemPrompt, messages } = data;
+  // Destructure data, ensuring options exists and preserve original metadata
+  const { type, prompt, options = {}, systemPrompt, messages, metadata: requestMetadata = {} } = data;
 
   // Force Bedrock for gruenerator_ask and gruenerator_ask_grundsatz types to use Haiku for faster and cheaper responses
   const effectiveOptions = (type === 'gruenerator_ask' || type === 'gruenerator_ask_grundsatz')
@@ -278,7 +295,7 @@ async function processAIRequest(requestId, data) {
         tool_calls: response.tool_calls, // Will be present if stop_reason is 'tool_use'
         raw_content_blocks: response.content, // Full content blocks from Claude
         success: true,
-        metadata: {
+        metadata: mergeMetadata(requestMetadata, {
           provider: 'claude',
           timestamp: new Date().toISOString(),
           backupRequested: false,
@@ -288,7 +305,7 @@ async function processAIRequest(requestId, data) {
           fileId: data.fileMetadata?.fileId || null,
           usedPromptCaching: data.fileMetadata?.usePromptCaching || false,
           modelUsed: requestConfig.model
-        }
+        })
       };
       
       // Double-check we have content before returning
@@ -307,7 +324,7 @@ async function processAIRequest(requestId, data) {
 }
 
 async function processWithOpenAI(requestId, data) {
-  const { prompt, systemPrompt, messages, type } = data;
+  const { prompt, systemPrompt, messages, type, metadata: requestMetadata = {} } = data;
   
   console.log('[AI Worker] OpenAI Request:', {
     type,
@@ -374,13 +391,13 @@ async function processWithOpenAI(requestId, data) {
     return {
       content: response.choices[0].message.content,
       success: true,
-      metadata: {
+      metadata: mergeMetadata(requestMetadata, {
         provider: 'openai',
         timestamp: new Date().toISOString(),
         backupRequested: true,
         type: type,
         requestId
-      }
+      })
     };
   } catch (error) {
     console.error('[AI Worker] OpenAI Error:', error);
@@ -390,7 +407,7 @@ async function processWithOpenAI(requestId, data) {
 
 // Function to process request with AWS Bedrock
 async function processWithBedrock(requestId, data) {
-  const { messages, systemPrompt, options = {}, type } = data;
+  const { messages, systemPrompt, options = {}, type, tools, metadata: requestMetadata = {} } = data;
   // Use model from options if provided (for gruenerator_ask), otherwise hardcoded Claude 4 ARN
   const modelIdentifier = options.model || 'arn:aws:bedrock:eu-central-1:481665093592:inference-profile/eu.anthropic.claude-sonnet-4-20250514-v1:0';
   
@@ -420,6 +437,13 @@ async function processWithBedrock(requestId, data) {
 
   if (systemPrompt) {
     bedrockPayload.system = systemPrompt;
+  }
+
+  // Add tools support - check both options.tools and top-level tools
+  const toolsToUse = options.tools || tools;
+  if (toolsToUse && toolsToUse.length > 0) {
+    // Store tools in options for ToolHandler
+    options.tools = toolsToUse;
   }
 
   // Add tools support using ToolHandler
@@ -534,13 +558,13 @@ async function processWithBedrock(requestId, data) {
       tool_calls: toolCalls.length > 0 ? toolCalls : undefined,
       raw_content_blocks: parsedResponse.content,
       success: true,
-      metadata: {
+      metadata: mergeMetadata(requestMetadata, {
         provider: 'aws-bedrock',
         model: currentModelId, // Use the actual model that succeeded
         originalModel: modelIdentifier, // Keep track of the originally requested model
         timestamp: new Date().toISOString(),
         requestId: requestId
-      }
+      })
     };
 
   } catch (error) {
@@ -552,7 +576,7 @@ async function processWithBedrock(requestId, data) {
 
 // Function to process request with LiteLLM
 async function processWithLiteLLM(requestId, data) {
-  const { messages, systemPrompt, options = {}, type } = data;
+  const { messages, systemPrompt, options = {}, type, metadata: requestMetadata = {} } = data;
   
   // LiteLLM configuration
   const litellmApiKey = process.env.LITTELLM_API_KEY;
@@ -639,13 +663,13 @@ async function processWithLiteLLM(requestId, data) {
       tool_calls: toolCalls.length > 0 ? toolCalls : undefined,
       raw_content_blocks: [{ type: 'text', text: responseContent }],
       success: true,
-      metadata: {
+      metadata: mergeMetadata(requestMetadata, {
         provider: 'litellm',
         model: response.model || model,
         timestamp: new Date().toISOString(),
         requestId: requestId,
         usage: response.usage
-      }
+      })
     };
 
   } catch (error) {
@@ -656,7 +680,7 @@ async function processWithLiteLLM(requestId, data) {
 
 // Function to process request with IONOS
 async function processWithIONOS(requestId, data) {
-  const { messages, systemPrompt, options = {}, type } = data;
+  const { messages, systemPrompt, options = {}, type, metadata: requestMetadata = {} } = data;
   
   // IONOS configuration
   const ionosApiToken = process.env.IONOS_API_TOKEN;
@@ -743,13 +767,13 @@ async function processWithIONOS(requestId, data) {
       tool_calls: toolCalls.length > 0 ? toolCalls : undefined,
       raw_content_blocks: [{ type: 'text', text: responseContent }],
       success: true,
-      metadata: {
+      metadata: mergeMetadata(requestMetadata, {
         provider: 'ionos',
         model: response.model || model,
         timestamp: new Date().toISOString(),
         requestId: requestId,
         usage: response.usage
-      }
+      })
     };
 
   } catch (error) {

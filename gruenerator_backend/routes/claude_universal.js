@@ -21,7 +21,7 @@ const { withErrorHandler, handleValidationError } = require('../utils/errorHandl
 const universalRouter = express.Router();
 
 const universalHandler = withErrorHandler(async (req, res) => {
-  const { textForm, sprache, thema, details, customPrompt, usePrivacyMode, provider, attachments } = req.body;
+  const { textForm, sprache, thema, details, customPrompt, useWebSearchTool, usePrivacyMode, provider, attachments } = req.body;
 
   // Aktuelles Datum ermitteln
   const currentDate = new Date().toISOString().split('T')[0];
@@ -53,6 +53,7 @@ const universalHandler = withErrorHandler(async (req, res) => {
     sprache, 
     thema,
     hasCustomPrompt: !!customPrompt,
+    useWebSearchTool: useWebSearchTool || false,
     usePrivacyMode: usePrivacyMode || false,
     provider: usePrivacyMode && provider ? provider : 'default',
     hasAttachments: attachmentResult.hasAttachments,
@@ -84,6 +85,13 @@ Passe Struktur, Länge und Aufbau an die gewählte Textform an. Der Text soll im
       .setFormatting(HTML_FORMATTING_INSTRUCTIONS);
       
     // Note: Universal text generation doesn't use platform constraints (flexible lengths)
+
+    // Enable web search if requested
+    if (useWebSearchTool) {
+      const searchQuery = `${thema} ${details || ''} Bündnis 90 Die Grünen Politik`;
+      console.log(`[claude_universal] 🔍 Web search enabled for: "${searchQuery}"`);
+      await builder.handleWebSearch(searchQuery, 'content');
+    }
 
     // Add documents if present
     if (attachmentResult.documents.length > 0) {
@@ -138,16 +146,33 @@ ${TITLE_GENERATION_INSTRUCTION}`;
     const promptResult = builder.build();
     const systemPrompt = promptResult.system;
     const messages = promptResult.messages;
+    const tools = promptResult.tools;
+    
+    // Extract web search sources for frontend display (separate from Claude prompt)
+    const webSearchSources = builder.getWebSearchSources();
 
     const payload = {
       systemPrompt,
       messages,
+      tools,
       options: {
         max_tokens: 4000,
         temperature: 0.9,
         ...(usePrivacyMode && provider && { provider: provider })
+      },
+      metadata: {
+        webSearchSources: webSearchSources.length > 0 ? webSearchSources : null
       }
     };
+
+    // Log web search status
+    if (useWebSearchTool) {
+      if (tools.length > 0) {
+        console.log(`[claude_universal] 🔍 Web search ENABLED - Tool: ${tools[0].name}`);
+      } else {
+        console.log(`[claude_universal] 🔍 Web search results pre-fetched and added to context`);
+      }
+    }
     
     const result = await req.app.locals.aiWorkerPool.processRequest({
       type: 'universal_generator',

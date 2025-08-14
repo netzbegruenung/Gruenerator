@@ -1,11 +1,17 @@
 
 
-const { PLATFORM_SPECIFIC_GUIDELINES, HTML_FORMATTING_INSTRUCTIONS, TITLE_GENERATION_INSTRUCTION, isStructuredPrompt, formatUserContent, processResponseWithTitle } = require('./promptUtils');
+const { PLATFORM_SPECIFIC_GUIDELINES, HTML_FORMATTING_INSTRUCTIONS, TITLE_GENERATION_INSTRUCTION, isStructuredPrompt, formatUserContent, processResponseWithTitle, WEB_SEARCH_TOOL } = require('./promptUtils');
 
 // Environment-based logging levels
 const LOG_LEVEL = process.env.LOG_LEVEL || 'info'; // debug, info, warn, error
 const isDebugMode = LOG_LEVEL === 'debug';
 const isVerboseMode = ['debug', 'verbose'].includes(LOG_LEVEL);
+
+// Tool Registry - centralized tool definitions
+const TOOL_REGISTRY = {
+  webSearch: WEB_SEARCH_TOOL
+  // Future tools can be added here (bundestagApi, vectorSearch, etc.)
+};
 
 /**
  * Unified Prompt Builder with Context-First Architecture and Examples Support
@@ -28,9 +34,14 @@ class UnifiedPromptBuilder {
       knowledge: [],
       instructions: null,
       request: null,
-      examples: [] // Examples support merged in
+      examples: [], // Examples support merged in
+      webSearchSources: [] // Store sources separately from content
     };
     this.debug = false;
+    
+    // Tool management
+    this.tools = [];
+    this.toolInstructions = new Map();
     
     // Examples configuration (from promptBuilderWithExamples.js)
     this.examplesConfig = {
@@ -113,6 +124,108 @@ class UnifiedPromptBuilder {
   }
 
   /**
+   * Add web search results as context
+   * @param {Object} searchResults - Search results from web search service
+   * @returns {UnifiedPromptBuilder} This instance for chaining
+   */
+  addSearchResults(searchResults) {
+    if (!searchResults || !searchResults.success) {
+      return this;
+    }
+
+    // Check if we have either individual results or synthesized textContent
+    const hasResults = searchResults.results && searchResults.results.length > 0;
+    const hasTextContent = searchResults.textContent && searchResults.textContent.trim().length > 0;
+    
+    if (!hasResults && !hasTextContent) {
+      return this;
+    }
+
+    // Format search results as knowledge context
+    const searchContext = this._formatSearchResultsAsContext(searchResults);
+    
+    if (searchContext) {
+      // Add to knowledge context
+      if (!this.context.knowledge) {
+        this.context.knowledge = [];
+      }
+      this.context.knowledge.push(searchContext);
+    }
+
+    return this;
+  }
+
+  /**
+   * Handle web search - automatically performs search and adds results as context
+   * @param {string} query - Search query
+   * @param {string} agentType - Type of search agent ('withSources', 'withoutSources', 'news')
+   * @returns {Promise<UnifiedPromptBuilder>} This instance for chaining
+   */
+  async handleWebSearch(query, agentType = 'withSources') {
+    if (!query || typeof query !== 'string' || query.trim().length === 0) {
+      console.warn('[UnifiedPromptBuilder] Invalid search query provided to handleWebSearch');
+      return this;
+    }
+
+    try {
+      // Import and use MistralWebSearchService
+      const MistralWebSearchService = require('../services/mistralWebSearchService');
+      const searchService = new MistralWebSearchService();
+      
+      const searchResults = await searchService.performWebSearch(query, agentType);
+      
+      if (searchResults && searchResults.success) {
+        const hasResults = searchResults.results && searchResults.results.length > 0;
+        const hasTextContent = searchResults.textContent && searchResults.textContent.trim().length > 0;
+        const hasSources = searchResults.sources && searchResults.sources.length > 0;
+        const contentLength = hasTextContent ? searchResults.textContent.trim().length : 0;
+        const sourcesCount = searchResults.sourcesCount || 0;
+        
+        if (hasResults || hasTextContent) {
+          console.log(`[UnifiedPromptBuilder] Web search complete: Content added to context (${contentLength} chars${hasResults ? `, ${searchResults.results.length} individual results` : ''}${hasSources ? `, ${sourcesCount} sources captured` : ''})`);
+        } else {
+          console.log(`[UnifiedPromptBuilder] Web search complete: No usable content found`);
+        }
+        
+        // Store sources separately from content (for frontend display)
+        if (hasSources) {
+          this.context.webSearchSources = searchResults.sources;
+          console.log(`[UnifiedPromptBuilder] Stored ${sourcesCount} sources separately for frontend display`);
+        }
+        
+        // Add search results as context (only content, not sources)
+        this.addSearchResults(searchResults);
+        
+        // Add instructions for using search results (but no tool)
+        this.toolInstructions.set('webSearch', 
+          'Nutze die bereitgestellten aktuellen Suchergebnisse für Informationen und Fakten. Zitiere Quellen wenn verfügbar.'
+        );
+      } else {
+        console.warn('[UnifiedPromptBuilder] Web search returned no results');
+        this._addSearchFailureNotice(query);
+      }
+      
+    } catch (error) {
+      console.error('[UnifiedPromptBuilder] Web search failed:', error.message);
+      this._addSearchFailureNotice(query, error.message);
+    }
+    
+    return this;
+  }
+
+  /**
+   * Add search failure notice as knowledge
+   * @private
+   */
+  _addSearchFailureNotice(query, errorMessage) {
+    const notice = errorMessage 
+      ? `HINWEIS: Die Websuche für aktuelle Informationen zu "${query}" konnte nicht durchgeführt werden (${errorMessage}). Verwende dein vorhandenes Wissen und weise darauf hin, dass die Informationen möglicherweise nicht ganz aktuell sind.`
+      : `HINWEIS: Die Websuche für aktuelle Informationen zu "${query}" ergab keine Ergebnisse. Verwende dein vorhandenes Wissen und weise darauf hin, dass die Informationen möglicherweise nicht ganz aktuell sind.`;
+    
+    this.addKnowledge([notice]);
+  }
+
+  /**
    * Set user instructions (custom prompts)
    * @param {string} instructions - Custom user instructions
    * @returns {UnifiedPromptBuilder} This instance for chaining
@@ -184,13 +297,81 @@ class UnifiedPromptBuilder {
   }
 
   /**
+   * Enable a tool with optional system instructions
+   * @param {string} toolName - Name of the tool (must exist in TOOL_REGISTRY)
+   * @param {boolean} enabled - Whether to enable the tool
+   * @param {string} systemInstructions - Optional instructions to add to system role
+   * @param {Object} options - Additional options (e.g., forceDisableForBedrock)
+   * @returns {UnifiedPromptBuilder} This instance for chaining
+   */
+  enableTool(toolName, enabled = true, systemInstructions = null, options = {}) {
+    if (!enabled) {
+      // Remove tool if it exists
+      this.tools = this.tools.filter(tool => tool.name !== (TOOL_REGISTRY[toolName]?.name || toolName));
+      this.toolInstructions.delete(toolName);
+      console.log(`[UnifiedPromptBuilder] Disabled tool: ${toolName}`);
+      return this;
+    }
+
+    // Special handling for web search with Bedrock - disable tool but keep instructions
+    if (toolName === 'webSearch' && options.forceDisableForBedrock) {
+      console.log(`[UnifiedPromptBuilder] Web search disabled for Bedrock - results will be pre-fetched`);
+      
+      // Store instructions but don't add the tool
+      if (systemInstructions) {
+        const modifiedInstructions = systemInstructions.replace(
+          'Nutze die Websuche für aktuelle Informationen',
+          'Nutze die bereitgestellten Suchergebnisse für aktuelle Informationen'
+        );
+        this.toolInstructions.set(toolName, modifiedInstructions);
+      }
+      return this;
+    }
+
+    const tool = TOOL_REGISTRY[toolName];
+    if (!tool) {
+      console.warn(`[UnifiedPromptBuilder] Unknown tool: ${toolName}. Available tools:`, Object.keys(TOOL_REGISTRY));
+      return this;
+    }
+
+    // Add tool if not already present, or replace if it exists
+    const existingIndex = this.tools.findIndex(t => t.name === tool.name);
+    if (existingIndex >= 0) {
+      // Replace existing tool (in case of configuration updates)
+      this.tools[existingIndex] = tool;
+      console.log(`[UnifiedPromptBuilder] Updated tool: ${toolName}`);
+    } else {
+      this.tools.push(tool);
+      console.log(`[UnifiedPromptBuilder] Enabled tool: ${toolName}`);
+    }
+
+    // Store system instructions if provided
+    if (systemInstructions) {
+      this.toolInstructions.set(toolName, systemInstructions);
+    }
+
+    return this;
+  }
+
+  /**
+   * Set tools directly (for backward compatibility)
+   * @param {Array} tools - Array of tool objects
+   * @returns {UnifiedPromptBuilder} This instance for chaining
+   */
+  setTools(tools) {
+    this.tools = Array.isArray(tools) ? [...tools] : [];
+    return this;
+  }
+
+  /**
    * Build the final prompt structure optimized for Claude
-   * @returns {Object} Prompt object with system message and user messages
+   * @returns {Object} Prompt object with system message, user messages, and tools
    */
   build() {
     const result = {
       system: this._buildSystemMessage(),
-      messages: this._buildUserMessages()
+      messages: this._buildUserMessages(),
+      tools: this.tools.length > 0 ? [...this.tools] : []
     };
 
     if (this.debug) {
@@ -236,6 +417,19 @@ class UnifiedPromptBuilder {
     if (isVerboseMode && examples && examples.length > 0) {
       console.log(`[PromptBuilder] Added ${examples.length} examples`);
     }
+  }
+
+  /**
+   * Format search results as context string - optimized for maximum content, minimum tokens
+   * @private
+   */
+  _formatSearchResultsAsContext(searchResults) {
+    if (!searchResults.textContent || !searchResults.textContent.trim()) {
+      return null;
+    }
+
+    // Return only the actual content from Mistral's synthesis - no structure, no URLs, no metadata
+    return `AKTUELLE INFORMATIONEN:\n${searchResults.textContent.trim()}`;
   }
 
   /**
@@ -329,7 +523,7 @@ class UnifiedPromptBuilder {
   }
 
   /**
-   * Build the system message with role, constraints, and formatting
+   * Build the system message with role, constraints, formatting, and tool instructions
    * @private
    */
   _buildSystemMessage() {
@@ -340,6 +534,12 @@ class UnifiedPromptBuilder {
       parts.push(this.context.system.role);
     } else {
       throw new Error('System role is required - call setSystemRole()');
+    }
+
+    // Add tool instructions if any tools are enabled
+    if (this.toolInstructions.size > 0) {
+      const toolInstructionsList = Array.from(this.toolInstructions.values());
+      parts.push(`\n${toolInstructionsList.join(' ')}`);
     }
 
     // Add constraints if present (HIGHEST PRIORITY)
@@ -545,7 +745,8 @@ class UnifiedPromptBuilder {
   _logDebugInfo(result) {
     // Environment-based logging
     if (isVerboseMode) {
-      console.log(`[PromptBuilder] ${this.type} prompt: ${result.system.length} chars system, ${result.messages.length} messages, ${this.context.examples.length} examples`);
+      const toolNames = this.tools.map(t => t.name).join(', ');
+      console.log(`[PromptBuilder] ${this.type} prompt: ${result.system.length} chars system, ${result.messages.length} messages, ${this.context.examples.length} examples, ${this.tools.length} tools${toolNames ? ` (${toolNames})` : ''}`);
     }
   }
 
@@ -627,6 +828,14 @@ class UnifiedPromptBuilder {
   }
 
   /**
+   * Get web search sources (if any) for frontend display
+   * @returns {Array} Array of source objects
+   */
+  getWebSearchSources() {
+    return this.context.webSearchSources || [];
+  }
+
+  /**
    * Get the current context for inspection
    * @returns {Object} Current context object
    */
@@ -658,9 +867,19 @@ class UnifiedPromptBuilder {
  * @param {string} query - Search query for finding relevant examples
  * @param {Object} options - Additional options
  * @param {Object} req - Express request object (for AI worker access)
+ * @param {string} routeType - The route type (e.g., 'press/social') for validation
+ * @param {Array} platforms - Array of platform names for validation
  * @returns {Promise<UnifiedPromptBuilder>} The builder with examples added
  */
-async function addExamplesFromService(builder, contentType, query, options = {}, req = null) {
+async function addExamplesFromService(builder, contentType, query, options = {}, req = null, routeType = null, platforms = []) {
+  // Validate if examples should be used for this route and platform combination
+  if (routeType && platforms.length > 0) {
+    if (!shouldUseExamples(routeType, platforms)) {
+      console.log(`[addExamplesFromService] Skipping examples for route "${routeType}" with platforms [${platforms.join(', ')}] - not configured for examples`);
+      return builder;
+    }
+  }
+  
   try {
     // Safe dynamic import with error boundaries
     let contentExamplesService;
@@ -705,6 +924,31 @@ async function addExamplesFromService(builder, contentType, query, options = {},
   }
 }
 
+// Configuration for which routes and platforms should use examples
+const EXAMPLES_CONFIG = {
+  // Route patterns and their allowed platforms for examples
+  'press/social': ['instagram', 'facebook'],
+  // Future routes can be easily added here:
+  // 'campaign/ads': ['instagram', 'facebook', 'twitter'],
+  // 'press/newsletter': ['email']
+};
+
+/**
+ * Check if examples should be used for the given route and platforms
+ * @param {string} routeType - The route type (e.g., 'press/social')
+ * @param {Array} platforms - Array of platform names
+ * @returns {boolean} True if examples should be used
+ */
+function shouldUseExamples(routeType, platforms = []) {
+  const allowedPlatforms = EXAMPLES_CONFIG[routeType];
+  if (!allowedPlatforms) {
+    return false;
+  }
+  
+  // Check if any of the requested platforms are in the allowed list
+  return platforms.some(platform => allowedPlatforms.includes(platform));
+}
+
 // Export unified class with compatibility aliases
 module.exports = {
   // Classes (both point to unified implementation)
@@ -713,6 +957,7 @@ module.exports = {
   
   // Helper functions
   addExamplesFromService,
+  shouldUseExamples,
   
   // Re-export utilities from promptUtils for convenience
   HTML_FORMATTING_INSTRUCTIONS,

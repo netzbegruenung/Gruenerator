@@ -18,6 +18,11 @@ import CanvaOverview from '../../../templates/canva/components/CanvaOverview';
 import CanvaAssetsPanel from '../../../templates/canva/components/CanvaAssetsPanel';
 import CanvaButton from '../../../templates/canva/components/CanvaButton';
 
+// Wolke components
+import WolkeOverview from '../../../wolke/components/WolkeOverview';
+import WolkeShareLinkManager from '../../../wolke/components/WolkeShareLinkManager';
+import WolkeUploadPanel from '../../../wolke/components/WolkeUploadPanel';
+
 // Feature-specific components
 import QACreator from '../../../qa/components/QACreator';
 
@@ -35,6 +40,7 @@ import { announceToScreenReader } from '../../../../utils/focusManagement';
 import * as canvaUtils from '../../../../components/utils/canvaUtils';
 import * as canvaTemplateUtils from '../../../../components/utils/canvaTemplateUtils';
 import * as documentAndTextUtils from '../../../../components/utils/documentAndTextUtils';
+import * as nextcloudUtils from '../../../../components/utils/nextcloudUtils';
 
 // Memoized DocumentUpload wrapper to prevent re-renders
 const MemoizedDocumentUpload = memo(({ onUploadComplete, onDeleteComplete, showDocumentsList = true, showTitle = true, forceShowUploadForm = false, showAsModal = false }) => {
@@ -68,7 +74,8 @@ const ContentManagementTab = ({
     // Available tabs - combine Dokumente & Texte into one tab
     const availableTabs = [
         { key: 'dokumente', label: 'Dokumente & Texte' },
-        { key: 'canva', label: 'Canva' }
+        { key: 'canva', label: 'Canva' },
+        { key: 'wolke', label: 'Wolke' }
     ];
     
     // Normalize initialTab: map 'texte' -> 'dokumente'
@@ -135,6 +142,18 @@ const ContentManagementTab = ({
     }, []);
 
     // =====================================================================
+    // WOLKE SUBSECTION HANDLING
+    // =====================================================================
+
+    // Simple internal state for Wolke subsections
+    const [currentWolkeSubsection, setCurrentWolkeSubsection] = useState('overview');
+    
+    // Handle Wolke subsection changes
+    const handleWolkeSubsectionChange = useCallback((subsection) => {
+        setCurrentWolkeSubsection(subsection);
+    }, []);
+
+    // =====================================================================
     // CANVA-RELATED STATE AND FUNCTIONALITY
     // =====================================================================
     
@@ -163,6 +182,15 @@ const ContentManagementTab = ({
     const [savedCanvaDesigns, setSavedCanvaDesigns] = useState(new Set());
     const [savingDesign, setSavingDesign] = useState(null);
 
+    // =====================================================================
+    // WOLKE-RELATED STATE AND FUNCTIONALITY
+    // =====================================================================
+    
+    // Wolke share links state
+    const [wolkeShareLinks, setWolkeShareLinks] = useState([]);
+    const [wolkeLoading, setWolkeLoading] = useState(false);
+    const [wolkeError, setWolkeError] = useState(null);
+    
     // Templates hook
     const { 
         query: templatesQuery,
@@ -310,6 +338,81 @@ const ContentManagementTab = ({
             setSavingDesign(null);
         }
     }, [onSuccessMessage, onErrorMessage, templatesQuery]);
+
+    // =====================================================================
+    // WOLKE FUNCTIONALITY
+    // =====================================================================
+
+    // Wolke share links handlers
+    const fetchWolkeShareLinks = useCallback(async () => {
+        if (!isAuthenticated) return;
+        
+        try {
+            setWolkeLoading(true);
+            setWolkeError(null);
+            
+            const shareLinks = await nextcloudUtils.getNextcloudShareLinks();
+            setWolkeShareLinks(Array.isArray(shareLinks) ? shareLinks : []);
+        } catch (error) {
+            console.error('[ContentManagementTab] Error fetching Wolke share links:', error);
+            // Set empty array so the tab continues to function
+            setWolkeShareLinks([]);
+            setWolkeError('Wolke-Funktionen sind zurzeit nicht verfügbar.');
+            // Only show error in console, don't disrupt the UI
+            console.warn('[ContentManagementTab] Fehler beim Laden der Wolke-Verbindungen:', error.message);
+        } finally {
+            setWolkeLoading(false);
+        }
+    }, [isAuthenticated]);
+
+    const handleAddWolkeShareLink = async (shareLink, label = '') => {
+        try {
+            const result = await nextcloudUtils.saveNextcloudShareLink(shareLink, label);
+            await fetchWolkeShareLinks(); // Refresh the list
+            return result;
+        } catch (error) {
+            console.error('[ContentManagementTab] Error adding Wolke share link:', error);
+            // Show user-friendly error message
+            const errorMessage = error.message || 'Fehler beim Hinzufügen der Wolke-Verbindung';
+            throw new Error(errorMessage);
+        }
+    };
+
+    const handleDeleteWolkeShareLink = async (shareLinkId) => {
+        try {
+            await nextcloudUtils.deleteNextcloudShareLink(shareLinkId);
+            await fetchWolkeShareLinks(); // Refresh the list
+        } catch (error) {
+            console.error('[ContentManagementTab] Error deleting Wolke share link:', error);
+            // Show user-friendly error message
+            const errorMessage = error.message || 'Fehler beim Löschen der Wolke-Verbindung';
+            throw new Error(errorMessage);
+        }
+    };
+
+    const handleTestWolkeConnection = async (shareLink) => {
+        try {
+            const result = await nextcloudUtils.testNextcloudConnection(shareLink);
+            return result;
+        } catch (error) {
+            console.error('[ContentManagementTab] Error testing Wolke connection:', error);
+            // Show user-friendly error message
+            const errorMessage = error.message || 'Fehler beim Testen der Wolke-Verbindung';
+            throw new Error(errorMessage);
+        }
+    };
+
+    const handleWolkeUpload = async (shareLinkId, content, filename = 'hello-world.txt') => {
+        try {
+            const result = await nextcloudUtils.uploadToNextcloudShare(shareLinkId, content, filename);
+            return result;
+        } catch (error) {
+            console.error('[ContentManagementTab] Error uploading to Wolke:', error);
+            // Show user-friendly error message
+            const errorMessage = error.message || 'Fehler beim Upload zu Wolke';
+            throw new Error(errorMessage);
+        }
+    };
 
     // =====================================================================
     // DOCUMENTS FUNCTIONALITY
@@ -533,7 +636,11 @@ const ContentManagementTab = ({
             console.error('[ContentManagementTab] Fehler beim Laden der Templates:', templatesError);
             handleError(templatesError, onErrorMessage);
         }
-    }, [qaError, textsError, documentsError, templatesError, onErrorMessage]);
+        if (wolkeError) {
+            console.error('[ContentManagementTab] Fehler beim Laden der Wolke-Verbindungen:', wolkeError);
+            onErrorMessage('Fehler beim Laden der Nextcloud-Verbindungen: ' + wolkeError);
+        }
+    }, [qaError, textsError, documentsError, templatesError, wolkeError, onErrorMessage]);
 
     // Check Canva connection when tab becomes active
     useEffect(() => {
@@ -566,6 +673,13 @@ const ContentManagementTab = ({
             }
         }
     }, [canvaConnected, currentTab, currentCanvaSubsection, handleCanvaSubsectionChange]);
+
+    // Fetch Wolke share links when Wolke tab becomes active
+    useEffect(() => {
+        if (isActive && currentTab === 'wolke' && isAuthenticated) {
+            fetchWolkeShareLinks();
+        }
+    }, [isActive, currentTab, isAuthenticated, fetchWolkeShareLinks]);
 
     // =====================================================================
     // RENDER METHODS
@@ -660,6 +774,40 @@ const ContentManagementTab = ({
                 >
                     Texte
                 </button>
+            </div>
+        );
+    };
+
+    // Render Wolke subsections when on Wolke tab
+    const renderWolkeSubsections = () => {
+        if (currentTab !== 'wolke') return null;
+        
+        const wolkeSubsectionTabs = [
+            { key: 'overview', label: 'Übersicht' },
+            { key: 'manager', label: 'Share-Links' },
+            { key: 'upload', label: 'Upload' }
+        ];
+
+        return (
+            <div
+                className="groups-horizontal-navigation"
+                role="tablist"
+                aria-label="Wolke Navigation"
+                style={{ marginTop: 'var(--spacing-medium)' }}
+            >
+                {wolkeSubsectionTabs.map(tab => (
+                    <button
+                        key={tab.key}
+                        className={`groups-vertical-tab ${currentWolkeSubsection === tab.key ? 'active' : ''}`}
+                        onClick={() => handleWolkeSubsectionChange(tab.key)}
+                        role="tab"
+                        aria-selected={currentWolkeSubsection === tab.key}
+                        aria-controls={`wolke-${tab.key}-panel`}
+                        id={`wolke-${tab.key}-tab`}
+                    >
+                        {tab.label}
+                    </button>
+                ))}
             </div>
         );
     };
@@ -1338,6 +1486,65 @@ const ContentManagementTab = ({
         </div>
     );
 
+    // Render Wolke Overview content
+    const renderWolkeOverviewContent = () => (
+        <div
+            role="tabpanel"
+            id="wolke-overview-panel"
+            aria-labelledby="wolke-overview-tab"
+            tabIndex={-1}
+        >
+            <WolkeOverview
+                shareLinks={wolkeShareLinks}
+                wolkeLoading={wolkeLoading}
+                onAddShareLink={() => handleWolkeSubsectionChange('manager')}
+                onNavigateToManager={() => handleWolkeSubsectionChange('manager')}
+                onSuccessMessage={onSuccessMessage}
+                onErrorMessage={onErrorMessage}
+            />
+        </div>
+    );
+
+    // Render Wolke Share Links Manager content
+    const renderWolkeManagerContent = () => (
+        <div
+            role="tabpanel"
+            id="wolke-manager-panel"
+            aria-labelledby="wolke-manager-tab"
+            tabIndex={-1}
+        >
+            <WolkeShareLinkManager
+                shareLinks={wolkeShareLinks}
+                loading={wolkeLoading}
+                onAddShareLink={handleAddWolkeShareLink}
+                onDeleteShareLink={handleDeleteWolkeShareLink}
+                onTestConnection={handleTestWolkeConnection}
+                onTestUpload={handleWolkeUpload}
+                onRefresh={fetchWolkeShareLinks}
+                onSuccessMessage={onSuccessMessage}
+                onErrorMessage={onErrorMessage}
+            />
+        </div>
+    );
+
+    // Render Wolke Upload Panel content
+    const renderWolkeUploadContent = () => (
+        <div
+            role="tabpanel"
+            id="wolke-upload-panel"
+            aria-labelledby="wolke-upload-tab"
+            tabIndex={-1}
+        >
+            <WolkeUploadPanel
+                shareLinks={wolkeShareLinks}
+                loading={wolkeLoading}
+                onUploadFile={handleWolkeUpload}
+                onSuccessMessage={onSuccessMessage}
+                onErrorMessage={onErrorMessage}
+            />
+        </div>
+    );
+
     // Render main content based on current tabs
     const renderMainContent = () => {
         if (currentTab === 'canva') {
@@ -1347,6 +1554,14 @@ const ContentManagementTab = ({
                 return renderCanvaVorlagenContent();
             } else if (currentCanvaSubsection === 'assets') {
                 return renderCanvaAssetsContent();
+            }
+        } else if (currentTab === 'wolke') {
+            if (currentWolkeSubsection === 'overview') {
+                return renderWolkeOverviewContent();
+            } else if (currentWolkeSubsection === 'manager') {
+                return renderWolkeManagerContent();
+            } else if (currentWolkeSubsection === 'upload') {
+                return renderWolkeUploadContent();
             }
         } else if (currentTab === 'dokumente') {
             return currentContentSubsection === 'texte' ? renderTextsContent() : renderDocumentsContent();
@@ -1375,6 +1590,7 @@ const ContentManagementTab = ({
                     <div className="auth-form">
                         {renderCanvaSubsections()}
                         {renderContentSubsections()}
+                        {renderWolkeSubsections()}
                         {renderMainContent()}
                     </div>
                 </div>
