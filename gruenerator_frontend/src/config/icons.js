@@ -23,19 +23,26 @@ import {
   FaInstagram, 
   FaFacebook, 
   FaTwitter, 
-  FaLinkedin 
+  FaLinkedin,
+  FaCloud 
 } from 'react-icons/fa';
+
+import { FaFileWord } from 'react-icons/fa6';
+
+import { CiMemoPad } from 'react-icons/ci';
 
 import { GiHedgehog } from 'react-icons/gi';
 
 import { 
   HiInformationCircle,
-  HiOutlineTrash 
+  HiOutlineTrash,
+  HiCog 
 } from 'react-icons/hi';
 
 import { 
   IoDownloadOutline,
-  IoCopyOutline 
+  IoCopyOutline,
+  IoShareOutline 
 } from 'react-icons/io5';
 
 import {
@@ -81,6 +88,11 @@ export const ICONS = {
   actions: {
     copy: IoCopyOutline,
     download: IoDownloadOutline,
+    share: IoShareOutline,
+    docs: CiMemoPad,
+    cloud: FaCloud,
+    word: FaFileWord,
+    gruenerator: HiCog,
     delete: HiOutlineTrash,
     edit: PiPencilSimple,
     add: PiPlus,

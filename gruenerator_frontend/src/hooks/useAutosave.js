@@ -1,5 +1,5 @@
 import { useCallback, useRef, useEffect } from 'react';
-import { debounce } from 'lodash';
+import { debounce } from 'lodash-es';
 
 /**
  * Focus-aware autosave hook with field-level change tracking

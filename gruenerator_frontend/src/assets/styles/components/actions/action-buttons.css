@@ -96,45 +96,110 @@
   right: 0;
   background-color: var(--background-color);
   border: 1px solid var(--border-color, #e0e0e0);
-  border-radius: 4px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08);
   z-index: 1000;
-  min-width: 80px;
-  margin-top: 4px;
+  min-width: 240px;
+  margin-top: 8px;
+  overflow: hidden;
+  backdrop-filter: blur(10px);
+  animation: dropdownFadeIn 0.2s ease-out;
+}
+
+@keyframes dropdownFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .download-export .format-option {
-  display: block;
+  display: flex;
+  align-items: center;
   width: 100%;
-  padding: 8px 12px;
+  padding: 14px 16px;
   border: none;
   background: transparent;
   color: var(--font-color);
-  font-size: 12px;
+  font-size: 14px;
+  font-weight: 500;
   cursor: pointer;
   text-align: left;
   border-radius: 0;
+  transition: all 0.15s ease;
+  line-height: 1.4;
+  gap: 12px;
 }
 
 .download-export .format-option:first-child {
-  border-radius: 4px 4px 0 0;
+  border-radius: 8px 8px 0 0;
 }
 
 .download-export .format-option:last-child {
-  border-radius: 0 0 4px 4px;
+  border-radius: 0 0 8px 8px;
 }
 
 .download-export .format-option:only-child {
-  border-radius: 4px;
+  border-radius: 8px;
 }
 
 .download-export .format-option:hover {
-  background-color: var(--button-hover-color);
+  background: var(--button-hover-color);
+  color: var(--tanne);
+  transform: translateX(2px);
+}
+
+.download-export .format-option:active {
+  transform: translateX(2px) scale(0.98);
 }
 
 .download-export .format-option:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+  transform: none;
+}
+
+.download-export .format-option:disabled:hover {
+  background: transparent;
+  transform: none;
+}
+
+/* Icon styling in format options */
+.download-export .format-option svg {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+}
+
+/* Option content wrapper */
+.download-export .format-option-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.download-export .format-option-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--font-color);
+}
+
+.download-export .format-option-subtitle {
+  font-size: 12px;
+  color: var(--font-color-muted);
+  opacity: 0.7;
+}
+
+/* Divider between option groups */
+.download-export .format-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, var(--border-color) 20%, var(--border-color) 80%, transparent 100%);
+  margin: 4px 0;
 }
 
 @media (max-width: 768px) {
@@ -158,4 +223,89 @@
     padding: 5px 6px;
     min-width: 55px;
   }
+}
+
+/* Export Dropdown (ExportDropdown component) */
+.export-dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+
+/* Wolke Sub-Dropdown */
+.wolke-subdropdown {
+  position: absolute;
+  top: 0;
+  left: 100%;
+  margin-left: 8px;
+  background-color: var(--background-color);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08);
+  z-index: 1001;
+  min-width: 220px;
+  overflow: hidden;
+  backdrop-filter: blur(10px);
+  animation: dropdownFadeIn 0.2s ease-out;
+}
+
+.wolke-subdropdown-header {
+  padding: 12px 16px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--font-color-muted);
+  border-bottom: 1px solid var(--border-color);
+  background: var(--button-hover-color);
+}
+
+.wolke-subdropdown-option {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 12px 16px;
+  border: none;
+  background: transparent;
+  color: var(--font-color);
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+  border-radius: 0;
+  transition: all 0.15s ease;
+  gap: 10px;
+}
+
+.wolke-subdropdown-option:hover {
+  background: var(--button-hover-color);
+  color: var(--tanne);
+  transform: translateX(2px);
+}
+
+.wolke-subdropdown-option:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.wolke-subdropdown-option:disabled:hover {
+  background: transparent;
+  transform: none;
+}
+
+.wolke-subdropdown-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.wolke-subdropdown-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--font-color);
+}
+
+.wolke-subdropdown-subtitle {
+  font-size: 11px;
+  color: var(--font-color-muted);
+  opacity: 0.8;
 } 

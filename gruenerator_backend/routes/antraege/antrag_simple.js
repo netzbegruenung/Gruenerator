@@ -230,6 +230,7 @@ const routeHandler = withErrorHandler(async (req, res) => {
     
     const result = await req.app.locals.aiWorkerPool.processRequest({
       type: 'antrag',
+      usePrivacyMode: usePrivacyMode || false,
       ...payload
     }, req);
 

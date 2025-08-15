@@ -247,6 +247,7 @@ ${TITLE_GENERATION_INSTRUCTION}`;
     
     const result = await req.app.locals.aiWorkerPool.processRequest({
       type: 'gruene_jugend',
+      usePrivacyMode: usePrivacyMode || false,
       ...payload
     }, req);
 

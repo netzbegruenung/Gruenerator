@@ -22,7 +22,9 @@ class NextcloudApiClient {
             }
         });
         
-        // Set basic auth with share token (username = token, password = empty)
+        // Set authentication exactly as cloudsend.sh does:
+        // Username = shareToken, Password = empty (for non-password protected shares)
+        this.axiosInstance.defaults.headers['X-Requested-With'] = 'XMLHttpRequest';
         this.axiosInstance.defaults.auth = {
             username: this.shareToken,
             password: ''
@@ -148,10 +150,50 @@ class NextcloudApiClient {
             const safeFilename = this.sanitizeFilename(filename);
             const uploadUrl = `${this.webdavUrl}/${encodeURIComponent(safeFilename)}`;
             
-            const response = await this.axiosInstance.put(uploadUrl, content, {
+            // Detect and handle base64-encoded content
+            let uploadContent = content;
+            let contentType = 'text/plain';
+            let contentLength = Buffer.byteLength(content, 'utf8');
+            
+            // Check if content is base64-encoded (common pattern for binary files)
+            const base64Pattern = /^[A-Za-z0-9+/]+=*$/;
+            const isBase64 = typeof content === 'string' && 
+                           content.length > 100 && // Reasonable minimum for base64 files
+                           content.length % 4 === 0 && // Base64 strings are multiples of 4
+                           base64Pattern.test(content);
+            
+            if (isBase64) {
+                try {
+                    // Decode base64 to binary buffer
+                    uploadContent = Buffer.from(content, 'base64');
+                    contentLength = uploadContent.length;
+                    
+                    // Set appropriate content type based on file extension
+                    if (safeFilename.toLowerCase().endsWith('.docx')) {
+                        contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+                    } else if (safeFilename.toLowerCase().endsWith('.pdf')) {
+                        contentType = 'application/pdf';
+                    } else if (safeFilename.toLowerCase().endsWith('.xlsx')) {
+                        contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+                    } else {
+                        contentType = 'application/octet-stream';
+                    }
+                    
+                    console.log('[NextcloudApiClient] Detected base64 content, decoded for upload', { 
+                        originalLength: content.length, 
+                        decodedLength: uploadContent.length,
+                        contentType 
+                    });
+                } catch (decodeError) {
+                    console.warn('[NextcloudApiClient] Base64 decode failed, uploading as text', { error: decodeError.message });
+                    // Fall back to original content if base64 decoding fails
+                }
+            }
+            
+            const response = await this.axiosInstance.put(uploadUrl, uploadContent, {
                 headers: {
-                    'Content-Type': 'text/plain',
-                    'Content-Length': Buffer.byteLength(content, 'utf8')
+                    'Content-Type': contentType,
+                    'Content-Length': contentLength
                 }
             });
             

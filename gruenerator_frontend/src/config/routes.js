@@ -32,6 +32,7 @@ const AskGrundsatzPage = lazy(() => import('../features/ask/AskGrundsatzPage'));
 const DocumentViewPage = lazy(() => import('../features/documents/DocumentViewPage'));
 const Reel = lazy(() => import('../features/subtitler/components/SubtitlerPage'));
 const PresseSocialGenerator = lazy(() => import('../features/texte/presse/PresseSocialGenerator'));
+const AltTextGenerator = lazy(() => import('../features/texte/alttext/AltTextGenerator'));
 
 // ContentGallery importieren
 const ContentGallery = lazy(() => import('../components/common/Gallery/ContentGallery'));
@@ -60,6 +61,7 @@ export const GrueneratorenBundle = {
   Universal: UniversalTextGenerator,
   Antrag: AntragPage,
   PresseSocial: PresseSocialGenerator,
+  AltText: AltTextGenerator,
   GrueneJugend: lazy(() => import('../components/pages/Grüneratoren/GrueneJugendGenerator')),
   Sharepic: lazy(() => import('../components/pages/Grüneratoren/Sharepicgenerator')),
   Antragscheck: lazy(() => import('../components/pages/Grüneratoren/Antragsversteher')),
@@ -96,6 +98,7 @@ const standardRoutes = [
   { path: '/universal', component: GrueneratorenBundle.Universal, withForm: true },
   { path: '/antrag', component: GrueneratorenBundle.Antrag, withForm: true },
   { path: '/presse-social', component: GrueneratorenBundle.PresseSocial, withForm: true },
+  { path: '/alttext', component: GrueneratorenBundle.AltText, withForm: true },
   { path: '/gruene-jugend', component: GrueneratorenBundle.GrueneJugend, withForm: true },
   { path: '/antragscheck', component: GrueneratorenBundle.Antragscheck, withForm: true },
   { path: '/btw-kompass', component: GrueneratorenBundle.BTWKompass, withForm: true },
