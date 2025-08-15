@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { HiExternalLink, HiPlus, HiRefresh, HiTemplate, HiPhotograph, HiCheck, HiX, HiExclamationCircle, HiEye } from 'react-icons/hi';
+import { HiRefresh, HiTemplate, HiCheck, HiX, HiExclamationCircle, HiEye } from 'react-icons/hi';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import CanvaButton from './CanvaButton';
 
@@ -20,8 +20,9 @@ const CanvaOverview = ({
     onErrorMessage,
     onNavigateToSubtab
 }) => {
-    // Local state for sync operations
-    const [syncing, setSyncing] = useState(false);
+    
+    // Local state for connection badge hover
+    const [isConnectionHovered, setIsConnectionHovered] = useState(false);
     
     // Get query client for cache invalidation
     const queryClient = useQueryClient();
@@ -29,36 +30,12 @@ const CanvaOverview = ({
     // Fetch recent designs using utility function
     const { data: recentDesigns = [], isLoading: designsLoading, refetch: refetchDesigns } = useQuery({
         queryKey: ['canva-recent-designs', isAuthenticated, canvaConnected],
-        queryFn: () => canvaUtils.fetchRecentCanvaDesigns(canvaConnected, isAuthenticated, 5),
+        queryFn: () => canvaUtils.fetchRecentCanvaDesigns(canvaConnected, isAuthenticated, 4),
         enabled: isAuthenticated && canvaConnected,
         staleTime: 5 * 60 * 1000,
         refetchOnWindowFocus: false
     });
 
-    // Handle sync operation
-    const handleSync = useCallback(async () => {
-        if (syncing || !canvaConnected) return;
-
-        try {
-            setSyncing(true);
-            onErrorMessage?.('');
-            
-            // Refetch designs
-            await Promise.all([
-                refetchDesigns()
-            ]);
-
-            // Also invalidate any related template queries to ensure fresh data
-            queryClient.invalidateQueries({ queryKey: ['userTemplates'] });
-            
-            onSuccessMessage?.('Canva Daten wurden erfolgreich synchronisiert.');
-        } catch (error) {
-            console.error('[CanvaOverview] Error syncing:', error);
-            onErrorMessage?.('Fehler beim Synchronisieren der Canva Daten: ' + error.message);
-        } finally {
-            setSyncing(false);
-        }
-    }, [syncing, canvaConnected, refetchDesigns, queryClient, onSuccessMessage, onErrorMessage]);
 
     // Handle disconnect
     const handleDisconnect = useCallback(async () => {
@@ -93,44 +70,24 @@ const CanvaOverview = ({
 
     // Generate UI configurations using utility functions
     const connectionBadge = canvaUtils.getCanvaConnectionBadge(canvaConnected, canvaUser, canvaLoading);
-    const logoConfig = canvaUtils.getCanvaLogoConfig('large', 'overview');
-    const quickActions = canvaUtils.generateOverviewQuickActions(canvaConnected, {
-        onLogin: onCanvaLogin,
-        onSync: handleSync,
-        onNavigate: onNavigateToSubtab,
-        loading: canvaLoading,
-        syncing
-    });
     // Stats section removed
 
     // Render connection status section
     const renderConnectionStatus = () => (
         <div className="canva-connection-section">
-            <div className="canva-logo-container">
-                <img
-                    src={logoConfig.src}
-                    alt={logoConfig.alt}
-                    className={logoConfig.className}
-                    style={{
-                        height: logoConfig.height,
-                        width: logoConfig.width,
-                        minHeight: logoConfig.minHeight
-                    }}
-                />
-            </div>
-            
-            {logoConfig.showPoweredBy && (
-                <div className="powered-by-canva">
-                    {logoConfig.poweredByMessage}
-                </div>
-            )}
-
             <div className="connection-status-content">
                 {canvaConnected && (
-                    <div className={connectionBadge.className} style={{ color: connectionBadge.color }}>
+                    <button
+                        type="button"
+                        className={`${connectionBadge.className} canva-connection-badge-button`}
+                        style={{ color: isConnectionHovered ? 'var(--error-red)' : connectionBadge.color }}
+                        onClick={handleDisconnect}
+                        onMouseEnter={() => setIsConnectionHovered(true)}
+                        onMouseLeave={() => setIsConnectionHovered(false)}
+                    >
                         {getStatusIcon(connectionBadge.icon)}
-                        <span>{connectionBadge.text}</span>
-                    </div>
+                        <span>{isConnectionHovered ? 'Ausloggen' : connectionBadge.text}</span>
+                    </button>
                 )}
 
                 {canvaConnected ? (
@@ -140,7 +97,7 @@ const CanvaOverview = ({
                         </p>
                         
                         {connectionBadge.userInfo && (
-                            <div className="connection-user-info">
+                            <div className="connection-user-info" style={{ display: 'none' }}>
                                 {connectionBadge.userInfo.avatar && (
                                     <img 
                                         src={connectionBadge.userInfo.avatar} 
@@ -159,14 +116,6 @@ const CanvaOverview = ({
                             </div>
                         )}
                         
-                        <button
-                            type="button"
-                            className="btn-text size-s"
-                            onClick={handleDisconnect}
-                            style={{ marginTop: 'var(--spacing-small)', color: 'var(--grey-600)' }}
-                        >
-                            Verbindung trennen
-                        </button>
                     </div>
                 ) : (
                     <div>
@@ -189,39 +138,6 @@ const CanvaOverview = ({
         </div>
     );
 
-    // Render quick actions grid
-    const renderQuickActions = () => {
-        if (!canvaConnected) return null;
-
-        return (
-            <div className="canva-quick-actions">
-                <h3 className="canva-quick-actions-title">Schnellzugriff</h3>
-                <div className="canva-actions-grid">
-                    {quickActions.map(action => (
-                        <div
-                            key={action.id}
-                            className={`canva-action-card ${action.disabled ? 'disabled' : ''}`}
-                            onClick={action.disabled ? undefined : action.onClick}
-                            role="button"
-                            tabIndex={action.disabled ? -1 : 0}
-                            onKeyDown={(e) => {
-                                if ((e.key === 'Enter' || e.key === ' ') && !action.disabled) {
-                                    e.preventDefault();
-                                    action.onClick?.();
-                                }
-                            }}
-                        >
-                            <div className="canva-action-header">
-                                {getActionIcon(action.icon)}
-                                <h4 className="canva-action-title">{action.title}</h4>
-                            </div>
-                            <p className="canva-action-description">{action.description}</p>
-                        </div>
-                    ))}
-                </div>
-            </div>
-        );
-    };
 
     // Render statistics cards
     const renderStatistics = () => {
@@ -251,7 +167,7 @@ const CanvaOverview = ({
                 ) : (
                     <>
                         <div className="canva-recent-grid">
-                            {recentDesigns.map(design => (
+                            {recentDesigns.slice(0, 4).map(design => (
                                 <div
                                     key={design.id}
                                     className="canva-recent-design"
@@ -300,9 +216,10 @@ const CanvaOverview = ({
                                 e.preventDefault();
                                 onNavigateToSubtab?.('vorlagen');
                             }}
+                            style={{ color: 'var(--font-color)' }}
                         >
                             <span>Alle Designs anzeigen</span>
-                            <HiEye />
+                            <HiEye style={{ color: 'var(--font-color)' }} />
                         </a>
                     </>
                 )}
@@ -325,47 +242,11 @@ const CanvaOverview = ({
         }
     };
 
-    // Helper function to render action icons
-    const getActionIcon = (iconType) => {
-        const iconProps = { className: 'canva-action-icon' };
-        switch (iconType) {
-            case 'HiExternalLink':
-                return <HiExternalLink {...iconProps} />;
-            case 'HiPlus':
-                return <HiPlus {...iconProps} />;
-            case 'HiRefresh':
-                return <HiRefresh {...iconProps} />;
-            case 'HiTemplate':
-                return <HiTemplate {...iconProps} />;
-            case 'HiPhotograph':
-                return <HiPhotograph {...iconProps} />;
-            default:
-                return <HiTemplate {...iconProps} />;
-        }
-    };
 
-    // Helper function to render stat icons
-    const getStatIcon = (iconType, color) => {
-        const iconProps = { 
-            className: 'canva-stat-icon',
-            style: { color }
-        };
-        switch (iconType) {
-            case 'HiTemplate':
-                return <HiTemplate {...iconProps} />;
-            case 'HiPhotograph':
-                return <HiPhotograph {...iconProps} />;
-            case 'HiRefresh':
-                return <HiRefresh {...iconProps} />;
-            default:
-                return <HiTemplate {...iconProps} />;
-        }
-    };
 
     return (
         <div className="canva-overview" role="main" aria-label="Canva Integration Overview">
             {renderConnectionStatus()}
-            {renderQuickActions()}
             {renderStatistics()}
             {renderRecentDesigns()}
         </div>

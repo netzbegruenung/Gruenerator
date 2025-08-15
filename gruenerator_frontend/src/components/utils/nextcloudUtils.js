@@ -22,10 +22,10 @@ export const validateShareLink = (url) => {
     try {
         const urlObj = new URL(url);
         
-        // Check if it's a valid Nextcloud share URL pattern
+        // Check if it's a valid Wolke share URL pattern
         const shareRegex = /\/s\/[A-Za-z0-9]+/;
         if (!shareRegex.test(urlObj.pathname)) {
-            return { isValid: false, error: 'Ungültiges Nextcloud-Share-Link-Format' };
+            return { isValid: false, error: 'Ungültiges Wolke-Share-Link-Format' };
         }
 
         return { isValid: true, error: null };
@@ -62,7 +62,7 @@ export const getNextcloudShareLinks = async () => {
         return response.data;
     } catch (error) {
         console.error('[nextcloudUtils] Error fetching share links:', error);
-        throw new Error('Fehler beim Laden der Nextcloud-Verbindungen: ' + error.message);
+        throw new Error('Fehler beim Laden der Wolke-Verbindungen: ' + error.message);
     }
 };
 
@@ -74,7 +74,7 @@ export const saveNextcloudShareLink = async (shareLink, label = '') => {
 
     const parsedLink = parseShareLink(shareLink);
     if (!parsedLink) {
-        throw new Error('Ungültiger Nextcloud-Share-Link');
+        throw new Error('Ungültiger Wolke-Share-Link');
     }
 
     try {
@@ -87,7 +87,7 @@ export const saveNextcloudShareLink = async (shareLink, label = '') => {
         return response.data;
     } catch (error) {
         console.error('[nextcloudUtils] Error saving share link:', error);
-        throw new Error('Fehler beim Speichern der Nextcloud-Verbindung: ' + error.message);
+        throw new Error('Fehler beim Speichern der Wolke-Verbindung: ' + error.message);
     }
 };
 
@@ -96,7 +96,7 @@ export const deleteNextcloudShareLink = async (shareLinkId) => {
         await apiClient.delete(`/nextcloud/share-links/${shareLinkId}`);
     } catch (error) {
         console.error('[nextcloudUtils] Error deleting share link:', error);
-        throw new Error('Fehler beim Löschen der Nextcloud-Verbindung: ' + error.message);
+        throw new Error('Fehler beim Löschen der Wolke-Verbindung: ' + error.message);
     }
 };
 
@@ -113,7 +113,7 @@ export const testNextcloudConnection = async (shareLink) => {
         return response.data;
     } catch (error) {
         console.error('[nextcloudUtils] Error testing connection:', error);
-        throw new Error('Fehler beim Testen der Nextcloud-Verbindung: ' + error.message);
+        throw new Error('Fehler beim Testen der Wolke-Verbindung: ' + error.message);
     }
 };
 
@@ -134,8 +134,8 @@ export const uploadToNextcloudShare = async (shareLinkId, content, filename = 'h
         });
         return response.data;
     } catch (error) {
-        console.error('[nextcloudUtils] Error uploading to Nextcloud:', error);
-        throw new Error('Fehler beim Upload zu Nextcloud: ' + error.message);
+        console.error('[nextcloudUtils] Error uploading to Wolke:', error);
+        throw new Error('Fehler beim Upload zu Wolke: ' + error.message);
     }
 };
 
@@ -220,7 +220,7 @@ export const generateNextcloudActionItems = (shareLink, handlers) => {
         label: 'Löschen',
         onClick: () => handlers.onDelete?.(shareLink.id),
         className: 'action-delete-danger',
-        confirmMessage: 'Möchten Sie diese Nextcloud-Verbindung wirklich löschen?'
+        confirmMessage: 'Möchten Sie diese Wolke-Verbindung wirklich löschen?'
     });
 
     return actions;
@@ -228,7 +228,7 @@ export const generateNextcloudActionItems = (shareLink, handlers) => {
 
 // Error handling helpers
 export const handleNextcloudError = (error, onError) => {
-    console.error('[nextcloudUtils] Nextcloud error:', error);
+    console.error('[nextcloudUtils] Wolke error:', error);
     
     let userMessage = 'Ein unbekannter Fehler ist aufgetreten.';
     
@@ -236,22 +236,22 @@ export const handleNextcloudError = (error, onError) => {
         // Server responded with error status
         switch (error.response.status) {
             case 401:
-                userMessage = 'Keine Berechtigung für diese Nextcloud-Operation.';
+                userMessage = 'Keine Berechtigung für diese Wolke-Operation.';
                 break;
             case 403:
                 userMessage = 'Der Share-Link ist nicht beschreibbar oder wurde deaktiviert.';
                 break;
             case 404:
-                userMessage = 'Nextcloud-Share nicht gefunden oder ungültig.';
+                userMessage = 'Wolke-Share nicht gefunden oder ungültig.';
                 break;
             case 507:
-                userMessage = 'Nicht genügend Speicherplatz in der Nextcloud.';
+                userMessage = 'Nicht genügend Speicherplatz in der Wolke.';
                 break;
             default:
                 userMessage = error.response.data?.message || `Server-Fehler: ${error.response.status}`;
         }
     } else if (error.request) {
-        userMessage = 'Keine Verbindung zur Nextcloud möglich. Prüfen Sie Ihre Internetverbindung.';
+        userMessage = 'Keine Verbindung zur Wolke möglich. Prüfen Sie Ihre Internetverbindung.';
     } else if (error.message) {
         userMessage = error.message;
     }

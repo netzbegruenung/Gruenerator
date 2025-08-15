@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
-import { HiPlus, HiRefresh, HiUpload, HiClipboard, HiOutlineTrash, HiExternalLink, HiExclamationCircle } from 'react-icons/hi';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { HiRefresh, HiClipboard, HiOutlineTrash, HiExternalLink, HiUpload, HiAcademicCap } from 'react-icons/hi';
 import ProfileCard from '../../../components/common/ProfileCard';
-import EmptyState from '../../../components/common/EmptyState';
 import { validateShareLink, generateShareLinkDisplayName } from '../../../components/utils/nextcloudUtils';
+import { useAutosave } from '../../../hooks/useAutosave';
+import WolkeTutorial from './WolkeTutorial';
 
 const WolkeShareLinkManager = ({
     shareLinks = [],
@@ -15,12 +16,54 @@ const WolkeShareLinkManager = ({
     onSuccessMessage,
     onErrorMessage
 }) => {
-    const [showAddForm, setShowAddForm] = useState(false);
     const [newShareLink, setNewShareLink] = useState('');
     const [newLabel, setNewLabel] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [testingConnections, setTestingConnections] = useState(new Set());
     const [uploadingFiles, setUploadingFiles] = useState(new Set());
+    const [showTutorial, setShowTutorial] = useState(false);
+    const isInitialized = useRef(false);
+
+    // Autosave function for ShareLink form
+    const autosaveShareLink = useCallback(async () => {
+        if (!isInitialized.current || !newShareLink.trim()) return;
+        
+        const validation = validateShareLink(newShareLink);
+        if (!validation.isValid) return; // Don't auto-save invalid links
+        
+        try {
+            await onAddShareLink(newShareLink, newLabel);
+            setNewShareLink('');
+            setNewLabel('');
+            onSuccessMessage('Wolke-Verbindung wurde automatisch hinzugefügt.');
+        } catch (error) {
+            // Silent failure for autosave - user can still manually save
+            console.log('Autosave failed:', error.message);
+        }
+    }, [newShareLink, newLabel, onAddShareLink, onSuccessMessage]);
+
+    // Auto-save hook
+    const { resetTracking } = useAutosave({
+        saveFunction: autosaveShareLink,
+        formRef: {
+            getValues: () => ({ newShareLink, newLabel }),
+            watch: () => {} // Not needed for state-based
+        },
+        enabled: isInitialized.current,
+        debounceMs: 3000, // Longer delay for external API calls
+        getFieldsToTrack: () => ['newShareLink', 'newLabel'],
+        onError: (error) => {
+            console.error('ShareLink autosave failed:', error);
+        }
+    });
+
+    // Initialize autosave tracking
+    useEffect(() => {
+        if (!isInitialized.current) {
+            isInitialized.current = true;
+            resetTracking();
+        }
+    }, [resetTracking]);
 
     const handleSubmitShareLink = async (e) => {
         e.preventDefault();
@@ -36,8 +79,7 @@ const WolkeShareLinkManager = ({
             await onAddShareLink(newShareLink, newLabel);
             setNewShareLink('');
             setNewLabel('');
-            setShowAddForm(false);
-            onSuccessMessage('Nextcloud-Verbindung wurde erfolgreich hinzugefügt.');
+            onSuccessMessage('Wolke-Verbindung wurde erfolgreich hinzugefügt.');
         } catch (error) {
             onErrorMessage('Fehler beim Hinzufügen der Verbindung: ' + error.message);
         } finally {
@@ -67,10 +109,25 @@ const WolkeShareLinkManager = ({
 
     const handleTestUpload = async (shareLink) => {
         setUploadingFiles(prev => new Set(prev).add(shareLink.id));
+        
+        // Create test file content with timestamp
+        const timestamp = new Date().toLocaleString('de-DE');
+        const testContent = `Grünerator Test-Datei
+
+Diese Datei wurde automatisch erstellt, um die Wolke-Verbindung zu testen.
+
+Erstellt am: ${timestamp}
+ShareLink: ${shareLink.label || 'Unbenannt'}
+Host: ${new URL(shareLink.share_link).hostname}
+
+✅ Wenn Sie diese Datei sehen können, funktioniert die Verbindung korrekt!`;
+
+        const filename = `test-gruenerator-${Date.now()}.txt`;
+
         try {
-            const result = await onTestUpload(shareLink.id);
+            const result = await onTestUpload(shareLink.id, testContent, filename);
             if (result.success) {
-                onSuccessMessage('Test-Datei erfolgreich hochgeladen!');
+                onSuccessMessage(`Test-Datei "${filename}" erfolgreich hochgeladen!`);
             } else {
                 onErrorMessage('Upload fehlgeschlagen: ' + result.message);
             }
@@ -98,18 +155,26 @@ const WolkeShareLinkManager = ({
         if (window.confirm(`Möchten Sie die Verbindung "${generateShareLinkDisplayName(shareLink, shareLink.label)}" wirklich löschen?`)) {
             try {
                 await onDeleteShareLink(shareLink.id);
-                onSuccessMessage('Nextcloud-Verbindung wurde gelöscht.');
+                onSuccessMessage('Wolke-Verbindung wurde gelöscht.');
             } catch (error) {
                 onErrorMessage('Fehler beim Löschen: ' + error.message);
             }
         }
     };
 
+    const handleTutorialOpen = () => {
+        setShowTutorial(true);
+    };
+
+    const handleTutorialClose = () => {
+        setShowTutorial(false);
+    };
+
     if (loading) {
         return (
             <ProfileCard title="Share-Links werden geladen...">
                 <div className="wolke-loading-state">
-                    <p>Lade deine Nextcloud-Verbindungen...</p>
+                    <p>Lade deine Wolke-Verbindungen...</p>
                 </div>
             </ProfileCard>
         );
@@ -117,48 +182,55 @@ const WolkeShareLinkManager = ({
 
     return (
         <ProfileCard 
-            title="Nextcloud Share-Links verwalten"
+            title="Wolke Integration"
             headerActions={
-                <div style={{ display: 'flex', gap: 'var(--spacing-small)' }}>
-                    <button
-                        type="button"
-                        className="btn-secondary size-s"
-                        onClick={onRefresh}
-                        disabled={loading}
-                        title="Liste aktualisieren"
-                    >
-                        <HiRefresh className="icon" />
-                        Aktualisieren
-                    </button>
-                    <button
-                        type="button"
-                        className="btn-primary size-s"
-                        onClick={() => setShowAddForm(!showAddForm)}
-                        disabled={loading}
-                    >
-                        <HiPlus className="icon" />
-                        Share-Link hinzufügen
-                    </button>
-                </div>
+                <button
+                    type="button"
+                    className="btn-secondary size-s"
+                    onClick={onRefresh}
+                    disabled={loading}
+                    title="Liste aktualisieren"
+                >
+                    <HiRefresh className="icon" />
+                    Aktualisieren
+                </button>
             }
         >
             <div className="wolke-share-manager-container">
-                {showAddForm && (
-                    <div className="wolke-add-form-section">
-                        <form onSubmit={handleSubmitShareLink} className="wolke-add-form">
+                <div className="wolke-add-form-section">
+                    <h4>Wolke-Verbindung hinzufügen</h4>
+                    <p style={{ marginBottom: 'var(--spacing-medium)', color: 'var(--font-color-muted)' }}>
+                        Links werden automatisch gespeichert, wenn sie gültig sind.
+                    </p>
+                    
+                    {/* Tutorial section */}
+                    <div className="wolke-setup-tutorial-section">
+                        <button
+                            type="button"
+                            className="wolke-setup-tutorial-button"
+                            onClick={handleTutorialOpen}
+                        >
+                            <HiAcademicCap size={18} />
+                            Tutorial starten
+                        </button>
+                        <p className="wolke-setup-tutorial-description">
+                            Schritt-für-Schritt Anleitung zum Erstellen eines Share-Links
+                        </p>
+                    </div>
+                    <form onSubmit={handleSubmitShareLink} className="wolke-add-form">
                             <div className="wolke-form-group">
-                                <label htmlFor="shareLink">Nextcloud Share-Link *</label>
+                                <label htmlFor="shareLink">Wolke Share-Link *</label>
                                 <input
                                     type="url"
                                     id="shareLink"
                                     value={newShareLink}
                                     onChange={(e) => setNewShareLink(e.target.value)}
-                                    placeholder="https://cloud.example.com/s/ABC123..."
+                                    placeholder="https://wolke.netzbegruenung.de/s/ABC123..."
                                     required
                                     disabled={isSubmitting}
                                 />
                                 <small className="wolke-form-hint">
-                                    Gib einen öffentlichen, beschreibbaren Nextcloud-Share-Link ein.
+                                    Gib einen öffentlichen, beschreibbaren Wolke-Share-Link ein.
                                 </small>
                             </div>
                             
@@ -169,7 +241,7 @@ const WolkeShareLinkManager = ({
                                     id="label"
                                     value={newLabel}
                                     onChange={(e) => setNewLabel(e.target.value)}
-                                    placeholder="z.B. Arbeitsordner, Projektdateien..."
+                                    placeholder="z.B. Ortsverband, Mein Ordner, Grünerator..."
                                     disabled={isSubmitting}
                                 />
                             </div>
@@ -182,42 +254,11 @@ const WolkeShareLinkManager = ({
                                 >
                                     {isSubmitting ? 'Wird hinzugefügt...' : 'Hinzufügen'}
                                 </button>
-                                <button
-                                    type="button"
-                                    className="btn-secondary"
-                                    onClick={() => {
-                                        setShowAddForm(false);
-                                        setNewShareLink('');
-                                        setNewLabel('');
-                                    }}
-                                    disabled={isSubmitting}
-                                >
-                                    Abbrechen
-                                </button>
                             </div>
                         </form>
-                    </div>
-                )}
+                </div>
 
-                {shareLinks.length === 0 ? (
-                    <EmptyState
-                        icon={HiExclamationCircle}
-                        title="Keine Share-Links vorhanden"
-                        description="Füge deinen ersten Nextcloud Share-Link hinzu, um loszulegen."
-                    >
-                        {!showAddForm && (
-                            <button
-                                type="button"
-                                className="btn-primary"
-                                onClick={() => setShowAddForm(true)}
-                                style={{ marginTop: 'var(--spacing-medium)' }}
-                            >
-                                <HiPlus className="icon" />
-                                Ersten Share-Link hinzufügen
-                            </button>
-                        )}
-                    </EmptyState>
-                ) : (
+                {shareLinks.length > 0 && (
                     <div className="wolke-share-links-list">
                         {shareLinks.map(shareLink => (
                             <div key={shareLink.id} className="wolke-share-link-item">
@@ -259,7 +300,7 @@ const WolkeShareLinkManager = ({
                                         className="btn-action"
                                         onClick={() => handleTestUpload(shareLink)}
                                         disabled={uploadingFiles.has(shareLink.id) || !shareLink.is_active}
-                                        title="Test-Upload"
+                                        title="Test-Datei hochladen"
                                     >
                                         <HiUpload className={uploadingFiles.has(shareLink.id) ? 'spinning' : ''} />
                                     </button>
@@ -296,6 +337,11 @@ const WolkeShareLinkManager = ({
                     </div>
                 )}
             </div>
+            
+            {/* Tutorial overlay */}
+            {showTutorial && (
+                <WolkeTutorial onClose={handleTutorialClose} />
+            )}
         </ProfileCard>
     );
 };

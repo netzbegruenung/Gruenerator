@@ -176,6 +176,7 @@ ${TITLE_GENERATION_INSTRUCTION}`;
     
     const result = await req.app.locals.aiWorkerPool.processRequest({
       type: 'universal_generator',
+      usePrivacyMode: usePrivacyMode || false,
       ...payload
     }, req);
 
@@ -309,6 +310,7 @@ ${TITLE_GENERATION_INSTRUCTION}`;
     
     const result = await req.app.locals.aiWorkerPool.processRequest({
       type: 'rede',
+      usePrivacyMode: usePrivacyMode || false,
       ...payload
     }, req);
 
@@ -435,6 +437,7 @@ ${TITLE_GENERATION_INSTRUCTION}`;
     
     const result = await req.app.locals.aiWorkerPool.processRequest({
       type: 'wahlprogramm',
+      usePrivacyMode: usePrivacyMode || false,
       ...payload
     }, req);
 

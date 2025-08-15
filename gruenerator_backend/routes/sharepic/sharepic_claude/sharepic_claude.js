@@ -148,6 +148,7 @@ Zeile 3: ${line3}
 
       aiRequest = {
         type: 'dreizeilen',
+        usePrivacyMode: usePrivacyMode || false,
         systemPrompt: promptResult.system,
         messages: promptResult.messages,
         options: {
@@ -180,6 +181,7 @@ Zeile 3: ${line3}
 
       aiRequest = {
         type: 'zitat',
+        usePrivacyMode: usePrivacyMode || false,
         systemPrompt: promptResult.system,
         messages: promptResult.messages,
         options: {
@@ -224,6 +226,7 @@ Gib die Zitate in einem JSON-Array zurück, wobei jedes Objekt ein "quote" Feld 
 
       aiRequest = {
         type: 'zitat_pure',
+        usePrivacyMode: usePrivacyMode || false,
         systemPrompt: promptResult.system,
         messages: promptResult.messages,
         options: {
@@ -335,6 +338,7 @@ Zeile 3: ${line3}
 
       aiRequest = {
         type: 'headline',
+        usePrivacyMode: usePrivacyMode || false,
         systemPrompt: promptResult.system,
         messages: promptResult.messages,
         options: {
@@ -430,6 +434,7 @@ Details: ${details}
 
       aiRequest = {
         type: 'info',
+        usePrivacyMode: usePrivacyMode || false,
         systemPrompt: promptResult.system,
         messages: promptResult.messages,
         options: {

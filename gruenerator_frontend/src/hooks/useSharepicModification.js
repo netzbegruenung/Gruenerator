@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
-import { debounce } from 'lodash';
+import { debounce } from 'lodash-es';
 import { prepareDataForDreizeilenCanvas } from '../features/sharepic/dreizeilen/utils/dataPreparation';
 import { ERROR_MESSAGES } from '../components/utils/constants';
 
