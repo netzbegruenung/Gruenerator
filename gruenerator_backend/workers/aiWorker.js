@@ -580,11 +580,11 @@ async function processWithLiteLLM(requestId, data) {
   const { messages, systemPrompt, options = {}, type, metadata: requestMetadata = {} } = data;
   
   // LiteLLM configuration
-  const litellmApiKey = process.env.LITTELLM_API_KEY;
+  const litellmApiKey = process.env.LITELLM_API_KEY;
   const model = options.model || 'llama3.3';
   
   if (!litellmApiKey) {
-    throw new Error('LITTELLM_API_KEY environment variable is required for LiteLLM requests');
+    throw new Error('LITELLM_API_KEY environment variable is required for LiteLLM requests');
   }
 
   console.log(`[AI Worker] Processing with LiteLLM. Request ID: ${requestId}, Type: ${type}, Model: ${model}`);
