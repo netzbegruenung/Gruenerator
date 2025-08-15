@@ -5,7 +5,7 @@ import { createAuthenticatedRouter } from '../utils/createAuthenticatedRouter.js
 const router = createAuthenticatedRouter();
 
 router.post('/', async (req, res) => {
-  const { imageBase64, imageDescription } = req.body;
+  const { imageBase64, imageDescription, usePrivacyMode } = req.body;
   
   console.log('[claude_alttext] Request received:', { 
     hasImageBase64: !!imageBase64,
@@ -34,6 +34,7 @@ Befolge diese Richtlinien für effektiven Alt-Text:
 4. Beschreibe den Inhalt und die Funktion des Bildes, ohne zu interpretieren oder Meinungen zu äußern
 5. Füge relevante Details hinzu, die für das Verständnis des Bildkontexts wesentlich sind
 6. Vermeide Phrasen wie "Bild von" oder "Foto von", da Screenreader bereits anzeigen, dass es sich um ein Bild handelt
+7. WICHTIG: Wenn Text im Bild sichtbar ist und für den Kontext relevant ist, gib den Text wörtlich wieder, ohne Anführungszeichen. Beispiel: "Plakat mit der Aufschrift Klimaschutz jetzt" statt "Plakat mit Text über Klimaschutz"
 
 Struktur deinen Alt-Text in zwei Teilen:
 - Pflicht: Kurz und knapp die nötigsten Infos im ersten Satz
@@ -84,6 +85,7 @@ Gib deinen Alt-Text in <alt_text> Tags aus.`;
     // Process AI request
     const result = await req.app.locals.aiWorkerPool.processRequest({
       type: 'alttext',
+      usePrivacyMode: usePrivacyMode || false,
       ...payload
     }, req);
 

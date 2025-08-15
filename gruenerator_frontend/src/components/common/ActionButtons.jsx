@@ -1,12 +1,9 @@
-import React, { useState, lazy, Suspense } from 'react';
+import React, { useState } from 'react';
 import PropTypes from 'prop-types';
-import { IoCopyOutline, IoCheckmarkOutline, IoDownloadOutline } from "react-icons/io5";
-import { HiCog, HiPencil, HiDocumentText, HiSave } from "react-icons/hi";
+import { IoCopyOutline, IoCheckmarkOutline } from "react-icons/io5";
+import { HiCog, HiPencil, HiSave } from "react-icons/hi";
 import { copyFormattedContent } from '../utils/commonFunctions';
-import ExportToDocument from './ExportToDocument';
-
-// Lazy load DownloadExport to prevent bundling of export dependencies
-const DownloadExport = lazy(() => import('./DownloadExport'));
+import ExportDropdown from './ExportDropdown';
 import { useLazyAuth } from '../../hooks/useAuth';
 import { useBetaFeatures } from '../../hooks/useBetaFeatures';
 import useGeneratedTextStore from '../../stores/core/generatedTextStore';
@@ -19,6 +16,7 @@ const ActionButtons = ({
   className = 'display-actions',
   showExport = false,
   showDownload = true,
+  showExportDropdown = true,
   showCollab = false,
   showRegenerate = false,
   showSave = false,
@@ -40,7 +38,6 @@ const ActionButtons = ({
   const { getBetaFeatureState } = useBetaFeatures();
   const { generatedText } = useGeneratedTextStore();
   const [copyIcon, setCopyIcon] = useState(<IoCopyOutline size={16} />);
-  const [saveToLibraryIcon, setSaveToLibraryIcon] = useState(<HiSave size={16} />);
   const [saveIcon, setSaveIcon] = useState(<HiSave size={16} />);
 
   const hasDatabaseAccess = isAuthenticated && getBetaFeatureState('database');
@@ -92,20 +89,6 @@ const ActionButtons = ({
   // Determine if buttons should be hidden (sharepic-only content)
   const shouldHideButtons = isSharepicOnlyContent(activeContent);
 
-  // Handle save to library with success indicator
-  const handleSaveToLibrary = () => {
-    if (onSaveToLibrary) {
-      onSaveToLibrary();
-      // Show checkmark after save attempt (we assume success for UI feedback)
-      setTimeout(() => {
-        setSaveToLibraryIcon(<IoCheckmarkOutline size={16} />);
-        setTimeout(() => {
-          setSaveToLibraryIcon(<HiSave size={16} />);
-        }, 2000);
-      }, 500);
-    }
-  };
-
   // Handle regular save with success indicator
   const handleSave = () => {
     if (onSave) {
@@ -135,11 +118,13 @@ const ActionButtons = ({
           >
             {copyIcon}
           </button>
-          {showExport && <ExportToDocument content={activeContent} />}
-          {showDownload && (
-            <Suspense fallback={<IoDownloadOutline size={16} />}>
-              <DownloadExport content={activeContent} title={title} />
-            </Suspense>
+          {(showExport || showDownload || showExportDropdown) && (
+            <ExportDropdown 
+              content={activeContent} 
+              title={title} 
+              onSaveToLibrary={showSaveToLibrary && isAuthenticated ? onSaveToLibrary : null}
+              saveToLibraryLoading={saveToLibraryLoading}
+            />
           )}
           {showRegenerate && generatedPost && onRegenerate && (
             <button
@@ -169,20 +154,6 @@ const ActionButtons = ({
               {saveIcon}
             </button>
           )}
-          {showSaveToLibrary && isAuthenticated && activeContent && onSaveToLibrary && (
-            <button
-              onClick={handleSaveToLibrary}
-              className="action-button"
-              aria-label="Speichern"
-              disabled={saveToLibraryLoading}
-              {...(!isMobileView && {
-                'data-tooltip-id': "action-tooltip",
-                'data-tooltip-content': "Speichern"
-              })}
-            >
-              {saveToLibraryIcon}
-            </button>
-          )}
           {showCollab && hasCollabAccess && activeContent && onCollab && (
             <button
               onClick={onCollab}
@@ -208,6 +179,7 @@ ActionButtons.propTypes = {
   className: PropTypes.string,
   showExport: PropTypes.bool,
   showDownload: PropTypes.bool,
+  showExportDropdown: PropTypes.bool,
   showCollab: PropTypes.bool,
   showRegenerate: PropTypes.bool,
   showSave: PropTypes.bool,

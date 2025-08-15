@@ -100,9 +100,10 @@ async function processAIRequest(requestId, data) {
   try {
     let result;
     
-    // Check for explicit provider override
-    if (effectiveOptions.provider) {
-      switch (effectiveOptions.provider) {
+    // Check for explicit provider override - check both data.provider and options.provider
+    const explicitProvider = data.provider || effectiveOptions.provider;
+    if (explicitProvider) {
+      switch (explicitProvider) {
         case 'litellm':
           console.log(`[AI Worker] Using LiteLLM provider for request ${requestId}`);
           sendProgress(requestId, 15);
@@ -129,12 +130,12 @@ async function processAIRequest(requestId, data) {
           result = await processWithIONOS(requestId, data);
           break;
         default:
-          throw new Error(`Unknown provider: ${effectiveOptions.provider}`);
+          throw new Error(`Unknown provider: ${explicitProvider}`);
       }
     }
     
     // Use Bedrock by default (Deutschland mode), only fall back to Claude API if explicitly disabled
-    if (!result && effectiveOptions.useBedrock !== false && !effectiveOptions.provider) {
+    if (!result && effectiveOptions.useBedrock !== false && !explicitProvider) {
       console.log(`[AI Worker] Using AWS Bedrock provider for request ${requestId}`);
       sendProgress(requestId, 15);
       // Übergebe die ursprünglichen 'data', da processWithBedrock die Optionen ggf. intern neu prüft
