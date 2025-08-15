@@ -318,8 +318,7 @@ const buildDocumentsForPromptBuilder = (attachments, usePrivacyMode = false) => 
         source: {
           type: 'base64',
           media_type: att.type,
-          data: att.data,
-          name: att.name || att.displayName || 'unknown'
+          data: att.data
         }
       };
     }
