@@ -19,9 +19,7 @@ import CanvaAssetsPanel from '../../../templates/canva/components/CanvaAssetsPan
 import CanvaButton from '../../../templates/canva/components/CanvaButton';
 
 // Wolke components
-import WolkeOverview from '../../../wolke/components/WolkeOverview';
 import WolkeShareLinkManager from '../../../wolke/components/WolkeShareLinkManager';
-import WolkeUploadPanel from '../../../wolke/components/WolkeUploadPanel';
 
 // Feature-specific components
 import QACreator from '../../../qa/components/QACreator';
@@ -141,17 +139,6 @@ const ContentManagementTab = ({
         setCurrentContentSubsection(subsection);
     }, []);
 
-    // =====================================================================
-    // WOLKE SUBSECTION HANDLING
-    // =====================================================================
-
-    // Simple internal state for Wolke subsections
-    const [currentWolkeSubsection, setCurrentWolkeSubsection] = useState('overview');
-    
-    // Handle Wolke subsection changes
-    const handleWolkeSubsectionChange = useCallback((subsection) => {
-        setCurrentWolkeSubsection(subsection);
-    }, []);
 
     // =====================================================================
     // CANVA-RELATED STATE AND FUNCTIONALITY
@@ -402,14 +389,14 @@ const ContentManagementTab = ({
         }
     };
 
-    const handleWolkeUpload = async (shareLinkId, content, filename = 'hello-world.txt') => {
+    const handleTestWolkeUpload = async (shareLinkId, content, filename = 'test-gruenerator.txt') => {
         try {
             const result = await nextcloudUtils.uploadToNextcloudShare(shareLinkId, content, filename);
             return result;
         } catch (error) {
-            console.error('[ContentManagementTab] Error uploading to Wolke:', error);
+            console.error('[ContentManagementTab] Error uploading test file to Wolke:', error);
             // Show user-friendly error message
-            const errorMessage = error.message || 'Fehler beim Upload zu Wolke';
+            const errorMessage = error.message || 'Fehler beim Upload der Test-Datei zu Wolke';
             throw new Error(errorMessage);
         }
     };
@@ -638,7 +625,7 @@ const ContentManagementTab = ({
         }
         if (wolkeError) {
             console.error('[ContentManagementTab] Fehler beim Laden der Wolke-Verbindungen:', wolkeError);
-            onErrorMessage('Fehler beim Laden der Nextcloud-Verbindungen: ' + wolkeError);
+            onErrorMessage('Fehler beim Laden der Wolke-Verbindungen: ' + wolkeError);
         }
     }, [qaError, textsError, documentsError, templatesError, wolkeError, onErrorMessage]);
 
@@ -698,47 +685,76 @@ const ContentManagementTab = ({
             ] : [])
         ];
 
+        const logoConfig = canvaUtils.getCanvaLogoConfig('medium', 'subtab');
+
         return (
             <div
                 className="groups-horizontal-navigation"
                 role="tablist"
                 aria-label="Canva Navigation"
-                style={{ marginTop: 'var(--spacing-medium)' }}
+                style={{ 
+                    marginTop: 'var(--spacing-medium)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 'var(--spacing-medium)'
+                }}
             >
-                <button
-                    className={`groups-vertical-tab ${currentCanvaSubsection === 'overview' ? 'active' : ''}`}
-                    onClick={() => handleCanvaSubsectionChange('overview')}
-                    role="tab"
-                    aria-selected={currentCanvaSubsection === 'overview'}
-                    aria-controls="canva-overview-panel"
-                    id="canva-overview-tab"
-                >
-                    Übersicht
-                </button>
-                {canvaConnected && (
-                    <>
-                        <button
-                            className={`groups-vertical-tab ${currentCanvaSubsection === 'vorlagen' ? 'active' : ''}`}
-                            onClick={() => handleCanvaSubsectionChange('vorlagen')}
-                            role="tab"
-                            aria-selected={currentCanvaSubsection === 'vorlagen'}
-                            aria-controls="canva-vorlagen-panel"
-                            id="canva-vorlagen-tab"
-                        >
-                            Vorlagen
-                        </button>
-                        <button
-                            className={`groups-vertical-tab ${currentCanvaSubsection === 'assets' ? 'active' : ''}`}
-                            onClick={() => handleCanvaSubsectionChange('assets')}
-                            role="tab"
-                            aria-selected={currentCanvaSubsection === 'assets'}
-                            aria-controls="canva-assets-panel"
-                            id="canva-assets-tab"
-                        >
-                            Assets
-                        </button>
-                    </>
-                )}
+                <div className="canva-subtab-logo" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <img
+                        src={logoConfig.src}
+                        alt={logoConfig.alt}
+                        className={logoConfig.className}
+                        style={{
+                            height: logoConfig.height,
+                            width: logoConfig.width,
+                            minHeight: logoConfig.minHeight
+                        }}
+                    />
+                    <div className="powered-by-canva" style={{ 
+                        fontSize: '0.75rem', 
+                        color: 'var(--font-color-muted, #666)', 
+                        marginTop: '2px',
+                        textAlign: 'center'
+                    }}>
+                        {logoConfig.poweredByMessage}
+                    </div>
+                </div>
+                <div style={{ display: 'flex', gap: '0' }}>
+                    <button
+                        className={`groups-vertical-tab ${currentCanvaSubsection === 'overview' ? 'active' : ''}`}
+                        onClick={() => handleCanvaSubsectionChange('overview')}
+                        role="tab"
+                        aria-selected={currentCanvaSubsection === 'overview'}
+                        aria-controls="canva-overview-panel"
+                        id="canva-overview-tab"
+                    >
+                        Übersicht
+                    </button>
+                    {canvaConnected && (
+                        <>
+                            <button
+                                className={`groups-vertical-tab ${currentCanvaSubsection === 'vorlagen' ? 'active' : ''}`}
+                                onClick={() => handleCanvaSubsectionChange('vorlagen')}
+                                role="tab"
+                                aria-selected={currentCanvaSubsection === 'vorlagen'}
+                                aria-controls="canva-vorlagen-panel"
+                                id="canva-vorlagen-tab"
+                            >
+                                Vorlagen
+                            </button>
+                            <button
+                                className={`groups-vertical-tab ${currentCanvaSubsection === 'assets' ? 'active' : ''}`}
+                                onClick={() => handleCanvaSubsectionChange('assets')}
+                                role="tab"
+                                aria-selected={currentCanvaSubsection === 'assets'}
+                                aria-controls="canva-assets-panel"
+                                id="canva-assets-tab"
+                            >
+                                Assets
+                            </button>
+                        </>
+                    )}
+                </div>
             </div>
         );
     };
@@ -778,39 +794,6 @@ const ContentManagementTab = ({
         );
     };
 
-    // Render Wolke subsections when on Wolke tab
-    const renderWolkeSubsections = () => {
-        if (currentTab !== 'wolke') return null;
-        
-        const wolkeSubsectionTabs = [
-            { key: 'overview', label: 'Übersicht' },
-            { key: 'manager', label: 'Share-Links' },
-            { key: 'upload', label: 'Upload' }
-        ];
-
-        return (
-            <div
-                className="groups-horizontal-navigation"
-                role="tablist"
-                aria-label="Wolke Navigation"
-                style={{ marginTop: 'var(--spacing-medium)' }}
-            >
-                {wolkeSubsectionTabs.map(tab => (
-                    <button
-                        key={tab.key}
-                        className={`groups-vertical-tab ${currentWolkeSubsection === tab.key ? 'active' : ''}`}
-                        onClick={() => handleWolkeSubsectionChange(tab.key)}
-                        role="tab"
-                        aria-selected={currentWolkeSubsection === tab.key}
-                        aria-controls={`wolke-${tab.key}-panel`}
-                        id={`wolke-${tab.key}-tab`}
-                    >
-                        {tab.label}
-                    </button>
-                ))}
-            </div>
-        );
-    };
 
     // =====================================================================
     // ADDITIONAL HANDLERS AND UTILITIES
@@ -945,6 +928,31 @@ const ContentManagementTab = ({
         );
     };
 
+    // Handler for creating alt text from template
+    const handleCreateAltText = useCallback((template) => {
+        try {
+            // Create unique session ID for cross-tab communication
+            const sessionId = `canva-alttext-${Date.now()}`;
+            
+            // Store template data in sessionStorage
+            sessionStorage.setItem(sessionId, JSON.stringify({
+                source: 'canvaTemplate',
+                template: template,
+                timestamp: Date.now()
+            }));
+            
+            // Open alt text generator in new tab with session reference
+            const url = new URL(window.location.origin + '/alttext');
+            url.searchParams.append('canvaTemplate', sessionId);
+            window.open(url.toString(), '_blank');
+            
+            console.log('[ContentManagementTab] Alt-Text creation initiated for template:', template.title);
+        } catch (error) {
+            console.error('[ContentManagementTab] Error creating alt text session:', error);
+            onErrorMessage('Fehler beim Öffnen des Alt-Text Generators');
+        }
+    }, [onErrorMessage]);
+
     // Action items for templates
     const getCanvaTemplateActionItems = useCallback((template) => {
         return canvaTemplateUtils.generateCanvaTemplateActionItems(template, {
@@ -956,9 +964,10 @@ const ContentManagementTab = ({
             onShareToGroup: handleShareToGroup,
             onOpenTemplateLinkModal: handleOpenTemplateLinkModal,
             onCopyToClipboard: copyToClipboard,
+            onCreateAltText: handleCreateAltText,
             onErrorMessage
         });
-    }, [savedCanvaDesigns, savingDesign, handleSaveCanvaTemplate, handleEditTemplate, handleDeleteTemplate, handleShareToGroup, handleOpenTemplateLinkModal, copyToClipboard, onErrorMessage]);
+    }, [savedCanvaDesigns, savingDesign, handleSaveCanvaTemplate, handleEditTemplate, handleDeleteTemplate, handleShareToGroup, handleOpenTemplateLinkModal, copyToClipboard, handleCreateAltText, onErrorMessage]);
 
     // Bulk delete handlers  
     const handleBulkDeleteTemplates = async (templateIds) => {
@@ -1179,17 +1188,19 @@ const ContentManagementTab = ({
                                     <HiRefresh className="icon" />
                                     Sync mit Canva
                                 </button>
-                                <button
-                                    type="button"
-                                    className="btn-primary size-s"
-                                    onClick={handleOpenAddTemplateModal}
-                                    tabIndex={tabIndex.addContentButton}
-                                    aria-label="Neue Canva Vorlage hinzufügen"
-                                    disabled={canvaLoading}
-                                >
-                                    <HiPlus className="icon" />
-                                    Canva Vorlage hinzufügen
-                                </button>
+                                {!isAuthenticated && (
+                                    <button
+                                        type="button"
+                                        className="btn-primary size-s"
+                                        onClick={handleOpenAddTemplateModal}
+                                        tabIndex={tabIndex.addContentButton}
+                                        aria-label="Neue Canva Vorlage hinzufügen"
+                                        disabled={canvaLoading}
+                                    >
+                                        <HiPlus className="icon" />
+                                        Canva Vorlage hinzufügen
+                                    </button>
+                                )}
                             </>
                         ) : (
                             <CanvaButton
@@ -1486,31 +1497,12 @@ const ContentManagementTab = ({
         </div>
     );
 
-    // Render Wolke Overview content
-    const renderWolkeOverviewContent = () => (
+    // Render Wolke content
+    const renderWolkeContent = () => (
         <div
             role="tabpanel"
-            id="wolke-overview-panel"
-            aria-labelledby="wolke-overview-tab"
-            tabIndex={-1}
-        >
-            <WolkeOverview
-                shareLinks={wolkeShareLinks}
-                wolkeLoading={wolkeLoading}
-                onAddShareLink={() => handleWolkeSubsectionChange('manager')}
-                onNavigateToManager={() => handleWolkeSubsectionChange('manager')}
-                onSuccessMessage={onSuccessMessage}
-                onErrorMessage={onErrorMessage}
-            />
-        </div>
-    );
-
-    // Render Wolke Share Links Manager content
-    const renderWolkeManagerContent = () => (
-        <div
-            role="tabpanel"
-            id="wolke-manager-panel"
-            aria-labelledby="wolke-manager-tab"
+            id="wolke-panel"
+            aria-labelledby="wolke-tab"
             tabIndex={-1}
         >
             <WolkeShareLinkManager
@@ -1519,26 +1511,8 @@ const ContentManagementTab = ({
                 onAddShareLink={handleAddWolkeShareLink}
                 onDeleteShareLink={handleDeleteWolkeShareLink}
                 onTestConnection={handleTestWolkeConnection}
-                onTestUpload={handleWolkeUpload}
+                onTestUpload={handleTestWolkeUpload}
                 onRefresh={fetchWolkeShareLinks}
-                onSuccessMessage={onSuccessMessage}
-                onErrorMessage={onErrorMessage}
-            />
-        </div>
-    );
-
-    // Render Wolke Upload Panel content
-    const renderWolkeUploadContent = () => (
-        <div
-            role="tabpanel"
-            id="wolke-upload-panel"
-            aria-labelledby="wolke-upload-tab"
-            tabIndex={-1}
-        >
-            <WolkeUploadPanel
-                shareLinks={wolkeShareLinks}
-                loading={wolkeLoading}
-                onUploadFile={handleWolkeUpload}
                 onSuccessMessage={onSuccessMessage}
                 onErrorMessage={onErrorMessage}
             />
@@ -1556,13 +1530,7 @@ const ContentManagementTab = ({
                 return renderCanvaAssetsContent();
             }
         } else if (currentTab === 'wolke') {
-            if (currentWolkeSubsection === 'overview') {
-                return renderWolkeOverviewContent();
-            } else if (currentWolkeSubsection === 'manager') {
-                return renderWolkeManagerContent();
-            } else if (currentWolkeSubsection === 'upload') {
-                return renderWolkeUploadContent();
-            }
+            return renderWolkeContent();
         } else if (currentTab === 'dokumente') {
             return currentContentSubsection === 'texte' ? renderTextsContent() : renderDocumentsContent();
         }
@@ -1590,7 +1558,6 @@ const ContentManagementTab = ({
                     <div className="auth-form">
                         {renderCanvaSubsections()}
                         {renderContentSubsections()}
-                        {renderWolkeSubsections()}
                         {renderMainContent()}
                     </div>
                 </div>

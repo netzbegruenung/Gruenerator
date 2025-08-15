@@ -6,7 +6,7 @@
  * to improve code organization and reusability.
  */
 
-import { HiOutlineEye, HiDownload, HiExternalLink, HiShare, HiClipboard, HiOutlineTrash, HiCheck } from 'react-icons/hi';
+import { HiOutlineEye, HiShare, HiOutlineTrash, HiCheck, HiPhotograph } from 'react-icons/hi';
 import * as canvaUtils from './canvaUtils';
 
 // =====================================================================
@@ -17,34 +17,23 @@ import * as canvaUtils from './canvaUtils';
  * Generates action items for Canva templates based on their properties
  * @param {Object} template - The template object
  * @param {Object} options - Options for action generation
- * @param {Set} options.savedCanvaDesigns - Set of saved design IDs
- * @param {string|null} options.savingDesign - Currently saving design ID
- * @param {Function} options.onSaveTemplate - Handler for saving templates
  * @param {Function} options.onEditTemplate - Handler for editing templates
  * @param {Function} options.onDeleteTemplate - Handler for deleting templates
  * @param {Function} options.onShareToGroup - Handler for sharing to groups
- * @param {Function} options.onOpenTemplateLinkModal - Handler for template link modal
- * @param {Function} options.onCopyToClipboard - Handler for copying links
+ * @param {Function} options.onCreateAltText - Handler for creating alt text
  * @param {Function} options.onErrorMessage - Error message handler
  * @returns {Array} Array of action items
  */
 export const generateCanvaTemplateActionItems = (template, options) => {
     const {
-        savedCanvaDesigns,
-        savingDesign,
-        onSaveTemplate,
         onEditTemplate,
         onDeleteTemplate,
         onShareToGroup,
-        onOpenTemplateLinkModal,
-        onCopyToClipboard,
+        onCreateAltText,
         onErrorMessage
     } = options;
 
     const isCanvaDesign = template.source === 'canva';
-    const isAlreadySaved = savedCanvaDesigns.has(template.canva_id);
-    const hasUserLink = template.has_user_link === true;
-    const isSaving = savingDesign === template.id;
 
     if (isCanvaDesign) {
         const actions = [
@@ -59,49 +48,28 @@ export const generateCanvaTemplateActionItems = (template, options) => {
                     }
                 },
                 primary: true
+            },
+            {
+                icon: HiPhotograph,
+                label: 'Alt-Text erstellen',
+                onClick: () => {
+                    if (onCreateAltText) {
+                        onCreateAltText(template);
+                    } else {
+                        onErrorMessage('Alt-Text Funktion ist nicht verfügbar.');
+                    }
+                },
+                show: true
             }
         ];
 
-        if (!isAlreadySaved && !hasUserLink) {
-            actions.push({
-                icon: HiDownload,
-                label: 'Als Vorlage speichern',
-                onClick: () => onSaveTemplate(template),
-                loading: isSaving,
-                show: true
-            });
-            
-            actions.push({
-                icon: HiExternalLink,
-                label: 'Template Link hinzufügen',
-                onClick: () => onOpenTemplateLinkModal(template),
-                show: true
-            });
-        } else if (isAlreadySaved || hasUserLink) {
-            actions.push({
-                icon: HiShare,
-                label: 'Mit Gruppe teilen',
-                onClick: () => onShareToGroup('database', template.id, template.title),
-                show: true
-            });
-        }
-
-        const availableLinks = getAvailableLinks(template);
-        if (availableLinks.length > 0) {
-            actions.push({
-                separator: true
-            });
-            actions.push({
-                icon: HiClipboard,
-                label: 'Links kopieren',
-                submenu: true,
-                submenuItems: availableLinks.map(link => ({
-                    ...link,
-                    onClick: (onClose) => onCopyToClipboard(link.url, link.label, onClose)
-                })),
-                show: true
-            });
-        }
+        // Always show share action
+        actions.push({
+            icon: HiShare,
+            label: 'Mit Gruppe teilen',
+            onClick: () => onShareToGroup('database', template.id, template.title),
+            show: true
+        });
 
         return actions;
     } else {
@@ -113,26 +81,24 @@ export const generateCanvaTemplateActionItems = (template, options) => {
                 primary: true
             },
             {
+                icon: HiPhotograph,
+                label: 'Alt-Text erstellen',
+                onClick: () => {
+                    if (onCreateAltText) {
+                        onCreateAltText(template);
+                    } else {
+                        onErrorMessage('Alt-Text Funktion ist nicht verfügbar.');
+                    }
+                },
+                show: true
+            },
+            {
                 icon: HiShare,
                 label: 'Mit Gruppe teilen',
                 onClick: () => onShareToGroup('database', template.id, template.title),
                 show: true
             }
         ];
-
-        const availableLinks = getAvailableLinks(template);
-        if (availableLinks.length > 0) {
-            localActions.push({
-                icon: HiClipboard,
-                label: 'Links kopieren',
-                submenu: true,
-                submenuItems: availableLinks.map(link => ({
-                    ...link,
-                    onClick: (onClose) => onCopyToClipboard(link.url, link.label, onClose)
-                })),
-                show: true
-            });
-        }
 
         localActions.push(
             {

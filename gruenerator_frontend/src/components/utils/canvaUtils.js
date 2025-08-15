@@ -578,16 +578,6 @@ export const generateOverviewQuickActions = (canvaConnected, handlers = {}) => {
             disabled: handlers.loading
         },
         {
-            id: 'create',
-            title: 'Neues Design erstellen',
-            description: 'Öffne Canva in einem neuen Tab zum Erstellen',
-            icon: 'HiPlus',
-            className: 'btn-primary',
-            onClick: () => window.open('https://www.canva.com/design', '_blank'),
-            visible: canvaConnected,
-            disabled: false
-        },
-        {
             id: 'sync',
             title: 'Designs synchronisieren',
             description: 'Lade die neuesten Designs von Canva',

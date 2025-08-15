@@ -1,0 +1,1038 @@
+/* ===================================================================
+   Wolke (Nextcloud) Integration Styles
+   =================================================================== */
+
+/* Main container */
+.wolke-share-manager-container {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-large);
+    width: 100%;
+}
+
+/* Add form section */
+.wolke-add-form-section {
+    padding: var(--spacing-large);
+
+}
+
+.wolke-add-form-section h4 {
+    color: var(--font-color-h);
+    margin: 0 0 var(--spacing-small) 0;
+    font-size: 1.125rem;
+    font-weight: 600;
+}
+
+.wolke-add-form-section p {
+    margin: 0 0 var(--spacing-medium) 0;
+    font-size: 0.875rem;
+}
+
+/* Form layout */
+.wolke-add-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-medium);
+}
+
+.wolke-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xsmall);
+}
+
+.wolke-form-group label {
+    font-weight: 500;
+    color: var(--font-color);
+    font-size: 0.875rem;
+}
+
+.wolke-form-group input {
+    padding: var(--spacing-small) var(--spacing-medium);
+    border: 1px solid var(--grey-300);
+    border-radius: 8px;
+    font-size: 0.875rem;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    background-color: var(--background-color-pure);
+}
+
+.wolke-form-group input:focus {
+    outline: none;
+    border-color: var(--secondary-600);
+    box-shadow: 0 0 0 3px var(--secondary-50);
+}
+
+.wolke-form-group input:disabled {
+    background-color: var(--grey-50);
+    color: var(--grey-500);
+    cursor: not-allowed;
+}
+
+.wolke-form-hint {
+    color: var(--grey-600);
+    font-size: 0.75rem;
+    line-height: 1.4;
+}
+
+/* Form actions */
+.wolke-form-actions {
+    display: flex;
+    justify-content: flex-start;
+    margin-top: var(--spacing-small);
+}
+
+.wolke-form-actions button {
+    padding: var(--spacing-small) var(--spacing-large);
+    border-radius: 8px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+/* Share links list */
+.wolke-share-links-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-medium);
+}
+
+.wolke-share-link-item {
+    background: var(--background-color-pure);
+    border: var(--border-subtle);
+    border-radius: 12px;
+    padding: var(--spacing-large);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: var(--spacing-medium);
+    transition: all 0.2s ease;
+}
+
+.wolke-share-link-item:hover {
+    box-shadow: var(--shadow-sm);
+    border-color: var(--grey-300);
+}
+
+/* Share link info */
+.wolke-share-link-info {
+    flex: 1;
+    min-width: 0; /* Allow flex item to shrink */
+}
+
+.wolke-share-link-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-medium);
+    margin-bottom: var(--spacing-small);
+}
+
+.wolke-share-link-title {
+    color: var(--font-color-h);
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    word-break: break-word;
+}
+
+.wolke-share-link-status {
+    flex-shrink: 0;
+}
+
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: var(--spacing-xxsmall) var(--spacing-small);
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+}
+
+.status-badge.active {
+    background-color: var(--primary-50);
+    color: var(--primary-700);
+    border: 1px solid var(--primary-200);
+}
+
+.status-badge.inactive {
+    background-color: var(--grey-100);
+    color: var(--grey-700);
+    border: 1px solid var(--grey-200);
+}
+
+.wolke-share-link-details {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xxsmall);
+}
+
+.wolke-share-link-url {
+    color: var(--secondary-600);
+    font-size: 0.875rem;
+    font-weight: 500;
+    word-break: break-all;
+}
+
+.wolke-share-link-date {
+    color: var(--grey-600);
+    font-size: 0.75rem;
+}
+
+/* Action buttons */
+.wolke-share-link-actions {
+    display: flex;
+    gap: var(--spacing-xsmall);
+    flex-shrink: 0;
+    align-items: flex-start;
+}
+
+.btn-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--grey-300);
+    border-radius: 8px;
+    background-color: var(--background-color-pure);
+    color: var(--grey-600);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    padding: 0;
+}
+
+.btn-action:hover:not(:disabled) {
+    background-color: var(--grey-50);
+    border-color: var(--grey-400);
+    color: var(--grey-800);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+}
+
+.btn-action:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: none;
+}
+
+.btn-action:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.btn-action.btn-danger {
+    border-color: var(--error-red);
+    color: var(--error-red);
+}
+
+.btn-action.btn-danger:hover:not(:disabled) {
+    background-color: #fef2f2;
+    border-color: var(--error-red);
+    color: var(--error-red);
+}
+
+/* Icon animations */
+.btn-action .spinning {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Loading state */
+.wolke-loading-state {
+    text-align: center;
+    padding: var(--spacing-xlarge);
+    color: var(--grey-600);
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .wolke-add-form-section {
+        padding: var(--spacing-medium);
+    }
+    
+    .wolke-share-link-item {
+        padding: var(--spacing-medium);
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .wolke-share-link-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-small);
+    }
+    
+    .wolke-share-link-actions {
+        justify-content: flex-end;
+        margin-top: var(--spacing-small);
+    }
+}
+
+@media (max-width: 480px) {
+    .wolke-share-manager-container {
+        gap: var(--spacing-medium);
+    }
+    
+    .wolke-add-form-section {
+        padding: var(--spacing-small);
+    }
+    
+    .wolke-share-link-item {
+        padding: var(--spacing-small);
+    }
+    
+    .btn-action {
+        width: 32px;
+        height: 32px;
+    }
+    
+    .wolke-form-actions {
+        margin-top: var(--spacing-medium);
+    }
+    
+    .wolke-form-actions button {
+        width: 100%;
+        padding: var(--spacing-medium) var(--spacing-large);
+    }
+}
+
+/* Focus styles for accessibility */
+.btn-action:focus-visible {
+    outline: 2px solid var(--secondary-600);
+    outline-offset: 2px;
+}
+
+.wolke-form-group input:focus-visible {
+    outline: none;
+    border-color: var(--secondary-600);
+    box-shadow: 0 0 0 3px var(--secondary-50);
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .wolke-share-link-item {
+        border-width: 2px;
+    }
+    
+    .btn-action {
+        border-width: 2px;
+    }
+    
+    .status-badge {
+        border-width: 2px;
+    }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    .wolke-share-link-item,
+    .btn-action,
+    .wolke-form-group input,
+    .wolke-add-form-section {
+        transition: none;
+    }
+    
+    .btn-action:hover:not(:disabled) {
+        transform: none;
+    }
+    
+    .spinning {
+        animation: none;
+    }
+}
+
+/* ===================================================================
+   Wolke Setup Tutorial Section Styles
+   =================================================================== */
+
+/* Tutorial section in setup modal */
+.wolke-setup-tutorial-section {
+    margin-bottom: var(--spacing-large);
+    padding: var(--spacing-medium);
+    background-color: var(--background-color-alt);
+    border-radius: 8px;
+    border-left: 3px solid var(--secondary-600);
+    text-align: center;
+}
+
+.wolke-setup-tutorial-button {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-small);
+    padding: var(--spacing-small) var(--spacing-large);
+    background-color: var(--secondary-600);
+    color: var(--white);
+    border: none;
+    border-radius: 8px;
+    font-weight: 500;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-bottom: var(--spacing-small);
+}
+
+.wolke-setup-tutorial-button:hover {
+    background-color: var(--secondary-700);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+}
+
+.wolke-setup-tutorial-description {
+    margin: 0;
+    color: var(--font-color);
+    font-size: 0.8rem;
+    line-height: 1.4;
+}
+
+/* ===================================================================
+   Wolke Setup Modal Styles
+   =================================================================== */
+
+/* Modal overlay */
+.wolke-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1001;
+    backdrop-filter: blur(5px);
+    padding: var(--spacing-medium);
+    box-sizing: border-box;
+}
+
+/* Modal container */
+.wolke-modal {
+    background-color: var(--background-color);
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+    max-width: 500px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    animation: wolkeModalFadeIn 0.3s ease-out;
+}
+
+@keyframes wolkeModalFadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95) translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+/* Modal header */
+.wolke-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-large);
+    border-bottom: var(--border-subtle);
+}
+
+.wolke-modal-title {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-small);
+    color: var(--font-color-h);
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+.wolke-modal-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: none;
+    color: var(--grey-600);
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.wolke-modal-close:hover {
+    background-color: var(--grey-100);
+    color: var(--grey-800);
+}
+
+/* Modal content */
+.wolke-modal-content {
+    padding: var(--spacing-large);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-medium);
+}
+
+.wolke-modal-description {
+    margin: 0 0 var(--spacing-medium) 0;
+    color: var(--font-color);
+    font-size: 0.875rem;
+    line-height: 1.5;
+}
+
+/* Form styles within modal */
+.wolke-modal .wolke-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xsmall);
+}
+
+.wolke-modal .wolke-form-group label {
+    font-weight: 500;
+    color: var(--font-color-h);
+    font-size: 0.875rem;
+}
+
+.wolke-modal .wolke-form-group input {
+    padding: var(--spacing-small) var(--spacing-medium);
+    border: 1px solid var(--grey-300);
+    border-radius: 8px;
+    font-size: 0.875rem;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    background-color: var(--background-color-pure);
+}
+
+.wolke-modal .wolke-form-group input:focus {
+    outline: none;
+    border-color: var(--secondary-600);
+    box-shadow: 0 0 0 3px var(--secondary-50);
+}
+
+.wolke-modal .wolke-form-group input:disabled {
+    background-color: var(--grey-50);
+    color: var(--grey-500);
+    cursor: not-allowed;
+}
+
+.wolke-modal .wolke-form-hint {
+    color: var(--grey-600);
+    font-size: 0.75rem;
+    line-height: 1.4;
+}
+
+/* Error message */
+.wolke-modal-error {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-small);
+    color: var(--error-red);
+    font-size: 0.875rem;
+    padding: var(--spacing-small) var(--spacing-medium);
+    background-color: #fef2f2;
+    border-radius: 6px;
+    border: 1px solid var(--error-red);
+}
+
+/* Modal actions */
+.wolke-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--spacing-medium);
+    padding: var(--spacing-large);
+    border-top: var(--border-subtle);
+}
+
+.wolke-modal-actions button {
+    padding: var(--spacing-small) var(--spacing-large);
+    border-radius: 8px;
+    font-weight: 500;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-small);
+    min-width: 100px;
+    justify-content: center;
+}
+
+.wolke-modal-actions .button-secondary {
+    background: none;
+    border: 1px solid var(--grey-300);
+    color: var(--font-color);
+}
+
+.wolke-modal-actions .button-secondary:hover:not(:disabled) {
+    background-color: var(--grey-50);
+    border-color: var(--grey-400);
+}
+
+.wolke-modal-actions .button-primary {
+    background-color: var(--secondary-600);
+    color: var(--white);
+    border: none;
+}
+
+.wolke-modal-actions .button-primary:hover:not(:disabled) {
+    background-color: var(--secondary-700);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+}
+
+.wolke-modal-actions button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Help section */
+.wolke-setup-help {
+    margin-top: var(--spacing-medium);
+    padding: var(--spacing-medium);
+    background-color: var(--background-color-alt);
+    border-radius: 8px;
+    border-left: 3px solid var(--secondary-600);
+}
+
+.wolke-setup-help h4 {
+    margin: 0 0 var(--spacing-small) 0;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--font-color-h);
+}
+
+.wolke-setup-help ol {
+    margin: 0;
+    padding-left: var(--spacing-medium);
+    font-size: 0.8rem;
+    color: var(--font-color);
+    line-height: 1.5;
+}
+
+.wolke-setup-help ol li {
+    margin-bottom: var(--spacing-xxsmall);
+}
+
+/* Spinner for loading states */
+.spinner-small {
+    width: 16px;
+    height: 16px;
+    border: 2px solid transparent;
+    border-top: 2px solid currentColor;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+/* Mobile responsive styles */
+@media (max-width: 768px) {
+    .wolke-modal-overlay {
+        padding: var(--spacing-small);
+    }
+    
+    .wolke-modal {
+        max-width: 100%;
+    }
+    
+    .wolke-modal-header,
+    .wolke-modal-content,
+    .wolke-modal-actions {
+        padding: var(--spacing-medium);
+    }
+    
+    .wolke-modal-actions {
+        flex-direction: column;
+        gap: var(--spacing-small);
+    }
+    
+    .wolke-modal-actions button {
+        width: 100%;
+    }
+    
+    .wolke-setup-help ol {
+        font-size: 0.75rem;
+    }
+}
+
+/* ===================================================================
+   Wolke Tutorial Modal Styles
+   =================================================================== */
+
+/* Tutorial overlay */
+.wolke-tutorial-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1002;
+    backdrop-filter: blur(5px);
+    padding: var(--spacing-medium);
+    box-sizing: border-box;
+}
+
+/* Tutorial container */
+.wolke-tutorial {
+    background-color: var(--background-color);
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    max-width: 800px;
+    width: 100%;
+    min-height: 600px;
+    max-height: 85vh;
+    overflow-y: auto;
+    animation: wolkeTutorialFadeIn 0.3s ease-out;
+    display: flex;
+    flex-direction: column;
+}
+
+@keyframes wolkeTutorialFadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95) translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+/* Tutorial header */
+.wolke-tutorial-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-small);
+    border-bottom: var(--border-subtle);
+    flex-shrink: 0;
+}
+
+.wolke-tutorial-title {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-small);
+    color: var(--font-color-h);
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+.wolke-tutorial-title .wolke-tutorial-dots {
+    margin-left: var(--spacing-medium);
+}
+
+.wolke-tutorial-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: none;
+    color: var(--grey-600);
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.wolke-tutorial-close:hover {
+    background-color: var(--grey-100);
+    color: var(--grey-800);
+}
+
+/* Removed old progress indicator styles */
+
+/* Tutorial content with side navigation */
+.wolke-tutorial-content {
+    display: flex;
+    align-items: stretch;
+    flex: 1;
+    overflow-y: auto;
+    position: relative;
+    min-height: 0;
+}
+
+/* Side navigation buttons */
+.wolke-tutorial-nav-side {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    background-color: var(--background-color-pure);
+    border: 1px solid var(--grey-300);
+    border-radius: 50%;
+    color: var(--font-color);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    z-index: 10;
+    box-shadow: var(--shadow-sm);
+}
+
+.wolke-tutorial-nav-side:hover:not(:disabled) {
+    background-color: var(--grey-50);
+    border-color: var(--grey-400);
+    transform: translateY(-50%) scale(1.05);
+}
+
+.wolke-tutorial-nav-side:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: translateY(-50%);
+}
+
+.wolke-tutorial-nav-left {
+    left: var(--spacing-small);
+}
+
+.wolke-tutorial-nav-right {
+    right: var(--spacing-small);
+}
+
+.wolke-tutorial-step {
+    flex: 1;
+    text-align: center;
+    padding: var(--spacing-medium) calc(60px + var(--spacing-large)) var(--spacing-medium) var(--spacing-large);
+    overflow-y: auto;
+}
+
+.wolke-tutorial-step-title {
+    color: var(--font-color-h);
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin: 0 0 var(--spacing-medium) 0;
+    padding: var(--spacing-medium) 0;
+}
+
+/* Screenshot area - fixed height to prevent modal jumping */
+.wolke-tutorial-screenshot {
+    margin-bottom: var(--spacing-medium);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    background-color: var(--grey-50);
+    height: 400px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.wolke-tutorial-screenshot img {
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    display: block;
+}
+
+.wolke-tutorial-screenshot-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-xxlarge);
+    color: var(--grey-500);
+    background-color: var(--grey-100);
+}
+
+.wolke-tutorial-screenshot-placeholder p {
+    margin: var(--spacing-small) 0 0 0;
+    font-size: 0.875rem;
+}
+
+/* Description - using default body styling */
+.wolke-tutorial-description {
+    margin: 0 0 var(--spacing-small) 0;
+    text-align: left;
+}
+
+/* Tip */
+.wolke-tutorial-tip {
+    background-color: var(--background-color-alt);
+    padding: var(--spacing-small);
+    border-radius: 6px;
+    border-left: 3px solid var(--secondary-600);
+    margin-bottom: var(--spacing-small);
+    text-align: left;
+    font-size: 0.8rem;
+    line-height: 1.4;
+}
+
+.wolke-tutorial-tip strong {
+    color: var(--font-color-h);
+}
+
+/* Action button */
+.wolke-tutorial-action {
+    margin-bottom: var(--spacing-small);
+}
+
+.wolke-tutorial-action-button {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-small);
+    padding: var(--spacing-small) var(--spacing-large);
+    background-color: var(--secondary-600);
+    color: var(--white);
+    border: none;
+    border-radius: 8px;
+    font-weight: 500;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+}
+
+.wolke-tutorial-action-button:hover {
+    background-color: var(--secondary-700);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+}
+
+/* Dots navigation - now in header */
+.wolke-tutorial-dots {
+    display: flex;
+    gap: var(--spacing-xsmall);
+}
+
+.wolke-tutorial-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    border: none;
+    background-color: var(--grey-300);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    padding: 0;
+}
+
+.wolke-tutorial-dot.active {
+    background-color: var(--secondary-600);
+    transform: scale(1.2);
+}
+
+.wolke-tutorial-dot:hover {
+    background-color: var(--secondary-500);
+}
+
+/* Mobile responsive styles */
+@media (max-width: 768px) {
+    .wolke-tutorial-overlay {
+        padding: var(--spacing-small);
+    }
+    
+    .wolke-tutorial {
+        max-width: 100%;
+        min-height: 500px;
+        max-height: 95vh;
+    }
+    
+    .wolke-tutorial-header {
+        padding: var(--spacing-small);
+    }
+    
+    .wolke-tutorial-step {
+        padding: var(--spacing-small) calc(50px + var(--spacing-medium)) var(--spacing-small) var(--spacing-medium);
+    }
+    
+    .wolke-tutorial-nav-side {
+        width: 36px;
+        height: 36px;
+    }
+    
+    .wolke-tutorial-nav-left {
+        left: var(--spacing-xsmall);
+    }
+    
+    .wolke-tutorial-nav-right {
+        right: var(--spacing-xsmall);
+    }
+    
+    .wolke-tutorial-step-title {
+        font-size: 1rem;
+    }
+    
+    .wolke-tutorial-description {
+        font-size: 0.85rem;
+    }
+    
+    .wolke-tutorial-title .wolke-tutorial-dots {
+        margin-left: var(--spacing-small);
+    }
+    
+    .wolke-tutorial-screenshot {
+        height: 300px;
+    }
+}
+
+@media (max-width: 480px) {
+    .wolke-tutorial {
+        min-height: 450px;
+    }
+    
+    .wolke-tutorial-header {
+        padding: var(--spacing-small);
+    }
+    
+    .wolke-tutorial-step {
+        padding: var(--spacing-xsmall) calc(40px + var(--spacing-small)) var(--spacing-xsmall) var(--spacing-small);
+    }
+    
+    .wolke-tutorial-nav-side {
+        width: 32px;
+        height: 32px;
+    }
+    
+    .wolke-tutorial-screenshot-placeholder {
+        padding: var(--spacing-medium);
+    }
+    
+    .wolke-tutorial-tip {
+        padding: var(--spacing-xsmall);
+        font-size: 0.75rem;
+    }
+    
+    .wolke-tutorial-title {
+        font-size: 1rem;
+    }
+    
+    .wolke-tutorial-title .wolke-tutorial-dots {
+        margin-left: var(--spacing-xsmall);
+    }
+    
+    .wolke-tutorial-screenshot {
+        height: 250px;
+    }
+}
+
+/* Reduced motion for tutorial */
+@media (prefers-reduced-motion: reduce) {
+    .wolke-tutorial,
+    .wolke-tutorial-nav-side,
+    .wolke-tutorial-dot,
+    .wolke-tutorial-action-button {
+        transition: none;
+    }
+    
+    .wolke-tutorial-action-button:hover,
+    .wolke-tutorial-nav-side:hover:not(:disabled) {
+        transform: translateY(-50%);
+    }
+    
+    .wolke-tutorial-dot.active {
+        transform: none;
+    }
+}

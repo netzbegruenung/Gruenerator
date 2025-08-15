@@ -229,6 +229,7 @@ ${TITLE_GENERATION_INSTRUCTION}`;
     // Process AI request
     const result = await req.app.locals.aiWorkerPool.processRequest({
       type: 'social',
+      usePrivacyMode: usePrivacyMode || false,
       ...payload
     }, req);
 
