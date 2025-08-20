@@ -1,7 +1,7 @@
 const path = require('path');
 const fs = require('fs').promises;
 const fsSync = require('fs');
-const { nodewhisper } = require('nodejs-whisper');
+// const { nodewhisper } = require('nodejs-whisper'); // Commented out - module not installed
 const { transcribeWithOpenAI, formatSegmentsToText } = require('./openAIService');
 const { extractAudio } = require('./videoUploadService');
 // UNUSED: Short subtitle generator service commented out - only manual mode is used
@@ -118,7 +118,8 @@ async function transcribeVideoLocal(videoPath, language = 'de') {
     console.log('Whisper-Konfiguration:', whisperConfig.whisperOptions);
     
     // Nutze die optimierte Audiodatei statt Video
-    const result = await nodewhisper(audioPath, whisperConfig);
+    // const result = await nodewhisper(audioPath, whisperConfig); // Commented out - module not installed
+    throw new Error('Local whisper transcription disabled - nodejs-whisper module not installed');
     const transcription = typeof result === 'string' ? result : result.text;
     
     // Cleanup Audio-Datei nach Transkription

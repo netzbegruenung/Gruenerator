@@ -7,7 +7,7 @@
  */
 
 import { supabaseService } from '../utils/supabaseClient.js';
-import { embeddingService } from './embeddingService.js';
+import { fastEmbedService } from './FastEmbedService.js';
 import { InputValidator, ValidationError } from '../utils/inputValidation.js';
 import { createCache } from '../utils/lruCache.js';
 import { SearchError, DatabaseError, createErrorHandler } from '../utils/errorHandling.js';
@@ -133,7 +133,7 @@ class BaseSearchService {
    */
   async generateQueryEmbedding(query, options = {}) {
     // Can be overridden by subclasses for smart expansion
-    return await embeddingService.generateQueryEmbedding(query);
+    return await fastEmbedService.generateQueryEmbedding(query);
   }
 
   /**

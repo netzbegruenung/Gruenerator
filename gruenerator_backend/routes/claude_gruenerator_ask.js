@@ -1,7 +1,6 @@
 import express from 'express';
 import authMiddlewareModule from '../middleware/authMiddleware.js';
 import { vectorSearchService } from '../services/vectorSearchService.js';
-import { multiStageRetrieval } from '../services/multiStageRetrieval.js';
 import passport from '../config/passportSetup.mjs';
 import { 
   MARKDOWN_FORMATTING_INSTRUCTIONS, 
@@ -223,29 +222,20 @@ async function executeSearchTool(toolInput, userId, groupId) {
     const queryComplexity = assessQueryComplexity(query);
     
     if (queryComplexity.isComplex && search_mode === 'vector') {
-      console.log(`[claude_gruenerator_ask] Using MultiStageRetrieval for complex query (${queryComplexity.wordCount} words, ${queryComplexity.concepts.length} concepts)`);
+      console.log(`[claude_gruenerator_ask] Using enhanced vector search for complex query (${queryComplexity.wordCount} words, ${queryComplexity.concepts.length} concepts)`);
       
       try {
-        searchResults = await multiStageRetrieval.search(query, userId, {
+        searchResults = await vectorSearchService.search({
+          query,
+          user_id: userId,
           limit: 5,
-          groupId: groupId || null,
-          enableStages: {
-            approximateSearch: true,
-            semanticFilter: true,
-            contextualRerank: true,
-            diversityInjection: queryComplexity.needsDiversity
-          }
+          group_id: groupId || null,
+          mode: 'vector'
         });
         
-        // Convert MultiStageRetrieval format to expected format
-        if (searchResults.success) {
-          searchResults = {
-            results: searchResults.results,
-            success: true
-          };
-        }
+        // Vector search results are already in the expected format
       } catch (multiStageError) {
-        console.warn(`[claude_gruenerator_ask] MultiStageRetrieval failed, falling back to standard search:`, multiStageError.message);
+        console.warn(`[claude_gruenerator_ask] Enhanced vector search failed, falling back to standard search:`, multiStageError.message);
         searchResults = await vectorSearchService.search({
           query: query,
           user_id: userId,

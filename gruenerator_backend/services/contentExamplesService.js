@@ -1,231 +1,185 @@
 /**
- * Universal Content Examples Service
+ * Simplified Content Examples Service
  * 
- * Provides relevant examples for any content type (Instagram, Facebook, Twitter, Anträge, etc.)
- * using vector similarity search and intelligent caching.
+ * Provides relevant examples for any content type using only Qdrant vector search.
+ * No Supabase dependencies, no complex AI agents - just direct vector similarity.
  */
 
-import { supabaseService } from '../utils/supabaseClient.js';
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-const aiSearchAgent = require('./aiSearchAgent.js');
+import { getQdrantInstance } from '../database/services/QdrantService.js';
+import { fastEmbedService } from './FastEmbedService.js';
 
 class ContentExamplesService {
   constructor() {
     this.defaultLimit = 3;
-
+    this.qdrant = getQdrantInstance();
     
-    // Content type mappings for better search
-    this.contentTypeAliases = {
-      'social_media': ['instagram', 'facebook', 'twitter', 'linkedin'],
-      'political': ['antrag', 'rede', 'pressemitteilung'],
-      'campaign': ['wahlkampf', 'flyer', 'plakat']
-    };
-    
-    // Default filters for different content types (optimized for better recall)
-    this.defaultFilters = {
-      'instagram': { platform: 'instagram', min_similarity: 0.15 },
-      'facebook': { platform: 'facebook', min_similarity: 0.15 },
-      'twitter': { platform: 'twitter', min_similarity: 0.15 },
-      'antrag': { type: 'antrag', min_similarity: 0.20 },
-      'rede': { type: 'rede', min_similarity: 0.20 },
-      'pressemitteilung': { type: 'pressemitteilung', min_similarity: 0.15 }
+    // Default similarity thresholds for different content types
+    // Increased thresholds for better result diversity following Qdrant best practices
+    this.defaultThresholds = {
+      'instagram': 0.25,        // Increased from 0.15 for more diverse results
+      'facebook': 0.25,         // Increased from 0.15 for more diverse results
+      'twitter': 0.20,          // Increased from 0.15
+      'antrag': 0.20,           // Kept same - good for formal documents
+      'rede': 0.20,             // Kept same - good for formal documents
+      'pressemitteilung': 0.20, // Increased from 0.15
+      'default': 0.25           // Kept same
     };
   }
 
   /**
-   * Get relevant examples for a specific content type based on user input
-   * OPTIMIZED: Now uses autonomous AI search as primary method
+   * Get relevant examples for a specific content type
    * @param {string} contentType - Type of content ('instagram', 'facebook', 'antrag', etc.)
    * @param {string} userQuery - User's input/topic for finding similar examples
    * @param {Object} options - Additional options
-   * @param {Object} req - Express request object (for AI worker pool access)
    * @returns {Promise<Array>} Array of relevant examples
    */
-  async getExamples(contentType, userQuery = '', options = {}, req = null) {
+  async getExamples(contentType, userQuery = '', options = {}) {
     const {
       limit = this.defaultLimit,
-      filters = {},
+      threshold = this.defaultThresholds[contentType] || this.defaultThresholds.default,
       fallbackToRandom = true,
-      includeMetadata = true
+      categories = null,
+      tags = null
     } = options;
 
     try {
       console.log(`[ContentExamplesService] Fetching ${limit} ${contentType} examples`);
 
-
-
       let examples = [];
 
-      // STEP 1: Try autonomous AI search (if we have a query)
+      // If we have a query, do semantic search
       if (userQuery && userQuery.trim().length > 0) {
-        
-        try {
-          // Use clean user query for better semantic matching
-          const searchQuery = userQuery.trim();
-          const autonomousResult = await aiSearchAgent.searchDatabase(searchQuery, {
-            contentType, // Pass content type as separate parameter
-            maxResults: limit,
-            returnFormat: 'ids',
-            useCache: true
-          }, req);
-
-          if (autonomousResult.success && autonomousResult.elementIds?.length > 0) {
-            const fullContent = await this.fetchContentByIds(autonomousResult.elementIds);
-            if (fullContent.length > 0) {
-              examples = fullContent;
-            }
-          }
-        } catch (aiError) {
-          console.warn(`[ContentExamplesService] AI search failed:`, aiError.message);
-          // Fallback to legacy method if autonomous search fails
-          examples = await this.findSimilarExamplesLegacy(contentType, userQuery, filters, limit);
-        }
+        examples = await this.searchExamples(contentType, userQuery.trim(), {
+          limit,
+          threshold,
+          categories,
+          tags
+        });
       }
 
-      // STEP 2: Fallback to random examples if no results or no query
+      // Fallback to random examples if no results or no query
       if (examples.length === 0 && fallbackToRandom) {
-        examples = await this.getRandomExamples(contentType, limit, filters);
+        examples = await this.getRandomExamples(contentType, limit, { categories, tags });
       }
 
-      // Format examples for consumption
-      const formattedExamples = this.formatExamples(examples, includeMetadata);
-      
-      return formattedExamples;
+      console.log(`[ContentExamplesService] Returning ${examples.length} examples`);
+      return examples;
 
     } catch (error) {
       console.error(`[ContentExamplesService] Error fetching examples for ${contentType}:`, error);
-      
-      // Return empty array on error, don't break the main flow
       return [];
     }
   }
 
   /**
-   * LEGACY: Find examples using AI-enhanced vector similarity search
-   * @deprecated Use autonomous AI search instead. Kept as fallback.
-   * @private
+   * Search examples using vector similarity
+   * @param {string} contentType - Type of content to search
+   * @param {string} query - Search query
+   * @param {Object} options - Search options
+   * @returns {Promise<Array>} Array of matching examples
    */
-  async findSimilarExamplesLegacy(contentType, userQuery, filters = {}, limit = 3) {
+  async searchExamples(contentType, query, options = {}) {
     try {
-      const threshold = filters.min_similarity || this.defaultFilters[contentType]?.min_similarity || 0.3;
-      
-      // Stage 1: Try direct search first
-      console.log(`[ContentExamplesService] Stage 1: Direct search for "${userQuery}"`);
-      let searchResults = await vectorSearchService.searchDatabaseExamples(
-        userQuery,
-        contentType,
-        limit,
-        threshold
-      );
-
-      // Stage 2: If results are poor, use AI-powered query enhancement
-      const needsExpansion = !searchResults.success || 
-                           !searchResults.results || 
-                           searchResults.results.length === 0 ||
-                           (searchResults.results.length > 0 && searchResults.results[0].similarity_score < 0.4);
-
-      if (needsExpansion) {
-        console.log(`[ContentExamplesService] Stage 2: Using AI-powered query enhancement (direct search yielded ${searchResults.results?.length || 0} results)`);
-        
-        try {
-          // Use AI search agent for intelligent query enhancement
-          const enhancement = await aiSearchAgent.enhanceQuery(userQuery, {
-            contentType,
-            limit,
-            includeContext: true
-          });
-          
-          if (enhancement.success && enhancement.enhancedQueries && enhancement.enhancedQueries.length > 0) {
-            // Try enhanced queries in order
-            for (let i = 0; i < enhancement.enhancedQueries.length && searchResults.results?.length === 0; i++) {
-              const enhancedQuery = enhancement.enhancedQueries[i];
-              console.log(`[ContentExamplesService] Trying AI-enhanced query ${i + 1}: "${enhancedQuery}"`);
-              
-              const enhancedResults = await vectorSearchService.searchDatabaseExamples(
-                enhancedQuery,
-                contentType,
-                limit,
-                Math.max(0.25, threshold - 0.05) // Slightly lower threshold for enhanced queries
-              );
-              
-              if (enhancedResults.success && enhancedResults.results && enhancedResults.results.length > 0) {
-                console.log(`[ContentExamplesService] AI enhancement successful! Found ${enhancedResults.results.length} results with confidence: ${enhancement.confidence}`);
-                searchResults = enhancedResults;
-                break;
-              }
-            }
-          }
-        } catch (enhancementError) {
-          console.warn(`[ContentExamplesService] AI enhancement failed:`, enhancementError.message);
-          // No hardcoded fallback - rely entirely on AI agent or direct search
-        }
-      }
-
-      if (!searchResults.success || !searchResults.results || searchResults.results.length === 0) {
-        console.log(`[ContentExamplesService] No similar examples found after both direct and AI-enhanced search`);
+      // Ensure services are ready
+      await fastEmbedService.init();
+      if (!fastEmbedService.isReady()) {
+        console.warn('[ContentExamplesService] FastEmbed not ready');
         return [];
       }
 
-      console.log(`[ContentExamplesService] Final results: ${searchResults.results.length} examples with scores:`, 
-        searchResults.results.map(r => ({ title: r.title?.substring(0, 40) + '...', score: r.similarity_score?.toFixed(3) })));
+      if (!this.qdrant.isAvailable()) {
+        console.warn('[ContentExamplesService] Qdrant not available');
+        return [];
+      }
 
-      // Convert vector search results to full content before returning
-      const vectorResultIds = searchResults.results.map(r => r.id);
-      const fullContentResults = await this.fetchContentByIds(vectorResultIds);
-      
-      // Merge similarity scores back into full content results
-      const mergedResults = fullContentResults.map(content => {
-        const vectorResult = searchResults.results.find(v => v.id === content.id);
-        return {
-          ...content,
-          similarity_score: vectorResult?.similarity_score || null,
-          relevance_explanation: vectorResult?.relevance_explanation || null
-        };
-      });
-      
-      return mergedResults;
+      const {
+        limit = this.defaultLimit,
+        threshold = 0.25,
+        categories = null,
+        tags = null
+      } = options;
+
+      console.log(`[ContentExamplesService] Searching for "${query}" in ${contentType}`);
+
+      // Generate embedding for search query
+      const queryEmbedding = await fastEmbedService.generateEmbedding(query);
+
+      // Route to appropriate collection based on content type
+      let searchResult;
+      if (contentType === 'facebook' || contentType === 'instagram') {
+        // Search social media collection with platform filtering
+        searchResult = await this.qdrant.searchSocialMediaExamples(queryEmbedding, {
+          platform: contentType,
+          limit,
+          threshold
+        });
+      } else {
+        // Search regular content examples collection
+        searchResult = await this.qdrant.searchContentExamples(queryEmbedding, {
+          contentType,
+          limit,
+          threshold,
+          categories,
+          tags
+        });
+      }
+
+      if (!searchResult.success || !searchResult.results) {
+        console.log(`[ContentExamplesService] Search returned no results`);
+        return [];
+      }
+
+      console.log(`[ContentExamplesService] Found ${searchResult.results.length} similar examples`);
+      return searchResult.results;
 
     } catch (error) {
-      console.error(`[ContentExamplesService] AI-enhanced vector search error:`, error);
+      console.error(`[ContentExamplesService] Search error:`, error);
       return [];
     }
   }
 
   /**
-   * Get random examples as fallback
-   * @private  
+   * Get random examples from Qdrant
+   * @param {string} contentType - Type of content
+   * @param {number} limit - Number of examples to return
+   * @param {Object} filters - Additional filters
+   * @returns {Promise<Array>} Array of random examples
    */
   async getRandomExamples(contentType, limit = 3, filters = {}) {
     try {
-      let query = supabaseService
-        .from('database')
-        .select('id, title, description, content_data, metadata, categories, tags, thumbnail_url, external_url, type, created_at')
-        .eq('is_example', true)
-        .eq('status', 'published')
-        .eq('type', contentType)
-        .limit(limit * 3); // Get more to randomize
-
-      // Add additional filters
-      Object.entries(filters).forEach(([key, value]) => {
-        if (key !== 'min_similarity') {
-          query = query.eq(key, value);
-        }
-      });
-
-      const { data: examples, error } = await query;
-
-      if (error) {
-        console.error(`[ContentExamplesService] Error fetching random examples:`, error);
+      if (!this.qdrant.isAvailable()) {
+        console.warn('[ContentExamplesService] Qdrant not available for random examples');
         return [];
       }
 
-      // Shuffle and return requested limit
-      if (examples && examples.length > 0) {
-        const shuffled = examples.sort(() => Math.random() - 0.5);
-        return shuffled.slice(0, limit);
+      console.log(`[ContentExamplesService] Getting ${limit} random ${contentType} examples`);
+
+      const { categories = null, tags = null } = filters;
+
+      // Route to appropriate collection based on content type
+      let result;
+      if (contentType === 'facebook' || contentType === 'instagram') {
+        // Get random social media examples with platform filtering
+        result = await this.qdrant.getRandomSocialMediaExamples({
+          platform: contentType,
+          limit
+        });
+      } else {
+        // Get random from regular content examples collection
+        result = await this.qdrant.getRandomContentExamples({
+          contentType,
+          limit,
+          categories,
+          tags
+        });
       }
 
+      if (result.success && result.results.length > 0) {
+        console.log(`[ContentExamplesService] Found ${result.results.length} random examples`);
+        return result.results;
+      }
+
+      console.log(`[ContentExamplesService] No random examples available`);
       return [];
 
     } catch (error) {
@@ -235,302 +189,225 @@ class ContentExamplesService {
   }
 
   /**
-   * Format examples for consumption by AI prompts
-   * @private
+   * Store a new content example in Qdrant
+   * @param {Object} exampleData - Example data to store
+   * @returns {Promise<Object>} Result of storage operation
    */
-  formatExamples(examples, includeMetadata = true) {
-    if (!examples || examples.length === 0) {
-      return [];
-    }
+  async storeExample(exampleData) {
+    try {
+      // Ensure services are ready
+      await fastEmbedService.init();
+      if (!fastEmbedService.isReady() || !this.qdrant.isAvailable()) {
+        console.warn('[ContentExamplesService] Services not ready for storing');
+        return { success: false, error: 'Vector services not available' };
+      }
 
-    return examples.map((example, index) => {
-      // Enhanced content extraction with better logging
-      let content = '';
-      let contentSource = 'none';
-      
-      if (example.content_data?.content) {
-        content = example.content_data.content;
-        contentSource = 'content_data.content';
-      } else if (example.content_data?.caption) {
-        content = example.content_data.caption;
-        contentSource = 'content_data.caption';
-      } else if (example.description) {
-        content = example.description;
-        contentSource = 'description';
-      } else if (example.content_data?.text) {
-        content = example.content_data.text;
-        contentSource = 'content_data.text';
-      } else if (typeof example.content_data === 'string') {
-        content = example.content_data;
-        contentSource = 'content_data (string)';
+      // Extract content for embedding
+      let contentText = '';
+      if (exampleData.content_data?.content) {
+        contentText = exampleData.content_data.content;
+      } else if (exampleData.content_data?.caption) {
+        contentText = exampleData.content_data.caption;
+      } else if (exampleData.description) {
+        contentText = exampleData.description;
       } else {
-        // This should never happen if all data sources provide complete data
-        console.warn(`[ContentExamplesService] No content found for example ${example.id}: ${example.title}`);
-        content = `[Content not available - ${example.title}]`;
-        contentSource = 'fallback';
+        contentText = exampleData.title;
       }
-      
-      const formatted = {
-        id: example.id,
-        title: example.title,
-        content: content,
-        type: example.type,
-        similarity_score: example.similarity_score || null,
-        relevance_explanation: example.relevance_explanation || null
+
+      // Generate embedding
+      const embeddingText = `${exampleData.title}\n\n${contentText}`.trim();
+      const embedding = await fastEmbedService.generateEmbedding(embeddingText);
+
+      // Store in Qdrant
+      const metadata = {
+        type: exampleData.type,
+        title: exampleData.title,
+        content: contentText,
+        description: exampleData.description,
+        content_data: exampleData.content_data,
+        categories: exampleData.categories || [],
+        tags: exampleData.tags || [],
+        metadata: exampleData.metadata || {},
+        created_at: exampleData.created_at || new Date().toISOString()
       };
 
-      // Add relevance label at root level if similarity score exists
-      if (example.similarity_score) {
-        formatted.relevance = this.getRelevanceLabel(example.similarity_score);
-      }
+      await this.qdrant.indexContentExample(exampleData.id, embedding, metadata);
 
-      // Simplified metadata from dedicated fields only
-      if (includeMetadata) {
-        formatted.metadata = {
-          categories: example.categories || [],
-          tags: example.tags || []
-        };
-      }
-
-      return formatted;
-    });
-  }
-
-  /**
-   * Get human-readable relevance label based on similarity score
-   * @private
-   */
-  getRelevanceLabel(score) {
-    if (score >= 0.8) return 'very_high';
-    if (score >= 0.6) return 'high';
-    if (score >= 0.4) return 'medium';
-    if (score >= 0.3) return 'low';
-    return 'very_low';
-  }
-
-
-
-  /**
-   * DEPRECATED: Get examples using natural language requests
-   * @deprecated Use getExamplesWithAutonomousSearch() instead - it handles natural language natively
-   * @param {string} naturalLanguageQuery - Full natural language request
-   * @param {Object} options - Additional options
-   * @returns {Promise<Array>} Array of relevant examples
-   */
-  async getExamplesWithNaturalLanguage(naturalLanguageQuery, options = {}) {
-    console.warn('[ContentExamplesService] getExamplesWithNaturalLanguage is deprecated. Use getExamplesWithAutonomousSearch instead.');
-    
-    // Redirect to autonomous search for better results
-    const result = await this.getExamplesWithAutonomousSearch(naturalLanguageQuery, {
-      ...options,
-      fetchFullContent: true
-    });
-    
-    return result.results || [];
-  }
-
-  /**
-   * Get examples using autonomous AI search - returns specific element IDs with reasoning
-   * @param {string} naturalLanguageQuery - Full natural language request
-   * @param {Object} options - Additional options
-   * @param {Object} req - Express request object (for AI worker pool access)
-   * @returns {Promise<Object>} Search result with element IDs and reasoning
-   */
-  async getExamplesWithAutonomousSearch(naturalLanguageQuery, options = {}, req = null) {
-    const {
-      maxResults = this.defaultLimit,
-      includeReasoning = true,
-      fetchFullContent = true,
-      useCache = true
-    } = options;
-
-    try {
-      console.log(`[ContentExamplesService] Autonomous search request: "${naturalLanguageQuery}"`);
-
-      // Use AI agent for autonomous database search
-      const searchResult = await aiSearchAgent.searchDatabase(naturalLanguageQuery, {
-        maxResults,
-        includeReasoning,
-        returnFormat: 'ids',
-        useCache
-      }, req);
-
-      if (!searchResult.success || !searchResult.elementIds || searchResult.elementIds.length === 0) {
-        console.log(`[ContentExamplesService] Autonomous search failed or returned no results, using fallback`);
-        
-        // Fallback to existing enhanced search
-        const fallbackResult = await this.getExamplesWithNaturalLanguage(naturalLanguageQuery, {
-          ...options,
-          limit: maxResults
-        });
-        
-        return {
-          success: true,
-          results: fallbackResult,
-          searchType: 'fallback_enhanced',
-          reasoning: 'Autonomous search failed, used enhanced search fallback',
-          confidence: 0.6
-        };
-      }
-
-      // If we only need IDs, return them
-      if (!fetchFullContent) {
-        return {
-          success: true,
-          elementIds: searchResult.elementIds,
-          reasoning: searchResult.reasoning,
-          confidence: searchResult.confidence,
-          searchType: searchResult.searchStrategy,
-          metadata: searchResult.metadata
-        };
-      }
-
-      // Fetch full content for the selected IDs
-      const fullContent = await this.fetchContentByIds(searchResult.elementIds);
-      
-      console.log(`[ContentExamplesService] Autonomous search completed: ${fullContent.length} examples retrieved`);
-      
-      return {
-        success: true,
-        results: fullContent,
-        elementIds: searchResult.elementIds,
-        reasoning: searchResult.reasoning,
-        confidence: searchResult.confidence,
-        searchType: searchResult.searchStrategy,
-        metadata: {
-          ...searchResult.metadata,
-          contentFetched: fullContent.length,
-          idsRequested: searchResult.elementIds.length
-        }
-      };
+      console.log(`[ContentExamplesService] Stored example ${exampleData.id} in Qdrant`);
+      return { success: true };
 
     } catch (error) {
-      console.error('[ContentExamplesService] Autonomous search error:', error);
-      
-      // Ultimate fallback to traditional search
-      const fallbackResults = await this.getExamplesWithNaturalLanguage(naturalLanguageQuery, options);
-      
-      return {
-        success: false,
-        error: error.message,
-        results: fallbackResults,
-        searchType: 'error_fallback',
-        reasoning: `Autonomous search failed: ${error.message}. Used traditional search as fallback.`,
-        confidence: 0.4
-      };
+      console.error('[ContentExamplesService] Error storing example:', error);
+      return { success: false, error: error.message };
     }
   }
 
   /**
-   * Fetch full content for specific database element IDs
-   * @private
-   */
-  async fetchContentByIds(elementIds) {
-    if (!elementIds || !Array.isArray(elementIds) || elementIds.length === 0) {
-      return [];
-    }
-
-    try {
-      console.log(`[ContentExamplesService] Fetching full content for ${elementIds.length} elements`);
-
-      // Query database table for these specific IDs
-      const { data: elements, error } = await supabaseService
-        .from('database')
-        .select('id, title, description, content_data, metadata, categories, tags, thumbnail_url, external_url, type, created_at')
-        .in('id', elementIds)
-        .eq('is_example', true)
-        .eq('status', 'published');
-
-      if (error) {
-        console.error('[ContentExamplesService] Error fetching content by IDs:', error);
-        return [];
-      }
-
-      // Sort results according to original order (return RAW objects, not formatted)
-      const orderedResults = [];
-      for (const elementId of elementIds) {
-        const element = elements.find(el => el.id === elementId);
-        if (element) {
-          orderedResults.push(element); // Return raw database object
-        }
-      }
-
-      console.log(`[ContentExamplesService] Successfully fetched ${orderedResults.length}/${elementIds.length} elements`);
-      return orderedResults;
-
-    } catch (error) {
-      console.error('[ContentExamplesService] fetchContentByIds error:', error);
-      return [];
-    }
-  }
-
-  /**
-   * Get available content types
+   * Get available content types from Qdrant
+   * @returns {Promise<Array>} List of available content types
    */
   async getAvailableContentTypes() {
     try {
-      const { data: types, error } = await supabaseService
-        .from('database')
-        .select('type')
-        .eq('is_example', true)
-        .eq('status', 'published');
-
-      if (error) {
-        console.error('[ContentExamplesService] Error fetching content types:', error);
+      if (!this.qdrant.isAvailable()) {
+        console.warn('[ContentExamplesService] Qdrant not available for content types');
         return [];
       }
 
-      // Get unique types
-      const uniqueTypes = [...new Set(types.map(t => t.type))];
-      return uniqueTypes.sort();
+      // Get collection stats to see what content types exist
+      const stats = await this.qdrant.getCollectionStats('content_examples');
+      
+      if (stats.error) {
+        console.error('[ContentExamplesService] Error getting collection stats:', stats.error);
+        return [];
+      }
+
+      // For now, return the common types we know about
+      // In a real implementation, you'd query the collection for unique types
+      return ['instagram', 'facebook', 'twitter', 'antrag', 'rede', 'pressemitteilung'];
 
     } catch (error) {
-      console.error('[ContentExamplesService] Error:', error);
+      console.error('[ContentExamplesService] Error getting content types:', error);
       return [];
     }
   }
 
-
   /**
-   * Get statistics about examples
+   * Get statistics about examples in Qdrant
+   * @returns {Promise<Object>} Statistics object
    */
   async getExamplesStats() {
     try {
-      const { data: stats, error } = await supabaseService
-        .rpc('get_examples_stats');
-
-      if (error) {
-        console.warn('[ContentExamplesService] Stats query failed, using fallback');
-        
-        // Fallback query
-        const { data: fallbackStats, error: fallbackError } = await supabaseService
-          .from('database')
-          .select('type, content_data')
-          .eq('is_example', true)
-          .eq('status', 'published');
-
-        if (fallbackError) return {};
-
-        // Aggregate stats manually
-        const typeStats = {};
-        fallbackStats.forEach(example => {
-          if (!typeStats[example.type]) {
-            typeStats[example.type] = { count: 0, topics: new Set() };
-          }
-          typeStats[example.type].count++;
-          if (example.content_data?.topic) {
-            typeStats[example.type].topics.add(example.content_data.topic);
-          }
-        });
-
-        return typeStats;
+      if (!this.qdrant.isAvailable()) {
+        console.warn('[ContentExamplesService] Qdrant not available for stats');
+        return {};
       }
 
-      return stats;
+      const contentStats = await this.qdrant.getCollectionStats('content_examples');
+      const socialMediaStats = await this.qdrant.getCollectionStats('social_media_examples');
+      
+      return {
+        content_examples: {
+          total_examples: contentStats.points_count || 0,
+          vectors_count: contentStats.vectors_count || 0,
+          collection_status: contentStats.status || 'unknown'
+        },
+        social_media_examples: {
+          total_examples: socialMediaStats.points_count || 0,
+          vectors_count: socialMediaStats.vectors_count || 0,
+          collection_status: socialMediaStats.status || 'unknown'
+        },
+        total_all_examples: (contentStats.points_count || 0) + (socialMediaStats.points_count || 0)
+      };
 
     } catch (error) {
       console.error('[ContentExamplesService] Stats error:', error);
       return {};
+    }
+  }
+
+  /**
+   * Search social media examples directly (convenience method)
+   * @param {string} query - Search query
+   * @param {Object} options - Search options
+   * @returns {Promise<Array>} Array of social media examples
+   */
+  async searchSocialMediaExamples(query, options = {}) {
+    const {
+      platform = null, // 'facebook', 'instagram', or null for all
+      limit = this.defaultLimit,
+      threshold = 0.15
+    } = options;
+
+    try {
+      console.log(`[ContentExamplesService] Social media search: "${query}" (platform: ${platform || 'all'})`);
+
+      // Ensure services are ready
+      await fastEmbedService.init();
+      if (!fastEmbedService.isReady() || !this.qdrant.isAvailable()) {
+        console.warn('[ContentExamplesService] Services not ready for social media search');
+        return [];
+      }
+
+      // Generate embedding for search query
+      const queryEmbedding = await fastEmbedService.generateEmbedding(query);
+
+      // Search social media collection
+      const searchResult = await this.qdrant.searchSocialMediaExamples(queryEmbedding, {
+        platform,
+        limit,
+        threshold
+      });
+
+      if (!searchResult.success || !searchResult.results) {
+        console.log(`[ContentExamplesService] Social media search returned no results`);
+        return [];
+      }
+
+      console.log(`[ContentExamplesService] Found ${searchResult.results.length} social media examples`);
+      return searchResult.results;
+
+    } catch (error) {
+      console.error(`[ContentExamplesService] Social media search error:`, error);
+      return [];
+    }
+  }
+
+  /**
+   * Get random social media examples (convenience method)
+   * @param {Object} options - Options for random selection
+   * @returns {Promise<Array>} Array of random social media examples
+   */
+  async getRandomSocialMediaExamples(options = {}) {
+    const {
+      platform = null,
+      limit = this.defaultLimit
+    } = options;
+
+    try {
+      if (!this.qdrant.isAvailable()) {
+        console.warn('[ContentExamplesService] Qdrant not available for random social media examples');
+        return [];
+      }
+
+      console.log(`[ContentExamplesService] Getting ${limit} random social media examples (platform: ${platform || 'all'})`);
+
+      const result = await this.qdrant.getRandomSocialMediaExamples({
+        platform,
+        limit
+      });
+
+      if (result.success && result.results.length > 0) {
+        console.log(`[ContentExamplesService] Found ${result.results.length} random social media examples`);
+        return result.results;
+      }
+
+      console.log(`[ContentExamplesService] No random social media examples available`);
+      return [];
+
+    } catch (error) {
+      console.error('[ContentExamplesService] Random social media examples error:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Delete an example from Qdrant
+   * @param {string} exampleId - ID of example to delete
+   * @returns {Promise<Object>} Result of deletion
+   */
+  async deleteExample(exampleId) {
+    try {
+      if (!this.qdrant.isAvailable()) {
+        return { success: false, error: 'Qdrant not available' };
+      }
+
+      const result = await this.qdrant.deleteContentExample(exampleId);
+      console.log(`[ContentExamplesService] Deleted example ${exampleId}`);
+      return result;
+
+    } catch (error) {
+      console.error('[ContentExamplesService] Delete error:', error);
+      return { success: false, error: error.message };
     }
   }
 }
