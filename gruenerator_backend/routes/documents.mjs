@@ -6,7 +6,7 @@ import { ocrService } from '../services/ocrService.js';
 import { documentProcessorService } from '../services/documentProcessorService.js';
 import { vectorSearchService } from '../services/vectorSearchService.js';
 import { smartQueryExpansion } from '../services/smartQueryExpansion.js';
-import { embeddingService } from '../services/embeddingService.js';
+import { fastEmbedService } from '../services/FastEmbedService.js';
 import { urlCrawlerService } from '../services/urlCrawlerService.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -1411,7 +1411,7 @@ async function generateGrundsatzDocumentEmbeddings(documentId, text) {
       try {
         // Generate embeddings for this batch
         const texts = batch.map(chunk => chunk.text);
-        const embeddings = await embeddingService.generateBatchEmbeddings(texts, 'search_document');
+        const embeddings = await fastEmbedService.generateBatchEmbeddings(texts, 'search_document');
 
         // Prepare enhanced chunk data for database insertion with metadata
         const batchChunkData = batch.map((chunk, index) => ({
@@ -1577,7 +1577,7 @@ async function generateDocumentEmbeddings(documentId, text) {
       try {
         // Generate embeddings for this batch
         const texts = batch.map(chunk => chunk.text);
-        const embeddings = await embeddingService.generateBatchEmbeddings(texts, 'search_document');
+        const embeddings = await fastEmbedService.generateBatchEmbeddings(texts, 'search_document');
 
         // Prepare chunk data for database insertion
         const batchChunkData = batch.map((chunk, index) => ({

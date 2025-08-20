@@ -1,5 +1,5 @@
 import { supabaseService } from '../utils/supabaseClient.js';
-import { embeddingService } from './embeddingService.js';
+import { fastEmbedService } from './FastEmbedService.js';
 
 /**
  * Specialized vector search service for Grundsatz documents
@@ -29,9 +29,9 @@ class GrundsatzVectorSearchService {
 
     try {
       // Generate embedding for the query
-      const queryEmbedding = await embeddingService.generateQueryEmbedding(query);
+      const queryEmbedding = await fastEmbedService.generateQueryEmbedding(query);
       
-      if (!embeddingService.validateEmbedding(queryEmbedding)) {
+      if (!fastEmbedService.validateEmbedding(queryEmbedding)) {
         throw new Error('Invalid query embedding generated for Grundsatz search');
       }
 

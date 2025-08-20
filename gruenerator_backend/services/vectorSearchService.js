@@ -1,9 +1,8 @@
-import { supabaseService } from '../utils/supabaseClient.js';
-import { embeddingService } from './embeddingService.js';
+import { fastEmbedService } from './FastEmbedService.js';
+import { getQdrantInstance } from '../database/services/QdrantService.js';
 import { smartQueryExpansion } from './smartQueryExpansion.js';
 import { InputValidator, ValidationError } from '../utils/inputValidation.js';
 import { BaseSearchService, SearchError } from './BaseSearchService.js';
-import { grundsatzSearchService } from './GrundsatzSearchService.js';
 import { createBatchProcessor } from '../utils/batchProcessor.js';
 import { vectorConfig } from '../config/vectorConfig.js';
 
@@ -23,10 +22,10 @@ class VectorSearchService extends BaseSearchService {
       cacheType: 'searchResults'
     });
     
-    // Initialize batch processors for optimized performance
-    this.embeddingBatchProcessor = createBatchProcessor.embeddings(embeddingService);
+    // Initialize Qdrant client and batch processors
+    this.qdrant = getQdrantInstance();
+    this.embeddingBatchProcessor = createBatchProcessor.embeddings(fastEmbedService);
     this.chunkExpansionBatchProcessor = createBatchProcessor.chunkExpansion(this);
-    this.databaseOptimizer = createBatchProcessor.databaseOptimizer(supabaseService);
   }
   
   /**
@@ -95,44 +94,44 @@ class VectorSearchService extends BaseSearchService {
       return await this.smartEnhanceAndEmbedQuery(query, options.userId || 'system');
     }
     
-    return await embeddingService.generateQueryEmbedding(query);
+    return await fastEmbedService.generateQueryEmbedding(query);
   }
 
   /**
-   * Get RPC function name based on filters (overrides base class)
-   * @param {Object} filters - Search filters
-   * @returns {string} RPC function name
+   * Search documents using Qdrant (replaces Supabase RPC calls)
+   * @param {Array} queryEmbedding - Query embedding vector
+   * @param {Object} options - Search options
+   * @returns {Promise<Array>} Search results
    * @protected
    */
-  getRPCFunction(filters) {
-    if (filters.documentIds && filters.documentIds.length > 0) {
-      return 'similarity_search_with_documents';
-    }
-    return 'similarity_search_optimized';
-  }
+  async searchQdrantDocuments(queryEmbedding, options = {}) {
+    const {
+      userId = null,
+      documentIds = null,
+      limit = 10,
+      threshold = 0.3
+    } = options;
 
-  /**
-   * Build RPC parameters (overrides base class)
-   * @param {Object} params - Parameter object
-   * @returns {Object} RPC parameters
-   * @protected
-   */
-  buildRPCParams(params) {
-    const { embeddingString, userId, filters, limit, threshold } = params;
-    
-    const baseParams = {
-      query_embedding: embeddingString,
-      user_id_filter: userId,
-      similarity_threshold: threshold,
-      match_count: limit
-    };
-    
-    // Add document filtering if specified
-    if (filters.documentIds && filters.documentIds.length > 0) {
-      baseParams.document_ids_filter = filters.documentIds;
+    try {
+      const searchOptions = {
+        userId,
+        documentIds,
+        limit,
+        threshold,
+        collection: 'documents'
+      };
+
+      const results = await this.qdrant.searchDocuments(queryEmbedding, searchOptions);
+      
+      if (!results.success) {
+        throw new Error(results.error || 'Qdrant search failed');
+      }
+
+      return results.results || [];
+    } catch (error) {
+      console.error('[VectorSearchService] Qdrant search failed:', error);
+      throw error;
     }
-    
-    return baseParams;
   }
 
   /**
@@ -186,7 +185,7 @@ class VectorSearchService extends BaseSearchService {
   }
 
   /**
-   * Hybrid search combining vector similarity with BM25 keyword search
+   * Hybrid search using Qdrant's native hybrid capabilities
    * @param {string} query - Search query
    * @param {string} userId - User ID for access control
    * @param {Object} options - Search options
@@ -195,45 +194,55 @@ class VectorSearchService extends BaseSearchService {
   async hybridSearch(query, userId, options = {}) {
     const {
       limit = 5,
-      vectorWeight = 0.7,
-      keywordWeight = 0.3,
       threshold = null,
       documentIds = null
     } = options;
 
     try {
-      console.log(`[VectorSearchService] Starting hybrid search for: "${query}"`);
+      console.log(`[VectorSearchService] Starting Qdrant hybrid search for: "${query}"`);
 
-      // Run vector and keyword searches in parallel
-      const [vectorResults, keywordResults] = await Promise.all([
-        this.getVectorResults(query, userId, limit * 3, threshold, documentIds), // Get more for merging
-        this.getBM25Results(query, userId, limit * 2, documentIds) // Get fewer keyword results
-      ]);
+      // Generate query embedding
+      const queryEmbedding = await this.generateQueryEmbedding(query, options);
+      const dynamicThreshold = threshold ?? this.calculateDynamicThreshold(query);
 
-      console.log(`[VectorSearchService] Vector results: ${vectorResults.length}, Keyword results: ${keywordResults.length}`);
+      // Use Qdrant's hybrid search capability
+      const results = await this.qdrant.hybridSearch(
+        queryEmbedding, 
+        query, // keywords
+        {
+          userId,
+          documentIds,
+          limit,
+          threshold: dynamicThreshold
+        }
+      );
 
-      // Merge and deduplicate results
-      const mergedResults = this.mergeSearchResults(vectorResults, keywordResults, vectorWeight, keywordWeight);
+      if (!results.success) {
+        throw new Error(results.error || 'Qdrant hybrid search failed');
+      }
 
-      // Sort by combined score and limit
-      mergedResults.sort((a, b) => b.combined_score - a.combined_score);
-      const finalResults = mergedResults.slice(0, limit);
+      // Format results
+      const formattedResults = (results.results || []).map(result => ({
+        document_id: result.document_id,
+        title: result.payload?.document_title || 'Untitled',
+        filename: result.payload?.document_filename || '',
+        created_at: result.payload?.document_created_at || null,
+        relevant_content: result.chunk_text || '',
+        similarity_score: result.score || 0,
+        search_type: 'hybrid',
+        chunk_count: 1
+      }));
 
       return {
         success: true,
-        results: finalResults,
+        results: formattedResults,
         query: query.trim(),
         searchType: 'hybrid',
-        message: `Found ${finalResults.length} documents using hybrid search`,
-        stats: {
-          vectorResults: vectorResults.length,
-          keywordResults: keywordResults.length,
-          mergedResults: mergedResults.length
-        }
+        message: `Found ${formattedResults.length} documents using Qdrant hybrid search`
       };
 
     } catch (error) {
-      console.error('[VectorSearchService] Hybrid search error:', error);
+      console.error('[VectorSearchService] Qdrant hybrid search error:', error);
       
       // Fallback to regular vector search
       return await this.searchDocuments(query, userId, { limit, threshold, documentIds });
@@ -373,7 +382,7 @@ class VectorSearchService extends BaseSearchService {
       // If no expansion or fallback, use simple embedding
       if (expansion.fallback || expansion.expandedQueries.length <= 1) {
         console.log(`[VectorSearchService] Using simple embedding (no expansion available)`);
-        return await embeddingService.generateQueryEmbedding(originalQuery);
+        return await fastEmbedService.generateQueryEmbedding(originalQuery);
       }
 
       // Generate embeddings for all expanded queries using batch processing (OPTIMIZED)
@@ -422,7 +431,7 @@ class VectorSearchService extends BaseSearchService {
     } catch (error) {
       console.warn('[VectorSearchService] Smart expansion failed, using simple embedding:', error);
       // Fallback to simple embedding without expansion
-      return await embeddingService.generateQueryEmbedding(originalQuery);
+      return await fastEmbedService.generateQueryEmbedding(originalQuery);
     }
   }
 
@@ -501,15 +510,12 @@ class VectorSearchService extends BaseSearchService {
   }
 
   /**
-   * Find similar document chunks using vector similarity
+   * Find similar document chunks using Qdrant vector similarity
    * @private
    */
   async findSimilarChunks(queryEmbedding, userId, limit, threshold, documentIds = null) {
     try {
-      // Secure embedding validation and sanitization
-      const embeddingString = InputValidator.validateEmbedding(queryEmbedding);
-      
-      // Validate other parameters
+      // Validate parameters
       const validUserId = InputValidator.validateUserId(userId);
       const validLimit = InputValidator.validateNumber(limit, 'limit', { min: 1, max: 100 });
       const validThreshold = InputValidator.validateNumber(threshold, 'threshold', { min: 0, max: 1 });
@@ -519,76 +525,42 @@ class VectorSearchService extends BaseSearchService {
         validDocumentIds = InputValidator.validateDocumentIds(documentIds);
       }
       
-      console.log(`[VectorSearchService] Calling similarity_search with threshold: ${validThreshold}, documentIds: ${validDocumentIds ? `[${validDocumentIds.length} docs]` : 'all'}`);
+      console.log(`[VectorSearchService] Qdrant search with threshold: ${validThreshold}, documentIds: ${validDocumentIds ? `[${validDocumentIds.length} docs]` : 'all'}`);
       
-      let chunks, error;
-      
-      if (validDocumentIds && validDocumentIds.length > 0) {
-        // Use document-filtered search for QA collections
-        console.log(`[VectorSearchService] Document-filtered search parameters:`, {
-          user_id_filter: validUserId,
-          document_ids_filter: validDocumentIds,
-          similarity_threshold: validThreshold,
-          match_count: validLimit,
-          embedding_length: queryEmbedding.length
-        });
-        
-        const result = await supabaseService
-          .rpc('similarity_search_with_documents', {
-            query_embedding: embeddingString,
-            user_id_filter: validUserId,
-            document_ids_filter: validDocumentIds,
-            similarity_threshold: validThreshold,
-            match_count: validLimit
-          });
-        chunks = result.data;
-        error = result.error;
-        
-        console.log(`[VectorSearchService] Document-filtered search result:`, {
-          chunks_count: chunks?.length || 0,
-          error: error?.message || 'none'
-        });
-      } else {
-        // Use regular search for all user documents
-        const result = await supabaseService
-          .rpc('similarity_search_optimized', {
-            query_embedding: embeddingString,
-            user_id_filter: validUserId,
-            similarity_threshold: validThreshold,
-            match_count: validLimit
-          });
-        chunks = result.data;
-        error = result.error;
+      // Search using Qdrant
+      const searchResults = await this.qdrant.searchDocuments(queryEmbedding, {
+        userId: validUserId,
+        documentIds: validDocumentIds,
+        limit: validLimit,
+        threshold: validThreshold
+      });
+
+      if (!searchResults.success) {
+        throw new Error(searchResults.error || 'Qdrant search failed');
       }
 
-      if (error) {
-        console.error('[VectorSearchService] RPC error:', error);
-        throw new Error(`Vector search RPC failed: ${error.message}`);
-      }
-
-      // Transform the results to match expected format
-      const transformedChunks = (chunks || []).map(chunk => ({
-        id: chunk.id,
-        document_id: chunk.document_id,
-        chunk_index: chunk.chunk_index,
-        chunk_text: chunk.chunk_text,
-        embedding: chunk.embedding,
-        token_count: chunk.token_count,
-        created_at: chunk.created_at,
-        similarity: chunk.similarity,
+      // Transform Qdrant results to expected format
+      const transformedChunks = (searchResults.results || []).map(result => ({
+        id: result.id,
+        document_id: result.document_id,
+        chunk_index: result.chunk_index,
+        chunk_text: result.chunk_text,
+        token_count: result.metadata?.token_count || 0,
+        created_at: result.metadata?.created_at || null,
+        similarity: result.score,
         documents: {
-          id: chunk.document_id,
-          title: chunk.document_title,
-          filename: chunk.document_filename,
-          created_at: chunk.document_created_at
+          id: result.document_id,
+          title: result.metadata?.document_title || 'Untitled',
+          filename: result.metadata?.document_filename || '',
+          created_at: result.metadata?.document_created_at || null
         }
       }));
 
-      console.log(`[VectorSearchService] Found ${transformedChunks.length} similar chunks`);
+      console.log(`[VectorSearchService] Found ${transformedChunks.length} similar chunks via Qdrant`);
       return transformedChunks;
       
     } catch (error) {
-      console.error('[VectorSearchService] Find similar chunks error:', error);
+      console.error('[VectorSearchService] Qdrant search error:', error);
       throw error;
     }
   }
@@ -851,9 +823,9 @@ class VectorSearchService extends BaseSearchService {
 
     try {
       // Generate embedding for the query
-      const queryEmbedding = await embeddingService.generateQueryEmbedding(query);
+      const queryEmbedding = await fastEmbedService.generateQueryEmbedding(query);
       
-      if (!embeddingService.validateEmbedding(queryEmbedding)) {
+      if (!fastEmbedService.validateEmbedding(queryEmbedding)) {
         throw new Error('Invalid query embedding generated for Grundsatz search');
       }
 
@@ -1355,9 +1327,9 @@ class VectorSearchService extends BaseSearchService {
       console.log(`[VectorSearchService] Searching database examples: "${validQuery}" for type: ${validContentType}`);
 
       // Generate embedding for the query
-      const queryEmbedding = await embeddingService.generateQueryEmbedding(validQuery);
+      const queryEmbedding = await fastEmbedService.generateQueryEmbedding(validQuery);
       
-      if (!embeddingService.validateEmbedding(queryEmbedding)) {
+      if (!fastEmbedService.validateEmbedding(queryEmbedding)) {
         throw new Error('Invalid query embedding generated');
       }
 

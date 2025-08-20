@@ -5,7 +5,7 @@ import os from 'os';
 import { createCanvas } from 'canvas';
 import { supabaseService } from '../utils/supabaseClient.js';
 import { fileURLToPath } from 'url';
-import { embeddingService } from './embeddingService.js';
+import { fastEmbedService } from './FastEmbedService.js';
 import { smartChunkDocument } from '../utils/textChunker.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -809,7 +809,7 @@ class OCRService {
         try {
           // Generate embeddings for this batch
           const texts = batch.map(chunk => chunk.text);
-          const embeddings = await embeddingService.generateBatchEmbeddings(texts, 'search_document');
+          const embeddings = await fastEmbedService.generateBatchEmbeddings(texts, 'search_document');
 
           // Prepare chunk data for database insertion
           const batchChunkData = batch.map((chunk, index) => ({

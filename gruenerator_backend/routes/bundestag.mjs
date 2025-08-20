@@ -3,7 +3,7 @@ import bundestagApiClient from '../services/bundestagApiClient.js';
 import authMiddlewareModule from '../middleware/authMiddleware.js';
 import passport from '../config/passportSetup.mjs';
 import { supabaseService } from '../utils/supabaseClient.js';
-import { embeddingService } from '../services/embeddingService.js';
+import { fastEmbedService } from '../services/FastEmbedService.js';
 
 const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
 
@@ -422,7 +422,7 @@ async function generateBundestagDocumentEmbeddings(documentId, content) {
       try {
         // Generate embeddings for this batch
         const texts = batch.map(chunk => chunk.text);
-        const embeddings = await embeddingService.generateBatchEmbeddings(texts, 'search_document');
+        const embeddings = await fastEmbedService.generateBatchEmbeddings(texts, 'search_document');
 
         // Prepare chunk data for database insertion
         const batchChunkData = batch.map((chunk, index) => ({

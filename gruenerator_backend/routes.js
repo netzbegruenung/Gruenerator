@@ -18,6 +18,7 @@ const sharepicClaudeRoute = require('./routes/sharepic/sharepic_claude/sharepic_
 const aiImageModificationRouter = require('./routes/sharepic/sharepic_canvas/aiImageModification');
 const imageUploadRouter = require('./routes/sharepic/sharepic_canvas/imageUploadRouter');
 const processTextRouter = require('./routes/sharepic/sharepic_canvas/processTextRouter');
+const editSessionRouter = require('./routes/sharepic/editSession');
 const claudeTextAdjustmentRoute = require('./routes/claude_text_adjustment');
 const etherpadRoute = require('./routes/etherpad/etherpadController');
 const claudeKandidatRoute = require('./routes/claude_kandidat');
@@ -27,7 +28,7 @@ const searchRouter = require('./routes/search/searchRoutes');
 const searchAnalysisRouter = require('./routes/search/searchAnalysis');
 const subtitlerRouter = require('./routes/subtitler/subtitlerController');
 const subtitlerSocialRouter = require('./routes/subtitler/subtitlerSocialController');
-const voiceRouter = require('./routes/voice/voiceController');
+// const voiceRouter = require('./routes/voice/voiceController'); // COMMENTED OUT - nodejs-whisper dependency missing
 // customGeneratorRoute and generatorConfiguratorRoute will be imported as ES6 modules
 // const customGeneratorRoute = require('./routes/custom_generator');
 // const generatorConfiguratorRoute = require('./routes/generator_configurator');
@@ -37,6 +38,7 @@ const { tusServer } = require('./routes/subtitler/services/tusService');
 const collabEditorRouter = require('./routes/collabEditor'); // Import the new collab editor route
 const snapshottingRouter = require('./routes/internal/snapshottingController'); // Import the new snapshotting controller
 const offboardingRouter = require('./routes/internal/offboardingController'); // Import the offboarding controller
+const webSearchRouter = require('./routes/webSearch'); // Import the web search router
 // mem0Router will be imported dynamically like auth routes
 // Auth routes will be imported dynamically
 
@@ -149,6 +151,7 @@ async function setupRoutes(app) {
   app.use('/api/headline_canvas', headlineSharepicCanvasRoute);
   app.use('/api/info_canvas', infoSharepicCanvasRoute);
   app.use('/api/dreizeilen_claude', sharepicClaudeRoute);
+  app.use('/api/sharepic/edit-session', editSessionRouter);
   
   // Use unified handler for all sharepic claude routes
   app.post('/api/zitat_claude', async (req, res) => {
@@ -277,10 +280,11 @@ async function setupRoutes(app) {
 
   app.use('/api/subtitler', subtitlerRouter);
   app.use('/api/subtitler', subtitlerSocialRouter);
-  app.use('/api/voice', voiceRouter);
+  // app.use('/api/voice', voiceRouter); // COMMENTED OUT - nodejs-whisper dependency missing
 
   app.use('/api/search', searchRouter);
   app.use('/api/analyze', searchAnalysisRouter);
+  app.use('/api/web-search', webSearchRouter);
 
   // Add the Collab Editor route
   app.use('/api/collab-editor', collabEditorRouter);
