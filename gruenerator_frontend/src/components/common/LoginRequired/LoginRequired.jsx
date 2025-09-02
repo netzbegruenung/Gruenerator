@@ -1,65 +1,72 @@
 import React from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import PropTypes from 'prop-types';
-import './LoginRequired.css';
-
-// Helper function to extract page name from pathname
-const getPageName = (pathname) => {
-  const pathSegments = pathname.split('/').filter(Boolean);
-  if (pathSegments.length === 0) return 'Diese Seite';
-  
-  // Map common paths to readable names
-  const pathMap = {
-    'sharepic': 'Sharepic Generator',
-    'antrag': 'Antragsversteher',
-    'universal': 'Universal Generator',
-    'presse': 'Presse Generator',
-    'gruene-jugend': 'Grüne Jugend Generator',
-    'subtitler': 'Untertitel Generator',
-    'voice': 'Sprach-zu-Text',
-    'chat': 'KI-Chat',
-    'profile': 'Profil',
-    'groups': 'Gruppen',
-    'campaigns': 'Kampagnen',
-    'search': 'Suche',
-    'documents': 'Dokumente',
-    'qa': 'Fragen & Antworten',
-    'generators': 'Generatoren',
-    'you': 'Grüne Ideen für dich'
-  };
-  
-  const mainPath = pathSegments[0];
-  return pathMap[mainPath] || 'Diese Seite';
-};
+import LoginPage from '../../../features/auth/pages/LoginPage';
 
 const LoginRequired = ({ 
   title,
   message,
   className = '',
-  variant = 'card', // 'card', 'inline', 'fullpage'
+  variant = 'fullpage',
+  onClose = null
 }) => {
-  const navigate = useNavigate();
   const location = useLocation();
+  const navigate = useNavigate();
+
+  // Default close handler
+  const handleClose = onClose || (() => {
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate('/');
+    }
+  });
   
-  // Auto-generate title and message if not provided
-  const pageName = title || getPageName(location.pathname);
-  const defaultMessage = message || `Diese Seite steht nur angemeldeten Nutzer*innen zur Verfügung. Bitte melde dich an, um ${pageName === 'Diese Seite' ? 'fortzufahren' : 'den ' + pageName + ' zu nutzen'}. Die Anmeldung dauert nur 30 Sekunden und nutzt den Standard-Login für Bündnis 90/Die Grünen und Netzbegrünung.`;
-
-  const handleLoginClick = () => {
-    // Save current location for redirect after login
-    const currentPath = window.location.pathname + window.location.search;
-    sessionStorage.setItem('redirectAfterLogin', currentPath);
-    navigate('/login');
-  };
-
-  if (variant === 'inline') {
+  // For fullpage variant, use the beautiful LoginPage component
+  if (variant === 'fullpage') {
     return (
-      <div className={`login-required-inline ${className}`}>
-        <div className="login-required-icon">🔒</div>
-        <span>{defaultMessage}</span>
+      <LoginPage 
+        mode="required" 
+        pageName={title}
+        customMessage={message}
+        onClose={handleClose}
+      />
+    );
+  }
+
+  // Keep simple inline variant for special cases
+  if (variant === 'inline') {
+    const handleLoginClick = () => {
+      const currentPath = window.location.pathname + window.location.search;
+      sessionStorage.setItem('redirectAfterLogin', currentPath);
+      window.location.href = '/login';
+    };
+
+    return (
+      <div className={`login-required-inline ${className}`} style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 'var(--spacing-small)',
+        padding: 'var(--spacing-small) var(--spacing-medium)',
+        background: 'var(--background-color-alt)',
+        borderRadius: 'var(--spacing-xsmall)',
+        border: 'var(--border-subtle)'
+      }}>
+        <div style={{ fontSize: '1.2rem', color: 'var(--secondary-600)' }}>🔒</div>
+        <span>Anmeldung erforderlich</span>
         <button 
           onClick={handleLoginClick}
-          className="login-required-link"
+          style={{
+            color: 'var(--link-color)',
+            background: 'none',
+            border: 'none',
+            textDecoration: 'underline',
+            cursor: 'pointer',
+            fontWeight: '500',
+            fontFamily: 'inherit',
+            fontSize: 'inherit',
+            padding: '0'
+          }}
         >
           Jetzt anmelden
         </button>
@@ -67,41 +74,14 @@ const LoginRequired = ({
     );
   }
 
-  if (variant === 'fullpage') {
-    return (
-      <div className={`login-required-fullpage ${className}`}>
-        <div className="login-required-container">
-          <div className="login-required-icon-large">🔒</div>
-          <h1>{pageName}</h1>
-          <p>{defaultMessage}</p>
-          <button 
-            onClick={handleLoginClick}
-            className="login-required-button primary"
-          >
-            <span className="login-icon">👤</span> Zur Anmeldung
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Default card variant
+  // Default: use LoginPage for all other cases
   return (
-    <div className={`login-required-card ${className}`}>
-      <div className="login-required-header">
-        <div className="login-required-icon">🔒</div>
-        <h2>{pageName}</h2>
-      </div>
-      <p className="login-required-message">{defaultMessage}</p>
-      <div className="login-required-actions">
-        <button 
-          onClick={handleLoginClick}
-          className="login-required-button"
-        >
-          <span className="login-icon">👤</span> Anmelden
-        </button>
-      </div>
-    </div>
+    <LoginPage 
+      mode="required" 
+      pageName={title}
+      customMessage={message}
+      onClose={handleClose}
+    />
   );
 };
 
@@ -109,7 +89,8 @@ LoginRequired.propTypes = {
   title: PropTypes.string,
   message: PropTypes.string,
   className: PropTypes.string,
-  variant: PropTypes.oneOf(['card', 'inline', 'fullpage']),
+  variant: PropTypes.oneOf(['inline', 'fullpage']),
+  onClose: PropTypes.func,
 };
 
 export default LoginRequired;

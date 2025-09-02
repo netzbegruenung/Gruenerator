@@ -9,6 +9,7 @@ import WelcomePage from '../../common/WelcomePage';
 import ErrorBoundary from '../../ErrorBoundary';
 import { processImageForUpload } from '../../../components/utils/imageCompression';
 import HelpDisplay from '../../common/HelpDisplay';
+import apiClient from '../../../components/utils/apiClient';
 import VerifyFeature from '../../common/VerifyFeature';
 import { SloganAlternativesDisplay } from '../../../features/sharepic/core/components/SloganAlternatives';
 
@@ -257,25 +258,56 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
   useEffect(() => {
     const editSessionId = searchParams.get('editSession');
     if (editSessionId) {
-      try {
-        const sessionData = sessionStorage.getItem(editSessionId);
-        if (sessionData) {
-          const { source, data, timestamp } = JSON.parse(sessionData);
-          
-          // Check if session is not too old (1 hour max)
-          const oneHour = 60 * 60 * 1000;
-          if (Date.now() - timestamp < oneHour && source === 'presseSocial' && data) {
-            console.log('[Sharepicgenerator] Loading editing session:', { source, dataType: data.type });
+      const loadEditSession = async () => {
+        try {
+          const sessionData = sessionStorage.getItem(editSessionId);
+          if (sessionData) {
+            const { source, data, timestamp } = JSON.parse(sessionData);
             
-            // Set flag to indicate this came from PresseSocialGenerator
-            setIsFromPresseSocial(true);
-            
-            // Load the sharepic data into the store
-            updateFormData({
-              type: data.type === 'info' ? 'Info' : data.type,
-              currentStep: FORM_STEPS.RESULT,
-              generatedImageSrc: data.image
-            });
+            // Check if session is not too old (1 hour max)
+            const oneHour = 60 * 60 * 1000;
+            if (Date.now() - timestamp < oneHour && source === 'presseSocial' && data) {
+              console.log('[Sharepicgenerator] Loading editing session:', { source, dataType: data.type });
+              
+              // Set flag to indicate this came from PresseSocialGenerator
+              setIsFromPresseSocial(true);
+              
+              // Map sharepic type to the format expected by Sharepicgenerator
+              const mapTypeForEditor = (type) => {
+                const typeMap = {
+                  'info': 'Info',
+                  'dreizeilen': 'Dreizeilen', 
+                  'quote': 'Zitat',
+                  'quote_pure': 'Zitat_Pure',
+                  'headline': 'Headline'
+                };
+                return typeMap[type] || type;
+              };
+
+              // Fetch image from backend if imageSessionId is provided
+              let imageData = data.image; // fallback to stored image
+              if (data.imageSessionId) {
+                try {
+                  const imageResponse = await apiClient.get(`/sharepic/edit-session/${data.imageSessionId}`);
+                  
+                  // Handle Axios response wrapper - extract data
+                  const result = imageResponse.data || imageResponse;
+                  imageData = result.imageData;
+                  console.log('[Sharepicgenerator] Fetched image from backend Redis storage');
+                } catch (error) {
+                  console.warn('[Sharepicgenerator] Failed to fetch image from backend, using fallback:', error);
+                }
+              }
+
+              // Load the sharepic data into the store
+              updateFormData({
+                type: mapTypeForEditor(data.type),
+                currentStep: FORM_STEPS.RESULT,
+                generatedImageSrc: imageData,
+                // Mark that this is an edit session (no original image available)
+                isEditSession: true,
+                hasOriginalImage: data.hasOriginalImage || false
+              });
 
             // Parse and set the text content based on type
             if (data.type === 'info') {
@@ -285,18 +317,64 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
                 subheader: lines[1] || '',
                 body: lines.slice(2).join('\n') || ''
               });
+            } else if (data.type === 'dreizeilen') {
+              const lines = data.text.split('\n').filter(line => line.trim());
+              updateFormData({
+                line1: lines[0] || '',
+                line2: lines[1] || '',
+                line3: lines[2] || ''
+              });
+            } else if (data.type === 'quote' || data.type === 'quote_pure') {
+              // For quotes, extract quote and name from text - handle both formats
+              let quote = '';
+              let name = '';
+              
+              // Try to match quoted format: "quote text" - author
+              const quotedMatch = data.text.match(/^"(.*)" - (.*)$/);
+              if (quotedMatch) {
+                quote = quotedMatch[1];
+                name = quotedMatch[2];
+              } else {
+                // Fallback: split by last " - " occurrence
+                const lastDashIndex = data.text.lastIndexOf(' - ');
+                if (lastDashIndex !== -1) {
+                  quote = data.text.substring(0, lastDashIndex);
+                  name = data.text.substring(lastDashIndex + 3);
+                } else {
+                  // Final fallback: split by newlines
+                  const quoteParts = data.text.split('\n').filter(line => line.trim());
+                  quote = quoteParts.slice(0, -1).join('\n') || data.text;
+                  name = quoteParts[quoteParts.length - 1] || '';
+                  name = name.replace(/^-\s*/, ''); // Remove leading dash if present
+                }
+              }
+              
+              updateFormData({
+                quote: quote,
+                name: name
+              });
+            } else if (data.type === 'headline') {
+              const lines = data.text.split('\n').filter(line => line.trim());
+              updateFormData({
+                line1: lines[0] || '',
+                line2: lines[1] || '',
+                line3: lines[2] || ''
+              });
             }
             
-            // Clean up the session data
-            sessionStorage.removeItem(editSessionId);
-          } else {
-            console.warn('[Sharepicgenerator] Invalid or expired editing session');
-            sessionStorage.removeItem(editSessionId);
+              // Clean up the session data
+              sessionStorage.removeItem(editSessionId);
+            } else {
+              console.warn('[Sharepicgenerator] Invalid or expired editing session');
+              sessionStorage.removeItem(editSessionId);
+            }
           }
+        } catch (error) {
+          console.error('[Sharepicgenerator] Error loading editing session:', error);
         }
-      } catch (error) {
-        console.error('[Sharepicgenerator] Error loading editing session:', error);
-      }
+      };
+      
+      loadEditSession();
     }
   }, [searchParams, updateFormData]);
 
@@ -323,8 +401,12 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
       if (!formData.header) newErrors.header = "Überschrift ist erforderlich";
       if (!formData.subheader) newErrors.subheader = "Untertitel ist erforderlich";
       if (!formData.body) newErrors.body = "Text ist erforderlich";
-    } else {
-      // For other types or INPUT step, validate thema
+    } else if ((formData.type === 'Zitat' || formData.type === 'Zitat_Pure') && (currentStep === FORM_STEPS.RESULT || currentStep === FORM_STEPS.PREVIEW)) {
+      // For Quote sharepics in RESULT/PREVIEW steps, validate Quote-specific fields
+      if (!formData.quote) newErrors.quote = "Zitat ist erforderlich";
+      if (!formData.name) newErrors.name = "Name ist erforderlich";
+    } else if (currentStep === FORM_STEPS.INPUT) {
+      // For INPUT step, validate thema for all types except when we're editing (skip thema validation)
       if (!formData.thema) newErrors.thema = ERROR_MESSAGES.THEMA;
     }
     
@@ -423,7 +505,8 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
         } else {
           // Regular types (Dreizeilen, Zitat) need image upload
           if (!state.file) {
-            setError("Bitte wählen Sie ein Bild aus");
+            setErrors({ image: "Bitte wählen Sie ein Bild aus" });
+            updateFormData({ loading: false });
             return;
           }
 
@@ -463,8 +546,23 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
           await updateFormData({ 
             generatedImageSrc: imageResult
           });
+        } else if (state.formData.type === 'Zitat' && (state.formData.isEditSession || (!state.formData.uploadedImage && !state.formData.image && !state.file))) {
+          // For Zitat in edit mode (no original image available): regenerate instead of modify
+          const imageResult = await generateImage({
+            type: state.formData.type,
+            quote: state.formData.quote,
+            name: state.formData.name
+          });
+          
+          if (!imageResult) {
+            throw new Error("Keine Bilddaten empfangen");
+          }
+          
+          await updateFormData({ 
+            generatedImageSrc: imageResult
+          });
         } else {
-          // For types that need image upload (Zitat, Dreizeilen): use modifySharepic
+          // For types that need image upload (Zitat with image, Dreizeilen): use modifySharepic
           const { fontSize, balkenOffset, colorScheme, credit, uploadedImage, image } = state.formData;
           const imageToUse = uploadedImage || image || state.file;
           
@@ -574,6 +672,12 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
         updateFormData({ 
           uploadedImage: imageFile,
           image: imageFile
+        });
+        
+        // Clear any image-related errors
+        setErrors(prevErrors => {
+          const { image, ...rest } = prevErrors;
+          return rest;
         });
       }
     } catch (error) {
@@ -698,9 +802,7 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
     });
   }, [updateFormData]);
 
-  if (authLoading || !isAuthResolved) {
-    return <div className="container">Lade Authentifizierung...</div>; // Or a more sophisticated loading spinner
-  }
+
 
   if (state.currentStep === FORM_STEPS.WELCOME && !hasSeenWelcome) {
     return (
@@ -758,11 +860,11 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
               <p>Strukturierte Informationsposts mit Überschrift und Text. Ideal für Erklärungen und Details.</p>
             </div>
 
-            <div className="type-card" onClick={() => handleTypeSelect(SHAREPIC_TYPES.HEADLINE)}>
+            {/* <div className="type-card" onClick={() => handleTypeSelect(SHAREPIC_TYPES.HEADLINE)}>
               <div className="type-icon">📰</div>
               <h3>Header</h3>
               <p>Große, markante Headlines in drei Zeilen. Perfect für Schlagzeilen und wichtige Botschaften.</p>
-            </div>
+            </div> */}
           </div>
         </div>
       </div>
@@ -811,7 +913,7 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
       <div
         className={`container ${showHeaderFooter ? 'with-header' : ''} ${darkMode ? 'dark-mode' : ''}`}
         role="main"
-        aria-label="Sharepic Generator"
+        aria-label="Sharepic Grünerator"
       >
         <BaseForm
           title={helpContent ? helpContent.title : SHAREPIC_GENERATOR.TITLE}
@@ -858,7 +960,7 @@ const SharepicGenerator = withAuthRequired(
       </ErrorBoundary>
     );
   }
-  // No configuration needed - will auto-detect "Sharepic Generator" from route
+  // No configuration needed - will auto-detect "Sharepic Grünerator" from route
   // and use standard message "Diese Seite steht nur angemeldeten Nutzer:innen zur Verfügung..."
 );
 

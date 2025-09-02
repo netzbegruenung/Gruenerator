@@ -7,6 +7,7 @@ import ChatUI from '../../../components/common/Chat/ChatUI';
 import ModeSelector from '../../../components/common/Chat/ModeSelector';
 import { CitationModal, CitationSourcesDisplay } from '../../../components/common/Citation';
 import DisplaySection from '../../../components/common/Form/BaseForm/DisplaySection';
+import FormStateProvider from '../../../components/common/Form/FormStateProvider';
 import ContentRenderer from '../../../components/common/Form/BaseForm/ContentRenderer';
 import useQAStore from '../stores/qaStore';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
@@ -302,18 +303,26 @@ const QAChat = () => {
 
     return (
       <div className="qa-chat-answer">
-        <DisplaySection
-          title="Antwort"
-          generatedContent={storeGeneratedText}
-          isEditing={false}
-          allowEditing={false}
-          hideEditButton={true}
-          useMarkdown={true}
-          componentName={componentName}
-          handleToggleEditMode={() => {}}
-          getExportableContent={() => storeGeneratedText}
-          displayActions={renderSourcesDisplay()}
-        />
+        <FormStateProvider 
+          formId={`qa-chat-${id}`}
+          initialState={{
+            loading: false,
+            error: null
+          }}
+        >
+          <DisplaySection
+            title="Antwort"
+            generatedContent={storeGeneratedText}
+            isEditing={false}
+            allowEditing={false}
+            hideEditButton={true}
+            useMarkdown={true}
+            componentName={componentName}
+            handleToggleEditMode={() => {}}
+            getExportableContent={() => storeGeneratedText}
+            displayActions={renderSourcesDisplay()}
+          />
+        </FormStateProvider>
       </div>
     );
   };

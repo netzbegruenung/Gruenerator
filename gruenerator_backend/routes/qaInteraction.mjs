@@ -1,8 +1,10 @@
 import express from 'express';
-import { createClient } from '@supabase/supabase-js';
+import { getPostgresInstance } from '../database/services/PostgresService.js';
+import { QAQdrantHelper } from '../database/services/QAQdrantHelper.js';
 import authMiddleware from '../middleware/authMiddleware.js';
 const { requireAuth } = authMiddleware;
-import { vectorSearchService } from '../services/vectorSearchService.js';
+import { DocumentSearchService } from '../services/DocumentSearchService.js';
+const documentSearchService = new DocumentSearchService();
 import { 
   MARKDOWN_FORMATTING_INSTRUCTIONS, 
   SEARCH_DOCUMENTS_TOOL, 
@@ -11,11 +13,8 @@ import {
 
 const router = express.Router();
 
-// Initialize Supabase client
-const supabase = createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_KEY
-);
+const postgres = getPostgresInstance();
+const qaHelper = new QAQdrantHelper();
 
 // POST /api/qa/:id/ask - Submit question to Q&A collection
 router.post('/:id/ask', requireAuth, async (req, res) => {
@@ -33,42 +32,38 @@ router.post('/:id/ask', requireAuth, async (req, res) => {
 
         const trimmedQuestion = question.trim();
 
-        // Verify user has access to the collection
-        const { data: collection, error: collectionError } = await supabase
-            .from('qa_collections')
-            .select(`
-                id,
-                name,
-                custom_prompt,
-                user_id,
-                qa_collection_documents (
-                    document_id,
-                    documents (
-                        id,
-                        title,
-                        ocr_text
-                    )
-                )
-            `)
-            .eq('id', collectionId)
-            .eq('user_id', userId)
-            .single();
-
-        if (collectionError || !collection) {
+        // Verify user has access to the collection (Qdrant)
+        const collection = await qaHelper.getQACollection(collectionId);
+        
+        if (!collection || collection.user_id !== userId) {
             return res.status(404).json({ error: 'Q&A collection not found or access denied' });
         }
 
-        if (collection.qa_collection_documents.length === 0) {
-            return res.status(400).json({ error: 'No documents found in this Q&A collection' });
+        // Load documents for this collection
+        const qaDocAssociations = await qaHelper.getCollectionDocuments(collectionId);
+        const documentIds = qaDocAssociations.map(qcd => qcd.document_id);
+        
+        let qaDocs = [];
+        if (documentIds.length > 0) {
+            qaDocs = await postgres.query(
+                `SELECT id, title, ocr_text, filename
+                 FROM documents
+                 WHERE id = ANY($1)`,
+                [documentIds]
+            );
+            
+            // Add document_id for compatibility
+            qaDocs = qaDocs.map(doc => ({ ...doc, document_id: doc.id }));
         }
 
-        // Get document IDs for vector search
-        const documentIds = collection.qa_collection_documents.map(qcd => qcd.document_id);
+        if (qaDocs.length === 0) {
+            return res.status(400).json({ error: 'No documents found in this Q&A collection' });
+        }
 
         // Perform vector search across the collection's documents
         let searchResults = [];
         try {
-            const searchResponse = await vectorSearchService.search({
+            const searchResponse = await documentSearchService.search({
                 query: trimmedQuestion,
                 user_id: userId,
                 documentIds,
@@ -103,13 +98,13 @@ router.post('/:id/ask', requireAuth, async (req, res) => {
             }).join('\n\n');
         } else {
             // Fallback to using full document text (first few paragraphs)
-            collection.qa_collection_documents.forEach((qcd, index) => {
-                if (qcd.documents.ocr_text) {
-                    const truncatedText = qcd.documents.ocr_text.substring(0, 2000);
-                    context += `[Dokument ${index + 1} - ${qcd.documents.title}]:\n${truncatedText}\n\n`;
+            qaDocs.forEach((row, index) => {
+                if (row.ocr_text) {
+                    const truncatedText = row.ocr_text.substring(0, 2000);
+                    context += `[Dokument ${index + 1} - ${row.title}]:\n${truncatedText}\n\n`;
                     sources.push({
-                        document_id: qcd.documents.id,
-                        document_title: qcd.documents.title,
+                        document_id: row.id,
+                        document_title: row.title,
                         chunk_text: truncatedText,
                         similarity_score: 0.8, // Default score for fallback
                         page_number: 1
@@ -134,22 +129,17 @@ router.post('/:id/ask', requireAuth, async (req, res) => {
 
         const responseTime = Date.now() - startTime;
 
-        // Log the interaction
+        // Log the interaction (Qdrant)
         try {
-            await supabase
-                .from('qa_usage_logs')
-                .insert({
-                    collection_id: collectionId,
-                    user_id: userId,
-                    question: trimmedQuestion,
-                    answer: aiResponse,
-                    sources: JSON.stringify(sources),
-                    response_time_ms: responseTime,
-                    token_count: tokenCount
-                });
+            await qaHelper.logQAUsage(
+                collectionId, 
+                userId, 
+                trimmedQuestion, 
+                (aiResponse || '').length, 
+                responseTime
+            );
         } catch (logError) {
             console.error('[QA Interaction] Error logging usage:', logError);
-            // Continue even if logging fails
         }
 
         res.json({
@@ -177,23 +167,10 @@ router.get('/public/:token', async (req, res) => {
     try {
         const accessToken = req.params.token;
 
-        // Verify the public access token and get collection info
-        const { data: publicAccess, error: accessError } = await supabase
-            .from('qa_public_access')
-            .select(`
-                collection_id,
-                expires_at,
-                qa_collections (
-                    id,
-                    name,
-                    description,
-                    is_public
-                )
-            `)
-            .eq('access_token', accessToken)
-            .single();
+        // Verify the public access token and get collection info (Qdrant)
+        const publicAccess = await qaHelper.getPublicAccess(accessToken);
 
-        if (accessError || !publicAccess) {
+        if (!publicAccess) {
             return res.status(404).json({ error: 'Public Q&A not found or access token invalid' });
         }
 
@@ -202,30 +179,22 @@ router.get('/public/:token', async (req, res) => {
             return res.status(403).json({ error: 'Public access has expired' });
         }
 
-        // Check if collection is still public
-        if (!publicAccess.qa_collections.is_public) {
+        // Check if collection is still active
+        if (!publicAccess.is_active) {
             return res.status(403).json({ error: 'This Q&A collection is no longer public' });
         }
 
-        // Update access tracking
-        try {
-            await supabase
-                .from('qa_public_access')
-                .update({
-                    view_count: supabase.sql`view_count + 1`,
-                    last_accessed_at: new Date().toISOString()
-                })
-                .eq('access_token', accessToken);
-        } catch (trackingError) {
-            console.error('[QA Public] Error updating access tracking:', trackingError);
-            // Continue even if tracking fails
+        // Get collection details
+        const collection = await qaHelper.getQACollection(publicAccess.collection_id);
+        if (!collection) {
+            return res.status(404).json({ error: 'Q&A collection not found' });
         }
 
         res.json({
             collection: {
-                id: publicAccess.qa_collections.id,
-                name: publicAccess.qa_collections.name,
-                description: publicAccess.qa_collections.description
+                id: collection.id,
+                name: collection.name,
+                description: collection.description
             },
             message: 'Public Q&A collection found'
         });
@@ -251,31 +220,10 @@ router.post('/public/:token/ask', async (req, res) => {
 
         const trimmedQuestion = question.trim();
 
-        // Verify the public access token and get collection info
-        const { data: publicAccess, error: accessError } = await supabase
-            .from('qa_public_access')
-            .select(`
-                collection_id,
-                expires_at,
-                qa_collections (
-                    id,
-                    name,
-                    custom_prompt,
-                    is_public,
-                    qa_collection_documents (
-                        document_id,
-                        documents (
-                            id,
-                            title,
-                            ocr_text
-                        )
-                    )
-                )
-            `)
-            .eq('access_token', accessToken)
-            .single();
+        // Verify the public access token and get collection info (Qdrant)
+        const publicAccess = await qaHelper.getPublicAccess(accessToken);
 
-        if (accessError || !publicAccess) {
+        if (!publicAccess) {
             return res.status(404).json({ error: 'Public Q&A not found or access token invalid' });
         }
 
@@ -284,24 +232,43 @@ router.post('/public/:token/ask', async (req, res) => {
             return res.status(403).json({ error: 'Public access has expired' });
         }
 
-        // Check if collection is still public
-        if (!publicAccess.qa_collections.is_public) {
+        // Check if collection is still active
+        if (!publicAccess.is_active) {
             return res.status(403).json({ error: 'This Q&A collection is no longer public' });
         }
 
-        const collection = publicAccess.qa_collections;
+        // Get collection details
+        const collection = await qaHelper.getQACollection(publicAccess.collection_id);
+        if (!collection) {
+            return res.status(404).json({ error: 'Q&A collection not found' });
+        }
 
-        if (collection.qa_collection_documents.length === 0) {
+        // Load documents for this collection
+        const qaDocAssociations = await qaHelper.getCollectionDocuments(collection.id);
+        const documentIds = qaDocAssociations.map(qcd => qcd.document_id);
+        
+        let qaDocs = [];
+        if (documentIds.length > 0) {
+            qaDocs = await postgres.query(
+                `SELECT id, title, ocr_text, filename
+                 FROM documents
+                 WHERE id = ANY($1)`,
+                [documentIds]
+            );
+            
+            // Add document_id for compatibility
+            qaDocs = qaDocs.map(doc => ({ ...doc, document_id: doc.id }));
+        }
+
+        if (qaDocs.length === 0) {
             return res.status(400).json({ error: 'No documents found in this Q&A collection' });
         }
 
         // Similar processing as authenticated endpoint but without user context
-        const documentIds = collection.qa_collection_documents.map(qcd => qcd.document_id);
-
         // Perform vector search
         let searchResults = [];
         try {
-            const searchResponse = await vectorSearchService.search({
+            const searchResponse = await documentSearchService.search({
                 query: trimmedQuestion,
                 user_id: null, // Public access, no user ID
                 documentIds,
@@ -333,13 +300,13 @@ router.post('/public/:token/ask', async (req, res) => {
                 return `[Quelle ${index + 1}]: ${content}`;
             }).join('\n\n');
         } else {
-            collection.qa_collection_documents.forEach((qcd, index) => {
-                if (qcd.documents.ocr_text) {
-                    const truncatedText = qcd.documents.ocr_text.substring(0, 2000);
-                    context += `[Dokument ${index + 1} - ${qcd.documents.title}]:\n${truncatedText}\n\n`;
+            qaDocs.forEach((row, index) => {
+                if (row.ocr_text) {
+                    const truncatedText = row.ocr_text.substring(0, 2000);
+                    context += `[Dokument ${index + 1} - ${row.title}]:\n${truncatedText}\n\n`;
                     sources.push({
-                        document_id: qcd.documents.id,
-                        document_title: qcd.documents.title,
+                        document_id: row.id,
+                        document_title: row.title,
                         chunk_text: truncatedText,
                         similarity_score: 0.8,
                         page_number: 1
@@ -366,17 +333,13 @@ router.post('/public/:token/ask', async (req, res) => {
 
         // Log the public interaction (without user_id)
         try {
-            await supabase
-                .from('qa_usage_logs')
-                .insert({
-                    collection_id: collection.id,
-                    user_id: null, // Public access
-                    question: trimmedQuestion,
-                    answer: aiResponse,
-                    sources: JSON.stringify(sources),
-                    response_time_ms: responseTime,
-                    token_count: tokenCount
-                });
+            await qaHelper.logQAUsage(
+                collection.id,
+                null, // No user ID for public access
+                trimmedQuestion,
+                (aiResponse || '').length,
+                responseTime
+            );
         } catch (logError) {
             console.error('[QA Public] Error logging usage:', logError);
         }
@@ -486,6 +449,11 @@ ${mode === 'dossier' ? MARKDOWN_FORMATTING_INSTRUCTIONS : ''}`;
             hasToolCalls: !!(aiResult.tool_calls && aiResult.tool_calls.length > 0)
         });
         
+        // DEEP DEBUG: Log raw_content_blocks structure
+        if (aiResult.raw_content_blocks) {
+            console.log('[QA Tools DEBUG] raw_content_blocks structure:', JSON.stringify(aiResult.raw_content_blocks, null, 2));
+        }
+        
         if (!aiResult.success) {
             throw new Error(aiResult.error || 'AI request failed');
         }
@@ -563,9 +531,10 @@ async function executeQASearchTool(toolInput, collection, userId) {
         console.log(`[QA Tools] Executing search: "${query}" (mode: ${search_mode})`);
         
         // Get document IDs for this QA collection
-        const documentIds = collection.qa_collection_documents.map(qcd => qcd.document_id);
+        const qaDocAssociations = await qaHelper.getCollectionDocuments(collection.id);
+        const documentIds = qaDocAssociations.map(qcd => qcd.document_id);
         
-        const searchResults = await vectorSearchService.search({
+        const searchResults = await documentSearchService.search({
             query: query,
             user_id: userId,
             documentIds: documentIds,

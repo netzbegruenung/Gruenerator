@@ -220,7 +220,8 @@
   border-top: 1px solid var(--button-background-color);
 }
 
-.canva-button {
+/* Template gallery specific canva button - more specific selector to avoid conflicts */
+.template-card .canva-button {
   width: 100%;
   padding: 0.75rem 1rem;
   font-size: 0.9rem;
@@ -238,7 +239,7 @@
   border: none;
 }
 
-.canva-button:hover {
+.template-card .canva-button:hover {
   background: var(--dunkelgruen);
   transform: translateY(-1px);
 }

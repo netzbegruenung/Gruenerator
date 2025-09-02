@@ -1,8 +1,38 @@
 // === SHARED EXPORT UTILITIES ===
 
+import { marked } from 'marked';
+import { isMarkdownContent } from './Form/utils/contentUtils';
+
+/**
+ * Converts markdown to HTML if needed, otherwise returns original content
+ * This is the central function for all export features to handle markdown
+ * @param {string} content - Content that may be markdown
+ * @returns {string} HTML content or original content if not markdown
+ */
+export const processMarkdownContent = (content) => {
+  if (!content) return '';
+  
+  // Check if content is markdown
+  if (typeof content === 'string' && isMarkdownContent(content)) {
+    // Convert markdown to HTML
+    return marked(content, {
+      breaks: true,      // Convert line breaks to <br>
+      gfm: true,        // GitHub Flavored Markdown
+      headerIds: false, // Don't add IDs to headers
+      mangle: false     // Don't mangle autolinks
+    });
+  }
+  
+  // Return original content if not markdown
+  return content;
+};
+
 // Helper function to process HTML content for export
 export const processContentForExport = (content) => {
   if (!content) return '';
+  
+  // Convert markdown to HTML first if needed
+  content = processMarkdownContent(content);
   
   let processedContent = content
     .replace(/<h[1-6][^>]*>(.*?)<\/h[1-6]>/gi, '$1\n\n')

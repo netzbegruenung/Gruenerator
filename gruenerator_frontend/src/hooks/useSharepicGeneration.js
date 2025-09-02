@@ -228,7 +228,8 @@ const useSharepicGeneration = () => {
       text: `"${mainQuote}" - ${zitatAuthor}`,
       image: imageData.image,
       quotes: responseData.alternatives || [], // Use alternatives array from response
-      type: 'quote'
+      type: 'quote',
+      originalImage: uploadedImage // Preserve original background image for editing
     };
   }, []);
 

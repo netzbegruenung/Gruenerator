@@ -1,9 +1,38 @@
+import { marked } from 'marked';
+import { isMarkdownContent } from '../common/Form/utils/contentUtils';
+
+/**
+ * Converts markdown to HTML if needed, otherwise returns original content
+ * @param {string} content - Content that may be markdown
+ * @returns {string} HTML content or original content if not markdown
+ */
+const processMarkdownContent = (content) => {
+  if (!content) return '';
+  
+  // Check if content is markdown
+  if (typeof content === 'string' && isMarkdownContent(content)) {
+    // Convert markdown to HTML
+    return marked(content, {
+      breaks: true,      // Convert line breaks to <br>
+      gfm: true,        // GitHub Flavored Markdown
+      headerIds: false, // Don't add IDs to headers
+      mangle: false     // Don't mangle autolinks
+    });
+  }
+  
+  // Return original content if not markdown
+  return content;
+};
+
 /**
  * Formatiert den Export-Content für Etherpad mit HTML
  */
 export const formatExportContent = ({ analysis, sourceRecommendations = [], unusedSources = [] }) => {
   // Hauptanalyse als HTML
   let content = analysis;
+
+  // Convert markdown to HTML if needed using shared function
+  content = processMarkdownContent(content);
 
   // Stelle sicher, dass Zeilenumbrüche als <br> oder <p> Tags erhalten bleiben
   if (content) {

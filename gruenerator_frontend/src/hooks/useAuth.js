@@ -340,6 +340,15 @@ export const useAuth = (options = {}) => {
     // Don't process auth data if user was just logged out or recently logged out (unless on login page)
     if (isJustLoggedOut || (hasRecentlyLoggedOut && !isOnLoginPage)) {
       clearAuth();
+      // If we're on a protected page and recently logged out, clear the logout timestamp
+      // to allow the login screen to be shown properly
+      if (!isOnLoginPage && !skipAuth && !lazy) {
+        try {
+          localStorage.removeItem('gruenerator_logout_timestamp');
+        } catch (error) {
+          // Ignore localStorage errors
+        }
+      }
       return;
     }
 
@@ -419,7 +428,9 @@ export const useAuth = (options = {}) => {
     
   const isAuthResolved = (
     hasCachedData || 
-    (!isChecking && !isQueryLoading && (authData !== undefined || queryError) && !isLoggingOut)
+    (!isChecking && !isQueryLoading && (authData !== undefined || queryError) && !isLoggingOut) ||
+    // Force resolve auth state if user recently logged out and not on login page
+    (hasRecentlyLoggedOut && !isOnLoginPage && !isJustLoggedOut)
   );
 
 

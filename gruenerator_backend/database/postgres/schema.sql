@@ -49,17 +49,20 @@ CREATE TABLE IF NOT EXISTS profiles (
     anweisungen BOOLEAN DEFAULT FALSE,
     chat_color TEXT,
     memory BOOLEAN DEFAULT FALSE,
-    nextcloud_share_links JSONB DEFAULT '[]'
+    content_management BOOLEAN DEFAULT FALSE,
+    nextcloud_share_links JSONB DEFAULT '[]',
+    -- Document mode preference
+    document_mode TEXT DEFAULT 'manual' -- 'manual' or 'wolke'
 );
 
--- Documents table
+-- Documents table (updated for dual-mode support)
 CREATE TABLE IF NOT EXISTS documents (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
     title TEXT NOT NULL,
-    filename TEXT NOT NULL,
+    filename TEXT,
     file_path TEXT,
-    file_size BIGINT NOT NULL,
+    file_size BIGINT DEFAULT 0,
     page_count INTEGER DEFAULT 0,
     status TEXT DEFAULT 'pending',
     ocr_text TEXT,
@@ -70,7 +73,16 @@ CREATE TABLE IF NOT EXISTS documents (
     document_type TEXT DEFAULT 'upload',
     metadata JSONB,
     markdown_content TEXT,
-    group_id UUID REFERENCES groups(id) ON DELETE SET NULL
+    group_id UUID REFERENCES groups(id) ON DELETE SET NULL,
+    -- New columns for dual-mode support
+    source_type TEXT DEFAULT 'manual', -- 'manual' or 'wolke'
+    wolke_share_link_id TEXT,
+    wolke_file_path TEXT,
+    wolke_etag TEXT,
+    vector_count INTEGER DEFAULT 0,
+    last_synced_at TIMESTAMPTZ,
+    -- Group Wolke integration
+    group_wolke_share_id TEXT -- Reference to group's wolke share link
 );
 
 -- Document daily versions for tracking
@@ -91,9 +103,12 @@ CREATE TABLE IF NOT EXISTS groups (
     created_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    join_token TEXT,
     is_active BOOLEAN DEFAULT TRUE,
     group_type TEXT DEFAULT 'standard',
-    settings JSONB DEFAULT '{}'
+    settings JSONB DEFAULT '{}',
+    -- Wolke integration for groups
+    wolke_share_links JSONB DEFAULT '[]'
 );
 
 -- Group memberships
@@ -111,23 +126,25 @@ CREATE TABLE IF NOT EXISTS group_memberships (
 CREATE TABLE IF NOT EXISTS group_content_shares (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     group_id UUID REFERENCES groups(id) ON DELETE CASCADE,
-    shared_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
+    shared_by_user_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
     content_type TEXT NOT NULL,
     content_id UUID NOT NULL,
-    share_permissions JSONB DEFAULT '{}',
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    permissions JSONB DEFAULT '{}',
+    shared_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Group instructions
 CREATE TABLE IF NOT EXISTS group_instructions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     group_id UUID REFERENCES groups(id) ON DELETE CASCADE,
-    title TEXT NOT NULL,
-    content TEXT NOT NULL,
-    created_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
+    custom_antrag_prompt TEXT DEFAULT '',
+    custom_social_prompt TEXT DEFAULT '',
+    antrag_instructions_enabled BOOLEAN DEFAULT FALSE,
+    social_instructions_enabled BOOLEAN DEFAULT FALSE,
+    is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    is_active BOOLEAN DEFAULT TRUE
+    UNIQUE(group_id)
 );
 
 -- Group knowledge base
@@ -264,7 +281,11 @@ CREATE TABLE IF NOT EXISTS user_knowledge (
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     tags JSONB,
-    is_active BOOLEAN DEFAULT TRUE
+    is_active BOOLEAN DEFAULT TRUE,
+    -- Vector embedding tracking for Qdrant integration
+    embedding_id TEXT, -- Reference to Qdrant point ID
+    embedding_hash TEXT, -- Hash of content to detect changes
+    vector_indexed_at TIMESTAMPTZ -- When vectors were last updated
 );
 
 -- Custom Generators
@@ -272,13 +293,19 @@ CREATE TABLE IF NOT EXISTS custom_generators (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
+    slug TEXT NOT NULL,
     description TEXT,
-    prompt_template TEXT NOT NULL,
+    title TEXT,
+    contact_email TEXT,
+    prompt TEXT NOT NULL,
+    form_schema JSONB NOT NULL,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     is_active BOOLEAN DEFAULT TRUE,
     usage_count INTEGER DEFAULT 0,
-    settings JSONB DEFAULT '{}'
+    settings JSONB DEFAULT '{}',
+    UNIQUE(slug),
+    UNIQUE(user_id, slug)
 );
 
 -- Memories (for AI memory feature)
@@ -291,6 +318,29 @@ CREATE TABLE IF NOT EXISTS memories (
     importance_score DECIMAL(3,2) DEFAULT 0.5,
     tags JSONB,
     metadata JSONB DEFAULT '{}'
+);
+
+-- User Templates (Canva templates and other user templates)
+CREATE TABLE IF NOT EXISTS user_templates (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+    type TEXT DEFAULT 'template',
+    title TEXT NOT NULL,
+    description TEXT,
+    template_type TEXT DEFAULT 'canva',
+    external_url TEXT,
+    thumbnail_url TEXT,
+    images JSONB DEFAULT '[]',
+    categories JSONB DEFAULT '[]',
+    tags JSONB DEFAULT '[]',
+    content_data JSONB DEFAULT '{}',
+    metadata JSONB DEFAULT '{}',
+    is_private BOOLEAN DEFAULT TRUE,
+    is_example BOOLEAN DEFAULT FALSE,
+    status TEXT DEFAULT 'published',
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT valid_template_status CHECK (status IN ('published', 'draft', 'archived', 'private', 'public', 'enabled', 'active'))
 );
 
 -- General database table (for misc key-value storage)
@@ -344,8 +394,19 @@ CREATE INDEX IF NOT EXISTS idx_documents_status ON documents(status);
 CREATE INDEX IF NOT EXISTS idx_documents_created_at ON documents(created_at);
 CREATE INDEX IF NOT EXISTS idx_documents_group_id ON documents(group_id);
 
+CREATE INDEX IF NOT EXISTS idx_groups_created_by ON groups(created_by);
+CREATE INDEX IF NOT EXISTS idx_groups_join_token ON groups(join_token) WHERE join_token IS NOT NULL;
+
 CREATE INDEX IF NOT EXISTS idx_group_memberships_user_id ON group_memberships(user_id);
 CREATE INDEX IF NOT EXISTS idx_group_memberships_group_id ON group_memberships(group_id);
+
+CREATE INDEX IF NOT EXISTS idx_group_content_shares_group_content ON group_content_shares(group_id, content_type, content_id);
+CREATE INDEX IF NOT EXISTS idx_group_content_shares_shared_by ON group_content_shares(shared_by_user_id);
+
+CREATE INDEX IF NOT EXISTS idx_group_instructions_group_id ON group_instructions(group_id);
+CREATE INDEX IF NOT EXISTS idx_group_instructions_is_active ON group_instructions(is_active);
+CREATE INDEX IF NOT EXISTS idx_group_instructions_group_active ON group_instructions(group_id, is_active);
+CREATE INDEX IF NOT EXISTS idx_group_knowledge_group_id ON group_knowledge(group_id);
 
 CREATE INDEX IF NOT EXISTS idx_qa_collections_user_id ON qa_collections(user_id);
 CREATE INDEX IF NOT EXISTS idx_qa_collection_documents_collection_id ON qa_collection_documents(collection_id);
@@ -357,7 +418,14 @@ CREATE INDEX IF NOT EXISTS idx_collaborative_documents_created_by ON collaborati
 
 CREATE INDEX IF NOT EXISTS idx_user_documents_user_id ON user_documents(user_id);
 CREATE INDEX IF NOT EXISTS idx_custom_generators_user_id ON custom_generators(user_id);
+CREATE INDEX IF NOT EXISTS idx_custom_generators_slug ON custom_generators(slug);
+CREATE INDEX IF NOT EXISTS idx_custom_generators_user_slug ON custom_generators(user_id, slug);
 CREATE INDEX IF NOT EXISTS idx_memories_user_id ON memories(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_templates_user_id ON user_templates(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_templates_type ON user_templates(type);
+CREATE INDEX IF NOT EXISTS idx_user_templates_is_example ON user_templates(is_example);
+CREATE INDEX IF NOT EXISTS idx_user_templates_status ON user_templates(status);
+CREATE INDEX IF NOT EXISTS idx_user_templates_user_example ON user_templates(user_id, is_example);
 
 CREATE INDEX IF NOT EXISTS idx_database_table_key ON database(table_name, record_key);
 CREATE INDEX IF NOT EXISTS idx_database_user_id ON database(user_id);
@@ -367,6 +435,11 @@ CREATE INDEX IF NOT EXISTS idx_profiles_beta_features ON profiles USING GIN (bet
 CREATE INDEX IF NOT EXISTS idx_documents_metadata ON documents USING GIN (metadata);
 CREATE INDEX IF NOT EXISTS idx_user_documents_tags ON user_documents USING GIN (tags);
 CREATE INDEX IF NOT EXISTS idx_memories_tags ON memories USING GIN (tags);
+CREATE INDEX IF NOT EXISTS idx_user_templates_metadata ON user_templates USING GIN (metadata);
+CREATE INDEX IF NOT EXISTS idx_user_templates_tags ON user_templates USING GIN (tags);
+CREATE INDEX IF NOT EXISTS idx_user_templates_categories ON user_templates USING GIN (categories);
+CREATE INDEX IF NOT EXISTS idx_custom_generators_form_schema ON custom_generators USING GIN (form_schema);
+CREATE INDEX IF NOT EXISTS idx_custom_generators_settings ON custom_generators USING GIN (settings);
 
 -- Create functions to update timestamps
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -433,7 +506,51 @@ CREATE TRIGGER update_database_updated_at
     FOR EACH ROW 
     EXECUTE FUNCTION update_updated_at_column();
 
+CREATE TRIGGER update_user_templates_updated_at 
+    BEFORE UPDATE ON user_templates 
+    FOR EACH ROW 
+    EXECUTE FUNCTION update_updated_at_column();
+
 CREATE TRIGGER update_grundsatz_documents_updated_at 
     BEFORE UPDATE ON grundsatz_documents 
     FOR EACH ROW 
     EXECUTE FUNCTION update_updated_at_column();
+
+-- Wolke sync tracking table
+CREATE TABLE IF NOT EXISTS wolke_sync_status (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+    share_link_id TEXT NOT NULL,
+    folder_path TEXT NOT NULL,
+    last_sync_at TIMESTAMPTZ,
+    files_processed INTEGER DEFAULT 0,
+    files_failed INTEGER DEFAULT 0,
+    auto_sync_enabled BOOLEAN DEFAULT FALSE,
+    sync_status TEXT DEFAULT 'idle', -- 'idle', 'syncing', 'completed', 'failed'
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    -- Context support for both personal and group sync
+    context_type TEXT DEFAULT 'personal', -- 'personal' or 'group'
+    context_id UUID, -- user_id for personal, group_id for group context
+    synced_by_user_id UUID REFERENCES profiles(id), -- who initiated the sync
+    UNIQUE(user_id, share_link_id, folder_path)
+);
+
+CREATE TRIGGER update_wolke_sync_status_updated_at 
+    BEFORE UPDATE ON wolke_sync_status 
+    FOR EACH ROW 
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Performance indexes for dual-mode document management
+CREATE INDEX IF NOT EXISTS idx_documents_user_source ON documents(user_id, source_type);
+CREATE INDEX IF NOT EXISTS idx_documents_user_status ON documents(user_id, status);
+CREATE INDEX IF NOT EXISTS idx_documents_wolke_sync ON documents(user_id, wolke_share_link_id, last_synced_at);
+CREATE INDEX IF NOT EXISTS idx_wolke_sync_user ON wolke_sync_status(user_id);
+CREATE INDEX IF NOT EXISTS idx_wolke_sync_status ON wolke_sync_status(user_id, sync_status);
+CREATE INDEX IF NOT EXISTS idx_wolke_sync_context ON wolke_sync_status(context_type, context_id);
+CREATE INDEX IF NOT EXISTS idx_wolke_sync_context_status ON wolke_sync_status(context_type, context_id, sync_status);
+
+-- Performance indexes for user knowledge
+CREATE INDEX IF NOT EXISTS idx_user_knowledge_user_id ON user_knowledge(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_knowledge_user_active ON user_knowledge(user_id, is_active);
+CREATE INDEX IF NOT EXISTS idx_user_knowledge_embedding ON user_knowledge(embedding_id) WHERE embedding_id IS NOT NULL;

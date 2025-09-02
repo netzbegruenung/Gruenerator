@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { HiShieldCheck } from 'react-icons/hi';
+import { useLocation } from 'react-router-dom';
 import PropTypes from 'prop-types';
 // import { useDynamicTextSize } from '../../../components/utils/commonFunctions';
 import useApiSubmit from '../../../components/hooks/useApiSubmit';
@@ -9,6 +10,7 @@ import ErrorBoundary from '../../../components/ErrorBoundary';
 import TextTypeSelector, { TEXT_TYPES, TEXT_TYPE_TITLES } from './components/TextTypeSelector';
 import RedeForm from './RedeForm';
 import WahlprogrammForm from './WahlprogrammForm';
+import BuergeranfragenForm from './BuergeranfragenForm';
 import UniversalForm from './UniversalForm';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 import useKnowledge from '../../../components/hooks/useKnowledge';
@@ -22,12 +24,27 @@ import { HiGlobeAlt } from 'react-icons/hi';
 const API_ENDPOINTS = {
   [TEXT_TYPES.REDE]: '/claude_rede',
   [TEXT_TYPES.WAHLPROGRAMM]: '/claude_wahlprogramm',
+  [TEXT_TYPES.BUERGERANFRAGEN]: '/claude_buergeranfragen',
   [TEXT_TYPES.UNIVERSAL]: '/claude_universal'
+};
+
+// Move URL detection function outside component to avoid React hook dependency issues
+const getInitialTextType = (pathname) => {
+  if (pathname === '/rede') return TEXT_TYPES.REDE;
+  if (pathname === '/buergerinnenanfragen') return TEXT_TYPES.BUERGERANFRAGEN;
+  if (pathname === '/wahlprogramm') return TEXT_TYPES.WAHLPROGRAMM;
+  return TEXT_TYPES.UNIVERSAL;
 };
 
 const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
   const componentName = 'universal-text';
-  const [selectedType, setSelectedType] = useState(TEXT_TYPES.UNIVERSAL);
+  const location = useLocation();
+  
+  // Initialize with URL-based text type
+  const [selectedType, setSelectedType] = useState(() => {
+    const initialType = getInitialTextType(location.pathname);
+    return initialType;
+  });
   const [generatedContent, setGeneratedContent] = useState('');
   const [useWebSearchTool, setUseWebSearchTool] = useState(false);
   const [usePrivacyMode, setUsePrivacyMode] = useState(false);
@@ -37,6 +54,14 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
   const { setGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
   
   useOptimizedAuth();
+  
+  // Update selected type when URL changes
+  useEffect(() => {
+    const newType = getInitialTextType(location.pathname);
+    if (newType !== selectedType) {
+      setSelectedType(newType);
+    }
+  }, [location.pathname, selectedType]);
   
   // Initialize knowledge system with UI configuration
   useKnowledge({ 
@@ -108,12 +133,15 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
         if (data.context) queryParts.push(data.context);
         if (data.beschreibung) queryParts.push(data.beschreibung);
         if (data.inhalt) queryParts.push(data.inhalt);
+        // Bürgeranfragen specific fields
+        if (data.anfrage) queryParts.push(data.anfrage);
+        if (data.gremium) queryParts.push(data.gremium);
+        if (data.kontext) queryParts.push(data.kontext);
         
         return queryParts.filter(part => part && part.trim()).join(' ');
       };
       
       const searchQuery = extractQueryFromFormData(formData);
-      console.log('[UniversalTextGenerator] Extracted search query from form:', searchQuery);
 
       // Add knowledge, instructions, and documents with intelligent extraction
       const finalPrompt = await createKnowledgePrompt({
@@ -132,9 +160,6 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
       
       if (finalPrompt) {
         formData.customPrompt = finalPrompt;
-        console.log('[UniversalTextGenerator] Final structured prompt added to formData.', finalPrompt.substring(0,100)+'...');
-      } else {
-        console.log('[UniversalTextGenerator] No custom instructions or knowledge for generation.');
       }
       
       const content = await submitForm(formData);
@@ -177,11 +202,12 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
   }, []);
 
   const helpContent = {
-    content: "Der Universal Text Grünerator erstellt verschiedene Textarten - von Reden über Wahlprogramme bis hin zu allgemeinen Texten. Du kannst auch PDFs und Bilder als Hintergrundinformation anhängen.",
+    content: "Der Universal Text Grünerator erstellt verschiedene Textarten - von Reden über Wahlprogramme bis hin zu Bürger*innenanfragen und allgemeinen Texten. Du kannst auch PDFs und Bilder als Hintergrundinformation anhängen.",
     tips: [
       "Wähle zunächst den passenden Texttyp aus",
       "Reden: Perfekt für Veranstaltungen und öffentliche Auftritte",
       "Wahlprogramme: Strukturierte politische Inhalte",
+      "Bürger*innenanfragen: Professionelle Antworten auf Anfragen von Bürger*innen",
       "Universal: Für alle anderen Textarten geeignet",
       "Hänge PDFs oder Bilder als Kontext an (max. 5MB pro Datei)",
       "Gib spezifische Details für bessere Ergebnisse an"
@@ -216,6 +242,8 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
         return <RedeForm ref={formRef} tabIndex={tabIndex} />;
       case TEXT_TYPES.WAHLPROGRAMM:
         return <WahlprogrammForm ref={formRef} tabIndex={tabIndex} />;
+      case TEXT_TYPES.BUERGERANFRAGEN:
+        return <BuergeranfragenForm ref={formRef} tabIndex={tabIndex} />;
       case TEXT_TYPES.UNIVERSAL:
         return <UniversalForm ref={formRef} tabIndex={tabIndex} />;
       default:

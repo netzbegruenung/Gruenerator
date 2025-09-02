@@ -46,18 +46,6 @@ const ActionButtons = ({
   // Use generatedContent prop if available, fall back to store's generatedText
   const activeContent = generatedContent || generatedText;
 
-  // Debug logging for collab button visibility
-  React.useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[ActionButtons] Collab button debug:', {
-        showCollab,
-        hasCollabAccess,
-        activeContentLength: activeContent?.length,
-        onCollab: !!onCollab,
-        finalCondition: showCollab && hasCollabAccess && activeContent && onCollab
-      });
-    }
-  }, [showCollab, hasCollabAccess, activeContent, onCollab]);
 
   const handleCopyToClipboard = () => {
     copyFormattedContent(

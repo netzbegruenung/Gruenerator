@@ -1,0 +1,264 @@
+/* ImageDisplay Component Styles */
+.image-display {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-medium);
+    padding: var(--spacing-medium);
+    background-color: var(--background-color-alt);
+    border-radius: 8px;
+    border: 1px solid var(--border-subtle);
+}
+
+.image-display__header {
+    margin-bottom: var(--spacing-small);
+}
+
+.image-display__title {
+    color: var(--font-color);
+    font-size: var(--font-size-medium);
+    font-weight: 600;
+    margin: 0;
+}
+
+.image-display__content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-medium);
+    align-items: center;
+}
+
+.image-display__preview {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+}
+
+.image-container {
+    position: relative;
+    display: inline-block;
+}
+
+.image-preview {
+    max-width: 300px;
+    width: 100%;
+    height: auto;
+    border-radius: 8px;
+    border: 1px solid var(--border-subtle);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.image-preview:hover {
+    transform: scale(1.02);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Flexbox container for overlay buttons */
+.image-overlay-buttons {
+    position: absolute;
+    top: var(--spacing-small);
+    right: var(--spacing-small);
+    display: flex;
+    gap: var(--spacing-xsmall);
+    z-index: 2;
+}
+
+/* Base button styling */
+.image-button {
+    padding: var(--spacing-xsmall) var(--spacing-small);
+    background-color: var(--klee);
+    color: var(--weiß);
+    border: none;
+    border-radius: var(--card-border-radius-small);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xsmall);
+    font-size: 0.875rem;
+    font-weight: 600;
+    opacity: 0.9;
+    transition: transform 0.3s ease;
+}
+
+.image-button:hover {
+    transform: scale(1.05);
+}
+
+.image-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.image-button svg {
+    width: 16px;
+    height: 16px;
+}
+
+.image-display__actions {
+    display: flex;
+    justify-content: center;
+    gap: var(--spacing-small);
+    width: 100%;
+}
+
+.image-edit-button {
+    padding: var(--spacing-small) var(--spacing-medium);
+    background-color: var(--tanne);
+    color: var(--weiß);
+    border: none;
+    border-radius: var(--card-border-radius);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xsmall);
+    font-size: var(--font-size-small);
+    font-weight: 600;
+    font-family: inherit;
+    transition: all 0.2s ease;
+}
+
+.image-edit-button:hover {
+    background-color: var(--tanne-dark);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.image-edit-button svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+    .image-display {
+        padding: var(--spacing-small);
+        gap: var(--spacing-small);
+    }
+    
+    .image-preview {
+        max-width: 250px;
+    }
+    
+    .image-display__title {
+        font-size: var(--font-size-small);
+    }
+    
+    .image-button {
+        font-size: 0.75rem;
+        padding: var(--spacing-xsmall);
+    }
+    
+    .image-button svg {
+        width: 14px;
+        height: 14px;
+    }
+    
+    .image-lightbox-image {
+        max-width: 95%;
+        max-height: 85%;
+    }
+}
+
+@media (max-width: 480px) {
+    .image-preview {
+        max-width: 200px;
+    }
+    
+    .image-lightbox-close {
+        top: var(--spacing-small);
+        right: var(--spacing-small);
+    }
+}
+
+/* Reduce motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+    .image-button,
+    .image-preview,
+    .image-lightbox-overlay,
+    .image-lightbox-content {
+        transition: none;
+    }
+}
+
+/* Lightbox Styles */
+.image-lightbox-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1100;
+    padding: var(--spacing-medium);
+    animation: fadeIn 0.3s ease-out;
+}
+
+.image-lightbox-content {
+    position: relative;
+    max-width: 95vw;
+    max-height: 95vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: scaleIn 0.3s ease-out;
+}
+
+.image-lightbox-image {
+    max-width: 90vw;
+    max-height: 90vh;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    border-radius: var(--card-border-radius-medium);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.image-lightbox-close {
+    position: absolute;
+    top: var(--spacing-medium);
+    right: var(--spacing-medium);
+    background: rgba(0, 0, 0, 0.7);
+    color: var(--weiß);
+    border: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    font-size: 24px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s ease, transform 0.2s ease;
+    z-index: 1101;
+}
+
+.image-lightbox-close:hover {
+    background: rgba(0, 0, 0, 0.9);
+    transform: scale(1.1);
+}
+
+
+/* Lightbox animations */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes scaleIn {
+    from {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}

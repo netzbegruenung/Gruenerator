@@ -81,7 +81,7 @@ export const useDocumentsStore = create(immer((set, get) => {
       }
     },
 
-    // Upload document
+    // Upload document (vectors-only manual mode)
     uploadDocument: async (file, title, groupId = null, ocrMethod = 'tesseract') => {
       set((state) => {
         state.isUploading = true;
@@ -90,19 +90,18 @@ export const useDocumentsStore = create(immer((set, get) => {
       });
 
       try {
-        console.log('[DocumentsStore] Uploading document:', { title, filename: file.name, size: file.size, ocrMethod });
+        console.log('[DocumentsStore] Uploading document (manual mode):', { title, filename: file.name, size: file.size });
 
         // Create FormData
         const formData = new FormData();
         formData.append('document', file);
         formData.append('title', title);
-        formData.append('ocr_method', ocrMethod);
         if (groupId) {
           formData.append('group_id', groupId);
         }
 
-        // Upload with progress tracking
-        const response = await fetch(`${AUTH_BASE_URL}/documents/upload`, {
+        // Upload to manual vectors-only endpoint
+        const response = await fetch(`${AUTH_BASE_URL}/documents/upload-manual`, {
           method: 'POST',
           credentials: 'include',
           body: formData,
@@ -122,10 +121,10 @@ export const useDocumentsStore = create(immer((set, get) => {
             state.uploadProgress = 100;
           });
           
-          console.log('[DocumentsStore] Document uploaded successfully:', result.data.id);
+          console.log('[DocumentsStore] Document vectorized successfully:', result.data.id);
           return result.data;
         } else {
-          throw new Error(result.message || 'Failed to upload document');
+          throw new Error(result.message || 'Failed to process document');
         }
       } catch (error) {
         console.error('[DocumentsStore] Error uploading document:', error);
@@ -138,7 +137,7 @@ export const useDocumentsStore = create(immer((set, get) => {
       }
     },
 
-    // Crawl URL and create document
+    // Crawl URL and create document (vectors-only manual mode)
     crawlUrl: async (url, title, groupId = null) => {
       set((state) => {
         state.isUploading = true; // Reuse upload state for crawling
@@ -147,9 +146,9 @@ export const useDocumentsStore = create(immer((set, get) => {
       });
 
       try {
-        console.log('[DocumentsStore] Crawling URL:', { url, title, groupId });
+        console.log('[DocumentsStore] Crawling URL (manual mode):', { url, title, groupId });
 
-        const response = await fetch(`${AUTH_BASE_URL}/documents/crawl-url`, {
+        const response = await fetch(`${AUTH_BASE_URL}/documents/crawl-url-manual`, {
           method: 'POST',
           credentials: 'include',
           headers: {
@@ -176,10 +175,10 @@ export const useDocumentsStore = create(immer((set, get) => {
             state.uploadProgress = 100;
           });
           
-          console.log('[DocumentsStore] URL crawling started successfully:', result.data.id);
+          console.log('[DocumentsStore] URL crawled and vectorized successfully:', result.data.id);
           return result.data;
         } else {
-          throw new Error(result.message || 'Failed to start URL crawling');
+          throw new Error(result.message || 'Failed to crawl and process URL');
         }
       } catch (error) {
         console.error('[DocumentsStore] Error crawling URL:', error);
@@ -231,15 +230,17 @@ export const useDocumentsStore = create(immer((set, get) => {
       }
     },
 
-    // Search documents
-    searchDocuments: async (query, limit = 5) => {
+    // Search documents (supports fulltext or intelligent/hybrid)
+    searchDocuments: async (query, options = {}) => {
       set((state) => {
         state.isSearching = true;
         state.error = null;
       });
 
       try {
-        console.log('[DocumentsStore] Searching documents:', { query, limit });
+        const { limit = 5, mode = 'intelligent', documentIds } = options || {};
+        const searchMode = mode === 'fulltext' ? 'text' : 'hybrid';
+        console.log('[DocumentsStore] Searching documents:', { query, limit, mode: searchMode, documentIds });
 
         const response = await fetch(`${AUTH_BASE_URL}/documents/search`, {
           method: 'POST',
@@ -247,7 +248,7 @@ export const useDocumentsStore = create(immer((set, get) => {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ query, limit }),
+          body: JSON.stringify({ query, limit, searchMode, documentIds }),
         });
 
         if (!response.ok) {
@@ -258,10 +259,14 @@ export const useDocumentsStore = create(immer((set, get) => {
         
         if (result.success) {
           set((state) => {
-            state.searchResults = result.data || [];
+            state.searchResults = (result.data || []).map(item => ({
+              ...item,
+              // Ensure search_type is present per item for UI meta rendering
+              search_type: item.search_type || result.searchType || searchMode
+            }));
             state.isSearching = false;
           });
-          
+
           console.log(`[DocumentsStore] Found ${result.data?.length || 0} search results`);
           return result.data || [];
         } else {

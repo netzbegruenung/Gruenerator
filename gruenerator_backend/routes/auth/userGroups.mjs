@@ -1,11 +1,44 @@
+
 import express from 'express';
-import { supabaseService } from '../../utils/supabaseClient.js';
+import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import authMiddlewareModule from '../../middleware/authMiddleware.js';
 import crypto from 'crypto';
+import { v4 as uuidv4 } from 'uuid';
 
 const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
 
 const router = express.Router();
+
+// Helper function to get PostgreSQL instance and check user membership
+async function getPostgresAndCheckMembership(groupId, userId, requireAdmin = false) {
+  const postgres = getPostgresInstance();
+  await postgres.ensureInitialized();
+  
+  const membership = await postgres.queryOne(
+    'SELECT role FROM group_memberships WHERE group_id = $1 AND user_id = $2',
+    [groupId, userId],
+    { table: 'group_memberships' }
+  );
+  
+  if (!membership) {
+    throw new Error('Du bist nicht Mitglied dieser Gruppe.');
+  }
+  
+  if (requireAdmin && membership.role !== 'admin') {
+    // Check if user is group creator
+    const group = await postgres.queryOne(
+      'SELECT created_by FROM groups WHERE id = $1',
+      [groupId],
+      { table: 'groups' }
+    );
+    
+    if (!group || group.created_by !== userId) {
+      throw new Error('Keine Berechtigung für diese Aktion.');
+    }
+  }
+  
+  return { postgres, membership };
+}
 
 // Add debugging middleware to all groups routes
 router.use((req, res, next) => {
@@ -21,17 +54,15 @@ router.get('/groups', ensureAuthenticated, async (req, res) => {
     console.log('[User Groups /groups GET] Groups get request for user:', req.user.id);
     
     const userId = req.user.id;
+    const postgres = getPostgresInstance();
+    await postgres.ensureInitialized();
     
     // Get user's group memberships
-    const { data: memberships, error: membershipsError } = await supabaseService
-      .from('group_memberships')
-      .select('group_id, role, joined_at')
-      .eq('user_id', userId);
-
-    if (membershipsError) {
-      console.error('[User Groups /groups GET] Memberships error:', membershipsError);
-      throw new Error(membershipsError.message);
-    }
+    const memberships = await postgres.query(
+      'SELECT group_id, role, joined_at FROM group_memberships WHERE user_id = $1',
+      [userId],
+      { table: 'group_memberships' }
+    );
 
     if (!memberships || memberships.length === 0) {
       return res.json({
@@ -43,15 +74,11 @@ router.get('/groups', ensureAuthenticated, async (req, res) => {
     const groupIds = memberships.map(m => m.group_id);
     
     // Get group details
-    const { data: groupsData, error: groupsError } = await supabaseService
-      .from('groups')
-      .select('id, name, description, created_at, created_by, join_token')
-      .in('id', groupIds);
-
-    if (groupsError) {
-      console.error('[User Groups /groups GET] Groups error:', groupsError);
-      throw new Error(groupsError.message);
-    }
+    const groupsData = await postgres.query(
+      'SELECT id, name, description, created_at, created_by, join_token FROM groups WHERE id = ANY($1)',
+      [groupIds],
+      { table: 'groups' }
+    );
 
     // Combine group and membership data
     const combinedGroups = groupsData.map(group => ({
@@ -91,49 +118,42 @@ router.post('/groups', ensureAuthenticated, async (req, res) => {
 
     const userId = req.user.id;
     const joinToken = crypto.randomBytes(16).toString('hex');
+    const groupId = uuidv4();
+    const postgres = getPostgresInstance();
+    await postgres.ensureInitialized();
 
-    // 1. Create the group
-    const { data: newGroup, error: groupError } = await supabaseService
-      .from('groups')
-      .insert({
-        name: name.trim(),
-        created_by: userId,
-        join_token: joinToken,
-        description: null // Default empty description
-      })
-      .select('id, name, description, created_at, created_by, join_token')
-      .single();
+    // Create group, membership and instructions in a transaction
+    const newGroup = await postgres.transaction(async (client) => {
+      // 1. Create the group
+      const group = await postgres.transactionQueryOne(
+        client,
+        `INSERT INTO groups (id, name, created_by, join_token, description) 
+         VALUES ($1, $2, $3, $4, $5) 
+         RETURNING id, name, description, created_at, created_by, join_token`,
+        [groupId, name.trim(), userId, joinToken, null],
+        { table: 'groups' }
+      );
 
-    if (groupError) {
-      console.error('[User Groups /groups POST] Group creation error:', groupError);
-      throw new Error(groupError.message);
-    }
+      if (!group) {
+        throw new Error('Failed to create group');
+      }
 
-    // 2. Create membership for the creator with admin role
-    const { error: membershipError } = await supabaseService
-      .from('group_memberships')
-      .insert({
-        group_id: newGroup.id,
-        user_id: userId,
-        role: 'admin'
-      });
+      // 2. Create membership for the creator with admin role
+      await postgres.transactionExec(
+        client,
+        'INSERT INTO group_memberships (group_id, user_id, role) VALUES ($1, $2, $3)',
+        [group.id, userId, 'admin']
+      );
 
-    if (membershipError) {
-      console.error('[User Groups /groups POST] Membership creation error:', membershipError);
-      throw new Error(membershipError.message);
-    }
+      // 3. Create empty instructions entry
+      await postgres.transactionExec(
+        client,
+        'INSERT INTO group_instructions (group_id) VALUES ($1)',
+        [group.id]
+      );
 
-    // 3. Create empty instructions entry
-    const { error: instructionsError } = await supabaseService
-      .from('group_instructions')
-      .insert({
-        group_id: newGroup.id
-      });
-
-    if (instructionsError) {
-      console.error('[User Groups /groups POST] Instructions creation error:', instructionsError);
-      // Non-critical error, continue
-    }
+      return group;
+    });
 
     console.log('[User Groups /groups POST] Group created successfully:', newGroup.id);
 
@@ -162,6 +182,8 @@ router.delete('/groups/:groupId', ensureAuthenticated, async (req, res) => {
     console.log('[User Groups /groups DELETE] Delete group request for user:', req.user.id);
     const { groupId } = req.params;
     const userId = req.user.id;
+    const postgres = getPostgresInstance();
+    await postgres.ensureInitialized();
     
     if (!groupId) {
       return res.status(400).json({
@@ -171,29 +193,30 @@ router.delete('/groups/:groupId', ensureAuthenticated, async (req, res) => {
     }
 
     // Check if user is authorized to delete the group (creator or admin)
-    const { data: groupData, error: groupError } = await supabaseService
-      .from('groups')
-      .select('created_by')
-      .eq('id', groupId)
-      .single();
+    const groupData = await postgres.queryOne(
+      'SELECT created_by FROM groups WHERE id = $1',
+      [groupId],
+      { table: 'groups' }
+    );
 
-    if (groupError) {
-      console.error('[User Groups /groups DELETE] Group lookup error:', groupError);
-      throw new Error('Gruppe nicht gefunden.');
+    if (!groupData) {
+      return res.status(404).json({
+        success: false,
+        message: 'Gruppe nicht gefunden.'
+      });
     }
 
     const isCreator = groupData.created_by === userId;
     
     if (!isCreator) {
       // Check if user is admin
-      const { data: membership, error: membershipError } = await supabaseService
-        .from('group_memberships')
-        .select('role')
-        .eq('group_id', groupId)
-        .eq('user_id', userId)
-        .single();
+      const membership = await postgres.queryOne(
+        'SELECT role FROM group_memberships WHERE group_id = $1 AND user_id = $2',
+        [groupId, userId],
+        { table: 'group_memberships' }
+      );
 
-      if (membershipError || !membership || membership.role !== 'admin') {
+      if (!membership || membership.role !== 'admin') {
         return res.status(403).json({
           success: false,
           message: 'Keine Berechtigung zum Löschen dieser Gruppe.'
@@ -201,49 +224,27 @@ router.delete('/groups/:groupId', ensureAuthenticated, async (req, res) => {
       }
     }
 
-    // Delete in correct order to avoid foreign key constraints
-    
-    // 1. Delete group knowledge entries
-    const { error: knowledgeError } = await supabaseService
-      .from('group_knowledge')
-      .delete()
-      .eq('group_id', groupId);
-
-    if (knowledgeError) {
-      console.error('[User Groups /groups DELETE] Knowledge deletion error:', knowledgeError);
-    }
-
-    // 2. Delete group instructions
-    const { error: instructionsError } = await supabaseService
-      .from('group_instructions')
-      .delete()
-      .eq('group_id', groupId);
-
-    if (instructionsError) {
-      console.error('[User Groups /groups DELETE] Instructions deletion error:', instructionsError);
-    }
-
-    // 3. Delete group memberships
-    const { error: membershipsError } = await supabaseService
-      .from('group_memberships')
-      .delete()
-      .eq('group_id', groupId);
-
-    if (membershipsError) {
-      console.error('[User Groups /groups DELETE] Memberships deletion error:', membershipsError);
-      throw new Error(membershipsError.message);
-    }
-
-    // 4. Delete the group itself
-    const { error: deleteGroupError } = await supabaseService
-      .from('groups')
-      .delete()
-      .eq('id', groupId);
-
-    if (deleteGroupError) {
-      console.error('[User Groups /groups DELETE] Group deletion error:', deleteGroupError);
-      throw new Error(deleteGroupError.message);
-    }
+    // Delete in correct order using transaction to ensure data integrity
+    await postgres.transaction(async (client) => {
+      // 1. Delete group knowledge entries
+      await postgres.transactionExec(client, 'DELETE FROM group_knowledge WHERE group_id = $1', [groupId]);
+      
+      // 2. Delete group instructions
+      await postgres.transactionExec(client, 'DELETE FROM group_instructions WHERE group_id = $1', [groupId]);
+      
+      // 3. Delete group content shares
+      await postgres.transactionExec(client, 'DELETE FROM group_content_shares WHERE group_id = $1', [groupId]);
+      
+      // 4. Delete group memberships
+      await postgres.transactionExec(client, 'DELETE FROM group_memberships WHERE group_id = $1', [groupId]);
+      
+      // 5. Delete the group itself
+      const result = await postgres.transactionExec(client, 'DELETE FROM groups WHERE id = $1', [groupId]);
+      
+      if (result.changes === 0) {
+        throw new Error('Group not found or already deleted');
+      }
+    });
 
     console.log('[User Groups /groups DELETE] Group deleted successfully:', groupId);
 
@@ -267,6 +268,8 @@ router.get('/groups/verify-token/:joinToken', ensureAuthenticated, async (req, r
     console.log('[User Groups /groups/verify-token GET] Verify token request for user:', req.user.id);
     const { joinToken } = req.params;
     const userId = req.user.id;
+    const postgres = getPostgresInstance();
+    await postgres.ensureInitialized();
     
     if (!joinToken?.trim()) {
       return res.status(400).json({
@@ -276,14 +279,13 @@ router.get('/groups/verify-token/:joinToken', ensureAuthenticated, async (req, r
     }
 
     // 1. Get the group from the token
-    const { data: group, error: groupError } = await supabaseService
-      .from('groups')
-      .select('id, name')
-      .eq('join_token', joinToken.trim())
-      .single();
+    const group = await postgres.queryOne(
+      'SELECT id, name FROM groups WHERE join_token = $1',
+      [joinToken.trim()],
+      { table: 'groups' }
+    );
 
-    if (groupError) {
-      console.error('[User Groups /groups/verify-token GET] Group lookup error:', groupError);
+    if (!group) {
       return res.status(404).json({
         success: false,
         message: 'Ungültiger oder abgelaufener Einladungslink.'
@@ -291,17 +293,11 @@ router.get('/groups/verify-token/:joinToken', ensureAuthenticated, async (req, r
     }
 
     // 2. Check if already a member
-    const { data: existingMembership, error: membershipCheckError } = await supabaseService
-      .from('group_memberships')
-      .select('group_id')
-      .eq('group_id', group.id)
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    if (membershipCheckError) {
-      console.error('[User Groups /groups/verify-token GET] Membership check error:', membershipCheckError);
-      throw new Error('Fehler beim Überprüfen der Mitgliedschaft.');
-    }
+    const existingMembership = await postgres.queryOne(
+      'SELECT group_id FROM group_memberships WHERE group_id = $1 AND user_id = $2',
+      [group.id, userId],
+      { table: 'group_memberships' }
+    );
 
     console.log('[User Groups /groups/verify-token GET] Token verified successfully');
 
@@ -326,6 +322,8 @@ router.post('/groups/join', ensureAuthenticated, async (req, res) => {
     console.log('[User Groups /groups/join POST] Join group request for user:', req.user.id);
     const { joinToken } = req.body;
     const userId = req.user.id;
+    const postgres = getPostgresInstance();
+    await postgres.ensureInitialized();
     
     if (!joinToken?.trim()) {
       return res.status(400).json({
@@ -335,14 +333,13 @@ router.post('/groups/join', ensureAuthenticated, async (req, res) => {
     }
 
     // 1. Get the group from the token
-    const { data: group, error: groupError } = await supabaseService
-      .from('groups')
-      .select('id, name')
-      .eq('join_token', joinToken.trim())
-      .single();
+    const group = await postgres.queryOne(
+      'SELECT id, name FROM groups WHERE join_token = $1',
+      [joinToken.trim()],
+      { table: 'groups' }
+    );
 
-    if (groupError) {
-      console.error('[User Groups /groups/join POST] Group lookup error:', groupError);
+    if (!group) {
       return res.status(404).json({
         success: false,
         message: 'Ungültiger oder abgelaufener Einladungslink.'
@@ -350,17 +347,11 @@ router.post('/groups/join', ensureAuthenticated, async (req, res) => {
     }
 
     // 2. Check if already a member
-    const { data: existingMembership, error: membershipCheckError } = await supabaseService
-      .from('group_memberships')
-      .select('group_id')
-      .eq('group_id', group.id)
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    if (membershipCheckError) {
-      console.error('[User Groups /groups/join POST] Membership check error:', membershipCheckError);
-      throw new Error('Fehler beim Überprüfen der Mitgliedschaft.');
-    }
+    const existingMembership = await postgres.queryOne(
+      'SELECT group_id FROM group_memberships WHERE group_id = $1 AND user_id = $2',
+      [group.id, userId],
+      { table: 'group_memberships' }
+    );
 
     if (existingMembership) {
       return res.json({
@@ -372,18 +363,10 @@ router.post('/groups/join', ensureAuthenticated, async (req, res) => {
     }
 
     // 3. Create membership
-    const { error: createMembershipError } = await supabaseService
-      .from('group_memberships')
-      .insert({
-        group_id: group.id,
-        user_id: userId,
-        role: 'member'
-      });
-
-    if (createMembershipError) {
-      console.error('[User Groups /groups/join POST] Membership creation error:', createMembershipError);
-      throw new Error(createMembershipError.message);
-    }
+    await postgres.exec(
+      'INSERT INTO group_memberships (group_id, user_id, role) VALUES ($1, $2, $3)',
+      [group.id, userId, 'member']
+    );
 
     console.log('[User Groups /groups/join POST] Successfully joined group:', group.id);
 
@@ -408,6 +391,8 @@ router.get('/groups/:groupId/details', ensureAuthenticated, async (req, res) => 
     console.log('[User Groups /groups/:groupId/details GET] Group details request for user:', req.user.id);
     const { groupId } = req.params;
     const userId = req.user.id;
+    const postgres = getPostgresInstance();
+    await postgres.ensureInitialized();
     
     if (!groupId) {
       return res.status(400).json({
@@ -417,15 +402,13 @@ router.get('/groups/:groupId/details', ensureAuthenticated, async (req, res) => 
     }
 
     // 1. Check membership and role
-    const { data: membership, error: membershipError } = await supabaseService
-      .from('group_memberships')
-      .select('role, joined_at')
-      .eq('group_id', groupId)
-      .eq('user_id', userId)
-      .single();
+    const membership = await postgres.queryOne(
+      'SELECT role, joined_at FROM group_memberships WHERE group_id = $1 AND user_id = $2',
+      [groupId, userId],
+      { table: 'group_memberships' }
+    );
 
-    if (membershipError) {
-      console.error('[User Groups /groups/:groupId/details GET] Membership error:', membershipError);
+    if (!membership) {
       return res.status(403).json({
         success: false,
         message: 'Du bist nicht Mitglied dieser Gruppe.'
@@ -433,38 +416,29 @@ router.get('/groups/:groupId/details', ensureAuthenticated, async (req, res) => 
     }
 
     // 2. Fetch group info
-    const { data: group, error: groupError } = await supabaseService
-      .from('groups')
-      .select('id, name, description, created_at, created_by, join_token')
-      .eq('id', groupId)
-      .single();
+    const group = await postgres.queryOne(
+      'SELECT id, name, description, created_at, created_by, join_token FROM groups WHERE id = $1',
+      [groupId],
+      { table: 'groups' }
+    );
 
-    if (groupError) {
-      console.error('[User Groups /groups/:groupId/details GET] Group error:', groupError);
-      throw new Error(groupError.message);
+    if (!group) {
+      throw new Error('Group not found');
     }
 
     // 3. Fetch instructions
-    const { data: instructions, error: instructionsError } = await supabaseService
-      .from('group_instructions')
-      .select('group_id, custom_antrag_prompt, custom_social_prompt, antrag_instructions_enabled, social_instructions_enabled')
-      .eq('group_id', groupId)
-      .maybeSingle();
-
-    if (instructionsError && instructionsError.code !== 'PGRST116') {
-      console.error('[User Groups /groups/:groupId/details GET] Instructions error:', instructionsError);
-    }
+    const instructions = await postgres.queryOne(
+      'SELECT group_id, custom_antrag_prompt, custom_social_prompt, antrag_instructions_enabled, social_instructions_enabled FROM group_instructions WHERE group_id = $1',
+      [groupId],
+      { table: 'group_instructions' }
+    );
 
     // 4. Fetch knowledge
-    const { data: knowledge, error: knowledgeError } = await supabaseService
-      .from('group_knowledge')
-      .select('id, title, content, created_by, created_at, updated_at')
-      .eq('group_id', groupId)
-      .order('created_at', { ascending: true });
-
-    if (knowledgeError) {
-      console.error('[User Groups /groups/:groupId/details GET] Knowledge error:', knowledgeError);
-    }
+    const knowledge = await postgres.query(
+      'SELECT id, title, content, created_by, created_at, updated_at FROM group_knowledge WHERE group_id = $1 ORDER BY created_at ASC',
+      [groupId],
+      { table: 'group_knowledge' }
+    );
 
     // Determine if user is admin
     const isAdmin = membership.role === 'admin' || group.created_by === userId;
@@ -505,6 +479,8 @@ router.put('/groups/:groupId/info', ensureAuthenticated, async (req, res) => {
     const { groupId } = req.params;
     const userId = req.user.id;
     const { name, description } = req.body;
+    const postgres = getPostgresInstance();
+    await postgres.ensureInitialized();
     
     if (!groupId) {
       return res.status(400).json({
@@ -513,33 +489,24 @@ router.put('/groups/:groupId/info', ensureAuthenticated, async (req, res) => {
       });
     }
 
-    // Check if user is admin
-    const { data: membership, error: membershipError } = await supabaseService
-      .from('group_memberships')
-      .select('role')
-      .eq('group_id', groupId)
-      .eq('user_id', userId)
-      .single();
+    // Check if user is admin and get group info in one query
+    const membershipAndGroup = await postgres.queryOne(
+      `SELECT gm.role, g.created_by 
+       FROM group_memberships gm 
+       JOIN groups g ON g.id = gm.group_id 
+       WHERE gm.group_id = $1 AND gm.user_id = $2`,
+      [groupId, userId],
+      { table: 'group_memberships' }
+    );
 
-    if (membershipError) {
+    if (!membershipAndGroup) {
       return res.status(403).json({
         success: false,
         message: 'Du bist nicht Mitglied dieser Gruppe.'
       });
     }
 
-    // Check if user is group creator
-    const { data: group, error: groupError } = await supabaseService
-      .from('groups')
-      .select('created_by')
-      .eq('id', groupId)
-      .single();
-
-    if (groupError) {
-      throw new Error(groupError.message);
-    }
-
-    const isAdmin = membership.role === 'admin' || group.created_by === userId;
+    const isAdmin = membershipAndGroup.role === 'admin' || membershipAndGroup.created_by === userId;
     
     if (!isAdmin) {
       return res.status(403).json({
@@ -549,7 +516,10 @@ router.put('/groups/:groupId/info', ensureAuthenticated, async (req, res) => {
     }
 
     // Build update object
-    const updateData = {};
+    const updateFields = [];
+    const updateValues = [];
+    let paramIndex = 1;
+
     if (name !== undefined) {
       if (!name?.trim()) {
         return res.status(400).json({
@@ -557,28 +527,30 @@ router.put('/groups/:groupId/info', ensureAuthenticated, async (req, res) => {
           message: 'Gruppenname darf nicht leer sein.'
         });
       }
-      updateData.name = name.trim();
+      updateFields.push(`name = $${paramIndex++}`);
+      updateValues.push(name.trim());
     }
     if (description !== undefined) {
-      updateData.description = description?.trim() || null;
+      updateFields.push(`description = $${paramIndex++}`);
+      updateValues.push(description?.trim() || null);
     }
 
-    if (Object.keys(updateData).length === 0) {
+    if (updateFields.length === 0) {
       return res.status(400).json({
         success: false,
         message: 'Keine Änderungen angegeben.'
       });
     }
 
-    // Update group info
-    const { error: updateError } = await supabaseService
-      .from('groups')
-      .update(updateData)
-      .eq('id', groupId);
+    // Add groupId as the last parameter for WHERE clause
+    updateValues.push(groupId);
 
-    if (updateError) {
-      console.error('[User Groups /groups/:groupId/info PUT] Update error:', updateError);
-      throw new Error(updateError.message);
+    // Update group info
+    const updateSQL = `UPDATE groups SET ${updateFields.join(', ')} WHERE id = $${paramIndex}`;
+    const result = await postgres.exec(updateSQL, updateValues);
+
+    if (result.changes === 0) {
+      throw new Error('Group not found or no changes made');
     }
 
     console.log('[User Groups /groups/:groupId/info PUT] Group info updated successfully');
@@ -619,52 +591,16 @@ router.put('/groups/:groupId/name', ensureAuthenticated, async (req, res) => {
       });
     }
 
-    // Check if user is admin
-    const { data: membership, error: membershipError } = await supabaseService
-      .from('group_memberships')
-      .select('role')
-      .eq('group_id', groupId)
-      .eq('user_id', userId)
-      .single();
-
-    if (membershipError) {
-      return res.status(403).json({
-        success: false,
-        message: 'Du bist nicht Mitglied dieser Gruppe.'
-      });
-    }
-
-    // Check if user is group creator
-    const { data: group, error: groupError } = await supabaseService
-      .from('groups')
-      .select('created_by')
-      .eq('id', groupId)
-      .single();
-
-    if (groupError) {
-      throw new Error(groupError.message);
-    }
-
-    const isAdmin = membership.role === 'admin' || group.created_by === userId;
-    
-    if (!isAdmin) {
-      return res.status(403).json({
-        success: false,
-        message: 'Keine Berechtigung zum Ändern des Gruppennamens.'
-      });
-    }
+    const { postgres } = await getPostgresAndCheckMembership(groupId, userId, true);
 
     // Update group name
-    const { error: updateError } = await supabaseService
-      .from('groups')
-      .update({ 
-        name: name.trim()
-      })
-      .eq('id', groupId);
+    const result = await postgres.exec(
+      'UPDATE groups SET name = $1 WHERE id = $2',
+      [name.trim(), groupId]
+    );
 
-    if (updateError) {
-      console.error('[User Groups /groups/:groupId/name PUT] Update error:', updateError);
-      throw new Error(updateError.message);
+    if (result.changes === 0) {
+      throw new Error('Group not found or no changes made');
     }
 
     console.log('[User Groups /groups/:groupId/name PUT] Group name updated successfully');
@@ -697,32 +633,14 @@ router.get('/groups/:groupId/instructions', ensureAuthenticated, async (req, res
       });
     }
 
-    // Check if user is member of the group
-    const { data: membership, error: membershipError } = await supabaseService
-      .from('group_memberships')
-      .select('role')
-      .eq('group_id', groupId)
-      .eq('user_id', userId)
-      .single();
-
-    if (membershipError) {
-      return res.status(403).json({
-        success: false,
-        message: 'Du bist nicht Mitglied dieser Gruppe.'
-      });
-    }
+    const { postgres } = await getPostgresAndCheckMembership(groupId, userId, false);
 
     // Fetch instructions
-    const { data: instructions, error: instructionsError } = await supabaseService
-      .from('group_instructions')
-      .select('group_id, custom_antrag_prompt, custom_social_prompt, antrag_instructions_enabled, social_instructions_enabled')
-      .eq('group_id', groupId)
-      .maybeSingle();
-
-    if (instructionsError && instructionsError.code !== 'PGRST116') {
-      console.error('[User Groups /groups/:groupId/instructions GET] Instructions error:', instructionsError);
-      throw new Error(instructionsError.message);
-    }
+    const instructions = await postgres.queryOne(
+      'SELECT group_id, custom_antrag_prompt, custom_social_prompt, antrag_instructions_enabled, social_instructions_enabled FROM group_instructions WHERE group_id = $1',
+      [groupId],
+      { table: 'group_instructions' }
+    );
 
     console.log('[User Groups /groups/:groupId/instructions GET] Instructions loaded successfully');
 
@@ -766,62 +684,49 @@ router.put('/groups/:groupId/instructions', ensureAuthenticated, async (req, res
       });
     }
 
-    // Check if user is admin
-    const { data: membership, error: membershipError } = await supabaseService
-      .from('group_memberships')
-      .select('role')
-      .eq('group_id', groupId)
-      .eq('user_id', userId)
-      .single();
+    const { postgres, membership } = await getPostgresAndCheckMembership(groupId, userId, true);
 
-    if (membershipError) {
-      return res.status(403).json({
+    // Build update object
+    const updateFields = [];
+    const updateValues = [];
+    let paramIndex = 1;
+
+    if (custom_antrag_prompt !== undefined) {
+      updateFields.push(`custom_antrag_prompt = $${paramIndex++}`);
+      updateValues.push(custom_antrag_prompt);
+    }
+    if (custom_social_prompt !== undefined) {
+      updateFields.push(`custom_social_prompt = $${paramIndex++}`);
+      updateValues.push(custom_social_prompt);
+    }
+    if (antrag_instructions_enabled !== undefined) {
+      updateFields.push(`antrag_instructions_enabled = $${paramIndex++}`);
+      updateValues.push(antrag_instructions_enabled);
+    }
+    if (social_instructions_enabled !== undefined) {
+      updateFields.push(`social_instructions_enabled = $${paramIndex++}`);
+      updateValues.push(social_instructions_enabled);
+    }
+
+    if (updateFields.length === 0) {
+      return res.status(400).json({
         success: false,
-        message: 'Du bist nicht Mitglied dieser Gruppe.'
+        message: 'Keine Änderungen angegeben.'
       });
     }
 
-    // Check if user is group creator
-    const { data: group, error: groupError } = await supabaseService
-      .from('groups')
-      .select('created_by')
-      .eq('id', groupId)
-      .single();
+    // Add groupId as the last parameter for WHERE clause
+    updateValues.push(groupId);
 
-    if (groupError) {
-      throw new Error(groupError.message);
-    }
-
-    const isAdmin = membership.role === 'admin' || group.created_by === userId;
+    // Update instructions using UPSERT
+    const upsertSQL = `
+      INSERT INTO group_instructions (group_id, ${updateFields.map((f, i) => f.split(' = ')[0]).join(', ')})
+      VALUES ($${paramIndex}, ${updateFields.map((_, i) => `$${i + 1}`).join(', ')})
+      ON CONFLICT (group_id) 
+      DO UPDATE SET ${updateFields.join(', ')}, updated_at = CURRENT_TIMESTAMP
+    `;
     
-    if (!isAdmin) {
-      return res.status(403).json({
-        success: false,
-        message: 'Keine Berechtigung zum Bearbeiten der Gruppenanweisungen.'
-      });
-    }
-
-    // Update instructions
-    const updateData = {
-      updated_at: new Date().toISOString()
-    };
-
-    if (custom_antrag_prompt !== undefined) updateData.custom_antrag_prompt = custom_antrag_prompt;
-    if (custom_social_prompt !== undefined) updateData.custom_social_prompt = custom_social_prompt;
-    if (antrag_instructions_enabled !== undefined) updateData.antrag_instructions_enabled = antrag_instructions_enabled;
-    if (social_instructions_enabled !== undefined) updateData.social_instructions_enabled = social_instructions_enabled;
-
-    const { error: updateError } = await supabaseService
-      .from('group_instructions')
-      .upsert({ 
-        group_id: groupId,
-        ...updateData
-      });
-
-    if (updateError) {
-      console.error('[User Groups /groups/:groupId/instructions PUT] Update error:', updateError);
-      throw new Error(updateError.message);
-    }
+    const result = await postgres.exec(upsertSQL, updateValues);
 
     console.log('[User Groups /groups/:groupId/instructions PUT] Instructions updated successfully');
 
@@ -861,55 +766,19 @@ router.post('/groups/:groupId/knowledge', ensureAuthenticated, async (req, res) 
       });
     }
 
-    // Check if user is admin (same logic as instructions)
-    const { data: membership, error: membershipError } = await supabaseService
-      .from('group_memberships')
-      .select('role')
-      .eq('group_id', groupId)
-      .eq('user_id', userId)
-      .single();
-
-    if (membershipError) {
-      return res.status(403).json({
-        success: false,
-        message: 'Du bist nicht Mitglied dieser Gruppe.'
-      });
-    }
-
-    const { data: group, error: groupError } = await supabaseService
-      .from('groups')
-      .select('created_by')
-      .eq('id', groupId)
-      .single();
-
-    if (groupError) {
-      throw new Error(groupError.message);
-    }
-
-    const isAdmin = membership.role === 'admin' || group.created_by === userId;
-    
-    if (!isAdmin) {
-      return res.status(403).json({
-        success: false,
-        message: 'Keine Berechtigung zum Hinzufügen von Gruppenwissen.'
-      });
-    }
+    const { postgres } = await getPostgresAndCheckMembership(groupId, userId, true);
 
     // Insert knowledge entry
-    const { data: newKnowledge, error: insertError } = await supabaseService
-      .from('group_knowledge')
-      .insert({
-        group_id: groupId,
-        title: title?.trim() || 'Untitled',
-        content: content.trim(),
-        created_by: userId
-      })
-      .select('id, title, content, created_by, created_at, updated_at')
-      .single();
+    const newKnowledge = await postgres.queryOne(
+      `INSERT INTO group_knowledge (group_id, title, content, created_by) 
+       VALUES ($1, $2, $3, $4) 
+       RETURNING id, title, content, created_by, created_at, updated_at`,
+      [groupId, title?.trim() || 'Untitled', content.trim(), userId],
+      { table: 'group_knowledge' }
+    );
 
-    if (insertError) {
-      console.error('[User Groups /groups/:groupId/knowledge POST] Insert error:', insertError);
-      throw new Error(insertError.message);
+    if (!newKnowledge) {
+      throw new Error('Failed to create knowledge entry');
     }
 
     console.log('[User Groups /groups/:groupId/knowledge POST] Knowledge added successfully');
@@ -943,38 +812,20 @@ router.get('/groups/:groupId/knowledge/:knowledgeId', ensureAuthenticated, async
       });
     }
 
-    // Check if user is member of the group
-    const { data: membership, error: membershipError } = await supabaseService
-      .from('group_memberships')
-      .select('role')
-      .eq('group_id', groupId)
-      .eq('user_id', userId)
-      .single();
-
-    if (membershipError) {
-      return res.status(403).json({
-        success: false,
-        message: 'Du bist nicht Mitglied dieser Gruppe.'
-      });
-    }
+    const { postgres } = await getPostgresAndCheckMembership(groupId, userId, false);
 
     // Fetch the specific knowledge entry
-    const { data: knowledge, error: knowledgeError } = await supabaseService
-      .from('group_knowledge')
-      .select('id, title, content, created_by, created_at, updated_at')
-      .eq('id', knowledgeId)
-      .eq('group_id', groupId)
-      .single();
+    const knowledge = await postgres.queryOne(
+      'SELECT id, title, content, created_by, created_at, updated_at FROM group_knowledge WHERE id = $1 AND group_id = $2',
+      [knowledgeId, groupId],
+      { table: 'group_knowledge' }
+    );
 
-    if (knowledgeError) {
-      console.error('[User Groups /groups/:groupId/knowledge/:knowledgeId GET] Knowledge error:', knowledgeError);
-      if (knowledgeError.code === 'PGRST116') {
-        return res.status(404).json({
-          success: false,
-          message: 'Wissenseintrag nicht gefunden.'
-        });
-      }
-      throw new Error(knowledgeError.message);
+    if (!knowledge) {
+      return res.status(404).json({
+        success: false,
+        message: 'Wissenseintrag nicht gefunden.'
+      });
     }
 
     console.log('[User Groups /groups/:groupId/knowledge/:knowledgeId GET] Knowledge entry loaded successfully');
@@ -1008,59 +859,43 @@ router.put('/groups/:groupId/knowledge/:knowledgeId', ensureAuthenticated, async
       });
     }
 
-    // Check admin permissions (same as above)
-    const { data: membership, error: membershipError } = await supabaseService
-      .from('group_memberships')
-      .select('role')
-      .eq('group_id', groupId)
-      .eq('user_id', userId)
-      .single();
+    const { postgres } = await getPostgresAndCheckMembership(groupId, userId, true);
 
-    if (membershipError) {
-      return res.status(403).json({
+    // Build update object
+    const updateFields = [];
+    const updateValues = [];
+    let paramIndex = 1;
+
+    if (title !== undefined) {
+      updateFields.push(`title = $${paramIndex++}`);
+      updateValues.push(title?.trim() || 'Untitled');
+    }
+    if (content !== undefined) {
+      updateFields.push(`content = $${paramIndex++}`);
+      updateValues.push(content?.trim() || '');
+    }
+
+    if (updateFields.length === 0) {
+      return res.status(400).json({
         success: false,
-        message: 'Du bist nicht Mitglied dieser Gruppe.'
+        message: 'Keine Änderungen angegeben.'
       });
     }
 
-    const { data: group, error: groupError } = await supabaseService
-      .from('groups')
-      .select('created_by')
-      .eq('id', groupId)
-      .single();
+    // Add updated_at
+    updateFields.push(`updated_at = $${paramIndex++}`);
+    updateValues.push(new Date().toISOString());
 
-    if (groupError) {
-      throw new Error(groupError.message);
-    }
-
-    const isAdmin = membership.role === 'admin' || group.created_by === userId;
-    
-    if (!isAdmin) {
-      return res.status(403).json({
-        success: false,
-        message: 'Keine Berechtigung zum Bearbeiten von Gruppenwissen.'
-      });
-    }
+    // Add IDs for WHERE clause
+    updateValues.push(knowledgeId);
+    updateValues.push(groupId);
 
     // Update knowledge entry
-    const updateData = {
-      updated_at: new Date().toISOString()
-    };
+    const updateSQL = `UPDATE group_knowledge SET ${updateFields.join(', ')} WHERE id = $${paramIndex++} AND group_id = $${paramIndex} RETURNING id, title, content, created_by, created_at, updated_at`;
+    const updatedKnowledge = await postgres.queryOne(updateSQL, updateValues, { table: 'group_knowledge' });
 
-    if (title !== undefined) updateData.title = title?.trim() || 'Untitled';
-    if (content !== undefined) updateData.content = content?.trim() || '';
-
-    const { data: updatedKnowledge, error: updateError } = await supabaseService
-      .from('group_knowledge')
-      .update(updateData)
-      .eq('id', knowledgeId)
-      .eq('group_id', groupId)
-      .select('id, title, content, created_by, created_at, updated_at')
-      .single();
-
-    if (updateError) {
-      console.error('[User Groups /groups/:groupId/knowledge/:knowledgeId PUT] Update error:', updateError);
-      throw new Error(updateError.message);
+    if (!updatedKnowledge) {
+      throw new Error('Knowledge entry not found or no changes made');
     }
 
     console.log('[User Groups /groups/:groupId/knowledge/:knowledgeId PUT] Knowledge updated successfully');
@@ -1094,50 +929,19 @@ router.delete('/groups/:groupId/knowledge/:knowledgeId', ensureAuthenticated, as
       });
     }
 
-    // Check admin permissions (same as above)
-    const { data: membership, error: membershipError } = await supabaseService
-      .from('group_memberships')
-      .select('role')
-      .eq('group_id', groupId)
-      .eq('user_id', userId)
-      .single();
-
-    if (membershipError) {
-      return res.status(403).json({
-        success: false,
-        message: 'Du bist nicht Mitglied dieser Gruppe.'
-      });
-    }
-
-    const { data: group, error: groupError } = await supabaseService
-      .from('groups')
-      .select('created_by')
-      .eq('id', groupId)
-      .single();
-
-    if (groupError) {
-      throw new Error(groupError.message);
-    }
-
-    const isAdmin = membership.role === 'admin' || group.created_by === userId;
-    
-    if (!isAdmin) {
-      return res.status(403).json({
-        success: false,
-        message: 'Keine Berechtigung zum Löschen von Gruppenwissen.'
-      });
-    }
+    const { postgres } = await getPostgresAndCheckMembership(groupId, userId, true);
 
     // Delete knowledge entry
-    const { error: deleteError } = await supabaseService
-      .from('group_knowledge')
-      .delete()
-      .eq('id', knowledgeId)
-      .eq('group_id', groupId);
+    const result = await postgres.exec(
+      'DELETE FROM group_knowledge WHERE id = $1 AND group_id = $2',
+      [knowledgeId, groupId]
+    );
 
-    if (deleteError) {
-      console.error('[User Groups /groups/:groupId/knowledge/:knowledgeId DELETE] Delete error:', deleteError);
-      throw new Error(deleteError.message);
+    if (result.changes === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Wissenseintrag nicht gefunden.'
+      });
     }
 
     console.log('[User Groups /groups/:groupId/knowledge/:knowledgeId DELETE] Knowledge deleted successfully');
@@ -1170,50 +974,31 @@ router.get('/groups/:groupId/members', ensureAuthenticated, async (req, res) => 
       });
     }
 
-    // Check if user is member of the group
-    const { data: membership, error: membershipError } = await supabaseService
-      .from('group_memberships')
-      .select('role')
-      .eq('group_id', groupId)
-      .eq('user_id', userId)
-      .single();
-
-    if (membershipError) {
-      return res.status(403).json({
-        success: false,
-        message: 'Du bist nicht Mitglied dieser Gruppe.'
-      });
-    }
+    const { postgres } = await getPostgresAndCheckMembership(groupId, userId, false);
 
     // Get all group members with their profile information
-    const { data: members, error: membersError } = await supabaseService
-      .from('group_memberships')
-      .select(`
-        user_id,
-        role,
-        joined_at,
-        profiles!inner(
-          first_name,
-          display_name,
-          avatar_robot_id
-        )
-      `)
-      .eq('group_id', groupId)
-      .order('joined_at', { ascending: true });
-
-    if (membersError) {
-      console.error('[User Groups /groups/:groupId/members GET] Members error:', membersError);
-      throw new Error(membersError.message);
-    }
+    const members = await postgres.query(`
+      SELECT 
+        gm.user_id,
+        gm.role,
+        gm.joined_at,
+        p.first_name,
+        p.display_name,
+        p.avatar_robot_id
+      FROM group_memberships gm
+      INNER JOIN profiles p ON p.id = gm.user_id
+      WHERE gm.group_id = $1
+      ORDER BY gm.joined_at ASC
+    `, [groupId], { table: 'group_memberships' });
 
     // Format member data
     const formattedMembers = members.map(member => ({
       user_id: member.user_id,
       role: member.role,
       joined_at: member.joined_at,
-      first_name: member.profiles?.first_name || null,
-      display_name: member.profiles?.display_name || null,
-      avatar_robot_id: member.profiles?.avatar_robot_id || 1
+      first_name: member.first_name || null,
+      display_name: member.display_name || null,
+      avatar_robot_id: member.avatar_robot_id || 1
     }));
 
     console.log('[User Groups /groups/:groupId/members GET] Members loaded successfully');
@@ -1267,20 +1052,7 @@ router.post('/groups/:groupId/share', ensureAuthenticated, async (req, res) => {
       });
     }
 
-    // Check if user is member of the group  
-    const { data: membership, error: membershipError } = await supabaseService
-      .from('group_memberships')
-      .select('role')
-      .eq('group_id', groupId)
-      .eq('user_id', userId)
-      .single();
-
-    if (membershipError) {
-      return res.status(403).json({
-        success: false,
-        message: 'Du bist nicht Mitglied dieser Gruppe.'
-      });
-    }
+    const { postgres } = await getPostgresAndCheckMembership(groupId, userId, false);
 
     // Verify user owns the content
     console.log('[User Groups /groups/:groupId/share POST] Verifying content ownership:', {
@@ -1290,28 +1062,27 @@ router.post('/groups/:groupId/share', ensureAuthenticated, async (req, res) => {
       table: contentType
     });
     
-    // Handle database table (for templates) with type filtering
-    let ownershipQuery = supabaseService
-      .from(contentType)
-      .select('user_id')
-      .eq('id', contentId);
+    // Build ownership query based on content type
+    let ownershipSQL = `SELECT user_id FROM ${contentType} WHERE id = $1`;
+    let ownershipParams = [contentId];
     
-    // For database, also filter by type = 'template'
+    // For database table (templates), also filter by type = 'template'
     if (contentType === 'database') {
-      ownershipQuery = ownershipQuery.eq('type', 'template');
+      ownershipSQL += ` AND type = $2`;
+      ownershipParams.push('template');
     }
     
-    const { data: contentOwnership, error: ownershipError } = await ownershipQuery.single();
+    const contentOwnership = await postgres.queryOne(
+      ownershipSQL,
+      ownershipParams,
+      { table: contentType }
+    );
 
-    if (ownershipError) {
+    if (!contentOwnership) {
       console.error('[User Groups /groups/:groupId/share POST] Content ownership verification failed:', {
         contentType,
         contentId,
-        userId,
-        error: ownershipError,
-        errorCode: ownershipError.code,
-        errorMessage: ownershipError.message,
-        errorDetails: ownershipError.details
+        userId
       });
       return res.status(404).json({
         success: false,
@@ -1332,18 +1103,11 @@ router.post('/groups/:groupId/share', ensureAuthenticated, async (req, res) => {
     }
 
     // Check if content is already shared with this group via junction table
-    const { data: existingShare, error: shareCheckError } = await supabaseService
-      .from('group_content_shares')
-      .select('id')
-      .eq('content_type', contentType)
-      .eq('content_id', contentId)
-      .eq('group_id', groupId)
-      .single();
-
-    if (shareCheckError && shareCheckError.code !== 'PGRST116') {
-      console.error('[User Groups /groups/:groupId/share POST] Share check error:', shareCheckError);
-      throw new Error('Fehler beim Überprüfen der Freigabe.');
-    }
+    const existingShare = await postgres.queryOne(
+      'SELECT id FROM group_content_shares WHERE content_type = $1 AND content_id = $2 AND group_id = $3',
+      [contentType, contentId, groupId],
+      { table: 'group_content_shares' }
+    );
 
     if (existingShare) {
       return res.status(400).json({
@@ -1360,20 +1124,10 @@ router.post('/groups/:groupId/share', ensureAuthenticated, async (req, res) => {
     };
 
     // Share content using junction table
-    const { error: shareError } = await supabaseService
-      .from('group_content_shares')
-      .insert({
-        content_type: contentType,
-        content_id: contentId,
-        group_id: groupId,
-        shared_by_user_id: userId,
-        permissions: sharePermissions
-      });
-
-    if (shareError) {
-      console.error('[User Groups /groups/:groupId/share POST] Share error:', shareError);
-      throw new Error(shareError.message);
-    }
+    await postgres.exec(
+      'INSERT INTO group_content_shares (content_type, content_id, group_id, shared_by_user_id, permissions) VALUES ($1, $2, $3, $4, $5)',
+      [contentType, contentId, groupId, userId, JSON.stringify(sharePermissions)]
+    );
 
     console.log('[User Groups /groups/:groupId/share POST] Content shared successfully');
 
@@ -1414,31 +1168,16 @@ router.delete('/groups/:groupId/share', ensureAuthenticated, async (req, res) =>
       });
     }
 
-    // Check if user is member of the group  
-    const { data: membership, error: membershipError } = await supabaseService
-      .from('group_memberships')
-      .select('role')
-      .eq('group_id', groupId)
-      .eq('user_id', userId)
-      .single();
-
-    if (membershipError) {
-      return res.status(403).json({
-        success: false,
-        message: 'Du bist nicht Mitglied dieser Gruppe.'
-      });
-    }
+    const { postgres } = await getPostgresAndCheckMembership(groupId, userId, false);
 
     // Verify the share exists and user owns it or has permission to unshare
-    const { data: shareRecord, error: shareCheckError } = await supabaseService
-      .from('group_content_shares')
-      .select('shared_by_user_id')
-      .eq('content_type', contentType)
-      .eq('content_id', contentId)
-      .eq('group_id', groupId)
-      .single();
+    const shareRecord = await postgres.queryOne(
+      'SELECT shared_by_user_id FROM group_content_shares WHERE content_type = $1 AND content_id = $2 AND group_id = $3',
+      [contentType, contentId, groupId],
+      { table: 'group_content_shares' }
+    );
 
-    if (shareCheckError) {
+    if (!shareRecord) {
       return res.status(404).json({
         success: false,
         message: 'Geteilter Inhalt nicht gefunden.'
@@ -1454,16 +1193,13 @@ router.delete('/groups/:groupId/share', ensureAuthenticated, async (req, res) =>
     }
 
     // Remove from junction table
-    const { error: unshareError } = await supabaseService
-      .from('group_content_shares')
-      .delete()
-      .eq('content_type', contentType)
-      .eq('content_id', contentId)
-      .eq('group_id', groupId);
+    const result = await postgres.exec(
+      'DELETE FROM group_content_shares WHERE content_type = $1 AND content_id = $2 AND group_id = $3',
+      [contentType, contentId, groupId]
+    );
 
-    if (unshareError) {
-      console.error('[User Groups /groups/:groupId/share DELETE] Unshare error:', unshareError);
-      throw new Error(unshareError.message);
+    if (result.changes === 0) {
+      throw new Error('Share record not found or already deleted');
     }
 
     console.log('[User Groups /groups/:groupId/share DELETE] Content unshared successfully');
@@ -1496,50 +1232,30 @@ router.get('/groups/:groupId/content', ensureAuthenticated, async (req, res) => 
       });
     }
 
-    // Check if user is member of the group
-    const { data: membership, error: membershipError } = await supabaseService
-      .from('group_memberships')
-      .select('role')
-      .eq('group_id', groupId)
-      .eq('user_id', userId)
-      .single();
-
-    if (membershipError) {
-      return res.status(403).json({
-        success: false,
-        message: 'Du bist nicht Mitglied dieser Gruppe.'
-      });
-    }
+    const { postgres } = await getPostgresAndCheckMembership(groupId, userId, false);
 
     // Fetch group knowledge entries
-    const { data: groupKnowledge, error: knowledgeError } = await supabaseService
-      .from('group_knowledge')
-      .select('id, title, content, created_by, created_at, updated_at')
-      .eq('group_id', groupId)
-      .order('created_at', { ascending: true });
+    const groupKnowledge = await postgres.query(
+      'SELECT id, title, content, created_by, created_at, updated_at FROM group_knowledge WHERE group_id = $1 ORDER BY created_at ASC',
+      [groupId],
+      { table: 'group_knowledge' }
+    ) || [];
 
-    if (knowledgeError) {
-      console.error('[User Groups /groups/:groupId/content GET] Knowledge error:', knowledgeError);
-    }
-
-    // Fetch shared content using junction table
-    const { data: sharedContent, error: fetchError } = await supabaseService
-      .from('group_content_shares')
-      .select(`
-        content_type,
-        content_id,
-        shared_at,
-        permissions,
-        shared_by_user_id,
-        profiles!shared_by_user_id(first_name, display_name)
-      `)
-      .eq('group_id', groupId)
-      .order('shared_at', { ascending: false });
-
-    if (fetchError) {
-      console.error('Shared content fetch error:', fetchError);
-      throw new Error('Fehler beim Laden der geteilten Inhalte.');
-    }
+    // Fetch shared content with user profile information
+    const sharedContent = await postgres.query(`
+      SELECT 
+        gcs.content_type,
+        gcs.content_id,
+        gcs.shared_at,
+        gcs.permissions,
+        gcs.shared_by_user_id,
+        p.first_name,
+        p.display_name
+      FROM group_content_shares gcs
+      LEFT JOIN profiles p ON p.id = gcs.shared_by_user_id
+      WHERE gcs.group_id = $1
+      ORDER BY gcs.shared_at DESC
+    `, [groupId], { table: 'group_content_shares' }) || [];
 
     // Group shared content by type for easier processing
     const contentByType = {
@@ -1556,75 +1272,81 @@ router.get('/groups/:groupId/content', ensureAuthenticated, async (req, res) => 
       }
     });
 
-    // Fetch actual content details for each type
-    const contentPromises = [];
+    // Fetch actual content details for each type using SQL queries
+    const contentResults = [];
 
     // Documents
     if (contentByType.documents.length > 0) {
       const documentIds = contentByType.documents.map(s => s.content_id);
-      contentPromises.push(
-        supabaseService
-          .from('documents')
-          .select('id, title, filename, file_size, status, created_at, updated_at, user_id')
-          .in('id', documentIds)
-          .then(result => ({ type: 'documents', result, shares: contentByType.documents }))
-      );
+      const documentsData = await postgres.query(
+        `SELECT id, title, filename, file_size, status, created_at, updated_at, user_id FROM documents WHERE id = ANY($1)`,
+        [documentIds],
+        { table: 'documents' }
+      ) || [];
+      contentResults.push({ type: 'documents', result: { data: documentsData }, shares: contentByType.documents });
     }
 
     // Custom Generators
     if (contentByType.custom_generators.length > 0) {
       const generatorIds = contentByType.custom_generators.map(s => s.content_id);
-      contentPromises.push(
-        supabaseService
-          .from('custom_generators')
-          .select('id, name, title, description, created_at, updated_at, user_id')
-          .in('id', generatorIds)
-          .then(result => ({ type: 'custom_generators', result, shares: contentByType.custom_generators }))
-      );
+      const generatorsData = await postgres.query(
+        `SELECT id, name, title, description, created_at, updated_at, user_id FROM custom_generators WHERE id = ANY($1)`,
+        [generatorIds],
+        { table: 'custom_generators' }
+      ) || [];
+      contentResults.push({ type: 'custom_generators', result: { data: generatorsData }, shares: contentByType.custom_generators });
     }
 
     // Q&A Collections
     if (contentByType.qa_collections.length > 0) {
       const qaIds = contentByType.qa_collections.map(s => s.content_id);
-      contentPromises.push(
-        supabaseService
-          .from('qa_collections')
-          .select('id, name, description, view_count, created_at, updated_at, user_id')
-          .in('id', qaIds)
-          .then(result => ({ type: 'qa_collections', result, shares: contentByType.qa_collections }))
-      );
+      const qasData = await postgres.query(
+        `SELECT id, name, description, view_count, created_at, updated_at, user_id FROM qa_collections WHERE id = ANY($1)`,
+        [qaIds],
+        { table: 'qa_collections' }
+      ) || [];
+      contentResults.push({ type: 'qa_collections', result: { data: qasData }, shares: contentByType.qa_collections });
     }
 
     // User Documents (Texts)
     if (contentByType.user_documents.length > 0) {
       const textIds = contentByType.user_documents.map(s => s.content_id);
-      contentPromises.push(
-        supabaseService
-          .from('user_documents')
-          .select('id, title, document_type, word_count, character_count, created_at, updated_at, user_id')
-          .in('id', textIds)
-          .then(result => ({ type: 'user_documents', result, shares: contentByType.user_documents }))
-      );
+      const rawTextsData = await postgres.query(
+        `SELECT id, title, document_type, content, created_at, updated_at, user_id FROM user_documents WHERE id = ANY($1)`,
+        [textIds],
+        { table: 'user_documents' }
+      ) || [];
+      
+      // Transform data to include computed word_count and character_count like /saved-texts endpoint
+      const textsData = rawTextsData.map(item => {
+        const plainText = (item.content || '').replace(/<[^>]*>/g, '').trim();
+        const wordCount = plainText.split(/\s+/).filter(word => word.length > 0).length;
+        const characterCount = plainText.length;
+        
+        return {
+          ...item,
+          word_count: wordCount,
+          character_count: characterCount
+        };
+      });
+      
+      contentResults.push({ type: 'user_documents', result: { data: textsData }, shares: contentByType.user_documents });
     }
 
     // Templates (User Content)
     if (contentByType.database.length > 0) {
       const templateIds = contentByType.database.map(s => s.content_id);
-      contentPromises.push(
-        supabaseService
-          .from('database')
-          .select('id, title, description, external_url, thumbnail_url, metadata, created_at, updated_at, user_id')
-          .in('id', templateIds)
-          .eq('type', 'template')
-          .then(result => ({ type: 'database', result, shares: contentByType.database }))
-      );
+      const templatesData = await postgres.query(
+        `SELECT id, title, description, external_url, thumbnail_url, metadata, created_at, updated_at, user_id FROM database WHERE id = ANY($1) AND type = 'template'`,
+        [templateIds],
+        { table: 'database' }
+      ) || [];
+      contentResults.push({ type: 'database', result: { data: templatesData }, shares: contentByType.database });
     }
-
-    const contentResults = await Promise.all(contentPromises);
 
     // Process and format results
     const groupContent = {
-      knowledge: groupKnowledge || [],
+      knowledge: groupKnowledge,
       documents: [],
       generators: [],
       qas: [],
@@ -1633,11 +1355,6 @@ router.get('/groups/:groupId/content', ensureAuthenticated, async (req, res) => 
     };
 
     contentResults.forEach(({ type, result, shares }) => {
-      if (result.error) {
-        console.error(`${type} fetch error:`, result.error);
-        return;
-      }
-
       const items = (result.data || []).map(item => {
         // Find the corresponding share info
         const shareInfo = shares.find(s => s.content_id === item.id);
@@ -1646,11 +1363,11 @@ router.get('/groups/:groupId/content', ensureAuthenticated, async (req, res) => 
           ...item,
           contentType: type,
           shared_at: shareInfo?.shared_at,
-          group_permissions: shareInfo?.permissions,
-          shared_by_name: shareInfo?.profiles?.display_name || shareInfo?.profiles?.first_name || 'Unknown User',
+          group_permissions: typeof shareInfo?.permissions === 'string' ? JSON.parse(shareInfo.permissions) : shareInfo?.permissions,
+          shared_by_name: shareInfo?.display_name || shareInfo?.first_name || 'Unknown User',
           // Add template-specific fields for database
           ...(type === 'database' && {
-            template_type: item.metadata?.template_type || 'canva',
+            template_type: (typeof item.metadata === 'string' ? JSON.parse(item.metadata) : item.metadata)?.template_type || 'canva',
             canva_url: item.external_url
           })
         };
@@ -1708,71 +1425,41 @@ router.put('/groups/:groupId/content/:contentId/permissions', ensureAuthenticate
       });
     }
 
-    // Check if user is admin or content owner
-    // Handle database table (for templates) with type filtering
-    let contentQuery = supabaseService
-      .from(contentType)
-      .select('user_id, group_id')
-      .eq('id', contentId);
-    
-    // For database, also filter by type = 'template'
-    if (contentType === 'database') {
-      contentQuery = contentQuery.eq('type', 'template');
-    }
-    
-    const [membershipResult, contentResult] = await Promise.all([
-      supabaseService
-        .from('group_memberships')
-        .select('role')
-        .eq('group_id', groupId)
-        .eq('user_id', userId)
-        .single(),
-      contentQuery.single()
-    ]);
+    const { postgres, membership } = await getPostgresAndCheckMembership(groupId, userId, false);
 
-    if (membershipResult.error) {
-      return res.status(403).json({
-        success: false,
-        message: 'Du bist nicht Mitglied dieser Gruppe.'
-      });
-    }
+    // Check if content is shared with the group and get share info
+    const shareRecord = await postgres.queryOne(
+      'SELECT shared_by_user_id FROM group_content_shares WHERE content_type = $1 AND content_id = $2 AND group_id = $3',
+      [contentType, contentId, groupId],
+      { table: 'group_content_shares' }
+    );
 
-    if (contentResult.error) {
+    if (!shareRecord) {
       return res.status(404).json({
-        success: false,
-        message: 'Inhalt nicht gefunden.'
-      });
-    }
-
-    const isAdmin = membershipResult.data.role === 'admin';
-    const isOwner = contentResult.data.user_id === userId;
-    const isInGroup = contentResult.data.group_id === groupId;
-
-    if (!isInGroup) {
-      return res.status(400).json({
         success: false,
         message: 'Inhalt ist nicht mit dieser Gruppe geteilt.'
       });
     }
 
-    if (!isAdmin && !isOwner) {
+    // Check if user has permission to modify permissions (admin or content sharer)
+    const isAdmin = membership.role === 'admin';
+    const isSharer = shareRecord.shared_by_user_id === userId;
+
+    if (!isAdmin && !isSharer) {
       return res.status(403).json({
         success: false,
         message: 'Keine Berechtigung zum Ändern der Berechtigungen.'
       });
     }
 
-    // Update permissions
-    const { error: updateError } = await supabaseService
-      .from(contentType)
-      .update({
-        group_permissions: permissions
-      })
-      .eq('id', contentId);
+    // Update permissions in the junction table
+    const result = await postgres.exec(
+      'UPDATE group_content_shares SET permissions = $1 WHERE content_type = $2 AND content_id = $3 AND group_id = $4',
+      [JSON.stringify(permissions), contentType, contentId, groupId]
+    );
 
-    if (updateError) {
-      console.error('[User Groups /groups/:groupId/content/:contentId/permissions PUT] Update error:', updateError);
-      throw new Error(updateError.message);
+    if (result.changes === 0) {
+      throw new Error('Share record not found or no changes made');
     }
 
     console.log('[User Groups /groups/:groupId/content/:contentId/permissions PUT] Permissions updated successfully');
@@ -1823,20 +1510,7 @@ router.delete('/groups/:groupId/content/:contentId', ensureAuthenticated, async 
       });
     }
 
-    // Check if user is member of the group  
-    const { data: membership, error: membershipError } = await supabaseService
-      .from('group_memberships')
-      .select('role')
-      .eq('group_id', groupId)
-      .eq('user_id', userId)
-      .single();
-
-    if (membershipError) {
-      return res.status(403).json({
-        success: false,
-        message: 'Du bist nicht Mitglied dieser Gruppe.'
-      });
-    }
+    const { postgres, membership } = await getPostgresAndCheckMembership(groupId, userId, false);
 
     // Check if user is admin
     const isAdmin = membership.role === 'admin';
@@ -1850,33 +1524,29 @@ router.delete('/groups/:groupId/content/:contentId', ensureAuthenticated, async 
     }
 
     // Verify the share exists in the junction table
-    const { data: shareRecord, error: shareCheckError } = await supabaseService
-      .from('group_content_shares')
-      .select('shared_by_user_id')
-      .eq('content_type', contentType)
-      .eq('content_id', contentId)
-      .eq('group_id', groupId)
-      .single();
+    const shareRecord = await postgres.queryOne(
+      'SELECT shared_by_user_id FROM group_content_shares WHERE content_type = $1 AND content_id = $2 AND group_id = $3',
+      [contentType, contentId, groupId],
+      { table: 'group_content_shares' }
+    );
 
-    if (shareCheckError) {
-      console.error('[User Groups /groups/:groupId/content/:contentId DELETE] Share check error:', shareCheckError);
+    if (!shareRecord) {
+      console.error('[User Groups /groups/:groupId/content/:contentId DELETE] Share check error');
       return res.status(404).json({
         success: false,
         message: 'Geteilter Inhalt nicht gefunden.'
       });
     }
 
-    // Remove from junction table (same logic as the other unshare endpoint)
-    const { error: unshareError } = await supabaseService
-      .from('group_content_shares')
-      .delete()
-      .eq('content_type', contentType)
-      .eq('content_id', contentId)
-      .eq('group_id', groupId);
+    // Remove from junction table
+    const result = await postgres.exec(
+      'DELETE FROM group_content_shares WHERE content_type = $1 AND content_id = $2 AND group_id = $3',
+      [contentType, contentId, groupId]
+    );
 
-    if (unshareError) {
-      console.error('[User Groups /groups/:groupId/content/:contentId DELETE] Unshare error:', unshareError);
-      throw new Error(unshareError.message);
+    if (result.changes === 0) {
+      console.error('[User Groups /groups/:groupId/content/:contentId DELETE] Unshare error');
+      throw new Error('Share record not found or already deleted');
     }
 
     console.log('[User Groups /groups/:groupId/content/:contentId DELETE] Content unshared successfully');
@@ -1891,6 +1561,477 @@ router.delete('/groups/:groupId/content/:contentId', ensureAuthenticated, async 
     res.status(500).json({
       success: false,
       message: error.message || 'Fehler beim Entfernen des geteilten Inhalts.'
+    });
+  }
+});
+
+// =============================================================================
+// GROUP WOLKE ENDPOINTS
+// =============================================================================
+
+/**
+ * Get group's Wolke share links
+ * GET /groups/:groupId/wolke/share-links
+ */
+router.get('/:groupId/wolke/share-links', ensureAuthenticated, async (req, res) => {
+  try {
+    const groupId = req.params.groupId;
+    const userId = req.user.id;
+
+    console.log('[User Groups /groups/:groupId/wolke/share-links GET] Request received', { groupId, userId });
+
+    // Check if user is member of the group
+    const { postgres } = await getPostgresAndCheckMembership(groupId, userId, false);
+
+    // Get group's Wolke share links
+    const group = await postgres.queryOne(
+      'SELECT wolke_share_links FROM groups WHERE id = $1',
+      [groupId],
+      { table: 'groups' }
+    );
+
+    if (!group) {
+      return res.status(404).json({
+        success: false,
+        message: 'Gruppe nicht gefunden.'
+      });
+    }
+
+    const shareLinks = group.wolke_share_links || [];
+
+    console.log('[User Groups /groups/:groupId/wolke/share-links GET] Retrieved share links', { count: shareLinks.length });
+
+    res.json({
+      success: true,
+      shareLinks: shareLinks
+    });
+
+  } catch (error) {
+    console.error('[User Groups /groups/:groupId/wolke/share-links GET] Error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Fehler beim Abrufen der Wolke-Links.'
+    });
+  }
+});
+
+/**
+ * Add new Wolke share link to group
+ * POST /groups/:groupId/wolke/share-links
+ */
+router.post('/:groupId/wolke/share-links', ensureAuthenticated, async (req, res) => {
+  try {
+    const groupId = req.params.groupId;
+    const userId = req.user.id;
+    const { shareLink, label, baseUrl, shareToken } = req.body;
+
+    console.log('[User Groups /groups/:groupId/wolke/share-links POST] Request received', { groupId, userId, label });
+
+    // Check if user is admin of the group (only admins can add Wolke links)
+    const { postgres } = await getPostgresAndCheckMembership(groupId, userId, true);
+
+    if (!shareLink) {
+      return res.status(400).json({
+        success: false,
+        message: 'Share-Link ist erforderlich.'
+      });
+    }
+
+    // Validate share link format (reuse existing validation logic)
+    const urlObj = new URL(shareLink);
+    const sharePattern = /\/s\/[A-Za-z0-9]+/;
+    if (!sharePattern.test(urlObj.pathname)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Ungültiges Nextcloud Share-Link Format.'
+      });
+    }
+
+    // Extract share token
+    const tokenMatch = urlObj.pathname.match(/\/s\/([A-Za-z0-9]+)/);
+    const finalShareToken = shareToken || (tokenMatch ? tokenMatch[1] : null);
+    const finalBaseUrl = baseUrl || `${urlObj.protocol}//${urlObj.host}`;
+
+    // Get current share links
+    const group = await postgres.queryOne(
+      'SELECT wolke_share_links FROM groups WHERE id = $1',
+      [groupId],
+      { table: 'groups' }
+    );
+
+    const currentLinks = group?.wolke_share_links || [];
+
+    // Check if share link already exists
+    const existingLink = currentLinks.find(link => link.share_link === shareLink);
+    if (existingLink) {
+      return res.status(409).json({
+        success: false,
+        message: 'Dieser Share-Link ist bereits in der Gruppe vorhanden.'
+      });
+    }
+
+    // Create new link object
+    const newLink = {
+      id: Date.now().toString(), // Simple ID based on timestamp
+      share_link: shareLink,
+      label: label || null,
+      base_url: finalBaseUrl,
+      share_token: finalShareToken,
+      is_active: true,
+      added_by_user_id: userId,
+      created_at: new Date().toISOString()
+    };
+
+    // Add to existing links
+    const updatedLinks = [...currentLinks, newLink];
+
+    // Update the group with new links
+    const result = await postgres.update(
+      'groups',
+      { wolke_share_links: updatedLinks },
+      { id: groupId }
+    );
+
+    if (!result || result.length === 0) {
+      throw new Error('Fehler beim Speichern des Share-Links');
+    }
+
+    console.log('[User Groups /groups/:groupId/wolke/share-links POST] Share link added successfully', { shareLinkId: newLink.id });
+
+    res.status(201).json({
+      success: true,
+      shareLink: newLink,
+      message: 'Wolke-Link erfolgreich zur Gruppe hinzugefügt.'
+    });
+
+  } catch (error) {
+    console.error('[User Groups /groups/:groupId/wolke/share-links POST] Error:', error);
+    
+    if (error.message.includes('Keine Berechtigung')) {
+      return res.status(403).json({
+        success: false,
+        message: error.message
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Fehler beim Hinzufügen des Wolke-Links.'
+    });
+  }
+});
+
+/**
+ * Delete Wolke share link from group
+ * DELETE /groups/:groupId/wolke/share-links/:shareId
+ */
+router.delete('/:groupId/wolke/share-links/:shareId', ensureAuthenticated, async (req, res) => {
+  try {
+    const groupId = req.params.groupId;
+    const shareId = req.params.shareId;
+    const userId = req.user.id;
+
+    console.log('[User Groups /groups/:groupId/wolke/share-links/:shareId DELETE] Request received', { groupId, shareId, userId });
+
+    // Check if user is admin of the group (only admins can delete Wolke links)
+    const { postgres } = await getPostgresAndCheckMembership(groupId, userId, true);
+
+    if (!shareId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Share-Link ID ist erforderlich.'
+      });
+    }
+
+    // Get current share links
+    const group = await postgres.queryOne(
+      'SELECT wolke_share_links FROM groups WHERE id = $1',
+      [groupId],
+      { table: 'groups' }
+    );
+
+    const currentLinks = group?.wolke_share_links || [];
+    const linkToDelete = currentLinks.find(link => link.id === shareId);
+
+    if (!linkToDelete) {
+      return res.status(404).json({
+        success: false,
+        message: 'Share-Link nicht gefunden.'
+      });
+    }
+
+    // Remove the link from the array
+    const updatedLinks = currentLinks.filter(link => link.id !== shareId);
+
+    // Update the group
+    const result = await postgres.update(
+      'groups',
+      { wolke_share_links: updatedLinks },
+      { id: groupId }
+    );
+
+    if (!result || result.length === 0) {
+      throw new Error('Fehler beim Löschen des Share-Links');
+    }
+
+    console.log('[User Groups /groups/:groupId/wolke/share-links/:shareId DELETE] Share link deleted successfully', { shareId });
+
+    res.json({
+      success: true,
+      deletedId: shareId,
+      message: 'Wolke-Link erfolgreich aus der Gruppe entfernt.'
+    });
+
+  } catch (error) {
+    console.error('[User Groups /groups/:groupId/wolke/share-links/:shareId DELETE] Error:', error);
+    
+    if (error.message.includes('Keine Berechtigung')) {
+      return res.status(403).json({
+        success: false,
+        message: error.message
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Fehler beim Löschen des Wolke-Links.'
+    });
+  }
+});
+
+/**
+ * Test connection to a Wolke share
+ * POST /groups/:groupId/wolke/test-connection
+ */
+router.post('/:groupId/wolke/test-connection', ensureAuthenticated, async (req, res) => {
+  try {
+    const groupId = req.params.groupId;
+    const userId = req.user.id;
+    const { shareLink } = req.body;
+
+    console.log('[User Groups /groups/:groupId/wolke/test-connection POST] Request received', { groupId, userId });
+
+    // Check if user is member of the group
+    const { postgres } = await getPostgresAndCheckMembership(groupId, userId, false);
+
+    if (!shareLink) {
+      return res.status(400).json({
+        success: false,
+        message: 'Share-Link ist erforderlich.'
+      });
+    }
+
+    // Import NextcloudApiClient for testing
+    const { default: NextcloudApiClient } = await import('../../services/nextcloudApiClient.js');
+    
+    // Test connection
+    const client = new NextcloudApiClient(shareLink);
+    const testResult = await client.testConnection();
+
+    res.json(testResult);
+
+  } catch (error) {
+    console.error('[User Groups /groups/:groupId/wolke/test-connection POST] Error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Fehler beim Testen der Verbindung.'
+    });
+  }
+});
+
+/**
+ * Upload test file to Wolke share
+ * POST /groups/:groupId/wolke/upload-test
+ */
+router.post('/:groupId/wolke/upload-test', ensureAuthenticated, async (req, res) => {
+  try {
+    const groupId = req.params.groupId;
+    const userId = req.user.id;
+    const { shareLinkId, content, filename } = req.body;
+
+    console.log('[User Groups /groups/:groupId/wolke/upload-test POST] Request received', { groupId, userId, filename, shareLinkId });
+
+    // Check if user is member of the group
+    const { postgres } = await getPostgresAndCheckMembership(groupId, userId, false);
+
+    // Validate required fields
+    if (!shareLinkId || !content || !filename) {
+      return res.status(400).json({
+        success: false,
+        message: 'Share-Link ID, Content und Filename sind erforderlich.'
+      });
+    }
+
+    // Get the group's share link
+    const group = await postgres.queryOne(
+      'SELECT wolke_share_links FROM groups WHERE id = $1',
+      [groupId],
+      { table: 'groups' }
+    );
+
+    const shareLinks = group?.wolke_share_links || [];
+    const shareLink = shareLinks.find(link => link.id === shareLinkId && link.is_active);
+
+    if (!shareLink) {
+      return res.status(404).json({
+        success: false,
+        message: 'Share-Link nicht gefunden oder inaktiv.'
+      });
+    }
+
+    // Import NextcloudApiClient for upload
+    const { default: NextcloudApiClient } = await import('../../services/nextcloudApiClient.js');
+    
+    // Upload the file
+    const client = new NextcloudApiClient(shareLink.share_link);
+    const uploadResult = await client.uploadFile(content, filename);
+
+    res.json(uploadResult);
+
+  } catch (error) {
+    console.error('[User Groups /groups/:groupId/wolke/upload-test POST] Error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Fehler beim Test-Upload.'
+    });
+  }
+});
+
+/**
+ * Get group's Wolke sync status
+ * GET /groups/:groupId/wolke/sync-status
+ */
+router.get('/:groupId/wolke/sync-status', ensureAuthenticated, async (req, res) => {
+  try {
+    const groupId = req.params.groupId;
+    const userId = req.user.id;
+
+    console.log('[User Groups /groups/:groupId/wolke/sync-status GET] Request received', { groupId, userId });
+
+    // Check if user is member of the group
+    const { postgres } = await getPostgresAndCheckMembership(groupId, userId, false);
+
+    // Get sync statuses for this group
+    const syncStatuses = await postgres.query(
+      'SELECT * FROM wolke_sync_status WHERE context_type = $1 AND context_id = $2 ORDER BY last_sync_at DESC',
+      ['group', groupId]
+    );
+
+    console.log('[User Groups /groups/:groupId/wolke/sync-status GET] Retrieved sync statuses', { count: syncStatuses.length });
+
+    res.json({
+      success: true,
+      syncStatuses: syncStatuses || []
+    });
+
+  } catch (error) {
+    console.error('[User Groups /groups/:groupId/wolke/sync-status GET] Error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Fehler beim Abrufen der Sync-Status.'
+    });
+  }
+});
+
+/**
+ * Start Wolke folder sync for group
+ * POST /groups/:groupId/wolke/sync
+ */
+router.post('/:groupId/wolke/sync', ensureAuthenticated, async (req, res) => {
+  try {
+    const groupId = req.params.groupId;
+    const userId = req.user.id;
+    const { shareLinkId, folderPath = '' } = req.body;
+
+    console.log('[User Groups /groups/:groupId/wolke/sync POST] Request received', { groupId, userId, shareLinkId, folderPath });
+
+    // Check if user is member of the group (all members can sync)
+    const { postgres } = await getPostgresAndCheckMembership(groupId, userId, false);
+
+    if (!shareLinkId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Share-Link ID ist erforderlich.'
+      });
+    }
+
+    // Import WolkeSyncService for group sync
+    const { getWolkeSyncService } = await import('../../services/wolkeSyncService.js');
+    const wolkeSyncService = getWolkeSyncService();
+
+    // Start sync in background with group context
+    wolkeSyncService.syncFolderWithContext('group', groupId, userId, shareLinkId, folderPath)
+      .then(result => {
+        console.log(`[User Groups /groups/:groupId/wolke/sync POST] Sync completed:`, result);
+      })
+      .catch(error => {
+        console.error(`[User Groups /groups/:groupId/wolke/sync POST] Sync failed:`, error);
+      });
+
+    res.json({
+      success: true,
+      message: 'Synchronisation gestartet.',
+      shareLinkId,
+      folderPath
+    });
+
+  } catch (error) {
+    console.error('[User Groups /groups/:groupId/wolke/sync POST] Error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Fehler beim Starten der Synchronisation.'
+    });
+  }
+});
+
+/**
+ * Set auto-sync for group Wolke folder
+ * POST /groups/:groupId/wolke/auto-sync
+ */
+router.post('/:groupId/wolke/auto-sync', ensureAuthenticated, async (req, res) => {
+  try {
+    const groupId = req.params.groupId;
+    const userId = req.user.id;
+    const { shareLinkId, folderPath = '', enabled } = req.body;
+
+    console.log('[User Groups /groups/:groupId/wolke/auto-sync POST] Request received', { groupId, userId, shareLinkId, enabled });
+
+    // Check if user is admin of the group (only admins can set auto-sync)
+    const { postgres } = await getPostgresAndCheckMembership(groupId, userId, true);
+
+    if (!shareLinkId || typeof enabled !== 'boolean') {
+      return res.status(400).json({
+        success: false,
+        message: 'Share-Link ID und enabled-Status sind erforderlich.'
+      });
+    }
+
+    // Import WolkeSyncService for auto-sync
+    const { getWolkeSyncService } = await import('../../services/wolkeSyncService.js');
+    const wolkeSyncService = getWolkeSyncService();
+
+    // Set auto-sync with group context
+    const result = await wolkeSyncService.setAutoSyncWithContext('group', groupId, userId, shareLinkId, folderPath, enabled);
+
+    res.json({
+      success: true,
+      autoSyncEnabled: enabled,
+      message: `Auto-Sync ${enabled ? 'aktiviert' : 'deaktiviert'}.`
+    });
+
+  } catch (error) {
+    console.error('[User Groups /groups/:groupId/wolke/auto-sync POST] Error:', error);
+    
+    if (error.message.includes('Keine Berechtigung')) {
+      return res.status(403).json({
+        success: false,
+        message: error.message
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Fehler beim Setzen der Auto-Sync Einstellung.'
     });
   }
 });

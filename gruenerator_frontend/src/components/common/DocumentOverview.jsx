@@ -65,13 +65,23 @@ const DocumentOverview = ({
     title = "Dokumente",
     showRefreshButton = true,
     headerActions, // custom action buttons/elements to render in header
-    enableBulkSelect = true // new prop to enable/disable bulk selection
+    enableBulkSelect = true, // new prop to enable/disable bulk selection
+    enableGrouping = false, // new prop to enable/disable source grouping
+    enableLocalSearch = true, // when false, hides internal search bar (use external search UI)
+    // Remote search integration (full-text / intelligent)
+    remoteSearchEnabled = false,
+    onRemoteSearch, // (query, mode) => void
+    isRemoteSearching = false,
+    remoteResults = [],
+    onClearRemoteSearch,
+    remoteSearchDefaultMode = 'intelligent' // 'intelligent' | 'fulltext'
 }) => {
     // Support both 'documents' (backward compatibility) and 'items' props
     const allItems = items || documents;
     
     // State management
     const [filteredItems, setFilteredItems] = useState([]);
+    const [groupedItems, setGroupedItems] = useState({});
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedItem, setSelectedItem] = useState(null);
     const [showPreview, setShowPreview] = useState(false);
@@ -83,11 +93,29 @@ const DocumentOverview = ({
     const [previewError, setPreviewError] = useState(null);
     const [sortBy, setSortBy] = useState(sortOptions[0]?.value || 'updated_at');
     const [sortOrder, setSortOrder] = useState('desc');
+    const [searchMode, setSearchMode] = useState(remoteSearchDefaultMode);
+
+    // Debounced remote search
+    useEffect(() => {
+        if (!remoteSearchEnabled) return;
+        const q = (searchQuery || '').trim();
+        const handle = setTimeout(() => {
+            if (q) {
+                onRemoteSearch && onRemoteSearch(q, searchMode);
+            } else {
+                onClearRemoteSearch && onClearRemoteSearch();
+            }
+        }, 400);
+        return () => clearTimeout(handle);
+    }, [remoteSearchEnabled, searchQuery, searchMode, onRemoteSearch, onClearRemoteSearch]);
     
     // Bulk selection state
     const [selectedItemIds, setSelectedItemIds] = useState(new Set());
     const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
     const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+    
+    // Grouping state
+    const [expandedGroups, setExpandedGroups] = useState(new Set(['manual', 'wolke']));
 
     // Generic search field getter
     const getSearchValue = useCallback((item, field) => {
@@ -121,13 +149,14 @@ const DocumentOverview = ({
         switch (field) {
             case 'title': return (item.title || '').toLowerCase();
             case 'word_count': return item.word_count || 0;
+            case 'similarity_score': return item.similarity_score ?? 0;
             case 'created_at': return item.created_at ? new Date(item.created_at) : new Date(0);
             case 'updated_at': return item.updated_at ? new Date(item.updated_at) : new Date(0);
             default: return item[field] || '';
         }
     }, [itemType]);
 
-    // Filter and sort items
+    // Filter and sort items (local mode)
     useEffect(() => {
         if (!Array.isArray(allItems)) {
             setFilteredItems([]);
@@ -136,8 +165,8 @@ const DocumentOverview = ({
 
         let filtered = [...allItems]; // Create a copy to avoid mutating the original array
 
-        // Apply search filter
-        if (searchQuery.trim()) {
+        // Apply search filter only when not using remote search
+        if (!remoteSearchEnabled && searchQuery.trim()) {
             const query = searchQuery.toLowerCase();
             filtered = filtered.filter(item => 
                 searchFields.some(field => {
@@ -160,7 +189,28 @@ const DocumentOverview = ({
         });
 
         setFilteredItems(filtered);
-    }, [allItems, searchQuery, sortBy, sortOrder, searchFields, getSearchValue, getSortValue]);
+        
+        // Group items if grouping is enabled
+        if (enableGrouping && itemType === 'document') {
+            const grouped = filtered.reduce((groups, item) => {
+                // Determine source type for grouping
+                let sourceType = item.source_type || 'manual';
+                if (sourceType === 'wolke') {
+                    sourceType = 'wolke';
+                } else {
+                    sourceType = 'manual';
+                }
+                
+                if (!groups[sourceType]) {
+                    groups[sourceType] = [];
+                }
+                groups[sourceType].push(item);
+                return groups;
+            }, {});
+            
+            setGroupedItems(grouped);
+        }
+    }, [allItems, searchQuery, sortBy, sortOrder, searchFields, getSearchValue, getSortValue, enableGrouping, itemType]);
 
     // Handle item deletion
     const handleDelete = async (item) => {
@@ -259,6 +309,19 @@ const DocumentOverview = ({
             setIsBulkDeleting(false);
         }
     };
+    
+    // Group expansion handlers
+    const toggleGroupExpansion = (groupKey) => {
+        setExpandedGroups(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(groupKey)) {
+                newSet.delete(groupKey);
+            } else {
+                newSet.add(groupKey);
+            }
+            return newSet;
+        });
+    };
 
     const clearSelection = () => {
         setSelectedItemIds(new Set());
@@ -268,7 +331,8 @@ const DocumentOverview = ({
     useEffect(() => {
         setSelectedItemIds(prev => {
             const newSet = new Set();
-            const currentIds = new Set(allItems.map(item => item.id));
+            const activeItems = remoteSearchEnabled && searchQuery.trim() ? (remoteResults || []) : allItems;
+            const currentIds = new Set((activeItems || []).map(item => item.id));
             prev.forEach(id => {
                 if (currentIds.has(id)) {
                     newSet.add(id);
@@ -276,7 +340,7 @@ const DocumentOverview = ({
             });
             return newSet;
         });
-    }, [allItems]);
+    }, [allItems, remoteResults, remoteSearchEnabled, searchQuery]);
 
     // Item action handlers
     const handleViewItem = (item) => {
@@ -623,6 +687,15 @@ const DocumentOverview = ({
 
         return (
             <>
+                {/* Source badge - only show when not grouping or for context */}
+                {(!enableGrouping || itemType !== 'document') && item.source_type && (
+                    <span className={`document-source-badge source-${item.source_type}`}>
+                        {item.source_type === 'wolke' ? '☁️ Wolke' : '📁 Manual'}
+                    </span>
+                )}
+                {item.similarity_score != null && (
+                    <span className="document-stats">Relevanz: {Math.round(item.similarity_score * 100)}%</span>
+                )}
                 {item.type && (
                     <span className="document-type">
                         {documentTypes[item.type] || item.type}
@@ -830,6 +903,71 @@ const DocumentOverview = ({
         );
     };
 
+    // Render grouped content
+    const renderGroupedContent = () => {
+        const groupLabels = {
+            manual: 'Dokumente',
+            wolke: 'Wolke Dokumente'
+        };
+        
+        const groupIcons = {
+            manual: '📁',
+            wolke: '☁️'
+        };
+        
+        return (
+            <div className="document-overview-grouped">
+                {Object.entries(groupedItems).map(([groupKey, items]) => {
+                    if (!items || items.length === 0) return null;
+                    
+                    const isExpanded = expandedGroups.has(groupKey);
+                    const groupLabel = groupLabels[groupKey] || groupKey;
+                    const groupIcon = groupIcons[groupKey] || '📄';
+                    
+                    return (
+                        <div key={groupKey} className="document-group">
+                            <div 
+                                className="document-group-header"
+                                onClick={() => toggleGroupExpansion(groupKey)}
+                                style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', marginBottom: 'var(--spacing-medium)' }}
+                            >
+                                <span className="group-icon" style={{ marginRight: 'var(--spacing-small)' }}>
+                                    {groupIcon}
+                                </span>
+                                <h4 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600 }}>
+                                    {groupLabel} ({items.length})
+                                </h4>
+                                <button 
+                                    className="group-toggle-button"
+                                    style={{ 
+                                        marginLeft: 'var(--spacing-small)', 
+                                        background: 'none', 
+                                        border: 'none', 
+                                        cursor: 'pointer',
+                                        transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+                                        transition: 'transform 0.2s ease'
+                                    }}
+                                >
+                                    ▶
+                                </button>
+                            </div>
+                            
+                            {isExpanded && (
+                                <div className="document-group-content">
+                                    <div className="document-overview-grid">
+                                        {items.map((item) => (
+                                            cardRenderer ? cardRenderer(item) : renderDefaultCard(item)
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+        );
+    };
+    
     if (loading && allItems.length === 0) {
         return <div className="document-overview-loading"><Spinner /></div>;
     }
@@ -880,24 +1018,39 @@ const DocumentOverview = ({
                 <div className="document-overview-content">
                     {/* Search and Sort Controls */}
                     <div className="document-overview-controls">
-                        <div className="search-container" style={{ maxWidth: '250px', flexShrink: 0 }}>
-                            <HiOutlineSearch className="search-icon" />
-                            <input
-                                type="text"
-                                className="form-input search-input"
-                                placeholder={searchPlaceholder}
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                style={{ fontSize: '14px' }}
-                            />
-                        </div>
+                        {enableLocalSearch && (
+                          <div className="search-container" style={{ maxWidth: '250px', flexShrink: 0 }}>
+                              <HiOutlineSearch className="search-icon" />
+                              <input
+                                  type="text"
+                                  className="form-input search-input"
+                                  placeholder={searchPlaceholder}
+                                  value={searchQuery}
+                                  onChange={(e) => setSearchQuery(e.target.value)}
+                                  style={{ fontSize: '14px' }}
+                              />
+                          </div>
+                        )}
+                        {remoteSearchEnabled && (
+                            <div className="search-mode-controls" style={{ marginLeft: '8px' }}>
+                                <select
+                                    className="form-select"
+                                    value={searchMode}
+                                    onChange={(e) => setSearchMode(e.target.value)}
+                                    title="Suchmodus"
+                                >
+                                    <option value="intelligent">Intelligent</option>
+                                    <option value="fulltext">Volltext</option>
+                                </select>
+                            </div>
+                        )}
                         <div className="sort-controls">
                             <select 
                                 className="form-select"
                                 value={sortBy}
                                 onChange={(e) => setSortBy(e.target.value)}
                             >
-                                {sortOptions.map(option => (
+                                {[...sortOptions, ...(remoteSearchEnabled && searchQuery.trim() ? [{ value: 'similarity_score', label: 'Relevanz' }] : [])].map(option => (
                                     <option key={option.value} value={option.value}>
                                         {option.label}
                                     </option>
@@ -912,7 +1065,7 @@ const DocumentOverview = ({
                             </button>
                             
                             {/* Select all checkbox - positioned next to sort controls */}
-                            {enableBulkSelect && onBulkDelete && filteredItems.length > 0 && (
+                            {enableBulkSelect && onBulkDelete && filteredItems.length > 0 && !(remoteSearchEnabled && searchQuery.trim()) && (
                                 <div className="document-overview-select-all">
                                     <input
                                         type="checkbox"
@@ -930,20 +1083,47 @@ const DocumentOverview = ({
                         </div>
                     </div>
 
-                    {/* Items Grid */}
-                    {filteredItems.length === 0 ? (
-                        searchQuery ? (
-                            <div className="document-overview-empty-state">
-                                <p>Keine Ergebnisse gefunden für "{searchQuery}"</p>
+                    {/* Items Grid (supports remote results) */}
+                    {(() => {
+                        const usingRemote = remoteSearchEnabled && searchQuery.trim();
+                        const normalizedRemote = (remoteResults || []).map(item => ({
+                            ...item,
+                            content_preview: item.content_preview || item.relevantText || item.full_content || ''
+                        }));
+
+                        const itemsToShow = usingRemote ? normalizedRemote : filteredItems;
+
+                        if (itemsToShow.length === 0) {
+                            return searchQuery ? (
+                                <div className="document-overview-empty-state">
+                                    {isRemoteSearching && usingRemote ? (
+                                        <p>Suche läuft…</p>
+                                    ) : (
+                                        <p>Keine Ergebnisse gefunden für "{searchQuery}"</p>
+                                    )}
+                                </div>
+                            ) : renderEmptyState();
+                        }
+
+                        if (!usingRemote && enableGrouping && itemType === 'document') {
+                            return renderGroupedContent();
+                        }
+
+                        // Sort remote results by selected sort if needed
+                        const sorted = [...itemsToShow].sort((a, b) => {
+                            const valA = getSortValue(a, sortBy);
+                            const valB = getSortValue(b, sortBy);
+                            return sortOrder === 'asc' ? (valA > valB ? 1 : -1) : (valA < valB ? 1 : -1);
+                        });
+
+                        return (
+                            <div className="document-overview-grid">
+                                {sorted.map((item) => (
+                                    cardRenderer ? cardRenderer(item) : renderDefaultCard(item)
+                                ))}
                             </div>
-                        ) : renderEmptyState()
-                    ) : (
-                        <div className="document-overview-grid">
-                            {filteredItems.map((item) => (
-                                cardRenderer ? cardRenderer(item) : renderDefaultCard(item)
-                            ))}
-                        </div>
-                    )}
+                        );
+                    })()}
                 </div>
             </div>
 

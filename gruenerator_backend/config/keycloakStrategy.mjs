@@ -22,9 +22,9 @@ class KeycloakStrategy extends OpenIDConnectStrategy {
       params.kc_idp_hint = options.kc_idp_hint;
     }
     
-    // Include any other custom parameters that might be needed
-    if (options.prompt && options.prompt !== 'none') {
-      // Let the base strategy handle prompt, but we can add custom logic here if needed
+    // Include prompt parameter for registration/login control
+    if (options.prompt) {
+      params.prompt = options.prompt;
     }
     
     // Log for debugging

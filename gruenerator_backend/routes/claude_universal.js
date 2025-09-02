@@ -1,7 +1,7 @@
 const express = require('express');
 // Import unified prompt building architecture
 const {
-  HTML_FORMATTING_INSTRUCTIONS,
+  MARKDOWN_FORMATTING_INSTRUCTIONS,
   formatUserContent,
   TITLE_GENERATION_INSTRUCTION,
   processResponseWithTitle,
@@ -82,7 +82,7 @@ Passe Struktur, Länge und Aufbau an die gewählte Textform an. Der Text soll im
     
     builder
       .setSystemRole(systemRole)
-      .setFormatting(HTML_FORMATTING_INSTRUCTIONS);
+      .setFormatting(MARKDOWN_FORMATTING_INSTRUCTIONS);
       
     // Note: Universal text generation doesn't use platform constraints (flexible lengths)
 
@@ -256,7 +256,7 @@ Befolgen Sie diese Richtlinien, um die Rede zu verfassen:
 
     builder
       .setSystemRole(systemRole)
-      .setFormatting(HTML_FORMATTING_INSTRUCTIONS);
+      .setFormatting(MARKDOWN_FORMATTING_INSTRUCTIONS);
       
     // Note: Speech generation doesn't use platform constraints (flexible lengths)
 
@@ -381,7 +381,7 @@ Beachte zusätzlich diese sprachlichen Aspekte:
 
     builder
       .setSystemRole(systemRole)
-      .setFormatting(HTML_FORMATTING_INSTRUCTIONS);
+      .setFormatting(MARKDOWN_FORMATTING_INSTRUCTIONS);
       
     // Add length constraint if specified
     if (zeichenanzahl && !isNaN(parseInt(zeichenanzahl))) {
@@ -463,8 +463,239 @@ ${TITLE_GENERATION_INSTRUCTION}`;
 
 wahlprogrammRouter.post('/', wahlprogrammHandler);
 
+// Router for Bürgeranfragen (Citizen Inquiries) Generation
+const buergeranfragenRouter = express.Router();
+
+const buergeranfragenHandler = withErrorHandler(async (req, res) => {
+  const { gremium, anfrage, antwortart, kontext, customPrompt, useWebSearchTool, usePrivacyMode, provider, attachments } = req.body;
+
+  // Aktuelles Datum ermitteln
+  const currentDate = new Date().toISOString().split('T')[0];
+
+  // Validate required fields
+  if (!customPrompt && (!gremium || !anfrage || !antwortart)) {
+    return handleValidationError(
+      res, 
+      '/claude_buergeranfragen',
+      'Alle Pflichtfelder (Gremium, Anfrage, Antwortart) müssen ausgefüllt sein oder ein benutzerdefinierter Prompt muss angegeben werden.'
+    );
+  }
+
+  // Process attachments using consolidated utility
+  const attachmentResult = await processAndBuildAttachments(
+    attachments, 
+    usePrivacyMode, 
+    'claude_buergeranfragen', 
+    req.user?.id || 'unknown'
+  );
+
+  // Handle attachment errors
+  if (attachmentResult.error) {
+    return handleValidationError(res, '/claude_buergeranfragen', attachmentResult.error);
+  }
+
+  console.log('[claude_buergeranfragen] Request received:', {
+    gremium,
+    anfrage: anfrage?.substring(0, 100) + (anfrage?.length > 100 ? '...' : ''),
+    antwortart,
+    hasKontext: !!kontext,
+    hasCustomPrompt: !!customPrompt,
+    useWebSearchTool: useWebSearchTool || false,
+    usePrivacyMode: usePrivacyMode || false,
+    provider: usePrivacyMode && provider ? provider : 'default',
+    hasAttachments: attachmentResult.hasAttachments,
+    attachmentsCount: attachmentResult.summary?.count || 0,
+    attachmentsTotalSizeMB: attachmentResult.summary?.totalSizeMB || 0
+  });
+    console.log('[claude_buergeranfragen] Starting AI Worker request');
+
+    // Build prompt using new Context-First Architecture
+    console.log('[claude_buergeranfragen] Building prompt with new Context-First Architecture');
+    
+    const builder = new PromptBuilder('buergeranfragen')
+      .enableDebug(process.env.NODE_ENV === 'development');
+
+    // Set system role for citizen inquiries generation
+    const systemRole = `Du bist ein erfahrener politischer Berater und Kommunikationsexperte für Bündnis 90/Die Grünen mit spezieller Expertise im Umgang mit Bürger*innenanfragen.
+
+Deine Hauptaufgabe ist es, professionelle, sachkundige und politisch fundierte Antworten auf Anfragen von Bürger*innen zu erstellen, die:
+
+**Inhaltliche Qualität:**
+- Sachlich korrekt und gut recherchiert sind
+- Die grüne politische Position klar und verständlich darstellen
+- Konkrete Handlungsvorschläge und Lösungsansätze bieten
+- Aktuelle Gesetzeslage und politische Entwicklungen berücksichtigen
+
+**Kommunikative Exzellenz:**
+- Respektvoll und wertschätzend gegenüber der Anfrage sind
+- Je nach gewählter Antwortart den passenden Ton treffen
+- Bürgernah und verständlich formuliert sind
+- Transparenz über politische Positionen und Grenzen schaffen
+
+**Politische Positionierung:**
+- Grüne Werte wie Nachhaltigkeit, soziale Gerechtigkeit und Demokratie betonen
+- Konstruktive Kritik an bestehenden Missständen üben
+- Lösungsorientierte Herangehensweise verfolgen
+- Partizipation und Bürgerbeteiligung fördern
+
+**Struktureller Aufbau:**
+1. Freundliche Begrüßung und Dank für die Anfrage
+2. Kurze Einordnung des Themas
+3. Detaillierte Antwort mit grüner Perspektive
+4. Konkrete nächste Schritte oder Handlungsempfehlungen
+5. Angebot für weitere Gespräche/Informationen
+
+Achte darauf, dass die Antwort dem gewählten Stil entspricht und dabei authentisch und überzeugend wirkt.`;
+    
+    builder
+      .setSystemRole(systemRole)
+      .setFormatting(MARKDOWN_FORMATTING_INSTRUCTIONS);
+      
+    // Note: Citizen inquiries don't use platform constraints (flexible lengths)
+
+    // Enable web search if requested
+    if (useWebSearchTool) {
+      const searchQuery = `${anfrage} ${gremium} ${kontext || ''} Bündnis 90 Die Grünen Politik`;
+      console.log(`[claude_buergeranfragen] 🔍 Web search enabled for: "${searchQuery}"`);
+      await builder.handleWebSearch(searchQuery, 'content');
+    }
+
+    // Add documents if present
+    if (attachmentResult.documents.length > 0) {
+      await builder.addDocuments(attachmentResult.documents, usePrivacyMode);
+    }
+
+    // Add custom instructions if present
+    if (customPrompt) {
+      builder.setInstructions(customPrompt);
+    }
+
+    // Build the request content
+    let requestContent;
+    
+    if (customPrompt) {
+      // For custom prompts, provide structured data
+      requestContent = {
+        gremium: gremium || 'Nicht angegeben',
+        anfrage: anfrage || 'Nicht angegeben',
+        antwortart: antwortart || 'Nicht angegeben',
+        kontext: kontext || '',
+        currentDate
+      };
+    } else {
+      // For standard requests, build descriptive content using the provided template
+      requestContent = `Du bist ein KI-Assistent, der für ein Büro von Die Grünen arbeitet. Deine Aufgabe ist es, Bürgeranfragen zu beantworten. Du sollst eine höfliche, informative und dem Parteiprogramm der Grünen entsprechende Antwort verfassen.
+
+Hier sind die Details zur Anfrage:
+
+Gremium:
+<gremium>
+${gremium}
+</gremium>
+
+Bürgeranfrage:
+<anfrage>
+${anfrage}
+</anfrage>
+
+Art der gewünschten Antwort:
+<antwortart>
+${antwortart}
+</antwortart>
+
+${kontext ? `Zusätzlicher Kontext:
+<zusaetzlicher_kontext>
+${kontext}
+</zusaetzlicher_kontext>
+
+` : ''}Beachte bei der Erstellung deiner Antwort folgende Richtlinien:
+1. Bleibe immer höflich und respektvoll.
+2. Beziehe dich auf die Werte und Positionen der Grünen.
+3. Sei informativ und faktenbasiert, aber vermeide zu technische Sprache.
+4. Zeige Verständnis für die Anliegen des Bürgers.
+5. Biete, wenn möglich, konkrete Lösungsansätze oder Handlungsempfehlungen an.
+
+Passe den Ton und Stil deiner Antwort entsprechend der gewünschten Antwortart an. Wenn beispielsweise eine formelle Antwort gewünscht ist, verwende eine sachliche und professionelle Sprache. Bei einer persönlicheren Antwort kannst du einen wärmeren, empathischeren Ton anschlagen.
+
+Verfasse nun deine Antwort auf die Bürgeranfrage. Berücksichtige dabei das angegebene Gremium, die spezifische Anfrage und die gewünschte Art der Antwort.
+
+Gib deine fertige Antwort in folgendem Format aus:
+
+<antwort>
+[Hier deine formulierte Antwort einfügen]
+</antwort>
+
+${TITLE_GENERATION_INSTRUCTION}`;
+    }
+
+    builder.setRequest(requestContent);
+
+    // Build the final prompt
+    const promptResult = builder.build();
+    const systemPrompt = promptResult.system;
+    const messages = promptResult.messages;
+    const tools = promptResult.tools;
+    
+    // Extract web search sources for frontend display (separate from Claude prompt)
+    const webSearchSources = builder.getWebSearchSources();
+
+    const payload = {
+      systemPrompt,
+      messages,
+      tools,
+      options: {
+        max_tokens: 4000,
+        temperature: 0.7,
+        ...(usePrivacyMode && provider && { provider: provider })
+      },
+      metadata: {
+        webSearchSources: webSearchSources.length > 0 ? webSearchSources : null
+      }
+    };
+
+    // Log web search status
+    if (useWebSearchTool) {
+      if (tools.length > 0) {
+        console.log(`[claude_buergeranfragen] 🔍 Web search ENABLED - Tool: ${tools[0].name}`);
+      } else {
+        console.log(`[claude_buergeranfragen] 🔍 Web search results pre-fetched and added to context`);
+      }
+    }
+    
+    const result = await req.app.locals.aiWorkerPool.processRequest({
+      type: 'buergeranfragen_generator',
+      usePrivacyMode: usePrivacyMode || false,
+      ...payload
+    }, req);
+
+    console.log('[claude_buergeranfragen] AI Worker response received:', {
+      success: result.success,
+      contentLength: result.content?.length,
+      error: result.error
+    });
+
+    if (!result.success) {
+      console.error('[claude_buergeranfragen] AI Worker error:', result.error);
+      throw new Error(result.error);
+    }
+
+    // Send standardized success response
+    sendSuccessResponseWithAttachments(
+      res,
+      result,
+      '/claude_buergeranfragen',
+      { gremium, anfrage, antwortart, kontext },
+      attachmentResult,
+      usePrivacyMode,
+      provider
+    );
+}, '/claude_buergeranfragen');
+
+buergeranfragenRouter.post('/', buergeranfragenHandler);
+
 module.exports = {
   universalRouter,
   redeRouter,
-  wahlprogrammRouter
+  wahlprogrammRouter,
+  buergeranfragenRouter
 }; 

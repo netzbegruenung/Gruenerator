@@ -9,14 +9,17 @@ const FeatureToggle = ({
   icon: Icon, 
   description,
   className,
-  tabIndex
+  tabIndex,
+  disabled = false
 }) => {
   const handleToggle = (checked) => {
-    onToggle(checked);
+    if (!disabled && onToggle) {
+      onToggle(checked);
+    }
   };
 
   return (
-    <div className={`feature-toggle ${className || ''}`}>
+    <div className={`feature-toggle ${className || ''} ${disabled ? 'feature-toggle-disabled' : ''}`}>
       <div className="feature-header">
         <Switch.Root
           className="feature-switch"
@@ -24,11 +27,12 @@ const FeatureToggle = ({
           onCheckedChange={handleToggle}
           aria-label={label}
           tabIndex={tabIndex}
+          disabled={disabled}
         >
           <Switch.Thumb className="feature-switch-thumb" />
         </Switch.Root>
         <div className="feature-label">
-          <Icon className={`feature-icon ${isActive ? 'active' : ''}`} />
+          <Icon className={`feature-icon ${isActive ? 'active' : ''} ${disabled ? 'disabled' : ''}`} />
           {label} {isActive ? '' : ''}
         </div>
       </div>
@@ -44,12 +48,13 @@ const FeatureToggle = ({
 
 FeatureToggle.propTypes = {
   isActive: PropTypes.bool.isRequired,
-  onToggle: PropTypes.func.isRequired,
+  onToggle: PropTypes.func,
   label: PropTypes.string.isRequired,
   icon: PropTypes.elementType.isRequired,
   description: PropTypes.string,
   className: PropTypes.string,
-  tabIndex: PropTypes.number
+  tabIndex: PropTypes.number,
+  disabled: PropTypes.bool
 };
 
 export default FeatureToggle; 

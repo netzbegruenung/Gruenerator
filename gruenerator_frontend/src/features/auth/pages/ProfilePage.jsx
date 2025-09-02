@@ -171,8 +171,8 @@ const ProfilePage = () => {
   const availableTabs = [
     'profile',
     'intelligence',
-    'inhalte',
-    'gruppen',
+    ...(canAccessBetaFeature('contentManagement') ? ['inhalte'] : []),
+    ...(shouldShowTab('groups') ? ['gruppen'] : []),
     ...(shouldShowTab('customGenerators') ? ['custom_generators'] : []),
     'labor'
   ];
@@ -193,9 +193,22 @@ const ProfilePage = () => {
 
   // Handle invalid tab URLs and redirects for merged tabs
   useEffect(() => {
-    // Redirect old separate tabs to new unified content tab
+    // Check if user has access to content management feature
+    const hasContentAccess = canAccessBetaFeature('contentManagement');
+    
+    // Redirect old separate tabs to new unified content tab (if user has access)
     if (tab === 'dokumente' || tab === 'grafik') {
-      navigate('/profile/inhalte', { replace: true });
+      if (hasContentAccess) {
+        navigate('/profile/inhalte', { replace: true });
+      } else {
+        navigate('/profile', { replace: true });
+      }
+      return;
+    }
+    
+    // If user tries to access 'inhalte' but doesn't have the feature, redirect to profile
+    if (tab === 'inhalte' && !hasContentAccess) {
+      navigate('/profile', { replace: true });
       return;
     }
     
@@ -205,8 +218,8 @@ const ProfilePage = () => {
       return;
     }
     
-    // Validate subtab URLs for content management tab
-    if (tab === 'inhalte' && subtab) {
+    // Validate subtab URLs for content management tab (only if user has access)
+    if (tab === 'inhalte' && subtab && hasContentAccess) {
       const validSubtabs = ['canva', 'dokumente', 'texte', 'qa', 'wolke'];
       if (!validSubtabs.includes(subtab)) {
         navigate('/profile/inhalte', { replace: true });
@@ -222,7 +235,7 @@ const ProfilePage = () => {
         }
       }
     }
-  }, [tab, subtab, subsubtab, navigate, TAB_MAPPING]);
+  }, [tab, subtab, subsubtab, navigate, TAB_MAPPING, canAccessBetaFeature]);
 
   // Message timeout handling
   useEffect(() => {
@@ -369,31 +382,35 @@ const ProfilePage = () => {
           Anweisungen & Wissen
         </TabButton>
         
-        <TabButton
-          activeTab={activeTab}
-          tabKey="inhalte"
-          onClick={handleTabChange}
-          onMouseEnter={() => onTabHover('inhalte')}
-          underlineTransition={underlineTransition}
-          tabIndex={getTabIndex('inhalte')}
-          registerRef={registerItemRef}
-          ariaSelected={ariaSelected('inhalte')}
-        >
-          Texte & Grafik
-        </TabButton>
+        {canAccessBetaFeature('contentManagement') && (
+          <TabButton
+            activeTab={activeTab}
+            tabKey="inhalte"
+            onClick={handleTabChange}
+            onMouseEnter={() => onTabHover('inhalte')}
+            underlineTransition={underlineTransition}
+            tabIndex={getTabIndex('inhalte')}
+            registerRef={registerItemRef}
+            ariaSelected={ariaSelected('inhalte')}
+          >
+            Texte & Grafik
+          </TabButton>
+        )}
         
-        <TabButton
-          activeTab={activeTab}
-          tabKey="gruppen"
-          onClick={handleTabChange}
-          onMouseEnter={() => onTabHover('groups')}
-          underlineTransition={underlineTransition}
-          tabIndex={getTabIndex('gruppen')}
-          registerRef={registerItemRef}
-          ariaSelected={ariaSelected('gruppen')}
-        >
-          Gruppen
-        </TabButton>
+        {shouldShowTab('groups') && (
+          <TabButton
+            activeTab={activeTab}
+            tabKey="gruppen"
+            onClick={handleTabChange}
+            onMouseEnter={() => onTabHover('groups')}
+            underlineTransition={underlineTransition}
+            tabIndex={getTabIndex('gruppen')}
+            registerRef={registerItemRef}
+            ariaSelected={ariaSelected('gruppen')}
+          >
+            Gruppen
+          </TabButton>
+        )}
         
         
         {shouldShowTab('customGenerators') && (
@@ -472,7 +489,7 @@ const ProfilePage = () => {
             />
           )}
           
-          {activeTab === 'inhalte' && (
+          {activeTab === 'inhalte' && canAccessBetaFeature('contentManagement') && (
             <ContentManagementTab
               user={user}
               onSuccessMessage={handleSuccessMessage}
@@ -484,7 +501,7 @@ const ProfilePage = () => {
             />
           )}
           
-          {activeTab === 'gruppen' && (
+          {activeTab === 'gruppen' && shouldShowTab('groups') && (
             <GroupsManagementTab
               user={user}
               onSuccessMessage={handleSuccessMessage}

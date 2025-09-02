@@ -137,6 +137,156 @@ export const examplePages = {
                 ]
             }
         ]
+    },
+
+    'grune-wolke-tutorial': {
+        id: 'grune-wolke-tutorial',
+        title: 'Die Grüne Wolke richtig nutzen',
+        subtitle: 'Schritt-für-Schritt Anleitung zum Teilen von Dateien für den Grünerator',
+        author: 'Grünerator Team',
+        readTime: '7 min',
+        headerAlignment: 'center',
+        content: [
+            {
+                type: 'paragraph',
+                text: 'Die Grüne Wolke ist unser sicherer Cloud-Speicher für alle grünen Organisationen. Mit der richtigen Konfiguration kannst du deine Dateien nahtlos mit dem Grünerator teilen und automatisch Dokumente hochladen lassen. Diese Anleitung zeigt dir, wie du einen Share-Link mit den richtigen Berechtigungen erstellst.'
+            },
+            {
+                type: 'heading2',
+                text: 'Was du benötigst'
+            },
+            {
+                type: 'paragraph',
+                text: 'Für die Einrichtung brauchst du Zugang zur Grünen Wolke unter wolke.netzbegruenung.de, einen Ordner für deine Grünerator-Dateien und etwa 5 Minuten Zeit.'
+            },
+            {
+                type: 'heading2',
+                text: 'Warum ist die richtige Konfiguration wichtig?'
+            },
+            {
+                type: 'paragraph',
+                text: 'Der Grünerator benötigt spezielle Berechtigungen, um automatisch generierte Dokumente in deinen Cloud-Ordner hochzuladen. Ohne die richtige Konfiguration können deine Dokumente nicht gespeichert werden.'
+            },
+            {
+                type: 'heading2',
+                text: 'Schritt-für-Schritt Anleitung'
+            },
+            {
+                type: 'heading3',
+                text: 'Schritt 1: Ordner auswählen'
+            },
+            {
+                type: 'paragraph',
+                text: 'Öffne die Grüne Wolke in einem neuen Tab, melde dich an und wähle einen Ordner aus, in dem du deine Grünerator-Dateien speichern möchtest. Du kannst auch einen neuen Ordner erstellen. Ein eigener Ordner wie "Grünerator" oder "Teilen" hilft dabei, die Dateien organisiert zu halten.'
+            },
+            {
+                type: 'html',
+                content: '<div style="text-align: center; margin: var(--spacing-large) 0;"><img src="/src/assets/images/wolke-tutorial/step1.png" alt="Grüne Wolke Hauptinterface" style="max-width: 100%; height: auto; border: 1px solid var(--border-subtle); border-radius: 8px;" /></div>'
+            },
+            {
+                type: 'heading3',
+                text: 'Schritt 2: Teilen-Dialog öffnen'
+            },
+            {
+                type: 'paragraph',
+                text: 'Klicke im Teilen-Tab auf "Link teilen", um die Freigabe-Optionen zu öffnen. Die Teilen-Option befindet sich in der rechten Seitenleiste, wenn ein Ordner ausgewählt ist.'
+            },
+            {
+                type: 'html',
+                content: '<div style="text-align: center; margin: var(--spacing-large) 0;"><img src="/src/assets/images/wolke-tutorial/step2.png" alt="Ordnerauswahl in der Grünen Wolke" style="max-width: 100%; height: auto; border: 1px solid var(--border-subtle); border-radius: 8px;" /></div>'
+            },
+            {
+                type: 'heading3',
+                text: 'Schritt 3: Freigabe aktivieren'
+            },
+            {
+                type: 'paragraph',
+                text: 'Es erscheint eine Meldung, dass du die benötigten Informationen eingeben musst. Aktiviere "Ablauf des Links aktivieren" falls gewünscht. Du kannst optional ein Ablaufdatum für den Link festlegen.'
+            },
+            {
+                type: 'html',
+                content: '<div style="text-align: center; margin: var(--spacing-large) 0;"><img src="/src/assets/images/wolke-tutorial/step3.png" alt="Teilen-Dialog öffnen" style="max-width: 100%; height: auto; border: 1px solid var(--border-subtle); border-radius: 8px;" /></div>'
+            },
+            {
+                type: 'heading3',
+                text: 'Schritt 4: Freigabe erstellen'
+            },
+            {
+                type: 'paragraph',
+                text: 'Klicke auf "Freigabe erstellen", um den Share-Link zu generieren. Nach diesem Schritt wird automatisch ein öffentlicher Link erstellt.'
+            },
+            {
+                type: 'html',
+                content: '<div style="text-align: center; margin: var(--spacing-large) 0;"><img src="/src/assets/images/wolke-tutorial/step4.png" alt="Freigabe-Einstellungen konfigurieren" style="max-width: 100%; height: auto; border: 1px solid var(--border-subtle); border-radius: 8px;" /></div>'
+            },
+            {
+                type: 'heading3',
+                text: 'Schritt 5: Berechtigungen konfigurieren'
+            },
+            {
+                type: 'paragraph',
+                text: 'Nachdem der Link erstellt wurde, klicke auf das Dropdown-Menü neben "Link teilen" und wähle "Kann bearbeiten". Diese Berechtigung ist zwingend erforderlich, damit der Grünerator Dateien hochladen kann.'
+            },
+            {
+                type: 'html',
+                content: '<div style="text-align: center; margin: var(--spacing-large) 0;"><img src="/src/assets/images/wolke-tutorial/step5.png" alt="Freigabe erstellen" style="max-width: 100%; height: auto; border: 1px solid var(--border-subtle); border-radius: 8px;" /></div>'
+            },
+            {
+                type: 'paragraph',
+                text: 'Stelle sicher, dass die Berechtigungen richtig eingestellt sind:'
+            },
+            {
+                type: 'html',
+                content: '<div style="text-align: center; margin: var(--spacing-large) 0;"><img src="/src/assets/images/wolke-tutorial/step6.png" alt="Berechtigungen konfigurieren" style="max-width: 100%; height: auto; border: 1px solid var(--border-subtle); border-radius: 8px;" /></div>'
+            },
+            {
+                type: 'heading3',
+                text: 'Schritt 6: Link kopieren und verwenden'
+            },
+            {
+                type: 'paragraph',
+                text: 'Der Share-Link wurde erstellt! Kopiere den Link und füge ihn in das Grünerator-Setup-Fenster ein. Der Link sollte etwa so aussehen: https://wolke.netzbegruenung.de/s/AbCdEfGhIj'
+            },
+            {
+                type: 'html',
+                content: '<div style="text-align: center; margin: var(--spacing-large) 0;"><img src="/src/assets/images/wolke-tutorial/step7.png" alt="Fertiger Share-Link" style="max-width: 100%; height: auto; border: 1px solid var(--border-subtle); border-radius: 8px;" /></div>'
+            },
+            {
+                type: 'heading2',
+                text: 'Wichtige Hinweise'
+            },
+            {
+                type: 'paragraph',
+                text: 'Die Berechtigung "Kann bearbeiten" ist zwingend erforderlich. Ein eigener Ordner wie "Grünerator" hilft bei der Organisation. Der Link funktioniert auch ohne Ablaufdatum. Du kannst jederzeit die Berechtigungen ändern oder den Link deaktivieren.'
+            },
+            {
+                type: 'heading2',
+                text: 'Häufige Probleme und Lösungen'
+            },
+            {
+                type: 'paragraph',
+                text: 'Falls der Grünerator Probleme beim Hochladen hat, überprüfe zunächst die Berechtigungen deines Share-Links. Die häufigste Ursache ist eine fehlende "Kann bearbeiten"-Berechtigung.'
+            },
+            {
+                type: 'callout',
+                title: 'Grüne Wolke öffnen',
+                text: 'Bereit für die Einrichtung? Öffne die Grüne Wolke und folge der Anleitung Schritt für Schritt.',
+                buttonText: 'Zur Grünen Wolke',
+                buttonHref: 'https://wolke.netzbegruenung.de/'
+            },
+            {
+                type: 'heading2',
+                text: 'Weitere Tipps für die Nutzung'
+            },
+            {
+                type: 'paragraph',
+                text: 'Organisiere deine Dateien in thematischen Ordnern und nutze aussagekräftige Namen. So behältst du auch bei vielen generierten Dokumenten den Überblick. Die Grüne Wolke bietet zudem Versionierung, sodass du ältere Versionen deiner Dokumente jederzeit wiederherstellen kannst.'
+            },
+            {
+                type: 'paragraph',
+                text: 'Erstelle Unterordner für verschiedene Themen wie "Anträge", "Pressemitteilungen" oder "Reden". So findest du deine generierten Inhalte schneller wieder und kannst sie besser verwalten.'
+            }
+        ]
     }
 };
 

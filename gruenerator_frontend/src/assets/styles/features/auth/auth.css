@@ -15,30 +15,11 @@
 }
 
 .auth-header h1 {
-  color: var(--font-color-h);
   font-family: 'GrueneType', Arial, sans-serif;
   margin-bottom: var(--spacing-small);
   font-size: 2rem;
   font-weight: 700;
   text-align: center;
-  background: linear-gradient(135deg, var(--primary) 0%, var(--klee) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-[data-theme="dark"] .auth-header h1 {
-  background: none;
-  -webkit-text-fill-color: var(--secondary);
-  color: var(--secondary);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .auth-header h1 {
-    background: none;
-    -webkit-text-fill-color: var(--secondary);
-    color: var(--secondary);
-  }
 }
 
 .auth-header h2 {

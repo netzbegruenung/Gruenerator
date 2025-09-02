@@ -2,9 +2,12 @@ import React, { useState, useCallback, useContext, useEffect, useMemo } from 're
 import PropTypes from 'prop-types';
 import { useForm, Controller } from 'react-hook-form';
 import { motion, AnimatePresence } from 'motion/react';
+import Select from 'react-select';
 import BaseForm from '../../../components/common/BaseForm';
+import FormFieldWrapper from '../../../components/common/Form/Input/FormFieldWrapper';
 import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../../components/utils/constants';
 import useApiSubmit from '../../../components/hooks/useApiSubmit';
+import apiClient from '../../../components/utils/apiClient';
 // import { useDynamicTextSize } from '../../../components/utils/commonFunctions';
 import { useSharedContent } from '../../../components/hooks/useSharedContent';
 import ErrorBoundary from '../../../components/ErrorBoundary';
@@ -58,6 +61,13 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
     ];
     return isAuthenticated ? options : options.filter(opt => opt.id !== 'sharepic');
   }, [isAuthenticated]);
+
+  const sharepicTypeOptions = [
+    { value: 'dreizeilen', label: '3-Zeilen Slogan (mit Bild)' },
+    { value: 'quote', label: 'Zitat mit Bild' },
+    { value: 'quote_pure', label: 'Zitat (Nur Text)' },
+    { value: 'info', label: 'Infopost' },
+  ];
 
   const defaultPlatforms = useMemo(() => {
     // Determine default platforms based on initial content
@@ -138,14 +148,12 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   const handleUrlsDetected = useCallback(async (urls) => {
     // Only crawl if not already crawling and URLs are detected
     if (!isCrawling && urls.length > 0) {
-      console.log(`[PresseSocialGenerator] Detected ${urls.length} URLs, starting crawl with privacy mode: ${watchUsePrivacyMode}`);
       await detectAndCrawlUrls(urls.join(' '), watchUsePrivacyMode);
     }
   }, [detectAndCrawlUrls, isCrawling, watchUsePrivacyMode]);
 
   // Handle URL retry
   const handleRetryUrl = useCallback(async (url) => {
-    console.log(`[PresseSocialGenerator] Retrying URL: ${url}`);
     await retryUrl(url, watchUsePrivacyMode);
   }, [retryUrl, watchUsePrivacyMode]);
   // const textSize = useDynamicTextSize(socialMediaContent, 1.2, 0.8, [1000, 2000]);
@@ -180,16 +188,6 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   const onSubmitRHF = useCallback(async (rhfData) => {
     setStoreIsLoading(true);
 
-    console.log('[PresseSocialGenerator] Formular abgeschickt. Store-Status:', {
-        source,
-        availableKnowledgeCount: availableKnowledge.length,
-        selectedKnowledgeIds: Array.from(selectedKnowledgeIds),
-        hasSelectedKnowledge: selectedKnowledgeIds.size > 0,
-        instructions,
-        isInstructionsActive,
-        groupInstructions: groupDetailsData?.instructions?.custom_social_prompt ? `Vorhanden, Länge: ${groupDetailsData.instructions.custom_social_prompt.length}` : null,
-    });
-
     try {
       // Use platforms array directly from multi-select
       const selectedPlatforms = rhfData.platforms || [];
@@ -200,8 +198,6 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
         ...processedAttachments,
         ...crawledUrls
       ];
-
-      console.log(`[PresseSocialGenerator] Submitting form with ${processedAttachments.length} file attachments and ${crawledUrls.length} crawled URLs`);
 
       const formDataToSubmit = {
         thema: rhfData.thema,
@@ -223,7 +219,6 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
       };
       
       const searchQuery = extractQueryFromFormData(formDataToSubmit);
-      console.log('[PresseSocialGenerator] Extracted search query from form:', searchQuery);
 
       // Add knowledge, instructions, and documents
       const finalPrompt = await createKnowledgePrompt({
@@ -241,17 +236,13 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
       });
       
       if (finalPrompt) {
-        formDataToSubmit.customPrompt = finalPrompt; 
-        console.log('[PresseSocialGenerator] Final structured prompt added to formData.', finalPrompt.substring(0,100)+'...');
-      } else {
-        console.log('[PresseSocialGenerator] No custom instructions or knowledge for generation.');
+        formDataToSubmit.customPrompt = finalPrompt;
       }
 
       let combinedResults = {};
 
       // Generate sharepic if requested
       if (hasSharepic) {
-        console.log('[PresseSocialGenerator] Generating sharepic...');
         try {
           const sharepicResult = await generateSharepic(
             rhfData.thema, 
@@ -262,7 +253,6 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
             finalPrompt // Pass knowledge prompt to sharepic generation
           );
           combinedResults.sharepic = sharepicResult;
-          console.log('[PresseSocialGenerator] Sharepic generated successfully');
         } catch (sharepicError) {
           console.error('[PresseSocialGenerator] Sharepic generation failed:', sharepicError);
           // Continue with social generation even if sharepic fails
@@ -272,7 +262,6 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
       // Generate regular social content for other platforms
       const otherPlatforms = selectedPlatforms.filter(p => p !== 'sharepic');
       if (otherPlatforms.length > 0) {
-        console.log('[PresseSocialGenerator] Generating social content for platforms:', otherPlatforms);
         const response = await submitForm({
           ...formDataToSubmit,
           platforms: otherPlatforms
@@ -313,16 +302,91 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
     setGeneratedText(componentName, content);
   }, [setGeneratedText, componentName]);
 
-  const handleEditSharepic = useCallback((sharepicData) => {
+  const handleEditSharepic = useCallback(async (sharepicData) => {
+    // Clean up old edit sessions to prevent sessionStorage accumulation
+    const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
+    for (let i = 0; i < sessionStorage.length; i++) {
+      const key = sessionStorage.key(i);
+      if (key && key.startsWith('sharepic-edit-')) {
+        try {
+          const data = JSON.parse(sessionStorage.getItem(key));
+          if (data.timestamp && data.timestamp < fiveMinutesAgo) {
+            sessionStorage.removeItem(key);
+            console.log('[PresseSocialGenerator] Cleaned up old edit session:', key);
+            i--; // Adjust index since we removed an item
+          }
+        } catch (e) {
+          // Remove invalid data
+          sessionStorage.removeItem(key);
+          i--; // Adjust index since we removed an item
+        }
+      }
+    }
+    
     // Create unique editing session ID
     const editingSessionId = `sharepic-edit-${Date.now()}`;
     
-    // Store data in sessionStorage for cross-tab access
-    sessionStorage.setItem(editingSessionId, JSON.stringify({
-      source: 'presseSocial',
-      data: sharepicData,
-      timestamp: Date.now()
-    }));
+    try {
+      let imageSessionId = null;
+      
+      // Upload image to backend Redis storage if available
+      if (sharepicData.image) {
+        try {
+          const imageResponse = await apiClient.post('/sharepic/edit-session', {
+            imageData: sharepicData.image,
+            metadata: {
+              type: sharepicData.type,
+              timestamp: Date.now()
+            }
+          });
+          
+          // Handle Axios response wrapper - extract data
+          const result = imageResponse.data || imageResponse;
+          imageSessionId = result.sessionId;
+          console.log('[PresseSocialGenerator] Image stored in backend:', imageSessionId);
+        } catch (imageUploadError) {
+          console.warn('[PresseSocialGenerator] Failed to store image in backend:', imageUploadError);
+        }
+      }
+      
+      // Store minimal data in sessionStorage for cross-tab access
+      const sessionData = {
+        text: sharepicData.text,
+        type: sharepicData.type,
+        // Remove alternatives arrays - they're not needed for editing and can be large
+        hasImage: !!sharepicData.image,
+        imageSessionId: imageSessionId, // Store session ID instead of image
+        hasOriginalImage: !!sharepicData.originalImage
+      };
+      
+      // Add size check before storing in sessionStorage
+      const dataToStore = JSON.stringify({
+        source: 'presseSocial',
+        data: sessionData,
+        timestamp: Date.now()
+      });
+      
+      // Check size (sessionStorage typically has 5-10MB limit)
+      if (dataToStore.length > 1000000) { // 1MB safety limit
+        console.error('[PresseSocialGenerator] Session data too large:', dataToStore.length, 'bytes');
+        throw new Error('Session data too large for storage');
+      }
+      
+      sessionStorage.setItem(editingSessionId, dataToStore);
+    } catch (error) {
+      console.error('[PresseSocialGenerator] Error preparing edit session:', error);
+      // Fallback: store without image
+      sessionStorage.setItem(editingSessionId, JSON.stringify({
+        source: 'presseSocial',
+        data: {
+          text: sharepicData.text,
+          type: sharepicData.type,
+          // Remove alternatives arrays - they're not needed for editing and can be large
+          hasImage: false
+        },
+        timestamp: Date.now()
+      }));
+    }
     
     // Open Sharepicgenerator in new tab with editing session
     const url = new URL(window.location.origin + '/sharepic');
@@ -332,14 +396,11 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
 
   const handleAttachmentClick = useCallback(async (files) => {
     try {
-      console.log(`[PresseSocialGenerator] Processing ${files.length} new attached files`);
       const processed = await prepareFilesForSubmission(files);
       
       // Accumulate files instead of replacing
       setAttachedFiles(prevFiles => [...prevFiles, ...files]);
       setProcessedAttachments(prevProcessed => [...prevProcessed, ...processed]);
-      
-      console.log('[PresseSocialGenerator] Files successfully processed for submission');
     } catch (error) {
       console.error('[PresseSocialGenerator] File processing error:', error);
       // Here you could show a toast notification or error message to the user
@@ -348,7 +409,6 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   }, []);
 
   const handleRemoveFile = useCallback((index) => {
-    console.log(`[PresseSocialGenerator] Removing file at index ${index}`);
     setAttachedFiles(prevFiles => prevFiles.filter((_, i) => i !== index));
     setProcessedAttachments(prevProcessed => prevProcessed.filter((_, i) => i !== index));
   }, []);
@@ -361,7 +421,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
       "Füge wichtige Details und Fakten hinzu",
       "Wähle die gewünschten Formate aus",
       "Hänge PDFs oder Bilder als Kontext an (max. 5MB pro Datei)",
-      "URLs werden automatisch erkannt und der Inhalt als Kontext hinzugefügt",
+      
       "Bei Pressemitteilungen: Angabe von Zitatgeber erforderlich - Abbinder wird automatisch hinzugefügt",
       "Bei Sharepics: Wähle zwischen 5 Formaten - 3-Zeilen Slogan (mit Bild), Zitat mit Bild, Zitat (Nur Text), Infopost oder Nur Text (Groß). Bei Zitat-Formaten ist die Angabe des Autors erforderlich"
     ]
@@ -429,19 +489,49 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
             }}
           >
             <h4>Sharepic:</h4>
-            <Select
+            <Controller
               name="sharepicType"
               control={control}
-              label="Sharepic Art"
-              options={[
-                { value: 'dreizeilen', label: '3-Zeilen Slogan (mit Bild)' },
-                { value: 'quote', label: 'Zitat mit Bild' },
-                { value: 'quote_pure', label: 'Zitat (Nur Text)' },
-                { value: 'info', label: 'Infopost' },
-                { value: 'headline', label: 'Nur Text (Groß)' }
-              ]}
+              rules={{}}
               defaultValue="dreizeilen"
-              tabIndex={tabIndex.sharepicType}
+              render={({ field, fieldState: { error } }) => (
+                <FormFieldWrapper
+                  label="Sharepic Art"
+                  required={false}
+                  error={error?.message}
+                  htmlFor="sharepicType-select"
+                >
+                  <div className="sharepic-type-selector">
+                    <Select
+                      {...field}
+                      inputId="sharepicType-select"
+                      className={`react-select ${error ? 'error' : ''}`.trim()}
+                      classNamePrefix="react-select"
+                      options={sharepicTypeOptions}
+                      value={sharepicTypeOptions.find(option => option.value === field.value)}
+                      onChange={(selectedOption) => {
+                        field.onChange(selectedOption ? selectedOption.value : '');
+                      }}
+                      onBlur={field.onBlur}
+                      placeholder="Sharepic Art auswählen..."
+                      isClearable={false}
+                      isSearchable={false}
+                      openMenuOnFocus={false}
+                      blurInputOnSelect={true}
+                      autoFocus={false}
+                      tabSelectsValue={true}
+                      backspaceRemovesValue={true}
+                      captureMenuScroll={false}
+                      menuShouldBlockScroll={false}
+                      menuShouldScrollIntoView={false}
+                      tabIndex={tabIndex.sharepicType}
+                      noOptionsMessage={() => 'Keine Optionen verfügbar'}
+                      menuPortalTarget={document.body}
+                      menuPosition="fixed"
+                    />
+                  </div>
+                </FormFieldWrapper>
+              )}
             />
 
             <AnimatePresence>
@@ -543,6 +633,11 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
           onAttachmentClick={handleAttachmentClick}
           onRemoveFile={handleRemoveFile}
           attachedFiles={attachedFiles}
+          featureIconsTabIndex={{
+            webSearch: tabIndex.webSearch,
+            privacyMode: tabIndex.privacyMode,
+            attachment: tabIndex.attachment
+          }}
           platformSelectorTabIndex={baseFormTabIndex.platformSelectorTabIndex}
           knowledgeSelectorTabIndex={baseFormTabIndex.knowledgeSelectorTabIndex}
           knowledgeSourceSelectorTabIndex={baseFormTabIndex.knowledgeSourceSelectorTabIndex}

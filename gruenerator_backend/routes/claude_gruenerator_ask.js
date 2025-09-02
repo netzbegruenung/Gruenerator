@@ -1,6 +1,7 @@
 import express from 'express';
 import authMiddlewareModule from '../middleware/authMiddleware.js';
-import { vectorSearchService } from '../services/vectorSearchService.js';
+import { DocumentSearchService } from '../services/DocumentSearchService.js';
+const documentSearchService = new DocumentSearchService();
 import passport from '../config/passportSetup.mjs';
 import { 
   MARKDOWN_FORMATTING_INSTRUCTIONS, 
@@ -225,7 +226,7 @@ async function executeSearchTool(toolInput, userId, groupId) {
       console.log(`[claude_gruenerator_ask] Using enhanced vector search for complex query (${queryComplexity.wordCount} words, ${queryComplexity.concepts.length} concepts)`);
       
       try {
-        searchResults = await vectorSearchService.search({
+        searchResults = await documentSearchService.search({
           query,
           user_id: userId,
           limit: 5,
@@ -236,7 +237,7 @@ async function executeSearchTool(toolInput, userId, groupId) {
         // Vector search results are already in the expected format
       } catch (multiStageError) {
         console.warn(`[claude_gruenerator_ask] Enhanced vector search failed, falling back to standard search:`, multiStageError.message);
-        searchResults = await vectorSearchService.search({
+        searchResults = await documentSearchService.search({
           query: query,
           user_id: userId,
           group_id: groupId || null,
@@ -246,7 +247,7 @@ async function executeSearchTool(toolInput, userId, groupId) {
       }
     } else {
       // Use standard search for simple queries or other modes
-      searchResults = await vectorSearchService.search({
+      searchResults = await documentSearchService.search({
         query: query,
         user_id: userId,
         group_id: groupId || null,

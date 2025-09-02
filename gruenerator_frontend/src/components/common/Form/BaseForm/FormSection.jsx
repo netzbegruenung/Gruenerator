@@ -4,6 +4,7 @@ import FormCard from './FormCard';
 import FormInputSection from './FormInputSection';
 import FormExtrasSection from './FormExtrasSection';
 import useResponsive from '../hooks/useResponsive';
+import { useFormStateSelector } from '../FormStateProvider';
 
 /**
  * Hauptkomponente für den Formular-Container (Inputs + Extras)
@@ -46,9 +47,6 @@ import useResponsive from '../hooks/useResponsive';
 const FormSection = forwardRef(({
   title,
   onSubmit,
-  loading,
-  success,
-  formErrors = {},
   isFormVisible,
   isMultiStep,
   onBack,
@@ -56,13 +54,9 @@ const FormSection = forwardRef(({
   nextButtonText,
   submitButtonProps = {},
   webSearchFeatureToggle,
-  useWebSearchFeatureToggle,
   privacyModeToggle,
-  usePrivacyModeToggle,
-  useFeatureIcons = false,
   onAttachmentClick,
   onRemoveFile,
-  attachedFiles = [],
   enablePlatformSelector = false,
   platformOptions = [],
   platformSelectorLabel = undefined,
@@ -83,6 +77,11 @@ const FormSection = forwardRef(({
   firstExtrasChildren = null,
   hideExtrasSection = false,
   showSubmitButtonInInputSection = false,
+  featureIconsTabIndex = {
+    webSearch: 11,
+    privacyMode: 12,
+    attachment: 13
+  },
   platformSelectorTabIndex = 12,
   knowledgeSelectorTabIndex = 14,
   knowledgeSourceSelectorTabIndex = 13,
@@ -90,12 +89,22 @@ const FormSection = forwardRef(({
   submitButtonTabIndex = 17,
   showProfileSelector = true,
   showImageUpload = false,
-  uploadedImage = null,
+  uploadedImage: propUploadedImage = null,
   onImageChange = null,
   onPrivacyInfoClick,
   onWebSearchInfoClick,
   componentName
 }, ref) => {
+  // Store selectors
+  const loading = useFormStateSelector(state => state.loading);
+  const success = useFormStateSelector(state => state.success);
+  const formErrors = useFormStateSelector(state => state.formErrors);
+  const useWebSearchFeatureToggle = useFormStateSelector(state => state.webSearchConfig.enabled);
+  const usePrivacyModeToggle = useFormStateSelector(state => state.privacyModeConfig.enabled);
+  const useFeatureIcons = useFormStateSelector(state => state.useFeatureIcons);
+  const attachedFiles = useFormStateSelector(state => state.attachedFiles);
+  const uploadedImage = useFormStateSelector(state => state.uploadedImage);
+  
   const formContainerClasses = `form-container ${isFormVisible ? 'visible' : ''}`;
   const { isMobileView } = useResponsive();
 
@@ -120,7 +129,6 @@ const FormSection = forwardRef(({
             activeElement.closest('.react-select__input') ||
             activeElement.className?.includes('react-select')
           )) {
-            console.log('Form submission prevented - triggered by react-select Enter key');
             return;
           }
           
@@ -138,7 +146,6 @@ const FormSection = forwardRef(({
             
             {/* Input Section */}
             <FormInputSection
-              formErrors={formErrors}
               isMultiStep={isMultiStep}
               onBack={onBack}
               showBackButton={showBackButton}
@@ -148,8 +155,6 @@ const FormSection = forwardRef(({
               onFormChange={onFormChange}
               showSubmitButton={showSubmitButtonInInputSection && showSubmitButton}
               onSubmit={onSubmit}
-              loading={loading}
-              success={success}
               nextButtonText={nextButtonText}
               submitButtonProps={submitButtonProps}
               enablePlatformSelector={enablePlatformSelector}
@@ -160,7 +165,6 @@ const FormSection = forwardRef(({
               platformSelectorTabIndex={platformSelectorTabIndex}
               formControl={formControl}
               showImageUpload={showImageUpload}
-              uploadedImage={uploadedImage}
               onImageChange={onImageChange}
             >
               {children}
@@ -170,23 +174,18 @@ const FormSection = forwardRef(({
             {!hideExtrasSection && (
               <FormExtrasSection
                 webSearchFeatureToggle={webSearchFeatureToggle}
-                useWebSearchFeatureToggle={useWebSearchFeatureToggle}
                 privacyModeToggle={privacyModeToggle}
-                usePrivacyModeToggle={usePrivacyModeToggle}
-                useFeatureIcons={useFeatureIcons}
                 onAttachmentClick={onAttachmentClick}
                 onRemoveFile={onRemoveFile}
-                attachedFiles={attachedFiles}
                 formControl={formControl}
                 formNotice={formNotice}
                 onSubmit={onSubmit}
-                loading={loading}
-                success={success}
                 isMultiStep={isMultiStep}
                 nextButtonText={nextButtonText}
                 submitButtonProps={submitButtonProps}
                 showSubmitButton={showSubmitButton && !showSubmitButtonInInputSection}
                 firstExtrasChildren={!isMobileView ? firstExtrasChildren : null}
+                featureIconsTabIndex={featureIconsTabIndex}
                 knowledgeSelectorTabIndex={knowledgeSelectorTabIndex}
                 knowledgeSourceSelectorTabIndex={knowledgeSourceSelectorTabIndex}
                 documentSelectorTabIndex={documentSelectorTabIndex}
@@ -215,9 +214,6 @@ const FormSection = forwardRef(({
 FormSection.propTypes = {
   title: PropTypes.string,
   onSubmit: PropTypes.func.isRequired,
-  loading: PropTypes.bool.isRequired,
-  success: PropTypes.bool,
-  formErrors: PropTypes.object,
   isFormVisible: PropTypes.bool.isRequired,
   isMultiStep: PropTypes.bool,
   onBack: PropTypes.func,
@@ -237,7 +233,6 @@ FormSection.propTypes = {
     isSearching: PropTypes.bool,
     statusMessage: PropTypes.string
   }),
-  useWebSearchFeatureToggle: PropTypes.bool,
   privacyModeToggle: PropTypes.shape({
     isActive: PropTypes.bool,
     onToggle: PropTypes.func,
@@ -245,7 +240,6 @@ FormSection.propTypes = {
     icon: PropTypes.elementType,
     description: PropTypes.string
   }),
-  usePrivacyModeToggle: PropTypes.bool,
   enableKnowledgeSelector: PropTypes.bool,
   enableDocumentSelector: PropTypes.bool,
   enablePlatformSelector: PropTypes.bool,
@@ -283,8 +277,6 @@ FormSection.propTypes = {
 FormSection.defaultProps = {
   isMultiStep: false,
   showBackButton: false,
-  useWebSearchFeatureToggle: false,
-  usePrivacyModeToggle: false,
   enableKnowledgeSelector: false,
   enableDocumentSelector: false,
   enablePlatformSelector: false,

@@ -18,7 +18,12 @@ class QdrantService {
             grundsatz_documents: 'grundsatz_documents',
             user_knowledge: 'user_knowledge',
             content_examples: 'content_examples',
-            social_media_examples: 'social_media_examples'
+            social_media_examples: 'social_media_examples',
+            user_texts: 'user_texts',
+            qa_collections: 'qa_collections',
+            qa_collection_documents: 'qa_collection_documents',
+            qa_usage_logs: 'qa_usage_logs',
+            qa_public_access: 'qa_public_access'
         };
         this.lastHealthCheck = 0;
         this.healthCheckInterval = 30000; // 30 seconds
@@ -316,6 +321,180 @@ class QdrantService {
                 }
             }
 
+            // User texts collection (for saved library texts)
+            if (!existingCollections.includes(this.collections.user_texts)) {
+                await this.client.createCollection(this.collections.user_texts, {
+                    vectors: {
+                        size: this.vectorSize, // 1024 for FastEmbed
+                        distance: 'Cosine'
+                    },
+                    optimizers_config: {
+                        default_segment_number: 2,
+                        max_segment_size: 20000,
+                        memmap_threshold: 10000,
+                        indexing_threshold: 20000
+                    },
+                    hnsw_config: {
+                        payload_m: 16,                 // Enable payload-based indexing for multitenancy
+                        m: 16,                         // Enable HNSW index for fast vector search
+                        ef_construct: 200,             // Better index quality
+                        full_scan_threshold: 10000,
+                        max_indexing_threads: 0
+                    }
+                });
+                console.log(`[QdrantService] Created user_texts collection with ${this.vectorSize} dimensions (user-scoped)`);
+
+                // Create indexes for efficient filtering
+                await this.client.createPayloadIndex(this.collections.user_texts, {
+                    field_name: 'user_id',
+                    field_schema: {
+                        type: 'keyword',
+                        is_tenant: true  // Optimize for user-based filtering
+                    }
+                });
+                console.log(`[QdrantService] Created user_id tenant index for user_texts`);
+
+                await this.client.createPayloadIndex(this.collections.user_texts, {
+                    field_name: 'document_type',
+                    field_schema: {
+                        type: 'keyword'
+                    }
+                });
+                console.log(`[QdrantService] Created document_type index for user_texts`);
+                
+                await this.client.createPayloadIndex(this.collections.user_texts, {
+                    field_name: 'title',
+                    field_schema: {
+                        type: 'keyword'
+                    }
+                });
+                console.log(`[QdrantService] Created title index for user_texts`);
+            }
+
+            // Q&A collections collection (metadata storage)
+            if (!existingCollections.includes(this.collections.qa_collections)) {
+                await this.client.createCollection(this.collections.qa_collections, {
+                    vectors: {
+                        size: this.vectorSize,
+                        distance: 'Cosine'
+                    },
+                    optimizers_config: {
+                        default_segment_number: 1,
+                        max_segment_size: 5000
+                    }
+                });
+                console.log(`[QdrantService] Created qa_collections collection with ${this.vectorSize} dimensions`);
+
+                // Create indexes for efficient filtering
+                await this.client.createPayloadIndex(this.collections.qa_collections, {
+                    field_name: 'user_id',
+                    field_schema: {
+                        type: 'keyword',
+                        is_tenant: true
+                    }
+                });
+
+                await this.client.createPayloadIndex(this.collections.qa_collections, {
+                    field_name: 'collection_id',
+                    field_schema: {
+                        type: 'keyword'
+                    }
+                });
+            }
+
+            // Q&A collection documents junction collection
+            if (!existingCollections.includes(this.collections.qa_collection_documents)) {
+                await this.client.createCollection(this.collections.qa_collection_documents, {
+                    vectors: {
+                        size: this.vectorSize,
+                        distance: 'Cosine'
+                    },
+                    optimizers_config: {
+                        default_segment_number: 1,
+                        max_segment_size: 5000
+                    }
+                });
+                console.log(`[QdrantService] Created qa_collection_documents collection with ${this.vectorSize} dimensions`);
+
+                // Create indexes for efficient filtering
+                await this.client.createPayloadIndex(this.collections.qa_collection_documents, {
+                    field_name: 'collection_id',
+                    field_schema: {
+                        type: 'keyword'
+                    }
+                });
+
+                await this.client.createPayloadIndex(this.collections.qa_collection_documents, {
+                    field_name: 'document_id',
+                    field_schema: {
+                        type: 'keyword'
+                    }
+                });
+            }
+
+            // Q&A usage logs collection
+            if (!existingCollections.includes(this.collections.qa_usage_logs)) {
+                await this.client.createCollection(this.collections.qa_usage_logs, {
+                    vectors: {
+                        size: this.vectorSize,
+                        distance: 'Cosine'
+                    },
+                    optimizers_config: {
+                        default_segment_number: 1,
+                        max_segment_size: 10000
+                    }
+                });
+                console.log(`[QdrantService] Created qa_usage_logs collection with ${this.vectorSize} dimensions`);
+
+                // Create indexes for efficient filtering
+                await this.client.createPayloadIndex(this.collections.qa_usage_logs, {
+                    field_name: 'collection_id',
+                    field_schema: {
+                        type: 'keyword'
+                    }
+                });
+
+                await this.client.createPayloadIndex(this.collections.qa_usage_logs, {
+                    field_name: 'user_id',
+                    field_schema: {
+                        type: 'keyword'
+                    }
+                });
+            }
+
+            // Q&A public access collection
+            if (!existingCollections.includes(this.collections.qa_public_access)) {
+                await this.client.createCollection(this.collections.qa_public_access, {
+                    vectors: {
+                        size: this.vectorSize,
+                        distance: 'Cosine'
+                    },
+                    optimizers_config: {
+                        default_segment_number: 1,
+                        max_segment_size: 1000
+                    }
+                });
+                console.log(`[QdrantService] Created qa_public_access collection with ${this.vectorSize} dimensions`);
+
+                // Create indexes for efficient filtering
+                await this.client.createPayloadIndex(this.collections.qa_public_access, {
+                    field_name: 'access_token',
+                    field_schema: {
+                        type: 'keyword'
+                    }
+                });
+
+                await this.client.createPayloadIndex(this.collections.qa_public_access, {
+                    field_name: 'collection_id',
+                    field_schema: {
+                        type: 'keyword'
+                    }
+                });
+            }
+
+            // Create text search indexes for hybrid search
+            await this.createTextSearchIndexes();
+
         } catch (error) {
             console.error('[QdrantService] Failed to create collections:', error);
             throw error;
@@ -323,9 +502,84 @@ class QdrantService {
     }
 
     /**
+     * Create text search indexes for hybrid search
+     */
+    async createTextSearchIndexes() {
+        try {
+            console.log('[QdrantService] Creating text search indexes for hybrid search...');
+            
+            // Define collections that need text search indexes
+            const collectionsToIndex = [
+                this.collections.documents,
+                this.collections.grundsatz_documents,
+                this.collections.user_knowledge
+            ];
+
+            for (const collectionName of collectionsToIndex) {
+                try {
+                    // Create text index for chunk_text field
+                    await this.client.createPayloadIndex(collectionName, {
+                        field_name: 'chunk_text',
+                        field_schema: {
+                            type: 'text',
+                            tokenizer: 'word',
+                            min_token_len: 2,
+                            max_token_len: 50,
+                            lowercase: true
+                        }
+                    });
+                    console.log(`[QdrantService] Created text index for chunk_text in ${collectionName}`);
+                    
+                    // Create keyword index for title field
+                    await this.client.createPayloadIndex(collectionName, {
+                        field_name: 'title',
+                        field_schema: {
+                            type: 'keyword'
+                        }
+                    });
+                    console.log(`[QdrantService] Created keyword index for title in ${collectionName}`);
+
+                    // Create keyword index for filename field
+                    await this.client.createPayloadIndex(collectionName, {
+                        field_name: 'filename',
+                        field_schema: {
+                            type: 'keyword'
+                        }
+                    });
+                    console.log(`[QdrantService] Created keyword index for filename in ${collectionName}`);
+
+                    // Create keyword index for user_id field for filtering
+                    await this.client.createPayloadIndex(collectionName, {
+                        field_name: 'user_id',
+                        field_schema: {
+                            type: 'keyword',
+                            is_tenant: true  // Optimize for user-based filtering
+                        }
+                    });
+                    console.log(`[QdrantService] Created user_id tenant index in ${collectionName}`);
+
+                } catch (indexError) {
+                    // Indexes might already exist, log warning but continue
+                    if (indexError.message && (indexError.message.includes('already exists') || indexError.message.includes('index already created'))) {
+                        console.log(`[QdrantService] Text indexes already exist for ${collectionName}, skipping...`);
+                    } else {
+                        console.warn(`[QdrantService] Failed to create text index for ${collectionName}:`, indexError.message);
+                    }
+                }
+            }
+            
+            console.log('[QdrantService] Text search indexes creation completed');
+            
+        } catch (error) {
+            console.error('[QdrantService] Failed to create text search indexes:', error);
+            // Don't throw - this is not critical for basic functionality
+        }
+    }
+
+    /**
      * Index document chunks with vectors
      */
-    async indexDocumentChunks(documentId, chunks, userId = null) {
+    async indexDocumentChunks(documentId, chunks, userId = null, collectionName = null) {
         this.ensureConnected();
         try {
             const points = chunks.map((chunk, index) => {
@@ -355,11 +609,12 @@ class QdrantService {
                 };
             });
 
-            await this.client.upsert(this.collections.documents, {
+            const targetCollection = collectionName || this.collections.documents;
+            await this.client.upsert(targetCollection, {
                 points: points
             });
 
-            console.log(`[QdrantService] Indexed ${chunks.length} chunks for document ${documentId}`);
+            console.log(`[QdrantService] Indexed ${chunks.length} chunks for document ${documentId} in collection ${targetCollection}`);
             return { success: true, chunks: chunks.length };
 
         } catch (error) {
@@ -470,27 +725,35 @@ class QdrantService {
     }
 
     /**
-     * Hybrid search combining vector and keyword search
+     * Hybrid search combining vector and keyword search with Reciprocal Rank Fusion
+     * @deprecated Use QdrantOperations.hybridSearch() instead
      */
-    async hybridSearch(queryVector, keywords, options = {}) {
-        this.ensureConnected();
-        try {
-            // First, get vector results
-            const vectorResults = await this.searchDocuments(queryVector, options);
-            
-            // For now, just return vector results
-            // TODO: Implement proper hybrid search with keyword boosting
-            return {
-                ...vectorResults,
-                search_type: 'hybrid',
-                keywords: keywords
-            };
-
-        } catch (error) {
-            console.error('[QdrantService] Hybrid search failed:', error);
-            throw new Error(`Hybrid search failed: ${error.message}`);
+    async hybridSearch(queryVector, query, options = {}) {
+        console.warn('[QdrantService] hybridSearch is deprecated. Use QdrantOperations.hybridSearch() instead');
+        
+        // Import QdrantOperations for delegation
+        const { QdrantOperations } = await import('./QdrantOperations.js');
+        const operations = new QdrantOperations(this.client);
+        
+        // Build filter from options
+        const filter = { must: [] };
+        if (options.userId) {
+            filter.must.push({ key: 'user_id', match: { value: options.userId } });
         }
+        if (options.documentIds && options.documentIds.length > 0) {
+            filter.must.push({ key: 'document_id', match: { any: options.documentIds } });
+        }
+        
+        return await operations.hybridSearch(
+            options.collection || this.collections.documents,
+            queryVector,
+            query,
+            filter,
+            options
+        );
     }
+
+    // NOTE: Text search operations moved to QdrantOperations.js
 
     /**
      * Delete document vectors
@@ -1059,13 +1322,18 @@ class QdrantService {
      * Batch upsert social media examples
      * @param {Array} examples - Array of example objects with id, embedding, content, platform
      * @returns {Promise<Object>} Result with success count and errors
+     * @deprecated Use QdrantOperations.batchUpsert() instead
      */
     async batchUpsertSocialMediaExamples(examples) {
-        this.ensureConnected();
+        console.warn('[QdrantService] batchUpsertSocialMediaExamples is deprecated. Use QdrantOperations.batchUpsert() instead');
         
         if (!examples || examples.length === 0) {
             return { success: true, indexed: 0, errors: [] };
         }
+
+        // Import QdrantOperations for delegation
+        const { QdrantOperations } = await import('./QdrantOperations.js');
+        const operations = new QdrantOperations(this.client);
 
         const points = examples.map(example => {
             const numericId = Math.abs(example.id.split('').reduce((hash, char) => 
@@ -1083,42 +1351,21 @@ class QdrantService {
             };
         });
 
-        // Retry logic with exponential backoff
-        const maxRetries = 3;
-        let lastError;
-
-        for (let attempt = 1; attempt <= maxRetries; attempt++) {
-            try {
-                await this.client.upsert(this.collections.social_media_examples, {
-                    points: points
-                });
-
-                console.log(`[QdrantService] Batch upserted ${examples.length} social media examples (attempt ${attempt})`);
-                return { 
-                    success: true, 
-                    indexed: examples.length,
-                    errors: []
-                };
-
-            } catch (error) {
-                lastError = error;
-                console.warn(`[QdrantService] Batch upsert attempt ${attempt}/${maxRetries} failed:`, error.message);
-                
-                if (attempt < maxRetries) {
-                    // Exponential backoff: 2s, 4s, 8s
-                    const delay = Math.pow(2, attempt) * 1000;
-                    console.log(`[QdrantService] Retrying in ${delay}ms...`);
-                    await new Promise(resolve => setTimeout(resolve, delay));
-                }
-            }
+        try {
+            const result = await operations.batchUpsert(this.collections.social_media_examples, points, { maxRetries: 3 });
+            return { 
+                success: true, 
+                indexed: examples.length,
+                errors: []
+            };
+        } catch (error) {
+            console.error('[QdrantService] Batch upsert failed:', error);
+            return { 
+                success: false, 
+                indexed: 0,
+                errors: [{ message: error.message, count: examples.length }]
+            };
         }
-
-        console.error('[QdrantService] All retry attempts failed:', lastError);
-        return { 
-            success: false, 
-            indexed: 0,
-            errors: [{ message: lastError.message, count: examples.length }]
-        };
     }
 
     /**

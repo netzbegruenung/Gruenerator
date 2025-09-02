@@ -708,7 +708,8 @@ Nach der Suche erkläre deine Keyword-Wahl und begründe die Relevanz der Ergebn
    * @private
    */
   async handleSearchDatabaseExamples(params) {
-    const vectorSearchService = require('./vectorSearchService.js').vectorSearchService;
+    const { DocumentSearchService } = require('./DocumentSearchService.js');
+    const documentSearchService = new DocumentSearchService();
     
     // Enforce reasonable limit per individual search (AI should do multiple searches)
     const enforcedLimit = Math.min(params.limit || 5, 5); // Cap at maximum 5 results per search
@@ -721,12 +722,12 @@ Nach der Suche erkläre deine Keyword-Wahl und begründe die Relevanz der Ergebn
       threshold: params.threshold || 0.15 // Lowered for better recall in multi-search
     });
     
-    const result = await vectorSearchService.searchDatabaseExamples(
-      params.query,
-      params.content_type,
-      enforcedLimit,
-      params.threshold || 0.15 // Lower threshold since we'll aggregate best results
-    );
+    const result = await documentSearchService.search({
+      query: params.query,
+      user_id: params.user_id || 'system',
+      limit: enforcedLimit,
+      threshold: params.threshold || 0.15
+    });
 
 
 

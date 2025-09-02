@@ -1,10 +1,8 @@
 import passport from 'passport';
 import { KeycloakStrategy } from './keycloakStrategy.mjs';
 
-// Import Supabase clients using CommonJS require
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-const { supabaseService } = require('../utils/supabaseClient.js');
+// Import ProfileService for database operations
+import { getProfileService } from '../services/ProfileService.js';
 
 console.log('[PassportSetup] Initializing Keycloak OpenID Connect strategy');
 
@@ -57,8 +55,11 @@ passport.serializeUser((user, done) => {
 passport.deserializeUser(async (userData, done) => {
   try {
     if (typeof userData === 'object' && userData.id) {
+      console.log(`[Auth] 🔄 Deserializing user ${userData.id}, session avatar_robot_id=${userData.avatar_robot_id}`);
       const userToReturn = await getUserById(userData.id);
       if (userToReturn) {
+        console.log(`[Auth] 🔄 Database avatar_robot_id=${userToReturn.avatar_robot_id}, session avatar_robot_id=${userData.avatar_robot_id}`);
+        
         // Preserve session data that might have been updated
         if (userData.id_token) {
           userToReturn.id_token = userData.id_token;
@@ -82,6 +83,13 @@ passport.deserializeUser(async (userData, done) => {
         if (userData.hasOwnProperty('igel_modus')) {
           userToReturn.igel_modus = userData.igel_modus;
         }
+        // CRITICAL: Preserve avatar_robot_id from session if it was updated
+        if (userData.hasOwnProperty('avatar_robot_id') && userData.avatar_robot_id) {
+          console.log(`[Auth] 🎨 Using session avatar_robot_id: ${userData.avatar_robot_id} (overriding DB value: ${userToReturn.avatar_robot_id})`);
+          userToReturn.avatar_robot_id = userData.avatar_robot_id;
+        }
+        
+        console.log(`[Auth] ✅ Final user object avatar_robot_id=${userToReturn.avatar_robot_id}`);
       }
       return done(null, userToReturn || userData);
     }
@@ -174,17 +182,15 @@ async function handleUserProfile(profile, req = null) {
 // Get user by Keycloak ID
 async function getUserByKeycloakId(keycloakId) {
   try {
-    const { data, error } = await supabaseService
-      .from('profiles')
-      .select('*')
-      .eq('keycloak_id', keycloakId)
-      .single();
-
-    if (error && error.code !== 'PGRST116') {
-      throw new Error(`Database error: ${error.message}`);
+    console.log(`[Auth] 🔍 Looking up user by Keycloak ID: ${keycloakId}`);
+    const profileService = getProfileService();
+    const profile = await profileService.getProfileByKeycloakId(keycloakId);
+    if (profile) {
+      console.log(`[Auth] ✅ User found by Keycloak ID ${keycloakId}: user_id=${profile.id}, avatar_robot_id=${profile.avatar_robot_id}`);
+    } else {
+      console.log(`[Auth] ❌ No user found for Keycloak ID: ${keycloakId}`);
     }
-
-    return data;
+    return profile;
   } catch (error) {
     console.error('[getUserByKeycloakId] Error:', error);
     return null;
@@ -194,17 +200,9 @@ async function getUserByKeycloakId(keycloakId) {
 // Get user by email
 async function getUserByEmail(email) {
   try {
-    const { data, error } = await supabaseService
-      .from('profiles')
-      .select('*')
-      .eq('email', email.toLowerCase())
-      .single();
-
-    if (error && error.code !== 'PGRST116') {
-      throw new Error(`Database error: ${error.message}`);
-    }
-
-    return data;
+    const profileService = getProfileService();
+    const profile = await profileService.getProfileByEmail(email.toLowerCase());
+    return profile;
   } catch (error) {
     console.error('[getUserByEmail] Error:', error);
     return null;
@@ -214,50 +212,15 @@ async function getUserByEmail(email) {
 // Get user by ID
 async function getUserById(id) {
   try {
-    const { data, error } = await supabaseService
-      .from('profiles')
-      .select('*')
-      .eq('id', id)
-      .single();
-
-    if (error && error.code !== 'PGRST116') {
-      throw new Error(`Database error: ${error.message}`);
+    console.log(`[Auth] 🔍 Looking up user by ID: ${id}`);
+    const profileService = getProfileService();
+    const profile = await profileService.getProfileById(id);
+    if (profile) {
+      console.log(`[Auth] ✅ User found by ID ${id}: avatar_robot_id=${profile.avatar_robot_id}`);
+    } else {
+      console.log(`[Auth] ❌ No user found for ID: ${id}`);
     }
-
-    if (!data) return null;
-
-    // Load user's groups if groups beta feature is enabled
-    if (data.beta_features?.groups) {
-      try {
-        const { data: memberships, error: membershipError } = await supabaseService
-          .from('group_memberships')
-          .select(`
-            group_id,
-            role,
-            joined_at,
-            groups!inner(id, name, created_at, created_by, join_token)
-          `)
-          .eq('user_id', id);
-
-        if (!membershipError && memberships) {
-          data.groups = memberships.map(m => ({
-            id: m.groups.id,
-            name: m.groups.name,
-            created_at: m.groups.created_at,
-            created_by: m.groups.created_by,
-            join_token: m.groups.join_token,
-            role: m.role,
-            joined_at: m.joined_at,
-            isAdmin: m.groups.created_by === id || m.role === 'admin'
-          }));
-        }
-      } catch (groupError) {
-        console.warn('[getUserById] Error loading groups:', groupError);
-        // Don't fail authentication if groups fail to load
-      }
-    }
-
-    return data;
+    return profile;
   } catch (error) {
     console.error('[getUserById] Error:', error);
     return null;
@@ -268,7 +231,6 @@ async function getUserById(id) {
 // Create new user (profiles-only, no Supabase Auth)
 async function createProfileUser(profileData) {
   try {
-    
     // Generate UUID for new user (using built-in crypto)
     const { randomUUID } = require('crypto');
     const newUserId = randomUUID();
@@ -286,20 +248,10 @@ async function createProfileUser(profileData) {
       }
     };
 
-    const { data, error } = await supabaseService
-      .from('profiles')
-      .insert([newProfileData])
-      .select()
-      .single();
-
-    if (error) {
-      console.error('[createProfileUser] Error creating profile:', error);
-      throw new Error(`Failed to create profile: ${error.message}`);
-    }
-
+    const profileService = getProfileService();
+    const profile = await profileService.createProfile(newProfileData);
     
-    // No Supabase Auth session creation - use only profile data
-    return data;
+    return profile;
   } catch (error) {
     console.error('[createProfileUser] Error:', error);
     throw new Error(`Failed to create profile user: ${error.message}`);
@@ -309,27 +261,15 @@ async function createProfileUser(profileData) {
 // Update existing user (profiles-only, no Supabase Auth)
 async function updateUser(userId, updates, authSource = null) {
   try {
-    
     // Add auth_source to updates if provided
     if (authSource) {
       updates.auth_source = authSource;
     }
 
-    const { data, error } = await supabaseService
-      .from('profiles')
-      .update(updates)
-      .eq('id', userId)
-      .select()
-      .single();
-
-    if (error) {
-      console.error('[updateUser] Error updating user:', error);
-      throw new Error(`Failed to update user: ${error.message}`);
-    }
-
-
-    // No Supabase Auth session creation - use only profile data
-    return data;
+    const profileService = getProfileService();
+    const profile = await profileService.updateProfile(userId, updates);
+    
+    return profile;
   } catch (error) {
     console.error('[updateUser] Error:', error);
     throw new Error(`Failed to update user: ${error.message}`);
@@ -339,27 +279,15 @@ async function updateUser(userId, updates, authSource = null) {
 // Link Keycloak ID to existing user (profiles-only, no Supabase Auth)
 async function linkUser(userId, updates, authSource = null) {
   try {
-    
     // Add auth_source to updates if provided
     if (authSource) {
       updates.auth_source = authSource;
     }
 
-    const { data, error } = await supabaseService
-      .from('profiles')
-      .update(updates)
-      .eq('id', userId)
-      .select()
-      .single();
-
-    if (error) {
-      console.error('[linkUser] Error linking user:', error);
-      throw new Error(`Failed to link user: ${error.message}`);
-    }
-
-
-    // No Supabase Auth session creation - use only profile data
-    return data;
+    const profileService = getProfileService();
+    const profile = await profileService.updateProfile(userId, updates);
+    
+    return profile;
   } catch (error) {
     console.error('[linkUser] Error:', error);
     throw new Error(`Failed to link user: ${error.message}`);

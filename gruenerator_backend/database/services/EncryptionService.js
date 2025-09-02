@@ -344,28 +344,30 @@ class EncryptionService {
     }
 }
 
-// Sensitive fields configuration
+// Sensitive fields configuration - only tokens, API keys, and share links
 export const SENSITIVE_FIELDS = {
     profiles: [
-        'email',
-        'canva_access_token',
-        'canva_refresh_token',
-        'custom_antrag_prompt',
-        'custom_social_prompt',
-        'custom_universal_prompt',
-        'custom_gruenejugend_prompt',
-        'nextcloud_share_links'
+        'canva_access_token',      // OAuth token - KEEP ENCRYPTED
+        'canva_refresh_token',     // OAuth token - KEEP ENCRYPTED  
+        'nextcloud_share_links'    // Share links - KEEP ENCRYPTED
     ],
-    documents: [
-        'ocr_text', // Optional - only if contains PII
-        'metadata'
-    ],
-    custom_generators: [
-        'prompt_template'
-    ],
-    memories: [
-        'memory_content'
+    documents: [],  // Remove all - no sensitive data
+    custom_generators: [],  // Remove prompt_template - not sensitive
+    memories: [],  // Remove memory_content - not sensitive
+    qa_public_access: [
+        'access_token'  // API token - ADD THIS
     ]
+};
+
+// Define which fields should use object encryption (JSON/arrays) vs string encryption
+export const OBJECT_ENCRYPTED_FIELDS = {
+    profiles: [
+        'nextcloud_share_links'  // Array of share link objects
+    ],
+    documents: [],  // Remove metadata - no longer encrypted
+    custom_generators: [],  // No fields encrypted
+    memories: [],  // No fields encrypted
+    qa_public_access: []  // access_token is string, not object
 };
 
 // Export singleton instance

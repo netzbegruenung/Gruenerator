@@ -4,18 +4,46 @@ import ProfileCard from '../../../components/common/ProfileCard';
 import { validateShareLink, generateShareLinkDisplayName } from '../../../components/utils/nextcloudUtils';
 import { useAutosave } from '../../../hooks/useAutosave';
 import WolkeTutorial from './WolkeTutorial';
+import { useWolkeStore } from '../../../stores/wolkeStore';
 
 const WolkeShareLinkManager = ({
-    shareLinks = [],
-    loading = false,
-    onAddShareLink,
-    onDeleteShareLink,
-    onTestConnection,
-    onTestUpload,
-    onRefresh,
-    onSuccessMessage,
-    onErrorMessage
+    // Props for backward compatibility - will be used if provided
+    shareLinks: propShareLinks,
+    loading: propLoading,
+    onAddShareLink: propOnAddShareLink,
+    onDeleteShareLink: propOnDeleteShareLink,
+    onTestConnection: propOnTestConnection,
+    onTestUpload: propOnTestUpload,
+    onRefresh: propOnRefresh,
+    onSuccessMessage: propOnSuccessMessage,
+    onErrorMessage: propOnErrorMessage,
+    // New prop to disable store usage (for explicit prop usage)
+    useStore = true
 }) => {
+    // Zustand store integration
+    const {
+        shareLinks: storeShareLinks,
+        isLoading: storeLoading,
+        error: storeError,
+        successMessage: storeSuccessMessage,
+        permissions,
+        scope,
+        scopeId,
+        initialized: storeInitialized,
+        fetchShareLinks: storeFetchShareLinks,
+        addShareLink: storeAddShareLink,
+        deleteShareLink: storeDeleteShareLink,
+        testConnection: storeTestConnection,
+        uploadTest: storeUploadTest,
+        clearMessages,
+        setError,
+        setSuccessMessage
+    } = useWolkeStore();
+
+    // Use store values if no props provided and store is enabled
+    const shareLinks = (!useStore || propShareLinks !== undefined) ? propShareLinks || [] : storeShareLinks;
+    const loading = (!useStore || propLoading !== undefined) ? propLoading || false : storeLoading;
+
     const [newShareLink, setNewShareLink] = useState('');
     const [newLabel, setNewLabel] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -32,15 +60,23 @@ const WolkeShareLinkManager = ({
         if (!validation.isValid) return; // Don't auto-save invalid links
         
         try {
-            await onAddShareLink(newShareLink, newLabel);
+            if (useStore && !propOnAddShareLink) {
+                // Use store method
+                await storeAddShareLink(newShareLink, newLabel);
+            } else if (propOnAddShareLink) {
+                // Use prop method
+                await propOnAddShareLink(newShareLink, newLabel);
+                if (propOnSuccessMessage) {
+                    propOnSuccessMessage('Wolke-Verbindung wurde automatisch hinzugefügt.');
+                }
+            }
             setNewShareLink('');
             setNewLabel('');
-            onSuccessMessage('Wolke-Verbindung wurde automatisch hinzugefügt.');
         } catch (error) {
             // Silent failure for autosave - user can still manually save
             console.log('Autosave failed:', error.message);
         }
-    }, [newShareLink, newLabel, onAddShareLink, onSuccessMessage]);
+    }, [newShareLink, newLabel, useStore, propOnAddShareLink, storeAddShareLink, propOnSuccessMessage]);
 
     // Auto-save hook
     const { resetTracking } = useAutosave({
@@ -70,18 +106,34 @@ const WolkeShareLinkManager = ({
         
         const validation = validateShareLink(newShareLink);
         if (!validation.isValid) {
-            onErrorMessage(validation.error);
+            if (useStore) {
+                setError(validation.error);
+            } else if (propOnErrorMessage) {
+                propOnErrorMessage(validation.error);
+            }
             return;
         }
 
         setIsSubmitting(true);
         try {
-            await onAddShareLink(newShareLink, newLabel);
+            if (useStore && !propOnAddShareLink) {
+                // Use store method
+                await storeAddShareLink(newShareLink, newLabel);
+            } else if (propOnAddShareLink) {
+                // Use prop method
+                await propOnAddShareLink(newShareLink, newLabel);
+                if (propOnSuccessMessage) {
+                    propOnSuccessMessage('Wolke-Verbindung wurde erfolgreich hinzugefügt.');
+                }
+            }
             setNewShareLink('');
             setNewLabel('');
-            onSuccessMessage('Wolke-Verbindung wurde erfolgreich hinzugefügt.');
         } catch (error) {
-            onErrorMessage('Fehler beim Hinzufügen der Verbindung: ' + error.message);
+            if (useStore && !propOnErrorMessage) {
+                setError('Fehler beim Hinzufügen der Verbindung: ' + error.message);
+            } else if (propOnErrorMessage) {
+                propOnErrorMessage('Fehler beim Hinzufügen der Verbindung: ' + error.message);
+            }
         } finally {
             setIsSubmitting(false);
         }
@@ -90,14 +142,34 @@ const WolkeShareLinkManager = ({
     const handleTestConnection = async (shareLink) => {
         setTestingConnections(prev => new Set(prev).add(shareLink.id));
         try {
-            const result = await onTestConnection(shareLink.share_link);
-            if (result.success) {
-                onSuccessMessage('Verbindung erfolgreich getestet!');
+            let result;
+            if (useStore && !propOnTestConnection) {
+                result = await storeTestConnection(shareLink.share_link);
+            } else if (propOnTestConnection) {
+                result = await propOnTestConnection(shareLink.share_link);
+            }
+
+            if (result?.success) {
+                if (useStore && !propOnSuccessMessage) {
+                    setSuccessMessage('Verbindung erfolgreich getestet!');
+                } else if (propOnSuccessMessage) {
+                    propOnSuccessMessage('Verbindung erfolgreich getestet!');
+                }
             } else {
-                onErrorMessage('Verbindungstest fehlgeschlagen: ' + result.message);
+                const message = 'Verbindungstest fehlgeschlagen: ' + (result?.message || 'Unbekannter Fehler');
+                if (useStore && !propOnErrorMessage) {
+                    setError(message);
+                } else if (propOnErrorMessage) {
+                    propOnErrorMessage(message);
+                }
             }
         } catch (error) {
-            onErrorMessage('Fehler beim Testen der Verbindung: ' + error.message);
+            const message = 'Fehler beim Testen der Verbindung: ' + error.message;
+            if (useStore && !propOnErrorMessage) {
+                setError(message);
+            } else if (propOnErrorMessage) {
+                propOnErrorMessage(message);
+            }
         } finally {
             setTestingConnections(prev => {
                 const newSet = new Set(prev);
@@ -112,6 +184,7 @@ const WolkeShareLinkManager = ({
         
         // Create test file content with timestamp
         const timestamp = new Date().toLocaleString('de-DE');
+        const contextLabel = scope === 'group' ? `Gruppe` : 'Persönlich';
         const testContent = `Grünerator Test-Datei
 
 Diese Datei wurde automatisch erstellt, um die Wolke-Verbindung zu testen.
@@ -119,20 +192,42 @@ Diese Datei wurde automatisch erstellt, um die Wolke-Verbindung zu testen.
 Erstellt am: ${timestamp}
 ShareLink: ${shareLink.label || 'Unbenannt'}
 Host: ${new URL(shareLink.share_link).hostname}
+Kontext: ${contextLabel}
 
 ✅ Wenn Sie diese Datei sehen können, funktioniert die Verbindung korrekt!`;
 
         const filename = `test-gruenerator-${Date.now()}.txt`;
 
         try {
-            const result = await onTestUpload(shareLink.id, testContent, filename);
-            if (result.success) {
-                onSuccessMessage(`Test-Datei "${filename}" erfolgreich hochgeladen!`);
+            let result;
+            if (useStore && !propOnTestUpload) {
+                result = await storeUploadTest(shareLink.id, testContent, filename);
+            } else if (propOnTestUpload) {
+                result = await propOnTestUpload(shareLink.id, testContent, filename);
+            }
+
+            if (result?.success) {
+                const message = `Test-Datei "${filename}" erfolgreich hochgeladen!`;
+                if (useStore && !propOnSuccessMessage) {
+                    setSuccessMessage(message);
+                } else if (propOnSuccessMessage) {
+                    propOnSuccessMessage(message);
+                }
             } else {
-                onErrorMessage('Upload fehlgeschlagen: ' + result.message);
+                const message = 'Upload fehlgeschlagen: ' + (result?.message || 'Unbekannter Fehler');
+                if (useStore && !propOnErrorMessage) {
+                    setError(message);
+                } else if (propOnErrorMessage) {
+                    propOnErrorMessage(message);
+                }
             }
         } catch (error) {
-            onErrorMessage('Fehler beim Test-Upload: ' + error.message);
+            const message = 'Fehler beim Test-Upload: ' + error.message;
+            if (useStore && !propOnErrorMessage) {
+                setError(message);
+            } else if (propOnErrorMessage) {
+                propOnErrorMessage(message);
+            }
         } finally {
             setUploadingFiles(prev => {
                 const newSet = new Set(prev);
@@ -145,19 +240,46 @@ Host: ${new URL(shareLink.share_link).hostname}
     const handleCopyToClipboard = async (link) => {
         try {
             await navigator.clipboard.writeText(link);
-            onSuccessMessage('Link wurde in die Zwischenablage kopiert.');
+            const message = 'Link wurde in die Zwischenablage kopiert.';
+            if (useStore && !propOnSuccessMessage) {
+                setSuccessMessage(message);
+            } else if (propOnSuccessMessage) {
+                propOnSuccessMessage(message);
+            }
         } catch (error) {
-            onErrorMessage('Fehler beim Kopieren: ' + error.message);
+            const message = 'Fehler beim Kopieren: ' + error.message;
+            if (useStore && !propOnErrorMessage) {
+                setError(message);
+            } else if (propOnErrorMessage) {
+                propOnErrorMessage(message);
+            }
         }
     };
 
     const handleDeleteWithConfirm = async (shareLink) => {
-        if (window.confirm(`Möchten Sie die Verbindung "${generateShareLinkDisplayName(shareLink, shareLink.label)}" wirklich löschen?`)) {
+        const contextLabel = scope === 'group' ? 'aus der Gruppe' : '';
+        const confirmMessage = `Möchten Sie die Verbindung "${generateShareLinkDisplayName(shareLink, shareLink.label)}" ${contextLabel} wirklich löschen?`;
+        
+        if (window.confirm(confirmMessage)) {
             try {
-                await onDeleteShareLink(shareLink.id);
-                onSuccessMessage('Wolke-Verbindung wurde gelöscht.');
+                if (useStore && !propOnDeleteShareLink) {
+                    await storeDeleteShareLink(shareLink.id);
+                } else if (propOnDeleteShareLink) {
+                    await propOnDeleteShareLink(shareLink.id);
+                    const message = scope === 'group' 
+                        ? 'Wolke-Link wurde aus der Gruppe entfernt.' 
+                        : 'Wolke-Verbindung wurde gelöscht.';
+                    if (propOnSuccessMessage) {
+                        propOnSuccessMessage(message);
+                    }
+                }
             } catch (error) {
-                onErrorMessage('Fehler beim Löschen: ' + error.message);
+                const message = 'Fehler beim Löschen: ' + error.message;
+                if (useStore && !propOnErrorMessage) {
+                    setError(message);
+                } else if (propOnErrorMessage) {
+                    propOnErrorMessage(message);
+                }
             }
         }
     };
@@ -170,41 +292,86 @@ Host: ${new URL(shareLink.share_link).hostname}
         setShowTutorial(false);
     };
 
+    const handleRefresh = () => {
+        if (useStore && !propOnRefresh) {
+            storeFetchShareLinks();
+        } else if (propOnRefresh) {
+            propOnRefresh();
+        }
+    };
+
+    // Initialize store if needed
+    useEffect(() => {
+        if (useStore && !propShareLinks && !storeInitialized && !loading) {
+            console.log('[WolkeShareLinkManager] Fetching share links for scope:', scope, scopeId);
+            storeFetchShareLinks();
+        }
+    }, [useStore, propShareLinks, storeInitialized, loading, scope, scopeId]); // Use initialized instead of shareLinks.length
+
+    // Show context-appropriate messages
+    const showStoreMessages = useStore && !propOnSuccessMessage && !propOnErrorMessage;
+    const currentError = showStoreMessages ? storeError : null;
+    const currentSuccessMessage = showStoreMessages ? storeSuccessMessage : null;
+
+    // Auto-clear store messages
+    useEffect(() => {
+        if (showStoreMessages && (storeError || storeSuccessMessage)) {
+            const timer = setTimeout(() => {
+                clearMessages();
+            }, 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [showStoreMessages, storeError, storeSuccessMessage, clearMessages]);
+
+    // Permission checks for group context
+    const canAddLinks = scope === 'personal' || permissions.canAddLinks;
+    const canDeleteLinks = scope === 'personal' || permissions.canDeleteLinks;
+
     if (loading) {
         return (
-            <ProfileCard title="Share-Links werden geladen...">
-                <div className="wolke-loading-state">
-                    <p>Lade deine Wolke-Verbindungen...</p>
-                </div>
-            </ProfileCard>
+            <div className="wolke-share-manager-container">
+                <ProfileCard title="Wolke-Verbindungen werden geladen...">
+                    <div className="wolke-loading-state">
+                        <p>Lade deine Wolke-Verbindungen...</p>
+                    </div>
+                </ProfileCard>
+            </div>
         );
     }
 
     return (
-        <ProfileCard 
-            title="Wolke Integration"
-            headerActions={
-                <button
-                    type="button"
-                    className="btn-secondary size-s"
-                    onClick={onRefresh}
-                    disabled={loading}
-                    title="Liste aktualisieren"
-                >
-                    <HiRefresh className="icon" />
-                    Aktualisieren
-                </button>
-            }
-        >
-            <div className="wolke-share-manager-container">
-                <div className="wolke-add-form-section">
-                    <h4>Wolke-Verbindung hinzufügen</h4>
-                    <p style={{ marginBottom: 'var(--spacing-medium)', color: 'var(--font-color-muted)' }}>
-                        Links werden automatisch gespeichert, wenn sie gültig sind.
+        <div className="wolke-share-manager-container">
+            {/* Context Messages */}
+            {currentError && (
+                <div className="alert alert-error" style={{ marginBottom: '1rem' }}>
+                    {currentError}
+                </div>
+            )}
+            {currentSuccessMessage && (
+                <div className="alert alert-success" style={{ marginBottom: '1rem' }}>
+                    {currentSuccessMessage}
+                </div>
+            )}
+
+            {/* Add Share Link Card */}
+            <ProfileCard title={scope === 'group' ? 'Wolke-Link zur Gruppe hinzufügen' : 'Wolke-Verbindung hinzufügen'}>
+                <div className="wolke-add-form-content">
+                    <p className="wolke-form-description">
+                        {scope === 'group' 
+                            ? 'Nur Gruppenadministratoren können Wolke-Links hinzufügen.'
+                            : 'Links werden automatisch gespeichert, wenn sie gültig sind.'
+                        }
                     </p>
                     
+                    {!canAddLinks && (
+                        <div className="wolke-permission-notice">
+                            <p>⚠️ Sie haben keine Berechtigung, Wolke-Links zu dieser Gruppe hinzuzufügen.</p>
+                        </div>
+                    )}
+                    
                     {/* Tutorial section */}
-                    <div className="wolke-setup-tutorial-section">
+                    {canAddLinks && (
+                        <div className="wolke-setup-tutorial-section">
                         <button
                             type="button"
                             className="wolke-setup-tutorial-button"
@@ -217,48 +384,69 @@ Host: ${new URL(shareLink.share_link).hostname}
                             Schritt-für-Schritt Anleitung zum Erstellen eines Share-Links
                         </p>
                     </div>
-                    <form onSubmit={handleSubmitShareLink} className="wolke-add-form">
-                            <div className="wolke-form-group">
-                                <label htmlFor="shareLink">Wolke Share-Link *</label>
-                                <input
-                                    type="url"
-                                    id="shareLink"
-                                    value={newShareLink}
-                                    onChange={(e) => setNewShareLink(e.target.value)}
-                                    placeholder="https://wolke.netzbegruenung.de/s/ABC123..."
-                                    required
-                                    disabled={isSubmitting}
-                                />
-                                <small className="wolke-form-hint">
-                                    Gib einen öffentlichen, beschreibbaren Wolke-Share-Link ein.
-                                </small>
-                            </div>
-                            
-                            <div className="wolke-form-group">
-                                <label htmlFor="label">Bezeichnung (optional)</label>
-                                <input
-                                    type="text"
-                                    id="label"
-                                    value={newLabel}
-                                    onChange={(e) => setNewLabel(e.target.value)}
-                                    placeholder="z.B. Ortsverband, Mein Ordner, Grünerator..."
-                                    disabled={isSubmitting}
-                                />
-                            </div>
-                            
-                            <div className="wolke-form-actions">
-                                <button
-                                    type="submit"
-                                    className="btn-primary"
-                                    disabled={isSubmitting || !newShareLink.trim()}
-                                >
-                                    {isSubmitting ? 'Wird hinzugefügt...' : 'Hinzufügen'}
-                                </button>
-                            </div>
-                        </form>
+                    )}
+                    
+                    {canAddLinks && (
+                        <form onSubmit={handleSubmitShareLink} className="wolke-add-form">
+                        <div className="wolke-form-group">
+                            <label htmlFor="shareLink">Wolke Share-Link *</label>
+                            <input
+                                type="url"
+                                id="shareLink"
+                                value={newShareLink}
+                                onChange={(e) => setNewShareLink(e.target.value)}
+                                placeholder="https://wolke.netzbegruenung.de/s/ABC123..."
+                                required
+                                disabled={isSubmitting}
+                            />
+                            <small className="wolke-form-hint">
+                                Gib einen öffentlichen, beschreibbaren Wolke-Share-Link ein.
+                            </small>
+                        </div>
+                        
+                        <div className="wolke-form-group">
+                            <label htmlFor="label">Bezeichnung (optional)</label>
+                            <input
+                                type="text"
+                                id="label"
+                                value={newLabel}
+                                onChange={(e) => setNewLabel(e.target.value)}
+                                placeholder="z.B. Ortsverband, Mein Ordner, Grünerator..."
+                                disabled={isSubmitting}
+                            />
+                        </div>
+                        
+                        <div className="wolke-form-actions">
+                            <button
+                                type="submit"
+                                className="btn-primary"
+                                disabled={isSubmitting || !newShareLink.trim()}
+                            >
+                                {isSubmitting ? 'Wird hinzugefügt...' : 'Hinzufügen'}
+                            </button>
+                        </div>
+                    </form>
+                    )}
                 </div>
+            </ProfileCard>
 
-                {shareLinks.length > 0 && (
+            {/* Share Links List Card */}
+            {shareLinks.length > 0 && (
+                <ProfileCard 
+                    title={`Meine Wolke-Verbindungen (${shareLinks.length})`}
+                    headerActions={
+                        <button
+                            type="button"
+                            className="btn-secondary size-s"
+                            onClick={handleRefresh}
+                            disabled={loading}
+                            title="Liste aktualisieren"
+                        >
+                            <HiRefresh className="icon" />
+                            Aktualisieren
+                        </button>
+                    }
+                >
                     <div className="wolke-share-links-list">
                         {shareLinks.map(shareLink => (
                             <div key={shareLink.id} className="wolke-share-link-item">
@@ -323,26 +511,52 @@ Host: ${new URL(shareLink.share_link).hostname}
                                         <HiExternalLink />
                                     </button>
                                     
-                                    <button
-                                        type="button"
-                                        className="btn-action btn-danger"
-                                        onClick={() => handleDeleteWithConfirm(shareLink)}
-                                        title="Löschen"
-                                    >
-                                        <HiOutlineTrash />
-                                    </button>
+                                    {canDeleteLinks && (
+                                        <button
+                                            type="button"
+                                            className="btn-action btn-danger"
+                                            onClick={() => handleDeleteWithConfirm(shareLink)}
+                                            title="Löschen"
+                                        >
+                                            <HiOutlineTrash />
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         ))}
                     </div>
-                )}
-            </div>
+                </ProfileCard>
+            )}
+            
+            {/* Empty state for no share links */}
+            {shareLinks.length === 0 && !loading && (
+                <ProfileCard 
+                    title="Meine Wolke-Verbindungen"
+                    headerActions={
+                        <button
+                            type="button"
+                            className="btn-secondary size-s"
+                            onClick={handleRefresh}
+                            disabled={loading}
+                            title="Liste aktualisieren"
+                        >
+                            <HiRefresh className="icon" />
+                            Aktualisieren
+                        </button>
+                    }
+                >
+                    <div className="wolke-empty-state">
+                        <p>Du hast noch keine Wolke-Verbindungen eingerichtet.</p>
+                        <p>Füge oben einen Share-Link hinzu, um zu beginnen.</p>
+                    </div>
+                </ProfileCard>
+            )}
             
             {/* Tutorial overlay */}
             {showTutorial && (
                 <WolkeTutorial onClose={handleTutorialClose} />
             )}
-        </ProfileCard>
+        </div>
     );
 };
 

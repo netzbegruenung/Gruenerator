@@ -1,12 +1,10 @@
 /**
- * Base Search Service - Eliminates code duplication across search services
+ * Base Search Service - Template method pattern for search services
  * 
- * This class provides common functionality for vector similarity search,
- * document chunking, result ranking, and caching that was duplicated
- * across multiple search implementations.
+ * Provides shared utilities and template methods for all search implementations.
+ * Eliminates code duplication while allowing customization through inheritance.
  */
 
-import { supabaseService } from '../utils/supabaseClient.js';
 import { fastEmbedService } from './FastEmbedService.js';
 import { InputValidator, ValidationError } from '../utils/inputValidation.js';
 import { createCache } from '../utils/lruCache.js';
@@ -117,6 +115,100 @@ class BaseSearchService {
     } catch (error) {
       return this.errorHandler.handle(error, {
         operation: 'similarity_search',
+        query: params.query,
+        userId: params.userId,
+        returnResponse: true
+      });
+    }
+  }
+
+  /**
+   * Perform hybrid search combining vector similarity with text matching
+   * @param {Object} params - Search parameters
+   * @returns {Promise<Object>} Hybrid search results
+   */
+  async performHybridSearch(params) {
+    try {
+      // Validate and sanitize parameters
+      const validatedParams = this.validateSearchParams(params);
+      const { query, userId, filters, options } = validatedParams;
+      
+      console.log(`[${this.serviceName}] Performing hybrid search for: "${query}"`);
+      
+      // Check cache first
+      if (options.useCache) {
+        const cacheKey = this.generateCacheKey({...validatedParams, searchType: 'hybrid'});
+        const cached = this.cache.get(cacheKey);
+        if (cached) {
+          console.log(`[${this.serviceName}] Cache hit for hybrid query: "${query}"`);
+          return cached;
+        }
+      }
+      
+      // Generate query embedding for vector component
+      const queryEmbedding = await this.generateQueryEmbedding(query, options);
+      
+      // Calculate dynamic threshold
+      const threshold = options.threshold ?? this.calculateDynamicThreshold(query);
+      
+      // Import keyword extractor for text component
+      const { keywordExtractor } = await import('./keywordExtractor.js');
+      const searchPatterns = keywordExtractor.generateSearchPatterns(query);
+      
+      // Execute hybrid search
+      const chunks = await this.findHybridChunks({
+        embedding: queryEmbedding,
+        query,
+        searchPatterns,
+        userId,
+        filters,
+        limit: Math.round(options.limit * this.chunkMultiplier),
+        threshold,
+        hybridOptions: {
+          vectorWeight: options.vectorWeight || 0.7,
+          textWeight: options.textWeight || 0.3,
+          useRRF: options.useRRF !== false,
+          rrfK: options.rrfK || 60
+        }
+      });
+      
+      // Handle empty results
+      if (chunks.length === 0) {
+        return this.handleEmptyResults(query, options, userId);
+      }
+      
+      // Group and rank results with hybrid scoring
+      const results = await this.groupAndRankHybridResults(chunks, options.limit);
+      
+      // Build response
+      const response = {
+        success: true,
+        results,
+        query: query.trim(),
+        searchType: 'hybrid',
+        message: `Found ${results.length} relevant document(s) using hybrid search`,
+        metadata: {
+          searchService: this.serviceName,
+          totalChunks: chunks.length,
+          threshold,
+          cached: false,
+          searchPatterns: searchPatterns.patterns,
+          hybridMethod: options.useRRF !== false ? 'RRF' : 'weighted'
+        }
+      };
+      
+      // Cache the result
+      if (options.useCache) {
+        const cacheKey = this.generateCacheKey({...validatedParams, searchType: 'hybrid'});
+        this.cache.set(cacheKey, response);
+      }
+      
+      console.log(`[${this.serviceName}] Found ${results.length} hybrid results for: "${query}"`);
+      return response;
+      
+    } catch (error) {
+      return this.errorHandler.handle(error, {
+        operation: 'hybrid_search',
         query: params.query,
         userId: params.userId,
         returnResponse: true
@@ -484,6 +576,196 @@ class BaseSearchService {
   }
 
   /**
+   * Find similar chunks using hybrid search (vector + text)
+   * @param {Object} params - Search parameters including hybrid options
+   * @returns {Promise<Array>} Array of similar chunks with hybrid scores
+   * @protected
+   */
+  async findHybridChunks(params) {
+    // Default implementation - subclasses should override for specific hybrid logic
+    // This is a fallback that combines vector and simple text matching
+    
+    const { embedding, query, userId, filters, limit, threshold, hybridOptions } = params;
+    
+    // Perform vector search
+    const vectorChunks = await this.findSimilarChunks({
+      embedding,
+      userId,
+      filters,
+      limit: Math.round(limit * 0.7), // Use 70% of limit for vector
+      threshold
+    });
+    
+    // For base implementation, return vector results
+    // Subclasses should override this to implement proper hybrid search
+    return vectorChunks.map(chunk => ({
+      ...chunk,
+      searchMethod: 'vector',
+      originalVectorScore: chunk.similarity,
+      originalTextScore: null
+    }));
+  }
+
+  /**
+   * Group and rank hybrid search results
+   * @param {Array} chunks - Hybrid search results
+   * @param {number} limit - Maximum results to return
+   * @returns {Promise<Array>} Ranked document results with hybrid metadata
+   * @protected
+   */
+  async groupAndRankHybridResults(chunks, limit) {
+    // Enhanced version of groupAndRankResults with hybrid features
+    const documentMap = new Map();
+    
+    // Group chunks by document with hybrid metadata
+    for (const chunk of chunks) {
+      const docId = this.extractDocumentId(chunk);
+      
+      if (!documentMap.has(docId)) {
+        documentMap.set(docId, {
+          document_id: docId,
+          title: this.extractDocumentTitle(chunk),
+          filename: this.extractDocumentFilename(chunk),
+          created_at: this.extractDocumentCreatedAt(chunk),
+          chunks: [],
+          maxSimilarity: 0,
+          avgSimilarity: 0,
+          hybridMetadata: {
+            hasVectorMatch: false,
+            hasTextMatch: false,
+            searchMethods: new Set(),
+            vectorScores: [],
+            textScores: []
+          }
+        });
+      }
+      
+      const docData = documentMap.get(docId);
+      const chunkData = this.extractChunkData(chunk);
+      
+      // Add hybrid metadata
+      chunkData.searchMethod = chunk.searchMethod || 'unknown';
+      chunkData.originalVectorScore = chunk.originalVectorScore;
+      chunkData.originalTextScore = chunk.originalTextScore;
+      
+      docData.chunks.push(chunkData);
+      
+      // Update similarity tracking
+      if (chunkData.similarity > docData.maxSimilarity) {
+        docData.maxSimilarity = chunkData.similarity;
+      }
+      
+      // Update hybrid metadata
+      docData.hybridMetadata.searchMethods.add(chunkData.searchMethod);
+      if (chunkData.originalVectorScore !== null) {
+        docData.hybridMetadata.hasVectorMatch = true;
+        docData.hybridMetadata.vectorScores.push(chunkData.originalVectorScore);
+      }
+      if (chunkData.originalTextScore !== null) {
+        docData.hybridMetadata.hasTextMatch = true;
+        docData.hybridMetadata.textScores.push(chunkData.originalTextScore);
+      }
+    }
+    
+    // Calculate enhanced scores and format results
+    const results = Array.from(documentMap.values()).map(doc => {
+      // Sort chunks by similarity
+      doc.chunks.sort((a, b) => b.similarity - a.similarity);
+      
+      // Calculate hybrid-aware enhanced document score
+      const enhancedScore = this.calculateHybridDocumentScore(doc.chunks, doc.hybridMetadata);
+      
+      // Take top chunks per document using configuration
+      const contentConfig = vectorConfig.get('content');
+      const topChunks = doc.chunks.slice(0, contentConfig.maxChunksPerDocument);
+      
+      // Create combined relevant text
+      const relevantContent = topChunks
+        .map(chunk => this.extractRelevantExcerpt(chunk.text))
+        .join('\n\n---\n\n');
+      
+      // Generate hybrid search info
+      const searchMethods = Array.from(doc.hybridMetadata.searchMethods);
+      const hybridInfo = this.buildHybridRelevanceInfo(doc, enhancedScore, searchMethods);
+      
+      return {
+        document_id: doc.document_id,
+        title: doc.title,
+        filename: doc.filename,
+        created_at: doc.created_at,
+        relevant_content: relevantContent,
+        similarity_score: enhancedScore.finalScore,
+        max_similarity: enhancedScore.maxSimilarity,
+        avg_similarity: enhancedScore.avgSimilarity,
+        position_score: enhancedScore.positionScore,
+        diversity_bonus: enhancedScore.diversityBonus,
+        hybrid_bonus: enhancedScore.hybridBonus || 0,
+        chunk_count: doc.chunks.length,
+        search_methods: searchMethods,
+        hybrid_metadata: {
+          hasVectorMatch: doc.hybridMetadata.hasVectorMatch,
+          hasTextMatch: doc.hybridMetadata.hasTextMatch,
+          avgVectorScore: doc.hybridMetadata.vectorScores.length > 0 
+            ? doc.hybridMetadata.vectorScores.reduce((a, b) => a + b) / doc.hybridMetadata.vectorScores.length 
+            : null,
+          avgTextScore: doc.hybridMetadata.textScores.length > 0
+            ? doc.hybridMetadata.textScores.reduce((a, b) => a + b) / doc.hybridMetadata.textScores.length
+            : null
+        },
+        relevance_info: hybridInfo
+      };
+    });
+    
+    // Sort by enhanced final score and return top results
+    results.sort((a, b) => b.similarity_score - a.similarity_score);
+    return results.slice(0, limit);
+  }
+
+  /**
+   * Calculate enhanced document score with hybrid search factors
+   * @param {Array} chunks - Array of document chunks with hybrid metadata
+   * @param {Object} hybridMetadata - Document-level hybrid metadata
+   * @returns {Object} Enhanced scoring metrics with hybrid bonuses
+   * @protected
+   */
+  calculateHybridDocumentScore(chunks, hybridMetadata) {
+    const baseScore = this.calculateEnhancedDocumentScore(chunks);
+    
+    // Add hybrid search bonus
+    let hybridBonus = 0;
+    if (hybridMetadata.hasVectorMatch && hybridMetadata.hasTextMatch) {
+      hybridBonus = 0.05; // Bonus for documents found by both search methods
+    }
+    
+    return {
+      ...baseScore,
+      finalScore: Math.min(1.0, baseScore.finalScore + hybridBonus),
+      hybridBonus
+    };
+  }
+
+  /**
+   * Build hybrid search relevance information
+   * @param {Object} doc - Document data
+   * @param {Object} enhancedScore - Enhanced scoring data
+   * @param {Array} searchMethods - Search methods used
+   * @returns {string} Formatted relevance information
+   * @protected
+   */
+  buildHybridRelevanceInfo(doc, enhancedScore, searchMethods) {
+    const methods = searchMethods.join(', ');
+    let info = `Found via ${methods} search in "${doc.title}"`;
+    
+    if (enhancedScore.hybridBonus > 0) {
+      info += ` (semantic + text match bonus: +${(enhancedScore.hybridBonus * 100).toFixed(1)}%)`;
+    }
+    
+    info += ` (diversity: +${(enhancedScore.diversityBonus * 100).toFixed(1)}%)`;
+    
+    return info;
+  }
+
+  /**
    * Get search type identifier
    * @returns {string} Search type
    * @protected
@@ -590,6 +872,269 @@ class BaseSearchService {
    */
   clearCache() {
     this.cache.clear();
+  }
+
+  // ========== STATIC UTILITY METHODS ==========
+  // Shared utilities that can be used by all search services
+
+  /**
+   * Group chunks by document and calculate enhanced rankings
+   * @param {Array} chunks - Array of document chunks
+   * @param {number} limit - Maximum results to return
+   * @returns {Array} Ranked document results
+   * @static
+   */
+  static groupByDocument(chunks, limit = 10) {
+    const documentMap = new Map();
+    
+    // Group chunks by document
+    for (const chunk of chunks) {
+      const docId = chunk.documents?.id || chunk.document_id;
+      
+      if (!documentMap.has(docId)) {
+        documentMap.set(docId, {
+          document_id: docId,
+          title: chunk.documents?.title || chunk.document_title || 'Untitled',
+          filename: chunk.documents?.filename || chunk.document_filename || '',
+          created_at: chunk.documents?.created_at || chunk.document_created_at,
+          chunks: [],
+          maxSimilarity: 0,
+          totalScore: 0
+        });
+      }
+      
+      const doc = documentMap.get(docId);
+      const chunkData = {
+        chunk_id: chunk.id,
+        chunk_index: chunk.chunk_index,
+        text: chunk.chunk_text,
+        similarity: chunk.similarity || 0,
+        token_count: chunk.token_count
+      };
+      
+      doc.chunks.push(chunkData);
+      doc.maxSimilarity = Math.max(doc.maxSimilarity, chunkData.similarity);
+      doc.totalScore += chunkData.similarity;
+    }
+    
+    // Calculate scores and format results
+    const results = Array.from(documentMap.values()).map(doc => {
+      // Sort chunks by similarity
+      doc.chunks.sort((a, b) => b.similarity - a.similarity);
+      
+      // Calculate enhanced document score
+      const enhancedScore = BaseSearchService.calculateDocumentScore(doc.chunks);
+      
+      // Take top chunks for content
+      const topChunks = doc.chunks.slice(0, 3);
+      const relevantContent = topChunks
+        .map(chunk => BaseSearchService.extractExcerpt(chunk.text, 300))
+        .join('\n\n---\n\n');
+      
+      return {
+        document_id: doc.document_id,
+        title: doc.title,
+        filename: doc.filename,
+        created_at: doc.created_at,
+        relevant_content: relevantContent,
+        similarity_score: enhancedScore.finalScore,
+        max_similarity: enhancedScore.maxSimilarity,
+        avg_similarity: enhancedScore.avgSimilarity,
+        chunk_count: doc.chunks.length,
+        relevance_info: `Found ${doc.chunks.length} relevant sections in "${doc.title}"`
+      };
+    });
+    
+    // Sort by final score and return top results
+    results.sort((a, b) => b.similarity_score - a.similarity_score);
+    return results.slice(0, limit);
+  }
+
+  /**
+   * Calculate enhanced document score with position weighting and diversity bonus
+   * @param {Array} chunks - Array of document chunks with similarity scores
+   * @returns {Object} Enhanced scoring metrics
+   * @static
+   */
+  static calculateDocumentScore(chunks) {
+    if (!chunks || chunks.length === 0) {
+      return {
+        finalScore: 0,
+        maxSimilarity: 0,
+        avgSimilarity: 0,
+        positionScore: 0,
+        diversityBonus: 0
+      };
+    }
+    
+    const similarities = chunks.map(c => c.similarity);
+    const maxSimilarity = Math.max(...similarities);
+    const avgSimilarity = similarities.reduce((a, b) => a + b) / similarities.length;
+    
+    // Position-aware scoring
+    let positionScore = 0;
+    chunks.forEach((chunk) => {
+      const positionWeight = Math.max(0.1, 1 - (chunk.chunk_index * 0.05));
+      positionScore += chunk.similarity * positionWeight;
+    });
+    positionScore = positionScore / chunks.length;
+    
+    // Diversity bonus
+    const diversityBonus = Math.min(0.1, chunks.length * 0.02);
+    
+    // Weighted final score
+    const finalScore = (maxSimilarity * 0.6) + (avgSimilarity * 0.3) + (positionScore * 0.1) + diversityBonus;
+    
+    return {
+      finalScore: Math.min(1.0, finalScore),
+      maxSimilarity,
+      avgSimilarity,
+      positionScore,
+      diversityBonus
+    };
+  }
+
+  /**
+   * Calculate dynamic similarity threshold based on query characteristics
+   * @param {string} query - Search query
+   * @param {number} baseThreshold - Base threshold (default: 0.3)
+   * @returns {number} Calculated threshold
+   * @static
+   */
+  static calculateThreshold(query, baseThreshold = 0.3) {
+    const queryWords = query.trim().split(/\s+/);
+    const queryLength = queryWords.length;
+    
+    let adjustment = 0;
+    if (queryLength === 1) {
+      adjustment = 0.0;
+    } else if (queryLength === 2) {
+      adjustment = 0.05;
+    } else if (queryLength >= 5) {
+      adjustment = -0.1;
+    }
+    
+    return Math.max(0.2, Math.min(0.8, baseThreshold + adjustment));
+  }
+
+  /**
+   * Extract relevant excerpt from text with smart truncation
+   * @param {string} text - Text to excerpt
+   * @param {number} maxLength - Maximum length (default: 300)
+   * @returns {string} Excerpted text
+   * @static
+   */
+  static extractExcerpt(text, maxLength = 300) {
+    if (!text || text.length <= maxLength) {
+      return text || '';
+    }
+    
+    const truncated = text.substring(0, maxLength);
+    const lastPunctuation = Math.max(
+      truncated.lastIndexOf('.'),
+      truncated.lastIndexOf('?'),
+      truncated.lastIndexOf('!')
+    );
+    
+    if (lastPunctuation > maxLength * 0.7) {
+      return truncated.substring(0, lastPunctuation + 1);
+    }
+    
+    return truncated + '...';
+  }
+
+  /**
+   * Format search results with consistent structure
+   * @param {Array} chunks - Raw search results
+   * @param {number} limit - Maximum results
+   * @param {string} searchType - Search type identifier
+   * @returns {Object} Formatted search response
+   * @static
+   */
+  static formatResults(chunks, limit = 10, searchType = 'vector') {
+    if (!chunks || chunks.length === 0) {
+      return {
+        success: true,
+        results: [],
+        searchType,
+        message: 'No relevant documents found'
+      };
+    }
+
+    const documents = BaseSearchService.groupByDocument(chunks, limit);
+    
+    return {
+      success: true,
+      results: documents,
+      searchType,
+      message: `Found ${documents.length} relevant document(s)`,
+      metadata: {
+        totalChunks: chunks.length,
+        processedDocuments: documents.length
+      }
+    };
+  }
+
+  // ========== TEMPLATE METHODS ==========
+  // Core template method that can be overridden by subclasses
+
+  /**
+   * Template method for search operations
+   * Override doSearch() in subclasses for specific implementations
+   * @param {Object} params - Search parameters
+   * @returns {Promise<Object>} Search results
+   */
+  async search(params) {
+    try {
+      // Validate parameters
+      const validated = this.validate(params);
+      
+      // Execute search (implemented by subclasses)
+      const results = await this.doSearch(validated);
+      
+      // Format results
+      return this.format(results, validated);
+      
+    } catch (error) {
+      console.error(`[${this.serviceName}] Search error:`, error);
+      return this.createErrorResponse(error, params.query);
+    }
+  }
+
+  /**
+   * Abstract method - must be implemented by subclasses
+   * @param {Object} params - Validated search parameters
+   * @returns {Promise<Array>} Raw search results
+   */
+  async doSearch(params) {
+    throw new Error(`${this.serviceName} must implement doSearch() method`);
+  }
+
+  /**
+   * Validate search parameters (can be overridden)
+   * @param {Object} params - Parameters to validate
+   * @returns {Object} Validated parameters
+   */
+  validate(params) {
+    return InputValidator.validateSearchParams(params);
+  }
+
+  /**
+   * Format search results (can be overridden)
+   * @param {Array} results - Raw results
+   * @param {Object} params - Search parameters
+   * @returns {Object} Formatted results
+   */
+  format(results, params) {
+    return BaseSearchService.formatResults(results, params.limit, this.getSearchType());
+  }
+
+  /**
+   * Get search type identifier (should be overridden)
+   * @returns {string} Search type
+   */
+  getSearchType() {
+    return 'base';
   }
 }
 
