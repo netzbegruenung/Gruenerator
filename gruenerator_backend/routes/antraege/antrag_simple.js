@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 // Import unified prompt building architecture
 const { 
-  HTML_FORMATTING_INSTRUCTIONS,
+  MARKDOWN_FORMATTING_INSTRUCTIONS,
   TITLE_GENERATION_INSTRUCTION,
   processResponseWithTitle,
   PromptBuilder
@@ -118,7 +118,7 @@ const routeHandler = withErrorHandler(async (req, res) => {
 
     builder
       .setSystemRole(systemRole)
-      .setFormatting(HTML_FORMATTING_INSTRUCTIONS);
+      .setFormatting(MARKDOWN_FORMATTING_INSTRUCTIONS);
     
     // Note: Antrag generation doesn't use platform constraints (flexible lengths based on document type)
     

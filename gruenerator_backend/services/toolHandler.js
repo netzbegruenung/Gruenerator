@@ -61,6 +61,7 @@ class ToolHandler {
       case 'openai':
       case 'litellm':
       case 'ionos':
+      case 'mistral':
         // OpenAI, LiteLLM, and IONOS use the same format
         return tools.map(tool => ({
           type: 'function',

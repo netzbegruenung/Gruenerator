@@ -14,6 +14,7 @@ import { useBetaFeatures } from '../../../../hooks/useBetaFeatures';
 import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
 import { useCollabPreload } from '../../../hooks/useCollabPreload';
 import { useSaveToLibrary } from '../../../../hooks/useSaveToLibrary';
+import { useFormStateSelector } from '../FormStateProvider';
 
 /**
  * Komponente für den Anzeigebereich des Formulars
@@ -45,8 +46,9 @@ const DisplaySection = forwardRef(({
   getExportableContent,
   displayActions = null,
   onSave,
-  saveLoading = false,
-  componentName = 'default'
+  saveLoading: propSaveLoading = false,
+  componentName = 'default',
+  onErrorDismiss
 }, ref) => {
   const { user } = useLazyAuth(); // Keep for other auth functionality
   const { getBetaFeatureState } = useBetaFeatures();
@@ -58,6 +60,12 @@ const DisplaySection = forwardRef(({
   const [generatePostLoading, setGeneratePostLoading] = React.useState(false);
   const [collabLoading, setCollabLoading] = React.useState(false);
   const { saveToLibrary, isLoading: saveToLibraryLoading, error: saveToLibraryError, success: saveToLibrarySuccess } = useSaveToLibrary();
+  
+  // Store selectors for potential future use
+  const storeSaveLoading = useFormStateSelector(state => state.saveLoading);
+  
+  // Use store state with prop fallback
+  const saveLoading = storeSaveLoading || propSaveLoading;
 
   // Check if user has access to collab feature
   const hasCollabAccess = getBetaFeatureState('collab');
@@ -102,33 +110,15 @@ const DisplaySection = forwardRef(({
       : activeContent;
   }, [activeContent, isMixedContent]);
 
-  // Enhanced debug logging
-  React.useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[DisplaySection] Content update:', {
-        storeGeneratedTextType: typeof storeGeneratedText,
-        storeGeneratedTextLength: typeof storeGeneratedText === 'string' ? storeGeneratedText?.length : 'object',
-        activeContentType: typeof activeContent,
-        activeContentLength: typeof activeContent === 'string' ? activeContent?.length : 'object',
-        isMixedContent,
-        hasSharepic: !!(activeContent && typeof activeContent === 'object' && activeContent.sharepic),
-        hasSocial: !!(activeContent && typeof activeContent === 'object' && activeContent.social),
-        exportableContentLength: currentExportableContent?.length
-      });
-    }
-  }, [storeGeneratedText, activeContent, isMixedContent, currentExportableContent]);
 
   const handleOpenCollabEditor = async () => {
     if (!currentExportableContent) {
-      console.warn("Kein Inhalt zum kollaborativen Bearbeiten vorhanden.");
       return;
     }
 
     // Always create document on-demand when user clicks collab button
     setCollabLoading(true);
     const documentId = uuidv4();
-    console.log("[DisplaySection] Creating collaborative document on-demand. Document ID:", documentId);
-    console.log("[DisplaySection] Content to send:", currentExportableContent.substring(0,100) + "...");
 
     try {
       const response = await apiClient.post('/collab-editor/init-doc', { 
@@ -139,10 +129,8 @@ const DisplaySection = forwardRef(({
         documentType: 'text'
       });
 
-      console.log("[DisplaySection] Kollaboratives Dokument erfolgreich initialisiert über apiClient.");
       window.open(`/editor/collab/${documentId}`, '_blank');
     } catch (error) {
-      console.error("[DisplaySection] Fehler beim Initialisieren des kollaborativen Dokuments (via apiClient):", error.message || error);
     } finally {
       setCollabLoading(false);
     }
@@ -152,12 +140,10 @@ const DisplaySection = forwardRef(({
     try {
       // Priority: metadata title > prop title > fallback
       const titleToUse = storeGeneratedTextMetadata?.title || title || 'Unbenannter Text';
-      console.log('[DisplaySection] Saving with title:', titleToUse, 'from metadata:', !!storeGeneratedTextMetadata?.title);
       
       await saveToLibrary(currentExportableContent, titleToUse, storeGeneratedTextMetadata?.contentType || 'universal');
     } catch (error) {
       // Error handling is managed by the hook
-      console.error("[DisplaySection] Save to library failed:", error);
     }
   }, [currentExportableContent, title, storeGeneratedTextMetadata, saveToLibrary]);
 
@@ -197,10 +183,10 @@ const DisplaySection = forwardRef(({
         </div>
       )}
       <div className="display-content">
-        <ErrorDisplay error={error} />
+        <ErrorDisplay error={error} onDismiss={onErrorDismiss} />
         <ContentRenderer
           value={activeContent}
-          generatedContent={activeContent}
+          generatedContent={storeGeneratedText || generatedContent || activeContent}
           useMarkdown={useMarkdown}
           componentName={componentName}
           helpContent={helpContent}
@@ -238,7 +224,8 @@ DisplaySection.propTypes = {
   displayActions: PropTypes.node,
   onSave: PropTypes.func,
   saveLoading: PropTypes.bool,
-  componentName: PropTypes.string
+  componentName: PropTypes.string,
+  onErrorDismiss: PropTypes.func
 };
 
 DisplaySection.defaultProps = {

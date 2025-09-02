@@ -213,14 +213,15 @@ class SearXNGWebSearchService {
   }
 
   /**
-   * Generate AI summary of search results using Claude Haiku
+   * Generate AI summary of search results using privacy mode providers
    * @param {Object} searchResults - Formatted search results
    * @param {string} originalQuery - Original search query
    * @param {Object} aiWorkerPool - AI worker pool instance
    * @param {Object} summaryOptions - Summary options
+   * @param {Object} req - Express request object for privacy mode
    * @returns {Promise<Object>} Search results with AI summary
    */
-  async generateAISummary(searchResults, originalQuery, aiWorkerPool, summaryOptions = {}) {
+  async generateAISummary(searchResults, originalQuery, aiWorkerPool, summaryOptions = {}, req = null) {
     if (!searchResults.results || searchResults.results.length === 0) {
       return {
         ...searchResults,
@@ -253,21 +254,26 @@ class SearXNGWebSearchService {
         type: 'web_search_summary',
         messages: [{
           role: 'user',
-          content: `Erstelle eine präzise, informative Zusammenfassung der folgenden Suchergebnisse für die Anfrage "${originalQuery}":\n\n${contentForSummary}`
+          content: `Du bist ein hilfreicher Assistent, der basierend auf Webinhalten fundierte Antworten gibt. Beantworte die folgende Frage oder das Anliegen des Nutzers direkt und umfassend, basierend auf den bereitgestellten Informationen. Die Quellen dienen als Hintergrundinformationen - du sollst eine echte, durchdachte Antwort geben, keine bloße Zusammenfassung.
+
+Frage/Anliegen: "${originalQuery}"
+
+Verfügbare Informationen:
+${contentForSummary}
+
+Gib eine direkte, hilfreiche Antwort auf die Frage des Nutzers. Nutze die Informationen, um fundierte Erkenntnisse zu liefern, erkläre Zusammenhänge und gib praktische Hinweise wo sinnvoll.`
         }],
         options: {
-          model: 'anthropic.claude-3-haiku-20240307-v1:0',
           max_tokens: 1000,
-          temperature: 0.3,
-          useBedrock: true
+          temperature: 0.3
         },
-        usePrivacyMode: summaryOptions.usePrivacyMode || false
+        provider: 'ionos'
       };
 
       console.log(`[SearXNGWebSearchService] Generating AI summary for query: "${originalQuery}"`);
       
-      // Use the AI worker pool to process the request
-      const aiResponse = await aiWorkerPool.processRequest(summaryRequest);
+      // Use the AI worker pool to process the request (pass req for privacy mode)
+      const aiResponse = await aiWorkerPool.processRequest(summaryRequest, req);
       
       if (aiResponse.success && aiResponse.content) {
         return {

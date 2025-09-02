@@ -113,20 +113,41 @@ export const profileApiService = {
   },
 
   async updateAvatar(avatarRobotId) {
-    const response = await fetch(`${AUTH_BASE_URL}/auth/profile/avatar`, {
-      method: 'PATCH',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ avatar_robot_id: avatarRobotId })
-    });
+    console.log(`[ProfileAPI] Updating avatar to robot ID: ${avatarRobotId}`);
     
-    const result = await response.json();
-    
-    if (!response.ok || !result.success) {
-      throw new Error(result.message || 'Avatar-Update fehlgeschlagen');
+    try {
+      const response = await fetch(`${AUTH_BASE_URL}/auth/profile/avatar`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ avatar_robot_id: avatarRobotId })
+      });
+      
+      const result = await response.json();
+      console.log(`[ProfileAPI] Avatar update response:`, { 
+        status: response.status, 
+        success: result.success, 
+        profile: result.profile 
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${result.message || 'Avatar-Update fehlgeschlagen'}`);
+      }
+      
+      if (!result.success) {
+        throw new Error(result.message || 'Avatar-Update fehlgeschlagen');
+      }
+      
+      if (!result.profile) {
+        throw new Error('Server returned success but no profile data');
+      }
+      
+      console.log(`[ProfileAPI] Avatar updated successfully to ${result.profile.avatar_robot_id}`);
+      return result.profile;
+    } catch (error) {
+      console.error(`[ProfileAPI] Avatar update failed for robot ID ${avatarRobotId}:`, error);
+      throw error;
     }
-    
-    return result.profile;
   },
 
   // === ANWEISUNGEN & WISSEN ===
@@ -501,7 +522,7 @@ export const profileApiService = {
 
   // === USER TEXTS ===
   async getUserTexts() {
-    const response = await fetch(`${AUTH_BASE_URL}/user-texts`, {
+    const response = await fetch(`${AUTH_BASE_URL}/auth/saved-texts`, {
       method: 'GET',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' }
@@ -520,7 +541,7 @@ export const profileApiService = {
   },
 
   async updateTextTitle(textId, newTitle) {
-    const response = await fetch(`${AUTH_BASE_URL}/user-texts/${textId}/metadata`, {
+    const response = await fetch(`${AUTH_BASE_URL}/auth/saved-texts/${textId}/metadata`, {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -540,7 +561,7 @@ export const profileApiService = {
   },
 
   async deleteText(textId) {
-    const response = await fetch(`${AUTH_BASE_URL}/user-texts/${textId}`, {
+    const response = await fetch(`${AUTH_BASE_URL}/auth/saved-texts/${textId}`, {
       method: 'DELETE',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' }

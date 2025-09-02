@@ -32,10 +32,19 @@ yarn-error.log*
 # Cache files
 gruenerator_frontend/node_modules/.cache
 *.pack
+gruenerator_backend/local_cache/
 
 # Large files
 *.pack
 
+# Dataset files
+gruenerator_backend/public/dataset_*.json
+
+# OCR training data
+gruenerator_backend/*.traineddata
+
+# Migration files (temporary)
+gruenerator_backend/migration/
 
 # Editor directories and files
 .idea

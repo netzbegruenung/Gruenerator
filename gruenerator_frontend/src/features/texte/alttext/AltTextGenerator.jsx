@@ -178,7 +178,7 @@ const AltTextGenerator = ({ showHeaderFooter = true }) => {
       "Füge optional eine Beschreibung hinzu für besseren Kontext",
       "Der generierte Alt-Text folgt DBSV-Richtlinien für Barrierefreiheit",
       "Alt-Texte sollten prägnant aber beschreibend sein",
-      "Verwende den generierten Text direkt in deinen Webinhalten"
+      
     ]
   };
 

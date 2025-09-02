@@ -8,6 +8,7 @@ const require = createRequire(import.meta.url);
 // Import prompt utilities
 const {
   HTML_FORMATTING_INSTRUCTIONS,
+  MARKDOWN_FORMATTING_INSTRUCTIONS,
   PLATFORM_SPECIFIC_GUIDELINES,
   isStructuredPrompt,
   formatUserContent,
@@ -71,7 +72,7 @@ const routeHandler = withErrorHandler(async (req, res) => {
 
   console.log('[claude_social] Processing social media generation');
     
-    const builder = new PromptBuilderWithExamples('social')
+    const builder = new PromptBuilderWithExamples('social', provider)
       .enableDebug(process.env.NODE_ENV === 'development')
       .configureExamples({
         maxExamples: 3,
@@ -80,8 +81,8 @@ const routeHandler = withErrorHandler(async (req, res) => {
         formatStyle: 'structured'
       });
 
-    // Set system role
-    let systemRole = 'Du bist Social Media Manager für Bündnis 90/Die Grünen. Erstelle Vorschläge für Social-Media-Beiträge für die angegebenen Plattformen.\n\nWICHTIG: Gib NUR die fertigen Social-Media-Posts aus. Keine Erklärungen, keine Zwischenschritte, keine zusätzlichen Kommentare. Nur die Posts selbst.';
+    // Set system role - just the role, no instructions
+    let systemRole = 'Du bist ein erfahrener Social Media Manager für Bündnis 90/Die Grünen.';
     
     // Add press release specific role modification
     if (platforms.includes('pressemitteilung')) {
@@ -99,7 +100,7 @@ Achte bei der Umsetzung dieses Stils auf Klarheit, Präzision und eine ausgewoge
     builder.setSystemRole(systemRole);
     
     // Set formatting instructions
-    builder.setFormatting(HTML_FORMATTING_INSTRUCTIONS);
+    builder.setFormatting(MARKDOWN_FORMATTING_INSTRUCTIONS);
     
     // Set platform constraints (PROTECTED - cannot be overridden by documents)
     builder.setConstraints(platforms);
@@ -108,7 +109,7 @@ Achte bei der Umsetzung dieses Stils auf Klarheit, Präzision und eine ausgewoge
     if (useWebSearchTool) {
       const searchQuery = `${thema} ${details || ''} Bündnis 90 Die Grünen Politik`;
       console.log(`[claude_social] 🔍 Web search enabled for: "${searchQuery}"`);
-      await builder.handleWebSearch(searchQuery, 'content');
+      await builder.handleWebSearch(searchQuery, 'content', req.app.locals.aiWorkerPool);
     }
 
     // Add documents if present
@@ -142,8 +143,14 @@ Achte bei der Umsetzung dieses Stils auf Klarheit, Präzision und eine ausgewoge
       // For custom prompts, provide structured data
       requestContent = requestData;
     } else {
-      // For standard requests, build descriptive content
-      requestContent = `Erstelle einen maßgeschneiderten Social-Media-Beitrag für jede ausgewählte Plattform zu diesem Thema, der den Stil und die Werte von Bündnis 90/Die Grünen widerspiegelt. Berücksichtige diese plattformspezifischen Richtlinien:
+      // For standard requests, build descriptive content with clear instructions
+      requestContent = `WICHTIGE ANWEISUNGEN:
+- Erstelle GENAU EINEN Beitrag pro angegebener Plattform
+- Wenn nur eine Plattform genannt ist: Erstelle NUR EINEN EINZIGEN Beitrag
+- Gib NUR die fertigen Posts aus - keine Erklärungen, keine Kommentare
+- Halte dich STRIKT an die Zeichengrenzen jeder Plattform
+
+Erstelle einen maßgeschneiderten Social-Media-Beitrag für jede ausgewählte Plattform zu diesem Thema, der den Stil und die Werte von Bündnis 90/Die Grünen widerspiegelt. Berücksichtige diese plattformspezifischen Richtlinien:
 
 ${platforms.map(platform => {
   if (platform === 'pressemitteilung') return '';

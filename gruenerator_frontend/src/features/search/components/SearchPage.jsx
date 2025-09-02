@@ -6,6 +6,7 @@ import ActionButtons from '../../../components/common/ActionButtons';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import { formatExportContent } from '../../../components/utils/exportUtils';
 import ContentRenderer from '../../../components/common/Form/BaseForm/ContentRenderer';
+import SearchModeFilter from './SearchModeFilter';
 
 const exampleQuestions = [
   {
@@ -108,7 +109,8 @@ SourceList.propTypes = {
 
 const SearchPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchMode, setSearchMode] = useState('standard'); // 'standard' or 'deep'
+  const [searchMode, setSearchMode] = useState('web'); // 'web', 'standard' or 'deep'
+  const [showFilters, setShowFilters] = useState(false);
   const { 
     results,
     usedSources, 
@@ -117,6 +119,8 @@ const SearchPage = () => {
     error, 
     search,
     deepSearch,
+    webSearch,
+    webResults,
     dossier,
     categorizedSources,
     sourceRecommendations = []
@@ -125,6 +129,8 @@ const SearchPage = () => {
   const handleSearch = async (query) => {
     if (searchMode === 'deep') {
       await deepSearch(query);
+    } else if (searchMode === 'web') {
+      await webSearch(query);
     } else {
       await search(query);
     }
@@ -135,6 +141,11 @@ const SearchPage = () => {
     result => !usedSources.some(used => used.url === result.url)
   );
 
+  // Filter toggle handler
+  const handleFilterToggle = () => {
+    setShowFilters(!showFilters);
+  };
+
   return (
     <ErrorBoundary>
       <div className="search-page-container">
@@ -143,40 +154,25 @@ const SearchPage = () => {
           <p className="search-subtitle">KI-Suche des Grünerators</p>
         </div>
         
-        <div className="search-mode-selector">
-          <div className="mode-options">
-            <label className="mode-option">
-              <input
-                type="radio"
-                value="standard"
-                checked={searchMode === 'standard'}
-                onChange={(e) => setSearchMode(e.target.value)}
-              />
-              <span>Standard-Suche</span>
-              <small>Schnelle Suche mit sofortigen Ergebnissen</small>
-            </label>
-            <label className="mode-option">
-              <input
-                type="radio"
-                value="deep"
-                checked={searchMode === 'deep'}
-                onChange={(e) => setSearchMode(e.target.value)}
-              />
-              <span>Deep Research</span>
-              <small>Umfassende Recherche mit strukturiertem Dossier</small>
-            </label>
-          </div>
-        </div>
-        
         <SearchBar 
           onSearch={handleSearch} 
           loading={loading} 
           value={searchQuery}
           onChange={setSearchQuery}
-          placeholder={searchMode === 'deep' ? 
-            'Thema für umfassende Recherche eingeben...' : 
+          placeholder={
+            searchMode === 'deep' ? 'Thema für umfassende Recherche eingeben...' :
+            searchMode === 'web' ? 'Web-Suchbegriff eingeben...' :
             'Suchbegriff eingeben...'
           }
+          onFilterClick={handleFilterToggle}
+          filterComponent={
+            <SearchModeFilter
+              activeSearchMode={searchMode}
+              onSearchModeChange={setSearchMode}
+            />
+          }
+          showFilters={showFilters}
+          filterTitle="Suchmodus"
         />
         
         {loading && searchMode === 'deep' && (
@@ -186,9 +182,70 @@ const SearchPage = () => {
           </div>
         )}
         
+        
         {error && (
           <div className="search-error">
             {error}
+          </div>
+        )}
+
+        {/* Web Search Results */}
+        {webResults && searchMode === 'web' && (
+          <div className="web-search-container">
+            {webResults.summary && (
+              <div className="analysis-container">
+                <div className="analysis-actions">
+                  <ActionButtons
+                    content={webResults.summary.text}
+                    onEdit={() => {}}
+                    isEditing={false}
+                    allowEditing={false}
+                    hideEditButton={true}
+                    showExport={true}
+                  />
+                </div>
+                <div className="analysis-content">
+                  <h2>🤖 AI-Zusammenfassung</h2>
+                  <ContentRenderer 
+                    value={webResults.summary.text} 
+                    useMarkdown={true} 
+                    componentName="web-search-summary" 
+                  />
+                </div>
+              </div>
+            )}
+            
+            <div className="web-search-results">
+              {webResults.results && webResults.results.length > 0 && (
+                <div className="sources-section">
+                  <SourceList 
+                    sources={webResults.results.map(result => ({
+                      url: result.url,
+                      title: result.title,
+                      content_snippets: result.snippet || ''
+                    }))}
+                    title={`🌐 Web-Suchergebnisse (${webResults.resultCount})`}
+                  />
+                </div>
+              )}
+              
+              {webResults.suggestions && webResults.suggestions.length > 0 && (
+                <div className="web-search-suggestions">
+                  <h3>💡 Suchvorschläge</h3>
+                  <div className="suggestions-list">
+                    {webResults.suggestions.map((suggestion, index) => (
+                      <button 
+                        key={index}
+                        className="suggestion-item"
+                        onClick={() => handleSearch(suggestion)}
+                      >
+                        {suggestion}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
 

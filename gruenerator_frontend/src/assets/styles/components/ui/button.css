@@ -426,17 +426,17 @@
 
 .action-buttons {
   display: flex;
-  gap: 1rem;
+  gap: var(--spacing-responsive-medium);
   width: 100%;
-  margin-bottom: 1rem;
+  margin-bottom: var(--spacing-responsive-medium);
 }
 
 .action-buttons.three-buttons {
   display: flex;
-  gap: 1rem;
+  gap: var(--spacing-responsive-medium);
   width: 100%;
-  margin-bottom: 1rem;
-  margin-top: 1rem;
+  margin-bottom: var(--spacing-responsive-medium);
+  margin-top: var(--spacing-responsive-medium);
 }
 
 .action-buttons.three-buttons .button-wrapper {
@@ -486,6 +486,102 @@
   .action-buttons.three-buttons .button-wrapper:nth-child(2),
   .action-buttons.three-buttons .button-wrapper:nth-child(3) {
     flex: 1 1 calc(50% - 0.375rem);
+  }
+}
+
+/* Large Display Button Enhancements */
+@media (min-width: 1280px) {
+  .action-buttons {
+    gap: calc(var(--spacing-responsive-medium) * 1.1);
+    margin-bottom: calc(var(--spacing-responsive-medium) * 1.1);
+  }
+  
+  .action-buttons.three-buttons {
+    gap: calc(var(--spacing-responsive-medium) * 1.1);
+    margin-bottom: calc(var(--spacing-responsive-medium) * 1.1);
+    margin-top: calc(var(--spacing-responsive-medium) * 1.1);
+  }
+  
+  /* Enhanced button sizing */
+  .action-buttons button,
+  .action-buttons .button,
+  .alternatives-button {
+    min-height: 42px;
+    padding: 12px 18px;
+    font-size: 0.95rem;
+  }
+}
+
+@media (min-width: 1440px) {
+  .action-buttons {
+    gap: calc(var(--spacing-responsive-medium) * 1.15);
+  }
+  
+  .action-buttons button,
+  .action-buttons .button,
+  .alternatives-button {
+    min-height: 44px;
+    padding: 13px 20px;
+    font-size: 0.98rem;
+  }
+}
+
+@media (min-width: 1920px) {
+  .action-buttons {
+    gap: calc(var(--spacing-responsive-medium) * 1.25);
+    margin-bottom: calc(var(--spacing-responsive-medium) * 1.25);
+  }
+  
+  .action-buttons.three-buttons {
+    gap: calc(var(--spacing-responsive-medium) * 1.25);
+    margin-bottom: calc(var(--spacing-responsive-medium) * 1.25);
+    margin-top: calc(var(--spacing-responsive-medium) * 1.25);
+  }
+  
+  /* Enhanced button sizing for FHD+ */
+  .action-buttons button,
+  .action-buttons .button,
+  .alternatives-button {
+    min-height: 46px;
+    padding: 14px 22px;
+    font-size: 1.02rem;
+    border-radius: calc(var(--button-border-radius) * 1.1);
+  }
+  
+  /* Better icon sizing */
+  .action-buttons button svg,
+  .action-buttons .button svg {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+@media (min-width: 2560px) {
+  .action-buttons {
+    gap: calc(var(--spacing-responsive-medium) * 1.4);
+    margin-bottom: calc(var(--spacing-responsive-medium) * 1.4);
+  }
+  
+  .action-buttons.three-buttons {
+    gap: calc(var(--spacing-responsive-medium) * 1.4);
+    margin-bottom: calc(var(--spacing-responsive-medium) * 1.4);
+    margin-top: calc(var(--spacing-responsive-medium) * 1.4);
+  }
+  
+  /* Ultra-wide display button sizing */
+  .action-buttons button,
+  .action-buttons .button,
+  .alternatives-button {
+    min-height: 50px;
+    padding: 16px 26px;
+    font-size: 1.08rem;
+    border-radius: calc(var(--button-border-radius) * 1.2);
+  }
+  
+  .action-buttons button svg,
+  .action-buttons .button svg {
+    width: 20px;
+    height: 20px;
   }
 }
 

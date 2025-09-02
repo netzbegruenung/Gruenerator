@@ -1,9 +1,9 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import ReactMarkdown from 'react-markdown';
-import { isReactElement, isMarkdownContent, normalizeLineBreaks } from '../utils/contentUtils';
+import { isReactElement, isMarkdownContent, normalizeLineBreaks, removeGruenTitleTags } from '../utils/contentUtils';
 import { CitationBadge } from '../../Citation';
-import SharepicDisplay from '../../SharepicDisplay';
+import ImageDisplay from '../../ImageDisplay';
 import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
 
 
@@ -75,29 +75,15 @@ const ContentRenderer = ({
     ? (generatedContent.social?.content || generatedContent.content || '')
     : (value || generatedContent || '');
     
-  // Normalize line breaks to fix double spacing issue
+  // Clean and normalize content
   const contentToRender = typeof rawContent === 'string' 
-    ? normalizeLineBreaks(rawContent) 
+    ? normalizeLineBreaks(removeGruenTitleTags(rawContent))
     : rawContent;
   
   // Get citations from metadata if componentName is provided
   const metadata = getGeneratedTextMetadata(componentName);
   const citations = metadata?.citations || [];
 
-  // Debug logging (MUST be at top level to avoid hooks violation)
-  React.useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[ContentRenderer] Component update:', {
-        componentName,
-        contentLength: contentToRender?.length,
-        citationsCount: citations.length,
-        citations: citations.map(c => `[${c.index}]`),
-        useMarkdown,
-        shouldUseMarkdown: useMarkdown !== null ? useMarkdown : isMarkdownContent(contentToRender),
-        hasCitationMarkers: /⚡CITE\d+⚡/.test(contentToRender)
-      });
-    }
-  }, [contentToRender, citations, useMarkdown, componentName]);
 
   // NOW we can do conditional logic and early returns
   
@@ -110,7 +96,11 @@ const ContentRenderer = ({
           <div className="social-content-section">
             <div className="content-display">
               {typeof contentToRender === 'string' ? (
-                <div dangerouslySetInnerHTML={{ __html: contentToRender }} />
+                isMarkdownContent(contentToRender) ? (
+                  <ReactMarkdown>{contentToRender}</ReactMarkdown>
+                ) : (
+                  <div dangerouslySetInnerHTML={{ __html: contentToRender }} />
+                )
               ) : (
                 contentToRender
               )}
@@ -121,11 +111,13 @@ const ContentRenderer = ({
         {/* Render sharepic if available */}
         {generatedContent.sharepic && (
           <div className="sharepic-content-section">
-            <SharepicDisplay 
+            <ImageDisplay 
               sharepicData={generatedContent.sharepic} 
-              componentName={componentName}
-              showEditButton={componentName === 'presse-social' && generatedContent.sharepic.type === 'info'}
               onEdit={generatedContent.onEditSharepic}
+              showEditButton={generatedContent.showEditButton !== false}
+              title={generatedContent.sharepicTitle}
+              downloadButtonText={generatedContent.sharepicDownloadText}
+              downloadFilename={generatedContent.sharepicDownloadFilename}
             />
           </div>
         )}
@@ -152,10 +144,6 @@ const ContentRenderer = ({
       if (typeof text !== 'string' || !text.includes('⚡CITE')) {
         return text;
       }
-
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[ContentRenderer] Processing citation text:', text);
-      }
       
       // Split by citation markers and rebuild with inline components
       const markerPattern = /(⚡CITE\d+⚡)/g;
@@ -174,9 +162,6 @@ const ContentRenderer = ({
             c.index === parseInt(citationIndex, 10)
           );
           
-          if (process.env.NODE_ENV === 'development') {
-            console.log(`[ContentRenderer] Found citation marker ⚡CITE${citationIndex}⚡, citation available:`, !!citation);
-          }
           
           elements.push(
             <CitationBadge 
@@ -203,9 +188,6 @@ const ContentRenderer = ({
         );
         
         if (hasMarkers) {
-          if (process.env.NODE_ENV === 'development') {
-            console.log('[ContentRenderer] Processing paragraph with citations');
-          }
           return <p>{React.Children.map(children, child => 
             typeof child === 'string' ? processCitationText(child) : child
           )}</p>;
@@ -236,9 +218,6 @@ const ContentRenderer = ({
     
     if (hasCitationMarkers && citations.length > 0) {
       // Use comprehensive custom components to handle citations inline
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[ContentRenderer] Creating comprehensive citation components for citations:', citations.length);
-      }
       const customComponents = createCitationComponents(citations);
       
       return (

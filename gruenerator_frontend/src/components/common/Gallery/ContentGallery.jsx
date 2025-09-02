@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useContentGallery } from '../../../hooks/useContentGallery';
 import GalleryLayout from './GalleryLayout';
 import SearchBar from './SearchBar';
+import CategorySelector from '../CategorySelector';
 
 // Verfügbare Inhaltstypen
 const contentTypes = [
@@ -251,20 +252,11 @@ const ContentGallery = () => {
   );
 
   const contentTypeSelectorElement = (
-    <div className="gallery-category-filter">
-      {contentTypes.map(type => (
-        <button
-          key={type.id}
-          className={`category-button ${contentType === type.id ? 'active' : ''}`}
-          onClick={() => setContentType(type.id)}
-          aria-pressed={contentType === type.id}
-          disabled={type.disabled}
-        >
-          {type.label}
-          {type.disabled && <span className="content-type-badge">Bald</span>}
-        </button>
-      ))}
-    </div>
+    <CategorySelector
+      categories={contentTypes}
+      activeCategory={contentType}
+      onCategoryChange={setContentType}
+    />
   );
 
   return (

@@ -21,9 +21,11 @@ class UnifiedPromptBuilder {
   /**
    * Initialize prompt builder for specific content type
    * @param {string} type - Content type (social, antrag, universal, etc.)
+   * @param {string} provider - AI provider ('claude', 'mistral', 'bedrock', etc.)
    */
-  constructor(type) {
+  constructor(type, provider = 'claude') {
     this.type = type;
+    this.provider = provider;
     this.context = {
       system: {
         role: null,
@@ -159,22 +161,43 @@ class UnifiedPromptBuilder {
    * Handle web search - automatically performs search and adds results as context
    * @param {string} query - Search query
    * @param {string} agentType - Type of search agent ('withSources', 'withoutSources', 'news')
+   * @param {Object} aiWorkerPool - AI worker pool instance for generating summaries
    * @returns {Promise<UnifiedPromptBuilder>} This instance for chaining
    */
-  async handleWebSearch(query, agentType = 'withSources') {
+  async handleWebSearch(query, agentType = 'withSources', aiWorkerPool = null) {
     if (!query || typeof query !== 'string' || query.trim().length === 0) {
       console.warn('[UnifiedPromptBuilder] Invalid search query provided to handleWebSearch');
       return this;
     }
 
     try {
-      // Import and use MistralWebSearchService
-      const MistralWebSearchService = require('../services/mistralWebSearchService');
-      const searchService = new MistralWebSearchService();
+      // Import and use SearXNGWebSearchService
+      const searxngWebSearchService = require('../services/searxngWebSearchService');
+      const searchService = searxngWebSearchService;
       
       const searchResults = await searchService.performWebSearch(query, agentType);
       
       if (searchResults && searchResults.success) {
+        // Generate AI summary to get textContent for prompt context
+        if (!aiWorkerPool) {
+          console.warn('[UnifiedPromptBuilder] No aiWorkerPool provided to handleWebSearch - AI summary will be skipped');
+        }
+        
+        const searchResultsWithSummary = aiWorkerPool 
+          ? await searchService.generateAISummary(
+              searchResults, 
+              query, 
+              aiWorkerPool,
+              {},
+              null // req parameter - using null since we're in prompt builder context
+            )
+          : searchResults;
+        
+        // Use the AI summary as textContent
+        if (searchResultsWithSummary.summary && searchResultsWithSummary.summary.generated) {
+          searchResults.textContent = searchResultsWithSummary.summary.text;
+        }
+        
         const hasResults = searchResults.results && searchResults.results.length > 0;
         const hasTextContent = searchResults.textContent && searchResults.textContent.trim().length > 0;
         const hasSources = searchResults.sources && searchResults.sources.length > 0;
@@ -182,7 +205,11 @@ class UnifiedPromptBuilder {
         const sourcesCount = searchResults.sourcesCount || 0;
         
         if (hasResults || hasTextContent) {
+          // Get preview of first 2 sentences for logging
+          const contentPreview = hasTextContent ? this._getContentPreview(searchResults.textContent, 2) : 'No text content';
+          
           console.log(`[UnifiedPromptBuilder] Web search complete: Content added to context (${contentLength} chars${hasResults ? `, ${searchResults.results.length} individual results` : ''}${hasSources ? `, ${sourcesCount} sources captured` : ''})`);
+          console.log(`[UnifiedPromptBuilder] Search result preview: ${contentPreview}`);
         } else {
           console.log(`[UnifiedPromptBuilder] Web search complete: No usable content found`);
         }
@@ -364,21 +391,132 @@ class UnifiedPromptBuilder {
   }
 
   /**
-   * Build the final prompt structure optimized for Claude
+   * Build the final prompt structure optimized for the specified provider
    * @returns {Object} Prompt object with system message, user messages, and tools
    */
   build() {
-    const result = {
+    const baseResult = {
       system: this._buildSystemMessage(),
       messages: this._buildUserMessages(),
       tools: this.tools.length > 0 ? [...this.tools] : []
     };
 
     if (this.debug) {
-      this._logDebugInfo(result);
+      this._logDebugInfo(baseResult);
+    }
+
+    // Apply provider-specific adaptations
+    return this._adaptForProvider(baseResult);
+  }
+
+  /**
+   * Apply provider-specific adaptations to the prompt
+   * @param {Object} result - Base prompt result
+   * @returns {Object} Adapted prompt result
+   * @private
+   */
+  _adaptForProvider(result) {
+    switch(this.provider) {
+      case 'mistral':
+        return this._adaptForMistral(result);
+      case 'bedrock':
+        return this._adaptForBedrock(result);
+      case 'claude':
+      default:
+        return result; // Claude needs no adaptation
+    }
+  }
+
+  /**
+   * Adapt prompt for Mistral with stronger reinforcement
+   * @param {Object} result - Base prompt result
+   * @returns {Object} Mistral-adapted prompt result
+   * @private
+   */
+  _adaptForMistral(result) {
+    const { messages, system } = result;
+    
+    if (messages.length === 0) {
+      return result;
+    }
+
+    // Extract constraints from system message
+    const constraints = this._extractConstraints(system);
+    
+    // Get the last user message for reinforcement
+    const lastUserMsgIndex = messages.length - 1;
+    const lastUserMsg = messages[lastUserMsgIndex];
+    
+    if (lastUserMsg && lastUserMsg.role === 'user') {
+      // Add Mistral-specific reinforcement
+      const reinforcement = this._buildMistralReinforcement(constraints);
+      
+      if (reinforcement) {
+        lastUserMsg.content = reinforcement + lastUserMsg.content;
+        console.log(`[PromptBuilder] Applied Mistral adaptations for ${this.type}`);
+      }
     }
 
     return result;
+  }
+
+  /**
+   * Adapt prompt for Bedrock (placeholder for future implementation)
+   * @param {Object} result - Base prompt result
+   * @returns {Object} Bedrock-adapted prompt result
+   * @private
+   */
+  _adaptForBedrock(result) {
+    // Future implementation for Bedrock-specific adaptations
+    return result;
+  }
+
+  /**
+   * Extract platform constraints from system message
+   * @param {string} systemMessage - System message text
+   * @returns {Array} Array of constraint information
+   * @private
+   */
+  _extractConstraints(systemMessage) {
+    const constraints = [];
+    
+    // Extract platform-specific constraints
+    const platformConstraints = systemMessage.match(/WICHTIG:.*?einzuhalten\./g);
+    if (platformConstraints) {
+      constraints.push(...platformConstraints);
+    }
+    
+    // Extract character limits
+    const characterLimits = systemMessage.match(/maximal \d+ Zeichen/g);
+    if (characterLimits) {
+      constraints.push(...characterLimits);
+    }
+    
+    return constraints;
+  }
+
+  /**
+   * Build Mistral-specific reinforcement based on constraints
+   * @param {Array} constraints - Array of constraint strings
+   * @returns {string} Reinforcement text to prepend to user message
+   * @private
+   */
+  _buildMistralReinforcement(constraints) {
+    if (constraints.length === 0) {
+      return '';
+    }
+
+    let reinforcement = '\n\n=== STRICT REQUIREMENTS FOR MISTRAL ===\n';
+    
+    // Add all constraints as mandatory requirements
+    constraints.forEach(constraint => {
+      const cleaned = constraint.replace('WICHTIG:', 'MANDATORY:');
+      reinforcement += `• ${cleaned}\n`;
+    });
+    
+    reinforcement += '\n=== END REQUIREMENTS ===\n\nRequest:\n';
+    
+    return reinforcement;
   }
 
   /**

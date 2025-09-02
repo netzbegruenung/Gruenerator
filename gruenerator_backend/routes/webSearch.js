@@ -88,7 +88,8 @@ router.post('/', async (req, res) => {
           { 
             maxResults: searchOptions.maxResults,
             usePrivacyMode: req.body.usePrivacyMode || false
-          }
+          },
+          req
         );
       } catch (summaryError) {
         console.warn(`[web-search] AI summary generation failed:`, summaryError.message);

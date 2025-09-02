@@ -19,10 +19,10 @@ const UnsplashButton = ({ searchTerms }) => {
       onClick={handleUnsplashClick}
       disabled={!searchTerms || searchTerms.length === 0}
       className="unsplash-search-button"
-      aria-label="Unsplash-Bild"
+      aria-label="unsplash"
     >
       <FaUnsplash />
-      Unsplash-Bild
+      unsplash
     </button>
   );
 };

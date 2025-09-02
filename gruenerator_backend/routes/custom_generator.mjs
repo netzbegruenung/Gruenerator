@@ -1,8 +1,23 @@
 import express from 'express';
 import { HTML_FORMATTING_INSTRUCTIONS, extractCitationsFromText, processAIResponseWithCitations } from '../utils/promptUtils.js';
-import { supabaseService } from '../utils/supabaseClient.js';
+import { getPostgresInstance } from '../database/services/PostgresService.js';
 import authMiddlewareModule from '../middleware/authMiddleware.js';
-import { vectorSearchService } from '../services/vectorSearchService.js';
+import { DocumentSearchService } from '../services/DocumentSearchService.js';
+import { createRequire } from 'module';
+
+// Use createRequire for CommonJS modules
+const require = createRequire(import.meta.url);
+
+// Import prompt building utilities
+const { PromptBuilderWithExamples } = require('../utils/promptBuilderCompat');
+
+// Import attachment utilities
+const { processAndBuildAttachments } = require('../utils/attachmentUtils');
+
+const documentSearchService = new DocumentSearchService();
+
+// Get PostgreSQL service instance
+const postgresService = getPostgresInstance();
 
 const { requireAuth } = authMiddlewareModule;
 const router = express.Router();
@@ -29,25 +44,18 @@ const SEARCH_GENERATOR_DOCUMENTS_TOOL = {
 };
 
 router.post('/', async (req, res) => {
-  const { slug, formData } = req.body;
+  const { slug, formData, attachments, useWebSearchTool, usePrivacyMode } = req.body;
   
-  // Check if the correct supabaseService client is initialized
-  if (!supabaseService) {
-    console.error('[custom_generator] Supabase service client not initialized.');
-    return res.status(503).json({ error: 'Custom generator service is currently unavailable due to configuration issues with the service client.' });
-  }
-
   try {
     console.log('[custom_generator] Anfrage erhalten:', { slug, formData });
 
-    // Use supabaseService to fetch generator configuration
-    const { data: generators, error: fetchError } = await supabaseService
-      .from('custom_generators')
-      .select('*')
-      .eq('slug', slug)
-      .limit(1);
+    // Fetch generator configuration from PostgreSQL
+    const generators = await postgresService.query(
+      'SELECT * FROM custom_generators WHERE slug = $1 LIMIT 1',
+      [slug],
+      { table: 'custom_generators' }
+    );
 
-    if (fetchError) throw fetchError;
     if (!generators || generators.length === 0) {
       return res.status(404).json({ error: 'Generator nicht gefunden' });
     }
@@ -55,45 +63,70 @@ router.post('/', async (req, res) => {
     const generator = generators[0];
     
     // Check if user has completed documents (using user-level access pattern)
-    const { data: userDocuments, error: documentsError } = await supabaseService
-      .from('documents')
-      .select('id')
-      .eq('user_id', generator.user_id)
-      .eq('status', 'completed');
-
-    if (documentsError) {
-      console.warn('[custom_generator] Error fetching user documents:', documentsError);
-    }
+    const userDocuments = await postgresService.query(
+      'SELECT id FROM documents WHERE user_id = $1 AND status = $2',
+      [generator.user_id, 'completed'],
+      { table: 'documents' }
+    );
 
     const hasDocuments = userDocuments && userDocuments.length > 0;
     const documentIds = hasDocuments ? userDocuments.map(doc => doc.id) : null;
 
     console.log(`[custom_generator] Generator "${generator.name}" has access to ${hasDocuments ? documentIds.length : 0} user documents`);
 
+    // Process attachments using consolidated utility
+    const attachmentResult = await processAndBuildAttachments(
+      attachments || [], 
+      usePrivacyMode || false, 
+      'custom_generator', 
+      generator.user_id || 'unknown'
+    );
+
+    // Handle attachment errors
+    if (attachmentResult.error) {
+      return res.status(400).json({
+        error: 'Fehler bei der Verarbeitung der Anhänge',
+        details: attachmentResult.error
+      });
+    }
+
     // Platzhalter im Prompt mit den Formulardaten ersetzen
     let processedPrompt = generator.prompt;
-    Object.entries(formData).forEach(([key, value]) => {
+    // Filter out feature flags from form data replacement
+    const cleanFormData = { ...formData };
+    delete cleanFormData.useWebSearchTool;
+    delete cleanFormData.usePrivacyMode;
+    delete cleanFormData.attachments;
+    
+    Object.entries(cleanFormData).forEach(([key, value]) => {
       processedPrompt = processedPrompt.replace(new RegExp(`{{${key}}}`, 'g'), value);
     });
 
-    // Append HTML formatting instructions
-    processedPrompt += `\n\n${HTML_FORMATTING_INSTRUCTIONS}`;
+    // Don't append HTML formatting instructions here - it will be handled by PromptBuilder
+    // processedPrompt += `\n\n${HTML_FORMATTING_INSTRUCTIONS}`;
 
     if (hasDocuments) {
       // Use document-enhanced generation with tool support
       const result = await handleDocumentEnhancedGeneration(
         processedPrompt, 
-        formData, 
+        cleanFormData, 
         generator, 
         documentIds, 
-        req.app.locals.aiWorkerPool
+        req.app.locals.aiWorkerPool,
+        attachmentResult,
+        useWebSearchTool,
+        usePrivacyMode
       );
       res.json(result);
     } else {
       // Use standard generation without documents
       const result = await handleStandardGeneration(
         processedPrompt, 
-        req.app.locals.aiWorkerPool
+        req.app.locals.aiWorkerPool,
+        attachmentResult,
+        useWebSearchTool,
+        usePrivacyMode,
+        cleanFormData
       );
       res.json(result);
     }
@@ -108,18 +141,53 @@ router.post('/', async (req, res) => {
 });
 
 /**
- * Handle standard generation without documents
+ * Handle standard generation without documents but with attachments and features
  */
-async function handleStandardGeneration(processedPrompt, aiWorkerPool) {
+async function handleStandardGeneration(
+  processedPrompt, 
+  aiWorkerPool, 
+  attachmentResult, 
+  useWebSearchTool, 
+  usePrivacyMode,
+  formData
+) {
   console.log('[custom_generator] Using standard generation (no documents)');
+
+  // Use PromptBuilder to handle attachments and web search
+  const builder = new PromptBuilderWithExamples('custom')
+    .enableDebug(process.env.NODE_ENV === 'development')
+    .setSystemRole(processedPrompt)
+    .setFormatting(HTML_FORMATTING_INSTRUCTIONS);
+
+  // Enable web search if requested
+  if (useWebSearchTool && formData) {
+    // Extract search query from form data  
+    const searchQuery = Object.values(formData).filter(v => v && v.trim()).join(' ');
+    if (searchQuery && searchQuery.trim().length > 0) {
+      console.log(`[custom_generator] 🔍 Web search enabled for: "${searchQuery}"`);
+      await builder.handleWebSearch(searchQuery, 'content', aiWorkerPool);
+    }
+  }
+
+  // Add documents if present
+  if (attachmentResult.documents.length > 0) {
+    await builder.addDocuments(attachmentResult.documents, usePrivacyMode);
+  }
+
+  // Build request content
+  const requestContent = `Generiere den gewünschten Text basierend auf den gegebenen Informationen und dem Prompt-Template.
+
+Formulardaten: ${JSON.stringify(formData, null, 2)}`;
+
+  builder.setRequest(requestContent);
+
+  // Build final prompt
+  const { systemPrompt, messages } = builder.build();
 
   const result = await aiWorkerPool.processRequest({
     type: 'custom',
-    systemPrompt: processedPrompt,
-    messages: [{
-      role: 'user',
-      content: 'Bitte generiere den Text basierend auf den gegebenen Informationen.'
-    }],
+    systemPrompt: systemPrompt,
+    messages: messages,
     options: {
       max_tokens: 4000,
       temperature: 0.7
@@ -129,7 +197,9 @@ async function handleStandardGeneration(processedPrompt, aiWorkerPool) {
   console.log('[custom_generator] AI Worker Antwort erhalten:', {
     success: result.success,
     contentLength: result.content?.length,
-    error: result.error
+    error: result.error,
+    hasAttachments: attachmentResult.documents.length > 0,
+    webSearchUsed: useWebSearchTool
   });
 
   if (!result.success) {
@@ -139,30 +209,129 @@ async function handleStandardGeneration(processedPrompt, aiWorkerPool) {
 
   return { 
     content: result.content,
-    metadata: result.metadata
+    metadata: {
+      ...result.metadata,
+      attachmentsSummary: attachmentResult.summary,
+      webSearchUsed: useWebSearchTool,
+      privacyMode: usePrivacyMode
+    }
   };
 }
 
 /**
- * Handle document-enhanced generation with tool support
+ * Handle document-enhanced generation with tool support, attachments and features
  */
-async function handleDocumentEnhancedGeneration(processedPrompt, formData, generator, documentIds, aiWorkerPool) {
+async function handleDocumentEnhancedGeneration(
+  processedPrompt, 
+  formData, 
+  generator, 
+  documentIds, 
+  aiWorkerPool, 
+  attachmentResult, 
+  useWebSearchTool, 
+  usePrivacyMode
+) {
   console.log('[custom_generator] Using document-enhanced generation with tools');
+  
+  // Build enhanced system prompt with attachment and web search context
+  let attachmentContext = '';
+  if (attachmentResult.documents.length > 0) {
+    attachmentContext = `\n\nZUSÄTZLICH: Du hast Zugang zu ${attachmentResult.documents.length} angehängten Dokumenten/Dateien als Kontext. Diese enthalten möglicherweise relevante Informationen für deine Antwort.`;
+  }
+
+  let webSearchContext = '';
+  if (useWebSearchTool) {
+    webSearchContext = `\n\nWEB-SUCHE: Aktuelle Informationen aus dem Internet wurden für dieses Thema abgerufen und stehen als Kontext zur Verfügung.`;
+  }
   
   // Enhanced system prompt that encourages tool use when relevant
   const enhancedSystemPrompt = `${processedPrompt}
 
-WICHTIG: Dieser Generator hat Zugang zu speziellen Dokumenten als Wissensquelle. Falls du spezifische Informationen, Fakten oder Zitate benötigst, um eine hochwertige Antwort zu generieren, verwende das search_generator_documents Tool, um relevante Inhalte aus der Wissensbasis zu finden.
+WICHTIG: Dieser Generator hat Zugang zu speziellen Dokumenten als Wissensquelle. Falls du spezifische Informationen, Fakten oder Zitate benötigst, um eine hochwertige Antwort zu generieren, verwende das search_generator_documents Tool, um relevante Inhalte aus der Wissensbasis zu finden.${attachmentContext}${webSearchContext}
 
 Die Formulardaten sind: ${JSON.stringify(formData, null, 2)}`;
 
-  // Initial conversation state
-  let messages = [{
-    role: "user",
-    content: `Generiere den gewünschten Text basierend auf den gegebenen Formulardaten. Falls spezifische Informationen aus Dokumenten benötigt werden, nutze das search_generator_documents Tool.
+  // Process attachments and web search using PromptBuilder for consistency
+  let additionalContext = '';
+  
+  if (useWebSearchTool) {
+    // Extract search query from form data and perform web search
+    const searchQuery = Object.values(formData).filter(v => v && v.trim()).join(' ');
+    if (searchQuery && searchQuery.trim().length > 0) {
+      console.log(`[custom_generator] 🔍 Web search enabled for: "${searchQuery}"`);
+      
+      try {
+        // Import and use SearXNGWebSearchService directly
+        const searxngWebSearchService = require('../services/searxngWebSearchService');
+        const searchResults = await searxngWebSearchService.performWebSearch(searchQuery, 'content');
+        
+        if (searchResults && searchResults.success) {
+          const searchResultsWithSummary = await searxngWebSearchService.generateAISummary(
+            searchResults, 
+            searchQuery, 
+            aiWorkerPool,
+            {},
+            null // req parameter - using null since we're in custom generator context
+          );
+          
+          if (searchResultsWithSummary.summary && searchResultsWithSummary.summary.generated) {
+            additionalContext += `\n\nWEB-SUCHE ERGEBNISSE für "${searchQuery}":\n${searchResultsWithSummary.summary.text}\n`;
+          }
+        }
+      } catch (webSearchError) {
+        console.warn('[custom_generator] Web search failed, continuing without it:', webSearchError.message);
+      }
+    }
+  }
 
-Formulardaten: ${JSON.stringify(formData, null, 2)}`
-  }];
+  // Add attachment content to messages if present
+  let attachmentMessages = [];
+  if (attachmentResult.documents.length > 0) {
+    console.log(`[custom_generator] Adding ${attachmentResult.documents.length} attachments to conversation`);
+    
+    attachmentResult.documents.forEach((doc, index) => {
+      if (doc.type === 'text') {
+        // Crawled URL content
+        additionalContext += `\n\nANHANG ${index + 1} (${doc.source.metadata?.name || 'Dokument'}):\n${doc.source.text}\n`;
+      } else {
+        // File attachments will be processed by Claude directly
+        attachmentMessages.push({
+          type: doc.type === 'image' ? 'image' : 'document',
+          source: doc.source
+        });
+      }
+    });
+  }
+
+  // Build initial user message with attachments and context
+  let initialMessage;
+  if (attachmentMessages.length > 0) {
+    // Message with file attachments
+    const contentBlocks = [
+      ...attachmentMessages,
+      {
+        type: "text",
+        text: `Generiere den gewünschten Text basierend auf den gegebenen Formulardaten. Falls spezifische Informationen aus Dokumenten benötigt werden, nutze das search_generator_documents Tool.
+
+Formulardaten: ${JSON.stringify(formData, null, 2)}${additionalContext}`
+      }
+    ];
+    initialMessage = {
+      role: "user",
+      content: contentBlocks
+    };
+  } else {
+    // Text-only message
+    initialMessage = {
+      role: "user",
+      content: `Generiere den gewünschten Text basierend auf den gegebenen Formulardaten. Falls spezifische Informationen aus Dokumenten benötigt werden, nutze das search_generator_documents Tool.
+
+Formulardaten: ${JSON.stringify(formData, null, 2)}${additionalContext}`
+    };
+  }
+
+  // Initial conversation state
+  let messages = [initialMessage];
   
   let allSearchResults = [];
   let searchCount = 0;
@@ -272,7 +441,7 @@ async function executeGeneratorDocumentSearch(toolInput, userId, documentIds) {
     console.log(`[custom_generator] Executing document search: "${query}" (mode: ${search_mode}) for ${documentIds.length} documents`);
     
     // Use vector search service with document filtering
-    const searchResults = await vectorSearchService.search({
+    const searchResults = await documentSearchService.search({
       query: query,
       user_id: userId,
       documentIds: documentIds,
@@ -384,7 +553,10 @@ async function processFinalGeneratorResponse(responseContent, allSearchResults, 
       uniqueDocuments: documentContext.length,
       provider: 'custom_generator_with_documents',
       timestamp: new Date().toISOString(),
-      toolUseEnabled: true
+      toolUseEnabled: true,
+      attachmentsSummary: attachmentResult.summary,
+      webSearchUsed: useWebSearchTool,
+      privacyMode: usePrivacyMode
     }
   };
 }
@@ -397,23 +569,14 @@ router.get('/', requireAuth, async (req, res) => {
       return res.status(401).json({ error: 'Nicht authentifiziert.' });
     }
 
-    // Prüfe, ob der Client initialisiert ist
-    if (!supabaseService) {
-      return res.status(500).json({ error: 'Supabase client not initialized. Check backend environment variables.' });
-    }
+    // Fetch all generators for the authenticated user from PostgreSQL
+    const generators = await postgresService.query(
+      'SELECT * FROM custom_generators WHERE user_id = $1 ORDER BY created_at DESC',
+      [userId],
+      { table: 'custom_generators' }
+    );
 
-    // Hole alle Generatoren für den angemeldeten Benutzer
-    const { data: generators, error: fetchError } = await supabaseService
-      .from('custom_generators')
-      .select('*') // Alle Felder für die Verwaltungsansicht
-      .eq('user_id', userId);
-
-    if (fetchError) {
-      console.error('Error fetching custom generators for user:', fetchError);
-      return res.status(500).json({ error: fetchError.message });
-    }
-
-    res.json(generators || []); // Sende direkt das Array
+    res.json(generators || []); // Send the array directly
 
   } catch (error) {
     console.error('Unexpected error fetching custom generators:', error);
@@ -425,28 +588,18 @@ router.get('/', requireAuth, async (req, res) => {
 router.get('/check-slug/:slug', async (req, res) => {
   const { slug } = req.params;
 
-  if (!supabaseService) {
-    console.error('[custom_generator_check_slug] Supabase service client not initialized.');
-    return res.status(503).json({ error: 'Service is currently unavailable.' });
-  }
-
   if (!slug || slug.trim() === '') {
     return res.status(400).json({ error: 'Slug darf nicht leer sein.' });
   }
 
   try {
-    const { data, error } = await supabaseService
-      .from('custom_generators')
-      .select('slug')
-      .eq('slug', slug)
-      .maybeSingle(); // maybeSingle() ist gut, da es null zurückgibt, wenn nichts gefunden wird, anstatt eines Fehlers
+    const result = await postgresService.queryOne(
+      'SELECT slug FROM custom_generators WHERE slug = $1',
+      [slug],
+      { table: 'custom_generators' }
+    );
 
-    if (error) {
-      console.error('[custom_generator_check_slug] Error fetching slug from Supabase:', error);
-      return res.status(500).json({ error: 'Fehler bei der Überprüfung des Slugs.' });
-    }
-
-    res.json({ exists: !!data }); // Gibt true zurück, wenn data ein Objekt ist (also existiert), sonst false
+    res.json({ exists: !!result }); // Returns true if result exists, false otherwise
 
   } catch (error) {
     console.error('[custom_generator_check_slug] Unexpected error:', error);
@@ -459,29 +612,16 @@ router.get('/:slug', async (req, res) => {
   try {
     const { slug } = req.params;
 
-    if (!supabaseService) {
-      console.error('[custom_generator_get_by_slug] Supabase service client not initialized.');
-      return res.status(503).json({ error: 'Service is currently unavailable.' });
-    }
-
     if (!slug || slug.trim() === '') {
       return res.status(400).json({ error: 'Slug darf nicht leer sein.' });
     }
 
-    // Fetch generator by slug
-    const { data: generator, error: fetchError } = await supabaseService
-      .from('custom_generators')
-      .select('*')
-      .eq('slug', slug)
-      .single();
-
-    if (fetchError) {
-      console.error('[custom_generator_get_by_slug] Error fetching generator from Supabase:', fetchError);
-      if (fetchError.code === 'PGRST116') { // Not found
-        return res.status(404).json({ error: 'Generator nicht gefunden.' });
-      }
-      return res.status(500).json({ error: 'Fehler beim Laden des Generators.' });
-    }
+    // Fetch generator by slug from PostgreSQL
+    const generator = await postgresService.queryOne(
+      'SELECT * FROM custom_generators WHERE slug = $1',
+      [slug],
+      { table: 'custom_generators' }
+    );
 
     if (!generator) {
       return res.status(404).json({ error: 'Generator nicht gefunden.' });
@@ -508,34 +648,15 @@ router.delete('/:id', requireAuth, async (req, res) => {
       return res.status(401).json({ error: 'Nicht authentifiziert.' });
     }
 
-    // Supabase client check is good
-    if (!supabaseService) {
-      console.error('[custom_generator_delete] Supabase service client not initialized.');
-      return res.status(500).json({ error: 'Custom generator service is currently unavailable.' });
-    }
+    // Check if generator exists and belongs to user
+    const generator = await postgresService.queryOne(
+      'SELECT user_id FROM custom_generators WHERE id = $1',
+      [id],
+      { table: 'custom_generators' }
+    );
 
-    // Prüfe zuerst, ob der Generator existiert und dem User gehört
-    const { data: generator, error: fetchError } = await supabaseService
-      .from('custom_generators')
-      .select('user_id')
-      .eq('id', id)
-      .single();
-
-    if (fetchError) {
-      console.error('[custom_generator_delete] Error fetching generator for ownership check:', fetchError);
-      if (fetchError.code === 'PGRST116') { // PGRST116: Searched for a single row, but found no rows
-        return res.status(404).json({ error: 'Generator nicht gefunden.' });
-      }
-      // anderer Supabase Fehler beim Holen der Daten
-      return res.status(500).json({ error: 'Fehler beim Überprüfen des Generators: ' + fetchError.message });
-    }
-
-    // Da .single() bei Nicht-Existenz einen Fehler wirft (PGRST116), ist ein expliziter `if (!generator)` Check hier
-    // eigentlich nicht mehr nötig, wenn fetchError.code === 'PGRST116' oben behandelt wird.
-    // Ein zusätzlicher Check schadet aber nicht, falls sich das Verhalten von .single() ändert oder `null` zurückgibt ohne Fehler.
     if (!generator) {
-        console.warn('[custom_generator_delete] Generator object was null after fetch without PGRST116 error, responding 404.');
-        return res.status(404).json({ error: 'Generator nicht gefunden (unexpected state).' });
+      return res.status(404).json({ error: 'Generator nicht gefunden.' });
     }
 
     if (generator.user_id !== userId) {
@@ -543,16 +664,14 @@ router.delete('/:id', requireAuth, async (req, res) => {
       return res.status(403).json({ error: 'Keine Berechtigung zum Löschen dieses Generators.' });
     }
 
-    // Lösche den Generator
-    const { error: deleteError } = await supabaseService
-      .from('custom_generators')
-      .delete()
-      .eq('id', id)
-      .eq('user_id', userId); // Stellt sicher, dass der User nur eigene löscht
+    // Delete the generator
+    const result = await postgresService.delete('custom_generators', { 
+      id: id, 
+      user_id: userId 
+    });
 
-    if (deleteError) {
-      console.error('[custom_generator_delete] Error deleting custom generator from Supabase:', deleteError);
-      return res.status(500).json({ error: 'Fehler beim Löschen des Generators: ' + deleteError.message });
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Generator konnte nicht gefunden oder gelöscht werden.' });
     }
 
     console.log(`[custom_generator_delete] Generator ${id} successfully deleted by user ${userId}`);
@@ -572,11 +691,6 @@ router.post('/create', requireAuth, async (req, res) => {
       return res.status(401).json({ error: 'Nicht authentifiziert.' });
     }
 
-    if (!supabaseService) {
-      console.error('[custom_generator_create] Supabase service client not initialized.');
-      return res.status(500).json({ error: 'Custom generator service is currently unavailable.' });
-    }
-
     const { name, slug, form_schema, prompt, title, description, contact_email } = req.body;
 
     // Validate required fields
@@ -594,17 +708,11 @@ router.post('/create', requireAuth, async (req, res) => {
     }
 
     // Check if slug already exists for this user
-    const { data: existingGenerator, error: slugCheckError } = await supabaseService
-      .from('custom_generators')
-      .select('id, slug')
-      .eq('slug', slug)
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    if (slugCheckError) {
-      console.error('[custom_generator_create] Error checking slug uniqueness:', slugCheckError);
-      return res.status(500).json({ error: 'Fehler bei der Slug-Überprüfung: ' + slugCheckError.message });
-    }
+    const existingGenerator = await postgresService.queryOne(
+      'SELECT id, slug FROM custom_generators WHERE slug = $1 AND user_id = $2',
+      [slug, userId],
+      { table: 'custom_generators' }
+    );
 
     if (existingGenerator) {
       return res.status(409).json({ 
@@ -617,28 +725,17 @@ router.post('/create', requireAuth, async (req, res) => {
       user_id: userId,
       name: name.trim(),
       slug: slug.trim(),
-      form_schema,
+      form_schema: JSON.stringify(form_schema),
       prompt: prompt.trim(),
       title: title ? title.trim() : null,
       description: description ? description.trim() : null,
       contact_email: contact_email ? contact_email.trim() : null,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      is_active: true,
+      usage_count: 0
     };
 
     // Insert the generator
-    const { data: newGenerator, error: insertError } = await supabaseService
-      .from('custom_generators')
-      .insert(generatorData)
-      .select('*')
-      .single();
-
-    if (insertError) {
-      console.error('[custom_generator_create] Error creating custom generator:', insertError);
-      return res.status(500).json({ 
-        error: 'Fehler beim Erstellen des Generators: ' + insertError.message 
-      });
-    }
+    const newGenerator = await postgresService.insert('custom_generators', generatorData);
 
     console.log(`[custom_generator_create] Successfully created generator ${newGenerator.id} (${newGenerator.name}) for user ${userId}`);
     
@@ -669,24 +766,15 @@ router.get('/:id/documents', requireAuth, async (req, res) => {
       return res.status(401).json({ error: 'Nicht authentifiziert.' });
     }
 
-    if (!supabaseService) {
-      console.error('[custom_generator_documents_get] Supabase service client not initialized.');
-      return res.status(500).json({ error: 'Custom generator service is currently unavailable.' });
-    }
-
     // First verify the generator exists and belongs to the user
-    const { data: generator, error: generatorError } = await supabaseService
-      .from('custom_generators')
-      .select('id, user_id, name')
-      .eq('id', id)
-      .single();
+    const generator = await postgresService.queryOne(
+      'SELECT id, user_id, name FROM custom_generators WHERE id = $1',
+      [id],
+      { table: 'custom_generators' }
+    );
 
-    if (generatorError) {
-      console.error('[custom_generator_documents_get] Error fetching generator:', generatorError);
-      if (generatorError.code === 'PGRST116') {
-        return res.status(404).json({ error: 'Generator nicht gefunden.' });
-      }
-      return res.status(500).json({ error: 'Fehler beim Überprüfen des Generators: ' + generatorError.message });
+    if (!generator) {
+      return res.status(404).json({ error: 'Generator nicht gefunden.' });
     }
 
     if (generator.user_id !== userId) {
@@ -695,17 +783,11 @@ router.get('/:id/documents', requireAuth, async (req, res) => {
     }
 
     // Fetch user's completed documents (using existing user-level access pattern)
-    const { data: documents, error: documentsError } = await supabaseService
-      .from('documents')
-      .select('id, title, filename, status, page_count, created_at')
-      .eq('user_id', generator.user_id)
-      .eq('status', 'completed')
-      .order('created_at', { ascending: false });
-
-    if (documentsError) {
-      console.error('[custom_generator_documents_get] Error fetching documents:', documentsError);
-      return res.status(500).json({ error: 'Fehler beim Laden der Dokumente: ' + documentsError.message });
-    }
+    const documents = await postgresService.query(
+      'SELECT id, title, filename, status, page_count, created_at FROM documents WHERE user_id = $1 AND status = $2 ORDER BY created_at DESC',
+      [generator.user_id, 'completed'],
+      { table: 'documents' }
+    );
 
     console.log(`[custom_generator_documents_get] Found ${documents?.length || 0} documents for generator ${generator.name}`);
     res.json({ 
@@ -734,28 +816,19 @@ router.post('/:id/documents', requireAuth, async (req, res) => {
       return res.status(401).json({ error: 'Nicht authentifiziert.' });
     }
 
-    if (!supabaseService) {
-      console.error('[custom_generator_documents_post] Supabase service client not initialized.');
-      return res.status(500).json({ error: 'Custom generator service is currently unavailable.' });
-    }
-
     if (!documentIds || !Array.isArray(documentIds) || documentIds.length === 0) {
       return res.status(400).json({ error: 'Dokument-IDs sind erforderlich.' });
     }
 
     // First verify the generator exists and belongs to the user
-    const { data: generator, error: generatorError } = await supabaseService
-      .from('custom_generators')
-      .select('id, user_id, name')
-      .eq('id', id)
-      .single();
+    const generator = await postgresService.queryOne(
+      'SELECT id, user_id, name FROM custom_generators WHERE id = $1',
+      [id],
+      { table: 'custom_generators' }
+    );
 
-    if (generatorError) {
-      console.error('[custom_generator_documents_post] Error fetching generator:', generatorError);
-      if (generatorError.code === 'PGRST116') {
-        return res.status(404).json({ error: 'Generator nicht gefunden.' });
-      }
-      return res.status(500).json({ error: 'Fehler beim Überprüfen des Generators: ' + generatorError.message });
+    if (!generator) {
+      return res.status(404).json({ error: 'Generator nicht gefunden.' });
     }
 
     if (generator.user_id !== userId) {
@@ -764,16 +837,11 @@ router.post('/:id/documents', requireAuth, async (req, res) => {
     }
 
     // Verify all documents exist and belong to the user
-    const { data: userDocuments, error: documentsError } = await supabaseService
-      .from('documents')
-      .select('id, title, status')
-      .eq('user_id', userId)
-      .in('id', documentIds);
-
-    if (documentsError) {
-      console.error('[custom_generator_documents_post] Error verifying documents:', documentsError);
-      return res.status(500).json({ error: 'Fehler beim Überprüfen der Dokumente: ' + documentsError.message });
-    }
+    const userDocuments = await postgresService.query(
+      `SELECT id, title, status FROM documents WHERE user_id = $1 AND id = ANY($2::uuid[])`,
+      [userId, documentIds],
+      { table: 'documents' }
+    );
 
     if (!userDocuments || userDocuments.length !== documentIds.length) {
       return res.status(400).json({ error: 'Einige Dokumente wurden nicht gefunden oder gehören nicht zu Ihnen.' });
@@ -805,31 +873,22 @@ router.post('/:id/documents', requireAuth, async (req, res) => {
 // Remove a document from a custom generator
 router.delete('/:id/documents/:documentId', requireAuth, async (req, res) => {
   try {
-    const { id, documentId } = req.params;
+    const { id } = req.params;
     const userId = req.user?.id;
 
     if (!userId) {
       return res.status(401).json({ error: 'Nicht authentifiziert.' });
     }
 
-    if (!supabaseService) {
-      console.error('[custom_generator_documents_delete] Supabase service client not initialized.');
-      return res.status(500).json({ error: 'Custom generator service is currently unavailable.' });
-    }
-
     // First verify the generator exists and belongs to the user
-    const { data: generator, error: generatorError } = await supabaseService
-      .from('custom_generators')
-      .select('id, user_id, name')
-      .eq('id', id)
-      .single();
+    const generator = await postgresService.queryOne(
+      'SELECT id, user_id, name FROM custom_generators WHERE id = $1',
+      [id],
+      { table: 'custom_generators' }
+    );
 
-    if (generatorError) {
-      console.error('[custom_generator_documents_delete] Error fetching generator:', generatorError);
-      if (generatorError.code === 'PGRST116') {
-        return res.status(404).json({ error: 'Generator nicht gefunden.' });
-      }
-      return res.status(500).json({ error: 'Fehler beim Überprüfen des Generators: ' + generatorError.message });
+    if (!generator) {
+      return res.status(404).json({ error: 'Generator nicht gefunden.' });
     }
 
     if (generator.user_id !== userId) {

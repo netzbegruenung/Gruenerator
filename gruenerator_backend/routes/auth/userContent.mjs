@@ -1,7 +1,12 @@
 import express from 'express';
-import { supabaseService } from '../../utils/supabaseClient.js';
+import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { getProfileService } from '../../services/ProfileService.js';
+import { getUserKnowledgeService } from '../../services/userKnowledgeService.js';
 import authMiddlewareModule from '../../middleware/authMiddleware.js';
 import { v4 as uuidv4 } from 'uuid';
+import { getQdrantInstance } from '../../database/services/QdrantService.js';
+import { fastEmbedService } from '../../services/FastEmbedService.js';
+import { smartChunkDocument } from '../../utils/textChunker.js';
 
 const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
 
@@ -22,7 +27,7 @@ router.get('/instructions-status/:instructionType', ensureAuthenticated, async (
     const { instructionType } = req.params;
     
     // Validate instruction type
-    const validInstructionTypes = ['antrag', 'social', 'universal', 'gruenejugend'];
+    const validInstructionTypes = ['antrag', 'social', 'universal', 'gruenejugend', 'custom_generator'];
     if (!validInstructionTypes.includes(instructionType)) {
       return res.status(400).json({
         success: false,
@@ -38,18 +43,25 @@ router.get('/instructions-status/:instructionType', ensureAuthenticated, async (
       gruenejugend: ['custom_gruenejugend_prompt']
     };
     
+    // Special handling for custom_generator - they don't use traditional instruction fields
+    if (instructionType === 'custom_generator') {
+      return res.json({
+        success: true,
+        hasInstructions: false, // Custom generators manage their own instructions
+        hasGroupInstructions: false,
+        instructions: {
+          user: false,
+          groups: []
+        },
+        message: 'Custom generators manage their own instruction system'
+      });
+    }
+    
     const fieldsToCheck = fieldMapping[instructionType];
     
     // Check user instructions in profiles table
-    const { data: profile, error: profileError } = await supabaseService
-      .from('profiles')
-      .select(fieldsToCheck.join(', '))
-      .eq('id', userId)
-      .single();
-    
-    if (profileError && profileError.code !== 'PGRST116') {
-      throw new Error(`Failed to check user instructions: ${profileError.message}`);
-    }
+    const profileService = getProfileService();
+    const profile = await profileService.getProfileById(userId);
     
     // Check if user has any instructions for this type
     const hasUserInstructions = fieldsToCheck.some(field => {
@@ -58,14 +70,14 @@ router.get('/instructions-status/:instructionType', ensureAuthenticated, async (
     });
     
     // Get user's groups
-    const { data: memberships, error: membershipError } = await supabaseService
-      .from('group_memberships')
-      .select('group_id')
-      .eq('user_id', userId);
+    const postgres = getPostgresInstance();
+    await postgres.ensureInitialized();
     
-    if (membershipError) {
-      throw new Error(`Failed to fetch user groups: ${membershipError.message}`);
-    }
+    const memberships = await postgres.query(
+      'SELECT group_id FROM group_memberships WHERE user_id = $1 AND is_active = true',
+      [userId],
+      { table: 'group_memberships' }
+    );
     
     const groupIds = memberships?.map(m => m.group_id) || [];
     let groupsWithInstructions = [];
@@ -81,15 +93,14 @@ router.get('/instructions-status/:instructionType', ensureAuthenticated, async (
       
       const groupFieldsToCheck = groupFieldMapping[instructionType];
       
-      if (groupFieldsToCheck) {
-        const { data: groupInstructions, error: groupInstructionsError } = await supabaseService
-          .from('group_instructions')
-          .select(`group_id, ${groupFieldsToCheck.join(', ')}`)
-          .in('group_id', groupIds);
-        
-        if (groupInstructionsError) {
-          console.warn(`[Instructions Status] Warning checking group instructions for ${instructionType}:`, groupInstructionsError);
-        } else {
+      if (groupFieldsToCheck && groupIds.length > 0) {
+        try {
+          const groupInstructions = await postgres.query(
+            `SELECT group_id, ${groupFieldsToCheck.join(', ')} FROM group_instructions WHERE group_id = ANY($1) AND is_active = true`,
+            [groupIds],
+            { table: 'group_instructions' }
+          );
+          
           // Filter groups that have instructions for this type
           groupsWithInstructions = groupInstructions
             ?.filter(group => {
@@ -99,6 +110,8 @@ router.get('/instructions-status/:instructionType', ensureAuthenticated, async (
               });
             })
             ?.map(group => group.group_id) || [];
+        } catch (groupInstructionsError) {
+          console.warn(`[Instructions Status] Warning checking group instructions for ${instructionType}:`, groupInstructionsError);
         }
       }
     }
@@ -199,35 +212,52 @@ router.get('/database', ensureAuthenticated, async (req, res) => {
         LIMIT ${parseInt(limit)}
       `;
 
-      const { data: rankedData, error: sqlError } = await supabaseService.rpc('execute_sql', { sql });
-      if (!sqlError) {
+      try {
+        const postgres = getPostgresInstance();
+        await postgres.ensureInitialized();
+        const rankedData = await postgres.query(sql);
         return res.json({ success: true, data: rankedData || [] });
+      } catch (sqlError) {
+        console.warn('[Gallery] Direct SQL query failed, falling back to simpler query:', sqlError?.message || sqlError);
       }
-      console.warn('[Gallery] execute_sql RPC unavailable or failed, falling back to query builder:', sqlError?.message || sqlError);
     }
 
-    // No search term: use query builder
-    let query = supabaseService
-      .from('database')
-      .select('id, type, title, description, content_data, categories, tags, created_at, status, is_example, is_private')
-      .order('created_at', { ascending: false })
-      .limit(parseInt(limit));
-
+    // No search term: use direct PostgreSQL query
+    const postgres = getPostgresInstance();
+    await postgres.ensureInitialized();
+    
+    const conditions = [];
+    const params = [];
+    let paramIndex = 1;
+    
     if (status) {
-      query = query.eq('status', status);
+      conditions.push(`status = $${paramIndex++}`);
+      params.push(status);
     }
     if (onlyExamples === 'true') {
-      query = query.eq('is_example', true);
+      conditions.push(`is_example = $${paramIndex++}`);
+      params.push(true);
     }
     if (typeList.length > 0) {
-      query = query.in('type', typeList);
+      conditions.push(`type = ANY($${paramIndex++})`);
+      params.push(typeList);
     }
     if (category && category !== 'all') {
-      query = query.contains('categories', [category]);
+      conditions.push(`categories @> $${paramIndex++}::jsonb`);
+      params.push(JSON.stringify([category]));
     }
-
-    const { data, error } = await query;
-    if (error) throw error;
+    
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const simpleQuery = `
+      SELECT id, type, title, description, content_data, categories, tags, created_at, status, is_example, is_private
+      FROM database
+      ${whereClause}
+      ORDER BY created_at DESC
+      LIMIT $${paramIndex}
+    `;
+    params.push(parseInt(limit));
+    
+    const data = await postgres.query(simpleQuery, params, { table: 'database' });
 
     // If we had a search term, apply ranking in Node as fallback
     let responseData = data || [];
@@ -274,22 +304,13 @@ router.get('/anweisungen-wissen', ensureAuthenticated, async (req, res) => {
   try {
     const userId = req.user.id;
     
-    // Fetch profile prompts
-    const { data: profileData, error: profileErr } = await supabaseService
-      .from('profiles')
-      .select('custom_antrag_prompt, custom_antrag_gliederung, custom_social_prompt, custom_universal_prompt, custom_gruenejugend_prompt, presseabbinder')
-      .eq('id', userId)
-      .maybeSingle();
-    if (profileErr) throw profileErr;
-
-    // Fetch knowledge entries (max 3)
-    const { data: knowledgeRows, error: knowledgeErr } = await supabaseService
-      .from('user_knowledge')
-      .select('id, title, content, created_at')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: true })
-      .limit(3);
-    if (knowledgeErr) throw knowledgeErr;
+    // Get profile prompts using ProfileService (single source of truth)
+    const profileService = getProfileService();
+    const profileData = await profileService.getProfileById(userId);
+    
+    // Get knowledge entries using UserKnowledgeService (single source of truth)
+    const userKnowledgeService = getUserKnowledgeService();
+    const knowledgeEntries = await userKnowledgeService.getUserKnowledge(userId);
 
     res.json({
       success: true,
@@ -299,7 +320,14 @@ router.get('/anweisungen-wissen', ensureAuthenticated, async (req, res) => {
       universalPrompt: profileData?.custom_universal_prompt || '',
       gruenejugendPrompt: profileData?.custom_gruenejugend_prompt || '',
       presseabbinder: profileData?.presseabbinder || '',
-      knowledge: knowledgeRows || []
+      knowledge: knowledgeEntries?.map(entry => ({
+        id: entry.id,
+        title: entry.title,
+        content: entry.content,
+        knowledge_type: entry.knowledge_type,
+        tags: entry.tags,
+        created_at: entry.created_at
+      })) || []
     });
     
   } catch (error) {
@@ -318,12 +346,10 @@ router.put('/anweisungen-wissen', ensureAuthenticated, async (req, res) => {
     const userId = req.user.id;
     const { custom_antrag_prompt, custom_antrag_gliederung, custom_social_prompt, custom_universal_prompt, custom_gruenejugend_prompt, presseabbinder, knowledge = [] } = req.body || {};
     console.log('[User Content /anweisungen-wissen PUT] Incoming request body for user:', userId);
-    console.log(JSON.stringify(req.body, null, 2));
 
-    // 1. Upsert profile prompts
+    // 1. Update profile prompts using ProfileService
+    const profileService = getProfileService();
     const profilePayload = {
-      id: userId,
-      updated_at: new Date().toISOString(),
       custom_antrag_prompt: custom_antrag_prompt ?? null,
       custom_antrag_gliederung: custom_antrag_gliederung ?? null,
       custom_social_prompt: custom_social_prompt ?? null,
@@ -331,74 +357,55 @@ router.put('/anweisungen-wissen', ensureAuthenticated, async (req, res) => {
       custom_gruenejugend_prompt: custom_gruenejugend_prompt ?? null,
       presseabbinder: presseabbinder ?? null,
     };
-    console.log('[User Content /anweisungen-wissen PUT] Prepared profile payload:');
-    console.log(JSON.stringify(profilePayload, null, 2));
     
-    const { error: profileErr } = await supabaseService.from('profiles').upsert(profilePayload);
-    if (profileErr) throw profileErr;
+    await profileService.updateProfile(userId, profilePayload);
+    console.log(`[User Content /anweisungen-wissen PUT] Updated profile for user ${userId}`);
 
-    // 2. Sync knowledge entries: a full replace is simpler and more robust.
+    // 2. Handle knowledge entries using UserKnowledgeService (single source of truth)
+    const userKnowledgeService = getUserKnowledgeService();
+    let knowledgeResults = { processed: 0, deleted: 0 };
     
-    // Filter out completely empty entries submitted by the frontend
-    const validEntries = knowledge.filter(entry => 
-      (entry.title || '').trim() || (entry.content || '').trim()
-    );
-
-    const submittedIds = validEntries
-      .map(entry => entry.id)
-      .filter(id => id && !(typeof id === 'string' && id.startsWith('new-')));
-
-    // 3. Delete entries that are no longer present in the submitted list
-    const deleteQuery = supabaseService
-        .from('user_knowledge')
-        .delete()
-        .eq('user_id', userId);
-    
-    if (submittedIds.length > 0) {
-        deleteQuery.not('id', 'in', `(${submittedIds.join(',')})`);
-    }
-    console.log(`[User Content /anweisungen-wissen PUT] Deleting knowledge entries for user ${userId} NOT in this list of IDs: [${submittedIds.join(',')}]`);
-
-    const { error: deleteErr } = await deleteQuery;
-    if (deleteErr) throw deleteErr;
-    
-    // 4. Upsert existing and insert new entries
-    if (validEntries.length > 0) {
-        const toUpdate = validEntries
-            .filter(e => e.id && !(typeof e.id === 'string' && e.id.startsWith('new-')))
-            .map(e => ({
-                id: e.id,
-                user_id: userId,
-                title: e.title?.trim() || 'Unbenannter Eintrag',
-                content: e.content?.trim() || '',
-            }));
-
-        const toInsert = validEntries
-            .filter(e => !e.id || (typeof e.id === 'string' && e.id.startsWith('new-')))
-            .map(e => ({
-                user_id: userId,
-                title: e.title?.trim() || 'Unbenannter Eintrag',
-                content: e.content?.trim() || '',
-            }));
-
-        if (toUpdate.length > 0) {
-            console.log('[User Content /anweisungen-wissen PUT] Updating knowledge entries:');
-            console.log(JSON.stringify(toUpdate, null, 2));
-            const { error: updateErr } = await supabaseService.from('user_knowledge').upsert(toUpdate);
-            if (updateErr) throw updateErr;
+    if (knowledge && Array.isArray(knowledge)) {
+      try {
+        // Get existing knowledge entries
+        const existingKnowledge = await userKnowledgeService.getUserKnowledge(userId);
+        const existingIds = existingKnowledge.map(k => k.id);
+        
+        // Filter valid entries (non-empty)
+        const validEntries = knowledge.filter(entry => 
+          (entry.title || '').trim() || (entry.content || '').trim()
+        );
+        
+        // Get IDs of entries being submitted
+        const submittedIds = validEntries
+          .map(entry => entry.id)
+          .filter(id => id && !(typeof id === 'string' && id.startsWith('new-')));
+        
+        // Delete entries not in submission
+        const toDelete = existingIds.filter(id => !submittedIds.includes(id));
+        for (const deleteId of toDelete) {
+          await userKnowledgeService.deleteUserKnowledge(userId, deleteId);
+          knowledgeResults.deleted++;
         }
-
-        if (toInsert.length > 0) {
-            console.log('[User Content /anweisungen-wissen PUT] Inserting new knowledge entries:');
-            console.log(JSON.stringify(toInsert, null, 2));
-            const { error: insertErr } = await supabaseService.from('user_knowledge').insert(toInsert);
-            if (insertErr) throw insertErr;
+        
+        // Save/update all valid entries
+        for (const entry of validEntries) {
+          await userKnowledgeService.saveUserKnowledge(userId, entry);
+          knowledgeResults.processed++;
         }
+        
+        console.log(`[User Content /anweisungen-wissen PUT] Knowledge processed: ${knowledgeResults.processed} saved, ${knowledgeResults.deleted} deleted`);
+      } catch (error) {
+        console.error(`[User Content /anweisungen-wissen PUT] Knowledge processing failed:`, error.message);
+        throw error;
+      }
     }
 
     res.json({ 
       success: true, 
-      message: 'Profil gespeichert' 
+      message: 'Profil gespeichert',
+      knowledge_entries_processed: knowledgeResults.processed,
+      knowledge_entries_deleted: knowledgeResults.deleted
     });
     
   } catch (error) {
@@ -424,12 +431,11 @@ router.delete('/anweisungen-wissen/:id', ensureAuthenticated, async (req, res) =
       });
     }
 
-    const { error } = await supabaseService
-      .from('user_knowledge')
-      .delete()
-      .match({ id: id, user_id: userId });
-
-    if (error) throw error;
+    // Use UserKnowledgeService to delete with vector cleanup
+    const userKnowledgeService = getUserKnowledgeService();
+    await userKnowledgeService.ensureInitialized();
+    
+    await userKnowledgeService.deleteUserKnowledge(userId, id);
 
     res.json({ 
       success: true, 
@@ -615,39 +621,115 @@ router.post('/save-to-library', ensureAuthenticated, async (req, res) => {
     const characterCount = plainTextContent.length;
 
     // Insert into user_documents table
-    const { data, error } = await supabaseService
-      .from('user_documents')
-      .insert([{
-        user_id: userId,
-        document_id: documentId,
-        title: finalTitle.trim(),
-        document_type: type, // Use original frontend type directly
-        content: plainTextContent,
-        content_html: content.trim(),
-        word_count: wordCount,
-        character_count: characterCount,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }])
-      .select()
-      .single();
+    const postgres = getPostgresInstance();
+    await postgres.ensureInitialized();
+    
+    const data = await postgres.insert('user_documents', {
+      id: documentId, // PostgreSQL uses id instead of document_id
+      user_id: userId,
+      title: finalTitle.trim(),
+      document_type: type, // Use original frontend type directly
+      content: content.trim() // Store the HTML content in the content field
+      // Don't include created_at and updated_at - PostgresService handles timestamps
+    });
 
-    if (error) {
-      console.error('[User Content /save-to-library POST] Database error:', error);
-      throw error;
-    }
+    console.log(`[User Content /save-to-library POST] Successfully saved text ${data.id} for user ${userId} with title: "${finalTitle}" (type: ${type})`);
 
-    console.log(`[User Content /save-to-library POST] Successfully saved text ${data.document_id} for user ${userId} with title: "${finalTitle}" (type: ${type})`);
+    // Vectorize and store in Qdrant (async, don't block response)
+    setImmediate(async () => {
+      try {
+        // Initialize services
+        const qdrant = getQdrantInstance();
+        await fastEmbedService.init();
+        
+        // Only vectorize if Qdrant is available
+        if (qdrant.isAvailable()) {
+          // Remove HTML tags for embedding (content now contains HTML)
+          const textForEmbedding = content.replace(/<[^>]*>/g, '').trim();
+          
+          if (textForEmbedding.length === 0) {
+            console.log(`[Vectorization] Skipping empty text for document ${documentId}`);
+            return;
+          }
+          
+          // Smart chunking based on text length
+          let chunks;
+          if (textForEmbedding.length < 2000) {
+            // For short texts, use as single chunk
+            chunks = [{
+              text: textForEmbedding,
+              index: 0,
+              tokens: Math.ceil(textForEmbedding.length / 4),
+              metadata: {}
+            }];
+          } else {
+            // For longer texts, use smart chunking
+            chunks = smartChunkDocument(textForEmbedding, {
+              maxTokens: 600,
+              overlapTokens: 150,
+              preserveStructure: true
+            });
+          }
+          
+          if (chunks.length === 0) {
+            console.log(`[Vectorization] No chunks generated for document ${documentId}`);
+            return;
+          }
+          
+          // Generate embeddings in batches
+          const batchSize = 10;
+          const allChunksWithEmbeddings = [];
+          
+          for (let i = 0; i < chunks.length; i += batchSize) {
+            const batch = chunks.slice(i, i + batchSize);
+            const texts = batch.map(chunk => chunk.text);
+            const embeddings = await fastEmbedService.generateBatchEmbeddings(texts, 'search_document');
+            
+            const chunksWithEmbeddings = batch.map((chunk, idx) => ({
+              text: chunk.text,
+              embedding: embeddings[idx],
+              token_count: chunk.tokens,
+              metadata: {
+                title: finalTitle,
+                document_type: type,
+                word_count: wordCount,
+                character_count: characterCount,
+                chunk_of_total: `${chunk.index + 1}/${chunks.length}`,
+                ...(chunk.metadata || {})
+              }
+            }));
+            
+            allChunksWithEmbeddings.push(...chunksWithEmbeddings);
+          }
+          
+          // Index in Qdrant with user_texts collection
+          await qdrant.indexDocumentChunks(
+            documentId,
+            allChunksWithEmbeddings,
+            userId,
+            'user_texts'  // Use dedicated collection
+          );
+          
+          console.log(`[Vectorization] Vectorized ${chunks.length} chunks for document ${documentId} in user_texts collection`);
+        } else {
+          console.log(`[Vectorization] Qdrant unavailable, skipping vectorization for document ${documentId}`);
+        }
+      } catch (vectorError) {
+        // Log but don't fail the save operation since it's already completed
+        console.error('[Vectorization] Failed (non-critical):', vectorError.message);
+      }
+    });
+
     res.json({ 
       success: true, 
       message: 'Text erfolgreich in der Bibliothek gespeichert.',
       data: {
-        id: data.document_id,
+        id: data.id,
         title: data.title,
         type: data.document_type,
         created_at: data.created_at,
-        word_count: data.word_count,
-        character_count: data.character_count
+        word_count: wordCount,
+        character_count: characterCount
       },
       detectedTitle: manualTitle ? false : true, // Indicate if title was auto-detected
       usedTitle: finalTitle
@@ -669,36 +751,49 @@ router.get('/saved-texts', ensureAuthenticated, async (req, res) => {
     const userId = req.user.id;
     const { page = 1, limit = 20, type } = req.query;
     
-    let query = supabaseService
-      .from('database')
-      .select('id, title, description, content_data, type, created_at')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
-
+    const postgres = getPostgresInstance();
+    await postgres.ensureInitialized();
+    
+    const conditions = ['user_id = $1'];
+    const params = [userId];
+    let paramIndex = 2;
+    
     if (type) {
-      query = query.eq('type', type);
+      conditions.push(`document_type = $${paramIndex++}`);
+      params.push(type);
     }
-
+    
     // Pagination
     const offset = (page - 1) * limit;
-    query = query.range(offset, offset + limit - 1);
-
-    const { data, error } = await query;
-
-    if (error) {
-      console.error('[User Content /saved-texts GET] Database error:', error);
-      throw error;
-    }
+    
+    const query = `
+      SELECT id as document_id, title, content, document_type, created_at
+      FROM user_documents
+      WHERE ${conditions.join(' AND ')} AND is_active = true
+      ORDER BY created_at DESC
+      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+    `;
+    params.push(parseInt(limit), offset);
+    
+    const data = await postgres.query(query, params, { table: 'user_documents' });
 
     // Transform data to match expected format
-    const transformedData = data?.map(item => ({
-      id: item.id,
-      title: item.title,
-      content: item.content_data?.content || '',
-      type: item.type,
-      created_at: item.created_at,
-      description: item.description
-    })) || [];
+    const transformedData = data?.map(item => {
+      // Compute word and character counts on-the-fly from content
+      const plainText = (item.content || '').replace(/<[^>]*>/g, '').trim();
+      const wordCount = plainText.split(/\s+/).filter(word => word.length > 0).length;
+      const characterCount = plainText.length;
+      
+      return {
+        id: item.document_id,
+        title: item.title,
+        content: item.content || '',
+        type: item.document_type,
+        created_at: item.created_at,
+        word_count: wordCount,
+        character_count: characterCount
+      };
+    }) || [];
 
     res.json({ 
       success: true, 
@@ -732,15 +827,27 @@ router.delete('/saved-texts/:id', ensureAuthenticated, async (req, res) => {
       });
     }
 
-    const { error } = await supabaseService
-      .from('database')
-      .delete()
-      .match({ id: id, user_id: userId });
-
-    if (error) {
-      console.error(`[User Content /saved-texts/${id} DELETE] Database error:`, error);
-      throw error;
+    const postgres = getPostgresInstance();
+    await postgres.ensureInitialized();
+    
+    const result = await postgres.delete('user_documents', { id: id, user_id: userId });
+    
+    if (result.changes === 0) {
+      console.warn(`[User Content /saved-texts/${id} DELETE] No document found or access denied`);
     }
+
+    // Cleanup vectors from Qdrant (async, don't block response)
+    setImmediate(async () => {
+      try {
+        const qdrant = getQdrantInstance();
+        if (qdrant.isAvailable()) {
+          await qdrant.deleteDocument(id, 'user_texts');
+          console.log(`[Vector Cleanup] Removed vectors for document ${id} from user_texts collection`);
+        }
+      } catch (vectorError) {
+        console.error('[Vector Cleanup] Failed (non-critical):', vectorError.message);
+      }
+    });
 
     res.json({ 
       success: true, 
@@ -753,6 +860,60 @@ router.delete('/saved-texts/:id', ensureAuthenticated, async (req, res) => {
       success: false, 
       message: 'Fehler beim Löschen des Textes.', 
       details: error.message 
+    });
+  }
+});
+
+// Update saved text metadata (title, type, etc.)
+router.post('/saved-texts/:id/metadata', ensureAuthenticated, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { id } = req.params;
+    const { title, document_type } = req.body;
+
+    if (!title && !document_type) {
+      return res.status(400).json({
+        success: false,
+        message: 'Title or document_type is required'
+      });
+    }
+
+    const postgres = getPostgresInstance();
+    await postgres.ensureInitialized();
+
+    // First verify the document belongs to the user
+    const existingDoc = await postgres.query(
+      'SELECT id FROM user_documents WHERE id = $1 AND user_id = $2',
+      [id, userId],
+      { table: 'user_documents' }
+    );
+
+    if (!existingDoc.length) {
+      return res.status(404).json({
+        success: false,
+        message: 'Document not found or access denied'
+      });
+    }
+
+    // Update document
+    const updateData = {};
+    if (title) updateData.title = title.trim();
+    if (document_type) updateData.document_type = document_type;
+    updateData.updated_at = new Date();
+
+    const result = await postgres.update('user_documents', updateData, { id, user_id: userId });
+
+    res.json({
+      success: true,
+      data: result,
+      message: 'Document metadata updated successfully'
+    });
+
+  } catch (error) {
+    console.error(`[User Content /saved-texts/${req.params.id}/metadata POST] Error:`, error.message);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to update document metadata'
     });
   }
 });
@@ -780,17 +941,15 @@ router.delete('/saved-texts/bulk', ensureAuthenticated, async (req, res) => {
 
     console.log(`[User Content /saved-texts/bulk DELETE] Bulk delete request for ${ids.length} texts from user ${userId}`);
 
+    const postgres = getPostgresInstance();
+    await postgres.ensureInitialized();
+    
     // First, verify all texts belong to the user
-    const { data: verifyTexts, error: verifyError } = await supabaseService
-      .from('database')
-      .select('id')
-      .eq('user_id', userId)
-      .in('id', ids);
-
-    if (verifyError) {
-      console.error('[User Content /saved-texts/bulk DELETE] Error verifying text ownership:', verifyError);
-      throw new Error('Failed to verify text ownership');
-    }
+    const verifyTexts = await postgres.query(
+      'SELECT id FROM user_documents WHERE user_id = $1 AND id = ANY($2) AND is_active = true',
+      [userId, ids],
+      { table: 'user_documents' }
+    );
 
     const ownedIds = verifyTexts.map(text => text.id);
     const unauthorizedIds = ids.filter(id => !ownedIds.includes(id));
@@ -803,23 +962,42 @@ router.delete('/saved-texts/bulk', ensureAuthenticated, async (req, res) => {
       });
     }
 
-    // Perform bulk delete
-    const { data: deletedData, error: deleteError } = await supabaseService
-      .from('database')
-      .delete()
-      .eq('user_id', userId)
-      .in('id', ids)
-      .select('id');
+    // Perform bulk delete using soft delete
+    const result = await postgres.query(
+      'UPDATE user_documents SET is_active = false, updated_at = CURRENT_TIMESTAMP WHERE user_id = $1 AND id = ANY($2) AND is_active = true RETURNING id',
+      [userId, ownedIds],
+      { table: 'user_documents' }
+    );
 
-    if (deleteError) {
-      console.error('[User Content /saved-texts/bulk DELETE] Error during bulk delete:', deleteError);
-      throw new Error('Failed to delete texts');
-    }
-
-    const deletedIds = deletedData ? deletedData.map(text => text.id) : [];
-    const failedIds = ids.filter(id => !deletedIds.includes(id));
+    const deletedIds = result.map(row => row.id);
+    const failedIds = ownedIds.filter(id => !deletedIds.includes(id));
 
     console.log(`[User Content /saved-texts/bulk DELETE] Bulk delete completed: ${deletedIds.length} deleted, ${failedIds.length} failed`);
+
+    // Cleanup vectors from Qdrant for successfully deleted documents (async, don't block response)
+    if (deletedIds.length > 0) {
+      setImmediate(async () => {
+        try {
+          const qdrant = getQdrantInstance();
+          if (qdrant.isAvailable()) {
+            // Delete vectors for each successfully deleted document
+            const cleanupPromises = deletedIds.map(async (docId) => {
+              try {
+                await qdrant.deleteDocument(docId, 'user_texts');
+                console.log(`[Vector Cleanup] Removed vectors for document ${docId}`);
+              } catch (err) {
+                console.error(`[Vector Cleanup] Failed for document ${docId}:`, err.message);
+              }
+            });
+            
+            await Promise.all(cleanupPromises);
+            console.log(`[Vector Cleanup] Bulk cleanup completed for ${deletedIds.length} documents`);
+          }
+        } catch (vectorError) {
+          console.error('[Vector Cleanup] Bulk cleanup failed (non-critical):', vectorError.message);
+        }
+      });
+    }
 
     res.json({
       success: true,
@@ -845,14 +1023,14 @@ router.delete('/saved-texts/bulk', ensureAuthenticated, async (req, res) => {
 // Categories for Anträge gallery
 router.get('/antraege-categories', ensureAuthenticated, async (req, res) => {
   try {
-    const { data, error } = await supabaseService
-      .from('database')
-      .select('categories')
-      .eq('type', 'antrag')
-      .eq('status', 'published')
-      .eq('is_private', false);
-
-    if (error) throw error;
+    const postgres = getPostgresInstance();
+    await postgres.ensureInitialized();
+    
+    const data = await postgres.query(
+      'SELECT categories FROM database WHERE type = $1 AND status = $2 AND is_private = $3',
+      ['antrag', 'published', false],
+      { table: 'database' }
+    );
 
     const allCategories = (data || [])
       .flatMap(row => Array.isArray(row.categories) ? row.categories : [])
@@ -873,32 +1051,37 @@ router.get('/antraege', ensureAuthenticated, async (req, res) => {
   try {
     const { searchTerm = '', searchMode = 'title', categoryId } = req.query;
 
-    let query = supabaseService
-      .from('database')
-      .select('id, title, description, tags, categories, created_at')
-      .eq('type', 'antrag')
-      .eq('status', 'published')
-      .eq('is_private', false)
-      .order('created_at', { ascending: false });
-
+    const postgres = getPostgresInstance();
+    await postgres.ensureInitialized();
+    
+    const conditions = ['type = $1', 'status = $2', 'is_private = $3'];
+    const params = ['antrag', 'published', false];
+    let paramIndex = 4;
+    
     if (categoryId && categoryId !== 'all') {
-      query = query.contains('categories', [categoryId]);
+      conditions.push(`categories @> $${paramIndex++}::jsonb`);
+      params.push(JSON.stringify([categoryId]));
     }
-
+    
     if (searchTerm && String(searchTerm).trim().length > 0) {
       const term = `%${searchTerm.trim()}%`;
       if (searchMode === 'fulltext') {
-        query = query.or(
-          `title.ilike.${term},description.ilike.${term}`
-        );
+        conditions.push(`(title ILIKE $${paramIndex} OR description ILIKE $${paramIndex})`);
+        params.push(term);
       } else {
-        // default: title search
-        query = query.ilike('title', term);
+        conditions.push(`title ILIKE $${paramIndex}`);
+        params.push(term);
       }
     }
-
-    const { data, error } = await query;
-    if (error) throw error;
+    
+    const query = `
+      SELECT id, title, description, tags, categories, created_at
+      FROM database
+      WHERE ${conditions.join(' AND ')}
+      ORDER BY created_at DESC
+    `;
+    
+    const data = await postgres.query(query, params, { table: 'database' });
 
     res.json({ success: true, antraege: data || [] });
   } catch (err) {
@@ -913,23 +1096,32 @@ router.get('/custom-generators', ensureAuthenticated, async (req, res) => {
     const userId = req.user.id;
     const { searchTerm = '', category } = req.query;
 
-    let query = supabaseService
-      .from('custom_generators')
-      .select('id, name, slug, description, created_at, user_id')
-      .order('created_at', { ascending: false });
-
+    const postgres = getPostgresInstance();
+    await postgres.ensureInitialized();
+    
+    const conditions = ['is_active = true'];
+    const params = [];
+    let paramIndex = 1;
+    
     if (category === 'own') {
-      query = query.eq('user_id', userId);
+      conditions.push(`user_id = $${paramIndex++}`);
+      params.push(userId);
     }
-    // category === 'shared' or 'popular' not implemented yet; return all for now
-
+    
     if (searchTerm && String(searchTerm).trim().length > 0) {
       const term = `%${searchTerm.trim()}%`;
-      query = query.or(`name.ilike.${term},description.ilike.${term}`);
+      conditions.push(`(name ILIKE $${paramIndex} OR description ILIKE $${paramIndex})`);
+      params.push(term);
     }
-
-    const { data, error } = await query;
-    if (error) throw error;
+    
+    const query = `
+      SELECT id, name, slug, description, created_at, user_id
+      FROM custom_generators
+      WHERE ${conditions.join(' AND ')}
+      ORDER BY created_at DESC
+    `;
+    
+    const data = await postgres.query(query, params, { table: 'custom_generators' });
 
     // Map to expected minimal fields
     const generators = (data || []).map(g => ({
@@ -954,33 +1146,42 @@ router.get('/pr-texts', ensureAuthenticated, async (req, res) => {
 
     const prTypes = ['instagram', 'facebook', 'twitter', 'linkedin', 'pressemitteilung', 'pr_text'];
 
-    let query = supabaseService
-      .from('database')
-      .select('id, title, description, content_data, type, categories, tags, created_at')
-      .in('type', prTypes)
-      .eq('status', 'published')
-      .eq('is_example', true)
-      .order('created_at', { ascending: false });
-
+    const postgres = getPostgresInstance();
+    await postgres.ensureInitialized();
+    
+    const conditions = ['type = ANY($1)', 'status = $2', 'is_example = $3'];
+    const params = [prTypes, 'published', true];
+    let paramIndex = 4;
+    
     if (categoryId && categoryId !== 'all') {
       if (prTypes.includes(categoryId)) {
-        query = query.eq('type', categoryId);
+        conditions.push(`type = $${paramIndex++}`);
+        params.push(categoryId);
       } else {
-        query = query.contains('categories', [categoryId]);
+        conditions.push(`categories @> $${paramIndex++}::jsonb`);
+        params.push(JSON.stringify([categoryId]));
       }
     }
-
+    
     if (searchTerm && String(searchTerm).trim().length > 0) {
       const term = `%${searchTerm.trim()}%`;
       if (searchMode === 'fulltext') {
-        query = query.or(`title.ilike.${term},description.ilike.${term}`);
+        conditions.push(`(title ILIKE $${paramIndex} OR description ILIKE $${paramIndex})`);
+        params.push(term);
       } else {
-        query = query.ilike('title', term);
+        conditions.push(`title ILIKE $${paramIndex}`);
+        params.push(term);
       }
     }
-
-    const { data, error } = await query;
-    if (error) throw error;
+    
+    const query = `
+      SELECT id, title, description, content_data, type, categories, tags, created_at
+      FROM database
+      WHERE ${conditions.join(' AND ')}
+      ORDER BY created_at DESC
+    `;
+    
+    const data = await postgres.query(query, params, { table: 'database' });
 
     // Format for frontend consumption
     const results = (data || []).map(row => {
@@ -1013,14 +1214,14 @@ router.get('/pr-texts/categories', ensureAuthenticated, async (req, res) => {
   try {
     const prTypes = ['instagram', 'facebook', 'twitter', 'linkedin', 'pressemitteilung', 'pr_text'];
 
-    const { data, error } = await supabaseService
-      .from('database')
-      .select('type')
-      .in('type', prTypes)
-      .eq('status', 'published')
-      .eq('is_example', true);
-
-    if (error) throw error;
+    const postgres = getPostgresInstance();
+    await postgres.ensureInitialized();
+    
+    const data = await postgres.query(
+      'SELECT DISTINCT type FROM database WHERE type = ANY($1) AND status = $2 AND is_example = $3',
+      [prTypes, 'published', true],
+      { table: 'database' }
+    );
 
     const presentTypes = [...new Set((data || []).map(r => r.type))];
     const labelMap = {
@@ -1039,6 +1240,145 @@ router.get('/pr-texts/categories', ensureAuthenticated, async (req, res) => {
   } catch (err) {
     console.error('[Gallery] /pr-texts/categories GET error:', err);
     res.status(500).json({ success: false, message: 'Fehler beim Laden der PR-Kategorien', details: err.message });
+  }
+});
+
+// Semantic search in user's saved texts
+router.post('/search-saved-texts', ensureAuthenticated, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { query, limit = 10, documentTypes = null } = req.body;
+    
+    console.log(`[Search Saved Texts] User ${userId} searching for: "${query}"`);
+    
+    if (!query || query.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Search query is required'
+      });
+    }
+    
+    // Initialize services
+    const qdrant = getQdrantInstance();
+    await fastEmbedService.init();
+    
+    if (!qdrant.isAvailable()) {
+      return res.status(503).json({
+        success: false,
+        message: 'Vector search is currently unavailable'
+      });
+    }
+    
+    // Generate query embedding
+    const queryEmbedding = await fastEmbedService.generateEmbedding(query);
+    
+    // Build filter for user's documents
+    const filter = {
+      must: [
+        { key: 'user_id', match: { value: userId } }
+      ]
+    };
+    
+    // Add document type filter if specified
+    if (documentTypes && Array.isArray(documentTypes) && documentTypes.length > 0) {
+      filter.must.push({
+        key: 'document_type',
+        match: { any: documentTypes }
+      });
+    }
+    
+    // Perform vector search
+    const searchResults = await qdrant.searchDocuments(queryEmbedding, {
+      userId: userId,
+      limit: limit * 2, // Get more chunks to aggregate by document
+      threshold: 0.3,
+      collection: 'user_texts'
+    });
+    
+    console.log(`[Search Saved Texts] Found ${searchResults.results.length} vector matches`);
+    
+    // Aggregate results by document_id
+    const documentScores = new Map();
+    const documentChunks = new Map();
+    
+    for (const result of searchResults.results) {
+      const docId = result.document_id;
+      
+      if (!documentScores.has(docId)) {
+        documentScores.set(docId, result.score);
+        documentChunks.set(docId, []);
+      }
+      
+      // Keep best score for each document
+      if (result.score > documentScores.get(docId)) {
+        documentScores.set(docId, result.score);
+      }
+      
+      // Collect chunks for context
+      documentChunks.get(docId).push({
+        text: result.chunk_text,
+        score: result.score
+      });
+    }
+    
+    // Get document details from database
+    const documentIds = Array.from(documentScores.keys());
+    
+    if (documentIds.length === 0) {
+      return res.json({
+        success: true,
+        results: [],
+        query: query,
+        total_found: 0
+      });
+    }
+    
+    const postgres = getPostgresInstance();
+    await postgres.ensureInitialized();
+    
+    const documents = await postgres.query(
+      'SELECT id as document_id, title, content, document_type, created_at FROM user_documents WHERE id = ANY($1) AND user_id = $2 AND is_active = true',
+      [documentIds, userId],
+      { table: 'user_documents' }
+    );
+    
+    // Combine and sort results
+    const finalResults = documents
+      .map(doc => {
+        // Compute word and character counts on-the-fly from content
+        const plainText = (doc.content || '').replace(/<[^>]*>/g, '').trim();
+        const wordCount = plainText.split(/\s+/).filter(word => word.length > 0).length;
+        const characterCount = plainText.length;
+        
+        return {
+          ...doc,
+          word_count: wordCount,
+          character_count: characterCount,
+          relevance_score: documentScores.get(doc.document_id),
+          matching_chunks: documentChunks.get(doc.document_id)
+            .sort((a, b) => b.score - a.score)
+            .slice(0, 2) // Top 2 chunks for preview
+        };
+      })
+      .sort((a, b) => b.relevance_score - a.relevance_score)
+      .slice(0, limit);
+    
+    console.log(`[Search Saved Texts] Returning ${finalResults.length} documents`);
+    
+    res.json({
+      success: true,
+      results: finalResults,
+      query: query,
+      total_found: finalResults.length
+    });
+    
+  } catch (error) {
+    console.error('[Search Saved Texts] Error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Search failed',
+      details: error.message
+    });
   }
 });
 

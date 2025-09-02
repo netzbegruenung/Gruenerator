@@ -1,0 +1,44 @@
+/* DocumentModeSelector Styles */
+
+.document-mode-selector {
+    background: var(--background-color);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-large);
+    margin-bottom: var(--spacing-large);
+}
+
+.document-mode-selector-header {
+    margin-bottom: var(--spacing-large);
+    text-align: center;
+}
+
+.document-mode-selector-header h3 {
+    color: var(--font-color);
+    font-size: var(--font-size-large);
+    font-weight: 600;
+    margin: 0 0 var(--spacing-small) 0;
+}
+
+.document-mode-selector-description {
+    color: var(--font-color-muted);
+    font-size: var(--font-size-base);
+    margin: 0;
+}
+
+.document-mode-feature-toggle {
+    margin: var(--spacing-medium) 0;
+}
+
+.document-mode-loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: var(--spacing-small);
+    margin-top: var(--spacing-medium);
+    padding: var(--spacing-medium);
+    background: var(--background-color-secondary);
+    border-radius: var(--border-radius);
+    color: var(--font-color-muted);
+    font-size: var(--font-size-small);
+}

@@ -1,17 +1,94 @@
-import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useInstantAuth } from '../../../hooks/useAuth';
+import PropTypes from 'prop-types';
 
 // Auth Backend URL aus Environment Variable oder Fallback zu relativem Pfad
 const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
-const LoginPage = () => {
+// Helper function to extract page name from pathname for context
+const getPageName = (pathname) => {
+  const pathSegments = pathname.split('/').filter(Boolean);
+  if (pathSegments.length === 0) return 'Diese Seite';
+  
+  // Map common paths to readable names
+  const pathMap = {
+    'sharepic': 'Sharepic Grünerator',
+    'antrag': 'Antragsversteher',
+    'universal': 'Universal Generator',
+    'presse': 'Presse Generator',
+    'gruene-jugend': 'Grüne Jugend Generator',
+    'subtitler': 'Untertitel Generator',
+    'voice': 'Sprach-zu-Text',
+    'chat': 'KI-Chat',
+    'profile': 'Profil',
+    'groups': 'Gruppen',
+    'campaigns': 'Kampagnen',
+    'search': 'Suche',
+    'documents': 'Dokumente',
+    'qa': 'Fragen & Antworten',
+    'generators': 'Generatoren',
+    'you': 'Grüne Ideen für dich',
+    'imagine': 'Grünerator Imagine'
+  };
+  
+  const mainPath = pathSegments[0];
+  return pathMap[mainPath] || 'Diese Seite';
+};
+
+const LoginPage = ({ 
+  mode = 'standalone', 
+  pageName = null,
+  customMessage = null,
+  onClose = null
+}) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const { loading, isAuthenticated, setLoginIntent } = useInstantAuth();
 
   // Get success message from navigation state (e.g., from registration)
   const successMessage = location.state?.message;
+  
+  // Auto-detect page name if not provided and in required mode
+  const displayPageName = pageName || (mode === 'required' ? getPageName(location.pathname) : null);
+  
+  // Store redirect path when in required mode
+  useEffect(() => {
+    if (mode === 'required') {
+      const currentPath = window.location.pathname + window.location.search;
+      sessionStorage.setItem('redirectAfterLogin', currentPath);
+    }
+  }, [mode]);
+
+  // Handle modal close
+  const handleClose = useCallback(() => {
+    if (onClose) {
+      onClose();
+    } else {
+      // Default behavior: navigate back or to home
+      if (window.history.length > 1) {
+        navigate(-1);
+      } else {
+        navigate('/');
+      }
+    }
+  }, [onClose, navigate]);
+
+  // Handle ESC key to close modal
+  useEffect(() => {
+    if (mode === 'required') {
+      const handleEsc = (event) => {
+        if (event.keyCode === 27) {
+          handleClose();
+        }
+      };
+      document.addEventListener('keydown', handleEsc);
+      return () => {
+        document.removeEventListener('keydown', handleEsc);
+      };
+    }
+  }, [mode, handleClose]);
 
 
   const handleGruenesNetzLogin = async () => {
@@ -56,89 +133,221 @@ const LoginPage = () => {
     }
   };
 
+  const handleGrueneOesterreichLogin = async () => {
+    setIsAuthenticating(true);
+    try {
+      setLoginIntent();
+      
+      const authUrl = `${AUTH_BASE_URL}/auth/login?source=gruene-oesterreich-login`;
+      console.log(`[LoginPage] Grüne Österreich Login - Redirecting to: ${authUrl}`);
+      window.location.href = authUrl;
+    } catch (err) {
+      console.error('Fehler beim Initiieren des Grüne Österreich Logins:', err);
+      setIsAuthenticating(false);
+    }
+  };
+
+  const getHeaderContent = () => {
+    if (mode === 'required') {
+      return (
+        <div className="auth-header auth-header--required">
+          <h1 className="gradient-title">{displayPageName}</h1>
+          <p className="auth-subtitle">
+            {customMessage || `Melde dich an, um ${displayPageName === 'Diese Seite' ? 'fortzufahren' : 'den ' + displayPageName + ' zu nutzen'}.`}
+          </p>
+        </div>
+      );
+    }
+    
+    return (
+      <div className="auth-header">
+        <h1 className="gradient-title">Willkommen zurück!</h1>
+      </div>
+    );
+  };
+
+  // Helper function to render login buttons
+  const getLoginButtons = () => (
+    <div className="login-options">
+      <button
+        className="login-option gruenes-netz"
+        onClick={handleGruenesNetzLogin}
+        disabled={isAuthenticating}
+      >
+        <div className="login-content">
+          <img 
+            src="/images/Sonnenblume_RGB_gelb.png" 
+            alt="Grünes Netz" 
+            className="login-logo"
+            width="50"
+            height="50"
+            loading="eager"
+          />
+          <div className="login-text-content">
+            <h3 className="login-title">Grünes Netz Login</h3>
+            <p className="login-description">
+              Mit deinem Grünes Netz Account anmelden
+            </p>
+          </div>
+        </div>
+      </button>
+
+      <button
+        className="login-option gruene-oesterreich"
+        onClick={handleGrueneOesterreichLogin}
+        disabled={isAuthenticating}
+      >
+        <div className="login-content">
+          <img 
+            src="/images/Grüne_at_Logo.svg.png" 
+            alt="Die Grünen – Die Grüne Alternative" 
+            className="login-logo"
+            width="50"
+            height="50"
+            loading="eager"
+          />
+          <div className="login-text-content">
+            <h3 className="login-title">Die Grünen – Die Grüne Alternative</h3>
+            <p className="login-description">
+              Mit deinem Die Grünen Account anmelden
+            </p>
+          </div>
+        </div>
+      </button>
+
+      <button
+        className="login-option netzbegruenung"
+        onClick={handleNetzbegrueungLogin}
+        disabled={isAuthenticating}
+      >
+        <div className="login-content">
+          <img 
+            src="/images/nb_icon.png" 
+            alt="Netzbegrünung" 
+            className="login-logo"
+            width="50"
+            height="50"
+            loading="eager"
+          />
+          <div className="login-text-content">
+            <h3 className="login-title">Netzbegrünung Login</h3>
+            <p className="login-description">
+              Mit deinem Netzbegrünung Account anmelden
+            </p>
+          </div>
+        </div>
+      </button>
+
+      <button
+        className="login-option gruenerator"
+        onClick={handleGrueneratorLogin}
+        disabled={isAuthenticating}
+      >
+        <div className="login-content">
+          <span className="login-icon">🌱</span>
+          <div className="login-text-content">
+            <h3 className="login-title">Grünerator Login</h3>
+            <p className="login-description">
+              Für Mitarbeitende von Abgeordneten und Geschäftsstellen
+            </p>
+          </div>
+        </div>
+      </button>
+    </div>
+  );
+
+  // Render modal for required mode
+  if (mode === 'required') {
+    return (
+      <div className="auth-modal-overlay">
+        <div className="auth-modal-backdrop" onClick={handleClose} />
+        <div className="auth-container auth-container--modal">
+          <button 
+            className="auth-modal-close" 
+            onClick={handleClose}
+            aria-label="Login schließen"
+          >
+            ×
+          </button>
+          <div className="auth-content-wrapper">
+            <div className="auth-content-left">
+              {getHeaderContent()}
+
+              {/* Success Message */}
+              {successMessage && (
+                <div className="auth-success-message">
+                  {successMessage}
+                </div>
+              )}
+
+              {/* Legal Notice for Desktop */}
+              <div className="auth-legal auth-legal--desktop">
+                <p>
+                  Mit der Anmeldung stimmst du unseren{' '}
+                  <Link to="/datenschutz">Nutzungsbedingungen und der Datenschutzerklärung</Link> zu.
+                </p>
+              </div>
+            </div>
+
+            <div className="auth-content-right">
+              {getLoginButtons()}
+
+              {isAuthenticating && (
+                <div className="auth-status-message">
+                  <p>Weiterleitung zum Login...</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Legal Notice for Mobile */}
+          <div className="auth-legal auth-legal--mobile">
+            <p>
+              Mit der Anmeldung stimmst du unseren{' '}
+              <Link to="/datenschutz">Nutzungsbedingungen und der Datenschutzerklärung</Link> zu.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Standalone mode - normal page layout
   return (
     <div className="auth-container">
-      <div className="auth-header">
-        <h1>Willkommen zurück!</h1>
-      </div>
+      <div className="auth-content-wrapper">
+        <div className="auth-content-left">
+          {getHeaderContent()}
 
-      {/* Success Message */}
-      {successMessage && (
-        <div className="auth-success-message">
-          {successMessage}
+          {/* Success Message */}
+          {successMessage && (
+            <div className="auth-success-message">
+              {successMessage}
+            </div>
+          )}
+
+          {/* Legal Notice for Desktop */}
+          <div className="auth-legal auth-legal--desktop">
+            <p>
+              Mit der Anmeldung stimmst du unseren{' '}
+              <Link to="/datenschutz">Nutzungsbedingungen und der Datenschutzerklärung</Link> zu.
+            </p>
+          </div>
         </div>
-      )}
 
-      <div className="login-options">
+        <div className="auth-content-right">
+          {getLoginButtons()}
 
-        <button
-          className="login-option gruenes-netz"
-          onClick={handleGruenesNetzLogin}
-          disabled={isAuthenticating}
-        >
-          <div className="login-content">
-            <img 
-              src="/images/Sonnenblume_RGB_gelb.png" 
-              alt="Grünes Netz" 
-              className="login-logo"
-              width="50"
-              height="50"
-              loading="eager"
-            />
-            <div className="login-text-content">
-              <h3 className="login-title">Grünes Netz Login</h3>
-              <p className="login-description">
-                Mit deinem Grünes Netz Account anmelden
-              </p>
+          {isAuthenticating && (
+            <div className="auth-status-message">
+              <p>Weiterleitung zum Login...</p>
             </div>
-          </div>
-        </button>
-
-        <button
-          className="login-option netzbegruenung"
-          onClick={handleNetzbegrueungLogin}
-          disabled={isAuthenticating}
-        >
-          <div className="login-content">
-            <img 
-              src="/images/nb_icon.png" 
-              alt="Netzbegrünung" 
-              className="login-logo"
-              width="50"
-              height="50"
-              loading="eager"
-            />
-            <div className="login-text-content">
-              <h3 className="login-title">Netzbegrünung Login</h3>
-              <p className="login-description">
-                Mit deinem Netzbegrünung Account anmelden
-              </p>
-            </div>
-          </div>
-        </button>
-
-        <div className="login-option gruenerator disabled">
-          <div className="login-content">
-            <span className="login-icon">🌱</span>
-            <div className="login-text-content">
-              <h3 className="login-title">Grünerator Login</h3>
-              <p className="login-description">
-                Für Mitarbeitende von Abgeordneten und Geschäftsstellen (soon)
-              </p>
-            </div>
-          </div>
+          )}
         </div>
       </div>
 
-      {isAuthenticating && (
-        <div className="auth-status-message">
-          <p>Weiterleitung zum Login...</p>
-        </div>
-      )}
-
-
-      {/* Legal Notice */}
-      <div className="auth-legal">
+      {/* Legal Notice for Mobile */}
+      <div className="auth-legal auth-legal--mobile">
         <p>
           Mit der Anmeldung stimmst du unseren{' '}
           <Link to="/datenschutz">Nutzungsbedingungen und der Datenschutzerklärung</Link> zu.
@@ -146,6 +355,13 @@ const LoginPage = () => {
       </div>
     </div>
   );
+};
+
+LoginPage.propTypes = {
+  mode: PropTypes.oneOf(['standalone', 'required']),
+  pageName: PropTypes.string,
+  customMessage: PropTypes.string,
+  onClose: PropTypes.func
 };
 
 export default LoginPage; 

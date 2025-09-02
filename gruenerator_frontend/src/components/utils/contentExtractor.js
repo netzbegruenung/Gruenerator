@@ -6,7 +6,9 @@
  * formatExportContent from exportUtils.jsx is used to maintain specific functionality.
  */
 
+import { marked } from 'marked';
 import { formatExportContent } from './exportUtils';
+import { isMarkdownContent } from '../common/Form/utils/contentUtils';
 
 /**
  * Converts HTML string to plain text while preserving basic structure
@@ -15,6 +17,16 @@ import { formatExportContent } from './exportUtils';
  */
 export const convertHtmlToPlainText = (html) => {
   if (!html) return '';
+  
+  // Convert markdown to HTML first if needed
+  if (typeof html === 'string' && isMarkdownContent(html)) {
+    html = marked(html, {
+      breaks: true,      // Convert line breaks to <br>
+      gfm: true,        // GitHub Flavored Markdown
+      headerIds: false, // Don't add IDs to headers
+      mangle: false     // Don't mangle autolinks
+    });
+  }
   
   // Create temporary DOM element for parsing
   const tempElement = document.createElement('div');
@@ -145,7 +157,17 @@ export const extractPlainText = (content) => {
   
   // Handle plain strings
   if (typeof content === 'string') {
-    // Check if it's HTML content
+    // Convert markdown first if needed
+    if (isMarkdownContent(content)) {
+      content = marked(content, {
+        breaks: true,      // Convert line breaks to <br>
+        gfm: true,        // GitHub Flavored Markdown
+        headerIds: false, // Don't add IDs to headers
+        mangle: false     // Don't mangle autolinks
+      });
+    }
+    
+    // Check if it's HTML content (after potential markdown conversion)
     if (content.includes('<') && content.includes('>')) {
       return convertHtmlToPlainText(content);
     }
@@ -238,14 +260,38 @@ export const extractHTMLContent = (content) => {
 const formatTextForEtherpad = (text) => {
   if (!text) return '';
   
-  // Basic HTML formatting for Etherpad
-  let formattedText = text
-    // Convert line breaks to paragraphs
-    .split('\n\n')
-    .map(paragraph => paragraph.trim())
-    .filter(paragraph => paragraph.length > 0)
-    .map(paragraph => `<p>${paragraph.replace(/\n/g, '<br>')}</p>`)
-    .join('');
+  // Convert markdown to HTML first if needed
+  if (typeof text === 'string' && isMarkdownContent(text)) {
+    const html = marked(text, {
+      breaks: true,      // Convert line breaks to <br>
+      gfm: true,        // GitHub Flavored Markdown
+      headerIds: false, // Don't add IDs to headers
+      mangle: false     // Don't mangle autolinks
+    });
+    
+    // Return the converted HTML directly - it's already properly formatted
+    return html;
+  }
+  
+  // Basic HTML formatting for Etherpad for non-markdown text
+  // If there are no blank lines, treat single newlines as paragraph breaks to preserve spacing in Etherpad
+  const hasDoubleLineBreaks = /\n{2,}/.test(text);
+  let formattedText;
+  if (!hasDoubleLineBreaks) {
+    formattedText = text
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => line.length > 0)
+      .map(line => `<p>${line}</p>`)
+      .join('');
+  } else {
+    formattedText = text
+      .split('\n\n')
+      .map(paragraph => paragraph.trim())
+      .filter(paragraph => paragraph.length > 0)
+      .map(paragraph => `<p>${paragraph.replace(/\n/g, '<br>')}</p>`)
+      .join('');
+  }
   
   return formattedText;
 };

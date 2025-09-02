@@ -3,6 +3,7 @@ const { Anthropic } = require('@anthropic-ai/sdk');
 const OpenAI = require('openai');
 const { InvokeModelCommand } = require("@aws-sdk/client-bedrock-runtime");
 const bedrockClient = require('./awsBedrockClient');
+const mistralClient = require('./mistralClient');
 const config = require('./worker.config');
 const ToolHandler = require('../services/toolHandler');
 require('dotenv').config();
@@ -35,6 +36,7 @@ parentPort.on('message', async (message) => {
     const result = await processAIRequest(requestId, data);
     
     // Validate result before sending - handle both text and tool responses
+    
     if (!result || (!result.content && result.stop_reason !== 'tool_use')) {
       throw new Error(`Empty or invalid result generated for request ${requestId}`);
     }
@@ -87,15 +89,88 @@ function mergeMetadata(requestMetadata, responseMetadata) {
   };
 }
 
+/**
+ * Check if main LLM override should be allowed based on privacy mode
+ * @param {Object} options - Request options
+ * @param {Object} metadata - Request metadata
+ * @returns {boolean} Whether override is allowed
+ */
+function shouldAllowMainLlmOverride(options, metadata) {
+  // Check if privacy mode is explicitly enabled
+  if (options.privacyMode === true || metadata.privacyMode === true) {
+    return false; // Respect privacy mode - no external models
+  }
+  
+  // Check for privacy-related flags that should disable override
+  if (options.disableExternalProviders || metadata.requiresPrivacy) {
+    return false;
+  }
+  
+  // Allow override by default when privacy mode is not set or explicitly disabled
+  return true;
+}
+
+/**
+ * Determine provider from model name
+ * @param {string} modelName - The model identifier
+ * @returns {string} Provider name
+ */
+function determineProviderFromModel(modelName) {
+  // Bedrock ARNs or known Bedrock models
+  if (modelName.includes('arn:aws:bedrock') || modelName.includes('anthropic.claude') || modelName.includes('anthropic/claude')) {
+    return 'bedrock';
+  }
+  
+  // OpenAI models
+  if (modelName.includes('gpt-') || modelName.includes('openai')) {
+    return 'openai';
+  }
+  
+  // Native Mistral models (use direct API for medium, large, and small variants)
+  if (modelName.includes('mistral-medium-') || 
+      modelName.includes('mistral-large-') || 
+      modelName.includes('mistral-small-')) {
+    return 'mistral';
+  }
+  
+  // Other Mistral models (can be accessed via different providers)
+  if (modelName.includes('mistral') || modelName.includes('mixtral')) {
+    // Default to LiteLLM for other Mistral models
+    return 'litellm';
+  }
+  
+  // Llama models (typically via IONOS or LiteLLM)
+  if (modelName.includes('llama') || modelName.includes('meta-llama')) {
+    return 'ionos'; // IONOS is our primary Llama provider
+  }
+  
+  // Default to LiteLLM for unknown models
+  return 'litellm';
+}
+
 // Main AI request processing function
 async function processAIRequest(requestId, data) {
   // Destructure data, ensuring options exists and preserve original metadata
   const { type, prompt, options = {}, systemPrompt, messages, metadata: requestMetadata = {} } = data;
 
+  // Check for main LLM override from environment variable
+  const mainLlmOverride = process.env.MAIN_LLM_OVERRIDE;
+  
   // Force Bedrock for gruenerator_ask and gruenerator_ask_grundsatz types to use Haiku for faster and cheaper responses
-  const effectiveOptions = (type === 'gruenerator_ask' || type === 'gruenerator_ask_grundsatz')
+  let effectiveOptions = (type === 'gruenerator_ask' || type === 'gruenerator_ask_grundsatz')
     ? { ...options, useBedrock: true, model: 'anthropic.claude-3-haiku-20240307-v1:0' }
     : { ...options, useBedrock: true }; // Default to Bedrock for all requests
+  
+  // Apply main LLM override if set and privacy mode allows it
+  if (mainLlmOverride && shouldAllowMainLlmOverride(effectiveOptions, requestMetadata)) {
+    console.log(`[AI Worker] Using main LLM override: ${mainLlmOverride} for request ${requestId}`);
+    effectiveOptions = {
+      ...effectiveOptions,
+      model: mainLlmOverride,
+      // Determine provider based on model name
+      provider: determineProviderFromModel(mainLlmOverride)
+    };
+  }
 
   try {
     let result;
@@ -107,7 +182,7 @@ async function processAIRequest(requestId, data) {
         case 'litellm':
           console.log(`[AI Worker] Using LiteLLM provider for request ${requestId}`);
           sendProgress(requestId, 15);
-          result = await processWithLiteLLM(requestId, data);
+          result = await processWithLiteLLM(requestId, { ...data, options: effectiveOptions });
           break;
         case 'bedrock':
           console.log(`[AI Worker] Using AWS Bedrock provider for request ${requestId}`);
@@ -122,12 +197,17 @@ async function processAIRequest(requestId, data) {
         case 'openai':
           console.log(`[AI Worker] Using OpenAI provider for request ${requestId}`);
           sendProgress(requestId, 15);
-          result = await processWithOpenAI(requestId, data);
+          result = await processWithOpenAI(requestId, { ...data, options: effectiveOptions });
           break;
         case 'ionos':
           console.log(`[AI Worker] Using IONOS provider for request ${requestId}`);
           sendProgress(requestId, 15);
-          result = await processWithIONOS(requestId, data);
+          result = await processWithIONOS(requestId, { ...data, options: effectiveOptions });
+          break;
+        case 'mistral':
+          console.log(`[AI Worker] Using Mistral provider for request ${requestId}`);
+          sendProgress(requestId, 15);
+          result = await processWithMistral(requestId, { ...data, options: effectiveOptions });
           break;
         default:
           throw new Error(`Unknown provider: ${explicitProvider}`);
@@ -207,6 +287,10 @@ async function processAIRequest(requestId, data) {
           model: "claude-3-5-haiku-latest",
           temperature: 0.3,
           max_tokens: 1000
+        },
+        'leichte_sprache': {
+          system: "Du bist ein Experte für Leichte Sprache. Übersetze Texte in Leichte Sprache nach den Regeln des Netzwerk Leichte Sprache e.V.",
+          temperature: 0.3
         }
       };
 
@@ -315,10 +399,7 @@ async function processAIRequest(requestId, data) {
         })
       };
       
-      // Double-check we have content before returning
-      if (!result.content && result.stop_reason !== 'tool_use' && (typeof result.content !== 'string' || result.content.length === 0)) {
-        throw new Error(`Empty or invalid content in processed result for ${requestId}`);
-      }
+      // Content validation is handled later in the main validation logic
     }
 
     sendProgress(requestId, 100);
@@ -786,5 +867,265 @@ async function processWithIONOS(requestId, data) {
   } catch (error) {
     console.error(`[AI Worker] IONOS Error for request ${requestId}:`, error);
     throw new Error(`IONOS Error: ${error.message || 'Unknown error during IONOS API call'}`);
+  }
+}
+
+// Function to process request with Mistral
+async function processWithMistral(requestId, data) {
+  const { messages, systemPrompt, options = {}, type, metadata: requestMetadata = {} } = data;
+  
+  // Mistral configuration
+  const model = options.model || 'mistral-medium-latest';
+  
+  // Type-specific temperature for better instruction following
+  const mistralTemperatures = {
+    'social': 0.4,      // Social media needs some creativity but must follow format
+    'presse': 0.3,      // Press releases need precision
+    'antrag': 0.2,      // Proposals need exact formatting
+    'default': 0.35
+  };
+  const temperature = mistralTemperatures[type] || mistralTemperatures.default;
+  
+  if (!mistralClient) {
+    throw new Error('Mistral client not available. Check MISTRAL_API_KEY environment variable.');
+  }
+
+  console.log(`[AI Worker] Processing with Mistral. Request ID: ${requestId}, Type: ${type}, Model: ${model}, Temperature: ${temperature}`);
+
+  // Format messages for Mistral API
+  const mistralMessages = [];
+  
+  if (systemPrompt) {
+    mistralMessages.push({
+      role: 'system',
+      content: systemPrompt
+    });
+  }
+
+  if (messages) {
+    messages.forEach(msg => {
+      if (msg.role === 'assistant' && Array.isArray(msg.content)) {
+        // DEEP DEBUG: Log incoming message structure
+        console.log(`[AI Worker DEBUG] Processing assistant message for ${requestId}:`);
+        console.log(`[AI Worker DEBUG] msg.content structure:`, JSON.stringify(msg.content, null, 2));
+        
+        // Check for tool_use blocks
+        const toolUseBlocks = msg.content.filter(c => c.type === 'tool_use');
+        console.log(`[AI Worker DEBUG] Found ${toolUseBlocks.length} tool_use blocks:`, JSON.stringify(toolUseBlocks, null, 2));
+        
+        const toolCalls = toolUseBlocks.map(tc => ({
+            id: tc.id,
+            type: 'function',
+            function: {
+              name: tc.name,
+              arguments: JSON.stringify(tc.input)
+            }
+          }));
+        
+        console.log(`[AI Worker DEBUG] Converted to ${toolCalls.length} tool_calls:`, JSON.stringify(toolCalls, null, 2));
+        
+        // Validate tool calls are properly formatted
+        if (toolCalls.length > 0 && !toolCalls[0].function) {
+          console.error(`[AI Worker] Invalid tool call format for ${requestId}:`, toolCalls);
+        }
+        
+        const textContent = msg.content
+          .filter(c => c.type === 'text')
+          .map(c => c.text)
+          .join('\n');
+        
+        if (toolCalls.length > 0) {
+          // Assistant message with tool calls
+          const assistantMessage = {
+            role: 'assistant',
+            content: textContent || '',
+            toolCalls: toolCalls
+          };
+          console.log(`[AI Worker DEBUG] Adding assistant message with tool_calls:`, JSON.stringify(assistantMessage, null, 2));
+          mistralMessages.push(assistantMessage);
+        } else {
+          // Regular assistant message
+          mistralMessages.push({
+            role: 'assistant',
+            content: textContent || ''
+          });
+        }
+      } else if (msg.role === 'user' && Array.isArray(msg.content)) {
+        // Handle tool results
+        const toolResults = msg.content.filter(c => c.type === 'tool_result');
+        if (toolResults.length > 0) {
+          // Format tool results as plain text
+          const resultsText = toolResults
+            .map(tr => tr.content)
+            .join('\n');
+          
+          mistralMessages.push({
+            role: 'tool',
+            content: resultsText,
+            toolCallId: toolResults[0].tool_use_id
+          });
+        } else {
+          // Regular user message with structured content
+          const text = msg.content
+            .map(c => c.text || c.content || '')
+            .join('\n');
+          
+          mistralMessages.push({
+            role: 'user',
+            content: text
+          });
+        }
+      } else {
+        // Simple string content
+        mistralMessages.push({
+          role: msg.role,
+          content: typeof msg.content === 'string' 
+            ? msg.content 
+            : String(msg.content || '')
+        });
+      }
+    });
+  }
+
+  // Debug: Log the messages being sent to Mistral (messages already adapted by PromptBuilder)
+  console.log(`[AI Worker] Mistral messages for ${requestId}:`);
+  mistralMessages.forEach((msg, index) => {
+    const contentPreview = msg.content 
+      ? msg.content.substring(0, 200) + '...' 
+      : (msg.tool_calls ? `<${msg.tool_calls.length} tool calls>` : '<empty>');
+    console.log(`  [${index}] ${msg.role}: ${contentPreview}`);
+    
+    // DEEP DEBUG: Log full message structure for assistant messages with tool_calls
+    if (msg.role === 'assistant' && msg.tool_calls && msg.tool_calls.length > 0) {
+      console.log(`[AI Worker DEBUG] Full assistant message [${index}]:`, JSON.stringify(msg, null, 2));
+    }
+  });
+
+  // Mistral configuration with improved parameters for instruction following
+  const mistralConfig = {
+    model: model,
+    messages: mistralMessages,
+    max_tokens: options.max_tokens || 4096,
+    temperature: options.temperature !== undefined ? options.temperature : temperature,
+    top_p: 0.95  // Reduced from 1.0 for better consistency
+    // Note: safe_prompt removed - not supported by Mistral API
+  };
+  
+  // DEEP DEBUG: Log mistral config before sending
+  console.log(`[AI Worker DEBUG] Final mistralConfig for ${requestId}:`);
+  console.log(`[AI Worker DEBUG] Config model:`, mistralConfig.model);
+  console.log(`[AI Worker DEBUG] Config messages count:`, mistralConfig.messages?.length);
+  mistralConfig.messages?.forEach((msg, i) => {
+    if (msg.tool_calls) {
+      console.log(`[AI Worker DEBUG] Config message[${i}] has tool_calls:`, JSON.stringify(msg.tool_calls, null, 2));
+    }
+  });
+
+  // Add tools support using ToolHandler if available
+  const toolsPayload = ToolHandler.prepareToolsPayload(options, 'mistral', requestId, type);
+  if (toolsPayload.tools) {
+    mistralConfig.tools = toolsPayload.tools;
+    if (toolsPayload.tool_choice) {
+      mistralConfig.tool_choice = toolsPayload.tool_choice;
+    }
+  }
+
+  try {
+    sendProgress(requestId, 30);
+
+    console.log(`[AI Worker] Sending Mistral request for ${requestId}`);
+    console.log(`[AI Worker DEBUG] About to send mistralConfig:`, JSON.stringify(mistralConfig, null, 2));
+    
+    let response;
+    try {
+      response = await mistralClient.chat.complete(mistralConfig);
+    } catch (mistralError) {
+      console.error(`[AI Worker DEBUG] Mistral API call failed for ${requestId}:`, mistralError.message);
+      if (mistralError.message.includes('tool_calls') && mistralError.message.includes('empty')) {
+        console.error(`[AI Worker DEBUG] DETECTED TOOL_CALLS EMPTY ERROR! This is the bug we're hunting.`);
+        console.error(`[AI Worker DEBUG] Final mistralConfig that caused the error:`, JSON.stringify(mistralConfig, null, 2));
+      }
+      throw mistralError;
+    }
+    
+    sendProgress(requestId, 90);
+
+    // Extract response content - Mistral SDK uses camelCase properties
+    const responseContent = response.choices[0]?.message?.content || null;
+    const rawToolCalls = response.choices[0]?.message?.toolCalls || response.choices[0]?.message?.tool_calls || [];
+    const stopReason = response.choices[0]?.finishReason || response.choices[0]?.finish_reason || 'stop';
+    
+    // DEEP DEBUG: Log Mistral response structure
+    console.log(`[AI Worker DEBUG] Mistral response for ${requestId}:`);
+
+    // Normalize stop reason to common schema expected by conversation code
+    const normalizedStopReason = stopReason === 'tool_calls' ? 'tool_use' : stopReason;
+
+    // Normalize tool calls to common shape: { id, name, input }
+    const toolCalls = rawToolCalls.map((call, index) => {
+      const functionName = call.function?.name || call.name;
+      const args = call.function?.arguments ?? call.arguments ?? call.input;
+      let inputObject = {};
+      if (typeof args === 'string') {
+        try {
+          inputObject = JSON.parse(args);
+        } catch (_) {
+          inputObject = {};
+        }
+      } else if (typeof args === 'object' && args !== null) {
+        inputObject = args;
+      }
+      return {
+        id: call.id || call.tool_call_id || `mistral_tool_${index}`,
+        name: functionName,
+        input: inputObject
+      };
+    });
+
+    // Build raw content blocks compatible with Claude-style tool_use continuation
+    const rawContentBlocks = [];
+    if (responseContent) {
+      rawContentBlocks.push({ type: 'text', text: responseContent });
+    }
+    if (toolCalls.length > 0) {
+      console.log(`[AI Worker DEBUG] Building ${toolCalls.length} tool_use blocks from toolCalls:`, JSON.stringify(toolCalls, null, 2));
+      for (const tc of toolCalls) {
+        const toolUseBlock = {
+          type: 'tool_use',
+          id: tc.id,
+          name: tc.name,
+          input: tc.input
+        };
+        console.log(`[AI Worker DEBUG] Adding tool_use block:`, JSON.stringify(toolUseBlock, null, 2));
+        rawContentBlocks.push(toolUseBlock);
+      }
+    }
+    console.log(`[AI Worker DEBUG] Final rawContentBlocks for ${requestId}:`, JSON.stringify(rawContentBlocks, null, 2));
+
+    console.log(`[AI Worker] Mistral response received for ${requestId}:`, {
+      contentLength: responseContent?.length || 0,
+      stopReason: stopReason,
+      toolCallCount: toolCalls.length,
+      model: response.model || model
+    });
+
+    return {
+      content: responseContent,
+      stop_reason: normalizedStopReason,
+      tool_calls: toolCalls.length > 0 ? toolCalls : undefined,
+      raw_content_blocks: rawContentBlocks.length > 0 ? rawContentBlocks : [{ type: 'text', text: responseContent }],
+      success: true,
+      metadata: mergeMetadata(requestMetadata, {
+        provider: 'mistral',
+        model: response.model || model,
+        timestamp: new Date().toISOString(),
+        requestId: requestId,
+        usage: response.usage
+      })
+    };
+
+  } catch (error) {
+    console.error(`[AI Worker] Mistral Error for request ${requestId}:`, error);
+    throw new Error(`Mistral Error: ${error.message || 'Unknown error during Mistral API call'}`);
   }
 }
