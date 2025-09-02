@@ -1,8 +1,87 @@
 import express from 'express';
 import jwtAuthMiddleware from '../../middleware/jwtAuthMiddleware.js';
 import { supabaseService } from '../../utils/supabaseClient.js';
+import { SignJWT } from 'jose';
+import { getProfileService } from '../../services/ProfileService.js';
 
 const router = express.Router();
+
+// JWT Exchange endpoint - converts Keycloak token to simple JWT
+router.post('/exchange', async (req, res) => {
+  const { token } = req.body;
+  
+  if (!token) {
+    return res.status(400).json({ error: 'Keycloak token required' });
+  }
+
+  try {
+    console.log('[Mobile Exchange] Validating Keycloak token');
+    
+    // Validate Keycloak token directly without audience validation
+    const { jwtVerify, createRemoteJWKSet } = await import('jose');
+    const JWKS = createRemoteJWKSet(new URL(
+      `${process.env.KEYCLOAK_BASE_URL}/realms/${process.env.KEYCLOAK_REALM}/protocol/openid-connect/certs`
+    ));
+    
+    const { payload: keycloakPayload } = await jwtVerify(token, JWKS, {
+      issuer: `${process.env.KEYCLOAK_BASE_URL}/realms/${process.env.KEYCLOAK_REALM}`
+      // Skip audience validation - accept any client from this realm
+    });
+    
+    console.log('[Mobile Exchange] Keycloak token validated for user:', keycloakPayload.sub);
+    
+    // Get user from database using keycloak_id
+    const profileService = getProfileService();
+    const user = await profileService.getProfileByKeycloakId(keycloakPayload.sub);
+    
+    if (!user) {
+      console.error('[Mobile Exchange] User not found for keycloak_id:', keycloakPayload.sub);
+      return res.status(401).json({ error: 'User not found' });
+    }
+    
+    console.log('[Mobile Exchange] User found:', user.id);
+    
+    // Create simple JWT with 30-day expiry
+    const secret = new TextEncoder().encode(
+      process.env.SESSION_SECRET || 'fallback-secret-please-change'
+    );
+    
+    const jwt = await new SignJWT({
+      sub: user.id,
+      keycloak_id: user.keycloak_id,
+      email: user.email,
+      username: user.username,
+      mobile: true
+    })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setIssuedAt()
+      .setExpirationTime('30d')
+      .setIssuer('gruenerator-mobile')
+      .setAudience('gruenerator-app')
+      .sign(secret);
+    
+    console.log('[Mobile Exchange] JWT created for user:', user.id);
+    
+    // Return JWT and user data
+    res.json({
+      success: true,
+      token: jwt,
+      user: user,
+      expiresIn: 30 * 24 * 60 * 60, // 30 days in seconds
+      tokenType: 'Bearer'
+    });
+    
+  } catch (error) {
+    console.error('[Mobile Exchange] Error:', error);
+    
+    // More specific error messages
+    if (error.message.includes('Token validation failed')) {
+      return res.status(401).json({ error: 'Invalid Keycloak token' });
+    }
+    
+    res.status(500).json({ error: 'Token exchange failed' });
+  }
+});
 
 // Mobile auth status endpoint
 router.get('/status', jwtAuthMiddleware, async (req, res) => {
