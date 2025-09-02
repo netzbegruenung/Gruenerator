@@ -1,6 +1,8 @@
 import { EmbeddingModel, FlagEmbedding } from 'fastembed';
 import { embeddingCache } from './embeddingCache.js';
 import dotenv from 'dotenv';
+import path from 'path';
+import fs from 'fs';
 
 dotenv.config();
 
@@ -18,6 +20,9 @@ class FastEmbedService {
     this.maxRetries = 3;
     this.baseDelay = 1000;
     
+    // Use absolute path for cache directory
+    this.cacheDir = process.env.FASTEMBED_CACHE_DIR || path.resolve(process.cwd(), 'fastembed_cache');
+    
     // Initialize model on startup
     this.init();
   }
@@ -29,13 +34,14 @@ class FastEmbedService {
     if (this.isInitialized) return;
 
     try {
-      console.log(`[FastEmbedService] Initializing model: ${this.modelName}`);
+      // Ensure cache directory exists
+      await this.ensureCacheDirectory();
       
-      this.model = await FlagEmbedding.init({
-        model: this.modelName,
-        maxLength: this.maxSequenceLength,
-        showDownloadProgress: true
-      });
+      console.log(`[FastEmbedService] Initializing model: ${this.modelName}`);
+      console.log(`[FastEmbedService] Using cache directory: ${this.cacheDir}`);
+      
+      // Try to initialize the model with retries
+      await this.initializeModelWithRetry();
 
       this.isInitialized = true;
       console.log(`[FastEmbedService] Model initialized successfully`);
@@ -44,7 +50,86 @@ class FastEmbedService {
     } catch (error) {
       console.error('[FastEmbedService] Failed to initialize model:', error);
       this.isInitialized = false;
-      throw new Error(`FastEmbed initialization failed: ${error.message}`);
+      
+      // Try fallback model if primary model fails
+      if (this.modelName !== EmbeddingModel.BGESmallENV15) {
+        console.log('[FastEmbedService] Attempting fallback to BGE-Small-EN model...');
+        await this.initializeFallbackModel();
+      } else {
+        throw new Error(`FastEmbed initialization failed: ${error.message}`);
+      }
+    }
+  }
+
+  /**
+   * Ensure cache directory exists
+   */
+  async ensureCacheDirectory() {
+    if (!fs.existsSync(this.cacheDir)) {
+      console.log(`[FastEmbedService] Creating cache directory: ${this.cacheDir}`);
+      fs.mkdirSync(this.cacheDir, { recursive: true });
+    }
+  }
+
+  /**
+   * Initialize model with retry logic
+   */
+  async initializeModelWithRetry() {
+    let lastError = null;
+    
+    for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
+      try {
+        console.log(`[FastEmbedService] Model initialization attempt ${attempt}/${this.maxRetries}`);
+        
+        this.model = await FlagEmbedding.init({
+          model: this.modelName,
+          maxLength: this.maxSequenceLength,
+          showDownloadProgress: true,
+          cacheDir: this.cacheDir
+        });
+        
+        return; // Success
+        
+      } catch (error) {
+        lastError = error;
+        console.error(`[FastEmbedService] Attempt ${attempt} failed:`, error.message);
+        
+        if (attempt < this.maxRetries) {
+          const delay = this.baseDelay * Math.pow(2, attempt - 1);
+          console.log(`[FastEmbedService] Waiting ${delay}ms before retry...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+    }
+    
+    throw lastError;
+  }
+
+  /**
+   * Try to initialize with a fallback model
+   */
+  async initializeFallbackModel() {
+    try {
+      console.log('[FastEmbedService] Initializing fallback model: BGE-Small-EN-v1.5');
+      
+      this.model = await FlagEmbedding.init({
+        model: EmbeddingModel.BGESmallENV15,
+        maxLength: this.maxSequenceLength,
+        showDownloadProgress: true,
+        cacheDir: this.cacheDir
+      });
+      
+      // Update service configuration for fallback model
+      this.modelName = EmbeddingModel.BGESmallENV15;
+      this.dimensions = 384; // BGE-Small-EN-v1.5 dimensions
+      this.isInitialized = true;
+      
+      console.log('[FastEmbedService] Fallback model initialized successfully');
+      console.log(`[FastEmbedService] Using fallback - Dimensions: ${this.dimensions}, Max length: ${this.maxSequenceLength}`);
+      
+    } catch (fallbackError) {
+      console.error('[FastEmbedService] Fallback model initialization also failed:', fallbackError);
+      throw new Error(`Both primary and fallback model initialization failed. Last error: ${fallbackError.message}`);
     }
   }
 
