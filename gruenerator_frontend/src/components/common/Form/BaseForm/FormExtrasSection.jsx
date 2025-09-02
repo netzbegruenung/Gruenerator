@@ -7,6 +7,7 @@ import KnowledgeSelector from '../../../common/KnowledgeSelector/KnowledgeSelect
 import { useBetaFeatures } from '../../../../hooks/useBetaFeatures';
 import { useGeneratorKnowledgeStore } from '../../../../stores/core/generatorKnowledgeStore';
 import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
+import { useFormStateSelector } from '../FormStateProvider';
 
 /**
  * Komponente für zusätzliche Formular-Features (Extras)
@@ -31,24 +32,25 @@ import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
  */
 const FormExtrasSection = ({
   webSearchFeatureToggle,
-  useWebSearchFeatureToggle = false,
   privacyModeToggle,
-  usePrivacyModeToggle = false,
-  useFeatureIcons = false,
+  proModeToggle,
+  balancedModeToggle,
   onAttachmentClick,
   onRemoveFile,
-  attachedFiles = [],
   formControl = null,
   formNotice = null,
   onSubmit,
-  loading = false,
-  success = false,
   isMultiStep = false,
   nextButtonText = null,
   submitButtonProps = {},
   showSubmitButton = true,
   children,
   firstExtrasChildren = null,
+  featureIconsTabIndex = {
+    webSearch: 11,
+    balancedMode: 12,
+    attachment: 13
+  },
   knowledgeSelectorTabIndex = 14,
   knowledgeSourceSelectorTabIndex = 13,
   documentSelectorTabIndex = 15,
@@ -58,6 +60,14 @@ const FormExtrasSection = ({
   onWebSearchInfoClick,
   componentName
 }) => {
+  // Store selectors
+  const loading = useFormStateSelector(state => state.loading);
+  const success = useFormStateSelector(state => state.success);
+  const useWebSearchFeatureToggle = useFormStateSelector(state => state.webSearchConfig.enabled);
+  const usePrivacyModeToggle = useFormStateSelector(state => state.privacyModeConfig.enabled);
+  const useFeatureIcons = useFormStateSelector(state => state.useFeatureIcons);
+  const attachedFiles = useFormStateSelector(state => state.attachedFiles);
+  
   // Simplified store access
   const { source, availableKnowledge } = useGeneratorKnowledgeStore();
   const currentGeneratedContent = useGeneratedTextStore(state => state.generatedTexts[componentName] || '');
@@ -105,16 +115,16 @@ const FormExtrasSection = ({
             <FeatureIcons
               onWebSearchClick={() => webSearchFeatureToggle.onToggle(!webSearchFeatureToggle.isActive)}
               onPrivacyModeClick={() => privacyModeToggle.onToggle(!privacyModeToggle.isActive)}
+              onProModeClick={proModeToggle ? () => proModeToggle.onToggle(!proModeToggle.isActive) : () => {}}
+              onBalancedModeClick={balancedModeToggle ? () => balancedModeToggle.onToggle(!balancedModeToggle.isActive) : () => {}}
               onAttachmentClick={onAttachmentClick}
               onRemoveFile={onRemoveFile}
               webSearchActive={webSearchFeatureToggle.isActive}
               privacyModeActive={privacyModeToggle.isActive}
+              proModeActive={proModeToggle ? proModeToggle.isActive : false}
               attachedFiles={attachedFiles}
               className="form-extras__feature-icons"
-              tabIndex={{
-                webSearch: webSearchFeatureToggle.tabIndex,
-                privacyMode: privacyModeToggle.tabIndex
-              }}
+              tabIndex={featureIconsTabIndex}
               showPrivacyInfoLink={privacyModeToggle.isActive && !currentGeneratedContent}
               onPrivacyInfoClick={onPrivacyInfoClick}
               showWebSearchInfoLink={webSearchFeatureToggle.isActive && !currentGeneratedContent}
@@ -184,7 +194,6 @@ FormExtrasSection.propTypes = {
     statusMessage: PropTypes.string,
     tabIndex: PropTypes.number
   }),
-  useWebSearchFeatureToggle: PropTypes.bool,
   privacyModeToggle: PropTypes.shape({
     isActive: PropTypes.bool,
     onToggle: PropTypes.func,
@@ -193,16 +202,27 @@ FormExtrasSection.propTypes = {
     description: PropTypes.string,
     tabIndex: PropTypes.number
   }),
-  usePrivacyModeToggle: PropTypes.bool,
-  useFeatureIcons: PropTypes.bool,
+  proModeToggle: PropTypes.shape({
+    isActive: PropTypes.bool,
+    onToggle: PropTypes.func,
+    label: PropTypes.string,
+    icon: PropTypes.elementType,
+    description: PropTypes.string,
+    tabIndex: PropTypes.number
+  }),
+  balancedModeToggle: PropTypes.shape({
+    isActive: PropTypes.bool,
+    onToggle: PropTypes.func,
+    label: PropTypes.string,
+    icon: PropTypes.elementType,
+    description: PropTypes.string,
+    tabIndex: PropTypes.number
+  }),
   onAttachmentClick: PropTypes.func,
   onRemoveFile: PropTypes.func,
-  attachedFiles: PropTypes.array,
   formControl: PropTypes.object,
   formNotice: PropTypes.node,
   onSubmit: PropTypes.func,
-  loading: PropTypes.bool,
-  success: PropTypes.bool,
   isMultiStep: PropTypes.bool,
   nextButtonText: PropTypes.string,
   submitButtonProps: PropTypes.shape({
@@ -223,15 +243,10 @@ FormExtrasSection.propTypes = {
 };
 
 FormExtrasSection.defaultProps = {
-  useWebSearchFeatureToggle: false,
-  usePrivacyModeToggle: false,
-  useFeatureIcons: false,
   enableKnowledgeSelector: false,
   enableDocumentSelector: false,
   formControl: null,
   formNotice: null,
-  loading: false,
-  success: false,
   isMultiStep: false,
   nextButtonText: null,
   submitButtonProps: {},

@@ -68,17 +68,14 @@
   padding: 16px 20px 20px 20px;
 }
 
-/* Desktop positioning - anchor to the gear icon */
+/* Desktop positioning - positioned dynamically by JavaScript */
 @media (min-width: 769px) {
   .filter-popover {
-    /* Will be positioned dynamically by JavaScript if needed */
+    /* Position will be set via inline styles from JavaScript */
     top: auto;
-    right: 20px;
+    right: auto;
     bottom: auto;
     left: auto;
-    /* For now, simple positioning - can be enhanced later */
-    top: 60px;
-    right: 20px;
   }
 }
 

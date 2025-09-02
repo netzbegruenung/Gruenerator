@@ -1,5 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
+import { HiX } from 'react-icons/hi';
 
 // Inline error message function (moved from deleted errorUtils)
 const getErrorMessage = (error) => {
@@ -29,22 +30,41 @@ const getErrorMessage = (error) => {
  * Komponente zur Anzeige von Fehlermeldungen
  * @param {Object} props - Komponenten-Props
  * @param {string} props.error - Fehlertext oder Code
+ * @param {Function} props.onDismiss - Funktion zum Ausblenden der Fehlermeldung
  * @returns {JSX.Element|null} Fehlermeldung oder null
  */
-const ErrorDisplay = ({ error }) => {
+const ErrorDisplay = ({ error, onDismiss }) => {
   if (!error) return null;
 
   const errorMessage = getErrorMessage(error);
 
+  const handleDismiss = () => {
+    if (onDismiss) {
+      onDismiss();
+    }
+  };
+
   return (
-    <p role="alert" aria-live="assertive" className="form-error-message">
-      {errorMessage}
-    </p>
+    <div role="alert" aria-live="assertive" className="form-error-message">
+      <span className="error-message-text">{errorMessage}</span>
+      {onDismiss && (
+        <button
+          type="button"
+          className="error-dismiss-button"
+          onClick={handleDismiss}
+          aria-label="Fehlermeldung schließen"
+          title="Fehlermeldung schließen"
+        >
+          <HiX size="18" />
+        </button>
+      )}
+    </div>
   );
 };
 
 ErrorDisplay.propTypes = {
-  error: PropTypes.string
+  error: PropTypes.string,
+  onDismiss: PropTypes.func
 };
 
 export default ErrorDisplay; 

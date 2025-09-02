@@ -11,10 +11,14 @@ import DeleteWarningTooltip from '../../../../components/common/DeleteWarningToo
 import GroupMembersList from './GroupMembersList';
 import SharedContentSelector from '../../../../features/groups/components/SharedContentSelector';
 import { useInstructionsUiStore } from '../../../../stores/auth/instructionsUiStore';
+import { useGroupsStore } from '../../../../stores/auth/groupsStore';
+import { useWolkeStore } from '../../../../stores/wolkeStore';
+import WolkeShareLinkManager from '../../../../features/wolke/components/WolkeShareLinkManager';
 import { motion } from "motion/react";
 import { useTabIndex } from '../../../../hooks/useTabIndex';
 import { useModalFocus, useRovingTabindex } from '../../../../hooks/useKeyboardNavigation';
 import { announceToScreenReader, createInlineEditorFocus } from '../../../../utils/focusManagement';
+import { useBetaFeatures } from '../../../../hooks/useBetaFeatures';
 
 // Helper function moved to groupsUtils.js
 
@@ -164,6 +168,12 @@ const GroupDetailView = memo(({
         deletingKnowledgeId: uiDeletingKnowledgeId,
         clearMessages: clearUiMessages
     } = useInstructionsUiStore();
+    
+    // Groups store for navigation state
+    const groupsStore = useGroupsStore();
+
+    // Wolke store integration for group context
+    const { setScope, permissions } = useWolkeStore();
 
     const [joinLinkCopied, setJoinLinkCopied] = useState(false);
 
@@ -246,6 +256,25 @@ const GroupDetailView = memo(({
     useEffect(() => {
         clearUiMessages();
     }, [groupId, isActive, clearUiMessages]);
+
+    // Track previous view to avoid unnecessary scope changes
+    const prevCurrentView = useRef();
+    
+    // Effect to set Wolke store scope when viewing Wolke tab  
+    useEffect(() => {
+        // Only change scope when view actually changes, not on data updates
+        if (prevCurrentView.current !== currentView) {
+            if (currentView === 'wolke' && groupId && data?.groupInfo?.id) {
+                console.log('[GroupsManagementTab] Setting Wolke scope to group:', data.groupInfo.id);
+                setScope('group', data.groupInfo.id);
+            } else if (currentView !== 'wolke' && prevCurrentView.current === 'wolke') {
+                // Only reset when coming FROM wolke tab
+                console.log('[GroupsManagementTab] Leaving Wolke tab - resetting scope to personal');
+                setScope('personal', null);
+            }
+            prevCurrentView.current = currentView;
+        }
+    }, [currentView, groupId, data?.groupInfo?.id, setScope]);
 
     const getJoinUrl = () => {
         if (!data?.joinToken) return '';
@@ -797,6 +826,31 @@ const GroupDetailView = memo(({
         </>
     );
 
+    // Render Wolke Tab for shared folder management
+    const renderWolkeTab = () => (
+        <>
+            {/* Read-only notification for non-admin members */}
+            {!data?.isAdmin && (
+                <div className="group-readonly-notice">
+                    <HiInformationCircle className="group-readonly-notice-icon" />
+                    <div className="group-readonly-notice-content">
+                        <div className="group-readonly-notice-title">Eingeschränkter Zugriff</div>
+                        <p className="group-readonly-notice-text">
+                            Du kannst die Wolke-Ordner einsehen, aber nur Gruppenadministratoren können sie bearbeiten.
+                        </p>
+                    </div>
+                </div>
+            )}
+            
+            <div className="group-content-card">
+                <WolkeShareLinkManager
+                    useStore={true}
+                    readOnly={!permissions.canAddLinks || !permissions.canDeleteLinks}
+                />
+            </div>
+        </>
+    );
+
     return (
         <motion.div 
             className="group-detail-cards-layout"
@@ -807,6 +861,7 @@ const GroupDetailView = memo(({
             {currentView === 'gruppeninfo' && renderGroupInfoTab()}
             {currentView === 'anweisungen-wissen' && renderAnweisungenWissenTab()}
             {currentView === 'shared' && renderSharedContentTab()}
+            {currentView === 'wolke' && renderWolkeTab()}
 
         </motion.div>
     );
@@ -814,12 +869,21 @@ const GroupDetailView = memo(({
 
 // Main component for the Groups Management Tab
 const GroupsManagementTab = ({ onSuccessMessage, onErrorMessage, isActive }) => {
-    const [currentView, setCurrentView] = useState('overview');
-    const [selectedGroupId, setSelectedGroupId] = useState(null);
-    const [groupDetailView, setGroupDetailView] = useState('anweisungen-wissen');
+    // Beta features gating
+    const { canAccessBetaFeature, isLoading: isBetaLoading } = useBetaFeatures();
     
-    // Track whether initial auto-selection has been performed
-    const hasInitialAutoSelection = useRef(false);
+    // Groups store for navigation state
+    const {
+        selectedGroupId,
+        currentView,
+        groupDetailView,
+        hasInitialAutoSelection,
+        setSelectedGroup,
+        setCurrentView,
+        setGroupDetailView,
+        setHasInitialAutoSelection,
+        clearMessages: clearGroupsMessages
+    } = useGroupsStore();
     
     // Tab index configuration
     const tabIndex = useTabIndex('PROFILE_GROUPS');
@@ -862,8 +926,7 @@ const GroupsManagementTab = ({ onSuccessMessage, onErrorMessage, isActive }) => 
         createGroup(groupName, {
           onSuccess: (newGroup) => {
             const newGroupId = newGroup.id;
-            setSelectedGroupId(newGroupId);
-            setCurrentView('group');
+            setSelectedGroup(newGroupId);
             setGroupDetailView('anweisungen-wissen');
             resetCreateGroup();
             onSuccessMessage(`Gruppe "${groupName}" erfolgreich erstellt!`);
@@ -872,30 +935,30 @@ const GroupsManagementTab = ({ onSuccessMessage, onErrorMessage, isActive }) => 
             onErrorMessage(error?.message || 'Gruppe konnte nicht erstellt werden.');
           }
         });
-    }, [isCreatingGroup, onSuccessMessage, onErrorMessage, createGroup, setSelectedGroupId, setCurrentView, setGroupDetailView, resetCreateGroup]);
+    }, [isCreatingGroup, onSuccessMessage, onErrorMessage, createGroup, setSelectedGroup, setGroupDetailView, resetCreateGroup]);
 
-    // Auto-select logic & handle group deletion side effects
+    // Auto-select logic for initial load only
     useEffect(() => {
         if (!userGroups) return;
 
         // Only auto-select on initial load, not when user manually navigates
-        if (!hasInitialAutoSelection.current) {
+        if (!hasInitialAutoSelection) {
             if (userGroups.length === 1 && !selectedGroupId && currentView === 'overview') {
-                setSelectedGroupId(userGroups[0].id);
-                setCurrentView('group');
+                setSelectedGroup(userGroups[0].id);
             }
-            hasInitialAutoSelection.current = true;
-            return;
+            setHasInitialAutoSelection(true);
         }
+    }, [userGroups, selectedGroupId, currentView, hasInitialAutoSelection, setSelectedGroup, setHasInitialAutoSelection]);
+    
+    // Separate effect for handling empty groups state
+    useEffect(() => {
+        if (!userGroups) return;
         
-        // Handle the case where user has no groups
-        if (userGroups.length === 0) {
-            setSelectedGroupId(null);
-            if (currentView !== 'overview' && currentView !== 'create') {
-                setCurrentView('overview');
-            }
+        // Handle the case where user has no groups and we need to reset
+        if (userGroups.length === 0 && selectedGroupId !== null) {
+            setSelectedGroup(null);
         }
-    }, [userGroups, selectedGroupId, currentView]);
+    }, [userGroups, selectedGroupId, setSelectedGroup]);
 
     // Handle group deletion side effects (separate effect for clarity)
     useEffect(() => {
@@ -904,56 +967,52 @@ const GroupsManagementTab = ({ onSuccessMessage, onErrorMessage, isActive }) => 
             if (deletedGroupWasSelected) {
                 onSuccessMessage('Gruppe erfolgreich gelöscht!');
                 if (userGroups.length > 0) {
-                    setSelectedGroupId(userGroups[0].id);
-                    setCurrentView('group');
+                    setSelectedGroup(userGroups[0].id);
                 } else {
-                    setSelectedGroupId(null);
-                    setCurrentView('overview');
+                    setSelectedGroup(null);
                 }
             }
         }
-    }, [isDeleteGroupSuccess, selectedGroupId, userGroups, onSuccessMessage]);
+    }, [isDeleteGroupSuccess, selectedGroupId, userGroups, onSuccessMessage, setSelectedGroup]);
 
     // Function to switch view
     const handleSelectGroup = useCallback((groupId) => {
         if (selectedGroupId !== groupId) {
             onSuccessMessage('');
             onErrorMessage('');
-            setSelectedGroupId(groupId);
-            setCurrentView('group');
+            setSelectedGroup(groupId);
             setGroupDetailView('anweisungen-wissen');
         }
-    }, [selectedGroupId, onSuccessMessage, onErrorMessage, setSelectedGroupId, setCurrentView, setGroupDetailView]);
+    }, [selectedGroupId, onSuccessMessage, onErrorMessage, setSelectedGroup, setGroupDetailView]);
 
     const handleCreateNew = useCallback(() => {
+        setSelectedGroup(null);
         setCurrentView('create');
-        setSelectedGroupId(null);
         resetCreateGroup();
         onSuccessMessage('');
         onErrorMessage('');
-    }, [setCurrentView, setSelectedGroupId, resetCreateGroup, onSuccessMessage, onErrorMessage]);
+    }, [setCurrentView, setSelectedGroup, resetCreateGroup, onSuccessMessage, onErrorMessage]);
 
     const handleCancelCreate = useCallback(() => {
         if (userGroups && userGroups.length > 0) {
-            setSelectedGroupId(userGroups[0].id);
-            setCurrentView('group');
+            setSelectedGroup(userGroups[0].id);
         } else {
             setCurrentView('overview');
         }
         onSuccessMessage('');
         onErrorMessage('');
-    }, [userGroups, setSelectedGroupId, setCurrentView, onSuccessMessage, onErrorMessage]);
+    }, [userGroups, setSelectedGroup, setCurrentView, onSuccessMessage, onErrorMessage]);
 
     // Handle switching between main tabs
     const handleTabClick = useCallback((view) => {
         setCurrentView(view);
         if (view === 'overview') {
-            setSelectedGroupId(null);
+            setSelectedGroup(null);
         }
         onSuccessMessage('');
         onErrorMessage('');
         announceToScreenReader(`${view === 'overview' ? 'Übersicht' : view} ausgewählt`);
-    }, [onSuccessMessage, onErrorMessage]);
+    }, [setCurrentView, setSelectedGroup, onSuccessMessage, onErrorMessage]);
     
     // Navigation items for roving tabindex
     const navigationItems = [
@@ -1222,6 +1281,16 @@ const GroupsManagementTab = ({ onSuccessMessage, onErrorMessage, isActive }) => 
                         >
                             Geteilte Inhalte & Vorlagen
                         </button>
+                        <button
+                            className={`groups-vertical-tab ${groupDetailView === 'wolke' ? 'active' : ''}`}
+                            onClick={() => setGroupDetailView('wolke')}
+                            tabIndex={tabIndex.groupDetailTabs + 3}
+                            role="tab"
+                            aria-selected={groupDetailView === 'wolke'}
+                            aria-controls="wolke-panel"
+                        >
+                            Wolke-Ordner
+                        </button>
                     </div>
                     
                     {/* Group content */}
@@ -1245,6 +1314,14 @@ const GroupsManagementTab = ({ onSuccessMessage, onErrorMessage, isActive }) => 
 
         return renderOverviewTab();
     };
+
+    // Gate entire component rendering behind 'groups' feature
+    if (isBetaLoading) {
+        return null;
+    }
+    if (!canAccessBetaFeature('groups')) {
+        return null;
+    }
 
     return (
         <motion.div 

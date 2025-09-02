@@ -344,7 +344,7 @@ export const useGeneratorKnowledgeStore = create(immer((set, get) => {
       // Fetching user texts
       
       const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
-      const response = await fetch(`${AUTH_BASE_URL}/user-texts`, {
+      const response = await fetch(`${AUTH_BASE_URL}/auth/saved-texts`, {
         method: 'GET',
         credentials: 'include',
         headers: {

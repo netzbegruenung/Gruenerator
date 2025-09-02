@@ -36,23 +36,13 @@ class VectorConfig {
         }
       },
 
-      // Hybrid search configuration
-      hybrid: {
-        vectorWeight: parseFloat(process.env.HYBRID_VECTOR_WEIGHT || '0.7'),
-        keywordWeight: parseFloat(process.env.HYBRID_KEYWORD_WEIGHT || '0.3'),
-        vectorMultiplier: parseFloat(process.env.HYBRID_VECTOR_MULTIPLIER || '3.0'),
-        keywordMultiplier: parseFloat(process.env.HYBRID_KEYWORD_MULTIPLIER || '2.0')
-      },
 
-      // Document scoring configuration
+      // Document scoring configuration (simplified)
       scoring: {
-        maxSimilarityWeight: parseFloat(process.env.SCORING_MAX_SIMILARITY_WEIGHT || '0.5'),
-        avgSimilarityWeight: parseFloat(process.env.SCORING_AVG_SIMILARITY_WEIGHT || '0.3'),
-        positionWeight: parseFloat(process.env.SCORING_POSITION_WEIGHT || '0.2'),
-        positionDecayRate: parseFloat(process.env.SCORING_POSITION_DECAY || '0.1'),
-        minPositionWeight: parseFloat(process.env.SCORING_MIN_POSITION_WEIGHT || '0.3'),
-        diversityBonusRate: parseFloat(process.env.SCORING_DIVERSITY_BONUS_RATE || '0.05'),
-        maxDiversityBonus: parseFloat(process.env.SCORING_MAX_DIVERSITY_BONUS || '0.2'),
+        maxSimilarityWeight: parseFloat(process.env.SCORING_MAX_SIMILARITY_WEIGHT || '0.6'),
+        avgSimilarityWeight: parseFloat(process.env.SCORING_AVG_SIMILARITY_WEIGHT || '0.4'),
+        diversityBonusRate: parseFloat(process.env.SCORING_DIVERSITY_BONUS_RATE || '0.02'),
+        maxDiversityBonus: parseFloat(process.env.SCORING_MAX_DIVERSITY_BONUS || '0.1'),
         maxFinalScore: parseFloat(process.env.SCORING_MAX_FINAL_SCORE || '1.0')
       },
 
@@ -60,9 +50,7 @@ class VectorConfig {
       content: {
         maxExcerptLength: parseInt(process.env.CONTENT_MAX_EXCERPT_LENGTH || '300'),
         excerptSentenceBoundary: parseFloat(process.env.CONTENT_EXCERPT_SENTENCE_BOUNDARY || '0.7'),
-        maxChunksPerDocument: parseInt(process.env.CONTENT_MAX_CHUNKS_PER_DOC || '3'),
-        keywordContextLength: parseInt(process.env.CONTENT_KEYWORD_CONTEXT_LENGTH || '500'),
-        keywordContextRatio: parseFloat(process.env.CONTENT_KEYWORD_CONTEXT_RATIO || '0.33')
+        maxChunksPerDocument: parseInt(process.env.CONTENT_MAX_CHUNKS_PER_DOC || '3')
       },
 
       // Embedding configuration
@@ -73,22 +61,9 @@ class VectorConfig {
         validationTimeout: parseInt(process.env.EMBEDDING_VALIDATION_TIMEOUT || '5000')
       },
 
-      // Smart query expansion
-      queryExpansion: {
-        maxExpansions: parseInt(process.env.QUERY_MAX_EXPANSIONS || '5'),
-        originalWeight: parseFloat(process.env.QUERY_ORIGINAL_WEIGHT || '1.0'),
-        expansionBaseWeight: parseFloat(process.env.QUERY_EXPANSION_BASE_WEIGHT || '0.6'),
-        confidenceBoostWeight: parseFloat(process.env.QUERY_CONFIDENCE_BOOST_WEIGHT || '1.0'),
-        semanticConfidenceWeight: parseFloat(process.env.QUERY_SEMANTIC_CONFIDENCE_WEIGHT || '0.5'),
-        feedbackConfidenceWeight: parseFloat(process.env.QUERY_FEEDBACK_CONFIDENCE_WEIGHT || '0.5')
-      },
 
-      // Cache configuration
+      // Cache configuration (simplified)
       cache: {
-        searchEnhancement: {
-          maxSize: parseInt(process.env.CACHE_ENHANCEMENT_SIZE || '100'),
-          ttl: parseInt(process.env.CACHE_ENHANCEMENT_TTL || '1800000') // 30 minutes
-        },
         searchResults: {
           maxSize: parseInt(process.env.CACHE_RESULTS_SIZE || '200'),
           ttl: parseInt(process.env.CACHE_RESULTS_TTL || '900000') // 15 minutes
@@ -96,54 +71,15 @@ class VectorConfig {
         embeddings: {
           maxSize: parseInt(process.env.CACHE_EMBEDDINGS_SIZE || '500'),
           ttl: parseInt(process.env.CACHE_EMBEDDINGS_TTL || '3600000') // 1 hour
-        },
-        baseService: {
-          maxSize: parseInt(process.env.CACHE_BASE_SIZE || '100'),
-          ttl: parseInt(process.env.CACHE_BASE_TTL || '1800000') // 30 minutes
         }
       },
 
       // Timeouts
       timeouts: {
         searchDefault: parseInt(process.env.TIMEOUT_SEARCH_DEFAULT || '15000'), // 15 seconds
-        aiWorker: parseInt(process.env.TIMEOUT_AI_WORKER || '15000'),
-        autonomousSearch: parseInt(process.env.TIMEOUT_AUTONOMOUS_SEARCH || '30000'), // 2x for complex searches
-        embeddingGeneration: parseInt(process.env.TIMEOUT_EMBEDDING || '10000'),
-        databaseRPC: parseInt(process.env.TIMEOUT_DATABASE_RPC || '20000')
+        embeddingGeneration: parseInt(process.env.TIMEOUT_EMBEDDING || '10000')
       },
 
-      // AI Worker configuration
-      aiWorker: {
-        haiku: {
-          model: process.env.AI_HAIKU_MODEL || 'anthropic.claude-3-haiku-20240307-v1:0',
-          maxTokens: parseInt(process.env.AI_HAIKU_MAX_TOKENS || '1000'),
-          temperature: parseFloat(process.env.AI_HAIKU_TEMPERATURE || '0.3'),
-          provider: process.env.AI_HAIKU_PROVIDER || 'bedrock'
-        },
-        autonomous: {
-          maxTokens: parseInt(process.env.AI_AUTONOMOUS_MAX_TOKENS || '2000'),
-          temperature: parseFloat(process.env.AI_AUTONOMOUS_TEMPERATURE || '0.2')
-        }
-      },
-
-      // Context expansion configuration
-      contextExpansion: {
-        maxContextTokens: parseInt(process.env.CONTEXT_MAX_TOKENS || '2000'),
-        includePrevious: process.env.CONTEXT_INCLUDE_PREVIOUS !== 'false',
-        includeNext: process.env.CONTEXT_INCLUDE_NEXT !== 'false',
-        includeRelated: process.env.CONTEXT_INCLUDE_RELATED !== 'false',
-        preserveStructure: process.env.CONTEXT_PRESERVE_STRUCTURE !== 'false',
-        tokenUsageThreshold: parseFloat(process.env.CONTEXT_TOKEN_USAGE_THRESHOLD || '0.8'),
-        relatedStrengthThreshold: parseFloat(process.env.CONTEXT_RELATED_STRENGTH_THRESHOLD || '0.8'),
-        maxRelatedChunks: parseInt(process.env.CONTEXT_MAX_RELATED_CHUNKS || '2')
-      },
-
-      // Database examples search
-      databaseExamples: {
-        maxResults: parseInt(process.env.DB_EXAMPLES_MAX_RESULTS || '10'),
-        defaultThreshold: parseFloat(process.env.DB_EXAMPLES_THRESHOLD || '0.25'),
-        maxContentTypeLength: parseInt(process.env.DB_EXAMPLES_MAX_CONTENT_TYPE_LENGTH || '50')
-      },
 
       // Validation limits
       validation: {
@@ -189,16 +125,9 @@ class VectorConfig {
       throw new Error('VECTOR_MIN_THRESHOLD must be less than VECTOR_MAX_THRESHOLD');
     }
     
-    // Validate weights sum to 1 for hybrid search
-    const hybridWeightSum = config.hybrid.vectorWeight + config.hybrid.keywordWeight;
-    if (Math.abs(hybridWeightSum - 1.0) > 0.01) {
-      console.warn(`[VectorConfig] Hybrid weights sum to ${hybridWeightSum}, should be 1.0`);
-    }
-    
     // Validate scoring weights
     const scoringWeightSum = config.scoring.maxSimilarityWeight + 
-                           config.scoring.avgSimilarityWeight + 
-                           config.scoring.positionWeight;
+                           config.scoring.avgSimilarityWeight;
     if (Math.abs(scoringWeightSum - 1.0) > 0.01) {
       console.warn(`[VectorConfig] Scoring weights sum to ${scoringWeightSum}, should be 1.0`);
     }
@@ -207,7 +136,7 @@ class VectorConfig {
     const positiveValues = [
       'search.defaultLimit', 'search.maxLimit',
       'content.maxExcerptLength', 'content.maxChunksPerDocument',
-      'timeouts.searchDefault', 'timeouts.aiWorker'
+      'timeouts.searchDefault', 'timeouts.embeddingGeneration'
     ];
     
     positiveValues.forEach(path => {
@@ -280,8 +209,8 @@ class VectorConfig {
   getCacheConfig(cacheType) {
     const cacheConfig = this.config.cache[cacheType];
     if (!cacheConfig) {
-      console.warn(`[VectorConfig] Unknown cache type '${cacheType}', using default`);
-      return this.config.cache.baseService;
+      console.warn(`[VectorConfig] Unknown cache type '${cacheType}', using searchResults as default`);
+      return this.config.cache.searchResults;
     }
     return cacheConfig;
   }

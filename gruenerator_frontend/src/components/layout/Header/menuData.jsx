@@ -57,16 +57,9 @@ export const getMenuItems = (betaFeatures = {}) => {
         }
       ]
     },
-    tools: {
-      title: 'Tools',
+    bildUndVideo: {
+      title: 'Bild und Video',
       items: [
-        {
-          id: 'suche',
-          path: '/suche',
-          title: 'Suche',
-          description: 'Webrecherche für aktuelle Informationen',
-          icon: getIcon('navigation', 'suche')
-        },
         {
           id: 'reel',
           path: '/reel',
@@ -80,6 +73,32 @@ export const getMenuItems = (betaFeatures = {}) => {
           title: 'Sharepics',
           description: 'Erstelle Sharepics für Social Media',
           icon: getIcon('navigation', 'sharepic')
+        },
+        {
+          id: 'imagine',
+          path: '/imagine',
+          title: 'Imagine',
+          description: 'Begrüne deine Straße mit magischer KI-Bildbearbeitung',
+          icon: getIcon('navigation', 'imagine')
+        }
+      ]
+    },
+    tools: {
+      title: 'Tools',
+      items: [
+        {
+          id: 'suche',
+          path: '/suche',
+          title: 'Suche',
+          description: 'Webrecherche für aktuelle Informationen',
+          icon: getIcon('navigation', 'suche')
+        },
+        {
+          id: 'barrierefreiheit',
+          path: '/barrierefreiheit',
+          title: 'Barrierefreiheit',
+          description: 'Alt-Text & Leichte Sprache',
+          icon: getIcon('navigation', 'barrierefreiheit')
         }
       ]
     }

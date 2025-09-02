@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import FormSection from '../../components/common/Form/BaseForm/FormSection';
+import FormStateProvider from '../../components/common/Form/FormStateProvider';
 import FormInput from '../../components/common/Form/Input/FormInput';
 import FormTextarea from '../../components/common/Form/Input/FormTextarea';
 import { useNavigate } from 'react-router-dom';
@@ -563,24 +564,31 @@ const CreateCustomGeneratorPage = ({ showHeaderFooter = true }) => {
   return (
     <div className={`create-generator-page ${showHeaderFooter ? 'with-header' : ''}`}>
       <div className="container">
-        <FormSection
-          title={helpContent?.title || "Neuen Grünerator erstellen"}
-          onSubmit={handleNext}
-          onBack={handleBack}
-          loading={isGeneratingWithAI}
-          formErrors={{ general: error }}
-          isFormVisible={true}
-          isMultiStep={true}
-          showBackButton={currentStep > STEPS.BASICS && !isEditingField}
-          nextButtonText={currentStep === STEPS.REVIEW ? 'Speichern' : 'Weiter'}
-          useModernForm={true}
-          formControl={control}
-          defaultValues={INITIAL_FORM_DATA}
-          hideExtrasSection={true}
-          showSubmitButtonInInputSection={true}
+        <FormStateProvider 
+          initialState={{
+            loading: isGeneratingWithAI,
+            formErrors: { general: error },
+            isFormVisible: true
+          }}
+          formId="create-custom-generator"
         >
-          {renderCurrentStep()}
-        </FormSection>
+          <FormSection
+            title={helpContent?.title || "Neuen Grünerator erstellen"}
+            onSubmit={handleNext}
+            onBack={handleBack}
+            isFormVisible={true}
+            isMultiStep={true}
+            showBackButton={currentStep > STEPS.BASICS && !isEditingField}
+            nextButtonText={currentStep === STEPS.REVIEW ? 'Speichern' : 'Weiter'}
+            useModernForm={true}
+            formControl={control}
+            defaultValues={INITIAL_FORM_DATA}
+            hideExtrasSection={true}
+            showSubmitButtonInInputSection={true}
+          >
+            {renderCurrentStep()}
+          </FormSection>
+        </FormStateProvider>
       </div>
     </div>
   );

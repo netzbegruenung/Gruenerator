@@ -46,7 +46,10 @@ router.get('/share-links', async (req, res) => {
         
         const shareLinks = await NextcloudShareManager.getShareLinks(userId);
         
-        res.json(shareLinks);
+        res.json({
+            success: true,
+            shareLinks: shareLinks
+        });
         
     } catch (error) {
         console.error('[NextcloudApi] Error getting share links', { error: error.message });
@@ -114,7 +117,8 @@ router.post('/share-links', async (req, res) => {
         }
         
         res.status(201).json({
-            ...savedLink,
+            success: true,
+            shareLink: savedLink,
             connectionTest
         });
         
@@ -373,6 +377,32 @@ router.put('/share-links/:id', async (req, res) => {
         
         res.status(500).json({
             error: 'Failed to update share link',
+            message: error.message
+        });
+    }
+});
+
+/**
+ * Debug route to check database state
+ * GET /api/nextcloud/debug/database-state
+ */
+router.get('/debug/database-state', async (req, res) => {
+    try {
+        const userId = req.user.id;
+        console.log('[NextcloudApi] Debug: Checking database state', { userId });
+        
+        const dbState = await NextcloudShareManager.checkDatabaseState(userId);
+        
+        res.json({
+            success: true,
+            debug: true,
+            ...dbState
+        });
+        
+    } catch (error) {
+        console.error('[NextcloudApi] Error checking database state', { error: error.message });
+        res.status(500).json({
+            error: 'Failed to check database state',
             message: error.message
         });
     }

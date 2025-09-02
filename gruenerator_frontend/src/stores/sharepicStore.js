@@ -33,6 +33,8 @@ const initialState = {
   // Cross-component editing state
   editingSource: null, // null, 'presseSocial', 'sharepicGenerator'
   originalSharepicData: null, // Store original data for reference
+  isEditSession: false, // Track if this is an edit session
+  hasOriginalImage: false, // Track if original had an image
   
   // UI State
   currentStep: FORM_STEPS.WELCOME,
@@ -229,8 +231,19 @@ const useSharepicStore = create((set, get) => ({
       newState.subheader = lines[1] || '';
       newState.body = lines.slice(2).join('\n') || '';
     } else if (sharepicData.type === 'quote' || sharepicData.type === 'quote_pure') {
-      // Parse quote data
-      const quoteMatch = sharepicData.text.match(/^"(.*)" - (.*)$/);
+      // Parse quote data - handle both quoted and unquoted formats
+      let quoteMatch = sharepicData.text.match(/^"(.*)" - (.*)$/);
+      
+      if (!quoteMatch) {
+        // Try without quotes - fallback to splitting by " - "
+        const lastDashIndex = sharepicData.text.lastIndexOf(' - ');
+        if (lastDashIndex !== -1) {
+          const quote = sharepicData.text.substring(0, lastDashIndex);
+          const name = sharepicData.text.substring(lastDashIndex + 3);
+          quoteMatch = [null, quote, name]; // Simulate regex match array
+        }
+      }
+      
       if (quoteMatch) {
         newState.type = sharepicData.type === 'quote_pure' ? 'Zitat_Pure' : 'Zitat';
         newState.quote = quoteMatch[1];

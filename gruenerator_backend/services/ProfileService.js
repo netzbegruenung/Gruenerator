@@ -1,5 +1,4 @@
 import { getDatabaseAdapter } from '../database/services/DatabaseAdapter.js';
-import { supabaseService } from '../utils/supabaseClient.js';
 
 /**
  * ProfileService - Centralized service for user profile operations
@@ -9,7 +8,6 @@ import { supabaseService } from '../utils/supabaseClient.js';
 class ProfileService {
     constructor() {
         this.db = getDatabaseAdapter();
-        this.usePostgres = process.env.DATABASE_TYPE === 'postgres';
         this.tableName = 'profiles';
     }
 
@@ -17,9 +15,7 @@ class ProfileService {
      * Initialize the service
      */
     async init() {
-        if (this.usePostgres) {
-            await this.db.init();
-        }
+        await this.db.init();
     }
 
     /**
@@ -27,27 +23,18 @@ class ProfileService {
      */
     async getProfileById(userId) {
         try {
-            if (this.usePostgres) {
-                await this.db.ensureInitialized();
-                const profile = await this.db.queryOne(
-                    'SELECT * FROM profiles WHERE id = $1',
-                    [userId],
-                    { table: this.tableName }
-                );
-                return profile;
+            await this.db.ensureInitialized();
+            const profile = await this.db.queryOne(
+                'SELECT * FROM profiles WHERE id = $1',
+                [userId],
+                { table: this.tableName }
+            );
+            if (profile) {
+                console.log(`[ProfileService] 📄 Profile fetched for user ${userId}: avatar_robot_id=${profile.avatar_robot_id}`);
             } else {
-                // Fallback to Supabase
-                const { data: profile, error } = await supabaseService
-                    .from('profiles')
-                    .select('*')
-                    .eq('id', userId)
-                    .single();
-                
-                if (error && error.code !== 'PGRST116') {
-                    throw new Error(error.message);
-                }
-                return profile;
+                console.log(`[ProfileService] ❌ No profile found for user ${userId}`);
             }
+            return profile;
         } catch (error) {
             console.error('[ProfileService] Error getting profile by ID:', error);
             throw error;
@@ -59,27 +46,18 @@ class ProfileService {
      */
     async getProfileByKeycloakId(keycloakId) {
         try {
-            if (this.usePostgres) {
-                await this.db.ensureInitialized();
-                const profile = await this.db.queryOne(
-                    'SELECT * FROM profiles WHERE keycloak_id = $1',
-                    [keycloakId],
-                    { table: this.tableName }
-                );
-                return profile;
+            await this.db.ensureInitialized();
+            const profile = await this.db.queryOne(
+                'SELECT * FROM profiles WHERE keycloak_id = $1',
+                [keycloakId],
+                { table: this.tableName }
+            );
+            if (profile) {
+                console.log(`[ProfileService] 🔑 Profile fetched by Keycloak ID ${keycloakId}: user_id=${profile.id}, avatar_robot_id=${profile.avatar_robot_id}`);
             } else {
-                // Fallback to Supabase
-                const { data: profile, error } = await supabaseService
-                    .from('profiles')
-                    .select('*')
-                    .eq('keycloak_id', keycloakId)
-                    .single();
-                
-                if (error && error.code !== 'PGRST116') {
-                    throw new Error(error.message);
-                }
-                return profile;
+                console.log(`[ProfileService] ❌ No profile found for Keycloak ID ${keycloakId}`);
             }
+            return profile;
         } catch (error) {
             console.error('[ProfileService] Error getting profile by Keycloak ID:', error);
             throw error;
@@ -91,27 +69,13 @@ class ProfileService {
      */
     async getProfileByEmail(email) {
         try {
-            if (this.usePostgres) {
-                await this.db.ensureInitialized();
-                const profile = await this.db.queryOne(
-                    'SELECT * FROM profiles WHERE email = $1',
-                    [email],
-                    { table: this.tableName }
-                );
-                return profile;
-            } else {
-                // Fallback to Supabase
-                const { data: profile, error } = await supabaseService
-                    .from('profiles')
-                    .select('*')
-                    .eq('email', email)
-                    .single();
-                
-                if (error && error.code !== 'PGRST116') {
-                    throw new Error(error.message);
-                }
-                return profile;
-            }
+            await this.db.ensureInitialized();
+            const profile = await this.db.queryOne(
+                'SELECT * FROM profiles WHERE email = $1',
+                [email],
+                { table: this.tableName }
+            );
+            return profile;
         } catch (error) {
             console.error('[ProfileService] Error getting profile by email:', error);
             throw error;
@@ -123,10 +87,9 @@ class ProfileService {
      */
     async createProfile(profileData) {
         try {
-            const now = new Date().toISOString();
+            // Don't include updated_at - PostgresService handles timestamps
             const newProfile = {
                 ...profileData,
-                updated_at: now,
                 beta_features: profileData.beta_features || {},
                 igel_modus: profileData.igel_modus || false,
                 bundestag_api_enabled: profileData.bundestag_api_enabled || false,
@@ -143,23 +106,9 @@ class ProfileService {
                 avatar_robot_id: profileData.avatar_robot_id || 1
             };
 
-            if (this.usePostgres) {
-                await this.db.ensureInitialized();
-                const result = await this.db.insert(this.tableName, newProfile);
-                return result;
-            } else {
-                // Fallback to Supabase
-                const { data, error } = await supabaseService
-                    .from('profiles')
-                    .insert(newProfile)
-                    .select()
-                    .single();
-                
-                if (error) {
-                    throw new Error(error.message);
-                }
-                return data;
-            }
+            await this.db.ensureInitialized();
+            const result = await this.db.insert(this.tableName, newProfile);
+            return result;
         } catch (error) {
             console.error('[ProfileService] Error creating profile:', error);
             throw error;
@@ -171,30 +120,14 @@ class ProfileService {
      */
     async updateProfile(userId, updateData) {
         try {
-            const now = new Date().toISOString();
+            // Don't include updated_at - PostgresService adds it automatically
             const dataToUpdate = {
-                ...updateData,
-                updated_at: now
+                ...updateData
             };
 
-            if (this.usePostgres) {
-                await this.db.ensureInitialized();
-                const result = await this.db.update(this.tableName, dataToUpdate, { id: userId });
-                return result.data[0];
-            } else {
-                // Fallback to Supabase
-                const { data, error } = await supabaseService
-                    .from('profiles')
-                    .update(dataToUpdate)
-                    .eq('id', userId)
-                    .select()
-                    .single();
-                
-                if (error) {
-                    throw new Error(error.message);
-                }
-                return data;
-            }
+            await this.db.ensureInitialized();
+            const result = await this.db.update(this.tableName, dataToUpdate, { id: userId });
+            return result.data[0];
         } catch (error) {
             console.error('[ProfileService] Error updating profile:', error);
             throw error;
@@ -206,29 +139,14 @@ class ProfileService {
      */
     async upsertProfile(profileData) {
         try {
-            const now = new Date().toISOString();
+            // Don't include updated_at - PostgresService adds it automatically
             const dataToUpsert = {
-                ...profileData,
-                updated_at: now
+                ...profileData
             };
 
-            if (this.usePostgres) {
-                await this.db.ensureInitialized();
-                const result = await this.db.upsert(this.tableName, dataToUpsert, ['id']);
-                return result;
-            } else {
-                // Fallback to Supabase
-                const { data, error } = await supabaseService
-                    .from('profiles')
-                    .upsert(dataToUpsert)
-                    .select()
-                    .single();
-                
-                if (error) {
-                    throw new Error(error.message);
-                }
-                return data;
-            }
+            await this.db.ensureInitialized();
+            const result = await this.db.upsert(this.tableName, dataToUpsert, ['id']);
+            return result;
         } catch (error) {
             console.error('[ProfileService] Error upserting profile:', error);
             throw error;
@@ -262,7 +180,7 @@ class ProfileService {
             const featureColumnMap = {
                 'igel_modus': 'igel_modus',
                 'bundestag_api_enabled': 'bundestag_api_enabled',
-                'groups': 'groups',
+                'groups': 'groups_enabled',
                 'customGenerators': 'custom_generators',
                 'database': 'database_access',
                 'you': 'you_generator',
@@ -296,8 +214,20 @@ class ProfileService {
             }
 
             const result = await this.updateProfile(userId, { avatar_robot_id: avatarRobotId });
-            console.log(`[ProfileService] Avatar updated for user ${userId}: ${avatarRobotId}`);
-            return result;
+            
+            // Verify the update actually worked by immediately reading back
+            const verifiedProfile = await this.getProfileById(userId);
+            if (!verifiedProfile || verifiedProfile.avatar_robot_id !== avatarRobotId) {
+                console.error(`[ProfileService] 🚨 Avatar update verification FAILED for user ${userId}:`, {
+                    requested: avatarRobotId,
+                    actual: verifiedProfile?.avatar_robot_id,
+                    updateResult: result
+                });
+                throw new Error(`Avatar update failed - requested ${avatarRobotId} but database shows ${verifiedProfile?.avatar_robot_id}`);
+            }
+            
+            console.log(`[ProfileService] 🎨 Avatar updated for user ${userId}: avatar_robot_id=${avatarRobotId} (verified in PostgreSQL)`);
+            return verifiedProfile;
         } catch (error) {
             console.error('[ProfileService] Error updating avatar:', error);
             throw error;
@@ -345,23 +275,9 @@ class ProfileService {
      */
     async deleteProfile(userId) {
         try {
-            if (this.usePostgres) {
-                await this.db.ensureInitialized();
-                const result = await this.db.delete(this.tableName, { id: userId });
-                return result;
-            } else {
-                // Fallback to Supabase
-                const { data, error } = await supabaseService
-                    .from('profiles')
-                    .delete()
-                    .eq('id', userId)
-                    .select();
-                
-                if (error) {
-                    throw new Error(error.message);
-                }
-                return { changes: data.length, data };
-            }
+            await this.db.ensureInitialized();
+            const result = await this.db.delete(this.tableName, { id: userId });
+            return result;
         } catch (error) {
             console.error('[ProfileService] Error deleting profile:', error);
             throw error;
@@ -373,27 +289,13 @@ class ProfileService {
      */
     async getAllProfiles(limit = 100, offset = 0) {
         try {
-            if (this.usePostgres) {
-                await this.db.ensureInitialized();
-                const profiles = await this.db.query(
-                    'SELECT * FROM profiles ORDER BY created_at DESC LIMIT $1 OFFSET $2',
-                    [limit, offset],
-                    { table: this.tableName }
-                );
-                return profiles;
-            } else {
-                // Fallback to Supabase
-                const { data: profiles, error } = await supabaseService
-                    .from('profiles')
-                    .select('*')
-                    .order('created_at', { ascending: false })
-                    .range(offset, offset + limit - 1);
-                
-                if (error) {
-                    throw new Error(error.message);
-                }
-                return profiles;
-            }
+            await this.db.ensureInitialized();
+            const profiles = await this.db.query(
+                'SELECT * FROM profiles ORDER BY created_at DESC LIMIT $1 OFFSET $2',
+                [limit, offset],
+                { table: this.tableName }
+            );
+            return profiles;
         } catch (error) {
             console.error('[ProfileService] Error getting all profiles:', error);
             throw error;
@@ -405,84 +307,87 @@ class ProfileService {
      */
     async getProfileStats() {
         try {
-            if (this.usePostgres) {
-                await this.db.ensureInitialized();
-                const stats = await this.db.queryOne(`
-                    SELECT 
-                        COUNT(*) as total_profiles,
-                        COUNT(*) FILTER (WHERE igel_modus = true) as igel_users,
-                        COUNT(*) FILTER (WHERE bundestag_api_enabled = true) as bundestag_users,
-                        COUNT(*) FILTER (WHERE memory_enabled = true) as memory_users,
-                        COUNT(*) FILTER (WHERE last_login > NOW() - INTERVAL '30 days') as active_users
-                    FROM profiles
-                `);
-                return stats;
-            } else {
-                // Would need multiple queries for Supabase - simplified for now
-                const { data: profiles, error } = await supabaseService
-                    .from('profiles')
-                    .select('igel_modus, bundestag_api_enabled, memory_enabled, last_login');
-                
-                if (error) {
-                    throw new Error(error.message);
-                }
-
-                const now = new Date();
-                const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-
-                return {
-                    total_profiles: profiles.length,
-                    igel_users: profiles.filter(p => p.igel_modus).length,
-                    bundestag_users: profiles.filter(p => p.bundestag_api_enabled).length,
-                    memory_users: profiles.filter(p => p.memory_enabled).length,
-                    active_users: profiles.filter(p => p.last_login && new Date(p.last_login) > thirtyDaysAgo).length
-                };
-            }
+            await this.db.ensureInitialized();
+            const stats = await this.db.queryOne(`
+                SELECT 
+                    COUNT(*) as total_profiles,
+                    COUNT(*) FILTER (WHERE igel_modus = true) as igel_users,
+                    COUNT(*) FILTER (WHERE bundestag_api_enabled = true) as bundestag_users,
+                    COUNT(*) FILTER (WHERE memory_enabled = true) as memory_users,
+                    COUNT(*) FILTER (WHERE last_login > NOW() - INTERVAL '30 days') as active_users
+                FROM profiles
+            `);
+            return stats;
         } catch (error) {
             console.error('[ProfileService] Error getting profile stats:', error);
             throw error;
         }
     }
 
+
     /**
-     * Migrate profiles from Supabase to PostgreSQL
+     * Get merged beta features combining JSON field with individual columns
      */
-    async migrateFromSupabase() {
-        try {
-            if (!this.usePostgres) {
-                throw new Error('PostgreSQL must be configured for migration');
+    getMergedBetaFeatures(profile) {
+        const profileBetaFeatures = profile.beta_features || {};
+        const profileSettingsAsBetaFeatures = {
+            igel_modus: profile.igel_modus || false,
+            bundestag_api_enabled: profile.bundestag_api_enabled || false,
+            groups: profile.groups_enabled || false,
+            customGenerators: profile.custom_generators || false,
+            database: profile.database_access || false,
+            you: profile.you_generator || false,
+            collab: profile.collab || false,
+            qa: profile.qa || false,
+            sharepic: profile.sharepic || false,
+            anweisungen: profile.anweisungen || false,
+            memory: profile.memory || false
+        };
+        
+        return {
+            ...profileBetaFeatures,
+            ...profileSettingsAsBetaFeatures
+        };
+    }
+
+    /**
+     * Update session user object with profile changes
+     */
+    updateUserSession(sessionUser, profile, feature = null, enabled = null) {
+        // Update beta_features
+        sessionUser.beta_features = this.getMergedBetaFeatures(profile);
+        
+        // Update individual profile settings for compatibility
+        const featureMap = {
+            'igel_modus': 'igel_modus',
+            'bundestag_api_enabled': 'bundestag_api_enabled',
+            'groups': 'groups_enabled',
+            'customGenerators': 'custom_generators',
+            'database': 'database_access',
+            'you': 'you_generator',
+            'collab': 'collab',
+            'qa': 'qa',
+            'sharepic': 'sharepic',
+            'anweisungen': 'anweisungen',
+            'memory': 'memory'
+        };
+
+        // Update all individual properties from profile
+        Object.entries(featureMap).forEach(([key, column]) => {
+            sessionUser[column] = Boolean(profile[column]);
+            // Also update the key format if different
+            if (key !== column) {
+                sessionUser[key] = Boolean(profile[column]);
             }
+        });
 
-            console.log('[ProfileService] Starting migration from Supabase to PostgreSQL...');
-
-            // Get all profiles from Supabase
-            const { data: profiles, error } = await supabaseService
-                .from('profiles')
-                .select('*')
-                .order('created_at', { ascending: true });
-
-            if (error) {
-                throw new Error(`Failed to fetch profiles from Supabase: ${error.message}`);
+        // If a specific feature was updated, ensure it's set correctly
+        if (feature && enabled !== null) {
+            const column = featureMap[feature];
+            if (column) {
+                sessionUser[column] = Boolean(enabled);
+                sessionUser[feature] = Boolean(enabled);
             }
-
-            console.log(`[ProfileService] Found ${profiles.length} profiles to migrate`);
-
-            // Initialize PostgreSQL
-            await this.db.ensureInitialized();
-
-            // Bulk insert profiles
-            if (profiles.length > 0) {
-                const result = await this.db.bulkInsert(this.tableName, profiles);
-                console.log(`[ProfileService] Successfully migrated ${result.length} profiles`);
-                return result;
-            } else {
-                console.log('[ProfileService] No profiles to migrate');
-                return [];
-            }
-
-        } catch (error) {
-            console.error('[ProfileService] Migration failed:', error);
-            throw error;
         }
     }
 
@@ -491,33 +396,17 @@ class ProfileService {
      */
     async healthCheck() {
         try {
-            if (this.usePostgres) {
-                await this.db.ensureInitialized();
-                const result = await this.db.query('SELECT COUNT(*) as count FROM profiles LIMIT 1');
-                return {
-                    status: 'healthy',
-                    database: 'postgresql',
-                    profileCount: result[0]?.count || 0
-                };
-            } else {
-                const { count, error } = await supabaseService
-                    .from('profiles')
-                    .select('*', { count: 'exact', head: true });
-
-                if (error) {
-                    throw new Error(error.message);
-                }
-
-                return {
-                    status: 'healthy',
-                    database: 'supabase',
-                    profileCount: count || 0
-                };
-            }
+            await this.db.ensureInitialized();
+            const result = await this.db.query('SELECT COUNT(*) as count FROM profiles LIMIT 1');
+            return {
+                status: 'healthy',
+                database: 'postgresql',
+                profileCount: result[0]?.count || 0
+            };
         } catch (error) {
             return {
                 status: 'unhealthy',
-                database: this.usePostgres ? 'postgresql' : 'supabase',
+                database: 'postgresql',
                 error: error.message
             };
         }

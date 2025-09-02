@@ -80,7 +80,7 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
     
     // React Query hook for data fetching and mutations
     const { query, saveChanges, deleteKnowledgeEntry, isSaving, isDeleting, deletingKnowledgeId, MAX_KNOWLEDGE_ENTRIES } = useAnweisungenWissen({ isActive });
-    const { data, isLoading: isLoadingQuery, isError: isErrorQuery, error: errorQuery } = query;
+    const { data, isError: isErrorQuery, error: errorQuery } = query;
 
     // Memory state
     const [memories, setMemories] = useState([]);
@@ -147,25 +147,24 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
         }
     });
 
-    // Initialize form when data loads
+    // Initialize form when data loads (only once)
     useEffect(() => {
-        if (!data) return;
+        if (!data || isInitialized.current) return;
         
-        if (!isInitialized.current) {
-            reset({
-                customAntragPrompt: data.antragPrompt || '',
-                customAntragGliederung: data.antragGliederung || '',
-                customSocialPrompt: data.socialPrompt || '',
-                customUniversalPrompt: data.universalPrompt || '',
-                customGruenejugendPrompt: data.gruenejugendPrompt || '',
-                presseabbinder: data.presseabbinder || '',
-                knowledge: data.knowledge || []
-            });
-            
-            isInitialized.current = true;
-            // Reset autosave tracking after initial form setup
-            setTimeout(() => resetTracking(), 100);
-        }
+        const formData = {
+            customAntragPrompt: data.antragPrompt || '',
+            customAntragGliederung: data.antragGliederung || '',
+            customSocialPrompt: data.socialPrompt || '',
+            customUniversalPrompt: data.universalPrompt || '',
+            customGruenejugendPrompt: data.gruenejugendPrompt || '',
+            presseabbinder: data.presseabbinder || '',
+            knowledge: data.knowledge || []
+        };
+        
+        reset(formData);
+        isInitialized.current = true;
+        // Reset autosave tracking after initial form setup
+        setTimeout(() => resetTracking(), 100);
     }, [data, reset, resetTracking]);
 
     // Fetch memories when tab becomes active and user is authenticated
@@ -321,25 +320,44 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
         }
     };
 
-    const handleDeleteKnowledge = (entry, index) => {
+    const handleDeleteKnowledge = async (entry, index) => {
         if (!entry.id || (typeof entry.id === 'string' && entry.id.startsWith('new-'))) {
+            // Remove local entry immediately
             remove(index);
         } else {
             if (window.confirm("Möchtest du diesen Wissenseintrag wirklich löschen?")) {
-                deleteKnowledgeEntry(entry.id, {
-                    onSuccess: () => {
-                        // The query invalidation will trigger a data refetch and form reset
-                    },
-                });
+                try {
+                    await deleteKnowledgeEntry(entry.id);
+                    // Optimistic update already handled in mutation
+                    // Additional cleanup: remove from form array if still present
+                    const currentFields = getValues('knowledge') || [];
+                    const updatedFields = currentFields.filter(f => f.id !== entry.id);
+                    reset({ 
+                        ...getValues(), 
+                        knowledge: updatedFields 
+                    });
+                    showSuccess('Wissenseintrag erfolgreich gelöscht');
+                } catch (error) {
+                    console.error('Error deleting knowledge entry:', error);
+                    showError(`Fehler beim Löschen: ${error.message}`);
+                }
             }
         }
     };
 
-    const handleAddKnowledge = () => {
-        if (Array.isArray(fields) && fields.length < MAX_KNOWLEDGE_ENTRIES) {
-            append({ id: `new-${Date.now()}`, title: '', content: '' });
+    const handleAddKnowledge = useCallback(() => {
+        try {
+            if (fields.length < MAX_KNOWLEDGE_ENTRIES) {
+                const newEntry = { id: `new-${Date.now()}`, title: '', content: '' };
+                append(newEntry);
+                // Reset autosave tracking after adding new entry
+                setTimeout(() => resetTracking(), 100);
+            }
+        } catch (error) {
+            console.error('Error adding knowledge entry:', error);
+            showError('Fehler beim Hinzufügen des Wissenseintrags');
         }
-    };
+    }, [MAX_KNOWLEDGE_ENTRIES, append, resetTracking, showError]);
 
     const handleMemoryToggle = async () => {
         const newState = !memoryEnabled;
@@ -387,10 +405,6 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
         }
     });
 
-    if (isLoadingQuery) {
-        return <div className="profile-content-centered"><Spinner /></div>;
-    }
-    
     if (isErrorQuery) {
         return (
             <div className="auth-error-message error-message-container error-large-margin">
@@ -513,7 +527,7 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                             type="button"
                                             className="btn-primary size-s"
                                             onClick={handleAddKnowledge}
-                                            disabled={isDeleting || (Array.isArray(fields) && fields.length >= MAX_KNOWLEDGE_ENTRIES)}
+                                            disabled={isSaving || (Array.isArray(fields) && fields.length >= MAX_KNOWLEDGE_ENTRIES)}
                                             tabIndex={tabIndex.addKnowledgeButton}
                                             aria-label="Neues Wissen hinzufügen"
                                         >

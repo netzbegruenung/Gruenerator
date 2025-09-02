@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { tavilyService } = require('../../utils/searchUtils');
 const { MARKDOWN_FORMATTING_INSTRUCTIONS } = require('../../utils/promptUtils');
-const { grundsatzVectorSearchService } = require('../../services/grundsatzVectorSearchService.js');
+const { grundsatzSearchService } = require('../../services/GrundsatzSearchService.js');
 
 const GENERATE_RESEARCH_QUESTIONS_TOOL = "generate_research_questions";
 const WEB_SEARCH_TOOL = "web_search";
@@ -797,7 +797,7 @@ async function executeGrundsatzSearch(searchQuery) {
   try {
     console.log(`[deep-research] Searching Grundsatz documents for: "${searchQuery}"`);
     
-    const searchResults = await grundsatzVectorSearchService.search({
+    const searchResults = await grundsatzSearchService.search({
       query: searchQuery,
       user_id: 'deep-research', // Anonymous user for deep research
       limit: 3,

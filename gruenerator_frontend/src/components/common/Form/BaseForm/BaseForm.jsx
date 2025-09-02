@@ -7,6 +7,7 @@ import { BUTTON_LABELS } from '../../../utils/constants';
 import { motion, AnimatePresence } from 'motion/react';
 import { HiPencil } from 'react-icons/hi';
 import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
+import FormStateProvider, { useFormState, useFormStateSelector } from '../FormStateProvider';
 
 // Importiere die Komponenten
 import FormSection from './FormSection';
@@ -50,17 +51,17 @@ const FormToggleButtonFAB = React.memo(({ onClick }) => (
 
 
 /**
- * Basis-Formular-Komponente
+ * Internal BaseForm component that uses the FormStateProvider context
  * @param {Object} props - Komponenten-Props
  */
-const BaseForm = ({
+const BaseFormInternal = ({
   title,
   children,
   onSubmit,
-  loading,
-  success,
+  loading: propLoading,
+  success: propSuccess,
   error: propError,
-  formErrors = {},
+  formErrors: propFormErrors = {},
   onGeneratePost,
   generatedPost,
   initialContent = '',
@@ -78,18 +79,17 @@ const BaseForm = ({
   // New consolidated prop (optional, backward compatible)
   submitConfig = null,
   headerContent,
+  // Feature toggle props - now with defaults that can be overridden
   webSearchFeatureToggle = null,
   useWebSearchFeatureToggle = false,
-  // New consolidated prop (optional, backward compatible)
   webSearchConfig = null,
   privacyModeToggle = null,
   usePrivacyModeToggle = false,
-  // New consolidated prop (optional, backward compatible)
   privacyModeConfig = null,
-  useFeatureIcons = false,
+  useFeatureIcons: propUseFeatureIcons = false,
   onAttachmentClick,
   onRemoveFile,
-  attachedFiles = [],
+  attachedFiles: propAttachedFiles = [],
   displayActions = null,
   formNotice = null,
   enablePlatformSelector = false,
@@ -99,7 +99,7 @@ const BaseForm = ({
   platformSelectorHelpText = undefined,
   formControl = null,
   onSave,
-  saveLoading = false,
+  saveLoading: propSaveLoading = false,
   defaultValues = {},
   validationRules = {},
   useModernForm = true,
@@ -110,6 +110,11 @@ const BaseForm = ({
   firstExtrasChildren = null,
   useMarkdown = null,
   // TabIndex configuration
+  featureIconsTabIndex = {
+    webSearch: 11,
+    privacyMode: 12,
+    attachment: 13
+  },
   platformSelectorTabIndex = 12,
   knowledgeSelectorTabIndex = 14,
   knowledgeSourceSelectorTabIndex = 13,
@@ -117,7 +122,7 @@ const BaseForm = ({
   documentSelectorTabIndex = 15,
   submitButtonTabIndex = 17,
   showImageUpload = false,
-  uploadedImage = null,
+  uploadedImage: propUploadedImage = null,
   onImageChange = null
 }) => {
 
@@ -126,10 +131,46 @@ const BaseForm = ({
   const displaySectionRef = useRef(null);
   const [inlineHelpContentOverride, setInlineHelpContentOverride] = useState(null);
 
+  // Store selectors
+  const storeLoading = useFormStateSelector(state => state.loading);
+  const storeSuccess = useFormStateSelector(state => state.success);
+  const storeError = useFormStateSelector(state => state.error);
+  const storeFormErrors = useFormStateSelector(state => state.formErrors);
+  const storeSaveLoading = useFormStateSelector(state => state.saveLoading);
+  const storeWebSearchConfig = useFormStateSelector(state => state.webSearchConfig);
+  const storePrivacyModeConfig = useFormStateSelector(state => state.privacyModeConfig);
+  const storeUseFeatureIcons = useFormStateSelector(state => state.useFeatureIcons);
+  const storeAttachedFiles = useFormStateSelector(state => state.attachedFiles);
+  const storeUploadedImage = useFormStateSelector(state => state.uploadedImage);
+  const storeIsFormVisible = useFormStateSelector(state => state.isFormVisible);
+  
+  // Store actions
+  const setStoreLoading = useFormStateSelector(state => state.setLoading);
+  const setStoreSuccess = useFormStateSelector(state => state.setSuccess);
+  const setStoreError = useFormStateSelector(state => state.setError);
+  const setStoreFormErrors = useFormStateSelector(state => state.setFormErrors);
+  const setStoreSaveLoading = useFormStateSelector(state => state.setSaveLoading);
+  const clearStoreError = useFormStateSelector(state => state.clearError);
+  const setStoreWebSearchEnabled = useFormStateSelector(state => state.setWebSearchEnabled);
+  const setStorePrivacyModeEnabled = useFormStateSelector(state => state.setPrivacyModeEnabled);
+  const setStoreUseFeatureIcons = useFormStateSelector(state => state.setUseFeatureIcons);
+  const setStoreAttachedFiles = useFormStateSelector(state => state.setAttachedFiles);
+  const setStoreUploadedImage = useFormStateSelector(state => state.setUploadedImage);
+  const toggleStoreFormVisibility = useFormStateSelector(state => state.toggleFormVisibility);
+  
   const {
     error,
     setError
   } = useErrorHandling();
+  
+  // Use store state with prop fallbacks
+  const loading = storeLoading || propLoading;
+  const success = storeSuccess || propSuccess;
+  const formErrors = Object.keys(storeFormErrors).length > 0 ? storeFormErrors : propFormErrors;
+  const saveLoading = storeSaveLoading || propSaveLoading;
+  const useFeatureIcons = storeUseFeatureIcons || propUseFeatureIcons;
+  const attachedFiles = storeAttachedFiles.length > 0 ? storeAttachedFiles : propAttachedFiles;
+  const uploadedImage = storeUploadedImage || propUploadedImage;
   
   const isStreaming = useGeneratedTextStore(state => state.isStreaming);
   const hasContent = !!generatedContent || isStreaming;
@@ -151,37 +192,40 @@ const BaseForm = ({
     };
   }, [submitConfig, showNextButton, nextButtonText, submitButtonProps]);
 
-  // Consolidated webSearch config with backward compatibility
+  // Consolidated webSearch config with store integration
   const resolvedWebSearchConfig = React.useMemo(() => {
     if (webSearchConfig) {
       return {
-        enabled: webSearchConfig.enabled ?? useWebSearchFeatureToggle,
+        enabled: webSearchConfig.enabled ?? storeWebSearchConfig.enabled ?? useWebSearchFeatureToggle,
         toggle: webSearchConfig.toggle ?? webSearchFeatureToggle,
         ...webSearchConfig
       };
     }
     return {
-      enabled: useWebSearchFeatureToggle,
+      enabled: storeWebSearchConfig.enabled || useWebSearchFeatureToggle,
       toggle: webSearchFeatureToggle
     };
-  }, [webSearchConfig, useWebSearchFeatureToggle, webSearchFeatureToggle]);
+  }, [webSearchConfig, useWebSearchFeatureToggle, webSearchFeatureToggle, storeWebSearchConfig]);
 
-  // Consolidated privacyMode config with backward compatibility
+  // Consolidated privacyMode config with store integration
   const resolvedPrivacyModeConfig = React.useMemo(() => {
     if (privacyModeConfig) {
       return {
-        enabled: privacyModeConfig.enabled ?? usePrivacyModeToggle,
+        enabled: privacyModeConfig.enabled ?? storePrivacyModeConfig.enabled ?? usePrivacyModeToggle,
         toggle: privacyModeConfig.toggle ?? privacyModeToggle,
         ...privacyModeConfig
       };
     }
     return {
-      enabled: usePrivacyModeToggle,
+      enabled: storePrivacyModeConfig.enabled || usePrivacyModeToggle,
       toggle: privacyModeToggle
     };
-  }, [privacyModeConfig, usePrivacyModeToggle, privacyModeToggle]);
+  }, [privacyModeConfig, usePrivacyModeToggle, privacyModeToggle, storePrivacyModeConfig]);
   
-  const { isFormVisible, toggleFormVisibility } = useFormVisibility(hasContent, disableAutoCollapse);
+  // Use store form visibility with fallback to useFormVisibility
+  const fallbackFormVisibility = useFormVisibility(hasContent, disableAutoCollapse);
+  const isFormVisible = storeIsFormVisible !== undefined ? storeIsFormVisible : fallbackFormVisibility.isFormVisible;
+  const toggleFormVisibility = toggleStoreFormVisibility || fallbackFormVisibility.toggleFormVisibility;
 
   // Direct store access instead of useContentManagement
   const value = useGeneratedTextStore(state => state.getGeneratedText(componentName));
@@ -256,13 +300,59 @@ const BaseForm = ({
     }
   }, [registerFormElement]);
 
+  // Synchronize props with store state
+  useEffect(() => {
+    if (propLoading !== undefined) setStoreLoading(propLoading);
+  }, [propLoading, setStoreLoading]);
+  
+  useEffect(() => {
+    if (propSuccess !== undefined) setStoreSuccess(propSuccess);
+  }, [propSuccess, setStoreSuccess]);
+  
+  useEffect(() => {
+    if (propFormErrors && Object.keys(propFormErrors).length > 0) {
+      setStoreFormErrors(propFormErrors);
+    }
+  }, [propFormErrors, setStoreFormErrors]);
+  
+  useEffect(() => {
+    if (useWebSearchFeatureToggle !== undefined) {
+      setStoreWebSearchEnabled(useWebSearchFeatureToggle);
+    }
+  }, [useWebSearchFeatureToggle, setStoreWebSearchEnabled]);
+  
+  useEffect(() => {
+    if (usePrivacyModeToggle !== undefined) {
+      setStorePrivacyModeEnabled(usePrivacyModeToggle);
+    }
+  }, [usePrivacyModeToggle, setStorePrivacyModeEnabled]);
+  
+  useEffect(() => {
+    if (propUseFeatureIcons !== undefined) {
+      setStoreUseFeatureIcons(propUseFeatureIcons);
+    }
+  }, [propUseFeatureIcons, setStoreUseFeatureIcons]);
+  
+  useEffect(() => {
+    if (propAttachedFiles?.length > 0) {
+      setStoreAttachedFiles(propAttachedFiles);
+    }
+  }, [propAttachedFiles, setStoreAttachedFiles]);
+  
+  useEffect(() => {
+    if (propUploadedImage) {
+      setStoreUploadedImage(propUploadedImage);
+    }
+  }, [propUploadedImage, setStoreUploadedImage]);
+
   // Setze Fehler aus Props
   useEffect(() => {
     if (propError) {
       setError(propError);
+      setStoreError(propError);
       handleFormError(propError);
     }
-  }, [propError, setError, handleFormError]);
+  }, [propError, setError, setStoreError, handleFormError]);
 
   // Handle success states
   useEffect(() => {
@@ -359,6 +449,12 @@ const BaseForm = ({
     });
   }, []);
 
+  const handleErrorDismiss = useCallback(() => {
+    // Clear both store and local error states
+    clearStoreError();
+    setError(null);
+  }, [clearStoreError, setError]);
+
   return (
     <>
       { headerContent }
@@ -395,9 +491,6 @@ const BaseForm = ({
                   ref={formSectionRef}
                   title={title}
                   onSubmit={useModernForm ? handleEnhancedSubmit : onSubmit}
-                  loading={loading}
-                  success={success}
-                  formErrors={formErrors}
                   isFormVisible={isFormVisible}
                   isMultiStep={isMultiStep}
                   onBack={onBack}
@@ -405,13 +498,9 @@ const BaseForm = ({
                   nextButtonText={resolvedSubmitConfig.buttonText}
                   submitButtonProps={resolvedSubmitConfig.buttonProps}
                   webSearchFeatureToggle={resolvedWebSearchConfig.toggle}
-                  useWebSearchFeatureToggle={resolvedWebSearchConfig.enabled}
                   privacyModeToggle={resolvedPrivacyModeConfig.toggle}
-                  usePrivacyModeToggle={resolvedPrivacyModeConfig.enabled}
-                  useFeatureIcons={useFeatureIcons}
                   onAttachmentClick={onAttachmentClick}
                   onRemoveFile={onRemoveFile}
-                  attachedFiles={attachedFiles}
                   onPrivacyInfoClick={handlePrivacyInfoClick}
                   enablePlatformSelector={enablePlatformSelector}
                   platformOptions={platformOptions}
@@ -429,6 +518,7 @@ const BaseForm = ({
                   showHideButton={hasContent && !disableAutoCollapse}
                   onHide={toggleFormVisibility}
                   firstExtrasChildren={firstExtrasChildren}
+                  featureIconsTabIndex={featureIconsTabIndex}
                   platformSelectorTabIndex={platformSelectorTabIndex}
                   knowledgeSelectorTabIndex={knowledgeSelectorTabIndex}
                   knowledgeSourceSelectorTabIndex={knowledgeSourceSelectorTabIndex}
@@ -436,7 +526,6 @@ const BaseForm = ({
                   submitButtonTabIndex={submitButtonTabIndex}
                   showProfileSelector={showProfileSelector}
                   showImageUpload={showImageUpload}
-                  uploadedImage={uploadedImage}
                   onImageChange={onImageChange}
                   componentName={componentName}
                   onWebSearchInfoClick={handleWebSearchInfoClick}
@@ -459,15 +548,14 @@ const BaseForm = ({
             value={value}
             generatedContent={generatedContent}
             useMarkdown={useMarkdown}
-
             helpContent={inlineHelpContentOverride || helpContent}
             generatedPost={generatedPost}
             onGeneratePost={onGeneratePost}
             getExportableContent={getExportableContentCallback}
             displayActions={displayActions}
             onSave={onSave}
-            saveLoading={saveLoading}
             componentName={componentName}
+            onErrorDismiss={handleErrorDismiss}
           />
         </motion.div>
 
@@ -479,7 +567,59 @@ const BaseForm = ({
   );
 };
 
-BaseForm.propTypes = {
+/**
+ * Main BaseForm component that wraps BaseFormInternal with FormStateProvider
+ * This provides form state isolation for multiple form instances
+ */
+const BaseForm = (props) => {
+  const {
+    componentName = 'default',
+    // Extract initial state from props
+    loading: propLoading,
+    success: propSuccess,
+    error: propError,
+    formErrors: propFormErrors = {},
+    useWebSearchFeatureToggle = false,
+    usePrivacyModeToggle = false,
+    useFeatureIcons: propUseFeatureIcons = false,
+    attachedFiles: propAttachedFiles = [],
+    uploadedImage: propUploadedImage = null,
+    ...restProps
+  } = props;
+
+  // Create initial state from props for the store
+  const initialFormState = React.useMemo(() => ({
+    loading: propLoading || false,
+    success: propSuccess || false,
+    error: propError || null,
+    formErrors: propFormErrors,
+    webSearchConfig: {
+      isActive: false,
+      isSearching: false,
+      statusMessage: '',
+      enabled: useWebSearchFeatureToggle
+    },
+    privacyModeConfig: {
+      isActive: false,
+      enabled: usePrivacyModeToggle
+    },
+    useFeatureIcons: propUseFeatureIcons,
+    attachedFiles: propAttachedFiles,
+    uploadedImage: propUploadedImage,
+    isFormVisible: true
+  }), []); // Only use initial values on mount
+
+  return (
+    <FormStateProvider 
+      formId={componentName}
+      initialState={initialFormState}
+    >
+      <BaseFormInternal {...props} />
+    </FormStateProvider>
+  );
+};
+
+BaseFormInternal.propTypes = {
   title: PropTypes.string.isRequired,
   children: PropTypes.node.isRequired,
   onSubmit: PropTypes.func.isRequired,
@@ -587,7 +727,7 @@ BaseForm.propTypes = {
   onImageChange: PropTypes.func
 };
 
-BaseForm.defaultProps = {
+BaseFormInternal.defaultProps = {
   showNextButton: true,
   webSearchFeatureToggle: null,
   useWebSearchFeatureToggle: false,
@@ -618,5 +758,9 @@ BaseForm.defaultProps = {
   uploadedImage: null,
   onImageChange: null
 };
+
+// Wrapper BaseForm PropTypes - same as BaseFormInternal
+BaseForm.propTypes = BaseFormInternal.propTypes;
+BaseForm.defaultProps = BaseFormInternal.defaultProps;
 
 export default React.memo(BaseForm); 

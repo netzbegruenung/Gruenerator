@@ -65,15 +65,15 @@
 }
 
 .form-card--small {
-  padding: var(--spacing-medium);
+  padding: var(--spacing-responsive-medium);
 }
 
 .form-card--medium {
-  padding: var(--spacing-large);
+  padding: var(--spacing-responsive-large);
 }
 
 .form-card--large {
-  padding: var(--spacing-xlarge);
+  padding: var(--spacing-responsive-xlarge);
 }
 
 /* FormSection Modern Layout */
@@ -88,7 +88,7 @@
 /* Split Layout Container */
 .form-section__container {
   display: flex;
-  gap: var(--spacing-large);
+  gap: var(--spacing-responsive-large);
   height: 100%;
 }
 
@@ -112,15 +112,15 @@
 
 .form-inputs__fields {
   flex: 1;
-  margin-bottom: var(--spacing-large);
+  margin-bottom: var(--spacing-responsive-large);
 }
 
 .form-inputs__buttons {
   display: flex;
-  gap: var(--spacing-medium);
+  gap: var(--spacing-responsive-medium);
   justify-content: flex-end;
   align-items: center;
-  padding-top: var(--spacing-medium);
+  padding-top: var(--spacing-responsive-medium);
   border-top: var(--border-subtle);
   margin-top: auto;
 }
@@ -410,4 +410,127 @@
   max-width: 900px;
   width: 100%;
   margin: 0 auto;
+}
+
+/* Large Display Form Enhancements */
+@media (min-width: 1280px) {
+  .form-card--large {
+    padding: calc(var(--spacing-responsive-xlarge) * 1.1);
+  }
+  
+  .form-section {
+    min-height: 450px;
+  }
+  
+  .form-section__container {
+    gap: calc(var(--spacing-responsive-large) * 1.2);
+  }
+  
+  /* Better form field spacing */
+  .form-section .form-field {
+    margin-bottom: calc(var(--spacing-responsive-medium) * 1.1);
+  }
+  
+  /* Enhanced input heights */
+  .form-section input[type="text"],
+  .form-section input[type="email"],
+  .form-section textarea {
+    min-height: 44px;
+    padding: 14px 16px;
+    font-size: 1.05rem;
+  }
+  
+  .form-section textarea {
+    min-height: 120px;
+    padding: 16px;
+  }
+}
+
+@media (min-width: 1440px) {
+  .form-card--large {
+    padding: calc(var(--spacing-responsive-xlarge) * 1.15);
+  }
+  
+  .form-section {
+    min-height: 480px;
+  }
+  
+  .form-section input[type="text"],
+  .form-section input[type="email"],
+  .form-section textarea {
+    min-height: 46px;
+    padding: 15px 18px;
+    font-size: 1.08rem;
+  }
+  
+  .form-section textarea {
+    min-height: 130px;
+    padding: 18px;
+  }
+}
+
+@media (min-width: 1920px) {
+  .form-card--large {
+    padding: calc(var(--spacing-responsive-xlarge) * 1.25);
+  }
+  
+  .form-section {
+    min-height: 520px;
+  }
+  
+  .form-section__container {
+    gap: calc(var(--spacing-responsive-large) * 1.4);
+  }
+  
+  /* Better form field spacing */
+  .form-section .form-field {
+    margin-bottom: calc(var(--spacing-responsive-medium) * 1.2);
+  }
+  
+  /* Enhanced input heights */
+  .form-section input[type="text"],
+  .form-section input[type="email"],
+  .form-section textarea {
+    min-height: 48px;
+    padding: 16px 20px;
+    font-size: 1.1rem;
+  }
+  
+  .form-section textarea {
+    min-height: 140px;
+    padding: 20px;
+  }
+  
+  /* Larger labels */
+  .form-section label {
+    font-size: 1.05rem;
+    margin-bottom: calc(var(--spacing-responsive-small) * 1.1);
+  }
+}
+
+@media (min-width: 2560px) {
+  .form-card--large {
+    padding: calc(var(--spacing-responsive-xlarge) * 1.4);
+  }
+  
+  .form-section {
+    min-height: 580px;
+  }
+  
+  .form-section input[type="text"],
+  .form-section input[type="email"],
+  .form-section textarea {
+    min-height: 52px;
+    padding: 18px 22px;
+    font-size: 1.15rem;
+  }
+  
+  .form-section textarea {
+    min-height: 160px;
+    padding: 22px;
+  }
+  
+  .form-section label {
+    font-size: 1.1rem;
+  }
 }

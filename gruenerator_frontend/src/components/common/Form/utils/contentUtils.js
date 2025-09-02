@@ -78,6 +78,18 @@ export const isReactElement = (content) => {
 };
 
 /**
+ * Entfernt GRUEN_TITLE Tags aus dem Inhalt (Frontend-Fallback)
+ * @param {string} content - Text zu bereinigen
+ * @returns {string} Text ohne GRUEN_TITLE Tags
+ */
+export const removeGruenTitleTags = (content) => {
+  if (!content || typeof content !== 'string') return content;
+  
+  // Remove GRUEN_TITLE tags that should have been processed by backend
+  return content.replace(/<GRUEN_TITLE>.*?<\/GRUEN_TITLE>/gs, '').trim();
+};
+
+/**
  * Normalisiert überschüssige Zeilenumbrüche im Text
  * @param {string} content - Text zu normalisieren
  * @returns {string} Text mit normalisierten Zeilenumbrüchen

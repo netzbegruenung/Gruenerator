@@ -4,9 +4,6 @@ import { HiX } from 'react-icons/hi';
 import { truncateWithSuffix } from './editor/textTruncation';
 
 const AttachedFilesList = ({ files = [], onRemoveFile, className = '', fileMetadata = {}, privacyModeActive = false }) => {
-  console.log('[AttachedFilesList] Rendering with files:', files);
-  console.log('[AttachedFilesList] File metadata:', fileMetadata);
-  
   if (!files || files.length === 0) {
     return null;
   }

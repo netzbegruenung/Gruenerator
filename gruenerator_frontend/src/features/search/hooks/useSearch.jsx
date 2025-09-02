@@ -55,9 +55,13 @@ const useSearch = () => {
   const [categorizedSources, setCategorizedSources] = useState({});
   const [researchQuestions, setResearchQuestions] = useState([]);
   
+  // Web search specific state
+  const [webResults, setWebResults] = useState(null);
+  
   const { submitForm: submitSearch, loading: searchLoading } = useApiSubmit('search');
   const { submitForm: submitAnalysis, loading: analysisLoading } = useApiSubmit('analyze');
   const { submitForm: submitDeepSearch, loading: deepSearchLoading } = useApiSubmit('search/deep-research');
+  const { submitForm: submitWebSearch, loading: webSearchLoading } = useApiSubmit('web-search');
 
   const clearAllResults = () => {
     setError(null);
@@ -69,6 +73,8 @@ const useSearch = () => {
     setDossier(null);
     setCategorizedSources({});
     setResearchQuestions([]);
+    // Clear web search results
+    setWebResults(null);
   };
 
   const search = useCallback(async (query) => {
@@ -148,19 +154,49 @@ const useSearch = () => {
     }
   }, [submitDeepSearch]);
 
+  const webSearch = useCallback(async (query) => {
+    clearAllResults();
+
+    try {
+      console.log('[useSearch] Starting web search for:', query);
+      
+      const webSearchData = await submitWebSearch({
+        query,
+        searchType: 'general',
+        includeSummary: true,
+        maxResults: 10,
+        language: 'de-DE'
+      });
+      
+      if (webSearchData.success) {
+        console.log('[useSearch] Web search successful:', webSearchData);
+        setWebResults(webSearchData);
+      } else {
+        throw new Error(webSearchData.error || 'Web search failed');
+      }
+    } catch (err) {
+      console.error('[useSearch] Web search error:', err);
+      setError(err.message);
+      setWebResults(null);
+    }
+  }, [submitWebSearch]);
+
   return {
     results,
     usedSources,
     analysis,
-    loading: searchLoading || analysisLoading || deepSearchLoading,
+    loading: searchLoading || analysisLoading || deepSearchLoading || webSearchLoading,
     error,
     search,
     deepSearch,
+    webSearch,
     sourceRecommendations,
     // Deep research specific returns
     dossier,
     categorizedSources,
-    researchQuestions
+    researchQuestions,
+    // Web search specific returns
+    webResults
   };
 };
 

@@ -3,7 +3,7 @@ const { Pool, Client } = pkg;
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { getEncryptionService, SENSITIVE_FIELDS } from './EncryptionService.js';
+import { getEncryptionService, SENSITIVE_FIELDS, OBJECT_ENCRYPTED_FIELDS } from './EncryptionService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -14,20 +14,45 @@ const __dirname = path.dirname(__filename);
  */
 class PostgresService {
     constructor(config = null) {
-        this.config = config || {
-            host: process.env.POSTGRES_HOST || 'localhost',
-            port: process.env.POSTGRES_PORT || 5432,
-            user: process.env.POSTGRES_USER || 'postgres',
-            password: process.env.POSTGRES_PASSWORD || '',
-            database: process.env.POSTGRES_DATABASE || 'gruenerator',
-            ssl: process.env.POSTGRES_SSL === 'true' ? { 
+        if (config) {
+            this.config = config;
+        } else if (process.env.DATABASE_URL) {
+            // Support single connection string via env
+            this.config = {
+                connectionString: process.env.DATABASE_URL,
+                ssl: process.env.POSTGRES_SSL === 'true' ? {
+                    rejectUnauthorized: process.env.POSTGRES_SSL_REJECT_UNAUTHORIZED !== 'false',
+                } : false,
+                max: 20,
+                idleTimeoutMillis: 30000,
+                connectionTimeoutMillis: 2000,
+            };
+        } else {
+            // Support discrete env vars (fallbacks to PG* as well)
+            const host = process.env.POSTGRES_HOST || process.env.PGHOST || 'localhost';
+            const port = parseInt(process.env.POSTGRES_PORT || process.env.PGPORT || '5432', 10);
+            const user = process.env.POSTGRES_USER || process.env.PGUSER || 'postgres';
+            const passwordRaw = (process.env.POSTGRES_PASSWORD !== undefined)
+                ? process.env.POSTGRES_PASSWORD
+                : (process.env.PGPASSWORD !== undefined ? process.env.PGPASSWORD : '');
+            const password = typeof passwordRaw === 'string' ? passwordRaw : String(passwordRaw);
+            const database = process.env.POSTGRES_DATABASE || process.env.PGDATABASE || 'gruenerator';
+            const ssl = process.env.POSTGRES_SSL === 'true' ? {
                 rejectUnauthorized: process.env.POSTGRES_SSL_REJECT_UNAUTHORIZED !== 'false',
-                // Coolify handles SSL certificates automatically
-            } : false,
-            max: 20, // max number of clients in the pool
-            idleTimeoutMillis: 30000,
-            connectionTimeoutMillis: 2000,
-        };
+            } : false;
+
+            this.config = {
+                host,
+                port,
+                user,
+                password,
+                database,
+                ssl,
+                max: 20,
+                idleTimeoutMillis: 30000,
+                connectionTimeoutMillis: 2000,
+            };
+        }
         this.pool = null;
         this.isInitialized = false;
         this.initPromise = null;
@@ -65,6 +90,10 @@ class PostgresService {
      * Create database if it doesn't exist
      */
     async createDatabaseIfNotExists() {
+        // Skip automatic DB creation when using a connection string or when disabled via env
+        if (this.config.connectionString || process.env.POSTGRES_AUTO_CREATE_DB === 'false') {
+            return;
+        }
         const dbName = this.config.database;
         
         // Connect to postgres database to create our target database
@@ -152,6 +181,21 @@ class PostgresService {
     }
 
     /**
+     * Get fields that should use object encryption for a table
+     */
+    getObjectEncryptedFields(table) {
+        return OBJECT_ENCRYPTED_FIELDS[table] || [];
+    }
+
+    /**
+     * Check if a field should use object encryption
+     */
+    isObjectEncryptedField(table, field) {
+        const objectFields = this.getObjectEncryptedFields(table);
+        return objectFields.includes(field);
+    }
+
+    /**
      * Encrypt sensitive fields in data before storing
      */
     encryptSensitiveFields(table, data) {
@@ -164,7 +208,12 @@ class PostgresService {
         for (const field of sensitiveFields) {
             if (encrypted[field] !== undefined && encrypted[field] !== null && encrypted[field] !== '') {
                 try {
-                    encrypted[field] = this.encryption.encrypt(encrypted[field]);
+                    // Use explicit field type mapping instead of runtime type detection
+                    if (this.isObjectEncryptedField(table, field)) {
+                        encrypted[field] = this.encryption.encryptObject(encrypted[field]);
+                    } else {
+                        encrypted[field] = this.encryption.encrypt(encrypted[field]);
+                    }
                 } catch (error) {
                     console.error(`[PostgresService] Failed to encrypt field ${field}:`, error);
                 }
@@ -186,12 +235,31 @@ class PostgresService {
 
         const decrypted = { ...data };
         for (const field of sensitiveFields) {
-            if (decrypted[field]) {
+            if (decrypted[field] !== undefined && decrypted[field] !== null && decrypted[field] !== '') {
                 try {
-                    decrypted[field] = this.encryption.decrypt(decrypted[field]);
+                    // Use explicit field type mapping for proper decryption
+                    if (this.isObjectEncryptedField(table, field)) {
+                        decrypted[field] = this.encryption.decryptObject(decrypted[field]);
+                    } else {
+                        decrypted[field] = this.encryption.decrypt(decrypted[field]);
+                    }
                 } catch (error) {
-                    console.warn(`[PostgresService] Failed to decrypt field ${field}:`, error);
-                    // Leave field as is if decryption fails
+                    // Check if field is still in SENSITIVE_FIELDS - if not, it's plain text
+                    const currentSensitiveFields = this.getSensitiveFields(table);
+                    if (!currentSensitiveFields.includes(field)) {
+                        // Field is no longer sensitive, return as plain text
+                        console.log(`[PostgresService] Field ${field} in table ${table} is no longer encrypted, using plain text value`);
+                        // Keep the original value as it's already plain text
+                        // decrypted[field] remains unchanged
+                    } else {
+                        console.warn(`[PostgresService] Failed to decrypt field ${field}:`, error.message);
+                        // For fields that should be encrypted but fail to decrypt, set to default
+                        if (this.isObjectEncryptedField(table, field)) {
+                            decrypted[field] = field === 'nextcloud_share_links' ? [] : {};
+                        } else {
+                            decrypted[field] = null;
+                        }
+                    }
                 }
             }
         }
@@ -523,6 +591,67 @@ class PostgresService {
             waitingCount: this.pool.waitingCount,
             initialized: this.isInitialized
         };
+    }
+
+    /**
+     * Execute a transaction with automatic rollback on error
+     */
+    async transaction(callback) {
+        await this.ensureInitialized();
+        const client = await this.pool.connect();
+        
+        try {
+            await client.query('BEGIN');
+            const result = await callback(client);
+            await client.query('COMMIT');
+            return result;
+        } catch (error) {
+            await client.query('ROLLBACK');
+            console.error('[PostgresService] Transaction rolled back:', error);
+            throw error;
+        } finally {
+            client.release();
+        }
+    }
+
+    /**
+     * Transaction-aware query method
+     */
+    async transactionQuery(client, sql, params = [], options = {}) {
+        try {
+            const result = await client.query(sql, params);
+            
+            // If table is specified in options, decrypt sensitive fields
+            if (options.table) {
+                return this.decryptResultArray(options.table, result.rows);
+            }
+            
+            return result.rows;
+        } catch (error) {
+            console.error('[PostgresService] Transaction query error:', error, { sql, params });
+            throw new Error(`Transaction SQL query failed: ${error.message}`);
+        }
+    }
+
+    /**
+     * Transaction-aware single query method
+     */
+    async transactionQueryOne(client, sql, params = [], options = {}) {
+        const results = await this.transactionQuery(client, sql, params, options);
+        return results.length > 0 ? results[0] : null;
+    }
+
+    /**
+     * Transaction-aware exec method
+     */
+    async transactionExec(client, sql, params = []) {
+        try {
+            const result = await client.query(sql, params);
+            return { changes: result.rowCount, lastID: result.rows[0]?.id };
+        } catch (error) {
+            console.error('[PostgresService] Transaction exec error:', error, { sql, params });
+            throw new Error(`Transaction SQL execution failed: ${error.message}`);
+        }
     }
 
     /**

@@ -104,6 +104,16 @@
   background: var(--background-color-alt);
 }
 
+.login-option.gruene-oesterreich:hover:not(:disabled) {
+  border-color: var(--primary-200);
+  background: var(--background-color-alt);
+}
+
+.login-option.gruenerator:hover:not(:disabled) {
+  border-color: var(--interactive-accent-color);
+  background: var(--background-color-alt);
+}
+
 .auth-status-message {
   background: var(--background-color-alt);
   border: 1px solid var(--border-subtle);
@@ -117,6 +127,32 @@
   margin: 0;
   color: var(--font-color);
   font-weight: 500;
+}
+
+.auth-registration-link {
+  background: var(--background-color-alt);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--spacing-small);
+  padding: var(--spacing-medium);
+  margin-bottom: var(--spacing-medium);
+  text-align: center;
+}
+
+.auth-registration-link p {
+  margin: 0;
+  color: var(--font-color);
+}
+
+.registration-link {
+  color: var(--interactive-accent-color);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.25s ease-out;
+}
+
+.registration-link:hover {
+  color: var(--interactive-accent-color-hover);
+  text-decoration: underline;
 }
 
 @media (max-width: 480px) {
@@ -147,19 +183,363 @@
   }
 }
 
+/* Modal overlay for required mode */
+.auth-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-large);
+  animation: fadeIn 0.2s ease-out;
+}
+
+/* Blurred backdrop */
+.auth-modal-backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* Modal container */
+.auth-container--modal {
+  position: relative;
+  z-index: 1;
+  max-width: 450px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  margin: 0;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+  animation: slideUp 0.3s ease-out;
+}
+
+/* Modal close button */
+.auth-modal-close {
+  position: absolute;
+  top: var(--spacing-medium);
+  right: var(--spacing-medium);
+  z-index: 10;
+  width: 36px;
+  height: 36px;
+  background: rgba(var(--font-color-rgb, 0, 0, 0), 0.05);
+  border: 1px solid var(--border-subtle);
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--font-color);
+  transition: all 0.25s ease-out;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.auth-modal-close:hover {
+  background: rgba(var(--font-color-rgb, 0, 0, 0), 0.1);
+  border-color: var(--border-hover, var(--primary-200));
+  transform: scale(1.05);
+}
+
+.auth-modal-close:focus {
+  outline: 2px solid var(--interactive-accent-color);
+  outline-offset: 2px;
+}
+
+.auth-modal-close:active {
+  transform: scale(0.95);
+}
+
+/* Required mode styles for standalone (non-modal) */
+.auth-container--required {
+  margin-top: var(--spacing-large);
+  margin-bottom: var(--spacing-large);
+}
+
+.auth-header--required h1 {
+  font-size: 1.75rem;
+  margin-bottom: var(--spacing-medium);
+}
+
+.auth-subtitle {
+  color: var(--font-color);
+  font-size: 1rem;
+  line-height: 1.5;
+  margin-bottom: var(--spacing-small);
+  opacity: 0.9;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { 
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Protected content behind modal */
+.protected-content-blur {
+  filter: blur(3px);
+  opacity: 0.4;
+  pointer-events: none;
+  user-select: none;
+  position: relative;
+  z-index: 1;
+}
+
+/* Desktop Layout (>1024px) */
+@media (min-width: 1025px) {
+  .auth-container {
+    max-width: 900px;
+    padding: var(--spacing-xlarge);
+  }
+  
+  .auth-container--modal {
+    max-width: 900px;
+    width: 90%;
+    max-width: 1000px;
+  }
+  
+  .auth-content-wrapper {
+    display: flex;
+    gap: var(--spacing-xlarge);
+    align-items: flex-start;
+  }
+  
+  .auth-content-left {
+    flex: 0 0 40%;
+    padding-right: var(--spacing-xlarge);
+    border-right: 1px solid var(--border-subtle);
+    background: linear-gradient(
+      135deg,
+      rgba(0, 137, 57, 0.02) 0%,
+      transparent 100%
+    );
+    border-radius: var(--spacing-small);
+    padding: var(--spacing-xlarge);
+    position: relative;
+  }
+  
+  .auth-content-right {
+    flex: 1;
+    padding-left: var(--spacing-medium);
+  }
+  
+  .auth-header {
+    text-align: left;
+    margin-bottom: var(--spacing-xlarge);
+  }
+  
+  .auth-header h1 {
+    text-align: left;
+    font-size: 2.5rem;
+    margin-bottom: var(--spacing-medium);
+  }
+  
+  .auth-header--required h1 {
+    font-size: 2.2rem;
+  }
+  
+  .auth-subtitle {
+    font-size: 1.1rem;
+    line-height: 1.6;
+  }
+  
+  .login-options {
+    gap: var(--spacing-small);
+  }
+  
+  .login-option {
+    min-height: 72px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  .login-option:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+  
+  .login-content {
+    padding: var(--spacing-medium);
+  }
+  
+  /* Add decorative element under title */
+  .auth-header h1::after {
+    content: "";
+    display: block;
+    width: 60px;
+    height: 4px;
+    background: linear-gradient(90deg, var(--primary-500), var(--secondary-500));
+    margin-top: var(--spacing-medium);
+  }
+  
+  /* Add subtle pattern */
+  .auth-content-left::after {
+    content: "🌱";
+    position: absolute;
+    bottom: var(--spacing-large);
+    right: var(--spacing-large);
+    font-size: 4rem;
+    opacity: 0.05;
+  }
+  
+  /* Legal notice repositioning */
+  .auth-legal--desktop {
+    display: block;
+    margin-top: var(--spacing-xlarge);
+    font-size: 0.9rem;
+    opacity: 0.8;
+    text-align: left;
+  }
+  
+  .auth-legal--mobile {
+    display: none;
+  }
+}
+
+/* Tablet Layout (768px - 1024px) */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .auth-container {
+    max-width: 600px;
+    padding: var(--spacing-large);
+  }
+  
+  .auth-container--modal {
+    max-width: 700px;
+    width: 85%;
+  }
+  
+  .auth-content-wrapper {
+    display: block;
+  }
+  
+  .auth-content-left,
+  .auth-content-right {
+    width: 100%;
+    padding: 0;
+    border: none;
+    background: none;
+  }
+  
+  .auth-header {
+    text-align: center;
+    margin-bottom: var(--spacing-large);
+  }
+  
+  .auth-header h1 {
+    text-align: center;
+    font-size: 2.2rem;
+  }
+  
+  .auth-header--required h1 {
+    font-size: 2rem;
+  }
+  
+  .login-option {
+    min-height: 75px;
+  }
+  
+  .auth-legal--desktop {
+    display: none;
+  }
+  
+  .auth-legal--mobile {
+    display: block;
+  }
+}
+
+/* Enhanced Mobile Layout (<768px) */
+@media (max-width: 767px) {
+  .auth-content-wrapper {
+    display: block;
+  }
+  
+  .auth-content-left,
+  .auth-content-right {
+    width: 100%;
+    padding: 0;
+    border: none;
+    background: none;
+  }
+  
+  .auth-header {
+    text-align: center;
+    margin-bottom: var(--spacing-large);
+  }
+  
+  .auth-header h1 {
+    text-align: center;
+    font-size: 1.8rem;
+  }
+  
+  .auth-header--required h1 {
+    font-size: 1.75rem;
+  }
+  
+  .auth-legal--desktop {
+    display: none;
+  }
+  
+  .auth-legal--mobile {
+    display: block;
+  }
+  
+  /* Disable decorative elements on mobile */
+  .auth-content-left::before,
+  .auth-content-left::after {
+    display: none;
+  }
+}
+
+/* Mobile responsiveness for modal and small screens */
+@media (max-width: 480px) {
+  .auth-modal-overlay {
+    padding: var(--spacing-medium);
+  }
+  
+  .auth-container--modal {
+    max-height: 95vh;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .login-option,
   .login-icon,
   .login-logo,
   .login-title,
   .login-description,
-  .auth-status-message {
+  .auth-status-message,
+  .auth-modal-overlay,
+  .auth-container--modal,
+  .auth-modal-close {
     animation: none !important;
     transition: none !important;
   }
   
   .login-option:hover .login-icon,
-  .login-option:hover .login-logo {
+  .login-option:hover .login-logo,
+  .auth-modal-close:hover,
+  .auth-modal-close:active {
     transform: none !important;
   }
 } 

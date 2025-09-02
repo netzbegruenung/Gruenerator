@@ -22,10 +22,12 @@ const LaborTab = ({
     GENERATORS: 'customGenerators',
     YOU: 'you',
     COLLAB: 'collab',
+    GROUPS: 'groups',
     QA: 'qa',
     ELEARNING: 'e_learning',
     BUNDESTAG_API: 'bundestag_api_enabled',
     MEMORY: 'memory',
+    CONTENT_MANAGEMENT: 'contentManagement',
   };
 
   const handleBetaToggle = (setter, currentValue, featureName) => {
@@ -81,6 +83,16 @@ const LaborTab = ({
           checkboxLabel: 'Kollaborative Bearbeitung aktivieren',
           icon: HiOutlineUsers
         };
+      case BETA_VIEWS.GROUPS:
+        return {
+          title: 'Gruppen',
+          description: 'Verwalte und organisiere deine Arbeit in Gruppen für bessere Zusammenarbeit.',
+          checked: getBetaFeatureState('groups'),
+          setter: (value) => updateUserBetaFeatures('groups', value),
+          featureName: 'Gruppen',
+          checkboxLabel: 'Gruppen-Tab anzeigen und Funktionalität aktivieren',
+          icon: HiOutlineUserGroup
+        };
       case BETA_VIEWS.QA:
         return {
           title: 'Q&A Sammlungen',
@@ -124,6 +136,18 @@ const LaborTab = ({
           featureName: 'Memory',
           checkboxLabel: 'Memory-Tab in der Intelligenz-Sektion aktivieren',
           icon: HiChip
+        };
+      case BETA_VIEWS.CONTENT_MANAGEMENT:
+        return {
+          title: 'Inhaltsverwaltung',
+          description: 'Verwalte deine Dokumente, Texte, Canva-Vorlagen, Q&A-Sammlungen und Wolke-Verbindungen in einem zentralen Tab. Bietet umfassende Funktionen für die Organisation und Bearbeitung deiner Inhalte.',
+          checked: getBetaFeatureState('contentManagement'),
+          setter: (value) => updateUserBetaFeatures('contentManagement', value),
+          featureName: 'Inhaltsverwaltung',
+          checkboxLabel: '\'Texte & Grafik\'-Tab im Profil anzeigen und Funktionalität aktivieren',
+          linkTo: '/profile/inhalte',
+          linkText: 'Zur Inhaltsverwaltung',
+          icon: HiOutlinePhotograph
         };
       default:
         return null;

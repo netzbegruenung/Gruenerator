@@ -7,36 +7,45 @@ import { HiPlus, HiExclamationCircle, HiRefresh, HiShare, HiExternalLink, HiDown
 import DocumentOverview from '../../../../components/common/DocumentOverview';
 import DocumentUpload from '../../../../components/common/DocumentUpload';
 import ShareToGroupModal from '../../../../components/common/ShareToGroupModal';
-import AddCanvaTemplateModal from '../../../../components/common/AddCanvaTemplateModal';
-import TemplateLinkModal from '../../../../components/common/TemplateLinkModal';
+// import AddCanvaTemplateModal from '../../../../components/common/AddCanvaTemplateModal';
+// import TemplateLinkModal from '../../../../components/common/TemplateLinkModal';
 import ProfileCard from '../../../../components/common/ProfileCard';
 import EmptyState from '../../../../components/common/EmptyState';
 import TabNavigation from '../../../../components/common/TabNavigation';
 
-// Canva components
+// Document management components
+import WolkeFolderBrowser from '../../../documents/components/WolkeFolderBrowser';
+import WolkeSyncManager from '../../../documents/components/WolkeSyncManager';
+
+// Canva components - OVERVIEW, TEMPLATES AND ASSETS
 import CanvaOverview from '../../../templates/canva/components/CanvaOverview';
-import CanvaAssetsPanel from '../../../templates/canva/components/CanvaAssetsPanel';
 import CanvaButton from '../../../templates/canva/components/CanvaButton';
+import CanvaAssetsPanel from '../../../templates/canva/components/CanvaAssetsPanel';
 
 // Wolke components
 import WolkeShareLinkManager from '../../../wolke/components/WolkeShareLinkManager';
 
 // Feature-specific components
-import QACreator from '../../../qa/components/QACreator';
 
 // Stores and hooks
 import { useDocumentsStore } from '../../../../stores/documentsStore';
+// CANVA INTEGRATION - RE-ENABLED
+import { useCanvaStore, useCanvaConnection, useCanvaDesigns, useCanvaMessages, useSavingDesignState } from '../../../../stores/canvaStore';
 import { useOptimizedAuth } from '../../../../hooks/useAuth';
-import { useQACollections, useUserTexts, useUserTemplates } from '../../hooks/useProfileData';
+import { useUserTexts, useUserTemplates } from '../../hooks/useProfileData';
 import { useTabIndex } from '../../../../hooks/useTabIndex';
 import { useTabNavigation } from '../../../../hooks/useTabNavigation';
 import { useMessageHandling } from '../../../../hooks/useMessageHandling';
 
+// Document management hooks
+import { useDocumentMode } from '../../../documents/hooks/useDocumentMode';
+
 // Utils
 import { handleError } from '../../../../components/utils/errorHandling';
 import { announceToScreenReader } from '../../../../utils/focusManagement';
+// CANVA MINIMAL FOR DEBUGGING
 import * as canvaUtils from '../../../../components/utils/canvaUtils';
-import * as canvaTemplateUtils from '../../../../components/utils/canvaTemplateUtils';
+/* import * as canvaTemplateUtils from '../../../../components/utils/canvaTemplateUtils'; // STILL DISABLED */
 import * as documentAndTextUtils from '../../../../components/utils/documentAndTextUtils';
 import * as nextcloudUtils from '../../../../components/utils/nextcloudUtils';
 
@@ -69,10 +78,10 @@ const ContentManagementTab = ({
     // Message handling
     const { clearMessages, showSuccess, showError } = useMessageHandling(onSuccessMessage, onErrorMessage);
     
-    // Available tabs - combine Dokumente & Texte into one tab
+    // Available tabs - combine Dokumente & Texte into one tab (CANVA MINIMAL FOR DEBUGGING)
     const availableTabs = [
         { key: 'dokumente', label: 'Dokumente & Texte' },
-        { key: 'canva', label: 'Canva' },
+        { key: 'canva', label: 'Canva' }, // RE-ENABLED FOR TESTING
         { key: 'wolke', label: 'Wolke' }
     ];
     
@@ -89,13 +98,17 @@ const ContentManagementTab = ({
         }
     );
     
-    // Sync tab state with URL changes
+    // Sync tab state with URL changes - prevent circular dependency
     useEffect(() => {
         const nextTab = initialTab === 'texte' ? 'dokumente' : initialTab;
-        if (currentTab !== nextTab) {
-            setCurrentTab(nextTab);
-        }
-    }, [initialTab, currentTab, setCurrentTab]);
+        // Use functional update to get current state without dependency
+        setCurrentTab(prevTab => {
+            if (prevTab !== nextTab) {
+                return nextTab;
+            }
+            return prevTab;
+        });
+    }, [initialTab]); // Remove currentTab from dependencies to break the loop
     
     // Tab index configuration
     const tabIndex = useTabIndex('PROFILE_CONTENT_MANAGEMENT');
@@ -103,18 +116,31 @@ const ContentManagementTab = ({
     // Auth state
     const { user, isAuthenticated } = useOptimizedAuth();
 
+    // Document mode management
+    const { 
+        currentMode, 
+        isWolkeMode, 
+        isManualMode, 
+        changeMode, 
+        loading: modeLoading 
+    } = useDocumentMode();
+
+    // Check if Wolke is configured by checking if there are any sync statuses
+    const [hasWolkeFolders, setHasWolkeFolders] = useState(false);
+
     // =====================================================================
-    // CANVA SUBSECTION HANDLING
+    // CANVA SUBSECTION HANDLING - MINIMAL FOR DEBUGGING
     // =====================================================================
     
-    // Simple internal state for Canva subsections
-    const [currentCanvaSubsection, setCurrentCanvaSubsection] = useState(canvaSubsection);
+    // Simple internal state for Canva subsections - OVERVIEW ONLY
+    const [currentCanvaSubsection, setCurrentCanvaSubsection] = useState('overview'); // Fixed to overview only
     
-    // Keep Canva subtab state local to avoid flicker from URL sync
-    
-    // Handle Canva subsection changes
+    // Handle Canva subsection changes - OVERVIEW, TEMPLATES AND ASSETS
     const handleCanvaSubsectionChange = useCallback((subsection) => {
-        setCurrentCanvaSubsection(subsection);
+        // Allow overview, vorlagen and assets
+        if (subsection === 'overview' || subsection === 'vorlagen' || subsection === 'assets') {
+            setCurrentCanvaSubsection(subsection);
+        }
     }, []);
 
     // =====================================================================
@@ -139,35 +165,55 @@ const ContentManagementTab = ({
         setCurrentContentSubsection(subsection);
     }, []);
 
+    // Simple check for Wolke configuration without full hook complexity
+    useEffect(() => {
+        if (isActive && currentTab === 'dokumente' && currentContentSubsection === 'dokumente') {
+            // Use a simple API call to check if there are configured folders
+            // This is a lightweight check compared to the full useWolkeSync hook
+            fetch('/api/documents/wolke/sync-status', {
+                method: 'GET',
+                credentials: 'include'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && Array.isArray(data.syncStatuses)) {
+                    setHasWolkeFolders(data.syncStatuses.length > 0);
+                } else {
+                    setHasWolkeFolders(false);
+                }
+            })
+            .catch(() => {
+                setHasWolkeFolders(false);
+            });
+
+            // Also load share links for document mode display
+            if (isAuthenticated) {
+                fetchWolkeShareLinks();
+            }
+        }
+    }, [isActive, currentTab, currentContentSubsection, isAuthenticated]);
 
     // =====================================================================
-    // CANVA-RELATED STATE AND FUNCTIONALITY
+    // CANVA STORE INTEGRATION - MINIMAL FOR DEBUGGING
     // =====================================================================
     
-    // Share modal state
+    // Canva store hooks (memoized selectors for performance) - MINIMAL ONLY
+    const { connected: canvaConnected, user: canvaUser, loading: canvaLoading } = useCanvaConnection();
+    const { designs: canvaDesigns, loading: fetchingCanvaDesigns, error: canvaDesignsError } = useCanvaDesigns();
+    
+    // Import store getState method for direct calls (no subscription)
+    const getCanvaState = useCanvaStore.getState;
+    
+    // Modal state (keep as local state since it's UI-only) - RE-ENABLED
     const [showShareModal, setShowShareModal] = useState(false);
     const [shareContent, setShareContent] = useState(null);
-    
-    // Add template modal state
     const [showAddTemplateModal, setShowAddTemplateModal] = useState(false);
+    // Keep template link modal disabled for now
+    // const [showTemplateLinkModal, setShowTemplateLinkModal] = useState(false);
+    // const [templateToLink, setTemplateToLink] = useState(null);
     
-    // Template URL link modal state
-    const [showTemplateLinkModal, setShowTemplateLinkModal] = useState(false);
-    const [templateToLink, setTemplateToLink] = useState(null);
-    
-    // Canva connection state
-    const [canvaConnected, setCanvaConnected] = useState(false);
-    const [canvaLoading, setCanvaLoading] = useState(false);
-    const [canvaUser, setCanvaUser] = useState(null);
-    
-    // Canva designs state
-    const [canvaDesigns, setCanvaDesigns] = useState([]);
-    const [fetchingCanvaDesigns, setFetchingCanvaDesigns] = useState(false);
-    const [canvaDesignsError, setCanvaDesignsError] = useState(null);
-    
-    // Saved Canva designs tracking
-    const [savedCanvaDesigns, setSavedCanvaDesigns] = useState(new Set());
-    const [savingDesign, setSavingDesign] = useState(null);
+    // Store-based helpers (using stable selectors) - RE-ENABLED
+    const { savedDesigns: savedCanvaDesigns, savingDesign } = useSavingDesignState();
 
     // =====================================================================
     // WOLKE-RELATED STATE AND FUNCTIONALITY
@@ -193,9 +239,7 @@ const ContentManagementTab = ({
     // DOCUMENTS-RELATED STATE AND FUNCTIONALITY
     // =====================================================================
     
-    // QA Creator state
-    const [showQACreator, setShowQACreator] = useState(false);
-    const [editingQA, setEditingQA] = useState(null);
+    // Document-related state
     const [availableDocuments, setAvailableDocuments] = useState([]);
     
     // Document upload form state
@@ -211,21 +255,13 @@ const ContentManagementTab = ({
         deleteDocument,
         updateDocumentTitle,
         refreshDocument,
+        searchDocuments: searchDocumentsApi,
+        isSearching: isDocumentsSearching,
+        searchResults: documentSearchResults,
+        clearSearchResults,
     } = useDocumentsStore();
 
-    // Use centralized hooks
-    const { 
-        query: qaQuery, 
-        createQACollection, 
-        updateQACollection, 
-        deleteQACollection,
-        fetchAvailableDocuments,
-        getQACollection,
-        isCreating,
-        isUpdating, 
-        isDeleting
-    } = useQACollections({ isActive });
-    
+    // Use centralized hooks - Q&A moved to CustomGeneratorsTab
     const { 
         query: textsQuery,
         updateTextTitle,
@@ -233,112 +269,93 @@ const ContentManagementTab = ({
         isUpdatingTitle: isUpdatingTextTitle,
         isDeleting: isDeletingText
     } = useUserTexts({ isActive });
-
-    const { data: qaCollections = [], isLoading: qaLoading, error: qaError } = qaQuery;
     const { data: texts = [], isLoading: textsLoading, error: textsError } = textsQuery;
 
 
     // =====================================================================
-    // CANVA FUNCTIONALITY
+    // CANVA FUNCTIONALITY - DISABLED FOR DEBUGGING
     // =====================================================================
 
-    // Canva connection handlers
-    const checkCanvaConnectionStatus = useCallback(async () => {
+    // =====================================================================
+    // CANVA FUNCTIONALITY - RE-ENABLED
+    // =====================================================================
+
+    // Create stable refs for functions to prevent useEffect loops
+    const checkCanvaConnectionStatusRef = useRef();
+    const fetchCanvaDesignsRef = useRef();
+
+    // Canva store-based handlers (using refs for stability in effects)
+    checkCanvaConnectionStatusRef.current = async () => {
         if (!isAuthenticated) return;
         
         try {
-            setCanvaLoading(true);
-            const result = await canvaUtils.checkCanvaConnectionStatus(isAuthenticated);
-            setCanvaConnected(result.connected);
-            setCanvaUser(result.canva_user);
+            return await getCanvaState().checkConnectionStatus();
         } catch (error) {
             console.error('[ContentManagementTab] Error checking Canva connection:', error);
-            setCanvaConnected(false);
-            setCanvaUser(null);
-        } finally {
-            setCanvaLoading(false);
-        }
-    }, [isAuthenticated]);
-
-    const handleCanvaLogin = async () => {
-        if (canvaLoading) return;
-        
-        try {
-            setCanvaLoading(true);
-            onErrorMessage('');
-            await canvaUtils.initiateCanvaLogin(onErrorMessage);
-        } catch (error) {
-            setCanvaLoading(false);
+            onErrorMessage?.(error.message);
         }
     };
 
-    const fetchCanvaDesigns = useCallback(async () => {
+    fetchCanvaDesignsRef.current = async () => {
         if (!canvaConnected || !isAuthenticated) return;
         
         try {
-            setFetchingCanvaDesigns(true);
-            setCanvaDesignsError(null);
-            
-            const designs = await canvaUtils.fetchCanvaDesigns(
-                canvaConnected, 
-                isAuthenticated, 
-                0, 
-                2, 
-                (errorMsg) => {
-                    setCanvaDesignsError(errorMsg);
-                    if (errorMsg.includes('abgelaufen')) {
-                        setCanvaConnected(false);
-                    }
-                    onErrorMessage?.(errorMsg);
-                }
-            );
-            
-            setCanvaDesigns(designs);
+            await getCanvaState().fetchDesigns();
         } catch (error) {
-            setCanvaDesigns([]);
-        } finally {
-            setFetchingCanvaDesigns(false);
+            console.error('[ContentManagementTab] Error fetching Canva designs:', error);
+            if (error.message.includes('abgelaufen')) {
+                onErrorMessage?.('Canva-Verbindung abgelaufen. Bitte verbinde dich erneut.');
+            } else {
+                onErrorMessage?.(error.message);
+            }
         }
-    }, [canvaConnected, isAuthenticated, onErrorMessage]);
+    };
+
+    // Handle Canva login - CRITICAL FOR BUTTON FUNCTIONALITY
+    const handleCanvaLogin = useCallback(async () => {
+        if (canvaLoading) return;
+        
+        try {
+            clearMessages();
+            await getCanvaState().initiateLogin();
+        } catch (error) {
+            console.error('[ContentManagementTab] Error during Canva login:', error);
+            onErrorMessage('Fehler beim Verbinden mit Canva. Bitte versuche es erneut.');
+        }
+    }, [canvaLoading, clearMessages]);
 
     const handleSaveCanvaTemplate = useCallback(async (canvaDesign) => {
         try {
-            setSavingDesign(canvaDesign.id);
+            await getCanvaState().saveTemplate(canvaDesign);
             
-            await canvaUtils.saveCanvaTemplate(
-                canvaDesign,
-                (successMsg) => {
-                    setSavedCanvaDesigns(prev => new Set(prev).add(canvaDesign.canva_id));
-                    templatesQuery.refetch();
-                    onSuccessMessage(successMsg);
-                },
-                (errorMsg) => {
-                    if (errorMsg.includes('bereits gespeichert')) {
-                        setSavedCanvaDesigns(prev => new Set(prev).add(canvaDesign.canva_id));
-                    }
-                    onErrorMessage(errorMsg);
-                }
-            );
+            // Refresh templates query after successful save
+            templatesQuery.refetch();
+            
+            // Success message is handled by store internally
+            
         } catch (error) {
-            // Error handling is done in canvaUtils
-        } finally {
-            setSavingDesign(null);
+            console.error('[ContentManagementTab] Error saving Canva template:', error);
+            onErrorMessage(error.message);
         }
-    }, [onSuccessMessage, onErrorMessage, templatesQuery]);
+    }, [onErrorMessage, templatesQuery]);
 
     // =====================================================================
     // WOLKE FUNCTIONALITY
     // =====================================================================
 
     // Wolke share links handlers
-    const fetchWolkeShareLinks = useCallback(async () => {
+    const fetchWolkeShareLinks = useCallback(async (isRefresh = false) => {
         if (!isAuthenticated) return;
         
         try {
-            setWolkeLoading(true);
+            // Only show loading spinner on initial load, not on refresh to prevent flashing
+            if (!isRefresh) {
+                setWolkeLoading(true);
+            }
             setWolkeError(null);
             
             const shareLinks = await nextcloudUtils.getNextcloudShareLinks();
+            console.log('[ContentManagementTab] Setting share links to state:', shareLinks);
             setWolkeShareLinks(Array.isArray(shareLinks) ? shareLinks : []);
         } catch (error) {
             console.error('[ContentManagementTab] Error fetching Wolke share links:', error);
@@ -348,7 +365,9 @@ const ContentManagementTab = ({
             // Only show error in console, don't disrupt the UI
             console.warn('[ContentManagementTab] Fehler beim Laden der Wolke-Verbindungen:', error.message);
         } finally {
-            setWolkeLoading(false);
+            if (!isRefresh) {
+                setWolkeLoading(false);
+            }
         }
     }, [isAuthenticated]);
 
@@ -405,76 +424,7 @@ const ContentManagementTab = ({
     // DOCUMENTS FUNCTIONALITY
     // =====================================================================
 
-    // QA functionality
-    const handleCreateQA = async () => {
-        setEditingQA(null);
-        
-        try {
-            onErrorMessage('');
-            const docs = await fetchAvailableDocuments();
-            setAvailableDocuments(docs);
-            setShowQACreator(true);
-        } catch (error) {
-            console.error('[ContentManagementTab] Fehler beim Laden der Dokumente:', error);
-            handleError(error, onErrorMessage);
-        }
-    };
-
-    const handleEditQA = async (qaId) => {
-        const qa = getQACollection(qaId);
-        setEditingQA(qa);
-        
-        try {
-            onErrorMessage('');
-            const docs = await fetchAvailableDocuments();
-            setAvailableDocuments(docs);
-            setShowQACreator(true);
-        } catch (error) {
-            console.error('[ContentManagementTab] Fehler beim Laden der Dokumente beim Bearbeiten:', error);
-            handleError(error, onErrorMessage);
-        }
-    };
-
-    const handleSaveQA = async (qaData) => {
-        onErrorMessage('');
-        onSuccessMessage('');
-        
-        try {
-            if (qaData.id) {
-                await updateQACollection(qaData.id, qaData);
-                showSuccess('Q&A-Sammlung wurde erfolgreich aktualisiert.');
-            } else {
-                await createQACollection(qaData);
-                showSuccess('Q&A-Sammlung wurde erfolgreich erstellt.');
-            }
-            setShowQACreator(false);
-            setEditingQA(null);
-        } catch (error) {
-            console.error('[ContentManagementTab] Fehler beim Speichern der Q&A:', error);
-            handleError(error, onErrorMessage);
-        }
-    };
-
-    const handleDeleteQA = async (qaId) => {
-        if (!window.confirm('Möchten Sie diese Q&A-Sammlung wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.')) {
-            return;
-        }
-
-        onErrorMessage('');
-        onSuccessMessage('');
-        
-        try {
-            await deleteQACollection(qaId);
-            showSuccess('Q&A-Sammlung wurde erfolgreich gelöscht.');
-        } catch (error) {
-            console.error('[ContentManagementTab] Fehler beim Löschen der Q&A:', error);
-            handleError(error, onErrorMessage);
-        }
-    };
-
-    const handleViewQA = (qaId) => {
-        navigate(`/qa/${qaId}`);
-    };
+    // Q&A functionality moved to CustomGeneratorsTab
 
     // Document handlers
     const handleDocumentDelete = async (documentId) => {
@@ -534,7 +484,7 @@ const ContentManagementTab = ({
 
     // Share functionality
     const handleShareToGroup = useCallback(async (contentType, contentId, contentTitle) => {
-        // Handle Canva-specific sharing logic
+        // Handle Canva-specific sharing logic - RE-ENABLED
         if (contentType === 'database' && contentId.startsWith('canva_')) {
             const template = canvaDesigns.find(t => t.id === contentId);
             if (template && template.has_user_link) {
@@ -554,7 +504,8 @@ const ContentManagementTab = ({
                     );
                     return;
                 } catch (error) {
-                    return;
+                    console.error('[ContentManagementTab] Error creating shareable template:', error);
+                    // Fall through to standard sharing logic
                 }
             }
         }
@@ -566,7 +517,7 @@ const ContentManagementTab = ({
             title: contentTitle
         });
         setShowShareModal(true);
-    }, [canvaDesigns, templatesQuery, onErrorMessage]);
+    }, [templatesQuery, onErrorMessage, canvaDesigns]);
 
     const handleCloseShareModal = () => {
         setShowShareModal(false);
@@ -582,8 +533,8 @@ const ContentManagementTab = ({
         onErrorMessage(error);
     };
 
-    const createShareAction = (contentType) => 
-        documentAndTextUtils.createShareAction(contentType, handleShareToGroup);
+    const createShareAction = useCallback((contentType) => 
+        documentAndTextUtils.createShareAction(contentType, handleShareToGroup), [handleShareToGroup]);
 
     // Upload handlers
     const handleUploadComplete = React.useCallback((document) => {
@@ -607,10 +558,6 @@ const ContentManagementTab = ({
 
     // Handle errors
     useEffect(() => {
-        if (qaError) {
-            console.error('[ContentManagementTab] Fehler beim Laden der Q&A-Sammlungen:', qaError);
-            handleError(qaError, onErrorMessage);
-        }
         if (textsError) {
             console.error('[ContentManagementTab] Fehler beim Laden der Texte:', textsError);
             handleError(textsError, onErrorMessage);
@@ -627,30 +574,49 @@ const ContentManagementTab = ({
             console.error('[ContentManagementTab] Fehler beim Laden der Wolke-Verbindungen:', wolkeError);
             onErrorMessage('Fehler beim Laden der Wolke-Verbindungen: ' + wolkeError);
         }
-    }, [qaError, textsError, documentsError, templatesError, wolkeError, onErrorMessage]);
+    }, [textsError, documentsError, templatesError, wolkeError, onErrorMessage]);
 
-    // Check Canva connection when tab becomes active
+    // Removed problematic message handling effect - messages are now handled directly in action callbacks
+
+    // Consolidated Canva initialization and data loading - RE-ENABLED
     useEffect(() => {
-        if (isActive && currentTab === 'canva' && isAuthenticated) {
-            checkCanvaConnectionStatus();
-        }
-    }, [isActive, currentTab, isAuthenticated, checkCanvaConnectionStatus]);
+        if (!isActive || !isAuthenticated) return;
 
-    // Fetch Canva designs when connected and on templates subsection
-    useEffect(() => {
-        if (isActive && currentTab === 'canva' && currentCanvaSubsection === 'vorlagen' && canvaConnected && isAuthenticated) {
-            fetchCanvaDesigns();
+        // Initialize store if not already initialized
+        const storeState = getCanvaState();
+        if (!storeState.initialized) {
+            storeState.initialize();
+            return;
         }
-    }, [isActive, currentTab, currentCanvaSubsection, canvaConnected, isAuthenticated, fetchCanvaDesigns]);
 
-    // Fetch documents when documents tab becomes active
+        // Handle tab-specific actions
+        if (currentTab === 'canva') {
+            // Check connection when on canva tab
+            if (!canvaConnected && !canvaLoading) {
+                checkCanvaConnectionStatusRef.current();
+            }
+            
+            // Fetch designs when on templates subsection and connected
+            if (currentCanvaSubsection === 'vorlagen' && canvaConnected && !fetchingCanvaDesigns) {
+                fetchCanvaDesignsRef.current();
+            }
+        }
+    }, [isActive, isAuthenticated, currentTab, currentCanvaSubsection, canvaConnected, canvaLoading, fetchingCanvaDesigns]);
+
+    // Fetch documents when documents tab becomes active - use ref to prevent loops
+    const fetchDocumentsRef = useRef();
+    fetchDocumentsRef.current = fetchDocuments;
+    
     useEffect(() => {
         if (isActive && currentTab === 'dokumente') {
-            fetchDocuments();
+            fetchDocumentsRef.current();
         }
-    }, [isActive, currentTab, fetchDocuments]);
+    }, [isActive, currentTab]); // Stable dependencies only
 
-    // Reset to overview when user disconnects from Canva while on restricted subsections
+    // Remote search uses DocumentOverview's built-in controls.
+
+
+    // Reset to overview when user disconnects from Canva while on restricted subsections - RE-ENABLED
     useEffect(() => {
         if (currentTab === 'canva' && !canvaConnected) {
             if (currentCanvaSubsection === 'vorlagen' || currentCanvaSubsection === 'assets') {
@@ -661,12 +627,22 @@ const ContentManagementTab = ({
         }
     }, [canvaConnected, currentTab, currentCanvaSubsection, handleCanvaSubsectionChange]);
 
-    // Fetch Wolke share links when Wolke tab becomes active
+    // Fetch Wolke share links when Wolke tab becomes active - use ref to prevent loops
+    const fetchWolkeShareLinksRef = useRef();
+    fetchWolkeShareLinksRef.current = fetchWolkeShareLinks;
+    
     useEffect(() => {
         if (isActive && currentTab === 'wolke' && isAuthenticated) {
-            fetchWolkeShareLinks();
+            fetchWolkeShareLinksRef.current();
         }
-    }, [isActive, currentTab, isAuthenticated, fetchWolkeShareLinks]);
+    }, [isActive, currentTab, isAuthenticated]);
+
+    // Initial load of share links when component becomes active (for all tabs that might need it)
+    useEffect(() => {
+        if (isActive && isAuthenticated && wolkeShareLinks.length === 0 && !wolkeLoading) {
+            fetchWolkeShareLinksRef.current();
+        }
+    }, [isActive, isAuthenticated, wolkeShareLinks.length, wolkeLoading]);
 
     // =====================================================================
     // RENDER METHODS
@@ -811,8 +787,9 @@ const ContentManagementTab = ({
     };
     
     const handleDeleteTemplate = async (templateId) => {
+        /* CANVA DISABLED
         try {
-            const validation = canvaTemplateUtils.validateTemplateDeletability({ id: templateId });
+            // const validation = canvaTemplateUtils.validateTemplateDeletability({ id: templateId });
             if (!validation.canDelete) {
                 onErrorMessage(validation.reason);
                 return;
@@ -825,11 +802,12 @@ const ContentManagementTab = ({
             onErrorMessage('Fehler beim Löschen der Canva Vorlage: ' + error.message);
             throw error;
         }
+        */ // END CANVA DISABLED
     };
 
     const handleTemplateTitleUpdate = async (templateId, newTitle) => {
         try {
-            const validation = canvaTemplateUtils.validateTemplateEditability({ id: templateId });
+            // const validation = canvaTemplateUtils.validateTemplateEditability({ id: templateId });
             if (!validation.canEdit) {
                 onErrorMessage(validation.reason);
                 return;
@@ -844,38 +822,39 @@ const ContentManagementTab = ({
     };
 
     // Template link modal handlers
-    const handleOpenTemplateLinkModal = useCallback((template) => {
-        setTemplateToLink(template);
-        setShowTemplateLinkModal(true);
-    }, []);
+    // const handleOpenTemplateLinkModal = useCallback((template) => {
+    //     setTemplateToLink(template);
+    //     setShowTemplateLinkModal(true);
+    // }, []);
 
-    const handleCreateTemplateLink = useCallback(async (canvaUrl) => {
-        if (!templateToLink) return;
+    // const handleCreateTemplateLink = useCallback(async (canvaUrl) => {
+    //     if (!templateToLink) return;
 
-        try {
+    //     try {
             
-            const enhancedTemplate = canvaTemplateUtils.enhanceTemplateWithUserUrl(templateToLink, canvaUrl);
+    //         const enhancedTemplate = canvaTemplateUtils.enhanceTemplateWithUserUrl(templateToLink, canvaUrl);
 
-            setCanvaDesigns(prevDesigns => 
-                prevDesigns.map(design => 
-                    design.id === templateToLink.id ? enhancedTemplate : design
-                )
-            );
+    //         setCanvaDesigns(prevDesigns => 
+    //             prevDesigns.map(design => 
+    //                 design.id === templateToLink.id ? enhancedTemplate : design
+    //             )
+    //         );
 
-            if (templateToLink.canva_id) {
-                setSavedCanvaDesigns(prev => new Set(prev).add(templateToLink.canva_id));
-            }
+    //         if (templateToLink.canva_id) {
+    //             // Mark as saved in the canva store (direct mutation is safe here)
+    //             savedCanvaDesigns.add(templateToLink.canva_id);
+    //         }
             
-            showSuccess(`Template Link für "${templateToLink.title}" wurde erfolgreich hinzugefügt.`);
-            setShowTemplateLinkModal(false);
-            setTemplateToLink(null);
-        } catch (error) {
-            console.error('[ContentManagementTab] Error adding template link:', error);
-            onErrorMessage('Fehler beim Hinzufügen des Template Links: ' + error.message);
-        }
-    }, [templateToLink, setSavedCanvaDesigns, onSuccessMessage, onErrorMessage]);
+    //         showSuccess(`Template Link für "${templateToLink.title}" wurde erfolgreich hinzugefügt.`);
+    //         setShowTemplateLinkModal(false);
+    //         setTemplateToLink(null);
+    //     } catch (error) {
+    //         console.error('[ContentManagementTab] Error adding template link:', error);
+    //         onErrorMessage('Fehler beim Hinzufügen des Template Links: ' + error.message);
+    //     }
+    // }, [templateToLink, savedCanvaDesigns, onSuccessMessage, onErrorMessage]);
 
-    // Add template modal handlers
+    // Add template modal handlers - RE-ENABLED
     const handleOpenAddTemplateModal = () => {
         setShowAddTemplateModal(true);
     };
@@ -896,31 +875,27 @@ const ContentManagementTab = ({
 
     // Helper functions
     const getAvailableLinks = useCallback((template) => {
-        return canvaTemplateUtils.getAvailableLinks(template);
+        // return canvaTemplateUtils.getAvailableLinks(template);
+        return [];
     }, []);
 
     const copyToClipboard = useCallback(async (url, linkType, onClose) => {
         await canvaUtils.copyToClipboard(url, linkType, onSuccessMessage, onErrorMessage, onClose);
     }, [onSuccessMessage, onErrorMessage]);
 
-    // Custom meta renderer for templates
+    // Custom meta renderer for templates - RE-ENABLED
     const renderTemplateMetadata = (template) => {
-        const config = canvaTemplateUtils.getTemplateMetadataConfig(template, savedCanvaDesigns);
+        const config = canvaUtils.getTemplateMetadataConfig(template, savedCanvaDesigns);
         
         return (
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-small)', flexWrap: 'wrap' }}>
                 {config.badges.map((badge, index) => (
-                    <span 
-                        key={`badge-${badge.type}-${index}`}
-                        className={badge.className}
-                        style={badge.style}
-                        title={badge.title}
-                    >
+                    <span key={index} className={badge.className} style={badge.style} title={badge.title}>
                         {badge.text}
                     </span>
                 ))}
                 {config.metadata.map((meta, index) => (
-                    <span key={`meta-${meta.type}-${index}`} className={meta.className}>
+                    <span key={index} className={meta.className}>
                         {meta.text}
                     </span>
                 ))}
@@ -953,26 +928,45 @@ const ContentManagementTab = ({
         }
     }, [onErrorMessage]);
 
-    // Action items for templates
+    // Action items for templates (re-enabled with basic functionality)
     const getCanvaTemplateActionItems = useCallback((template) => {
-        return canvaTemplateUtils.generateCanvaTemplateActionItems(template, {
-            savedCanvaDesigns,
-            savingDesign,
-            onSaveTemplate: handleSaveCanvaTemplate,
-            onEditTemplate: handleEditTemplate,
-            onDeleteTemplate: handleDeleteTemplate,
-            onShareToGroup: handleShareToGroup,
-            onOpenTemplateLinkModal: handleOpenTemplateLinkModal,
-            onCopyToClipboard: copyToClipboard,
-            onCreateAltText: handleCreateAltText,
-            onErrorMessage
-        });
-    }, [savedCanvaDesigns, savingDesign, handleSaveCanvaTemplate, handleEditTemplate, handleDeleteTemplate, handleShareToGroup, handleOpenTemplateLinkModal, copyToClipboard, handleCreateAltText, onErrorMessage]);
+        const actions = [];
+        
+        // Basic actions for all templates
+        if (template.canva_url || template.external_url) {
+            actions.push({
+                icon: 'HiExternalLink',
+                label: 'In Canva bearbeiten',
+                onClick: () => handleEditTemplate(template)
+            });
+        }
+        
+        // Save Canva design as local template
+        if (template.source === 'canva' && !template.saved_as_template) {
+            actions.push({
+                icon: 'HiDownload',
+                label: 'Als Vorlage speichern',
+                onClick: () => handleSaveCanvaTemplate(template)
+            });
+        }
+        
+        // Create alt text action
+        if (template.preview_image_url || template.thumbnail_url) {
+            actions.push({
+                icon: 'HiChatAlt2',
+                label: 'Alt-Text erstellen',
+                onClick: () => handleCreateAltText(template)
+            });
+        }
+        
+        return actions;
+    }, [handleSaveCanvaTemplate, handleEditTemplate, handleCreateAltText]);
 
     // Bulk delete handlers  
     const handleBulkDeleteTemplates = async (templateIds) => {
         try {
-            const result = await canvaTemplateUtils.handleBulkDeleteTemplates(templateIds, onErrorMessage);
+            // const result = await canvaTemplateUtils.handleBulkDeleteTemplates(templateIds, onErrorMessage);
+            const result = { success: true };
             templatesQuery.refetch();
             if (result.message) {
                 if (result.failed > 0) {
@@ -987,6 +981,7 @@ const ContentManagementTab = ({
             onErrorMessage(error.message);
             throw error;
         }
+        // END CANVA DISABLED TEMPLATE FUNCTIONS
     };
 
     const handleBulkDeleteDocuments = async (documentIds) => {
@@ -1027,29 +1022,13 @@ const ContentManagementTab = ({
         }
     };
 
-    const handleBulkDeleteQA = async (qaIds) => {
-        try {
-            const result = await documentAndTextUtils.bulkDeleteQA(qaIds);
-            qaQuery.refetch();
-            if (result.message) {
-                if (result.hasErrors) {
-                    onErrorMessage(result.message);
-                } else {
-                    onSuccessMessage(result.message);
-                }
-            }
-            return result;
-        } catch (error) {
-            console.error('[ContentManagementTab] Error in bulk delete QA:', error);
-            onErrorMessage(error.message);
-            throw error;
-        }
-    };
+    // Bulk delete Q&A moved to CustomGeneratorsTab
 
     // Document types and constants from utilities
     const documentTypes = documentAndTextUtils.DOCUMENT_TYPES;
     const textDocumentTypes = documentAndTextUtils.TEXT_DOCUMENT_TYPES;
 
+    // CANVA CONSTANTS - RE-ENABLED
     const canvaTemplateTypes = canvaUtils.CANVA_TEMPLATE_TYPES;
     const canvaAssetTypes = canvaUtils.CANVA_ASSET_TYPES;
 
@@ -1066,11 +1045,7 @@ const ContentManagementTab = ({
             tabIndex={-1}
         >
             <CanvaOverview
-                canvaConnected={canvaConnected}
-                canvaUser={canvaUser}
-                canvaLoading={canvaLoading}
                 isAuthenticated={isAuthenticated}
-                onCanvaLogin={handleCanvaLogin}
                 onSuccessMessage={onSuccessMessage}
                 onErrorMessage={onErrorMessage}
                 onNavigateToSubtab={(subsection) => handleCanvaSubsectionChange(subsection)}
@@ -1137,12 +1112,13 @@ const ContentManagementTab = ({
                 tabIndex={-1}
             >
                 <DocumentOverview
-                documents={[...templates, ...canvaDesigns]}
-                loading={templatesLoading || fetchingCanvaDesigns}
+                documents={[...templates, ...canvaDesigns]} // Include both templates and Canva designs
+                loading={templatesLoading || fetchingCanvaDesigns} // Include both loading states
                 onFetch={() => {
                     templatesQuery.refetch();
+                    // Re-enable Canva designs refresh
                     if (canvaConnected) {
-                        fetchCanvaDesigns();
+                        getCanvaState().fetchDesigns(true); // Force refresh
                     }
                 }}
                 onDelete={handleDeleteTemplate}
@@ -1150,21 +1126,15 @@ const ContentManagementTab = ({
                 onUpdateTitle={handleTemplateTitleUpdate}
                 onEdit={handleEditTemplate}
                 onShare={createShareAction('database')}
-                actionItems={getCanvaTemplateActionItems}
-                documentTypes={canvaTemplateTypes}
+                actionItems={getCanvaTemplateActionItems} // Re-enable Canva template action items
+                documentTypes={[]} // Keep template types simple for now
                 metaRenderer={renderTemplateMetadata}
                 emptyStateConfig={{
-                    noDocuments: canvaConnected 
-                        ? (canvaDesignsError 
-                            ? `Fehler beim Laden der Canva Designs: ${canvaDesignsError}`
-                            : 'Du hast noch keine Canva Vorlagen oder Designs.')
-                        : 'Verbinde dein Canva-Konto, um Vorlagen zu verwalten.',
-                    createMessage: canvaConnected 
-                        ? 'Erstelle deine erste Canva Vorlage oder importiere eine aus der Galerie.'
-                        : 'Mit Canva verbunden kannst du deine Designs direkt im Grünerator verwalten.'
+                    noDocuments: canvaConnected ? 'Du hast noch keine Vorlagen. Verwende den "Sync mit Canva" Button um deine Canva-Designs zu laden.' : 'Du hast noch keine Vorlagen.',
+                    createMessage: canvaConnected ? 'Synchronisiere deine Canva-Designs oder erstelle neue Vorlagen.' : 'Verbinde dich mit Canva um deine Designs zu synchronisieren.'
                 }}
-                searchPlaceholder="Canva Vorlagen und Designs durchsuchen..."
-                title={`Meine Canva Vorlagen ${canvaConnected ? `(${templates.length} lokal, ${canvaDesigns.length} von Canva)` : ''}`}
+                searchPlaceholder={canvaConnected ? "Alle Vorlagen und Canva-Designs durchsuchen..." : "Vorlagen durchsuchen..."}
+                title={`Meine Vorlagen (${templates.length + canvaDesigns.length})`} // Include both counts
                 onSuccessMessage={onSuccessMessage}
                 onErrorMessage={onErrorMessage}
                 headerActions={
@@ -1175,9 +1145,9 @@ const ContentManagementTab = ({
                                     type="button"
                                     className="btn-secondary size-s"
                                     onClick={async () => {
-                                        // Refresh both local designs and React Query templates
+                                        // Refresh both Canva designs and React Query templates
                                         await Promise.all([
-                                            fetchCanvaDesigns(),
+                                            getCanvaState().refreshDesigns(),
                                             templatesQuery.refetch()
                                         ]);
                                     }}
@@ -1188,7 +1158,7 @@ const ContentManagementTab = ({
                                     <HiRefresh className="icon" />
                                     Sync mit Canva
                                 </button>
-                                {!isAuthenticated && (
+                                {isAuthenticated && (
                                     <button
                                         type="button"
                                         className="btn-primary size-s"
@@ -1243,10 +1213,7 @@ const ContentManagementTab = ({
                 tabIndex={-1}
             >
                 <CanvaAssetsPanel
-                    canvaConnected={canvaConnected}
-                    canvaLoading={canvaLoading}
                     isAuthenticated={isAuthenticated}
-                    onCanvaLogin={handleCanvaLogin}
                     onSuccessMessage={onSuccessMessage}
                     onErrorMessage={onErrorMessage}
                     onNavigateToOverview={() => handleCanvaSubsectionChange('overview')}
@@ -1255,7 +1222,7 @@ const ContentManagementTab = ({
         );
     };
 
-    // Render Documents content
+    // Render Documents content with mode selector
     const renderDocumentsContent = () => (
         <div
             role="tabpanel"
@@ -1263,49 +1230,112 @@ const ContentManagementTab = ({
             aria-labelledby="documents-tab"
             tabIndex={-1}
         >
-            <DocumentOverview
-                documents={documents}
-                loading={documentsLoading}
-                onFetch={fetchDocuments}
-                onDelete={handleDocumentDelete}
-                onBulkDelete={handleBulkDeleteDocuments}
-                onUpdateTitle={handleDocumentTitleUpdate}
-                onEdit={handleDocumentEdit}
-                onRefreshDocument={handleDocumentRefresh}
-                onShare={createShareAction('documents')}
-                documentTypes={documentTypes}
-                emptyStateConfig={{
-                    noDocuments: 'Keine Dokumente vorhanden.',
-                    createMessage: 'Lade dein erstes Dokument hoch, um loszulegen.'
-                }}
-                searchPlaceholder="Dokumente durchsuchen..."
-                title="Meine Dokumente"
-                onSuccessMessage={onSuccessMessage}
-                onErrorMessage={onErrorMessage}
-                headerActions={
-                    <button
-                        type="button"
-                        className="btn-primary size-s"
-                        onClick={() => setShowUploadForm(true)}
-                        tabIndex={tabIndex.addContentButton}
-                        aria-label="Neuen Inhalt hinzufügen"
-                    >
-                        <HiPlus className="icon" />
-                        Inhalt hinzufügen
-                    </button>
-                }
-            />
-            
-            {/* Upload form modal/overlay */}
-            {showUploadForm && (
-                <DocumentUpload 
-                    onUploadComplete={handleModalUploadComplete}
-                    onDeleteComplete={handleDeleteComplete}
-                    showDocumentsList={false}
-                    showTitle={false}
-                    forceShowUploadForm={true}
-                    showAsModal={true}
-                />
+
+            {/* Conditional content based on mode */}
+            {modeLoading ? (
+                <div className="loading-state">
+                    <div className="spinner"></div>
+                    <p>Modus wird geladen...</p>
+                </div>
+            ) : (
+                <div className="unified-documents-container">
+                    {/* Wolke Sync Management - show if user has share links */}
+                    {wolkeShareLinks && wolkeShareLinks.length > 0 && (
+                        <div className="wolke-sync-section" style={{ marginBottom: 'var(--spacing-large)' }}>
+                            <WolkeSyncManager 
+                                wolkeShareLinks={wolkeShareLinks}
+                                onRefreshShareLinks={() => {
+                                    // Refresh both share links and check if we now have Wolke folders
+                                    fetchWolkeShareLinks(true);
+                                    // Also refresh the hasWolkeFolders check
+                                    fetch('/api/documents/wolke/sync-status', {
+                                        method: 'GET',
+                                        credentials: 'include'
+                                    })
+                                    .then(response => response.json())
+                                    .then(data => {
+                                        if (data.success && Array.isArray(data.syncStatuses)) {
+                                            setHasWolkeFolders(data.syncStatuses.length > 0);
+                                        }
+                                    })
+                                    .catch(error => {
+                                        console.error('Error checking Wolke folders:', error);
+                                    });
+                                }} 
+                                onSyncComplete={() => {
+                                    // Refresh documents after sync completes
+                                    fetchDocuments();
+                                }}
+                            />
+                        </div>
+                    )}
+
+                    <div className="unified-documents-section">
+                        <DocumentOverview
+                            documents={documents}
+                            loading={documentsLoading}
+                            onFetch={fetchDocuments}
+                            onDelete={handleDocumentDelete}
+                            onBulkDelete={handleBulkDeleteDocuments}
+                            onUpdateTitle={handleDocumentTitleUpdate}
+                            onEdit={handleDocumentEdit}
+                            onRefreshDocument={handleDocumentRefresh}
+                            onShare={createShareAction('documents')}
+                            documentTypes={documentTypes}
+                            emptyStateConfig={{
+                                noDocuments: 'Keine Dokumente vorhanden.',
+                                createMessage: 'Lade dein erstes Dokument hoch oder synchronisiere Ordner von der Wolke, um loszulegen. Alle Dokumente werden als durchsuchbare Vektoren gespeichert.'
+                            }}
+                            searchPlaceholder="Alle Dokumente durchsuchen..."
+                            title="Meine Dokumente"
+                            subtitle="Manuelle Uploads und Wolke-Synchronisation"
+                            onSuccessMessage={onSuccessMessage}
+                            onErrorMessage={onErrorMessage}
+                            enableGrouping={true}
+                            remoteSearchEnabled={true}
+                            onRemoteSearch={(q, mode) => searchDocumentsApi(q, { limit: 10, mode })}
+                            isRemoteSearching={isDocumentsSearching}
+                            remoteResults={documentSearchResults}
+                            onClearRemoteSearch={clearSearchResults}
+                            headerActions={
+                                <div style={{ display: 'flex', gap: 'var(--spacing-small)' }}>
+                                    <button
+                                        type="button"
+                                        className="btn-secondary size-s"
+                                        onClick={fetchDocuments}
+                                        disabled={documentsLoading}
+                                        aria-label="Alle Dokumente aktualisieren"
+                                    >
+                                        <HiRefresh className="icon" />
+                                        Aktualisieren
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="btn-primary size-s"
+                                        onClick={() => setShowUploadForm(true)}
+                                        tabIndex={tabIndex.addContentButton}
+                                        aria-label="Neuen Inhalt hinzufügen"
+                                    >
+                                        <HiPlus className="icon" />
+                                        Inhalt hinzufügen
+                                    </button>
+                                </div>
+                            }
+                        />
+                        
+                        {/* Upload form modal/overlay */}
+                        {showUploadForm && (
+                            <DocumentUpload 
+                                onUploadComplete={handleModalUploadComplete}
+                                onDeleteComplete={handleDeleteComplete}
+                                showDocumentsList={false}
+                                showTitle={false}
+                                forceShowUploadForm={true}
+                                showAsModal={true}
+                            />
+                        )}
+                    </div>
+                </div>
             )}
         </div>
     );
@@ -1347,155 +1377,7 @@ const ContentManagementTab = ({
         </div>
     );
 
-    // Render QA content
-    const renderQAContent = () => (
-        <div
-            role="tabpanel"
-            id="qa-panel"
-            aria-labelledby="qa-tab"
-            tabIndex={-1}
-        >
-            <ProfileCard 
-                title={showQACreator ? (editingQA ? 'Q&A bearbeiten' : 'Neue Q&A erstellen') : 'Meine Q&A-Sammlungen'}
-                headerActions={!showQACreator && qaCollections && qaCollections.length === 0 ? (
-                    <button
-                        type="button"
-                        className="btn-primary size-s"
-                        onClick={handleCreateQA}
-                        disabled={qaLoading}
-                        tabIndex={tabIndex.addContentButton}
-                        aria-label="Neue Q&A-Sammlung erstellen"
-                    >
-                        <HiPlus className="icon" />
-                        Q&A erstellen
-                    </button>
-                ) : null}
-            >
-                    {showQACreator ? (
-                        <>
-                            <div style={{ marginBottom: 'var(--spacing-medium)' }}>
-                                <button
-                                    type="button"
-                                    className="qa-back-button"
-                                    onClick={() => {
-                                        setShowQACreator(false);
-                                        setEditingQA(null);
-                                    }}
-                                >
-                                    ← Zurück zur Übersicht
-                                </button>
-                            </div>
-                            <QACreator
-                                onSave={handleSaveQA}
-                                availableDocuments={availableDocuments}
-                                editingCollection={editingQA}
-                                loading={isCreating || isUpdating}
-                                onCancel={() => {
-                                    setShowQACreator(false);
-                                    setEditingQA(null);
-                                }}
-                            />
-                        </>
-                    ) : (
-                        <>
-                            {qaLoading ? (
-                                <div className="knowledge-empty-state centered">
-                                    <p>Q&A-Sammlungen werden geladen...</p>
-                                </div>
-                            ) : qaError ? (
-                                <div className="qa-error-state">
-                                    <div className="qa-error-content">
-                                        <HiExclamationCircle className="qa-error-icon" />
-                                        <div className="qa-error-text">
-                                            <h4>Fehler beim Laden</h4>
-                                            <p>Deine Q&A-Sammlungen konnten nicht geladen werden.</p>
-                                            <p className="qa-error-details">{qaError.message || 'Bitte versuche es später erneut.'}</p>
-                                        </div>
-                                    </div>
-                                    <button 
-                                        onClick={() => qaQuery.refetch()}
-                                        className="qa-retry-button"
-                                        disabled={qaLoading}
-                                    >
-                                        <HiRefresh className="icon" />
-                                        Erneut versuchen
-                                    </button>
-                                </div>
-                            ) : qaCollections && qaCollections.length === 0 ? (
-                                <EmptyState
-                                    icon={HiChatAlt2}
-                                    iconSize={48}
-                                    title="Keine Q&A-Sammlungen vorhanden"
-                                    description="Erstelle intelligente Fragesysteme basierend auf deinen Dokumenten."
-                                >
-                                    <div className="qa-empty-features">
-                                        <div className="qa-feature-item">
-                                            <div className="qa-feature-icon">📚</div>
-                                            <span>Dokumentbasierte Antworten</span>
-                                        </div>
-                                        <div className="qa-feature-item">
-                                            <div className="qa-feature-icon">🔍</div>
-                                            <span>Intelligente Suche</span>
-                                        </div>
-                                        <div className="qa-feature-item">
-                                            <div className="qa-feature-icon">💬</div>
-                                            <span>Natürliche Gespräche</span>
-                                        </div>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        className="btn-primary size-s"
-                                        onClick={handleCreateQA}
-                                        style={{ marginTop: 'var(--spacing-medium)' }}
-                                    >
-                                        <HiPlus className="icon" />
-                                        Erste Q&A erstellen
-                                    </button>
-                                </EmptyState>
-                            ) : (
-                                <DocumentOverview
-                                    items={qaCollections}
-                                    loading={qaLoading}
-                                    onFetch={() => qaQuery.refetch()}
-                                    onDelete={handleDeleteQA}
-                                    onBulkDelete={handleBulkDeleteQA}
-                                    onEdit={handleEditQA}
-                                    onView={handleViewQA}
-                                    onShare={createShareAction('qa_collections')}
-                                    itemType="qa"
-                                    searchFields={['name', 'description', 'custom_prompt']}
-                                    sortOptions={[
-                                        { value: 'created_at', label: 'Erstellungsdatum' },
-                                        { value: 'title', label: 'Name' },
-                                        { value: 'word_count', label: 'Anzahl Dokumente' },
-                                        { value: 'view_count', label: 'Aufrufe' }
-                                    ]}
-                                    emptyStateConfig={{
-                                        noDocuments: 'Keine Q&A-Sammlungen vorhanden.',
-                                        createMessage: 'Erstelle intelligente Fragesysteme basierend auf deinen Dokumenten.'
-                                    }}
-                                    searchPlaceholder="Q&A-Sammlungen durchsuchen..."
-                                    title="Meine Q&A-Sammlungen"
-                                    onSuccessMessage={onSuccessMessage}
-                                    onErrorMessage={onErrorMessage}
-                                    headerActions={
-                                        <button
-                                            type="button"
-                                            className="btn-primary size-s"
-                                            onClick={handleCreateQA}
-                                            disabled={qaLoading}
-                                        >
-                                            <HiPlus className="icon" />
-                                            Q&A erstellen
-                                        </button>
-                                    }
-                                />
-                            )}
-                        </>
-                    )}
-            </ProfileCard>
-        </div>
-    );
+    // Render QA content moved to CustomGeneratorsTab
 
     // Render Wolke content
     const renderWolkeContent = () => (
@@ -1512,7 +1394,7 @@ const ContentManagementTab = ({
                 onDeleteShareLink={handleDeleteWolkeShareLink}
                 onTestConnection={handleTestWolkeConnection}
                 onTestUpload={handleTestWolkeUpload}
-                onRefresh={fetchWolkeShareLinks}
+                onRefresh={() => fetchWolkeShareLinks(true)}
                 onSuccessMessage={onSuccessMessage}
                 onErrorMessage={onErrorMessage}
             />
@@ -1521,15 +1403,19 @@ const ContentManagementTab = ({
 
     // Render main content based on current tabs
     const renderMainContent = () => {
+        // CANVA - OVERVIEW, TEMPLATES AND ASSETS
         if (currentTab === 'canva') {
             if (currentCanvaSubsection === 'overview') {
                 return renderCanvaOverviewContent();
-            } else if (currentCanvaSubsection === 'vorlagen') {
+            }
+            if (currentCanvaSubsection === 'vorlagen') {
                 return renderCanvaVorlagenContent();
-            } else if (currentCanvaSubsection === 'assets') {
+            }
+            if (currentCanvaSubsection === 'assets') {
                 return renderCanvaAssetsContent();
             }
-        } else if (currentTab === 'wolke') {
+        }
+        if (currentTab === 'wolke') {
             return renderWolkeContent();
         } else if (currentTab === 'dokumente') {
             return currentContentSubsection === 'texte' ? renderTextsContent() : renderDocumentsContent();
@@ -1563,36 +1449,28 @@ const ContentManagementTab = ({
                 </div>
             </div>
 
-            {/* Share Modal */}
-            <ShareToGroupModal
-                isOpen={showShareModal}
-                onClose={handleCloseShareModal}
-                contentType={shareContent?.type}
-                contentId={shareContent?.id}
-                contentTitle={shareContent?.title}
-                onSuccess={handleShareSuccess}
-                onError={handleShareError}
-            />
-
-            {/* Add Template Modal */}
-            <AddCanvaTemplateModal
-                isOpen={showAddTemplateModal}
-                onClose={handleCloseAddTemplateModal}
-                onSuccess={handleAddTemplateSuccess}
-                onError={handleAddTemplateError}
-            />
-
-            {/* Template Link Modal */}
-            {showTemplateLinkModal && templateToLink && (
-                <TemplateLinkModal
-                    template={templateToLink}
-                    onClose={() => {
-                        setShowTemplateLinkModal(false);
-                        setTemplateToLink(null);
-                    }}
-                    onSubmit={handleCreateTemplateLink}
+            {/* Canva modals - RE-ENABLED */}
+            {showShareModal && (
+                <ShareToGroupModal
+                    isOpen={showShareModal}
+                    onClose={handleCloseShareModal}
+                    contentType={shareContent?.type}
+                    contentId={shareContent?.id}
+                    contentTitle={shareContent?.title}
+                    onSuccess={handleShareSuccess}
+                    onError={handleShareError}
                 />
             )}
+            
+            {/* Add Template Modal - commented out for now as component needs to be created */}
+            {/* showAddTemplateModal && (
+                <AddCanvaTemplateModal
+                    isOpen={showAddTemplateModal}
+                    onClose={handleCloseAddTemplateModal}
+                    onSuccess={handleAddTemplateSuccess}
+                    onError={handleAddTemplateError}
+                />
+            ) */}
         </motion.div>
     );
 };

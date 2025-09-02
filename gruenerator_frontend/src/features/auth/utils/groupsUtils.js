@@ -6,9 +6,32 @@
 import { useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
-import { useGroupsUiStore } from '../../../stores/auth/groupsUiStore';
+import { useGroupsStore } from '../../../stores/auth/groupsStore';
 
 const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+
+// Request deduplication cache to prevent duplicate API calls
+const requestCache = new Map();
+
+/**
+ * Deduplicates identical API requests that are in flight
+ * @param {string} key - Unique key for the request
+ * @param {Function} fetcher - Function that returns a promise
+ * @returns {Promise} The deduplicated promise
+ */
+const deduplicatedFetch = (key, fetcher) => {
+  if (requestCache.has(key)) {
+    return requestCache.get(key);
+  }
+  
+  const promise = fetcher()
+    .finally(() => {
+      requestCache.delete(key);
+    });
+  
+  requestCache.set(key, promise);
+  return promise;
+};
 
 /**
  * Hook for comprehensive groups management using backend API
@@ -25,7 +48,7 @@ export const useGroups = ({ isActive } = {}) => {
     isCreating, setCreating,
     isJoining, setJoining,
     clearMessages
-  } = useGroupsUiStore();
+  } = useGroupsStore();
 
   // Query key for user's groups
   const groupsQueryKey = ['userGroups', user?.id];
@@ -36,25 +59,26 @@ export const useGroups = ({ isActive } = {}) => {
       throw new Error('User not authenticated');
     }
 
-    // Fetching groups for user
+    const requestKey = `groups_${user.id}`;
+    return deduplicatedFetch(requestKey, async () => {
 
-    const response = await fetch(`${AUTH_BASE_URL}/auth/groups`, {
-      method: 'GET',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      const response = await fetch(`${AUTH_BASE_URL}/auth/groups`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Fehler beim Laden der Gruppen' }));
+        throw new Error(errorData.message || 'Ein unbekannter Fehler ist aufgetreten.');
+      }
+
+      const data = await response.json();
+      
+      return data.groups || [];
     });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ message: 'Fehler beim Laden der Gruppen' }));
-      throw new Error(errorData.message || 'Ein unbekannter Fehler ist aufgetreten.');
-    }
-
-    const data = await response.json();
-    // Groups loaded successfully
-    
-    return data.groups || [];
   };
 
   // React Query for fetching groups
@@ -62,22 +86,25 @@ export const useGroups = ({ isActive } = {}) => {
     queryKey: groupsQueryKey,
     queryFn: fetchGroupsFn,
     enabled: !!user?.id && isAuthenticated && !authLoading,
-    staleTime: 2 * 60 * 1000, // Reduced to 2 minutes for better UX
-    gcTime: 15 * 60 * 1000, // Fixed: was cacheTime (React Query v5)
+    staleTime: 15 * 60 * 1000, // 15 minutes for better performance
+    gcTime: 30 * 60 * 1000, // 30 minutes cache time
     refetchOnWindowFocus: false,
-    refetchOnMount: true, // Fixed: was 'always' (React Query v5)
-    refetchOnReconnect: true, // Fixed: was 'always' (React Query v5)
+    refetchOnMount: false, // Only refetch on explicit user actions
+    refetchOnReconnect: true,
     retry: (failureCount) => failureCount < 2,
-    refetchInterval: isActive ? 5 * 60 * 1000 : false // Auto-refetch every 5 min when tab is active
+    refetchInterval: false // Disable auto-refetch to reduce backend calls
   });
 
-  // Force refetch when tab becomes active and data is stale
+  // Only refetch when tab becomes active if data is very stale (>10 minutes)
   useEffect(() => {
     if (isActive && query.isStale && !query.isFetching) {
-      console.log('[useGroups] Tab activated and data is stale, refetching groups');
-      query.refetch();
+      const dataAge = Date.now() - (query.dataUpdatedAt || 0);
+      const TEN_MINUTES = 10 * 60 * 1000;
+      if (dataAge > TEN_MINUTES) {
+        query.refetch();
+      }
     }
-  }, [isActive]);
+  }, [isActive, query.isStale, query.isFetching, query.dataUpdatedAt, query.refetch]);
 
   // Create group mutation
   const createGroupMutation = useMutation({
@@ -86,7 +113,6 @@ export const useGroups = ({ isActive } = {}) => {
         throw new Error('User not authenticated');
       }
 
-      console.log('[useGroups] Creating group:', groupName);
 
       const response = await fetch(`${AUTH_BASE_URL}/auth/groups`, {
         method: 'POST',
@@ -103,7 +129,6 @@ export const useGroups = ({ isActive } = {}) => {
       }
 
       const data = await response.json();
-      console.log('[useGroups] Group created successfully:', data.group?.id);
       
       return data.group;
     },
@@ -117,11 +142,9 @@ export const useGroups = ({ isActive } = {}) => {
       queryClient.invalidateQueries({ queryKey: groupsQueryKey });
       // Pre-emptively clear any cached details for the new group to prevent stale data
       queryClient.removeQueries({ queryKey: ['groupDetails', newGroup.id] });
-      console.log('[useGroups] Group creation successful, cache invalidated');
     },
     onError: (error) => {
       setCreating(false);
-      console.error('[useGroups] Group creation failed:', error);
     }
   });
 
@@ -132,7 +155,6 @@ export const useGroups = ({ isActive } = {}) => {
         throw new Error('User not authenticated');
       }
 
-      console.log('[useGroups] Deleting group:', groupId);
 
       const response = await fetch(`${AUTH_BASE_URL}/auth/groups/${groupId}`, {
         method: 'DELETE',
@@ -148,7 +170,6 @@ export const useGroups = ({ isActive } = {}) => {
       }
 
       const data = await response.json();
-      console.log('[useGroups] Group deleted successfully');
       
       return groupId;
     },
@@ -162,12 +183,10 @@ export const useGroups = ({ isActive } = {}) => {
       setDeletingGroupId(null);
       // Invalidate and refetch groups
       queryClient.invalidateQueries({ queryKey: groupsQueryKey });
-      console.log('[useGroups] Group deletion successful, cache invalidated');
     },
     onError: (error) => {
       setDeleting(false);
       setDeletingGroupId(null);
-      console.error('[useGroups] Group deletion failed:', error);
     }
   });
 
@@ -178,7 +197,6 @@ export const useGroups = ({ isActive } = {}) => {
         throw new Error('User not authenticated');
       }
 
-      console.log('[useGroups] Updating group info:', groupId, { name, description });
 
       const response = await fetch(`${AUTH_BASE_URL}/auth/groups/${groupId}/info`, {
         method: 'PUT',
@@ -195,7 +213,6 @@ export const useGroups = ({ isActive } = {}) => {
       }
 
       const data = await response.json();
-      console.log('[useGroups] Group info updated successfully');
       
       return data;
     },
@@ -209,11 +226,9 @@ export const useGroups = ({ isActive } = {}) => {
       queryClient.invalidateQueries({ queryKey: groupsQueryKey });
       // Also invalidate group details cache to update the current view
       queryClient.invalidateQueries({ queryKey: ['groupDetails'] });
-      console.log('[useGroups] Group info update successful, cache invalidated');
     },
     onError: (error) => {
       setSaving(false);
-      console.error('[useGroups] Group info update failed:', error);
     }
   });
 
@@ -224,7 +239,6 @@ export const useGroups = ({ isActive } = {}) => {
         throw new Error('User not authenticated');
       }
 
-      console.log('[useGroups] Updating group name:', groupId, name);
 
       const response = await fetch(`${AUTH_BASE_URL}/auth/groups/${groupId}/name`, {
         method: 'PUT',
@@ -241,7 +255,6 @@ export const useGroups = ({ isActive } = {}) => {
       }
 
       const data = await response.json();
-      console.log('[useGroups] Group name updated successfully');
       
       return data;
     },
@@ -255,11 +268,9 @@ export const useGroups = ({ isActive } = {}) => {
       queryClient.invalidateQueries({ queryKey: groupsQueryKey });
       // Also invalidate group details cache to update the current view
       queryClient.invalidateQueries({ queryKey: ['groupDetails'] });
-      console.log('[useGroups] Group name update successful, cache invalidated');
     },
     onError: (error) => {
       setSaving(false);
-      console.error('[useGroups] Group name update failed:', error);
     }
   });
 
@@ -270,7 +281,6 @@ export const useGroups = ({ isActive } = {}) => {
         throw new Error('User not authenticated');
       }
 
-      console.log('[useGroups] Joining group with token');
 
       const response = await fetch(`${AUTH_BASE_URL}/auth/groups/join`, {
         method: 'POST',
@@ -287,7 +297,6 @@ export const useGroups = ({ isActive } = {}) => {
       }
 
       const data = await response.json();
-      console.log('[useGroups] Group join successful:', data.group?.name);
       
       return data;
     },
@@ -299,11 +308,9 @@ export const useGroups = ({ isActive } = {}) => {
       setJoining(false);
       // Invalidate and refetch groups
       queryClient.invalidateQueries({ queryKey: groupsQueryKey });
-      console.log('[useGroups] Group join successful, cache invalidated');
     },
     onError: (error) => {
       setJoining(false);
-      console.error('[useGroups] Group join failed:', error);
     }
   });
 
@@ -424,25 +431,26 @@ export const useGroupMembers = (groupId, { isActive } = {}) => {
       throw new Error('User not authenticated or group ID missing');
     }
 
-    console.log('[useGroupMembers] Fetching members for group:', groupId);
+    const requestKey = `members_${groupId}_${user.id}`;
+    return deduplicatedFetch(requestKey, async () => {
 
-    const response = await fetch(`${AUTH_BASE_URL}/auth/groups/${groupId}/members`, {
-      method: 'GET',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      const response = await fetch(`${AUTH_BASE_URL}/auth/groups/${groupId}/members`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Fehler beim Laden der Gruppenmitglieder' }));
+        throw new Error(errorData.message || 'Ein unbekannter Fehler ist aufgetreten.');
+      }
+
+      const data = await response.json();
+      
+      return data.members || [];
     });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ message: 'Fehler beim Laden der Gruppenmitglieder' }));
-      throw new Error(errorData.message || 'Ein unbekannter Fehler ist aufgetreten.');
-    }
-
-    const data = await response.json();
-    console.log('[useGroupMembers] Members loaded successfully:', data.members?.length || 0);
-    
-    return data.members || [];
   };
 
   // React Query for fetching members
@@ -450,13 +458,13 @@ export const useGroupMembers = (groupId, { isActive } = {}) => {
     queryKey: membersQueryKey,
     queryFn: fetchMembersFn,
     enabled: !!user?.id && !!groupId && isAuthenticated && !authLoading,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 15 * 60 * 1000, // Fixed: was cacheTime (React Query v5)
+    staleTime: 20 * 60 * 1000, // 20 minutes for members
+    gcTime: 30 * 60 * 1000,
     refetchOnWindowFocus: false,
-    refetchOnMount: true, // Fixed: was 'always' (React Query v5)
-    refetchOnReconnect: true, // Fixed: was 'always' (React Query v5)
+    refetchOnMount: false, // Only fetch on explicit actions
+    refetchOnReconnect: true,
     retry: (failureCount) => failureCount < 2,
-    refetchInterval: isActive ? 10 * 60 * 1000 : false // Auto-refetch every 10 min when active
+    refetchInterval: false // Disable auto-refetch
   });
 
   return {
@@ -480,7 +488,7 @@ export const useGroupSharing = (groupId, { isActive } = {}) => {
   const {
     isSaving, setSaving,
     clearMessages
-  } = useGroupsUiStore();
+  } = useGroupsStore();
 
   // Query key for group content
   const groupContentQueryKey = ['groupContent', groupId];
@@ -491,7 +499,6 @@ export const useGroupSharing = (groupId, { isActive } = {}) => {
       throw new Error('User not authenticated or group ID missing');
     }
 
-    console.log('[useGroupSharing] Fetching group content for group:', groupId);
 
     const response = await fetch(`${AUTH_BASE_URL}/auth/groups/${groupId}/content`, {
       method: 'GET',
@@ -507,7 +514,6 @@ export const useGroupSharing = (groupId, { isActive } = {}) => {
     }
 
     const data = await response.json();
-    console.log('[useGroupSharing] Group content loaded successfully');
     
     return data.content || {};
   };
@@ -517,13 +523,13 @@ export const useGroupSharing = (groupId, { isActive } = {}) => {
     queryKey: groupContentQueryKey,
     queryFn: fetchGroupContentFn,
     enabled: !!user?.id && !!groupId && isAuthenticated && !authLoading,
-    staleTime: 2 * 60 * 1000, // 2 minutes
-    gcTime: 15 * 60 * 1000, // Fixed: was cacheTime (React Query v5)
+    staleTime: 10 * 60 * 1000, // 10 minutes for group content
+    gcTime: 30 * 60 * 1000,
     refetchOnWindowFocus: false,
-    refetchOnMount: true, // Fixed: was 'always' (React Query v5)
-    refetchOnReconnect: true, // Fixed: was 'always' (React Query v5)
+    refetchOnMount: false, // Only fetch on explicit actions
+    refetchOnReconnect: true,
     retry: (failureCount) => failureCount < 2,
-    refetchInterval: isActive ? 5 * 60 * 1000 : false // Auto-refetch every 5 min when active
+    refetchInterval: false // Disable auto-refetch
   });
 
   // Share content mutation
@@ -534,7 +540,6 @@ export const useGroupSharing = (groupId, { isActive } = {}) => {
       }
 
       const shareGroupId = targetGroupId || groupId;
-      console.log('[useGroupSharing] Sharing content:', { contentType, contentId, shareGroupId });
 
       const response = await fetch(`${AUTH_BASE_URL}/auth/groups/${shareGroupId}/share`, {
         method: 'POST',
@@ -551,7 +556,6 @@ export const useGroupSharing = (groupId, { isActive } = {}) => {
       }
 
       const data = await response.json();
-      console.log('[useGroupSharing] Content shared successfully');
       
       return data;
     },
@@ -567,11 +571,9 @@ export const useGroupSharing = (groupId, { isActive } = {}) => {
       if (variables.targetGroupId && variables.targetGroupId !== groupId) {
         queryClient.invalidateQueries({ queryKey: ['groupContent', variables.targetGroupId] });
       }
-      console.log('[useGroupSharing] Content sharing successful, cache invalidated');
     },
     onError: (error) => {
       setSaving(false);
-      console.error('[useGroupSharing] Content sharing failed:', error);
     }
   });
 
@@ -582,7 +584,6 @@ export const useGroupSharing = (groupId, { isActive } = {}) => {
         throw new Error('User not authenticated');
       }
 
-      console.log('[useGroupSharing] Unsharing content:', { contentType, contentId, groupId });
 
       const response = await fetch(`${AUTH_BASE_URL}/auth/groups/${groupId}/content/${contentId}`, {
         method: 'DELETE',
@@ -599,7 +600,6 @@ export const useGroupSharing = (groupId, { isActive } = {}) => {
       }
 
       const data = await response.json();
-      console.log('[useGroupSharing] Content unshared successfully');
       
       return data;
     },
@@ -611,11 +611,9 @@ export const useGroupSharing = (groupId, { isActive } = {}) => {
       setSaving(false);
       // Invalidate and refetch group content
       queryClient.invalidateQueries({ queryKey: groupContentQueryKey });
-      console.log('[useGroupSharing] Content unsharing successful, cache invalidated');
     },
     onError: (error) => {
       setSaving(false);
-      console.error('[useGroupSharing] Content unsharing failed:', error);
     }
   });
 
@@ -626,7 +624,6 @@ export const useGroupSharing = (groupId, { isActive } = {}) => {
         throw new Error('User not authenticated');
       }
 
-      console.log('[useGroupSharing] Updating permissions:', { contentType, contentId, permissions });
 
       const response = await fetch(`${AUTH_BASE_URL}/auth/groups/${groupId}/content/${contentId}/permissions`, {
         method: 'PUT',
@@ -643,7 +640,6 @@ export const useGroupSharing = (groupId, { isActive } = {}) => {
       }
 
       const data = await response.json();
-      console.log('[useGroupSharing] Permissions updated successfully');
       
       return data;
     },
@@ -655,11 +651,9 @@ export const useGroupSharing = (groupId, { isActive } = {}) => {
       setSaving(false);
       // Invalidate and refetch group content
       queryClient.invalidateQueries({ queryKey: groupContentQueryKey });
-      console.log('[useGroupSharing] Permissions update successful, cache invalidated');
     },
     onError: (error) => {
       setSaving(false);
-      console.error('[useGroupSharing] Permissions update failed:', error);
     }
   });
 
@@ -759,68 +753,103 @@ export const useAllGroupsContent = ({ isActive, enabled = true } = {}) => {
   // Query key for all groups content
   const allGroupsContentQueryKey = ['allGroupsContent', user?.id];
   
-  // Fetch content from all groups using the same pattern as useGroupSharing
+  // Fetch content from all groups in parallel for better performance
   const fetchAllGroupsContentFn = async () => {
     if (!user?.id || !groups?.length) {
       return { allContent: [], errors: [] };
     }
 
+    
+    // Create parallel fetch promises for all groups
+    const groupFetchPromises = groups.map(async (group) => {
+      const requestKey = `group_content_${group.id}_${user.id}`;
+      
+      try {
+        const result = await deduplicatedFetch(requestKey, async () => {
+          
+          const response = await fetch(`${AUTH_BASE_URL}/auth/groups/${group.id}/content`, {
+            method: 'GET',
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ 
+              message: `Fehler beim Laden der Inhalte für Gruppe ${group.name}` 
+            }));
+            throw new Error(errorData.message || 'Ein unbekannter Fehler ist aufgetreten.');
+          }
+
+          return response.json();
+        });
+
+        if (result.content) {
+          // Add group context to all items
+          const groupKnowledge = (result.content.knowledge || []).map(item => ({
+            ...item,
+            sourceType: 'group',
+            groupId: group.id,
+            groupName: group.name
+          }));
+          
+          const groupDocuments = (result.content.documents || []).map(item => ({
+            ...item,
+            sourceType: 'group',
+            groupId: group.id,
+            groupName: group.name
+          }));
+          
+          const groupTexts = (result.content.texts || []).map(item => ({
+            ...item,
+            sourceType: 'group',
+            groupId: group.id,
+            groupName: group.name
+          }));
+          
+          const groupContent = [...groupKnowledge, ...groupDocuments, ...groupTexts];
+          
+          return {
+            success: true,
+            content: groupContent,
+            groupName: group.name
+          };
+        }
+        
+        return {
+          success: true,
+          content: [],
+          groupName: group.name
+        };
+      } catch (error) {
+        return {
+          success: false,
+          error: error.message,
+          groupName: group.name
+        };
+      }
+    });
+
+    // Wait for all requests to complete
+    const results = await Promise.allSettled(groupFetchPromises);
+    
     const allContent = [];
     const errors = [];
     
-    for (const group of groups) {
-      try {
-        console.log('[useAllGroupsContent] Fetching content for group:', group.name);
-        
-        const response = await fetch(`${AUTH_BASE_URL}/auth/groups/${group.id}/content`, {
-          method: 'GET',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ 
-            message: `Fehler beim Laden der Inhalte für Gruppe ${group.name}` 
-          }));
-          throw new Error(errorData.message || 'Ein unbekannter Fehler ist aufgetreten.');
+    results.forEach((result, index) => {
+      if (result.status === 'fulfilled') {
+        const groupResult = result.value;
+        if (groupResult.success) {
+          allContent.push(...groupResult.content);
+        } else {
+          errors.push({ groupName: groupResult.groupName, error: groupResult.error });
         }
-
-        const data = await response.json();
-        
-        if (data.content) {
-          // Add group context to all items (same as KnowledgeSelector was doing)
-          const groupKnowledge = (data.content.knowledge || []).map(item => ({
-            ...item,
-            sourceType: 'group',
-            groupId: group.id,
-            groupName: group.name
-          }));
-          
-          const groupDocuments = (data.content.documents || []).map(item => ({
-            ...item,
-            sourceType: 'group',
-            groupId: group.id,
-            groupName: group.name
-          }));
-          
-          const groupTexts = (data.content.texts || []).map(item => ({
-            ...item,
-            sourceType: 'group',
-            groupId: group.id,
-            groupName: group.name
-          }));
-          
-          allContent.push(...groupKnowledge, ...groupDocuments, ...groupTexts);
-        }
-        
-        console.log('[useAllGroupsContent] Successfully loaded content for group:', group.name);
-      } catch (error) {
-        console.error(`[useAllGroupsContent] Error loading content for group ${group.name}:`, error);
-        errors.push({ groupName: group.name, error: error.message });
+      } else {
+        errors.push({ groupName: groups[index]?.name || 'Unknown', error: result.reason.message });
       }
-    }
+    });
+    
     
     return { allContent, errors };
   };
@@ -830,22 +859,25 @@ export const useAllGroupsContent = ({ isActive, enabled = true } = {}) => {
     queryKey: allGroupsContentQueryKey,
     queryFn: fetchAllGroupsContentFn,
     enabled: enabled && !!user?.id && !!groups?.length && isAuthenticated && !authLoading && !isLoadingGroups,
-    staleTime: 2 * 60 * 1000, // 2 minutes (same as useGroupSharing)
-    gcTime: 15 * 60 * 1000, // Fixed: was cacheTime (React Query v5)
+    staleTime: 10 * 60 * 1000, // 10 minutes for all groups content
+    gcTime: 30 * 60 * 1000,
     refetchOnWindowFocus: false,
-    refetchOnMount: true, // Fixed: was 'always' (React Query v5)
-    refetchOnReconnect: true, // Fixed: was 'always' (React Query v5)
+    refetchOnMount: false, // Only fetch on explicit actions
+    refetchOnReconnect: true,
     retry: (failureCount) => failureCount < 2,
-    refetchInterval: isActive ? 5 * 60 * 1000 : false // Auto-refetch every 5 min when active
+    refetchInterval: false // Disable auto-refetch
   });
 
-  // Force refetch when tab becomes active and data is stale
+  // Only refetch when tab becomes active if data is very stale (>10 minutes)
   useEffect(() => {
     if (isActive && query.isStale && !query.isFetching) {
-      console.log('[useAllGroupsContent] Tab activated and data is stale, refetching all groups content');
-      query.refetch();
+      const dataAge = Date.now() - (query.dataUpdatedAt || 0);
+      const TEN_MINUTES = 10 * 60 * 1000;
+      if (dataAge > TEN_MINUTES) {
+        query.refetch();
+      }
     }
-  }, [isActive, query.isStale, query.isFetching, query.refetch]);
+  }, [isActive, query.isStale, query.isFetching, query.dataUpdatedAt, query.refetch]);
 
   return {
     // Data

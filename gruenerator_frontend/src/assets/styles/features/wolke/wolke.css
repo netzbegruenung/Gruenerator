@@ -10,22 +10,36 @@
     width: 100%;
 }
 
-/* Add form section */
-.wolke-add-form-section {
-    padding: var(--spacing-large);
-
+/* Add form content within ProfileCard */
+.wolke-add-form-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-medium);
 }
 
-.wolke-add-form-section h4 {
-    color: var(--font-color-h);
-    margin: 0 0 var(--spacing-small) 0;
-    font-size: 1.125rem;
-    font-weight: 600;
-}
-
-.wolke-add-form-section p {
-    margin: 0 0 var(--spacing-medium) 0;
+.wolke-form-description {
+    margin: 0;
     font-size: 0.875rem;
+    color: var(--font-color);
+    line-height: 1.5;
+}
+
+/* Empty state */
+.wolke-empty-state {
+    text-align: center;
+    color: var(--font-color);
+    padding: var(--spacing-medium) 0;
+}
+
+.wolke-empty-state p {
+    margin: 0 0 var(--spacing-small) 0;
+    font-size: 0.875rem;
+    line-height: 1.5;
+}
+
+.wolke-empty-state p:last-child {
+    margin-bottom: 0;
+    color: var(--font-color);
 }
 
 /* Form layout */
@@ -44,34 +58,43 @@
 .wolke-form-group label {
     font-weight: 500;
     color: var(--font-color);
-    font-size: 0.875rem;
+    font-size: var(--form-element-font-size);
 }
 
 .wolke-form-group input {
-    padding: var(--spacing-small) var(--spacing-medium);
-    border: 1px solid var(--grey-300);
-    border-radius: 8px;
-    font-size: 0.875rem;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
-    background-color: var(--background-color-pure);
+    padding: var(--form-element-padding-y) var(--form-element-padding-x);
+    border: var(--input-border);
+    border-radius: var(--card-border-radius-small);
+    font-size: var(--form-element-font-size);
+    line-height: var(--form-element-line-height);
+    min-height: var(--form-element-min-height);
+    background-color: var(--input-background);
+    color: var(--input-text-color);
+    transition: var(--input-transition);
 }
 
 .wolke-form-group input:focus {
     outline: none;
-    border-color: var(--secondary-600);
-    box-shadow: 0 0 0 3px var(--secondary-50);
+    border: var(--input-border-focus);
+    box-shadow: var(--input-shadow-focus);
 }
 
 .wolke-form-group input:disabled {
     background-color: var(--grey-50);
-    color: var(--grey-500);
+    color: var(--font-color-disabled);
+    border: var(--border-color-disabled);
     cursor: not-allowed;
 }
 
+.wolke-form-group input::placeholder {
+    color: var(--input-placeholder-color);
+}
+
 .wolke-form-hint {
-    color: var(--grey-600);
+    color: var(--font-color-disabled);
     font-size: 0.75rem;
     line-height: 1.4;
+    margin-top: var(--spacing-xxsmall);
 }
 
 /* Form actions */
@@ -79,13 +102,6 @@
     display: flex;
     justify-content: flex-start;
     margin-top: var(--spacing-small);
-}
-
-.wolke-form-actions button {
-    padding: var(--spacing-small) var(--spacing-large);
-    border-radius: 8px;
-    font-weight: 500;
-    transition: all 0.2s ease;
 }
 
 /* Share links list */
@@ -96,20 +112,20 @@
 }
 
 .wolke-share-link-item {
-    background: var(--background-color-pure);
-    border: var(--border-subtle);
-    border-radius: 12px;
+    background: var(--card-background);
+    border: var(--card-border);
+    border-radius: var(--card-border-radius-medium);
     padding: var(--spacing-large);
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
     gap: var(--spacing-medium);
-    transition: all 0.2s ease;
+    transition: var(--input-transition);
 }
 
 .wolke-share-link-item:hover {
-    box-shadow: var(--shadow-sm);
-    border-color: var(--grey-300);
+    box-shadow: var(--card-shadow-elevated);
+    transform: var(--card-hover-transform);
 }
 
 /* Share link info */
@@ -246,15 +262,16 @@
 .wolke-loading-state {
     text-align: center;
     padding: var(--spacing-xlarge);
-    color: var(--grey-600);
+    color: var(--font-color);
+}
+
+.wolke-loading-state p {
+    margin: 0;
+    font-size: 0.875rem;
 }
 
 /* Responsive design */
 @media (max-width: 768px) {
-    .wolke-add-form-section {
-        padding: var(--spacing-medium);
-    }
-    
     .wolke-share-link-item {
         padding: var(--spacing-medium);
         flex-direction: column;
@@ -278,10 +295,6 @@
         gap: var(--spacing-medium);
     }
     
-    .wolke-add-form-section {
-        padding: var(--spacing-small);
-    }
-    
     .wolke-share-link-item {
         padding: var(--spacing-small);
     }
@@ -303,14 +316,14 @@
 
 /* Focus styles for accessibility */
 .btn-action:focus-visible {
-    outline: 2px solid var(--secondary-600);
+    outline: 2px solid var(--interactive-accent-color);
     outline-offset: 2px;
 }
 
 .wolke-form-group input:focus-visible {
     outline: none;
-    border-color: var(--secondary-600);
-    box-shadow: 0 0 0 3px var(--secondary-50);
+    border: var(--input-border-focus);
+    box-shadow: var(--input-shadow-focus);
 }
 
 /* High contrast mode support */
@@ -332,12 +345,15 @@
 @media (prefers-reduced-motion: reduce) {
     .wolke-share-link-item,
     .btn-action,
-    .wolke-form-group input,
-    .wolke-add-form-section {
+    .wolke-form-group input {
         transition: none;
     }
     
     .btn-action:hover:not(:disabled) {
+        transform: none;
+    }
+    
+    .wolke-share-link-item:hover {
         transform: none;
     }
     

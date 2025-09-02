@@ -6,7 +6,7 @@ const antraegeRouter = require('./routes/antraege/index'); // Import the consoli
 // const antragSimpleRoute = require('./routes/antraege/antrag_simple'); // REMOVED direct import/use
 // claude_social will be imported dynamically (ES6 module)
 const claudeChatRoute = require('./routes/claude_chat');
-const { universalRouter, redeRouter, wahlprogrammRouter } = require('./routes/claude_universal');
+const { universalRouter, redeRouter, wahlprogrammRouter, buergeranfragenRouter } = require('./routes/claude_universal');
 const antragsversteherRoute = require('./routes/claude_antragsversteher');
 const wahlpruefsteinBundestagswahlRoute = require('./routes/wahlpruefsteinbundestagswahl');
 const sharepicDreizeilenCanvasRoute = require('./routes/sharepic/sharepic_canvas/dreizeilen_canvas');
@@ -39,6 +39,7 @@ const collabEditorRouter = require('./routes/collabEditor'); // Import the new c
 const snapshottingRouter = require('./routes/internal/snapshottingController'); // Import the new snapshotting controller
 const offboardingRouter = require('./routes/internal/offboardingController'); // Import the offboarding controller
 const webSearchRouter = require('./routes/webSearch'); // Import the web search router
+const imageGenerationRouter = require('./routes/imageGeneration'); // Import the image generation router
 // mem0Router will be imported dynamically like auth routes
 // Auth routes will be imported dynamically
 
@@ -90,6 +91,8 @@ async function setupRoutes(app) {
   const { default: claudeSocialRoute } = await import('./routes/claude_social.js');
   // Import claude_alttext as ES6 module
   const { default: claudeAlttextRoute } = await import('./routes/claude_alttext.js');
+  // Import leichte_sprache as ES6 module
+  const { default: leichteSpracheRoute } = await import('./routes/leichte_sprache.js');
   // Import claude_gruenerator_ask as ES6 module
   const { default: claudeGrueneratorAskRoute } = await import('./routes/claude_gruenerator_ask.js');
   // Import claude_gruenerator_ask_grundsatz as ES6 module
@@ -127,9 +130,6 @@ async function setupRoutes(app) {
   app.use('/api/bundestag', bundestagRouter);
   app.use('/api/crawl-url', crawlUrlRouter);
 
-  // Import and use userTexts route (ES6 module)
-  const userTextsRouter = await import('./routes/userTexts.mjs');
-  app.use('/api/user-texts', userTextsRouter.default);
   
   // Use the single consolidated router for all /api/antraege paths
   app.use('/api/antraege', antraegeRouter);
@@ -141,7 +141,9 @@ async function setupRoutes(app) {
 
   app.use('/api/claude_social', claudeSocialRoute);
   app.use('/api/claude_alttext', claudeAlttextRoute);
+  app.use('/api/leichte_sprache', leichteSpracheRoute);
   app.use('/api/claude_rede', redeRouter);
+  app.use('/api/claude_buergeranfragen', buergeranfragenRouter);
   app.use('/api/claude_chat', claudeChatRoute);
   app.use('/api/antragsversteher', antragsversteherRoute);
   app.use('/api/wahlpruefsteinbundestagswahl', wahlpruefsteinBundestagswahlRoute);
@@ -285,6 +287,7 @@ async function setupRoutes(app) {
   app.use('/api/search', searchRouter);
   app.use('/api/analyze', searchAnalysisRouter);
   app.use('/api/web-search', webSearchRouter);
+  app.use('/api/image-generation', imageGenerationRouter);
 
   // Add the Collab Editor route
   app.use('/api/collab-editor', collabEditorRouter);
@@ -314,6 +317,10 @@ async function setupRoutes(app) {
   } else {
     console.log('[Setup] Mem0 routes skipped - dependencies not available');
   }
+
+  // Add Flux greener edit prompt route (ES module)
+  const { default: fluxGreenEditPrompt } = await import('./routes/flux/greenEditPrompt.js');
+  app.use('/api/flux/green-edit', fluxGreenEditPrompt);
 }
 
 module.exports = { setupRoutes };

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useOptimizedAuth } from '../../hooks/useAuth';
 import { useForm } from 'react-hook-form';
@@ -13,6 +13,9 @@ import useGeneratedTextStore from '../../stores/core/generatedTextStore';
 import { useGeneratorKnowledgeStore } from '../../stores/core/generatorKnowledgeStore';
 import useKnowledge from '../../components/hooks/useKnowledge';
 import { createKnowledgePrompt } from '../../utils/knowledgeFormUtils';
+import { prepareFilesForSubmission } from '../../utils/fileAttachmentUtils';
+import { useUrlCrawler } from '../../hooks/useUrlCrawler';
+import { HiGlobeAlt, HiShieldCheck } from 'react-icons/hi';
 
 const CustomGeneratorPage = ({ showHeaderFooter = true }) => {
   const { slug } = useParams();
@@ -25,6 +28,21 @@ const CustomGeneratorPage = ({ showHeaderFooter = true }) => {
   
   // Use generatedTextStore instead of FormContext
   const { setGeneratedText } = useGeneratedTextStore();
+
+  // File attachment and feature states
+  const [attachedFiles, setAttachedFiles] = useState([]);
+  const [processedAttachments, setProcessedAttachments] = useState([]);
+
+  // URL crawler hook for automatic link processing
+  const {
+    crawledUrls,
+    crawlingUrls,
+    crawlErrors,
+    detectAndCrawlUrls,
+    removeCrawledUrl,
+    retryUrl,
+    isCrawling
+  } = useUrlCrawler();
 
   // Initialize knowledge system with UI configuration
   useKnowledge({ 
@@ -46,7 +64,10 @@ const CustomGeneratorPage = ({ showHeaderFooter = true }) => {
   } = useGeneratorKnowledgeStore();
 
   // Create default values for react-hook-form
-  const defaultValues = {};
+  const defaultValues = {
+    useWebSearchTool: false,
+    usePrivacyMode: false
+  };
   if (generatorConfig) {
     generatorConfig.form_schema.fields.forEach(field => {
       defaultValues[field.name] = field.defaultValue || '';
@@ -58,15 +79,24 @@ const CustomGeneratorPage = ({ showHeaderFooter = true }) => {
     control,
     handleSubmit,
     reset,
+    setValue,
+    watch,
     formState: { errors }
   } = useForm({
     defaultValues
   });
 
+  // Watch feature toggle values
+  const watchUseWebSearch = watch('useWebSearchTool');
+  const watchUsePrivacyMode = watch('usePrivacyMode');
+
   // Reset form when generator config changes
   useEffect(() => {
     if (generatorConfig) {
-      const newDefaults = {};
+      const newDefaults = {
+        useWebSearchTool: false,
+        usePrivacyMode: false
+      };
       generatorConfig.form_schema.fields.forEach(field => {
         newDefaults[field.name] = field.defaultValue || '';
       });
@@ -114,6 +144,40 @@ const CustomGeneratorPage = ({ showHeaderFooter = true }) => {
     }
   }, [slug, isAuthenticated, user?.id, authLoading]);
 
+  // Handle URL detection and crawling
+  const handleUrlsDetected = useCallback(async (urls) => {
+    // Only crawl if not already crawling and URLs are detected
+    if (!isCrawling && urls.length > 0) {
+      await detectAndCrawlUrls(urls.join(' '), watchUsePrivacyMode);
+    }
+  }, [detectAndCrawlUrls, isCrawling, watchUsePrivacyMode]);
+
+  // Handle URL retry
+  const handleRetryUrl = useCallback(async (url) => {
+    await retryUrl(url, watchUsePrivacyMode);
+  }, [retryUrl, watchUsePrivacyMode]);
+
+  // Handle file attachment
+  const handleAttachmentClick = useCallback(async (files) => {
+    try {
+      const processed = await prepareFilesForSubmission(files);
+      
+      // Accumulate files instead of replacing
+      setAttachedFiles(prevFiles => [...prevFiles, ...files]);
+      setProcessedAttachments(prevProcessed => [...prevProcessed, ...processed]);
+    } catch (error) {
+      console.error('[CustomGeneratorPage] File processing error:', error);
+      // Here you could show a toast notification or error message to the user
+      // For now, we'll just log the error
+    }
+  }, []);
+
+  // Handle file removal
+  const handleRemoveFile = useCallback((index) => {
+    setAttachedFiles(prevFiles => prevFiles.filter((_, i) => i !== index));
+    setProcessedAttachments(prevProcessed => prevProcessed.filter((_, i) => i !== index));
+  }, []);
+
   const onSubmitRHF = async (rhfData) => {
     try {
       // Create clean form data object - only include fields from generator config
@@ -123,6 +187,17 @@ const CustomGeneratorPage = ({ showHeaderFooter = true }) => {
           formDataToSubmit[field.name] = rhfData[field.name] || '';
         });
       }
+
+      // Combine file attachments with crawled URLs
+      const allAttachments = [
+        ...processedAttachments,
+        ...crawledUrls
+      ];
+
+      // Add feature flags and attachments to form data
+      formDataToSubmit.useWebSearchTool = rhfData.useWebSearchTool;
+      formDataToSubmit.usePrivacyMode = rhfData.usePrivacyMode;
+      formDataToSubmit.attachments = allAttachments;
 
       // Add knowledge content to the submission
       const knowledgePrompt = await createKnowledgePrompt({
@@ -162,6 +237,29 @@ const CustomGeneratorPage = ({ showHeaderFooter = true }) => {
     }
   };
 
+  // Feature toggle configurations  
+  const webSearchFeatureToggle = {
+    isActive: watchUseWebSearch,
+    onToggle: (checked) => {
+      setValue('useWebSearchTool', checked);
+    },
+    label: "Websuche verwenden",
+    icon: HiGlobeAlt,
+    description: "",
+    tabIndex: 11
+  };
+
+  const privacyModeToggle = {
+    isActive: watchUsePrivacyMode,
+    onToggle: (checked) => {
+      setValue('usePrivacyMode', checked);
+    },
+    label: "Privacy-Mode",
+    icon: HiShieldCheck,
+    description: "Verwendet deutsche Server der Netzbegrünung.",
+    tabIndex: 13
+  };
+
   const handleReset = () => {
     setLocalGeneratedContent('');
     setGeneratedText('customGenerator', '');
@@ -187,6 +285,8 @@ const CustomGeneratorPage = ({ showHeaderFooter = true }) => {
               defaultValue={field.defaultValue || ''}
               rows={4}
               rules={field.required ? { required: `${field.label} ist ein Pflichtfeld` } : {}}
+              enableUrlDetection={true}
+              onUrlsDetected={handleUrlsDetected}
             />
           );
         }
@@ -227,6 +327,14 @@ const CustomGeneratorPage = ({ showHeaderFooter = true }) => {
             )
           }
           showProfileSelector={false}
+          useFeatureIcons={true}
+          onAttachmentClick={handleAttachmentClick}
+          onRemoveFile={handleRemoveFile}
+          attachedFiles={attachedFiles}
+          webSearchFeatureToggle={webSearchFeatureToggle}
+          useWebSearchFeatureToggle={true}
+          privacyModeToggle={privacyModeToggle}
+          usePrivacyModeToggle={true}
         >
           {renderFormInputs()}
         </BaseForm>

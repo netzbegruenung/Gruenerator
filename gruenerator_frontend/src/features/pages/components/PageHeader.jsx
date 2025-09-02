@@ -13,7 +13,7 @@ const PageHeader = ({
     return (
         <header className={headerClass}>
             {title && (
-                <h1 className="page-header__title">
+                <h1 className="page-header__title gradient-title">
                     {title}
                 </h1>
             )}

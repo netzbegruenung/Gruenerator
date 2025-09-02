@@ -59,7 +59,13 @@ export const parseShareLink = (shareLink) => {
 export const getNextcloudShareLinks = async () => {
     try {
         const response = await apiClient.get('/nextcloud/share-links');
-        return response.data;
+        console.log('[nextcloudUtils] Raw API response:', response.data);
+        
+        // Extract shareLinks array from the response object
+        const shareLinks = response.data?.shareLinks || [];
+        console.log('[nextcloudUtils] Extracted share links:', shareLinks, 'Count:', shareLinks.length);
+        
+        return shareLinks;
     } catch (error) {
         console.error('[nextcloudUtils] Error fetching share links:', error);
         throw new Error('Fehler beim Laden der Wolke-Verbindungen: ' + error.message);

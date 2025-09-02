@@ -14,7 +14,8 @@ const SubmitButton = ({
   type = "submit",
   statusMessage,
   showStatus = false,
-  tabIndex
+  tabIndex,
+  imageLimitInfo
 }) => {
   const [internalSuccess, setInternalSuccess] = useState(false);
   const timerRef = useRef(null);
@@ -68,16 +69,29 @@ const SubmitButton = ({
   };
 
   const getButtonContent = () => {
+    const getDisplayText = () => {
+      if (loading) {
+        return statusMessage && showStatus ? statusMessage : text;
+      }
+      
+      // Add image limit count to text if imageLimitInfo is provided
+      if (imageLimitInfo && typeof imageLimitInfo.count !== 'undefined' && typeof imageLimitInfo.limit !== 'undefined') {
+        return `${text} (${imageLimitInfo.count}/${imageLimitInfo.limit})`;
+      }
+      
+      return text;
+    };
+
     return (
       <div className="submit-button__content">
         {icon && !loading && <span className="submit-button__icon">{icon}</span>}
-        {!loading && <span>{text}</span>}
+        {!loading && <span>{getDisplayText()}</span>}
         {loading && (
           <>
             <span className="submit-button__loading-spinner">
               <Spinner size="small" />
             </span>
-            <span>{statusMessage && showStatus ? statusMessage : text}</span>
+            <span>{getDisplayText()}</span>
           </>
         )}
       </div>
@@ -170,7 +184,11 @@ SubmitButton.propTypes = {
   type: PropTypes.string,
   statusMessage: PropTypes.string,
   showStatus: PropTypes.bool,
-  tabIndex: PropTypes.number
+  tabIndex: PropTypes.number,
+  imageLimitInfo: PropTypes.shape({
+    count: PropTypes.number,
+    limit: PropTypes.number
+  })
 };
 
 export default SubmitButton;

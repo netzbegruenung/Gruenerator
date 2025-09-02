@@ -120,7 +120,7 @@ export const bulkDeleteTexts = async (textIds) => {
     try {
         console.log('[documentAndTextUtils] Bulk deleting texts:', textIds);
         
-        const response = await fetch(`${AUTH_BASE_URL}/user-texts/bulk`, {
+        const response = await fetch(`${AUTH_BASE_URL}/saved-texts/bulk`, {
             method: 'DELETE',
             credentials: 'include',
             headers: {
