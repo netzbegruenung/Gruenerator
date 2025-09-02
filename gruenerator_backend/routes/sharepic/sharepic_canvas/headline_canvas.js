@@ -196,9 +196,9 @@ router.post('/', upload.single('image'), async (req, res) => {
 
     const uploadedImageBuffer = req.file ? req.file.buffer : null;
 
-    // Headline-specific parameters with much larger default font size (like example)
+    // Headline-specific parameters with adjusted font size
     const modParams = {
-      fontSize: parseInt(fontSize, 10) || 240, // Much larger to match example (238px)
+      fontSize: parseInt(fontSize, 10) || 180, // Reduced from 240px for better readability
       textColor: isValidHexColor(textColor) ? textColor : '#005437', // Corrected Tanne color
       backgroundColor: isValidHexColor(backgroundColor) ? backgroundColor : COLORS.SAND,
       verticalOffset: parseFloat(verticalOffset) || 0,
@@ -214,8 +214,8 @@ router.post('/', upload.single('image'), async (req, res) => {
     // Simplified validation for headline format
     const headlineValidatedParams = {
       ...modParams,
-      // Ensure font size is within reasonable bounds for headlines (much larger range)
-      fontSize: Math.max(150, Math.min(300, modParams.fontSize)),
+      // Ensure font size is within reasonable bounds for headlines
+      fontSize: Math.max(120, Math.min(250, modParams.fontSize)),
       // Ensure vertical offset is reasonable
       verticalOffset: Math.max(-300, Math.min(300, modParams.verticalOffset))
     };
