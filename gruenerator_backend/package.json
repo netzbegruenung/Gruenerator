@@ -23,8 +23,6 @@
     "start:prod": "cross-env NODE_ENV=production concurrently --kill-others-on-exit --prefix-colors \"bgBlue.bold,bgMagenta.bold,bgGreen.bold\" \"npm:start:embedding\" \"npm:start:backend\" \"npm:start:yjs\"",
     "test:errors": "NODE_ENV=test jest tests/testErrorHandling.js",
     "download-whisper": "npx nodejs-whisper download",
-    "download-fastembed": "node scripts/download-fastembed-model.js",
-    "postinstall": "npm run download-fastembed",
     "offboarding": "node scripts/offboarding-cron.js",
     "offboarding:status": "node -e \"require('./services/offboardingService').OffboardingService.validateConfig(); console.log('✓ Offboarding configuration is valid');\""
   },
