@@ -13,6 +13,7 @@ export { crossTabSyncMiddleware, createCrossTabSyncConfig } from './middlewares/
 
 // Active stores:
 export { default as useGeneratedTextStore } from './core/generatedTextStore';
+export { default as useFormStateStore } from './core/formStateStore';
 export { default as useSharepicStore } from './sharepicStore';
 
 // Future stores will be exported here:

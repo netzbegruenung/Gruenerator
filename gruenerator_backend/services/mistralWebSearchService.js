@@ -3,9 +3,11 @@
  * Provides real web search capabilities using Mistral's web search agent
  */
 
+const mistralClient = require('../workers/mistralClient');
+
 class MistralWebSearchService {
   constructor() {
-    this.client = null;
+    this.client = mistralClient;
     this.agent = null;
     this.agentId = null;
   }
@@ -16,19 +18,10 @@ class MistralWebSearchService {
    */
   async initializeClient() {
     if (!this.client) {
-      // Dynamic import of Mistral SDK
-      const { Mistral } = await import('@mistralai/mistralai');
-      
-      if (!process.env.MISTRAL_API_KEY) {
-        throw new Error('MISTRAL_API_KEY environment variable not set');
-      }
-
-      this.client = new Mistral({ 
-        apiKey: process.env.MISTRAL_API_KEY 
-      });
-      
-      console.log('[MistralWebSearchService] Client initialized');
+      throw new Error('Mistral client not available. Check MISTRAL_API_KEY environment variable.');
     }
+    
+    console.log('[MistralWebSearchService] Using centralized Mistral client');
   }
 
   /**

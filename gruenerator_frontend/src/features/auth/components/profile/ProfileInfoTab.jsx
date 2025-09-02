@@ -12,6 +12,7 @@ import {
 import { useProfile } from '../../hooks/useProfileData';
 import { useOptimizedAuth } from '../../../../hooks/useAuth';
 import { useBetaFeatures } from '../../../../hooks/useBetaFeatures';
+import { useProfileStore } from '../../../../stores/profileStore';
 import AvatarSelectionModal from './AvatarSelectionModal';
 import HelpTooltip from '../../../../components/common/HelpTooltip';
 import { motion } from "motion/react";
@@ -24,8 +25,6 @@ const ProfileInfoTab = ({
   deleteAccount, 
   canManageAccount 
 }) => {
-  const queryClient = useQueryClient();
-  
   // Get user from auth hook as fallback if prop is not provided
   const { 
     user: authUser, 
@@ -33,16 +32,34 @@ const ProfileInfoTab = ({
     isAuthenticated
   } = useOptimizedAuth();
   
+  const user = userProp || authUser;
+  
+  // Early return if no user available - MUST be after minimal hook calls
+  if (!user) {
+    return (
+      <div className="profile-tab-loading">
+        <div>Benutzerinformationen werden geladen...</div>
+      </div>
+    );
+  }
+
+  const queryClient = useQueryClient();
+  
   // Use beta features pattern for profile settings
   const {
     getBetaFeatureState,
     updateUserBetaFeatures,
     isUpdating: isBetaFeaturesUpdating
   } = useBetaFeatures();
-  const user = userProp || authUser;
   
   // Business logic hooks from useProfileData
   const { data: profile, isLoading: isLoadingProfile, isError: isErrorProfileQuery, error: errorProfileQuery } = useProfile(user?.id);
+
+  // ProfileStore integration for optimistic updates
+  const updateAvatarOptimistic = useProfileStore(state => state.updateAvatarOptimistic);
+  const updateDisplayNameOptimistic = useProfileStore(state => state.updateDisplayNameOptimistic);
+  const profileMessages = useProfileStore(state => state.messages);
+  const clearMessages = useProfileStore(state => state.clearMessages);
 
   // Profile update mutations (moved from useProfileManager)
   const updateProfileMutation = useMutation({
@@ -70,26 +87,56 @@ const ProfileInfoTab = ({
       if (!user) throw new Error('Nicht angemeldet');
       return await profileApiService.updateAvatar(avatarRobotId);
     },
-    onSuccess: (updatedProfile) => {
-      if (user?.id && updatedProfile) {
-        queryClient.setQueryData(['profileData', user.id], (oldData) => ({
-          ...oldData,
-          ...updatedProfile
-        }));
+    onMutate: async (avatarRobotId) => {
+      // Cancel any outgoing profile refetches to avoid race conditions
+      await queryClient.cancelQueries({ queryKey: ['profileData', user?.id] });
+      
+      // Snapshot the previous value for rollback
+      const previousProfile = queryClient.getQueryData(['profileData', user?.id]);
+      
+      // Optimistically update the cache
+      queryClient.setQueryData(['profileData', user?.id], (oldData) => ({
+        ...oldData,
+        avatar_robot_id: avatarRobotId
+      }));
+      
+      return { previousProfile, avatarRobotId };
+    },
+    onSuccess: (updatedProfile, avatarRobotId) => {
+      if (user?.id) {
+        // Update cache with server response, ensuring avatar_robot_id is correct
+        queryClient.setQueryData(['profileData', user.id], (oldData) => {
+          const newData = {
+            ...oldData,
+            ...updatedProfile,
+            // Always use the avatarRobotId from the mutation argument (what user selected)
+            avatar_robot_id: avatarRobotId
+          };
+          console.log('[Avatar Update] Cache updated with:', newData.avatar_robot_id);
+          return newData;
+        });
+        
+        // Force React Query to treat this data as fresh to prevent refetch
+        queryClient.setQueryDefaults(['profileData', user.id], {
+          staleTime: 60 * 60 * 1000, // 1 hour - very long to prevent any refetch
+          gcTime: 60 * 60 * 1000
+        });
       }
     },
-    onError: (error) => {
+    onError: (error, avatarRobotId, context) => {
       console.error('Avatar update failed:', error);
+      
+      // Rollback the optimistic update
+      if (context?.previousProfile) {
+        queryClient.setQueryData(['profileData', user?.id], context.previousProfile);
+      }
     }
   });
 
   // Extract mutation functions for easier use
   const updateProfile = updateProfileMutation.mutate;
   const updateAvatar = updateAvatarMutation.mutate;
-  const isUpdatingProfile = updateProfileMutation.isPending;
-  const isUpdatingAvatar = updateAvatarMutation.isPending;
   const profileUpdateError = updateProfileMutation.error;
-  const resetProfileMutation = () => updateProfileMutation.reset();
 
   // Local form states only
   const [displayName, setDisplayName] = useState('');
@@ -113,17 +160,13 @@ const ProfileInfoTab = ({
 
   const canManageCurrentAccount = user ? canManageAccount() : false;
 
-  // Early return if no user available
-  if (!user) {
-    return (
-      <div className="profile-tab-loading">
-        <div>Benutzerinformationen werden geladen...</div>
-      </div>
-    );
-  }
-
   // Define avatarRobotId early since it's used in auto-save
   const avatarRobotId = profile?.avatar_robot_id ?? 1;
+  
+  // Log avatar changes for debugging
+  React.useEffect(() => {
+    console.log(`[Avatar State] 📊 Avatar state changed: profile.avatar_robot_id=${profile?.avatar_robot_id}, computed avatarRobotId=${avatarRobotId}`);
+  }, [profile?.avatar_robot_id, avatarRobotId]);
 
   // State-based autosave using shared hook pattern (moved before initialization to prevent "cannot access before initialization" error)
   const stateBasedSave = useCallback(async () => {
@@ -133,8 +176,8 @@ const ProfileInfoTab = ({
     
     const profileUpdateData = {
       display_name: fullDisplayName,
-      username: username || null,
-      avatar_robot_id: avatarRobotId
+      username: username || null
+      // Note: avatar_robot_id is excluded from autosave to prevent conflicts with manual avatar updates
     };
 
     // Always include email in update data - backend will handle permissions
@@ -159,18 +202,18 @@ const ProfileInfoTab = ({
         onErrorProfileMessage('Speichern dauert zu lange. Bitte versuchen Sie es erneut.');
       }
     }
-  }, [displayName, username, email, avatarRobotId, user?.username, profile, updateProfile, onErrorProfileMessage]);
+  }, [displayName, username, email, user?.username, profile, updateProfile, onErrorProfileMessage]);
 
   // Auto-save using shared hook with state variables  
   const { resetTracking } = useAutosave({
     saveFunction: stateBasedSave,
     formRef: {
-      getValues: () => ({ displayName, username, email, avatarRobotId }),
+      getValues: () => ({ displayName, username, email }),
       watch: () => {} // Not needed for state-based
     },
     enabled: profile && isInitialized.current,
     debounceMs: 2000,
-    getFieldsToTrack: () => ['displayName', 'username', 'email', 'avatarRobotId'],
+    getFieldsToTrack: () => ['displayName', 'username', 'email'], // Exclude avatarRobotId from autosave
     onError: (error) => {
       console.error('Profile autosave failed:', error);
       setErrorProfile('Automatisches Speichern fehlgeschlagen.');
@@ -194,7 +237,7 @@ const ProfileInfoTab = ({
     }
   }, [profile, user, resetTracking]);
 
-  // Trigger autosave when state changes
+  // Trigger autosave when state changes (excluding avatarRobotId)
   useEffect(() => {
     if (profile && isInitialized.current) {
       // Small delay to allow focus detection
@@ -203,7 +246,7 @@ const ProfileInfoTab = ({
       }, 100);
       return () => clearTimeout(timer);
     }
-  }, [displayName, username, email, avatarRobotId, resetTracking, profile, isInitialized]);
+  }, [displayName, username, email, resetTracking, profile, isInitialized]);
 
   // Handle profile update error from hook
   useEffect(() => {
@@ -215,15 +258,38 @@ const ProfileInfoTab = ({
 
   const handleAvatarSelect = async (robotId) => {
     try {
+      const oldAvatarId = profile?.avatar_robot_id || 'unknown';
+      console.log(`[Avatar Frontend] 🎯 User selected avatar: ${oldAvatarId} → ${robotId}`);
+      
+      // Temporarily disable autosave during avatar update
+      const currentProfile = profile;
+      
+      // Use React Query mutation with proper sequencing
+      console.log(`[Avatar Frontend] 📡 Starting API call for avatar update: ${robotId}`);
       await updateAvatar(robotId);
+      console.log(`[Avatar Frontend] ✅ API call completed successfully for avatar: ${robotId}`);
+      
+      // Show success message
       onSuccessMessage('Avatar erfolgreich aktualisiert!');
       
-      // Event for other components
-      window.dispatchEvent(new CustomEvent('avatarUpdated', { 
-        detail: { avatarRobotId: robotId } 
-      }));
+      // Wait a moment before syncing profileStore to prevent race conditions
+      setTimeout(() => {
+        console.log(`[Avatar Frontend] 🔄 Syncing ProfileStore with avatar: ${robotId}`);
+        updateAvatarOptimistic(robotId).catch(() => {
+          console.debug('[ProfileInfoTab] ProfileStore sync after avatar update completed');
+        });
+        
+        // Event for other components  
+        window.dispatchEvent(new CustomEvent('avatarUpdated', { 
+          detail: { avatarRobotId: robotId } 
+        }));
+        console.log(`[Avatar Frontend] 📢 Dispatched avatarUpdated event with: ${robotId}`);
+      }, 100);
+      
     } catch (error) {
-      onErrorProfileMessage('Fehler beim Aktualisieren des Avatars.');
+      console.error('[Avatar Frontend] ❌ Avatar update failed:', error);
+      const errorMessage = error.message || 'Fehler beim Aktualisieren des Avatars.';
+      onErrorProfileMessage(errorMessage);
     }
   };
 
@@ -290,13 +356,18 @@ const ProfileInfoTab = ({
   };
 
   // UI Helper functions
-  const calculatedDisplayName = displayName || email || user?.username || 'Benutzer';
-
   const avatarProps = getAvatarDisplayProps({
     avatar_robot_id: avatarRobotId,
     display_name: displayName,
     email: email || user?.email || user?.username
   });
+  
+  // Log avatar display data for debugging
+  React.useEffect(() => {
+    if (avatarRobotId) {
+      console.log(`[Avatar Display] 🖼️ Rendering avatar: avatar_robot_id=${avatarRobotId}, src=${avatarProps.src}`);
+    }
+  }, [avatarRobotId, avatarProps.src]);
 
   const getPossessiveForm = (name) => {
     if (!name) return "Dein";
@@ -309,7 +380,6 @@ const ProfileInfoTab = ({
 
   // Separate loading states - only disable fields during profile loading, not during updates
   const isLoading = isLoadingProfile;
-  const isSaving = isUpdatingProfile || isUpdatingAvatar;
 
   return (
     <>

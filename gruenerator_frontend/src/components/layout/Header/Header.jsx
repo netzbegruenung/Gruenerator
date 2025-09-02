@@ -1,5 +1,5 @@
 //header.js
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import NavMenu from './NavMenu';
 import ProfileButton from './ProfileButton';
@@ -10,34 +10,47 @@ import { getMenuItems, getDirectMenuItems, MenuItem, menuStyles, handleMenuInter
 import Icon from '../../common/Icon';
 
 import { useLazyAuth } from '../../../hooks/useAuth';
-import { useBetaFeatures } from '../../../hooks/useBetaFeatures';
+// import { useBetaFeatures } from '../../../hooks/useBetaFeatures';
 
 const Header = () => {
     useLazyAuth(); // Keep for other auth functionality
     const location = useLocation();
-    const { getBetaFeatureState } = useBetaFeatures();
-    const databaseBetaEnabled = getBetaFeatureState('database');
-    const youBetaEnabled = getBetaFeatureState('you');
+    // const { getBetaFeatureState } = useBetaFeatures();
+    
+    // Temporarily disable beta features to isolate issue
+    // const databaseBetaEnabled = useMemo(() => getBetaFeatureState('database'), [getBetaFeatureState]);
+    // const youBetaEnabled = useMemo(() => getBetaFeatureState('you'), [getBetaFeatureState]);
+    const databaseBetaEnabled = false;
+    const youBetaEnabled = false;
     const [menuActive, setMenuActive] = useState(false);
     const [activeDropdown, setActiveDropdown] = useState(null);
     const [darkMode, toggleDarkMode] = useDarkMode();
     const { announce } = useAccessibility();
     const headerRef = useRef(null);
-    const isNavigatingRef = useRef(false);
+    const closeTimeoutRef = useRef(null);
 
-    const menuItems = getMenuItems({ databaseBetaEnabled, youBetaEnabled });
-    const directMenuItems = getDirectMenuItems({ databaseBetaEnabled, youBetaEnabled });
+    // Memoize menu items to prevent unnecessary recalculations
+    const menuItems = useMemo(() => getMenuItems({ databaseBetaEnabled, youBetaEnabled }), [databaseBetaEnabled, youBetaEnabled]);
+    const directMenuItems = useMemo(() => getDirectMenuItems({ databaseBetaEnabled, youBetaEnabled }), [databaseBetaEnabled, youBetaEnabled]);
 
     // Close dropdown when location changes (navigation occurs)
     useEffect(() => {
         setActiveDropdown(null);
-        // Also set navigation flag to prevent immediate reopening
-        isNavigatingRef.current = true;
-        const timer = setTimeout(() => {
-            isNavigatingRef.current = false;
-        }, 500);
-        return () => clearTimeout(timer);
+        if (closeTimeoutRef.current) {
+            clearTimeout(closeTimeoutRef.current);
+            closeTimeoutRef.current = null;
+        }
     }, [location.pathname]);
+
+
+    // Cleanup timeout on unmount
+    useEffect(() => {
+        return () => {
+            if (closeTimeoutRef.current) {
+                clearTimeout(closeTimeoutRef.current);
+            }
+        };
+    }, []);
 
     // Removed deprecated setupKeyboardNav - browser handles keyboard navigation natively
 
@@ -46,15 +59,64 @@ const Header = () => {
         // Reduced announcements - screen readers handle menu state natively
     };
 
+
+    const handleNavMenuClose = () => {
+        setMenuActive(false);
+    };
+
     const handleMouseEnter = (dropdown) => {
-        // Don't open dropdown if navigation is in progress
-        if (!isNavigatingRef.current) {
-            setActiveDropdown(dropdown);
+        // Clear any pending close timeout
+        if (closeTimeoutRef.current) {
+            clearTimeout(closeTimeoutRef.current);
+            closeTimeoutRef.current = null;
+        }
+        setActiveDropdown(dropdown);
+    };
+
+    const handleMouseLeave = (event) => {
+        // Check if the mouse is moving to an element that's part of the dropdown
+        const relatedTarget = event.relatedTarget;
+        
+        // If relatedTarget is null or not a DOM node, close the dropdown
+        if (relatedTarget && relatedTarget instanceof Node) {
+            const dropdownContainer = event.currentTarget.closest('.header-dropdown');
+            
+            // Check if the mouse is moving to something within the same dropdown container
+            if (dropdownContainer && dropdownContainer.contains(relatedTarget)) {
+                // Don't close - mouse is still within the dropdown area
+                return;
+            }
+            
+            // Check if moving to the dropdown content
+            const dropdownContent = dropdownContainer?.querySelector('.header-dropdown-content');
+            if (dropdownContent && dropdownContent.contains(relatedTarget)) {
+                // Don't close - mouse is moving to dropdown content
+                return;
+            }
+        }
+        
+        // Mouse is leaving the dropdown area, close with a small delay
+        closeTimeoutRef.current = setTimeout(() => {
+            setActiveDropdown(null);
+            closeTimeoutRef.current = null;
+        }, 200);
+    };
+
+    const handleHeaderMouseEnter = () => {
+        // Cancel any pending close when mouse re-enters header area
+        if (closeTimeoutRef.current) {
+            clearTimeout(closeTimeoutRef.current);
+            closeTimeoutRef.current = null;
         }
     };
 
-    const handleMouseLeave = () => {
+    const handleHeaderMouseLeave = () => {
+        // Close dropdown when leaving entire header area
         setActiveDropdown(null);
+        if (closeTimeoutRef.current) {
+            clearTimeout(closeTimeoutRef.current);
+            closeTimeoutRef.current = null;
+        }
     };
 
     const handleFocus = (dropdown) => {
@@ -70,10 +132,6 @@ const Header = () => {
                 setActiveDropdown(null);
             }
         }, 150);
-    };
-
-    const handleNavMenuClose = () => {
-        setMenuActive(false);
     };
 
     const handleKeyDown = (event, dropdown) => {
@@ -108,36 +166,29 @@ const Header = () => {
     };
 
     const handleLinkClick = (event) => {
-        // Prevent event from bubbling up to parent elements
+        // Prevent event bubbling
         event.stopPropagation();
         
-        // Close dropdown and mobile menu when navigating to a new page
+        // Close dropdown and mobile menu immediately
         setActiveDropdown(null);
         setMenuActive(false);
         
-        // Prevent mouse events from reopening dropdown during navigation
-        isNavigatingRef.current = true;
-        setTimeout(() => {
-            isNavigatingRef.current = false;
-        }, 500);
-    };
-
-    const handleDropdownItemKeyDown = (event) => {
-        const { key } = event;
-        
-        // Handle Escape to close dropdown and return focus to trigger
-        if (key === 'Escape') {
-            event.preventDefault();
-            setActiveDropdown(null);
-            // Return focus to dropdown trigger
-            const dropdownTrigger = event.currentTarget.closest('.header-dropdown');
-            if (dropdownTrigger) {
-                dropdownTrigger.focus();
-            }
+        // Force blur any focused dropdown elements to clear focus-within state
+        if (document.activeElement && document.activeElement.closest('.header-dropdown')) {
+            document.activeElement.blur();
         }
         
-        // Let browser handle Tab navigation naturally through dropdown items
-        // Tab will move to next dropdown item or continue to next header element
+        // Clear any potential hover states by forcing a layout recalculation
+        if (headerRef.current) {
+            const style = headerRef.current.style;
+            style.pointerEvents = 'none';
+            // Use requestAnimationFrame to restore pointer events after navigation
+            requestAnimationFrame(() => {
+                if (headerRef.current) {
+                    style.pointerEvents = '';
+                }
+            });
+        }
     };
 
     const renderDropdownContent = (menuType) => {
@@ -147,7 +198,6 @@ const Header = () => {
                 <Link 
                     to={item.path} 
                     onClick={(e) => handleLinkClick(e)}
-                    onKeyDown={(e) => handleDropdownItemKeyDown(e)}
                     role="menuitem"
                     tabIndex="0"
                 >
@@ -159,7 +209,7 @@ const Header = () => {
 
 
     return (
-        <header className="header" ref={headerRef} role="banner">
+        <header className="header" ref={headerRef} role="banner" onMouseEnter={handleHeaderMouseEnter} onMouseLeave={handleHeaderMouseLeave}>
             <div className="header-container">
                 <div className="header-logo">
                     <Link to="/" aria-label="Zur Startseite">
@@ -188,7 +238,7 @@ const Header = () => {
                             <li key={key} 
                                 className="header-dropdown"
                                 onMouseEnter={() => handleMouseEnter(key)}
-                                onMouseLeave={handleMouseLeave}
+                                onMouseLeave={(e) => handleMouseLeave(e)}
                                 onFocus={() => handleFocus(key)}
                                 onBlur={handleBlur}
                                 onKeyDown={(e) => handleKeyDown(e, key)}
@@ -212,6 +262,7 @@ const Header = () => {
                                     aria-label={`${menu.title} Untermenü`}
                                     role="menu"
                                     aria-hidden={activeDropdown !== key}
+                                    onMouseLeave={(e) => handleMouseLeave(e)}
                                 >
                                     {menu.items && menu.items.length > 0 && renderDropdownContent(key)}
                                 </ul>

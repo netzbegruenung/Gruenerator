@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useContext } from 'react';
+import React, { useState, useRef, useEffect, useContext, useMemo } from 'react';
 import PropTypes from 'prop-types';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
@@ -40,13 +40,17 @@ const NavMenu = ({ open, onClose }) => {
   const { announce } = useAccessibility();
   const navMenuRef = useRef(null);
   useLazyAuth(); // Keep for other auth functionality
-  const { getBetaFeatureState } = useBetaFeatures();
-  const databaseBetaEnabled = getBetaFeatureState('database');
+  // const { getBetaFeatureState } = useBetaFeatures();
+  
+  // Temporarily disable beta features to isolate issue
+  // const databaseBetaEnabled = useMemo(() => getBetaFeatureState('database'), [getBetaFeatureState]);
+  const databaseBetaEnabled = false;
 
-  const menuItems = getMenuItems({ databaseBetaEnabled });
-  const directMenuItems = getDirectMenuItems({ databaseBetaEnabled });
-  const mobileOnlyItems = getMobileOnlyMenuItems();
-  const dynamicTopLevelItems = [...Object.values(directMenuItems), ...Object.values(mobileOnlyItems)];
+  // Memoize menu items to prevent unnecessary recalculations
+  const menuItems = useMemo(() => getMenuItems({ databaseBetaEnabled }), [databaseBetaEnabled]);
+  const directMenuItems = useMemo(() => getDirectMenuItems({ databaseBetaEnabled }), [databaseBetaEnabled]);
+  const mobileOnlyItems = useMemo(() => getMobileOnlyMenuItems(), []);
+  const dynamicTopLevelItems = useMemo(() => [...Object.values(directMenuItems), ...Object.values(mobileOnlyItems)], [directMenuItems, mobileOnlyItems]);
 
 
   useEffect(() => {

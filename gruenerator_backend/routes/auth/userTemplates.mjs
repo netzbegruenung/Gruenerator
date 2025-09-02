@@ -1,9 +1,10 @@
 import express from 'express';
-import { supabaseService } from '../../utils/supabaseClient.js';
+import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import authMiddlewareModule from '../../middleware/authMiddleware.js';
 import { urlCrawlerService } from '../../services/urlCrawlerService.js';
 
 const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
+const postgres = getPostgresInstance();
 
 const router = express.Router();
 
@@ -167,19 +168,14 @@ router.get('/user-templates', ensureAuthenticated, async (req, res) => {
   try {
     const userId = req.user.id;
     
-    // Fetch user's Canva templates from database table (excluding examples)
-    const { data: templates, error } = await supabaseService
-      .from('database')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('type', 'template')
-      .eq('is_example', false)
-      .order('updated_at', { ascending: false });
-      
-    if (error) {
-      console.error('[User Templates /user-templates GET] Supabase error:', error);
-      throw new Error(error.message);
-    }
+    // Fetch user's Canva templates from user_templates table (excluding examples)
+    const templates = await postgres.query(
+      `SELECT * FROM user_templates 
+       WHERE user_id = $1 AND type = $2 AND is_example = $3
+       ORDER BY updated_at DESC`,
+      [userId, 'template', false],
+      { table: 'user_templates' }
+    );
     
     // Transform data to match frontend expectations
     const formattedTemplates = templates.map(template => ({
@@ -187,7 +183,7 @@ router.get('/user-templates', ensureAuthenticated, async (req, res) => {
       title: template.title,
       description: template.description,
       type: template.type,
-      template_type: template.metadata?.template_type || 'canva',
+      template_type: template.template_type,
       canva_url: template.external_url,
       preview_image_url: template.thumbnail_url,
       images: template.images || [],
@@ -241,22 +237,20 @@ router.post('/user-templates', ensureAuthenticated, async (req, res) => {
       });
     }
     
-    // Prepare template data for database table
+    // Prepare template data for user_templates table
     const templateData = {
       user_id: userId,
       type: 'template',
       title: title.trim(),
       description: description?.trim() || null,
-      content_data,
-      thumbnail_url: preview_image_url || null,
+      template_type,
       external_url: canva_url || null,
-      metadata: {
-        ...metadata,
-        template_type
-      },
+      thumbnail_url: preview_image_url || null,
+      images: Array.isArray(images) ? images : [],
       categories: Array.isArray(categories) ? categories : [],
       tags: Array.isArray(tags) ? tags : [],
-      images: Array.isArray(images) ? images : [],
+      content_data,
+      metadata: metadata || {},
       is_private: is_private !== false, // Default to private
       is_example: false, // User templates are not examples
       status: 'published'
@@ -270,24 +264,9 @@ router.post('/user-templates', ensureAuthenticated, async (req, res) => {
     for (const statusValue of statusFallbacks) {
       try {
         const templateDataWithStatus = { ...templateData, status: statusValue };
-        const result = await supabaseService
-          .from('database')
-          .insert(templateDataWithStatus)
-          .select()
-          .single();
-          
-        if (result.error) {
-          // If this is a status constraint error, try next status value
-          if (result.error.code === '23514' && result.error.message.includes('status')) {
-            console.log(`[User Templates] Status '${statusValue}' not allowed, trying next...`);
-            continue;
-          }
-          // For other errors, throw immediately
-          throw new Error(result.error.message);
-        }
+        newTemplate = await postgres.insert('user_templates', templateDataWithStatus);
         
         // Success! Break out of the loop
-        newTemplate = result.data;
         error = null;
         console.log(`[User Templates] Successfully created template with status: ${statusValue}`);
         break;
@@ -295,6 +274,14 @@ router.post('/user-templates', ensureAuthenticated, async (req, res) => {
       } catch (insertError) {
         error = insertError;
         console.log(`[User Templates] Failed with status '${statusValue}':`, insertError.message);
+        
+        // If this is a status constraint error, try next status value
+        if (insertError.message.includes('valid_template_status') || insertError.message.includes('status')) {
+          console.log(`[User Templates] Status '${statusValue}' not allowed, trying next...`);
+          continue;
+        }
+        // For other errors, throw immediately
+        throw insertError;
       }
     }
     
@@ -309,7 +296,7 @@ router.post('/user-templates', ensureAuthenticated, async (req, res) => {
       title: newTemplate.title,
       description: newTemplate.description,
       type: newTemplate.type,
-      template_type: newTemplate.metadata?.template_type || 'canva',
+      template_type: newTemplate.template_type,
       canva_url: newTemplate.external_url,
       preview_image_url: newTemplate.thumbnail_url,
       images: newTemplate.images || [],
@@ -358,21 +345,18 @@ router.put('/user-templates/:id', ensureAuthenticated, async (req, res) => {
     } = req.body;
     
     // Verify ownership
-    const { data: existingTemplate, error: checkError } = await supabaseService
-      .from('database')
-      .select('user_id, metadata')
-      .eq('id', id)
-      .eq('type', 'template')
-      .single();
+    const existingTemplate = await postgres.queryOne(
+      `SELECT user_id, metadata FROM user_templates 
+       WHERE id = $1 AND type = $2`,
+      [id, 'template'],
+      { table: 'user_templates' }
+    );
       
-    if (checkError) {
-      if (checkError.code === 'PGRST116') {
-        return res.status(404).json({
-          success: false,
-          message: 'Vorlage nicht gefunden.'
-        });
-      }
-      throw new Error(checkError.message);
+    if (!existingTemplate) {
+      return res.status(404).json({
+        success: false,
+        message: 'Vorlage nicht gefunden.'
+      });
     }
     
     if (existingTemplate.user_id !== userId) {
@@ -382,13 +366,12 @@ router.put('/user-templates/:id', ensureAuthenticated, async (req, res) => {
       });
     }
     
-    // Prepare update data
-    const updateData = {
-      updated_at: new Date().toISOString()
-    };
+    // Prepare update data (don't include updated_at - PostgresService handles it)
+    const updateData = {};
     
     if (title !== undefined) updateData.title = title.trim();
     if (description !== undefined) updateData.description = description?.trim() || null;
+    if (template_type !== undefined) updateData.template_type = template_type;
     if (canva_url !== undefined) updateData.external_url = canva_url;
     if (preview_image_url !== undefined) updateData.thumbnail_url = preview_image_url;
     if (images !== undefined) updateData.images = Array.isArray(images) ? images : [];
@@ -398,27 +381,21 @@ router.put('/user-templates/:id', ensureAuthenticated, async (req, res) => {
     if (is_private !== undefined) updateData.is_private = is_private;
     
     // Update metadata
-    if (metadata !== undefined || template_type !== undefined) {
+    if (metadata !== undefined) {
       updateData.metadata = {
         ...(existingTemplate.metadata || {}),
-        ...(metadata || {}),
-        ...(template_type ? { template_type } : {})
+        ...(metadata || {})
       };
     }
     
     // Update template
-    const { data: updatedTemplate, error } = await supabaseService
-      .from('database')
-      .update(updateData)
-      .eq('id', id)
-      .eq('user_id', userId)
-      .select()
-      .single();
+    const result = await postgres.update('user_templates', updateData, { id, user_id: userId });
       
-    if (error) {
-      console.error('[User Templates /user-templates PUT] Supabase error:', error);
-      throw new Error(error.message);
+    if (result.changes === 0) {
+      throw new Error('Template nicht gefunden oder nicht aktualisiert');
     }
+
+    const updatedTemplate = result.data[0];
     
     // Format response
     const formattedTemplate = {
@@ -426,7 +403,7 @@ router.put('/user-templates/:id', ensureAuthenticated, async (req, res) => {
       title: updatedTemplate.title,
       description: updatedTemplate.description,
       type: updatedTemplate.type,
-      template_type: updatedTemplate.metadata?.template_type || 'canva',
+      template_type: updatedTemplate.template_type,
       canva_url: updatedTemplate.external_url,
       preview_image_url: updatedTemplate.thumbnail_url,
       images: updatedTemplate.images || [],
@@ -462,23 +439,17 @@ router.delete('/user-templates/:id', ensureAuthenticated, async (req, res) => {
     const { id } = req.params;
     
     // Verify ownership and delete
-    const { data: deletedTemplate, error } = await supabaseService
-      .from('database')
-      .delete()
-      .eq('id', id)
-      .eq('user_id', userId)
-      .eq('type', 'template')
-      .select()
-      .single();
+    const result = await postgres.delete('user_templates', { 
+      id, 
+      user_id: userId, 
+      type: 'template' 
+    });
       
-    if (error) {
-      if (error.code === 'PGRST116') {
-        return res.status(404).json({
-          success: false,
-          message: 'Vorlage nicht gefunden oder keine Berechtigung zum Löschen.'
-        });
-      }
-      throw new Error(error.message);
+    if (result.changes === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Vorlage nicht gefunden oder keine Berechtigung zum Löschen.'
+      });
     }
     
     res.json({ 
@@ -523,13 +494,12 @@ router.post('/user-templates/from-url', ensureAuthenticated, async (req, res) =>
     const { templateData } = processResult;
     
     // Check if a template with this Canva URL already exists for this user
-    const { data: existingTemplate } = await supabaseService
-      .from('database')
-      .select('id, title')
-      .eq('user_id', userId)
-      .eq('type', 'template')
-      .eq('external_url', templateData.canva_url)
-      .single();
+    const existingTemplate = await postgres.queryOne(
+      `SELECT id, title FROM user_templates
+       WHERE user_id = $1 AND type = $2 AND external_url = $3`,
+      [userId, 'template', templateData.canva_url],
+      { table: 'user_templates' }
+    );
       
     if (existingTemplate) {
       return res.status(409).json({
@@ -538,33 +508,33 @@ router.post('/user-templates/from-url', ensureAuthenticated, async (req, res) =>
       });
     }
     
-    // Prepare template data for database table
+    // Prepare template data for user_templates table
     const newTemplateData = {
       user_id: userId,
       type: 'template',
       title: templateData.title,
       description: templateData.description || null,
-      content_data: {
-        originalUrl: templateData.originalUrl,
-        designId: templateData.designId,
-        ...(templateData.dimensions && { dimensions: templateData.dimensions })
-      },
-      thumbnail_url: templateData.preview_image_url || null,
+      template_type: templateData.template_type,
       external_url: templateData.canva_url,
-      metadata: {
-        template_type: templateData.template_type,
-        source: 'url_import',
-        designId: templateData.designId,
-        ...(templateData.dimensions && { dimensions: templateData.dimensions }),
-        enhanced_metadata: enhancedMetadata
-      },
+      thumbnail_url: templateData.preview_image_url || null,
+      images: [],
       categories: templateData.categories && templateData.categories.length > 0 
         ? [...new Set([...templateData.categories, 'canva'])] // Merge extracted categories with 'canva'
         : ['canva'], // Default category
       tags: templateData.categories && templateData.categories.length > 0
         ? [...new Set([...templateData.categories, 'imported'])] // Use categories as tags too
         : ['imported'], // Default tag
-      images: [],
+      content_data: {
+        originalUrl: templateData.originalUrl,
+        designId: templateData.designId,
+        ...(templateData.dimensions && { dimensions: templateData.dimensions })
+      },
+      metadata: {
+        source: 'url_import',
+        designId: templateData.designId,
+        ...(templateData.dimensions && { dimensions: templateData.dimensions }),
+        enhanced_metadata: enhancedMetadata
+      },
       is_private: true,      // Default to private
       is_example: false,     // User templates are not examples
       status: 'published'
@@ -578,24 +548,9 @@ router.post('/user-templates/from-url', ensureAuthenticated, async (req, res) =>
     for (const statusValue of statusFallbacks) {
       try {
         const templateDataWithStatus = { ...newTemplateData, status: statusValue };
-        const result = await supabaseService
-          .from('database')
-          .insert(templateDataWithStatus)
-          .select()
-          .single();
-          
-        if (result.error) {
-          // If this is a status constraint error, try next status value
-          if (result.error.code === '23514' && result.error.message.includes('status')) {
-            console.log(`[User Templates] Status '${statusValue}' not allowed, trying next...`);
-            continue;
-          }
-          // For other errors, throw immediately
-          throw new Error(result.error.message);
-        }
+        newTemplate = await postgres.insert('user_templates', templateDataWithStatus);
         
         // Success! Break out of the loop
-        newTemplate = result.data;
         error = null;
         console.log(`[User Templates] Successfully created template with status: ${statusValue}`);
         break;
@@ -603,6 +558,14 @@ router.post('/user-templates/from-url', ensureAuthenticated, async (req, res) =>
       } catch (insertError) {
         error = insertError;
         console.log(`[User Templates] Failed with status '${statusValue}':`, insertError.message);
+        
+        // If this is a status constraint error, try next status value
+        if (insertError.message.includes('valid_template_status') || insertError.message.includes('status')) {
+          console.log(`[User Templates] Status '${statusValue}' not allowed, trying next...`);
+          continue;
+        }
+        // For other errors, throw immediately
+        throw insertError;
       }
     }
     
@@ -617,7 +580,7 @@ router.post('/user-templates/from-url', ensureAuthenticated, async (req, res) =>
       title: newTemplate.title,
       description: newTemplate.description,
       type: newTemplate.type,
-      template_type: newTemplate.metadata?.template_type || 'canva',
+      template_type: newTemplate.template_type,
       canva_url: newTemplate.external_url,
       preview_image_url: newTemplate.thumbnail_url,
       images: newTemplate.images || [],
@@ -654,21 +617,18 @@ router.post('/user-templates/:id/metadata', ensureAuthenticated, async (req, res
     const { title, description, template_type, is_private } = req.body;
     
     // Verify ownership
-    const { data: existingTemplate, error: checkError } = await supabaseService
-      .from('database')
-      .select('user_id, metadata')
-      .eq('id', id)
-      .eq('type', 'template')
-      .single();
+    const existingTemplate = await postgres.queryOne(
+      `SELECT user_id, metadata FROM user_templates 
+       WHERE id = $1 AND type = $2`,
+      [id, 'template'],
+      { table: 'user_templates' }
+    );
       
-    if (checkError) {
-      if (checkError.code === 'PGRST116') {
-        return res.status(404).json({
-          success: false,
-          message: 'Vorlage nicht gefunden.'
-        });
-      }
-      throw new Error(checkError.message);
+    if (!existingTemplate) {
+      return res.status(404).json({
+        success: false,
+        message: 'Vorlage nicht gefunden.'
+      });
     }
     
     if (existingTemplate.user_id !== userId) {
@@ -687,26 +647,16 @@ router.post('/user-templates/:id/metadata', ensureAuthenticated, async (req, res
     if (description !== undefined) updateData.description = description?.trim() || null;
     if (is_private !== undefined) updateData.is_private = is_private;
     
-    // Update metadata if template_type is provided
+    // Update template_type if provided
     if (template_type !== undefined) {
-      updateData.metadata = {
-        ...(existingTemplate.metadata || {}),
-        template_type
-      };
+      updateData.template_type = template_type;
     }
     
     // Update template
-    const { data: updatedTemplate, error } = await supabaseService
-      .from('database')
-      .update(updateData)
-      .eq('id', id)
-      .eq('user_id', userId)
-      .select()
-      .single();
+    const result = await postgres.update('user_templates', updateData, { id, user_id: userId });
       
-    if (error) {
-      console.error('[User Templates /user-templates/:id/metadata POST] Supabase error:', error);
-      throw new Error(error.message);
+    if (result.changes === 0) {
+      throw new Error('Template nicht gefunden oder nicht aktualisiert');
     }
     
     res.json({ 
@@ -747,17 +697,12 @@ router.delete('/user-templates/bulk', ensureAuthenticated, async (req, res) => {
     console.log(`[User Templates /user-templates/bulk DELETE] Bulk delete request for ${ids.length} templates from user ${userId}`);
 
     // First, verify all templates belong to the user
-    const { data: verifyTemplates, error: verifyError } = await supabaseService
-      .from('database')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('type', 'template')
-      .in('id', ids);
-
-    if (verifyError) {
-      console.error('[User Templates /user-templates/bulk DELETE] Error verifying template ownership:', verifyError);
-      throw new Error('Failed to verify template ownership');
-    }
+    const verifyTemplates = await postgres.query(
+      `SELECT id FROM user_templates 
+       WHERE user_id = $1 AND type = $2 AND id = ANY($3)`,
+      [userId, 'template', ids],
+      { table: 'user_templates' }
+    );
 
     const ownedIds = verifyTemplates.map(template => template.id);
     const unauthorizedIds = ids.filter(id => !ownedIds.includes(id));
@@ -771,18 +716,13 @@ router.delete('/user-templates/bulk', ensureAuthenticated, async (req, res) => {
     }
 
     // Perform bulk delete
-    const { data: deletedData, error: deleteError } = await supabaseService
-      .from('database')
-      .delete()
-      .eq('user_id', userId)
-      .eq('type', 'template')
-      .in('id', ids)
-      .select('id');
-
-    if (deleteError) {
-      console.error('[User Templates /user-templates/bulk DELETE] Error during bulk delete:', deleteError);
-      throw new Error('Failed to delete templates');
-    }
+    const deletedData = await postgres.query(
+      `DELETE FROM user_templates 
+       WHERE user_id = $1 AND type = $2 AND id = ANY($3)
+       RETURNING id`,
+      [userId, 'template', ids],
+      { table: 'user_templates' }
+    );
 
     const deletedIds = deletedData ? deletedData.map(template => template.id) : [];
     const failedIds = ids.filter(id => !deletedIds.includes(id));
@@ -813,25 +753,21 @@ router.get('/examples', ensureAuthenticated, async (req, res) => {
     const { type, limit = 20 } = req.query;
     
     // Build query for examples
-    let query = supabaseService
-      .from('database')
-      .select('id, title, description, content_data, metadata, categories, tags, thumbnail_url, external_url, created_at, updated_at')
-      .eq('is_example', true)
-      .eq('status', 'published')
-      .order('created_at', { ascending: false })
-      .limit(parseInt(limit));
+    let sql = `SELECT id, title, description, content_data, metadata, categories, tags, thumbnail_url, external_url, type, created_at, updated_at
+               FROM user_templates 
+               WHERE is_example = $1 AND status = $2`;
+    let params = [true, 'published'];
     
     // Filter by type if specified
     if (type) {
-      query = query.eq('type', type);
+      sql += ` AND type = $3`;
+      params.push(type);
     }
     
-    const { data: examples, error } = await query;
-      
-    if (error) {
-      console.error('[User Templates /examples GET] Supabase error:', error);
-      throw new Error(error.message);
-    }
+    sql += ` ORDER BY created_at DESC LIMIT $${params.length + 1}`;
+    params.push(parseInt(limit));
+    
+    const examples = await postgres.query(sql, params, { table: 'user_templates' });
     
     // Transform data to match frontend expectations
     const formattedExamples = examples.map(example => ({
@@ -839,7 +775,7 @@ router.get('/examples', ensureAuthenticated, async (req, res) => {
       title: example.title,
       description: example.description,
       type: example.type || 'template',
-      template_type: example.metadata?.template_type || 'example',
+      template_type: example.template_type || 'example',
       canva_url: example.external_url,
       preview_image_url: example.thumbnail_url,
       content_data: example.content_data,
@@ -879,16 +815,17 @@ router.post('/examples/similar', ensureAuthenticated, async (req, res) => {
     }
     
     // Use vectorSearchService which uses dedicated RPCs (no execute_sql dependency)
-    const { vectorSearchService } = await import('../../services/vectorSearchService.js');
+    const { DocumentSearchService } = await import('../../services/DocumentSearchService.js');
+    const documentSearchService = new DocumentSearchService();
 
     let vectorResults = [];
     try {
-      const search = await vectorSearchService.searchDatabaseExamples(
-        String(query).trim(),
-        type || null,
-        parseInt(limit),
-        0.25
-      );
+      const search = await documentSearchService.search({
+        query: String(query).trim(),
+        user_id: userId || 'system',
+        limit: parseInt(limit),
+        threshold: 0.25
+      });
       if (search.success && Array.isArray(search.results)) {
         vectorResults = search.results;
       }
@@ -898,22 +835,20 @@ router.post('/examples/similar', ensureAuthenticated, async (req, res) => {
 
     if (!vectorResults || vectorResults.length === 0) {
       // Fallback to text search
-      const fallbackQuery = supabaseService
-        .from('database')
-        .select('id, title, description, content_data, metadata, categories, tags, thumbnail_url, external_url, type, created_at, updated_at')
-        .eq('is_example', true)
-        .eq('status', 'published')
-        .textSearch('title', String(query).trim())
-        .limit(parseInt(limit));
+      let fallbackSql = `SELECT id, title, description, content_data, metadata, categories, tags, thumbnail_url, external_url, type, created_at, updated_at
+                         FROM user_templates
+                         WHERE is_example = $1 AND status = $2 AND title ILIKE $3`;
+      let fallbackParams = [true, 'published', `%${String(query).trim()}%`];
 
       if (type) {
-        fallbackQuery.eq('type', type);
+        fallbackSql += ` AND type = $4`;
+        fallbackParams.push(type);
       }
 
-      const { data: fallbackResults, error: fallbackError } = await fallbackQuery;
-      if (fallbackError) {
-        throw new Error(`Textsuche fehlgeschlagen: ${fallbackError.message}`);
-      }
+      fallbackSql += ` LIMIT $${fallbackParams.length + 1}`;
+      fallbackParams.push(parseInt(limit));
+
+      const fallbackResults = await postgres.query(fallbackSql, fallbackParams, { table: 'user_templates' });
 
       return res.json({
         success: true,
@@ -927,13 +862,15 @@ router.post('/examples/similar', ensureAuthenticated, async (req, res) => {
     const ids = vectorResults.map(r => r.id).filter(Boolean);
     let fullRows = [];
     if (ids.length > 0) {
-      const { data: rows, error: fetchErr } = await supabaseService
-        .from('database')
-        .select('id, title, description, content_data, metadata, categories, tags, thumbnail_url, external_url, type, created_at, updated_at')
-        .eq('is_example', true)
-        .eq('status', 'published')
-        .in('id', ids);
-      if (!fetchErr && Array.isArray(rows)) {
+      const rows = await postgres.query(
+        `SELECT id, title, description, content_data, metadata, categories, tags, thumbnail_url, external_url, type, created_at, updated_at
+         FROM user_templates
+         WHERE is_example = $1 AND status = $2 AND id = ANY($3)`,
+        [true, 'published', ids],
+        { table: 'user_templates' }
+      );
+      
+      if (Array.isArray(rows)) {
         // Keep the vector order
         const rowMap = new Map(rows.map(r => [r.id, r]));
         fullRows = ids.map(id => rowMap.get(id)).filter(Boolean);
@@ -945,7 +882,7 @@ router.post('/examples/similar', ensureAuthenticated, async (req, res) => {
       title: example.title,
       description: example.description,
       type: example.type,
-      template_type: example.metadata?.template_type || 'example',
+      template_type: example.template_type || 'example',
       canva_url: example.external_url,
       preview_image_url: example.thumbnail_url,
       content_data: example.content_data,

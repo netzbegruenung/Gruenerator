@@ -98,7 +98,19 @@
     --spacing-large: 24px;
     --spacing-xlarge: 32px;
     --spacing-xxlarge: 48px;
+    
+    /* Responsive spacing multipliers */
+    --spacing-multiplier: 1;
+    --spacing-responsive-xxsmall: calc(var(--spacing-xxsmall) * var(--spacing-multiplier));
+    --spacing-responsive-xsmall: calc(var(--spacing-xsmall) * var(--spacing-multiplier));
+    --spacing-responsive-small: calc(var(--spacing-small) * var(--spacing-multiplier));
+    --spacing-responsive-medium: calc(var(--spacing-medium) * var(--spacing-multiplier));
+    --spacing-responsive-large: calc(var(--spacing-large) * var(--spacing-multiplier));
+    --spacing-responsive-xlarge: calc(var(--spacing-xlarge) * var(--spacing-multiplier));
+    --spacing-responsive-xxlarge: calc(var(--spacing-xxlarge) * var(--spacing-multiplier));
 
+    /* Container max-width variable */
+    --container-max-width: 1200px;
     
     --interactive-accent-color: var(--secondary-600);
     --font-color-disabled: var(--grey-400);
@@ -157,10 +169,10 @@
     --input-transition: all 0.25s ease-out;
 
     /* Form Element Dimensions */
-    --form-element-font-size: 12px;
+    --form-element-font-size: 14px;
     --form-element-line-height: 1.5;
-    --form-element-padding-y: var(--spacing-small);
-    --form-element-padding-x: var(--spacing-small);
+    --form-element-padding-y: var(--spacing-responsive-small);
+    --form-element-padding-x: var(--spacing-responsive-small);
     --form-element-min-height: 44px;
 }
 
@@ -289,6 +301,43 @@ button {
     display: flex;
     justify-content: space-between;
     margin-bottom: 20px;
+}
+
+/* Responsive breakpoints for spacing multipliers and container sizing */
+@media (min-width: 1280px) {
+    :root {
+        --spacing-multiplier: 1.15;
+        --container-max-width: 1400px;
+        --form-element-font-size: 15px;
+        --form-element-min-height: 46px;
+    }
+}
+
+@media (min-width: 1440px) {
+    :root {
+        --spacing-multiplier: 1.25;
+        --container-max-width: 1600px;
+        --form-element-font-size: 15.5px;
+        --form-element-min-height: 48px;
+    }
+}
+
+@media (min-width: 1920px) {
+    :root {
+        --spacing-multiplier: 1.35;
+        --container-max-width: 1800px;
+        --form-element-font-size: 16px;
+        --form-element-min-height: 50px;
+    }
+}
+
+@media (min-width: 2560px) {
+    :root {
+        --spacing-multiplier: 1.5;
+        --container-max-width: 2000px;
+        --form-element-font-size: 17px;
+        --form-element-min-height: 52px;
+    }
 }
 
 @media (max-width: 768px) {

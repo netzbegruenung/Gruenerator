@@ -1,7 +1,15 @@
-import pkg from './supabaseClient.js';
-const { supabaseService: supabase } = pkg;
+import { getPostgresInstance } from '../database/services/PostgresService.js';
 
 export class NextcloudShareManager {
+    /**
+     * Get PostgreSQL instance
+     */
+    static async getPostgres() {
+        const postgres = getPostgresInstance();
+        await postgres.ensureInitialized();
+        return postgres;
+    }
+
     /**
      * Save a new Nextcloud share link for a user
      */
@@ -18,17 +26,14 @@ export class NextcloudShareManager {
                 throw new Error('Share link is required');
             }
             
+            const postgres = await this.getPostgres();
+            
             // Get current profile to check existing links
-            const { data: profile, error: profileError } = await supabase
-                .from('profiles')
-                .select('nextcloud_share_links')
-                .eq('id', userId)
-                .single();
-                
-            if (profileError && profileError.code !== 'PGRST116') { // Not "not found" error
-                console.error('[NextcloudShareManager] Error getting profile', { error: profileError });
-                throw new Error('Failed to get user profile');
-            }
+            const profile = await postgres.queryOne(
+                'SELECT nextcloud_share_links FROM profiles WHERE id = $1',
+                [userId],
+                { table: 'profiles' }
+            );
             
             const currentLinks = profile?.nextcloud_share_links || [];
             
@@ -53,16 +58,14 @@ export class NextcloudShareManager {
             const updatedLinks = [...currentLinks, newLink];
             
             // Update the profile with new links
-            const { data, error } = await supabase
-                .from('profiles')
-                .update({ nextcloud_share_links: updatedLinks })
-                .eq('id', userId)
-                .select()
-                .single();
-                
-            if (error) {
-                console.error('[NextcloudShareManager] Error saving share link', { error });
-                throw new Error('Failed to save share link: ' + error.message);
+            const result = await postgres.update(
+                'profiles',
+                { nextcloud_share_links: updatedLinks },
+                { id: userId }
+            );
+            
+            if (!result || result.length === 0) {
+                throw new Error('Failed to save share link - profile not found');
             }
             
             console.log('[NextcloudShareManager] Share link saved successfully', { shareLinkId: newLink.id });
@@ -85,16 +88,13 @@ export class NextcloudShareManager {
                 throw new Error('User ID is required');
             }
             
-            const { data: profile, error } = await supabase
-                .from('profiles')
-                .select('nextcloud_share_links')
-                .eq('id', userId)
-                .single();
-                
-            if (error && error.code !== 'PGRST116') { // Not "not found" error
-                console.error('[NextcloudShareManager] Error fetching share links', { error });
-                throw new Error('Failed to fetch share links: ' + error.message);
-            }
+            const postgres = await this.getPostgres();
+            
+            const profile = await postgres.queryOne(
+                'SELECT nextcloud_share_links FROM profiles WHERE id = $1',
+                [userId],
+                { table: 'profiles' }
+            );
             
             const shareLinks = profile?.nextcloud_share_links || [];
             
@@ -123,16 +123,13 @@ export class NextcloudShareManager {
                 throw new Error('User ID and share link ID are required');
             }
             
-            const { data: profile, error } = await supabase
-                .from('profiles')
-                .select('nextcloud_share_links')
-                .eq('id', userId)
-                .single();
-                
-            if (error && error.code !== 'PGRST116') {
-                console.error('[NextcloudShareManager] Error fetching share link by ID', { error });
-                throw new Error('Failed to fetch share link: ' + error.message);
-            }
+            const postgres = await this.getPostgres();
+            
+            const profile = await postgres.queryOne(
+                'SELECT nextcloud_share_links FROM profiles WHERE id = $1',
+                [userId],
+                { table: 'profiles' }
+            );
             
             const shareLinks = profile?.nextcloud_share_links || [];
             const shareLink = shareLinks.find(link => link.id === shareLinkId);
@@ -160,17 +157,14 @@ export class NextcloudShareManager {
                 throw new Error('User ID and share link ID are required');
             }
             
+            const postgres = await this.getPostgres();
+            
             // Get current profile
-            const { data: profile, error: profileError } = await supabase
-                .from('profiles')
-                .select('nextcloud_share_links')
-                .eq('id', userId)
-                .single();
-                
-            if (profileError && profileError.code !== 'PGRST116') {
-                console.error('[NextcloudShareManager] Error getting profile for update', { error: profileError });
-                throw new Error('Failed to get user profile');
-            }
+            const profile = await postgres.queryOne(
+                'SELECT nextcloud_share_links FROM profiles WHERE id = $1',
+                [userId],
+                { table: 'profiles' }
+            );
             
             const currentLinks = profile?.nextcloud_share_links || [];
             const linkIndex = currentLinks.findIndex(link => link.id === shareLinkId);
@@ -191,16 +185,14 @@ export class NextcloudShareManager {
             updatedLinks[linkIndex] = updatedLink;
             
             // Update the profile
-            const { data, error } = await supabase
-                .from('profiles')
-                .update({ nextcloud_share_links: updatedLinks })
-                .eq('id', userId)
-                .select()
-                .single();
-                
-            if (error) {
-                console.error('[NextcloudShareManager] Error updating share link', { error });
-                throw new Error('Failed to update share link: ' + error.message);
+            const result = await postgres.update(
+                'profiles',
+                { nextcloud_share_links: updatedLinks },
+                { id: userId }
+            );
+            
+            if (!result || result.length === 0) {
+                throw new Error('Failed to update share link - profile not found');
             }
             
             console.log('[NextcloudShareManager] Share link updated successfully', { shareLinkId: updatedLink.id });
@@ -223,17 +215,14 @@ export class NextcloudShareManager {
                 throw new Error('User ID and share link ID are required');
             }
             
+            const postgres = await this.getPostgres();
+            
             // Get current profile
-            const { data: profile, error: profileError } = await supabase
-                .from('profiles')
-                .select('nextcloud_share_links')
-                .eq('id', userId)
-                .single();
-                
-            if (profileError && profileError.code !== 'PGRST116') {
-                console.error('[NextcloudShareManager] Error getting profile for deletion', { error: profileError });
-                throw new Error('Failed to get user profile');
-            }
+            const profile = await postgres.queryOne(
+                'SELECT nextcloud_share_links FROM profiles WHERE id = $1',
+                [userId],
+                { table: 'profiles' }
+            );
             
             const currentLinks = profile?.nextcloud_share_links || [];
             const linkToDelete = currentLinks.find(link => link.id === shareLinkId);
@@ -246,16 +235,14 @@ export class NextcloudShareManager {
             const updatedLinks = currentLinks.filter(link => link.id !== shareLinkId);
             
             // Update the profile
-            const { data, error } = await supabase
-                .from('profiles')
-                .update({ nextcloud_share_links: updatedLinks })
-                .eq('id', userId)
-                .select()
-                .single();
-                
-            if (error) {
-                console.error('[NextcloudShareManager] Error deleting share link', { error });
-                throw new Error('Failed to delete share link: ' + error.message);
+            const result = await postgres.update(
+                'profiles',
+                { nextcloud_share_links: updatedLinks },
+                { id: userId }
+            );
+            
+            if (!result || result.length === 0) {
+                throw new Error('Failed to delete share link - profile not found');
             }
             
             console.log('[NextcloudShareManager] Share link deleted successfully', { shareLinkId });
@@ -335,17 +322,14 @@ export class NextcloudShareManager {
                 throw new Error('User ID is required');
             }
             
+            const postgres = await this.getPostgres();
+            
             // Get current profile
-            const { data: profile, error: profileError } = await supabase
-                .from('profiles')
-                .select('nextcloud_share_links')
-                .eq('id', userId)
-                .single();
-                
-            if (profileError && profileError.code !== 'PGRST116') {
-                console.error('[NextcloudShareManager] Error getting profile for deactivation', { error: profileError });
-                throw new Error('Failed to get user profile');
-            }
+            const profile = await postgres.queryOne(
+                'SELECT nextcloud_share_links FROM profiles WHERE id = $1',
+                [userId],
+                { table: 'profiles' }
+            );
             
             const currentLinks = profile?.nextcloud_share_links || [];
             
@@ -358,16 +342,14 @@ export class NextcloudShareManager {
             
             // Update the profile if there were any links to deactivate
             if (currentLinks.length > 0) {
-                const { data, error } = await supabase
-                    .from('profiles')
-                    .update({ nextcloud_share_links: updatedLinks })
-                    .eq('id', userId)
-                    .select()
-                    .single();
-                    
-                if (error) {
-                    console.error('[NextcloudShareManager] Error deactivating share links', { error });
-                    throw new Error('Failed to deactivate share links: ' + error.message);
+                const result = await postgres.update(
+                    'profiles',
+                    { nextcloud_share_links: updatedLinks },
+                    { id: userId }
+                );
+                
+                if (!result || result.length === 0) {
+                    throw new Error('Failed to deactivate share links - profile not found');
                 }
             }
             
@@ -395,16 +377,13 @@ export class NextcloudShareManager {
                 throw new Error('User ID is required');
             }
             
-            const { data: profile, error } = await supabase
-                .from('profiles')
-                .select('nextcloud_share_links')
-                .eq('id', userId)
-                .single();
-                
-            if (error && error.code !== 'PGRST116') {
-                console.error('[NextcloudShareManager] Error fetching usage stats', { error });
-                throw new Error('Failed to fetch usage stats: ' + error.message);
-            }
+            const postgres = await this.getPostgres();
+            
+            const profile = await postgres.queryOne(
+                'SELECT nextcloud_share_links FROM profiles WHERE id = $1',
+                [userId],
+                { table: 'profiles' }
+            );
             
             const shareLinks = profile?.nextcloud_share_links || [];
             
@@ -427,6 +406,51 @@ export class NextcloudShareManager {
             
         } catch (error) {
             console.error('[NextcloudShareManager] Error in getUsageStats', { error: error.message });
+            throw error;
+        }
+    }
+
+    /**
+     * Check database state for debugging - shows current nextcloud_share_links for a user
+     */
+    static async checkDatabaseState(userId) {
+        try {
+            console.log('[NextcloudShareManager] Checking database state for user', { userId });
+            
+            if (!userId) {
+                throw new Error('User ID is required');
+            }
+            
+            const postgres = await this.getPostgres();
+            
+            const profile = await postgres.queryOne(
+                'SELECT id, nextcloud_share_links FROM profiles WHERE id = $1',
+                [userId],
+                { table: 'profiles' }
+            );
+            
+            if (!profile) {
+                console.log(`[NextcloudShareManager] No profile found for user ${userId}`);
+                return {
+                    profileExists: false,
+                    userId,
+                    nextcloud_share_links: null
+                };
+            }
+            
+            console.log(`[NextcloudShareManager] Database state for user ${userId}:`, {
+                profileExists: true,
+                nextcloud_share_links: profile.nextcloud_share_links || []
+            });
+            
+            return {
+                profileExists: true,
+                userId,
+                nextcloud_share_links: profile.nextcloud_share_links || []
+            };
+            
+        } catch (error) {
+            console.error('[NextcloudShareManager] Error checking database state', { error: error.message });
             throw error;
         }
     }

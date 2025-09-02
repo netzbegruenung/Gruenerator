@@ -1,6 +1,6 @@
 import express from 'express';
 import authMiddlewareModule from '../middleware/authMiddleware.js';
-import { grundsatzVectorSearchService } from '../services/grundsatzVectorSearchService.js';
+import { grundsatzSearchService } from '../services/GrundsatzSearchService.js';
 import passport from '../config/passportSetup.mjs';
 import { 
   MARKDOWN_FORMATTING_INSTRUCTIONS, 
@@ -204,7 +204,7 @@ async function executeGrundsatzSearchTool(toolInput, userId) {
     console.log(`[claude_gruenerator_ask_grundsatz] Executing grundsatz search: "${query}" (mode: ${search_mode})`);
     
     // Use grundsatz-specific search
-    const searchResults = await grundsatzVectorSearchService.search({
+    const searchResults = await grundsatzSearchService.searchGrundsatz({
       query: query,
       user_id: userId,
       limit: 5,

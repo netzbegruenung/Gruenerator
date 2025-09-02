@@ -32,6 +32,8 @@ const AskGrundsatzPage = lazy(() => import('../features/ask/AskGrundsatzPage'));
 const DocumentViewPage = lazy(() => import('../features/documents/DocumentViewPage'));
 const Reel = lazy(() => import('../features/subtitler/components/SubtitlerPage'));
 const PresseSocialGenerator = lazy(() => import('../features/texte/presse/PresseSocialGenerator'));
+const GrueneratorImagine = lazy(() => import('../features/imagine/GrueneratorImagine'));
+const AccessibilityTextGenerator = lazy(() => import('../features/texte/accessibility/AccessibilityTextGenerator'));
 const AltTextGenerator = lazy(() => import('../features/texte/alttext/AltTextGenerator'));
 
 // ContentGallery importieren
@@ -48,8 +50,8 @@ const QAChat = lazy(() => import('../features/qa/components/QAChat'));
 const ELearningPage = lazy(() => import('../features/elearning'));
 const ELearningTutorial = lazy(() => import('../features/elearning/components/ELearningTutorial'));
 
-// Test-Komponenten importieren
-const ButtonTest = lazy(() => import('../components/test/ButtonTest'));
+// Test-Komponenten importieren (disabled - component not found)
+// const ButtonTest = lazy(() => import('../components/test/ButtonTest'));
 
 // Pages-Feature importieren
 const DynamicPageView = lazy(() => import('../features/pages/components/DynamicPageView'));
@@ -61,7 +63,9 @@ export const GrueneratorenBundle = {
   Universal: UniversalTextGenerator,
   Antrag: AntragPage,
   PresseSocial: PresseSocialGenerator,
+  Accessibility: AccessibilityTextGenerator,
   AltText: AltTextGenerator,
+  Imagine: GrueneratorImagine,
   GrueneJugend: lazy(() => import('../components/pages/Grüneratoren/GrueneJugendGenerator')),
   Sharepic: lazy(() => import('../components/pages/Grüneratoren/Sharepicgenerator')),
   Antragscheck: lazy(() => import('../components/pages/Grüneratoren/Antragsversteher')),
@@ -98,11 +102,14 @@ const standardRoutes = [
   { path: '/universal', component: GrueneratorenBundle.Universal, withForm: true },
   { path: '/antrag', component: GrueneratorenBundle.Antrag, withForm: true },
   { path: '/presse-social', component: GrueneratorenBundle.PresseSocial, withForm: true },
+  { path: '/imagine', component: GrueneratorenBundle.Imagine, withForm: true },
+  { path: '/barrierefreiheit', component: GrueneratorenBundle.Accessibility, withForm: true },
   { path: '/alttext', component: GrueneratorenBundle.AltText, withForm: true },
   { path: '/gruene-jugend', component: GrueneratorenBundle.GrueneJugend, withForm: true },
   { path: '/antragscheck', component: GrueneratorenBundle.Antragscheck, withForm: true },
   { path: '/btw-kompass', component: GrueneratorenBundle.BTWKompass, withForm: true },
   { path: '/rede', component: GrueneratorenBundle.Rede, withForm: true },
+  { path: '/buergerinnenanfragen', component: GrueneratorenBundle.Universal, withForm: true },
   { path: '/wahlprogramm', component: GrueneratorenBundle.Wahlprogramm, withForm: true },
   { path: '/kandidat', component: GrueneratorenBundle.Kandidat, withForm: true },
   { path: '/datenbank/antraege', component: GrueneratorenBundle.AntraegeListe },
@@ -146,7 +153,7 @@ const standardRoutes = [
   { path: '/pages/example-structured', component: GrueneratorenBundle.StructuredExamplePage },
   { path: '/pages/example-custom', component: GrueneratorenBundle.CustomExamplePage },
   { path: '/pages/:pageId', component: GrueneratorenBundle.DynamicPageView },
-  { path: '/button-test', component: ButtonTest },
+  // { path: '/button-test', component: ButtonTest },
   { path: '*', component: NotFound }
 ];
 

@@ -13,8 +13,7 @@ const withAuthRequired = (Component, options = {}) => {
   const {
     title, // Optional: will auto-generate from route if not provided
     message, // Optional: will use standard message if not provided
-    loadingComponent = null,
-    loginRequiredVariant = 'fullpage'
+    loadingComponent = null
   } = options;
 
   return function AuthRequiredComponent(props) {
@@ -35,11 +34,16 @@ const withAuthRequired = (Component, options = {}) => {
     // Show login required if not authenticated
     if (!isAuthenticated || !user) {
       return (
-        <LoginRequired
-          title={title}
-          message={message}
-          variant={loginRequiredVariant}
-        />
+        <>
+          <div className="protected-content-blur">
+            <Component {...props} user={null} />
+          </div>
+          <LoginRequired
+            title={title}
+            message={message}
+            variant="fullpage"
+          />
+        </>
       );
     }
 

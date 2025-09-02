@@ -1,41 +1,45 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, memo } from 'react';
 import { HiRefresh, HiTemplate, HiCheck, HiX, HiExclamationCircle, HiEye } from 'react-icons/hi';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
 import CanvaButton from './CanvaButton';
+
+// Store
+import { useCanvaStore, useCanvaConnection, useCanvaDesigns } from '../../../../stores/canvaStore';
 
 // Utils
 import * as canvaUtils from '../../../../components/utils/canvaUtils';
 
 /**
- * CanvaOverview - Lightweight overview component for Canva integration
- * Follows Canva brand guidelines and uses utility functions for business logic
+ * CanvaOverview - Optimized overview component for Canva integration
+ * Uses canvaStore for better performance and state management
+ * Memoized to prevent unnecessary re-renders
  */
-const CanvaOverview = ({
-    canvaConnected = false,
-    canvaUser = null,
-    canvaLoading = false,
+const CanvaOverview = memo(({
     isAuthenticated = false,
-    onCanvaLogin,
     onSuccessMessage,
     onErrorMessage,
     onNavigateToSubtab
 }) => {
     
+    // Store-based state (memoized selectors)
+    const { connected: canvaConnected, user: canvaUser, loading: canvaLoading } = useCanvaConnection();
+    const { designs, loading: designsLoading } = useCanvaDesigns();
+    const canvaStore = useCanvaStore();
+    
     // Local state for connection badge hover
     const [isConnectionHovered, setIsConnectionHovered] = useState(false);
     
-    // Get query client for cache invalidation
-    const queryClient = useQueryClient();
+    // Recent designs (first 4 from the store)
+    const recentDesigns = designs.slice(0, 4);
 
-    // Fetch recent designs using utility function
-    const { data: recentDesigns = [], isLoading: designsLoading, refetch: refetchDesigns } = useQuery({
-        queryKey: ['canva-recent-designs', isAuthenticated, canvaConnected],
-        queryFn: () => canvaUtils.fetchRecentCanvaDesigns(canvaConnected, isAuthenticated, 4),
-        enabled: isAuthenticated && canvaConnected,
-        staleTime: 5 * 60 * 1000,
-        refetchOnWindowFocus: false
-    });
 
+    // Handle login
+    const handleLogin = useCallback(async () => {
+        try {
+            await canvaStore.initiateLogin();
+        } catch (error) {
+            onErrorMessage?.(error.message);
+        }
+    }, [canvaStore, onErrorMessage]);
 
     // Handle disconnect
     const handleDisconnect = useCallback(async () => {
@@ -44,29 +48,26 @@ const CanvaOverview = ({
         }
 
         try {
-            await canvaUtils.disconnectFromCanva(
-                (message) => {
-                    onSuccessMessage?.(message);
-                    // The parent component should handle state updates
-                },
-                onErrorMessage
-            );
+            await canvaStore.disconnect();
+            onSuccessMessage?.('Canva-Verbindung wurde getrennt.');
         } catch (error) {
-            // Error already handled by utility function
+            onErrorMessage?.(error.message);
         }
-    }, [onSuccessMessage, onErrorMessage]);
+    }, [canvaStore, onSuccessMessage, onErrorMessage]);
 
-    // Invalidate queries when authentication state changes (logout)
+    // Initialize store when component mounts and user is authenticated
     useEffect(() => {
-        if (!isAuthenticated) {
-            // Clear all Canva-related queries when logged out
-            queryClient.invalidateQueries({ queryKey: ['canva-overview-stats'] });
-            queryClient.invalidateQueries({ queryKey: ['canva-recent-designs'] });
-            // Also clear the cache entirely for these queries to prevent stale data
-            queryClient.removeQueries({ queryKey: ['canva-overview-stats'] });
-            queryClient.removeQueries({ queryKey: ['canva-recent-designs'] });
+        if (isAuthenticated && !canvaStore.initialized) {
+            canvaStore.initialize();
         }
-    }, [isAuthenticated, queryClient]);
+    }, [isAuthenticated, canvaStore]);
+
+    // Reset store when user logs out
+    useEffect(() => {
+        if (!isAuthenticated && canvaStore.initialized) {
+            canvaStore.reset();
+        }
+    }, [isAuthenticated, canvaStore]);
 
     // Generate UI configurations using utility functions
     const connectionBadge = canvaUtils.getCanvaConnectionBadge(canvaConnected, canvaUser, canvaLoading);
@@ -124,7 +125,7 @@ const CanvaOverview = ({
                         </p>
                         
                         <CanvaButton
-                            onClick={onCanvaLogin}
+                            onClick={handleLogin}
                             loading={canvaLoading}
                             size="medium"
                             style={{ marginTop: 'var(--spacing-medium)' }}
@@ -251,6 +252,9 @@ const CanvaOverview = ({
             {renderRecentDesigns()}
         </div>
     );
-};
+});
+
+// Add display name for debugging
+CanvaOverview.displayName = 'CanvaOverview';
 
 export default CanvaOverview;

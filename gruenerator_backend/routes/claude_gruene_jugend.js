@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 // Import unified prompt building architecture
 const {
-  HTML_FORMATTING_INSTRUCTIONS,
+  MARKDOWN_FORMATTING_INSTRUCTIONS,
   isStructuredPrompt,
   formatUserContent,
   TITLE_GENERATION_INSTRUCTION,
@@ -152,7 +152,7 @@ beginnen, z.B. "TWITTER:" oder "INSTAGRAM:"`;
     
     builder
       .setSystemRole(systemRole)
-      .setFormatting(HTML_FORMATTING_INSTRUCTIONS)
+      .setFormatting(MARKDOWN_FORMATTING_INSTRUCTIONS)
       .setConstraints(platforms); // Automatic platform constraints using PLATFORM_SPECIFIC_GUIDELINES
 
     // Enable web search if requested

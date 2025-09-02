@@ -1,5 +1,6 @@
 import express from 'express';
-import { supabaseService } from '../../utils/supabaseClient.js';
+import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { getProfileService } from '../../services/ProfileService.js';
 import authMiddlewareModule from '../../middleware/authMiddleware.js';
 
 const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
@@ -12,52 +13,29 @@ const router = express.Router();
 // Get user profile
 router.get('/profile', ensureAuthenticated, async (req, res) => {
   try {
+    const profileService = getProfileService();
     
-    // Get auth user to access email from auth.users
-    const { data: authUser, error: authError } = await supabaseService.auth.admin.getUserById(req.user.id);
-    if (authError) {
-      console.error('[User Profile /profile GET] Auth user error:', authError);
-    }
+    // Email is now stored in profiles table after PostgreSQL migration
     
-    // Get profile from database
-    const { data: profile, error } = await supabaseService
-      .from('profiles')
-      .select('*')
-      .eq('id', req.user.id)
-      .single();
-      
-    if (error && error.code !== 'PGRST116') {
-      console.error('[User Profile /profile GET] Supabase error:', error);
-      throw new Error(error.message);
-    }
+    // Get profile from database using ProfileService
+    let profile = await profileService.getProfileById(req.user.id);
     
     // If no profile exists, create a basic one
     if (!profile) {
-        const basicProfile = {
+      const basicProfile = {
         id: req.user.id,
         display_name: req.user.display_name || req.user.username || 'User',
         username: req.user.username,
         keycloak_id: req.user.keycloak_id,
-        avatar_robot_id: 1,
-        updated_at: new Date().toISOString()
+        avatar_robot_id: 1
       };
       
-      const { data: newProfile, error: createError } = await supabaseService
-        .from('profiles')
-        .upsert(basicProfile)
-        .select()
-        .single();
-        
-      if (createError) {
-        console.error('[User Profile /profile GET] Error creating profile:', createError);
-        throw new Error(createError.message);
-      }
+      profile = await profileService.createProfile(basicProfile);
       
-      // Enhance new profile with auth email information
+      // Enhance new profile with SSO detection
       const enhancedNewProfile = {
-        ...newProfile,
-        auth_email: authUser?.user?.email || null, // Email from auth.users
-        is_sso_user: !!newProfile.keycloak_id // Detect SSO users
+        ...profile,
+        is_sso_user: !!profile.keycloak_id // Detect SSO users
       };
       
       return res.json({ 
@@ -66,10 +44,9 @@ router.get('/profile', ensureAuthenticated, async (req, res) => {
       });
     }
     
-    // Enhance profile with auth email information
+    // Enhance profile with SSO detection
     const enhancedProfile = {
       ...profile,
-      auth_email: authUser?.user?.email || null, // Email from auth.users
       is_sso_user: !!profile.keycloak_id // Detect SSO users
     };
     
@@ -90,6 +67,7 @@ router.get('/profile', ensureAuthenticated, async (req, res) => {
 // Update user profile
 router.put('/profile', ensureAuthenticated, async (req, res) => {
   try {
+    const profileService = getProfileService();
     const { display_name, username, avatar_robot_id, email } = req.body;
     
     // Validate input
@@ -100,48 +78,26 @@ router.put('/profile', ensureAuthenticated, async (req, res) => {
       });
     }
     
-    // Allow all users to update their display email in profiles table
-    
     // Prepare update data - NEVER include beta_features here
     // Beta features are managed exclusively via /profile/beta-features endpoint
-    const updateData = {
-      id: req.user.id,
-      updated_at: new Date().toISOString()
-    };
+    const updateData = {};
     
     if (display_name !== undefined) updateData.display_name = display_name || null;
     if (username !== undefined) updateData.username = username || null;
     if (avatar_robot_id !== undefined) updateData.avatar_robot_id = avatar_robot_id;
     
-    
-    // Handle email updates - update both profiles table and auth.users (best effort)
+    // Handle email updates in profiles table
     if (email !== undefined) {
       updateData.email = email || null;
-      
-      // Also update the email in auth.users directly to avoid trigger permission issues
-      try {
-        if (email) {
-          await supabaseService.auth.admin.updateUserById(req.user.id, {
-            email: email
-          });
-        }
-      } catch (authUpdateError) {
-        console.error('[User Profile /profile PUT] Error updating email in auth.users:', authUpdateError);
-        // Continue with profile update even if auth.users update fails
-      }
     }
     
+    // Update profile using ProfileService
+    console.log(`[User Profile /profile PUT] Updating profile for user ${req.user.id}:`, updateData);
+    const data = await profileService.updateProfile(req.user.id, updateData);
     
-    // Update profile using Service Role Key (bypasses RLS)
-    const { data, error } = await supabaseService
-      .from('profiles')
-      .upsert(updateData)
-      .select()
-      .single();
-      
-    if (error) {
-      console.error('[User Profile /profile PUT] Supabase error:', error);
-      throw new Error(error.message);
+    // Log the result of the update
+    if (updateData.avatar_robot_id !== undefined) {
+      console.log(`[User Profile /profile PUT] Avatar update result: avatar_robot_id=${data.avatar_robot_id}`);
     }
     
     // Update user object in session while preserving beta_features
@@ -174,37 +130,29 @@ router.put('/profile', ensureAuthenticated, async (req, res) => {
 // Update user avatar
 router.patch('/profile/avatar', ensureAuthenticated, async (req, res) => {
   try {
+    const profileService = getProfileService();
     const { avatar_robot_id } = req.body;
     
-    // Validate avatar_robot_id
-    if (!avatar_robot_id || avatar_robot_id < 1 || avatar_robot_id > 9) {
-      return res.status(400).json({
-        success: false,
-        message: 'Avatar Robot ID muss zwischen 1 und 9 liegen.'
-      });
-    }
+    // ProfileService handles validation and database update
+    const data = await profileService.updateAvatar(req.user.id, avatar_robot_id);
     
-    // Update avatar using Service Role Key
-    const { data, error } = await supabaseService
-      .from('profiles')
-      .upsert({
-        id: req.user.id,
-        avatar_robot_id: avatar_robot_id,
-        updated_at: new Date().toISOString()
-      })
-      .select()
-      .single();
-      
-    if (error) {
-      console.error('[User Profile /profile/avatar PATCH] Supabase error:', error);
-      throw new Error(error.message);
-    }
-    
-    
-    // Update user object in session
+    // Update session with the new avatar (HTTP layer responsibility)
     if (req.user) {
       req.user.avatar_robot_id = avatar_robot_id;
     }
+    
+    if (req.session.passport && req.session.passport.user) {
+      req.session.passport.user.avatar_robot_id = avatar_robot_id;
+    }
+    
+    // Force session save to persist the avatar change
+    req.session.save((err) => {
+      if (err) {
+        console.error('[User Profile /profile/avatar PATCH] Session save error:', err);
+      } else {
+        console.log('[User Profile /profile/avatar PATCH] Session saved with avatar_robot_id:', avatar_robot_id);
+      }
+    });
     
     res.json({ 
       success: true, 
@@ -214,7 +162,9 @@ router.patch('/profile/avatar', ensureAuthenticated, async (req, res) => {
     
   } catch (error) {
     console.error('[User Profile /profile/avatar PATCH] Error:', error);
-    res.status(500).json({ 
+    // Return validation errors from ProfileService
+    const statusCode = error.message.includes('must be between') ? 400 : 500;
+    res.status(statusCode).json({ 
       success: false, 
       message: error.message || 'Fehler beim Aktualisieren des Avatars.'
     });
@@ -224,45 +174,21 @@ router.patch('/profile/avatar', ensureAuthenticated, async (req, res) => {
 // Get user beta features
 router.get('/profile/beta-features', ensureAuthenticated, async (req, res) => {
   try {
+    const profileService = getProfileService();
     
-    // No longer need auth metadata - use profiles table only
+    // Get profile from database using ProfileService
+    const profile = await profileService.getProfileById(req.user.id);
     
-    // Get profile from database to access beta_features and ALL individual beta feature columns
-    const { data: profile, error: profileError } = await supabaseService
-      .from('profiles')
-      .select('beta_features, igel_modus, bundestag_api_enabled, groups, custom_generators, database_access, you_generator, collab, qa, sharepic, anweisungen, memory')
-      .eq('id', req.user.id)
-      .single();
-    
-    if (profileError && profileError.code !== 'PGRST116') {
-      console.error('[User Profile /profile/beta-features GET] Profile error:', profileError);
-      throw new Error('Fehler beim Laden der Beta Features aus der Datenbank');
+    if (!profile) {
+      console.error('[User Profile /profile/beta-features GET] Profile not found');
+      throw new Error('Profil nicht gefunden');
     }
     
     // Use profiles table data only
-    const profileBetaFeatures = profile?.beta_features || {};
+    const profileBetaFeatures = profile.beta_features || {};
     
-    // Include ALL individual profile settings as beta features for consistency
-    const profileSettingsAsBetaFeatures = {
-      igel_modus: profile?.igel_modus || false,
-      bundestag_api_enabled: profile?.bundestag_api_enabled || false,
-      groups: profile?.groups || false,
-      customGenerators: profile?.custom_generators || false,
-      database: profile?.database_access || false,
-      you: profile?.you_generator || false,
-      collab: profile?.collab || false,
-      qa: profile?.qa || false,
-      sharepic: profile?.sharepic || false,
-      anweisungen: profile?.anweisungen || false,
-      memory: profile?.memory || false
-    };
-    
-    const mergedBetaFeatures = {
-      ...profileBetaFeatures,
-      ...profileSettingsAsBetaFeatures
-    };
-    
-    
+    // Get merged beta features from ProfileService (includes individual settings)
+    const mergedBetaFeatures = profileService.getMergedBetaFeatures(profile);
     
     res.json({ 
       success: true, 
@@ -281,6 +207,7 @@ router.get('/profile/beta-features', ensureAuthenticated, async (req, res) => {
 // Update user beta features
 router.patch('/profile/beta-features', ensureAuthenticated, async (req, res) => {
   try {
+    const profileService = getProfileService();
     const { feature, enabled } = req.body;
     
     if (!feature || typeof enabled !== 'boolean') {
@@ -305,6 +232,7 @@ router.patch('/profile/beta-features', ensureAuthenticated, async (req, res) => 
       'customGruenerator',
       'e_learning',
       'memory',
+      'contentManagement',
       // Profile settings treated as beta features for consistency
       'igel_modus',
       'bundestag_api_enabled'
@@ -316,175 +244,22 @@ router.patch('/profile/beta-features', ensureAuthenticated, async (req, res) => 
       });
     }
     
-    // Get current beta features from profiles table
-    const { data: currentProfile, error: profileError } = await supabaseService
-      .from('profiles')
-      .select('beta_features')
-      .eq('id', req.user.id)
-      .single();
+    // Update beta features using ProfileService
+    const updatedProfile = await profileService.updateBetaFeatures(req.user.id, feature, enabled);
     
-    if (profileError && profileError.code !== 'PGRST116') {
-      console.error('[User Profile /profile/beta-features PATCH] Profile error:', profileError);
-      throw new Error('Fehler beim Laden der aktuellen Beta Features');
-    }
-    
-    const currentBetaFeatures = currentProfile?.beta_features || {};
-    
-    // Update beta features
-    const updatedBetaFeatures = {
-      ...currentBetaFeatures,
-      [feature]: enabled
-    };
-    
-    // Store in profiles table
-    try {
-      // Prepare update data with beta features
-      const updateData = {
-        id: req.user.id,
-        beta_features: updatedBetaFeatures,
-        updated_at: new Date().toISOString()
-      };
-      
-      // Special handling: Also update individual columns for all beta features
-      if (feature === 'igel_modus') {
-        updateData.igel_modus = Boolean(enabled);
-      }
-      if (feature === 'bundestag_api_enabled') {
-        updateData.bundestag_api_enabled = Boolean(enabled);
-      }
-      if (feature === 'groups') {
-        updateData.groups = Boolean(enabled);
-      }
-      if (feature === 'customGenerators') {
-        updateData.custom_generators = Boolean(enabled);
-      }
-      if (feature === 'database') {
-        updateData.database_access = Boolean(enabled);
-      }
-      if (feature === 'you') {
-        updateData.you_generator = Boolean(enabled);
-      }
-      if (feature === 'collab') {
-        updateData.collab = Boolean(enabled);
-      }
-      if (feature === 'qa') {
-        updateData.qa = Boolean(enabled);
-      }
-      if (feature === 'sharepic') {
-        updateData.sharepic = Boolean(enabled);
-      }
-      if (feature === 'anweisungen') {
-        updateData.anweisungen = Boolean(enabled);
-      }
-      if (feature === 'qa') {
-        updateData.qa = Boolean(enabled);
-      }
-      if (feature === 'memory') {
-        updateData.memory = Boolean(enabled);
-      }
-      
-      const { error: profileUpdateError } = await supabaseService
-        .from('profiles')
-        .upsert(updateData);
-      
-      if (profileUpdateError) {
-        console.error('[User Profile /profile/beta-features PATCH] Profile storage failed:', profileUpdateError);
-        throw new Error('Beta Features konnten nicht in der Datenbank gespeichert werden');
-      }
-    } catch (profileError) {
-      console.error('[User Profile /profile/beta-features PATCH] Profile storage error:', profileError);
-      throw new Error('Fehler beim Speichern der Beta Features');
-    }
+    // Get updated beta features for response using ProfileService
+    const updatedBetaFeatures = profileService.getMergedBetaFeatures(updatedProfile);
     
     // Log beta feature change
     console.log(`[Beta Feature Change] User ${req.user.id}: ${feature} ${enabled ? 'ENABLED' : 'DISABLED'}`);
     
-    // Also update session for immediate UI feedback
+    // Update session for immediate UI feedback using ProfileService
     if (req.user) {
-      // Update beta_features directly on user object (from profiles table)
-      req.user.beta_features = updatedBetaFeatures;
+      profileService.updateUserSession(req.user, updatedProfile, feature, enabled);
       
-      // Special handling: Also update individual profile settings in session for compatibility
-      if (feature === 'igel_modus') {
-        req.user.igel_modus = Boolean(enabled);
-      }
-      if (feature === 'bundestag_api_enabled') {
-        req.user.bundestag_api_enabled = Boolean(enabled);
-      }
-      if (feature === 'groups') {
-        req.user.groups = Boolean(enabled);
-      }
-      if (feature === 'customGenerators') {
-        req.user.custom_generators = Boolean(enabled);
-      }
-      if (feature === 'database') {
-        req.user.database_access = Boolean(enabled);
-      }
-      if (feature === 'you') {
-        req.user.you_generator = Boolean(enabled);
-      }
-      if (feature === 'collab') {
-        req.user.collab = Boolean(enabled);
-      }
-      if (feature === 'qa') {
-        req.user.qa = Boolean(enabled);
-      }
-      if (feature === 'sharepic') {
-        req.user.sharepic = Boolean(enabled);
-      }
-      if (feature === 'anweisungen') {
-        req.user.anweisungen = Boolean(enabled);
-      }
-      if (feature === 'qa') {
-        req.user.qa = Boolean(enabled);
-      }
-      if (feature === 'memory') {
-        req.user.memory = Boolean(enabled);
-      }
-      
-      // Remove user_metadata - no longer needed
-      
-      // CRITICAL: Force session to update by modifying session.passport.user directly
+      // Update session.passport.user as well
       if (req.session.passport && req.session.passport.user) {
-        req.session.passport.user = req.user;
-        
-        // Special handling: Also update individual profile settings in session.passport.user
-        if (feature === 'igel_modus') {
-          req.session.passport.user.igel_modus = Boolean(enabled);
-        }
-        if (feature === 'bundestag_api_enabled') {
-          req.session.passport.user.bundestag_api_enabled = Boolean(enabled);
-        }
-        if (feature === 'groups') {
-          req.session.passport.user.groups = Boolean(enabled);
-        }
-        if (feature === 'customGenerators') {
-          req.session.passport.user.custom_generators = Boolean(enabled);
-        }
-        if (feature === 'database') {
-          req.session.passport.user.database_access = Boolean(enabled);
-        }
-        if (feature === 'you') {
-          req.session.passport.user.you_generator = Boolean(enabled);
-        }
-        if (feature === 'collab') {
-          req.session.passport.user.collab = Boolean(enabled);
-        }
-        if (feature === 'qa') {
-          req.session.passport.user.qa = Boolean(enabled);
-        }
-        if (feature === 'sharepic') {
-          req.session.passport.user.sharepic = Boolean(enabled);
-        }
-        if (feature === 'anweisungen') {
-          req.session.passport.user.anweisungen = Boolean(enabled);
-        }
-        if (feature === 'qa') {
-          req.session.passport.user.qa = Boolean(enabled);
-        }
-        if (feature === 'memory') {
-          req.session.passport.user.memory = Boolean(enabled);
-        }
+        profileService.updateUserSession(req.session.passport.user, updatedProfile, feature, enabled);
       }
       
       // Force session save to persist the updated user object
@@ -513,6 +288,7 @@ router.patch('/profile/beta-features', ensureAuthenticated, async (req, res) => 
 // Update user message color
 router.patch('/profile/message-color', ensureAuthenticated, async (req, res) => {
   try {
+    const profileService = getProfileService();
     const { color } = req.body;
     
     if (!color || typeof color !== 'string') {
@@ -522,20 +298,8 @@ router.patch('/profile/message-color', ensureAuthenticated, async (req, res) => 
       });
     }
     
-    // Update chat_color in profiles table
-    const { error: updateError } = await supabaseService
-      .from('profiles')
-      .upsert({
-        id: req.user.id,
-        chat_color: color,
-        updated_at: new Date().toISOString()
-      });
-    
-    if (updateError) {
-      console.error('[User Profile /profile/message-color PATCH] Update error:', updateError);
-      throw new Error('Nachrichtenfarbe konnte nicht aktualisiert werden');
-    }
-    
+    // Update chat_color using ProfileService
+    await profileService.updateChatColor(req.user.id, color);
     
     res.json({ 
       success: true, 
@@ -555,6 +319,7 @@ router.patch('/profile/message-color', ensureAuthenticated, async (req, res) => 
 // Update user memory settings
 router.patch('/profile/memory-settings', ensureAuthenticated, async (req, res) => {
   try {
+    const profileService = getProfileService();
     const { memory_enabled } = req.body;
     
     if (typeof memory_enabled !== 'boolean') {
@@ -564,23 +329,8 @@ router.patch('/profile/memory-settings', ensureAuthenticated, async (req, res) =
       });
     }
     
-    // Update memory_enabled in profiles table only
-    try {
-      const { error: profileUpdateError } = await supabaseService
-        .from('profiles')
-        .upsert({
-          id: req.user.id,
-          memory_enabled: memory_enabled,
-          updated_at: new Date().toISOString()
-        });
-      
-      if (profileUpdateError) {
-        console.warn('[User Profile /profile/memory-settings PATCH] Profile update warning:', profileUpdateError);
-        // Don't fail the request if profile update fails since auth.users is the primary source
-      }
-    } catch (profileError) {
-      console.warn('[User Profile /profile/memory-settings PATCH] Profile update failed:', profileError);
-    }
+    // Update memory_enabled using ProfileService
+    await profileService.updateMemorySettings(req.user.id, memory_enabled);
     
     res.json({ 
       success: true, 
@@ -600,6 +350,7 @@ router.patch('/profile/memory-settings', ensureAuthenticated, async (req, res) =
 // Update user Igel-Modus (Grüne Jugend membership)
 router.patch('/profile/igel-modus', ensureAuthenticated, async (req, res) => {
   try {
+    const profileService = getProfileService();
     const { igel_modus } = req.body;
     
     if (typeof igel_modus !== 'boolean') {
@@ -609,33 +360,21 @@ router.patch('/profile/igel-modus', ensureAuthenticated, async (req, res) => {
       });
     }
     
-    // Update igel_modus in profiles table only
-    const { error: profileUpdateError } = await supabaseService
-      .from('profiles')
-      .upsert({
-        id: req.user.id,
-        igel_modus: Boolean(igel_modus),
-        updated_at: new Date().toISOString()
-      });
-    
-    if (profileUpdateError) {
-      console.error('[User Profile /profile/igel-modus PATCH] Profile update failed:', profileUpdateError);
-      throw new Error('Igel-Modus konnte nicht aktualisiert werden');
-    }
+    // Update igel_modus using ProfileService (through beta features)
+    await profileService.updateBetaFeatures(req.user.id, 'igel_modus', igel_modus);
     
     // Log igel modus change
     console.log(`[Igel Modus Change] User ${req.user.id}: igel_modus ${igel_modus ? 'ENABLED' : 'DISABLED'}`);
     
-    // Update user object in session to keep it in sync with database
+    // Get updated profile and update session using ProfileService
+    const updatedProfile = await profileService.getProfileById(req.user.id);
     if (req.user) {
-      req.user.igel_modus = Boolean(igel_modus);
+      profileService.updateUserSession(req.user, updatedProfile, 'igel_modus', igel_modus);
       
-      // CRITICAL: Also update req.session.passport.user to ensure session.save() persists the change
       if (req.session.passport && req.session.passport.user) {
-        req.session.passport.user.igel_modus = Boolean(igel_modus);
+        profileService.updateUserSession(req.session.passport.user, updatedProfile, 'igel_modus', igel_modus);
       }
       
-      // CRITICAL: Save session to persist the change across page reloads
       req.session.save((err) => {
         if (err) {
           console.error('[User Profile /profile/igel-modus PATCH] Session save error:', err);
@@ -661,6 +400,7 @@ router.patch('/profile/igel-modus', ensureAuthenticated, async (req, res) => {
 // Update user Bundestag API setting
 router.patch('/profile/bundestag-api', ensureAuthenticated, async (req, res) => {
   try {
+    const profileService = getProfileService();
     const { bundestag_api_enabled } = req.body;
     
     if (typeof bundestag_api_enabled !== 'boolean') {
@@ -670,33 +410,21 @@ router.patch('/profile/bundestag-api', ensureAuthenticated, async (req, res) => 
       });
     }
     
-    // Update bundestag_api_enabled in profiles table only
-    const { error: profileUpdateError } = await supabaseService
-      .from('profiles')
-      .upsert({
-        id: req.user.id,
-        bundestag_api_enabled: Boolean(bundestag_api_enabled),
-        updated_at: new Date().toISOString()
-      });
-    
-    if (profileUpdateError) {
-      console.error('[User Profile /profile/bundestag-api PATCH] Profile update failed:', profileUpdateError);
-      throw new Error('Bundestag API Einstellung konnte nicht aktualisiert werden');
-    }
+    // Update bundestag_api_enabled using ProfileService (through beta features)
+    await profileService.updateBetaFeatures(req.user.id, 'bundestag_api_enabled', bundestag_api_enabled);
     
     // Log bundestag API change
     console.log(`[Bundestag API Change] User ${req.user.id}: bundestag_api_enabled ${bundestag_api_enabled ? 'ENABLED' : 'DISABLED'}`);
     
-    // Update user object in session to keep it in sync with database
+    // Get updated profile and update session using ProfileService
+    const updatedProfile = await profileService.getProfileById(req.user.id);
     if (req.user) {
-      req.user.bundestag_api_enabled = Boolean(bundestag_api_enabled);
+      profileService.updateUserSession(req.user, updatedProfile, 'bundestag_api_enabled', bundestag_api_enabled);
       
-      // CRITICAL: Also update req.session.passport.user to ensure session.save() persists the change
       if (req.session.passport && req.session.passport.user) {
-        req.session.passport.user.bundestag_api_enabled = Boolean(bundestag_api_enabled);
+        profileService.updateUserSession(req.session.passport.user, updatedProfile, 'bundestag_api_enabled', bundestag_api_enabled);
       }
       
-      // CRITICAL: Save session to persist the change across page reloads
       req.session.save((err) => {
         if (err) {
           console.error('[User Profile /profile/bundestag-api PATCH] Session save error:', err);

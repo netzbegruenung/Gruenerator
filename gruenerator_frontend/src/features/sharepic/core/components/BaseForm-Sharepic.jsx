@@ -165,7 +165,7 @@ const BaseForm = ({
           <Button 
             onClick={onBack} 
             text={BUTTON_LABELS.BACK}
-            className="back-button"
+            className="submit-button"
             ariaLabel={ARIA_LABELS.BACK}
           />
         </div>

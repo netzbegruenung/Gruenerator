@@ -11,6 +11,7 @@ import ErrorBoundary from '../../../components/ErrorBoundary';
 import MaintenanceNotice from '../../../components/common/MaintenanceNotice'; // Import the MaintenanceNotice component
 import FeatureToggle from '../../../components/common/FeatureToggle'; // Import FeatureToggle
 import { useAuthStore } from '../../../stores/authStore';
+import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 
 // --- Maintenance Flag ---
 // Set to true to enable maintenance mode for this page
@@ -445,4 +446,7 @@ const SubtitlerPage = () => {
   );
 };
 
-export default SubtitlerPage;
+export default withAuthRequired(SubtitlerPage, {
+  title: 'Reel Generator',
+  message: 'Anmeldung erforderlich für den Reel Generator'
+});

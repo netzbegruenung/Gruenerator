@@ -1,14 +1,13 @@
 import { getPostgresInstance } from './PostgresService.js';
-import { getMariaDBInstance } from './MariaDBService.js';
 
 /**
  * Database Adapter - Factory pattern for database services
- * Provides a unified interface that can switch between PostgreSQL and MariaDB
+ * Provides a unified interface that can switch between PostgreSQL and Supabase
  * based on environment configuration
  */
 class DatabaseAdapter {
     constructor() {
-        this.dbType = process.env.DATABASE_TYPE || 'supabase'; // 'postgres', 'mariadb', or 'supabase'
+        this.dbType = process.env.DATABASE_TYPE || 'postgres'; // 'postgres' or 'supabase'
         this.instance = null;
         this.initialized = false;
     }
@@ -26,12 +25,6 @@ class DatabaseAdapter {
             case 'postgresql':
                 this.instance = getPostgresInstance();
                 console.log('[DatabaseAdapter] Using PostgreSQL database');
-                break;
-                
-            case 'mariadb':
-            case 'mysql':
-                this.instance = getMariaDBInstance();
-                console.log('[DatabaseAdapter] Using MariaDB database');
                 break;
                 
             case 'supabase':
@@ -70,6 +63,17 @@ class DatabaseAdapter {
      */
     getDatabaseType() {
         return this.dbType;
+    }
+
+    /**
+     * Ensure the database instance is initialized
+     */
+    async ensureInitialized() {
+        const instance = this.getInstance();
+        if (!instance) {
+            throw new Error('No local database configured. Using Supabase.');
+        }
+        return await instance.ensureInitialized();
     }
 
     /**

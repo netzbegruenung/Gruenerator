@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
+import Select from 'react-select';
 import { HiDocumentText, HiPlus, HiX } from 'react-icons/hi';
 import { motion } from "motion/react";
 import { useFormFields } from '../../../components/common/Form/hooks';
@@ -46,15 +47,53 @@ const QACreator = ({
         }
     }, [editingCollection, reset]);
 
-    const handleDocumentToggle = (document) => {
-        setSelectedDocuments(prev => {
-            const isSelected = prev.some(doc => doc.id === document.id);
-            if (isSelected) {
-                return prev.filter(doc => doc.id !== document.id);
-            } else {
-                return [...prev, document];
-            }
-        });
+    // Transform documents to React Select options
+    const documentOptions = availableDocuments.map(doc => ({
+        value: doc.id,
+        label: doc.title,
+        document: doc
+    }));
+
+    // Custom option rendering to show document details
+    const formatOptionLabel = ({ document, label }, { context }) => {
+        // Show detailed info in dropdown menu
+        if (context === 'menu' && document) {
+            return (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <HiDocumentText style={{ color: 'var(--primary)', flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ 
+                            fontWeight: '500', 
+                            color: 'var(--font-color)',
+                            marginBottom: '2px',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis'
+                        }}>
+                            {label}
+                        </div>
+                        <div style={{ 
+                            fontSize: '0.85rem', 
+                            color: 'var(--text-muted-color)',
+                            display: 'flex',
+                            gap: '8px'
+                        }}>
+                            <span>{document.page_count} Seiten</span>
+                            <span>•</span>
+                            <span>{new Date(document.created_at).toLocaleDateString('de-DE')}</span>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+        // Show simple label for selected values
+        return <span>{label}</span>;
+    };
+
+    // Handle React Select change
+    const handleDocumentSelectChange = (selectedOptions) => {
+        const documents = selectedOptions ? selectedOptions.map(option => option.document) : [];
+        setSelectedDocuments(documents);
     };
 
     const onSubmit = async (data) => {
@@ -138,45 +177,51 @@ const QACreator = ({
                             <label className="form-label">
                                 Dokumente auswählen *
                             </label>
-                            <div className="document-selection">
-                                {availableDocuments.length === 0 ? (
-                                    <div className="no-documents-message">
-                                        <p>Sie haben noch keine Dokumente hochgeladen.</p>
-                                        <p>Gehen Sie zum Tab "Meine Dokumente", um Dokumente hinzuzufügen.</p>
-                                    </div>
-                                ) : (
-                                    <div className="document-list">
-                                        {availableDocuments.map((document) => {
-                                            const isSelected = selectedDocuments.some(doc => doc.id === document.id);
-                                            return (
-                                                <div
-                                                    key={document.id}
-                                                    className={`document-item ${isSelected ? 'selected' : ''}`}
-                                                    onClick={() => handleDocumentToggle(document)}
-                                                >
-                                                    <div className="document-info">
-                                                        <HiDocumentText className="document-icon" />
-                                                        <div className="document-details">
-                                                            <span className="document-title">{document.title}</span>
-                                                            <span className="document-meta">
-                                                                {document.page_count} Seiten • {new Date(document.created_at).toLocaleDateString('de-DE')}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                    <div className={`document-checkbox ${isSelected ? 'checked' : ''}`}>
-                                                        {isSelected && <HiPlus style={{transform: 'rotate(45deg)'}} />}
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                )}
-                                {selectedDocuments.length > 0 && (
-                                    <div className="selected-documents-summary">
-                                        {selectedDocuments.length} Dokument(e) ausgewählt
-                                    </div>
-                                )}
-                            </div>
+                            {availableDocuments.length === 0 ? (
+                                <div className="no-documents-message">
+                                    <p>Sie haben noch keine Dokumente hochgeladen.</p>
+                                    <p>Gehen Sie zum Tab "Meine Dokumente", um Dokumente hinzuzufügen.</p>
+                                </div>
+                            ) : (
+                                <div className="document-selection-react-select">
+                                    <Select
+                                        className="react-select"
+                                        classNamePrefix="react-select"
+                                        isMulti
+                                        isSearchable
+                                        placeholder="Dokumente suchen und auswählen..."
+                                        options={documentOptions}
+                                        value={selectedDocuments.map(doc => ({
+                                            value: doc.id,
+                                            label: doc.title,
+                                            document: doc
+                                        }))}
+                                        onChange={handleDocumentSelectChange}
+                                        formatOptionLabel={formatOptionLabel}
+                                        noOptionsMessage={() => 'Keine passenden Dokumente gefunden'}
+                                        closeMenuOnSelect={false}
+                                        hideSelectedOptions={false}
+                                        menuPortalTarget={document.body}
+                                        menuPosition="fixed"
+                                        maxMenuHeight={400}
+                                        styles={{
+                                            menuPortal: (base) => ({
+                                                ...base,
+                                                zIndex: 9999
+                                            })
+                                        }}
+                                    />
+                                    {selectedDocuments.length > 0 && (
+                                        <div className="selected-documents-summary" style={{ 
+                                            marginTop: 'var(--spacing-small)', 
+                                            color: 'var(--text-muted-color)', 
+                                            fontSize: '0.9rem' 
+                                        }}>
+                                            {selectedDocuments.length} Dokument(e) ausgewählt
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     </div>
 

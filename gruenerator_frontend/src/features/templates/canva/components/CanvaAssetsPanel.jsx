@@ -1,24 +1,28 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, memo } from 'react';
 import { HiPhotograph, HiExternalLink } from 'react-icons/hi';
 import AssetPackageCard from './AssetPackageCard';
 import CanvaButton from './CanvaButton';
+
+// Store
+import { useCanvaConnection } from '../../../../stores/canvaStore';
+
+// Utils
 import * as canvaUtils from '../../../../components/utils/canvaUtils';
 
 /**
- * Canva Assets Panel Component
+ * Canva Assets Panel Component - Optimized with store
  * Displays available asset packages and handles import functionality
- * Note: Authentication is handled by parent component (ContentManagementTab)
- * This component assumes user is already authenticated
+ * Uses canvaStore for better performance
  */
-const CanvaAssetsPanel = ({ 
-    canvaConnected, 
-    canvaLoading,
-    isAuthenticated = true, // Default to true for backward compatibility
-    onCanvaLogin, 
+const CanvaAssetsPanel = memo(({ 
+    isAuthenticated = true,
     onSuccessMessage, 
     onErrorMessage,
     onNavigateToOverview
 }) => {
+    
+    // Store-based state (memoized)
+    const { connected: canvaConnected, loading: canvaLoading } = useCanvaConnection();
     const [importingPackage, setImportingPackage] = useState(null);
     const [importProgress, setImportProgress] = useState('');
     const [importedPackages, setImportedPackages] = useState(canvaUtils.getImportedPackages());
@@ -131,6 +135,9 @@ const CanvaAssetsPanel = ({
             </div>
         </div>
     );
-};
+});
+
+// Add display name for debugging
+CanvaAssetsPanel.displayName = 'CanvaAssetsPanel';
 
 export default CanvaAssetsPanel;

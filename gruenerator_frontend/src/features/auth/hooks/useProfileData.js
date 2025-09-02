@@ -1,10 +1,13 @@
 /**
  * Centralized hook for all profile-related data operations
  * Uses React Query with the profileApiService for consistent caching and state management
+ * Syncs with profileStore for UI state management and optimistic updates
  */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { profileApiService } from '../services/profileApiService';
+import { useProfileStore } from '../../../stores/profileStore';
 
 // Query keys for consistent cache management
 export const QUERY_KEYS = {
@@ -24,8 +27,9 @@ export const QUERY_KEYS = {
 export const useProfile = (userId) => {
   const { user } = useOptimizedAuth();
   const actualUserId = userId || user?.id;
+  const syncProfile = useProfileStore(state => state.syncProfile);
 
-  return useQuery({
+  const query = useQuery({
     queryKey: QUERY_KEYS.profile(actualUserId),
     queryFn: profileApiService.getProfile,
     enabled: !!actualUserId,
@@ -34,8 +38,20 @@ export const useProfile = (userId) => {
     refetchOnWindowFocus: false,
     refetchOnMount: false,
     refetchOnReconnect: false,
-    retry: (failureCount) => failureCount < 2
+    retry: (failureCount) => failureCount < 2,
+    // Prevent automatic refetch that could interfere with avatar updates
+    refetchInterval: false
   });
+
+  // Sync React Query data with profileStore
+  useEffect(() => {
+    if (query.data) {
+      console.log(`[Profile Hook] 📄 Profile data received for user ${actualUserId}: avatar_robot_id=${query.data.avatar_robot_id}`);
+      syncProfile(query.data);
+    }
+  }, [query.data, syncProfile, actualUserId]);
+
+  return query;
 };
 
 // === BUNDLED PROFILE DATA ===
@@ -76,6 +92,8 @@ export const useAnweisungenWissen = ({
 } = {}) => {
   const { user } = useOptimizedAuth();
   const queryClient = useQueryClient();
+  const syncAnweisungenWissen = useProfileStore(state => state.syncAnweisungenWissen);
+  const setActiveContext = useProfileStore(state => state.setActiveContext);
 
   // Context-aware query key
   const queryKey = context === 'group' 
@@ -91,10 +109,10 @@ export const useAnweisungenWissen = ({
     queryKey,
     queryFn,
     enabled: enabled && !!user?.id && isActive && (context === 'user' || !!groupId),
-    staleTime: 15 * 60 * 1000, // Increased from 5 to 15 minutes
-    gcTime: 30 * 60 * 1000, // Fixed: was cacheTime (React Query v5)
+    staleTime: 5 * 60 * 1000, // Reduced from 15 to 5 minutes for better freshness
+    gcTime: 15 * 60 * 1000, // Reduced from 30 to 15 minutes
     refetchOnWindowFocus: false,
-    refetchOnMount: true, // Fixed: was 'always' (React Query v5)
+    refetchOnMount: 'always', // Always refetch on mount for fresh data
     retry: 1
   });
 
@@ -107,10 +125,53 @@ export const useAnweisungenWissen = ({
 
   const deleteMutation = useMutation({
     mutationFn: (entryId) => profileApiService.deleteKnowledgeEntry(entryId, context, groupId),
-    onSuccess: () => {
+    onMutate: async (entryId) => {
+      // Cancel outgoing refetches to avoid optimistic update conflicts
+      await queryClient.cancelQueries({ queryKey });
+      
+      // Snapshot previous value for rollback
+      const previousData = queryClient.getQueryData(queryKey);
+      
+      // Optimistically update the cache by removing the deleted entry
+      queryClient.setQueryData(queryKey, old => {
+        if (!old) return old;
+        return {
+          ...old,
+          knowledge: (old.knowledge || []).filter(k => k.id !== entryId)
+        };
+      });
+      
+      return { previousData };
+    },
+    onError: (err, entryId, context) => {
+      // Rollback optimistic update on error
+      if (context?.previousData) {
+        queryClient.setQueryData(queryKey, context.previousData);
+      }
+    },
+    onSettled: () => {
+      // Always refetch after mutation to ensure consistency
       queryClient.invalidateQueries({ queryKey });
+      queryClient.refetchQueries({ queryKey, exact: true });
     }
   });
+
+  // Sync with profileStore
+  useEffect(() => {
+    // Update active context in store
+    if (context === 'group' && groupId) {
+      setActiveContext('group', groupId);
+    } else {
+      setActiveContext('user');
+    }
+  }, [context, groupId, setActiveContext]);
+
+  useEffect(() => {
+    // Sync query data to store
+    if (query.data) {
+      syncAnweisungenWissen(query.data);
+    }
+  }, [query.data, syncAnweisungenWissen]);
 
   return {
     query,
@@ -118,6 +179,7 @@ export const useAnweisungenWissen = ({
     deleteKnowledgeEntry: deleteMutation.mutateAsync,
     isSaving: saveMutation.isPending,
     isDeleting: deleteMutation.isPending,
+    deletingKnowledgeId: deleteMutation.isPending ? deleteMutation.variables : null, // Track which entry is being deleted
     saveError: saveMutation.error,
     deleteError: deleteMutation.error,
     MAX_KNOWLEDGE_ENTRIES: 3
@@ -128,6 +190,7 @@ export const useAnweisungenWissen = ({
 export const useQACollections = ({ isActive, enabled = true } = {}) => {
   const { user } = useOptimizedAuth();
   const queryClient = useQueryClient();
+  const syncQACollections = useProfileStore(state => state.syncQACollections);
 
   const query = useQuery({
     queryKey: QUERY_KEYS.qaCollections(user?.id),
@@ -167,6 +230,13 @@ export const useQACollections = ({ isActive, enabled = true } = {}) => {
     return collections.find(c => c.id === collectionId);
   };
 
+  // Sync with profileStore
+  useEffect(() => {
+    if (query.data) {
+      syncQACollections(query.data);
+    }
+  }, [query.data, syncQACollections]);
+
   return {
     query,
     createQACollection: createMutation.mutateAsync,
@@ -188,6 +258,7 @@ export const useQACollections = ({ isActive, enabled = true } = {}) => {
 export const useCustomGenerators = ({ isActive, enabled = true } = {}) => {
   const { user } = useOptimizedAuth();
   const queryClient = useQueryClient();
+  const syncCustomGenerators = useProfileStore(state => state.syncCustomGenerators);
 
   const query = useQuery({
     queryKey: QUERY_KEYS.customGenerators(user?.id),
@@ -206,6 +277,13 @@ export const useCustomGenerators = ({ isActive, enabled = true } = {}) => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.customGenerators(user?.id) });
     }
   });
+
+  // Sync with profileStore
+  useEffect(() => {
+    if (query.data) {
+      syncCustomGenerators(query.data);
+    }
+  }, [query.data, syncCustomGenerators]);
 
   return {
     query,
@@ -259,6 +337,7 @@ export const useGeneratorDocuments = (generatorId) => {
 export const useUserTexts = ({ isActive, enabled = true } = {}) => {
   const { user } = useOptimizedAuth();
   const queryClient = useQueryClient();
+  const syncUserTexts = useProfileStore(state => state.syncUserTexts);
 
   const query = useQuery({
     queryKey: QUERY_KEYS.userTexts(user?.id),
@@ -284,6 +363,13 @@ export const useUserTexts = ({ isActive, enabled = true } = {}) => {
     }
   });
 
+  // Sync with profileStore
+  useEffect(() => {
+    if (query.data) {
+      syncUserTexts(query.data);
+    }
+  }, [query.data, syncUserTexts]);
+
   return {
     query,
     updateTextTitle: (textId, newTitle) => 
@@ -300,6 +386,7 @@ export const useUserTexts = ({ isActive, enabled = true } = {}) => {
 export const useUserTemplates = ({ isActive, enabled = true } = {}) => {
   const { user } = useOptimizedAuth();
   const queryClient = useQueryClient();
+  const syncUserTemplates = useProfileStore(state => state.syncUserTemplates);
 
   const query = useQuery({
     queryKey: QUERY_KEYS.userTemplates(user?.id),
@@ -325,6 +412,13 @@ export const useUserTemplates = ({ isActive, enabled = true } = {}) => {
     }
   });
 
+  // Sync with profileStore
+  useEffect(() => {
+    if (query.data) {
+      syncUserTemplates(query.data);
+    }
+  }, [query.data, syncUserTemplates]);
+
   return {
     query,
     updateTemplateTitle: (templateId, newTitle) => 
@@ -340,20 +434,31 @@ export const useUserTemplates = ({ isActive, enabled = true } = {}) => {
 // === AVAILABLE DOCUMENTS ===
 export const useAvailableDocuments = ({ enabled = true } = {}) => {
   const { user } = useOptimizedAuth();
+  const syncAvailableDocuments = useProfileStore(state => state.syncAvailableDocuments);
 
-  return useQuery({
+  const query = useQuery({
     queryKey: QUERY_KEYS.availableDocuments(user?.id),
     queryFn: profileApiService.getAvailableDocuments,
     enabled: enabled && !!user?.id,
     staleTime: 15 * 60 * 1000, // Increased from 5 to 15 minutes
     cacheTime: 30 * 60 * 1000 // Increased from 15 to 30 minutes
   });
+
+  // Sync with profileStore
+  useEffect(() => {
+    if (query.data) {
+      syncAvailableDocuments(query.data);
+    }
+  }, [query.data, syncAvailableDocuments]);
+
+  return query;
 };
 
 // === MEMORY (MEM0RY) ===
 export const useMemories = ({ isActive, enabled = true } = {}) => {
   const { user } = useOptimizedAuth();
   const queryClient = useQueryClient();
+  const syncMemories = useProfileStore(state => state.syncMemories);
 
   const query = useQuery({
     queryKey: QUERY_KEYS.memories(user?.id),
@@ -377,6 +482,13 @@ export const useMemories = ({ isActive, enabled = true } = {}) => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.memories(user?.id) });
     }
   });
+
+  // Sync with profileStore
+  useEffect(() => {
+    if (query.data) {
+      syncMemories(query.data);
+    }
+  }, [query.data, syncMemories]);
 
   return {
     query,

@@ -29,7 +29,7 @@ export const SloganAlternativesButton = forwardRef(({ isExpanded, onClick }, ref
               exit={{ opacity: 0 }}
               transition={{ duration: 0.25, ease: "easeOut" }}
             >
-              Alternativen anzeigen
+              Alternativen
             </m.button>
           )}
         </AnimatePresence>

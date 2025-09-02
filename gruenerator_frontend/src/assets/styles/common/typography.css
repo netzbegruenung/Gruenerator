@@ -69,12 +69,38 @@
     --reading-optimal-width: clamp(45ch, 50vw, 65ch);
 }
 
+/* Large Display Typography Enhancements */
+@media (min-width: 1280px) {
+    :root {
+        --font-size-base: 1.05rem;
+        --display-font-size: 1.125rem;
+        --display-font-size-large: 1.1875rem;
+        --font-size-2xl: 1.75rem;
+        --font-size-3xl: 2rem;
+        --font-size-4xl: 2.5rem;
+    }
+}
+
+@media (min-width: 1440px) {
+    :root {
+        --font-size-base: 1.08rem;
+        --display-font-size: 1.15rem;
+        --display-font-size-large: 1.21875rem;
+        --font-size-2xl: 1.825rem;
+        --font-size-3xl: 2.125rem;
+        --font-size-4xl: 2.625rem;
+    }
+}
+
 /* Desktop/Large Screen Overrides */
 @media (min-width: 1920px) {
     :root {
         --font-size-base: 1.125rem;
         --display-font-size: 1.1875rem;
         --display-font-size-large: 1.25rem;
+        --font-size-2xl: 1.875rem;
+        --font-size-3xl: 2.25rem;
+        --font-size-4xl: 2.75rem;
     }
 }
 
@@ -84,6 +110,9 @@
         --font-size-base: 1.25rem;
         --display-font-size: 1.3125rem;
         --display-font-size-large: 1.375rem;
+        --font-size-2xl: 2rem;
+        --font-size-3xl: 2.5rem;
+        --font-size-4xl: 3rem;
     }
 }
 
@@ -105,6 +134,30 @@ body {
 h1, h2 {
     font-family: 'GrueneType', Arial, sans-serif;
     color: var(--font-color-h);
+}
+
+/* Gradient Title Classes - Reusable gradient text styling */
+.gradient-title {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--klee) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    color: var(--font-color-h); /* Fallback for browsers that don't support gradient text */
+}
+
+/* Dark mode handling for gradient titles */
+[data-theme="dark"] .gradient-title {
+    background: none;
+    -webkit-text-fill-color: var(--secondary);
+    color: var(--secondary);
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .gradient-title {
+        background: none;
+        -webkit-text-fill-color: var(--secondary);
+        color: var(--secondary);
+    }
 }
 
 h1 {

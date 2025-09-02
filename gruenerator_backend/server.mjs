@@ -233,6 +233,16 @@ if (cluster.isMaster) {
     console.error('Warning: Could not initialize AI Search Agent:', error.message);
   }
 
+  // Initialize ProfileService and PostgreSQL database
+  try {
+    const { getProfileService } = await import('./services/ProfileService.js');
+    const profileService = getProfileService();
+    await profileService.init();
+    console.log('ProfileService initialized successfully with PostgreSQL');
+  } catch (error) {
+    console.error('Warning: Could not initialize ProfileService:', error.message);
+  }
+
   // Compression Middleware
   app.use(compression({
     filter: (req, res) => {

@@ -50,9 +50,8 @@
 @import url('./components/citation.css');
 @import url('./components/canva/canva-overview.css');
 @import url('./components/canva/canva-button.css');
-@import url('../../components/common/LoginRequired/LoginRequired.css');
 @import url('./components/document-overview.css');
-@import url('./components/common/sharepic-display.css');
+@import url('./components/common/image-display.css');
 
 
 
@@ -94,6 +93,9 @@
 @import url('./features/auth/documents-tab.css');
 @import url('../../features/auth/styles/meine-texte-tab.css');
 @import url('./components/auth/avatar-selection.css');
+
+/* Imagine feature styles */
+@import url('./features/imagine/image-limit-indicator.css');
 
 
 @import url('./pages/Startseitenstyle.css');

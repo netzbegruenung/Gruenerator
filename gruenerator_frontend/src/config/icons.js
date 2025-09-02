@@ -42,7 +42,8 @@ import {
 import { 
   IoDownloadOutline,
   IoCopyOutline,
-  IoShareOutline 
+  IoShareOutline,
+  IoAccessibilityOutline
 } from 'react-icons/io5';
 
 import {
@@ -52,6 +53,8 @@ import {
   FiFileText,
   FiCheck
 } from 'react-icons/fi';
+
+import { RiMagicLine } from 'react-icons/ri';
 
 /**
  * Comprehensive icon registry organized by usage category
@@ -81,7 +84,9 @@ export const ICONS = {
     sharepic: PiImageSquare,
     datenbank: PiArchive,
     you: PiUser,
-    tools: PiWrench
+    tools: PiWrench,
+    barrierefreiheit: IoAccessibilityOutline,
+    imagine: RiMagicLine
   },
 
   // Action icons for buttons and interactive elements

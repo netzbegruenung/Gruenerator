@@ -56,8 +56,18 @@ router.get('/login', (req, res, next) => {
   } else if (source === 'gruenes-netz-login') {
     options.kc_idp_hint = 'gruenes-netz';
     options.prompt = 'login'; // Force re-authentication to respect identity provider hint
+  } else if (source === 'gruene-oesterreich-login') {
+    options.kc_idp_hint = 'gruene-at-login';
+    options.prompt = 'login'; // Force re-authentication to respect identity provider hint
+  } else if (source === 'gruenerator-login') {
+    options.kc_idp_hint = 'gruenerator-user';
+    // Set appropriate prompt based on registration intent
+    if (prompt === 'register') {
+      options.prompt = 'register'; // Explicitly pass registration prompt to Keycloak
+    } else {
+      options.prompt = 'login'; // Force re-authentication to respect identity provider hint
+    }
   }
-  // gruenerator-login uses default behavior (no kc_idp_hint) - shows all providers like old generic login
 
   passport.authenticate('oidc', options)(req, res, next);
 });

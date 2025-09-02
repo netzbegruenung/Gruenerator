@@ -67,18 +67,6 @@ const SearchBar = ({
             disabled={loading}
           />
           <div className="search-buttons">
-            <button 
-              type="submit"
-              className="search-icon-button"
-              disabled={loading || !value.trim()}
-              aria-label="Suchen"
-            >
-              {loading ? (
-                <div className="button-spinner"></div>
-              ) : (
-                <FaSearch className="search-icon" />
-              )}
-            </button>
             {hasFilterFunctionality && (
               <button 
                 ref={filterButtonRef}
@@ -91,6 +79,18 @@ const SearchBar = ({
                 <FaCog className="filter-icon" />
               </button>
             )}
+            <button 
+              type="submit"
+              className="search-icon-button"
+              disabled={loading || !value.trim()}
+              aria-label="Suchen"
+            >
+              {loading ? (
+                <div className="button-spinner"></div>
+              ) : (
+                <FaSearch className="search-icon" />
+              )}
+            </button>
           </div>
         </div>
         
