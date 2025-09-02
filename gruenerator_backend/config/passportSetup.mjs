@@ -1,56 +1,45 @@
 import passport from 'passport';
-import { Issuer, Strategy as OidcClientStrategy } from 'openid-client';
+import { KeycloakStrategy } from './keycloakStrategy.mjs';
 
 // Import Supabase clients using CommonJS require
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const { supabaseService } = require('../utils/supabaseClient.js');
 
-// Configure OIDC client for Keycloak
-const keycloakIssuer = await Issuer.discover(`${process.env.KEYCLOAK_BASE_URL}/realms/${process.env.KEYCLOAK_REALM}`);
+console.log('[PassportSetup] Initializing Keycloak OpenID Connect strategy');
 
-const client = new keycloakIssuer.Client({
-  client_id: process.env.KEYCLOAK_CLIENT_ID,
-  client_secret: process.env.KEYCLOAK_CLIENT_SECRET,
-  redirect_uris: [`${process.env.AUTH_BASE_URL || process.env.BASE_URL || 'https://beta.gruenerator.de'}/auth/callback`],
-  response_types: ['code'],
-  token_endpoint_auth_method: 'client_secret_post'
-});
-console.log('[PassportSetup] Keycloak OIDC client initialized');
-
-// Passport OIDC Strategy Configuration for Keycloak
-passport.use('oidc', new OidcClientStrategy({
-  client,
-  params: {
-    scope: 'openid profile email offline_access',
-  },
-  passReqToCallback: true,
-  usePKCE: false,
-  sessionKey: 'passport:oidc:keycloak'
-}, async (req, tokenset, userinfo, done) => {
+// Passport Keycloak Strategy Configuration (extends OpenID Connect)
+passport.use('oidc', new KeycloakStrategy({
+  issuer: `${process.env.KEYCLOAK_BASE_URL}/realms/${process.env.KEYCLOAK_REALM}`,
+  authorizationURL: `${process.env.KEYCLOAK_BASE_URL}/realms/${process.env.KEYCLOAK_REALM}/protocol/openid-connect/auth`,
+  tokenURL: `${process.env.KEYCLOAK_BASE_URL}/realms/${process.env.KEYCLOAK_REALM}/protocol/openid-connect/token`,
+  userInfoURL: `${process.env.KEYCLOAK_BASE_URL}/realms/${process.env.KEYCLOAK_REALM}/protocol/openid-connect/userinfo`,
+  clientID: process.env.KEYCLOAK_CLIENT_ID,
+  clientSecret: process.env.KEYCLOAK_CLIENT_SECRET,
+  callbackURL: `${process.env.AUTH_BASE_URL || process.env.BASE_URL || 'https://beta.gruenerator.de'}/auth/callback`,
+  scope: 'openid profile email offline_access'
+}, async (issuer, profile, done) => {
   try {
-    if (!tokenset || !userinfo) {
-      console.error('[PassportSetup OIDC Verify Callback] Tokenset or userinfo is undefined');
-      return done(new Error('Tokenset or userinfo is undefined'), null);
+    if (!profile) {
+      console.error('[PassportSetup OIDC Verify Callback] Profile is undefined');
+      return done(new Error('Profile is undefined'), null);
     }
 
-    const claims = tokenset.claims();
-
-    // Construct a profile object for handleUserProfile
-    const profile = {
-      id: userinfo.sub || claims.sub,
-      displayName: userinfo.name || claims.name || userinfo.preferred_username || claims.preferred_username,
-      emails: userinfo.email ? [{ value: userinfo.email }] : (claims.email ? [{ value: claims.email }] : []),
-      username: userinfo.preferred_username || claims.preferred_username,
-      _raw_userinfo: userinfo,
-      _raw_claims: claims
+    // passport-openidconnect provides profile in standard format
+    const normalizedProfile = {
+      id: profile.id,
+      displayName: profile.displayName || profile.username || profile.preferred_username,
+      emails: profile.emails || [],
+      username: profile.username || profile.preferred_username,
+      _raw: profile._raw,
+      _json: profile._json
     };
 
-    const user = await handleUserProfile(profile, req);
+    // Create a mock request object for handleUserProfile  
+    const mockReq = { user: null };
+    const user = await handleUserProfile(normalizedProfile, mockReq);
 
-    if (user && tokenset.id_token) {
-      user.id_token = tokenset.id_token;
-    }
+    // Note: passport-openidconnect doesn't provide tokenset in callback
 
     return done(null, user);
   } catch (error) {

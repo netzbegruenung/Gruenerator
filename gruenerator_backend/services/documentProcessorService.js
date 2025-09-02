@@ -2,7 +2,8 @@ import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
 import { supabaseService } from '../utils/supabaseClient.js';
-import { embeddingService } from './embeddingService.js';
+import { fastEmbedService } from './FastEmbedService.js';
+import { getQdrantInstance } from '../database/services/QdrantService.js';
 import { smartChunkDocument } from '../utils/textChunker.js';
 
 class DocumentProcessorService {
@@ -15,6 +16,7 @@ class DocumentProcessorService {
       'application/vnd.ms-excel': 'xls',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx'
     };
+    this.qdrant = getQdrantInstance();
   }
 
   /**
@@ -263,7 +265,7 @@ class DocumentProcessorService {
         try {
           // Generate embeddings for this batch
           const texts = batch.map(chunk => chunk.text);
-          const embeddings = await embeddingService.generateBatchEmbeddings(texts, 'search_document');
+          const embeddings = await fastEmbedService.generateBatchEmbeddings(texts, 'search_document');
 
           // Prepare enhanced chunk data for database insertion
           const batchChunkData = batch.map((chunk, index) => ({
@@ -287,13 +289,46 @@ class DocumentProcessorService {
         throw new Error('No embeddings were generated successfully');
       }
 
-      // Insert all chunks into document_chunks table
+      // Insert all chunks into document_chunks table (legacy)
       const { error: insertError } = await supabaseService
         .from('document_chunks')
         .insert(allChunkData);
 
       if (insertError) {
         throw new Error(`Failed to insert document chunks: ${insertError.message}`);
+      }
+
+      // Get document metadata for Qdrant indexing
+      const { data: docMetadata, error: docError } = await supabaseService
+        .from('documents')
+        .select('title, filename, user_id, created_at')
+        .eq('id', documentId)
+        .single();
+
+      if (docError) {
+        console.warn(`[DocumentProcessor] Could not get document metadata for Qdrant indexing: ${docError.message}`);
+      }
+
+      // Index in Qdrant for improved search performance
+      try {
+        const qdrantChunks = allChunkData.map((chunk, index) => ({
+          embedding: chunk.embedding,
+          text: chunk.chunk_text,
+          index: chunk.chunk_index,
+          token_count: chunk.token_count,
+          metadata: {
+            ...chunk.metadata,
+            document_title: docMetadata?.title || 'Untitled',
+            document_filename: docMetadata?.filename || '',
+            document_created_at: docMetadata?.created_at || null
+          }
+        }));
+
+        await this.qdrant.indexDocumentChunks(documentId, qdrantChunks, docMetadata?.user_id);
+        console.log(`[DocumentProcessor] Successfully indexed ${allChunkData.length} chunks in Qdrant`);
+      } catch (qdrantError) {
+        console.error(`[DocumentProcessor] Failed to index in Qdrant (continuing with Supabase only):`, qdrantError);
+        // Don't fail the entire process if Qdrant indexing fails
       }
 
       console.log(`[DocumentProcessor] Successfully generated embeddings for ${allChunkData.length} hierarchical chunks in document ${documentId}`);

@@ -201,6 +201,12 @@ async function processAIRequest(requestId, data) {
           model: "claude-3-5-haiku-latest",
           temperature: 0.2,
           max_tokens: 2000
+        },
+        'web_search_summary': {
+          system: "Du bist ein Experte für die Zusammenfassung von Websuche-Ergebnissen. Erstelle präzise, informative und strukturierte Zusammenfassungen der bereitgestellten Suchergebnisse auf Deutsch. Fokussiere auf die wichtigsten Informationen, vermeide Redundanzen und strukturiere die Antwort logisch. Erwähne relevante Quellen und hebe wichtige Fakten hervor.",
+          model: "claude-3-5-haiku-latest",
+          temperature: 0.3,
+          max_tokens: 1000
         }
       };
 

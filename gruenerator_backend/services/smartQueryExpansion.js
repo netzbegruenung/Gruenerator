@@ -1,5 +1,5 @@
 import { supabaseService } from '../utils/supabaseClient.js';
-import { embeddingService } from './embeddingService.js';
+import { fastEmbedService } from './FastEmbedService.js';
 
 /**
  * Smart Query Expansion Service
@@ -77,7 +77,7 @@ class SmartQueryExpansion {
       console.log(`[SmartQueryExpansion] Finding semantic neighbors for: "${query}"`);
       
       // Generate embedding for the query
-      const queryEmbedding = await embeddingService.generateQueryEmbedding(query);
+      const queryEmbedding = await fastEmbedService.generateQueryEmbedding(query);
       
       if (!queryEmbedding || !Array.isArray(queryEmbedding)) {
         console.warn('[SmartQueryExpansion] Invalid query embedding generated');
@@ -147,7 +147,7 @@ class SmartQueryExpansion {
       console.log(`[SmartQueryExpansion] Getting document feedback for: "${query}"`);
       
       // Generate embedding for loose search
-      const queryEmbedding = await embeddingService.generateQueryEmbedding(query);
+      const queryEmbedding = await fastEmbedService.generateQueryEmbedding(query);
       if (!queryEmbedding) {
         return { terms: [], confidence: 0 };
       }
