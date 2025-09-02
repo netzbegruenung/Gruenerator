@@ -10,20 +10,58 @@ async function jwtAuthMiddleware(req, res, next) {
   const token = authHeader.substring(7); // Remove 'Bearer ' prefix
   
   try {
-    // Dynamic import for ES module
-    const { validateKeycloakToken } = await import('../utils/keycloakJwtValidator.mjs');
-    const decoded = await validateKeycloakToken(token);
+    let decoded;
+    let user;
     
-    // Get user profile from database using Keycloak ID
-    const { data: user, error } = await supabaseService
-      .from('profiles')
-      .select('*')
-      .eq('keycloak_id', decoded.sub)
-      .single();
+    // Try to decode as simple mobile JWT first
+    try {
+      const { jwtVerify } = await import('jose');
+      const secret = new TextEncoder().encode(
+        process.env.SESSION_SECRET || 'fallback-secret-please-change'
+      );
+      
+      const { payload } = await jwtVerify(token, secret, {
+        issuer: 'gruenerator-mobile',
+        audience: 'gruenerator-app'
+      });
+      
+      console.log('[JWT Auth] Simple mobile JWT validated for user:', payload.sub);
+      
+      // Get user from database using user ID
+      const { data: userData, error } = await supabaseService
+        .from('profiles')
+        .select('*')
+        .eq('id', payload.sub)
+        .single();
+      
+      if (error || !userData) {
+        console.error('[JWT Auth] User not found for ID:', payload.sub);
+        return res.status(401).json({ error: 'User not found' });
+      }
+      
+      decoded = payload;
+      user = userData;
+      
+    } catch (simpleJwtError) {
+      // If simple JWT validation fails, try Keycloak JWT
+      console.log('[JWT Auth] Simple JWT validation failed, trying Keycloak JWT');
+      
+      const { validateKeycloakToken } = await import('../utils/keycloakJwtValidator.mjs');
+      decoded = await validateKeycloakToken(token);
+      
+      // Get user profile from database using Keycloak ID
+      const { data: userData, error } = await supabaseService
+        .from('profiles')
+        .select('*')
+        .eq('keycloak_id', decoded.sub)
+        .single();
 
-    if (error || !user) {
-      console.error('[JWT Auth] User not found in database:', decoded.sub);
-      return res.status(401).json({ error: 'User not found' });
+      if (error || !userData) {
+        console.error('[JWT Auth] User not found in database:', decoded.sub);
+        return res.status(401).json({ error: 'User not found' });
+      }
+      
+      user = userData;
     }
 
     // Load user's groups if groups beta feature is enabled
