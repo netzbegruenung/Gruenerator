@@ -1,5 +1,6 @@
 # Dependencies
 node_modules
+package-lock.json
 .pnp
 .pnp.js
 
@@ -33,6 +34,7 @@ yarn-error.log*
 gruenerator_frontend/node_modules/.cache
 *.pack
 gruenerator_backend/local_cache/
+gruenerator_backend/fastembed_cache/
 
 # Large files
 *.pack
