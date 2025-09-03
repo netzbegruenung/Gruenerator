@@ -2,7 +2,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { HiOutlineQuestionMarkCircle, HiDocumentText, HiChatAlt2, HiInformationCircle, HiChip } from 'react-icons/hi';
-import ReactMarkdown from 'react-markdown';
+const ReactMarkdown = lazy(() => import('react-markdown'));
 import ChatUI from '../../../components/common/Chat/ChatUI';
 import ModeSelector from '../../../components/common/Chat/ModeSelector';
 import { CitationModal, CitationSourcesDisplay } from '../../../components/common/Citation';

@@ -1,19 +1,22 @@
 // === SHARED EXPORT UTILITIES ===
 
-import { marked } from 'marked';
+// marked imported dynamically
 import { isMarkdownContent } from './Form/utils/contentUtils';
 
 /**
  * Converts markdown to HTML if needed, otherwise returns original content
  * This is the central function for all export features to handle markdown
  * @param {string} content - Content that may be markdown
- * @returns {string} HTML content or original content if not markdown
+ * @returns {Promise<string>} HTML content or original content if not markdown
  */
-export const processMarkdownContent = (content) => {
+export const processMarkdownContent = async (content) => {
   if (!content) return '';
   
   // Check if content is markdown
   if (typeof content === 'string' && isMarkdownContent(content)) {
+    // Dynamically import marked
+    const { marked } = await import('marked');
+    
     // Convert markdown to HTML
     return marked(content, {
       breaks: true,      // Convert line breaks to <br>

@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { lazy, Suspense, useState } from 'react';
 import PropTypes from 'prop-types';
 import { Controller } from 'react-hook-form';
-import Select from 'react-select';
+const Select = lazy(() => import('react-select'));
 import FormFieldWrapper from './Form/Input/FormFieldWrapper';
 import Icon from './Icon';
 
@@ -93,7 +93,8 @@ const PlatformSelector = ({
           htmlFor={`${name}-select`}
         >
           <div className={`platform-selector ${className}`.trim()}>
-            <Select
+            <Suspense fallback={<div>Loading...</div>}>
+              <Select
               {...field}
               inputId={`${name}-select`}
               className={`react-select ${error ? 'error' : ''}`.trim()}
@@ -132,6 +133,7 @@ const PlatformSelector = ({
               menuPosition="fixed"
               {...rest}
             />
+            </Suspense>
           </div>
         </FormFieldWrapper>
       )}

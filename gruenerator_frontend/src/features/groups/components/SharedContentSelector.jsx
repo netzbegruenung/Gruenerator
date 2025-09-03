@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from "motion/react";
-import ReactMarkdown from 'react-markdown';
+const ReactMarkdown = lazy(() => import('react-markdown'));
 import { 
   HiDocumentText, 
   HiChatAlt2, 

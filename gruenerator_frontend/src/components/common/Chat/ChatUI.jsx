@@ -1,8 +1,8 @@
-import React, { useRef, useEffect } from 'react';
+import React, { lazy, Suspense, useRef, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { motion, AnimatePresence } from 'motion/react';
 import { HiChip } from "react-icons/hi";
-import ReactMarkdown from 'react-markdown';
+const ReactMarkdown = lazy(() => import('react-markdown'));
 import TypingIndicator from '../UI/TypingIndicator';
 
 const ChatUI = ({
@@ -90,14 +90,14 @@ const ChatUI = ({
           </div>
         )}
         
-        <ReactMarkdown 
+        <Suspense fallback={<div>Loading...</div>}><ReactMarkdown 
           components={{
             // eslint-disable-next-line react/prop-types
             a: ({node, ...props}) => <a {...props} target="_blank" rel="noopener noreferrer" />
           }}
         >
           {msg.content}
-        </ReactMarkdown>
+        </ReactMarkdown></Suspense>
       </motion.div>
     );
   };

@@ -1,4 +1,4 @@
-import { marked } from 'marked';
+// marked imported dynamically
 import { isMarkdownContent } from '../common/Form/utils/contentUtils';
 
 /**
@@ -6,11 +6,14 @@ import { isMarkdownContent } from '../common/Form/utils/contentUtils';
  * @param {string} content - Content that may be markdown
  * @returns {string} HTML content or original content if not markdown
  */
-const processMarkdownContent = (content) => {
+const processMarkdownContent = async (content) => {
   if (!content) return '';
   
   // Check if content is markdown
   if (typeof content === 'string' && isMarkdownContent(content)) {
+    // Dynamically import marked
+    const { marked } = await import('marked');
+    
     // Convert markdown to HTML
     return marked(content, {
       breaks: true,      // Convert line breaks to <br>
@@ -27,12 +30,12 @@ const processMarkdownContent = (content) => {
 /**
  * Formatiert den Export-Content für Etherpad mit HTML
  */
-export const formatExportContent = ({ analysis, sourceRecommendations = [], unusedSources = [] }) => {
+export const formatExportContent = async ({ analysis, sourceRecommendations = [], unusedSources = [] }) => {
   // Hauptanalyse als HTML
   let content = analysis;
 
   // Convert markdown to HTML if needed using shared function
-  content = processMarkdownContent(content);
+  content = await processMarkdownContent(content);
 
   // Stelle sicher, dass Zeilenumbrüche als <br> oder <p> Tags erhalten bleiben
   if (content) {

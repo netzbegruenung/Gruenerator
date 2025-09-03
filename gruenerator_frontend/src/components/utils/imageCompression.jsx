@@ -1,4 +1,4 @@
-import imageCompression from 'browser-image-compression';
+// browser-image-compression will be dynamically imported when needed
 
 const COMPRESSION_OPTIONS = {
   maxSizeMB: 0.8,              // Slightly more aggressive compression
@@ -58,6 +58,7 @@ export const compressImage = async (imageFile, customOptions = {}) => {
       ...customOptions
     };
 
+    const imageCompression = (await import('browser-image-compression')).default;
     const compressedFile = await imageCompression(imageFile, options);
 
     console.log('Bildkomprimierung abgeschlossen:', {

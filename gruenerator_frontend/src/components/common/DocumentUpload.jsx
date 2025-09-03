@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef, forwardRef, useImperativeHandle } from 'react';
 import { HiOutlineDocumentAdd, HiOutlineTrash, HiRefresh, HiDocumentText, HiClock, HiCheckCircle, HiExclamationCircle, HiEye, HiX } from 'react-icons/hi';
-import ReactMarkdown from 'react-markdown';
+const ReactMarkdown = lazy(() => import('react-markdown'));
 import { useDocumentsStore } from '../../stores/documentsStore';
 import { useOptimizedAuth } from '../../hooks/useAuth';
 import { validateUrl, normalizeUrl, generateTitleFromUrl } from '../../utils/urlValidation';

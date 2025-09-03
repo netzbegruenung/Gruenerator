@@ -31,25 +31,22 @@ export default defineConfig(({ command }) => ({
     }
   },
   build: {
-    target: ['es2022', 'chrome88', 'firefox86', 'safari14'],
+    target: 'es2022',
     sourcemap: false,
-    cssCodeSplit: false, // Disable CSS code splitting to reduce memory usage
-    assetsInlineLimit: 8192, // Increase inline limit to reduce file operations
+    cssCodeSplit: false, // keep as-is; not changing chunking behavior here
+    assetsInlineLimit: 0, // avoid inlining to reduce bundler memory use
     chunkSizeWarningLimit: 300, // Smaller chunks to reduce memory pressure
     outDir: 'build',
     // Memory-optimized build settings for server compatibility
     reportCompressedSize: false, // Skip gzip reporting to save memory
-    minify: 'esbuild', // Use esbuild (10x more memory efficient than Terser)
-    cssMinify: false, // Disable CSS minification (minor performance impact)
+    modulePreload: false, // skip modulepreload generation to reduce work
+    minify: 'esbuild', // enable minification for production
+    cssMinify: true, // Enable CSS minification
     emptyOutDir: true,
     rollupOptions: {
-      // Memory-efficient treeshaking
-      treeshake: {
-        preset: 'smallest', // Lighter analysis to reduce memory overhead
-        moduleSideEffects: false,
-        propertyReadSideEffects: false, // Skip property read side-effect analysis
-        tryCatchDeoptimization: false   // Skip try-catch deoptimization analysis
-      },
+      // Enable tree shaking for smaller bundles
+      treeshake: true,
+      cache: false,
       // Sequential processing to prevent memory spikes on server
       maxParallelFileOps: 1,
       // Additional memory optimizations
@@ -80,9 +77,8 @@ export default defineConfig(({ command }) => ({
         manualChunks: {
           'core-vendor': ['react', 'react-dom', 'react-router-dom'],
           'state-vendor': ['@tanstack/react-query', 'zustand'],
-          'icons-vendor': ['react-icons'],
-          'ui-vendor': ['react-select', 'react-tooltip', 'react-hook-form', 'react-dropzone'],
-          'utils-vendor': ['lodash', 'uuid', 'marked', 'turndown', 'dompurify'],
+          'ui-vendor': ['react-tooltip', 'react-hook-form', 'react-dropzone'],
+          'utils-vendor': ['lodash', 'uuid', 'turndown', 'dompurify'],
           'motion-vendor': ['motion']
         }
       }

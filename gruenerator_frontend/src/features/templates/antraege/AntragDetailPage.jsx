@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import ReactMarkdown from 'react-markdown';
+const ReactMarkdown = lazy(() => import('react-markdown'));
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import AntragEditForm from './AntragEditForm';
 

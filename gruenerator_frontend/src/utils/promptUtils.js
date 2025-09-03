@@ -1,9 +1,13 @@
-import { marked } from 'marked';
+// marked imported dynamically
 import DOMPurify from 'dompurify';
 
 // Function to safely render Markdown to HTML
-export const renderMarkdown = (markdown) => {
+export const renderMarkdown = async (markdown) => {
   if (!markdown) return { __html: '' };
+  
+  // Dynamically import marked
+  const { marked } = await import('marked');
+  
   // Configure marked to add breaks on newlines
   marked.setOptions({
     breaks: true, // Add <br> on single newlines
