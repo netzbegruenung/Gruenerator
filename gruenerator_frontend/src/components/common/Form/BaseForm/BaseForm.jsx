@@ -21,13 +21,14 @@ import { useFormVisibility } from '../hooks/useFormVisibility';
 import { getExportableContent } from '../utils/contentUtils';
 
 // Inline utility function (moved from classNameUtils)
-const getBaseContainerClasses = ({ title, generatedContent, isFormVisible }) => {
+const getBaseContainerClasses = ({ title, generatedContent, isFormVisible, isEditModeActive }) => {
   const classes = [
     'base-container',
     title === "Grünerator Antragscheck" ? 'antragsversteher-base' : '',
     generatedContent && (
       typeof generatedContent === 'string' ? generatedContent.length > 0 : generatedContent?.content?.length > 0
-    ) ? 'has-generated-content' : ''
+    ) ? 'has-generated-content' : '',
+    isEditModeActive ? 'edit-mode-active' : ''
   ];
   return classes.filter(Boolean).join(' ');
 };
@@ -177,7 +178,13 @@ const BaseFormInternal = ({
   
   const isStreaming = useGeneratedTextStore(state => state.isStreaming);
   const hasContent = !!generatedContent || isStreaming;
-  const isEditModeActive = enableEditMode && hasContent;
+  const [isEditModeToggled, setIsEditModeToggled] = React.useState(false);
+  const isEditModeActive = isEditModeToggled && enableEditMode && hasContent;
+  
+  // Handler for edit mode toggle
+  const handleToggleEditMode = React.useCallback(() => {
+    setIsEditModeToggled(prev => !prev);
+  }, []);
 
   // Consolidated config with backward compatibility
   const resolvedSubmitConfig = React.useMemo(() => {
@@ -195,7 +202,16 @@ const BaseFormInternal = ({
       buttonProps: submitButtonProps
     };
   }, [submitConfig, showNextButton, nextButtonText, submitButtonProps]);
-  const showSubmitButtonFinal = isEditModeActive ? false : resolvedSubmitConfig.showButton;
+  const showSubmitButtonFinal = resolvedSubmitConfig.showButton;
+
+  // In Edit Mode, reuse the same submit button but adapt default text
+  const effectiveSubmitButtonProps = React.useMemo(() => {
+    const base = resolvedSubmitConfig.buttonProps || {};
+    if (isEditModeActive) {
+      return { ...base, defaultText: base.defaultText || 'Verbessern' };
+    }
+    return base;
+  }, [resolvedSubmitConfig.buttonProps, isEditModeActive]);
 
   // Consolidated webSearch config with store integration
   const resolvedWebSearchConfig = React.useMemo(() => {
@@ -423,8 +439,9 @@ const BaseFormInternal = ({
   const baseContainerClasses = React.useMemo(() => getBaseContainerClasses({
     title,
     generatedContent,
-    isFormVisible
-  }), [title, generatedContent, isFormVisible]);
+    isFormVisible,
+    isEditModeActive
+  }), [title, generatedContent, isFormVisible, isEditModeActive]);
 
   // Enhanced form submission with accessibility announcements
   const handleEnhancedSubmit = async (formData) => {
@@ -506,7 +523,7 @@ const BaseFormInternal = ({
                   onBack={onBack}
                   showBackButton={showBackButton}
                   nextButtonText={resolvedSubmitConfig.buttonText}
-                  submitButtonProps={resolvedSubmitConfig.buttonProps}
+                  submitButtonProps={effectiveSubmitButtonProps}
                   webSearchFeatureToggle={resolvedWebSearchConfig.toggle}
                   privacyModeToggle={resolvedPrivacyModeConfig.toggle}
                   onAttachmentClick={onAttachmentClick}
@@ -568,6 +585,8 @@ const BaseFormInternal = ({
             onSave={onSave}
             componentName={componentName}
             onErrorDismiss={handleErrorDismiss}
+            onEditModeToggle={handleToggleEditMode}
+            isEditModeActive={isEditModeActive}
           />
         </motion.div>
 

@@ -30,12 +30,7 @@ const ExportDropdown = ({ content, title, className = 'action-button', onSaveToL
   const { submitForm, loading: docsLoading } = useApiSubmit('etherpad/create');
   const { getGeneratedText } = useGeneratedTextStore();
   
-  const {
-    isGenerating,
-    loadingDOCX,
-    loadDOCXLibrary,
-    generateDOCX
-  } = useExportStore();
+  const { isGenerating, generateDOCX } = useExportStore();
 
   const isMobileView = window.innerWidth <= 768;
 
@@ -180,14 +175,13 @@ const ExportDropdown = ({ content, title, className = 'action-button', onSaveToL
   const handleDOCXDownload = useCallback(async () => {
     setShowDropdown(false);
     try {
-      await loadDOCXLibrary();
       const formattedContent = extractFormattedText(content);
       await generateDOCX(formattedContent, title);
     } catch (error) {
       console.error('DOCX download failed:', error);
       alert('DOCX Download fehlgeschlagen: ' + error.message);
     }
-  }, [loadDOCXLibrary, generateDOCX, content, title]);
+  }, [generateDOCX, content, title]);
 
   const handleWolkeClick = async () => {
     if (!isAuthenticated) return;
@@ -215,24 +209,20 @@ const ExportDropdown = ({ content, title, className = 'action-button', onSaveToL
     setUploadingToWolke(true);
     
     try {
-      // Get DOCX library
-      const library = await loadDOCXLibrary();
-      if (!library) {
-        throw new Error('DOCX library not available');
-      }
-      
-      const { createDOCXDocument, Packer } = library;
       const { extractFilenameFromContent } = await import('../utils/titleExtractor');
       const formattedContent = extractFormattedText(content);
-      
-      // Generate DOCX blob without downloading
       const baseFileName = extractFilenameFromContent(formattedContent, title);
       const filename = `${baseFileName}.docx`;
-      
-      // Create DOCX document and convert to blob
-      const doc = createDOCXDocument(formattedContent, title);
-      const blob = await Packer.toBlob(doc);
-      
+
+      // Request backend to generate DOCX blob
+      const res = await fetch('/api/exports/docx', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: formattedContent, title })
+      });
+      if (!res.ok) throw new Error(`Server returned ${res.status}`);
+      const blob = await res.blob();
+
       // Convert blob to base64 for upload
       const reader = new FileReader();
       reader.onloadend = async () => {
@@ -349,12 +339,12 @@ const ExportDropdown = ({ content, title, className = 'action-button', onSaveToL
             <FaFileWord size={16} />
             <div className="format-option-content">
               <div className="format-option-title">
-                {loadingDOCX ? (
-                  <>
-                    <HiRefresh className="spinning" size={14} style={{ marginRight: '6px' }} />
-                    Wird erstellt...
-                  </>
-                ) : 'Datei herunterladen'}
+            {isGenerating ? (
+              <>
+                <HiRefresh className="spinning" size={14} style={{ marginRight: '6px' }} />
+                Wird erstellt...
+              </>
+            ) : 'Datei herunterladen'}
               </div>
               <div className="format-option-subtitle">
                 Für Word und LibreOffice

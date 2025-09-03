@@ -214,14 +214,10 @@ export const getPDFPageCount = async (file) => {
   }
   
   try {
-    // Dynamic import for pdf-lib to reduce initial bundle size
-    const { PDFDocument } = await import('pdf-lib');
-    const arrayBuffer = await file.arrayBuffer();
-    const pdfDoc = await PDFDocument.load(arrayBuffer);
-    return pdfDoc.getPageCount();
+    // Page count disabled to avoid pdf-lib in frontend
+    return 0;
   } catch (error) {
-    console.error('Error getting PDF page count:', error);
-    throw new Error(`Fehler beim Lesen der PDF-Seiten: ${error.message}`);
+    return 0;
   }
 };
 
