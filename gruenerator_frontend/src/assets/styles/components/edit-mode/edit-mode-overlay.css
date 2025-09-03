@@ -1,0 +1,437 @@
+/* Edit Mode Overlay Styles - Inspired by collab-editor.css */
+
+/* Edit Mode Fullscreen Overlay Option */
+.edit-mode-fullscreen-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: calc(100vh - 60px);
+  background-color: var(--background-color-pure);
+  z-index: 1500;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.edit-mode-fullscreen-overlay .edit-mode-content {
+  flex-grow: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Edit Mode Split Layout */
+.edit-mode-main-content {
+  display: flex;
+  flex-grow: 1;
+  height: 100%;
+}
+
+/* Chat Column in Edit Mode */
+.edit-mode-chat-column {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  min-width: 320px;
+}
+
+/* Display Column in Edit Mode */
+.edit-mode-display-column {
+  flex: 2;
+  background-color: var(--background-color-pure);
+  padding: var(--spacing-medium) var(--spacing-medium) var(--spacing-medium) var(--spacing-large);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  overflow-y: auto;
+}
+
+/* Enhanced Chat Input with Glass Morphism */
+.edit-mode-floating-input {
+  position: absolute;
+  bottom: var(--spacing-medium);
+  left: var(--spacing-medium);
+  right: var(--spacing-medium);
+  background-color: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--card-border-radius-large);
+  box-shadow: var(--shadow-lg);
+  padding: var(--spacing-small);
+  z-index: 1600;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+[data-theme="dark"] .edit-mode-floating-input {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.edit-mode-floating-input .input-elements {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-small);
+  background: transparent;
+}
+
+.edit-mode-floating-input input {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  background-color: transparent;
+  border: none;
+  color: var(--font-color);
+  font-size: 0.9rem;
+}
+
+.edit-mode-floating-input input:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+.edit-mode-floating-input input::placeholder {
+  color: var(--font-color-secondary);
+  opacity: 0.7;
+}
+
+.edit-mode-floating-input button {
+  background-color: var(--klee);
+  color: var(--weiß);
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+  font-size: 1rem;
+}
+
+.edit-mode-floating-input button:hover:not(:disabled) {
+  background-color: var(--primary);
+  transform: scale(1.05);
+}
+
+.edit-mode-floating-input button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Enhanced Chat Messages Area */
+.edit-mode-chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--spacing-medium);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-small);
+  background: var(--chat-background);
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb-color) var(--scrollbar-track-color);
+  padding-bottom: 80px; /* Space for floating input */
+}
+
+.edit-mode-chat-messages::-webkit-scrollbar {
+  width: 8px;
+}
+
+.edit-mode-chat-messages::-webkit-scrollbar-track {
+  background: var(--scrollbar-track-color);
+  border-radius: 10px;
+}
+
+.edit-mode-chat-messages::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb-color);
+  border-radius: 10px;
+}
+
+.edit-mode-chat-messages::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scrollbar-thumb-hover-color);
+}
+
+/* Edit Mode Specific Message Styling */
+.edit-mode-chat-messages .chat-message {
+  max-width: 85%;
+  padding: var(--spacing-small) var(--spacing-medium);
+  border-radius: var(--border-radius-medium);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.edit-mode-chat-messages .chat-message.user {
+  align-self: flex-end;
+  background: var(--klee);
+  color: var(--weiß);
+  border-bottom-right-radius: var(--border-radius-small);
+}
+
+.edit-mode-chat-messages .chat-message.assistant {
+  align-self: flex-start;
+  background: var(--ai-message-background);
+  color: var(--ai-message-text-color);
+  border-bottom-left-radius: var(--border-radius-small);
+}
+
+.edit-mode-chat-messages .chat-message.error {
+  align-self: center;
+  background: var(--error-red);
+  color: var(--weiß);
+  text-align: center;
+}
+
+/* Focused Edit Mode Toggle */
+.edit-mode-focus-toggle {
+  position: fixed;
+  top: var(--spacing-large);
+  right: var(--spacing-large);
+  background-color: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--card-border-radius-large);
+  box-shadow: var(--shadow-lg);
+  padding: var(--spacing-small);
+  z-index: 1600;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  display: flex;
+  gap: var(--spacing-small);
+}
+
+[data-theme="dark"] .edit-mode-focus-toggle {
+  background-color: rgba(0, 0, 0, 0.25);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.edit-mode-toggle-button {
+  background-color: transparent;
+  color: var(--font-color);
+  border: none;
+  padding: var(--spacing-xxsmall);
+  border-radius: var(--border-radius-small);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1em;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+  width: 40px;
+  height: 40px;
+}
+
+.edit-mode-toggle-button:hover {
+  background-color: var(--background-color);
+  transform: scale(1.05);
+}
+
+[data-theme="dark"] .edit-mode-toggle-button:hover {
+  background-color: var(--dunkelgrau);
+}
+
+/* Responsive Design for Edit Mode */
+@media (max-width: 768px) {
+  .edit-mode-main-content {
+    flex-direction: column;
+  }
+
+  .edit-mode-chat-column {
+    flex: none;
+    height: 50%;
+    min-width: auto;
+  }
+
+  .edit-mode-display-column {
+    flex: 1;
+    padding: var(--spacing-medium);
+  }
+
+  .edit-mode-focus-toggle {
+    top: var(--spacing-medium);
+    right: var(--spacing-medium);
+    left: auto;
+  }
+
+  .edit-mode-floating-input {
+    bottom: var(--spacing-small);
+    left: var(--spacing-small);
+    right: var(--spacing-small);
+  }
+}
+
+/* Animation for mode transitions */
+.edit-mode-transition {
+  transition: all 0.3s ease-in-out;
+}
+
+/* Remove display container shadow in edit mode and restore flex */
+.base-container.edit-mode-active .display-container {
+  box-shadow: none !important;
+}
+
+
+/* Override default container spacing for edit mode */
+.base-container.edit-mode-active .container,
+.base-container.edit-mode-active .container.with-header,
+.form-card--editmode .container,
+.form-card--editmode .container.with-header {
+  padding: 0 !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  max-width: none !important;
+}
+
+/* Remove body margins in edit mode focus */
+.edit-mode-focus body {
+  margin: 0;
+  padding: 0;
+}
+
+/* Override base-container spacing in edit mode */
+.base-container.edit-mode-active,
+.base-container.edit-mode-focus {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Override content wrapper margin bottom in edit mode */
+.base-container.edit-mode-active .content-wrapper,
+.base-container.edit-mode-active .content,
+.form-card--editmode .content-wrapper,
+.form-card--editmode .content {
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+/* Root-level content-wrapper overrides when edit mode is detected via CSS */
+body:has(.base-container.edit-mode-active) .content-wrapper {
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
+  /* Keep margin-top for header spacing */
+}
+
+/* Fallback for browsers without :has() support */
+.content-wrapper.edit-mode-override {
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
+  min-height: calc(100vh - 100px) !important;
+  /* Keep margin-top for header spacing */
+}
+
+/* Container overrides when pages use container with-header */
+body:has(.base-container.edit-mode-active) .container.with-header {
+  padding: 0 !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  max-width: none !important;
+  min-height: calc(100vh - 160px) !important;
+}
+
+/* Embedded edit mode enhancements (for current implementation) */
+.universal-edit-form.enhanced {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 60px);
+  height: calc(100vh - 300px);
+  background: var(--chat-background);
+  border-radius: var(--border-radius-medium);
+  overflow: hidden;
+}
+
+.universal-edit-form.enhanced .editor-chat-embedded {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding-bottom: 60px; /* Space for floating input */
+  background: var(--chat-background);
+  position: static;
+}
+
+/* Enhanced embedded input styling */
+.universal-edit-form.enhanced .floating-input {
+  position: absolute !important;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  margin: 0;
+  z-index: 100;
+  background-color: rgba(255, 255, 255, 0.95);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--border-radius-large);
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.universal-edit-form.enhanced .input-elements {
+  position: relative;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  margin: var(--spacing-small);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+[data-theme="dark"] .universal-edit-form.enhanced .floating-input {
+  border-color: var(--border-subtle);
+}
+
+[data-theme="dark"] .universal-edit-form.enhanced .input-elements {
+  background: transparent;
+  border: none;
+}
+
+/* Enhanced chat messages with proper spacing */
+.universal-edit-form.enhanced .editor-chat-messages {
+  flex: 1;
+  padding-top: var(--spacing-medium);
+  padding-bottom: 70px; /* Space for floating input */
+}
+
+/* Ensure editor-chat fills its container */
+.universal-edit-form.enhanced .editor-chat {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Ensure the form doesn't interfere with positioning */
+.universal-edit-form.enhanced .editor-chat-input {
+  position: static;
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+.universal-edit-form.enhanced .input-elements input {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.universal-edit-form.enhanced .input-elements input:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+.universal-edit-form.enhanced .input-elements button {
+  background-color: var(--klee);
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.universal-edit-form.enhanced .input-elements button:hover:not(:disabled) {
+  background-color: var(--primary);
+  transform: scale(1.05);
+}

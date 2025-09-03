@@ -12,6 +12,11 @@ const useGeneratedTextStore = create((set, get) => ({
   // Streaming state for real-time updates
   isStreaming: false,
   
+  // History management for undo/redo functionality
+  history: {}, // { componentName: [states...] }
+  historyIndex: {}, // { componentName: currentIndex }
+  maxHistorySize: 50, // Configurable history limit
+  
   // Get generated text for a specific component
   getGeneratedText: (componentName) => {
     const state = get();
@@ -39,7 +44,7 @@ const useGeneratedTextStore = create((set, get) => ({
     return state.generatedTextMetadata[componentName] || null;
   },
   
-  // Set generated text for a specific component
+  // Set generated text for a specific component with history tracking
   setGeneratedText: (componentName, text, metadata = null) => set((state) => {
     // Debug logging for mixed content
     if (process.env.NODE_ENV === 'development') {
@@ -54,11 +59,32 @@ const useGeneratedTextStore = create((set, get) => ({
       });
     }
     
-    const newState = {
-      generatedTexts: {
-        ...state.generatedTexts,
-        [componentName]: text // Store the full content (string or mixed object)
-      }
+    // Get current content for history
+    const currentContent = state.generatedTexts[componentName];
+    const newState = { ...state };
+    
+    // Push to history if content is changing and not empty
+    if (currentContent !== undefined && currentContent !== text && currentContent !== '') {
+      const currentHistory = state.history[componentName] || [];
+      const currentIndex = state.historyIndex[componentName] || -1;
+      
+      // Truncate future history if we're not at the end
+      const newHistory = [...currentHistory.slice(0, currentIndex + 1), currentContent]
+        .slice(-state.maxHistorySize);
+      
+      newState.history = {
+        ...state.history,
+        [componentName]: newHistory
+      };
+      newState.historyIndex = {
+        ...state.historyIndex,
+        [componentName]: newHistory.length - 1
+      };
+    }
+    
+    newState.generatedTexts = {
+      ...state.generatedTexts,
+      [componentName]: text // Store the full content (string or mixed object)
     };
     
     // Also set metadata if provided
@@ -143,13 +169,134 @@ const useGeneratedTextStore = create((set, get) => ({
   },
   
   // Direct text editing (replaces FormContext value/setValue)
-  updateText: (componentName, text) => set((state) => ({
-    generatedTexts: {
+  updateText: (componentName, text) => set((state) => {
+    // Push current state to history before updating
+    const currentContent = state.generatedTexts[componentName];
+    const newState = { ...state };
+    
+    if (currentContent !== undefined && currentContent !== text) {
+      newState.history = {
+        ...state.history,
+        [componentName]: [
+          ...(state.history[componentName] || []).slice(0, (state.historyIndex[componentName] || -1) + 1),
+          currentContent
+        ].slice(-state.maxHistorySize)
+      };
+      newState.historyIndex = {
+        ...state.historyIndex,
+        [componentName]: Math.min(
+          (newState.history[componentName]?.length || 1) - 1,
+          state.maxHistorySize - 1
+        )
+      };
+    }
+    
+    newState.generatedTexts = {
       ...state.generatedTexts,
       [componentName]: text
+    };
+    
+    return newState;
+  }),
+  
+  // History management actions
+  pushToHistory: (componentName) => set((state) => {
+    const currentContent = state.generatedTexts[componentName];
+    if (currentContent === undefined) return state;
+    
+    const currentHistory = state.history[componentName] || [];
+    const currentIndex = state.historyIndex[componentName] || -1;
+    
+    // Don't add duplicate entries
+    if (currentHistory[currentIndex] === currentContent) return state;
+    
+    // Truncate future history if we're not at the end
+    const newHistory = [...currentHistory.slice(0, currentIndex + 1), currentContent]
+      .slice(-state.maxHistorySize);
+    
+    return {
+      ...state,
+      history: {
+        ...state.history,
+        [componentName]: newHistory
+      },
+      historyIndex: {
+        ...state.historyIndex,
+        [componentName]: newHistory.length - 1
+      }
+    };
+  }),
+  
+  undo: (componentName) => set((state) => {
+    const currentHistory = state.history[componentName];
+    const currentIndex = state.historyIndex[componentName];
+    
+    if (!currentHistory || currentIndex <= 0) return state;
+    
+    const newIndex = currentIndex - 1;
+    const previousContent = currentHistory[newIndex];
+    
+    return {
+      ...state,
+      generatedTexts: {
+        ...state.generatedTexts,
+        [componentName]: previousContent
+      },
+      historyIndex: {
+        ...state.historyIndex,
+        [componentName]: newIndex
+      }
+    };
+  }),
+  
+  redo: (componentName) => set((state) => {
+    const currentHistory = state.history[componentName];
+    const currentIndex = state.historyIndex[componentName];
+    
+    if (!currentHistory || currentIndex >= currentHistory.length - 1) return state;
+    
+    const newIndex = currentIndex + 1;
+    const nextContent = currentHistory[newIndex];
+    
+    return {
+      ...state,
+      generatedTexts: {
+        ...state.generatedTexts,
+        [componentName]: nextContent
+      },
+      historyIndex: {
+        ...state.historyIndex,
+        [componentName]: newIndex
+      }
+    };
+  }),
+  
+  canUndo: (componentName) => {
+    const state = get();
+    const currentHistory = state.history[componentName];
+    const currentIndex = state.historyIndex[componentName];
+    return currentHistory && currentHistory.length > 0 && (currentIndex || 0) > 0;
+  },
+  
+  canRedo: (componentName) => {
+    const state = get();
+    const currentHistory = state.history[componentName];
+    const currentIndex = state.historyIndex[componentName] || 0;
+    return currentHistory && currentIndex < currentHistory.length - 1;
+  },
+  
+  clearHistory: (componentName) => set((state) => ({
+    ...state,
+    history: {
+      ...state.history,
+      [componentName]: []
+    },
+    historyIndex: {
+      ...state.historyIndex,
+      [componentName]: -1
     }
   })),
-  
+
 }));
 
 export default useGeneratedTextStore; 

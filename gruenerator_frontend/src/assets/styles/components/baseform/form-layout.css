@@ -96,6 +96,7 @@
 .form-section__inputs {
   flex: 2;
   min-width: 0;
+  min-height: 0; /* allow inner flex children to size/scroll */
 }
 
 .form-inputs__form {
@@ -108,12 +109,64 @@
   flex: 1;
   display: flex;
   flex-direction: column;
+  min-height: 0; /* prevent overflowing children from forcing height */
 }
 
 .form-inputs__fields {
   flex: 1;
   margin-bottom: var(--spacing-responsive-large);
+  min-height: 0; /* allow inner components to manage their own scroll */
 }
+
+/* Embedded Chat (Edit Mode) height adjustments to keep input visible without page scroll */
+.form-card--editmode .editor-chat {
+  /* Fix chat height relative to viewport with sensible bounds */
+  /* height: clamp(60vh, 72vh, 80vh) !important; */
+  background: var(--chat-background);
+  border-radius: var(--border-radius-medium);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.form-card--editmode .editor-chat-embedded {
+  /* height: 100%; */
+  background: var(--chat-background);
+  border-radius: var(--border-radius-medium);
+  position: relative;
+}
+
+.form-card--editmode .editor-chat-messages {
+  background: var(--chat-background);
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb-color) var(--scrollbar-track-color);
+  padding-bottom: 100px; /* Space for enhanced floating input */
+}
+
+.form-card--editmode .editor-chat-messages::-webkit-scrollbar {
+  width: 6px;
+}
+
+.form-card--editmode .editor-chat-messages::-webkit-scrollbar-track {
+  background: var(--scrollbar-track-color);
+  border-radius: 8px;
+}
+
+.form-card--editmode .editor-chat-messages::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb-color);
+  border-radius: 8px;
+}
+
+.form-card--editmode .editor-chat-messages::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scrollbar-thumb-hover-color);
+}
+
+/* Optional fine-tuning for very short viewports */
+/* @media (max-height: 800px) {
+  .form-card--editmode .editor-chat { height: 68vh !important; }
+}
+@media (max-height: 700px) {
+  .form-card--editmode .editor-chat { height: 65vh !important; }
+} */
 
 .form-inputs__buttons {
   display: flex;
@@ -401,6 +454,51 @@
   justify-content: flex-start;
 }
 
+/* Edit Mode: if the input column contains the edit-mode card, expand display to 2 parts */
+/* With generated content: allocate more space to display for better reading */
+.base-container.has-generated-content .display-section-motion-wrapper.form-visible {
+  flex: 2; /* Display takes 2 parts, form keeps 1 part */
+}
+
+/* Enhanced Edit Mode Layout - similar to collab editor split */
+.base-container.edit-mode-active {
+  gap: 0;
+  max-width: none;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  background: var(--background-color-pure);
+  box-shadow: none;
+}
+
+.base-container.edit-mode-active .form-section-motion-wrapper {
+  flex: 1; /* Chat side gets 1 part */
+  min-width: 320px;
+  background: var(--chat-background);
+  border-right: 1px solid var(--border-subtle);
+}
+
+.base-container.edit-mode-active .display-section-motion-wrapper {
+  flex: 2; /* Display side gets 2 parts, like collab editor */
+  background: var(--background-color-pure);
+  padding: var(--spacing-large);
+}
+
+/* Edit Mode Focus: Full attention to editing */
+.base-container.edit-mode-focus {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 1500;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  gap: 0;
+  background: var(--background-color-pure);
+}
+
 .display-section-motion-wrapper.form-hidden {
   flex: 1;
   display: flex;
@@ -538,4 +636,61 @@
   .form-section label {
     font-size: 1.1rem;
   }
+}
+/* Edit Mode: maximize usable space in FormCard */
+.form-card.form-card--editmode {
+  padding: 0 !important;
+  background: var(--chat-background);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-md);
+}
+
+.form-card--editmode.form-card--large {
+  padding: 0 !important;
+}
+
+.form-card--editmode .form-card__content {
+  padding: 0 !important;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* Edit Mode Split Layout Enhancements */
+.form-section__container.edit-mode-enhanced {
+  gap: 0;
+  height: 100%;
+  min-height: 600px;
+}
+
+.form-section__inputs.edit-mode-enhanced {
+  flex: 1;
+  background: var(--chat-background);
+  border-right: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.form-section__extras.edit-mode-enhanced {
+  flex: 2;
+  background: var(--background-color-pure);
+  padding: var(--spacing-large);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  overflow-y: auto;
+}
+
+/* Enhanced Focus Mode */
+.edit-mode-focus .form-section__container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 1500;
+  background: var(--background-color-pure);
+  gap: 0;
+  max-width: none;
 }

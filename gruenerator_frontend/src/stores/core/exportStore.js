@@ -14,114 +14,67 @@ export const useExportStore = create((set, get) => ({
   setLoadingPDF: (loadingPDF) => set({ loadingPDF }),
   setLoadingDOCX: (loadingDOCX) => set({ loadingDOCX }),
   
-  // PDF Operations
-  loadPDFLibrary: async () => {
-    const state = get();
-    if (state.PDFLibrary || state.loadingPDF) return state.PDFLibrary;
-    
-    set({ loadingPDF: true });
-    try {
-      const { loadPDFRenderer } = await import('../../components/common/exportUtils');
-      const library = await loadPDFRenderer();
-      set({ PDFLibrary: library, loadingPDF: false });
-      return library;
-    } catch (error) {
-      console.error('Failed to load PDF library:', error);
-      set({ loadingPDF: false });
-      throw error;
-    }
-  },
+  // PDF library loading (frontend) is deprecated; PDFs are generated server-side now.
+  loadPDFLibrary: async () => null,
   
-  // DOCX Operations
-  loadDOCXLibrary: async () => {
-    const state = get();
-    if (state.DOCXLibrary || state.loadingDOCX) return state.DOCXLibrary;
-    
-    set({ loadingDOCX: true });
-    try {
-      const { loadDOCXLibrary } = await import('../../components/common/exportUtils');
-      const library = await loadDOCXLibrary();
-      set({ DOCXLibrary: library, loadingDOCX: false });
-      return library;
-    } catch (error) {
-      console.error('Failed to load DOCX library:', error);
-      set({ loadingDOCX: false });
-      throw error;
-    }
-  },
+  // DOCX library loading (frontend) is deprecated; DOCX is generated server-side now.
+  loadDOCXLibrary: async () => null,
   
-  // PDF Generation using pdf-lib (much lighter than @react-pdf/renderer)
+  // PDF Generation via backend
   generatePDF: async (content, title) => {
-    const state = get();
-    let library = state.PDFLibrary;
-    
-    if (!library) {
-      library = await get().loadPDFLibrary();
-    }
-    
-    if (!library) {
-      throw new Error('PDF library not available');
-    }
-    
     set({ isGenerating: true });
-    
     try {
-      const { generatePDFBuffer } = library;
       const { extractFilenameFromContent } = await import('../../components/utils/titleExtractor');
-      
-      // Generate PDF buffer
-      const pdfBytes = await generatePDFBuffer(content, title);
-      
-      // Create blob and download
-      const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+      const filename = `${extractFilenameFromContent(content, title)}.pdf`;
+      const res = await fetch('/api/exports/pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content, title })
+      });
+      if (!res.ok) throw new Error(`Server returned ${res.status}`);
+      const blob = await res.blob();
       const url = URL.createObjectURL(blob);
-      
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${extractFilenameFromContent(content, title)}.pdf`;
+      link.download = filename;
+      document.body.appendChild(link);
       link.click();
-      
-      // Clean up
+      document.body.removeChild(link);
       URL.revokeObjectURL(url);
-      
     } catch (error) {
       console.error('PDF generation error:', error);
       throw error;
     } finally {
-      setTimeout(() => set({ isGenerating: false }), 1000);
+      setTimeout(() => set({ isGenerating: false }), 500);
     }
   },
   
-  // DOCX Generation
+  // DOCX Generation via backend
   generateDOCX: async (content, title) => {
-    const state = get();
-    let library = state.DOCXLibrary;
-    
-    if (!library) {
-      library = await get().loadDOCXLibrary();
-    }
-    
-    if (!library) {
-      throw new Error('DOCX library not available');
-    }
-    
     set({ isGenerating: true });
-    
     try {
-      const { createDOCXDocument, Packer, downloadBlob } = library;
       const { extractFilenameFromContent } = await import('../../components/utils/titleExtractor');
-      
-      const baseFileName = extractFilenameFromContent(content, title);
-      const fileName = `${baseFileName}.docx`;
-      const doc = createDOCXDocument(content, title);
-      const blob = await Packer.toBlob(doc);
-      downloadBlob(blob, fileName);
-      
+      const filename = `${extractFilenameFromContent(content, title)}.docx`;
+      const res = await fetch('/api/exports/docx', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content, title })
+      });
+      if (!res.ok) throw new Error(`Server returned ${res.status}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
     } catch (error) {
       console.error('DOCX generation error:', error);
       throw error;
     } finally {
-      setTimeout(() => set({ isGenerating: false }), 1000);
+      setTimeout(() => set({ isGenerating: false }), 500);
     }
   }
 }));

@@ -34,6 +34,7 @@
 @import url('./components/baseform/base.css');
 @import url('./components/baseform/form-layout.css');
 @import url('./components/baseform/form-toggle-fab.css');
+@import url('./components/edit-mode/edit-mode-overlay.css');
 @import url('./components/ui/profile-skeleton.css');
 @import url('../../components/common/editor/EditorChat.css');
 @import url('./components/ui/success-screen.css');
@@ -174,7 +175,8 @@
 
 @import './components/antraege/AntragEditForm.css';
 
-@import url('./pages/collab-editor.css');
+/* DISABLED - Collab feature removed
+@import url('./pages/collab-editor.css'); */
 @import url('./features/qa/qa-collections.css');
 
 /* E-Learning Feature Styles */
