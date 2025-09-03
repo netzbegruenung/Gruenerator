@@ -1,8 +1,7 @@
 .editor-chat {
   width: 100%;
   min-width: 280px;
-  max-width: 450px;
-  height: calc(100vh - 40px);
+  /* height: calc(100vh - 40px); */
   background: var(--chat-background);
   border-radius: 12px;
   box-shadow: var(--shadow-md);
@@ -159,7 +158,7 @@
   text-align: center;
 }
 
-/* Floating input with glass design and layout */
+/* Enhanced Floating input with glass design and layout */
 .floating-input {
   position: absolute;
   bottom: var(--spacing-medium);
@@ -172,11 +171,52 @@
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   z-index: 100;
+  transition: all 0.3s ease;
+}
+
+.floating-input:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
+  box-shadow: var(--shadow-xl);
+  transform: translateY(-1px);
 }
 
 [data-theme="dark"] .floating-input {
   background-color: rgba(0, 0, 0, 0.25);
   border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .floating-input:hover {
+  background-color: rgba(0, 0, 0, 0.35);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+/* Enhanced floating input for edit mode */
+.editor-chat-embedded .floating-input,
+.universal-edit-form .floating-input {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  margin: 0;
+  border-radius: var(--border-radius-large);
+  background-color: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+[data-theme="dark"] .editor-chat-embedded .floating-input,
+[data-theme="dark"] .universal-edit-form .floating-input {
+  background-color: rgba(0, 0, 0, 0.85);
+}
+
+/* Ensure the form doesn't interfere with positioning in universal edit form */
+.universal-edit-form .editor-chat-input {
+  position: static;
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
 }
 
 .floating-input .input-elements {
@@ -253,6 +293,7 @@
 }
 
 .floating-input button {
+  background-color: var(--klee);
   color: var(--weiß);
   border: none;
   border-radius: 50%;
@@ -262,17 +303,35 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-sm);
 }
 
 .floating-input button:hover:not(:disabled) {
-  filter: brightness(90%);
+  background-color: var(--primary);
+  transform: scale(1.05);
+  box-shadow: var(--shadow-md);
 }
 
 .floating-input button:disabled {
   background: var(--background-color-alt);
   cursor: not-allowed;
   opacity: 0.5;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Enhanced button styling for edit mode */
+.editor-chat-embedded .floating-input button,
+.universal-edit-form .floating-input button {
+  background-color: var(--klee);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.editor-chat-embedded .floating-input button:hover:not(:disabled),
+.universal-edit-form .floating-input button:hover:not(:disabled) {
+  background-color: var(--primary);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .selected-text-display {
@@ -295,13 +354,11 @@
 
 @media (max-width: 1200px) {
   .editor-chat {
-    max-width: 380px;
   }
 }
 
 @media (max-width: 992px) {
   .editor-chat {
-    max-width: 320px;
   }
   
   .chat-message {
@@ -329,7 +386,7 @@
     right: 0;
     max-width: 100%;
     width: 100%;
-    height: 50vh;
+    /* height: 50vh; */
     border-radius: 12px 12px 0 0;
     z-index: 1000;
   }
@@ -347,7 +404,7 @@
 
 @media (max-width: 480px) {
   .editor-chat {
-    height: 70vh;
+    /* height: 70vh; */
   }
   
   .editor-chat-header h3 {

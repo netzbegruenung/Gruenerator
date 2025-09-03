@@ -25,73 +25,16 @@ const AntragEditForm = ({ editedAntrag, handleInputChange, handleMarkdownChange,
 
   useEffect(() => {
     if (editorRef.current && !isInitialized.current) {
-      console.log('[AntragEditForm] Initializing Quill...');
+      // Quill removed: skip rich editor initialization
+      console.warn('[AntragEditForm] Quill is removed; rich text editor disabled.');
       isInitialized.current = true;
-
-      // Dynamically import Quill and QuillMarkdown
-      Promise.all([
-        import('quill'),
-        import('quilljs-markdown')
-      ]).then(async ([{ default: Quill }, { default: QuillMarkdown }]) => {
-        const toolbarOptions = [
-          ['bold', 'italic', 'underline'],
-          [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
-          [{ 'list': 'ordered' }, { 'list': 'bullet' }],
-          ['link', 'blockquote', 'code-block'],
-          ['clean']
-        ];
-
-        const quill = new Quill(editorRef.current, {
-          modules: {
-            toolbar: toolbarOptions
-          },
-          theme: 'snow',
-          placeholder: 'Antragstext eingeben...',
-        });
-        quillRef.current = quill;
-
-        const markdownOptions = {};
-        const quillMarkdown = new QuillMarkdown(quill, markdownOptions);
-        markdownRef.current = quillMarkdown;
-        setQuillLoaded(true);
-
-        quill.on('text-change', onTextChange);
-
-        if (editedAntrag?.antragstext) {
-          try {
-            const { marked } = await import('marked');
-            const initialHtml = marked(editedAntrag.antragstext);
-            console.log('[AntragEditForm] Converted initial Markdown to HTML:', initialHtml.substring(0,100) + '...');
-            quill.clipboard.dangerouslyPasteHTML(initialHtml);
-            const length = quill.getLength();
-            quill.setSelection(length, 0, 'silent');
-          } catch (error) {
-            console.error("Fehler beim Konvertieren/Setzen des initialen HTML-Inhalts:", error);
-            quill.setText(editedAntrag.antragstext || '');
-          }
-        }
-
-        quill.focus();
-      }).catch(error => {
-        console.error('[AntragEditForm] Failed to load Quill:', error);
-      });
+      setQuillLoaded(false);
     }
 
     return () => {
       if (isInitialized.current) {
-        console.log('[AntragEditForm] Cleaning up Quill...');
-        if (quillRef.current) {
-            quillRef.current.off('text-change', onTextChange);
-        }
-        if (markdownRef.current) {
-          if (typeof markdownRef.current.destroy === 'function') {
-            markdownRef.current.destroy();
-          } else {
-            console.warn('[AntragEditForm] markdownRef.current.destroy is not a function');
-          }
-          markdownRef.current = null;
-        }
         quillRef.current = null;
+        markdownRef.current = null;
         isInitialized.current = false;
       }
     };

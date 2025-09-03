@@ -39,8 +39,8 @@ const AltTextGenerator = lazy(() => import('../features/texte/alttext/AltTextGen
 // ContentGallery importieren
 const ContentGallery = lazy(() => import('../components/common/Gallery/ContentGallery'));
 
-// NEU: CollabEditorPage importieren (Lazy Loading)
-const CollabEditorPage = lazy(() => import('../pages/CollabEditorPage/CollabEditorPage'));
+// NEU: CollabEditorPage importieren (Lazy Loading) - DISABLED - Feature removed, backup available in archive/collab-feature-backup-2025-01
+// const CollabEditorPage = lazy(() => import('../pages/CollabEditorPage/CollabEditorPage'));
 const TiptapTestPage = lazy(() => import('../pages/TiptapTestPage/TiptapTestPage'));
 
 
@@ -141,10 +141,10 @@ const standardRoutes = [
   // Gruppen-Route
   { path: '/join-group/:joinToken', component: JoinGroupPage },
   { path: '/datenbank', component: GrueneratorenBundle.ContentGallery },
-  // NEU: Route für CollabEditorPage
-  { path: '/editor/collab/:documentId', component: CollabEditorPage, showHeaderFooter: false }, // showHeaderFooter: false, da eigener Header
-  // NEU: Route für Preview-Modus (mit /preview suffix)
-  { path: '/editor/collab/:documentId/preview', component: CollabEditorPage, showHeaderFooter: false }, // Preview-Modus ohne Header/Footer
+  // NEU: Route für CollabEditorPage - DISABLED - Feature removed, backup available in archive/collab-feature-backup-2025-01
+  // { path: '/editor/collab/:documentId', component: CollabEditorPage, showHeaderFooter: false }, // showHeaderFooter: false, da eigener Header
+  // NEU: Route für Preview-Modus (mit /preview suffix) - DISABLED
+  // { path: '/editor/collab/:documentId/preview', component: CollabEditorPage, showHeaderFooter: false }, // Preview-Modus ohne Header/Footer
   // Minimal TipTap + Hocuspocus test route (dev/testing)
   { path: '/tiptap-test', component: TiptapTestPage },
   { path: '/tiptap-test/:documentId', component: TiptapTestPage },

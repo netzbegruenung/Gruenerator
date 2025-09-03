@@ -22,7 +22,7 @@ export default defineConfig(({ command }) => ({
     ],
     exclude: [
       'react-icons', 'docx', 'pdf-lib',
-      'quill', 'y-quill', 'yjs', 'y-websocket',
+      'yjs', 'y-websocket',
       'motion', 'lodash', 'browser-image-compression'
     ],
     esbuildOptions: { 
@@ -33,7 +33,7 @@ export default defineConfig(({ command }) => ({
   build: {
     target: 'es2022',
     sourcemap: false,
-    cssCodeSplit: false, // keep as-is; not changing chunking behavior here
+    cssCodeSplit: true, // keep as-is; not changing chunking behavior here
     assetsInlineLimit: 0, // avoid inlining to reduce bundler memory use
     chunkSizeWarningLimit: 300, // Smaller chunks to reduce memory pressure
     outDir: 'build',

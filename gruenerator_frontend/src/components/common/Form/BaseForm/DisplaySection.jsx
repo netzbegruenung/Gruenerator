@@ -12,7 +12,6 @@ import apiClient from '../../../utils/apiClient';
 import { useLazyAuth } from '../../../../hooks/useAuth';
 import { useBetaFeatures } from '../../../../hooks/useBetaFeatures';
 import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
-import { useCollabPreload } from '../../../hooks/useCollabPreload';
 import { useSaveToLibrary } from '../../../../hooks/useSaveToLibrary';
 import { useFormStateSelector } from '../FormStateProvider';
 
@@ -48,7 +47,9 @@ const DisplaySection = forwardRef(({
   onSave,
   saveLoading: propSaveLoading = false,
   componentName = 'default',
-  onErrorDismiss
+  onErrorDismiss,
+  onEditModeToggle,
+  isEditModeActive = false
 }, ref) => {
   const { user } = useLazyAuth(); // Keep for other auth functionality
   const { getBetaFeatureState } = useBetaFeatures();
@@ -58,7 +59,6 @@ const DisplaySection = forwardRef(({
   const isStreaming = useGeneratedTextStore(state => state.isStreaming);
   const isLoading = useGeneratedTextStore(state => state.isLoading);
   const [generatePostLoading, setGeneratePostLoading] = React.useState(false);
-  const [collabLoading, setCollabLoading] = React.useState(false);
   const { saveToLibrary, isLoading: saveToLibraryLoading, error: saveToLibraryError, success: saveToLibrarySuccess } = useSaveToLibrary();
   
   // Store selectors for potential future use
@@ -67,8 +67,6 @@ const DisplaySection = forwardRef(({
   // Use store state with prop fallback
   const saveLoading = storeSaveLoading || propSaveLoading;
 
-  // Check if user has access to collab feature
-  const hasCollabAccess = getBetaFeatureState('collab');
 
   const handleGeneratePost = React.useCallback(async () => {
     if (!onGeneratePost) return;
@@ -95,13 +93,6 @@ const DisplaySection = forwardRef(({
   const isMixedContent = activeContent && typeof activeContent === 'object' && 
     (activeContent.sharepic || activeContent.social);
 
-  // For collab and export, use the social content string if it's mixed content
-  const collabContent = isMixedContent 
-    ? (activeContent.social?.content || activeContent.content || '')
-    : activeContent;
-
-  // Preload collab components but don't auto-create documents
-  const preloadedDocId = useCollabPreload(collabContent, hasCollabAccess, true, user, title, 'text', false);
 
   const currentExportableContent = React.useMemo(() => {
     // For export, use the social content string if it's mixed content
@@ -111,30 +102,6 @@ const DisplaySection = forwardRef(({
   }, [activeContent, isMixedContent]);
 
 
-  const handleOpenCollabEditor = async () => {
-    if (!currentExportableContent) {
-      return;
-    }
-
-    // Always create document on-demand when user clicks collab button
-    setCollabLoading(true);
-    const documentId = uuidv4();
-
-    try {
-      const response = await apiClient.post('/collab-editor/init-doc', { 
-        documentId: documentId, 
-        content: currentExportableContent,
-        userId: user?.id || null,
-        title: storeGeneratedTextMetadata?.title || title || 'Unbenanntes Dokument',
-        documentType: 'text'
-      });
-
-      window.open(`/editor/collab/${documentId}`, '_blank');
-    } catch (error) {
-    } finally {
-      setCollabLoading(false);
-    }
-  };
 
   const handleSaveToLibrary = React.useCallback(async () => {
     try {
@@ -155,15 +122,17 @@ const DisplaySection = forwardRef(({
             isEditing={false}
             showExport={true}
             showDownload={true}
-            showCollab={hasCollabAccess}
             showRegenerate={true}
             showSave={!!onSave}
             showSaveToLibrary={true}
-            onCollab={handleOpenCollabEditor}
+            showEditMode={true}
+            showUndo={true}
+            showRedo={true}
             onRegenerate={onGeneratePost}
             onSave={onSave}
             onSaveToLibrary={handleSaveToLibrary}
-            collabLoading={collabLoading}
+            onEditModeToggle={onEditModeToggle}
+            isEditModeActive={isEditModeActive}
             regenerateLoading={generatePostLoading || isStreaming}
             saveLoading={saveLoading}
             saveToLibraryLoading={saveToLibraryLoading}
@@ -171,6 +140,7 @@ const DisplaySection = forwardRef(({
             generatedPost={generatedPost}
             generatedContent={activeContent}
             title={storeGeneratedTextMetadata?.title || title}
+            componentName={componentName}
           />
       </div>
       {helpContent && (
@@ -225,7 +195,9 @@ DisplaySection.propTypes = {
   onSave: PropTypes.func,
   saveLoading: PropTypes.bool,
   componentName: PropTypes.string,
-  onErrorDismiss: PropTypes.func
+  onErrorDismiss: PropTypes.func,
+  onEditModeToggle: PropTypes.func,
+  isEditModeActive: PropTypes.bool
 };
 
 DisplaySection.defaultProps = {
