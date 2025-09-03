@@ -2,7 +2,15 @@ const express = require('express');
 const router = express.Router();
 // Import supabaseService and alias it to supabase for use in this file
 const { supabaseService: supabase } = require('../utils/supabaseClient');
-const Y = require('yjs');
+let Y = null;
+try {
+  // Optional dependency: allow running without yjs installed
+  // Used only for decoding existing snapshots; otherwise we fallback to plain content
+  // eslint-disable-next-line global-require
+  Y = require('yjs');
+} catch (e) {
+  console.log('[Collab Editor Route] yjs not available; snapshot decoding disabled');
+}
 const pako = require('pako');
 
 // POST /api/collab-editor/init-doc
@@ -87,7 +95,7 @@ router.get('/get-doc/:documentId', async (req, res) => {
 
       res.status(200).json({ initialContent: docData.initial_content });
     } else {
-      // If not found in init table, try to get from Y.js snapshots
+      // If not found in init table, try to get from Y.js snapshots (only if yjs available)
       try {
         const { data: snapshotData, error: snapshotError } = await supabase
           .from('yjs_document_snapshots')
@@ -101,7 +109,7 @@ router.get('/get-doc/:documentId', async (req, res) => {
 
         let foundInSnapshot = false;
         
-        if (snapshotData && snapshotData.snapshot_data) {
+        if (Y && snapshotData && snapshotData.snapshot_data) {
           console.log('[Collab Editor Route] Document found in snapshots:', documentId);
           
           try {
@@ -188,7 +196,7 @@ router.get('/get-doc-preview/:documentId', async (req, res) => {
         accessMode: 'preview' 
       });
     } else {
-      // Try Y.js snapshots fallback
+      // Try Y.js snapshots fallback (only if yjs available)
       try {
         const { data: snapshotData, error: snapshotError } = await supabase
           .from('yjs_document_snapshots')
@@ -202,7 +210,7 @@ router.get('/get-doc-preview/:documentId', async (req, res) => {
 
         let foundInSnapshot = false;
         
-        if (snapshotData && snapshotData.snapshot_data) {
+        if (Y && snapshotData && snapshotData.snapshot_data) {
           console.log('[Collab Editor Route] Preview document found in snapshots:', documentId);
           
           try {

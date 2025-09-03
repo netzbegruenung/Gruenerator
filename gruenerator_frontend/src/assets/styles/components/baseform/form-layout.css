@@ -381,9 +381,14 @@
 
 /* Motion wrapper layout classes */
 .form-section-motion-wrapper {
-  flex: 2;
+  flex: 2; /* Default 2:1 ratio when no content */
   min-width: 0;
   overflow: hidden;
+}
+
+/* 50/50 split when content is generated */
+.base-container.has-generated-content .form-section-motion-wrapper {
+  flex: 1; /* Equal flex for 50/50 split with generated content */
 }
 
 .display-section-motion-wrapper {

@@ -161,6 +161,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   const { generateSharepic, loading: sharepicLoading } = useSharepicGeneration();
   const storeGeneratedText = useGeneratedTextStore(state => state.getGeneratedText(componentName));
   
+  
   // Store integration - all knowledge and instructions from store
   const {
     source,
@@ -301,6 +302,8 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
     setSocialMediaContent(content);
     setGeneratedText(componentName, content);
   }, [setGeneratedText, componentName]);
+
+  
 
   const handleEditSharepic = useCallback(async (sharepicData) => {
     // Clean up old edit sessions to prevent sessionStorage accumulation
@@ -614,6 +617,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
           error={error}
           generatedContent={storeGeneratedText || socialMediaContent}
           onGeneratedContentChange={handleGeneratedContentChange}
+          enableEditMode={true}
           formNotice={formNotice}
           enableKnowledgeSelector={true}
           enableDocumentSelector={true}

@@ -104,7 +104,7 @@ class FastEmbedService {
     }
 
     // Generate new embedding using client
-    const embedding = await this.client.generateQueryEmbedding(query);
+    const embedding = await this.client.generateEmbedding(query);
     await embeddingCache.cacheEmbedding(query, embedding);
     return embedding;
   }
@@ -115,7 +115,8 @@ class FastEmbedService {
    * @returns {number} Estimated token count
    */
   estimateTokenCount(text) {
-    return this.client.estimateTokenCount(text);
+    // Simple token estimation (roughly 4 chars per token)
+    return Math.ceil(text.length / 4);
   }
 
   /**

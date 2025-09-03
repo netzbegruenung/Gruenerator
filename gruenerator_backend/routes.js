@@ -20,6 +20,7 @@ const imageUploadRouter = require('./routes/sharepic/sharepic_canvas/imageUpload
 const processTextRouter = require('./routes/sharepic/sharepic_canvas/processTextRouter');
 const editSessionRouter = require('./routes/sharepic/editSession');
 const claudeTextAdjustmentRoute = require('./routes/claude_text_adjustment');
+const claudeSuggestEditsRoute = require('./routes/claude_suggest_edits');
 const etherpadRoute = require('./routes/etherpad/etherpadController');
 const claudeKandidatRoute = require('./routes/claude_kandidat');
 const claudeGrueneJugendRoute = require('./routes/claude_gruene_jugend');
@@ -36,7 +37,18 @@ const claudeSubtitlesRoute = require('./routes/claude_subtitles');
 // claudeGrueneratorAskRoute will be imported dynamically (ES6 module)
 const { tusServer } = require('./routes/subtitler/services/tusService');
 const collabEditorRouter = require('./routes/collabEditor'); // Import the new collab editor route
-const snapshottingRouter = require('./routes/internal/snapshottingController'); // Import the new snapshotting controller
+// Snapshotting (Yjs-based) – load conditionally to avoid hard dependency on yjs
+let snapshottingRouter = null;
+try {
+  if (process.env.YJS_ENABLED === 'true') {
+    snapshottingRouter = require('./routes/internal/snapshottingController');
+    console.log('[Routes] Snapshotting controller loaded');
+  } else {
+    console.log('[Routes] Snapshotting controller not loaded (YJS_ENABLED!=true)');
+  }
+} catch (e) {
+  console.log('[Routes] Snapshotting controller unavailable, skipping:', e.message);
+}
 const offboardingRouter = require('./routes/internal/offboardingController'); // Import the offboarding controller
 const webSearchRouter = require('./routes/webSearch'); // Import the web search router
 const imageGenerationRouter = require('./routes/imageGeneration'); // Import the image generation router
@@ -145,6 +157,7 @@ async function setupRoutes(app) {
   app.use('/api/claude_rede', redeRouter);
   app.use('/api/claude_buergeranfragen', buergeranfragenRouter);
   app.use('/api/claude_chat', claudeChatRoute);
+  app.use('/api/claude_suggest_edits', claudeSuggestEditsRoute);
   app.use('/api/antragsversteher', antragsversteherRoute);
   app.use('/api/wahlpruefsteinbundestagswahl', wahlpruefsteinBundestagswahlRoute);
   app.use('/api/dreizeilen_canvas', sharepicDreizeilenCanvasRoute);
@@ -292,8 +305,10 @@ async function setupRoutes(app) {
   // Add the Collab Editor route
   app.use('/api/collab-editor', collabEditorRouter);
 
-  // Add internal routes like snapshotting trigger
-  app.use('/api/internal', snapshottingRouter);
+  // Add internal routes like snapshotting trigger (only if available)
+  if (snapshottingRouter) {
+    app.use('/api/internal', snapshottingRouter);
+  }
   app.use('/api/internal/offboarding', offboardingRouter);
 
   // Add Canva routes (basic functionality)
