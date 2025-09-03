@@ -16,6 +16,7 @@ import winston from 'winston';
 import multer from 'multer';
 import axios from 'axios';
 import { createRequire } from 'module';
+import { spawn } from 'child_process';
 
 // Adjusted imports for CommonJS modules
 import routesModule from './routes.js';
@@ -46,11 +47,46 @@ const __dirname = dirname(__filename);
 // Globaler Worker-Pool für AI-Anfragen
 let aiWorkerPool;
 let masterShutdownInProgress = false;
+let yjsServerProcess;
 
 // ... existing code ...
 
 if (cluster.isMaster) {
   console.log(`Master ${process.pid} is running`);
+
+  // Embedding server disabled permanently (Mistral embeddings are used instead)
+  console.log('[Master] Embedding server not started (using Mistral embeddings).');
+
+  // Start Y.js server as child process (can be disabled with YJS_ENABLED=false)
+  if (process.env.YJS_ENABLED === 'false') {
+    console.log('[Master] Y.js collaborative server disabled by YJS_ENABLED=false');
+  } else {
+    console.log('[Master] Starting Y.js collaborative server...');
+    yjsServerProcess = spawn('node', ['yjsServer.mjs'], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      cwd: __dirname
+    });
+
+    yjsServerProcess.stdout.on('data', (data) => {
+      console.log(`[YjsServer] ${data.toString().trim()}`);
+    });
+
+    yjsServerProcess.stderr.on('data', (data) => {
+      console.error(`[YjsServer] ${data.toString().trim()}`);
+    });
+
+    yjsServerProcess.on('exit', (code, signal) => {
+      if (!masterShutdownInProgress) {
+        console.error(`[Master] Y.js server exited with code ${code}, signal ${signal}`);
+        console.log('[Master] Restarting Y.js server...');
+        // Restart Y.js server if it crashes
+        yjsServerProcess = spawn('node', ['yjsServer.mjs'], {
+          stdio: ['ignore', 'pipe', 'pipe'],
+          cwd: __dirname
+        });
+      }
+    });
+  }
 
   // Anzahl der Worker aus Umgebungsvariable lesen oder Standardwert verwenden
   const workerCount = parseInt(process.env.WORKER_COUNT, 10) || 6;
@@ -114,7 +150,30 @@ if (cluster.isMaster) {
 
     await Promise.all(shutdownPromises);
 
-    console.log('All workers shut down successfully');
+    // No embedding server to shutdown
+
+    // Shutdown Y.js server
+    if (yjsServerProcess) {
+      console.log('Shutting down Y.js server...');
+      yjsServerProcess.kill('SIGTERM');
+      
+      // Wait for Y.js server to exit or force kill after timeout
+      await new Promise((resolve) => {
+        const timeout = setTimeout(() => {
+          console.log('Y.js server shutdown timeout, forcing kill');
+          yjsServerProcess.kill('SIGKILL');
+          resolve();
+        }, 5000);
+        
+        yjsServerProcess.on('exit', () => {
+          clearTimeout(timeout);
+          console.log('Y.js server shut down successfully');
+          resolve();
+        });
+      });
+    }
+
+    console.log('All workers and services shut down successfully');
     process.exit(0);
   };
 

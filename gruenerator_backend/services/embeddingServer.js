@@ -145,18 +145,14 @@ class EmbeddingServer {
       
     } catch (error) {
       console.error('[EmbeddingServer] Failed to initialize model:', error);
-      
-      if (this.modelName !== EmbeddingModel.BGESmallENV15) {
-        console.log('[EmbeddingServer] Attempting fallback to BGE-Small-EN model...');
-        await this.initializeFallbackModel();
-      } else {
-        throw new Error(`Embedding model initialization failed: ${error.message}`);
-      }
+      // No fallback: ensure a clean failure so operators can fix/download the primary model
+      throw new Error(`Embedding model initialization failed (no fallback). ${error.message}`);
     }
   }
 
   async initializeModelWithRetry() {
     let lastError = null;
+    let cacheCleared = false;
     
     for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
       try {
@@ -174,7 +170,30 @@ class EmbeddingServer {
       } catch (error) {
         lastError = error;
         console.error(`[EmbeddingServer] Attempt ${attempt} failed:`, error.message);
-        
+        // If cache is corrupt or incomplete, clear the model folder once to force a fresh download
+        const msg = String(error?.message || '').toLowerCase();
+        const modelDir = path.join(this.cacheDir, this.modelName);
+        const localCacheDir = path.join(process.cwd(), 'local_cache', this.modelName);
+        const isCorruption = msg.includes('unexpected end of file') || msg.includes('file not found') || msg.includes('enoent');
+        if (!cacheCleared && isCorruption && fs.existsSync(modelDir)) {
+          try {
+            console.warn(`[EmbeddingServer] Detected possible corrupt cache. Removing ${modelDir} to force re-download...`);
+            fs.rmSync(modelDir, { recursive: true, force: true });
+            cacheCleared = true;
+          } catch (rmErr) {
+            console.warn('[EmbeddingServer] Failed to remove corrupt cache folder:', rmErr.message);
+          }
+        }
+        // Also clear legacy/local cache folder if present
+        if (isCorruption && fs.existsSync(localCacheDir)) {
+          try {
+            console.warn(`[EmbeddingServer] Removing legacy local cache at ${localCacheDir}...`);
+            fs.rmSync(localCacheDir, { recursive: true, force: true });
+          } catch (rmErr2) {
+            console.warn('[EmbeddingServer] Failed to remove legacy local cache folder:', rmErr2.message);
+          }
+        }
+
         if (attempt < this.maxRetries) {
           const delay = this.baseDelay * Math.pow(2, attempt - 1);
           console.log(`[EmbeddingServer] Waiting ${delay}ms before retry...`);
@@ -184,30 +203,6 @@ class EmbeddingServer {
     }
     
     throw lastError;
-  }
-
-  async initializeFallbackModel() {
-    try {
-      console.log('[EmbeddingServer] Initializing fallback model: BGE-Small-EN-v1.5');
-      
-      this.model = await FlagEmbedding.init({
-        model: EmbeddingModel.BGESmallENV15,
-        maxLength: this.maxSequenceLength,
-        showDownloadProgress: true,
-        cacheDir: this.cacheDir
-      });
-      
-      this.modelName = EmbeddingModel.BGESmallENV15;
-      this.dimensions = 384;
-      this.isInitialized = true;
-      
-      console.log('[EmbeddingServer] Fallback model initialized successfully');
-      console.log(`[EmbeddingServer] Using fallback - Dimensions: ${this.dimensions}, Max length: ${this.maxSequenceLength}`);
-      
-    } catch (fallbackError) {
-      console.error('[EmbeddingServer] Fallback model initialization also failed:', fallbackError);
-      throw new Error(`Both primary and fallback model initialization failed. Last error: ${fallbackError.message}`);
-    }
   }
 
   async generateEmbedding(text) {

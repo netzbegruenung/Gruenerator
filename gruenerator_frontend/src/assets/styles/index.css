@@ -77,6 +77,7 @@
 @import url('./components/editor/editor-ai-tools.css');
 @import url('./components/editor/editor-toolbar.css');
 @import url('./components/editor/editor-base.css');
+@import url('./components/editor/tiptap-editor.css');
 
 
 @import url('./components/sharepic/sharepic.css');

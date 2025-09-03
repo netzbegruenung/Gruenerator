@@ -2,10 +2,14 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useParams, useLocation } from 'react-router-dom';
 import FloatingToolbar from './FloatingToolbar';
 import EditorChat from '../../components/common/editor/EditorChatnew';
-import QuillYjsEditor from '../../components/common/editor/collab/QuillYjsEditor';
+import TipTapYjsEditor from '../../components/common/editor/collab/TipTapYjsEditor';
 import useCollabEditorStore from '../../stores/collabEditorStore';
 import apiClient from '../../components/utils/apiClient';
 import { applyHighlightWithAnimation, removeAllHighlights as removeAllQuillHighlights, applyNewTextHighlight } from '../../components/common/editor/utils/highlightUtils';
+import { 
+  applyNewTextHighlight as applyTipTapNewTextHighlight, 
+  applyHighlightWithAnimation as applyTipTapHighlightWithAnimation 
+} from '../../components/common/editor/utils/tiptapHighlightUtils';
 // Quill will be dynamically imported when needed
 import CollabEditorSkeleton from './CollabEditorSkeleton'; // NEU: Import Skeleton
 import { useOptimizedAuth } from '../../hooks/useAuth';
@@ -97,23 +101,43 @@ const CollabEditorPage = () => {
 
   // Effect for visual highlighting based on highlightedRange (local UI effect)
   useEffect(() => {
-    const quill = quillRef.current; // quillRef is set by CollabEditorPageContent
+    const editor = quillRef.current; // editorRef is set by CollabEditorPageContent
     console.log('[CollabEditorPage] Highlight effect triggered. HighlightedRange:', highlightedRange);
-    if (quill && highlightedRange) {
+    
+    if (editor && highlightedRange) {
       console.log('[CollabEditorPage] Applying highlight with animation for user selection.');
-      // applyHighlightWithAnimation uses background: '#ffff00' and color: '#000000'
-      applyHighlightWithAnimation(quill, highlightedRange.index, highlightedRange.length);
-    } else if (quill && !highlightedRange) {
+      
+      if (editor.commands) {
+        // TipTap editor
+        applyTipTapHighlightWithAnimation(editor, highlightedRange.index, highlightedRange.length);
+      } else {
+        // Quill editor (legacy)
+        applyHighlightWithAnimation(editor, highlightedRange.index, highlightedRange.length);
+      }
+    } else if (editor && !highlightedRange) {
       console.log('[CollabEditorPage] Removing USER SELECTION highlight because highlightedRange is null/empty.');
-      // Specifically remove formats set by applyHighlightWithAnimation
-      quill.formatText(0, quill.getLength(), {
-        background: false, // Resets background set to #ffff00
-        color: false,      // Resets color set to #000000
-      }, 'silent');
+      
+      if (editor.commands) {
+        // TipTap editor - remove selection highlights
+        editor.chain().focus().unsetMark('selectionHighlight').run();
+      } else {
+        // Quill editor (legacy)
+        editor.formatText(0, editor.getLength(), {
+          background: false,
+          color: false,
+        }, 'silent');
+      }
     }
+    
     return () => {
-      if (quill && quillRef.current) {
-         removeAllQuillHighlights(quill);
+      if (editor && quillRef.current) {
+        if (editor.commands) {
+          // TipTap cleanup
+          editor.chain().focus().unsetMark('selectionHighlight').unsetMark('aiHighlight').run();
+        } else {
+          // Quill cleanup
+          removeAllQuillHighlights(editor);
+        }
       }
     };
   }, [highlightedRange]);
@@ -204,29 +228,45 @@ const CollabEditorPageContent = ({
   initialContentForEditor,
   isPreviewMode
 }) => {
-  const { ydoc, ytext, provider, awareness, connectionStatus, setQuillInstance } = useCollabEditorStore();
+  const { ydoc, ytext, provider, awareness, connectionStatus, setEditorInstance } = useCollabEditorStore();
   const { generatedText, setGeneratedText } = useGeneratedTextStore();
   const [isAdjusting, setIsAdjusting] = useState(false);
 
-  const handleQuillInstanceReady = useCallback((instance) => {
+  const handleEditorInstanceReady = useCallback((instance) => {
     quillRef.current = instance;
-    setQuillInstance(instance);
-    console.log("[CollabEditorPageContent] Quill instance ready via CollabEditorPageContent:", instance);
+    setEditorInstance(instance);
+    console.log("[CollabEditorPageContent] Editor instance ready via CollabEditorPageContent:", instance);
 
     if (ytext) {
       const ytextObserver = () => {
         if (quillRef.current) {
-          setGeneratedText(quillRef.current.root.innerHTML);
+          const editor = quillRef.current;
+          if (editor.getHTML) {
+            // TipTap editor
+            setGeneratedText(editor.getHTML());
+          } else if (editor.root) {
+            // Quill editor (legacy)
+            setGeneratedText(editor.root.innerHTML);
+          }
         }
       };
       ytext.observe(ytextObserver);
-      if (quillRef.current) setGeneratedText(quillRef.current.root.innerHTML);
+      
+      // Set initial content
+      if (quillRef.current) {
+        const editor = quillRef.current;
+        if (editor.getHTML) {
+          setGeneratedText(editor.getHTML());
+        } else if (editor.root) {
+          setGeneratedText(editor.root.innerHTML);
+        }
+      }
 
       return () => {
         if (ytext && ytext.unobserve) ytext.unobserve(ytextObserver);
       };
     }
-  }, [ytext, quillRef, setQuillInstance, setGeneratedText]);
+  }, [ytext, quillRef, setEditorInstance, setGeneratedText]);
 
   const handleAiResponse = useCallback((response) => {
     console.log("[CollabEditorPageContent] handleAiResponse received:", response);
@@ -243,36 +283,67 @@ const CollabEditorPageContent = ({
 
       console.log("[CollabEditorPageContent] Applying AI adjustment. Type:", type, "AI Provided Range:", aiProvidedRange, "New Text:", adjustedText);
 
-      ydoc.transact(() => { // Use ydoc from context for transactions
-        if (type === 'selected' && aiProvidedRange && typeof aiProvidedRange.index === 'number' && typeof aiProvidedRange.length === 'number') {
-          console.log('[CollabEditorPageContent] YJS: Deleting text. Index:', aiProvidedRange.index, 'Length:', aiProvidedRange.length);
-          ytext.delete(aiProvidedRange.index, aiProvidedRange.length);
-          console.log('[CollabEditorPageContent] YJS: Inserting text at Index:', aiProvidedRange.index, 'with NewText:', adjustedText);
-          ytext.insert(aiProvidedRange.index, adjustedText);
+      if (type === 'selected' && aiProvidedRange && typeof aiProvidedRange.index === 'number' && typeof aiProvidedRange.length === 'number') {
+        // Use TipTap commands for text manipulation
+        const editor = quillRef.current;
+        if (editor && editor.commands) {
+          // TipTap editor
+          console.log('[CollabEditorPageContent] Using TipTap commands for AI text replacement');
           
-          console.log('[CollabEditorPageContent] YJS: Text after ytext ops:', ytext.toString().substring(aiProvidedRange.index, aiProvidedRange.index + (adjustedText ? adjustedText.length : 0) + 20));
+          editor
+            .chain()
+            .focus()
+            .setTextSelection({ from: aiProvidedRange.index, to: aiProvidedRange.index + aiProvidedRange.length })
+            .insertContent(adjustedText)
+            .run();
           
-          if (quillRef.current) {
-            console.log('[CollabEditorPageContent] About to call applyNewTextHighlight for AI text.');
-            applyNewTextHighlight(quillRef.current, aiProvidedRange.index, adjustedText ? adjustedText.length : 0);
-          }
-        } else if (type === 'full') {
-          if (ytext.length > 0) ytext.delete(0, ytext.length);
-          // Dynamically import Quill only when needed for full text replacement
-          import('quill').then(({ default: Quill }) => {
-            const tempQuill = new Quill(document.createElement('div'));
-            tempQuill.clipboard.dangerouslyPasteHTML(0, adjustedText);
-            const delta = tempQuill.getContents();
-            ytext.applyDelta(delta.ops);
-            setHighlightedRangeState(null); 
-            setSelectedTextState('');
-          }).catch(console.error);
+          // Apply AI highlight to the new text
+          setTimeout(() => {
+            applyTipTapNewTextHighlight(editor, aiProvidedRange.index, adjustedText ? adjustedText.length : 0);
+          }, 50);
+          
+        } else {
+          // Fallback to Y.js direct manipulation
+          console.log('[CollabEditorPageContent] Using Y.js fallback for text replacement');
+          ydoc.transact(() => {
+            ytext.delete(aiProvidedRange.index, aiProvidedRange.length);
+            ytext.insert(aiProvidedRange.index, adjustedText);
+          }, 'ai-assistant');
         }
-      }, 'ai-assistant'); // Add AI operation metadata
+        
+      } else if (type === 'full') {
+        // Full content replacement
+        const editor = quillRef.current;
+        if (editor && editor.commands) {
+          // TipTap editor
+          console.log('[CollabEditorPageContent] Using TipTap commands for full content replacement');
+          
+          ydoc.transact(() => {
+            editor.commands.setContent(adjustedText);
+          }, 'ai-assistant');
+          
+        } else {
+          // Fallback to Y.js with HTML parsing
+          console.log('[CollabEditorPageContent] Using Y.js fallback for full content replacement');
+          ydoc.transact(() => {
+            if (ytext.length > 0) ytext.delete(0, ytext.length);
+            
+            // For TipTap, we can insert HTML directly
+            // Create a temporary div to extract plain text if needed
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = adjustedText;
+            const plainText = tempDiv.textContent || tempDiv.innerText || '';
+            ytext.insert(0, plainText);
+          }, 'ai-assistant');
+        }
+        
+        setHighlightedRangeState(null); 
+        setSelectedTextState('');
+      }
     } else if (response && response.response) {
       console.log("[CollabEditorPageContent] AI Response (non-adjustment):", response.response);
     }
-  }, [ytext, ydoc, highlightedRangeState, setSelectedTextState, setHighlightedRangeState, quillRef, connectionStatus]); // Dependencies: ytext, ydoc, connectionStatus
+  }, [ytext, ydoc, highlightedRangeState, setSelectedTextState, setHighlightedRangeState, quillRef, connectionStatus]);
   
 
   return (
@@ -295,11 +366,11 @@ const CollabEditorPageContent = ({
           <p>Verbinde Chat...</p>
         )}
       </div>
-      <div className="collab-editor-quill-column">
-        <QuillYjsEditor 
+      <div className="collab-editor-tiptap-column">
+        <TipTapYjsEditor 
           documentId={documentId} 
           initialContent={initialContentForEditor}
-          onQuillInstanceReady={handleQuillInstanceReady}
+          onEditorInstanceReady={handleEditorInstanceReady}
           onSelectionChange={onSelectionChangeCallback}
           readOnly={isPreviewMode}
         />

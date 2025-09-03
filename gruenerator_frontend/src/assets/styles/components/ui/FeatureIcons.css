@@ -170,8 +170,9 @@
 .balanced-dropdown {
   position: absolute;
   top: 100%;
-  left: calc(-18px - var(--spacing-small) - var(--spacing-xsmall) - 1px);
-  width: calc(3 * 36px + 2 * var(--spacing-small) + 2 * var(--spacing-xsmall) + 2px);
+  /* Centered under the toggle, now slightly wider */
+  left: calc(-18px - var(--spacing-small) - var(--spacing-xsmall) - 1px - 40px);
+  width: calc(3 * 36px + 2 * var(--spacing-small) + 2 * var(--spacing-xsmall) + 2px + 80px);
   transform: translateY(-4px) scale(0.98);
   transform-origin: top center;
   z-index: 1000;

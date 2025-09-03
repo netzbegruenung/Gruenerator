@@ -6,6 +6,7 @@ const useCollabEditorStore = create((set, get) => ({
   documentId: null,
   connectionStatus: 'disconnected', // 'disconnected', 'connecting', 'connected', 'error'
   activeUsers: [],
+  providerType: null, // 'websocket' | 'hocuspocus'
   
   // Yjs objects (stored as refs to avoid reactivity issues)
   ydoc: null,
@@ -14,8 +15,8 @@ const useCollabEditorStore = create((set, get) => ({
   provider: null,
   awareness: null,
   
-  // Quill instance
-  quillInstance: null,
+  // Editor instance (TipTap or Quill)
+  editorInstance: null,
   
   // Y.js UndoManager instance
   undoManager: null,
@@ -28,12 +29,12 @@ const useCollabEditorStore = create((set, get) => ({
   isInitialized: false,
   
   // Actions
-  initializeDocument: async (documentId) => {
+  initializeDocument: async (documentId, providerType = 'hocuspocus') => {
     const state = get();
     
-    // Don't reinitialize if already initialized with the same document
-    if (state.isInitialized && state.documentId === documentId) {
-      console.log('[CollabEditorStore] Document already initialized:', documentId);
+    // Don't reinitialize if already initialized with the same document and provider
+    if (state.isInitialized && state.documentId === documentId && state.providerType === providerType) {
+      console.log('[CollabEditorStore] Document already initialized:', documentId, 'with provider:', providerType);
       return;
     }
     
@@ -42,40 +43,63 @@ const useCollabEditorStore = create((set, get) => ({
       state.cleanup();
     }
     
-    console.log('[CollabEditorStore] Initializing document:', documentId);
-    
-    // Dynamic imports to avoid loading editor libraries on every page
-    const [{ default: Y }, { WebsocketProvider }] = await Promise.all([
-      import('yjs'),
-      import('y-websocket')
-    ]);
+    console.log('[CollabEditorStore] Initializing document:', documentId, 'with provider:', providerType);
     
     // Create new Yjs document
+    const { default: Y } = await import('yjs');
     const ydoc = new Y.Doc();
-    const ytext = ydoc.getText('quill');
+    const ytext = ydoc.getText('content'); // Use 'content' instead of 'quill' for TipTap
     const yChatHistory = ydoc.getArray('chatHistory');
     
-    // Get WebSocket URL from environment or use backup URL
-    const websocketUrl = import.meta.env.VITE_YJS_WEBSOCKET_URL || 'wss://gruenerator.de/yjs';
+    let provider, awareness;
     
-    if (!websocketUrl) {
-      console.error('[CollabEditorStore] Failed to determine Y.js WebSocket URL');
-      set({ connectionStatus: 'error' });
-      return;
+    if (providerType === 'hocuspocus') {
+      // Use Hocuspocus provider
+      const { HocuspocusProvider } = await import('@hocuspocus/provider');
+      const hocuspocusUrl = import.meta.env.VITE_HOCUSPOCUS_URL || 'ws://localhost:1240';
+      
+      console.log('[CollabEditorStore] Using Hocuspocus URL:', hocuspocusUrl);
+      
+      provider = new HocuspocusProvider({
+        url: hocuspocusUrl,
+        name: documentId,
+        document: ydoc,
+      });
+      
+      awareness = provider.awareness;
+      
+      // Set up Hocuspocus event listeners
+      provider.on('status', (event) => {
+        console.log('[CollabEditorStore] Hocuspocus status:', event.status);
+        set({ connectionStatus: event.status });
+      });
+      
+      provider.on('connect', () => {
+        console.log('[CollabEditorStore] Hocuspocus connected');
+      });
+      
+      provider.on('disconnect', () => {
+        console.log('[CollabEditorStore] Hocuspocus disconnected');
+      });
+      
+    } else {
+      // Fallback to WebSocket provider
+      const { WebsocketProvider } = await import('y-websocket');
+      const websocketUrl = import.meta.env.VITE_YJS_WEBSOCKET_URL || 'wss://gruenerator.de/yjs';
+      
+      console.log('[CollabEditorStore] Using Y.js WebSocket URL:', websocketUrl);
+      
+      provider = new WebsocketProvider(websocketUrl, documentId, ydoc);
+      awareness = provider.awareness;
+      
+      // Set up WebSocket event listeners
+      provider.on('status', ({ status }) => {
+        console.log('[CollabEditorStore] WebSocket status:', status);
+        set({ connectionStatus: status });
+      });
     }
     
-    console.log('[CollabEditorStore] Using Y.js WebSocket URL:', websocketUrl);
-    
-    // Create WebSocket provider
-    const provider = new WebsocketProvider(websocketUrl, documentId, ydoc);
-    const awareness = provider.awareness;
-    
-    // Set up event listeners
-    provider.on('status', ({ status }) => {
-      console.log('[CollabEditorStore] WebSocket status:', status);
-      set({ connectionStatus: status });
-    });
-    
+    // Common provider setup
     provider.on('sync', (isSynced) => {
       console.log(`[CollabEditorStore] Sync event. isSynced: ${isSynced}, ytext.length: ${ytext.length}`);
     });
@@ -89,6 +113,7 @@ const useCollabEditorStore = create((set, get) => ({
     // Update state
     set({
       documentId,
+      providerType,
       ydoc,
       ytext,
       yChatHistory,
@@ -133,7 +158,8 @@ const useCollabEditorStore = create((set, get) => ({
       awareness: null,
       connectionStatus: 'disconnected',
       activeUsers: [],
-      quillInstance: null,
+      providerType: null,
+      editorInstance: null,
       undoManager: null,
       canUndoState: false,
       canRedoState: false,
@@ -141,9 +167,15 @@ const useCollabEditorStore = create((set, get) => ({
     });
   },
   
+  setEditorInstance: (instance) => {
+    console.log('[CollabEditorStore] Setting editor instance:', instance);
+    set({ editorInstance: instance });
+  },
+  
+  // Backward compatibility
   setQuillInstance: (instance) => {
-    console.log('[CollabEditorStore] Setting Quill instance:', instance);
-    set({ quillInstance: instance });
+    console.log('[CollabEditorStore] Setting Quill instance (legacy):', instance);
+    set({ editorInstance: instance });
   },
 
   // Helper method to check actual UndoManager stack state
@@ -299,7 +331,7 @@ const useCollabEditorStore = create((set, get) => ({
   
   // Apply initial content to empty document
   applyInitialContent: (htmlContent) => {
-    const { ytext, ydoc } = get();
+    const { ytext, ydoc, editorInstance } = get();
     
     if (!ytext || !ydoc || !htmlContent || ytext.length > 0) {
       return false; // Don't apply if conditions aren't met
@@ -307,16 +339,27 @@ const useCollabEditorStore = create((set, get) => ({
     
     console.log('[CollabEditorStore] Applying initial content. Length:', htmlContent.length);
     
-    // Use a temporary Quill instance to convert HTML to Delta
-    const tempDiv = document.createElement('div');
-    const tempQuill = new Quill(tempDiv);
-    tempQuill.clipboard.dangerouslyPasteHTML(0, htmlContent);
-    const delta = tempQuill.getContents();
-    
-    // Apply delta to ytext
-    ydoc.transact(() => {
-      ytext.applyDelta(delta.ops);
-    }, 'initial-content');
+    // For TipTap, we can directly insert HTML content
+    if (editorInstance && editorInstance.commands) {
+      // TipTap editor
+      ydoc.transact(() => {
+        editorInstance.commands.setContent(htmlContent);
+      }, 'initial-content');
+    } else {
+      // Fallback: Use temporary Quill instance to convert HTML to Delta
+      console.log('[CollabEditorStore] Using Quill fallback for initial content');
+      import('quill').then(({ default: Quill }) => {
+        const tempDiv = document.createElement('div');
+        const tempQuill = new Quill(tempDiv);
+        tempQuill.clipboard.dangerouslyPasteHTML(0, htmlContent);
+        const delta = tempQuill.getContents();
+        
+        // Apply delta to ytext
+        ydoc.transact(() => {
+          ytext.applyDelta(delta.ops);
+        }, 'initial-content');
+      }).catch(console.error);
+    }
     
     console.log('[CollabEditorStore] Initial content applied successfully');
     return true;
@@ -324,14 +367,32 @@ const useCollabEditorStore = create((set, get) => ({
   
   // Get current document content as HTML
   getContentAsHtml: () => {
-    const { quillInstance } = get();
-    return quillInstance?.root?.innerHTML || '';
+    const { editorInstance } = get();
+    
+    if (editorInstance && editorInstance.getHTML) {
+      // TipTap editor
+      return editorInstance.getHTML();
+    } else if (editorInstance && editorInstance.root) {
+      // Quill editor (legacy)
+      return editorInstance.root.innerHTML || '';
+    }
+    
+    return '';
   },
   
   // Get current document content as plain text
   getContentAsText: () => {
-    const { ytext } = get();
-    return ytext?.toString() || '';
+    const { editorInstance, ytext } = get();
+    
+    if (editorInstance && editorInstance.getText) {
+      // TipTap editor
+      return editorInstance.getText();
+    } else if (ytext) {
+      // Fallback to Y.js text
+      return ytext.toString() || '';
+    }
+    
+    return '';
   },
 }));
 
