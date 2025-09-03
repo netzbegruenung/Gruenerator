@@ -36,6 +36,9 @@ gruenerator_frontend/node_modules/.cache
 gruenerator_backend/local_cache/
 gruenerator_backend/fastembed_cache/
 
+# Playwright MCP files
+.playwright-mcp/
+
 # Large files
 *.pack
 
