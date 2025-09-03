@@ -230,7 +230,11 @@ const FeatureIcons = ({
               
               <button
                 className={`balanced-dropdown-item ${privacyModeActive ? 'active' : ''}`}
-                onClick={(event) => handleIconClick(event, 'privacy', onPrivacyModeClick)}
+                onClick={(event) => handleIconClick(event, 'privacy', () => {
+                  // Ensure mutual exclusivity: turn off Pro if active
+                  if (proModeActive && onProModeClick) onProModeClick();
+                  if (onPrivacyModeClick) onPrivacyModeClick();
+                })}
                 type="button"
               >
                 <HiEye className="balanced-dropdown-icon" />
@@ -242,13 +246,17 @@ const FeatureIcons = ({
               
               <button
                 className={`balanced-dropdown-item ${proModeActive ? 'active' : ''}`}
-                onClick={(event) => handleIconClick(event, 'pro', onProModeClick)}
+                onClick={(event) => handleIconClick(event, 'pro', () => {
+                  // Ensure mutual exclusivity: turn off Privacy if active
+                  if (privacyModeActive && onPrivacyModeClick) onPrivacyModeClick();
+                  if (onProModeClick) onProModeClick();
+                })}
                 type="button"
               >
                 <HiLightningBolt className="balanced-dropdown-icon" />
                 <div className="balanced-dropdown-content">
-                  <span className="balanced-dropdown-title">Pro Mode</span>
-                  <span className="balanced-dropdown-desc">Adipiscing elit sed do eiusmod tempor.</span>
+                  <span className="balanced-dropdown-title">Pro Mode (Claude Sonnet 4)</span>
+                  <span className="balanced-dropdown-desc">Uses Claude Sonnet 4 via AWS Bedrock; smart fallbacks.</span>
                 </div>
               </button>
             </div>

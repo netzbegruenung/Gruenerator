@@ -41,6 +41,7 @@ const ContentGallery = lazy(() => import('../components/common/Gallery/ContentGa
 
 // NEU: CollabEditorPage importieren (Lazy Loading)
 const CollabEditorPage = lazy(() => import('../pages/CollabEditorPage/CollabEditorPage'));
+const TiptapTestPage = lazy(() => import('../pages/TiptapTestPage/TiptapTestPage'));
 
 
 // Q&A Chat Komponente importieren
@@ -144,6 +145,9 @@ const standardRoutes = [
   { path: '/editor/collab/:documentId', component: CollabEditorPage, showHeaderFooter: false }, // showHeaderFooter: false, da eigener Header
   // NEU: Route für Preview-Modus (mit /preview suffix)
   { path: '/editor/collab/:documentId/preview', component: CollabEditorPage, showHeaderFooter: false }, // Preview-Modus ohne Header/Footer
+  // Minimal TipTap + Hocuspocus test route (dev/testing)
+  { path: '/tiptap-test', component: TiptapTestPage },
+  { path: '/tiptap-test/:documentId', component: TiptapTestPage },
   // Q&A Chat Routen
   { path: '/qa/:id', component: GrueneratorenBundle.QAChat },
   // E-Learning Routes

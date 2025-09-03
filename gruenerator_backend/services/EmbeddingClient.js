@@ -13,6 +13,8 @@ class EmbeddingClient {
     this.timeout = parseInt(process.env.EMBEDDING_CLIENT_TIMEOUT || '60000'); // 60 seconds
     this.maxRetries = 3;
     this.baseDelay = 1000;
+    this.enabled = String(process.env.EMBEDDING_ENABLED || process.env.EMBEDDING_CLIENT_ENABLED || 'true').toLowerCase() !== 'false';
+    this._hasLoggedDisabled = false;
     
     // Create axios instance with default config
     this.client = axios.create({
@@ -23,11 +25,17 @@ class EmbeddingClient {
       }
     });
 
-    // Add response interceptor for logging
+    // Add response interceptor for logging (throttled)
+    this._lastErrorLogAt = 0;
+    this._errorLogIntervalMs = 5000; // at most once per 5s
     this.client.interceptors.response.use(
       response => response,
       error => {
-        console.error(`[EmbeddingClient] Request failed: ${error.message}`);
+        const now = Date.now();
+        if (now - this._lastErrorLogAt > this._errorLogIntervalMs) {
+          console.error(`[EmbeddingClient] Request failed: ${error.message}`);
+          this._lastErrorLogAt = now;
+        }
         return Promise.reject(error);
       }
     );
@@ -38,11 +46,19 @@ class EmbeddingClient {
    * @returns {Promise<boolean>} True if server is ready
    */
   async isServerReady() {
+    if (!this.enabled) {
+      if (!this._hasLoggedDisabled) {
+        console.log('[EmbeddingClient] Disabled via EMBEDDING_ENABLED=false; skipping health checks.');
+        this._hasLoggedDisabled = true;
+      }
+      return false;
+    }
     try {
       const response = await this.client.get('/health');
       return response.data.initialized === true;
     } catch (error) {
-      console.warn('[EmbeddingClient] Health check failed:', error.message);
+      // Reduce log noise; caller may loop
+      // console.warn('[EmbeddingClient] Health check failed:', error.message);
       return false;
     }
   }
@@ -52,7 +68,14 @@ class EmbeddingClient {
    * @param {number} maxWaitTime Maximum time to wait in milliseconds
    * @returns {Promise<boolean>} True if server became ready
    */
-  async waitForServer(maxWaitTime = 120000) { // 2 minutes
+  async waitForServer(maxWaitTime = 30000) { // default 30s to reduce startup waits
+    if (!this.enabled) {
+      if (!this._hasLoggedDisabled) {
+        console.log('[EmbeddingClient] Disabled via EMBEDDING_ENABLED=false; not waiting for server.');
+        this._hasLoggedDisabled = true;
+      }
+      return false;
+    }
     const startTime = Date.now();
     const checkInterval = 2000; // 2 seconds
     
@@ -148,6 +171,9 @@ class EmbeddingClient {
    * @returns {Promise<any>} Result of the function
    */
   async withRetry(fn) {
+    if (!this.enabled) {
+      throw new Error('Embedding client is disabled via EMBEDDING_ENABLED=false');
+    }
     let lastError = null;
     
     for (let attempt = 1; attempt <= this.maxRetries; attempt++) {

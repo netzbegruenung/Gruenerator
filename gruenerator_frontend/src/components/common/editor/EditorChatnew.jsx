@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { lazy, useState, useCallback, useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { HiChip, HiChatAlt2 } from "react-icons/hi";
 import { useClaudeResponse } from './hooks/useClaudeResponse';
