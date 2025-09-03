@@ -45,8 +45,8 @@ const useCollabEditorStore = create((set, get) => ({
     
     console.log('[CollabEditorStore] Initializing document:', documentId, 'with provider:', providerType);
     
-    // Create new Yjs document
-    const { default: Y } = await import('yjs');
+    // Create new Yjs document (import the module namespace; yjs has no default export)
+    const Y = await import('yjs');
     const ydoc = new Y.Doc();
     const ytext = ydoc.getText('content'); // Use 'content' instead of 'quill' for TipTap
     const yChatHistory = ydoc.getArray('chatHistory');
@@ -71,15 +71,39 @@ const useCollabEditorStore = create((set, get) => ({
       // Set up Hocuspocus event listeners
       provider.on('status', (event) => {
         console.log('[CollabEditorStore] Hocuspocus status:', event.status);
-        set({ connectionStatus: event.status });
+        const next = event.status;
+        // Avoid React warning by deferring store updates during render
+        const doUpdate = () => set({ connectionStatus: next });
+        if (typeof window !== 'undefined') {
+          setTimeout(doUpdate, 0);
+        } else {
+          doUpdate();
+        }
       });
       
       provider.on('connect', () => {
         console.log('[CollabEditorStore] Hocuspocus connected');
       });
+
+      // Hocuspocus uses 'synced' (not 'sync') once the initial state is in sync
+      provider.on('synced', () => {
+        console.log('[CollabEditorStore] Hocuspocus synced');
+        const doUpdate = () => set({ connectionStatus: 'connected' });
+        if (typeof window !== 'undefined') {
+          setTimeout(doUpdate, 0);
+        } else {
+          doUpdate();
+        }
+      });
       
       provider.on('disconnect', () => {
         console.log('[CollabEditorStore] Hocuspocus disconnected');
+        const doUpdate = () => set({ connectionStatus: 'disconnected' });
+        if (typeof window !== 'undefined') {
+          setTimeout(doUpdate, 0);
+        } else {
+          doUpdate();
+        }
       });
       
     } else {
@@ -95,7 +119,13 @@ const useCollabEditorStore = create((set, get) => ({
       // Set up WebSocket event listeners
       provider.on('status', ({ status }) => {
         console.log('[CollabEditorStore] WebSocket status:', status);
-        set({ connectionStatus: status });
+        const next = status;
+        const doUpdate = () => set({ connectionStatus: next });
+        if (typeof window !== 'undefined') {
+          setTimeout(doUpdate, 0);
+        } else {
+          doUpdate();
+        }
       });
     }
     
@@ -107,7 +137,13 @@ const useCollabEditorStore = create((set, get) => ({
     // Track active users
     awareness.on('change', () => {
       const activeUserIds = Array.from(awareness.getStates().keys());
-      set({ activeUsers: activeUserIds });
+      const doUpdate = () => set({ activeUsers: activeUserIds });
+      // Defer to avoid setState during render (e.g., when TipTap initializes)
+      if (typeof window !== 'undefined') {
+        setTimeout(doUpdate, 0);
+      } else {
+        doUpdate();
+      }
     });
     
     // Update state
@@ -169,13 +205,23 @@ const useCollabEditorStore = create((set, get) => ({
   
   setEditorInstance: (instance) => {
     console.log('[CollabEditorStore] Setting editor instance:', instance);
-    set({ editorInstance: instance });
+    const doUpdate = () => set({ editorInstance: instance });
+    if (typeof window !== 'undefined') {
+      setTimeout(doUpdate, 0);
+    } else {
+      doUpdate();
+    }
   },
   
   // Backward compatibility
   setQuillInstance: (instance) => {
     console.log('[CollabEditorStore] Setting Quill instance (legacy):', instance);
-    set({ editorInstance: instance });
+    const doUpdate = () => set({ editorInstance: instance });
+    if (typeof window !== 'undefined') {
+      setTimeout(doUpdate, 0);
+    } else {
+      doUpdate();
+    }
   },
 
   // Helper method to check actual UndoManager stack state

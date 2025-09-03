@@ -1,7 +1,6 @@
 import * as Y from 'yjs';
 import pako from 'pako';
 import { supabaseService } from './supabaseClient.js'; // Use .js extension if that's the actual filename
-import { DailyVersionService } from '../services/dailyVersionService.js';
 
 const DEBOUNCE_TIMEOUT = 2000; // Millisekunden für Debouncing von Updates
 const debouncedUpdates = new Map(); // documentId -> { timeoutId, updates: [] }
@@ -173,15 +172,7 @@ export const supabasePersistence = {
     });
     console.log(`[SupabasePersistence] Attached 'update' listener to ydoc for documentId: ${documentId}`);
     
-    // Create daily version if this is the first time someone opens the document today
-    // Do this asynchronously to not block the binding process
-    setTimeout(async () => {
-      try {
-        await DailyVersionService.ensureDailyVersion(documentId, ydoc);
-      } catch (error) {
-        console.error(`[SupabasePersistence] Error creating daily version for ${documentId}:`, error);
-      }
-    }, 1000); // Small delay to ensure document is fully loaded
+    // Daily versioning disabled for now
   },
 
   writeState: async (documentId, ydoc) => {

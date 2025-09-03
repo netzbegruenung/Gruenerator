@@ -1,7 +1,7 @@
 import http from 'http'
 import { WebSocketServer } from 'ws'
 import dotenv from 'dotenv'
-import { supabasePersistence } from './utils/supabasePersistence.mjs'; // Import the persistence module
+import { postgresPersistence } from './utils/postgresPersistence.mjs';
 
 // Add a random instance ID for logging
 const instanceId = Math.random().toString(36).substring(2, 9);
@@ -19,8 +19,8 @@ async function start() {
   // If @y/websocket-server/utils doesn't export setPersistence, this part will need adjustment
   // based on how that specific library handles custom persistence.
   if (typeof setPersistence === 'function') {
-    setPersistence(supabasePersistence);
-    console.log(`[Yjs Server] Instance ${instanceId} Supabase persistence provider has been set.`);
+    setPersistence(postgresPersistence);
+    console.log(`[Yjs Server] Instance ${instanceId} Postgres persistence provider has been set.`);
   } else {
     console.warn(`[Yjs Server] Instance ${instanceId} 'setPersistence' function not found in '@y/websocket-server/utils'. 
                   The supabasePersistence module might not be correctly integrated if setupWSConnection 
@@ -90,8 +90,8 @@ async function start() {
       
       // Clean up persistence layer (clear all timeouts)
       console.log(`[Yjs Server] Instance ${instanceId} Step 2: Starting persistence cleanup...`);
-      if (supabasePersistence.cleanup) {
-        await supabasePersistence.cleanup();
+      if (postgresPersistence.cleanup) {
+        await postgresPersistence.cleanup();
         console.log(`[Yjs Server] Instance ${instanceId} Step 2 completed: Persistence cleanup finished`);
       } else {
         console.log(`[Yjs Server] Instance ${instanceId} Step 2 skipped: No cleanup function available`);

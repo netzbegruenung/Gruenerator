@@ -7,8 +7,6 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "start:backend": "PORT=3001 node server.mjs",
-    "kill:yjsport": "npx kill-port 1234",
-    "start:yjs": "npm run kill:yjsport && node yjsServer.mjs",
     "start:hocuspocus": "node hocuspocusServer.mjs",
     "start": "node server.mjs",
     "dev": "nodemon server.mjs",
@@ -43,7 +41,7 @@
     "@tavily/core": "^0.0.3",
     "@tus/file-store": "^1.5.1",
     "@tus/server": "^1.10.2",
-    "@y/websocket-server": "^0.1.1",
+    
     "axios": "^1.7.2",
     "body-parser": "^1.20.2",
     "canvas": "^2.11.2",
@@ -76,8 +74,7 @@
     "turndown": "^7.2.0",
     "uuid": "^10.0.0",
     "winston": "^3.17.0",
-    "ws": "^8.18.2",
-    "yjs": "^13.6.27"
+    "ws": "^8.18.2"
   },
   "devDependencies": {
     "@babel/core": "^7.26.0",

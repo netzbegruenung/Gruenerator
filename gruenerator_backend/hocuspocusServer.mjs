@@ -17,6 +17,7 @@ const activeDocuments = new Set();
 
 const server = new Server({
   port,
+  address: host,
   extensions: [
     new Logger(),
   ],
@@ -78,4 +79,3 @@ process.on('unhandledRejection', (reason, promise) => {
 
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
-

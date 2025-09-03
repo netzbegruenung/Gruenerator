@@ -15,6 +15,7 @@ export { crossTabSyncMiddleware, createCrossTabSyncConfig } from './middlewares/
 export { default as useGeneratedTextStore } from './core/generatedTextStore';
 export { default as useFormStateStore } from './core/formStateStore';
 export { default as useSharepicStore } from './sharepicStore';
+export { default as useTextEditActions } from './hooks/useTextEditActions';
 
 // Future stores will be exported here:
 // export { useCollabEditorStore } from './collabEditorStore';
