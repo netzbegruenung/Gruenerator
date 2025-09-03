@@ -4,6 +4,7 @@ import FormCard from './FormCard';
 import FormInputSection from './FormInputSection';
 import FormExtrasSection from './FormExtrasSection';
 import useResponsive from '../hooks/useResponsive';
+import UniversalEditForm from '../EditMode/UniversalEditForm';
 import { useFormStateSelector } from '../FormStateProvider';
 
 /**
@@ -93,7 +94,9 @@ const FormSection = forwardRef(({
   onImageChange = null,
   onPrivacyInfoClick,
   onWebSearchInfoClick,
-  componentName
+  componentName,
+  useEditMode = false,
+  registerEditHandler = null
 }, ref) => {
   // Store selectors
   const loading = useFormStateSelector(state => state.loading);
@@ -153,7 +156,7 @@ const FormSection = forwardRef(({
               validationRules={validationRules}
               useModernForm={useModernForm}
               onFormChange={onFormChange}
-              showSubmitButton={showSubmitButtonInInputSection && showSubmitButton}
+              showSubmitButton={useEditMode ? false : (showSubmitButtonInInputSection && showSubmitButton)}
               onSubmit={onSubmit}
               nextButtonText={nextButtonText}
               submitButtonProps={submitButtonProps}
@@ -167,7 +170,11 @@ const FormSection = forwardRef(({
               showImageUpload={showImageUpload}
               onImageChange={onImageChange}
             >
-              {children}
+              {useEditMode ? (
+                <UniversalEditForm componentName={componentName} formControl={formControl} registerEditHandler={registerEditHandler} />
+              ) : (
+                children
+              )}
             </FormInputSection>
 
             {/* Extras Section - conditionally rendered */}
@@ -271,7 +278,10 @@ FormSection.propTypes = {
   knowledgeSelectorTabIndex: PropTypes.number,
   knowledgeSourceSelectorTabIndex: PropTypes.number,
   documentSelectorTabIndex: PropTypes.number,
-  submitButtonTabIndex: PropTypes.number
+  submitButtonTabIndex: PropTypes.number,
+  useEditMode: PropTypes.bool
+  ,
+  registerEditHandler: PropTypes.func
 };
 
 FormSection.defaultProps = {
@@ -300,7 +310,9 @@ FormSection.defaultProps = {
   showSubmitButtonInInputSection: false,
   platformSelectorTabIndex: 12,
   knowledgeSelectorTabIndex: 14,
-  submitButtonTabIndex: 17
+  submitButtonTabIndex: 17,
+  useEditMode: false,
+  registerEditHandler: null
 };
 
 FormSection.propTypes.onPrivacyInfoClick = PropTypes.func;

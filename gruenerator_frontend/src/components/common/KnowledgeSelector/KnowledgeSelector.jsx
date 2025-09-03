@@ -581,7 +581,7 @@ const EnhancedKnowledgeSelector = ({
           className="enhanced-knowledge-select"
           isMulti
           options={knowledgeOptions}
-          placeholder="Wissen, Dokumente und Texte auswählen..."
+          placeholder="Auswählen"
           isDisabled={disabled}
           formatOptionLabel={formatOptionLabel}
           filterOption={() => true} // Disable default filtering since we handle it

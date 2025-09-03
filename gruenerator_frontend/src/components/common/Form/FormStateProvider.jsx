@@ -31,6 +31,10 @@ const createFormStateStore = (initialState = {}) => {
         isActive: false,
         enabled: false
       },
+      proModeConfig: {
+        isActive: false,
+        enabled: true
+      },
 
       // Feature presentation mode
       useFeatureIcons: false,
@@ -130,6 +134,31 @@ const createFormStateStore = (initialState = {}) => {
           }
         })),
 
+      // Actions for pro mode
+      setProModeActive: (isActive) =>
+        set((state) => ({
+          proModeConfig: {
+            ...state.proModeConfig,
+            isActive
+          }
+        })),
+
+      setProModeEnabled: (enabled) =>
+        set((state) => ({
+          proModeConfig: {
+            ...state.proModeConfig,
+            enabled
+          }
+        })),
+
+      toggleProMode: () =>
+        set((state) => ({
+          proModeConfig: {
+            ...state.proModeConfig,
+            isActive: !state.proModeConfig.isActive
+          }
+        })),
+
       // Actions for feature presentation
       setUseFeatureIcons: (useFeatureIcons) => set({ useFeatureIcons }),
 
@@ -169,6 +198,10 @@ const createFormStateStore = (initialState = {}) => {
           isActive: false,
           enabled: false
         },
+        proModeConfig: {
+          isActive: false,
+          enabled: true
+        },
         useFeatureIcons: false,
         attachedFiles: [],
         uploadedImage: null,
@@ -193,6 +226,7 @@ const createFormStateStore = (initialState = {}) => {
         return {
           webSearchConfig: state.webSearchConfig,
           privacyModeConfig: state.privacyModeConfig,
+          proModeConfig: state.proModeConfig,
           useFeatureIcons: state.useFeatureIcons
         };
       },
