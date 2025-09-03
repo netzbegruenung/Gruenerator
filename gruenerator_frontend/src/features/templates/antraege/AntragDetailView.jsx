@@ -1,5 +1,5 @@
 import React from 'react';
-import ReactMarkdown from 'react-markdown';
+const ReactMarkdown = lazy(() => import('react-markdown'));
 // Removed unused react-icons imports
 // Import the component's CSS file
 import '../../../assets/styles/components/AntragDetailView.css';

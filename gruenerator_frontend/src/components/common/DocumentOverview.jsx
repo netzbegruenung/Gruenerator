@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { lazy, Suspense, useState, useEffect, useCallback } from 'react';
 import { HiOutlineTrash, HiOutlineSearch, HiOutlineDocumentText, HiOutlinePencil, HiOutlineEye, HiRefresh, HiDotsVertical, HiExclamationCircle, HiChatAlt2, HiShare, HiClipboard, HiChevronRight } from 'react-icons/hi';
 import { motion } from "motion/react";
-import ReactMarkdown from 'react-markdown';
+const ReactMarkdown = lazy(() => import('react-markdown'));
 import Spinner from './Spinner';
 import MenuDropdown from './MenuDropdown';
 import BulkDeleteConfirmModal from './BulkDeleteConfirmModal';
@@ -879,9 +879,9 @@ const DocumentOverview = ({
                         <div className="document-preview-text">
                             {selectedItem.markdown_content ? (
                                 <div className="antrag-text-content">
-                                    <ReactMarkdown>
+                                    <Suspense fallback={<div>Loading...</div>}><ReactMarkdown>
                                         {selectedItem.markdown_content}
-                                    </ReactMarkdown>
+                                    </ReactMarkdown></Suspense>
                                 </div>
                             ) : (
                                 previewContent

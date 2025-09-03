@@ -6,7 +6,7 @@ import QuillYjsEditor from '../../components/common/editor/collab/QuillYjsEditor
 import useCollabEditorStore from '../../stores/collabEditorStore';
 import apiClient from '../../components/utils/apiClient';
 import { applyHighlightWithAnimation, removeAllHighlights as removeAllQuillHighlights, applyNewTextHighlight } from '../../components/common/editor/utils/highlightUtils';
-import Quill from 'quill'; // Import Quill for temp instance in handleAiResponse
+// Quill will be dynamically imported when needed
 import CollabEditorSkeleton from './CollabEditorSkeleton'; // NEU: Import Skeleton
 import { useOptimizedAuth } from '../../hooks/useAuth';
 import { useBetaFeatures } from '../../hooks/useBetaFeatures';
@@ -258,12 +258,15 @@ const CollabEditorPageContent = ({
           }
         } else if (type === 'full') {
           if (ytext.length > 0) ytext.delete(0, ytext.length);
-          const tempQuill = new Quill(document.createElement('div'));
-          tempQuill.clipboard.dangerouslyPasteHTML(0, adjustedText);
-          const delta = tempQuill.getContents();
-          ytext.applyDelta(delta.ops);
-          setHighlightedRangeState(null); 
-          setSelectedTextState('');
+          // Dynamically import Quill only when needed for full text replacement
+          import('quill').then(({ default: Quill }) => {
+            const tempQuill = new Quill(document.createElement('div'));
+            tempQuill.clipboard.dangerouslyPasteHTML(0, adjustedText);
+            const delta = tempQuill.getContents();
+            ytext.applyDelta(delta.ops);
+            setHighlightedRangeState(null); 
+            setSelectedTextState('');
+          }).catch(console.error);
         }
       }, 'ai-assistant'); // Add AI operation metadata
     } else if (response && response.response) {

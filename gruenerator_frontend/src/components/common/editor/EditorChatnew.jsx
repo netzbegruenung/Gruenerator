@@ -4,10 +4,22 @@ import { HiChip, HiChatAlt2 } from "react-icons/hi";
 import { useClaudeResponse } from './hooks/useClaudeResponse';
 import { motion, AnimatePresence } from 'motion/react';
 import useCollabEditorStore from '../../../stores/collabEditorStore';
-import * as Y from 'yjs';
+// Y.js will be dynamically imported when needed
 import { useOptimizedAuth } from '../../../hooks/useAuth';
+
+// Helper function to create Y.Map with dynamic import
+const createYMapMessage = async (messageData) => {
+  const { Map: YMap } = await import('yjs');
+  const yMapMsg = new YMap();
+  Object.entries(messageData).forEach(([key, value]) => {
+    if (value !== undefined) {
+      yMapMsg.set(key, value);
+    }
+  });
+  return yMapMsg;
+};
 import TypingIndicator from '../../common/UI/TypingIndicator';
-import ReactMarkdown from 'react-markdown';
+const ReactMarkdown = lazy(() => import('react-markdown'));
 import { truncateMiddle } from './textTruncation';
 
 const AVAILABLE_COLORS = [
@@ -111,13 +123,12 @@ const EditorChat = ({
     ];
 
     if (isCollabEditor && yChatHistory && ydoc) {
-      ydoc.transact(() => {
+      ydoc.transact(async () => {
         if (yChatHistory.length === 0) {
-          initialMessages.forEach(msg => {
-            const yMapMsg = new Y.Map();
-            Object.entries(msg).forEach(([key, value]) => yMapMsg.set(key, value));
+          for (const msg of initialMessages) {
+            const yMapMsg = await createYMapMessage(msg);
             yChatHistory.push([yMapMsg]);
-          });
+          }
           setIsInitialTyping(false);
         } else {
           setIsInitialTyping(false);
@@ -173,9 +184,8 @@ const EditorChat = ({
         };
         
         if (isCollabEditor && yChatHistory && ydoc) {
-          ydoc.transact(() => {
-            const yMapMsg = new Y.Map();
-            Object.entries(welcomeBackMessage).forEach(([key, value]) => yMapMsg.set(key, value));
+          ydoc.transact(async () => {
+            const yMapMsg = await createYMapMessage(welcomeBackMessage);
             yChatHistory.push([yMapMsg]);
           }, 'chat-welcome-back');
         } else {
@@ -362,13 +372,8 @@ const EditorChat = ({
     // If a subsequent check (like isProcessing or quillRef) fails for Grünerator, 
     // this message is already added, which is generally acceptable.
     if (isCollabEditor && yChatHistory && ydoc) {
-      ydoc.transact(() => {
-        const yMapMsg = new Y.Map();
-        Object.entries(commonMessageData).forEach(([key, value]) => {
-          if (value !== undefined) {
-            yMapMsg.set(key, value);
-          }
-        });
+      ydoc.transact(async () => {
+        const yMapMsg = await createYMapMessage(commonMessageData);
         yChatHistory.push([yMapMsg]);
       }, 'chat-message');
     } else {
@@ -398,9 +403,8 @@ const EditorChat = ({
         timestamp: Date.now() 
       };
       if (isCollabEditor && yChatHistory && ydoc) {
-         ydoc.transact(() => {
-            const yMapMsg = new Y.Map();
-            Object.entries(errorMessage).forEach(([key, value]) => yMapMsg.set(key, value));
+         ydoc.transact(async () => {
+            const yMapMsg = await createYMapMessage(errorMessage);
             yChatHistory.push([yMapMsg]);
          }, 'chat-error');
       } else {
@@ -453,9 +457,8 @@ const EditorChat = ({
             isLink: backendResponse.responseType === 'searchResults' && contentString.includes('](')
           };
           if (isCollabEditor && yChatHistory && ydoc) {
-            ydoc.transact(() => {
-              const yMapMsg = new Y.Map();
-              Object.entries(newAssistantMessage).forEach(([key, value]) => yMapMsg.set(key, value));
+            ydoc.transact(async () => {
+              const yMapMsg = await createYMapMessage(newAssistantMessage);
               yChatHistory.push([yMapMsg]);
             }, 'chat-assistant');
           } else {
@@ -465,9 +468,8 @@ const EditorChat = ({
       } else if (backendResponse && backendResponse.responseType === 'searchResults' && !backendResponse.response) {
         const noResultsMsg = { type: 'assistant', content: "Ich konnte leider keine spezifischen Informationen dazu im Web finden.", timestamp: Date.now() };
         if (isCollabEditor && yChatHistory && ydoc) {
-            ydoc.transact(() => {
-              const yMapMsg = new Y.Map();
-              Object.entries(noResultsMsg).forEach(([key, value]) => yMapMsg.set(key, value));
+            ydoc.transact(async () => {
+              const yMapMsg = await createYMapMessage(noResultsMsg);
               yChatHistory.push([yMapMsg]);
             }, 'chat-no-results');
           } else {
@@ -479,9 +481,8 @@ const EditorChat = ({
       console.error('[EditorChat] Error in Grünerator handleSubmit:', error);
       const errorMessage = { type: 'error', content: error.message || 'Es ist ein Fehler aufgetreten. Bitte versuche es erneut.', timestamp: Date.now() };
       if (isCollabEditor && yChatHistory && ydoc) {
-         ydoc.transact(() => {
-            const yMapMsg = new Y.Map();
-            Object.entries(errorMessage).forEach(([key, value]) => yMapMsg.set(key, value));
+         ydoc.transact(async () => {
+            const yMapMsg = await createYMapMessage(errorMessage);
             yChatHistory.push([yMapMsg]);
          }, 'chat-error');
       } else {

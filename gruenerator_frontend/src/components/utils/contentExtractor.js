@@ -6,7 +6,7 @@
  * formatExportContent from exportUtils.jsx is used to maintain specific functionality.
  */
 
-import { marked } from 'marked';
+// marked imported dynamically
 import { formatExportContent } from './exportUtils';
 import { isMarkdownContent } from '../common/Form/utils/contentUtils';
 
@@ -15,11 +15,12 @@ import { isMarkdownContent } from '../common/Form/utils/contentUtils';
  * @param {string} html - HTML content to convert
  * @returns {string} Plain text with preserved structure
  */
-export const convertHtmlToPlainText = (html) => {
+export const convertHtmlToPlainText = async (html) => {
   if (!html) return '';
   
   // Convert markdown to HTML first if needed
   if (typeof html === 'string' && isMarkdownContent(html)) {
+    const { marked } = await import('marked');
     html = marked(html, {
       breaks: true,      // Convert line breaks to <br>
       gfm: true,        // GitHub Flavored Markdown
@@ -139,7 +140,7 @@ export const extractSearchExportContent = (searchExport, includeMetadata = true)
  * @param {string|Object} content - Content in any supported format
  * @returns {string} Clean plain text suitable for copying
  */
-export const extractPlainText = (content) => {
+export const extractPlainText = async (content) => {
   // Debug logging in development
   if (process.env.NODE_ENV === 'development') {
     console.log('extractPlainText input:', {
@@ -159,6 +160,7 @@ export const extractPlainText = (content) => {
   if (typeof content === 'string') {
     // Convert markdown first if needed
     if (isMarkdownContent(content)) {
+      const { marked } = await import('marked');
       content = marked(content, {
         breaks: true,      // Convert line breaks to <br>
         gfm: true,        // GitHub Flavored Markdown
@@ -257,11 +259,12 @@ export const extractHTMLContent = (content) => {
  * @param {string} text - Plain text to format
  * @returns {string} HTML formatted text
  */
-const formatTextForEtherpad = (text) => {
+const formatTextForEtherpad = async (text) => {
   if (!text) return '';
   
   // Convert markdown to HTML first if needed
   if (typeof text === 'string' && isMarkdownContent(text)) {
+    const { marked } = await import('marked');
     const html = marked(text, {
       breaks: true,      // Convert line breaks to <br>
       gfm: true,        // GitHub Flavored Markdown

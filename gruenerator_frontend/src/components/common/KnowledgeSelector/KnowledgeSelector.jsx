@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo, memo, useCallback } from 'react';
+import React, { lazy, Suspense, useState, useEffect, useMemo, memo, useCallback } from 'react';
 import PropTypes from 'prop-types';
-import Select from 'react-select';
+const Select = lazy(() => import('react-select'));
 import FormSelect from '../Form/Input/FormSelect';
 import FormFieldWrapper from '../Form/Input/FormFieldWrapper';
 import { useGeneratorKnowledgeStore } from '../../../stores/core/generatorKnowledgeStore';
@@ -575,7 +575,7 @@ const EnhancedKnowledgeSelector = ({
         helpText="Wähle Wissen, Dokumente und Texte aus"
         htmlFor="enhanced-knowledge-select"
       >
-        <Select
+        <Suspense fallback={<div>Loading...</div>}><Select
           inputId="enhanced-knowledge-select"
           classNamePrefix="enhanced-knowledge-select"
           className="enhanced-knowledge-select"
@@ -633,7 +633,7 @@ const EnhancedKnowledgeSelector = ({
             }
             return 'Keine Inhalte verfügbar. Erstelle Wissen, lade Dokumente hoch oder teile Inhalte mit Gruppen.';
           }}
-        />
+        /></Suspense>
       </FormFieldWrapper>
 
       {/* Loading status for groups */}
