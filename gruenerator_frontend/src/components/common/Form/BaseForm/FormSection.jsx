@@ -114,10 +114,11 @@ const FormSection = forwardRef(({
   return (
     <div className={`form-section ${formContainerClasses}`} ref={ref}>
       <FormCard 
+        className={useEditMode ? 'form-card--editmode' : ''}
         variant="elevated"
         size="large"
         hover={false}
-        title={title}
+        title={useEditMode ? null : title}
         showHideButton={showHideButton}
         onHide={onHide}
       >
@@ -160,7 +161,7 @@ const FormSection = forwardRef(({
               onSubmit={onSubmit}
               nextButtonText={nextButtonText}
               submitButtonProps={submitButtonProps}
-              enablePlatformSelector={enablePlatformSelector}
+              enablePlatformSelector={!useEditMode && enablePlatformSelector}
               platformOptions={platformOptions}
               platformSelectorLabel={platformSelectorLabel}
               platformSelectorPlaceholder={platformSelectorPlaceholder}
@@ -171,14 +172,14 @@ const FormSection = forwardRef(({
               onImageChange={onImageChange}
             >
               {useEditMode ? (
-                <UniversalEditForm componentName={componentName} formControl={formControl} registerEditHandler={registerEditHandler} />
+                <UniversalEditForm componentName={componentName} />
               ) : (
                 children
               )}
             </FormInputSection>
 
             {/* Extras Section - conditionally rendered */}
-            {!hideExtrasSection && (
+            {!hideExtrasSection && !useEditMode && (
               <FormExtrasSection
                 webSearchFeatureToggle={webSearchFeatureToggle}
                 privacyModeToggle={privacyModeToggle}
@@ -190,7 +191,7 @@ const FormSection = forwardRef(({
                 isMultiStep={isMultiStep}
                 nextButtonText={nextButtonText}
                 submitButtonProps={submitButtonProps}
-                showSubmitButton={showSubmitButton && !showSubmitButtonInInputSection}
+                showSubmitButton={(useEditMode ? false : (showSubmitButton && !showSubmitButtonInInputSection))}
                 firstExtrasChildren={!isMobileView ? firstExtrasChildren : null}
                 featureIconsTabIndex={featureIconsTabIndex}
                 knowledgeSelectorTabIndex={knowledgeSelectorTabIndex}
@@ -280,8 +281,6 @@ FormSection.propTypes = {
   documentSelectorTabIndex: PropTypes.number,
   submitButtonTabIndex: PropTypes.number,
   useEditMode: PropTypes.bool
-  ,
-  registerEditHandler: PropTypes.func
 };
 
 FormSection.defaultProps = {
@@ -311,8 +310,7 @@ FormSection.defaultProps = {
   platformSelectorTabIndex: 12,
   knowledgeSelectorTabIndex: 14,
   submitButtonTabIndex: 17,
-  useEditMode: false,
-  registerEditHandler: null
+  useEditMode: false
 };
 
 FormSection.propTypes.onPrivacyInfoClick = PropTypes.func;

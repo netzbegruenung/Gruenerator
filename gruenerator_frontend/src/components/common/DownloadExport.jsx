@@ -13,10 +13,8 @@ const DownloadExport = ({ content, title, className = 'action-button' }) => {
   const {
     isGenerating,
     // loadingPDF, // Temporarily disabled
-    loadingDOCX,
+    // loadingDOCX, // handled via isGenerating
     // loadPDFLibrary, // Temporarily disabled
-    loadDOCXLibrary,
-    // generatePDF, // Temporarily disabled
     generateDOCX
   } = useExportStore();
   
@@ -56,13 +54,7 @@ const DownloadExport = ({ content, title, className = 'action-button' }) => {
   //   }
   // }, [loadPDFLibrary]);
 
-  const loadDOCX = useCallback(async () => {
-    try {
-      await loadDOCXLibrary();
-    } catch (error) {
-      console.error('Failed to load DOCX library:', error);
-    }
-  }, [loadDOCXLibrary]);
+  const loadDOCX = useCallback(async () => {}, []);
 
   const handleDownloadClick = () => {
     setShowFormatSelector(!showFormatSelector);
@@ -123,7 +115,7 @@ const DownloadExport = ({ content, title, className = 'action-button' }) => {
             onClick={() => handleFormatSelect('docx')}
             disabled={isGenerating}
           >
-            {loadingDOCX ? <HiRefresh className="spinning" size={12} /> : 'DOCX'}
+            {isGenerating ? <HiRefresh className="spinning" size={12} /> : 'DOCX'}
           </button>
         </div>
       )}

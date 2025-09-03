@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { IoCopyOutline, IoCheckmarkOutline } from "react-icons/io5";
 import { HiCog, HiPencil, HiSave } from "react-icons/hi";
+import { IoArrowUndoOutline, IoArrowRedoOutline } from "react-icons/io5";
 import { copyFormattedContent } from '../utils/commonFunctions';
 import ExportDropdown from './ExportDropdown';
 import { useLazyAuth } from '../../hooks/useAuth';
@@ -17,31 +18,49 @@ const ActionButtons = ({
   showExport = false,
   showDownload = true,
   showExportDropdown = true,
-  showCollab = false,
   showRegenerate = false,
   showSave = false,
   showSaveToLibrary = true,
-  onCollab,
+  showEditMode = false,
+  showUndo = true,
+  showRedo = true,
+  onEditModeToggle,
+  isEditModeActive = false,
   onRegenerate,
   onSave,
   onSaveToLibrary,
-  collabLoading = false,
+  onUndo,
+  onRedo,
   regenerateLoading = false,
   saveLoading = false,
   saveToLibraryLoading = false,
   exportableContent,
   generatedPost,
   generatedContent,
-  title
+  title,
+  componentName = 'default'
 }) => {
   const { isAuthenticated } = useLazyAuth();
   const { getBetaFeatureState } = useBetaFeatures();
   const { generatedText } = useGeneratedTextStore();
+  const undo = useGeneratedTextStore(state => state.undo);
+  const redo = useGeneratedTextStore(state => state.redo);
+  const canUndo = useGeneratedTextStore(state => state.canUndo);
+  const canRedo = useGeneratedTextStore(state => state.canRedo);
   const [copyIcon, setCopyIcon] = useState(<IoCopyOutline size={16} />);
   const [saveIcon, setSaveIcon] = useState(<HiSave size={16} />);
+  
+  // Track undo/redo availability
+  const [canUndoState, setCanUndoState] = useState(false);
+  const [canRedoState, setCanRedoState] = useState(false);
+  
+  // Update undo/redo state when component or history changes
+  useEffect(() => {
+    setCanUndoState(canUndo(componentName));
+    setCanRedoState(canRedo(componentName));
+  }, [canUndo, canRedo, componentName, generatedContent]);
 
   const hasDatabaseAccess = isAuthenticated && getBetaFeatureState('database');
-  const hasCollabAccess = getBetaFeatureState('collab');
 
   // Use generatedContent prop if available, fall back to store's generatedText
   const activeContent = generatedContent || generatedText;
@@ -90,6 +109,45 @@ const ActionButtons = ({
       }, 500);
     }
   };
+  
+  const handleUndo = () => {
+    if (canUndoState) {
+      if (onUndo) {
+        onUndo();
+      } else {
+        undo(componentName);
+      }
+    }
+  };
+  
+  const handleRedo = () => {
+    if (canRedoState) {
+      if (onRedo) {
+        onRedo();
+      } else {
+        redo(componentName);
+      }
+    }
+  };
+  
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === 'z') {
+        e.preventDefault();
+        handleUndo();
+      } else if (((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'Z') || 
+                 ((e.ctrlKey || e.metaKey) && e.key === 'y')) {
+        e.preventDefault();
+        handleRedo();
+      }
+    };
+    
+    if (activeContent && !shouldHideButtons) {
+      document.addEventListener('keydown', handleKeyDown);
+      return () => document.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [canUndoState, canRedoState, activeContent, shouldHideButtons]);
 
   return (
     <div className={className}>
@@ -106,6 +164,34 @@ const ActionButtons = ({
           >
             {copyIcon}
           </button>
+          {showUndo && (
+            <button
+              onClick={handleUndo}
+              className="action-button"
+              aria-label="Rückgängig (Strg+Z)"
+              disabled={!canUndoState}
+              {...(!isMobileView && {
+                'data-tooltip-id': "action-tooltip",
+                'data-tooltip-content': "Rückgängig (Strg+Z)"
+              })}
+            >
+              <IoArrowUndoOutline size={16} />
+            </button>
+          )}
+          {showRedo && (
+            <button
+              onClick={handleRedo}
+              className="action-button"
+              aria-label="Wiederholen (Strg+Y)"
+              disabled={!canRedoState}
+              {...(!isMobileView && {
+                'data-tooltip-id': "action-tooltip",
+                'data-tooltip-content': "Wiederholen (Strg+Y)"
+              })}
+            >
+              <IoArrowRedoOutline size={16} />
+            </button>
+          )}
           {(showExport || showDownload || showExportDropdown) && (
             <ExportDropdown 
               content={activeContent} 
@@ -142,15 +228,14 @@ const ActionButtons = ({
               {saveIcon}
             </button>
           )}
-          {showCollab && hasCollabAccess && activeContent && onCollab && (
+          {showEditMode && activeContent && onEditModeToggle && (
             <button
-              onClick={onCollab}
-              className="action-button"
-              aria-label="Kollaborativ bearbeiten"
-              disabled={collabLoading}
+              onClick={onEditModeToggle}
+              className={`action-button ${isEditModeActive ? 'active' : ''}`}
+              aria-label="Edit Mode umschalten"
               {...(!isMobileView && {
                 'data-tooltip-id': "action-tooltip",
-                'data-tooltip-content': "Kollaborativ bearbeiten"
+                'data-tooltip-content': "Edit Mode"
               })}
             >
               <HiPencil size={16} />
@@ -168,15 +253,19 @@ ActionButtons.propTypes = {
   showExport: PropTypes.bool,
   showDownload: PropTypes.bool,
   showExportDropdown: PropTypes.bool,
-  showCollab: PropTypes.bool,
   showRegenerate: PropTypes.bool,
   showSave: PropTypes.bool,
   showSaveToLibrary: PropTypes.bool,
-  onCollab: PropTypes.func,
+  showEditMode: PropTypes.bool,
+  showUndo: PropTypes.bool,
+  showRedo: PropTypes.bool,
+  onEditModeToggle: PropTypes.func,
+  isEditModeActive: PropTypes.bool,
   onRegenerate: PropTypes.func,
   onSave: PropTypes.func,
   onSaveToLibrary: PropTypes.func,
-  collabLoading: PropTypes.bool,
+  onUndo: PropTypes.func,
+  onRedo: PropTypes.func,
   regenerateLoading: PropTypes.bool,
   saveLoading: PropTypes.bool,
   saveToLibraryLoading: PropTypes.bool,
@@ -184,6 +273,7 @@ ActionButtons.propTypes = {
   generatedPost: PropTypes.string,
   generatedContent: PropTypes.any,
   title: PropTypes.string,
+  componentName: PropTypes.string,
 };
 
 export default ActionButtons; 

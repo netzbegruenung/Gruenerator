@@ -36,7 +36,8 @@ const subtitlerSocialRouter = require('./routes/subtitler/subtitlerSocialControl
 const claudeSubtitlesRoute = require('./routes/claude_subtitles');
 // claudeGrueneratorAskRoute will be imported dynamically (ES6 module)
 const { tusServer } = require('./routes/subtitler/services/tusService');
-const collabEditorRouter = require('./routes/collabEditor'); // Import the new collab editor route
+// DISABLED - Collab feature removed, backup available in archive/collab-feature-backup-2025-01
+// const collabEditorRouter = require('./routes/collabEditor'); // Import the new collab editor route
 // Snapshotting (Yjs-based) – load conditionally to avoid hard dependency on yjs
 let snapshottingRouter = null;
 try {
@@ -52,6 +53,7 @@ try {
 const offboardingRouter = require('./routes/internal/offboardingController'); // Import the offboarding controller
 const webSearchRouter = require('./routes/webSearch'); // Import the web search router
 const imageGenerationRouter = require('./routes/imageGeneration'); // Import the image generation router
+const exportDocumentsRouter = require('./routes/exportDocuments'); // Server-side DOCX/PDF export
 // mem0Router will be imported dynamically like auth routes
 // Auth routes will be imported dynamically
 
@@ -301,9 +303,10 @@ async function setupRoutes(app) {
   app.use('/api/analyze', searchAnalysisRouter);
   app.use('/api/web-search', webSearchRouter);
   app.use('/api/image-generation', imageGenerationRouter);
+  app.use('/api/exports', exportDocumentsRouter);
 
-  // Add the Collab Editor route
-  app.use('/api/collab-editor', collabEditorRouter);
+  // Add the Collab Editor route - DISABLED - Feature removed, backup available in archive/collab-feature-backup-2025-01
+  // app.use('/api/collab-editor', collabEditorRouter);
 
   // Add internal routes like snapshotting trigger (only if available)
   if (snapshottingRouter) {
