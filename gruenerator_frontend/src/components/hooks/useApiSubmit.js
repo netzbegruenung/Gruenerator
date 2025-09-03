@@ -82,12 +82,15 @@ const useApiSubmit = (endpoint) => {
     setRetryCount(0);
 
     try {
+      // Derive mode flags (privacy takes precedence over pro)
+      const privacyMode = !!formData.usePrivacyMode;
+
       // Bedrock is now the default provider (Deutschland mode is always enabled)
+      // Pass only intent flags; provider/model selection remains on the backend.
       const requestData = {
         ...formData,
-        useBedrock: true, // Always use Bedrock now
-        // Privacy mode provider selection is now handled by backend automatically
-        // Remove hardcoded provider selection - let backend determine provider based on request count
+        usePrivacyMode: privacyMode,
+        useBedrock: true, // Always use Bedrock now (backend may still route intelligently)
         onRetry: (attempt, delay) => {
           setRetryCount(attempt);
           setError(`Verbindungsprobleme. Neuer Versuch in ${Math.round(delay/1000)} Sekunden... (Versuch ${attempt}/3)`);
@@ -96,9 +99,7 @@ const useApiSubmit = (endpoint) => {
       
       console.log(`[useApiSubmit] Submitting to ${endpoint}:`, {
         useBedrock: true,
-        provider: requestData.provider || 'default',
-        usePrivacyMode: formData.usePrivacyMode,
-        formData: requestData,
+        usePrivacyMode: privacyMode,
         endpoint
       });
 

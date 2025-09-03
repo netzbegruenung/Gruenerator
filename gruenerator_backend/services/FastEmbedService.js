@@ -1,8 +1,5 @@
 import { embeddingCache } from './embeddingCache.js';
-import { embeddingClient } from './EmbeddingClient.js';
-import dotenv from 'dotenv';
-
-dotenv.config();
+import MistralEmbeddingClient from './MistralEmbeddingClient.js';
 
 /**
  * FastEmbed Service - Client wrapper for the standalone embedding server
@@ -11,44 +8,21 @@ dotenv.config();
  */
 class FastEmbedService {
   constructor() {
-    this.client = embeddingClient;
-    this.isInitialized = false;
-    this.modelInfo = null;
-    
-    // Initialize client on startup
-    this.init();
+    // Mistral is the sole embedding backend (1024-dim)
+    this.client = new MistralEmbeddingClient({ model: 'mistral-embed' });
+    this.modelInfo = {
+      modelName: 'mistral-embed',
+      dimensions: 1024,
+      maxSequenceLength: 8192,
+      isInitialized: true,
+    };
+    this.isInitialized = true;
   }
 
   /**
    * Initialize FastEmbed service by waiting for embedding server
    */
-  async init() {
-    if (this.isInitialized) return;
-
-    try {
-      console.log(`[FastEmbedService] Connecting to embedding server...`);
-      
-      // Wait for the embedding server to be ready
-      const serverReady = await this.client.waitForServer();
-      
-      if (!serverReady) {
-        throw new Error('Embedding server did not become ready');
-      }
-      
-      // Get model information from server
-      this.modelInfo = await this.client.getModelInfo();
-      this.isInitialized = true;
-      
-      console.log(`[FastEmbedService] Connected to embedding server successfully`);
-      console.log(`[FastEmbedService] Model: ${this.modelInfo.modelName}`);
-      console.log(`[FastEmbedService] Dimensions: ${this.modelInfo.dimensions}, Max length: ${this.modelInfo.maxSequenceLength}`);
-      
-    } catch (error) {
-      console.error('[FastEmbedService] Failed to connect to embedding server:', error);
-      console.warn('[FastEmbedService] Service will operate in degraded mode');
-      this.isInitialized = false;
-    }
-  }
+  async init() { return; }
 
 
   /**
@@ -60,22 +34,8 @@ class FastEmbedService {
     if (!text || typeof text !== 'string') {
       throw new Error('Text is required and must be a string');
     }
-
-    if (!this.isInitialized) {
-      console.warn('[FastEmbedService] Service not initialized, attempting to reconnect...');
-      await this.init();
-      
-      if (!this.isInitialized) {
-        throw new Error('FastEmbed service is not available');
-      }
-    }
-
-    try {
-      return await this.client.generateEmbedding(text);
-    } catch (error) {
-      console.error('[FastEmbedService] Error generating embedding:', error);
-      throw new Error(`Embedding generation failed: ${error.message}`);
-    }
+    // Do not use mock fallbacks; surface errors
+    return await this.client.generateEmbedding(text);
   }
 
   /**
@@ -88,22 +48,43 @@ class FastEmbedService {
     if (!Array.isArray(texts) || texts.length === 0) {
       throw new Error('Texts must be a non-empty array');
     }
+    // Do not use mock fallbacks; surface errors
+    return await this.client.generateBatchEmbeddings(texts);
+  }
 
-    if (!this.isInitialized) {
-      console.warn('[FastEmbedService] Service not initialized, attempting to reconnect...');
-      await this.init();
-      
-      if (!this.isInitialized) {
-        throw new Error('FastEmbed service is not available');
-      }
+  /**
+   * Generate a mock embedding when embedding server is unavailable
+   * @param {string} text - Text to generate mock embedding for
+   * @returns {number[]} Mock embedding vector
+   */
+  generateMockEmbedding(text) {
+    // Generate a deterministic mock embedding based on text hash
+    const dimensions = 1024; // Default dimensions
+    const mockEmbedding = new Array(dimensions);
+    
+    // Simple hash function to generate consistent mock values
+    let hash = 0;
+    for (let i = 0; i < text.length; i++) {
+      const char = text.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
     }
+    
+    // Generate mock embedding values based on hash
+    for (let i = 0; i < dimensions; i++) {
+      mockEmbedding[i] = (Math.sin(hash + i) * 0.1); // Small values similar to real embeddings
+    }
+    
+    return mockEmbedding;
+  }
 
-    try {
-      return await this.client.generateBatchEmbeddings(texts, inputType);
-    } catch (error) {
-      console.error('[FastEmbedService] Batch embedding generation failed:', error);
-      throw new Error(`Batch embedding generation failed: ${error.message}`);
-    }
+  /**
+   * Generate mock embeddings for multiple texts
+   * @param {string[]} texts - Array of texts
+   * @returns {number[][]} Array of mock embedding vectors
+   */
+  generateMockBatchEmbeddings(texts) {
+    return texts.map(text => this.generateMockEmbedding(text));
   }
 
   /**
@@ -124,10 +105,7 @@ class FastEmbedService {
 
     // Generate new embedding using client
     const embedding = await this.client.generateQueryEmbedding(query);
-    
-    // Cache the result
     await embeddingCache.cacheEmbedding(query, embedding);
-    
     return embedding;
   }
 
@@ -163,10 +141,7 @@ class FastEmbedService {
    * @returns {number} Number of dimensions
    */
   getDimensions() {
-    if (this.modelInfo) {
-      return this.modelInfo.dimensions;
-    }
-    return 1024; // Default for multilingual-e5-large
+    return this.modelInfo?.dimensions || 768;
   }
 
   /**
