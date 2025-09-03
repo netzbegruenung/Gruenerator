@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { lazy, Suspense, useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
-import Select from 'react-select';
+const Select = lazy(() => import('react-select'));
 import { HiDocumentText, HiPlus, HiX } from 'react-icons/hi';
 import { motion } from "motion/react";
 import { useFormFields } from '../../../components/common/Form/hooks';
@@ -184,7 +184,7 @@ const QACreator = ({
                                 </div>
                             ) : (
                                 <div className="document-selection-react-select">
-                                    <Select
+                                    <Suspense fallback={<div>Loading...</div>}><Select
                                         className="react-select"
                                         classNamePrefix="react-select"
                                         isMulti
@@ -210,7 +210,7 @@ const QACreator = ({
                                                 zIndex: 9999
                                             })
                                         }}
-                                    />
+                                    /></Suspense>
                                     {selectedDocuments.length > 0 && (
                                         <div className="selected-documents-summary" style={{ 
                                             marginTop: 'var(--spacing-small)', 
