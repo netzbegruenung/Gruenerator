@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { lazy, Suspense, useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
-import Select from 'react-select';
+const Select = lazy(() => import('react-select'));
 import makeAnimated from 'react-select/animated';
 
 const animatedComponents = makeAnimated();
@@ -78,7 +78,7 @@ const PRTextForm = ({ initialData, categories, tags, onSubmit, onCancel, isLoadi
 
       <div className="form-group">
         <label htmlFor="pr-text-categories">Kategorien</label>
-        <Select
+        <Suspense fallback={<div>Loading...</div>}><Select
           id="pr-text-categories"
           components={animatedComponents}
           isMulti
@@ -89,12 +89,12 @@ const PRTextForm = ({ initialData, categories, tags, onSubmit, onCancel, isLoadi
           isDisabled={isLoading}
           className="react-select-container"
           classNamePrefix="react-select"
-        />
+        /></Suspense>
       </div>
 
       <div className="form-group">
         <label htmlFor="pr-text-tags">Tags</label>
-        <Select
+        <Suspense fallback={<div>Loading...</div>}><Select
           id="pr-text-tags"
           components={animatedComponents}
           isMulti
@@ -105,7 +105,7 @@ const PRTextForm = ({ initialData, categories, tags, onSubmit, onCancel, isLoadi
           isDisabled={isLoading}
           className="react-select-container"
           classNamePrefix="react-select"
-        />
+        /></Suspense>
       </div>
 
       <div className="form-actions">

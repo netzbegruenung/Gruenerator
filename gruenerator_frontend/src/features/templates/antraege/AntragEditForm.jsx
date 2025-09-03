@@ -1,7 +1,5 @@
-import React, { useEffect, useRef, useCallback } from 'react';
-import Quill from 'quill';
-import QuillMarkdown from 'quilljs-markdown';
-import { marked } from 'marked';
+import React, { useEffect, useRef, useCallback, useState } from 'react';
+// marked imported dynamically
 import { convertHtmlToMarkdown } from '../../../utils/markdownUtils';
 
 const AntragEditForm = ({ editedAntrag, handleInputChange, handleMarkdownChange, handleSaveClick, handleCancelClick, loading, error }) => {
@@ -9,6 +7,7 @@ const AntragEditForm = ({ editedAntrag, handleInputChange, handleMarkdownChange,
   const quillRef = useRef(null);
   const markdownRef = useRef(null);
   const isInitialized = useRef(false);
+  const [quillLoaded, setQuillLoaded] = useState(false);
 
   const onTextChange = useCallback(() => {
     if (quillRef.current) {
@@ -29,43 +28,53 @@ const AntragEditForm = ({ editedAntrag, handleInputChange, handleMarkdownChange,
       console.log('[AntragEditForm] Initializing Quill...');
       isInitialized.current = true;
 
-      const toolbarOptions = [
-        ['bold', 'italic', 'underline'],
-        [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
-        [{ 'list': 'ordered' }, { 'list': 'bullet' }],
-        ['link', 'blockquote', 'code-block'],
-        ['clean']
-      ];
+      // Dynamically import Quill and QuillMarkdown
+      Promise.all([
+        import('quill'),
+        import('quilljs-markdown')
+      ]).then(async ([{ default: Quill }, { default: QuillMarkdown }]) => {
+        const toolbarOptions = [
+          ['bold', 'italic', 'underline'],
+          [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
+          [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+          ['link', 'blockquote', 'code-block'],
+          ['clean']
+        ];
 
-      const quill = new Quill(editorRef.current, {
-        modules: {
-          toolbar: toolbarOptions
-        },
-        theme: 'snow',
-        placeholder: 'Antragstext eingeben...',
-      });
-      quillRef.current = quill;
+        const quill = new Quill(editorRef.current, {
+          modules: {
+            toolbar: toolbarOptions
+          },
+          theme: 'snow',
+          placeholder: 'Antragstext eingeben...',
+        });
+        quillRef.current = quill;
 
-      const markdownOptions = {};
-      const quillMarkdown = new QuillMarkdown(quill, markdownOptions);
-      markdownRef.current = quillMarkdown;
+        const markdownOptions = {};
+        const quillMarkdown = new QuillMarkdown(quill, markdownOptions);
+        markdownRef.current = quillMarkdown;
+        setQuillLoaded(true);
 
-      quill.on('text-change', onTextChange);
+        quill.on('text-change', onTextChange);
 
-      if (editedAntrag?.antragstext) {
-        try {
-          const initialHtml = marked(editedAntrag.antragstext);
-          console.log('[AntragEditForm] Converted initial Markdown to HTML:', initialHtml.substring(0,100) + '...');
-          quill.clipboard.dangerouslyPasteHTML(initialHtml);
-          const length = quill.getLength();
-          quill.setSelection(length, 0, 'silent');
-        } catch (error) {
-          console.error("Fehler beim Konvertieren/Setzen des initialen HTML-Inhalts:", error);
-          quill.setText(editedAntrag.antragstext || '');
+        if (editedAntrag?.antragstext) {
+          try {
+            const { marked } = await import('marked');
+            const initialHtml = marked(editedAntrag.antragstext);
+            console.log('[AntragEditForm] Converted initial Markdown to HTML:', initialHtml.substring(0,100) + '...');
+            quill.clipboard.dangerouslyPasteHTML(initialHtml);
+            const length = quill.getLength();
+            quill.setSelection(length, 0, 'silent');
+          } catch (error) {
+            console.error("Fehler beim Konvertieren/Setzen des initialen HTML-Inhalts:", error);
+            quill.setText(editedAntrag.antragstext || '');
+          }
         }
-      }
 
-      quill.focus();
+        quill.focus();
+      }).catch(error => {
+        console.error('[AntragEditForm] Failed to load Quill:', error);
+      });
     }
 
     return () => {
@@ -88,7 +97,7 @@ const AntragEditForm = ({ editedAntrag, handleInputChange, handleMarkdownChange,
     };
   }, []);
 
-  useEffect(() => {
+  useEffect(async () => {
     const quill = quillRef.current;
     if (quill && editedAntrag?.antragstext !== undefined) {
       const currentHtml = quill.root.innerHTML;
@@ -103,6 +112,7 @@ const AntragEditForm = ({ editedAntrag, handleInputChange, handleMarkdownChange,
       if (editedAntrag.antragstext !== currentMarkdown) {
          console.log('[AntragEditForm] Updating content from prop (Markdown comparison)...');
          try {
+           const { marked } = await import('marked');
            const incomingHtml = marked(editedAntrag.antragstext);
            const selection = quill.getSelection();
            quill.clipboard.dangerouslyPasteHTML(0, quill.getLength(), incomingHtml);

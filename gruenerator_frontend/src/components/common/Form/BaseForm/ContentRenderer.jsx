@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import PropTypes from 'prop-types';
-import ReactMarkdown from 'react-markdown';
+const ReactMarkdown = lazy(() => import('react-markdown'));
 import { isReactElement, isMarkdownContent, normalizeLineBreaks, removeGruenTitleTags } from '../utils/contentUtils';
 import { CitationBadge } from '../../Citation';
 import ImageDisplay from '../../ImageDisplay';
@@ -97,7 +97,7 @@ const ContentRenderer = ({
             <div className="content-display">
               {typeof contentToRender === 'string' ? (
                 isMarkdownContent(contentToRender) ? (
-                  <ReactMarkdown>{contentToRender}</ReactMarkdown>
+                  <Suspense fallback={<div>Loading...</div>}><ReactMarkdown>{contentToRender}</ReactMarkdown></Suspense>
                 ) : (
                   <div dangerouslySetInnerHTML={{ __html: contentToRender }} />
                 )
@@ -223,9 +223,9 @@ const ContentRenderer = ({
       return (
         <div className="generated-content-wrapper">
           <div className="content-display markdown-content antrag-text-content">
-            <ReactMarkdown components={customComponents}>
+            <Suspense fallback={<div>Loading...</div>}><ReactMarkdown components={customComponents}>
               {contentToRender}
-            </ReactMarkdown>
+            </ReactMarkdown></Suspense>
           </div>
         </div>
       );
@@ -234,9 +234,9 @@ const ContentRenderer = ({
       return (
         <div className="generated-content-wrapper">
           <div className="content-display markdown-content antrag-text-content">
-            <ReactMarkdown>
+            <Suspense fallback={<div>Loading...</div>}><ReactMarkdown>
               {contentToRender}
-            </ReactMarkdown>
+            </ReactMarkdown></Suspense>
           </div>
         </div>
       );

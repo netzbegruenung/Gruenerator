@@ -1,8 +1,8 @@
-import React, { useState, useCallback, useContext, useEffect, useMemo } from 'react';
+import React, { lazy, Suspense, useState, useCallback, useContext, useEffect, useMemo } from 'react';
 import PropTypes from 'prop-types';
 import { useForm, Controller } from 'react-hook-form';
 import { motion, AnimatePresence } from 'motion/react';
-import Select from 'react-select';
+const Select = lazy(() => import('react-select'));
 import BaseForm from '../../../components/common/BaseForm';
 import FormFieldWrapper from '../../../components/common/Form/Input/FormFieldWrapper';
 import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../../components/utils/constants';

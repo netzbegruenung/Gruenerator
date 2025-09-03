@@ -1,7 +1,7 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { lazy, Suspense, useState, useCallback, useEffect, useMemo } from 'react';
 import PropTypes from 'prop-types';
 import { useQuery } from '@tanstack/react-query';
-import Select from 'react-select';
+const Select = lazy(() => import('react-select'));
 import { HiRefresh, HiExclamationCircle, HiTemplate } from 'react-icons/hi';
 import { useOptimizedAuth } from '../../../../hooks/useAuth';
 import * as canvaUtils from '../../../../components/utils/canvaUtils';
@@ -314,7 +314,7 @@ const CanvaSelector = ({ onImageSelect, selectedImageId, loading: externalLoadin
         htmlFor="canva-design-select"
       >
         <div className="canva-selector-dropdown__header">
-          <Select
+          <Suspense fallback={<div>Loading...</div>}><Select
             inputId="canva-design-select"
             classNamePrefix="canva-select"
             className="canva-select"
@@ -338,7 +338,7 @@ const CanvaSelector = ({ onImageSelect, selectedImageId, loading: externalLoadin
               }
               return 'Keine Designs verfügbar';
             }}
-          />
+          /></Suspense>
           
           <button 
             type="button" 
