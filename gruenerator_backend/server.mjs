@@ -48,6 +48,7 @@ const __dirname = dirname(__filename);
 let aiWorkerPool;
 let masterShutdownInProgress = false;
 let yjsServerProcess;
+let hocuspocusServerProcess;
 
 // ... existing code ...
 
@@ -57,10 +58,8 @@ if (cluster.isMaster) {
   // Embedding server disabled permanently (Mistral embeddings are used instead)
   console.log('[Master] Embedding server not started (using Mistral embeddings).');
 
-  // Start Y.js server as child process (can be disabled with YJS_ENABLED=false)
-  if (process.env.YJS_ENABLED === 'false') {
-    console.log('[Master] Y.js collaborative server disabled by YJS_ENABLED=false');
-  } else {
+  // Start Y.js server only when explicitly enabled
+  if (process.env.YJS_ENABLED === 'true') {
     console.log('[Master] Starting Y.js collaborative server...');
     yjsServerProcess = spawn('node', ['yjsServer.mjs'], {
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -83,6 +82,38 @@ if (cluster.isMaster) {
         yjsServerProcess = spawn('node', ['yjsServer.mjs'], {
           stdio: ['ignore', 'pipe', 'pipe'],
           cwd: __dirname
+        });
+      }
+    });
+  } else {
+    console.log('[Master] Y.js collaborative server not started (YJS_ENABLED!=true)');
+  }
+
+  // Start Hocuspocus server as child process (can be disabled with HOCUSPOCUS_ENABLED=false)
+  if (process.env.HOCUSPOCUS_ENABLED === 'false') {
+    console.log('[Master] Hocuspocus server disabled by HOCUSPOCUS_ENABLED=false');
+  } else {
+    console.log('[Master] Starting Hocuspocus collaborative server...');
+    hocuspocusServerProcess = spawn('node', ['hocuspocusServer.mjs'], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      cwd: __dirname,
+    });
+
+    hocuspocusServerProcess.stdout.on('data', (data) => {
+      console.log(`[Hocuspocus] ${data.toString().trim()}`);
+    });
+
+    hocuspocusServerProcess.stderr.on('data', (data) => {
+      console.error(`[Hocuspocus] ${data.toString().trim()}`);
+    });
+
+    hocuspocusServerProcess.on('exit', (code, signal) => {
+      if (!masterShutdownInProgress) {
+        console.error(`[Master] Hocuspocus server exited with code ${code}, signal ${signal}`);
+        console.log('[Master] Restarting Hocuspocus server...');
+        hocuspocusServerProcess = spawn('node', ['hocuspocusServer.mjs'], {
+          stdio: ['ignore', 'pipe', 'pipe'],
+          cwd: __dirname,
         });
       }
     });
@@ -168,6 +199,26 @@ if (cluster.isMaster) {
         yjsServerProcess.on('exit', () => {
           clearTimeout(timeout);
           console.log('Y.js server shut down successfully');
+          resolve();
+        });
+      });
+    }
+
+    // Shutdown Hocuspocus server
+    if (hocuspocusServerProcess) {
+      console.log('Shutting down Hocuspocus server...');
+      hocuspocusServerProcess.kill('SIGTERM');
+
+      await new Promise((resolve) => {
+        const timeout = setTimeout(() => {
+          console.log('Hocuspocus server shutdown timeout, forcing kill');
+          hocuspocusServerProcess.kill('SIGKILL');
+          resolve();
+        }, 5000);
+
+        hocuspocusServerProcess.on('exit', () => {
+          clearTimeout(timeout);
+          console.log('Hocuspocus server shut down successfully');
           resolve();
         });
       });

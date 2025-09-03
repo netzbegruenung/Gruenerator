@@ -68,13 +68,14 @@ const BaseFormInternal = ({
   isMultiStep = false,
   onBack,
   showBackButton = false,
+  onEditSubmit = null,
   nextButtonText,
   generatedContent,
   hideDisplayContainer = false,
 
   helpContent,
   submitButtonProps = {},
-  disableAutoCollapse = false,
+  disableAutoCollapse = false, // Deprecated: form no longer auto-collapses by default
   showNextButton = true,
   // New consolidated prop (optional, backward compatible)
   submitConfig = null,
@@ -109,6 +110,7 @@ const BaseFormInternal = ({
   componentName = 'default',
   firstExtrasChildren = null,
   useMarkdown = null,
+  enableEditMode = false,
   // TabIndex configuration
   featureIconsTabIndex = {
     webSearch: 11,
@@ -130,6 +132,7 @@ const BaseFormInternal = ({
   const formSectionRef = useRef(null);
   const displaySectionRef = useRef(null);
   const [inlineHelpContentOverride, setInlineHelpContentOverride] = useState(null);
+  const editSubmitHandlerRef = useRef(null);
 
   // Store selectors
   const storeLoading = useFormStateSelector(state => state.loading);
@@ -174,6 +177,7 @@ const BaseFormInternal = ({
   
   const isStreaming = useGeneratedTextStore(state => state.isStreaming);
   const hasContent = !!generatedContent || isStreaming;
+  const isEditModeActive = enableEditMode && hasContent;
 
   // Consolidated config with backward compatibility
   const resolvedSubmitConfig = React.useMemo(() => {
@@ -191,6 +195,7 @@ const BaseFormInternal = ({
       buttonProps: submitButtonProps
     };
   }, [submitConfig, showNextButton, nextButtonText, submitButtonProps]);
+  const showSubmitButtonFinal = isEditModeActive ? false : resolvedSubmitConfig.showButton;
 
   // Consolidated webSearch config with store integration
   const resolvedWebSearchConfig = React.useMemo(() => {
@@ -424,6 +429,11 @@ const BaseFormInternal = ({
   // Enhanced form submission with accessibility announcements
   const handleEnhancedSubmit = async (formData) => {
     try {
+      // In edit mode, call a registered edit handler if present
+      if (isEditModeActive && typeof editSubmitHandlerRef.current === 'function') {
+        await editSubmitHandlerRef.current();
+        return;
+      }
       await onSubmit(formData);
       // Success is handled in the success useEffect above
     } catch (error) {
@@ -490,7 +500,7 @@ const BaseFormInternal = ({
                 <FormSection
                   ref={formSectionRef}
                   title={title}
-                  onSubmit={useModernForm ? handleEnhancedSubmit : onSubmit}
+                  onSubmit={isEditModeActive && onEditSubmit ? onEditSubmit : (useModernForm ? handleEnhancedSubmit : onSubmit)}
                   isFormVisible={isFormVisible}
                   isMultiStep={isMultiStep}
                   onBack={onBack}
@@ -508,14 +518,14 @@ const BaseFormInternal = ({
                   platformSelectorPlaceholder={platformSelectorPlaceholder}
                   platformSelectorHelpText={platformSelectorHelpText}
                   formControl={formControl}
-                  showSubmitButton={resolvedSubmitConfig.showButton}
+                  showSubmitButton={showSubmitButtonFinal}
                   formNotice={formNotice}
                   defaultValues={defaultValues}
                   validationRules={validationRules}
                   useModernForm={useModernForm}
                   onFormChange={onFormChange}
                   bottomSectionChildren={bottomSectionChildren}
-                  showHideButton={hasContent && !disableAutoCollapse}
+                  showHideButton={hasContent} // Show hide button when content is available for manual toggle
                   onHide={toggleFormVisibility}
                   firstExtrasChildren={firstExtrasChildren}
                   featureIconsTabIndex={featureIconsTabIndex}
@@ -529,6 +539,8 @@ const BaseFormInternal = ({
                   onImageChange={onImageChange}
                   componentName={componentName}
                   onWebSearchInfoClick={handleWebSearchInfoClick}
+                  useEditMode={isEditModeActive}
+                  registerEditHandler={(fn) => { editSubmitHandlerRef.current = fn; }}
                 >
                   {children}
                 </FormSection>
@@ -603,6 +615,10 @@ const BaseForm = (props) => {
       isActive: false,
       enabled: usePrivacyModeToggle
     },
+    proModeConfig: {
+      isActive: false,
+      enabled: true
+    },
     useFeatureIcons: propUseFeatureIcons,
     attachedFiles: propAttachedFiles,
     uploadedImage: propUploadedImage,
@@ -628,6 +644,7 @@ BaseFormInternal.propTypes = {
   error: PropTypes.string,
   formErrors: PropTypes.object,
   onGeneratePost: PropTypes.func,
+  onEditSubmit: PropTypes.func,
   generatedPost: PropTypes.string,
   initialContent: PropTypes.string,
 
@@ -658,7 +675,7 @@ BaseFormInternal.propTypes = {
     showStatus: PropTypes.bool,
     defaultText: PropTypes.string
   }),
-  disableAutoCollapse: PropTypes.bool,
+  disableAutoCollapse: PropTypes.bool, // Deprecated: form no longer auto-collapses
   showNextButton: PropTypes.bool,
   submitConfig: PropTypes.shape({
     showButton: PropTypes.bool,
@@ -717,6 +734,7 @@ BaseFormInternal.propTypes = {
   componentName: PropTypes.string,
   firstExtrasChildren: PropTypes.node,
   useMarkdown: PropTypes.bool,
+  enableEditMode: PropTypes.bool,
   // TabIndex configuration
   platformSelectorTabIndex: PropTypes.number,
   knowledgeSelectorTabIndex: PropTypes.number,
@@ -735,6 +753,7 @@ BaseFormInternal.defaultProps = {
   usePrivacyModeToggle: false,
   displayActions: null,
   formNotice: null,
+  onEditSubmit: null,
   enableKnowledgeSelector: false,
   enablePlatformSelector: false,
   platformOptions: [],
@@ -749,6 +768,7 @@ BaseFormInternal.defaultProps = {
   accessibilityOptions: {},
   bottomSectionChildren: null,
   firstExtrasChildren: null,
+  enableEditMode: false,
   // TabIndex configuration defaults
   platformSelectorTabIndex: 12,
   knowledgeSelectorTabIndex: 14,

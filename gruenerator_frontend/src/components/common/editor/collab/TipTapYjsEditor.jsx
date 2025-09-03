@@ -42,7 +42,8 @@ const TipTapYjsEditor = ({
   // Initialize document when component mounts or documentId changes
   useEffect(() => {
     if (documentId) {
-      initializeDocument(documentId, 'hocuspocus'); // Use hocuspocus provider
+      const providerPref = import.meta.env.VITE_COLLAB_PROVIDER || 'hocuspocus';
+      initializeDocument(documentId, providerPref);
     }
   }, [documentId, initializeDocument]);
 

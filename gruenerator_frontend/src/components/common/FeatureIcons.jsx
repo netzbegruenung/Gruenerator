@@ -223,8 +223,8 @@ const FeatureIcons = ({
               >
                 <HiAdjustments className="balanced-dropdown-icon" />
                 <div className="balanced-dropdown-content">
-                  <span className="balanced-dropdown-title">Balanced</span>
-                  <span className="balanced-dropdown-desc">Ut enim ad minim veniam quis.</span>
+                  <span className="balanced-dropdown-title">Balance</span>
+                  <span className="balanced-dropdown-desc">Standard</span>
                 </div>
               </button>
               
@@ -239,8 +239,8 @@ const FeatureIcons = ({
               >
                 <HiEye className="balanced-dropdown-icon" />
                 <div className="balanced-dropdown-content">
-                  <span className="balanced-dropdown-title">Privacy Mode</span>
-                  <span className="balanced-dropdown-desc">Lorem ipsum dolor sit amet consectetur.</span>
+                  <span className="balanced-dropdown-title">Privacy</span>
+                  <span className="balanced-dropdown-desc">Verwendet deutsche Server, kann langsamer sein</span>
                 </div>
               </button>
               
@@ -255,8 +255,8 @@ const FeatureIcons = ({
               >
                 <HiLightningBolt className="balanced-dropdown-icon" />
                 <div className="balanced-dropdown-content">
-                  <span className="balanced-dropdown-title">Pro Mode (Claude Sonnet 4)</span>
-                  <span className="balanced-dropdown-desc">Uses Claude Sonnet 4 via AWS Bedrock; smart fallbacks.</span>
+                  <span className="balanced-dropdown-title">Pro</span>
+                  <span className="balanced-dropdown-desc">Verwendet Claude Sonnet 4</span>
                 </div>
               </button>
             </div>

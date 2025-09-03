@@ -67,6 +67,9 @@ const FormExtrasSection = ({
   const usePrivacyModeToggle = useFormStateSelector(state => state.privacyModeConfig.enabled);
   const useFeatureIcons = useFormStateSelector(state => state.useFeatureIcons);
   const attachedFiles = useFormStateSelector(state => state.attachedFiles);
+  // Pro mode from store (fallback if no prop provided)
+  const storeProModeActive = useFormStateSelector(state => state.proModeConfig?.isActive);
+  const setStoreProModeActive = useFormStateSelector(state => state.setProModeActive);
   
   // Simplified store access
   const { source, availableKnowledge } = useGeneratorKnowledgeStore();
@@ -114,14 +117,18 @@ const FormExtrasSection = ({
           <div className="form-extras__item">
             <FeatureIcons
               onWebSearchClick={() => webSearchFeatureToggle.onToggle(!webSearchFeatureToggle.isActive)}
-              onPrivacyModeClick={() => privacyModeToggle.onToggle(!privacyModeToggle.isActive)}
-              onProModeClick={proModeToggle ? () => proModeToggle.onToggle(!proModeToggle.isActive) : () => {}}
+              onPrivacyModeClick={() => {
+                // If enabling privacy, ensure pro mode is off in store
+                if (!privacyModeToggle.isActive && storeProModeActive) setStoreProModeActive(false);
+                privacyModeToggle.onToggle(!privacyModeToggle.isActive);
+              }}
+              onProModeClick={proModeToggle ? () => proModeToggle.onToggle(!proModeToggle.isActive) : () => setStoreProModeActive(!storeProModeActive)}
               onBalancedModeClick={balancedModeToggle ? () => balancedModeToggle.onToggle(!balancedModeToggle.isActive) : () => {}}
               onAttachmentClick={onAttachmentClick}
               onRemoveFile={onRemoveFile}
               webSearchActive={webSearchFeatureToggle.isActive}
               privacyModeActive={privacyModeToggle.isActive}
-              proModeActive={proModeToggle ? proModeToggle.isActive : false}
+              proModeActive={proModeToggle ? proModeToggle.isActive : !!storeProModeActive}
               attachedFiles={attachedFiles}
               className="form-extras__feature-icons"
               tabIndex={featureIconsTabIndex}
