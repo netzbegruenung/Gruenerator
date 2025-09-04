@@ -25,7 +25,7 @@ class PostgresService {
                 } : false,
                 max: 20,
                 idleTimeoutMillis: 30000,
-                connectionTimeoutMillis: 2000,
+                connectionTimeoutMillis: 10000,
             };
         } else {
             // Support discrete env vars (fallbacks to PG* as well)
@@ -50,7 +50,7 @@ class PostgresService {
                 ssl,
                 max: 20,
                 idleTimeoutMillis: 30000,
-                connectionTimeoutMillis: 2000,
+                connectionTimeoutMillis: 10000,
             };
         }
         this.pool = null;
@@ -394,6 +394,9 @@ class PostgresService {
                 client.release();
             }
             
+            // Run migrations after schema initialization
+            await this.runMigrations();
+            
             // After schema initialization, sync any missing columns (non-blocking)
             await this.syncSchemaColumns();
             
@@ -402,6 +405,76 @@ class PostgresService {
             // Don't throw - log the error and continue
             // The application should still work even if schema sync fails
             console.warn('[PostgresService] Schema initialization failed, but application will continue');
+        }
+    }
+
+    /**
+     * Run database migrations
+     */
+    async runMigrations() {
+        try {
+            const migrationsPath = path.join(__dirname, '../migrations');
+            
+            if (!fs.existsSync(migrationsPath)) {
+                console.log('[PostgresService] Migrations directory not found, skipping migrations');
+                return;
+            }
+
+            // Create migrations tracking table if it doesn't exist
+            await this.query(`
+                CREATE TABLE IF NOT EXISTS schema_migrations (
+                    id SERIAL PRIMARY KEY,
+                    filename TEXT NOT NULL UNIQUE,
+                    applied_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+                )
+            `);
+
+            // Get list of migration files
+            const migrationFiles = fs.readdirSync(migrationsPath)
+                .filter(file => file.endsWith('.sql'))
+                .sort();
+
+            if (migrationFiles.length === 0) {
+                console.log('[PostgresService] No migration files found');
+                return;
+            }
+
+            // Check which migrations have already been applied
+            const appliedMigrations = await this.query('SELECT filename FROM schema_migrations');
+            const appliedFilenames = new Set(appliedMigrations.map(row => row.filename));
+
+            // Run pending migrations
+            for (const filename of migrationFiles) {
+                if (appliedFilenames.has(filename)) {
+                    console.log(`[PostgresService] Migration ${filename} already applied`);
+                    continue;
+                }
+
+                console.log(`[PostgresService] Running migration ${filename}`);
+                
+                const migrationPath = path.join(migrationsPath, filename);
+                const migrationSql = fs.readFileSync(migrationPath, 'utf8');
+
+                const client = await this.pool.connect();
+                try {
+                    // Run migration in transaction
+                    await client.query('BEGIN');
+                    await client.query(migrationSql);
+                    await client.query('INSERT INTO schema_migrations (filename) VALUES ($1)', [filename]);
+                    await client.query('COMMIT');
+                    console.log(`[PostgresService] ✅ Migration ${filename} applied successfully`);
+                } catch (error) {
+                    await client.query('ROLLBACK');
+                    console.error(`[PostgresService] ❌ Migration ${filename} failed:`, error.message);
+                    // Don't stop on migration errors - log and continue
+                } finally {
+                    client.release();
+                }
+            }
+            
+        } catch (error) {
+            console.error('[PostgresService] Error running migrations:', error);
+            // Don't throw - let the application continue
         }
     }
 
@@ -517,7 +590,7 @@ class PostgresService {
             await this.initPromise;
         }
         if (!this.isInitialized) {
-            throw new Error('PostgresService failed to initialize');
+            throw new Error(`PostgresService failed to initialize: ${this.lastError || 'Unknown error'}. Database operations are not available.`);
         }
     }
 
@@ -525,7 +598,13 @@ class PostgresService {
      * Execute a raw SQL query
      */
     async query(sql, params = [], options = {}) {
-        await this.ensureInitialized();
+        try {
+            await this.ensureInitialized();
+        } catch (initError) {
+            console.error('[PostgresService] Database not initialized:', initError.message);
+            throw new Error('Database service unavailable. Please try again later.');
+        }
+        
         const client = await this.pool.connect();
         try {
             const result = await client.query(sql, params);
@@ -538,9 +617,23 @@ class PostgresService {
             return result.rows;
         } catch (error) {
             console.error('[PostgresService] Query error:', error, { sql, params });
-            throw new Error(`SQL query failed: ${error.message}`);
+            
+            // Provide more user-friendly error messages
+            if (error.code === 'ECONNREFUSED') {
+                throw new Error('Database connection refused. Please check database server.');
+            } else if (error.code === 'ETIMEDOUT') {
+                throw new Error('Database connection timeout. Please try again.');
+            } else if (error.code === '42P01') {
+                throw new Error('Database table not found. Schema may need updating.');
+            } else if (error.code === '42703') {
+                throw new Error('Database column not found. Schema may need updating.');
+            } else {
+                throw new Error(`Database query failed: ${error.message}`);
+            }
         } finally {
-            client.release();
+            if (client) {
+                client.release();
+            }
         }
     }
 
