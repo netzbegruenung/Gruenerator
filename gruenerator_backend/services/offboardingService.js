@@ -2,7 +2,7 @@ const axios = require('axios');
 const fs = require('fs').promises;
 const path = require('path');
 const winston = require('winston');
-const { supabaseService } = require('../utils/supabaseClient');
+// Lazily import ESM DatabaseAdapter from CJS context when needed
 
 // Configuration constants
 const RETRY_FILE = '/var/tmp/gruenerator-offboarding-retry.json';
@@ -96,36 +96,58 @@ class GrueneApiClient {
  */
 class GrueneratorOffboarding {
   constructor() {
-    this.supabase = supabaseService;
+    this.profileService = null;
+    this.db = null;
+  }
+
+  async getDb() {
+    if (this.db) return this.db;
+    const { getDatabaseAdapter } = await import('../database/services/DatabaseAdapter.js');
+    this.db = getDatabaseAdapter();
+    return this.db;
+  }
+
+  async init() {
+    if (!this.profileService) {
+      const { getProfileService } = await import('./ProfileService.mjs');
+      this.profileService = getProfileService();
+    }
   }
 
   /**
    * Find user in Grünerator database by various identifiers
    */
   async findUserInGruenerator(user) {
-    if (!this.supabase) {
-      throw new Error('Supabase client not initialized');
-    }
+    await this.init();
 
     try {
-      // Try to find user by email, username, keycloak_id, or sherpa_id
+      // Try to find user by email first (most common case)
+      if (user.email) {
+        const profile = await this.profileService.getProfileByEmail(user.email);
+        if (profile) return profile;
+      }
+
+      // Try to find by keycloak_id (mapped from sherpa_id)  
+      if (user.sherpa_id) {
+        const profile = await this.profileService.getProfileByKeycloakId(user.sherpa_id);
+        if (profile) return profile;
+      }
+
+      // Try other identifiers using database adapter
+      const db = await this.getDb();
+      await db.ensureInitialized();
+      
       const queries = [
-        { column: 'email', value: user.email },
         { column: 'username', value: user.username },
-        { column: 'keycloak_id', value: user.sherpa_id }, // Map sherpa_id to keycloak_id
-        { column: 'sherpa_id', value: user.sherpa_id } // Also try direct sherpa_id if it exists
-      ].filter(q => q.value); // Only query for fields that exist
+        { column: 'sherpa_id', value: user.sherpa_id } // If sherpa_id is a separate field
+      ].filter(q => q.value);
 
       for (const query of queries) {
-        const { data, error } = await this.supabase
-          .from('profiles')
-          .select('*')
-          .eq(query.column, query.value)
-          .single();
-
-        if (!error && data) {
-          return data;
-        }
+        const result = await (await this.getDb()).queryOne(
+          `SELECT * FROM profiles WHERE ${query.column} = $1`,
+          [query.value]
+        );
+        if (result) return result;
       }
 
       return null;
@@ -139,38 +161,23 @@ class GrueneratorOffboarding {
    * Delete user from Grünerator database
    */
   async deleteUser(userId) {
-    if (!this.supabase) {
-      throw new Error('Supabase client not initialized');
-    }
+    await this.init();
+    const db = await this.getDb();
+    await db.ensureInitialized();
 
     try {
       // Delete user data from all relevant tables
       // Delete from related tables first (foreign key constraints)
-      await this.supabase.from('group_memberships').delete().eq('user_id', userId);
-      await this.supabase.from('user_sharepics').delete().eq('user_id', userId);
-      await this.supabase.from('user_uploads').delete().eq('user_id', userId);
-      await this.supabase.from('documents').delete().eq('user_id', userId);
+      await db.delete('group_memberships', { user_id: userId });
+      await db.delete('user_sharepics', { user_id: userId });
+      await db.delete('user_uploads', { user_id: userId });
+      await db.delete('documents', { user_id: userId });
       
-      // Delete from profiles table
-      const { error: profileError } = await this.supabase
-        .from('profiles')
-        .delete()
-        .eq('id', userId);
-      
-      if (profileError) {
-        throw profileError;
-      }
-      
-      // Also delete from Supabase Auth
-      const { error: authError } = await this.supabase.auth.admin.deleteUser(userId);
-      if (authError) {
-        logger.warn(`Failed to delete auth user ${userId}: ${authError.message}`);
-      }
+      // Delete from profiles table (this will be handled by ProfileService)
+      await this.profileService.deleteProfile(userId);
 
-      if (error) {
-        throw error;
-      }
-
+      logger.info(`Successfully deleted user ${userId} from database`);
+      
       return true;
     } catch (error) {
       logger.error(`Error deleting user ${userId}:`, error.message);
@@ -182,48 +189,24 @@ class GrueneratorOffboarding {
    * Anonymize user in Grünerator database
    */
   async anonymizeUser(userId) {
-    if (!this.supabase) {
-      throw new Error('Supabase client not initialized');
-    }
-
+    await this.init();
     try {
       // Anonymize user data in profiles table
-      const { error: profileError } = await this.supabase
-        .from('profiles')
-        .update({
-          email: `anonymized_${userId}@example.com`,
-          username: `anonymized_${userId}`,
-          display_name: 'Anonymized User',
-          keycloak_id: null,
-          sherpa_id: null,
-          // Add other fields that need anonymization
-          anonymized_at: new Date().toISOString()
-        })
-        .eq('id', userId);
-      
-      if (profileError) {
-        throw profileError;
-      }
-      
-      // Also anonymize in Supabase Auth
-      const { error: authError } = await this.supabase.auth.admin.updateUserById(userId, {
+      await this.profileService.updateProfile(userId, {
         email: `anonymized_${userId}@example.com`,
-        user_metadata: {
-          name: 'Anonymized User',
-          username: `anonymized_${userId}`,
-          anonymized: true,
-          anonymized_at: new Date().toISOString()
-        }
+        username: `anonymized_${userId}`,
+        display_name: 'Anonymized User',
+        keycloak_id: null,
+        sherpa_id: null,
+        first_name: null,
+        last_name: null,
+        avatar_url: null,
+        // Add any other fields that need anonymization
+        anonymized_at: new Date().toISOString()
       });
+
+      logger.info(`Successfully anonymized user ${userId} in database`);
       
-      if (authError) {
-        logger.warn(`Failed to anonymize auth user ${userId}: ${authError.message}`);
-      }
-
-      if (error) {
-        throw error;
-      }
-
       return true;
     } catch (error) {
       logger.error(`Error anonymizing user ${userId}:`, error.message);
@@ -437,9 +420,7 @@ class OffboardingService {
       throw new Error('Either basic auth (username/password) or API key must be configured');
     }
 
-    if (!supabaseService) {
-      throw new Error('Supabase service client not initialized');
-    }
+    // Database validation is handled by ProfileService and DatabaseAdapter initialization
   }
 }
 

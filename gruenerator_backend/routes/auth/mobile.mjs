@@ -1,8 +1,7 @@
 import express from 'express';
 import jwtAuthMiddleware from '../../middleware/jwtAuthMiddleware.js';
-import { supabaseService } from '../../utils/supabaseClient.js';
 import { SignJWT } from 'jose';
-import { getProfileService } from '../../services/ProfileService.js';
+import { getProfileService } from '../../services/ProfileService.mjs';
 
 const router = express.Router();
 
@@ -94,13 +93,6 @@ router.get('/status', jwtAuthMiddleware, async (req, res) => {
   }
 
   try {
-    // Get fresh auth user data for metadata
-    const { data: authUser } = await supabaseService.auth.admin.getUserById(req.user.id);
-    
-    if (authUser?.user?.user_metadata) {
-      req.user.user_metadata = authUser.user.user_metadata;
-    }
-
     res.json({
       isAuthenticated: true,
       user: req.user,
