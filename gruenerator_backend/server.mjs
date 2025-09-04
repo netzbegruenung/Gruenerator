@@ -233,18 +233,18 @@ if (cluster.isMaster) {
     console.error('Warning: Could not initialize AI Search Agent:', error.message);
   }
 
-  // Initialize PostgreSQL database first (before ProfileService)
+  // Initialize PostgreSQL database connection (minimal - no schema)
   try {
     const { getPostgresInstance } = await import('./database/services/PostgresService.js');
     const postgresService = getPostgresInstance();
-    console.log(`[Worker ${process.pid}] Initializing PostgreSQL database...`);
-    await postgresService.init();
-    console.log(`[Worker ${process.pid}] PostgreSQL database initialized successfully`);
+    console.log(`[Worker ${process.pid}] Initializing PostgreSQL connection...`);
+    await postgresService.init(); // This now only does connection + pool setup
+    console.log(`[Worker ${process.pid}] PostgreSQL connection initialized successfully`);
   } catch (error) {
-    console.error(`[Worker ${process.pid}] Warning: Could not initialize PostgreSQL:`, error.message);
+    console.error(`[Worker ${process.pid}] Warning: Could not initialize PostgreSQL connection:`, error.message);
   }
 
-  // Initialize ProfileService (database should already be ready)
+  // Initialize ProfileService (database connection should be ready)
   try {
     const { getProfileService } = await import('./services/ProfileService.js');
     const profileService = getProfileService();

@@ -85,41 +85,40 @@ class PostgresService {
     }
 
     /**
-     * Initialize the PostgreSQL connection pool
+     * Initialize the PostgreSQL connection pool (MINIMAL VERSION)
      */
     async init() {
-        console.log('[PostgresService] Starting initialization...');
+        console.log('[PostgresService] Starting minimal initialization...');
         try {
             this.healthStatus = 'connecting';
             // Log effective (safe) configuration for troubleshooting
             console.log('[PostgresService] Effective configuration:', this.getSafeConfigForLog());
-            console.log('[PostgresService] Creating database if not exists...');
             
-            // Try to create database if it doesn't exist
-            await this.createDatabaseIfNotExists();
-            console.log('[PostgresService] Database creation check complete');
+            // COMMENTED OUT: Database creation (do manually if needed)
+            // console.log('[PostgresService] Creating database if not exists...');
+            // await this.createDatabaseIfNotExists();
+            // console.log('[PostgresService] Database creation check complete');
             
             // Create connection pool to the target database
             console.log('[PostgresService] Creating connection pool...');
             this.pool = new Pool(this.config);
             console.log('[PostgresService] Pool created, testing connection...');
             
-            // Test connection
+            // Test connection ONLY
             await this.testConnection();
             console.log('[PostgresService] Connection test successful');
             
-            this.healthStatus = 'schema_sync';
-            console.log('[PostgresService] Starting schema initialization...');
-            
-            // Initialize schema (non-blocking)
-            await this.initSchema();
-            console.log('[PostgresService] Schema initialization complete');
+            // COMMENTED OUT: Schema and migrations initialization
+            // this.healthStatus = 'schema_sync';
+            // console.log('[PostgresService] Starting schema initialization...');
+            // await this.initSchema();
+            // console.log('[PostgresService] Schema initialization complete');
             
             this.isInitialized = true;
             this.isHealthy = true;
             this.healthStatus = 'healthy';
             this.lastError = null;
-            console.log('[PostgresService] PostgreSQL database initialized successfully');
+            console.log('[PostgresService] PostgreSQL minimal initialization successful (connection only)');
             
         } catch (error) {
             this.isInitialized = false;
@@ -127,7 +126,7 @@ class PostgresService {
             this.healthStatus = 'error';
             this.lastError = error.message;
             
-            console.error('[PostgresService] Failed to initialize PostgreSQL database:', error);
+            console.error('[PostgresService] Failed to initialize PostgreSQL connection:', error);
             
             // Start retry mechanism instead of throwing
             console.log('[PostgresService] Scheduling retry in 5 seconds...');
@@ -138,7 +137,7 @@ class PostgresService {
             console.log('[PostgresService] Retry scheduled, continuing...');
             
             // Don't throw - let the application continue
-            console.warn('[PostgresService] Database initialization failed, but application will continue. Some features may be unavailable.');
+            console.warn('[PostgresService] Database connection failed, but application will continue. Some features may be unavailable.');
         }
     }
 
@@ -400,10 +399,10 @@ class PostgresService {
     }
 
     /**
-     * Initialize database schema from SQL file
+     * Initialize database schema from SQL file (MANUAL USE ONLY - COMMENTED OUT FROM AUTO-INIT)
      */
     async initSchema() {
-        console.log('[PostgresService] initSchema() called');
+        console.log('[PostgresService] initSchema() called - FOR MANUAL USE ONLY');
         try {
             const schemaPath = path.join(__dirname, '../postgres/schema.sql');
             console.log('[PostgresService] Looking for schema at:', schemaPath);
