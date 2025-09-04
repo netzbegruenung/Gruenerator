@@ -299,6 +299,12 @@ if (cluster.isMaster) {
   console.log(`[DIAGNOSTIC] Worker ${process.pid}: desiredPort is: ${desiredPort}`);
   console.log(`[DIAGNOSTIC] Worker ${process.pid}: host is: ${host}`);
   
+  // Start listening immediately to keep process alive during initialization
+  server.listen(desiredPort, host, () => {
+    console.log(`Main Backend Worker ${process.pid} started - Server listening at http://${host}:${desiredPort}`);
+    console.log(`[Worker ${process.pid}] Server accepting connections, continuing with app initialization...`);
+  });
+  
   // Import Redis client only in worker process
   const redisClient = require('./utils/redisClient.js');
   
@@ -843,8 +849,6 @@ if (cluster.isMaster) {
     });
   });
 
-  // Start server AFTER all routes and middleware are configured
-  server.listen(desiredPort, host, () => {
-    console.log(`Main Backend Worker ${process.pid} started - Server running at http://${host}:${desiredPort}`);
-  });
+  // Server already started above to keep process alive during initialization
+  console.log(`[Worker ${process.pid}] Application initialization complete - server is already listening`);
 }
