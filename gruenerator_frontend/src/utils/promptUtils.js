@@ -1,21 +1,27 @@
-// marked imported dynamically
 import DOMPurify from 'dompurify';
+import apiClient from '../components/utils/apiClient';
 
-// Function to safely render Markdown to HTML
+// Function to safely render Markdown to HTML using backend service
 export const renderMarkdown = async (markdown) => {
   if (!markdown) return { __html: '' };
   
-  // Dynamically import marked
-  const { marked } = await import('marked');
-  
-  // Configure marked to add breaks on newlines
-  marked.setOptions({
-    breaks: true, // Add <br> on single newlines
-    gfm: true // Use GitHub Flavored Markdown
-  });
-  const rawMarkup = marked.parse(markdown);
-  const cleanMarkup = DOMPurify.sanitize(rawMarkup);
-  return { __html: cleanMarkup };
+  try {
+    // Use backend API for markdown conversion
+    const response = await apiClient.post('/markdown/to-html', { content: markdown });
+    
+    if (response.data.success) {
+      const cleanMarkup = DOMPurify.sanitize(response.data.html);
+      return { __html: cleanMarkup };
+    } else {
+      console.error('Backend markdown conversion failed:', response.data.message);
+      // Fallback to original content
+      return { __html: DOMPurify.sanitize(markdown) };
+    }
+  } catch (error) {
+    console.error('Error calling backend markdown service:', error);
+    // Fallback to original content on error
+    return { __html: DOMPurify.sanitize(markdown) };
+  }
 };
 
 /**

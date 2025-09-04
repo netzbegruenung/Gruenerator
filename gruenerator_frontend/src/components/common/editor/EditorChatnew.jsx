@@ -5,21 +5,8 @@ import { useClaudeResponse } from './hooks/useClaudeResponse';
 import { motion, AnimatePresence } from 'motion/react';
 // DISABLED - Collab feature removed, backup available in archive/collab-feature-backup-2025-01
 // import useCollabEditorStore from '../../../stores/collabEditorStore';
-// Y.js will be dynamically imported when needed
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 
-// DISABLED - Collab feature removed
-// Helper function to create Y.Map with dynamic import
-// const createYMapMessage = async (messageData) => {
-//   const { Map: YMap } = await import('yjs');
-//   const yMapMsg = new YMap();
-//   Object.entries(messageData).forEach(([key, value]) => {
-//     if (value !== undefined) {
-//       yMapMsg.set(key, value);
-//     }
-//   });
-//   return yMapMsg;
-// };
 import TypingIndicator from '../../common/UI/TypingIndicator';
 const ReactMarkdown = lazy(() => import('react-markdown'));
 import { truncateMiddle } from './textTruncation';

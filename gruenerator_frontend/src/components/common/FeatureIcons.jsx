@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import { HiGlobeAlt, HiEye, HiPaperClip, HiAdjustments, HiLightningBolt } from 'react-icons/hi';
 import AttachedFilesList from './AttachedFilesList';
@@ -34,6 +35,43 @@ const FeatureIcons = ({
   const [validationError, setValidationError] = useState(null);
   const [fileMetadata, setFileMetadata] = useState({});
   const [showBalancedDropdown, setShowBalancedDropdown] = useState(false);
+  const balancedContainerRef = useRef(null);
+  const hoverTimeoutRef = useRef(null);
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
+  const dropdownRef = useRef(null);
+
+  const updateDropdownPosition = () => {
+    const triggerEl = balancedContainerRef.current;
+    if (!triggerEl) return;
+    const triggerRect = triggerEl.getBoundingClientRect();
+    const centerX = triggerRect.left + triggerRect.width / 2;
+    let dropdownWidth = 0;
+    if (dropdownRef.current) {
+      const dr = dropdownRef.current.getBoundingClientRect();
+      dropdownWidth = dr.width;
+    }
+    // Calculate left so that dropdown is slightly right of perfect center (approx 25% of width)
+    const offsetRatio = 0.33; // shift dropdown right by ~33% of its width
+    let left = centerX - dropdownWidth * (0.5 - offsetRatio);
+    const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+    // Clamp within viewport with small margin
+    const margin = 8;
+    if (left < margin) left = margin;
+    if (left + dropdownWidth > viewportWidth - margin) left = Math.max(margin, viewportWidth - margin - dropdownWidth);
+    setDropdownPosition({ top: triggerRect.bottom + 6, left });
+  };
+
+  React.useEffect(() => {
+    if (!showBalancedDropdown) return;
+    updateDropdownPosition();
+    const onScrollOrResize = () => updateDropdownPosition();
+    window.addEventListener('scroll', onScrollOrResize, true);
+    window.addEventListener('resize', onScrollOrResize, true);
+    return () => {
+      window.removeEventListener('scroll', onScrollOrResize, true);
+      window.removeEventListener('resize', onScrollOrResize, true);
+    };
+  }, [showBalancedDropdown]);
   const fileInputRef = useRef(null);
 
   // Re-validate files when privacy mode changes
@@ -201,35 +239,75 @@ const FeatureIcons = ({
         
         <div 
           className="balanced-mode-container"
-          onMouseEnter={() => setShowBalancedDropdown(true)}
-          onMouseLeave={() => setShowBalancedDropdown(false)}
+          ref={balancedContainerRef}
+          onMouseEnter={() => {
+            if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+            setShowBalancedDropdown(true);
+          }}
+          onMouseLeave={() => {
+            if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+            hoverTimeoutRef.current = setTimeout(() => setShowBalancedDropdown(false), 120);
+          }}
         >
           <button
             className={`feature-icon-button ${(privacyModeActive || proModeActive) ? 'active' : ''} ${clickedIcon === 'balanced' ? 'clicked' : ''}`}
-            aria-label="Balanced Mode"
+            aria-label={privacyModeActive ? 'Privacy' : (proModeActive ? 'Pro' : 'Ausbalanciert')}
             tabIndex={tabIndex.balancedMode}
             type="button"
+            onClick={(event) => handleIconClick(event, 'balanced', () => {
+              // Cycle modes on click: Balance -> Privacy -> Pro -> Balance
+              if (!privacyModeActive && !proModeActive) {
+                // Balanced -> Privacy
+                if (onPrivacyModeClick) onPrivacyModeClick();
+              } else if (privacyModeActive) {
+                // Privacy -> Pro
+                if (onProModeClick) onProModeClick();
+                if (onPrivacyModeClick) onPrivacyModeClick();
+              } else if (proModeActive) {
+                // Pro -> Balance
+                if (onProModeClick) onProModeClick();
+                if (onBalancedModeClick) onBalancedModeClick();
+              }
+            })}
           >
-            <HiAdjustments className="feature-icon" />
-            <span className="feature-icons-button__label">Balanced</span>
+            {(privacyModeActive && <HiEye className="feature-icon" />) ||
+             (proModeActive && <HiLightningBolt className="feature-icon" />) ||
+             (<HiAdjustments className="feature-icon" />)}
+            <span className="feature-icons-button__label">
+              {privacyModeActive ? 'Privacy' : (proModeActive ? 'Pro' : 'Ausbalanciert')}
+            </span>
           </button>
           
-          {showBalancedDropdown && (
-            <div className="balanced-dropdown">
+          {showBalancedDropdown && createPortal(
+            <div
+              className="balanced-dropdown-portal-wrapper"
+              style={{ top: dropdownPosition.top, left: dropdownPosition.left, zIndex: 2000, position: 'fixed' }}
+              onMouseEnter={() => {
+                if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+                setShowBalancedDropdown(true);
+              }}
+              onMouseLeave={() => setShowBalancedDropdown(false)}
+            >
+              <div className="balanced-dropdown balanced-dropdown--portal" ref={dropdownRef}>
               <button
-                className={`balanced-dropdown-item ${(!privacyModeActive && !proModeActive) ? 'active' : ''}`}
-                onClick={(event) => handleIconClick(event, 'balanced', onBalancedModeClick)}
+                className={`balanced-dropdown-item`}
+                onClick={(event) => handleIconClick(event, 'balanced', () => {
+                  // Ensure balanced mode clears other modes
+                  if (privacyModeActive && onPrivacyModeClick) onPrivacyModeClick();
+                  if (proModeActive && onProModeClick) onProModeClick();
+                  if (onBalancedModeClick) onBalancedModeClick();
+                })}
                 type="button"
               >
                 <HiAdjustments className="balanced-dropdown-icon" />
                 <div className="balanced-dropdown-content">
-                  <span className="balanced-dropdown-title">Balance</span>
-                  <span className="balanced-dropdown-desc">Standard</span>
+                  <span className="balanced-dropdown-title">Ausbalanciert</span>
+                  <span className="balanced-dropdown-desc">Ideal für die meisten Aufgaben. Läuft auf EU-Servern.</span>
                 </div>
               </button>
               
               <button
-                className={`balanced-dropdown-item ${privacyModeActive ? 'active' : ''}`}
+                className={`balanced-dropdown-item`}
                 onClick={(event) => handleIconClick(event, 'privacy', () => {
                   // Ensure mutual exclusivity: turn off Pro if active
                   if (proModeActive && onProModeClick) onProModeClick();
@@ -240,12 +318,12 @@ const FeatureIcons = ({
                 <HiEye className="balanced-dropdown-icon" />
                 <div className="balanced-dropdown-content">
                   <span className="balanced-dropdown-title">Privacy</span>
-                  <span className="balanced-dropdown-desc">Verwendet deutsche Server, kann langsamer sein</span>
+                  <span className="balanced-dropdown-desc">Nutzt ein selbstgehostetes Sprachmodell bei der Netzbegrünung (deutsche Server).</span>
                 </div>
               </button>
               
               <button
-                className={`balanced-dropdown-item ${proModeActive ? 'active' : ''}`}
+                className={`balanced-dropdown-item`}
                 onClick={(event) => handleIconClick(event, 'pro', () => {
                   // Ensure mutual exclusivity: turn off Privacy if active
                   if (privacyModeActive && onPrivacyModeClick) onPrivacyModeClick();
@@ -256,10 +334,12 @@ const FeatureIcons = ({
                 <HiLightningBolt className="balanced-dropdown-icon" />
                 <div className="balanced-dropdown-content">
                   <span className="balanced-dropdown-title">Pro</span>
-                  <span className="balanced-dropdown-desc">Verwendet Claude Sonnet 4</span>
+                  <span className="balanced-dropdown-desc">Nutzt ein fortgeschrittenes Sprachmodell – ideal für komplexere Texte.</span>
                 </div>
               </button>
-            </div>
+              </div>
+            </div>,
+            document.body
           )}
         </div>
         

@@ -13,6 +13,7 @@ import { extractHTMLContent, extractFormattedText } from '../utils/contentExtrac
 import { getNextcloudShareLinks, uploadToNextcloudShare, saveNextcloudShareLink } from '../utils/nextcloudUtils';
 import WolkeSetupModal from '../../features/wolke/components/WolkeSetupModal';
 import { useLocation } from 'react-router-dom';
+import apiClient from '../utils/apiClient';
 
 const ExportDropdown = ({ content, title, className = 'action-button', onSaveToLibrary, saveToLibraryLoading }) => {
   const [showDropdown, setShowDropdown] = useState(false);
@@ -175,7 +176,7 @@ const ExportDropdown = ({ content, title, className = 'action-button', onSaveToL
   const handleDOCXDownload = useCallback(async () => {
     setShowDropdown(false);
     try {
-      const formattedContent = extractFormattedText(content);
+      const formattedContent = await extractFormattedText(content);
       await generateDOCX(formattedContent, title);
     } catch (error) {
       console.error('DOCX download failed:', error);
@@ -210,18 +211,18 @@ const ExportDropdown = ({ content, title, className = 'action-button', onSaveToL
     
     try {
       const { extractFilenameFromContent } = await import('../utils/titleExtractor');
-      const formattedContent = extractFormattedText(content);
+      const formattedContent = await extractFormattedText(content);
       const baseFileName = extractFilenameFromContent(formattedContent, title);
       const filename = `${baseFileName}.docx`;
 
       // Request backend to generate DOCX blob
-      const res = await fetch('/api/exports/docx', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: formattedContent, title })
+      const response = await apiClient.post('/exports/docx', { 
+        content: formattedContent, 
+        title 
+      }, {
+        responseType: 'blob'
       });
-      if (!res.ok) throw new Error(`Server returned ${res.status}`);
-      const blob = await res.blob();
+      const blob = response.data;
 
       // Convert blob to base64 for upload
       const reader = new FileReader();
@@ -334,7 +335,7 @@ const ExportDropdown = ({ content, title, className = 'action-button', onSaveToL
           <button
             className="format-option"
             onClick={handleDOCXDownload}
-            disabled={isGenerating || loadingDOCX}
+            disabled={isGenerating}
           >
             <FaFileWord size={16} />
             <div className="format-option-content">

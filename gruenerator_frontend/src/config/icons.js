@@ -54,7 +54,7 @@ import {
   FiCheck
 } from 'react-icons/fi';
 
-import { RiMagicLine } from 'react-icons/ri';
+import { RiMagicLine, RiRobot3Line } from 'react-icons/ri';
 
 /**
  * Comprehensive icon registry organized by usage category
@@ -118,7 +118,8 @@ export const ICONS = {
     video: PiVideoCamera,
     search: PiMagnifyingGlass,
     caretDown: PiCaretDown,
-    caretUp: PiCaretUp
+    caretUp: PiCaretUp,
+    assistant: RiRobot3Line
   }
 };
 
@@ -183,3 +184,6 @@ export const ICON_CATEGORIES = {
   ACTIONS: 'actions',
   UI: 'ui'
 };
+
+// Convenience export for the standard assistant/chat icon
+export const AssistantIcon = RiRobot3Line;
