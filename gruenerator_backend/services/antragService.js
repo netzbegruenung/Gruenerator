@@ -1,7 +1,7 @@
-const { supabaseService } = require('../utils/supabaseClient');
+// Lazily import ESM DatabaseAdapter from CJS when needed
 
 /**
- * Saves a new Antrag to the Supabase database.
+ * Saves a new Antrag to the PostgreSQL database.
  * @param {object} antragData - The data for the new Antrag.
  * @param {string} antragData.title - The title of the Antrag.
  * @param {string} [antragData.description] - A short description.
@@ -10,23 +10,22 @@ const { supabaseService } = require('../utils/supabaseClient');
  * @param {string} [antragData.user_id] - Optional user ID.
  * @returns {Promise<object>} The inserted data or throws an error.
  */
-async function saveAntragToSupabase(antragData) {
-  // Ensure the service client is available
-  if (!supabaseService) {
-    throw new Error('Supabase service client is not initialized. Check SUPABASE_SERVICE_ROLE_KEY.');
-  }
+async function saveAntragToDatabase(antragData) {
+  const { getDatabaseAdapter } = await import('../database/services/DatabaseAdapter.js');
+  const db = getDatabaseAdapter();
+  await db.ensureInitialized();
 
-  // Destructure is_private, defaulting to false if not provided or undefined
+  // Destructure data fields
   const { 
     title, 
     description, 
     antragstext, 
     status = 'draft', 
     user_id, 
-    antragsteller, // Capture potentially unused fields if needed elsewhere
+    antragsteller,
     kontakt_email, 
     kontakt_erlaubt,
-    is_private = false // Default to false
+    is_private = false
   } = antragData;
 
   // Basic validation
@@ -36,63 +35,42 @@ async function saveAntragToSupabase(antragData) {
   if (!title || typeof title !== 'string' || title.trim() === '') {
     throw new Error('Title is required and cannot be empty.');
   }
-  if (typeof is_private !== 'boolean') {
-    // Optional: Add type validation if strictness is desired
-    console.warn('[AntragService] is_private is not a boolean, defaulting to false.');
-  }
 
   const dataToInsert = {
     title: title.trim(),
-    description: description ? description.trim() : null,
-    antragstext: antragstext.trim(),
+    content: antragstext.trim(), // Map antragstext to content field
     status,
-    // Only include user_id if it's provided
-    ...(user_id && { user_id }),
-    antragsteller: antragsteller || null, // Include from popup
-    kontakt_email: kontakt_email || null, // Include from popup
-    kontakt_erlaubt: typeof kontakt_erlaubt === 'boolean' ? kontakt_erlaubt : false, // Include from popup, ensure boolean
-    is_private: typeof is_private === 'boolean' ? is_private : false // Ensure boolean type
+    user_id: user_id || null,
+    metadata: {
+      description: description ? description.trim() : null,
+      antragsteller: antragsteller || null,
+      kontakt_email: kontakt_email || null,
+      kontakt_erlaubt: typeof kontakt_erlaubt === 'boolean' ? kontakt_erlaubt : false,
+      is_private: typeof is_private === 'boolean' ? is_private : false
+    }
   };
 
   console.log('[AntragService] Inserting Antrag:', dataToInsert);
 
-  const { data, error } = await supabaseService
-    .from('antraege') // Make sure 'antraege' table exists
-    .insert([dataToInsert])
-    .select() // Return the inserted row(s)
-    .single(); // Expecting a single row back
-
-  if (error) {
+  try {
+    const result = await db.insert('antraege', dataToInsert);
+    console.log('[AntragService] Antrag successfully inserted:', result);
+    return result.data[0];
+  } catch (error) {
     console.error('[AntragService] Error inserting Antrag:', error);
-    // Provide more specific error messages if possible
-    if (error.code === '23503') { // Foreign key violation (e.g., user_id doesn't exist)
-        throw new Error('Invalid user ID provided.');
-    }
-    if (error.code === '42P01') { // Table does not exist
-        throw new Error("Database error: 'antraege' table not found.");
-    }
-    // Add handling for invalid enum value for 'status' if needed
-    if (error.message.includes('invalid input value for enum antrag_status')) {
-        throw new Error(`Invalid status value provided: ${status}`);
+    if (error.code === '23503') {
+      throw new Error('Invalid user ID provided.');
     }
     throw new Error(error.message || 'Failed to save Antrag to the database.');
   }
-
-  console.log('[AntragService] Antrag successfully inserted:', data);
-  return data;
 }
 
 /**
- * Retrieves all Anträge for a specific user from the Supabase database.
+ * Retrieves all Anträge for a specific user from the PostgreSQL database.
  * @param {string} userId - The ID of the user whose Anträge should be retrieved.
  * @returns {Promise<Array<object>>} An array of Anträge objects or throws an error.
  */
 async function getAntraegeByUserId(userId) {
-  // Ensure the service client is available
-  if (!supabaseService) {
-    throw new Error('Supabase service client is not initialized. Cannot fetch Anträge.');
-  }
-
   // Validate userId
   if (!userId || typeof userId !== 'string') {
     throw new Error('Invalid user ID provided.');
@@ -100,23 +78,23 @@ async function getAntraegeByUserId(userId) {
 
   console.log(`[AntragService] Fetching Anträge for user ID: ${userId}`);
 
-  const { data, error } = await supabaseService
-    .from('antraege')
-    .select('*') // Select all columns, adjust as needed
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false }); // Optional: Order by creation date, newest first
+  try {
+    const { getDatabaseAdapter } = await import('../database/services/DatabaseAdapter.js');
+    const db = getDatabaseAdapter();
+    await db.ensureInitialized();
 
-  if (error) {
+    const result = await db.query(
+      'SELECT * FROM antraege WHERE user_id = $1 ORDER BY created_at DESC',
+      [userId]
+    );
+
+    const data = result.data || [];
+    console.log(`[AntragService] Successfully fetched ${data.length} Anträge for user ${userId}.`);
+    return data;
+  } catch (error) {
     console.error(`[AntragService] Error fetching Anträge for user ${userId}:`, error);
-    // Handle specific errors if needed, e.g., table not found
-    if (error.code === '42P01') { // Table does not exist
-        throw new Error("Database error: 'antraege' table not found.");
-    }
     throw new Error(error.message || 'Failed to fetch Anträge from the database.');
   }
-
-  console.log(`[AntragService] Successfully fetched ${data.length} Anträge for user ${userId}.`);
-  return data || []; // Return data or an empty array if null/undefined
 }
 
 /**
@@ -126,11 +104,6 @@ async function getAntraegeByUserId(userId) {
  * @returns {Promise<void>} Resolves if deletion is successful, otherwise throws an error.
  */
 async function deleteAntragById(antragId, userId) {
-  // Ensure the service client is available
-  if (!supabaseService) {
-    throw new Error('Supabase service client is not initialized. Cannot delete Antrag.');
-  }
-
   // Validate input
   if (!antragId) {
     throw new Error('Antrag ID is required for deletion.');
@@ -141,41 +114,29 @@ async function deleteAntragById(antragId, userId) {
 
   console.log(`[AntragService] Attempting to delete Antrag ID: ${antragId} by user ID: ${userId}`);
 
-  // We perform the delete operation directly with a user_id match condition.
-  // This leverages database constraints and RLS (if configured) for atomicity and security.
-  const { data, error } = await supabaseService
-    .from('antraege')
-    .delete()
-    .match({ id: antragId, user_id: userId }); // Match both ID and user ID
+  try {
+    const { getDatabaseAdapter } = await import('../database/services/DatabaseAdapter.js');
+    const db = getDatabaseAdapter();
+    await db.ensureInitialized();
 
-  // Note: Supabase delete returns an empty data array on success by default.
-  // The `error` object tells us if something went wrong.
+    // Delete with both ID and user ID match for security
+    const result = await db.delete('antraege', { 
+      id: antragId, 
+      user_id: userId 
+    });
 
-  if (error) {
+    console.log(`[AntragService] Antrag ID ${antragId} deleted by user ${userId}`);
+  } catch (error) {
     console.error(`[AntragService] Error deleting Antrag ID ${antragId} for user ${userId}:`, error);
-    if (error.code === '42P01') { // Table does not exist
-        throw new Error("Database error: 'antraege' table not found.");
-    }
-    // We don't need to explicitly check `count` here because if the match fails
-    // (either Antrag doesn't exist or user doesn't own it), Supabase delete
-    // operation does nothing and doesn't return an error unless there's a
-    // different problem (like DB connection or policy violation if RLS is strict).
-    // If RLS is properly set up, it might return a specific permission error code.
     throw new Error(error.message || 'Failed to delete Antrag.');
   }
-
-  // Optional: Check if any rows were actually deleted. `data` is usually empty/null on success.
-  // A more robust check might involve querying before deleting or relying on RLS errors.
-  // For now, we assume success if no error occurred.
-  console.log(`[AntragService] Antrag ID ${antragId} potentially deleted by user ${userId}. (Check RLS/DB logs if needed)`);
-
-  // No return value needed for successful deletion
 }
 
 // Add other functions like getAntragById, listAntraegeByUser etc. here later
 
 module.exports = {
-  saveAntragToSupabase,
+  saveAntragToDatabase,
+  saveAntragToSupabase: saveAntragToDatabase, // Keep old name for compatibility
   getAntraegeByUserId,
   deleteAntragById,
 }; 

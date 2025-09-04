@@ -1,4 +1,4 @@
-const { supabaseService } = require('../utils/supabaseClient');
+// Note: DatabaseAdapter is ESM. Import lazily inside functions where needed.
 
 async function jwtAuthMiddleware(req, res, next) {
   const authHeader = req.headers.authorization;
@@ -28,13 +28,11 @@ async function jwtAuthMiddleware(req, res, next) {
       console.log('[JWT Auth] Simple mobile JWT validated for user:', payload.sub);
       
       // Get user from database using user ID
-      const { data: userData, error } = await supabaseService
-        .from('profiles')
-        .select('*')
-        .eq('id', payload.sub)
-        .single();
+      const { getProfileService } = await import('../services/ProfileService.mjs');
+      const profileService = getProfileService();
+      const userData = await profileService.getProfileById(payload.sub);
       
-      if (error || !userData) {
+      if (!userData) {
         console.error('[JWT Auth] User not found for ID:', payload.sub);
         return res.status(401).json({ error: 'User not found' });
       }
@@ -50,13 +48,11 @@ async function jwtAuthMiddleware(req, res, next) {
       decoded = await validateKeycloakToken(token);
       
       // Get user profile from database using Keycloak ID
-      const { data: userData, error } = await supabaseService
-        .from('profiles')
-        .select('*')
-        .eq('keycloak_id', decoded.sub)
-        .single();
+      const { getProfileService } = await import('../services/ProfileService.mjs');
+      const profileService = getProfileService();
+      const userData = await profileService.getProfileByKeycloakId(decoded.sub);
 
-      if (error || !userData) {
+      if (!userData) {
         console.error('[JWT Auth] User not found in database:', decoded.sub);
         return res.status(401).json({ error: 'User not found' });
       }
@@ -67,26 +63,35 @@ async function jwtAuthMiddleware(req, res, next) {
     // Load user's groups if groups beta feature is enabled
     if (user.beta_features?.groups) {
       try {
-        const { data: memberships } = await supabaseService
-          .from('group_memberships')
-          .select(`
-            group_id,
-            role,
-            joined_at,
-            groups!inner(id, name, created_at, created_by, join_token)
-          `)
-          .eq('user_id', user.id);
+        const { getDatabaseAdapter } = await import('../database/services/DatabaseAdapter.js');
+        const db = getDatabaseAdapter();
+        await db.ensureInitialized();
+        
+        const memberships = await db.query(`
+          SELECT 
+            gm.group_id,
+            gm.role,
+            gm.joined_at,
+            g.id,
+            g.name,
+            g.created_at,
+            g.created_by,
+            g.join_token
+          FROM group_memberships gm
+          INNER JOIN groups g ON g.id = gm.group_id
+          WHERE gm.user_id = $1 AND gm.is_active = true
+        `, [user.id]);
 
-        if (memberships) {
-          user.groups = memberships.map(m => ({
-            id: m.groups.id,
-            name: m.groups.name,
-            created_at: m.groups.created_at,
-            created_by: m.groups.created_by,
-            join_token: m.groups.join_token,
+        if (memberships && memberships.data.length > 0) {
+          user.groups = memberships.data.map(m => ({
+            id: m.id,
+            name: m.name,
+            created_at: m.created_at,
+            created_by: m.created_by,
+            join_token: m.join_token,
             role: m.role,
             joined_at: m.joined_at,
-            isAdmin: m.groups.created_by === user.id || m.role === 'admin'
+            isAdmin: m.created_by === user.id || m.role === 'admin'
           }));
         }
       } catch (groupError) {

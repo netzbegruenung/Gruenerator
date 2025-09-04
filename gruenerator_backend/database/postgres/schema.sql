@@ -555,3 +555,58 @@ CREATE INDEX IF NOT EXISTS idx_wolke_sync_context_status ON wolke_sync_status(co
 CREATE INDEX IF NOT EXISTS idx_user_knowledge_user_id ON user_knowledge(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_knowledge_user_active ON user_knowledge(user_id, is_active);
 CREATE INDEX IF NOT EXISTS idx_user_knowledge_embedding ON user_knowledge(embedding_id) WHERE embedding_id IS NOT NULL;
+
+-- Antraege table for proposals/applications
+CREATE TABLE IF NOT EXISTS antraege (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    content TEXT,
+    status TEXT DEFAULT 'draft',
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    metadata JSONB DEFAULT '{}'
+);
+
+-- User sharepics table
+CREATE TABLE IF NOT EXISTS user_sharepics (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+    image_url TEXT,
+    title TEXT,
+    description TEXT,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    metadata JSONB DEFAULT '{}'
+);
+
+-- User uploads table  
+CREATE TABLE IF NOT EXISTS user_uploads (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+    file_name TEXT NOT NULL,
+    file_url TEXT,
+    file_path TEXT,
+    file_size BIGINT,
+    mime_type TEXT,
+    upload_status TEXT DEFAULT 'pending',
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    metadata JSONB DEFAULT '{}'
+);
+
+-- Indexes for new tables
+CREATE INDEX IF NOT EXISTS idx_antraege_user_id ON antraege(user_id);
+CREATE INDEX IF NOT EXISTS idx_antraege_status ON antraege(status);
+CREATE INDEX IF NOT EXISTS idx_antraege_created_at ON antraege(created_at);
+
+CREATE INDEX IF NOT EXISTS idx_user_sharepics_user_id ON user_sharepics(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_sharepics_created_at ON user_sharepics(created_at);
+
+CREATE INDEX IF NOT EXISTS idx_user_uploads_user_id ON user_uploads(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_uploads_status ON user_uploads(upload_status);
+CREATE INDEX IF NOT EXISTS idx_user_uploads_created_at ON user_uploads(created_at);
+
+-- Add triggers for new tables
+CREATE TRIGGER update_antraege_updated_at 
+    BEFORE UPDATE ON antraege 
+    FOR EACH ROW 
+    EXECUTE FUNCTION update_updated_at_column();

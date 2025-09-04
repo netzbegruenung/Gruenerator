@@ -31,7 +31,7 @@ class PostgresService {
             // Support discrete env vars (fallbacks to PG* as well)
             const host = process.env.POSTGRES_HOST || process.env.PGHOST || 'localhost';
             const port = parseInt(process.env.POSTGRES_PORT || process.env.PGPORT || '5432', 10);
-            const user = process.env.POSTGRES_USER || process.env.PGUSER || 'postgres';
+            const user = process.env.POSTGRES_USER || process.env.PGUSER || 'gruenerator';
             const passwordRaw = (process.env.POSTGRES_PASSWORD !== undefined)
                 ? process.env.POSTGRES_PASSWORD
                 : (process.env.PGPASSWORD !== undefined ? process.env.PGPASSWORD : '');
@@ -64,12 +64,35 @@ class PostgresService {
     }
 
     /**
+     * Build a safe view of the config for logging (no secrets)
+     */
+    getSafeConfigForLog() {
+        if (this.config?.connectionString) {
+            return {
+                mode: 'connection_string',
+                ssl: !!(this.config.ssl),
+                // Don’t print the connection string
+            };
+        }
+        return {
+            host: this.config?.host,
+            port: this.config?.port,
+            user: this.config?.user,
+            database: this.config?.database,
+            ssl: !!(this.config?.ssl),
+            autoCreateDb: process.env.POSTGRES_AUTO_CREATE_DB !== 'false'
+        };
+    }
+
+    /**
      * Initialize the PostgreSQL connection pool
      */
     async init() {
         console.log('[PostgresService] Starting initialization...');
         try {
             this.healthStatus = 'connecting';
+            // Log effective (safe) configuration for troubleshooting
+            console.log('[PostgresService] Effective configuration:', this.getSafeConfigForLog());
             console.log('[PostgresService] Creating database if not exists...');
             
             // Try to create database if it doesn't exist

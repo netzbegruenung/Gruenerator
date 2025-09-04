@@ -1,6 +1,6 @@
 import express from 'express';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
-import { getProfileService } from '../../services/ProfileService.js';
+import { getProfileService } from '../../services/ProfileService.mjs';
 import { getUserKnowledgeService } from '../../services/userKnowledgeService.js';
 import authMiddlewareModule from '../../middleware/authMiddleware.js';
 import { v4 as uuidv4 } from 'uuid';
