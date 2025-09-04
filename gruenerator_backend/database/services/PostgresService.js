@@ -656,12 +656,25 @@ class PostgresService {
      * Ensure service is initialized
      */
     async ensureInitialized() {
-        if (!this.isInitialized && !this.initPromise) {
-            this.initPromise = this.init();
+        // If already initialized, return immediately
+        if (this.isInitialized) {
+            return;
         }
+        
+        // If initialization is in progress, wait for it
         if (this.initPromise) {
             await this.initPromise;
+            return;
         }
+        
+        // Only start initialization if not already started
+        if (!this.isInitialized && !this.initPromise) {
+            console.log('[PostgresService] ensureInitialized: Starting initialization...');
+            this.initPromise = this.init();
+            await this.initPromise;
+        }
+        
+        // Check if initialization was successful
         if (!this.isInitialized) {
             throw new Error(`PostgresService failed to initialize: ${this.lastError || 'Unknown error'}. Database operations are not available.`);
         }
