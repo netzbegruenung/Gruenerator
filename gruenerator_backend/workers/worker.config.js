@@ -1,7 +1,7 @@
 module.exports = {
     worker: {
       // Anzahl der AI-Worker aus Umgebungsvariable oder Standardwert
-      workersPerNode: parseInt(process.env.AI_WORKER_COUNT, 10) || 2,
+      workersPerNode: parseInt(process.env.AI_WORKER_COUNT, 10) || 1,
       
       // Timeout-Einstellungen
       requestTimeout: parseInt(process.env.REQUEST_TIMEOUT, 10) || 120000, // 2 Minuten (120000ms)
