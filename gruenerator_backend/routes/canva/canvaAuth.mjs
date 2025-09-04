@@ -3,9 +3,9 @@ import crypto from 'crypto';
 import axios from 'axios';
 import passport from '../../config/passportSetup.mjs';
 import authMiddlewareModule from '../../middleware/authMiddleware.js';
-import { supabaseService } from '../../utils/supabaseClient.js';
 // Import CanvaTokenManager and Redis OAuth State Manager using createRequire for CommonJS compatibility
 import { createRequire } from 'module';
+import { getProfileService } from '../../services/ProfileService.mjs';
 const require = createRequire(import.meta.url);
 const CanvaTokenManager = require('../../utils/canvaTokenManager.js');
 const redisOAuthStateManager = require('../../utils/redisOAuthStateManager.js');
@@ -290,14 +290,11 @@ router.get('/status', ensureAuthenticated, async (req, res) => {
     console.log(`[Canva Auth] Status check for user: ${req.user?.id}`);
     
     // Check if user has Canva tokens
-    const { data: profile, error } = await supabaseService
-      .from('profiles')
-      .select('canva_access_token, canva_refresh_token, canva_token_expires_at, canva_user_id, canva_display_name, canva_email, canva_scopes')
-      .eq('id', req.user.id)
-      .single();
+    const profileService = getProfileService();
+    const profile = await profileService.getProfile(req.user.id);
     
-    if (error) {
-      throw new Error(`Database error: ${error.message}`);
+    if (!profile) {
+      throw new Error('User profile not found');
     }
     
     const hasConnection = !!(profile.canva_access_token && profile.canva_user_id);
@@ -342,22 +339,16 @@ router.post('/disconnect', ensureAuthenticated, async (req, res) => {
     console.log(`[Canva Auth] Disconnect request for user: ${req.user?.id}`);
     
     // Clear Canva tokens from profile
-    const { error } = await supabaseService
-      .from('profiles')
-      .update({
-        canva_access_token: null,
-        canva_refresh_token: null,
-        canva_token_expires_at: null,
-        canva_user_id: null,
-        canva_display_name: null,
-        canva_email: null,
-        canva_scopes: null
-      })
-      .eq('id', req.user.id);
-    
-    if (error) {
-      throw new Error(`Database error: ${error.message}`);
-    }
+    const profileService = getProfileService();
+    await profileService.updateProfile(req.user.id, {
+      canva_access_token: null,
+      canva_refresh_token: null,
+      canva_token_expires_at: null,
+      canva_user_id: null,
+      canva_display_name: null,
+      canva_email: null,
+      canva_scopes: null
+    });
     
     console.log(`[Canva Auth] Successfully disconnected Canva account for user: ${req.user.id}`);
     
@@ -508,14 +499,8 @@ async function saveCanvaUserInfoToProfile(userId, userInfo) {
       updateData.canva_email = userInfo.canva_email;
     }
     
-    const { error } = await supabaseService
-      .from('profiles')
-      .update(updateData)
-      .eq('id', userId);
-    
-    if (error) {
-      throw new Error(`Database error: ${error.message}`);
-    }
+    const profileService = getProfileService();
+    await profileService.updateProfile(userId, updateData);
     
     console.log(`[Canva Auth] User info saved successfully for user: ${userId}`);
     

@@ -115,15 +115,12 @@ function requireCanvaScopes(requiredScopes) {
       }
       
       // Get user's current scopes from database
-      const { supabaseService } = require('../utils/supabaseClient.js');
-      const { data: profile, error } = await supabaseService
-        .from('profiles')
-        .select('canva_scopes')
-        .eq('id', req.user.id)
-        .single();
+      const { getProfileService } = await import('../services/ProfileService.mjs');
+      const profileService = getProfileService();
+      const profile = await profileService.getProfileById(req.user.id);
       
-      if (error) {
-        throw new Error(`Database error: ${error.message}`);
+      if (!profile) {
+        throw new Error(`Profile not found for user: ${req.user.id}`);
       }
       
       const userScopes = profile.canva_scopes || [];
