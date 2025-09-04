@@ -1,6 +1,5 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { HiChip } from "react-icons/hi";
 import '../../../assets/styles/components/ui/TypingIndicator.css';
 
 const TypingIndicator = () => {
@@ -23,8 +22,8 @@ const TypingIndicator = () => {
   });
 
   return (
-    <div className="chat-message assistant typing-indicator">
-      <HiChip className="assistant-icon" />
+    // Render only the dots; container bubble and icon are provided by parent
+    <div className="typing-indicator">
       <motion.span
         variants={dotVariants}
         initial="initial"

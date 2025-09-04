@@ -50,15 +50,9 @@ const ActionButtons = ({
   const [copyIcon, setCopyIcon] = useState(<IoCopyOutline size={16} />);
   const [saveIcon, setSaveIcon] = useState(<HiSave size={16} />);
   
-  // Track undo/redo availability
-  const [canUndoState, setCanUndoState] = useState(false);
-  const [canRedoState, setCanRedoState] = useState(false);
-  
-  // Update undo/redo state when component or history changes
-  useEffect(() => {
-    setCanUndoState(canUndo(componentName));
-    setCanRedoState(canRedo(componentName));
-  }, [canUndo, canRedo, componentName, generatedContent]);
+  // Directly compute undo/redo availability from store without local state
+  const canUndoState = canUndo(componentName);
+  const canRedoState = canRedo(componentName);
 
   const hasDatabaseAccess = isAuthenticated && getBetaFeatureState('database');
 

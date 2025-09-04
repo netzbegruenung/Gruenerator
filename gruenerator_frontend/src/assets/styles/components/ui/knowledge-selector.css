@@ -304,7 +304,9 @@
 
 /* Enhanced Knowledge Select - Use classNamePrefix="enhanced-knowledge-select" */
 .enhanced-knowledge-select__control {
-  min-height: var(--form-element-min-height) !important;
+  /* Even more compact control height for compact layout */
+  min-height: calc(var(--form-element-min-height) - 16px) !important;
+  line-height: 1.2 !important;
   font-size: var(--form-element-font-size) !important;
   background-color: var(--input-background) !important;
   border: var(--input-border) !important;
@@ -323,12 +325,34 @@
 }
 
 .enhanced-knowledge-select__value-container {
-  padding: var(--form-element-padding-y) var(--form-element-padding-x) !important;
+  /* Even more compact vertical padding */
+  padding: calc(var(--form-element-padding-y) - 8px) var(--form-element-padding-x) !important;
 }
 
 .enhanced-knowledge-select__placeholder {
   color: var(--font-color) !important;
   opacity: 0.95 !important;
+  /* Keep single-line by default to match other selects */
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  display: inline-block !important;
+  margin-left: 2px !important;
+  margin-right: 2px !important;
+}
+
+/* Align single value spacing and input container with base react-select */
+.enhanced-knowledge-select__single-value {
+  color: var(--input-text-color) !important;
+  margin-left: 2px !important;
+  margin-right: 2px !important;
+  font-size: var(--form-element-font-size) !important;
+}
+
+.enhanced-knowledge-select__input-container {
+  color: var(--input-text-color) !important;
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
 .enhanced-knowledge-select__input {
@@ -346,6 +370,23 @@
   max-width: 450px !important; /* Maximum width to prevent excessive expansion */
   width: 400px !important; /* Fixed width for consistency */
   transform: translateX(-20%) !important; /* Adjusted centering for new width */
+}
+
+/* Make the dropdown menu responsive on very small viewports */
+@media (max-width: 480px) {
+  .enhanced-knowledge-select__menu {
+    width: calc(100vw - 24px) !important;
+    max-width: 100vw !important;
+    min-width: 0 !important;
+    transform: none !important;
+  }
+  /* On very small screens, allow placeholder wrapping with hyphenation */
+  .enhanced-knowledge-select__placeholder {
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+    word-break: break-word !important;
+    hyphens: auto !important;
+  }
 }
 
 .enhanced-knowledge-select__menu-list {
@@ -396,12 +437,21 @@
   background-color: var(--secondary-50) !important;
   border-radius: var(--card-border-radius-small) !important;
   border: 1px solid var(--secondary-200) !important;
+  /* Tighten chips vertical spacing */
+  margin: 1px var(--spacing-xxsmall) 1px 0 !important;
 }
 
 .enhanced-knowledge-select__multi-value__label {
   color: var(--secondary-700) !important;
   font-size: 0.875rem !important;
-  padding: var(--spacing-xxsmall) var(--spacing-xsmall) !important;
+  /* Tighten chip label padding */
+  padding: var(--spacing-xxsmall) var(--spacing-xxsmall) !important;
+}
+
+/* Reduce indicator paddings to lower overall control height */
+.enhanced-knowledge-select__dropdown-indicator,
+.enhanced-knowledge-select__clear-indicator {
+  padding: calc(var(--spacing-xsmall) - 2px) !important;
 }
 
 .enhanced-knowledge-select__multi-value__remove {

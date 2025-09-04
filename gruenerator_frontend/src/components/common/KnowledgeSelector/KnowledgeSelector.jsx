@@ -581,7 +581,8 @@ const EnhancedKnowledgeSelector = ({
           className="enhanced-knowledge-select"
           isMulti
           options={knowledgeOptions}
-          placeholder="Auswählen"
+          // Allow placeholder to hyphenate and wrap: Aus­wählen (soft hyphen)
+          placeholder={"Aus­wählen"}
           isDisabled={disabled}
           formatOptionLabel={formatOptionLabel}
           filterOption={() => true} // Disable default filtering since we handle it

@@ -6,13 +6,21 @@
   border-radius: var(--card-border-radius-small);
   background-color: transparent;
   transition: var(--input-transition);
-  padding: var(--spacing-xsmall);
+  /* Add a bit more vertical breathing room on desktop */
+  padding: var(--spacing-small) var(--spacing-xsmall);
+  /* Allow the icon row to wrap inside narrow containers */
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .feature-icons-row {
+  --row-gap: clamp(4px, 1.2vw, var(--spacing-small));
+  --item-size: calc((100% - 2 * var(--row-gap)) / 3);
   display: flex;
   justify-content: center;
-  gap: var(--spacing-small);
+  align-items: center;
+  gap: var(--row-gap);
+  flex-wrap: nowrap; /* keep one line */
 }
 
 
@@ -21,8 +29,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  /* Always fit 3 icons on one line: width is based on row width via CSS var */
+  width: clamp(18px, var(--item-size), 56px);
+  height: clamp(18px, var(--item-size), 56px);
   padding: 0;
   background-color: transparent;
   border: 1px solid transparent;
@@ -30,6 +39,7 @@
   cursor: pointer;
   transition: var(--input-transition);
   outline: none;
+  flex: 0 0 auto; /* Prevent stretching when wrapping */
 }
 
 .feature-icon-button:hover {
@@ -67,7 +77,9 @@
 }
 
 .feature-icons .feature-icon {
-  font-size: 1.4rem;
+  /* Larger default icon size for normal/desktop */
+  font-size: clamp(0.9rem, 1rem + 1vw, 2rem);
+  line-height: 1;
   color: var(--font-color);
   opacity: 0.7;
   transition: var(--input-transition);
@@ -163,16 +175,41 @@
 .balanced-mode-container {
   position: relative;
   display: inline-flex;
-  width: 36px;
-  height: 36px;
+  align-items: center;
+  justify-content: center;
+  width: clamp(18px, var(--item-size), 56px);
+  height: clamp(18px, var(--item-size), 56px);
+  /* Prevent shrinking compared to sibling buttons */
+  flex: 0 0 auto;
+}
+
+/* Ensure the inner button matches the container size */
+.balanced-mode-container > .feature-icon-button {
+  width: 100%;
+  height: 100%;
+}
+
+/* Anchor for portal content positioned relative to the middle icon */
+/* Portal wrapper centers content using translateX(-50%) */
+.balanced-dropdown-portal-wrapper {
+  position: fixed; /* reinforced inline; kept here for clarity */
+}
+
+/* Override non-portal positioning inside the portal */
+.balanced-dropdown--portal {
+  position: relative;
+  left: auto;
+  top: auto;
 }
 
 .balanced-dropdown {
   position: absolute;
   top: 100%;
-  /* Centered under the toggle, now slightly wider */
+  /* Use intrinsic width so long text wraps appropriately; width is handled by portal variant */
   left: calc(-18px - var(--spacing-small) - var(--spacing-xsmall) - 1px - 40px);
-  width: calc(3 * 36px + 2 * var(--spacing-small) + 2 * var(--spacing-xsmall) + 2px + 80px);
+  width: auto;
+  min-width: 220px;
+  max-width: min(92vw, 420px);
   transform: translateY(-4px) scale(0.98);
   transform-origin: top center;
   z-index: 1000;
@@ -273,18 +310,11 @@
 /* Mobile responsiveness */
 @media (max-width: 768px) {
   .feature-icons {
-    gap: var(--spacing-xsmall);
+    gap: var(--spacing-xxsmall);
     padding: var(--spacing-xxsmall);
   }
-  
-  .feature-icon-button {
-    width: 32px;
-    height: 32px;
-  }
-  
-  .feature-icons .feature-icon {
-    font-size: 1.1rem;
-  }
+
+  /* Sizes are controlled via clamp and container width; no overrides needed */
   
   .feature-icon-button .attachment-badge {
     width: 16px;
@@ -306,6 +336,7 @@
   
   .balanced-dropdown {
     min-width: 180px;
+    max-width: calc(100vw - 24px);
   }
   
   .balanced-dropdown-item {
@@ -318,5 +349,36 @@
   
   .balanced-dropdown-desc {
     font-size: 0.7rem;
+  }
+
+  /* Avoid hover labels overlapping when space is tight */
+  .feature-icons-button__label {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .feature-icons-row {
+    gap: 4px;
+  }
+  /* Sizes are controlled via clamp and container width; no overrides needed */
+  
+  /* When icons are very small, hide active circle on the middle (balanced) button */
+  .balanced-mode-container .feature-icon-button.active {
+    background-color: transparent;
+    border-color: transparent;
+  }
+}
+
+@media (max-width: 360px) {
+  .feature-icons-row {
+    gap: 4px;
+  }
+  /* Sizes are controlled via clamp and container width; no overrides needed */
+  
+  /* Hide active circle on even smaller widths as well */
+  .balanced-mode-container .feature-icon-button.active {
+    background-color: transparent;
+    border-color: transparent;
   }
 }

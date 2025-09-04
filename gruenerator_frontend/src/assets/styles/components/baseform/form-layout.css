@@ -118,55 +118,7 @@
   min-height: 0; /* allow inner components to manage their own scroll */
 }
 
-/* Embedded Chat (Edit Mode) height adjustments to keep input visible without page scroll */
-.form-card--editmode .editor-chat {
-  /* Fix chat height relative to viewport with sensible bounds */
-  /* height: clamp(60vh, 72vh, 80vh) !important; */
-  background: var(--chat-background);
-  border-radius: var(--border-radius-medium);
-  box-shadow: var(--shadow-sm);
-  overflow: hidden;
-}
 
-.form-card--editmode .editor-chat-embedded {
-  /* height: 100%; */
-  background: var(--chat-background);
-  border-radius: var(--border-radius-medium);
-  position: relative;
-}
-
-.form-card--editmode .editor-chat-messages {
-  background: var(--chat-background);
-  scrollbar-width: thin;
-  scrollbar-color: var(--scrollbar-thumb-color) var(--scrollbar-track-color);
-  padding-bottom: 100px; /* Space for enhanced floating input */
-}
-
-.form-card--editmode .editor-chat-messages::-webkit-scrollbar {
-  width: 6px;
-}
-
-.form-card--editmode .editor-chat-messages::-webkit-scrollbar-track {
-  background: var(--scrollbar-track-color);
-  border-radius: 8px;
-}
-
-.form-card--editmode .editor-chat-messages::-webkit-scrollbar-thumb {
-  background-color: var(--scrollbar-thumb-color);
-  border-radius: 8px;
-}
-
-.form-card--editmode .editor-chat-messages::-webkit-scrollbar-thumb:hover {
-  background-color: var(--scrollbar-thumb-hover-color);
-}
-
-/* Optional fine-tuning for very short viewports */
-/* @media (max-height: 800px) {
-  .form-card--editmode .editor-chat { height: 68vh !important; }
-}
-@media (max-height: 700px) {
-  .form-card--editmode .editor-chat { height: 65vh !important; }
-} */
 
 .form-inputs__buttons {
   display: flex;
