@@ -56,6 +56,22 @@ CREATE TABLE IF NOT EXISTS profiles (
     document_mode TEXT DEFAULT 'manual' -- 'manual' or 'wolke'
 );
 
+-- Groups table (moved before documents to fix foreign key constraint)
+CREATE TABLE IF NOT EXISTS groups (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name TEXT NOT NULL,
+    description TEXT,
+    created_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    join_token TEXT,
+    is_active BOOLEAN DEFAULT TRUE,
+    group_type TEXT DEFAULT 'standard',
+    settings JSONB DEFAULT '{}',
+    -- Wolke integration for groups
+    wolke_share_links JSONB DEFAULT '[]'
+);
+
 -- Documents table (updated for dual-mode support)
 CREATE TABLE IF NOT EXISTS documents (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -94,22 +110,6 @@ CREATE TABLE IF NOT EXISTS document_daily_versions (
     content_snapshot TEXT,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     metadata JSONB
-);
-
--- Groups table
-CREATE TABLE IF NOT EXISTS groups (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name TEXT NOT NULL,
-    description TEXT,
-    created_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    join_token TEXT,
-    is_active BOOLEAN DEFAULT TRUE,
-    group_type TEXT DEFAULT 'standard',
-    settings JSONB DEFAULT '{}',
-    -- Wolke integration for groups
-    wolke_share_links JSONB DEFAULT '[]'
 );
 
 -- Group memberships
