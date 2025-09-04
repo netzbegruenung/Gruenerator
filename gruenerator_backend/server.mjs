@@ -590,6 +590,72 @@ if (cluster.isMaster) {
   // app.use(passport.session());
   // console.log('[Server.mjs] Passport session initialized.');
 
+  // Make passport session available for early auth routes only
+  app.use('/api/auth', (req, res, next) => passport.session()(req, res, next));
+
+  // Early auth routes so login doesn’t 404 during warmup
+  app.get('/api/auth/login', (req, res, next) => {
+    try {
+      const source = req.query.source;
+      const { redirectTo, prompt } = req.query;
+
+      if (redirectTo) {
+        req.session.redirectTo = redirectTo;
+      }
+      if (source) {
+        req.session.preferredSource = source;
+      }
+      if (prompt === 'register') {
+        req.session.isRegistration = true;
+      }
+
+      const options = { scope: 'openid profile email offline_access' };
+
+      if (source === 'netzbegruenung-login') {
+        options.kc_idp_hint = 'netzbegruenung';
+        options.prompt = 'login';
+      } else if (source === 'gruenes-netz-login') {
+        options.kc_idp_hint = 'gruenes-netz';
+        options.prompt = 'login';
+      } else if (source === 'gruene-oesterreich-login') {
+        options.kc_idp_hint = 'gruene-at-login';
+        options.prompt = 'login';
+      } else if (source === 'gruenerator-login') {
+        options.kc_idp_hint = 'gruenerator-user';
+        options.prompt = prompt === 'register' ? 'register' : 'login';
+      }
+
+      return passport.authenticate('oidc', options)(req, res, next);
+    } catch (e) {
+      return next(e);
+    }
+  });
+
+  app.get('/api/auth/callback',
+    passport.authenticate('oidc', {
+      failureRedirect: '/auth/error',
+      failureMessage: true
+    }),
+    async (req, res, next) => {
+      try {
+        const redirectTo = req.session.redirectTo || `${process.env.BASE_URL}/profile`;
+        delete req.session.redirectTo;
+        delete req.session.preferredSource;
+        delete req.session.isRegistration;
+
+        req.session.save((err) => {
+          if (err) {
+            console.error('[AuthCallback] Error saving session:', err);
+          }
+          res.redirect(redirectTo);
+        });
+      } catch (error) {
+        console.error('[AuthCallback] General error in OIDC callback:', error);
+        next(error);
+      }
+    }
+  );
+
   // Initialize Passport OIDC strategy
   // ... existing code ...
 
@@ -625,10 +691,20 @@ if (cluster.isMaster) {
 
   // Routen einrichten
   try {
+    console.log(`[Worker ${process.pid}] Setting up routes...`);
     await setupRoutes(app);
-  } finally {
-    // Flip readiness flag regardless of route setup outcome, so health shows ready
+    console.log(`[Worker ${process.pid}] Routes setup completed successfully`);
     app.locals.ready = true;
+  } catch (error) {
+    console.error(`[Worker ${process.pid}] CRITICAL ERROR: Failed to setup routes:`, error);
+    console.error(`[Worker ${process.pid}] Stack trace:`, error.stack);
+    
+    // Don't mark as ready if routes failed to setup
+    app.locals.ready = false;
+    
+    // Exit the worker process since routes are essential
+    console.error(`[Worker ${process.pid}] Exiting due to route setup failure`);
+    process.exit(1);
   }
 
   // Multer Konfiguration für Videouploads - NACH den Routen!
