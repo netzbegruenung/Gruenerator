@@ -55,6 +55,9 @@ class PostgresService {
         }
         this.pool = null;
         this.isInitialized = false;
+        this.isHealthy = false;
+        this.healthStatus = 'initializing';
+        this.lastError = null;
         this.initPromise = null;
         this.encryption = getEncryptionService();
         // Don't call init() in constructor - it's async
@@ -65,6 +68,8 @@ class PostgresService {
      */
     async init() {
         try {
+            this.healthStatus = 'connecting';
+            
             // Try to create database if it doesn't exist
             await this.createDatabaseIfNotExists();
             
@@ -74,16 +79,56 @@ class PostgresService {
             // Test connection
             await this.testConnection();
             
-            // Initialize schema
+            this.healthStatus = 'schema_sync';
+            
+            // Initialize schema (non-blocking)
             await this.initSchema();
             
             this.isInitialized = true;
+            this.isHealthy = true;
+            this.healthStatus = 'healthy';
+            this.lastError = null;
             console.log('[PostgresService] PostgreSQL database initialized successfully');
             
         } catch (error) {
+            this.isInitialized = false;
+            this.isHealthy = false;
+            this.healthStatus = 'error';
+            this.lastError = error.message;
+            
             console.error('[PostgresService] Failed to initialize PostgreSQL database:', error);
-            throw new Error(`PostgreSQL initialization failed: ${error.message}`);
+            
+            // Start retry mechanism instead of throwing
+            setTimeout(() => this.retryInit(), 5000);
+            
+            // Don't throw - let the application continue
+            console.warn('[PostgresService] Database initialization failed, but application will continue. Some features may be unavailable.');
         }
+    }
+
+    /**
+     * Retry database initialization
+     */
+    async retryInit() {
+        console.log('[PostgresService] Retrying database initialization...');
+        await this.init();
+    }
+
+    /**
+     * Get database health status
+     */
+    getHealth() {
+        return {
+            isHealthy: this.isHealthy,
+            isInitialized: this.isInitialized,
+            status: this.healthStatus,
+            lastError: this.lastError,
+            pool: this.pool ? {
+                totalCount: this.pool.totalCount,
+                idleCount: this.pool.idleCount,
+                waitingCount: this.pool.waitingCount
+            } : null
+        };
     }
 
     /**
@@ -338,20 +383,25 @@ class PostgresService {
                 await client.query(schema);
                 console.log('[PostgresService] Database schema initialized');
             } catch (error) {
-                // Log but don't fail on duplicate table errors
-                if (!error.message.includes('already exists')) {
+                // Log but don't fail on common errors
+                if (!error.message.includes('already exists') && 
+                    !error.message.includes('permission denied')) {
                     console.warn('[PostgresService] Schema initialization warning:', error.message);
+                } else if (error.message.includes('permission denied')) {
+                    console.warn('[PostgresService] Schema initialization - permission issue (continuing):', error.message);
                 }
             } finally {
                 client.release();
             }
             
-            // After schema initialization, sync any missing columns
+            // After schema initialization, sync any missing columns (non-blocking)
             await this.syncSchemaColumns();
             
         } catch (error) {
             console.error('[PostgresService] Failed to initialize schema:', error);
-            throw error;
+            // Don't throw - log the error and continue
+            // The application should still work even if schema sync fails
+            console.warn('[PostgresService] Schema initialization failed, but application will continue');
         }
     }
 
