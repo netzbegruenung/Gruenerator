@@ -727,8 +727,14 @@ if (cluster.isMaster) {
     let errorMessage = 'Bitte versuchen Sie es später erneut';
     let statusCode = 500;
     
+    // Handle database errors
+    if (err.message && (err.message.includes('Database service unavailable') || 
+                       err.message.includes('PostgresService failed to initialize') ||
+                       err.message.includes('Database connection'))) {
+      statusCode = 503; // Service Unavailable
+      errorMessage = 'Der Datenbankdienst ist momentan nicht verfügbar. Bitte versuchen Sie es in wenigen Minuten erneut.';
     // Handle authentication errors
-    if (err.name === 'AuthenticationError' || err.message && err.message.includes('authentication')) {
+    } else if (err.name === 'AuthenticationError' || err.message && err.message.includes('authentication')) {
       statusCode = 401;
       errorMessage = 'Authentifizierung fehlgeschlagen. Bitte melden Sie sich erneut an.';
       
@@ -747,7 +753,7 @@ if (cluster.isMaster) {
     // Sende eine strukturierte Fehlerantwort
     res.status(statusCode).json({
       success: false,
-      error: 'Ein Serverfehler ist aufgetreten',
+      error: statusCode === 503 ? 'Datenbankdienst nicht verfügbar' : 'Ein Serverfehler ist aufgetreten',
       message: isDevelopment ? err.message : errorMessage,
       // Nur in der Entwicklungsumgebung den Stack senden
       stack: isDevelopment ? err.stack : undefined,
