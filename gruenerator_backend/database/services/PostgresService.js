@@ -140,6 +140,185 @@ class PostgresService {
     }
 
     /**
+     * Parse schema.sql file to extract table definitions and columns
+     */
+    parseSchemaFile(schemaContent) {
+        const tables = {};
+        
+        // Match CREATE TABLE statements with all their contents
+        const tableMatches = schemaContent.match(/CREATE TABLE IF NOT EXISTS (\w+)\s*\(([\s\S]*?)\);/g);
+        
+        if (!tableMatches) return tables;
+        
+        tableMatches.forEach(tableMatch => {
+            // Extract table name
+            const tableNameMatch = tableMatch.match(/CREATE TABLE IF NOT EXISTS (\w+)/);
+            if (!tableNameMatch) return;
+            
+            const tableName = tableNameMatch[1];
+            
+            // Extract column definitions between parentheses
+            const columnSectionMatch = tableMatch.match(/CREATE TABLE IF NOT EXISTS \w+\s*\(([\s\S]*)\);/);
+            if (!columnSectionMatch) return;
+            
+            const columnSection = columnSectionMatch[1];
+            const columns = [];
+            
+            // Split by comma and parse each line
+            const lines = columnSection.split('\n').map(line => line.trim()).filter(line => line);
+            
+            for (const line of lines) {
+                // Skip comments, constraints, and other non-column definitions
+                if (line.startsWith('--') || 
+                    line.includes('CONSTRAINT') || 
+                    line.includes('UNIQUE(') ||
+                    line.includes('REFERENCES') ||
+                    line.includes('CHECK(') ||
+                    line.includes('PRIMARY KEY') ||
+                    line.includes('FOREIGN KEY')) {
+                    continue;
+                }
+                
+                // Parse column definition: column_name TYPE constraints
+                const columnMatch = line.match(/^([a-zA-Z_]\w*)\s+([A-Z]+(?:\([^)]+\))?(?:\s*\[\])?)\s*(.*?)(?:,\s*)?$/);
+                if (columnMatch) {
+                    const [, columnName, dataType, constraints] = columnMatch;
+                    columns.push({
+                        name: columnName,
+                        type: dataType,
+                        constraints: constraints.trim()
+                    });
+                }
+            }
+            
+            if (columns.length > 0) {
+                tables[tableName] = columns;
+            }
+        });
+        
+        return tables;
+    }
+
+    /**
+     * Get existing columns from database for all tables
+     */
+    async getExistingColumns() {
+        const query = `
+            SELECT 
+                table_name,
+                column_name,
+                data_type,
+                is_nullable,
+                column_default
+            FROM information_schema.columns 
+            WHERE table_schema = 'public'
+            ORDER BY table_name, ordinal_position
+        `;
+        
+        const result = await this.query(query);
+        const tables = {};
+        
+        result.forEach(row => {
+            if (!tables[row.table_name]) {
+                tables[row.table_name] = [];
+            }
+            tables[row.table_name].push({
+                name: row.column_name,
+                type: row.data_type,
+                nullable: row.is_nullable === 'YES',
+                default: row.column_default
+            });
+        });
+        
+        return tables;
+    }
+
+    /**
+     * Synchronize schema columns - add missing columns to existing tables
+     */
+    async syncSchemaColumns() {
+        try {
+            const schemaPath = path.join(__dirname, '../postgres/schema.sql');
+            
+            if (!fs.existsSync(schemaPath)) {
+                console.log('[PostgresService] Schema file not found, skipping column sync');
+                return;
+            }
+
+            const schemaContent = fs.readFileSync(schemaPath, 'utf8');
+            const expectedTables = this.parseSchemaFile(schemaContent);
+            const existingTables = await this.getExistingColumns();
+            
+            const alterStatements = [];
+            
+            // Check each expected table
+            for (const [tableName, expectedColumns] of Object.entries(expectedTables)) {
+                const existingColumns = existingTables[tableName] || [];
+                const existingColumnNames = existingColumns.map(col => col.name);
+                
+                // Find missing columns
+                for (const expectedColumn of expectedColumns) {
+                    if (!existingColumnNames.includes(expectedColumn.name)) {
+                        // Generate ALTER TABLE statement
+                        let alterStatement = `ALTER TABLE ${tableName} ADD COLUMN ${expectedColumn.name} ${expectedColumn.type}`;
+                        
+                        // Add constraints if they exist
+                        if (expectedColumn.constraints) {
+                            // Parse common constraints
+                            if (expectedColumn.constraints.includes('NOT NULL')) {
+                                // For existing tables, we should be careful with NOT NULL
+                                // Only add NOT NULL if there's a DEFAULT
+                                if (expectedColumn.constraints.includes('DEFAULT')) {
+                                    alterStatement += ` ${expectedColumn.constraints}`;
+                                } else {
+                                    // Just add the column without NOT NULL for existing tables
+                                    const constraintsWithoutNotNull = expectedColumn.constraints.replace(/NOT NULL/g, '').trim();
+                                    if (constraintsWithoutNotNull) {
+                                        alterStatement += ` ${constraintsWithoutNotNull}`;
+                                    }
+                                }
+                            } else {
+                                alterStatement += ` ${expectedColumn.constraints}`;
+                            }
+                        }
+                        
+                        alterStatements.push({
+                            table: tableName,
+                            column: expectedColumn.name,
+                            statement: alterStatement
+                        });
+                    }
+                }
+            }
+            
+            // Execute ALTER statements
+            if (alterStatements.length > 0) {
+                console.log(`[PostgresService] Found ${alterStatements.length} missing columns to add`);
+                
+                const client = await this.pool.connect();
+                try {
+                    for (const alter of alterStatements) {
+                        try {
+                            await client.query(alter.statement);
+                            console.log(`[PostgresService] ✅ Added column ${alter.table}.${alter.column}`);
+                        } catch (error) {
+                            console.warn(`[PostgresService] ⚠️ Failed to add column ${alter.table}.${alter.column}:`, error.message);
+                        }
+                    }
+                } finally {
+                    client.release();
+                }
+            } else {
+                console.log('[PostgresService] All schema columns are up to date');
+            }
+            
+        } catch (error) {
+            console.error('[PostgresService] Error during schema column sync:', error);
+            // Don't throw - let the application continue even if schema sync fails
+        }
+    }
+
+    /**
      * Initialize database schema from SQL file
      */
     async initSchema() {
@@ -155,7 +334,7 @@ class PostgresService {
             
             const client = await this.pool.connect();
             try {
-                // Execute schema
+                // Execute schema - this creates tables, indexes, etc.
                 await client.query(schema);
                 console.log('[PostgresService] Database schema initialized');
             } catch (error) {
@@ -166,6 +345,9 @@ class PostgresService {
             } finally {
                 client.release();
             }
+            
+            // After schema initialization, sync any missing columns
+            await this.syncSchemaColumns();
             
         } catch (error) {
             console.error('[PostgresService] Failed to initialize schema:', error);
