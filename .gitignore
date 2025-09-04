@@ -89,3 +89,10 @@ bfg-1.14.0.jar
 
 
 backup/
+
+# AWS files and directories
+aws/
+
+# Cursor and agent files
+.cursorignore
+AGENTS.md
