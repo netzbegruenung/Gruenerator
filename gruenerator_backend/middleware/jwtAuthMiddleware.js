@@ -1,4 +1,4 @@
-// Note: DatabaseAdapter is ESM. Import lazily inside functions where needed.
+// Note: PostgresService is ESM. Import lazily inside functions where needed.
 
 async function jwtAuthMiddleware(req, res, next) {
   const authHeader = req.headers.authorization;
@@ -63,8 +63,8 @@ async function jwtAuthMiddleware(req, res, next) {
     // Load user's groups if groups beta feature is enabled
     if (user.beta_features?.groups) {
       try {
-        const { getDatabaseAdapter } = await import('../database/services/DatabaseAdapter.js');
-        const db = getDatabaseAdapter();
+        const { getPostgresInstance } = await import('../database/services/PostgresService.js');
+        const db = getPostgresInstance();
         await db.ensureInitialized();
         
         const memberships = await db.query(`

@@ -1,13 +1,12 @@
-import { getDatabaseAdapter } from '../database/services/DatabaseAdapter.js';
+import { getPostgresInstance } from '../database/services/PostgresService.js';
 
 /**
  * ProfileService - Centralized service for user profile operations
- * Handles profile CRUD operations with database abstraction
- * Supports migration from Supabase to PostgreSQL
+ * Handles profile CRUD operations with PostgreSQL
  */
 class ProfileService {
     constructor() {
-        this.db = getDatabaseAdapter();
+        this.db = getPostgresInstance();
         this.tableName = 'profiles';
     }
 
