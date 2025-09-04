@@ -237,6 +237,19 @@ if (cluster.isMaster) {
   // Mark readiness early; we'll flip to true after routes are mounted
   app.locals.ready = false;
 
+  // Add global error handlers to catch crashes during initialization
+  process.on('uncaughtException', (error) => {
+    console.error(`[Worker ${process.pid}] UNCAUGHT EXCEPTION:`, error);
+    console.error(`[Worker ${process.pid}] Stack:`, error.stack);
+    setTimeout(() => process.exit(1), 1000);
+  });
+
+  process.on('unhandledRejection', (reason, promise) => {
+    console.error(`[Worker ${process.pid}] UNHANDLED PROMISE REJECTION at:`, promise);
+    console.error(`[Worker ${process.pid}] Reason:`, reason);
+    setTimeout(() => process.exit(1), 1000);
+  });
+
   // Port/host configuration (listen early to avoid upstream 502s during heavy init)
   const desiredPort = process.env.PORT || 3001;
   const host = process.env.HOST || "0.0.0.0";
@@ -622,21 +635,27 @@ if (cluster.isMaster) {
   // === Ende TUS Upload Handler ===
 
   // Routen einrichten
+  console.log(`[Worker ${process.pid}] About to start route setup...`);
   try {
     console.log(`[Worker ${process.pid}] Setting up routes...`);
     await setupRoutes(app);
     console.log(`[Worker ${process.pid}] Routes setup completed successfully`);
     app.locals.ready = true;
   } catch (error) {
-    console.error(`[Worker ${process.pid}] CRITICAL ERROR: Failed to setup routes:`, error);
-    console.error(`[Worker ${process.pid}] Stack trace:`, error.stack);
+    console.error(`[Worker ${process.pid}] CRITICAL ERROR: Failed to setup routes:`);
+    console.error(`[Worker ${process.pid}] Error message:`, error?.message || 'Unknown error');
+    console.error(`[Worker ${process.pid}] Error name:`, error?.name || 'Unknown');
+    console.error(`[Worker ${process.pid}] Full error object:`, error);
+    if (error?.stack) {
+      console.error(`[Worker ${process.pid}] Stack trace:`, error.stack);
+    }
     
     // Don't mark as ready if routes failed to setup
     app.locals.ready = false;
     
     // Exit the worker process since routes are essential
     console.error(`[Worker ${process.pid}] Exiting due to route setup failure`);
-    process.exit(1);
+    setTimeout(() => process.exit(1), 1000); // Delay to ensure logs are written
   }
 
   // Multer Konfiguration für Videouploads - NACH den Routen!
