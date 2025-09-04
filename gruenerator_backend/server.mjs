@@ -239,7 +239,7 @@ if (cluster.isMaster) {
 
   // Port/host configuration (listen early to avoid upstream 502s during heavy init)
   const desiredPort = process.env.PORT || 3001;
-  const host = process.env.HOST || "127.0.0.1";
+  const host = process.env.HOST || "0.0.0.0";
 
   // Minimal health endpoint available immediately
   app.get('/health', (req, res) => {
@@ -285,9 +285,6 @@ if (cluster.isMaster) {
   console.log(`[DIAGNOSTIC] Worker ${process.pid}: process.env.PORT is: ${process.env.PORT}`);
   console.log(`[DIAGNOSTIC] Worker ${process.pid}: desiredPort is: ${desiredPort}`);
   console.log(`[DIAGNOSTIC] Worker ${process.pid}: host is: ${host}`);
-  server.listen(desiredPort, host, () => {
-    console.log(`Main Backend Worker ${process.pid} started - Server running at http://${host}:${desiredPort}`);
-  });
   
   // Import Redis client only in worker process
   const redisClient = require('./utils/redisClient.js');
@@ -590,71 +587,6 @@ if (cluster.isMaster) {
   // app.use(passport.session());
   // console.log('[Server.mjs] Passport session initialized.');
 
-  // Make passport session available for early auth routes only
-  app.use('/api/auth', (req, res, next) => passport.session()(req, res, next));
-
-  // Early auth routes so login doesn’t 404 during warmup
-  app.get('/api/auth/login', (req, res, next) => {
-    try {
-      const source = req.query.source;
-      const { redirectTo, prompt } = req.query;
-
-      if (redirectTo) {
-        req.session.redirectTo = redirectTo;
-      }
-      if (source) {
-        req.session.preferredSource = source;
-      }
-      if (prompt === 'register') {
-        req.session.isRegistration = true;
-      }
-
-      const options = { scope: 'openid profile email offline_access' };
-
-      if (source === 'netzbegruenung-login') {
-        options.kc_idp_hint = 'netzbegruenung';
-        options.prompt = 'login';
-      } else if (source === 'gruenes-netz-login') {
-        options.kc_idp_hint = 'gruenes-netz';
-        options.prompt = 'login';
-      } else if (source === 'gruene-oesterreich-login') {
-        options.kc_idp_hint = 'gruene-at-login';
-        options.prompt = 'login';
-      } else if (source === 'gruenerator-login') {
-        options.kc_idp_hint = 'gruenerator-user';
-        options.prompt = prompt === 'register' ? 'register' : 'login';
-      }
-
-      return passport.authenticate('oidc', options)(req, res, next);
-    } catch (e) {
-      return next(e);
-    }
-  });
-
-  app.get('/api/auth/callback',
-    passport.authenticate('oidc', {
-      failureRedirect: '/auth/error',
-      failureMessage: true
-    }),
-    async (req, res, next) => {
-      try {
-        const redirectTo = req.session.redirectTo || `${process.env.BASE_URL}/profile`;
-        delete req.session.redirectTo;
-        delete req.session.preferredSource;
-        delete req.session.isRegistration;
-
-        req.session.save((err) => {
-          if (err) {
-            console.error('[AuthCallback] Error saving session:', err);
-          }
-          res.redirect(redirectTo);
-        });
-      } catch (error) {
-        console.error('[AuthCallback] General error in OIDC callback:', error);
-        next(error);
-      }
-    }
-  );
 
   // Initialize Passport OIDC strategy
   // ... existing code ...
@@ -892,5 +824,8 @@ if (cluster.isMaster) {
     });
   });
 
-  // Server already started above
+  // Start server AFTER all routes and middleware are configured
+  server.listen(desiredPort, host, () => {
+    console.log(`Main Backend Worker ${process.pid} started - Server running at http://${host}:${desiredPort}`);
+  });
 }
