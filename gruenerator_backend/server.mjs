@@ -53,7 +53,7 @@ if (cluster.isMaster) {
   console.log(`Master ${process.pid} is running`);
 
   // Anzahl der Worker aus Umgebungsvariable lesen oder Standardwert verwenden
-  const workerCount = parseInt(process.env.WORKER_COUNT, 10) || 6;
+  const workerCount = parseInt(process.env.WORKER_COUNT, 10) || 2;
   console.log(`Starting ${workerCount} workers (WORKER_COUNT: ${workerCount})`);
 
   // Fork Workers
