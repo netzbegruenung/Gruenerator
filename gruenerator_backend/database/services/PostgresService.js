@@ -67,22 +67,30 @@ class PostgresService {
      * Initialize the PostgreSQL connection pool
      */
     async init() {
+        console.log('[PostgresService] Starting initialization...');
         try {
             this.healthStatus = 'connecting';
+            console.log('[PostgresService] Creating database if not exists...');
             
             // Try to create database if it doesn't exist
             await this.createDatabaseIfNotExists();
+            console.log('[PostgresService] Database creation check complete');
             
             // Create connection pool to the target database
+            console.log('[PostgresService] Creating connection pool...');
             this.pool = new Pool(this.config);
+            console.log('[PostgresService] Pool created, testing connection...');
             
             // Test connection
             await this.testConnection();
+            console.log('[PostgresService] Connection test successful');
             
             this.healthStatus = 'schema_sync';
+            console.log('[PostgresService] Starting schema initialization...');
             
             // Initialize schema (non-blocking)
             await this.initSchema();
+            console.log('[PostgresService] Schema initialization complete');
             
             this.isInitialized = true;
             this.isHealthy = true;
@@ -99,7 +107,12 @@ class PostgresService {
             console.error('[PostgresService] Failed to initialize PostgreSQL database:', error);
             
             // Start retry mechanism instead of throwing
-            setTimeout(() => this.retryInit(), 5000);
+            console.log('[PostgresService] Scheduling retry in 5 seconds...');
+            setTimeout(() => {
+                console.log('[PostgresService] Retry timer fired, calling retryInit()');
+                this.retryInit();
+            }, 5000);
+            console.log('[PostgresService] Retry scheduled, continuing...');
             
             // Don't throw - let the application continue
             console.warn('[PostgresService] Database initialization failed, but application will continue. Some features may be unavailable.');
@@ -367,8 +380,10 @@ class PostgresService {
      * Initialize database schema from SQL file
      */
     async initSchema() {
+        console.log('[PostgresService] initSchema() called');
         try {
             const schemaPath = path.join(__dirname, '../postgres/schema.sql');
+            console.log('[PostgresService] Looking for schema at:', schemaPath);
             
             if (!fs.existsSync(schemaPath)) {
                 console.warn('[PostgresService] Schema file not found, skipping schema initialization');
@@ -395,10 +410,14 @@ class PostgresService {
             }
             
             // Run migrations after schema initialization
+            console.log('[PostgresService] Running migrations...');
             await this.runMigrations();
+            console.log('[PostgresService] Migrations complete');
             
             // After schema initialization, sync any missing columns (non-blocking)
+            console.log('[PostgresService] Syncing schema columns...');
             await this.syncSchemaColumns();
+            console.log('[PostgresService] Schema column sync complete');
             
         } catch (error) {
             console.error('[PostgresService] Failed to initialize schema:', error);
