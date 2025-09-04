@@ -67,6 +67,7 @@ class BaseSearchService {
       
       // Generate query embedding
       const queryEmbedding = await this.generateQueryEmbedding(query, options);
+      console.log(`[${this.serviceName}] Query embedding generated (dims=${queryEmbedding?.length || 'n/a'})`);
       
       // Calculate dynamic threshold
       const threshold = options.threshold ?? this.calculateDynamicThreshold(query);
@@ -79,6 +80,7 @@ class BaseSearchService {
         limit: Math.round(options.limit * this.chunkMultiplier), // Get more for better ranking
         threshold
       });
+      console.log(`[${this.serviceName}] Retrieved ${chunks.length} chunks from vector search`);
       
       // Handle empty results
       if (chunks.length === 0) {
@@ -165,10 +167,11 @@ class BaseSearchService {
         limit: Math.round(options.limit * this.chunkMultiplier),
         threshold,
         hybridOptions: {
-          vectorWeight: options.vectorWeight || 0.7,
-          textWeight: options.textWeight || 0.3,
-          useRRF: options.useRRF !== false,
-          rrfK: options.rrfK || 60
+          // Prefer text-leaning weighted fusion by default; caller can override
+          vectorWeight: options.vectorWeight ?? 0.4,
+          textWeight: options.textWeight ?? 0.5,
+          useRRF: options.useRRF ?? false,
+          rrfK: options.rrfK ?? 60
         }
       });
       

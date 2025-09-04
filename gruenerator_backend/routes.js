@@ -54,6 +54,7 @@ const offboardingRouter = require('./routes/internal/offboardingController'); //
 const webSearchRouter = require('./routes/webSearch'); // Import the web search router
 const imageGenerationRouter = require('./routes/imageGeneration'); // Import the image generation router
 const exportDocumentsRouter = require('./routes/exportDocuments'); // Server-side DOCX/PDF export
+const markdownRouter = require('./routes/markdown'); // Server-side markdown conversion
 // mem0Router will be imported dynamically like auth routes
 // Auth routes will be imported dynamically
 
@@ -304,6 +305,7 @@ async function setupRoutes(app) {
   app.use('/api/web-search', webSearchRouter);
   app.use('/api/image-generation', imageGenerationRouter);
   app.use('/api/exports', exportDocumentsRouter);
+  app.use('/api/markdown', markdownRouter);
 
   // Add the Collab Editor route - DISABLED - Feature removed, backup available in archive/collab-feature-backup-2025-01
   // app.use('/api/collab-editor', collabEditorRouter);
