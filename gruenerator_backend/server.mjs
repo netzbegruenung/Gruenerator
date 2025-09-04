@@ -252,6 +252,24 @@ if (cluster.isMaster) {
     });
   });
 
+  // Serve minimal static frontend during warmup to avoid "Cannot GET /"
+  const staticFilesPathEarly = path.join(__dirname, '../gruenerator_frontend/build');
+  // Early assets (optional but helps first paint)
+  app.use('/assets', express.static(path.join(staticFilesPathEarly, 'assets'), {
+    maxAge: '1h',
+    etag: true,
+  }));
+  // Early SPA index fallback only while not ready
+  app.get('*', (req, res, next) => {
+    if (app.locals.ready === true) return next();
+    if (req.path.startsWith('/api')) return next();
+    const indexPath = path.join(staticFilesPathEarly, 'index.html');
+    if (fs.existsSync(indexPath)) {
+      return res.sendFile(indexPath);
+    }
+    return next();
+  });
+
   // HTTP server config and early start
   const serverOptions = {
     enableHTTP2: true,
