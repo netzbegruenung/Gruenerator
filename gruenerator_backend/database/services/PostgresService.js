@@ -454,12 +454,6 @@ class PostgresService {
      * Run database migrations with timeout protection
      */
     async runMigrations() {
-        // Add environment variable to skip migrations if needed
-        if (process.env.SKIP_MIGRATIONS === 'true') {
-            console.log('[PostgresService] SKIP_MIGRATIONS=true, skipping all migrations');
-            return;
-        }
-        
         try {
             const migrationsPath = path.join(__dirname, '../migrations');
             
@@ -467,93 +461,29 @@ class PostgresService {
                 console.log('[PostgresService] Migrations directory not found, skipping migrations');
                 return;
             }
-            
-            console.log('[PostgresService] Starting migration process with timeout protection...');
-            
-            // Wrap entire migration process in timeout
-            const migrationProcess = this.runMigrationsInternal(migrationsPath);
-            const migrationTimeout = new Promise((_, reject) => {
-                setTimeout(() => reject(new Error('Entire migration process timeout after 60 seconds')), 60000);
-            });
-            
-            await Promise.race([migrationProcess, migrationTimeout]);
-            
-        } catch (error) {
-            if (error.message.includes('timeout')) {
-                console.error('[PostgresService] ⏰ Migration process timed out - this indicates a serious database issue');
-                console.error('[PostgresService] Consider setting SKIP_MIGRATIONS=true to bypass migrations');
-            } else {
-                console.error('[PostgresService] Error running migrations:', error);
+
+            // Create migrations tracking table if it doesn't exist
+            await this.query(`
+                CREATE TABLE IF NOT EXISTS schema_migrations (
+                    id SERIAL PRIMARY KEY,
+                    filename TEXT NOT NULL UNIQUE,
+                    applied_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+                )
+            `);
+
+            // Get list of migration files
+            const migrationFiles = fs.readdirSync(migrationsPath)
+                .filter(file => file.endsWith('.sql'))
+                .sort();
+
+            if (migrationFiles.length === 0) {
+                console.log('[PostgresService] No migration files found');
+                return;
             }
-            // Don't throw - let the application continue
-        }
-    }
-    
-    /**
-     * Internal migration process (wrapped with timeout)
-     */
-    async runMigrationsInternal(migrationsPath) {
-        // Create migrations tracking table if it doesn't exist with timeout protection
-        console.log('[PostgresService] Creating schema_migrations table...');
-        const createTablePromise = this.query(`
-            CREATE TABLE IF NOT EXISTS schema_migrations (
-                id SERIAL PRIMARY KEY,
-                filename TEXT NOT NULL UNIQUE,
-                applied_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-            )
-        `);
-        const createTableTimeout = new Promise((_, reject) => {
-            setTimeout(() => reject(new Error('schema_migrations table creation timeout after 10 seconds')), 10000);
-        });
-        
-        try {
-            await Promise.race([createTablePromise, createTableTimeout]);
-            console.log('[PostgresService] Schema_migrations table ready');
-        } catch (error) {
-            if (error.message.includes('timeout')) {
-                console.error('[PostgresService] ⏰ Schema_migrations table creation timed out - database may be locked');
-                throw error;
-            } else {
-                console.warn('[PostgresService] Schema_migrations table creation warning:', error.message);
-                // Continue if it's just a "table already exists" type error
-            }
-        }
 
-        // Get list of migration files
-        console.log('[PostgresService] Scanning migration files...');
-        const migrationFiles = fs.readdirSync(migrationsPath)
-            .filter(file => file.endsWith('.sql'))
-            .sort();
-
-        console.log(`[PostgresService] Found ${migrationFiles.length} migration files:`, migrationFiles);
-
-        if (migrationFiles.length === 0) {
-            console.log('[PostgresService] No migration files found');
-            return;
-        }
-
-        // Check which migrations have already been applied with timeout protection
-        console.log('[PostgresService] Checking applied migrations...');
-        const appliedMigrationsPromise = this.query('SELECT filename FROM schema_migrations');
-        const appliedMigrationsTimeout = new Promise((_, reject) => {
-            setTimeout(() => reject(new Error('Applied migrations query timeout after 10 seconds')), 10000);
-        });
-        
-        let appliedMigrations;
-        try {
-            appliedMigrations = await Promise.race([appliedMigrationsPromise, appliedMigrationsTimeout]);
-            console.log(`[PostgresService] Found ${appliedMigrations.length} applied migrations`);
-        } catch (error) {
-            if (error.message.includes('timeout')) {
-                console.error('[PostgresService] ⏰ Applied migrations query timed out - database may be locked');
-                throw error;
-            } else {
-                console.error('[PostgresService] Error checking applied migrations:', error.message);
-                throw error;
-            }
-        }
-        
-        const appliedFilenames = new Set(appliedMigrations.map(row => row.filename));
+            // Check which migrations have already been applied
+            const appliedMigrations = await this.query('SELECT filename FROM schema_migrations');
+            const appliedFilenames = new Set(appliedMigrations.map(row => row.filename));
 
             // Run pending migrations with timeout protection
             for (const filename of migrationFiles) {
@@ -571,21 +501,24 @@ class PostgresService {
                 // Log migration file size for debugging
                 console.log(`[PostgresService] Migration ${filename} size: ${migrationSql.length} characters`);
 
+                // Skip migration if it contains problematic operations
+                if (migrationSql.includes('FOREIGN KEY') && migrationSql.includes('REFERENCES')) {
+                    console.warn(`[PostgresService] ⚠️ Skipping migration ${filename} - contains foreign key constraint that may hang`);
+                    console.warn('[PostgresService] Foreign key constraints will be handled by schema.sql instead');
+                    continue;
+                }
+
                 const client = await this.pool.connect();
                 try {
-                    // Set statement timeout to prevent hanging (30 seconds)
-                    await client.query('SET statement_timeout = 30000');
+                    
+                    // Set statement timeout to prevent hanging (10 seconds)
+                    await client.query('SET statement_timeout = 10000');
                     
                     // Run migration in transaction
                     await client.query('BEGIN');
                     
-                    // Execute migration with timeout wrapper
-                    const migrationPromise = client.query(migrationSql);
-                    const timeoutPromise = new Promise((_, reject) => {
-                        setTimeout(() => reject(new Error('Migration timeout after 30 seconds')), 30000);
-                    });
-                    
-                    await Promise.race([migrationPromise, timeoutPromise]);
+                    // Execute migration directly (timeout handled by PostgreSQL)
+                    await client.query(migrationSql);
                     
                     await client.query('INSERT INTO schema_migrations (filename) VALUES ($1)', [filename]);
                     await client.query('COMMIT');
@@ -599,15 +532,8 @@ class PostgresService {
                         console.error(`[PostgresService] Rollback failed for ${filename}:`, rollbackError.message);
                     }
                     
-                    if (error.message.includes('timeout')) {
-                        console.error(`[PostgresService] ⏰ Migration ${filename} timed out - this may indicate a hanging operation`);
-                        // For timeout errors, we should not continue with other migrations
-                        console.error('[PostgresService] Stopping migration process due to timeout');
-                        break;
-                    } else {
-                        console.error(`[PostgresService] ❌ Migration ${filename} failed:`, error.message);
-                        // Don't stop on non-timeout errors - log and continue
-                    }
+                    console.error(`[PostgresService] ❌ Migration ${filename} failed:`, error.message);
+                    // Don't stop on migration errors - log and continue
                 } finally {
                     // Reset statement timeout and release client
                     try {
