@@ -233,14 +233,25 @@ if (cluster.isMaster) {
     console.error('Warning: Could not initialize AI Search Agent:', error.message);
   }
 
-  // Initialize ProfileService and PostgreSQL database
+  // Initialize PostgreSQL database first (before ProfileService)
+  try {
+    const { getPostgresInstance } = await import('./database/services/PostgresService.js');
+    const postgresService = getPostgresInstance();
+    console.log(`[Worker ${process.pid}] Initializing PostgreSQL database...`);
+    await postgresService.init();
+    console.log(`[Worker ${process.pid}] PostgreSQL database initialized successfully`);
+  } catch (error) {
+    console.error(`[Worker ${process.pid}] Warning: Could not initialize PostgreSQL:`, error.message);
+  }
+
+  // Initialize ProfileService (database should already be ready)
   try {
     const { getProfileService } = await import('./services/ProfileService.js');
     const profileService = getProfileService();
     await profileService.init();
-    console.log('ProfileService initialized successfully with PostgreSQL');
+    console.log(`[Worker ${process.pid}] ProfileService initialized successfully`);
   } catch (error) {
-    console.error('Warning: Could not initialize ProfileService:', error.message);
+    console.error(`[Worker ${process.pid}] Warning: Could not initialize ProfileService:`, error.message);
   }
 
   // Compression Middleware
