@@ -21,9 +21,7 @@ export default defineConfig(({ command }) => ({
       'prop-types', 'turndown'
     ],
     exclude: [
-      'react-icons', 'docx', 'pdf-lib',
-      'yjs', 'y-websocket',
-      'motion', 'lodash', 'browser-image-compression'
+      'react-icons', 'motion', 'lodash', 'browser-image-compression'
     ],
     esbuildOptions: { 
       target: 'es2022',

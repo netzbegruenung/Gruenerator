@@ -36,7 +36,7 @@
 @import url('./components/baseform/form-toggle-fab.css');
 @import url('./components/edit-mode/edit-mode-overlay.css');
 @import url('./components/ui/profile-skeleton.css');
-@import url('../../components/common/editor/EditorChat.css');
+@import url('../../components/common/Chat/ChatUI.css');
 @import url('./components/ui/success-screen.css');
 @import url('./components/ui/SegmentedControl.css');
 @import url('./components/ui/menu-dropdown.css');
@@ -78,7 +78,6 @@
 @import url('./components/editor/editor-ai-tools.css');
 @import url('./components/editor/editor-toolbar.css');
 @import url('./components/editor/editor-base.css');
-@import url('./components/editor/tiptap-editor.css');
 
 
 @import url('./components/sharepic/sharepic.css');

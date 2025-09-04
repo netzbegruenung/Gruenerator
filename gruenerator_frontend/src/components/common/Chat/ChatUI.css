@@ -1,7 +1,9 @@
+/* ChatUI Component Styles */
+
+/* Main chat container */
 .editor-chat {
   width: 100%;
   min-width: 280px;
-  /* height: calc(100vh - 40px); */
   background: var(--chat-background);
   border-radius: 12px;
   box-shadow: var(--shadow-md);
@@ -16,6 +18,7 @@
   padding: 0;
 }
 
+/* Chat header */
 .editor-chat-header {
   padding: 12px 16px;
   background: var(--background-color-alt);
@@ -44,16 +47,17 @@
   color: var(--button-color-hover);
 }
 
+/* Messages area */
 .editor-chat-messages {
   flex: 1;
   overflow-y: auto;
-  padding: 16px 16px 100px 16px;
+  padding: 24px 16px 100px 16px;
   display: flex;
   flex-direction: column;
   gap: 8px;
   background: var(--chat-background);
-  scrollbar-width: thin; /* For Firefox */
-  scrollbar-color: var(--scrollbar-thumb-color) var(--scrollbar-track-color); /* For Firefox */
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb-color) var(--scrollbar-track-color);
 }
 
 .editor-chat-messages::-webkit-scrollbar {
@@ -68,29 +72,37 @@
 .editor-chat-messages::-webkit-scrollbar-thumb {
   background-color: var(--scrollbar-thumb-color);
   border-radius: 10px;
-  border: 2px solid var(--scrollbar-track-color); /* Creates padding around thumb */
+  border: 2px solid var(--scrollbar-track-color);
 }
 
 .editor-chat-messages::-webkit-scrollbar-thumb:hover {
   background-color: var(--scrollbar-thumb-hover-color);
 }
 
+/* Individual chat messages */
 .chat-message {
   max-width: 90%;
   padding: 8px 12px;
   border-radius: 12px;
-  font-size: 14px;
-  line-height: 1.4;
+  /* Use shared typography scale for readability */
+  font-size: var(--display-font-size, var(--font-size-md));
+  line-height: var(--display-line-height, 1.6);
   word-break: break-word;
 }
 
 .chat-message.user {
   align-self: flex-end;
   background: var(--user-message-background, var(--klee));
-  color: var(--weiß);
+  color: var(--weiß) !important;
   border-bottom-right-radius: 4px;
   margin-top: 20px;
   position: relative;
+}
+
+.chat-message.user p,
+.chat-message.user * {
+  color: var(--weiß) !important;
+  margin-top: 0 !important;
 }
 
 .chat-message-user-name {
@@ -110,6 +122,24 @@
   border-bottom-left-radius: 4px;
   margin-left: 40px;
   position: relative;
+}
+
+.chat-message.assistant p,
+.chat-message.assistant * {
+  color: var(--ai-message-text-color) !important;
+  margin-top: 0 !important;
+}
+
+/* Ensure assistant text is not downsized by surrounding form styles */
+.chat-message.assistant p {
+  font-size: var(--display-font-size, var(--font-size-md));
+  line-height: var(--display-line-height, 1.6);
+}
+
+/* Keep user message paragraphs aligned with global typography */
+.chat-message.user p {
+  font-size: var(--display-font-size, var(--font-size-md));
+  line-height: var(--display-line-height, 1.6);
 }
 
 .assistant-icon {
@@ -136,7 +166,7 @@
   margin-top: 5px;
   margin-bottom: 8px;
   font-style: italic;
-  color:  var(--secondary);
+  color: var(--secondary);
   border-left: 3px solid #ccc;
   font-size: 0.9em;
   display: -webkit-box;
@@ -158,10 +188,10 @@
   text-align: center;
 }
 
-/* Enhanced Floating input with glass design and layout */
+/* Floating input with glass design */
 .floating-input {
   position: absolute;
-  bottom: var(--spacing-medium);
+  bottom: calc(var(--spacing-large) + 12px);
   left: var(--spacing-medium);
   right: var(--spacing-medium);
   background-color: rgba(255, 255, 255, 0.15);
@@ -191,27 +221,8 @@
   border-color: rgba(255, 255, 255, 0.15);
 }
 
-/* Enhanced floating input for edit mode */
-.editor-chat-embedded .floating-input,
-.universal-edit-form .floating-input {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  margin: 0;
-  border-radius: var(--border-radius-large);
-  background-color: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-}
-
-[data-theme="dark"] .editor-chat-embedded .floating-input,
-[data-theme="dark"] .universal-edit-form .floating-input {
-  background-color: rgba(0, 0, 0, 0.85);
-}
-
-/* Ensure the form doesn't interfere with positioning in universal edit form */
-.universal-edit-form .editor-chat-input {
+/* Input form */
+.editor-chat-input {
   position: static;
   background: transparent;
   border: none;
@@ -220,33 +231,37 @@
 }
 
 .floating-input .input-elements {
-  padding: 12px 12px;
+  padding: 0;
   display: flex;
-  align-items: center;
-  gap: 12/px;
+  align-items: stretch;
+  gap: 12px;
   background: transparent;
 }
 
-.floating-input input.form-input {
+.floating-input input.form-input,
+.floating-input textarea.form-input {
   flex: 1;
-  margin-bottom: 0; /* Override form-input default margin */
-  min-height: 20px; /* Keep original size */
-  border-radius: 20px; /* Keep original rounded style */
+  margin: 12px;
+  min-height: 60px;
+  border-radius: 12px;
   font-size: 14px;
-  margin-left: 10px;
-  margin-right: 10px;
+  background-color: var(--chat-input-background);
+  color: var(--chat-input-text-color);
+  border: 1px solid var(--chat-input-border-color);
+  padding: 12px 16px;
+  resize: none;
+  font-family: inherit;
+  line-height: 1.4;
 }
 
-.floating-input input.form-input:focus {
+.floating-input input.form-input:focus,
+.floating-input textarea.form-input:focus {
   box-shadow: 0 0 0 1px var(--user-accent-color, var(--klee));
+  outline: none;
 }
 
-/* Dark mode specific override for chat input visibility */
-[data-theme="dark"] .floating-input input.form-input {
-  background-color: var(--grey-800);
-  border: 1px solid var(--grey-700);
-}
 
+/* Color picker */
 .color-picker-container {
   position: relative;
   display: flex;
@@ -292,6 +307,7 @@
   flex-shrink: 0;
 }
 
+/* Buttons */
 .floating-input button {
   background-color: var(--klee);
   color: var(--weiß);
@@ -321,19 +337,7 @@
   box-shadow: none;
 }
 
-/* Enhanced button styling for edit mode */
-.editor-chat-embedded .floating-input button,
-.universal-edit-form .floating-input button {
-  background-color: var(--klee);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-}
-
-.editor-chat-embedded .floating-input button:hover:not(:disabled),
-.universal-edit-form .floating-input button:hover:not(:disabled) {
-  background-color: var(--primary);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-}
-
+/* Selected text display */
 .selected-text-display {
   font-size: 0.75rem;
   color: #666;
@@ -352,13 +356,33 @@
   word-break: break-word;
 }
 
+/* Fullscreen mode */
+.editor-chat-fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9999;
+  max-width: none;
+  height: 100vh;
+  border-radius: 0;
+}
+
+.editor-chat-messages-fullscreen {
+  padding-bottom: 140px;
+}
+
+/* Responsive design */
 @media (max-width: 1200px) {
   .editor-chat {
+    /* Additional styling for medium screens */
   }
 }
 
 @media (max-width: 992px) {
   .editor-chat {
+    /* Additional styling for tablets */
   }
   
   .chat-message {
@@ -386,7 +410,6 @@
     right: 0;
     max-width: 100%;
     width: 100%;
-    /* height: 50vh; */
     border-radius: 12px 12px 0 0;
     z-index: 1000;
   }
@@ -404,7 +427,7 @@
 
 @media (max-width: 480px) {
   .editor-chat {
-    /* height: 70vh; */
+    /* Additional styling for small mobile */
   }
   
   .editor-chat-header h3 {
@@ -418,4 +441,4 @@
   .floating-input input {
     font-size: 12px;
   }
-} 
+}
