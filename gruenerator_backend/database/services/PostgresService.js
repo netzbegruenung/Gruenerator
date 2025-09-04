@@ -451,7 +451,7 @@ class PostgresService {
     }
 
     /**
-     * Run database migrations
+     * Run database migrations with timeout protection
      */
     async runMigrations() {
         try {
@@ -485,31 +485,66 @@ class PostgresService {
             const appliedMigrations = await this.query('SELECT filename FROM schema_migrations');
             const appliedFilenames = new Set(appliedMigrations.map(row => row.filename));
 
-            // Run pending migrations
+            // Run pending migrations with timeout protection
             for (const filename of migrationFiles) {
                 if (appliedFilenames.has(filename)) {
                     console.log(`[PostgresService] Migration ${filename} already applied`);
                     continue;
                 }
 
-                console.log(`[PostgresService] Running migration ${filename}`);
+                console.log(`[PostgresService] Running migration ${filename}...`);
+                const startTime = Date.now();
                 
                 const migrationPath = path.join(migrationsPath, filename);
                 const migrationSql = fs.readFileSync(migrationPath, 'utf8');
+                
+                // Log migration file size for debugging
+                console.log(`[PostgresService] Migration ${filename} size: ${migrationSql.length} characters`);
 
                 const client = await this.pool.connect();
                 try {
+                    // Set statement timeout to prevent hanging (30 seconds)
+                    await client.query('SET statement_timeout = 30000');
+                    
                     // Run migration in transaction
                     await client.query('BEGIN');
-                    await client.query(migrationSql);
+                    
+                    // Execute migration with timeout wrapper
+                    const migrationPromise = client.query(migrationSql);
+                    const timeoutPromise = new Promise((_, reject) => {
+                        setTimeout(() => reject(new Error('Migration timeout after 30 seconds')), 30000);
+                    });
+                    
+                    await Promise.race([migrationPromise, timeoutPromise]);
+                    
                     await client.query('INSERT INTO schema_migrations (filename) VALUES ($1)', [filename]);
                     await client.query('COMMIT');
-                    console.log(`[PostgresService] ✅ Migration ${filename} applied successfully`);
+                    
+                    const duration = Date.now() - startTime;
+                    console.log(`[PostgresService] ✅ Migration ${filename} applied successfully in ${duration}ms`);
                 } catch (error) {
-                    await client.query('ROLLBACK');
-                    console.error(`[PostgresService] ❌ Migration ${filename} failed:`, error.message);
-                    // Don't stop on migration errors - log and continue
+                    try {
+                        await client.query('ROLLBACK');
+                    } catch (rollbackError) {
+                        console.error(`[PostgresService] Rollback failed for ${filename}:`, rollbackError.message);
+                    }
+                    
+                    if (error.message.includes('timeout')) {
+                        console.error(`[PostgresService] ⏰ Migration ${filename} timed out - this may indicate a hanging operation`);
+                        // For timeout errors, we should not continue with other migrations
+                        console.error('[PostgresService] Stopping migration process due to timeout');
+                        break;
+                    } else {
+                        console.error(`[PostgresService] ❌ Migration ${filename} failed:`, error.message);
+                        // Don't stop on non-timeout errors - log and continue
+                    }
                 } finally {
+                    // Reset statement timeout and release client
+                    try {
+                        await client.query('SET statement_timeout = 0');
+                    } catch (resetError) {
+                        console.warn('[PostgresService] Failed to reset statement timeout:', resetError.message);
+                    }
                     client.release();
                 }
             }
