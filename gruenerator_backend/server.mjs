@@ -234,6 +234,42 @@ if (cluster.isMaster) {
 
   const app = express();
   let workerShutdownInProgress = false;
+  // Mark readiness early; we'll flip to true after routes are mounted
+  app.locals.ready = false;
+
+  // Port/host configuration (listen early to avoid upstream 502s during heavy init)
+  const desiredPort = process.env.PORT || 3001;
+  const host = process.env.HOST || "127.0.0.1";
+
+  // Minimal health endpoint available immediately
+  app.get('/health', (req, res) => {
+    res.status(200).json({
+      status: 'starting',
+      ready: app.locals.ready === true,
+      timestamp: new Date().toISOString(),
+      worker: process.pid,
+      uptime: process.uptime()
+    });
+  });
+
+  // HTTP server config and early start
+  const serverOptions = {
+    enableHTTP2: true,
+    allowHTTP1: true,
+    timeout: 5000,
+    keepAliveTimeout: 60000,
+    headersTimeout: 65000,
+  };
+  const server = http.createServer(serverOptions, app);
+  server.on('connection', (socket) => {
+    socket.setKeepAlive(true, 30000);
+  });
+  console.log(`[DIAGNOSTIC] Worker ${process.pid}: process.env.PORT is: ${process.env.PORT}`);
+  console.log(`[DIAGNOSTIC] Worker ${process.pid}: desiredPort is: ${desiredPort}`);
+  console.log(`[DIAGNOSTIC] Worker ${process.pid}: host is: ${host}`);
+  server.listen(desiredPort, host, () => {
+    console.log(`Main Backend Worker ${process.pid} started - Server running at http://${host}:${desiredPort}`);
+  });
   
   // Import Redis client only in worker process
   const redisClient = require('./utils/redisClient.js');
@@ -403,8 +439,7 @@ if (cluster.isMaster) {
     crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }
   }));
 
-  const desiredPort = process.env.PORT || 3001;
-  const host = process.env.HOST || "127.0.0.1";
+  // desiredPort/host already defined above for early server start
 
   // Multer Konfiguration für Videouploads - MOVED AFTER ROUTES
   // Die Multer-Middleware wird nach setupRoutes verschoben
@@ -556,16 +591,8 @@ if (cluster.isMaster) {
   // Cache für statische Dateien - WICHTIG: Nach Session!
   app.use(cacheMiddleware);
 
-  // === Health Check Endpoint ===
-  // Simple health check endpoint for frontend server availability detection
-  app.get('/health', (req, res) => {
-    res.status(200).json({
-      status: 'healthy',
-      timestamp: new Date().toISOString(),
-      worker: process.pid,
-      uptime: process.uptime()
-    });
-  });
+  // Update health endpoint to reflect readiness once initialization completes
+  // (route defined above for immediate availability)
 
   // === TUS Upload Handler ===
   // WICHTIG: Muss VOR setupRoutes und VOR den statischen Fallbacks stehen!
@@ -579,7 +606,12 @@ if (cluster.isMaster) {
   // === Ende TUS Upload Handler ===
 
   // Routen einrichten
-  await setupRoutes(app);
+  try {
+    await setupRoutes(app);
+  } finally {
+    // Flip readiness flag regardless of route setup outcome, so health shows ready
+    app.locals.ready = true;
+  }
 
   // Multer Konfiguration für Videouploads - NACH den Routen!
   const videoUpload = multer({
@@ -766,32 +798,5 @@ if (cluster.isMaster) {
     });
   });
 
-  // Ändere die Server-Konfiguration
-  const serverOptions = {
-    // HTTP/2 Einstellungen
-    enableHTTP2: true,
-    allowHTTP1: true, // Fallback auf HTTP/1
-    // PING Timeout erhöhen
-    timeout: 5000,
-    // Keep-Alive Einstellungen
-    keepAliveTimeout: 60000,
-    headersTimeout: 65000,
-  };
-
-  // Ersetze den Server-Start
-  const server = http.createServer(serverOptions, app);
-
-  // PING Intervall konfigurieren
-  server.on('connection', (socket) => {
-    socket.setKeepAlive(true, 30000); // 30 Sekunden
-  });
-
-  // DIAGNOSTIC LOGS FOR PORT
-  console.log(`[DIAGNOSTIC] Worker ${process.pid}: process.env.PORT is: ${process.env.PORT}`);
-  console.log(`[DIAGNOSTIC] Worker ${process.pid}: desiredPort is: ${desiredPort}`);
-  console.log(`[DIAGNOSTIC] Worker ${process.pid}: host is: ${host}`);
-
-  server.listen(desiredPort, host, () => {
-    console.log(`Main Backend Worker ${process.pid} started - Server running at http://${host}:${desiredPort}`);
-  });
+  // Server already started above
 }
