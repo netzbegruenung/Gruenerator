@@ -2,7 +2,7 @@ const axios = require('axios');
 const fs = require('fs').promises;
 const path = require('path');
 const winston = require('winston');
-// Lazily import ESM DatabaseAdapter from CJS context when needed
+// Lazily import ESM PostgresService from CJS context when needed
 
 // Configuration constants
 const RETRY_FILE = '/var/tmp/gruenerator-offboarding-retry.json';
@@ -102,8 +102,8 @@ class GrueneratorOffboarding {
 
   async getDb() {
     if (this.db) return this.db;
-    const { getDatabaseAdapter } = await import('../database/services/DatabaseAdapter.js');
-    this.db = getDatabaseAdapter();
+    const { getPostgresInstance } = await import('../database/services/PostgresService.js');
+    this.db = getPostgresInstance();
     return this.db;
   }
 
@@ -133,7 +133,7 @@ class GrueneratorOffboarding {
         if (profile) return profile;
       }
 
-      // Try other identifiers using database adapter
+      // Try other identifiers using PostgreSQL database
       const db = await this.getDb();
       await db.ensureInitialized();
       
@@ -420,7 +420,7 @@ class OffboardingService {
       throw new Error('Either basic auth (username/password) or API key must be configured');
     }
 
-    // Database validation is handled by ProfileService and DatabaseAdapter initialization
+    // Database validation is handled by ProfileService and PostgresService initialization
   }
 }
 
