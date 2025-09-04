@@ -232,7 +232,7 @@ async function getUserById(id) {
 async function createProfileUser(profileData) {
   try {
     // Generate UUID for new user (using built-in crypto)
-    const { randomUUID } = require('crypto');
+    const { randomUUID } = await import('crypto');
     const newUserId = randomUUID();
     
     const newProfileData = {

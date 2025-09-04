@@ -23,7 +23,7 @@ router.post('/:id/ask', requireAuth, async (req, res) => {
     try {
         const userId = req.user.id;
         const collectionId = req.params.id;
-        const { question, mode = 'dossier' } = req.body;
+        const { question, mode = 'dossier', vectorWeight, textWeight, threshold } = req.body;
 
         // Validate input
         if (!question || !question.trim()) {
@@ -60,7 +60,14 @@ router.post('/:id/ask', requireAuth, async (req, res) => {
             return res.status(400).json({ error: 'No documents found in this Q&A collection' });
         }
 
-        // Perform vector search across the collection's documents
+        // Prepare hybrid search options (allow override from request)
+        const searchOptions = {
+            vectorWeight: typeof vectorWeight === 'number' ? vectorWeight : 0.4,
+            textWeight: typeof textWeight === 'number' ? textWeight : 0.5,
+            threshold: typeof threshold === 'number' ? threshold : undefined
+        };
+
+        // Perform vector/text (hybrid) search across the collection's documents
         let searchResults = [];
         try {
             const searchResponse = await documentSearchService.search({
@@ -68,7 +75,10 @@ router.post('/:id/ask', requireAuth, async (req, res) => {
                 user_id: userId,
                 documentIds,
                 limit: 10,
-                mode: 'hybrid'
+                mode: 'hybrid',
+                vectorWeight: searchOptions.vectorWeight,
+                textWeight: searchOptions.textWeight,
+                threshold: searchOptions.threshold
             });
             searchResults = searchResponse.results || [];
         } catch (searchError) {
@@ -118,7 +128,7 @@ router.post('/:id/ask', requireAuth, async (req, res) => {
         }
 
         // Use tool-use approach for enhanced citation support
-        const result = await handleQAQuestionWithTools(trimmedQuestion, collection, userId, req.app.locals.aiWorkerPool, mode);
+        const result = await handleQAQuestionWithTools(trimmedQuestion, collection, userId, req.app.locals.aiWorkerPool, mode, searchOptions);
         
         if (!result.success) {
             return res.status(500).json({ error: result.error || 'Failed to process question' });
@@ -211,7 +221,7 @@ router.post('/public/:token/ask', async (req, res) => {
     
     try {
         const accessToken = req.params.token;
-        const { question, mode = 'dossier' } = req.body;
+        const { question, mode = 'dossier', vectorWeight, textWeight, threshold } = req.body;
 
         // Validate input
         if (!question || !question.trim()) {
@@ -264,6 +274,13 @@ router.post('/public/:token/ask', async (req, res) => {
             return res.status(400).json({ error: 'No documents found in this Q&A collection' });
         }
 
+        // Prepare hybrid search options (allow override from request)
+        const searchOptions = {
+            vectorWeight: typeof vectorWeight === 'number' ? vectorWeight : 0.4,
+            textWeight: typeof textWeight === 'number' ? textWeight : 0.5,
+            threshold: typeof threshold === 'number' ? threshold : undefined
+        };
+
         // Similar processing as authenticated endpoint but without user context
         // Perform vector search
         let searchResults = [];
@@ -273,7 +290,10 @@ router.post('/public/:token/ask', async (req, res) => {
                 user_id: null, // Public access, no user ID
                 documentIds,
                 limit: 10,
-                mode: 'hybrid'
+                mode: 'hybrid',
+                vectorWeight: searchOptions.vectorWeight,
+                textWeight: searchOptions.textWeight,
+                threshold: searchOptions.threshold
             });
             searchResults = searchResponse.results || [];
         } catch (searchError) {
@@ -320,7 +340,7 @@ router.post('/public/:token/ask', async (req, res) => {
         }
 
         // Use tool-use approach for enhanced citation support (public version)
-        const result = await handleQAQuestionWithTools(trimmedQuestion, collection, null, req.app.locals.aiWorkerPool, mode);
+        const result = await handleQAQuestionWithTools(trimmedQuestion, collection, null, req.app.locals.aiWorkerPool, mode, searchOptions);
         
         if (!result.success) {
             return res.status(500).json({ error: result.error || 'Failed to process question' });
@@ -368,7 +388,7 @@ router.post('/public/:token/ask', async (req, res) => {
 /**
  * Handle QA question using tool-use approach where Claude can search documents multiple times
  */
-async function handleQAQuestionWithTools(question, collection, userId, aiWorkerPool, mode = 'dossier') {
+async function handleQAQuestionWithTools(question, collection, userId, aiWorkerPool, mode = 'dossier', searchOptions = {}) {
     console.log('[QA Tools] Starting tool-use conversation with mode:', mode);
     
     // Adjust system prompt based on mode
@@ -476,7 +496,7 @@ ${mode === 'dossier' ? MARKDOWN_FORMATTING_INSTRUCTIONS : ''}`;
                 if (toolCall.name === 'search_documents') {
                     console.log(`[QA Tools] Executing search: "${toolCall.input.query}"`);
                     
-                    const searchResult = await executeQASearchTool(toolCall.input, collection, userId);
+            const searchResult = await executeQASearchTool(toolCall.input, collection, userId, searchOptions);
                     allSearchResults.push(...searchResult.results);
                     
                     toolResults.push({
@@ -524,7 +544,7 @@ ${mode === 'dossier' ? MARKDOWN_FORMATTING_INSTRUCTIONS : ''}`;
 /**
  * Execute search_documents tool call for QA collections
  */
-async function executeQASearchTool(toolInput, collection, userId) {
+async function executeQASearchTool(toolInput, collection, userId, searchOptions = {}) {
     try {
         const { query, search_mode = 'hybrid' } = toolInput;
         
@@ -539,7 +559,10 @@ async function executeQASearchTool(toolInput, collection, userId) {
             user_id: userId,
             documentIds: documentIds,
             limit: 5,
-            mode: search_mode
+            mode: search_mode,
+            vectorWeight: typeof searchOptions.vectorWeight === 'number' ? searchOptions.vectorWeight : undefined,
+            textWeight: typeof searchOptions.textWeight === 'number' ? searchOptions.textWeight : undefined,
+            threshold: typeof searchOptions.threshold === 'number' ? searchOptions.threshold : undefined
         });
         
         // Format results for Claude

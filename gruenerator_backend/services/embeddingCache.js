@@ -20,8 +20,16 @@ class EmbeddingCache {
     if (this.initialized) return;
 
     try {
-      // Use existing Redis client
-      const redisClient = require('../utils/redisClient.js');
+      // Use existing Redis client via dynamic ESM-compatible import
+      let redisClient = null;
+      try {
+        const mod = await import('../utils/redisClient.js');
+        // Support both CJS (module.exports) and ESM default exports
+        redisClient = mod?.default ?? mod;
+      } catch (e) {
+        // If import fails, treat as unavailable and fall through to warning
+        console.warn('[EmbeddingCache] Failed to import Redis client:', e.message);
+      }
       
       if (redisClient && redisClient.isReady) {
         this.redis = redisClient;
