@@ -3,7 +3,7 @@ import bundestagApiClient from '../services/bundestagApiClient.js';
 import authMiddlewareModule from '../middleware/authMiddleware.js';
 import passport from '../config/passportSetup.mjs';
 import { fastEmbedService } from '../services/FastEmbedService.js';
-import { getDatabaseAdapter } from '../database/services/DatabaseAdapter.js';
+import { getPostgresInstance } from '../database/services/PostgresService.js';
 
 const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
 
@@ -338,7 +338,7 @@ router.post('/save-to-documents', ensureAuthenticated, validateBundestagConfig, 
       })
     };
 
-    const db = getDatabaseAdapter();
+    const db = getPostgresInstance();
     await db.ensureInitialized();
 
     const result = await db.insert('documents', documentData);
@@ -356,7 +356,7 @@ router.post('/save-to-documents', ensureAuthenticated, validateBundestagConfig, 
       .then(async () => {
         console.log(`[Bundestag API] Successfully generated embeddings for document ${document.id}`);
         // Update document status to completed
-        const db = getDatabaseAdapter();
+        const db = getPostgresInstance();
         await db.ensureInitialized();
         await db.update('documents', { status: 'completed' }, { id: document.id });
       })
@@ -364,7 +364,7 @@ router.post('/save-to-documents', ensureAuthenticated, validateBundestagConfig, 
         console.error(`[Bundestag API] Failed to generate embeddings for document ${document.id}:`, error);
         // Update document status to failed
         try {
-          const db = getDatabaseAdapter();
+          const db = getPostgresInstance();
           await db.ensureInitialized();
           await db.update('documents', { status: 'failed' }, { id: document.id });
           console.log(`[Bundestag API] Document ${document.id} marked as failed`);
@@ -448,7 +448,7 @@ async function generateBundestagDocumentEmbeddings(documentId, content) {
     }
 
     // Insert all chunks into document_chunks table
-    const db = getDatabaseAdapter();
+    const db = getPostgresInstance();
     await db.ensureInitialized();
     
     const insertResult = await db.insert('document_chunks', allChunkData);

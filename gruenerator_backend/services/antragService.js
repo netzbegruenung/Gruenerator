@@ -1,4 +1,4 @@
-// Lazily import ESM DatabaseAdapter from CJS when needed
+// Lazily import ESM PostgresService from CJS when needed
 
 /**
  * Saves a new Antrag to the PostgreSQL database.
@@ -11,8 +11,8 @@
  * @returns {Promise<object>} The inserted data or throws an error.
  */
 async function saveAntragToDatabase(antragData) {
-  const { getDatabaseAdapter } = await import('../database/services/DatabaseAdapter.js');
-  const db = getDatabaseAdapter();
+  const { getPostgresInstance } = await import('../database/services/PostgresService.js');
+  const db = getPostgresInstance();
   await db.ensureInitialized();
 
   // Destructure data fields
@@ -79,8 +79,8 @@ async function getAntraegeByUserId(userId) {
   console.log(`[AntragService] Fetching Anträge for user ID: ${userId}`);
 
   try {
-    const { getDatabaseAdapter } = await import('../database/services/DatabaseAdapter.js');
-    const db = getDatabaseAdapter();
+    const { getPostgresInstance } = await import('../database/services/PostgresService.js');
+    const db = getPostgresInstance();
     await db.ensureInitialized();
 
     const result = await db.query(
@@ -115,8 +115,8 @@ async function deleteAntragById(antragId, userId) {
   console.log(`[AntragService] Attempting to delete Antrag ID: ${antragId} by user ID: ${userId}`);
 
   try {
-    const { getDatabaseAdapter } = await import('../database/services/DatabaseAdapter.js');
-    const db = getDatabaseAdapter();
+    const { getPostgresInstance } = await import('../database/services/PostgresService.js');
+    const db = getPostgresInstance();
     await db.ensureInitialized();
 
     // Delete with both ID and user ID match for security
