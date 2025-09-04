@@ -120,7 +120,7 @@ if (cluster.isMaster) {
   }
 
   // Anzahl der Worker aus Umgebungsvariable lesen oder Standardwert verwenden
-  const workerCount = parseInt(process.env.WORKER_COUNT, 10) || 6;
+  const workerCount = parseInt(process.env.WORKER_COUNT, 10) || 1;
   console.log(`Starting ${workerCount} workers (WORKER_COUNT: ${workerCount})`);
 
   // Fork Workers
@@ -363,7 +363,7 @@ if (cluster.isMaster) {
   });
 
   // Worker-Pool für AI-Anfragen initialisieren
-  const aiWorkerCount = parseInt(process.env.AI_WORKER_COUNT, 10) || 6;
+  const aiWorkerCount = parseInt(process.env.AI_WORKER_COUNT, 10) || 1;
   console.log(`Initializing AI worker pool with ${aiWorkerCount} workers (with Redis support for privacy mode)`);
   aiWorkerPool = new AIWorkerPool(aiWorkerCount, redisClient);
   app.locals.aiWorkerPool = aiWorkerPool;
