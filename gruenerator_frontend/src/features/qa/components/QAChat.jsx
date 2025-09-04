@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, lazy } from 'react';
 import { useParams } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { HiOutlineQuestionMarkCircle, HiDocumentText, HiChatAlt2, HiInformationCircle, HiChip } from 'react-icons/hi';
@@ -261,7 +261,7 @@ const QAChat = () => {
       }
     };
 
-    const handleKeyPress = (e) => {
+    const handleKeyDown = (e) => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         handleSubmit(e);
@@ -280,7 +280,7 @@ const QAChat = () => {
           type="text"
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
-          onKeyPress={handleKeyPress}
+          onKeyDown={handleKeyDown}
           placeholder="Stellen Sie eine Frage zu den Dokumenten..."
           disabled={submitLoading}
           className="qa-floating-input"
@@ -367,7 +367,15 @@ const QAChat = () => {
           disabled={submitLoading}
           className="qa-chat-ui"
           renderInput={() => (
-            <div className="qa-chat-dossier-input-wrapper">
+            <form
+              className="qa-chat-dossier-input-wrapper"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (inputValue.trim() && !submitLoading) {
+                  handleSubmitQuestion(inputValue.trim());
+                }
+              }}
+            >
               <ModeSelector
                 currentMode={viewMode}
                 modes={modes}
@@ -378,6 +386,14 @@ const QAChat = () => {
                 type="text"
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    if (inputValue.trim() && !submitLoading) {
+                      handleSubmitQuestion(inputValue.trim());
+                    }
+                  }
+                }}
                 placeholder="Stellen Sie eine Frage zu den Dokumenten..."
                 disabled={submitLoading}
               />
@@ -387,7 +403,7 @@ const QAChat = () => {
               >
                 ➤
               </button>
-            </div>
+            </form>
           )}
         />
       </div>

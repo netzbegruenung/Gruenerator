@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import PropTypes from 'prop-types';
 import ChatUI from '../../Chat/ChatUI';
 import apiClient from '../../../utils/apiClient';
 import useTextEditActions from '../../../../stores/hooks/useTextEditActions';
+import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
 
 const UniversalEditForm = ({ componentName }) => {
   const { getEditableText, applyEdits } = useTextEditActions(componentName);
@@ -10,17 +11,35 @@ const UniversalEditForm = ({ componentName }) => {
   const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const initializedRef = useRef(false);
+  // No emoji hardcoding here; AI decides if/when to add emojis
 
   useEffect(() => {
-    // Initial assistant prompt
-    setMessages([
-      {
-        type: 'assistant',
-        content: 'Beschreibe kurz, was wir am Text verbessern sollen – ich mache Vorschläge und wende sie direkt an. ✨',
-        timestamp: Date.now()
+    // Only initialize once per component
+    if (!initializedRef.current) {
+      const existingMessages = useGeneratedTextStore.getState().getEditChat(componentName);
+      
+      if (existingMessages.length > 0) {
+        setMessages(existingMessages);
+      } else {
+        setMessages([
+          {
+            type: 'assistant',
+            content: 'Beschreibe kurz, was wir am Text verbessern sollen – ich mache Vorschläge und wende sie direkt an. ✨',
+            timestamp: Date.now()
+          }
+        ]);
       }
-    ]);
-  }, []);
+      initializedRef.current = true;
+    }
+  }, [componentName]);
+
+  // Save messages to store whenever they change (but skip initial load)
+  useEffect(() => {
+    if (initializedRef.current && messages.length > 0) {
+      useGeneratedTextStore.getState().setEditChat(componentName, messages);
+    }
+  }, [messages, componentName]);
 
   const handleSubmit = useCallback(async (instruction) => {
     const trimmed = (instruction || '').trim();
@@ -49,13 +68,45 @@ const UniversalEditForm = ({ componentName }) => {
       if (!Array.isArray(changes) || changes.length === 0) {
         setMessages(prev => [...prev, { type: 'assistant', content: 'Keine konkreten Änderungen vorgeschlagen. Präzisiere gern, was verändert werden soll.', timestamp: Date.now() }]);
       } else {
-        // Apply edits and summarize
+        // Apply edits
         applyEdits(changes);
-        const summary = [
-          `Ich habe ${changes.length} Änderung(en) angewendet:`,
-          ...changes.slice(0, 5).map((c, i) => `- Ersetzt: „${c.text_to_find}” → „${c.replacement_text}”`),
-          changes.length > 5 ? '…' : ''
-        ].filter(Boolean).join('\n');
+        
+        // Use AI's summary if available, otherwise generate one
+        let summary = response?.data?.summary;
+        
+        if (!summary) {
+          // Fallback to smart detection
+          const describeChange = (change) => {
+            // Deletion: empty or whitespace-only replacement
+            if (!change.replacement_text || change.replacement_text.trim() === '') {
+              return `🗑️ Entfernt: „${change.text_to_find.substring(0, 60)}${change.text_to_find.length > 60 ? '...' : ''}"`;
+            }
+            
+            // Addition: replacement contains original text plus more
+            if (change.replacement_text.includes(change.text_to_find)) {
+              const addedPart = change.replacement_text.replace(change.text_to_find, '').trim();
+              if (addedPart) {
+                return `➕ Hinzugefügt: „${addedPart.substring(0, 60)}${addedPart.length > 60 ? '...' : ''}"`;
+              }
+            }
+            
+            // Shortening: original contains replacement
+            if (change.text_to_find.includes(change.replacement_text) && change.replacement_text) {
+              return `✂️ Gekürzt: „${change.text_to_find.substring(0, 30)}..." → „${change.replacement_text.substring(0, 30)}..."`;
+            }
+            
+            // Regular replacement
+            return `✏️ Geändert: „${change.text_to_find.substring(0, 30)}${change.text_to_find.length > 30 ? '...' : ''}" → „${change.replacement_text.substring(0, 30)}${change.replacement_text.length > 30 ? '...' : ''}"`;
+          };
+
+          // Generate fallback summary
+          summary = [
+            `✅ ${changes.length} ${changes.length === 1 ? 'Änderung' : 'Änderungen'} angewendet:`,
+            ...changes.slice(0, 5).map(describeChange),
+            changes.length > 5 ? `... und ${changes.length - 5} weitere` : ''
+          ].filter(Boolean).join('\n');
+        }
+        
         setMessages(prev => [...prev, { type: 'assistant', content: summary, timestamp: Date.now() }]);
       }
     } catch (e) {
@@ -78,17 +129,7 @@ const UniversalEditForm = ({ componentName }) => {
         className="editor-chat-embedded"
         renderInput={() => (
           <div className="floating-input">
-            <div 
-              className="input-elements"
-              style={{ 
-                width: '100%', 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: 8,
-                padding: 12,
-                background: 'transparent'
-              }}
-            >
+            <div className="input-elements">
               <input
                 type="text"
                 className="form-input"
@@ -106,22 +147,6 @@ const UniversalEditForm = ({ componentName }) => {
                   }
                 }}
               />
-              <button 
-                type="button" 
-                onClick={() => inputValue.trim() && handleSubmit(inputValue)}
-                disabled={!inputValue.trim()}
-                style={{ 
-                  width: 32, 
-                  height: 32, 
-                  borderRadius: '50%', 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'center'
-                }}
-                aria-label="Verbesserung senden"
-              >
-                ➤
-              </button>
             </div>
           </div>
         )}

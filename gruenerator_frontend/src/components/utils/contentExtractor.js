@@ -6,9 +6,9 @@
  * formatExportContent from exportUtils.jsx is used to maintain specific functionality.
  */
 
-// marked imported dynamically
 import { formatExportContent } from './exportUtils';
 import { isMarkdownContent } from '../common/Form/utils/contentUtils';
+import apiClient from './apiClient';
 
 /**
  * Converts HTML string to plain text while preserving basic structure
@@ -18,15 +18,17 @@ import { isMarkdownContent } from '../common/Form/utils/contentUtils';
 export const convertHtmlToPlainText = async (html) => {
   if (!html) return '';
   
-  // Convert markdown to HTML first if needed
+  // Convert markdown to HTML first if needed using backend service
   if (typeof html === 'string' && isMarkdownContent(html)) {
-    const { marked } = await import('marked');
-    html = marked(html, {
-      breaks: true,      // Convert line breaks to <br>
-      gfm: true,        // GitHub Flavored Markdown
-      headerIds: false, // Don't add IDs to headers
-      mangle: false     // Don't mangle autolinks
-    });
+    try {
+      const response = await apiClient.post('/markdown/to-html', { content: html });
+      if (response.data.success) {
+        html = response.data.html;
+      }
+    } catch (error) {
+      console.error('Error converting markdown to HTML:', error);
+      // Continue with original content on error
+    }
   }
   
   // Create temporary DOM element for parsing
@@ -211,16 +213,53 @@ export const extractPlainText = async (content) => {
 };
 
 /**
- * Extracts formatted text preserving structure for document exports
+ * Extracts formatted text for document exports (sends raw content to backend)
  * @param {string|Object} content - Content in any supported format
- * @returns {string} Formatted text with preserved structure
+ * @returns {Promise<string>} Raw content for backend processing
  */
-export const extractFormattedText = (content) => {
-  // For most cases, plain text extraction with structure preservation is sufficient
-  const plainText = extractPlainText(content);
+export const extractFormattedText = async (content) => {
+  // For document exports, send raw content to backend - no frontend conversion
+  // Backend will handle markdown/HTML conversion and formatting
   
-  // Additional formatting could be added here for specific document export needs
-  return plainText;
+  // Handle null/undefined
+  if (!content) return '';
+  
+  // Handle plain strings - return as-is (markdown or HTML)
+  if (typeof content === 'string') {
+    return content.trim();
+  }
+  
+  // Handle objects
+  if (typeof content === 'object') {
+    // Search export format
+    if (content.analysis) {
+      return extractSearchExportContent(content, true);
+    }
+    
+    // Mixed content format (sharepic/social)
+    if (content.sharepic || content.social) {
+      return extractMixedContent(content);
+    }
+  }
+  
+  // Handle unexpected object structures gracefully
+  if (typeof content === 'object') {
+    // Try common content properties
+    if (content.content) return content.content.trim();
+    if (content.text) return content.text.trim();
+    if (content.value) return content.value.trim();
+    
+    // Debug logging in development
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('Unknown content object structure:', Object.keys(content));
+    }
+    
+    // Last resort: stringify for debugging
+    return JSON.stringify(content);
+  }
+
+  // Fallback for non-object types
+  return String(content).trim();
 };
 
 /**

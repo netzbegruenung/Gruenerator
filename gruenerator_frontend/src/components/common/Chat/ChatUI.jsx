@@ -1,7 +1,7 @@
 import React, { lazy, Suspense, useRef, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { motion, AnimatePresence } from 'motion/react';
-import { HiChip } from "react-icons/hi";
+import { AssistantIcon } from '../../../config/icons';
 const ReactMarkdown = lazy(() => import('react-markdown'));
 import TypingIndicator from '../UI/TypingIndicator';
 
@@ -82,7 +82,7 @@ const ChatUI = ({
         {msg.type === 'user' && msg.userName && (
           <div className="chat-message-user-name">{msg.userName}</div>
         )}
-        {msg.type === 'assistant' && <HiChip className="assistant-icon" />}
+        {msg.type === 'assistant' && <AssistantIcon className="assistant-icon" />}
         
         {msg.quotedText && (
           <div className="chat-message-quote">
@@ -104,19 +104,19 @@ const ChatUI = ({
 
   const defaultRenderInput = () => (
     <>
-      <input
-        type="text"
+      <textarea
+        className="form-input"
         value={inputValue}
         onChange={(e) => onInputChange && onInputChange(e.target.value)}
         placeholder={placeholder}
         disabled={disabled}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleSubmit(e);
+          }
+        }}
       />
-      <button 
-        type="submit" 
-        disabled={!inputValue.trim() || disabled}
-      >
-        ➤
-      </button>
     </>
   );
 
@@ -137,7 +137,7 @@ const ChatUI = ({
               exit={{ opacity: 0, scale: 0.99, transition: { duration: 0.15, ease: "easeOut" } }}
               transition={{ type: "tween", ease: "easeOut", duration: 0.25 }}
             >
-              <HiChip className="assistant-icon" />
+              <AssistantIcon className="assistant-icon" />
               <TypingIndicator />
             </motion.div>
           )}
@@ -146,12 +146,11 @@ const ChatUI = ({
       
       {children}
       
-      <form 
-        onSubmit={handleSubmit} 
+      <div 
         className="editor-chat-input"
       >
         {renderInput ? renderInput() : defaultRenderInput()}
-      </form>
+      </div>
     </div>
   );
 };

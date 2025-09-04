@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import apiClient from '../../components/utils/apiClient';
 
 // Export store for managing PDF and DOCX generation
 export const useExportStore = create((set, get) => ({
@@ -26,13 +27,10 @@ export const useExportStore = create((set, get) => ({
     try {
       const { extractFilenameFromContent } = await import('../../components/utils/titleExtractor');
       const filename = `${extractFilenameFromContent(content, title)}.pdf`;
-      const res = await fetch('/api/exports/pdf', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content, title })
+      const response = await apiClient.post('/exports/pdf', { content, title }, {
+        responseType: 'blob'
       });
-      if (!res.ok) throw new Error(`Server returned ${res.status}`);
-      const blob = await res.blob();
+      const blob = response.data;
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -55,13 +53,10 @@ export const useExportStore = create((set, get) => ({
     try {
       const { extractFilenameFromContent } = await import('../../components/utils/titleExtractor');
       const filename = `${extractFilenameFromContent(content, title)}.docx`;
-      const res = await fetch('/api/exports/docx', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content, title })
+      const response = await apiClient.post('/exports/docx', { content, title }, {
+        responseType: 'blob'
       });
-      if (!res.ok) throw new Error(`Server returned ${res.status}`);
-      const blob = await res.blob();
+      const blob = response.data;
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
