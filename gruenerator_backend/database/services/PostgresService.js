@@ -621,21 +621,19 @@ class PostgresService {
                         decrypted[field] = this.encryption.decrypt(decrypted[field]);
                     }
                 } catch (error) {
-                    // Check if field is still in SENSITIVE_FIELDS - if not, it's plain text
-                    const currentSensitiveFields = this.getSensitiveFields(table);
-                    if (!currentSensitiveFields.includes(field)) {
-                        // Field is no longer sensitive, return as plain text
-                        console.log(`[PostgresService] Field ${field} in table ${table} is no longer encrypted, using plain text value`);
-                        // Keep the original value as it's already plain text
-                        // decrypted[field] remains unchanged
-                    } else {
-                        console.warn(`[PostgresService] Failed to decrypt field ${field}:`, error.message);
-                        // For fields that should be encrypted but fail to decrypt, set to default
-                        if (this.isObjectEncryptedField(table, field)) {
-                            decrypted[field] = field === 'nextcloud_share_links' ? [] : {};
+                    console.warn(`[PostgresService] Failed to decrypt field ${field}:`, error.message);
+                    
+                    // Set appropriate defaults for failed decryption
+                    if (this.isObjectEncryptedField(table, field)) {
+                        if (field === 'nextcloud_share_links') {
+                            decrypted[field] = [];
+                        } else if (field === 'beta_features') {
+                            decrypted[field] = {};
                         } else {
-                            decrypted[field] = null;
+                            decrypted[field] = {};
                         }
+                    } else {
+                        decrypted[field] = null;
                     }
                 }
             }
