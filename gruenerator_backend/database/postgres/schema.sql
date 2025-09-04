@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS profiles (
     canva_scopes JSONB DEFAULT '[]',
     canva_team_id TEXT,
     groups_enabled BOOLEAN DEFAULT FALSE,
+    groups BOOLEAN DEFAULT FALSE,
     custom_generators BOOLEAN DEFAULT FALSE,
     database_access BOOLEAN DEFAULT FALSE,
     you_generator BOOLEAN DEFAULT FALSE,

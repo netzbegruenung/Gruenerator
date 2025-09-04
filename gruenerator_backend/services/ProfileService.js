@@ -93,7 +93,7 @@ class ProfileService {
                 beta_features: profileData.beta_features || {},
                 igel_modus: profileData.igel_modus || false,
                 bundestag_api_enabled: profileData.bundestag_api_enabled || false,
-                groups: profileData.groups || false,
+                groups_enabled: profileData.groups_enabled || false,
                 custom_generators: profileData.custom_generators || false,
                 database_access: profileData.database_access || false,
                 you_generator: profileData.you_generator || false,
