@@ -16,7 +16,6 @@ import winston from 'winston';
 import multer from 'multer';
 import axios from 'axios';
 import { createRequire } from 'module';
-import { spawn } from 'child_process';
 
 // Adjusted imports for CommonJS modules
 import routesModule from './routes.js';
@@ -47,80 +46,14 @@ const __dirname = dirname(__filename);
 // Globaler Worker-Pool für AI-Anfragen
 let aiWorkerPool;
 let masterShutdownInProgress = false;
-let yjsServerProcess;
-let hocuspocusServerProcess;
 
 // ... existing code ...
 
 if (cluster.isMaster) {
   console.log(`Master ${process.pid} is running`);
 
-  // Embedding server disabled permanently (Mistral embeddings are used instead)
-  console.log('[Master] Embedding server not started (using Mistral embeddings).');
-
-  // Start Y.js server only when explicitly enabled
-  if (process.env.YJS_ENABLED === 'true') {
-    console.log('[Master] Starting Y.js collaborative server...');
-    yjsServerProcess = spawn('node', ['yjsServer.mjs'], {
-      stdio: ['ignore', 'pipe', 'pipe'],
-      cwd: __dirname
-    });
-
-    yjsServerProcess.stdout.on('data', (data) => {
-      console.log(`[YjsServer] ${data.toString().trim()}`);
-    });
-
-    yjsServerProcess.stderr.on('data', (data) => {
-      console.error(`[YjsServer] ${data.toString().trim()}`);
-    });
-
-    yjsServerProcess.on('exit', (code, signal) => {
-      if (!masterShutdownInProgress) {
-        console.error(`[Master] Y.js server exited with code ${code}, signal ${signal}`);
-        console.log('[Master] Restarting Y.js server...');
-        // Restart Y.js server if it crashes
-        yjsServerProcess = spawn('node', ['yjsServer.mjs'], {
-          stdio: ['ignore', 'pipe', 'pipe'],
-          cwd: __dirname
-        });
-      }
-    });
-  } else {
-    console.log('[Master] Y.js collaborative server not started (YJS_ENABLED!=true)');
-  }
-
-  // Start Hocuspocus server as child process (can be disabled with HOCUSPOCUS_ENABLED=false)
-  if (process.env.HOCUSPOCUS_ENABLED === 'false') {
-    console.log('[Master] Hocuspocus server disabled by HOCUSPOCUS_ENABLED=false');
-  } else {
-    console.log('[Master] Starting Hocuspocus collaborative server...');
-    hocuspocusServerProcess = spawn('node', ['hocuspocusServer.mjs'], {
-      stdio: ['ignore', 'pipe', 'pipe'],
-      cwd: __dirname,
-    });
-
-    hocuspocusServerProcess.stdout.on('data', (data) => {
-      console.log(`[Hocuspocus] ${data.toString().trim()}`);
-    });
-
-    hocuspocusServerProcess.stderr.on('data', (data) => {
-      console.error(`[Hocuspocus] ${data.toString().trim()}`);
-    });
-
-    hocuspocusServerProcess.on('exit', (code, signal) => {
-      if (!masterShutdownInProgress) {
-        console.error(`[Master] Hocuspocus server exited with code ${code}, signal ${signal}`);
-        console.log('[Master] Restarting Hocuspocus server...');
-        hocuspocusServerProcess = spawn('node', ['hocuspocusServer.mjs'], {
-          stdio: ['ignore', 'pipe', 'pipe'],
-          cwd: __dirname,
-        });
-      }
-    });
-  }
-
   // Anzahl der Worker aus Umgebungsvariable lesen oder Standardwert verwenden
-  const workerCount = parseInt(process.env.WORKER_COUNT, 10) || 1;
+  const workerCount = parseInt(process.env.WORKER_COUNT, 10) || 6;
   console.log(`Starting ${workerCount} workers (WORKER_COUNT: ${workerCount})`);
 
   // Fork Workers
@@ -181,50 +114,7 @@ if (cluster.isMaster) {
 
     await Promise.all(shutdownPromises);
 
-    // No embedding server to shutdown
-
-    // Shutdown Y.js server
-    if (yjsServerProcess) {
-      console.log('Shutting down Y.js server...');
-      yjsServerProcess.kill('SIGTERM');
-      
-      // Wait for Y.js server to exit or force kill after timeout
-      await new Promise((resolve) => {
-        const timeout = setTimeout(() => {
-          console.log('Y.js server shutdown timeout, forcing kill');
-          yjsServerProcess.kill('SIGKILL');
-          resolve();
-        }, 5000);
-        
-        yjsServerProcess.on('exit', () => {
-          clearTimeout(timeout);
-          console.log('Y.js server shut down successfully');
-          resolve();
-        });
-      });
-    }
-
-    // Shutdown Hocuspocus server
-    if (hocuspocusServerProcess) {
-      console.log('Shutting down Hocuspocus server...');
-      hocuspocusServerProcess.kill('SIGTERM');
-
-      await new Promise((resolve) => {
-        const timeout = setTimeout(() => {
-          console.log('Hocuspocus server shutdown timeout, forcing kill');
-          hocuspocusServerProcess.kill('SIGKILL');
-          resolve();
-        }, 5000);
-
-        hocuspocusServerProcess.on('exit', () => {
-          clearTimeout(timeout);
-          console.log('Hocuspocus server shut down successfully');
-          resolve();
-        });
-      });
-    }
-
-    console.log('All workers and services shut down successfully');
+    console.log('All workers shut down successfully');
     process.exit(0);
   };
 
@@ -234,76 +124,6 @@ if (cluster.isMaster) {
 
   const app = express();
   let workerShutdownInProgress = false;
-  // Mark readiness early; we'll flip to true after routes are mounted
-  app.locals.ready = false;
-
-  // Add global error handlers to catch crashes during initialization
-  process.on('uncaughtException', (error) => {
-    console.error(`[Worker ${process.pid}] UNCAUGHT EXCEPTION:`, error);
-    console.error(`[Worker ${process.pid}] Stack:`, error.stack);
-    setTimeout(() => process.exit(1), 1000);
-  });
-
-  process.on('unhandledRejection', (reason, promise) => {
-    console.error(`[Worker ${process.pid}] UNHANDLED PROMISE REJECTION at:`, promise);
-    console.error(`[Worker ${process.pid}] Reason:`, reason);
-    setTimeout(() => process.exit(1), 1000);
-  });
-
-  // Port/host configuration (listen early to avoid upstream 502s during heavy init)
-  const desiredPort = process.env.PORT || 3001;
-  const host = process.env.HOST || "0.0.0.0";
-
-  // Minimal health endpoint available immediately
-  app.get('/health', (req, res) => {
-    res.status(200).json({
-      status: 'starting',
-      ready: app.locals.ready === true,
-      timestamp: new Date().toISOString(),
-      worker: process.pid,
-      uptime: process.uptime()
-    });
-  });
-
-  // Serve minimal static frontend during warmup to avoid "Cannot GET /"
-  const staticFilesPathEarly = path.join(__dirname, '../gruenerator_frontend/build');
-  // Early assets (optional but helps first paint)
-  app.use('/assets', express.static(path.join(staticFilesPathEarly, 'assets'), {
-    maxAge: '1h',
-    etag: true,
-  }));
-  // Early SPA index fallback only while not ready
-  app.get('*', (req, res, next) => {
-    if (app.locals.ready === true) return next();
-    if (req.path.startsWith('/api')) return next();
-    const indexPath = path.join(staticFilesPathEarly, 'index.html');
-    if (fs.existsSync(indexPath)) {
-      return res.sendFile(indexPath);
-    }
-    return next();
-  });
-
-  // HTTP server config and early start
-  const serverOptions = {
-    enableHTTP2: true,
-    allowHTTP1: true,
-    timeout: 5000,
-    keepAliveTimeout: 60000,
-    headersTimeout: 65000,
-  };
-  const server = http.createServer(serverOptions, app);
-  server.on('connection', (socket) => {
-    socket.setKeepAlive(true, 30000);
-  });
-  console.log(`[DIAGNOSTIC] Worker ${process.pid}: process.env.PORT is: ${process.env.PORT}`);
-  console.log(`[DIAGNOSTIC] Worker ${process.pid}: desiredPort is: ${desiredPort}`);
-  console.log(`[DIAGNOSTIC] Worker ${process.pid}: host is: ${host}`);
-  
-  // Start listening immediately to keep process alive during initialization
-  server.listen(desiredPort, host, () => {
-    console.log(`Main Backend Worker ${process.pid} started - Server listening at http://${host}:${desiredPort}`);
-    console.log(`[Worker ${process.pid}] Server accepting connections, continuing with app initialization...`);
-  });
   
   // Import Redis client only in worker process
   const redisClient = require('./utils/redisClient.js');
@@ -397,7 +217,7 @@ if (cluster.isMaster) {
   });
 
   // Worker-Pool für AI-Anfragen initialisieren
-  const aiWorkerCount = parseInt(process.env.AI_WORKER_COUNT, 10) || 1;
+  const aiWorkerCount = parseInt(process.env.AI_WORKER_COUNT, 10) || 6;
   console.log(`Initializing AI worker pool with ${aiWorkerCount} workers (with Redis support for privacy mode)`);
   aiWorkerPool = new AIWorkerPool(aiWorkerCount, redisClient);
   app.locals.aiWorkerPool = aiWorkerPool;
@@ -415,7 +235,7 @@ if (cluster.isMaster) {
 
   // Initialize ProfileService and PostgreSQL database
   try {
-    const { getProfileService } = await import('./services/ProfileService.mjs');
+    const { getProfileService } = await import('./services/ProfileService.js');
     const profileService = getProfileService();
     await profileService.init();
     console.log('ProfileService initialized successfully with PostgreSQL');
@@ -444,6 +264,7 @@ if (cluster.isMaster) {
         imgSrc: ["'self'", "data:", "blob:", "https://*.unsplash.com"],
         connectSrc: [
           "'self'",
+          "https://*.supabase.co", 
           // Alle Subdomains von gruenerator.de (HTTP & HTTPS, falls lokal noch HTTP gebraucht wird)
           "http://*.gruenerator.de",
           "https://*.gruenerator.de",
@@ -472,7 +293,8 @@ if (cluster.isMaster) {
     crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }
   }));
 
-  // desiredPort/host already defined above for early server start
+  const desiredPort = process.env.PORT || 3001;
+  const host = process.env.HOST || "127.0.0.1";
 
   // Multer Konfiguration für Videouploads - MOVED AFTER ROUTES
   // Die Multer-Middleware wird nach setupRoutes verschoben
@@ -605,7 +427,6 @@ if (cluster.isMaster) {
   // app.use(passport.session());
   // console.log('[Server.mjs] Passport session initialized.');
 
-
   // Initialize Passport OIDC strategy
   // ... existing code ...
 
@@ -625,8 +446,16 @@ if (cluster.isMaster) {
   // Cache für statische Dateien - WICHTIG: Nach Session!
   app.use(cacheMiddleware);
 
-  // Update health endpoint to reflect readiness once initialization completes
-  // (route defined above for immediate availability)
+  // === Health Check Endpoint ===
+  // Simple health check endpoint for frontend server availability detection
+  app.get('/health', (req, res) => {
+    res.status(200).json({
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      worker: process.pid,
+      uptime: process.uptime()
+    });
+  });
 
   // === TUS Upload Handler ===
   // WICHTIG: Muss VOR setupRoutes und VOR den statischen Fallbacks stehen!
@@ -640,28 +469,7 @@ if (cluster.isMaster) {
   // === Ende TUS Upload Handler ===
 
   // Routen einrichten
-  console.log(`[Worker ${process.pid}] About to start route setup...`);
-  try {
-    console.log(`[Worker ${process.pid}] Setting up routes...`);
-    await setupRoutes(app);
-    console.log(`[Worker ${process.pid}] Routes setup completed successfully`);
-    app.locals.ready = true;
-  } catch (error) {
-    console.error(`[Worker ${process.pid}] CRITICAL ERROR: Failed to setup routes:`);
-    console.error(`[Worker ${process.pid}] Error message:`, error?.message || 'Unknown error');
-    console.error(`[Worker ${process.pid}] Error name:`, error?.name || 'Unknown');
-    console.error(`[Worker ${process.pid}] Full error object:`, error);
-    if (error?.stack) {
-      console.error(`[Worker ${process.pid}] Stack trace:`, error.stack);
-    }
-    
-    // Don't mark as ready if routes failed to setup
-    app.locals.ready = false;
-    
-    // Exit the worker process since routes are essential
-    console.error(`[Worker ${process.pid}] Exiting due to route setup failure`);
-    setTimeout(() => process.exit(1), 1000); // Delay to ensure logs are written
-  }
+  await setupRoutes(app);
 
   // Multer Konfiguration für Videouploads - NACH den Routen!
   const videoUpload = multer({
@@ -809,14 +617,8 @@ if (cluster.isMaster) {
     let errorMessage = 'Bitte versuchen Sie es später erneut';
     let statusCode = 500;
     
-    // Handle database errors
-    if (err.message && (err.message.includes('Database service unavailable') || 
-                       err.message.includes('PostgresService failed to initialize') ||
-                       err.message.includes('Database connection'))) {
-      statusCode = 503; // Service Unavailable
-      errorMessage = 'Der Datenbankdienst ist momentan nicht verfügbar. Bitte versuchen Sie es in wenigen Minuten erneut.';
     // Handle authentication errors
-    } else if (err.name === 'AuthenticationError' || err.message && err.message.includes('authentication')) {
+    if (err.name === 'AuthenticationError' || err.message && err.message.includes('authentication')) {
       statusCode = 401;
       errorMessage = 'Authentifizierung fehlgeschlagen. Bitte melden Sie sich erneut an.';
       
@@ -835,7 +637,7 @@ if (cluster.isMaster) {
     // Sende eine strukturierte Fehlerantwort
     res.status(statusCode).json({
       success: false,
-      error: statusCode === 503 ? 'Datenbankdienst nicht verfügbar' : 'Ein Serverfehler ist aufgetreten',
+      error: 'Ein Serverfehler ist aufgetreten',
       message: isDevelopment ? err.message : errorMessage,
       // Nur in der Entwicklungsumgebung den Stack senden
       stack: isDevelopment ? err.stack : undefined,
@@ -848,6 +650,32 @@ if (cluster.isMaster) {
     });
   });
 
-  // Server already started above to keep process alive during initialization
-  console.log(`[Worker ${process.pid}] Application initialization complete - server is already listening`);
+  // Ändere die Server-Konfiguration
+  const serverOptions = {
+    // HTTP/2 Einstellungen
+    enableHTTP2: true,
+    allowHTTP1: true, // Fallback auf HTTP/1
+    // PING Timeout erhöhen
+    timeout: 5000,
+    // Keep-Alive Einstellungen
+    keepAliveTimeout: 60000,
+    headersTimeout: 65000,
+  };
+
+  // Ersetze den Server-Start
+  const server = http.createServer(serverOptions, app);
+
+  // PING Intervall konfigurieren
+  server.on('connection', (socket) => {
+    socket.setKeepAlive(true, 30000); // 30 Sekunden
+  });
+
+  // DIAGNOSTIC LOGS FOR PORT
+  console.log(`[DIAGNOSTIC] Worker ${process.pid}: process.env.PORT is: ${process.env.PORT}`);
+  console.log(`[DIAGNOSTIC] Worker ${process.pid}: desiredPort is: ${desiredPort}`);
+  console.log(`[DIAGNOSTIC] Worker ${process.pid}: host is: ${host}`);
+
+  server.listen(desiredPort, host, () => {
+    console.log(`Main Backend Worker ${process.pid} started - Server running at http://${host}:${desiredPort}`);
+  });
 }
