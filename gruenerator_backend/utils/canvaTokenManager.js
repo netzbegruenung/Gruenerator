@@ -1,6 +1,5 @@
 const axios = require('axios');
 const crypto = require('crypto');
-const { supabaseService } = require('./supabaseClient.js');
 
 /**
  * Canva Token Manager
@@ -20,14 +19,12 @@ class CanvaTokenManager {
       console.log(`[CanvaTokenManager] Getting valid access token for user: ${userId}`);
       
       // Get current tokens from database
-      const { data: profile, error } = await supabaseService
-        .from('profiles')
-        .select('canva_access_token, canva_refresh_token, canva_token_expires_at')
-        .eq('id', userId)
-        .single();
+      const { getProfileService } = await import('../services/ProfileService.mjs');
+      const profileService = getProfileService();
+      const profile = await profileService.getProfileById(userId);
       
-      if (error) {
-        console.error('[CanvaTokenManager] Database error:', error);
+      if (!profile) {
+        console.error('[CanvaTokenManager] Profile not found');
         return null;
       }
       
@@ -119,19 +116,14 @@ class CanvaTokenManager {
       
       const expiresAt = new Date(Date.now() + (tokenData.expires_in * 1000));
       
-      const { error } = await supabaseService
-        .from('profiles')
-        .update({
-          canva_access_token: this.encrypt(tokenData.access_token),
-          canva_refresh_token: this.encrypt(tokenData.refresh_token),
-          canva_token_expires_at: expiresAt.toISOString(),
-          canva_scopes: tokenData.scope ? tokenData.scope.split(' ') : []
-        })
-        .eq('id', userId);
-      
-      if (error) {
-        throw new Error(`Database error: ${error.message}`);
-      }
+      const { getProfileService } = await import('../services/ProfileService.mjs');
+      const profileService = getProfileService();
+      await profileService.updateProfile(userId, {
+        canva_access_token: this.encrypt(tokenData.access_token),
+        canva_refresh_token: this.encrypt(tokenData.refresh_token),
+        canva_token_expires_at: expiresAt.toISOString(),
+        canva_scopes: tokenData.scope ? tokenData.scope.split(' ') : []
+      });
       
       console.log(`[CanvaTokenManager] Tokens saved successfully for user: ${userId}`);
       
@@ -149,22 +141,17 @@ class CanvaTokenManager {
     try {
       console.log(`[CanvaTokenManager] Clearing tokens for user: ${userId}`);
       
-      const { error } = await supabaseService
-        .from('profiles')
-        .update({
-          canva_access_token: null,
-          canva_refresh_token: null,
-          canva_token_expires_at: null,
-          canva_user_id: null,
-          canva_display_name: null,
-          canva_email: null,
-          canva_scopes: null
-        })
-        .eq('id', userId);
-      
-      if (error) {
-        throw new Error(`Database error: ${error.message}`);
-      }
+      const { getProfileService } = await import('../services/ProfileService.mjs');
+      const profileService = getProfileService();
+      await profileService.updateProfile(userId, {
+        canva_access_token: null,
+        canva_refresh_token: null,
+        canva_token_expires_at: null,
+        canva_user_id: null,
+        canva_display_name: null,
+        canva_email: null,
+        canva_scopes: null
+      });
       
       console.log(`[CanvaTokenManager] Tokens cleared successfully for user: ${userId}`);
       
@@ -272,7 +259,6 @@ class CanvaTokenManager {
   static getEncryptionKey() {
     // Use a combination of environment variables to create a consistent key
     const baseKey = process.env.CANVA_TOKEN_ENCRYPTION_KEY || 
-                    process.env.SUPABASE_JWT_SECRET || 
                     'fallback-key-for-development-only';
     
     // Create a 32-byte key using sha256

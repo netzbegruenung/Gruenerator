@@ -2,7 +2,7 @@ import passport from 'passport';
 import { KeycloakStrategy } from './keycloakStrategy.mjs';
 
 // Import ProfileService for database operations
-import { getProfileService } from '../services/ProfileService.js';
+import { getProfileService } from '../services/ProfileService.mjs';
 
 console.log('[PassportSetup] Initializing Keycloak OpenID Connect strategy');
 

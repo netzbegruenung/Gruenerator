@@ -2,8 +2,8 @@ import express from 'express';
 import bundestagApiClient from '../services/bundestagApiClient.js';
 import authMiddlewareModule from '../middleware/authMiddleware.js';
 import passport from '../config/passportSetup.mjs';
-import { supabaseService } from '../utils/supabaseClient.js';
 import { fastEmbedService } from '../services/FastEmbedService.js';
+import { getDatabaseAdapter } from '../database/services/DatabaseAdapter.js';
 
 const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
 
@@ -338,37 +338,39 @@ router.post('/save-to-documents', ensureAuthenticated, validateBundestagConfig, 
       })
     };
 
-    const { data: document, error: dbError } = await supabaseService
-      .from('documents')
-      .insert(documentData)
-      .select()
-      .single();
+    const db = getDatabaseAdapter();
+    await db.ensureInitialized();
 
-    if (dbError) {
-      console.error('[Bundestag API] Database error:', dbError);
+    const result = await db.insert('documents', documentData);
+    if (!result.success) {
+      console.error('[Bundestag API] Database error:', result.error);
       throw new Error('Failed to save document to database');
     }
+
+    const document = result.data[0];
 
     console.log(`[Bundestag API] Successfully created document ${document.id} for Bundestag ${type}/${id}`);
 
     // Generate embeddings for the document content in background
     generateBundestagDocumentEmbeddings(document.id, documentContent)
-      .then(() => {
+      .then(async () => {
         console.log(`[Bundestag API] Successfully generated embeddings for document ${document.id}`);
         // Update document status to completed
-        return supabaseService
-          .from('documents')
-          .update({ status: 'completed' })
-          .eq('id', document.id);
+        const db = getDatabaseAdapter();
+        await db.ensureInitialized();
+        await db.update('documents', { status: 'completed' }, { id: document.id });
       })
-      .catch(error => {
+      .catch(async error => {
         console.error(`[Bundestag API] Failed to generate embeddings for document ${document.id}:`, error);
         // Update document status to failed
-        supabaseService
-          .from('documents')
-          .update({ status: 'failed' })
-          .eq('id', document.id)
-          .then(() => console.log(`[Bundestag API] Document ${document.id} marked as failed`));
+        try {
+          const db = getDatabaseAdapter();
+          await db.ensureInitialized();
+          await db.update('documents', { status: 'failed' }, { id: document.id });
+          console.log(`[Bundestag API] Document ${document.id} marked as failed`);
+        } catch (updateError) {
+          console.error(`[Bundestag API] Failed to mark document ${document.id} as failed:`, updateError);
+        }
       });
 
     res.json({
@@ -446,12 +448,12 @@ async function generateBundestagDocumentEmbeddings(documentId, content) {
     }
 
     // Insert all chunks into document_chunks table
-    const { error: insertError } = await supabaseService
-      .from('document_chunks')
-      .insert(allChunkData);
-
-    if (insertError) {
-      throw new Error(`Failed to insert document chunks: ${insertError.message}`);
+    const db = getDatabaseAdapter();
+    await db.ensureInitialized();
+    
+    const insertResult = await db.insert('document_chunks', allChunkData);
+    if (!insertResult.success) {
+      throw new Error(`Failed to insert document chunks: ${insertResult.error.message}`);
     }
 
     console.log(`[generateBundestagDocumentEmbeddings] Successfully generated embeddings for ${allChunkData.length} chunks in document ${documentId}`);

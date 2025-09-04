@@ -1,6 +1,6 @@
 import express from 'express';
 import passport from '../../config/passportSetup.mjs';
-import { supabaseService } from '../../utils/supabaseClient.js';
+// Supabase deprecated – remove dependency
 import authMiddlewareModule from '../../middleware/authMiddleware.js';
 
 const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
@@ -108,57 +108,9 @@ router.get('/status', async (req, res) => {
   const finalIsAuth = req.isAuthenticated() && req.user;
   
   if (finalIsAuth) {
-    try {
-      // Load user's groups if not already loaded and groups beta feature is enabled
-      if (req.user && req.user.beta_features?.groups && !req.user.groups) {
-        try {
-          const { data: memberships } = await supabaseService
-            .from('group_memberships')
-            .select(`
-              group_id,
-              role,
-              joined_at,
-              groups!inner(id, name, created_at, created_by, join_token)
-            `)
-            .eq('user_id', req.user.id);
-
-          if (memberships) {
-            req.user.groups = memberships.map(m => ({
-              id: m.groups.id,
-              name: m.groups.name,
-              created_at: m.groups.created_at,
-              created_by: m.groups.created_by,
-              join_token: m.groups.join_token,
-              role: m.role,
-              joined_at: m.joined_at,
-              isAdmin: m.groups.created_by === req.user.id || m.role === 'admin'
-            }));
-          }
-        } catch (groupError) {
-          console.warn('[Auth Status] Error loading groups:', groupError);
-        }
-      }
-
-      res.json({
-        isAuthenticated: true,
-        user: req.user,
-        supabaseSession: null
-      });
-    } catch (error) {
-      console.error('[Auth Status] Error in auth status:', error);
-      res.json({
-        isAuthenticated: true,
-        user: req.user,
-        supabaseSession: null
-      });
-    }
-  } else {
-    res.json({
-      isAuthenticated: false,
-      user: null,
-      supabaseSession: null
-    });
+    return res.json({ isAuthenticated: true, user: req.user });
   }
+  return res.json({ isAuthenticated: false, user: null });
 });
 
 // Simple status test route to verify routing is working
