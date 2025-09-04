@@ -148,6 +148,47 @@ function determineProviderFromModel(modelName) {
   return 'litellm';
 }
 
+/**
+ * Privacy mode fallback system - tries privacy-friendly providers in sequence
+ * @param {string} requestId - Request identifier
+ * @param {Object} data - Request data
+ * @returns {Promise<Object>} AI response result
+ */
+async function tryPrivacyModeProviders(requestId, data) {
+  const privacyProviders = ['litellm', 'ionos'];
+  let lastError;
+  
+  console.log(`[AI Worker] Attempting privacy mode fallback for request ${requestId}`);
+  
+  for (const provider of privacyProviders) {
+    try {
+      console.log(`[AI Worker] Trying privacy provider ${provider} for request ${requestId}`);
+      
+      const privacyData = {
+        ...data,
+        options: {
+          ...data.options,
+          provider: provider,
+          // Use default models for privacy providers
+          model: provider === 'litellm' ? 'llama3.3' : 'meta-llama/Llama-3.3-70B-Instruct'
+        }
+      };
+      
+      if (provider === 'litellm') {
+        return await processWithLiteLLM(requestId, privacyData);
+      } else if (provider === 'ionos') {
+        return await processWithIONOS(requestId, privacyData);
+      }
+    } catch (error) {
+      console.log(`[AI Worker] Privacy provider ${provider} failed for ${requestId}: ${error.message}`);
+      lastError = error;
+      continue;
+    }
+  }
+  
+  throw new Error(`All privacy mode providers failed. Last error: ${lastError?.message || 'Unknown error'}`);
+}
+
 // Main AI request processing function
 async function processAIRequest(requestId, data) {
   // Destructure data, ensuring options exists and preserve original metadata
@@ -156,10 +197,15 @@ async function processAIRequest(requestId, data) {
   // Check for main LLM override from environment variable
   const mainLlmOverride = process.env.MAIN_LLM_OVERRIDE;
   
-  // Force Bedrock for gruenerator_ask and gruenerator_ask_grundsatz types to use Haiku for faster and cheaper responses
-  let effectiveOptions = (type === 'gruenerator_ask' || type === 'gruenerator_ask_grundsatz')
-    ? { ...options, useBedrock: true, model: 'anthropic.claude-3-haiku-20240307-v1:0' }
-    : { ...options, useBedrock: true }; // Default to Bedrock for all requests
+  // Default provider selection
+  // - QA flows (qa_tools): prefer Mistral by default for lower latency/cost and strong tool support
+  // - Legacy ask flows: keep Bedrock default unless overridden
+  let effectiveOptions = { ...options, useBedrock: true };
+  if (type === 'qa_tools') {
+    effectiveOptions = { ...effectiveOptions, provider: 'mistral', model: options.model || 'mistral-medium-latest', useBedrock: false };
+  } else if (type === 'gruenerator_ask' || type === 'gruenerator_ask_grundsatz') {
+    effectiveOptions = { ...effectiveOptions, useBedrock: true, model: 'anthropic.claude-3-haiku-20240307-v1:0' };
+  }
   
   // Apply main LLM override if set and privacy mode allows it
   if (mainLlmOverride && shouldAllowMainLlmOverride(effectiveOptions, requestMetadata)) {
@@ -407,7 +453,18 @@ async function processAIRequest(requestId, data) {
 
   } catch (error) {
     console.error(`[AI Worker] Error in processAIRequest for ${requestId}:`, error);
-    throw error;
+    
+    // Final safety net: try privacy mode providers as backup
+    try {
+      console.log(`[AI Worker] Main processing failed for ${requestId}, attempting privacy mode fallback`);
+      const result = await tryPrivacyModeProviders(requestId, data);
+      console.log(`[AI Worker] Privacy mode fallback successful for ${requestId}`);
+      return result;
+    } catch (privacyError) {
+      console.error(`[AI Worker] Privacy mode fallback also failed for ${requestId}:`, privacyError);
+      // If even privacy mode fails, throw the original error
+      throw error;
+    }
   }
 }
 
@@ -598,13 +655,13 @@ async function processWithBedrock(requestId, data) {
           retryCount = 0; // Reset retry count for new model
           console.log(`[AI Worker] Fallback to model ${modelIndex + 1}: ${currentModelId.split('/').pop()}`);
         } else {
-          // No more Bedrock models to try - attempt IONOS fallback
-          console.log(`[AI Worker] All Bedrock models failed for ${requestId}, falling back to IONOS provider`);
+          // No more Bedrock models to try - attempt privacy mode fallback
+          console.log(`[AI Worker] All Bedrock models failed for ${requestId}, falling back to privacy mode providers`);
           try {
-            return await processWithIONOS(requestId, data);
-          } catch (ionosError) {
-            console.error(`[AI Worker] IONOS fallback also failed for ${requestId}. IONOS error:`, ionosError.message);
-            throw new Error(`All providers failed. Bedrock: ${error.message}, IONOS: ${ionosError.message}`);
+            return await tryPrivacyModeProviders(requestId, data);
+          } catch (privacyError) {
+            console.error(`[AI Worker] Privacy mode fallback also failed for ${requestId}. Privacy error:`, privacyError.message);
+            throw new Error(`All providers failed. Bedrock: ${error.message}, Privacy providers: ${privacyError.message}`);
           }
         }
       }

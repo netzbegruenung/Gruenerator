@@ -514,7 +514,7 @@ class PostgresService {
      * Create a database backup using pg_dump (if available)
      */
     async createBackup(backupPath) {
-        const { spawn } = require('child_process');
+        const { spawn } = await import('child_process');
         
         return new Promise((resolve, reject) => {
             const pg_dump = spawn('pg_dump', [

@@ -22,6 +22,7 @@ class DocumentSearchService extends BaseSearchService {
         this.qdrant = getQdrantInstance();
         this.qdrantOps = null; // Initialize after Qdrant is ready
         this.initialized = false;
+        this.qdrantAvailable = false;
     }
 
     /**
@@ -106,7 +107,15 @@ class DocumentSearchService extends BaseSearchService {
     async ensureInitialized() {
         if (!this.initialized) {
             await this.qdrant.init();
-            this.qdrantOps = new QdrantOperations(this.qdrant.client);
+            this.qdrantAvailable = !!this.qdrant?.client && !!this.qdrant?.isConnected;
+
+            if (this.qdrantAvailable) {
+                this.qdrantOps = new QdrantOperations(this.qdrant.client);
+            } else {
+                // Provide a clear log so callers know vector search is disabled
+                console.warn('[DocumentSearchService] Qdrant not available; vector searches will be skipped');
+                this.qdrantOps = null;
+            }
             this.initialized = true;
         }
     }
@@ -161,6 +170,19 @@ class DocumentSearchService extends BaseSearchService {
 
         // Flat shape (direct external calls): delegate to InputValidator
         const validated = InputValidator.validateSearchParams(params);
+        // Optional hybrid weights passthrough for flat shape
+        let vectorWeightOpt;
+        let textWeightOpt;
+        try {
+            if (typeof params.vectorWeight === 'number') {
+                vectorWeightOpt = InputValidator.validateNumber(params.vectorWeight, 'vectorWeight', { min: 0, max: 1 });
+            }
+            if (typeof params.textWeight === 'number') {
+                textWeightOpt = InputValidator.validateNumber(params.textWeight, 'textWeight', { min: 0, max: 1 });
+            }
+        } catch (e) {
+            // If invalid, ignore and fall back to defaults
+        }
         return {
             query: validated.query,
             userId: validated.user_id,
@@ -173,7 +195,9 @@ class DocumentSearchService extends BaseSearchService {
                 limit: validated.limit,
                 threshold: validated.threshold,
                 mode: validated.mode,
-                useCache: true
+                useCache: true,
+                ...(vectorWeightOpt !== undefined ? { vectorWeight: vectorWeightOpt } : {}),
+                ...(textWeightOpt !== undefined ? { textWeight: textWeightOpt } : {})
             }
         };
     }
@@ -184,9 +208,18 @@ class DocumentSearchService extends BaseSearchService {
     async search(searchParams) {
         try {
             await this.ensureInitialized();
-            
-            // Use parent's performSimilaritySearch for consistency
-            return await this.performSimilaritySearch(searchParams);
+
+            // Normalize and validate params to inspect mode
+            const validated = this.validateSearchParams(searchParams);
+            const mode = validated.options?.mode || 'vector';
+
+            if (mode === 'hybrid') {
+                console.log('[DocumentSearchService] Executing hybrid search mode');
+                return await this.performHybridSearch(validated);
+            }
+
+            // Default: vector similarity search
+            return await this.performSimilaritySearch(validated);
 
         } catch (error) {
             console.error('[DocumentSearchService] Search error:', error);
@@ -458,6 +491,11 @@ class DocumentSearchService extends BaseSearchService {
      */
     async findSimilarChunks(params) {
         const { embedding, userId, filters, limit, threshold } = params;
+
+        if (!this.qdrantAvailable || !this.qdrantOps) {
+            console.warn('[DocumentSearchService] Skipping vector search: Qdrant unavailable');
+            return [];
+        }
         
         // Build Qdrant filter
         const filter = { must: [{ key: 'user_id', match: { value: userId } }] };
@@ -476,12 +514,14 @@ class DocumentSearchService extends BaseSearchService {
             });
         }
         
+        console.log('[DocumentSearchService] Calling Qdrant vectorSearch...');
         const results = await this.qdrantOps.vectorSearch(
             'documents',
             embedding,
             filter,
             { limit, threshold, withPayload: true }
         );
+        console.log(`[DocumentSearchService] Qdrant vectorSearch returned ${results.length} hits`);
         
         // Transform to expected format for BaseSearchService
         return results.map(result => ({
@@ -506,6 +546,10 @@ class DocumentSearchService extends BaseSearchService {
      */
     async findHybridChunks(params) {
         const { embedding, query, userId, filters, limit, threshold, hybridOptions } = params;
+        if (!this.qdrantAvailable || !this.qdrantOps) {
+            console.warn('[DocumentSearchService] Skipping hybrid search: Qdrant unavailable');
+            return [];
+        }
         
         // Build Qdrant filter
         const filter = { must: [{ key: 'user_id', match: { value: userId } }] };
@@ -524,6 +568,7 @@ class DocumentSearchService extends BaseSearchService {
             });
         }
         
+        console.log('[DocumentSearchService] Calling Qdrant hybridSearch...');
         const hybridResult = await this.qdrantOps.hybridSearch(
             'documents',
             embedding,
@@ -535,6 +580,7 @@ class DocumentSearchService extends BaseSearchService {
                 ...hybridOptions
             }
         );
+        console.log(`[DocumentSearchService] Qdrant hybridSearch returned ${hybridResult.results.length} hits`);
         
         // Transform to expected format with hybrid metadata
         return hybridResult.results.map(result => ({
