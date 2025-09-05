@@ -81,7 +81,8 @@ class QdrantService {
         this.isInitializing = true;
 
         try {
-            const qdrantUrl = process.env.QDRANT_URL || 'http://localhost:6333';
+            // Hardcoded domain for testing
+            const qdrantUrl = 'https://qdrant.services.moritz-waechter.de:443';
             const apiKey = process.env.QDRANT_API_KEY;
 
             // Configure HTTP agent for better connection handling
@@ -95,12 +96,27 @@ class QdrantService {
                 freeSocketTimeout: 15000
             });
 
-            this.client = new QdrantClient({
-                url: qdrantUrl,
-                ...(apiKey && { apiKey }),
-                timeout: 60000,  // 60 second timeout for hosted server
-                agent: httpAgent
-            });
+            // Use host/port approach for HTTPS support due to Qdrant client URL parsing bug
+            if (qdrantUrl.startsWith('https://')) {
+                const url = new URL(qdrantUrl);
+                this.client = new QdrantClient({
+                    host: url.hostname,
+                    port: url.port ? parseInt(url.port) : 443,
+                    https: true,
+                    ...(apiKey && { apiKey }),
+                    timeout: 60000,
+                    checkCompatibility: false,  // Skip compatibility check for faster startup
+                    agent: httpAgent
+                });
+            } else {
+                this.client = new QdrantClient({
+                    url: qdrantUrl,
+                    ...(apiKey && { apiKey }),
+                    https: false,  // Force HTTP for non-HTTPS URLs
+                    timeout: 60000,
+                    agent: httpAgent
+                });
+            }
 
             // Test connection with retry
             await this.testConnectionWithRetry();
