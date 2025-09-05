@@ -98,7 +98,7 @@ class QdrantService {
             this.client = new QdrantClient({
                 url: qdrantUrl,
                 ...(apiKey && { apiKey }),
-                timeout: 30000,  // 30 second timeout for hosted server
+                timeout: 60000,  // 60 second timeout for hosted server
                 agent: httpAgent
             });
 
@@ -154,6 +154,14 @@ class QdrantService {
             } catch (error) {
                 lastError = error;
                 console.warn(`[QdrantService] Connection test attempt ${attempt}/${maxRetries} failed:`, error.message);
+                
+                // Log additional error details for debugging
+                if (error.cause) {
+                    console.warn(`[QdrantService] Error cause:`, error.cause.message);
+                }
+                if (error.code) {
+                    console.warn(`[QdrantService] Error code:`, error.code);
+                }
                 
                 if (attempt < maxRetries) {
                     const delay = Math.pow(2, attempt) * 1000;
