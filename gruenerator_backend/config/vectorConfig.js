@@ -71,6 +71,10 @@ class VectorConfig {
         embeddings: {
           maxSize: parseInt(process.env.CACHE_EMBEDDINGS_SIZE || '500'),
           ttl: parseInt(process.env.CACHE_EMBEDDINGS_TTL || '3600000') // 1 hour
+        },
+        baseService: {
+          maxSize: 100,
+          ttl: 1800000 // 30 minutes
         }
       },
 
