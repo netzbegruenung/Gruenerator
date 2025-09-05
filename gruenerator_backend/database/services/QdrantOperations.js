@@ -402,6 +402,14 @@ class QdrantOperations {
 
         } catch (error) {
             console.error('[QdrantOperations] Scroll failed:', error);
+            
+            // Check for SSL/connection errors that might indicate stale connection
+            if (error.message && (error.message.includes('SSL') || 
+                                  error.message.includes('wrong version') || 
+                                  error.message.includes('fetch failed'))) {
+                console.warn('[QdrantOperations] Connection error detected, suggesting connection reset');
+            }
+            
             throw new Error(`Scroll operation failed: ${error.message}`);
         }
     }
