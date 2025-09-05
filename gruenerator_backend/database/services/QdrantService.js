@@ -186,14 +186,26 @@ class QdrantService {
                 return;
             }
 
-            // Test current connection
+            // Test current connection with a simple operation
             await this.client.getCollections();
             this.lastHealthCheck = now;
         } catch (error) {
             console.warn('[QdrantService] Health check failed, reconnecting:', error.message);
-            this.isConnected = false;
-            // Reset initPromise to allow new initialization attempt
-            this.initPromise = null;
+            
+            // Check for SSL-related errors and force full reinitialize
+            if (error.message && (error.message.includes('SSL') || error.message.includes('wrong version'))) {
+                console.log('[QdrantService] SSL error detected, forcing full reconnection...');
+                // Force complete reinitialization
+                this.client = null;
+                this.isConnected = false;
+                this.isInitializing = false;
+                this.initPromise = null;
+            } else {
+                this.isConnected = false;
+                // Reset initPromise to allow new initialization attempt
+                this.initPromise = null;
+            }
+            
             await this.init();
         }
     }
@@ -1352,7 +1364,7 @@ class QdrantService {
         });
 
         try {
-            const result = await operations.batchUpsert(this.collections.social_media_examples, points, { maxRetries: 3 });
+            await operations.batchUpsert(this.collections.social_media_examples, points, { maxRetries: 3 });
             return { 
                 success: true, 
                 indexed: examples.length,
