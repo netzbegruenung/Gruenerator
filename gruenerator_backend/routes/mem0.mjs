@@ -8,7 +8,7 @@ const require = createRequire(import.meta.url);
 // Try to import mem0Service, provide fallback if dependencies missing
 let mem0Service;
 try {
-  mem0Service = require('../services/mem0Service');
+  mem0Service = require('../services/mem0Service.js');
 } catch (error) {
   console.log('[mem0.mjs] Mem0Service dependencies not available, using fallback implementation');
   console.log('[mem0.mjs] Error:', error.message);
