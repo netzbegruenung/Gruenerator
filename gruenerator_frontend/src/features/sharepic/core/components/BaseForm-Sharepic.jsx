@@ -14,6 +14,10 @@ import CopyButton from '../../../../components/common/CopyButton';
 import HelpTooltip from '../../../../components/common/HelpTooltip';
 import useAltTextGeneration from '../../../../components/hooks/useAltTextGeneration';
 
+// Sharepic Feature CSS - Loaded only when this feature is accessed
+import '../../../../assets/styles/components/sharepic/sharepic.css';
+import '../../../../assets/styles/components/sharepic/sharepic-type-selector.css';
+
 import { 
   ColorSchemeControl, 
   FontSizeControl, 

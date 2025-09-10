@@ -4,6 +4,10 @@ import GalleryLayout from './GalleryLayout';
 import SearchBar from './SearchBar';
 import CategorySelector from '../CategorySelector';
 
+// Gallery Feature CSS - Loaded only when this feature is accessed
+import '../../../assets/styles/components/gallery-layout.css';
+import '../../../assets/styles/components/gallery-content-type.css';
+
 // Verfügbare Inhaltstypen
 const contentTypes = [
   { id: 'all', label: 'Alle Kategorien' },

@@ -3,6 +3,9 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useInstantAuth } from '../../../hooks/useAuth';
 import PropTypes from 'prop-types';
 
+// Login Feature CSS - Loaded only when this feature is accessed
+import '../../../assets/styles/features/auth/login-page.css';
+
 // Auth Backend URL aus Environment Variable oder Fallback zu relativem Pfad
 const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 

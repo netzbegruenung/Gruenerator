@@ -1,0 +1,42 @@
+.pabtn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xsmall);
+  border-radius: 8px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+  color: var(--link-color);
+  background: transparent;
+}
+.pabtn--s { padding: 6px 8px; min-height: 32px; }
+.pabtn--m { padding: 8px 12px; min-height: 38px; }
+
+.pabtn__icon { font-size: 1.1em; }
+.pabtn__label { font-weight: 500; }
+
+.pabtn:disabled { opacity: .6; cursor: not-allowed; }
+.pabtn:focus { outline: 2px solid var(--interactive-accent-color); outline-offset: 2px; }
+
+/* Variants */
+.pabtn--ghost:hover { background: var(--hover-color-alt); }
+.pabtn--secondary { border-color: var(--border-subtle); background: var(--background-color); }
+.pabtn--secondary:hover { background: var(--hover-color-alt); }
+.pabtn--primary { background: var(--primary); color: var(--secondary); }
+.pabtn--primary:hover { background: var(--dunkelgruen-alt); }
+.pabtn--danger { border-color: var(--border-subtle); color: var(--error-red); }
+.pabtn--danger:hover { background: color-mix(in srgb, var(--error-red) 10%, transparent); }
+.pabtn--delete { border: none; color: var(--font-color); }
+.pabtn--delete:hover { color: var(--error-red); background: color-mix(in srgb, var(--error-red) 10%, transparent); }
+
+/* Spinner */
+.pabtn__spinner {
+  width: 16px; height: 16px; border: 2px solid color-mix(in srgb, var(--font-color) 25%, transparent);
+  border-top-color: var(--font-color); border-radius: 50%; animation: pabtnspin 1s linear infinite;
+}
+@keyframes pabtnspin { to { transform: rotate(360deg); } }
+
+/* Spin the icon itself when requested */
+.pabtn__icon.spinning {
+  animation: pabtnspin 1s linear infinite;
+}

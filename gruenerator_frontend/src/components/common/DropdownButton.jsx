@@ -1,0 +1,199 @@
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
+import PropTypes from 'prop-types';
+import { Link } from 'react-router-dom';
+import { HiChevronDown, HiCog } from 'react-icons/hi';
+import { NotebookIcon } from '../../config/icons';
+import '../../assets/styles/components/ui/dropdown-button.css';
+
+const DropdownButton = ({ 
+  onCreateNotebook, 
+  onCreateCustomGenerator, // required for custom generator creation (embedded only)
+  showNotebook = false, 
+  className = 'groups-action-button create-new-group-button',
+  variant = 'navigation' // 'navigation' or 'content'
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [style, setStyle] = useState({ opacity: 0 });
+  const triggerRef = useRef(null);
+  const dropdownRef = useRef(null);
+  const closeTimeoutRef = useRef(null);
+
+  const updatePosition = useCallback(() => {
+    if (!triggerRef.current || !dropdownRef.current) return;
+    
+    const triggerRect = triggerRef.current.getBoundingClientRect();
+    const dropdownRect = dropdownRef.current.getBoundingClientRect();
+    const windowWidth = window.innerWidth;
+    const windowHeight = window.innerHeight;
+    const space = 8;
+    const overlap = 1; // slight overlap to avoid hover gap due to borders
+
+    // Calculate initial position
+    // Place directly under trigger and overlap by 1px to avoid gap
+    let top = triggerRect.bottom + window.scrollY - overlap;
+    let left = triggerRect.left + window.scrollX;
+
+    // Adjust horizontal position if it overflows
+    if (left < space) {
+      left = space;
+    } else if (left + dropdownRect.width > windowWidth - space) {
+      left = windowWidth - dropdownRect.width - space;
+    }
+
+    // Adjust vertical position if it overflows
+    if (top + dropdownRect.height > windowHeight + window.scrollY - space) {
+      // Place above trigger with slight overlap
+      top = triggerRect.top + window.scrollY - dropdownRect.height + overlap;
+    }
+
+    setStyle({
+      position: 'absolute',
+      top: `${top}px`,
+      left: `${left}px`,
+      opacity: 1,
+      zIndex: 1000,
+    });
+  }, []);
+
+  const handleToggle = useCallback((e) => {
+    e.stopPropagation();
+    setIsOpen(prev => !prev);
+  }, []);
+
+  const handleClose = useCallback(() => {
+    setIsOpen(false);
+  }, []);
+
+  const handleMouseEnter = useCallback(() => {
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
+    setIsOpen(true);
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+    }
+    // Small delay prevents flicker when moving cursor between button and menu
+    closeTimeoutRef.current = setTimeout(() => {
+      setIsOpen(false);
+      closeTimeoutRef.current = null;
+    }, 120);
+  }, []);
+
+  // Handle click outside to close and position dropdown
+  useEffect(() => {
+    if (isOpen) {
+      const handleClickOutside = (event) => {
+        if (
+          triggerRef.current && 
+          !triggerRef.current.contains(event.target) &&
+          dropdownRef.current && 
+          !dropdownRef.current.contains(event.target)
+        ) {
+          handleClose();
+        }
+      };
+
+      const handleScroll = () => {
+        updatePosition();
+      };
+
+      const handleResize = () => {
+        handleClose();
+      };
+
+      // Add event listeners
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('scroll', handleScroll, true);
+      window.addEventListener('resize', handleResize);
+
+      // Position dropdown after render
+      const positionFrame = requestAnimationFrame(() => {
+        updatePosition();
+      });
+
+      return () => {
+        cancelAnimationFrame(positionFrame);
+        document.removeEventListener('mousedown', handleClickOutside);
+        document.removeEventListener('scroll', handleScroll, true);
+        window.removeEventListener('resize', handleResize);
+      };
+    } else {
+      setStyle(prev => ({ ...prev, opacity: 0 }));
+    }
+  }, [isOpen, updatePosition, handleClose]);
+
+  return (
+    <div 
+      className={`dropdown-button-container ${variant}-variant`}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      <button 
+        ref={triggerRef}
+        className="button dropdown-button" 
+        onClick={handleToggle}
+        aria-label="Neu erstellen"
+        aria-expanded={isOpen}
+        aria-haspopup="menu"
+      >
+        <span>
+          Neu erstellen
+        </span>
+        <HiChevronDown className={`dropdown-chevron ${isOpen ? 'open' : ''}`} />
+      </button>
+      
+      {isOpen && createPortal(
+        <div
+          ref={dropdownRef}
+          className="dropdown-button-content"
+          style={style}
+          onClick={(e) => e.stopPropagation()}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+          role="menu"
+        >
+          <button
+            className="dropdown-button-option"
+            onClick={() => { onCreateCustomGenerator && onCreateCustomGenerator(); handleClose(); }}
+            aria-label="Neuen Custom Grünerator erstellen"
+            role="menuitem"
+          >
+            <HiCog />
+            <span>Custom Grünerator</span>
+          </button>
+          
+          {showNotebook && (
+            <button
+              className="dropdown-button-option"
+              onClick={() => {
+                onCreateNotebook();
+                handleClose();
+              }}
+              aria-label="Neues Notebook erstellen"
+              role="menuitem"
+            >
+              <NotebookIcon />
+              <span>Notebook</span>
+            </button>
+          )}
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+};
+
+DropdownButton.propTypes = {
+  onCreateNotebook: PropTypes.func,
+  onCreateCustomGenerator: PropTypes.func,
+  showNotebook: PropTypes.bool,
+  className: PropTypes.string,
+  variant: PropTypes.oneOf(['navigation', 'content'])
+};
+
+export default DropdownButton;

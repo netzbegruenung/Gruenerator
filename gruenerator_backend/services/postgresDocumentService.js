@@ -121,7 +121,21 @@ class PostgresDocumentService {
             if (updates.wolkeEtag !== undefined) updateData.wolke_etag = updates.wolkeEtag;
             if (updates.lastSyncedAt !== undefined) updateData.last_synced_at = updates.lastSyncedAt;
             if (updates.additionalMetadata !== undefined) {
-                updateData.metadata = JSON.stringify(updates.additionalMetadata);
+                // Merge with existing metadata to avoid losing fields
+                const current = await this.postgres.queryOne(
+                    'SELECT metadata FROM documents WHERE id = $1 AND user_id = $2',
+                    [documentId, userId]
+                );
+                let baseMeta = {};
+                try {
+                    baseMeta = current?.metadata ? JSON.parse(current.metadata) : {};
+                } catch (e) {
+                    baseMeta = {};
+                }
+                updateData.metadata = JSON.stringify({
+                    ...baseMeta,
+                    ...updates.additionalMetadata
+                });
             }
             
             const result = await this.postgres.update(

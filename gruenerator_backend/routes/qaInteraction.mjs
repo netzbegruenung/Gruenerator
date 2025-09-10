@@ -8,6 +8,7 @@ const documentSearchService = new DocumentSearchService();
 import { 
   MARKDOWN_FORMATTING_INSTRUCTIONS, 
   SEARCH_DOCUMENTS_TOOL, 
+  PROVIDE_REFERENCES_TOOL,
   processAIResponseWithCitations 
 } from '../utils/promptUtils.js';
 
@@ -417,6 +418,7 @@ Deine Aufgabe:
 2. Du kannst mehrere Suchen mit verschiedenen Begriffen durchführen
 3. Sammle umfassende Informationen aus den TATSÄCHLICHEN Suchergebnissen
 4. Erstelle Zitate NUR aus den gefundenen Dokumenten
+5. Nachdem du mit dem search_documents Tool relevante Stellen gefunden hast, rufe das provide_references Tool auf. Es liefert dir eine Referenz-Tabelle, auf die du dich beziehen kannst.
 
 Q&A-Sammlung: "${collection.name}"
 ${collection.custom_prompt || 'Gib präzise Antworten basierend auf den Dokumenten der Sammlung.'}
@@ -428,8 +430,14 @@ ABSOLUT VERBOTEN:
 
 Antwort-Struktur:
 1. Verwende zuerst das search_documents Tool
-2. Basiere deine Antwort NUR auf den gefundenen Dokumenten
-3. ${mode === 'chat' ? 'Halte die Antwort kurz und gesprächsartig' : 'Formatiere als strukturiertes Markdown'}
+2. Rufe dann provide_references auf, um eine Referenz-Tabelle zu laden
+3. Basiere deine Antwort NUR auf den gefundenen Dokumenten
+4. ${mode === 'chat' ? 'Halte die Antwort kurz und gesprächsartig' : 'Formatiere als strukturiertes Markdown'}
+
+Hinweis zu Zitaten:
+- Wenn Referenzen verfügbar sind, nutze sie so, dass jede relevante Aussage mit einer Referenz belegt wird.
+- Modelle mit Referenz-Funktion verwenden die bereitgestellte Referenz-Tabelle automatisch für strukturierte Zitate.
+- Falls keine Referenz-Blöcke unterstützt werden, beginne mit "Hier sind die relevanten Zitate:", liste Zitate im Format [1] "Exakter Text" (Dokument: Titel) und schreibe danach "Antwort:" mit Verweisen [1], [2], ...
 
 ${mode === 'dossier' ? MARKDOWN_FORMATTING_INSTRUCTIONS : ''}`;
 
@@ -440,6 +448,7 @@ ${mode === 'dossier' ? MARKDOWN_FORMATTING_INSTRUCTIONS : ''}`;
     }];
     
     let allSearchResults = [];
+    let lastReferencesMap = null;
     let searchCount = 0;
     const maxSearches = 5; // Prevent infinite loops
     
@@ -458,7 +467,7 @@ ${mode === 'dossier' ? MARKDOWN_FORMATTING_INSTRUCTIONS : ''}`;
                 max_tokens: 2000,
                 useBedrock: true,
                 anthropic_version: "bedrock-2023-05-31",
-                tools: [SEARCH_DOCUMENTS_TOOL]
+                tools: [SEARCH_DOCUMENTS_TOOL, PROVIDE_REFERENCES_TOOL]
             }
         });
         
@@ -512,6 +521,15 @@ ${mode === 'dossier' ? MARKDOWN_FORMATTING_INSTRUCTIONS : ''}`;
                     });
                     
                     searchCount++;
+                } else if (toolCall.name === 'provide_references') {
+                    console.log(`[QA Tools] Providing references map from ${allSearchResults.length} results`);
+                    const referencesPayload = buildReferencesMapFromResults(allSearchResults, toolCall.input?.ids);
+                    lastReferencesMap = referencesPayload;
+                    toolResults.push({
+                        type: "tool_result",
+                        tool_use_id: toolCall.id,
+                        content: JSON.stringify(referencesPayload)
+                    });
                 }
             }
             
@@ -528,9 +546,9 @@ ${mode === 'dossier' ? MARKDOWN_FORMATTING_INSTRUCTIONS : ''}`;
         }
         
         // No more tool calls - we have the final answer
-        if (aiResult.content) {
+        if (aiResult.content || aiResult.raw_content_blocks) {
             console.log('[QA Tools] Got final answer, processing response');
-            return await processQAFinalResponse(aiResult.content, allSearchResults, question, collection);
+            return await processQAFinalResponseEnhanced(aiResult, allSearchResults, question, collection, lastReferencesMap);
         }
         
         // Safety break
@@ -648,6 +666,107 @@ async function processQAFinalResponse(responseContent, allSearchResults, origina
             token_count: 0 // Will be filled by calling function if available
         }
     };
+}
+
+/**
+ * Enhanced final response processing to support Mistral reference chunks when available
+ */
+async function processQAFinalResponseEnhanced(aiResult, allSearchResults, originalQuestion, collection, referencesMap) {
+    const contentBlocks = Array.isArray(aiResult.raw_content_blocks) ? aiResult.raw_content_blocks : null;
+    if (contentBlocks && contentBlocks.some(b => b.type === 'reference') && referencesMap) {
+        const usedIds = [];
+        let answerParts = [];
+        for (const block of contentBlocks) {
+            if (block.type === 'text' && typeof block.text === 'string') {
+                answerParts.push(block.text);
+            } else if (block.type === 'reference' && Array.isArray(block.reference_ids)) {
+                block.reference_ids.forEach(id => {
+                    usedIds.push(String(id));
+                    answerParts.push(`⚡CITE${id}⚡`);
+                });
+            }
+        }
+        const answer = answerParts.join('');
+        const citations = [];
+        const sources = [];
+        const byDoc = new Map();
+        const usedUnique = [...new Set(usedIds)];
+        usedUnique.forEach(idStr => {
+            const ref = referencesMap[idStr];
+            if (!ref) return;
+            citations.push({
+                index: idStr,
+                cited_text: Array.isArray(ref.snippets) && ref.snippets.length > 0 ? (Array.isArray(ref.snippets[0]) ? ref.snippets[0].join(' ') : String(ref.snippets[0])) : (ref.description || ''),
+                document_title: ref.title,
+                document_id: ref.document_id,
+                similarity_score: ref.similarity_score,
+                chunk_index: ref.chunk_index || 0,
+                filename: ref.filename
+            });
+            const key = ref.document_id || ref.title;
+            if (!byDoc.has(key)) {
+                byDoc.set(key, {
+                    document_id: ref.document_id,
+                    document_title: ref.title,
+                    chunk_text: Array.isArray(ref.snippets) && ref.snippets.length > 0 ? (Array.isArray(ref.snippets[0]) ? ref.snippets[0].join(' ') : String(ref.snippets[0])) : '',
+                    similarity_score: ref.similarity_score,
+                    citations: []
+                });
+            }
+        });
+        citations.forEach(c => {
+            const key = c.document_id || c.document_title;
+            const entry = byDoc.get(key);
+            if (entry) entry.citations.push(c);
+        });
+        for (const v of byDoc.values()) sources.push(v);
+        return {
+            success: true,
+            answer,
+            sources,
+            citations,
+            searchQuery: originalQuestion,
+            searchCount: allSearchResults.length,
+            uniqueDocuments: sources.length,
+            metadata: {
+                provider: 'qa_tools',
+                timestamp: new Date().toISOString(),
+                toolUseEnabled: true,
+                collection_id: collection.id,
+                collection_name: collection.name,
+                token_count: 0
+            }
+        };
+    }
+    return await processQAFinalResponse(aiResult.content || '', allSearchResults, originalQuestion, collection);
+}
+
+function buildReferencesMapFromResults(results, idsFilter = undefined) {
+    const map = {};
+    const list = results || [];
+    let idx = -1;
+    for (const r of list) {
+        idx += 1;
+        const idStr = String(idx);
+        if (Array.isArray(idsFilter) && idsFilter.length > 0 && !idsFilter.includes(idx)) {
+            continue;
+        }
+        const title = r.title || r.document_title || r.filename || `Dokument ${idx}`;
+        const snippet = (r.content || r.relevant_content || r.chunk_text || '').slice(0, 500);
+        map[idStr] = {
+            url: r.url || null,
+            title,
+            snippets: [[snippet]],
+            description: null,
+            date: new Date().toISOString(),
+            source: 'qa_documents',
+            document_id: r.document_id,
+            filename: r.filename,
+            similarity_score: r.similarity_score,
+            chunk_index: r.chunk_index || 0
+        };
+    }
+    return map;
 }
 
 export default router;

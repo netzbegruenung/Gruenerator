@@ -36,6 +36,26 @@ class VectorConfig {
         }
       },
 
+      // Hybrid search specific configuration
+      hybrid: {
+        // Dynamic threshold adjustment based on text match presence
+        minVectorOnlyThreshold: parseFloat(process.env.HYBRID_MIN_VECTOR_ONLY_THRESHOLD || '0.55'),
+        minVectorWithTextThreshold: parseFloat(process.env.HYBRID_MIN_VECTOR_WITH_TEXT_THRESHOLD || '0.35'),
+        
+        // Post-fusion quality gates (RRF-appropriate thresholds with k=60)
+        minFinalScore: parseFloat(process.env.HYBRID_MIN_FINAL_SCORE || '0.008'),
+        minVectorOnlyFinalScore: parseFloat(process.env.HYBRID_MIN_VECTOR_ONLY_FINAL_SCORE || '0.010'),
+        
+        // Confidence weighting for RRF
+        confidenceBoost: parseFloat(process.env.HYBRID_CONFIDENCE_BOOST || '1.2'),
+        confidencePenalty: parseFloat(process.env.HYBRID_CONFIDENCE_PENALTY || '0.7'),
+        
+        // Enable/disable features
+        enableDynamicThresholds: process.env.HYBRID_ENABLE_DYNAMIC_THRESHOLDS !== 'false',
+        enableConfidenceWeighting: process.env.HYBRID_ENABLE_CONFIDENCE_WEIGHTING !== 'false',
+        enableQualityGate: process.env.HYBRID_ENABLE_QUALITY_GATE !== 'false'
+      },
+
 
       // Document scoring configuration (simplified)
       scoring: {
@@ -136,11 +156,25 @@ class VectorConfig {
       console.warn(`[VectorConfig] Scoring weights sum to ${scoringWeightSum}, should be 1.0`);
     }
     
+    // Validate hybrid configuration
+    if (config.hybrid.minVectorOnlyThreshold < 0 || config.hybrid.minVectorOnlyThreshold > 1) {
+      throw new Error('HYBRID_MIN_VECTOR_ONLY_THRESHOLD must be between 0 and 1');
+    }
+    
+    if (config.hybrid.minVectorWithTextThreshold < 0 || config.hybrid.minVectorWithTextThreshold > 1) {
+      throw new Error('HYBRID_MIN_VECTOR_WITH_TEXT_THRESHOLD must be between 0 and 1');
+    }
+    
+    if (config.hybrid.minVectorOnlyThreshold < config.hybrid.minVectorWithTextThreshold) {
+      console.warn('[VectorConfig] minVectorOnlyThreshold should be >= minVectorWithTextThreshold for logical consistency');
+    }
+    
     // Validate positive values
     const positiveValues = [
       'search.defaultLimit', 'search.maxLimit',
       'content.maxExcerptLength', 'content.maxChunksPerDocument',
-      'timeouts.searchDefault', 'timeouts.embeddingGeneration'
+      'timeouts.searchDefault', 'timeouts.embeddingGeneration',
+      'hybrid.confidenceBoost', 'hybrid.confidencePenalty'
     ];
     
     positiveValues.forEach(path => {
@@ -229,6 +263,14 @@ class VectorConfig {
         defaultThreshold: this.config.search.defaultThreshold,
         defaultLimit: this.config.search.defaultLimit,
         maxLimit: this.config.search.maxLimit
+      },
+      hybrid: {
+        minVectorOnlyThreshold: this.config.hybrid.minVectorOnlyThreshold,
+        minVectorWithTextThreshold: this.config.hybrid.minVectorWithTextThreshold,
+        minFinalScore: this.config.hybrid.minFinalScore,
+        enableDynamicThresholds: this.config.hybrid.enableDynamicThresholds,
+        enableConfidenceWeighting: this.config.hybrid.enableConfidenceWeighting,
+        enableQualityGate: this.config.hybrid.enableQualityGate
       },
       cache: {
         totalMaxSize: Object.values(this.config.cache).reduce((sum, cache) => sum + cache.maxSize, 0)

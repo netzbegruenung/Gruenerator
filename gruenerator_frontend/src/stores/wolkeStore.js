@@ -53,7 +53,9 @@ export const useWolkeStore = create(immer((set, get) => ({
       state.successMessage = '';
       state.initialized = false;
     } else {
-      console.log('[WolkeStore] Scope unchanged - keeping existing data');
+      console.log('[WolkeStore] Scope unchanged - keeping existing data and initialization state');
+      // Don't reset initialized flag when scope hasn't changed
+      // This prevents unnecessary re-fetching of data when component remounts
     }
     
     state.scope = scope;
@@ -316,12 +318,18 @@ export const useWolkeStore = create(immer((set, get) => ({
   },
 
   // Fetch sync statuses
-  fetchSyncStatuses: async () => {
+  fetchSyncStatuses: async (forceRefresh = false) => {
     try {
-      set(state => {
-        state.isLoading = true;
-        state.error = null;
-      });
+      // Only show loading if we don't have existing sync statuses or force refresh
+      const currentSyncStatuses = get().syncStatuses;
+      const shouldShowLoading = forceRefresh || !currentSyncStatuses || currentSyncStatuses.length === 0;
+      
+      if (shouldShowLoading) {
+        set(state => {
+          state.isLoading = true;
+          state.error = null;
+        });
+      }
 
       const { scope, scopeId } = get();
       let syncStatuses = [];
@@ -348,17 +356,46 @@ export const useWolkeStore = create(immer((set, get) => ({
       set(state => {
         state.syncStatuses = syncStatuses;
         state.isLoading = false;
+        // Mark as initialized after successful fetch
+        if (!state.initialized) {
+          state.initialized = true;
+        }
       });
 
       console.log('[WolkeStore] Fetched sync statuses:', syncStatuses.length);
+      return syncStatuses;
 
     } catch (error) {
       console.error('[WolkeStore] Error fetching sync statuses:', error);
       set(state => {
         state.error = error.message;
         state.isLoading = false;
+        // Still mark as initialized even on error to prevent infinite retry loops
+        if (!state.initialized) {
+          state.initialized = true;
+        }
       });
+      throw error;
     }
+  },
+
+  // Ensure sync statuses are available (fetch if needed)
+  ensureSyncStatuses: async () => {
+    const { syncStatuses, isLoading, initialized } = get();
+    
+    // If we already have sync statuses and we're not currently loading, return them
+    if (syncStatuses.length > 0 && !isLoading) {
+      return syncStatuses;
+    }
+    
+    // If we're already loading, wait a bit and try again
+    if (isLoading) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      return get().syncStatuses;
+    }
+    
+    // Otherwise, fetch them
+    return await get().fetchSyncStatuses();
   },
 
   // Sync folder

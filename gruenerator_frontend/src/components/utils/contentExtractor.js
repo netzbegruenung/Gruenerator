@@ -267,7 +267,7 @@ export const extractFormattedText = async (content) => {
  * @param {string|Object} content - Content in any supported format
  * @returns {string} HTML formatted content for Etherpad
  */
-export const extractHTMLContent = (content) => {
+export const extractHTMLContent = async (content) => {
   // Handle null/undefined
   if (!content) return '';
   
@@ -275,22 +275,22 @@ export const extractHTMLContent = (content) => {
   if (typeof content === 'object' && content.analysis) {
     // Use the existing formatExportContent for search exports to maintain
     // all the complex formatting, source handling, and Etherpad-specific features
-    return formatExportContent(content);
+    return await formatExportContent(content);
   }
   
   // Handle mixed content objects
   if (typeof content === 'object' && (content.sharepic || content.social)) {
     const mixedText = extractMixedContent(content);
-    return formatTextForEtherpad(mixedText);
+    return await formatTextForEtherpad(mixedText);
   }
   
   // Handle string content
   if (typeof content === 'string') {
-    return formatTextForEtherpad(content);
+    return await formatTextForEtherpad(content);
   }
   
   // Fallback
-  return formatTextForEtherpad(String(content));
+  return await formatTextForEtherpad(String(content));
 };
 
 /**
@@ -345,16 +345,16 @@ const formatTextForEtherpad = async (text) => {
  * @param {string} outputType - Output format: 'plain', 'formatted', 'html'
  * @returns {string} Extracted content in the specified format
  */
-export const extractContentByType = (content, outputType = 'plain') => {
+export const extractContentByType = async (content, outputType = 'plain') => {
   switch (outputType) {
     case 'plain':
-      return extractPlainText(content);
+      return await extractPlainText(content);
     case 'formatted':
-      return extractFormattedText(content);
+      return await extractFormattedText(content);
     case 'html':
-      return extractHTMLContent(content);
+      return await extractHTMLContent(content);
     default:
       console.warn(`Unknown output type: ${outputType}. Defaulting to plain text.`);
-      return extractPlainText(content);
+      return await extractPlainText(content);
   }
 };

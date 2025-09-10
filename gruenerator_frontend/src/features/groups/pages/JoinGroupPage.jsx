@@ -2,7 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import Spinner from '../../../components/common/Spinner';
-import { useGroups } from '../../auth/utils/groupsUtils';
+import { useGroups } from '../hooks/useGroups';
+
+// Groups Feature CSS - Loaded only when this feature is accessed
+import '../../../assets/styles/features/groups/groups.css';
+import '../../../assets/styles/features/groups/shared-content-selector.css';
 
 const JoinGroupPage = () => {
   const { joinToken } = useParams();

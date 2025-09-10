@@ -7,6 +7,18 @@ import Grueneratoren from './Grueneratoren';
 import AboutSection from './AboutSection';
 import ContactFormSection from './ContactFormSection';
 
+// Campaign Feature CSS - Loaded only when this feature is accessed
+import './CampaignPage.css';
+import './CampaignDashboard.css';
+import './Grueneratoren.css';
+import './TemplatesSection.css';
+import './FileCard.css';
+import './TextsSection.css';
+import './FilesSection.css';
+import './TextCard.css';
+import '../styles/AboutSection.css';
+import '../styles/ContactFormSection.css';
+
 const CampaignDashboard = ({ campaignData }) => {
   const [templates, setTemplates] = useState([]);
   const [error, setError] = useState(null);

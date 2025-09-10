@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { lazy } from 'react';
 const ReactMarkdown = lazy(() => import('react-markdown'));
 // Removed unused react-icons imports
 // Import the component's CSS file

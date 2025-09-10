@@ -2,9 +2,13 @@
  * QdrantOperations - Reusable Qdrant operations for all search services
  * Extracted from QdrantService to eliminate code duplication
  */
+
+import { vectorConfig } from '../../config/vectorConfig.js';
+
 class QdrantOperations {
     constructor(qdrantClient) {
         this.client = qdrantClient;
+        this.hybridConfig = vectorConfig.get('hybrid');
     }
 
     /**
@@ -75,23 +79,35 @@ class QdrantOperations {
         try {
             console.log(`[QdrantOperations] Hybrid search - vector weight: ${vectorWeight}, text weight: ${textWeight}`);
 
-            // Execute vector search
+            // Execute text search first to determine dynamic threshold
+            const textResults = await this.performTextSearch(collection, query, filter, limit);
+            
+            // Apply dynamic threshold adjustment based on text match presence
+            const dynamicThreshold = this.hybridConfig.enableDynamicThresholds 
+                ? this.calculateDynamicThreshold(threshold, textResults.length > 0)
+                : threshold;
+                
+            console.log(`[QdrantOperations] Using dynamic threshold: ${dynamicThreshold} (text matches: ${textResults.length})`);
+
+            // Execute vector search with dynamic threshold
             const vectorResults = await this.vectorSearch(collection, queryVector, filter, {
                 limit: Math.round(limit * 1.5),
-                threshold,
+                threshold: dynamicThreshold,
                 withPayload: true,
                 ef: Math.max(100, limit * 2)
             });
 
-            // Execute text-based searches
-            const textResults = await this.performTextSearch(collection, query, filter, limit);
-
             console.log(`[QdrantOperations] Vector: ${vectorResults.length} results, Text: ${textResults.length} results`);
 
-            // Apply fusion method
-            const combinedResults = useRRF 
+            // Apply fusion method with confidence weighting
+            let combinedResults = useRRF 
                 ? this.applyReciprocalRankFusion(vectorResults, textResults, limit, rrfK)
                 : this.applyWeightedCombination(vectorResults, textResults, vectorWeight, textWeight, limit);
+
+            // Apply post-fusion quality gate
+            if (this.hybridConfig.enableQualityGate) {
+                combinedResults = this.applyQualityGate(combinedResults, textResults.length > 0);
+            }
 
             return {
                 success: true,
@@ -101,7 +117,9 @@ class QdrantOperations {
                     textResults: textResults.length,
                     fusionMethod: useRRF ? 'RRF' : 'weighted',
                     vectorWeight,
-                    textWeight
+                    textWeight,
+                    dynamicThreshold,
+                    qualityFiltered: this.hybridConfig.enableQualityGate
                 }
             };
 
@@ -122,6 +140,8 @@ class QdrantOperations {
      */
     async performTextSearch(collection, searchTerm, baseFilter = {}, limit = 10) {
         try {
+            console.log(`[QdrantOperations] Text search: "${searchTerm}" in collection "${collection}"`);
+            
             // Create text match filter
             const textFilter = {
                 must: [...(baseFilter.must || [])]
@@ -133,6 +153,8 @@ class QdrantOperations {
                 match: { text: searchTerm }
             });
 
+            console.log(`[QdrantOperations] Text filter:`, JSON.stringify(textFilter, null, 2));
+
             // Use scroll API for text search
             const scrollResult = await this.client.scroll(collection, {
                 filter: textFilter,
@@ -141,8 +163,42 @@ class QdrantOperations {
                 with_vector: false
             });
 
+            console.log(`[QdrantOperations] Text search raw results: ${scrollResult.points?.length || 0} points found`);
+
+            if (scrollResult.points && scrollResult.points.length > 0) {
+                console.log(`[QdrantOperations] Text search matches found:`);
+                scrollResult.points.forEach((point, index) => {
+                    const chunkText = point.payload?.chunk_text || '';
+                    const title = point.payload?.title || 'Untitled';
+                    const filename = point.payload?.filename || 'No filename';
+                    
+                    // Find and highlight the matching text
+                    const lowerText = chunkText.toLowerCase();
+                    const lowerTerm = searchTerm.toLowerCase();
+                    const matchIndex = lowerText.indexOf(lowerTerm);
+                    
+                    let excerpt = '';
+                    if (matchIndex !== -1) {
+                        const start = Math.max(0, matchIndex - 30);
+                        const end = Math.min(chunkText.length, matchIndex + searchTerm.length + 30);
+                        excerpt = '...' + chunkText.slice(start, end) + '...';
+                        // Highlight the match
+                        const highlightStart = matchIndex - start + 3; // +3 for '...'
+                        excerpt = excerpt.slice(0, highlightStart) + `**${chunkText.slice(matchIndex, matchIndex + searchTerm.length)}**` + excerpt.slice(highlightStart + searchTerm.length);
+                    } else {
+                        excerpt = chunkText.slice(0, 100) + '...';
+                    }
+                    
+                    console.log(`   ${index + 1}. Document: "${title}" (${filename})`);
+                    console.log(`      Match: ${excerpt}`);
+                    console.log(`      Chunk ID: ${point.id}, Document ID: ${point.payload?.document_id}`);
+                });
+            } else {
+                console.log(`[QdrantOperations] No text matches found for "${searchTerm}"`);
+            }
+
             // Add search metadata and scores
-            return scrollResult.points.map((point, index) => ({
+            const results = (scrollResult.points || []).map((point, index) => ({
                 id: point.id,
                 score: this.calculateTextSearchScore(searchTerm, point.payload.chunk_text, index),
                 payload: point.payload,
@@ -150,8 +206,12 @@ class QdrantOperations {
                 searchTerm: searchTerm
             }));
 
+            console.log(`[QdrantOperations] Text search returning ${results.length} processed results`);
+            return results;
+
         } catch (error) {
             console.warn(`[QdrantOperations] Text search failed for "${searchTerm}":`, error.message);
+            console.error(`[QdrantOperations] Text search error stack:`, error.stack);
             return [];
         }
     }
@@ -186,6 +246,27 @@ class QdrantOperations {
     }
 
     /**
+     * Calculate dynamic threshold based on text match presence
+     * @param {number} baseThreshold - Base threshold from options
+     * @param {boolean} hasTextMatches - Whether text search found results
+     * @returns {number} Dynamic threshold
+     * @private
+     */
+    calculateDynamicThreshold(baseThreshold, hasTextMatches) {
+        if (!this.hybridConfig.enableDynamicThresholds) {
+            return baseThreshold;
+        }
+
+        if (hasTextMatches) {
+            // When text matches exist, use the lower threshold for vector similarity
+            return Math.max(baseThreshold, this.hybridConfig.minVectorWithTextThreshold);
+        } else {
+            // When no text matches exist, require much higher vector similarity
+            return Math.max(baseThreshold, this.hybridConfig.minVectorOnlyThreshold);
+        }
+    }
+
+    /**
      * Apply Reciprocal Rank Fusion to combine vector and text results
      * @param {Array} vectorResults - Vector search results
      * @param {Array} textResults - Text search results
@@ -207,7 +288,8 @@ class QdrantOperations {
                 textRank: null,
                 originalVectorScore: result.score,
                 originalTextScore: null,
-                searchMethod: 'vector'
+                searchMethod: 'vector',
+                confidence: this.hybridConfig.enableConfidenceWeighting ? this.hybridConfig.confidencePenalty : 1.0
             });
         });
 
@@ -217,12 +299,14 @@ class QdrantOperations {
             const key = result.id;
             
             if (scoresMap.has(key)) {
-                // Combine with existing vector result
+                // Combine with existing vector result - found by both methods
                 const existing = scoresMap.get(key);
                 existing.rrfScore += rrfScore;
                 existing.textRank = index + 1;
                 existing.originalTextScore = result.score;
                 existing.searchMethod = 'hybrid';
+                // Boost confidence for items found by both methods
+                existing.confidence = this.hybridConfig.enableConfidenceWeighting ? this.hybridConfig.confidenceBoost : 1.0;
             } else {
                 // New text-only result
                 scoresMap.set(key, {
@@ -232,21 +316,28 @@ class QdrantOperations {
                     textRank: index + 1,
                     originalVectorScore: null,
                     originalTextScore: result.score,
-                    searchMethod: 'text'
+                    searchMethod: 'text',
+                    confidence: 1.0 // Neutral confidence for text-only matches
                 });
             }
         });
 
-        // Sort by RRF score and return top results
+        // Apply confidence weighting and sort by final score
         return Array.from(scoresMap.values())
-            .sort((a, b) => b.rrfScore - a.rrfScore)
+            .map(result => ({
+                ...result,
+                finalScore: result.rrfScore * result.confidence
+            }))
+            .sort((a, b) => b.finalScore - a.finalScore)
             .slice(0, limit)
             .map(result => ({
                 ...result.item,
-                score: result.rrfScore,
+                score: result.finalScore,
                 searchMethod: result.searchMethod,
                 originalVectorScore: result.originalVectorScore,
-                originalTextScore: result.originalTextScore
+                originalTextScore: result.originalTextScore,
+                confidence: result.confidence,
+                rawRRFScore: result.rrfScore
             }));
     }
 
@@ -315,6 +406,57 @@ class QdrantOperations {
             }))
             .sort((a, b) => b.score - a.score)
             .slice(0, limit);
+    }
+
+    /**
+     * Apply quality gate to filter out low-quality results after fusion
+     * @param {Array} results - Fused results
+     * @param {boolean} hasTextMatches - Whether text search found results
+     * @returns {Array} Quality-filtered results
+     * @private
+     */
+    applyQualityGate(results, hasTextMatches) {
+        if (!this.hybridConfig.enableQualityGate || !results || results.length === 0) {
+            return results;
+        }
+
+        console.log(`[QdrantOperations] Quality gate: filtering ${results.length} results (hasTextMatches: ${hasTextMatches})`);
+        
+        // Log score distribution for debugging RRF ranges
+        if (results.length > 0) {
+            const scores = results.map(r => r.score);
+            const minScore = Math.min(...scores);
+            const maxScore = Math.max(...scores);
+            const avgScore = scores.reduce((a, b) => a + b, 0) / scores.length;
+            console.log(`[QdrantOperations] Score distribution: min=${minScore.toFixed(6)}, max=${maxScore.toFixed(6)}, avg=${avgScore.toFixed(6)}`);
+            console.log(`[QdrantOperations] Quality thresholds: minFinal=${this.hybridConfig.minFinalScore}, minVectorOnly=${this.hybridConfig.minVectorOnlyFinalScore}`);
+        }
+
+        const filteredResults = results.filter((result, index) => {
+            // Check minimum final score
+            if (result.score < this.hybridConfig.minFinalScore) {
+                console.log(`   Filtered out #${index + 1}: score ${result.score.toFixed(6)} < minFinal ${this.hybridConfig.minFinalScore}`);
+                return false;
+            }
+
+            // Apply stricter threshold for vector-only results
+            if (result.searchMethod === 'vector' && !hasTextMatches) {
+                if (result.score < this.hybridConfig.minVectorOnlyFinalScore) {
+                    console.log(`   Filtered out #${index + 1}: vector-only score ${result.score.toFixed(6)} < minVectorOnly ${this.hybridConfig.minVectorOnlyFinalScore}`);
+                    return false;
+                }
+            }
+
+            console.log(`   Kept #${index + 1}: ${result.searchMethod} method, score ${result.score.toFixed(6)} (doc: ${result.payload?.document_id})`);
+            return true;
+        });
+
+        const removedCount = results.length - filteredResults.length;
+        if (removedCount > 0) {
+            console.log(`[QdrantOperations] Quality gate: removed ${removedCount} low-quality results`);
+        }
+
+        return filteredResults;
     }
 
     /**

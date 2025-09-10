@@ -1,5 +1,5 @@
 import Tesseract from 'tesseract.js';
-import { createCanvas } from 'canvas';
+// Canvas import moved to dynamic import to avoid module loading issues
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
@@ -184,6 +184,9 @@ class OCRService {
           // Strategy 2: Canvas-based OCR (only if direct text extraction failed)
           if (!text.trim()) {
             try {
+              // Dynamic import of canvas to avoid module loading issues
+              const { createCanvas } = await import('canvas');
+              
               const viewport = page.getViewport({ scale: 1.5 });
               const canvas = createCanvas(Math.floor(viewport.width), Math.floor(viewport.height));
               const context = canvas.getContext('2d');
@@ -592,6 +595,69 @@ class OCRService {
     } catch (error) {
       console.error(`[OCRService] Failed to generate embeddings for document ${documentId}:`, error);
       throw error;
+    }
+  }
+
+  /**
+   * Extract text from base64 PDF data using pdfjs-dist (reliable method)
+   * This method is used for Mistral and privacy mode where we need text extraction without Canvas dependencies
+   * @param {string} base64Data - Base64 encoded PDF data
+   * @param {string} filename - Original filename for logging
+   * @returns {Promise<Object>} Object with text, pageCount, method, and processingTime
+   */
+  async extractTextFromBase64PDF(base64Data, filename = 'unknown.pdf') {
+    const startTime = Date.now();
+    console.log(`[OCRService] Extracting text from base64 PDF using pdfjs-dist: ${filename}`);
+
+    try {
+      // Use existing pdfjs setup
+      const pdfjsLib = await this.getPdfJs();
+      
+      // Convert base64 to Uint8Array
+      const pdfBuffer = Buffer.from(base64Data, 'base64');
+      const pdfUint8Array = new Uint8Array(pdfBuffer);
+      
+      // Load PDF document
+      const pdfDoc = await pdfjsLib.getDocument({
+        data: pdfUint8Array,
+        verbosity: 0
+      }).promise;
+      
+      const totalPages = pdfDoc.numPages;
+      const allText = [];
+      
+      // Extract text from all pages
+      for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
+        try {
+          const page = await pdfDoc.getPage(pageNum);
+          const textContent = await page.getTextContent();
+          const pageText = textContent.items.map(item => item.str).join(' ').trim();
+          
+          if (pageText.length > 0) {
+            allText.push(`## Seite ${pageNum}\n\n${pageText}`);
+          }
+        } catch (pageError) {
+          console.warn(`[OCRService] Failed to extract text from page ${pageNum}:`, pageError.message);
+        }
+      }
+      
+      const finalText = allText.join('\n\n').trim();
+      const processingTime = Date.now() - startTime;
+      
+      console.log(`[OCRService] PDF text extraction completed: ${finalText.length} characters, ${totalPages} pages, ${processingTime}ms`);
+      
+      return {
+        text: finalText,
+        pageCount: totalPages,
+        method: 'pdfjs-dist',
+        processingTime: processingTime
+      };
+      
+    } catch (error) {
+      const processingTime = Date.now() - startTime;
+      console.error(`[OCRService] Failed to extract text from base64 PDF ${filename}:`, error);
+      
+      throw new Error(`PDF text extraction failed: ${error.message}`);
     }
   }
 

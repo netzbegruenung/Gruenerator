@@ -9,6 +9,7 @@ import { getQdrantInstance } from '../database/services/QdrantService.js';
 import { QdrantOperations } from '../database/services/QdrantOperations.js';
 import { BaseSearchService } from './BaseSearchService.js';
 import { InputValidator } from '../utils/inputValidation.js';
+import { vectorConfig } from '../config/vectorConfig.js';
 import { v4 as uuidv4 } from 'uuid';
 
 class DocumentSearchService extends BaseSearchService {
@@ -23,6 +24,7 @@ class DocumentSearchService extends BaseSearchService {
         this.qdrantOps = null; // Initialize after Qdrant is ready
         this.initialized = false;
         this.qdrantAvailable = false;
+        this.hybridConfig = vectorConfig.get('hybrid');
     }
 
     /**
@@ -234,6 +236,11 @@ class DocumentSearchService extends BaseSearchService {
         try {
             await this.ensureInitialized();
 
+            // Log hybrid configuration status
+            if (vectorConfig.isVerboseMode()) {
+                console.log(`[DocumentSearchService] Hybrid search config - Dynamic thresholds: ${this.hybridConfig.enableDynamicThresholds}, Quality gate: ${this.hybridConfig.enableQualityGate}, Confidence weighting: ${this.hybridConfig.enableConfidenceWeighting}`);
+            }
+
             // Use parent's performHybridSearch for consistency
             return await this.performHybridSearch({
                 query,
@@ -249,7 +256,9 @@ class DocumentSearchService extends BaseSearchService {
                     textWeight: options.textWeight || 0.3,
                     useRRF: options.useRRF !== false,
                     rrfK: options.rrfK || 60,
-                    useCache: true
+                    useCache: true,
+                    // Pass hybrid-specific metadata for enhanced search
+                    hybridConfig: this.hybridConfig
                 }
             });
 

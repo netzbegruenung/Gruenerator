@@ -1,7 +1,8 @@
 import React, { useState, useCallback, useEffect, lazy } from 'react';
 import { useParams } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { HiOutlineQuestionMarkCircle, HiDocumentText, HiChatAlt2, HiInformationCircle, HiChip } from 'react-icons/hi';
+import { HiOutlineQuestionMarkCircle, HiDocumentText, HiInformationCircle, HiChip } from 'react-icons/hi';
+import { NotebookIcon } from '../../../config/icons';
 const ReactMarkdown = lazy(() => import('react-markdown'));
 import ChatUI from '../../../components/common/Chat/ChatUI';
 import ModeSelector from '../../../components/common/Chat/ModeSelector';
@@ -57,7 +58,7 @@ const QAChat = () => {
           // Initialize chat with welcome message
           const welcomeMessage = {
             type: 'assistant',
-            content: `Hallo! Ich bin bereit, Fragen zu Ihrer Q&A-Sammlung "${foundCollection.name}" zu beantworten. Stellen Sie mir gerne eine Frage zu den Dokumenten.`,
+            content: `Hallo! Ich bin bereit, Fragen zu Ihrem Notebook "${foundCollection.name}" zu beantworten. Stellen Sie mir gerne eine Frage zu den Dokumenten.`,
             timestamp: Date.now()
           };
           setChatMessages([welcomeMessage]);
@@ -127,7 +128,7 @@ const QAChat = () => {
     },
     chat: {
       label: 'Chat-Modus', 
-      icon: HiChatAlt2,
+      icon: NotebookIcon,
       title: 'Zum Dossier-Modus wechseln'
     }
   };
@@ -213,7 +214,7 @@ const QAChat = () => {
           linkKey: 'document_id',
           titleKey: 'document_title'
         }}
-        title="Quellen aus Q&A-Sammlung"
+        title="Quellen aus Notebook"
         className="qa-citation-sources"
         crossReferenceMessage="Mehrere Dokumente aus der Sammlung bestätigen diese Informationen"
       />
@@ -330,7 +331,7 @@ const QAChat = () => {
   if (loading) {
     return (
       <div className="qa-chat-error">
-        <p>Q&A-Sammlung wird geladen...</p>
+        <p>Notebook wird geladen...</p>
       </div>
     );
   }
@@ -338,7 +339,7 @@ const QAChat = () => {
   if (!collection) {
     return (
       <div className="qa-chat-error">
-        <p>Q&A-Sammlung nicht gefunden oder Sie haben keine Berechtigung darauf zuzugreifen.</p>
+        <p>Notebook nicht gefunden oder Sie haben keine Berechtigung darauf zuzugreifen.</p>
         <p>Collection ID: {id}</p>
         <p>User ID: {user?.id}</p>
         <p>Store Loading: {storeLoading ? 'Yes' : 'No'}</p>

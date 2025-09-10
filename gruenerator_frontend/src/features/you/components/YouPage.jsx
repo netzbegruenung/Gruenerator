@@ -11,6 +11,14 @@ import Spinner from '../../../components/common/Spinner';
 import DisplaySection from '../../../components/common/Form/BaseForm/DisplaySection';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 
+// You Feature CSS - Loaded only when this feature is accessed
+import '../styles/YouPage.css';
+import '../styles/YouBase.css';
+import '../styles/YouInput.css';
+import '../styles/YouResults.css';
+import '../styles/YouRecording.css';
+import '../styles/YouResponsive.css';
+
 
 // Beispiele für Prompts mit kurzen Titeln und vollständigen Prompts
 const EXAMPLES = [

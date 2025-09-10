@@ -198,13 +198,21 @@ async function processAIRequest(requestId, data) {
   const mainLlmOverride = process.env.MAIN_LLM_OVERRIDE;
   
   // Default provider selection
-  // - QA flows (qa_tools): prefer Mistral by default for lower latency/cost and strong tool support
-  // - Legacy ask flows: keep Bedrock default unless overridden
-  let effectiveOptions = { ...options, useBedrock: true };
+  // Make Mistral the standard/default provider.
+  // - Global default: Mistral (medium latest), useBedrock disabled
+  // - Legacy ask flows can still opt into Bedrock
+  let effectiveOptions = {
+    ...options,
+    provider: options.provider || 'mistral',
+    model: options.model || 'mistral-medium-latest',
+    useBedrock: false
+  };
   if (type === 'qa_tools') {
+    // Explicitly ensure Mistral for qa_tools
     effectiveOptions = { ...effectiveOptions, provider: 'mistral', model: options.model || 'mistral-medium-latest', useBedrock: false };
   } else if (type === 'gruenerator_ask' || type === 'gruenerator_ask_grundsatz') {
-    effectiveOptions = { ...effectiveOptions, useBedrock: true, model: 'anthropic.claude-3-haiku-20240307-v1:0' };
+    // Preserve Bedrock for these flows unless explicitly overridden
+    effectiveOptions = { ...effectiveOptions, provider: 'bedrock', useBedrock: true, model: 'anthropic.claude-3-haiku-20240307-v1:0' };
   }
   
   // Apply main LLM override if set and privacy mode allows it
@@ -260,91 +268,41 @@ async function processAIRequest(requestId, data) {
       }
     }
     
-    // Use Bedrock by default (Deutschland mode), only fall back to Claude API if explicitly disabled
-    if (!result && effectiveOptions.useBedrock !== false && !explicitProvider) {
-      console.log(`[AI Worker] Using AWS Bedrock provider for request ${requestId}`);
+    // Default logic refactor: prefer Mistral by default; use Claude only when explicitly chosen; Bedrock only when enabled by flow/options.
+    if (!result && explicitProvider === 'claude') {
       sendProgress(requestId, 15);
-      // Übergebe die ursprünglichen 'data', da processWithBedrock die Optionen ggf. intern neu prüft
-      result = await processWithBedrock(requestId, { ...data, options: effectiveOptions });
-    } else if (!result) {
-      sendProgress(requestId, 15);
-      
-              // Remove internal flags and betas from options before sending to Claude
-        const { useBedrock, betas, ...apiOptions } = effectiveOptions;
-      
+
+      // Remove internal flags and betas from options before sending to Claude
+      const { useBedrock, betas, ...apiOptions } = effectiveOptions;
+
       const defaultConfig = {
         model: "claude-3-7-sonnet-latest",
         max_tokens: 8000,
-        temperature: 0.9
+        temperature: 0.7
       };
-      
+
       // Type-specific configurations
       const typeConfigs = {
-        'presse': {
-          system: "Du bist ein erfahrener Pressesprecher...",
-          temperature: 0.4
-        },
-        'social': {
-          system: "Du bist ein Social Media Manager...",
-          temperature: 0.9
-        },
-        'rede': {
-          system: "Du bist ein Redenschreiber...",
-          temperature: 0.3
-        },
-        'antragsversteher': {
-          system: "Du bist ein Experte für politische Anträge...",
-          temperature: 0.2
-        },
-        'wahlprogramm': {
-          system: "Du bist ein Experte für Wahlprogramme...",
-          temperature: 0.2
-        },
-        'text_adjustment': {
-          system: "Du bist ein Experte für Textoptimierung...",
-          temperature: 0.3
-        },
-        'antrag': {
-          system: "Du bist ein erfahrener Kommunalpolitiker von Bündnis 90/Die Grünen...",
-          temperature: 0.3
-        },
-        'generator_config': {
-          temperature: 0.5
-        },
-        'gruenerator_ask': {
-          system: "Du bist ein hilfsreicher Assistent, der Fragen zu hochgeladenen Dokumenten beantwortet. Analysiere die bereitgestellten Dokumente und beantworte die Nutzerfrage präzise und hilfreich auf Deutsch.",
-          model: "claude-3-5-haiku-latest",
-          temperature: 0.3
-        },
-        'alttext': {
-          system: "Du erstellst Alternativtexte (Alt-Text) für Bilder basierend auf den DBSV-Richtlinien für Barrierefreiheit.",
-          model: "claude-3-5-sonnet-latest",
-          temperature: 0.3,
-          max_tokens: 2000
-        },
-        'search_enhancement': {
-          system: "Du bist ein intelligenter Suchagent für deutsche politische und kommunale Inhalte. Du kannst Suchanfragen erweitern oder autonome Datenbanksuchen durchführen. Nutze verfügbare Tools für komplexe Suchen oder antworte mit JSON für einfache Abfragen.",
-          model: "claude-3-5-haiku-latest",
-          temperature: 0.2,
-          max_tokens: 2000
-        },
-        'web_search_summary': {
-          system: "Du bist ein Experte für die Zusammenfassung von Websuche-Ergebnissen. Erstelle präzise, informative und strukturierte Zusammenfassungen der bereitgestellten Suchergebnisse auf Deutsch. Fokussiere auf die wichtigsten Informationen, vermeide Redundanzen und strukturiere die Antwort logisch. Erwähne relevante Quellen und hebe wichtige Fakten hervor.",
-          model: "claude-3-5-haiku-latest",
-          temperature: 0.3,
-          max_tokens: 1000
-        },
-        'leichte_sprache': {
-          system: "Du bist ein Experte für Leichte Sprache. Übersetze Texte in Leichte Sprache nach den Regeln des Netzwerk Leichte Sprache e.V.",
-          temperature: 0.3
-        }
+        'presse': { system: "Du bist ein erfahrener Pressesprecher...", temperature: 0.4 },
+        'social': { system: "Du bist ein Social Media Manager...", temperature: 0.6 },
+        'rede': { system: "Du bist ein Redenschreiber...", temperature: 0.3 },
+        'antragsversteher': { system: "Du bist ein Experte für politische Anträge...", temperature: 0.2 },
+        'wahlprogramm': { system: "Du bist ein Experte für Wahlprogramme...", temperature: 0.2 },
+        'text_adjustment': { system: "Du bist ein Experte für Textoptimierung...", temperature: 0.3 },
+        'antrag': { system: "Du bist ein erfahrener Kommunalpolitiker von Bündnis 90/Die Grünen...", temperature: 0.3 },
+        'generator_config': { temperature: 0.5 },
+        'gruenerator_ask': { system: "Du bist ein hilfsreicher Assistent, der Fragen zu hochgeladenen Dokumenten beantwortet. Analysiere die bereitgestellten Dokumente und beantworte die Nutzerfrage präzise und hilfreich auf Deutsch.", model: "claude-3-5-haiku-latest", temperature: 0.3 },
+        'alttext': { system: "Du erstellst Alternativtexte (Alt-Text) für Bilder basierend auf den DBSV-Richtlinien für Barrierefreiheit.", model: "claude-3-5-sonnet-latest", temperature: 0.3, max_tokens: 2000 },
+        'search_enhancement': { system: "Du bist ein intelligenter Suchagent für deutsche politische und kommunale Inhalte. Du kannst Suchanfragen erweitern oder autonome Datenbanksuchen durchführen. Nutze verfügbare Tools für komplexe Suchen oder antworte mit JSON für einfache Abfragen.", model: "claude-3-5-haiku-latest", temperature: 0.2, max_tokens: 2000 },
+        'web_search_summary': { system: "Du bist ein Experte für die Zusammenfassung von Websuche-Ergebnissen. Erstelle präzise, informative und strukturierte Zusammenfassungen der bereitgestellten Suchergebnisse auf Deutsch. Fokussiere auf die wichtigsten Informationen, vermeide Redundanzen und strukturiere die Antwort logisch. Erwähne relevante Quellen und hebe wichtige Fakten hervor.", model: "claude-3-5-haiku-latest", temperature: 0.3, max_tokens: 1000 },
+        'leichte_sprache': { system: "Du bist ein Experte für Leichte Sprache. Übersetze Texte in Leichte Sprache nach den Regeln des Netzwerk Leichte Sprache e.V.", temperature: 0.3 }
       };
 
       // Combine configs
       let requestConfig = {
         ...defaultConfig,
         ...(typeConfigs[type] || {}),
-        ...apiOptions, // Use the cleaned options
+        ...apiOptions,
         system: systemPrompt || (typeConfigs[type]?.system || defaultConfig.system)
       };
 
@@ -364,10 +322,7 @@ async function processAIRequest(requestId, data) {
             ...message,
             content: message.content.map(block => {
               if (block.type === 'document' && block.source?.type === 'file') {
-                return {
-                  ...block,
-                  cache_control: { type: 'ephemeral' }
-                };
+                return { ...block, cache_control: { type: 'ephemeral' } };
               }
               return block;
             })
@@ -377,10 +332,7 @@ async function processAIRequest(requestId, data) {
           requestConfig.messages = messages;
         }
       } else if (prompt) {
-        requestConfig.messages = [{
-          role: "user",
-          content: prompt
-        }];
+        requestConfig.messages = [{ role: "user", content: prompt }];
       }
 
       // Tools setup using ToolHandler
@@ -393,7 +345,7 @@ async function processAIRequest(requestId, data) {
       }
 
       sendProgress(requestId, 30);
-      
+
       // Make the API call with timeout
       const timeoutPromise = new Promise((_, reject) => {
         setTimeout(() => {
@@ -406,15 +358,11 @@ async function processAIRequest(requestId, data) {
         anthropic.messages.create(requestConfig, { headers }),
         timeoutPromise
       ]);
-      
+
       sendProgress(requestId, 90);
-      
-      // Validate the response (crucial step)
-      
+
       // Validate the response
       if (!response.content || !response.content[0] || !response.content[0].text) {
-        // If stop_reason is tool_use, content[0].text might be empty, which is valid.
-        // We need to check if there's content OR tool_calls.
         if (response.stop_reason !== 'tool_use' && (!response.content || !response.content[0] || typeof response.content[0].text !== 'string')) {
           throw new Error(`Invalid Claude response for request ${requestId}: missing textual content when not using tools`);
         }
@@ -422,15 +370,15 @@ async function processAIRequest(requestId, data) {
           throw new Error(`Invalid Claude response for request ${requestId}: tool_use indicated but no tool_calls provided.`);
         }
       }
-      
+
       const textualContent = response.content?.find(block => block.type === 'text')?.text || null;
 
       // Create the result object - ensure it's complete before returning
       result = {
-        content: textualContent, // Textual part, null if no text block
+        content: textualContent,
         stop_reason: response.stop_reason,
-        tool_calls: response.tool_calls, // Will be present if stop_reason is 'tool_use'
-        raw_content_blocks: response.content, // Full content blocks from Claude
+        tool_calls: response.tool_calls,
+        raw_content_blocks: response.content,
         success: true,
         metadata: mergeMetadata(requestMetadata, {
           provider: 'claude',
@@ -444,8 +392,14 @@ async function processAIRequest(requestId, data) {
           modelUsed: requestConfig.model
         })
       };
-      
-      // Content validation is handled later in the main validation logic
+    } else if (!result && effectiveOptions.useBedrock === true && !explicitProvider) {
+      console.log(`[AI Worker] Using AWS Bedrock provider for request ${requestId}`);
+      sendProgress(requestId, 15);
+      result = await processWithBedrock(requestId, { ...data, options: effectiveOptions });
+    } else if (!result && !explicitProvider) {
+      console.log(`[AI Worker] Using Mistral provider by default for request ${requestId}`);
+      sendProgress(requestId, 15);
+      result = await processWithMistral(requestId, { ...data, options: effectiveOptions });
     }
 
     sendProgress(requestId, 100);
@@ -522,7 +476,7 @@ async function processWithOpenAI(requestId, data) {
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-2024-08-06',
       messages: openAIMessages,
-      temperature: 0.9,
+      temperature: 0.7,
       max_tokens: 4000,
       response_format: (type === 'social' || type === 'generator_config') ? { type: "json_object" } : undefined
     });
@@ -574,8 +528,8 @@ async function processWithBedrock(requestId, data) {
     anthropic_version: options.anthropic_version || "bedrock-2023-05-31", // Required for Bedrock
     max_tokens: options.max_tokens || 4096, // Default or from options
     messages: messages,
-    temperature: options.temperature !== undefined ? options.temperature : 0.9,
-    top_p: options.top_p !== undefined ? options.top_p : 1,
+    temperature: options.temperature !== undefined ? options.temperature : 0.7,
+    top_p: options.top_p !== undefined ? options.top_p : 0.9,
     // top_k: options.top_k, // Optional
     // stop_sequences: options.stop_sequences, // Optional
   };
@@ -936,9 +890,10 @@ async function processWithMistral(requestId, data) {
   
   // Type-specific temperature for better instruction following
   const mistralTemperatures = {
-    'social': 0.4,      // Social media needs some creativity but must follow format
+    'social': 0.3,      // Social media needs some creativity but must follow format
     'presse': 0.3,      // Press releases need precision
     'antrag': 0.2,      // Proposals need exact formatting
+    'generator_config': 0.1, // Strongly bias toward strict JSON format
     'default': 0.35
   };
   const temperature = mistralTemperatures[type] || mistralTemperatures.default;
@@ -960,7 +915,7 @@ async function processWithMistral(requestId, data) {
   }
 
   if (messages) {
-    messages.forEach(msg => {
+    for (const msg of messages) {
       if (msg.role === 'assistant' && Array.isArray(msg.content)) {
         // DEEP DEBUG: Log incoming message structure
         console.log(`[AI Worker DEBUG] Processing assistant message for ${requestId}:`);
@@ -1022,10 +977,53 @@ async function processWithMistral(requestId, data) {
             toolCallId: toolResults[0].tool_use_id
           });
         } else {
-          // Regular user message with structured content
-          const text = msg.content
-            .map(c => c.text || c.content || '')
-            .join('\n');
+          // Regular user message with structured content - need async processing for PDFs
+          const contentPromises = msg.content.map(async c => {
+            if (c.type === 'text') {
+              return c.text || '';
+            } else if (c.type === 'document' && c.source) {
+              // Extract document content for Mistral
+              if (c.source.data && c.source.media_type === 'application/pdf') {
+                // Binary PDF - extract text for Mistral since it can't read PDFs
+                try {
+                  console.log(`[AI Worker] Extracting text from PDF for Mistral: ${c.source.name || 'Unknown'}`);
+                  
+                  // Import OCR service dynamically
+                  const { ocrService } = await import('../services/ocrService.js');
+                  
+                  // Extract text from base64 PDF
+                  const result = await ocrService.extractTextFromBase64PDF(
+                    c.source.data, 
+                    c.source.name || 'unknown.pdf'
+                  );
+                  
+                  console.log(`[AI Worker] PDF text extracted for Mistral: ${result.text.length} characters, method: ${result.method}`);
+                  return `[PDF-Inhalt: ${c.source.name || 'Unbekannt'}]\n\n${result.text}`;
+                  
+                } catch (error) {
+                  console.error(`[AI Worker] Failed to extract PDF text for Mistral:`, error);
+                  return `[PDF-Dokument: ${c.source.name || 'Unbekannt'} - Text-Extraktion fehlgeschlagen: ${error.message}]`;
+                }
+              } else if (c.source.data && c.source.media_type) {
+                // Other binary document - convert to text description
+                return `[Dokument: ${c.source.name || 'Unbekannt'} (${c.source.media_type})]`;
+              } else if (c.source.text) {
+                // Text document (e.g., extracted PDF in privacy mode)
+                return c.source.text;
+              } else {
+                return `[Dokument: ${c.source.name || 'Unbekannt'}]`;
+              }
+            } else if (c.type === 'image' && c.source) {
+              // Image content for Mistral (text description only)
+              return `[Bild: ${c.source.name || 'Unbekannt'}]`;
+            } else {
+              return c.content || '';
+            }
+          });
+          
+          // Wait for all content processing to complete
+          const processedContent = await Promise.all(contentPromises);
+          const text = processedContent.join('\n');
           
           mistralMessages.push({
             role: 'user',
@@ -1041,7 +1039,7 @@ async function processWithMistral(requestId, data) {
             : String(msg.content || '')
         });
       }
-    });
+    }
   }
 
   // Debug: Log the messages being sent to Mistral (messages already adapted by PromptBuilder)
@@ -1051,6 +1049,13 @@ async function processWithMistral(requestId, data) {
       ? msg.content.substring(0, 200) + '...' 
       : (msg.tool_calls ? `<${msg.tool_calls.length} tool calls>` : '<empty>');
     console.log(`  [${index}] ${msg.role}: ${contentPreview}`);
+    
+    // Log document detection for debugging
+    if (msg.role === 'user' && msg.content && (msg.content.includes('[Dokument:') || msg.content.includes('[Bild:'))) {
+      const docCount = (msg.content.match(/\[Dokument:/g) || []).length;
+      const imgCount = (msg.content.match(/\[Bild:/g) || []).length;
+      console.log(`[AI Worker] Mistral document processing: ${docCount} documents, ${imgCount} images detected in message [${index}]`);
+    }
     
     // DEEP DEBUG: Log full message structure for assistant messages with tool_calls
     if (msg.role === 'assistant' && msg.tool_calls && msg.tool_calls.length > 0) {
@@ -1063,8 +1068,8 @@ async function processWithMistral(requestId, data) {
     model: model,
     messages: mistralMessages,
     max_tokens: options.max_tokens || 4096,
-    temperature: options.temperature !== undefined ? options.temperature : temperature,
-    top_p: 0.95  // Reduced from 1.0 for better consistency
+    temperature: temperature, // Use the type-specific temperature calculated above
+    top_p: options.top_p || 0.85  // Use options top_p if provided, otherwise 0.85 for better instruction following
     // Note: safe_prompt removed - not supported by Mistral API
   };
   
@@ -1107,8 +1112,8 @@ async function processWithMistral(requestId, data) {
     
     sendProgress(requestId, 90);
 
-    // Extract response content - Mistral SDK uses camelCase properties
-    const responseContent = response.choices[0]?.message?.content || null;
+    // Extract response content - Mistral SDK may return an array of typed chunks
+    const messageContent = response.choices[0]?.message?.content || null;
     const rawToolCalls = response.choices[0]?.message?.toolCalls || response.choices[0]?.message?.tool_calls || [];
     const stopReason = response.choices[0]?.finishReason || response.choices[0]?.finish_reason || 'stop';
     
@@ -1139,11 +1144,10 @@ async function processWithMistral(requestId, data) {
       };
     });
 
-    // Build raw content blocks compatible with Claude-style tool_use continuation
-    const rawContentBlocks = [];
-    if (responseContent) {
-      rawContentBlocks.push({ type: 'text', text: responseContent });
-    }
+    // Build raw content blocks compatible with downstream processing
+    const rawContentBlocks = Array.isArray(messageContent)
+      ? messageContent
+      : (messageContent ? [{ type: 'text', text: messageContent }] : []);
     if (toolCalls.length > 0) {
       console.log(`[AI Worker DEBUG] Building ${toolCalls.length} tool_use blocks from toolCalls:`, JSON.stringify(toolCalls, null, 2));
       for (const tc of toolCalls) {
@@ -1160,17 +1164,19 @@ async function processWithMistral(requestId, data) {
     console.log(`[AI Worker DEBUG] Final rawContentBlocks for ${requestId}:`, JSON.stringify(rawContentBlocks, null, 2));
 
     console.log(`[AI Worker] Mistral response received for ${requestId}:`, {
-      contentLength: responseContent?.length || 0,
+      contentLength: Array.isArray(messageContent) ? messageContent.length : (messageContent?.length || 0),
       stopReason: stopReason,
       toolCallCount: toolCalls.length,
       model: response.model || model
     });
 
     return {
-      content: responseContent,
+      content: Array.isArray(messageContent)
+        ? messageContent.filter(b => b.type === 'text').map(b => b.text || '').join('')
+        : messageContent,
       stop_reason: normalizedStopReason,
       tool_calls: toolCalls.length > 0 ? toolCalls : undefined,
-      raw_content_blocks: rawContentBlocks.length > 0 ? rawContentBlocks : [{ type: 'text', text: responseContent }],
+      raw_content_blocks: rawContentBlocks.length > 0 ? rawContentBlocks : (messageContent ? [{ type: 'text', text: messageContent }] : []),
       success: true,
       metadata: mergeMetadata(requestMetadata, {
         provider: 'mistral',

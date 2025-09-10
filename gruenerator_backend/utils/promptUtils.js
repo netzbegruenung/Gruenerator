@@ -256,6 +256,23 @@ const SEARCH_DOCUMENTS_TOOL = {
   }
 };
 
+// Tool definition to provide a stable references map for Mistral citations
+const PROVIDE_REFERENCES_TOOL = {
+  name: 'provide_references',
+  description: 'Provide a stable map of references derived from prior document searches so the model can cite them.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      ids: {
+        type: 'array',
+        items: { type: 'integer' },
+        description: 'Optional list of reference IDs to include; if omitted, include all available.'
+      }
+    },
+    required: []
+  }
+};
+
 // Tool definition for web search - used by AI endpoints with tool capability
 const WEB_SEARCH_TOOL = {
   type: "web_search_20250305",
@@ -812,6 +829,7 @@ module.exports = {
   MARKDOWN_FORMATTING_INSTRUCTIONS,
   JSON_OUTPUT_FORMATTING_INSTRUCTIONS,
   SEARCH_DOCUMENTS_TOOL,
+  PROVIDE_REFERENCES_TOOL,
   WEB_SEARCH_TOOL,
   TITLE_GENERATION_INSTRUCTION,
   ATTACHMENT_INSTRUCTIONS,
@@ -824,4 +842,4 @@ module.exports = {
   extractTitleFromResponse,
   processResponseWithTitle,
   enhanceSystemPromptWithAttachments
-}; 
+};

@@ -8,6 +8,9 @@ import useGeneratedTextStore from '../../stores/core/generatedTextStore';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import { CitationModal, CitationSourcesDisplay } from '../../components/common/Citation';
 
+// Ask Feature CSS - Loaded only when this feature is accessed
+import '../../assets/styles/features/ask/ask-page.css';
+
 const AskPage = () => {
   const componentName = 'ask';
   const navigate = useNavigate();

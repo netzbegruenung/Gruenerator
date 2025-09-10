@@ -1,18 +1,88 @@
-import React, { lazy, Suspense, useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
-const Select = lazy(() => import('react-select'));
-import { HiDocumentText, HiPlus, HiX } from 'react-icons/hi';
+import EnhancedSelect from '../../../components/common/EnhancedSelect';
+import { WolkeSelector } from '../../../components/common';
+import { HiPlus, HiX, HiDocumentText, HiOutlineCloud, HiRefresh, HiOutlineTrash } from 'react-icons/hi';
 import { motion } from "motion/react";
 import { useFormFields } from '../../../components/common/Form/hooks';
+import { useOptimizedAuth } from '../../../hooks/useAuth';
+
+// QA Feature CSS - Loaded only when this feature is accessed
+import '../styles/qa-creator.css';
+import '../../../assets/styles/features/qa/qa-chat.css';
+import '../../../assets/styles/features/qa/qa-collections.css';
+import '../../../assets/styles/components/ui/FeatureToggle.css';
+import FeatureToggle from '../../../components/common/FeatureToggle';
+import '../../../assets/styles/components/ui/button.css';
+
+// Helper functions for document metadata formatting
+const formatFileSize = (bytes) => {
+  if (!bytes) return '';
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  if (bytes === 0) return '0 Bytes';
+  const i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)), 10);
+  return `${Math.round(bytes / Math.pow(1024, i) * 10) / 10} ${sizes[i]}`;
+};
+
+const formatDate = (dateString) => {
+  if (!dateString) return '';
+  try {
+    return new Date(dateString).toLocaleDateString('de-DE', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+  } catch {
+    return '';
+  }
+};
+
+const formatDocumentStatus = (status) => {
+  switch (status) {
+    case 'completed':
+      return 'Bereit';
+    case 'processing':
+      return 'Wird verarbeitet';
+    case 'failed':
+      return 'Fehler';
+    case 'pending':
+      return 'Warteschlange';
+    default:
+      return status || 'Unbekannt';
+  }
+};
+
+const getDocumentIcon = (filename) => {
+  if (!filename) return 'document';
+  const ext = filename.split('.').pop()?.toLowerCase();
+  switch (ext) {
+    case 'pdf':
+      return 'document';
+    case 'doc':
+    case 'docx':
+      return 'document';
+    case 'txt':
+      return 'text';
+    default:
+      return 'document';
+  }
+};
 
 const QACreator = ({ 
     onSave, 
     availableDocuments = [], 
     editingCollection = null,
     loading = false,
-    onCancel
+    onCancel,
+    allowedModes = ['documents', 'wolke'],
+    lockSelectionMode = null
 }) => {
+    const { user } = useOptimizedAuth();
     const [selectedDocuments, setSelectedDocuments] = useState([]);
+    const [selectedWolkeLinks, setSelectedWolkeLinks] = useState([]);
+    const [selectionMode, setSelectionMode] = useState('documents'); // 'documents' or 'wolke'
+    const [autoSync, setAutoSync] = useState(false);
+    const [removeMissing, setRemoveMissing] = useState(false);
     const { Input, Textarea } = useFormFields();
     
     const {
@@ -37,6 +107,19 @@ const QACreator = ({
                 custom_prompt: editingCollection.custom_prompt || ''
             });
             setSelectedDocuments(editingCollection.documents || []);
+            setSelectedWolkeLinks(editingCollection.wolke_share_links || []);
+            // Set selection mode based on what's available
+            if (lockSelectionMode) {
+                setSelectionMode(lockSelectionMode);
+            } else if ((editingCollection.wolke_share_links || []).length > 0) {
+                setSelectionMode('wolke');
+                setAutoSync(!!editingCollection.auto_sync);
+                setRemoveMissing(!!editingCollection.remove_missing_on_sync);
+            } else {
+                setSelectionMode('documents');
+                setAutoSync(false);
+                setRemoveMissing(false);
+            }
         } else {
             reset({
                 name: '',
@@ -44,51 +127,45 @@ const QACreator = ({
                 custom_prompt: ''
             });
             setSelectedDocuments([]);
+            setSelectedWolkeLinks([]);
+            setSelectionMode('documents');
+            setAutoSync(false);
+            setRemoveMissing(false);
         }
     }, [editingCollection, reset]);
 
-    // Transform documents to React Select options
-    const documentOptions = availableDocuments.map(doc => ({
-        value: doc.id,
-        label: doc.title,
-        document: doc
-    }));
-
-    // Custom option rendering to show document details
-    const formatOptionLabel = ({ document, label }, { context }) => {
-        // Show detailed info in dropdown menu
-        if (context === 'menu' && document) {
-            return (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <HiDocumentText style={{ color: 'var(--primary)', flexShrink: 0 }} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ 
-                            fontWeight: '500', 
-                            color: 'var(--font-color)',
-                            marginBottom: '2px',
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis'
-                        }}>
-                            {label}
-                        </div>
-                        <div style={{ 
-                            fontSize: '0.85rem', 
-                            color: 'var(--text-muted-color)',
-                            display: 'flex',
-                            gap: '8px'
-                        }}>
-                            <span>{document.page_count} Seiten</span>
-                            <span>•</span>
-                            <span>{new Date(document.created_at).toLocaleDateString('de-DE')}</span>
-                        </div>
-                    </div>
-                </div>
-            );
+    // Keep selectionMode within allowed modes
+    useEffect(() => {
+        if (!allowedModes.includes(selectionMode)) {
+            if (lockSelectionMode && allowedModes.includes(lockSelectionMode)) {
+                setSelectionMode(lockSelectionMode);
+            } else if (allowedModes.length > 0) {
+                setSelectionMode(allowedModes[0]);
+            }
         }
-        // Show simple label for selected values
-        return <span>{label}</span>;
-    };
+    }, [allowedModes.join(','), lockSelectionMode, selectionMode]);
+
+    // Transform documents to EnhancedSelect options with metadata
+    const documentOptions = availableDocuments.map(doc => {
+        const subtitle = [];
+        if (doc.filename) subtitle.push(doc.filename);
+        if (doc.file_size) subtitle.push(formatFileSize(doc.file_size));
+        if (doc.created_at) subtitle.push(`Hochgeladen: ${formatDate(doc.created_at)}`);
+        
+        return {
+            value: doc.id,
+            label: doc.title,
+            iconType: getDocumentIcon(doc.filename),
+            subtitle: subtitle.join(' • '),
+            tag: doc.status ? {
+                label: formatDocumentStatus(doc.status),
+                variant: 'custom'
+            } : null,
+            searchableContent: `${doc.title} ${doc.filename || ''} ${doc.ocr_text || ''}`.toLowerCase(),
+            document: doc
+        };
+    });
+
 
     // Handle React Select change
     const handleDocumentSelectChange = (selectedOptions) => {
@@ -97,14 +174,24 @@ const QACreator = ({
     };
 
     const onSubmit = async (data) => {
-        if (selectedDocuments.length === 0) {
+        // Validate selection based on mode
+        if (selectionMode === 'documents' && selectedDocuments.length === 0) {
             alert('Bitte wählen Sie mindestens ein Dokument aus.');
+            return;
+        }
+        
+        if (selectionMode === 'wolke' && selectedWolkeLinks.length === 0) {
+            alert('Bitte wählen Sie mindestens einen Wolke-Ordner aus.');
             return;
         }
 
         const qaData = {
             ...data,
-            documents: selectedDocuments.map(doc => doc.id),
+            selectionMode,
+            documents: selectionMode === 'documents' ? selectedDocuments.map(doc => doc.id) : [],
+            wolkeShareLinks: selectionMode === 'wolke' ? selectedWolkeLinks.map(link => link.id) : [],
+            auto_sync: selectionMode === 'wolke' ? autoSync : false,
+            remove_missing_on_sync: selectionMode === 'wolke' ? removeMissing : false,
             id: editingCollection?.id
         };
 
@@ -114,8 +201,29 @@ const QACreator = ({
     const handleCancel = () => {
         reset();
         setSelectedDocuments([]);
+        setSelectedWolkeLinks([]);
+        setSelectionMode('documents');
         if (onCancel) onCancel();
     };
+
+    // Handle mode switching
+    const handleModeSwitch = (mode) => {
+        if (!allowedModes.includes(mode)) return;
+        if (lockSelectionMode && mode !== lockSelectionMode) return;
+        setSelectionMode(mode);
+        // Clear selections when switching modes
+        if (mode === 'documents') {
+            setSelectedWolkeLinks([]);
+        } else {
+            setSelectedDocuments([]);
+        }
+    };
+
+    // Calculate total content for validation
+    const hasValidSelection = (
+        (selectionMode === 'documents' && selectedDocuments.length > 0) ||
+        (selectionMode === 'wolke' && selectedWolkeLinks.length > 0)
+    );
 
     return (
         <motion.div
@@ -125,17 +233,13 @@ const QACreator = ({
             transition={{ duration: 0.3 }}
         >
             <div className="qa-creator-card">
-                <div className="qa-creator-header">
-                    <h3>{editingCollection ? 'Q&A bearbeiten' : 'Neue Q&A erstellen'}</h3>
-                </div>
-
                 <form onSubmit={handleSubmit(onSubmit)} className="qa-creator-form">
                     <div className="qa-creator-content">
                         <div className="form-section">
                             <Input
                                 name="name"
                                 control={control}
-                                label="Name der Q&A-Sammlung"
+                                label="Name des Notebooks"
                                 placeholder="z.B. Klimapolitik-Dokumente"
                                 rules={{ 
                                     required: 'Name ist erforderlich',
@@ -149,7 +253,7 @@ const QACreator = ({
                                 name="description"
                                 control={control}
                                 label="Beschreibung (optional)"
-                                placeholder="Kurze Beschreibung der Q&A-Sammlung..."
+                                placeholder="Kurze Beschreibung des Notebooks..."
                                 minRows={2}
                                 maxRows={4}
                                 rules={{
@@ -174,50 +278,115 @@ const QACreator = ({
                         </div>
 
                         <div className="form-section">
-                            <label className="form-label">
-                                Dokumente auswählen *
-                            </label>
-                            {availableDocuments.length === 0 ? (
-                                <div className="no-documents-message">
-                                    <p>Sie haben noch keine Dokumente hochgeladen.</p>
-                                    <p>Gehen Sie zum Tab "Meine Dokumente", um Dokumente hinzuzufügen.</p>
+                            <div className="content-selection-header">
+                                <label className="form-label">
+                                    Inhalte auswählen *
+                                </label>
+                                {(allowedModes.length > 1 && !lockSelectionMode) && (
+                                    <div className="selection-mode-toggle">
+                                        {allowedModes.includes('documents') && (
+                                            <button
+                                                type="button"
+                                                className={`mode-toggle-btn ${selectionMode === 'documents' ? 'active' : ''}`}
+                                                onClick={() => handleModeSwitch('documents')}
+                                                disabled={loading}
+                                            >
+                                                <HiDocumentText size={16} />
+                                                Dokumente
+                                            </button>
+                                        )}
+                                        {allowedModes.includes('wolke') && (
+                                            <button
+                                                type="button"
+                                                className={`mode-toggle-btn ${selectionMode === 'wolke' ? 'active' : ''}`}
+                                                onClick={() => handleModeSwitch('wolke')}
+                                                disabled={loading}
+                                            >
+                                                <HiOutlineCloud size={16} />
+                                                Wolke-Ordner
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+
+                            {selectionMode === 'documents' && allowedModes.includes('documents') && (
+                                <div className="documents-selection">
+                                    {availableDocuments.length === 0 ? (
+                                        <div className="no-documents-message">
+                                            <p>Sie haben noch keine Dokumente hochgeladen.</p>
+                                            <p>Gehen Sie zum Tab "Meine Dokumente", um Dokumente hinzuzufügen.</p>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <EnhancedSelect
+                                                className="react-select"
+                                                classNamePrefix="react-select"
+                                                enableIcons={true}
+                                                enableSubtitles={true}
+                                                enableTags={true}
+                                                isMulti
+                                                isSearchable
+                                                placeholder="Dokumente suchen und auswählen..."
+                                                options={documentOptions}
+                                                value={selectedDocuments.map(doc => {
+                                                    const option = documentOptions.find(opt => opt.value === doc.id);
+                                                    return option || {
+                                                        value: doc.id,
+                                                        label: doc.title,
+                                                        document: doc
+                                                    };
+                                                })}
+                                                onChange={handleDocumentSelectChange}
+                                                filterOption={() => true}
+                                                noOptionsMessage={() => 'Keine passenden Dokumente gefunden'}
+                                                closeMenuOnSelect={false}
+                                                hideSelectedOptions={false}
+                                                menuPortalTarget={document.body}
+                                                menuPosition="fixed"
+                                                maxMenuHeight={400}
+                                            />
+                                            {selectedDocuments.length > 0 && (
+                                                <div className="selected-content-summary">
+                                                    {selectedDocuments.length} Dokument(e) ausgewählt
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
                                 </div>
-                            ) : (
-                                <div className="document-selection-react-select">
-                                    <Suspense fallback={<div>Loading...</div>}><Select
-                                        className="react-select"
-                                        classNamePrefix="react-select"
-                                        isMulti
-                                        isSearchable
-                                        placeholder="Dokumente suchen und auswählen..."
-                                        options={documentOptions}
-                                        value={selectedDocuments.map(doc => ({
-                                            value: doc.id,
-                                            label: doc.title,
-                                            document: doc
-                                        }))}
-                                        onChange={handleDocumentSelectChange}
-                                        formatOptionLabel={formatOptionLabel}
-                                        noOptionsMessage={() => 'Keine passenden Dokumente gefunden'}
-                                        closeMenuOnSelect={false}
-                                        hideSelectedOptions={false}
-                                        menuPortalTarget={document.body}
-                                        menuPosition="fixed"
-                                        maxMenuHeight={400}
-                                        styles={{
-                                            menuPortal: (base) => ({
-                                                ...base,
-                                                zIndex: 9999
-                                            })
-                                        }}
-                                    /></Suspense>
-                                    {selectedDocuments.length > 0 && (
-                                        <div className="selected-documents-summary" style={{ 
-                                            marginTop: 'var(--spacing-small)', 
-                                            color: 'var(--text-muted-color)', 
-                                            fontSize: '0.9rem' 
-                                        }}>
-                                            {selectedDocuments.length} Dokument(e) ausgewählt
+                            )}
+
+                            {selectionMode === 'wolke' && allowedModes.includes('wolke') && (
+                                <div className="wolke-selection">
+                                    <WolkeSelector
+                                        value={selectedWolkeLinks}
+                                        onChange={setSelectedWolkeLinks}
+                                        placeholder="Wolke-Ordner suchen und auswählen..."
+                                        helpText="Alle Dokumente aus den ausgewählten Wolke-Ordnern werden automatisch in die Sammlung einbezogen."
+                                        scope={user?.groups?.length > 0 ? 'personal' : 'personal'}
+                                        isMulti={true}
+                                    />
+                                    <div className="feature-section" style={{ marginTop: '8px' }}>
+                                        <FeatureToggle
+                                            isActive={autoSync}
+                                            onToggle={setAutoSync}
+                                            label="Neue Wolke-Dokumente automatisch hinzufügen"
+                                            icon={HiRefresh}
+                                            description="Fügt neue Dateien aus den ausgewählten Wolke-Ordnern automatisch hinzu."
+                                            disabled={loading}
+                                        />
+                                        <FeatureToggle
+                                            isActive={removeMissing}
+                                            onToggle={setRemoveMissing}
+                                            label="Beim Synchronisieren fehlende Dokumente entfernen"
+                                            icon={HiOutlineTrash}
+                                            description="Entfernt beim Syncen Dokumente, die nicht mehr im Wolke-Ordner sind."
+                                            disabled={loading}
+                                        />
+                                    </div>
+                                    {selectedWolkeLinks.length > 0 && (
+                                        <div className="selected-content-summary">
+                                            {selectedWolkeLinks.length} Wolke-Ordner ausgewählt
                                         </div>
                                     )}
                                 </div>
@@ -225,22 +394,26 @@ const QACreator = ({
                         </div>
                     </div>
 
-                    <div className="form-actions">
-                        <button
-                            type="button"
-                            className="btn-secondary"
-                            onClick={handleCancel}
-                            disabled={loading}
-                        >
-                            Abbrechen
-                        </button>
-                        <button
-                            type="submit"
-                            className="btn-primary"
-                            disabled={loading || selectedDocuments.length === 0}
-                        >
-                            {loading ? 'Wird gespeichert...' : (editingCollection ? 'Aktualisieren' : 'Erstellen')}
-                        </button>
+                    <div className="form-actions button-container">
+                        <div className="button-wrapper">
+                            <button
+                                type="button"
+                                className="button form-button"
+                                onClick={handleCancel}
+                                disabled={loading}
+                            >
+                                Abbrechen
+                            </button>
+                        </div>
+                        <div className="button-wrapper">
+                            <button
+                                type="submit"
+                                className={`button submit-button ${loading ? 'submit-button--loading' : ''}`}
+                                disabled={loading || !hasValidSelection}
+                            >
+                                {loading ? 'Wird gespeichert...' : (editingCollection ? 'Aktualisieren' : 'Erstellen')}
+                            </button>
+                        </div>
                     </div>
                 </form>
             </div>

@@ -8,6 +8,11 @@ import { formatExportContent } from '../../../components/utils/exportUtils';
 import ContentRenderer from '../../../components/common/Form/BaseForm/ContentRenderer';
 import SearchModeFilter from './SearchModeFilter';
 
+// Search Feature CSS - Loaded only when this feature is accessed
+import '../styles/SearchPage.css';
+import '../styles/SearchResults.css';
+import '../styles/SearchBarStyles.css';
+
 const exampleQuestions = [
   {
     icon: '🌍',

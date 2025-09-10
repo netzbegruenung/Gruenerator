@@ -51,7 +51,7 @@ export const applyChangesToContent = (content, changes = []) => {
 
 // Hook exposing high-level text edit actions while keeping the store simple
 const useTextEditActions = (componentName) => {
-  const storeContent = useGeneratedTextStore(state => state.getGeneratedText(componentName));
+  const storeContent = useGeneratedTextStore(state => state.generatedTexts[componentName] || '');
   const setTextWithHistory = useGeneratedTextStore(state => state.setTextWithHistory);
   const pushToHistory = useGeneratedTextStore(state => state.pushToHistory);
 

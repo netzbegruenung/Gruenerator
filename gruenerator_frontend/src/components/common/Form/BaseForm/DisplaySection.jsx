@@ -49,11 +49,11 @@ const DisplaySection = forwardRef(({
   componentName = 'default',
   onErrorDismiss,
   onEditModeToggle,
-  isEditModeActive = false
+  isEditModeActive = false,
 }, ref) => {
   const { user } = useLazyAuth(); // Keep for other auth functionality
   const { getBetaFeatureState } = useBetaFeatures();
-  const storeGeneratedText = useGeneratedTextStore(state => state.getGeneratedText(componentName));
+  const storeGeneratedText = useGeneratedTextStore(state => state.generatedTexts[componentName] || '');
   const storeGeneratedTextMetadata = useGeneratedTextStore(state => state.getGeneratedTextMetadata(componentName));
   const streamingContent = useGeneratedTextStore(state => state.streamingContent);
   const isStreaming = useGeneratedTextStore(state => state.isStreaming);
@@ -113,6 +113,7 @@ const DisplaySection = forwardRef(({
       // Error handling is managed by the hook
     }
   }, [currentExportableContent, title, storeGeneratedTextMetadata, saveToLibrary]);
+
 
   return (
     <div className="display-container" id="display-section-container" ref={ref}>
@@ -197,7 +198,7 @@ DisplaySection.propTypes = {
   componentName: PropTypes.string,
   onErrorDismiss: PropTypes.func,
   onEditModeToggle: PropTypes.func,
-  isEditModeActive: PropTypes.bool
+  isEditModeActive: PropTypes.bool,
 };
 
 DisplaySection.defaultProps = {

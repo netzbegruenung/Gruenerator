@@ -18,6 +18,11 @@
   margin: var(--spacing-large) 0;
 }
 
+/* Stack multiple feature toggles with a small gap */
+.feature-section .feature-toggle + .feature-toggle {
+  margin-top: var(--spacing-small);
+}
+
 .feature-header {
   display: flex;
   align-items: center;
@@ -85,7 +90,7 @@
   flex-grow: 1;
 }
 
-.feature-icon {
+.feature-toggle-icon {
   margin-right: var(--spacing-xsmall);
   font-size: 1.1rem;
   color: var(--font-color);
@@ -93,7 +98,7 @@
   transition: var(--input-transition);
 }
 
-.feature-icon.active {
+.feature-toggle-icon.active {
   color: var(--interactive-accent-color);
   opacity: 1;
 }
