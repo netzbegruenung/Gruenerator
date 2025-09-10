@@ -2,6 +2,9 @@ import React, { useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useCitationStore from '../../../stores/citationStore';
 
+// Citation Feature CSS - Loaded only when this feature is accessed
+import '../../../assets/styles/components/citation.css';
+
 /**
  * CitationModal component - shows full citation details
  * @returns {JSX.Element|null} Citation modal or null if not open

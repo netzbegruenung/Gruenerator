@@ -55,7 +55,7 @@
   border-color: var(--interactive-accent-color);
 }
 
-.feature-icon-button.active .feature-icon {
+.feature-icon-button.active .feature-icons__icon {
   color: var(--interactive-accent-color);
 }
 
@@ -76,7 +76,7 @@
   }
 }
 
-.feature-icons .feature-icon {
+.feature-icons__icon {
   /* Larger default icon size for normal/desktop */
   font-size: clamp(0.9rem, 1rem + 1vw, 2rem);
   line-height: 1;
@@ -86,8 +86,8 @@
   margin: 0; /* Override any margin from FeatureToggle */
 }
 
-.feature-icon-button:hover .feature-icon,
-.feature-icon-button.active .feature-icon {
+.feature-icon-button:hover .feature-icons__icon,
+.feature-icon-button.active .feature-icons__icon {
   opacity: 1;
 }
 

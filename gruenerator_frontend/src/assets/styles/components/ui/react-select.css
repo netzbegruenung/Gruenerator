@@ -51,7 +51,7 @@
 /* Value container - holds selected value(s) and input */
 .react-select__value-container {
   /* Even more compact vertical padding */
-  padding: calc(var(--form-element-padding-y) - 8px) var(--form-element-padding-x) !important;
+  padding: var(--form-element-padding-y) var(--form-element-padding-x) !important;
 }
 
 /* Single selected value */
@@ -102,7 +102,7 @@
 }
 
 .react-select__menu-list {
-  padding: var(--spacing-xsmall) 0 !important;
+  padding: 0 !important;
   max-height: 400px !important;
   scrollbar-width: thin;
   scrollbar-color: var(--scrollbar-thumb-color) var(--scrollbar-track-color);

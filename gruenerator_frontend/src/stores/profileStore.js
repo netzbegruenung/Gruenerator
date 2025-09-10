@@ -8,6 +8,9 @@ import { useAuthStore } from './authStore';
 // Enable MapSet support for Immer
 enableMapSet();
 
+// Stable empty references for selectors to avoid infinite re-render loops
+const EMPTY_OBJECT = Object.freeze({});
+
 /**
  * Unified Profile Store with Hybrid Architecture
  * 
@@ -35,7 +38,8 @@ export const useProfileStore = create(
         profile: false,
         avatar: false,
         anweisungen: false,
-        qaCollections: false
+        qaCollections: false,
+        customGenerators: new Map() // Track edit mode per generator ID
       },
 
       // Unsaved changes tracking
@@ -43,7 +47,8 @@ export const useProfileStore = create(
         profile: {},
         anweisungen: {},
         knowledge: new Map(), // Track changes by knowledge entry ID
-        qaCollections: new Map()
+        qaCollections: new Map(),
+        customGenerators: new Map() // Track changes by generator ID
       },
 
       // Validation state
@@ -51,7 +56,8 @@ export const useProfileStore = create(
         profile: {},
         anweisungen: {},
         knowledge: new Map(),
-        qaCollections: new Map()
+        qaCollections: new Map(),
+        customGenerators: new Map() // Track validation errors by generator ID
       },
 
       // Loading states for optimistic updates
@@ -61,6 +67,7 @@ export const useProfileStore = create(
         betaFeatures: new Set(),
         anweisungen: false,
         knowledge: new Set(), // Track loading by knowledge entry ID
+        customGenerators: new Set() // Track loading by generator ID
       },
 
       // Success/error message state
@@ -75,6 +82,16 @@ export const useProfileStore = create(
         type: 'user', // 'user' | 'group'  
         groupId: null,
         groupName: null
+      },
+
+      // Integrations UI state
+      integrationsUI: {
+        currentTab: 'wolke', // Default to wolke since it's always available
+        canvaSubsection: 'overview',
+        shareModal: {
+          isOpen: false,
+          content: null
+        }
       },
 
       // === SYNC METHODS (called by React Query hooks) ===
@@ -352,6 +369,103 @@ export const useProfileStore = create(
         return get().unsavedChanges.knowledge.has(entryId);
       },
 
+      // === CUSTOM GENERATOR MANAGEMENT ===
+
+      /**
+       * Set edit mode for specific custom generator
+       */
+      setGeneratorEditMode: (generatorId, enabled) => set(state => {
+        if (enabled) {
+          state.editModes.customGenerators.set(generatorId, true);
+        } else {
+          state.editModes.customGenerators.delete(generatorId);
+          // Clear related state when exiting edit mode
+          state.unsavedChanges.customGenerators.delete(generatorId);
+          state.validationErrors.customGenerators.delete(generatorId);
+        }
+      }),
+
+      /**
+       * Track unsaved changes for specific generator
+       */
+      setGeneratorChanges: (generatorId, changes) => set(state => {
+        state.unsavedChanges.customGenerators.set(generatorId, {
+          ...state.unsavedChanges.customGenerators.get(generatorId),
+          ...changes
+        });
+      }),
+
+      /**
+       * Clear changes for specific generator
+       */
+      clearGeneratorChanges: (generatorId) => set(state => {
+        state.unsavedChanges.customGenerators.delete(generatorId);
+        state.validationErrors.customGenerators.delete(generatorId);
+      }),
+
+      /**
+       * Check if generator has unsaved changes
+       */
+      hasGeneratorChanges: (generatorId) => {
+        return get().unsavedChanges.customGenerators.has(generatorId);
+      },
+
+      /**
+       * Set loading state for generator
+       */
+      setGeneratorLoading: (generatorId, loading) => set(state => {
+        if (loading) {
+          state.optimisticLoading.customGenerators.add(generatorId);
+        } else {
+          state.optimisticLoading.customGenerators.delete(generatorId);
+        }
+      }),
+
+      /**
+       * Set validation errors for generator
+       */
+      setGeneratorValidationErrors: (generatorId, errors) => set(state => {
+        if (Object.keys(errors).length > 0) {
+          state.validationErrors.customGenerators.set(generatorId, errors);
+        } else {
+          state.validationErrors.customGenerators.delete(generatorId);
+        }
+      }),
+
+      /**
+       * Optimistically update generator data
+       */
+      updateGeneratorOptimistic: (generatorId, updates) => set(state => {
+        const generatorIndex = state.customGenerators.findIndex(g => g.id === generatorId);
+        if (generatorIndex !== -1) {
+          state.customGenerators[generatorIndex] = {
+            ...state.customGenerators[generatorIndex],
+            ...updates
+          };
+        }
+      }),
+
+      /**
+       * Optimistically remove generator from list
+       */
+      deleteGeneratorOptimistic: (generatorId) => set(state => {
+        state.customGenerators = state.customGenerators.filter(g => g.id !== generatorId);
+        // Clean up associated state
+        state.editModes.customGenerators.delete(generatorId);
+        state.unsavedChanges.customGenerators.delete(generatorId);
+        state.validationErrors.customGenerators.delete(generatorId);
+        state.optimisticLoading.customGenerators.delete(generatorId);
+      }),
+
+      /**
+       * Clear all generator edit modes (useful for navigation)
+       */
+      clearAllGeneratorEditModes: () => set(state => {
+        state.editModes.customGenerators.clear();
+        state.unsavedChanges.customGenerators.clear();
+        state.validationErrors.customGenerators.clear();
+      }),
+
       // === CONTEXT MANAGEMENT ===
 
       /**
@@ -378,6 +492,60 @@ export const useProfileStore = create(
       resetToUserContext: () => {
         get().setActiveContext('user');
       },
+
+      // === INTEGRATIONS UI MANAGEMENT ===
+
+      /**
+       * Set current integration tab
+       */
+      setIntegrationTab: (tab) => set(state => {
+        state.integrationsUI.currentTab = tab;
+      }),
+
+      /**
+       * Set Canva subsection
+       */
+      setCanvaSubsection: (subsection) => set(state => {
+        if (subsection === 'overview' || subsection === 'vorlagen' || subsection === 'assets') {
+          state.integrationsUI.canvaSubsection = subsection;
+        }
+      }),
+
+      /**
+       * Open share modal
+       */
+      openShareModal: (contentType, contentId, contentTitle) => set(state => {
+        state.integrationsUI.shareModal = {
+          isOpen: true,
+          content: {
+            type: contentType,
+            id: contentId,
+            title: contentTitle
+          }
+        };
+      }),
+
+      /**
+       * Close share modal
+       */
+      closeShareModal: () => set(state => {
+        state.integrationsUI.shareModal = {
+          isOpen: false,
+          content: null
+        };
+      }),
+
+      /**
+       * Initialize integration tab based on beta feature access
+       */
+      initializeIntegrationTab: (initialTab, canAccessCanva) => set(state => {
+        // Normalize initial tab based on beta feature access
+        let normalizedTab = initialTab;
+        if (normalizedTab === 'canva' && !canAccessCanva) {
+          normalizedTab = 'wolke';
+        }
+        state.integrationsUI.currentTab = normalizedTab;
+      }),
 
       // === MESSAGE MANAGEMENT ===
 
@@ -421,19 +589,22 @@ export const useProfileStore = create(
           profile: false,
           avatar: false,
           anweisungen: false,
-          qaCollections: false
+          qaCollections: false,
+          customGenerators: new Map()
         },
         unsavedChanges: {
           profile: {},
           anweisungen: {},
           knowledge: new Map(),
-          qaCollections: new Map()
+          qaCollections: new Map(),
+          customGenerators: new Map()
         },
         validationErrors: {
           profile: {},
           anweisungen: {},
           knowledge: new Map(),
-          qaCollections: new Map()
+          qaCollections: new Map(),
+          customGenerators: new Map()
         },
         optimisticLoading: {
           avatar: false,
@@ -441,6 +612,7 @@ export const useProfileStore = create(
           betaFeatures: new Set(),
           anweisungen: false,
           knowledge: new Set(),
+          customGenerators: new Set()
         },
         messages: {
           success: '',
@@ -451,6 +623,14 @@ export const useProfileStore = create(
           type: 'user',
           groupId: null,
           groupName: null
+        },
+        integrationsUI: {
+          currentTab: 'wolke',
+          canvaSubsection: 'overview',
+          shareModal: {
+            isOpen: false,
+            content: null
+          }
         }
       })),
 
@@ -479,5 +659,26 @@ export const useProfileEditMode = (section) => useProfileStore(state => state.ed
 export const useProfileUnsavedChanges = (section) => useProfileStore(state => state.unsavedChanges[section]);
 export const useProfileMessages = () => useProfileStore(state => state.messages);
 export const useProfileOptimisticLoading = () => useProfileStore(state => state.optimisticLoading);
+
+// Custom Generator-specific selectors
+export const useGeneratorEditMode = (generatorId) => useProfileStore(state => 
+  state.editModes.customGenerators?.get(generatorId) || false
+);
+export const useGeneratorChanges = (generatorId) => useProfileStore(state => 
+  state.unsavedChanges.customGenerators?.get(generatorId) || EMPTY_OBJECT
+);
+export const useGeneratorLoading = (generatorId) => useProfileStore(state => 
+  state.optimisticLoading.customGenerators?.has(generatorId) || false
+);
+export const useGeneratorValidationErrors = (generatorId) => useProfileStore(state => 
+  state.validationErrors.customGenerators?.get(generatorId) || EMPTY_OBJECT
+);
+export const useCustomGeneratorsList = () => useProfileStore(state => state.customGenerators);
+
+// Integrations UI selectors
+export const useIntegrationTab = () => useProfileStore(state => state.integrationsUI.currentTab);
+export const useCanvaSubsection = () => useProfileStore(state => state.integrationsUI.canvaSubsection);
+export const useShareModal = () => useProfileStore(state => state.integrationsUI.shareModal);
+export const useIntegrationsUI = () => useProfileStore(state => state.integrationsUI);
 
 export default useProfileStore;

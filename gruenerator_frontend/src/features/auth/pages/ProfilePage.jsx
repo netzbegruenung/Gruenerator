@@ -12,15 +12,25 @@ import { useVerticalTabNavigation } from '../../../hooks/useKeyboardNavigation';
 // Components
 import Spinner from '../../../components/common/Spinner';
 import BubbleAnimation from '../components/profile/BubbleAnimation';
+import ProfileActionButton from '../../../components/profile/actions/ProfileActionButton';
 
-// Styles
+// Profile Feature CSS - Loaded only when this feature is accessed
+import '../../../assets/styles/features/auth/auth.css';
+import '../../../assets/styles/features/auth/profile.css';
+import '../../../assets/styles/features/auth/profile-layout.css';
+import '../../../assets/styles/features/auth/profile-cards.css';
 import '../../../assets/styles/features/auth/profile-bubbles.css';
+import '../../../assets/styles/features/auth/mem0ry-tab.css';
+import '../../../assets/styles/features/auth/documents-tab.css';
+import '../styles/meine-texte-tab.css';
+import '../../../assets/styles/components/auth/avatar-selection.css';
 
 // Enhanced lazy loading with cache support
 const ProfileInfoTab = lazy(() => import('../components/profile/ProfileInfoTab'));
 const GroupsManagementTab = lazy(() => import('../components/profile/GroupsManagementTab'));
 const IntelligenceTab = lazy(() => import('../components/profile/IntelligenceTab'));
-const ContentManagementTab = lazy(() => import('../components/profile/ContentManagementTab'));
+const ContentManagementTab = lazy(() => import('../components/profile/tabs/ContentManagement'));
+const IntegrationenTab = lazy(() => import('../components/profile/IntegrationenTab'));
 const CustomGeneratorsTab = lazy(() => import('../components/profile/CustomGeneratorsTab'));
 const LaborTab = lazy(() => import('../components/profile/LaborTab'));
 
@@ -119,6 +129,7 @@ const ProfilePage = () => {
     'profil': 'profile',
     'intelligence': 'intelligence', 
     'inhalte': 'inhalte',
+    'integrationen': 'integrationen',
     'gruppen': 'gruppen',
     'generatoren': 'custom_generators',
     'labor': 'labor'
@@ -171,10 +182,11 @@ const ProfilePage = () => {
   const availableTabs = [
     'profile',
     'intelligence',
-    ...(canAccessBetaFeature('contentManagement') ? ['inhalte'] : []),
+    'inhalte', // ContentManagementTab is now always available
+    'integrationen', // IntegrationenTab for Canva and Wolke integrations
     ...(shouldShowTab('groups') ? ['gruppen'] : []),
     ...(shouldShowTab('customGenerators') ? ['custom_generators'] : []),
-    'labor'
+    ...(shouldShowTab('labor') ? ['labor'] : [])
   ];
   
   // Keyboard navigation for tabs
@@ -193,22 +205,9 @@ const ProfilePage = () => {
 
   // Handle invalid tab URLs and redirects for merged tabs
   useEffect(() => {
-    // Check if user has access to content management feature
-    const hasContentAccess = canAccessBetaFeature('contentManagement');
-    
-    // Redirect old separate tabs to new unified content tab (if user has access)
+    // Redirect old separate tabs to new unified content tab (always available now)
     if (tab === 'dokumente' || tab === 'grafik') {
-      if (hasContentAccess) {
-        navigate('/profile/inhalte', { replace: true });
-      } else {
-        navigate('/profile', { replace: true });
-      }
-      return;
-    }
-    
-    // If user tries to access 'inhalte' but doesn't have the feature, redirect to profile
-    if (tab === 'inhalte' && !hasContentAccess) {
-      navigate('/profile', { replace: true });
+      navigate('/profile/inhalte', { replace: true });
       return;
     }
     
@@ -218,11 +217,31 @@ const ProfilePage = () => {
       return;
     }
     
-    // Validate subtab URLs for content management tab (only if user has access)
-    if (tab === 'inhalte' && subtab && hasContentAccess) {
-      const validSubtabs = ['canva', 'dokumente', 'texte', 'qa', 'wolke'];
+    // Redirect old integration URLs to new integrationen tab
+    if (tab === 'inhalte' && (subtab === 'canva' || subtab === 'wolke')) {
+      if (subtab === 'canva') {
+        const targetUrl = subsubtab ? `/profile/integrationen/canva/${subsubtab}` : '/profile/integrationen/canva';
+        navigate(targetUrl, { replace: true });
+      } else {
+        navigate('/profile/integrationen/wolke', { replace: true });
+      }
+      return;
+    }
+    
+    // Validate subtab URLs for content management tab
+    if (tab === 'inhalte' && subtab) {
+      const validSubtabs = ['dokumente', 'texte', 'qa'];
       if (!validSubtabs.includes(subtab)) {
         navigate('/profile/inhalte', { replace: true });
+        return;
+      }
+    }
+    
+    // Validate subtab URLs for integrationen tab
+    if (tab === 'integrationen' && subtab) {
+      const validIntegrationTabs = ['canva', 'wolke'];
+      if (!validIntegrationTabs.includes(subtab)) {
+        navigate('/profile/integrationen', { replace: true });
         return;
       }
       
@@ -230,7 +249,7 @@ const ProfilePage = () => {
       if (subtab === 'canva' && subsubtab) {
         const validCanvaSubtabs = ['overview', 'vorlagen', 'assets'];
         if (!validCanvaSubtabs.includes(subsubtab)) {
-          navigate('/profile/inhalte/canva', { replace: true });
+          navigate('/profile/integrationen/canva', { replace: true });
           return;
         }
       }
@@ -382,20 +401,31 @@ const ProfilePage = () => {
           Anweisungen & Wissen
         </TabButton>
         
-        {canAccessBetaFeature('contentManagement') && (
-          <TabButton
-            activeTab={activeTab}
-            tabKey="inhalte"
-            onClick={handleTabChange}
-            onMouseEnter={() => onTabHover('inhalte')}
-            underlineTransition={underlineTransition}
-            tabIndex={getTabIndex('inhalte')}
-            registerRef={registerItemRef}
-            ariaSelected={ariaSelected('inhalte')}
-          >
-            Texte & Grafik
-          </TabButton>
-        )}
+        <TabButton
+          activeTab={activeTab}
+          tabKey="inhalte"
+          onClick={handleTabChange}
+          onMouseEnter={() => onTabHover('inhalte')}
+          underlineTransition={underlineTransition}
+          tabIndex={getTabIndex('inhalte')}
+          registerRef={registerItemRef}
+          ariaSelected={ariaSelected('inhalte')}
+        >
+          Texte & Dokumente
+        </TabButton>
+        
+        <TabButton
+          activeTab={activeTab}
+          tabKey="integrationen"
+          onClick={handleTabChange}
+          onMouseEnter={() => onTabHover('integrationen')}
+          underlineTransition={underlineTransition}
+          tabIndex={getTabIndex('integrationen')}
+          registerRef={registerItemRef}
+          ariaSelected={ariaSelected('integrationen')}
+        >
+          Wolke
+        </TabButton>
         
         {shouldShowTab('groups') && (
           <TabButton
@@ -428,25 +458,27 @@ const ProfilePage = () => {
           </TabButton>
         )}
         
-        <TabButton
-          activeTab={activeTab}
-          tabKey="labor"
-          onClick={handleTabChange}
-          onMouseEnter={() => onTabHover('labor')}
-          className="profile-tab bubble-tab-wrapper"
-          underlineTransition={underlineTransition}
-          tabIndex={getTabIndex('labor')}
-          registerRef={registerItemRef}
-          ariaSelected={ariaSelected('labor')}
-        >
-          Labor
-          <div className="bubbles-position-wrapper">
-            <BubbleAnimation 
-              isActive={activeTab === 'labor'} 
-              onBurst={burstBubbles}
-            />
-          </div>
-        </TabButton>
+        {shouldShowTab('labor') && (
+          <TabButton
+            activeTab={activeTab}
+            tabKey="labor"
+            onClick={handleTabChange}
+            onMouseEnter={() => onTabHover('labor')}
+            className="profile-tab bubble-tab-wrapper"
+            underlineTransition={underlineTransition}
+            tabIndex={getTabIndex('labor')}
+            registerRef={registerItemRef}
+            ariaSelected={ariaSelected('labor')}
+          >
+            Labor
+            <div className="bubbles-position-wrapper">
+              <BubbleAnimation 
+                isActive={activeTab === 'labor'} 
+                onBurst={burstBubbles}
+              />
+            </div>
+          </TabButton>
+        )}
       </div>
 
       {/* Global Message Area */}
@@ -489,13 +521,24 @@ const ProfilePage = () => {
             />
           )}
           
-          {activeTab === 'inhalte' && canAccessBetaFeature('contentManagement') && (
+          {activeTab === 'inhalte' && (
             <ContentManagementTab
               user={user}
               onSuccessMessage={handleSuccessMessage}
               onErrorMessage={handleErrorMessage}
               isActive={activeTab === 'inhalte'}
               initialTab={subtab || 'dokumente'}
+              onTabChange={handleContentSubtabChange}
+            />
+          )}
+          
+          {activeTab === 'integrationen' && (
+            <IntegrationenTab
+              user={user}
+              onSuccessMessage={handleSuccessMessage}
+              onErrorMessage={handleErrorMessage}
+              isActive={activeTab === 'integrationen'}
+              initialTab={subtab || 'canva'}
               canvaSubsection={subtab === 'canva' ? (subsubtab || 'overview') : 'overview'}
               onTabChange={handleContentSubtabChange}
             />
@@ -520,7 +563,7 @@ const ProfilePage = () => {
             />
           )}
           
-          {activeTab === 'labor' && (
+          {activeTab === 'labor' && shouldShowTab('labor') && (
             <LaborTab
               user={user}
               onSuccessMessage={handleSuccessMessage}

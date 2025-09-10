@@ -94,7 +94,6 @@ const GeneratorStartScreen = ({
   return (
     <div className="generator-start-screen">
       <div className="start-screen-content">
-        <h1>Erstelle deinen persönlichen KI-Grünerator</h1>
         <p className="subtitle">
           Beschreibe einfach, was dein Grünerator können soll, und die KI erledigt den Rest.
         </p>

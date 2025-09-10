@@ -1,87 +1,14 @@
-import React, { lazy, Suspense, useState, useEffect, useMemo, memo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, memo, useCallback, useRef } from 'react';
 import PropTypes from 'prop-types';
-const Select = lazy(() => import('react-select'));
 import FormSelect from '../Form/Input/FormSelect';
-import FormFieldWrapper from '../Form/Input/FormFieldWrapper';
+import EnhancedSelect from '../EnhancedSelect';
 import { useGeneratorKnowledgeStore } from '../../../stores/core/generatorKnowledgeStore';
-import { useGroups, useAllGroupsContent } from '../../../features/auth/utils/groupsUtils';
+import { useGroups, useAllGroupsContent } from '../../../features/groups/hooks/useGroups';
 import { useBetaFeatures } from '../../../hooks/useBetaFeatures';
 import { useDocumentsStore } from '../../../stores/documentsStore';
 import { useAuth } from '../../../hooks/useAuth';
 import { useInstructionsStatusForType } from '../../../features/auth/hooks/useInstructionsStatus';
-import { FaBrain } from 'react-icons/fa';
-import { HiDocument, HiDocumentText } from 'react-icons/hi';
 
-// Knowledge type icons (SVG icons as components) - Extracted outside for performance
-const KnowledgeIcon = memo(({ type, size = 16 }) => {
-  const iconClass = "knowledge-option__icon";
-  
-  switch (type) {
-    case 'instruction':
-    case 'anweisung':
-      return (
-        <svg className={iconClass} width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z"/>
-          <polyline points="14,2 14,8 20,8"/>
-          <line x1="16" y1="13" x2="8" y2="13"/>
-          <line x1="16" y1="17" x2="8" y2="17"/>
-          <polyline points="10,9 9,9 8,9"/>
-        </svg>
-      );
-    case 'knowledge':
-    case 'wissen':
-    case 'group_knowledge':
-      return (
-        <FaBrain className={iconClass} size={size} />
-      );
-    case 'document':
-    case 'dokument':
-    case 'user_document':
-    case 'group_document':
-      return (
-        <HiDocument className={iconClass} size={size} />
-      );
-    case 'text':
-    case 'user_text':
-      return (
-        <HiDocumentText className={iconClass} size={size} />
-      );
-    default:
-      return (
-        <svg className={iconClass} width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
-          <circle cx="12" cy="12" r="10"/>
-          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
-          <line x1="12" y1="17" x2="12.01" y2="17"/>
-        </svg>
-      );
-  }
-});
-
-// PropTypes for KnowledgeIcon
-KnowledgeIcon.propTypes = {
-  type: PropTypes.string,
-  size: PropTypes.number
-};
-
-// Source tag component for showing content origin
-const SourceTag = memo(({ source, groupName }) => {
-  if (source === 'user') {
-    return <span className="source-tag source-tag--user">Mein Profil</span>;
-  }
-  return (
-    <span className="source-tag source-tag--group">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" className="source-tag__icon">
-        <path d="M16 4c0-1.11.89-2 2-2s2 .89 2 2c0 1.11-.89 2-2 2s-2-.89-2-2zM4 18v-1c0-2.66 5.33-4 8-4s8 1.34 8 4v1H4zM12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4z"/>
-      </svg>
-      {groupName}
-    </span>
-  );
-});
-
-SourceTag.propTypes = {
-  source: PropTypes.oneOf(['user', 'group']).isRequired,
-  groupName: PropTypes.string
-};
 
 /**
  * ProfileSelector - Separate component for custom instructions only
@@ -240,11 +167,22 @@ const EnhancedKnowledgeSelector = ({
   // Load user documents and texts
   const { documents: documentsStoreData } = useDocumentsStore();
   
+  // Track if initial document fetch has been attempted to prevent loops
+  const hasAttemptedDocumentFetch = useRef(false);
+  
   useEffect(() => {
-    if (enableDocuments && documentsStoreData.length === 0 && !documentsLoading) {
+    if (enableDocuments && !hasAttemptedDocumentFetch.current && !documentsLoading) {
+      hasAttemptedDocumentFetch.current = true;
       fetchDocuments();
     }
-  }, [enableDocuments, documentsStoreData.length, documentsLoading, fetchDocuments]);
+  }, [enableDocuments, documentsLoading, fetchDocuments]);
+  
+  // Reset the fetch flag when enableDocuments changes from false to true
+  useEffect(() => {
+    if (enableDocuments) {
+      hasAttemptedDocumentFetch.current = false;
+    }
+  }, [enableDocuments]);
 
   useEffect(() => {
     if (enableTexts) {
@@ -328,11 +266,11 @@ const EnhancedKnowledgeSelector = ({
       const userKnowledgeItems = availableKnowledge.map(item => ({
         value: `knowledge_${item.id}`,
         label: item.title,
-        type: item.type || 'knowledge',
+        iconType: item.type || 'knowledge',
+        tag: { label: 'Mein Profil', variant: 'user' },
         itemType: 'knowledge',
         originalId: item.id,
         sourceType: 'user',
-        sourceTag: { source: 'user' },
         searchableContent: `${item.title} ${item.content || ''}`.toLowerCase(),
         created_at: item.created_at || null
       }));
@@ -346,11 +284,11 @@ const EnhancedKnowledgeSelector = ({
         .map(doc => ({
           value: `document_${doc.id}`,
           label: doc.title,
-          type: 'user_document',
+          iconType: 'user_document',
+          tag: { label: 'Mein Profil', variant: 'user' },
           itemType: 'document',
           originalId: doc.id,
           sourceType: 'user',
-          sourceTag: { source: 'user' },
           subtitle: doc.filename,
           searchableContent: `${doc.title} ${doc.filename || ''} ${doc.ocr_text || ''}`.toLowerCase(),
           created_at: doc.created_at || null
@@ -363,11 +301,11 @@ const EnhancedKnowledgeSelector = ({
       const userTextItems = availableTexts.map(text => ({
         value: `text_${text.id}`,
         label: text.title,
-        type: 'user_text',
+        iconType: 'user_text',
+        tag: { label: 'Mein Profil', variant: 'user' },
         itemType: 'text',
         originalId: text.id,
         sourceType: 'user',
-        sourceTag: { source: 'user' },
         subtitle: text.type || 'Text',
         searchableContent: `${text.title} ${text.type || ''} ${text.full_content || text.content || ''}`.toLowerCase(),
         created_at: text.created_at || null
@@ -381,7 +319,7 @@ const EnhancedKnowledgeSelector = ({
         const baseItem = {
           originalId: item.id,
           sourceType: 'group',
-          sourceTag: { source: 'group', groupName: item.groupName },
+          tag: { label: item.groupName, variant: 'group' },
           created_at: item.created_at || null
         };
         
@@ -391,7 +329,7 @@ const EnhancedKnowledgeSelector = ({
             ...baseItem,
             value: `group_knowledge_${item.id}`,
             label: item.title,
-            type: 'group_knowledge',
+            iconType: 'group_knowledge',
             itemType: 'knowledge',
             searchableContent: `${item.title} ${item.content || ''}`.toLowerCase()
           };
@@ -400,7 +338,7 @@ const EnhancedKnowledgeSelector = ({
             ...baseItem,
             value: `group_document_${item.id}`,
             label: item.title,
-            type: 'group_document',
+            iconType: 'group_document',
             itemType: 'document',
             subtitle: item.filename,
             searchableContent: `${item.title} ${item.filename || ''} ${item.ocr_text || ''}`.toLowerCase()
@@ -410,7 +348,7 @@ const EnhancedKnowledgeSelector = ({
             ...baseItem,
             value: `group_text_${item.id}`,
             label: item.title,
-            type: 'group_text',
+            iconType: 'group_text',
             itemType: 'text',
             subtitle: item.type || 'Text',
             searchableContent: `${item.title} ${item.type || ''} ${item.full_content || item.content || ''}`.toLowerCase()
@@ -463,36 +401,6 @@ const EnhancedKnowledgeSelector = ({
     return scoredOptions;
   }, [allKnowledgeOptions, currentSearchTerm, calculateRelevanceScore]);
 
-  // Enhanced option formatter with source tags - title only for compact display
-  const formatOptionLabel = useCallback(({ type, label, sourceTag }, { context }) => {
-    // Show enhanced layout only in the dropdown menu
-    if (context === 'menu') {
-      const highlightedLabel = currentSearchTerm ? 
-        highlightSearchTerm(label, currentSearchTerm) : label;
-      
-      return (
-        <div className="knowledge-option-enhanced">
-          <KnowledgeIcon type={type} size={16} />
-          <div className="knowledge-option__content">
-            <span 
-              className="knowledge-option__label"
-              dangerouslySetInnerHTML={{ __html: highlightedLabel }}
-            />
-          </div>
-          {sourceTag && <SourceTag {...sourceTag} />}
-        </div>
-      );
-    }
-    // For selected values, show text with source indicator
-    return (
-      <span className="knowledge-selected-option">
-        {label}
-        {sourceTag && sourceTag.source === 'group' && (
-          <span className="knowledge-selected-source">[{sourceTag.groupName}]</span>
-        )}
-      </span>
-    );
-  }, [currentSearchTerm, highlightSearchTerm]);
 
   const handleKnowledgeChange = useCallback((selectedOptions) => {
     const newSelectedValues = selectedOptions ? selectedOptions.map(option => option.value) : [];
@@ -570,79 +478,71 @@ const EnhancedKnowledgeSelector = ({
 
   return (
     <div className="enhanced-knowledge-selector">
-      <FormFieldWrapper
+      <EnhancedSelect
         label="Wissen, Dokumente & Texte auswählen"
         helpText="Wähle Wissen, Dokumente und Texte aus"
-        htmlFor="enhanced-knowledge-select"
-      >
-        <Suspense fallback={<div>Loading...</div>}><Select
-          inputId="enhanced-knowledge-select"
-          classNamePrefix="enhanced-knowledge-select"
-          className="enhanced-knowledge-select"
-          isMulti
-          options={knowledgeOptions}
-          // Allow placeholder to hyphenate and wrap: Aus­wählen (soft hyphen)
-          placeholder={"Aus­wählen"}
-          isDisabled={disabled}
-          formatOptionLabel={formatOptionLabel}
-          filterOption={() => true} // Disable default filtering since we handle it
-          onInputChange={(inputValue) => {
-            setCurrentSearchTerm(inputValue);
-          }}
-          value={[
-            // Find selected options from all sources
-            ...selectedKnowledgeIds.map(id => 
-              allKnowledgeOptions.find(option => 
-                option.value === `knowledge_${id}` || option.value === `group_knowledge_${id}`
-              )
-            ).filter(Boolean),
-            ...selectedDocumentIds.map(id => 
-              allKnowledgeOptions.find(option => 
-                option.value === `document_${id}` || option.value === `group_document_${id}`
-              )
-            ).filter(Boolean),
-            ...selectedTextIds.map(id => 
-              allKnowledgeOptions.find(option => 
-                option.value === `text_${id}` || option.value === `group_text_${id}`
-              )
-            ).filter(Boolean)
-          ]}
-          onChange={handleKnowledgeChange}
-          closeMenuOnSelect={false}
-          hideSelectedOptions={true}
-          isClearable={false}
-          isSearchable={true}
-          blurInputOnSelect={true}
-          openMenuOnFocus={false}
-          tabSelectsValue={true}
-          captureMenuScroll={false}
-          menuShouldBlockScroll={false}
-          menuShouldScrollIntoView={false}
-          // React Portal implementation for larger dropdown
-          menuPortalTarget={document.body}
-          menuPosition="fixed"
-          tabIndex={tabIndex}
-          noOptionsMessage={() => {
-            if (currentSearchTerm && currentSearchTerm.trim()) {
-              return `Keine Ergebnisse für "${currentSearchTerm}"`;
-            }
-            if (isLoadingAllGroups || documentsLoading || isLoadingTexts) {
-              return 'Lade verfügbare Inhalte...';
-            }
-            if (hasGroupErrors) {
-              return 'Fehler beim Laden einiger Gruppeninhalte';
-            }
-            return 'Keine Inhalte verfügbar. Erstelle Wissen, lade Dokumente hoch oder teile Inhalte mit Gruppen.';
-          }}
-        /></Suspense>
-      </FormFieldWrapper>
+        inputId="enhanced-knowledge-select"
+        classNamePrefix="enhanced-knowledge-select"
+        className="enhanced-knowledge-select"
+        enableTags={true}
+        enableIcons={true}
+        enableSubtitles={true}
+        isMulti
+        options={knowledgeOptions}
+        // Allow placeholder to hyphenate and wrap: Aus­wählen (soft hyphen)
+        placeholder={"Aus­wählen"}
+        isDisabled={disabled}
+        filterOption={() => true} // Disable default filtering since we handle it
+        onInputChange={(inputValue) => {
+          setCurrentSearchTerm(inputValue);
+        }}
+        value={[
+          // Find selected options from all sources
+          ...selectedKnowledgeIds.map(id => 
+            allKnowledgeOptions.find(option => 
+              option.value === `knowledge_${id}` || option.value === `group_knowledge_${id}`
+            )
+          ).filter(Boolean),
+          ...selectedDocumentIds.map(id => 
+            allKnowledgeOptions.find(option => 
+              option.value === `document_${id}` || option.value === `group_document_${id}`
+            )
+          ).filter(Boolean),
+          ...selectedTextIds.map(id => 
+            allKnowledgeOptions.find(option => 
+              option.value === `text_${id}` || option.value === `group_text_${id}`
+            )
+          ).filter(Boolean)
+        ]}
+        onChange={handleKnowledgeChange}
+        closeMenuOnSelect={false}
+        hideSelectedOptions={true}
+        isClearable={false}
+        isSearchable={true}
+        blurInputOnSelect={true}
+        openMenuOnFocus={false}
+        tabSelectsValue={true}
+        captureMenuScroll={false}
+        menuShouldBlockScroll={false}
+        menuShouldScrollIntoView={false}
+        // React Portal implementation for larger dropdown
+        menuPortalTarget={document.body}
+        menuPosition="fixed"
+        tabIndex={tabIndex}
+        noOptionsMessage={() => {
+          if (currentSearchTerm && currentSearchTerm.trim()) {
+            return `Keine Ergebnisse für "${currentSearchTerm}"`;
+          }
+          if (isLoadingAllGroups || documentsLoading || isLoadingTexts) {
+            return 'Lade verfügbare Inhalte...';
+          }
+          if (hasGroupErrors) {
+            return 'Fehler beim Laden einiger Gruppeninhalte';
+          }
+          return 'Keine Inhalte verfügbar. Erstelle Wissen, lade Dokumente hoch oder teile Inhalte mit Gruppen.';
+        }}
+      />
 
-      {/* Loading status for groups */}
-      {isLoadingAllGroups && (
-        <div className="enhanced-knowledge-selector__loading">
-          Lade Gruppeninhalte...
-        </div>
-      )}
 
       {/* Error status for groups */}
       {groupContentErrors.length > 0 && (

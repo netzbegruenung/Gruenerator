@@ -4,6 +4,9 @@ import { FaMicrophone, FaStop, FaRedo } from 'react-icons/fa';
 import useVoiceRecorder from '../hooks/useVoiceRecorder';
 import Spinner from '../../../components/common/Spinner';
 import ErrorBoundary from '../../../components/ErrorBoundary';
+
+// Voice Feature CSS - Loaded only when this feature is accessed
+import '../styles/VoiceRecorder.css';
 const VoiceRecorder = ({ onTranscriptionComplete }) => {
   const {
     isRecording,

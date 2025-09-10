@@ -400,9 +400,9 @@
   display: flex;
   flex-direction: column;
   gap: var(--spacing-small);
-  margin-top: var(--spacing-medium);
-  padding-top: var(--spacing-medium);
   border-top: 1px solid var(--border-subtle);
+  width: 100%;
+  max-width: 220px;
 }
 
 .create-new-group-button {

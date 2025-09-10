@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, forwardRef, useImperativeHandle } from 'react';
+import React, { useState, useCallback, useRef, forwardRef, useImperativeHandle, lazy } from 'react';
 import { HiOutlineDocumentAdd, HiOutlineTrash, HiRefresh, HiDocumentText, HiClock, HiCheckCircle, HiExclamationCircle, HiEye, HiX } from 'react-icons/hi';
 const ReactMarkdown = lazy(() => import('react-markdown'));
 import { useDocumentsStore } from '../../stores/documentsStore';

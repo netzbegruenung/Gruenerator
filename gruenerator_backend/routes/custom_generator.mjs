@@ -62,12 +62,13 @@ router.post('/', async (req, res) => {
 
     const generator = generators[0];
     
-    // Check if user has completed documents (using user-level access pattern)
-    const userDocuments = await postgresService.query(
-      'SELECT id FROM documents WHERE user_id = $1 AND status = $2',
-      [generator.user_id, 'completed'],
-      { table: 'documents' }
-    );
+    // Check if generator has assigned documents via junction table
+    const userDocuments = await postgresService.query(`
+      SELECT d.id 
+      FROM documents d
+      INNER JOIN custom_generator_documents cgd ON d.id = cgd.document_id
+      WHERE cgd.custom_generator_id = $1 AND d.status = $2
+    `, [generator.id, 'completed'], { table: 'documents' });
 
     const hasDocuments = userDocuments && userDocuments.length > 0;
     const documentIds = hasDocuments ? userDocuments.map(doc => doc.id) : null;
@@ -570,13 +571,32 @@ router.get('/', requireAuth, async (req, res) => {
     }
 
     // Fetch all generators for the authenticated user from PostgreSQL
-    const generators = await postgresService.query(
+    const rows = await postgresService.query(
       'SELECT * FROM custom_generators WHERE user_id = $1 ORDER BY created_at DESC',
       [userId],
       { table: 'custom_generators' }
     );
 
-    res.json(generators || []); // Send the array directly
+    // Normalize and coerce shape for frontend
+    const generators = (rows || []).map(row => {
+      let schema = row.form_schema;
+      if (typeof schema === 'string') {
+        try { schema = JSON.parse(schema); } catch { schema = { fields: [] }; }
+      }
+      return {
+        ...row,
+        title: row.title || row.name,
+        description: row.description || '',
+        form_schema: schema
+      };
+    });
+
+    console.log('[custom_generator] GET / - user:', userId, 'count:', generators.length);
+    if (generators[0]) {
+      console.log('[custom_generator] GET / - form_schema typeof:', typeof generators[0].form_schema);
+    }
+
+    res.json(generators);
 
   } catch (error) {
     console.error('Unexpected error fetching custom generators:', error);
@@ -635,6 +655,88 @@ router.get('/:slug', async (req, res) => {
   } catch (error) {
     console.error('[custom_generator_get_by_slug] Unexpected error:', error);
     res.status(500).json({ error: 'Ein unerwarteter Fehler ist aufgetreten.' });
+  }
+});
+
+// PUT Route zum Aktualisieren eines benutzerdefinierten Generators
+router.put('/:id', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.id;
+    const { title, description, prompt, form_schema, contact_email } = req.body;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Nicht authentifiziert.' });
+    }
+
+    // Validate required fields
+    if (!title && !description && !prompt && !form_schema && !contact_email) {
+      return res.status(400).json({ error: 'Mindestens ein Feld muss aktualisiert werden.' });
+    }
+
+    // Check if generator exists and belongs to user
+    const generator = await postgresService.queryOne(
+      'SELECT user_id FROM custom_generators WHERE id = $1',
+      [id],
+      { table: 'custom_generators' }
+    );
+
+    if (!generator) {
+      return res.status(404).json({ error: 'Generator nicht gefunden.' });
+    }
+
+    if (generator.user_id !== userId) {
+      console.warn(`[custom_generator_update] User ${userId} attempted to update generator ${id} owned by ${generator.user_id}`);
+      return res.status(403).json({ error: 'Keine Berechtigung zum Bearbeiten dieses Generators.' });
+    }
+
+    // Build update object dynamically
+    const updateData = {};
+    if (title !== undefined) updateData.title = title;
+    if (description !== undefined) updateData.description = description;
+    if (prompt !== undefined) updateData.prompt = prompt;
+    if (form_schema !== undefined) updateData.form_schema = form_schema;
+    if (contact_email !== undefined) updateData.contact_email = contact_email;
+
+    // Update the generator
+    const result = await postgresService.update(
+      'custom_generators', 
+      updateData,
+      { id: id, user_id: userId }
+    );
+
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Generator konnte nicht aktualisiert werden.' });
+    }
+
+    // Prepare normalized updated generator for client cache consistency
+    const updated = (result.data && Array.isArray(result.data)) ? result.data[0] : null;
+    if (!updated) {
+      // Fallback: no row returned, but changes reported – return generic success
+      console.log(`[custom_generator_update] Generator ${id} updated by user ${userId}, but no row returned`);
+      return res.status(200).json({ id, message: 'Generator erfolgreich aktualisiert.' });
+    }
+
+    // Ensure form_schema is an object
+    let normalizedSchema = updated.form_schema;
+    if (typeof normalizedSchema === 'string') {
+      try { normalizedSchema = JSON.parse(normalizedSchema); } catch { normalizedSchema = { fields: [] }; }
+    }
+
+    const normalized = {
+      ...updated,
+      title: updated.title || updated.name,
+      description: updated.description || '',
+      form_schema: normalizedSchema
+    };
+
+    console.log(`[custom_generator_update] Generator ${id} successfully updated by user ${userId}`);
+    // Return the updated generator object directly for frontend cache replacement
+    res.status(200).json(normalized);
+
+  } catch (error) {
+    console.error('[custom_generator_update] Unexpected error during update operation:', error);
+    res.status(500).json({ error: 'Ein unerwarteter Fehler ist aufgetreten.', details: error.message });
   }
 });
 
@@ -725,7 +827,8 @@ router.post('/create', requireAuth, async (req, res) => {
       user_id: userId,
       name: name.trim(),
       slug: slug.trim(),
-      form_schema: JSON.stringify(form_schema),
+      // Store as proper JSONB object (not string)
+      form_schema: form_schema,
       prompt: prompt.trim(),
       title: title ? title.trim() : null,
       description: description ? description.trim() : null,
@@ -782,12 +885,14 @@ router.get('/:id/documents', requireAuth, async (req, res) => {
       return res.status(403).json({ error: 'Keine Berechtigung zum Zugriff auf diesen Generator.' });
     }
 
-    // Fetch user's completed documents (using existing user-level access pattern)
-    const documents = await postgresService.query(
-      'SELECT id, title, filename, status, page_count, created_at FROM documents WHERE user_id = $1 AND status = $2 ORDER BY created_at DESC',
-      [generator.user_id, 'completed'],
-      { table: 'documents' }
-    );
+    // Fetch documents specifically assigned to this custom generator via junction table
+    const documents = await postgresService.query(`
+      SELECT d.id, d.title, d.filename, d.status, d.page_count, d.created_at 
+      FROM documents d
+      INNER JOIN custom_generator_documents cgd ON d.id = cgd.document_id
+      WHERE cgd.custom_generator_id = $1 AND d.status = $2
+      ORDER BY d.created_at DESC
+    `, [id, 'completed'], { table: 'documents' });
 
     console.log(`[custom_generator_documents_get] Found ${documents?.length || 0} documents for generator ${generator.name}`);
     res.json({ 
@@ -855,13 +960,22 @@ router.post('/:id/documents', requireAuth, async (req, res) => {
       });
     }
 
-    // With user-level access, all user's completed documents are automatically available to their generators
-    // So we just validate the documents and return success
-    console.log(`[custom_generator_documents_post] All ${documentIds.length} documents are automatically available to generator ${generator.name} via user-level access`);
+    // Add documents to generator via junction table
+    const insertPromises = documentIds.map(documentId => 
+      postgresService.query(
+        'INSERT INTO custom_generator_documents (custom_generator_id, document_id) VALUES ($1, $2) ON CONFLICT (custom_generator_id, document_id) DO NOTHING',
+        [id, documentId],
+        { table: 'custom_generator_documents' }
+      )
+    );
+    
+    await Promise.all(insertPromises);
+
+    console.log(`[custom_generator_documents_post] Added ${documentIds.length} documents to generator ${generator.name}`);
     res.json({ 
       success: true, 
-      message: `Alle Ihre abgeschlossenen Dokumente sind automatisch für diesen Generator verfügbar.`,
-      note: 'Mit der vereinfachten Zugriffskontrolle sind alle Ihre Dokumente automatisch für Ihre Generatoren verfügbar.'
+      message: `${documentIds.length} Dokument(e) erfolgreich zum Generator hinzugefügt.`,
+      addedDocuments: documentIds.length
     });
 
   } catch (error) {
@@ -896,12 +1010,31 @@ router.delete('/:id/documents/:documentId', requireAuth, async (req, res) => {
       return res.status(403).json({ error: 'Keine Berechtigung zum Bearbeiten dieses Generators.' });
     }
 
-    // With user-level access, documents are automatically managed and cannot be individually removed
-    console.log(`[custom_generator_documents_delete] Document removal not needed - all user documents are automatically available to generator ${generator.name}`);
+    // Remove document from generator via junction table
+    const { documentId } = req.params;
+    
+    // Verify the document is actually linked to this generator
+    const linkExists = await postgresService.queryOne(
+      'SELECT id FROM custom_generator_documents WHERE custom_generator_id = $1 AND document_id = $2',
+      [id, documentId],
+      { table: 'custom_generator_documents' }
+    );
+    
+    if (!linkExists) {
+      return res.status(404).json({ error: 'Dokument ist nicht mit diesem Generator verknüpft.' });
+    }
+    
+    // Remove the link
+    await postgresService.query(
+      'DELETE FROM custom_generator_documents WHERE custom_generator_id = $1 AND document_id = $2',
+      [id, documentId],
+      { table: 'custom_generator_documents' }
+    );
+    
+    console.log(`[custom_generator_documents_delete] Document ${documentId} removed from generator ${generator.name}`);
     res.json({ 
       success: true, 
-      message: 'Mit der vereinfachten Zugriffskontrolle sind alle Ihre Dokumente automatisch verfügbar.',
-      note: 'Einzelne Dokumente können nicht mehr entfernt werden, da alle Ihre abgeschlossenen Dokumente automatisch für Ihre Generatoren verfügbar sind.'
+      message: 'Dokument erfolgreich vom Generator entfernt.'
     });
 
   } catch (error) {

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { IoCopyOutline, IoCheckmarkOutline } from "react-icons/io5";
-import { HiCog, HiPencil, HiSave } from "react-icons/hi";
+import { HiCog, HiPencil, HiSave, HiX } from "react-icons/hi";
 import { IoArrowUndoOutline, IoArrowRedoOutline } from "react-icons/io5";
+import { getIcon } from '../../config/icons';
 import { copyFormattedContent } from '../utils/commonFunctions';
 import ExportDropdown from './ExportDropdown';
 import { useLazyAuth } from '../../hooks/useAuth';
@@ -45,14 +46,20 @@ const ActionButtons = ({
   const { generatedText } = useGeneratedTextStore();
   const undo = useGeneratedTextStore(state => state.undo);
   const redo = useGeneratedTextStore(state => state.redo);
-  const canUndo = useGeneratedTextStore(state => state.canUndo);
-  const canRedo = useGeneratedTextStore(state => state.canRedo);
   const [copyIcon, setCopyIcon] = useState(<IoCopyOutline size={16} />);
   const [saveIcon, setSaveIcon] = useState(<HiSave size={16} />);
   
   // Directly compute undo/redo availability from store without local state
-  const canUndoState = canUndo(componentName);
-  const canRedoState = canRedo(componentName);
+  const canUndoState = useGeneratedTextStore(state => {
+    const currentHistory = state.history[componentName];
+    const currentIndex = state.historyIndex[componentName] ?? 0;
+    return !!(currentHistory && currentHistory.length > 1 && currentIndex > 0);
+  });
+  const canRedoState = useGeneratedTextStore(state => {
+    const currentHistory = state.history[componentName];
+    const currentIndex = state.historyIndex[componentName] ?? 0;
+    return !!(currentHistory && currentHistory.length > 1 && currentIndex < currentHistory.length - 1);
+  });
 
   const hasDatabaseAccess = isAuthenticated && getBetaFeatureState('database');
 
@@ -60,8 +67,8 @@ const ActionButtons = ({
   const activeContent = generatedContent || generatedText;
 
 
-  const handleCopyToClipboard = () => {
-    copyFormattedContent(
+  const handleCopyToClipboard = async () => {
+    await copyFormattedContent(
       activeContent,
       () => {
         setCopyIcon(<IoCheckmarkOutline size={16} />);
@@ -143,6 +150,8 @@ const ActionButtons = ({
     }
   }, [canUndoState, canRedoState, activeContent, shouldHideButtons]);
 
+
+  // Normal mode render
   return (
     <div className={className}>
       {activeContent && !shouldHideButtons && (
@@ -158,12 +167,11 @@ const ActionButtons = ({
           >
             {copyIcon}
           </button>
-          {showUndo && (
+          {showUndo && canUndoState && (
             <button
               onClick={handleUndo}
               className="action-button"
               aria-label="Rückgängig (Strg+Z)"
-              disabled={!canUndoState}
               {...(!isMobileView && {
                 'data-tooltip-id': "action-tooltip",
                 'data-tooltip-content': "Rückgängig (Strg+Z)"
@@ -172,12 +180,11 @@ const ActionButtons = ({
               <IoArrowUndoOutline size={16} />
             </button>
           )}
-          {showRedo && (
+          {showRedo && canRedoState && (
             <button
               onClick={handleRedo}
               className="action-button"
               aria-label="Wiederholen (Strg+Y)"
-              disabled={!canRedoState}
               {...(!isMobileView && {
                 'data-tooltip-id': "action-tooltip",
                 'data-tooltip-content': "Wiederholen (Strg+Y)"
@@ -222,17 +229,15 @@ const ActionButtons = ({
               {saveIcon}
             </button>
           )}
-          {showEditMode && activeContent && onEditModeToggle && (
+          {showEditMode && activeContent && onEditModeToggle && !isMobileView && (
             <button
               onClick={onEditModeToggle}
               className={`action-button ${isEditModeActive ? 'active' : ''}`}
-              aria-label="Edit Mode umschalten"
-              {...(!isMobileView && {
-                'data-tooltip-id': "action-tooltip",
-                'data-tooltip-content': "Edit Mode"
-              })}
+              aria-label={isEditModeActive ? "Edit Mode schließen" : "Edit Mode umschalten"}
+              data-tooltip-id="action-tooltip"
+              data-tooltip-content={isEditModeActive ? "Schließen" : "Edit Mode"}
             >
-              <HiPencil size={16} />
+              {isEditModeActive ? getIcon('actions', 'close')({ size: 16 }) : <HiPencil size={16} />}
             </button>
           )}
         </>

@@ -226,12 +226,24 @@ export const useWolkeSync = (useStore = true) => {
         };
     }, [useStore, storeGetSyncStats, syncStatuses]);
 
-    // Initialize on mount (only for local mode)
+    // Initialize on mount - ensure sync statuses are loaded
     useEffect(() => {
-        if (!useStore && !localInitialized) {
-            fetchSyncStatuses();
+        if (useStore) {
+            // For store mode, ensure sync statuses are available
+            const { syncStatuses, initialized } = useWolkeStore.getState();
+            if (!initialized || syncStatuses.length === 0) {
+                console.log('[useWolkeSync] Ensuring sync statuses are loaded...');
+                storeFetchSyncStatuses().catch(error => {
+                    console.error('[useWolkeSync] Failed to ensure sync statuses:', error);
+                });
+            }
+        } else {
+            // For local mode, fetch if not initialized
+            if (!localInitialized) {
+                fetchSyncStatuses();
+            }
         }
-    }, [useStore, localInitialized, fetchSyncStatuses]);
+    }, [useStore, localInitialized, fetchSyncStatuses, storeFetchSyncStatuses]);
 
     // Auto-refresh sync statuses periodically
     useEffect(() => {

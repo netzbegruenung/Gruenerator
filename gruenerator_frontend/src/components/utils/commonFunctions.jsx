@@ -36,36 +36,15 @@ export const handleCopyToClipboard = (text) => {
     });
 };
 
-// Function to copy plain text to clipboard
+// DEPRECATED: Use copyFormattedContent instead
 export const copyPlainText = (htmlContent) => {
-  // Temporäres DOM-Element erstellen
+  console.warn('copyPlainText is deprecated. Use copyFormattedContent instead.');
+  
+  // Fallback implementation for backward compatibility
   const tempElement = document.createElement('div');
   tempElement.innerHTML = htmlContent;
+  const plainText = tempElement.innerText.trim();
   
-  // Zeilenumbrüche für Block-Elemente hinzufügen
-  const blockElements = tempElement.querySelectorAll('p, div, li, h1, h2, h3, h4, h5, h6, blockquote');
-  blockElements.forEach(element => {
-    // Fügt Zeilenumbrüche nach Block-Elementen ein
-    element.insertAdjacentHTML('afterend', '\n');
-    
-    // Spezielle Behandlung für Listenelemente
-    if (element.tagName === 'LI') {
-      element.insertAdjacentHTML('beforebegin', '• ');
-    }
-  });
-
-  // Doppelte Zeilenumbrüche für bessere Lesbarkeit
-  const lists = tempElement.querySelectorAll('ul, ol');
-  lists.forEach(list => {
-    list.insertAdjacentHTML('afterend', '\n');
-  });
-
-  // Extrahiere den formatierten Text
-  const plainText = tempElement.innerText
-    .replace(/\n{3,}/g, '\n\n') // Reduziere mehrfache Zeilenumbrüche auf maximal zwei
-    .trim();
-
-  // Text in die Zwischenablage kopieren
   navigator.clipboard.writeText(plainText)
     .then(() => {
       console.log('Formatierter Text erfolgreich in die Zwischenablage kopiert.');
@@ -133,7 +112,7 @@ export const handleDrop = (e, setDragging, setFile, setFileName) => {
   setDragging(false);
 };
 
-export const copyFormattedContent = (contentOrOnSuccess, onSuccessOrOnError, onError) => {
+export const copyFormattedContent = async (contentOrOnSuccess, onSuccessOrOnError, onError) => {
   // Handle backward compatibility: if first param is a function, use old signature
   let content, onSuccess, onErrorCallback;
   
@@ -150,34 +129,40 @@ export const copyFormattedContent = (contentOrOnSuccess, onSuccessOrOnError, onE
     onErrorCallback = onError;
   }
 
-  console.log('Kopiervorgang startet mit:', { 
-    contentProvided: !!content,
-    contentType: typeof content,
-    hasOnSuccess: !!onSuccess,
-    hasOnError: !!onErrorCallback 
-  });
-
   try {
-    // Use the centralized content extractor for consistent plain text output
-    const plainText = extractPlainText(content);
+    // Use the centralized content extractor for consistent output
+    const plainText = await extractPlainText(content);
     
-    console.log('Formatierter Text erstellt:', plainText?.length, 'Zeichen');
-
-    navigator.clipboard.writeText(plainText)
-      .then(() => {
-        console.log('Text erfolgreich in Zwischenablage kopiert');
-        if (onSuccess) {
-          onSuccess();
-        }
-      })
-      .catch(err => {
-        console.error('Fehler beim Kopieren:', err);
-        if (onErrorCallback) {
-          onErrorCallback(err);
-        }
-      });
+    // For rich clipboard support, try to write both HTML and plain text
+    if (navigator.clipboard && navigator.clipboard.write) {
+      try {
+        // Get HTML version using existing export structure
+        const { extractHTMLContent } = await import('./contentExtractor');
+        const htmlContent = await extractHTMLContent(content);
+        
+        // Create clipboard items with both formats
+        const clipboardItems = [
+          new ClipboardItem({
+            'text/html': new Blob([htmlContent], { type: 'text/html' }),
+            'text/plain': new Blob([plainText], { type: 'text/plain' })
+          })
+        ];
+        
+        await navigator.clipboard.write(clipboardItems);
+      } catch (richCopyError) {
+        // Fallback to plain text if rich copy fails
+        await navigator.clipboard.writeText(plainText);
+      }
+    } else {
+      // Fallback for older browsers
+      await navigator.clipboard.writeText(plainText);
+    }
+    
+    if (onSuccess) {
+      onSuccess();
+    }
   } catch (err) {
-    console.error('Fehler bei der Textextraktion:', err);
+    console.error('Fehler beim Kopieren:', err);
     if (onErrorCallback) {
       onErrorCallback(err);
     }

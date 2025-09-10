@@ -1,0 +1,287 @@
+import React, { useState, useEffect, useCallback, useRef, Suspense, lazy } from 'react';
+import { useQueryClient, useMutation } from '@tanstack/react-query';
+import { profileApiService, getAvatarDisplayProps, initializeProfileFormFields } from '../../../../services/profileApiService';
+import { useAutosave } from '../../../../../../hooks/useAutosave';
+import { useProfile } from '../../../../hooks/useProfileData';
+import { useOptimizedAuth } from '../../../../../../hooks/useAuth';
+import { useBetaFeatures } from '../../../../../../hooks/useBetaFeatures';
+import { useProfileStore } from '../../../../../../stores/profileStore';
+import ProfileView from './ProfileView';
+
+const AvatarSelectionModal = lazy(() => import('../../AvatarSelectionModal'));
+
+const ProfileInfoTabContainer = ({ user: userProp, onSuccessMessage, onErrorProfileMessage, deleteAccount, canManageAccount }) => {
+  const { user: authUser } = useOptimizedAuth();
+  const user = userProp || authUser;
+
+  // Move all hooks before conditional returns to avoid React hooks violation
+  const queryClient = useQueryClient();
+  const { getBetaFeatureState, updateUserBetaFeatures, isUpdating: isBetaFeaturesUpdating } = useBetaFeatures();
+  const { data: profile, isLoading: isLoadingProfile, isError: isErrorProfileQuery, error: errorProfileQuery } = useProfile(user?.id);
+  const updateAvatarOptimistic = useProfileStore((s) => s.updateAvatarOptimistic);
+
+  if (!user) {
+    return (
+      <div className="profile-tab-loading">
+        <div>Benutzerinformationen werden geladen...</div>
+      </div>
+    );
+  }
+
+  const updateProfileMutation = useMutation({
+    mutationFn: async (profileData) => {
+      if (!user) throw new Error('Nicht angemeldet');
+      return await profileApiService.updateProfile(profileData);
+    },
+    onSuccess: (updatedProfile) => {
+      if (user?.id && updatedProfile) {
+        queryClient.setQueryData(['profileData', user.id], (oldData) => ({ ...oldData, ...updatedProfile }));
+      }
+    },
+    onError: (error) => {
+      console.error('Profile update failed:', error);
+    },
+    retry: 1,
+    retryDelay: 1000,
+  });
+
+  const updateAvatarMutation = useMutation({
+    mutationFn: async (avatarRobotId) => {
+      if (!user) throw new Error('Nicht angemeldet');
+      return await profileApiService.updateAvatar(avatarRobotId);
+    },
+    onMutate: async (avatarRobotId) => {
+      await queryClient.cancelQueries({ queryKey: ['profileData', user?.id] });
+      const previousProfile = queryClient.getQueryData(['profileData', user?.id]);
+      queryClient.setQueryData(['profileData', user?.id], (oldData) => ({ ...oldData, avatar_robot_id: avatarRobotId }));
+      return { previousProfile, avatarRobotId };
+    },
+    onSuccess: (updatedProfile, avatarRobotId) => {
+      if (user?.id) {
+        queryClient.setQueryData(['profileData', user.id], (oldData) => ({
+          ...oldData,
+          ...updatedProfile,
+          avatar_robot_id: avatarRobotId,
+        }));
+        queryClient.setQueryDefaults(['profileData', user.id], { staleTime: 60 * 60 * 1000, gcTime: 60 * 60 * 1000 });
+      }
+    },
+    onError: (error, avatarRobotId, context) => {
+      console.error('Avatar update failed:', error);
+      if (context?.previousProfile) {
+        queryClient.setQueryData(['profileData', user?.id], context.previousProfile);
+      }
+    },
+  });
+
+  const updateProfile = updateProfileMutation.mutate;
+  const updateAvatar = updateAvatarMutation.mutate;
+  const profileUpdateError = updateProfileMutation.error;
+
+  const [displayName, setDisplayName] = useState('');
+  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
+  const [errorProfile, setErrorProfile] = useState('');
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
+  const [showDeleteAccountForm, setShowDeleteAccountForm] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [deleteAccountError, setDeleteAccountError] = useState('');
+  const isInitialized = useRef(false);
+
+  const canManageCurrentAccount = user ? canManageAccount() : false;
+  const avatarRobotId = profile?.avatar_robot_id ?? 1;
+
+  useEffect(() => {
+    if (profile && isInitialized.current) {
+      console.log(`[Avatar State] profile.avatar_robot_id=${profile?.avatar_robot_id}, computed=${avatarRobotId}`);
+    }
+  }, [profile?.avatar_robot_id, avatarRobotId]);
+
+  const stateBasedSave = useCallback(async () => {
+    if (!profile || !isInitialized.current) return;
+    const fullDisplayName = displayName || email || user?.username || 'Benutzer';
+    const profileUpdateData = { display_name: fullDisplayName, username: username || null, email: email?.trim() || null };
+    try {
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Save timeout')), 10000));
+      await Promise.race([updateProfile(profileUpdateData), timeoutPromise]);
+      setErrorProfile('');
+    } catch (error) {
+      console.error('Auto-save error:', error);
+      if (error.message === 'Save timeout') {
+        setErrorProfile('Speichern dauert zu lange. Bitte versuchen Sie es erneut.');
+        onErrorProfileMessage('Speichern dauert zu lange. Bitte versuchen Sie es erneut.');
+      }
+    }
+  }, [displayName, username, email, user?.username, profile, updateProfile, onErrorProfileMessage]);
+
+  const { resetTracking } = useAutosave({
+    saveFunction: stateBasedSave,
+    formRef: { getValues: () => ({ displayName, username, email }), watch: () => {} },
+    enabled: profile && isInitialized.current,
+    debounceMs: 2000,
+    getFieldsToTrack: () => ['displayName', 'username', 'email'],
+    onError: (error) => {
+      console.error('Profile autosave failed:', error);
+      setErrorProfile('Automatisches Speichern fehlgeschlagen.');
+    },
+  });
+
+  useEffect(() => {
+    if (!profile || !user) return;
+    const formFields = initializeProfileFormFields(profile, user);
+    if (!isInitialized.current) {
+      setDisplayName(formFields.displayName);
+      setUsername(formFields.username);
+      setEmail(formFields.email);
+      isInitialized.current = true;
+      setTimeout(() => resetTracking(), 100);
+    }
+  }, [profile, user, resetTracking]);
+
+  useEffect(() => {
+    if (profile && isInitialized.current) {
+      const timer = setTimeout(() => {
+        resetTracking();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [displayName, username, email, resetTracking, profile]);
+
+  useEffect(() => {
+    if (profileUpdateError) {
+      setErrorProfile(profileUpdateError.message || 'Fehler beim Aktualisieren des Profils.');
+      onErrorProfileMessage(profileUpdateError.message || 'Fehler beim Aktualisieren des Profils.');
+    }
+  }, [profileUpdateError, onErrorProfileMessage]);
+
+  const handleAvatarSelect = async (robotId) => {
+    try {
+      const oldAvatarId = profile?.avatar_robot_id || 'unknown';
+      console.log(`[Avatar] User selected avatar: ${oldAvatarId} → ${robotId}`);
+      await updateAvatar(robotId);
+      onSuccessMessage('Avatar erfolgreich aktualisiert!');
+      setTimeout(() => {
+        updateAvatarOptimistic(robotId).catch(() => {
+          console.debug('[ProfileInfo] ProfileStore sync after avatar update completed');
+        });
+        window.dispatchEvent(new CustomEvent('avatarUpdated', { detail: { avatarRobotId: robotId } }));
+      }, 100);
+    } catch (error) {
+      console.error('[Avatar] update failed:', error);
+      const errorMessage = error.message || 'Fehler beim Aktualisieren des Avatars.';
+      onErrorProfileMessage(errorMessage);
+    }
+  };
+
+  const handleIgelModusToggle = async (enabled) => {
+    try {
+      await updateUserBetaFeatures('igel_modus', enabled);
+      onSuccessMessage(enabled ? 'Igel-Modus aktiviert! Du bist jetzt Mitglied der Grünen Jugend.' : 'Igel-Modus deaktiviert.');
+    } catch (error) {
+      onErrorProfileMessage(error.message || 'Fehler beim Aktualisieren des Igel-Modus.');
+    }
+  };
+
+  const handleLaborToggle = async (enabled) => {
+    try {
+      await updateUserBetaFeatures('labor', enabled);
+      onSuccessMessage(enabled ? 'Labor-Modus aktiviert! Experimentelle Features sind jetzt verfügbar.' : 'Labor-Modus deaktiviert.');
+    } catch (error) {
+      onErrorProfileMessage(error.message || 'Fehler beim Aktualisieren des Labor-Modus.');
+    }
+  };
+
+  const handleToggleDeleteAccountForm = () => {
+    setShowDeleteAccountForm(!showDeleteAccountForm);
+    if (!showDeleteAccountForm) {
+      setDeleteConfirmText('');
+      setDeleteAccountError('');
+    } else {
+      setDeleteAccountError('');
+    }
+  };
+
+  const handleDeleteAccountSubmit = async (e) => {
+    e.preventDefault();
+    setDeleteAccountError('');
+    onErrorProfileMessage('');
+    const expectedText = 'löschen';
+    if ((deleteConfirmText || '').trim().toLowerCase() !== expectedText) {
+      const msg = `Bitte gib "${expectedText}" zur Bestätigung ein.`;
+      setDeleteAccountError(msg);
+      onErrorProfileMessage(msg);
+      return;
+    }
+    setIsDeletingAccount(true);
+    try {
+      const result = await deleteAccount({ confirm: expectedText });
+      if (result.success) {
+        onSuccessMessage('Konto erfolgreich gelöscht. Sie werden automatisch weitergeleitet...');
+      }
+    } catch (error) {
+      console.error('Account deletion error:', error);
+      const msg = error.message || 'Fehler beim Löschen des Kontos.';
+      setDeleteAccountError(msg);
+      onErrorProfileMessage(msg);
+    } finally {
+      setIsDeletingAccount(false);
+    }
+  };
+
+  const avatarProps = getAvatarDisplayProps({
+    avatar_robot_id: avatarRobotId,
+    display_name: displayName,
+    email: email || user?.email || user?.username,
+  });
+
+  const isLoading = isLoadingProfile;
+
+  return (
+    <>
+      <ProfileView
+        user={user}
+        profile={profile}
+        avatarProps={avatarProps}
+        isLoading={isLoading}
+        displayName={displayName}
+        setDisplayName={setDisplayName}
+        email={email}
+        setEmail={setEmail}
+        username={username}
+        setUsername={setUsername}
+        errorProfile={errorProfile}
+        isErrorProfileQuery={isErrorProfileQuery}
+        errorProfileQueryMessage={errorProfileQuery?.message}
+        onRetryProfileRefetch={() => queryClient.refetchQueries({ queryKey: ['profileData', user?.id] })}
+        onOpenAvatarModal={() => setShowAvatarModal(true)}
+        igelActive={getBetaFeatureState('igel_modus')}
+        onToggleIgelModus={handleIgelModusToggle}
+        laborActive={getBetaFeatureState('labor')}
+        onToggleLaborModus={handleLaborToggle}
+        isBetaFeaturesUpdating={isBetaFeaturesUpdating}
+        canManageCurrentAccount={canManageCurrentAccount}
+        showDeleteAccountForm={showDeleteAccountForm}
+        onToggleDeleteAccountForm={handleToggleDeleteAccountForm}
+        deleteConfirmText={deleteConfirmText}
+        setDeleteConfirmText={setDeleteConfirmText}
+        deleteAccountError={deleteAccountError}
+        isDeletingAccount={isDeletingAccount}
+        onDeleteAccountSubmit={handleDeleteAccountSubmit}
+      />
+
+      {showAvatarModal && (
+        <Suspense fallback={<div>Lade Avatare…</div>}>
+          <AvatarSelectionModal
+            isOpen={showAvatarModal}
+            currentAvatarId={avatarRobotId}
+            onSelect={handleAvatarSelect}
+            onClose={() => setShowAvatarModal(false)}
+          />
+        </Suspense>
+      )}
+    </>
+  );
+};
+
+export default ProfileInfoTabContainer;

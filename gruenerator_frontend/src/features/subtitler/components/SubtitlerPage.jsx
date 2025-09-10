@@ -13,6 +13,15 @@ import FeatureToggle from '../../../components/common/FeatureToggle'; // Import 
 import { useAuthStore } from '../../../stores/authStore';
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 
+// Subtitler Feature CSS - Loaded only when this feature is accessed
+import '../styles/subtitler.css';
+import '../styles/ConfirmSection.css';
+import '../styles/SubtitleEditor.css';
+import '../styles/SubtitleStyleSelector.css';
+import '../styles/SuccessScreen.css';
+import '../styles/VideoUploader.css';
+import '../styles/live-subtitle-preview.css';
+
 // --- Maintenance Flag ---
 // Set to true to enable maintenance mode for this page
 const IS_SUBTITLER_UNDER_MAINTENANCE = false;

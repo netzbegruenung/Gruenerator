@@ -266,8 +266,7 @@ Gib eine direkte, hilfreiche Antwort auf die Frage des Nutzers. Nutze die Inform
         options: {
           max_tokens: 1000,
           temperature: 0.3
-        },
-        provider: 'ionos'
+        }
       };
 
       console.log(`[SearXNGWebSearchService] Generating AI summary for query: "${originalQuery}"`);

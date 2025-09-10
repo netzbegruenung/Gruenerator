@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import { HiOutlineTrash, HiPencil, HiShare, HiEye, HiChatAlt2 } from 'react-icons/hi';
+import { HiOutlineTrash, HiPencil, HiShare, HiEye } from 'react-icons/hi';
+import { NotebookIcon } from '../../../config/icons';
 import { motion } from "motion/react";
 
 const QAList = ({ qaCollections = [], onEdit, onDelete, onShare, onView, loading = false }) => {
     const [deletingId, setDeletingId] = useState(null);
 
     const handleDelete = async (id, name) => {
-        if (window.confirm(`Möchten Sie die Q&A-Sammlung "${name}" wirklich löschen?`)) {
+        if (window.confirm(`Möchten Sie das Notebook "${name}" wirklich löschen?`)) {
             setDeletingId(id);
             try {
                 await onDelete(id);
@@ -20,7 +21,7 @@ const QAList = ({ qaCollections = [], onEdit, onDelete, onShare, onView, loading
         return (
             <div className="qa-list-loading">
                 <div className="loading-spinner"></div>
-                <p>Q&A-Sammlungen werden geladen...</p>
+                <p>Notebooks werden geladen...</p>
             </div>
         );
     }
@@ -28,10 +29,10 @@ const QAList = ({ qaCollections = [], onEdit, onDelete, onShare, onView, loading
     if (qaCollections.length === 0) {
         return (
             <div className="knowledge-empty-state centered">
-                <HiChatAlt2 size={48} className="empty-state-icon" />
-                <p>Sie haben noch keine Q&A-Sammlungen erstellt.</p>
+                <NotebookIcon size={48} className="empty-state-icon" />
+                <p>Sie haben noch keine Notebooks erstellt.</p>
                 <p className="empty-state-description">
-                    Klicken Sie auf "Q&A erstellen", um eine neue Q&A-Sammlung basierend auf Ihren Dokumenten zu erstellen.
+                    Klicken Sie auf "Notebook erstellen", um ein neues Notebook basierend auf Ihren Dokumenten zu erstellen.
                 </p>
             </div>
         );
@@ -69,21 +70,21 @@ const QAList = ({ qaCollections = [], onEdit, onDelete, onShare, onView, loading
                             <button
                                 className="icon-button style-as-link"
                                 onClick={() => onView(collection.id)}
-                                title="Q&A öffnen"
+                                title="Notebook öffnen"
                             >
                                 <HiEye />
                             </button>
                             <button
                                 className="icon-button style-as-link"
                                 onClick={() => onEdit(collection.id)}
-                                title="Q&A bearbeiten"
+                                title="Notebook bearbeiten"
                             >
                                 <HiPencil />
                             </button>
                             <button
                                 className="icon-button style-as-link"
                                 onClick={() => onShare(collection.id)}
-                                title="Q&A teilen"
+                                title="Notebook teilen"
                             >
                                 <HiShare />
                             </button>
@@ -91,7 +92,7 @@ const QAList = ({ qaCollections = [], onEdit, onDelete, onShare, onView, loading
                                 className="icon-button danger"
                                 onClick={() => handleDelete(collection.id, collection.name)}
                                 disabled={deletingId === collection.id}
-                                title="Q&A löschen"
+                                title="Notebook löschen"
                             >
                                 {deletingId === collection.id ? (
                                     <div className="loading-spinner-small"></div>

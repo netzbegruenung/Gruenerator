@@ -2,18 +2,22 @@ const axios = require('axios');
 
 /**
  * Keycloak API Client for user management operations
- * Uses Keycloak Admin REST API
+ * Uses Keycloak Admin REST API with client credentials flow
  */
 class KeycloakApiClient {
   constructor() {
     this.baseUrl = process.env.KEYCLOAK_BASE_URL || 'https://auth.services.moritz-waechter.de';
     this.realm = process.env.KEYCLOAK_REALM || 'Gruenerator';
+    
+    // Try client credentials first, fallback to admin username/password
+    this.clientId = process.env.KEYCLOAK_CLIENT_ID;
+    this.clientSecret = process.env.KEYCLOAK_CLIENT_SECRET;
     this.adminUsername = process.env.KEYCLOAK_ADMIN_USERNAME;
     this.adminPassword = process.env.KEYCLOAK_ADMIN_PASSWORD;
-    this.clientId = process.env.KEYCLOAK_ADMIN_CLIENT_ID || 'admin-cli';
+    this.adminClientId = process.env.KEYCLOAK_ADMIN_CLIENT_ID || 'admin-cli';
     
-    if (!this.adminUsername || !this.adminPassword) {
-      console.warn('[KeycloakAPI] Admin credentials not provided - some operations may fail');
+    if (!this.clientId && !this.adminUsername) {
+      console.warn('[KeycloakAPI] Neither client credentials nor admin credentials provided - some operations may fail');
     }
 
     this.accessToken = null;
@@ -30,7 +34,7 @@ class KeycloakApiClient {
   }
 
   /**
-   * Get admin access token for API calls
+   * Get admin access token for API calls using client credentials or username/password
    */
   async getAdminToken() {
     // Check if current token is still valid
@@ -41,20 +45,72 @@ class KeycloakApiClient {
     try {
       console.log('[KeycloakAPI] Requesting new admin token...');
       
-      const response = await axios.post(
-        `${this.baseUrl}/realms/master/protocol/openid-connect/token`,
-        new URLSearchParams({
-          grant_type: 'password',
-          client_id: this.clientId,
-          username: this.adminUsername,
-          password: this.adminPassword,
-        }),
-        {
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
+      let response;
+      
+      // Try client credentials flow first
+      if (this.clientId && this.clientSecret) {
+        console.log('[KeycloakAPI] Attempting client credentials flow...');
+        try {
+          response = await axios.post(
+            `${this.baseUrl}/realms/${this.realm}/protocol/openid-connect/token`,
+            new URLSearchParams({
+              grant_type: 'client_credentials',
+              client_id: this.clientId,
+              client_secret: this.clientSecret,
+            }),
+            {
+              headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+              }
+            }
+          );
+          console.log('[KeycloakAPI] ✅ Client credentials flow successful');
+        } catch (clientError) {
+          console.warn('[KeycloakAPI] Client credentials flow failed:', clientError.response?.data || clientError.message);
+          
+          // Fallback to username/password if available
+          if (this.adminUsername && this.adminPassword) {
+            console.log('[KeycloakAPI] Falling back to username/password flow...');
+            response = await axios.post(
+              `${this.baseUrl}/realms/master/protocol/openid-connect/token`,
+              new URLSearchParams({
+                grant_type: 'password',
+                client_id: this.adminClientId,
+                username: this.adminUsername,
+                password: this.adminPassword,
+              }),
+              {
+                headers: {
+                  'Content-Type': 'application/x-www-form-urlencoded'
+                }
+              }
+            );
+            console.log('[KeycloakAPI] ✅ Username/password flow successful');
+          } else {
+            throw clientError;
           }
         }
-      );
+      } else if (this.adminUsername && this.adminPassword) {
+        // Only username/password available
+        console.log('[KeycloakAPI] Using username/password flow...');
+        response = await axios.post(
+          `${this.baseUrl}/realms/master/protocol/openid-connect/token`,
+          new URLSearchParams({
+            grant_type: 'password',
+            client_id: this.adminClientId,
+            username: this.adminUsername,
+            password: this.adminPassword,
+          }),
+          {
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded'
+            }
+          }
+        );
+        console.log('[KeycloakAPI] ✅ Username/password flow successful');
+      } else {
+        throw new Error('No authentication credentials available');
+      }
 
       this.accessToken = response.data.access_token;
       this.tokenExpires = Date.now() + (response.data.expires_in * 1000) - 30000; // 30s buffer
@@ -66,7 +122,7 @@ class KeycloakApiClient {
       return this.accessToken;
     } catch (error) {
       console.error('[KeycloakAPI] ❌ Failed to get admin token:', error.response?.data || error.message);
-      throw new Error('Failed to authenticate with Keycloak admin API');
+      throw new Error(`Failed to authenticate with Keycloak admin API: ${error.message}`);
     }
   }
 
@@ -74,8 +130,8 @@ class KeycloakApiClient {
    * Ensure we have a valid admin token before making API calls
    */
   async ensureAuth() {
-    if (!this.adminUsername || !this.adminPassword) {
-      throw new Error('Keycloak admin credentials not configured');
+    if (!this.clientId && !this.adminUsername) {
+      throw new Error('Keycloak authentication credentials not configured');
     }
     await this.getAdminToken();
   }
@@ -223,16 +279,51 @@ class KeycloakApiClient {
    */
   async deleteUser(userId) {
     try {
+      console.log(`[KeycloakAPI] Starting user deletion process for Keycloak ID: ${userId}`);
+      
       await this.ensureAuth();
+      console.log(`[KeycloakAPI] Authentication successful, proceeding with deletion`);
       
-      console.log(`[KeycloakAPI] Deleting user: ${userId}`);
+      // First, check if user exists
+      try {
+        const existingUser = await this.getUserById(userId);
+        if (existingUser) {
+          console.log(`[KeycloakAPI] User found in Keycloak: ${existingUser.username} (${existingUser.email})`);
+        } else {
+          console.log(`[KeycloakAPI] User ${userId} not found in Keycloak - may already be deleted`);
+          return true; // Consider it successful if user doesn't exist
+        }
+      } catch (checkError) {
+        if (checkError.response?.status === 404) {
+          console.log(`[KeycloakAPI] User ${userId} not found in Keycloak (404) - considering deletion successful`);
+          return true;
+        }
+        console.warn(`[KeycloakAPI] Error checking user existence before deletion:`, checkError.message);
+        // Continue with deletion attempt anyway
+      }
       
-      await this.axiosClient.delete(`/users/${userId}`);
+      console.log(`[KeycloakAPI] Executing DELETE request to /users/${userId}`);
+      const response = await this.axiosClient.delete(`/users/${userId}`);
       
-      console.log('[KeycloakAPI] User deleted successfully');
+      console.log(`[KeycloakAPI] ✅ Delete request successful. Response status: ${response.status}`);
+      console.log(`[KeycloakAPI] User ${userId} deleted successfully from Keycloak`);
       return true;
     } catch (error) {
-      console.error('[KeycloakAPI] Error deleting user:', error.response?.data || error.message);
+      console.error(`[KeycloakAPI] ❌ Error deleting user ${userId}:`, error.response?.data || error.message);
+      console.error(`[KeycloakAPI] Error details:`, {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        url: error.config?.url,
+        method: error.config?.method
+      });
+      
+      // If user was already deleted (404), consider it successful
+      if (error.response?.status === 404) {
+        console.log(`[KeycloakAPI] User ${userId} was already deleted (404) - considering successful`);
+        return true;
+      }
+      
       throw error;
     }
   }

@@ -2,7 +2,8 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from "motion/react";
 import FeatureToggle from '../../../../components/common/FeatureToggle';
-import { HiOutlineExternalLink, HiOutlineGlobe, HiOutlineUserGroup, HiOutlineDatabase, HiOutlineCog, HiOutlinePhotograph, HiOutlineAcademicCap, HiOutlineUser, HiOutlineUsers, HiChatAlt2, HiOutlineOfficeBuilding, HiChip } from 'react-icons/hi';
+import { HiOutlineExternalLink, HiOutlineGlobe, HiOutlineUserGroup, HiOutlineDatabase, HiOutlineCog, HiOutlinePhotograph, HiOutlineAcademicCap, HiOutlineUser, HiOutlineUsers, HiOutlineOfficeBuilding, HiChip } from 'react-icons/hi';
+import { NotebookIcon } from '../../../../config/icons';
 import { useBetaFeatures } from '../../../../hooks/useBetaFeatures';
 
 const LaborTab = ({
@@ -27,7 +28,7 @@ const LaborTab = ({
     ELEARNING: 'e_learning',
     BUNDESTAG_API: 'bundestag_api_enabled',
     MEMORY: 'memory',
-    CONTENT_MANAGEMENT: 'contentManagement',
+    CANVA: 'canva',
   };
 
   const handleBetaToggle = (setter, currentValue, featureName) => {
@@ -101,7 +102,7 @@ const LaborTab = ({
           setter: (value) => updateUserBetaFeatures('qa', value),
           featureName: 'Q&A Sammlungen',
           checkboxLabel: 'Q&A-Tab in Texte & Grafik anzeigen und Funktionalität aktivieren',
-          icon: HiChatAlt2
+          icon: NotebookIcon
         };
       case BETA_VIEWS.ELEARNING:
         return {
@@ -137,16 +138,14 @@ const LaborTab = ({
           checkboxLabel: 'Memory-Tab in der Intelligenz-Sektion aktivieren',
           icon: HiChip
         };
-      case BETA_VIEWS.CONTENT_MANAGEMENT:
+      case BETA_VIEWS.CANVA:
         return {
-          title: 'Inhaltsverwaltung',
-          description: 'Verwalte deine Dokumente, Texte, Canva-Vorlagen, Q&A-Sammlungen und Wolke-Verbindungen in einem zentralen Tab. Bietet umfassende Funktionen für die Organisation und Bearbeitung deiner Inhalte.',
-          checked: getBetaFeatureState('contentManagement'),
-          setter: (value) => updateUserBetaFeatures('contentManagement', value),
-          featureName: 'Inhaltsverwaltung',
-          checkboxLabel: '\'Texte & Grafik\'-Tab im Profil anzeigen und Funktionalität aktivieren',
-          linkTo: '/profile/inhalte',
-          linkText: 'Zur Inhaltsverwaltung',
+          title: 'Canva Integration',
+          description: 'Erweiterte Canva-Integration mit Zugriff auf deine Designs, Vorlagen und Assets. Synchronisiere deine Canva-Inhalte und nutze sie direkt in der Grünerator-Plattform.',
+          checked: getBetaFeatureState('canva'),
+          setter: (value) => updateUserBetaFeatures('canva', value),
+          featureName: 'Canva Integration',
+          checkboxLabel: 'Canva-Tab in Texte & Grafik anzeigen und Funktionalität aktivieren',
           icon: HiOutlinePhotograph
         };
       default:
@@ -168,7 +167,7 @@ const LaborTab = ({
       <div className="profile-form-section">
         <div className="auth-form">
           <div className="profile-cards-grid">
-            {getAvailableFeatures().map(feature => {
+            {getAvailableFeatures().filter(f => f.key !== 'database').map(feature => {
               const config = getBetaFeatureConfig(feature.key);
               if (!config) return null;
 

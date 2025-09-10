@@ -40,6 +40,17 @@ router.use((req, res, next) => {
   next();
 });
 
+// Helper: generate a short, sentence-aware content preview
+function generateContentPreview(text, limit = 600) {
+  if (!text || typeof text !== 'string') return '';
+  if (text.length <= limit) return text;
+  const truncated = text.slice(0, limit);
+  const sentenceEnd = Math.max(truncated.lastIndexOf('.'), truncated.lastIndexOf('!'), truncated.lastIndexOf('?'));
+  if (sentenceEnd > limit * 0.5) return truncated.slice(0, sentenceEnd + 1);
+  const lastSpace = truncated.lastIndexOf(' ');
+  return lastSpace > limit * 0.6 ? `${truncated.slice(0, lastSpace)}...` : `${truncated}...`;
+}
+
 // =============================================================================
 // DOCUMENT MODE MANAGEMENT
 // =============================================================================
@@ -163,7 +174,10 @@ router.post('/upload-manual', ensureAuthenticated, upload.single('document'), as
       sourceType: 'manual',
       vectorCount: chunks.length,
       fileSize: file.size,
-      status: 'completed'
+      status: 'completed',
+      additionalMetadata: {
+        content_preview: generateContentPreview(extractedText)
+      }
     });
 
     // Store vectors in Qdrant only
@@ -247,7 +261,10 @@ router.post('/add-text', ensureAuthenticated, async (req, res) => {
       sourceType: 'manual',
       vectorCount: chunks.length,
       fileSize: content.length,
-      status: 'completed'
+      status: 'completed',
+      additionalMetadata: {
+        content_preview: generateContentPreview(content)
+      }
     });
 
     // Store vectors in Qdrant
@@ -422,11 +439,17 @@ router.get('/by-source/:sourceType?', ensureAuthenticated, async (req, res) => {
     }
     
     const documents = await postgresDocumentService.getDocumentsBySourceType(req.user.id, sourceType);
+    const enriched = documents.map((doc) => {
+      let meta = {};
+      try { meta = doc.metadata ? JSON.parse(doc.metadata) : {}; } catch (e) { meta = {}; }
+      const preview = meta.content_preview || (meta.full_text ? generateContentPreview(meta.full_text) : null);
+      return preview ? { ...doc, content_preview: preview } : doc;
+    });
     res.json({ 
       success: true, 
-      data: documents,
+      data: enriched,
       sourceType,
-      count: documents.length
+      count: enriched.length
     });
   } catch (error) {
     console.error('[Documents /by-source] Error:', error);
@@ -464,21 +487,29 @@ router.get('/user', ensureAuthenticated, async (req, res) => {
     
     // Use PostgreSQL + Qdrant exclusively (no more Supabase fallback)
     const documents = await postgresDocumentService.getDocumentsBySourceType(req.user.id, null);
+
+    // Enrich with content_preview from metadata for consistent frontend access
+    const enrichedDocs = documents.map((doc) => {
+      let meta = {};
+      try { meta = doc.metadata ? JSON.parse(doc.metadata) : {}; } catch (e) { meta = {}; }
+      const preview = meta.content_preview || (meta.full_text ? generateContentPreview(meta.full_text) : null);
+      return preview ? { ...doc, content_preview: preview } : doc;
+    });
     
     // Sort documents by created_at
-    documents.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    enrichedDocs.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     
-    console.log(`[Documents /user] Found ${documents.length} documents from PostgreSQL`);
+    console.log(`[Documents /user] Found ${enrichedDocs.length} documents from PostgreSQL`);
     
     res.json({
       success: true,
-      data: documents,
+      data: enrichedDocs,
       meta: {
-        count: documents.length,
+        count: enrichedDocs.length,
         userMode: userMode,
         source: 'postgres'
       },
-      message: `Found ${documents.length} documents`
+      message: `Found ${enrichedDocs.length} documents`
     });
 
   } catch (error) {

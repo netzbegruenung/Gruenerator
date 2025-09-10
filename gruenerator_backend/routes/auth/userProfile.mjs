@@ -1,7 +1,9 @@
 import express from 'express';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { getProfileService } from '../../services/ProfileService.mjs';
+import { getQdrantDocumentService } from '../../services/DocumentSearchService.js';
 import authMiddlewareModule from '../../middleware/authMiddleware.js';
+import { KeycloakApiClient } from '../../utils/keycloakApiClient.js';
 
 const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
 
@@ -233,6 +235,8 @@ router.patch('/profile/beta-features', ensureAuthenticated, async (req, res) => 
       'e_learning',
       'memory',
       'contentManagement',
+      'canva',
+      'labor',
       // Profile settings treated as beta features for consistency
       'igel_modus',
       'bundestag_api_enabled'
@@ -448,3 +452,117 @@ router.patch('/profile/bundestag-api', ensureAuthenticated, async (req, res) => 
 });
 
 export default router; 
+
+// === ACCOUNT DELETION (placed at end to keep exports intact) ===
+// Single route to delete all user data and account
+router.delete('/delete-account', ensureAuthenticated, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const keycloakId = req.user.keycloak_id;
+
+    // Accept confirmation from body or query; support multiple variants
+    const { confirm, confirmation, password } = req.body || {};
+    const qsConfirm = req.query?.confirm;
+    const rawConfirm = confirm || confirmation || password || qsConfirm || '';
+    const normalized = String(rawConfirm).trim().toLowerCase();
+
+    const acceptedPhrases = new Set([
+      'löschen',
+      'loeschen',
+      'konto löschen',
+      'konto loeschen',
+      'konto löschen',
+      'konto loeschen',
+      'delete'
+    ]);
+
+    if (!acceptedPhrases.has(normalized)) {
+      console.log(`[User Delete] Invalid confirmation attempt for user ${userId}: "${rawConfirm}"`);
+      return res.status(400).json({
+        success: false,
+        error: 'invalid_confirmation',
+        message: 'Bestätigungstext fehlt oder ist falsch. Bitte gib "löschen" ein.'
+      });
+    }
+
+    console.log(`[User Delete] Starting account deletion process for user ${userId}`);
+    console.log(`[User Delete] User email: ${req.user.email || 'N/A'}, username: ${req.user.username || 'N/A'}, keycloak_id: ${keycloakId || 'N/A'}`);
+
+    // Step 1: Delete vectors in Qdrant (best-effort)
+    console.log(`[User Delete] Step 1: Deleting Qdrant vectors for user ${userId}`);
+    try {
+      const qdrantDocService = getQdrantDocumentService();
+      await qdrantDocService.deleteUserDocuments(userId);
+      console.log(`[User Delete] Successfully deleted Qdrant vectors for user ${userId}`);
+    } catch (vectorErr) {
+      console.warn(`[User Delete] Warning deleting Qdrant vectors for user ${userId}:`, vectorErr.message);
+    }
+
+    // Step 2: Delete from Keycloak (if keycloak_id exists)
+    if (keycloakId) {
+      console.log(`[User Delete] Step 2: Deleting user from Keycloak with ID ${keycloakId}`);
+      try {
+        const keycloakClient = new KeycloakApiClient();
+        console.log(`[User Delete] Keycloak client initialized, attempting deletion...`);
+        
+        await keycloakClient.deleteUser(keycloakId);
+        console.log(`[User Delete] ✅ Successfully deleted user from Keycloak: ${keycloakId}`);
+      } catch (keycloakErr) {
+        console.error(`[User Delete] ❌ Error deleting user from Keycloak ${keycloakId}:`, keycloakErr);
+        console.error(`[User Delete] Keycloak error details:`, {
+          message: keycloakErr.message,
+          code: keycloakErr.code,
+          status: keycloakErr.response?.status,
+          statusText: keycloakErr.response?.statusText,
+          data: keycloakErr.response?.data,
+          stack: keycloakErr.stack
+        });
+        console.warn(`[User Delete] ⚠️ Continuing with database deletion despite Keycloak error`);
+        // Don't fail the entire deletion if Keycloak deletion fails
+        // The user might have been deleted from Keycloak already or there might be connectivity issues
+      }
+    } else {
+      console.log(`[User Delete] Step 2: Skipping Keycloak deletion - no keycloak_id found for user ${userId}`);
+      console.log(`[User Delete] User object keycloak_id field:`, req.user.keycloak_id);
+    }
+
+    // Step 3: Delete user profile (cascades to most user-owned data)
+    console.log(`[User Delete] Step 3: Deleting user profile and cascading data for user ${userId}`);
+    const profileService = getProfileService();
+    const deleteResult = await profileService.deleteProfile(userId);
+    console.log(`[User Delete] Profile deletion result for user ${userId}:`, deleteResult);
+
+    // Step 4: Logout and clear session/cookie
+    console.log(`[User Delete] Step 4: Clearing session and cookies for user ${userId}`);
+    req.logout?.(() => {});
+    if (req.session) {
+      try {
+        await new Promise((resolve) => req.session.destroy(() => resolve()));
+        console.log(`[User Delete] Session destroyed for user ${userId}`);
+      } catch (e) {
+        console.warn(`[User Delete] Session destruction warning for user ${userId}:`, e?.message);
+      }
+    }
+    res.clearCookie('gruenerator.sid', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax'
+    });
+    console.log(`[User Delete] Cookies cleared for user ${userId}`);
+
+    console.log(`[User Delete] ✅ Account deletion completed successfully for user ${userId}`);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Dein Account wurde erfolgreich gelöscht.'
+    });
+
+  } catch (error) {
+    console.error(`[User Delete] ❌ Error during account deletion for user ${req.user?.id}:`, error);
+    return res.status(500).json({
+      success: false,
+      error: 'deletion_failed',
+      message: 'Es gab einen Fehler beim Löschen deines Accounts. Bitte kontaktiere den Support.'
+    });
+  }
+});

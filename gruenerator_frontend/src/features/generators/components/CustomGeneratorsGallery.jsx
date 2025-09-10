@@ -7,7 +7,7 @@ import GeneratorCardSkeleton from './GeneratorCardSkeleton';
 const GeneratorCard = ({ generator }) => {
   const handleCardNavigation = (e) => {
     e.preventDefault();
-    window.open(`/generator/${generator.slug}`, '_blank', 'noopener,noreferrer');
+    window.open(`/gruenerator/${generator.slug}`, '_blank', 'noopener,noreferrer');
   };
 
   return (

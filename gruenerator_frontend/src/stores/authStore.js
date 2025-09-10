@@ -586,35 +586,77 @@ export const useAuthStore = create((set, get) => ({
 
   // Account deletion for gruenerator users
   deleteAccount: async (confirmationData) => {
+    const authUrl = `${AUTH_BASE_URL}/auth/delete-account`;
+
+    // Helper: try to parse JSON, gracefully fallback to text/empty
+    const parseResponse = async (response) => {
+      try {
+        if (response.status === 204) return { data: null };
+        const contentType = response.headers.get('content-type') || '';
+        const text = await response.text();
+        if (!text) return { data: null };
+        if (contentType.includes('application/json')) {
+          return { data: JSON.parse(text) };
+        }
+        // Not JSON – return raw text for diagnostics
+        return { data: { raw: text } };
+      } catch (e) {
+        // Parsing failed – treat as no data
+        return { data: null };
+      }
+    };
+
+    // Helper: perform a DELETE request and parse response safely
+    const doDelete = async (url, options) => {
+      const response = await fetch(url, options);
+      const { data } = await parseResponse(response);
+      return { response, data };
+    };
+
     try {
-      const authUrl = `${AUTH_BASE_URL}/auth/delete-account`;
-      const response = await fetch(authUrl, {
+      // Primary attempt: JSON body (some servers accept bodies for DELETE)
+      let { response, data } = await doDelete(authUrl, {
         method: 'DELETE',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
-        body: JSON.stringify(confirmationData),
+        body: JSON.stringify(confirmationData || {}),
       });
 
-      const data = await response.json();
+      // Fallback: if not OK, try query param (for servers not accepting DELETE bodies)
+      if (!response.ok && confirmationData && (confirmationData.confirm || confirmationData.password || confirmationData.confirmation)) {
+        const confirmVal = encodeURIComponent(
+          confirmationData.confirm || confirmationData.password || confirmationData.confirmation
+        );
+        ({ response, data } = await doDelete(`${authUrl}?confirm=${confirmVal}`, {
+          method: 'DELETE',
+          credentials: 'include',
+          headers: { 'Accept': 'application/json' },
+        }));
+      }
 
-      if (!response.ok) {
-        throw new Error(data.message || 'Kontolöschung fehlgeschlagen');
+      const contentType = response.headers.get('content-type') || '';
+      const isHtml = contentType.includes('text/html') || (data && typeof data.raw === 'string' && data.raw.trim().startsWith('<!DOCTYPE'));
+
+      if (!response.ok || isHtml) {
+        const message = (data && (data.message || data.error)) || 'Kontolöschung fehlgeschlagen';
+        throw new Error(message);
       }
 
       // Clear local auth state
       get().clearAuth();
-      
+
       return {
         success: true,
-        message: data.message
+        message: (data && data.message) || 'Konto erfolgreich gelöscht',
       };
 
     } catch (error) {
       throw {
         success: false,
-        message: error.message || 'Kontolöschung fehlgeschlagen'
+        message: error?.message || 'Kontolöschung fehlgeschlagen',
       };
     }
   },
@@ -711,4 +753,3 @@ const setLoginIntent = () => {
     // Ignore localStorage errors
   }
 };
-

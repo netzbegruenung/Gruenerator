@@ -261,8 +261,11 @@ const useApiSubmit = (endpoint) => {
                 field !== null && 
                 typeof field.label === 'string' &&
                 typeof field.name === 'string' &&
-                (field.type === 'text' || field.type === 'textarea') &&
-                typeof field.required === 'boolean'
+                (field.type === 'text' || field.type === 'textarea' || field.type === 'select') &&
+                typeof field.required === 'boolean' &&
+                // Validate options array for select fields
+                (field.type !== 'select' || (Array.isArray(field.options) && field.options.length > 0 &&
+                 field.options.every(opt => opt && typeof opt.label === 'string' && typeof opt.value === 'string')))
             )
         ) {
             setSuccess(true);

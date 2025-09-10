@@ -4,6 +4,9 @@ import { useDocumentsStore } from '../../stores/documentsStore';
 import apiClient from '../../components/utils/apiClient';
 import ErrorBoundary from '../../components/ErrorBoundary';
 
+// Document Feature CSS - Loaded only when this feature is accessed
+import '../../assets/styles/features/documents/document-view.css';
+
 const DocumentViewPage = () => {
   const { documentId } = useParams();
   const navigate = useNavigate();

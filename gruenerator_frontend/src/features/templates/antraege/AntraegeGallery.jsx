@@ -5,6 +5,9 @@ import { useAntraegeGallery } from '../../../hooks/useAntraegeGallery';
 
 import AntragCardSkeleton from './components/AntragCardSkeleton'; // Adjust the path if necessary
 
+// Template Gallery Feature CSS - Loaded only when this feature is accessed
+import '../../../assets/styles/pages/template-gallery.css';
+
 // We will use the existing gallery CSS, assuming it's globally imported or linked
 const DEBOUNCE_DELAY = 500; // Delay in milliseconds (e.g., 500ms)
 

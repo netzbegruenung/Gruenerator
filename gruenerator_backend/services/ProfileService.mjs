@@ -102,6 +102,7 @@ class ProfileService {
                 anweisungen: profileData.anweisungen || false,
                 memory: profileData.memory || false,
                 memory_enabled: profileData.memory_enabled || false,
+                canva: profileData.canva || false,
                 avatar_robot_id: profileData.avatar_robot_id || 1
             };
 
@@ -187,7 +188,9 @@ class ProfileService {
                 'qa': 'qa',
                 'sharepic': 'sharepic',
                 'anweisungen': 'anweisungen',
-                'memory': 'memory'
+                'memory': 'memory',
+                'canva': 'canva',
+                'labor': 'labor_enabled'
             };
 
             if (featureColumnMap[feature]) {
@@ -274,11 +277,39 @@ class ProfileService {
      */
     async deleteProfile(userId) {
         try {
+            console.log(`[ProfileService] Starting profile deletion for user ${userId}`);
             await this.db.ensureInitialized();
+            
+            // First, get user info for logging
+            const userInfo = await this.db.queryOne(
+                'SELECT email, username FROM profiles WHERE id = $1',
+                [userId],
+                { table: this.tableName }
+            );
+            if (userInfo) {
+                console.log(`[ProfileService] Deleting user profile: ${userInfo.email || 'N/A'} (${userInfo.username || 'N/A'})`);
+            } else {
+                console.warn(`[ProfileService] User ${userId} not found in profiles table`);
+            }
+            
+            console.log(`[ProfileService] Executing DELETE from ${this.tableName} WHERE id = ${userId}`);
             const result = await this.db.delete(this.tableName, { id: userId });
+            
+            if (result && result.length > 0) {
+                console.log(`[ProfileService] ✅ Successfully deleted user profile ${userId}. Deleted rows:`, result.length);
+                console.log(`[ProfileService] CASCADE deletion will now automatically remove related data from tables with ON DELETE CASCADE constraints`);
+            } else {
+                console.warn(`[ProfileService] ⚠️ Delete operation returned no rows for user ${userId} - user may not exist`);
+            }
+            
             return result;
         } catch (error) {
-            console.error('[ProfileService] Error deleting profile:', error);
+            console.error(`[ProfileService] ❌ Error deleting profile for user ${userId}:`, error);
+            console.error(`[ProfileService] Error details:`, {
+                message: error.message,
+                code: error.code,
+                stack: error.stack
+            });
             throw error;
         }
     }
@@ -340,7 +371,9 @@ class ProfileService {
             qa: profile.qa || false,
             sharepic: profile.sharepic || false,
             anweisungen: profile.anweisungen || false,
-            memory: profile.memory || false
+            memory: profile.memory || false,
+            canva: profile.canva || false,
+            labor: profile.labor_enabled || false
         };
         
         return {
@@ -368,7 +401,8 @@ class ProfileService {
             'qa': 'qa',
             'sharepic': 'sharepic',
             'anweisungen': 'anweisungen',
-            'memory': 'memory'
+            'memory': 'memory',
+            'canva': 'canva'
         };
 
         // Update all individual properties from profile

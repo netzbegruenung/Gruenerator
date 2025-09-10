@@ -22,22 +22,7 @@ const useGeneratedTextStore = create((set, get) => ({
   // Get generated text for a specific component
   getGeneratedText: (componentName) => {
     const state = get();
-    const content = state.generatedTexts[componentName] || '';
-    
-    // Debug logging for mixed content retrieval
-    if (process.env.NODE_ENV === 'development' && content) {
-      const isMixedContent = content && typeof content === 'object' && (content.sharepic || content.social);
-      console.log('[generatedTextStore] getGeneratedText:', {
-        componentName,
-        contentType: typeof content,
-        isMixedContent,
-        hasSharepic: !!(content && typeof content === 'object' && content.sharepic),
-        hasSocial: !!(content && typeof content === 'object' && content.social),
-        contentLength: typeof content === 'string' ? content.length : 'object'
-      });
-    }
-    
-    return content;
+    return state.generatedTexts[componentName] || '';
   },
   
   // Get metadata for a specific component

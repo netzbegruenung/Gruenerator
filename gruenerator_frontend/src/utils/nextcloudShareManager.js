@@ -28,13 +28,17 @@ export class NextcloudShareManager {
      */
     static async getShareLinkById(shareLinkId) {
         try {
-            const response = await apiClient.get(`/nextcloud/share-links/${shareLinkId}`);
-            
-            if (response.data && response.data.success) {
-                return response.data.shareLink;
-            } else {
+            // Backend does not expose /nextcloud/share-links/:id; fetch all and filter
+            const response = await apiClient.get('/nextcloud/share-links');
+            if (!(response.data && response.data.success)) {
+                throw new Error('Failed to load share links');
+            }
+            const shareLinks = response.data.shareLinks || [];
+            const link = shareLinks.find(l => String(l.id) === String(shareLinkId));
+            if (!link) {
                 throw new Error('Share link not found');
             }
+            return link;
         } catch (error) {
             console.error('[NextcloudShareManager] Error getting share link by ID:', error);
             throw new Error(`Fehler beim Laden des Wolke-Links: ${error.message}`);
@@ -139,6 +143,29 @@ export class NextcloudShareManager {
         } catch (error) {
             console.error('[NextcloudShareManager] Error uploading test file:', error);
             throw new Error(`Fehler beim Test-Upload: ${error.message}`);
+        }
+    }
+
+    /**
+     * Upload a file to a share link (non-test endpoint)
+     * Maintains compatibility with older utility usage
+     */
+    static async upload(shareLinkId, content, filename = 'file.txt') {
+        try {
+            const response = await apiClient.post('/nextcloud/upload', {
+                shareLinkId,
+                content,
+                filename
+            });
+            
+            if (response.data) {
+                return response.data;
+            } else {
+                throw new Error('Upload failed');
+            }
+        } catch (error) {
+            console.error('[NextcloudShareManager] Error uploading file:', error);
+            throw new Error(`Fehler beim Upload: ${error.message}`);
         }
     }
 

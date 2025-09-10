@@ -1,8 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, lazy } from 'react';
 import { useParams, Link } from 'react-router-dom';
 const ReactMarkdown = lazy(() => import('react-markdown'));
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import AntragEditForm from './AntragEditForm';
+
+// Antrag Detail Feature CSS - Loaded only when this feature is accessed
+import '../../../assets/styles/pages/AntragDetailPage.css';
 
 // Auth Backend URL aus Environment Variable oder Fallback zu aktuellem Host
 const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';

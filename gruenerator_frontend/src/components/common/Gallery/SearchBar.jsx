@@ -3,6 +3,9 @@ import PropTypes from 'prop-types';
 import { motion } from "motion/react";
 import AdvancedSearchOptions from './AdvancedSearchOptions';
 
+// SearchBar Feature CSS - Loaded only when this feature is accessed
+import '../../../assets/styles/components/SearchBar.css';
+
 const SearchBar = ({
   searchTerm,
   onSearchChange,

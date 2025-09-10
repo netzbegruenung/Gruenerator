@@ -2,6 +2,9 @@ import React, { useRef, forwardRef } from 'react';
 import PropTypes from 'prop-types';
 import { LazyMotion, m, AnimatePresence } from 'motion/react';
 
+// Slogan Alternatives Feature CSS - Loaded only when this feature is accessed
+import '../../../../assets/styles/components/actions/slogan-alternatives.css';
+
 // Lazy load motion features
 const loadFeatures = () => import('motion/react').then(res => res.domAnimation);
 

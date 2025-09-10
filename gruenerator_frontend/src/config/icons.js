@@ -24,7 +24,8 @@ import {
   FaFacebook, 
   FaTwitter, 
   FaLinkedin,
-  FaCloud 
+  FaCloud,
+  FaBook 
 } from 'react-icons/fa';
 
 import { FaFileWord } from 'react-icons/fa6';
@@ -36,7 +37,11 @@ import { GiHedgehog } from 'react-icons/gi';
 import { 
   HiInformationCircle,
   HiOutlineTrash,
-  HiCog 
+  HiCog,
+  HiRefresh,
+  HiArrowLeft,
+  HiLockClosed,
+  HiBeaker
 } from 'react-icons/hi';
 
 import { 
@@ -98,6 +103,7 @@ export const ICONS = {
     cloud: FaCloud,
     word: FaFileWord,
     gruenerator: HiCog,
+    notebook: FaBook,
     delete: HiOutlineTrash,
     edit: PiPencilSimple,
     add: PiPlus,
@@ -105,7 +111,11 @@ export const ICONS = {
     upload: FiUpload,
     close: FiX,
     check: FiCheck,
-    arrowRight: PiArrowRight
+    arrowRight: PiArrowRight,
+    back: HiArrowLeft,
+    refresh: HiRefresh,
+    lock: HiLockClosed,
+    labor: HiBeaker
   },
 
   // UI/Form icons for form elements and components
@@ -187,3 +197,6 @@ export const ICON_CATEGORIES = {
 
 // Convenience export for the standard assistant/chat icon
 export const AssistantIcon = RiRobot3Line;
+
+// Convenience export for the notebook icon
+export const NotebookIcon = FaBook;
