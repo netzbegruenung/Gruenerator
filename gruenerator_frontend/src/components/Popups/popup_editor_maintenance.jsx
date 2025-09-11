@@ -1,4 +1,5 @@
 import React from 'react';
+import '../../assets/styles/components/popups/help.css';
 
 const EditorMaintenancePopup = ({ isVisible, onClose }) => {
   const handleOverlayClick = (e) => {

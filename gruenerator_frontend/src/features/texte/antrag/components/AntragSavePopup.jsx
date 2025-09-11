@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { useOptimizedAuth } from '../../../../hooks/useAuth';
+import '../../../../assets/styles/components/popups/AntragSavePopup.css';
 import SubmitButton from '../../../../components/common/SubmitButton'; // Adjust path if needed
 import TextInput from '../../../../components/common/Form/Input/TextInput'; // CORRECTED PATH
 import FormSelect from '../../../../components/common/Form/Input/FormSelect';

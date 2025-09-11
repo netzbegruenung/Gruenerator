@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import '../../assets/styles/components/ui/menu-dropdown.css';
 
 const MenuDropdown = ({ trigger, children, onClose, className = '', alignRight = true }) => {
   const [isOpen, setIsOpen] = useState(false);

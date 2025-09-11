@@ -49,6 +49,8 @@ const LoginPage = ({
   const navigate = useNavigate();
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const { loading, isAuthenticated, setLoginIntent } = useInstantAuth();
+  const searchParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+  const redirectToParam = searchParams.get('redirectTo');
 
   // Get success message from navigation state (e.g., from registration)
   const successMessage = location.state?.message;
@@ -99,7 +101,7 @@ const LoginPage = ({
     try {
       setLoginIntent();
       
-      const authUrl = `${AUTH_BASE_URL}/auth/login?source=gruenes-netz-login`;
+      const authUrl = `${AUTH_BASE_URL}/auth/login?source=gruenes-netz-login${redirectToParam ? `&redirectTo=${encodeURIComponent(redirectToParam)}` : ''}`;
       console.log(`[LoginPage] Grünes Netz Login - Redirecting to: ${authUrl}`);
       window.location.href = authUrl;
     } catch (err) {
@@ -113,7 +115,7 @@ const LoginPage = ({
     try {
       setLoginIntent();
       
-      const authUrl = `${AUTH_BASE_URL}/auth/login?source=netzbegruenung-login`;
+      const authUrl = `${AUTH_BASE_URL}/auth/login?source=netzbegruenung-login${redirectToParam ? `&redirectTo=${encodeURIComponent(redirectToParam)}` : ''}`;
       console.log(`[LoginPage] Netzbegrünung Login - Redirecting to: ${authUrl}`);
       window.location.href = authUrl;
     } catch (err) {
@@ -127,7 +129,7 @@ const LoginPage = ({
     try {
       setLoginIntent();
       
-      const authUrl = `${AUTH_BASE_URL}/auth/login?source=gruenerator-login`;
+      const authUrl = `${AUTH_BASE_URL}/auth/login?source=gruenerator-login${redirectToParam ? `&redirectTo=${encodeURIComponent(redirectToParam)}` : ''}`;
       console.log(`[LoginPage] Grünerator Login - Redirecting to: ${authUrl}`);
       window.location.href = authUrl;
     } catch (err) {
@@ -141,7 +143,7 @@ const LoginPage = ({
     try {
       setLoginIntent();
       
-      const authUrl = `${AUTH_BASE_URL}/auth/login?source=gruene-oesterreich-login`;
+      const authUrl = `${AUTH_BASE_URL}/auth/login?source=gruene-oesterreich-login${redirectToParam ? `&redirectTo=${encodeURIComponent(redirectToParam)}` : ''}`;
       console.log(`[LoginPage] Grüne Österreich Login - Redirecting to: ${authUrl}`);
       window.location.href = authUrl;
     } catch (err) {
