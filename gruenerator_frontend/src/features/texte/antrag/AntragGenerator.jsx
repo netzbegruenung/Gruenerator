@@ -15,10 +15,10 @@ import { useGeneratorKnowledgeStore } from '../../../stores/core/generatorKnowle
 import useKnowledge from '../../../components/hooks/useKnowledge';
 import { useTabIndex, useBaseFormTabIndex } from '../../../hooks/useTabIndex';
 import AntragSavePopup from './components/AntragSavePopup';
-import { saveAntrag } from './antragSaveUtils';
 import FormSelect from '../../../components/common/Form/Input/FormSelect';
 import BundestagDocumentSelector from '../../../components/common/BundestagDocumentSelector/BundestagDocumentSelector';
 import { prepareFilesForSubmission } from '../../../utils/fileAttachmentUtils';
+import apiClient from '../../../components/utils/apiClient';
 
 const REQUEST_TYPES = {
   ANTRAG: 'antrag',
@@ -210,7 +210,10 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
         gliederung: getValues('gliederung') || '',
         ...popupData,
       };
-      await saveAntrag(payload);
+      // Direct API call to save antrag
+      const response = await apiClient.post('/antraege', payload);
+      const savedAntrag = response.data;
+      console.log('[AntragGenerator] Antrag erfolgreich gespeichert:', savedAntrag);
     } catch (saveError) {
       console.error('[AntragGenerator] Error during final save of antrag:', saveError);
     } finally {

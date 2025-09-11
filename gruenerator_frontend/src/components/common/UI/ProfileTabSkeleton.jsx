@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion } from "motion/react";
+import '../../../assets/styles/components/ui/profile-skeleton.css';
 
 const ProfileTabSkeleton = ({ type = 'default', itemCount = 3 }) => {
   // Gemeinsamer Shimmer-Effekt für alle Skeleton-Elemente

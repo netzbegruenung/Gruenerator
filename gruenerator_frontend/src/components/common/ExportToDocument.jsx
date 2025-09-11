@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import ReactDOM from 'react-dom';
 import PropTypes from 'prop-types';
 import useApiSubmit from '../hooks/useApiSubmit';
+import '../../assets/styles/components/actions/exportToDocument.css';
 import { IoDocumentOutline, IoCopyOutline, IoOpenOutline, IoCloseOutline, IoPeopleOutline, IoFlashOutline, IoLinkOutline, IoCheckmark, IoDownloadOutline } from "react-icons/io5";
 import { useLocation } from 'react-router-dom';
 import { useUnmount } from 'react-use';

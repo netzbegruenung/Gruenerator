@@ -2,6 +2,7 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { HiX } from 'react-icons/hi';
 import { truncateWithSuffix } from '../../utils/textUtils';
+import '../../assets/styles/components/ui/AttachedFilesList.css';
 
 const AttachedFilesList = ({ files = [], onRemoveFile, className = '', fileMetadata = {}, privacyModeActive = false }) => {
   if (!files || files.length === 0) {

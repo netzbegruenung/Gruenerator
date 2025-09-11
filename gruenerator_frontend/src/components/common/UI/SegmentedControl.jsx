@@ -1,5 +1,6 @@
 import React, { useCallback } from 'react';
 import PropTypes from 'prop-types';
+import '../../../assets/styles/components/ui/SegmentedControl.css';
 
 // Define the SegmentedControl component
 const SegmentedControl = ({

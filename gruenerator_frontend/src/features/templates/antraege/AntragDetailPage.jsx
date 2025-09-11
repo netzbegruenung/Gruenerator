@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef, lazy } from 'react';
 import { useParams, Link } from 'react-router-dom';
 const ReactMarkdown = lazy(() => import('react-markdown'));
 import { useOptimizedAuth } from '../../../hooks/useAuth';
-import AntragEditForm from './AntragEditForm';
 
 // Antrag Detail Feature CSS - Loaded only when this feature is accessed
 import '../../../assets/styles/pages/AntragDetailPage.css';
@@ -272,15 +271,12 @@ const AntragDetailPage = () => {
           </>
         ) : (
           /* --- Edit Mode --- */
-          <AntragEditForm 
-            editedAntrag={editedAntrag}
-            handleInputChange={handleInputChange}
-            handleMarkdownChange={handleMarkdownChange}
-            handleSaveClick={handleSaveClick}
-            handleCancelClick={handleCancelClick}
-            loading={loading}
-            error={error}
-          />
+          <div className="antrag-edit-placeholder">
+            <p>Edit functionality has been removed.</p>
+            <button onClick={handleCancelClick} className="button button-secondary">
+              Cancel
+            </button>
+          </div>
         )}
 
         {/* Optional: Link zurück zur Übersicht */}

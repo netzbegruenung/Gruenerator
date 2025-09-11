@@ -4,6 +4,8 @@ const Select = lazy(() => import('react-select'));
 import FormFieldWrapper from '../Form/Input/FormFieldWrapper';
 import SourceTag from './SourceTag';
 import OptionIcon from './OptionIcon';
+import '../../../assets/styles/components/ui/react-select.css';
+import '../../../assets/styles/components/ui/enhanced-select.css';
 
 /**
  * EnhancedSelect - A wrapper around react-select with native support for tags, icons, and metadata
