@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { HiRefresh } from 'react-icons/hi';
+import '../../../assets/styles/components/ui/image-slider.css';
 
 // Lazy load react-image-gallery and its styles
 const loadImageGallery = async () => {

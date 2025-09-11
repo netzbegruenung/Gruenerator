@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { IoCopyOutline, IoCheckmarkOutline } from "react-icons/io5";
 import { HiCog, HiPencil, HiSave, HiX } from "react-icons/hi";
+import '../../assets/styles/components/actions/action-buttons.css';
 import { IoArrowUndoOutline, IoArrowRedoOutline } from "react-icons/io5";
 import { getIcon } from '../../config/icons';
 import { copyFormattedContent } from '../utils/commonFunctions';

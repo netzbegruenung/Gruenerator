@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { HiQuestionMarkCircle } from 'react-icons/hi';
+import '../../assets/styles/components/ui/tooltip.css';
 
 const HelpTooltip = ({ children, className = '' }) => {
   const [isVisible, setIsVisible] = useState(false);

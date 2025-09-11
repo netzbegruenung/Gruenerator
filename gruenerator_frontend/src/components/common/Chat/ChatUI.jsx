@@ -2,6 +2,7 @@ import React, { lazy, Suspense, useRef, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { motion, AnimatePresence } from 'motion/react';
 import { AssistantIcon } from '../../../config/icons';
+import './ChatUI.css';
 const ReactMarkdown = lazy(() => import('react-markdown'));
 import TypingIndicator from '../UI/TypingIndicator';
 

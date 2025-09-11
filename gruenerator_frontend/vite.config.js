@@ -18,7 +18,7 @@ export default defineConfig(({ command }) => ({
       '@tanstack/react-query', 'zustand',
       '@supabase/supabase-js',
       'axios', 'uuid', 'dompurify', 'file-saver',
-      'prop-types', 'turndown'
+      'prop-types'
     ],
     exclude: [
       'motion', 'lodash', 'browser-image-compression'
@@ -76,7 +76,7 @@ export default defineConfig(({ command }) => ({
           'core-vendor': ['react', 'react-dom', 'react-router-dom'],
           'state-vendor': ['@tanstack/react-query', 'zustand'],
           'ui-vendor': ['react-tooltip', 'react-hook-form', 'react-dropzone'],
-          'utils-vendor': ['lodash', 'uuid', 'turndown', 'dompurify'],
+          'utils-vendor': ['lodash', 'uuid', 'dompurify'],
           'motion-vendor': ['motion']
         }
       }

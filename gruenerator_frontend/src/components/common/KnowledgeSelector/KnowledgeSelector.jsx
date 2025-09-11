@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, memo, useCallback, useRef } from '
 import PropTypes from 'prop-types';
 import FormSelect from '../Form/Input/FormSelect';
 import EnhancedSelect from '../EnhancedSelect';
+import '../../../assets/styles/components/ui/knowledge-selector.css';
 import { useGeneratorKnowledgeStore } from '../../../stores/core/generatorKnowledgeStore';
 import { useGroups, useAllGroupsContent } from '../../../features/groups/hooks/useGroups';
 import { useBetaFeatures } from '../../../hooks/useBetaFeatures';
