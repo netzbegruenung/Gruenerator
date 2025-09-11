@@ -46,7 +46,6 @@ export const useProfile = (userId) => {
   // Sync React Query data with profileStore
   useEffect(() => {
     if (query.data) {
-      console.log(`[Profile Hook] 📄 Profile data received for user ${actualUserId}: avatar_robot_id=${query.data.avatar_robot_id}`);
       syncProfile(query.data);
     }
   }, [query.data, syncProfile, actualUserId]);
@@ -225,6 +224,13 @@ export const useQACollections = ({ isActive, enabled = true } = {}) => {
     }
   });
 
+  const syncMutation = useMutation({
+    mutationFn: (collectionId) => profileApiService.syncQACollection(collectionId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.qaCollections(user?.id) });
+    }
+  });
+
   const getQACollection = (collectionId) => {
     const collections = query.data || [];
     return collections.find(c => c.id === collectionId);
@@ -243,27 +249,37 @@ export const useQACollections = ({ isActive, enabled = true } = {}) => {
     updateQACollection: (collectionId, collectionData) => 
       updateMutation.mutateAsync({ collectionId, collectionData }),
     deleteQACollection: deleteMutation.mutateAsync,
+    syncQACollection: syncMutation.mutateAsync,
     fetchAvailableDocuments: profileApiService.getAvailableDocuments,
     getQACollection,
     isCreating: createMutation.isPending,
     isUpdating: updateMutation.isPending,
     isDeleting: deleteMutation.isPending,
+    isSyncing: syncMutation.isPending,
     createError: createMutation.error,
     updateError: updateMutation.error,
-    deleteError: deleteMutation.error
+    deleteError: deleteMutation.error,
+    syncError: syncMutation.error
   };
 };
 
 // === CUSTOM GENERATORS ===
-export const useCustomGenerators = ({ isActive, enabled = true } = {}) => {
+// Split responsibilities for Custom Generators
+// - useCustomGeneratorsData: Fetches via React Query and syncs to Zustand (server state owner)
+// - useCustomGeneratorsMutations: Provides update/delete mutations only (no fetching/syncing)
+
+export const useCustomGeneratorsData = ({ isActive, enabled = true } = {}) => {
   const { user } = useOptimizedAuth();
   const queryClient = useQueryClient();
   const syncCustomGenerators = useProfileStore(state => state.syncCustomGenerators);
+  const currentGenerators = useProfileStore(state => state.customGenerators);
+
+  const shouldFetch = enabled && !!user?.id && isActive;
 
   const query = useQuery({
     queryKey: QUERY_KEYS.customGenerators(user?.id),
     queryFn: profileApiService.getCustomGenerators,
-    enabled: enabled && !!user?.id && isActive,
+    enabled: shouldFetch,
     staleTime: 15 * 60 * 1000, // Increased from 5 to 15 minutes
     cacheTime: 30 * 60 * 1000, // Increased from 15 to 30 minutes
     refetchOnWindowFocus: false,
@@ -271,26 +287,110 @@ export const useCustomGenerators = ({ isActive, enabled = true } = {}) => {
     retry: 1
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: profileApiService.deleteCustomGenerator,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.customGenerators(user?.id) });
+  // Shallow compare by id+updated_at (or basic length/id fallback) to avoid redundant syncs
+  const areGeneratorsEqual = (a, b) => {
+    if (!Array.isArray(a) || !Array.isArray(b)) return false;
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) {
+      const ga = a[i];
+      const gb = b[i];
+      // If order changes, this will detect difference; that’s fine because state should reflect server order
+      if (String(ga.id) !== String(gb.id)) return false;
+      // Prefer updated_at if present; otherwise a few stable fields
+      const aUpdated = ga.updated_at || ga.updatedAt || ga.updated || null;
+      const bUpdated = gb.updated_at || gb.updatedAt || gb.updated || null;
+      if (aUpdated !== bUpdated) return false;
+      // Minimal fallback to catch common edits
+      if ((ga.title || ga.name) !== (gb.title || gb.name)) return false;
+      if (ga.slug !== gb.slug) return false;
+    }
+    return true;
+  };
+
+  // Sync with profileStore only when data meaningfully changes
+  useEffect(() => {
+    if (!query.data) return;
+    if (!areGeneratorsEqual(currentGenerators, query.data)) {
+      syncCustomGenerators(query.data);
+    }
+  }, [query.data, currentGenerators, syncCustomGenerators]);
+
+  return {
+    query
+  };
+};
+
+export const useCustomGeneratorsMutations = () => {
+  const { user } = useOptimizedAuth();
+  const queryClient = useQueryClient();
+
+  const updateMutation = useMutation({
+    mutationFn: ({ generatorId, updateData }) => 
+      profileApiService.updateCustomGenerator(generatorId, updateData),
+    onMutate: async ({ generatorId, updateData }) => {
+      await queryClient.cancelQueries({ queryKey: QUERY_KEYS.customGenerators(user?.id) });
+      const previousGenerators = queryClient.getQueryData(QUERY_KEYS.customGenerators(user?.id));
+      queryClient.setQueryData(QUERY_KEYS.customGenerators(user?.id), (old) => {
+        if (!old) return old;
+        return old.map(generator => 
+          String(generator.id) === String(generatorId) 
+            ? { ...generator, ...updateData }
+            : generator
+        );
+      });
+      return { previousGenerators, generatorId };
+    },
+    onSuccess: (updatedGenerator, { generatorId }) => {
+      queryClient.setQueryData(QUERY_KEYS.customGenerators(user?.id), (old) => {
+        if (!old) return old;
+        return old.map(generator => 
+          String(generator.id) === String(generatorId) 
+            ? updatedGenerator
+            : generator
+        );
+      });
+    },
+    onError: (error, variables, context) => {
+      if (context?.previousGenerators) {
+        queryClient.setQueryData(QUERY_KEYS.customGenerators(user?.id), context.previousGenerators);
+      }
     }
   });
 
-  // Sync with profileStore
-  useEffect(() => {
-    if (query.data) {
-      syncCustomGenerators(query.data);
+  const deleteMutation = useMutation({
+    mutationFn: profileApiService.deleteCustomGenerator,
+    onMutate: async (generatorId) => {
+      await queryClient.cancelQueries({ queryKey: QUERY_KEYS.customGenerators(user?.id) });
+      const previousGenerators = queryClient.getQueryData(QUERY_KEYS.customGenerators(user?.id));
+      queryClient.setQueryData(QUERY_KEYS.customGenerators(user?.id), (old) => {
+        if (!old) return old;
+        return old.filter(generator => String(generator.id) !== String(generatorId));
+      });
+      return { previousGenerators, generatorId };
+    },
+    onError: (error, variables, context) => {
+      if (context?.previousGenerators) {
+        queryClient.setQueryData(QUERY_KEYS.customGenerators(user?.id), context.previousGenerators);
+      }
     }
-  }, [query.data, syncCustomGenerators]);
+  });
 
   return {
-    query,
+    updateGenerator: (generatorId, updateData) => 
+      updateMutation.mutateAsync({ generatorId, updateData }),
     deleteGenerator: deleteMutation.mutateAsync,
+    isUpdating: updateMutation.isPending,
     isDeleting: deleteMutation.isPending,
+    updateError: updateMutation.error,
     deleteError: deleteMutation.error
   };
+};
+
+// Backward-compat wrapper (fetch+sync+mutations) for existing consumers.
+export const useCustomGenerators = ({ isActive, enabled = true } = {}) => {
+  const data = useCustomGeneratorsData({ isActive, enabled });
+  const mutations = useCustomGeneratorsMutations();
+  return { ...data, ...mutations };
 };
 
 // === GENERATOR DOCUMENTS ===

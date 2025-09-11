@@ -51,6 +51,8 @@ CREATE TABLE IF NOT EXISTS profiles (
     chat_color TEXT,
     memory BOOLEAN DEFAULT FALSE,
     content_management BOOLEAN DEFAULT FALSE,
+    canva BOOLEAN DEFAULT FALSE,
+    labor_enabled BOOLEAN DEFAULT FALSE,
     nextcloud_share_links JSONB DEFAULT '[]',
     -- Document mode preference
     document_mode TEXT DEFAULT 'manual' -- 'manual' or 'wolke'
@@ -309,6 +311,18 @@ CREATE TABLE IF NOT EXISTS custom_generators (
     UNIQUE(user_id, slug)
 );
 
+-- Custom Generator Documents Junction Table
+-- This creates the many-to-many relationship between custom generators and documents
+CREATE TABLE IF NOT EXISTS custom_generator_documents (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    custom_generator_id UUID NOT NULL REFERENCES custom_generators(id) ON DELETE CASCADE,
+    document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    
+    -- Ensure unique combination of generator + document
+    UNIQUE(custom_generator_id, document_id)
+);
+
 -- Memories (for AI memory feature)
 CREATE TABLE IF NOT EXISTS memories (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -421,6 +435,9 @@ CREATE INDEX IF NOT EXISTS idx_user_documents_user_id ON user_documents(user_id)
 CREATE INDEX IF NOT EXISTS idx_custom_generators_user_id ON custom_generators(user_id);
 CREATE INDEX IF NOT EXISTS idx_custom_generators_slug ON custom_generators(slug);
 CREATE INDEX IF NOT EXISTS idx_custom_generators_user_slug ON custom_generators(user_id, slug);
+CREATE INDEX IF NOT EXISTS idx_custom_generator_documents_generator_id ON custom_generator_documents(custom_generator_id);
+CREATE INDEX IF NOT EXISTS idx_custom_generator_documents_document_id ON custom_generator_documents(document_id);
+CREATE INDEX IF NOT EXISTS idx_custom_generator_documents_created_at ON custom_generator_documents(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_memories_user_id ON memories(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_templates_user_id ON user_templates(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_templates_type ON user_templates(type);

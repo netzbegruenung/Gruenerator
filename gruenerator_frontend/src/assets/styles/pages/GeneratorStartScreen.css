@@ -1,14 +1,13 @@
 .generator-start-screen {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: calc(100vh - 160px);
-  padding: 40px 20px;
-  background-color: var(--background-color-pure);
-  margin-left: auto;
-  margin-right: auto;
-  width: fit-content;
+  align-items: stretch;
+  justify-content: flex-start;
+  min-height: auto;
+  padding: 20px 0;
+  background-color: transparent;
+  margin: 0;
+  width: 100%;
 }
 
 .start-screen-content {
@@ -20,14 +19,7 @@
   width: 100%;
 }
 
-.generator-start-screen h1 {
-  font-size: 2.8rem;
-  color: var(--font-color-h);
-  margin-bottom: 15px;
-  font-weight: 600;
-  line-height: 1.2;
-  text-align: left;
-}
+/* Heading removed for embedded start screen */
 
 .generator-start-screen .subtitle {
   font-size: 1.2rem;

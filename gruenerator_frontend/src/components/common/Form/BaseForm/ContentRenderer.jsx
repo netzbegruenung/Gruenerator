@@ -5,6 +5,7 @@ import { isReactElement, isMarkdownContent, normalizeLineBreaks, removeGruenTitl
 import { CitationBadge } from '../../Citation';
 import ImageDisplay from '../../ImageDisplay';
 import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
+import useTextEditActions from '../../../../stores/hooks/useTextEditActions';
 
 
 /**
@@ -62,10 +63,13 @@ const ContentRenderer = ({
   generatedContent,
   useMarkdown = null, // null = auto-detect, true = force markdown, false = force HTML
   componentName = 'default',
-  helpContent
+  helpContent,
 }) => {
   // ALL HOOKS MUST BE CALLED AT THE TOP LEVEL - BEFORE ANY EARLY RETURNS
-  const { getGeneratedTextMetadata } = useGeneratedTextStore();
+  const getGeneratedTextMetadata = useGeneratedTextStore(state => state.getGeneratedTextMetadata);
+  const setTextWithHistory = useGeneratedTextStore(state => state.setTextWithHistory);
+  const pushToHistory = useGeneratedTextStore(state => state.pushToHistory);
+  const { getEditableText } = useTextEditActions(componentName);
   
   // Check if we have mixed content (social + sharepic)
   const isMixedContent = generatedContent && typeof generatedContent === 'object' && 
@@ -86,6 +90,7 @@ const ContentRenderer = ({
 
 
   // NOW we can do conditional logic and early returns
+  
   
   // Handle mixed content (social + sharepic)
   if (isMixedContent) {
@@ -277,7 +282,7 @@ ContentRenderer.propTypes = {
   helpContent: PropTypes.shape({
     content: PropTypes.string,
     tips: PropTypes.arrayOf(PropTypes.string)
-  })
+  }),
 };
 
 export default ContentRenderer; 

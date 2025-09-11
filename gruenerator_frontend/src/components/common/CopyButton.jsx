@@ -15,20 +15,19 @@ const CopyButton = ({
   const [isCopied, setIsCopied] = useState(false);
   const isMobileView = window.innerWidth <= 768;
 
-  const handleCopy = () => {
+  const handleCopy = async () => {
     if (directContent) {
       // Use direct content for copying
-      navigator.clipboard.writeText(directContent)
-        .then(() => {
-          setIsCopied(true);
-          setTimeout(() => setIsCopied(false), 2000);
-        })
-        .catch((error) => {
-          console.error('Fehler beim Kopieren:', error);
-        });
+      try {
+        await navigator.clipboard.writeText(directContent);
+        setIsCopied(true);
+        setTimeout(() => setIsCopied(false), 2000);
+      } catch (error) {
+        console.error('Fehler beim Kopieren:', error);
+      }
     } else if (content) {
       // Use provided content with the updated copyFormattedContent
-      copyFormattedContent(
+      await copyFormattedContent(
         content,
         () => {
           setIsCopied(true);
@@ -40,7 +39,7 @@ const CopyButton = ({
       );
     } else {
       // Use store-based copying for backward compatibility (old signature)
-      copyFormattedContent(
+      await copyFormattedContent(
         () => {
           setIsCopied(true);
           setTimeout(() => setIsCopied(false), 2000);

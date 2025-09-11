@@ -4,6 +4,7 @@ import { getPostgresDocumentService } from './postgresDocumentService.js';
 import { NextcloudShareManager } from '../utils/nextcloudShareManager.js';
 import NextcloudApiClient from './nextcloudApiClient.js';
 import { ocrService } from './ocrService.js';
+import { documentTextExtractor } from './documentTextExtractor.js';
 import { fastEmbedService } from './FastEmbedService.js';
 import { smartChunkDocument } from '../utils/textChunker.js';
 import fs from 'fs/promises';
@@ -191,8 +192,6 @@ class WolkeSyncService {
      * Process a single file from Wolke
      */
     async processFile(userId, shareLinkId, file, shareLink) {
-        let cleanup = null;
-        
         try {
             console.log(`[WolkeSyncService] Processing file: ${file.name}`);
             
@@ -212,16 +211,36 @@ class WolkeSyncService {
                 return { skipped: true, reason: 'up_to_date' };
             }
             
-            // Download file to temporary location
-            const downloadResult = await this.downloadFileToTemp(shareLink, file);
-            cleanup = downloadResult.cleanup;
+            // Check if file type is supported
+            if (!documentTextExtractor.isSupported(file.name)) {
+                console.warn(`[WolkeSyncService] Unsupported file type: ${file.name}`);
+                return { skipped: true, reason: 'unsupported_file_type' };
+            }
             
-            // Extract text from file (mock implementation for now)
-            // In real implementation, you'd use OCR service here
-            const mockText = `Sample text content from file: ${file.name}\nThis would be the actual extracted content.`;
+            // Check file size limit (100MB)
+            if (file.size > 100 * 1024 * 1024) {
+                console.warn(`[WolkeSyncService] File too large: ${file.name} (${file.size} bytes)`);
+                return { skipped: true, reason: 'file_too_large' };
+            }
+            
+            // Download file from Nextcloud
+            const client = new NextcloudApiClient(shareLink.share_link);
+            console.log(`[WolkeSyncService] Downloading file: ${file.name}`);
+            const fileData = await client.downloadFile(file.href);
+            
+            // Extract text using our unified extractor
+            console.log(`[WolkeSyncService] Extracting text from: ${file.name}`);
+            const extractedText = await documentTextExtractor.extractTextFromBuffer(fileData.buffer, file.name);
+            
+            if (!extractedText || extractedText.trim().length === 0) {
+                console.warn(`[WolkeSyncService] No text extracted from file: ${file.name}`);
+                return { skipped: true, reason: 'no_extractable_text' };
+            }
+            
+            console.log(`[WolkeSyncService] Extracted ${extractedText.length} characters from ${file.name}`);
             
             // Chunk the text
-            const chunks = smartChunkDocument(mockText, {
+            const chunks = smartChunkDocument(extractedText, {
                 maxTokens: 400,
                 overlapTokens: 50,
                 preserveStructure: true
@@ -235,6 +254,18 @@ class WolkeSyncService {
             // Generate embeddings
             const texts = chunks.map(chunk => chunk.text);
             const embeddings = await fastEmbedService.generateBatchEmbeddings(texts, 'search_document');
+
+            // Generate a short preview for UI lists
+            const generateContentPreview = (text, limit = 600) => {
+                if (!text || typeof text !== 'string') return '';
+                if (text.length <= limit) return text;
+                const truncated = text.slice(0, limit);
+                const sentenceEnd = Math.max(truncated.lastIndexOf('.'), truncated.lastIndexOf('!'), truncated.lastIndexOf('?'));
+                if (sentenceEnd > limit * 0.5) return truncated.slice(0, sentenceEnd + 1);
+                const lastSpace = truncated.lastIndexOf(' ');
+                return lastSpace > limit * 0.6 ? `${truncated.slice(0, lastSpace)}...` : `${truncated}...`;
+            };
+            const contentPreview = generateContentPreview(extractedText);
             
             // Store vectors in Qdrant
             const metadata = {
@@ -251,7 +282,7 @@ class WolkeSyncService {
             
             // If document exists, delete old vectors first
             if (existingDoc) {
-                await this.qdrantService.deleteDocumentVectors(userId, existingDoc.id);
+                await this.qdrantService.deleteDocumentVectors(existingDoc.id, userId);
             }
             
             // Create or update document metadata
@@ -261,7 +292,10 @@ class WolkeSyncService {
                     vectorCount: chunks.length,
                     wolkeEtag: file.etag,
                     lastSyncedAt: new Date(),
-                    status: 'completed'
+                    status: 'completed',
+                    additionalMetadata: {
+                        content_preview: contentPreview
+                    }
                 });
                 documentId = existingDoc.id;
             } else {
@@ -274,6 +308,9 @@ class WolkeSyncService {
                     wolkeEtag: file.etag,
                     vectorCount: chunks.length,
                     fileSize: file.size || 0,
+                    additionalMetadata: {
+                        content_preview: contentPreview
+                    },
                     status: 'completed'
                 });
                 documentId = newDoc.id;
@@ -301,11 +338,6 @@ class WolkeSyncService {
         } catch (error) {
             console.error(`[WolkeSyncService] Error processing file ${file.name}:`, error);
             throw error;
-        } finally {
-            // Clean up temporary file
-            if (cleanup) {
-                await cleanup();
-            }
         }
     }
 

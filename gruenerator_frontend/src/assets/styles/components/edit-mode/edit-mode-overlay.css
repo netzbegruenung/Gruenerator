@@ -204,3 +204,22 @@ body:has(.base-container.edit-mode-active) .container.with-header {
   flex-direction: column;
 }
 
+/* Edit Mode Toolbar Styles */
+.edit-mode-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-small) var(--spacing-medium);
+  background-color: var(--background-color);
+  border-bottom: 1px solid var(--border-color);
+  border-top-left-radius: var(--border-radius-medium);
+  border-top-right-radius: var(--border-radius-medium);
+}
+
+.edit-mode-toolbar-title {
+  font-size: 1em;
+  font-weight: 500;
+  color: var(--font-color);
+}
+
+

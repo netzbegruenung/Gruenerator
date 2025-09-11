@@ -7,7 +7,6 @@ const AntragDetailPage = lazy(() => import('../features/templates/antraege/Antra
 const YouPage = lazy(() => import('../features/you'));
 // EmptyEditor removed - deprecated component
 const CustomGeneratorPage = lazy(() => import('../features/generators/CustomGeneratorPage'));
-const CreateCustomGeneratorPage = lazy(() => import('../features/generators/CreateCustomGeneratorPage'));
 const CampaignPage = lazy(() => import('../features/campaigns'));
 const WebinarCampaign = lazy(() => import('../features/campaigns/components/WebinarCampaign'));
 
@@ -21,7 +20,7 @@ const RegistrationPage = lazy(() => import('../features/auth/pages/RegistrationP
 const JoinGroupPage = lazy(() => import('../features/groups/pages/JoinGroupPage'));
 
 // Lazy loading für statische Seiten
-const Home = lazy(() => import('../components/pages/Home'));
+const Home = lazy(() => import('../components/pages/Startseite'));
 const Datenschutz = lazy(() => import('../components/pages/Impressum_Datenschutz_Terms/Datenschutz'));
 const Impressum = lazy(() => import('../components/pages/Impressum_Datenschutz_Terms/Impressum'));
 const NotFound = lazy(() => import('../components/pages/NotFound'));
@@ -36,8 +35,6 @@ const GrueneratorImagine = lazy(() => import('../features/imagine/GrueneratorIma
 const AccessibilityTextGenerator = lazy(() => import('../features/texte/accessibility/AccessibilityTextGenerator'));
 const AltTextGenerator = lazy(() => import('../features/texte/alttext/AltTextGenerator'));
 
-// ContentGallery importieren
-const ContentGallery = lazy(() => import('../components/common/Gallery/ContentGallery'));
 
 // NEU: CollabEditorPage importieren (Lazy Loading) - DISABLED - Feature removed, backup available in archive/collab-feature-backup-2025-01
 // const CollabEditorPage = lazy(() => import('../pages/CollabEditorPage/CollabEditorPage'));
@@ -48,7 +45,7 @@ const QAChat = lazy(() => import('../features/qa/components/QAChat'));
 
 // E-Learning Komponente importieren
 const ELearningPage = lazy(() => import('../features/elearning'));
-const ELearningTutorial = lazy(() => import('../features/elearning/components/ELearningTutorial'));
+// ELearningTutorial component doesn't exist - using ELearningPage instead
 
 // Test-Komponenten importieren (disabled - component not found)
 // const ButtonTest = lazy(() => import('../components/test/ButtonTest'));
@@ -86,11 +83,9 @@ export const GrueneratorenBundle = {
   Webinar: WebinarCampaign,
   // EmptyEditor: EmptyEditor, // Removed - deprecated
   CustomGenerator: CustomGeneratorPage,
-  CreateCustomGenerator: CreateCustomGeneratorPage,
-  ContentGallery: ContentGallery,
   QAChat: QAChat,
   ELearning: ELearningPage,
-  ELearningTutorial: ELearningTutorial,
+  ELearningTutorial: ELearningPage,
   DynamicPageView: DynamicPageView,
   StructuredExamplePage: StructuredExamplePage,
   CustomExamplePage: CustomExamplePage
@@ -124,8 +119,7 @@ const standardRoutes = [
   { path: '/kampagne', component: GrueneratorenBundle.Campaign },
   { path: '/webinare', component: GrueneratorenBundle.Webinar },
   // { path: '/editor', component: GrueneratorenBundle.EmptyEditor, withForm: true }, // Removed - deprecated
-  { path: '/generator/:slug', component: GrueneratorenBundle.CustomGenerator, withForm: true },
-  { path: '/create-generator', component: GrueneratorenBundle.CreateCustomGenerator, withForm: true },
+  { path: '/gruenerator/:slug', component: GrueneratorenBundle.CustomGenerator, withForm: true },
   { path: '/datenschutz', component: Datenschutz },
   { path: '/impressum', component: Impressum },
   // Auth-Routen (only components still used after Authentic integration)
@@ -139,7 +133,7 @@ const standardRoutes = [
   // Note: Other auth routes (password reset, email verification, MFA, etc.) are now handled by Authentic
   // Gruppen-Route
   { path: '/join-group/:joinToken', component: JoinGroupPage },
-  { path: '/datenbank', component: GrueneratorenBundle.ContentGallery },
+  // Removed ContentGallery route '/datenbank'
   // NEU: Route für CollabEditorPage - DISABLED - Feature removed, backup available in archive/collab-feature-backup-2025-01
   // { path: '/editor/collab/:documentId', component: CollabEditorPage, showHeaderFooter: false }, // showHeaderFooter: false, da eigener Header
   // NEU: Route für Preview-Modus (mit /preview suffix) - DISABLED
@@ -148,7 +142,6 @@ const standardRoutes = [
   { path: '/qa/:id', component: GrueneratorenBundle.QAChat },
   // E-Learning Routes
   { path: '/e-learning', component: GrueneratorenBundle.ELearning },
-  { path: '/e-learning/gruenerator-tutorial', component: GrueneratorenBundle.ELearningTutorial },
   // Pages Feature Routes
   { path: '/pages/example-structured', component: GrueneratorenBundle.StructuredExamplePage },
   { path: '/pages/example-custom', component: GrueneratorenBundle.CustomExamplePage },

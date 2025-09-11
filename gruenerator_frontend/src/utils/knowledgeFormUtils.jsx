@@ -131,11 +131,7 @@ export const createKnowledgeFormNotice = ({
   availableKnowledge,
 }) => {
   if (source.type === 'group' && isLoadingGroupDetails) {
-    return (
-      <div className="custom-prompt-notice">
-        <span>Lade Gruppenanweisungen & Wissen...</span>
-      </div>
-    );
+    return null;
   }
 
   let noticeParts = [];
@@ -155,8 +151,6 @@ export const createKnowledgeFormNotice = ({
       noticeParts.push(`Anweisungen der Gruppe "${sourceNameForNotice}"`);
     }
   }
-
-  const hasLoadedKnowledge = availableKnowledge.length > 0;
 
   
 

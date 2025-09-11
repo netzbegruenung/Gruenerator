@@ -418,7 +418,7 @@ class UnifiedPromptBuilder {
   _adaptForProvider(result) {
     switch(this.provider) {
       case 'mistral':
-        return this._adaptForMistral(result);
+        return result; // Remove Mistral adaptations to shorten prompt
       case 'bedrock':
         return this._adaptForBedrock(result);
       case 'claude':
@@ -803,38 +803,15 @@ class UnifiedPromptBuilder {
       return '';
     }
 
-    const config = this.examplesConfig;
-    let examplesText = '<examples>\nBEISPIELE ZUR ORIENTIERUNG:\n';
-    examplesText += 'Diese Beispiele zeigen erfolgreiche Inhalte zu ähnlichen Themen. Nutze sie als Inspiration für Stil, Struktur und Tonfall.\n\n';
+    let examplesText = '<examples>\nBEISPIEL:\n';
 
     this.context.examples.forEach((example, index) => {
-      examplesText += `Beispiel ${index + 1}`;
-      
-      if (config.includeSimilarityInfo && example.similarity_score) {
-        examplesText += ` (Relevanz: ${example.relevance})`;
-      }
-      
-      examplesText += `:\n`;
-      
-      if (example.title) {
-        examplesText += `Titel: ${example.title}\n`;
-      }
-      
       if (example.content) {
-        examplesText += `Inhalt: ${example.content}\n`;
+        examplesText += `${example.content}\n`;
       }
-      
-      if (example.metadata && (example.metadata.tags.length > 0 || example.metadata.categories.length > 0)) {
-        const tags = example.metadata.tags.slice(0, 5).join(', ');
-        const categories = example.metadata.categories.slice(0, 3).join(', ');
-        if (tags) examplesText += `Tags: ${tags}\n`;
-        if (categories) examplesText += `Kategorien: ${categories}\n`;
-      }
-      
-      examplesText += '\n';
     });
 
-    examplesText += 'Nutze diese Beispiele als Orientierung, aber erstelle einzigartige, neue Inhalte.\n</examples>';
+    examplesText += '</examples>';
     
     return examplesText;
   }
@@ -1043,7 +1020,9 @@ async function addExamplesFromService(builder, contentType, query, options = {},
     if (examples && examples.length > 0) {
       console.log(`[addExamplesFromService] Found ${examples.length} examples for ${contentType} with query: "${query}"`);
       examples.forEach((example, index) => {
-        console.log(`  ${index + 1}. "${example.title}" (relevance: ${example.relevance || 'N/A'}, score: ${example.similarity_score?.toFixed(3) || 'N/A'})`);
+        // Use title if available, otherwise use content preview
+        const displayText = example.title || (example.content ? example.content.substring(0, 50) + '...' : 'No content');
+        console.log(`  ${index + 1}. "${displayText}" (relevance: ${example.relevance || 'N/A'}, score: ${example.similarity_score?.toFixed(3) || 'N/A'})`);
       });
       
       builder.addExamples(examples, {

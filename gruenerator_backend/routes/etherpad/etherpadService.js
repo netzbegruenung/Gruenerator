@@ -1,24 +1,9 @@
 const axios = require('axios');
 
-const ETHERPAD_API_URL = process.env.ETHERPAD_API_URL || 'https://gruenera.uber.space/api';
-const ETHERPAD_API_KEY = process.env.ETHERPAD_API_KEY;
-
-if (!ETHERPAD_API_KEY) {
-  throw new Error('ETHERPAD_API_KEY ist nicht in den Umgebungsvariablen definiert');
-}
-
-const etherpadApi = axios.create({
-  baseURL: ETHERPAD_API_URL,
-  headers: {
-    'Content-Type': 'application/x-www-form-urlencoded'
-  }
-});
-
-const ETHERPAD_FRONTEND_URL = process.env.ETHERPAD_FRONTEND_URL || 'https://gruenera.uber.space';
-
-if (!ETHERPAD_FRONTEND_URL) {
-  throw new Error('ETHERPAD_FRONTEND_URL ist nicht in den Umgebungsvariablen definiert');
-}
+// Hardcoded Etherpad endpoints (ep_post_data flow)
+const ETHERPAD_BASE_URL = 'https://textbegruenung.de';
+const ETHERPAD_POST_PATH = '/post';
+const ETHERPAD_PAD_BASE_URL = 'https://textbegruenung.de/p';
 
 exports.createPadWithText = async (padId, text, documentType) => {
   try {
@@ -40,24 +25,50 @@ exports.createPadWithText = async (padId, text, documentType) => {
       `${formattedDocType}-${padId}` : 
       padId;
 
-    // Erstelle Pad
-    await etherpadApi.post('/api/1.2.15/createPad', null, {
-      params: { 
-        apikey: ETHERPAD_API_KEY,
-        padID: formattedPadId 
+    // Respect ep_post_data 100k character limit
+    const MAX_LEN = 100000;
+    const payload = typeof text === 'string' ? text.slice(0, MAX_LEN) : String(text).slice(0, MAX_LEN);
+
+    // Proactively create pad by visiting its URL (Etherpad auto-creates on first access)
+    try {
+      await axios.get(`${ETHERPAD_PAD_BASE_URL}/${formattedPadId}`, {
+        // We don't need the body; small timeout is fine
+        timeout: 5000,
+        validateStatus: () => true
+      });
+    } catch (ignore) {
+      // Ignore any errors; pad creation is best-effort
+    }
+
+    // Post to ep_post_data endpoint
+    const url = `${ETHERPAD_BASE_URL}${ETHERPAD_POST_PATH}`;
+    try {
+      const response = await axios.post(url, payload, {
+        headers: {
+          'Content-Type': 'text/plain; charset=utf-8',
+          'X-PAD-ID': formattedPadId,
+          'x-pad-id': formattedPadId
+        },
+        maxBodyLength: MAX_LEN,
+        validateStatus: (status) => status >= 200 && status < 400
+      });
+      if (process.env.NODE_ENV === 'development') {
+        console.log('ep_post_data response:', response.status);
       }
-    });
-    
-    // Setze HTML
-    const formData = new URLSearchParams();
-    formData.append('apikey', ETHERPAD_API_KEY);
-    formData.append('padID', formattedPadId);
-    formData.append('html', text);
-    
-    await etherpadApi.post('/api/1.2.15/setHTML', formData);
-    
-    // Generiere URL
-    const padURL = `${ETHERPAD_FRONTEND_URL}/p/${formattedPadId}`;
+    } catch (err) {
+      const status = err.response?.status;
+      const data = err.response?.data;
+      // If the endpoint is not available (plugin not installed), still return the pad URL
+      if (status === 404 || status === 405) {
+        console.warn('ep_post_data not available; proceeding with empty pad. Status:', status);
+      } else {
+        console.error('ep_post_data request failed:', status, typeof data === 'string' ? data.slice(0, 500) : data);
+        throw new Error('Fehler bei der Kommunikation mit Etherpad');
+      }
+    }
+
+    // Generate URL
+    const padURL = `${ETHERPAD_PAD_BASE_URL}/${formattedPadId}`;
     return padURL;
   } catch (error) {
     console.error('Fehler bei Etherpad-API-Aufruf:', error.response ? error.response.data : error.message);

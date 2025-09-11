@@ -2,6 +2,10 @@ import { QdrantClient } from '@qdrant/js-client-rest';
 import { fastEmbedService } from '../../services/FastEmbedService.js';
 import http from 'http';
 import https from 'https';
+import dotenv from 'dotenv';
+
+// Load environment variables
+dotenv.config();
 
 /**
  * Qdrant Vector Database Service
@@ -81,9 +85,17 @@ class QdrantService {
         this.isInitializing = true;
 
         try {
+            // Validate environment variables
+            const apiKey = process.env.QDRANT_API_KEY;
+            if (!apiKey || apiKey.trim() === '') {
+                throw new Error('QDRANT_API_KEY environment variable is required but not set or empty');
+            }
+            
             // Hardcoded domain for testing
             const qdrantUrl = 'https://qdrant.services.moritz-waechter.de:443';
-            const apiKey = process.env.QDRANT_API_KEY;
+            
+            console.log(`[QdrantService] Initializing with API key: ${apiKey.substring(0, 8)}...`);
+            console.log(`[QdrantService] Connecting to: ${qdrantUrl}`);
 
             // Configure HTTP agent for better connection handling
             const isHttps = qdrantUrl.startsWith('https');
@@ -103,7 +115,7 @@ class QdrantService {
                     host: url.hostname,
                     port: url.port ? parseInt(url.port) : 443,
                     https: true,
-                    ...(apiKey && { apiKey }),
+                    apiKey: apiKey,
                     timeout: 60000,
                     checkCompatibility: false,  // Skip compatibility check for faster startup
                     agent: httpAgent
@@ -111,7 +123,7 @@ class QdrantService {
             } else {
                 this.client = new QdrantClient({
                     url: qdrantUrl,
-                    ...(apiKey && { apiKey }),
+                    apiKey: apiKey,
                     https: false,  // Force HTTP for non-HTTPS URLs
                     timeout: 60000,
                     agent: httpAgent
@@ -665,19 +677,37 @@ class QdrantService {
     async indexGrundsatzChunks(documentId, chunks) {
         this.ensureConnected();
         try {
-            const points = chunks.map((chunk, index) => ({
-                id: `grundsatz_${documentId}_${index}`,
-                vector: chunk.embedding,
-                payload: {
-                    document_id: documentId,
-                    chunk_index: index,
-                    chunk_text: chunk.text || chunk.chunk_text,
-                    token_count: chunk.token_count || chunk.tokens,
-                    metadata: chunk.metadata || {},
-                    document_type: 'grundsatz',
-                    created_at: new Date().toISOString()
+            const points = chunks.map((chunk, index) => {
+                // Generate numeric ID (deterministic) based on documentId and chunk index
+                const combinedString = `${documentId}_${index}`;
+                let hash = 0;
+                for (let i = 0; i < combinedString.length; i++) {
+                    const char = combinedString.charCodeAt(i);
+                    hash = ((hash << 5) - hash) + char;
+                    hash = hash & hash; // Convert to 32-bit integer
                 }
-            }));
+                const numericId = Math.abs(hash);
+
+                return {
+                    id: numericId,
+                    vector: chunk.embedding,
+                    payload: {
+                        document_id: documentId,
+                        chunk_index: index,
+                        chunk_text: chunk.text || chunk.chunk_text,
+                        token_count: chunk.token_count || chunk.tokens,
+                        // include commonly used metadata directly in payload for easier retrieval
+                        content_type: chunk.metadata?.content_type,
+                        // fallback to sequential page if not detected
+                        page_number: (typeof chunk.metadata?.page_number === 'number') ? chunk.metadata.page_number : (index + 1),
+                        title: chunk.metadata?.title || 'Grundsatzprogramm',
+                        filename: chunk.metadata?.filename || '',
+                        metadata: chunk.metadata || {},
+                        document_type: 'grundsatz',
+                        created_at: new Date().toISOString()
+                    }
+                };
+            });
 
             await this.client.upsert(this.collections.grundsatz_documents, {
                 points: points
@@ -897,16 +927,67 @@ class QdrantService {
 
     /**
      * Check if Qdrant is available
+     * This method waits for initialization to complete if it's in progress
      */
-    isAvailable() {
+    async isAvailable() {
+        // If already connected, return true immediately
+        if (this.isConnected && this.client !== null) {
+            return true;
+        }
+        
+        // If initialization is in progress, wait for it to complete
+        if (this.initPromise) {
+            try {
+                await this.initPromise;
+                return this.isConnected && this.client !== null;
+            } catch (error) {
+                console.warn('[QdrantService] Initialization failed:', error.message);
+                return false;
+            }
+        }
+        
+        // If no initialization promise exists and we're not connected, 
+        // try to start initialization
+        if (!this.isInitializing) {
+            console.log('[QdrantService] Starting deferred initialization...');
+            this.initPromise = this._performInit();
+            try {
+                await this.initPromise;
+                return this.isConnected && this.client !== null;
+            } catch (error) {
+                console.warn('[QdrantService] Initialization failed:', error.message);
+                return false;
+            }
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Synchronous check if Qdrant appears to be available (for backwards compatibility)
+     * Use isAvailable() for proper async checking
+     */
+    isAvailableSync() {
         return this.isConnected && this.client !== null;
     }
 
     /**
      * Ensure connection is available
+     * This method waits for initialization if needed
      */
-    ensureConnected() {
-        if (!this.isAvailable()) {
+    async ensureConnected() {
+        const available = await this.isAvailable();
+        if (!available) {
+            throw new Error('Qdrant is not available. Vector search functionality is disabled.');
+        }
+    }
+    
+    /**
+     * Synchronous ensure connection (throws immediately if not connected)
+     * Use ensureConnected() for proper async checking
+     */
+    ensureConnectedSync() {
+        if (!this.isAvailableSync()) {
             throw new Error('Qdrant is not available. Vector search functionality is disabled.');
         }
     }
@@ -960,7 +1041,7 @@ class QdrantService {
      * Search content examples using vector similarity
      */
     async searchContentExamples(queryVector, options = {}) {
-        this.ensureConnected();
+        await this.ensureConnected();
         try {
             const {
                 contentType = null,
@@ -1033,7 +1114,7 @@ class QdrantService {
      * Get random content examples from Qdrant
      */
     async getRandomContentExamples(options = {}) {
-        this.ensureConnected();
+        await this.ensureConnected();
         try {
             const {
                 contentType = null,
@@ -1179,7 +1260,7 @@ class QdrantService {
      * Search social media examples with platform filtering (multitenancy)
      */
     async searchSocialMediaExamples(queryVector, options = {}) {
-        this.ensureConnected();
+        await this.ensureConnected();
         try {
             const {
                 platform = null,  // 'facebook', 'instagram', or null for all platforms
@@ -1203,13 +1284,35 @@ class QdrantService {
                 }
             });
 
-            const results = searchResult.map(hit => ({
-                id: hit.payload.example_id,
-                score: hit.score,
-                content: hit.payload.content,
-                platform: hit.payload.platform,
-                created_at: hit.payload.created_at
-            }));
+            const results = searchResult.map(hit => {
+                // Debug: Log the actual payload structure for troubleshooting
+                console.log(`[QdrantService] Search result payload keys: ${Object.keys(hit.payload || {}).join(', ')}`);
+                
+                // Try different possible content fields
+                let content = hit.payload.content;
+                if (!content && hit.payload.content_data?.content) {
+                    content = hit.payload.content_data.content;
+                }
+                if (!content && hit.payload.content_data?.caption) {
+                    content = hit.payload.content_data.caption;
+                }
+                if (!content && hit.payload.text) {
+                    content = hit.payload.text;
+                }
+                if (!content && hit.payload.caption) {
+                    content = hit.payload.caption;
+                }
+                
+                return {
+                    id: hit.payload.example_id || hit.id,
+                    score: hit.score,
+                    content: content,
+                    platform: hit.payload.platform,
+                    created_at: hit.payload.created_at,
+                    // Include raw payload for debugging
+                    _debug_payload: hit.payload
+                };
+            });
 
             return {
                 success: true,
@@ -1242,7 +1345,7 @@ class QdrantService {
      * Uses proper random sampling with scroll API for true randomness
      */
     async getRandomSocialMediaExamples(options = {}) {
-        this.ensureConnected();
+        await this.ensureConnected();
         try {
             const {
                 platform = null,
@@ -1287,12 +1390,34 @@ class QdrantService {
             const shuffled = scrollResult.points.sort(() => Math.random() - 0.5);
             const finalResults = shuffled.slice(0, limit);
 
-            const results = finalResults.map(point => ({
-                id: point.payload.example_id,
-                content: point.payload.content,
-                platform: point.payload.platform,
-                created_at: point.payload.created_at
-            }));
+            const results = finalResults.map(point => {
+                // Debug: Log the actual payload structure for troubleshooting
+                console.log(`[QdrantService] Random result payload keys: ${Object.keys(point.payload || {}).join(', ')}`);
+                
+                // Try different possible content fields
+                let content = point.payload.content;
+                if (!content && point.payload.content_data?.content) {
+                    content = point.payload.content_data.content;
+                }
+                if (!content && point.payload.content_data?.caption) {
+                    content = point.payload.content_data.caption;
+                }
+                if (!content && point.payload.text) {
+                    content = point.payload.text;
+                }
+                if (!content && point.payload.caption) {
+                    content = point.payload.caption;
+                }
+                
+                return {
+                    id: point.payload.example_id || point.id,
+                    content: content,
+                    platform: point.payload.platform,
+                    created_at: point.payload.created_at,
+                    // Include raw payload for debugging
+                    _debug_payload: point.payload
+                };
+            });
 
             return {
                 success: true,

@@ -22,7 +22,7 @@
 
 @import url('./components/ui/form-toggle-button.css');
 @import url('./components/ui/FeatureToggle.css');
-@import url('./components/ui/FeatureIcons.css');
+/* moved to component-level import in FeatureIcons.jsx */
 @import url('./components/ui/AttachedFilesList.css');
 @import url('./components/ui/LogLevelSelector.css');
 @import url('./components/ui/tooltip.css');
@@ -40,23 +40,15 @@
 @import url('./components/ui/success-screen.css');
 @import url('./components/ui/SegmentedControl.css');
 @import url('./components/ui/menu-dropdown.css');
-@import url('./components/gallery-layout.css');
-@import url('./components/SearchBar.css');
-@import url('./components/gallery-content-type.css');
 /* @import url('../../components/common/KnowledgeSelector/style.css'); */
 @import url('./components/ui/react-select.css');
 @import url('./components/ui/knowledge-selector.css');
 @import url('./components/error-boundary.css');
 @import url('./components/ui/TypingIndicator.css');
-@import url('./components/citation.css');
-@import url('./components/canva/canva-overview.css');
-@import url('./components/canva/canva-button.css');
-@import url('./components/document-overview.css');
 @import url('./components/common/image-display.css');
 
 
 
-@import url('./components/actions/slogan-alternatives.css');
 @import url('./components/actions/exportToDocument.css');
 @import url('./components/actions/verify.css');
 @import url('./components/actions/action-buttons.css');
@@ -72,103 +64,39 @@
 @import url('./components/popups/AntragSavePopup.css');
 
 
-@import url('./components/editor/editor-content.css');
-@import url('./components/editor/editor-responsive.css');
-@import url('./components/editor/editor.css');
-@import url('./components/editor/editor-ai-tools.css');
-@import url('./components/editor/editor-toolbar.css');
-@import url('./components/editor/editor-base.css');
 
 
-@import url('./components/sharepic/sharepic.css');
-@import url('./components/sharepic/sharepic-type-selector.css');
 
 
-@import url('./features/auth/auth.css');
-@import url('./features/auth/login-page.css');
-@import url('./features/auth/profile.css');
-@import url('./features/auth/profile-layout.css');
-@import url('./features/auth/profile-cards.css');
-@import url('./features/auth/profile-bubbles.css');
-@import url('./features/auth/mem0ry-tab.css');
-@import url('./features/auth/documents-tab.css');
-@import url('../../features/auth/styles/meine-texte-tab.css');
-@import url('./components/auth/avatar-selection.css');
-
-/* Imagine feature styles */
-@import url('./features/imagine/image-limit-indicator.css');
 
 
-@import url('./pages/Startseitenstyle.css');
+
+@import url('./pages/homepage.css');
 @import url('./pages/antragsversteher.css');
 @import url('./pages/notfound.css');
-@import url('./pages/template-gallery.css');
 @import url('./pages/Impressum_datenschutz.css');
 @import url('./pages/GeneratorStartScreen.css');
-@import url('./pages/AntragDetailPage.css');
 
 
 
 
-@import url('../../features/subtitler/styles/subtitler.css');
-@import url('../../features/subtitler/styles/ConfirmSection.css');
-@import url('../../features/subtitler/styles/SubtitleEditor.css');
-@import url('../../features/subtitler/styles/SubtitleStyleSelector.css');
-@import url('../../features/subtitler/styles/SuccessScreen.css');
-@import url('../../features/subtitler/styles/VideoUploader.css');
-@import url('../../features/subtitler/styles/live-subtitle-preview.css');
 
 
-@import url('../../features/search/styles/SearchPage.css');
-@import url('../../features/search/styles/SearchResults.css');
-@import url('../../features/search/styles/SearchBarStyles.css');
-
-@import url('./features/ask/ask-page.css');
-@import url('./features/documents/document-view.css');
-@import url('./features/wolke/wolke.css');
 
 
-@import url('../../features/voice/styles/VoiceRecorder.css');
 
 
-@import url('../../features/campaigns/components/CampaignPage.css');
-@import url('../../features/campaigns/components/CampaignDashboard.css');
-@import url('../../features/campaigns/components/Grueneratoren.css');
-@import url('../../features/campaigns/components/TemplatesSection.css');
-@import url('../../features/campaigns/components/FileCard.css');
-@import url('../../features/campaigns/components/TextsSection.css');
-@import url('../../features/campaigns/components/FilesSection.css');
-@import url('../../features/campaigns/components/TextCard.css');
-@import url('../../features/campaigns/styles/AboutSection.css');
-@import url('../../features/campaigns/styles/ContactFormSection.css');
 
 
-@import url('../../features/you/styles/YouPage.css');
-@import url('../../features/you/styles/YouBase.css');
-@import url('../../features/you/styles/YouInput.css');
-@import url('../../features/you/styles/YouResults.css');
-@import url('../../features/you/styles/YouRecording.css');
-@import url('../../features/you/styles/YouResponsive.css');
 
 
-@import url('../../features/groups/styles/groups.css');
-@import url('../../features/groups/styles/shared-content-selector.css');
 
 
-@import url('../../features/qa/styles/qa-creator.css');
-@import url('./features/qa/qa-chat.css');
 
 
-@import url('./features/ask/ask-page.css');
 
 
-@import url('./components/custom-generator/create-custom-generator.css');
-@import url('./components/custom-generator/field-editor-assistant.css');
-@import url('./components/custom-generator/document-selector.css');
-@import url('../../features/generators/styles/custom-generators-tab.css');
 
-
-@import url('../../features/texte/editor/EmptyEditor.css');
 
 
 
@@ -176,12 +104,6 @@
 
 /* DISABLED - Collab feature removed
 @import url('./pages/collab-editor.css'); */
-@import url('./features/qa/qa-collections.css');
 
-/* E-Learning Feature Styles */
-@import url('../../features/elearning/styles/elearning.css');
 
 /* Pages Feature Styles */
-@import url('./features/pages/page-view.css');
-@import url('./features/pages/page-header.css');
-@import url('./features/pages/page-blocks.css');

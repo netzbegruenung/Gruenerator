@@ -14,6 +14,9 @@ import useGeneratedTextStore from '../../stores/core/generatedTextStore';
 import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
 import useImageGenerationLimit from '../../hooks/useImageGenerationLimit';
 
+// Imagine Feature CSS - Loaded only when this feature is accessed
+import '../../assets/styles/features/imagine/image-limit-indicator.css';
+
 // Imagine types
 export const IMAGINE_TYPES = {
   GREEN_EDIT: 'green-edit',

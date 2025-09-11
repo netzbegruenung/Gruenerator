@@ -2,6 +2,9 @@ import React, { useState, useEffect, useCallback, memo } from 'react';
 import { HiRefresh, HiTemplate, HiCheck, HiX, HiExclamationCircle, HiEye } from 'react-icons/hi';
 import CanvaButton from './CanvaButton';
 
+// Canva Overview Feature CSS - Loaded only when this feature is accessed
+import '../../../../assets/styles/components/canva/canva-overview.css';
+
 // Store
 import { useCanvaStore, useCanvaConnection, useCanvaDesigns } from '../../../../stores/canvaStore';
 

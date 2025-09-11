@@ -1,6 +1,6 @@
 
 import apiClient from '../../../components/utils/apiClient';
-import { getRobotAvatarPath, validateRobotId, getRobotAvatarAlt } from '../utils/avatarUtils';
+import { getRobotAvatarPath, validateRobotId, getRobotAvatarAlt } from '../../groups/utils/avatarUtils';
 
 const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
@@ -37,14 +37,6 @@ export const profileApiService = {
       beta_features: profile.beta_features || {},
       memory_enabled: profile.memory_enabled || false
     };
-
-    // Log for debugging bundestag API slider issue
-    console.log('[ProfileAPI] getProfile returning data:', {
-      userId: profile.id || 'unknown',
-      igelModus: profileData.igel_modus,
-      bundestagApiEnabled: profileData.bundestag_api_enabled,
-      source: 'profileApiService.getProfile'
-    });
 
     return profileData;
   },
@@ -113,8 +105,6 @@ export const profileApiService = {
   },
 
   async updateAvatar(avatarRobotId) {
-    console.log(`[ProfileAPI] Updating avatar to robot ID: ${avatarRobotId}`);
-    
     try {
       const response = await fetch(`${AUTH_BASE_URL}/auth/profile/avatar`, {
         method: 'PATCH',
@@ -124,11 +114,6 @@ export const profileApiService = {
       });
       
       const result = await response.json();
-      console.log(`[ProfileAPI] Avatar update response:`, { 
-        status: response.status, 
-        success: result.success, 
-        profile: result.profile 
-      });
       
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${result.message || 'Avatar-Update fehlgeschlagen'}`);
@@ -142,7 +127,6 @@ export const profileApiService = {
         throw new Error('Server returned success but no profile data');
       }
       
-      console.log(`[ProfileAPI] Avatar updated successfully to ${result.profile.avatar_robot_id}`);
       return result.profile;
     } catch (error) {
       console.error(`[ProfileAPI] Avatar update failed for robot ID ${avatarRobotId}:`, error);
@@ -417,54 +401,116 @@ export const profileApiService = {
   },
 
   async createQACollection(collectionData) {
+    const selectionMode = collectionData.selectionMode || 'documents';
+    const body = {
+      name: collectionData.name,
+      description: collectionData.description,
+      custom_prompt: collectionData.custom_prompt,
+      selection_mode: selectionMode,
+      document_ids: selectionMode === 'documents' ? (collectionData.documents || []) : [],
+      wolke_share_link_ids: selectionMode === 'wolke' ? (collectionData.wolkeShareLinks || []) : [],
+      auto_sync: selectionMode === 'wolke' ? !!collectionData.auto_sync : false,
+      remove_missing_on_sync: selectionMode === 'wolke' ? !!collectionData.remove_missing_on_sync : false
+    };
+
     const response = await fetch(`${AUTH_BASE_URL}/auth/qa-collections`, {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: collectionData.name,
-        description: collectionData.description,
-        custom_prompt: collectionData.custom_prompt,
-        documents: collectionData.documents
-      })
+      body: JSON.stringify(body)
     });
-    
+
+    let json;
+    try {
+      json = await response.json();
+    } catch {
+      json = null;
+    }
+
     if (!response.ok) {
-      throw new Error('Fehler beim Erstellen der Q&A-Sammlung');
+      const err = new Error(json?.error || json?.message || 'Fehler beim Erstellen der Q&A-Sammlung');
+      // Attach status for unified error handling
+      err.response = { status: response.status };
+      throw err;
     }
-    
-    const json = await response.json();
-    
-    if (!json.success) {
-      throw new Error(json.message || 'Failed to create Q&A collection');
+
+    if (!json?.success) {
+      const err = new Error(json?.message || 'Failed to create Q&A collection');
+      err.response = { status: 400 };
+      throw err;
     }
-    
+
     return json.collection;
   },
 
   async updateQACollection(collectionId, collectionData) {
+    const selectionMode = collectionData.selectionMode || 'documents';
+    const body = {
+      name: collectionData.name,
+      description: collectionData.description,
+      custom_prompt: collectionData.custom_prompt,
+      selection_mode: selectionMode,
+      document_ids: selectionMode === 'documents' ? (collectionData.documents || []) : [],
+      wolke_share_link_ids: selectionMode === 'wolke' ? (collectionData.wolkeShareLinks || []) : [],
+      auto_sync: selectionMode === 'wolke' ? !!collectionData.auto_sync : undefined,
+      remove_missing_on_sync: selectionMode === 'wolke' ? !!collectionData.remove_missing_on_sync : undefined
+    };
+
     const response = await fetch(`${AUTH_BASE_URL}/auth/qa-collections/${collectionId}`, {
       method: 'PUT',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: collectionData.name,
-        description: collectionData.description,
-        custom_prompt: collectionData.custom_prompt,
-        documents: collectionData.documents
-      })
+      body: JSON.stringify(body)
     });
-    
+
+    let json;
+    try {
+      json = await response.json();
+    } catch {
+      json = null;
+    }
+
     if (!response.ok) {
-      throw new Error('Fehler beim Aktualisieren der Q&A-Sammlung');
+      const err = new Error(json?.error || json?.message || 'Fehler beim Aktualisieren der Q&A-Sammlung');
+      err.response = { status: response.status };
+      throw err;
     }
-    
-    const json = await response.json();
-    
-    if (!json.success) {
-      throw new Error(json.message || 'Failed to update Q&A collection');
+
+    if (!json?.success) {
+      const err = new Error(json?.message || 'Failed to update Q&A collection');
+      err.response = { status: 400 };
+      throw err;
     }
-    
+
+    return json;
+  },
+
+  async syncQACollection(collectionId) {
+    const response = await fetch(`${AUTH_BASE_URL}/auth/qa-collections/${collectionId}/sync`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+    let json;
+    try {
+      json = await response.json();
+    } catch {
+      json = null;
+    }
+
+    if (!response.ok) {
+      const err = new Error(json?.error || json?.message || 'Fehler beim Synchronisieren der Notebook-Quellen');
+      err.response = { status: response.status };
+      throw err;
+    }
+
+    if (!json?.success) {
+      const err = new Error(json?.message || 'Failed to sync Q&A collection');
+      err.response = { status: 400 };
+      throw err;
+    }
+
     return json;
   },
 
@@ -491,6 +537,11 @@ export const profileApiService = {
   async getCustomGenerators() {
     const response = await apiClient.get('/auth/custom_generator');
     return response.data || [];
+  },
+
+  async updateCustomGenerator(generatorId, updateData) {
+    const response = await apiClient.put(`/auth/custom_generator/${generatorId}`, updateData);
+    return response.data;
   },
 
   async deleteCustomGenerator(generatorId) {

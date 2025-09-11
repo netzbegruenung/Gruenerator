@@ -1,10 +1,9 @@
-import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect, lazy } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from "motion/react";
 const ReactMarkdown = lazy(() => import('react-markdown'));
 import { 
   HiDocumentText, 
-  HiChatAlt2, 
   HiCollection, 
   HiOutlineEye, 
   HiOutlinePencil,
@@ -13,6 +12,7 @@ import {
   HiOutlineViewGrid,
   HiOutlineViewList
 } from 'react-icons/hi';
+import { NotebookIcon } from '../../../config/icons';
 import Spinner from '../../../components/common/Spinner';
 
 /**
@@ -131,7 +131,7 @@ const SharedContentSelector = ({
       content.push(...groupContent.qas.map(item => ({
         ...item,
         contentType: 'qa_collections',
-        icon: HiChatAlt2,
+        icon: NotebookIcon,
         typeLabel: 'Q&A'
       })));
     }

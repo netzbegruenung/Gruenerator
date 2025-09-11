@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { HiX, HiCheck, HiExclamationCircle, HiAcademicCap } from 'react-icons/hi';
+import { HiX, HiCheck, HiExclamationCircle } from 'react-icons/hi';
 import { FaCloud } from 'react-icons/fa';
-import { validateShareLink } from '../../../components/utils/nextcloudUtils';
-import WolkeTutorial from './WolkeTutorial';
+import { NextcloudShareManager } from '../../../utils/nextcloudShareManager';
+
+// Wolke Feature CSS - Loaded only when this feature is accessed
+import '../../../assets/styles/features/wolke/wolke.css';
 
 /**
  * Modal component for setting up Wolke (Nextcloud) share links
@@ -13,12 +15,11 @@ const WolkeSetupModal = ({ onClose, onSubmit }) => {
     const [label, setLabel] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [validationError, setValidationError] = useState('');
-    const [showTutorial, setShowTutorial] = useState(false);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         
-        const validation = validateShareLink(shareLink);
+        const validation = NextcloudShareManager.validateShareLink(shareLink);
         if (!validation.isValid) {
             setValidationError(validation.error);
             return;
@@ -46,13 +47,6 @@ const WolkeSetupModal = ({ onClose, onSubmit }) => {
         setLabel(e.target.value);
     };
 
-    const handleTutorialOpen = () => {
-        setShowTutorial(true);
-    };
-
-    const handleTutorialClose = () => {
-        setShowTutorial(false);
-    };
 
     return (
         <div className="wolke-modal-overlay" onClick={onClose}>
@@ -73,23 +67,9 @@ const WolkeSetupModal = ({ onClose, onSubmit }) => {
 
                 <div className="wolke-modal-content">
                     <p className="wolke-modal-description">
-                        Um Dateien in der Grünen Wolke zu speichern, benötigen Sie einen beschreibbaren Nextcloud-Share-Link.
+                        Um Dateien in der Grünen Wolke zu speichern, benötigst du einen beschreibbaren Nextcloud-Share-Link. 
+                        Eine detaillierte Schritt-für-Schritt Anleitung findest du <a href="https://doku.services.moritz-waechter.de/docs/Profil/gruene-wolke-tutorial" target="_blank" rel="noopener noreferrer">hier</a> in unserer Dokumentation.
                     </p>
-
-                    {/* Tutorial button */}
-                    <div className="wolke-setup-tutorial-section">
-                        <button
-                            type="button"
-                            className="wolke-setup-tutorial-button"
-                            onClick={handleTutorialOpen}
-                        >
-                            <HiAcademicCap size={18} />
-                            Tutorial starten
-                        </button>
-                        <p className="wolke-setup-tutorial-description">
-                            Schritt-für-Schritt Anleitung zum Erstellen eines Share-Links
-                        </p>
-                    </div>
 
                     <form onSubmit={handleSubmit}>
                         <div className="wolke-form-group">
@@ -175,11 +155,6 @@ const WolkeSetupModal = ({ onClose, onSubmit }) => {
                     </div>
                 </div>
             </div>
-            
-            {/* Tutorial overlay */}
-            {showTutorial && (
-                <WolkeTutorial onClose={handleTutorialClose} />
-            )}
         </div>
     );
 };

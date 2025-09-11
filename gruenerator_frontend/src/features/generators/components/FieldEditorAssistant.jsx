@@ -28,14 +28,35 @@ const FieldEditorAssistant = ({ initialFieldData, onSave, onCancel, existingFiel
       type: 'text',
       placeholder: '',
       required: false,
+      options: [],
     },
     mode: 'onChange'
   });
 
   const [error, setError] = useState(null);
+  
+  // Helper functions for managing select options
+  const addOption = () => {
+    const currentOptions = watchedOptions || [];
+    setValue('options', [...currentOptions, { label: '', value: '' }], { shouldValidate: false });
+  };
+
+  const updateOption = (index, field, value) => {
+    const currentOptions = watchedOptions || [];
+    const newOptions = [...currentOptions];
+    newOptions[index] = { ...newOptions[index], [field]: value };
+    setValue('options', newOptions, { shouldValidate: false });
+  };
+
+  const removeOption = (index) => {
+    const currentOptions = watchedOptions || [];
+    setValue('options', currentOptions.filter((_, i) => i !== index), { shouldValidate: false });
+  };
 
   // Watch label for auto-generation
   const watchedLabel = watch('label');
+  const watchedType = watch('type');
+  const watchedOptions = watch('options');
 
   useEffect(() => {
     // Initialize with existing data if provided (for editing)
@@ -53,6 +74,7 @@ const FieldEditorAssistant = ({ initialFieldData, onSave, onCancel, existingFiel
         type: 'text',
         placeholder: '',
         required: false,
+        options: [],
       });
     }
     setError(null); // Clear errors when component initializes or data changes
@@ -84,6 +106,19 @@ const FieldEditorAssistant = ({ initialFieldData, onSave, onCancel, existingFiel
       setError(null);
     }
   }, [watchedLabel, setValue]);
+
+  // Effect to handle type changes and options initialization
+  useEffect(() => {
+    const currentOptions = watchedOptions || [];
+    
+    if (watchedType === 'select' && currentOptions.length === 0) {
+      // When switching to select type, ensure at least one option exists
+      setValue('options', [{ label: '', value: '' }], { shouldValidate: false });
+    } else if (watchedType !== 'select' && currentOptions.length > 0) {
+      // When switching away from select type, clear options
+      setValue('options', [], { shouldValidate: false });
+    }
+  }, [watchedType, watchedOptions, setValue]);
 
 
   // Define validation rules
@@ -162,6 +197,17 @@ const FieldEditorAssistant = ({ initialFieldData, onSave, onCancel, existingFiel
               >
                 Langer Text
               </button>
+              <button 
+                type="button"
+                className={`btn type-selector-button ${field.value === 'select' ? 'active' : ''}`}
+                onClick={() => {
+                  field.onChange('select');
+                  setError(null);
+                }}
+                aria-pressed={field.value === 'select'}
+              >
+                Auswahlfeld
+              </button>
             </div>
           )}
         />
@@ -170,11 +216,58 @@ const FieldEditorAssistant = ({ initialFieldData, onSave, onCancel, existingFiel
       {/* Placeholder Input */}
       <FormInput
         name="placeholder"
-        label="Hilfetext im Feld (optional)"
-        placeholder="z.B. Gib hier das Hauptthema an"
+        label={watchedType === 'select' ? "Standardtext (optional)" : "Hilfetext im Feld (optional)"}
+        placeholder={watchedType === 'select' ? "z.B. Bitte wählen..." : "z.B. Gib hier das Hauptthema an"}
         required={false}
         control={control}
       />
+
+      {/* Options Management - Only shown for select type */}
+      {watchedType === 'select' && (
+        <div className="form-group">
+          <label className="form-field-label">Auswahlmöglichkeiten</label>
+          <div className="select-options-container">
+            {(watchedOptions || []).map((option, index) => (
+              <div key={index} className="option-input-group">
+                <input
+                  type="text"
+                  placeholder="Anzeigetext"
+                  value={option.label || ''}
+                  onChange={(e) => {
+                    const newLabel = e.target.value;
+                    const newValue = newLabel.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+                    updateOption(index, 'label', newLabel);
+                    updateOption(index, 'value', newValue);
+                  }}
+                  className="form-control option-label-input"
+                />
+                <input
+                  type="text"
+                  placeholder="Technischer Wert"
+                  value={option.value || ''}
+                  onChange={(e) => updateOption(index, 'value', e.target.value)}
+                  className="form-control option-value-input"
+                />
+                <button
+                  type="button"
+                  onClick={() => removeOption(index)}
+                  className="btn btn-sm btn-danger option-remove-btn"
+                  aria-label="Option entfernen"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={addOption}
+              className="btn btn-sm btn-tanne-bordered add-option-btn"
+            >
+              + Option hinzufügen
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Required Toggle Switch - Custom Controller */}
       <div className="form-group toggle-switch-group">

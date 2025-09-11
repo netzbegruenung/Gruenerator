@@ -1,10 +1,14 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { HiRefresh, HiClipboard, HiOutlineTrash, HiExternalLink, HiUpload, HiAcademicCap } from 'react-icons/hi';
 import ProfileCard from '../../../components/common/ProfileCard';
-import { validateShareLink, generateShareLinkDisplayName } from '../../../components/utils/nextcloudUtils';
+import { NextcloudShareManager } from '../../../utils/nextcloudShareManager';
 import { useAutosave } from '../../../hooks/useAutosave';
-import WolkeTutorial from './WolkeTutorial';
 import { useWolkeStore } from '../../../stores/wolkeStore';
+import { getIcon } from '../../../config/icons';
+
+// Wolke Feature CSS - Loaded only when this feature is accessed
+import '../../../assets/styles/features/wolke/wolke.css';
+// Import ProfileActionButton CSS for consistent button styling
+import '../../../assets/styles/components/profile/profile-action-buttons.css';
 
 const WolkeShareLinkManager = ({
     // Props for backward compatibility - will be used if provided
@@ -49,14 +53,13 @@ const WolkeShareLinkManager = ({
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [testingConnections, setTestingConnections] = useState(new Set());
     const [uploadingFiles, setUploadingFiles] = useState(new Set());
-    const [showTutorial, setShowTutorial] = useState(false);
     const isInitialized = useRef(false);
 
     // Autosave function for ShareLink form
     const autosaveShareLink = useCallback(async () => {
         if (!isInitialized.current || !newShareLink.trim()) return;
         
-        const validation = validateShareLink(newShareLink);
+        const validation = NextcloudShareManager.validateShareLink(newShareLink);
         if (!validation.isValid) return; // Don't auto-save invalid links
         
         try {
@@ -104,7 +107,7 @@ const WolkeShareLinkManager = ({
     const handleSubmitShareLink = async (e) => {
         e.preventDefault();
         
-        const validation = validateShareLink(newShareLink);
+        const validation = NextcloudShareManager.validateShareLink(newShareLink);
         if (!validation.isValid) {
             if (useStore) {
                 setError(validation.error);
@@ -258,7 +261,7 @@ Kontext: ${contextLabel}
 
     const handleDeleteWithConfirm = async (shareLink) => {
         const contextLabel = scope === 'group' ? 'aus der Gruppe' : '';
-        const confirmMessage = `Möchten Sie die Verbindung "${generateShareLinkDisplayName(shareLink, shareLink.label)}" ${contextLabel} wirklich löschen?`;
+        const confirmMessage = `Möchten Sie die Verbindung "${NextcloudShareManager.generateDisplayName(shareLink)}" ${contextLabel} wirklich löschen?`;
         
         if (window.confirm(confirmMessage)) {
             try {
@@ -284,13 +287,6 @@ Kontext: ${contextLabel}
         }
     };
 
-    const handleTutorialOpen = () => {
-        setShowTutorial(true);
-    };
-
-    const handleTutorialClose = () => {
-        setShowTutorial(false);
-    };
 
     const handleRefresh = () => {
         if (useStore && !propOnRefresh) {
@@ -361,29 +357,13 @@ Kontext: ${contextLabel}
                             ? 'Nur Gruppenadministratoren können Wolke-Links hinzufügen.'
                             : 'Links werden automatisch gespeichert, wenn sie gültig sind.'
                         }
+                        {' '}Eine detaillierte Schritt-für-Schritt Anleitung zum Erstellen eines Share-Links findest du <a href="https://doku.services.moritz-waechter.de/docs/Profil/gruene-wolke-tutorial" target="_blank" rel="noopener noreferrer">hier</a> in unserer Dokumentation.
                     </p>
                     
                     {!canAddLinks && (
                         <div className="wolke-permission-notice">
                             <p>⚠️ Sie haben keine Berechtigung, Wolke-Links zu dieser Gruppe hinzuzufügen.</p>
                         </div>
-                    )}
-                    
-                    {/* Tutorial section */}
-                    {canAddLinks && (
-                        <div className="wolke-setup-tutorial-section">
-                        <button
-                            type="button"
-                            className="wolke-setup-tutorial-button"
-                            onClick={handleTutorialOpen}
-                        >
-                            <HiAcademicCap size={18} />
-                            Tutorial starten
-                        </button>
-                        <p className="wolke-setup-tutorial-description">
-                            Schritt-für-Schritt Anleitung zum Erstellen eines Share-Links
-                        </p>
-                    </div>
                     )}
                     
                     {canAddLinks && (
@@ -419,10 +399,10 @@ Kontext: ${contextLabel}
                         <div className="wolke-form-actions">
                             <button
                                 type="submit"
-                                className="btn-primary"
+                                className="pabtn pabtn--primary pabtn--s"
                                 disabled={isSubmitting || !newShareLink.trim()}
                             >
-                                {isSubmitting ? 'Wird hinzugefügt...' : 'Hinzufügen'}
+                                <span className="pabtn__label">{isSubmitting ? 'Wird hinzugefügt...' : 'Hinzufügen'}</span>
                             </button>
                         </div>
                     </form>
@@ -437,13 +417,13 @@ Kontext: ${contextLabel}
                     headerActions={
                         <button
                             type="button"
-                            className="btn-secondary size-s"
+                            className="pabtn pabtn--secondary pabtn--s"
                             onClick={handleRefresh}
                             disabled={loading}
                             title="Liste aktualisieren"
                         >
-                            <HiRefresh className="icon" />
-                            Aktualisieren
+                            {React.createElement(getIcon('actions', 'refresh'), { className: 'pabtn__icon' })}
+                            <span className="pabtn__label">Aktualisieren</span>
                         </button>
                     }
                 >
@@ -475,50 +455,50 @@ Kontext: ${contextLabel}
                                 <div className="wolke-share-link-actions">
                                     <button
                                         type="button"
-                                        className="btn-action"
+                                        className="pabtn pabtn--ghost pabtn--s"
                                         onClick={() => handleTestConnection(shareLink)}
                                         disabled={testingConnections.has(shareLink.id) || !shareLink.is_active}
                                         title="Verbindung testen"
                                     >
-                                        <HiRefresh className={testingConnections.has(shareLink.id) ? 'spinning' : ''} />
+                                        {React.createElement(getIcon('actions', 'refresh'), { className: `pabtn__icon ${testingConnections.has(shareLink.id) ? 'spinning' : ''}` })}
                                     </button>
                                     
                                     <button
                                         type="button"
-                                        className="btn-action"
+                                        className="pabtn pabtn--ghost pabtn--s"
                                         onClick={() => handleTestUpload(shareLink)}
                                         disabled={uploadingFiles.has(shareLink.id) || !shareLink.is_active}
                                         title="Test-Datei hochladen"
                                     >
-                                        <HiUpload className={uploadingFiles.has(shareLink.id) ? 'spinning' : ''} />
+                                        {React.createElement(getIcon('actions', 'upload'), { className: `pabtn__icon ${uploadingFiles.has(shareLink.id) ? 'spinning' : ''}` })}
                                     </button>
                                     
                                     <button
                                         type="button"
-                                        className="btn-action"
+                                        className="pabtn pabtn--ghost pabtn--s"
                                         onClick={() => handleCopyToClipboard(shareLink.share_link)}
                                         title="Link kopieren"
                                     >
-                                        <HiClipboard />
+                                        {React.createElement(getIcon('actions', 'copy'), { className: 'pabtn__icon' })}
                                     </button>
                                     
                                     <button
                                         type="button"
-                                        className="btn-action"
+                                        className="pabtn pabtn--ghost pabtn--s"
                                         onClick={() => window.open(shareLink.share_link, '_blank')}
                                         title="In neuem Tab öffnen"
                                     >
-                                        <HiExternalLink />
+                                        {React.createElement(getIcon('actions', 'share'), { className: 'pabtn__icon' })}
                                     </button>
                                     
                                     {canDeleteLinks && (
                                         <button
                                             type="button"
-                                            className="btn-action btn-danger"
+                                            className="pabtn pabtn--delete pabtn--s"
                                             onClick={() => handleDeleteWithConfirm(shareLink)}
                                             title="Löschen"
                                         >
-                                            <HiOutlineTrash />
+                                            {React.createElement(getIcon('actions', 'delete'), { className: 'pabtn__icon' })}
                                         </button>
                                     )}
                                 </div>
@@ -535,13 +515,13 @@ Kontext: ${contextLabel}
                     headerActions={
                         <button
                             type="button"
-                            className="btn-secondary size-s"
+                            className="pabtn pabtn--secondary pabtn--s"
                             onClick={handleRefresh}
                             disabled={loading}
                             title="Liste aktualisieren"
                         >
-                            <HiRefresh className="icon" />
-                            Aktualisieren
+                            {React.createElement(getIcon('actions', 'refresh'), { className: 'pabtn__icon' })}
+                            <span className="pabtn__label">Aktualisieren</span>
                         </button>
                     }
                 >
@@ -550,11 +530,6 @@ Kontext: ${contextLabel}
                         <p>Füge oben einen Share-Link hinzu, um zu beginnen.</p>
                     </div>
                 </ProfileCard>
-            )}
-            
-            {/* Tutorial overlay */}
-            {showTutorial && (
-                <WolkeTutorial onClose={handleTutorialClose} />
             )}
         </div>
     );

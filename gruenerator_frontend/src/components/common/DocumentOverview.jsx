@@ -1,10 +1,22 @@
-import React, { lazy, Suspense, useState, useEffect, useCallback } from 'react';
-import { HiOutlineTrash, HiOutlineSearch, HiOutlineDocumentText, HiOutlinePencil, HiOutlineEye, HiRefresh, HiDotsVertical, HiExclamationCircle, HiChatAlt2, HiShare, HiClipboard, HiChevronRight } from 'react-icons/hi';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { HiOutlineTrash, HiOutlineSearch, HiOutlineDocumentText, HiOutlinePencil, HiOutlineEye, HiRefresh, HiDotsVertical, HiExclamationCircle, HiShare, HiClipboard, HiChevronRight } from 'react-icons/hi';
+import { NotebookIcon } from '../../config/icons';
 import { motion } from "motion/react";
-const ReactMarkdown = lazy(() => import('react-markdown'));
 import Spinner from './Spinner';
 import MenuDropdown from './MenuDropdown';
 import BulkDeleteConfirmModal from './BulkDeleteConfirmModal';
+import { useSearchState } from '../../hooks/useSearchState';
+import { useFilteredAndGroupedItems } from '../../hooks/useFilteredAndGroupedItems';
+import DocumentPreviewModal from './DocumentPreviewModal';
+import SelectAllCheckbox from './SelectAllCheckbox';
+import DocumentGroupedContent from './DocumentGroupedContent';
+import { getActionItems } from './ItemActionBuilder';
+import { truncateForPreview, getSortValueFactory, normalizeRemoteResults, formatDate } from '../utils/documentOverviewUtils';
+
+// Document Overview Feature CSS - Loaded only when this feature is accessed
+import '../../assets/styles/components/document-overview.css';
+// Import ProfileActionButton CSS for consistent button styling
+import '../../assets/styles/components/profile/profile-action-buttons.css';
 
 // Define default values outside component to prevent re-creation on every render
 const DEFAULT_SEARCH_FIELDS = ['title', 'content_preview', 'full_content'];
@@ -14,30 +26,6 @@ const DEFAULT_SORT_OPTIONS = [
     { value: 'title', label: 'Titel' },
     { value: 'word_count', label: 'Wortanzahl' }
 ];
-
-// Helper function to truncate content for preview display
-const truncateForPreview = (content, maxLength = 300) => {
-    if (!content || typeof content !== 'string') return '';
-    if (content.length <= maxLength) return content;
-    
-    // Try to cut at sentence boundaries
-    const truncated = content.substring(0, maxLength);
-    const lastSentence = truncated.lastIndexOf('.');
-    const lastSpace = truncated.lastIndexOf(' ');
-    
-    // If we have a sentence boundary within reasonable distance, use it
-    if (lastSentence > maxLength * 0.7) {
-        return truncated.substring(0, lastSentence + 1);
-    }
-    // Otherwise, cut at word boundary
-    else if (lastSpace > maxLength * 0.8) {
-        return truncated.substring(0, lastSpace) + '...';
-    }
-    // Fallback: hard cut with ellipsis
-    else {
-        return truncated + '...';
-    }
-};
 
 const DocumentOverview = ({
     documents = [], // backward compatibility - will also accept 'items'
@@ -74,15 +62,40 @@ const DocumentOverview = ({
     isRemoteSearching = false,
     remoteResults = [],
     onClearRemoteSearch,
-    remoteSearchDefaultMode = 'intelligent' // 'intelligent' | 'fulltext'
+    remoteSearchDefaultMode = 'intelligent', // 'intelligent' | 'fulltext'
+    // NEW: Wolke share links for cloud documents
+    wolkeShareLinks = []
 }) => {
     // Support both 'documents' (backward compatibility) and 'items' props
     const allItems = items || documents;
     
-    // State management
-    const [filteredItems, setFilteredItems] = useState([]);
-    const [groupedItems, setGroupedItems] = useState({});
-    const [searchQuery, setSearchQuery] = useState('');
+    // Ensure isRemoteSearching always has a defined value to prevent scope issues
+    const isRemoteSearchingValue = isRemoteSearching ?? false;
+    
+    // Search state management using custom hook
+    const searchState = useSearchState({
+        mode: remoteSearchEnabled ? 'remote' : 'local',
+        onRemoteSearch,
+        onClearRemoteSearch,
+        searchMode: remoteSearchDefaultMode
+    });
+    
+    // Sort state (must be declared before useFilteredAndGroupedItems)
+    const [sortBy, setSortBy] = useState(sortOptions[0]?.value || 'updated_at');
+    const [sortOrder, setSortOrder] = useState('desc');
+    
+    // Derived items and grouping
+    const { filteredItems, groupedItems } = useFilteredAndGroupedItems({
+        items: allItems,
+        itemType,
+        searchFields,
+        sortBy,
+        sortOrder,
+        enableGrouping,
+        searchState,
+    });
+    
+    // Component state
     const [selectedItem, setSelectedItem] = useState(null);
     const [showPreview, setShowPreview] = useState(false);
     const [editingTitle, setEditingTitle] = useState(null);
@@ -91,24 +104,7 @@ const DocumentOverview = ({
     const [refreshing, setRefreshing] = useState(null);
     const [previewLoading, setPreviewLoading] = useState(false);
     const [previewError, setPreviewError] = useState(null);
-    const [sortBy, setSortBy] = useState(sortOptions[0]?.value || 'updated_at');
-    const [sortOrder, setSortOrder] = useState('desc');
-    const [searchMode, setSearchMode] = useState(remoteSearchDefaultMode);
 
-    // Debounced remote search
-    useEffect(() => {
-        if (!remoteSearchEnabled) return;
-        const q = (searchQuery || '').trim();
-        const handle = setTimeout(() => {
-            if (q) {
-                onRemoteSearch && onRemoteSearch(q, searchMode);
-            } else {
-                onClearRemoteSearch && onClearRemoteSearch();
-            }
-        }, 400);
-        return () => clearTimeout(handle);
-    }, [remoteSearchEnabled, searchQuery, searchMode, onRemoteSearch, onClearRemoteSearch]);
-    
     // Bulk selection state
     const [selectedItemIds, setSelectedItemIds] = useState(new Set());
     const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
@@ -117,100 +113,21 @@ const DocumentOverview = ({
     // Grouping state
     const [expandedGroups, setExpandedGroups] = useState(new Set(['manual', 'wolke']));
 
-    // Generic search field getter
-    const getSearchValue = useCallback((item, field) => {
-        // Handle Q&A collections vs documents
-        if (itemType === 'qa') {
-            switch (field) {
-                case 'title': return item.name || '';
-                case 'content_preview': return item.description || '';
-                case 'full_content': return item.custom_prompt || '';
-                default: return item[field] || '';
-            }
-        }
-        return item[field] || '';
-    }, [itemType]);
+    // Sort getter for remote results sorting
+    const getSortValue = useMemo(() => getSortValueFactory(itemType), [itemType]);
 
-    // Generic sort value getter
-    const getSortValue = useCallback((item, field) => {
-        // Handle Q&A collections vs documents
-        if (itemType === 'qa') {
-            switch (field) {
-                case 'title': return (item.name || '').toLowerCase();
-                case 'word_count': return item.document_count || 0;
-                case 'view_count': return item.view_count || 0;
-                case 'created_at': return item.created_at ? new Date(item.created_at) : new Date(0);
-                case 'updated_at': return item.updated_at ? new Date(item.updated_at) : new Date(0);
-                default: return item[field] || '';
-            }
-        }
-        
-        // Default document handling
-        switch (field) {
-            case 'title': return (item.title || '').toLowerCase();
-            case 'word_count': return item.word_count || 0;
-            case 'similarity_score': return item.similarity_score ?? 0;
-            case 'created_at': return item.created_at ? new Date(item.created_at) : new Date(0);
-            case 'updated_at': return item.updated_at ? new Date(item.updated_at) : new Date(0);
-            default: return item[field] || '';
-        }
-    }, [itemType]);
-
-    // Filter and sort items (local mode)
+    // Auto-switch to relevance sorting when remote search is active
     useEffect(() => {
-        if (!Array.isArray(allItems)) {
-            setFilteredItems([]);
-            return;
-        }
-
-        let filtered = [...allItems]; // Create a copy to avoid mutating the original array
-
-        // Apply search filter only when not using remote search
-        if (!remoteSearchEnabled && searchQuery.trim()) {
-            const query = searchQuery.toLowerCase();
-            filtered = filtered.filter(item => 
-                searchFields.some(field => {
-                    const value = getSearchValue(item, field);
-                    return value && value.toLowerCase().includes(query);
-                })
-            );
-        }
-
-        // Apply sorting
-        filtered.sort((a, b) => {
-            const valueA = getSortValue(a, sortBy);
-            const valueB = getSortValue(b, sortBy);
-
-            if (sortOrder === 'asc') {
-                return valueA > valueB ? 1 : -1;
-            } else {
-                return valueA < valueB ? 1 : -1;
-            }
-        });
-
-        setFilteredItems(filtered);
+        // Only run effect when all required state is initialized
+        if (!sortBy || !searchState) return;
         
-        // Group items if grouping is enabled
-        if (enableGrouping && itemType === 'document') {
-            const grouped = filtered.reduce((groups, item) => {
-                // Determine source type for grouping
-                let sourceType = item.source_type || 'manual';
-                if (sourceType === 'wolke') {
-                    sourceType = 'wolke';
-                } else {
-                    sourceType = 'manual';
-                }
-                
-                if (!groups[sourceType]) {
-                    groups[sourceType] = [];
-                }
-                groups[sourceType].push(item);
-                return groups;
-            }, {});
-            
-            setGroupedItems(grouped);
+        if (remoteSearchEnabled && searchState.hasQuery && sortBy !== 'similarity_score') {
+            setSortBy('similarity_score');
+        } else if (remoteSearchEnabled && !searchState.hasQuery && sortBy === 'similarity_score') {
+            // Switch back to default sort when search is cleared
+            setSortBy(sortOptions[0]?.value || 'updated_at');
         }
-    }, [allItems, searchQuery, sortBy, sortOrder, searchFields, getSearchValue, getSortValue, enableGrouping, itemType]);
+    }, [remoteSearchEnabled, searchState?.hasQuery, sortBy, sortOptions]);
 
     // Handle item deletion
     const handleDelete = async (item) => {
@@ -281,8 +198,10 @@ const DocumentOverview = ({
     };
 
     const handleSelectAll = (isSelected) => {
+        // Only allow bulk select for non-Wolke documents
+        const selectable = filteredItems.filter(item => itemType !== 'document' || item.source_type !== 'wolke');
         if (isSelected) {
-            setSelectedItemIds(new Set(filteredItems.map(item => item.id)));
+            setSelectedItemIds(new Set(selectable.map(item => item.id)));
         } else {
             setSelectedItemIds(new Set());
         }
@@ -331,7 +250,7 @@ const DocumentOverview = ({
     useEffect(() => {
         setSelectedItemIds(prev => {
             const newSet = new Set();
-            const activeItems = remoteSearchEnabled && searchQuery.trim() ? (remoteResults || []) : allItems;
+            const activeItems = remoteSearchEnabled && searchState.hasQuery ? (remoteResults || []) : allItems;
             const currentIds = new Set((activeItems || []).map(item => item.id));
             prev.forEach(id => {
                 if (currentIds.has(id)) {
@@ -340,7 +259,7 @@ const DocumentOverview = ({
             });
             return newSet;
         });
-    }, [allItems, remoteResults, remoteSearchEnabled, searchQuery]);
+    }, [allItems, remoteResults, remoteSearchEnabled, searchState.hasQuery]);
 
     // Item action handlers
     const handleViewItem = (item) => {
@@ -419,97 +338,9 @@ const DocumentOverview = ({
         }
     };
 
-    // Format date
-    const formatDate = (dateString) => {
-        return new Date(dateString).toLocaleString('de-DE', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-    };
+    // formatDate moved to utils
 
-    // Default action items for different types
-    const getDefaultActionItems = (item) => {
-        if (actionItems) {
-            return actionItems(item); // Use custom action items if provided
-        }
-
-        if (itemType === 'qa') {
-            return [
-                {
-                    icon: HiOutlineEye,
-                    label: 'Q&A öffnen',
-                    onClick: () => handleViewItem(item),
-                    primary: true
-                },
-                {
-                    icon: HiOutlinePencil,
-                    label: 'Bearbeiten',
-                    onClick: () => handleEditItem(item),
-                    show: !!onEdit
-                },
-                {
-                    icon: HiShare,
-                    label: 'Mit Gruppe teilen',
-                    onClick: () => handleShareItem(item),
-                    show: !!onShare
-                },
-                {
-                    separator: true
-                },
-                {
-                    icon: HiOutlineTrash,
-                    label: 'Löschen',
-                    onClick: () => handleDelete(item),
-                    show: !!onDelete,
-                    danger: true,
-                    loading: deleting === item.id
-                }
-            ];
-        }
-
-        // Default document actions
-        return [
-            {
-                icon: HiOutlineEye,
-                label: item.status === 'completed' ? 'Text-Vorschau' : 'Anzeigen',
-                onClick: () => item.status === 'completed' ? handleEnhancedPreview(item) : handleViewItem(item),
-                primary: true
-            },
-            {
-                icon: HiRefresh,
-                label: 'Status aktualisieren',
-                onClick: () => handleRefreshDocument(item),
-                show: (item.status === 'processing' || item.status === 'pending') && !!onRefreshDocument,
-                loading: refreshing === item.id
-            },
-            {
-                icon: HiOutlinePencil,
-                label: 'Bearbeiten',
-                onClick: () => handleEditItem(item),
-                show: !!onEdit
-            },
-            {
-                icon: HiShare,
-                label: 'Mit Gruppe teilen',
-                onClick: () => handleShareItem(item),
-                show: !!onShare
-            },
-            {
-                separator: true
-            },
-            {
-                icon: HiOutlineTrash,
-                label: 'Löschen',
-                onClick: () => handleDelete(item),
-                show: !!onDelete,
-                danger: true,
-                loading: deleting === item.id
-            }
-        ];
-    };
+    // Build action items via builder, falling back to custom actionItems if provided
 
     // Render default card
     const renderDefaultCard = (item) => {
@@ -524,7 +355,7 @@ const DocumentOverview = ({
                 {/* Header with title and dropdown menu */}
                 <div className="document-card-header">
                     {/* Bulk selection checkbox */}
-                    {enableBulkSelect && onBulkDelete && (
+                    {enableBulkSelect && onBulkDelete && !(itemType === 'document' && item.source_type === 'wolke') && (
                         <div className="document-card-checkbox">
                             <input
                                 type="checkbox"
@@ -554,22 +385,22 @@ const DocumentOverview = ({
                             />
                             <div className="document-title-edit-actions">
                                 <button 
-                                    className="btn-primary size-xs"
+                                    className="pabtn pabtn--primary pabtn--s"
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         handleTitleSave(item.id);
                                     }}
                                 >
-                                    ✓
+                                    <span className="pabtn__label">✓</span>
                                 </button>
                                 <button 
-                                    className="btn-secondary size-xs"
+                                    className="pabtn pabtn--ghost pabtn--s"
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         handleTitleCancel();
                                     }}
                                 >
-                                    ✕
+                                    <span className="pabtn__label">✕</span>
                                 </button>
                             </div>
                         </div>
@@ -649,7 +480,16 @@ const DocumentOverview = ({
                         </>
                     ) : (
                         <p className="content-preview">
-                            {truncateForPreview(item.full_content || item.content_preview || item.ocr_text) || 'Kein Inhalt verfügbar'}
+                            {(() => {
+                                const raw = item.full_content || item.content_preview || item.ocr_text;
+                                const text = truncateForPreview(raw);
+                                // If no inline preview is available but the document is completed,
+                                // hint that the preview loads on open instead of "Kein Inhalt verfügbar".
+                                if (!text && item.status === 'completed') {
+                                    return 'Vorschau beim Öffnen verfügbar';
+                                }
+                                return text || 'Kein Inhalt verfügbar';
+                            })()}
                         </p>
                     )}
                 </div>
@@ -713,7 +553,17 @@ const DocumentOverview = ({
 
     // Render dropdown menu content
     const renderDropdownContent = (item, onClose) => {
-        const actions = getDefaultActionItems(item).filter(action => 
+        const actions = (actionItems ? actionItems(item) : getActionItems(item, {
+            itemType,
+            onViewItem: (it) => (it.status === 'completed' && itemType === 'document') ? handleEnhancedPreview(it) : handleViewItem(it),
+            onEditItem: handleEditItem,
+            onShareItem: handleShareItem,
+            onDeleteItem: handleDelete,
+            onRefreshDocument: handleRefreshDocument,
+            deletingId: deleting,
+            refreshingId: refreshing,
+            wolkeShareLinks,
+        })).filter(action => 
             action.separator || action.show !== false
         );
 
@@ -794,7 +644,7 @@ const DocumentOverview = ({
 
     // Render empty state
     const renderEmptyState = () => {
-        const defaultIcon = itemType === 'qa' ? HiChatAlt2 : HiOutlineDocumentText;
+        const defaultIcon = itemType === 'qa' ? NotebookIcon : HiOutlineDocumentText;
         const DefaultIcon = defaultIcon;
         const defaultMessage = itemType === 'qa' ? 'Keine Q&A-Sammlungen vorhanden.' : 'Keine Dokumente vorhanden.';
         
@@ -809,164 +659,29 @@ const DocumentOverview = ({
         );
     };
 
-    // Render preview modal
+    // Render preview modal (extracted component)
     const renderPreview = () => {
         if (!selectedItem) return null;
-
-        const itemTitle = itemType === 'qa' ? selectedItem.name : selectedItem.title;
-        const previewContent = itemType === 'qa' 
-            ? selectedItem.description || selectedItem.custom_prompt || 'Keine Beschreibung verfügbar'
-            : selectedItem.full_content || selectedItem.content_preview || selectedItem.ocr_text || 'Kein Inhalt verfügbar';
-
         return (
-            <motion.div 
-                className="document-preview-overlay"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={() => setShowPreview(false)}
-            >
-                <motion.div 
-                    className="document-preview-modal"
-                    initial={{ scale: 0.9, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    exit={{ scale: 0.9, opacity: 0 }}
-                    onClick={e => e.stopPropagation()}
-                >
-                    <div className="document-preview-header">
-                        <h3>{itemTitle}</h3>
-                        <button 
-                            className="document-preview-close"
-                            onClick={() => setShowPreview(false)}
-                        >
-                            ×
-                        </button>
-                    </div>
-                    <div className="document-preview-content">
-                        <div className="document-preview-meta">
-                            {itemType === 'qa' ? (
-                                <>
-                                    {selectedItem.document_count && (
-                                        <span>Dokumente: {selectedItem.document_count}</span>
-                                    )}
-                                    {selectedItem.is_public && (
-                                        <span>Öffentlich</span>
-                                    )}
-                                    {selectedItem.view_count && (
-                                        <span>Aufrufe: {selectedItem.view_count}</span>
-                                    )}
-                                    {selectedItem.created_at && (
-                                        <span>Erstellt: {formatDate(selectedItem.created_at)}</span>
-                                    )}
-                                </>
-                            ) : (
-                                <>
-                                    {selectedItem.type && (
-                                        <span>Typ: {documentTypes[selectedItem.type] || selectedItem.type}</span>
-                                    )}
-                                    {selectedItem.word_count && (
-                                        <span>Wörter: {selectedItem.word_count}</span>
-                                    )}
-                                    {selectedItem.created_at && (
-                                        <span>Erstellt: {formatDate(selectedItem.created_at)}</span>
-                                    )}
-                                    {selectedItem.updated_at && (
-                                        <span>Geändert: {formatDate(selectedItem.updated_at)}</span>
-                                    )}
-                                </>
-                            )}
-                        </div>
-                        <div className="document-preview-text">
-                            {selectedItem.markdown_content ? (
-                                <div className="antrag-text-content">
-                                    <Suspense fallback={<div>Loading...</div>}><ReactMarkdown>
-                                        {selectedItem.markdown_content}
-                                    </ReactMarkdown></Suspense>
-                                </div>
-                            ) : (
-                                previewContent
-                            )}
-                        </div>
-                    </div>
-                    {onEdit && (
-                        <div className="document-preview-actions">
-                            <button 
-                                className="btn-primary"
-                                onClick={() => handleEditItem(selectedItem)}
-                            >
-                                <HiOutlinePencil /> Bearbeiten
-                            </button>
-                        </div>
-                    )}
-                </motion.div>
-            </motion.div>
+            <DocumentPreviewModal
+                item={selectedItem}
+                itemType={itemType}
+                documentTypes={documentTypes}
+                onClose={() => setShowPreview(false)}
+            />
         );
     };
 
-    // Render grouped content
-    const renderGroupedContent = () => {
-        const groupLabels = {
-            manual: 'Dokumente',
-            wolke: 'Wolke Dokumente'
-        };
-        
-        const groupIcons = {
-            manual: '📁',
-            wolke: '☁️'
-        };
-        
-        return (
-            <div className="document-overview-grouped">
-                {Object.entries(groupedItems).map(([groupKey, items]) => {
-                    if (!items || items.length === 0) return null;
-                    
-                    const isExpanded = expandedGroups.has(groupKey);
-                    const groupLabel = groupLabels[groupKey] || groupKey;
-                    const groupIcon = groupIcons[groupKey] || '📄';
-                    
-                    return (
-                        <div key={groupKey} className="document-group">
-                            <div 
-                                className="document-group-header"
-                                onClick={() => toggleGroupExpansion(groupKey)}
-                                style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', marginBottom: 'var(--spacing-medium)' }}
-                            >
-                                <span className="group-icon" style={{ marginRight: 'var(--spacing-small)' }}>
-                                    {groupIcon}
-                                </span>
-                                <h4 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600 }}>
-                                    {groupLabel} ({items.length})
-                                </h4>
-                                <button 
-                                    className="group-toggle-button"
-                                    style={{ 
-                                        marginLeft: 'var(--spacing-small)', 
-                                        background: 'none', 
-                                        border: 'none', 
-                                        cursor: 'pointer',
-                                        transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
-                                        transition: 'transform 0.2s ease'
-                                    }}
-                                >
-                                    ▶
-                                </button>
-                            </div>
-                            
-                            {isExpanded && (
-                                <div className="document-group-content">
-                                    <div className="document-overview-grid">
-                                        {items.map((item) => (
-                                            cardRenderer ? cardRenderer(item) : renderDefaultCard(item)
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    );
-                })}
-            </div>
-        );
-    };
+    // Render grouped content via extracted component
+    const renderGroupedContent = () => (
+        <DocumentGroupedContent
+            groupedItems={groupedItems}
+            expandedGroups={expandedGroups}
+            onToggleGroup={toggleGroupExpansion}
+            cardRenderer={cardRenderer}
+            renderDefaultCard={renderDefaultCard}
+        />
+    );
     
     if (loading && allItems.length === 0) {
         return <div className="document-overview-loading"><Spinner /></div>;
@@ -977,7 +692,11 @@ const DocumentOverview = ({
             <div className="document-overview-card">
                 <div className="document-overview-header">
                     <div className="document-overview-header-left">
-                        <h3>{title} ({filteredItems.length})</h3>
+                        <h3>{title} ({(() => {
+                            const usingRemote = remoteSearchEnabled && searchState.hasQuery;
+                            const itemsToShow = usingRemote ? normalizeRemoteResults(remoteResults) : filteredItems;
+                            return itemsToShow.length;
+                        })()})</h3>
                     </div>
                     
                     <div className="document-overview-header-actions">
@@ -986,12 +705,12 @@ const DocumentOverview = ({
                             <div className="document-overview-bulk-actions">
                                 <button
                                     type="button"
-                                    className="btn-danger size-s"
+                                    className="pabtn pabtn--delete pabtn--s"
                                     onClick={() => setShowBulkDeleteModal(true)}
                                     disabled={isBulkDeleting}
                                 >
-                                    <HiOutlineTrash />
-                                    {selectedItemIds.size} löschen
+                                    <HiOutlineTrash className="pabtn__icon" />
+                                    <span className="pabtn__label">{selectedItemIds.size} löschen</span>
                                 </button>
                             </div>
                         )}
@@ -1001,17 +720,7 @@ const DocumentOverview = ({
                                 {headerActions}
                             </div>
                         )}
-                        {showRefreshButton && onFetch && (
-                            <button
-                                type="button"
-                                className="icon-button style-as-link"
-                                onClick={onFetch}
-                                disabled={loading}
-                                title="Aktualisieren"
-                            >
-                                <HiRefresh className={loading ? 'spinning' : ''} />
-                            </button>
-                        )}
+                        {/* Removed built-in refresh to avoid duplicate sync/refresh controls */}
                     </div>
                 </div>
 
@@ -1025,8 +734,8 @@ const DocumentOverview = ({
                                   type="text"
                                   className="form-input search-input"
                                   placeholder={searchPlaceholder}
-                                  value={searchQuery}
-                                  onChange={(e) => setSearchQuery(e.target.value)}
+                                  value={searchState.searchQuery}
+                                  onChange={(e) => searchState.setSearchQuery(e.target.value)}
                                   style={{ fontSize: '14px' }}
                               />
                           </div>
@@ -1035,8 +744,8 @@ const DocumentOverview = ({
                             <div className="search-mode-controls" style={{ marginLeft: '8px' }}>
                                 <select
                                     className="form-select"
-                                    value={searchMode}
-                                    onChange={(e) => setSearchMode(e.target.value)}
+                                    value={searchState.searchMode}
+                                    onChange={(e) => searchState.setSearchMode(e.target.value)}
                                     title="Suchmodus"
                                 >
                                     <option value="intelligent">Intelligent</option>
@@ -1050,7 +759,7 @@ const DocumentOverview = ({
                                 value={sortBy}
                                 onChange={(e) => setSortBy(e.target.value)}
                             >
-                                {[...sortOptions, ...(remoteSearchEnabled && searchQuery.trim() ? [{ value: 'similarity_score', label: 'Relevanz' }] : [])].map(option => (
+                                {[...sortOptions, ...(remoteSearchEnabled && searchState.hasQuery ? [{ value: 'similarity_score', label: 'Relevanz' }] : [])].map(option => (
                                     <option key={option.value} value={option.value}>
                                         {option.label}
                                     </option>
@@ -1065,44 +774,48 @@ const DocumentOverview = ({
                             </button>
                             
                             {/* Select all checkbox - positioned next to sort controls */}
-                            {enableBulkSelect && onBulkDelete && filteredItems.length > 0 && !(remoteSearchEnabled && searchQuery.trim()) && (
-                                <div className="document-overview-select-all">
-                                    <input
-                                        type="checkbox"
-                                        id="select-all-checkbox"
-                                        checked={selectedItemIds.size > 0 && selectedItemIds.size === filteredItems.length}
-                                        onChange={(e) => handleSelectAll(e.target.checked)}
-                                        ref={(input) => {
-                                            if (input) {
-                                                input.indeterminate = selectedItemIds.size > 0 && selectedItemIds.size < filteredItems.length;
-                                            }
-                                        }}
-                                    />
-                                </div>
-                            )}
+                            <SelectAllCheckbox
+                                enabled={enableBulkSelect && !!onBulkDelete}
+                                disabledWhenRemote={true}
+                                isRemoteActive={remoteSearchEnabled && searchState.hasQuery}
+                                filteredItems={filteredItems}
+                                itemType={itemType}
+                                selectedItemIds={selectedItemIds}
+                                onToggleAll={handleSelectAll}
+                            />
                         </div>
                     </div>
 
                     {/* Items Grid (supports remote results) */}
                     {(() => {
-                        const usingRemote = remoteSearchEnabled && searchQuery.trim();
-                        const normalizedRemote = (remoteResults || []).map(item => ({
-                            ...item,
-                            content_preview: item.content_preview || item.relevantText || item.full_content || ''
-                        }));
+                        const usingRemote = remoteSearchEnabled && searchState.hasQuery;
+                        const itemsToShow = usingRemote ? normalizeRemoteResults(remoteResults) : filteredItems;
 
-                        const itemsToShow = usingRemote ? normalizedRemote : filteredItems;
 
                         if (itemsToShow.length === 0) {
-                            return searchQuery ? (
-                                <div className="document-overview-empty-state">
-                                    {isRemoteSearching && usingRemote ? (
-                                        <p>Suche läuft…</p>
-                                    ) : (
-                                        <p>Keine Ergebnisse gefunden für "{searchQuery}"</p>
-                                    )}
-                                </div>
-                            ) : renderEmptyState();
+                            if (!searchState.hasQuery) {
+                                return renderEmptyState();
+                            }
+                            
+                            // Handle empty search results
+                            const status = searchState.getSearchStatus(isRemoteSearchingValue);
+                            if (status) {
+                                return (
+                                    <div className="document-overview-empty-state">
+                                        <p>{status}</p>
+                                    </div>
+                                );
+                            }
+                            
+                            if (searchState.shouldShowNoResults(0, isRemoteSearchingValue)) {
+                                return (
+                                    <div className="document-overview-empty-state">
+                                        <p>Keine Ergebnisse gefunden für "{searchState.searchQuery}"</p>
+                                    </div>
+                                );
+                            }
+                            
+                            return null;
                         }
 
                         if (!usingRemote && enableGrouping && itemType === 'document') {

@@ -8,13 +8,25 @@ const documentSearchService = new DocumentSearchService();
 import { 
   MARKDOWN_FORMATTING_INSTRUCTIONS, 
   SEARCH_DOCUMENTS_TOOL, 
+  PROVIDE_REFERENCES_TOOL,
   processAIResponseWithCitations 
 } from '../utils/promptUtils.js';
+import { queryIntentService } from '../services/QueryIntentService.js';
 
 const router = express.Router();
 
 const postgres = getPostgresInstance();
 const qaHelper = new QAQdrantHelper();
+
+// Initialize system collections on startup
+(async () => {
+    try {
+        await qaHelper.ensureSystemGrundsatzCollection();
+        console.log('[QA Interaction] System collections initialized');
+    } catch (error) {
+        console.error('[QA Interaction] Failed to initialize system collections:', error);
+    }
+})();
 
 // POST /api/qa/:id/ask - Submit question to Q&A collection
 router.post('/:id/ask', requireAuth, async (req, res) => {
@@ -33,10 +45,28 @@ router.post('/:id/ask', requireAuth, async (req, res) => {
         const trimmedQuestion = question.trim();
 
         // Verify user has access to the collection (Qdrant)
-        const collection = await qaHelper.getQACollection(collectionId);
+        let collection = await qaHelper.getQACollection(collectionId);
         
-        if (!collection || collection.user_id !== userId) {
-            return res.status(404).json({ error: 'Q&A collection not found or access denied' });
+        // Auto-create system Grundsatz collection if it doesn't exist
+        if (!collection && collectionId === 'grundsatz-system') {
+            console.log('[QA Interaction] System Grundsatz collection not found, creating it...');
+            await qaHelper.ensureSystemGrundsatzCollection();
+            // Try to get the collection again
+            collection = await qaHelper.getQACollection(collectionId);
+        }
+        
+        if (!collection) {
+            return res.status(404).json({ error: 'Q&A collection not found' });
+        }
+
+        // Check access permissions: either user owns the collection or it's a system collection
+        if (collection.user_id !== userId && collection.user_id !== 'SYSTEM') {
+            return res.status(404).json({ error: 'Q&A collection access denied' });
+        }
+
+        // For system collections, log access
+        if (collection.user_id === 'SYSTEM') {
+            console.log(`[QA Interaction] Accessing system collection "${collection.name}" for user ${userId}`);
         }
 
         // Load documents for this collection
@@ -67,6 +97,17 @@ router.post('/:id/ask', requireAuth, async (req, res) => {
             threshold: typeof threshold === 'number' ? threshold : undefined
         };
 
+        // Detect query intent (German/English patterns) for logging and potential routing
+        const intent = queryIntentService.detectIntent(trimmedQuestion);
+        if (intent?.type) {
+            console.log(`[QA Interaction] Detected intent: ${intent.type} (lang=${intent.language}, conf=${intent.confidence})`);
+        }
+
+        // Compute collection-level quality threshold if configured
+        const minQuality = typeof collection.settings?.min_quality === 'number'
+            ? collection.settings.min_quality
+            : undefined;
+
         // Perform vector/text (hybrid) search across the collection's documents
         let searchResults = [];
         try {
@@ -78,7 +119,8 @@ router.post('/:id/ask', requireAuth, async (req, res) => {
                 mode: 'hybrid',
                 vectorWeight: searchOptions.vectorWeight,
                 textWeight: searchOptions.textWeight,
-                threshold: searchOptions.threshold
+                threshold: searchOptions.threshold,
+                qualityMin: minQuality
             });
             searchResults = searchResponse.results || [];
         } catch (searchError) {
@@ -96,12 +138,15 @@ router.post('/:id/ask', requireAuth, async (req, res) => {
                 const title = result.title || result.document_title;
                 const content = result.relevant_content || result.chunk_text;
                 
+                const top = result.top_chunks?.[0] || {};
                 sources.push({
                     document_id: result.document_id,
                     document_title: title,
                     chunk_text: content,
                     similarity_score: result.similarity_score,
-                    page_number: result.chunk_index || 1,
+                    quality_avg: result.quality_avg ?? null,
+                    page_number: (top.page_number ?? result.chunk_index) || 1,
+                    content_type: top.content_type ?? null,
                     filename: result.filename
                 });
                 return `[Quelle ${index + 1}]: ${content}`;
@@ -282,6 +327,11 @@ router.post('/public/:token/ask', async (req, res) => {
         };
 
         // Similar processing as authenticated endpoint but without user context
+        const minQuality = undefined; // Public route: use service default quality gating
+        const intent = queryIntentService.detectIntent(trimmedQuestion);
+        if (intent?.type) {
+            console.log(`[QA Public] Detected intent: ${intent.type} (lang=${intent.language}, conf=${intent.confidence})`);
+        }
         // Perform vector search
         let searchResults = [];
         try {
@@ -405,8 +455,33 @@ async function handleQAQuestionWithTools(question, collection, userId, aiWorkerP
 - Liste alle relevanten Informationen auf
 - Füge ausführliche Zitate und Quellenangaben hinzu`;
     
+    // Detect if this is a Grundsatz collection and customize the prompt
+    const isGrundsatz = collection.settings?.collection_type === 'grundsatz';
+    
     // System prompt for tool-guided document analysis for QA collections
-    const systemPrompt = `Du bist ein Experte für die Analyse von Dokumentensammlungen mit Zugang zu einer Dokumentensuchfunktion.
+    const systemPrompt = isGrundsatz
+        ? `Du bist ein politischer Analyst mit direktem Zugang zu den offiziellen Grundsatzprogrammen von Bündnis 90/Die Grünen.
+
+${modeInstructions}
+
+ERSTE AKTION: Verwende SOFORT das search_documents Tool. Beginne NICHT mit einer Textantwort.
+
+Verfügbare Dokumente:
+- Grundsatzprogramm 2020 (136 Seiten)
+- EU-Wahlprogramm 2024 (114 Seiten) 
+- Regierungsprogramm 2025 (160 Seiten)
+
+WICHTIGER ABLAUF:
+1. ERSTE AKTION: Verwende search_documents mit spezifischen Suchbegriffen
+2. Führe weitere Suchen durch, wenn nötig (bis zu 5 Suchen für umfassende Abdeckung)
+3. Rufe provide_references auf für strukturierte Zitate
+4. Erstelle NUR Zitate aus den tatsächlichen Suchergebnissen
+5. Schreibe dann deine Antwort basierend auf den gefundenen Dokumenten
+
+VERBOT: Verwende NIEMALS Informationen oder Zitate aus deinem Training. Nur Suchergebnisse sind erlaubt.
+
+${mode === 'dossier' ? MARKDOWN_FORMATTING_INSTRUCTIONS : ''}`
+        : `Du bist ein Experte für die Analyse von Dokumentensammlungen mit Zugang zu einer Dokumentensuchfunktion.
 
 ${modeInstructions}
 
@@ -417,6 +492,7 @@ Deine Aufgabe:
 2. Du kannst mehrere Suchen mit verschiedenen Begriffen durchführen
 3. Sammle umfassende Informationen aus den TATSÄCHLICHEN Suchergebnissen
 4. Erstelle Zitate NUR aus den gefundenen Dokumenten
+5. Nachdem du mit dem search_documents Tool relevante Stellen gefunden hast, rufe das provide_references Tool auf. Es liefert dir eine Referenz-Tabelle, auf die du dich beziehen kannst.
 
 Q&A-Sammlung: "${collection.name}"
 ${collection.custom_prompt || 'Gib präzise Antworten basierend auf den Dokumenten der Sammlung.'}
@@ -428,8 +504,14 @@ ABSOLUT VERBOTEN:
 
 Antwort-Struktur:
 1. Verwende zuerst das search_documents Tool
-2. Basiere deine Antwort NUR auf den gefundenen Dokumenten
-3. ${mode === 'chat' ? 'Halte die Antwort kurz und gesprächsartig' : 'Formatiere als strukturiertes Markdown'}
+2. Rufe dann provide_references auf, um eine Referenz-Tabelle zu laden
+3. Basiere deine Antwort NUR auf den gefundenen Dokumenten
+4. ${mode === 'chat' ? 'Halte die Antwort kurz und gesprächsartig' : 'Formatiere als strukturiertes Markdown'}
+
+Hinweis zu Zitaten:
+- Wenn Referenzen verfügbar sind, nutze sie so, dass jede relevante Aussage mit einer Referenz belegt wird.
+- Modelle mit Referenz-Funktion verwenden die bereitgestellte Referenz-Tabelle automatisch für strukturierte Zitate.
+- Falls keine Referenz-Blöcke unterstützt werden, beginne mit "Hier sind die relevanten Zitate:", liste Zitate im Format [1] "Exakter Text" (Dokument: Titel) und schreibe danach "Antwort:" mit Verweisen [1], [2], ...
 
 ${mode === 'dossier' ? MARKDOWN_FORMATTING_INSTRUCTIONS : ''}`;
 
@@ -440,6 +522,7 @@ ${mode === 'dossier' ? MARKDOWN_FORMATTING_INSTRUCTIONS : ''}`;
     }];
     
     let allSearchResults = [];
+    let lastReferencesMap = null;
     let searchCount = 0;
     const maxSearches = 5; // Prevent infinite loops
     
@@ -458,7 +541,7 @@ ${mode === 'dossier' ? MARKDOWN_FORMATTING_INSTRUCTIONS : ''}`;
                 max_tokens: 2000,
                 useBedrock: true,
                 anthropic_version: "bedrock-2023-05-31",
-                tools: [SEARCH_DOCUMENTS_TOOL]
+                tools: [SEARCH_DOCUMENTS_TOOL, PROVIDE_REFERENCES_TOOL]
             }
         });
         
@@ -512,6 +595,15 @@ ${mode === 'dossier' ? MARKDOWN_FORMATTING_INSTRUCTIONS : ''}`;
                     });
                     
                     searchCount++;
+                } else if (toolCall.name === 'provide_references') {
+                    console.log(`[QA Tools] Providing references map from ${allSearchResults.length} results`);
+                    const referencesPayload = buildReferencesMapFromResults(allSearchResults, toolCall.input?.ids);
+                    lastReferencesMap = referencesPayload;
+                    toolResults.push({
+                        type: "tool_result",
+                        tool_use_id: toolCall.id,
+                        content: JSON.stringify(referencesPayload)
+                    });
                 }
             }
             
@@ -528,9 +620,9 @@ ${mode === 'dossier' ? MARKDOWN_FORMATTING_INSTRUCTIONS : ''}`;
         }
         
         // No more tool calls - we have the final answer
-        if (aiResult.content) {
+        if (aiResult.content || aiResult.raw_content_blocks) {
             console.log('[QA Tools] Got final answer, processing response');
-            return await processQAFinalResponse(aiResult.content, allSearchResults, question, collection);
+            return await processQAFinalResponseEnhanced(aiResult, allSearchResults, question, collection, lastReferencesMap);
         }
         
         // Safety break
@@ -550,19 +642,31 @@ async function executeQASearchTool(toolInput, collection, userId, searchOptions 
         
         console.log(`[QA Tools] Executing search: "${query}" (mode: ${search_mode})`);
         
-        // Get document IDs for this QA collection
-        const qaDocAssociations = await qaHelper.getCollectionDocuments(collection.id);
-        const documentIds = qaDocAssociations.map(qcd => qcd.document_id);
+        // Determine search parameters based on collection type
+        let documentIds = null;
+        let searchCollection = null;
+        
+        if (collection.settings?.collection_type === 'grundsatz') {
+            // For Grundsatz collections, search the grundsatz_documents collection directly
+            console.log(`[QA Tools] Grundsatz collection detected, searching grundsatz_documents`);
+            searchCollection = collection.settings.search_collection || 'grundsatz_documents';
+        } else {
+            // For regular collections, get document associations
+            const qaDocAssociations = await qaHelper.getCollectionDocuments(collection.id);
+            documentIds = qaDocAssociations.map(qcd => qcd.document_id);
+        }
         
         const searchResults = await documentSearchService.search({
             query: query,
             user_id: userId,
             documentIds: documentIds,
+            searchCollection: searchCollection,
             limit: 5,
             mode: search_mode,
             vectorWeight: typeof searchOptions.vectorWeight === 'number' ? searchOptions.vectorWeight : undefined,
             textWeight: typeof searchOptions.textWeight === 'number' ? searchOptions.textWeight : undefined,
-            threshold: typeof searchOptions.threshold === 'number' ? searchOptions.threshold : undefined
+            threshold: typeof searchOptions.threshold === 'number' ? searchOptions.threshold : undefined,
+            qualityMin: collection.settings?.min_quality || undefined
         });
         
         // Format results for Claude
@@ -570,13 +674,17 @@ async function executeQASearchTool(toolInput, collection, userId, searchOptions 
             const title = result.title || result.document_title;
             const content = result.relevant_content || result.chunk_text;
             
+            const top = result.top_chunks?.[0] || {};
             return {
                 document_id: result.document_id,
                 title: title,
                 content: content.substring(0, 800), // Limit content length for tool response
                 similarity_score: result.similarity_score,
+                quality_avg: result.quality_avg ?? null,
                 filename: result.filename,
-                chunk_index: result.chunk_index || 0,
+                chunk_index: (top.chunk_index ?? result.chunk_index) || 0,
+                page_number: top.page_number ?? null,
+                content_type: top.content_type ?? null,
                 relevance_info: result.relevance_info
             };
         });
@@ -648,6 +756,107 @@ async function processQAFinalResponse(responseContent, allSearchResults, origina
             token_count: 0 // Will be filled by calling function if available
         }
     };
+}
+
+/**
+ * Enhanced final response processing to support Mistral reference chunks when available
+ */
+async function processQAFinalResponseEnhanced(aiResult, allSearchResults, originalQuestion, collection, referencesMap) {
+    const contentBlocks = Array.isArray(aiResult.raw_content_blocks) ? aiResult.raw_content_blocks : null;
+    if (contentBlocks && contentBlocks.some(b => b.type === 'reference') && referencesMap) {
+        const usedIds = [];
+        let answerParts = [];
+        for (const block of contentBlocks) {
+            if (block.type === 'text' && typeof block.text === 'string') {
+                answerParts.push(block.text);
+            } else if (block.type === 'reference' && Array.isArray(block.reference_ids)) {
+                block.reference_ids.forEach(id => {
+                    usedIds.push(String(id));
+                    answerParts.push(`⚡CITE${id}⚡`);
+                });
+            }
+        }
+        const answer = answerParts.join('');
+        const citations = [];
+        const sources = [];
+        const byDoc = new Map();
+        const usedUnique = [...new Set(usedIds)];
+        usedUnique.forEach(idStr => {
+            const ref = referencesMap[idStr];
+            if (!ref) return;
+            citations.push({
+                index: idStr,
+                cited_text: Array.isArray(ref.snippets) && ref.snippets.length > 0 ? (Array.isArray(ref.snippets[0]) ? ref.snippets[0].join(' ') : String(ref.snippets[0])) : (ref.description || ''),
+                document_title: ref.title,
+                document_id: ref.document_id,
+                similarity_score: ref.similarity_score,
+                chunk_index: ref.chunk_index || 0,
+                filename: ref.filename
+            });
+            const key = ref.document_id || ref.title;
+            if (!byDoc.has(key)) {
+                byDoc.set(key, {
+                    document_id: ref.document_id,
+                    document_title: ref.title,
+                    chunk_text: Array.isArray(ref.snippets) && ref.snippets.length > 0 ? (Array.isArray(ref.snippets[0]) ? ref.snippets[0].join(' ') : String(ref.snippets[0])) : '',
+                    similarity_score: ref.similarity_score,
+                    citations: []
+                });
+            }
+        });
+        citations.forEach(c => {
+            const key = c.document_id || c.document_title;
+            const entry = byDoc.get(key);
+            if (entry) entry.citations.push(c);
+        });
+        for (const v of byDoc.values()) sources.push(v);
+        return {
+            success: true,
+            answer,
+            sources,
+            citations,
+            searchQuery: originalQuestion,
+            searchCount: allSearchResults.length,
+            uniqueDocuments: sources.length,
+            metadata: {
+                provider: 'qa_tools',
+                timestamp: new Date().toISOString(),
+                toolUseEnabled: true,
+                collection_id: collection.id,
+                collection_name: collection.name,
+                token_count: 0
+            }
+        };
+    }
+    return await processQAFinalResponse(aiResult.content || '', allSearchResults, originalQuestion, collection);
+}
+
+function buildReferencesMapFromResults(results, idsFilter = undefined) {
+    const map = {};
+    const list = results || [];
+    let idx = -1;
+    for (const r of list) {
+        idx += 1;
+        const idStr = String(idx);
+        if (Array.isArray(idsFilter) && idsFilter.length > 0 && !idsFilter.includes(idx)) {
+            continue;
+        }
+        const title = r.title || r.document_title || r.filename || `Dokument ${idx}`;
+        const snippet = (r.content || r.relevant_content || r.chunk_text || '').slice(0, 500);
+        map[idStr] = {
+            url: r.url || null,
+            title,
+            snippets: [[snippet]],
+            description: null,
+            date: new Date().toISOString(),
+            source: 'qa_documents',
+            document_id: r.document_id,
+            filename: r.filename,
+            similarity_score: r.similarity_score,
+            chunk_index: r.chunk_index || 0
+        };
+    }
+    return map;
 }
 
 export default router;

@@ -14,9 +14,10 @@ const BETA_FEATURES_CONFIG = [
   { key: 'e_learning', label: 'E-Learning', isAdminOnly: false },
   { key: 'bundestag_api_enabled', label: 'Bundestag API', isAdminOnly: false },
   { key: 'memory', label: 'Memory (Mem0ry)', isAdminOnly: false },
-  { key: 'contentManagement', label: 'Inhaltsverwaltung', isAdminOnly: false },
+  { key: 'canva', label: 'Canva Integration', isAdminOnly: false },
   // Profile-only settings (not shown in Labor tab)
   { key: 'igel_modus', label: 'Igel-Modus', isAdminOnly: false, isProfileSetting: true },
+  { key: 'labor', label: 'Labor', isAdminOnly: false, isProfileSetting: true },
 ];
 
 // Dynamically generated arrays from config
