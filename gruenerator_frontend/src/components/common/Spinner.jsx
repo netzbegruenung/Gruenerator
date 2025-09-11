@@ -1,5 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
+import '../../assets/styles/components/ui/spinner.css';
 
 /**
  * Gemeinsame Spinner-Komponente für Ladeanzeigen

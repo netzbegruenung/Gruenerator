@@ -30,10 +30,12 @@ apiClient.interceptors.response.use(
   response => response,
   error => {
     if (error.response && error.response.status === 401) {
-      // Use the new auth system for login redirects
-      const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+      // Redirect to frontend login page instead of backend auth endpoint
       if (window.location.pathname !== '/login') {
-        window.location.href = `${AUTH_BASE_URL}/auth/login`;
+        // Store current path for redirect after login
+        const currentPath = window.location.pathname + window.location.search;
+        sessionStorage.setItem('redirectAfterLogin', currentPath);
+        window.location.href = '/login';
       }
     }
     return Promise.reject(error);

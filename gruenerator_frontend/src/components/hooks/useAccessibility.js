@@ -1,6 +1,5 @@
 // useAccessibility.js
 import { useEffect, useCallback, useRef } from 'react';
-import FocusTrap from 'focus-trap-react';
 import {
   announceToScreenReader,
   setFocus,

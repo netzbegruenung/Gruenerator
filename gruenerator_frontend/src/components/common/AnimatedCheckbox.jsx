@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import PropTypes from 'prop-types';
 import { motion } from 'motion/react';
 import * as Checkbox from '@radix-ui/react-checkbox';
+import '../../assets/styles/components/ui/animatedcheckbox.css';
 
 const StyledCheckbox = ({ id, checked, onChange, label, variant = 'default' }) => {
   const checkboxId = id || `checkbox-${Math.random().toString(36).substr(2, 9)}`;

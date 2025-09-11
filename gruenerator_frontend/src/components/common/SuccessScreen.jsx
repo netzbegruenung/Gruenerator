@@ -2,6 +2,7 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import AnimatedCheckmark from './AnimatedCheckmark'; // Import der neuen Komponente
+import '../../assets/styles/components/ui/success-screen.css';
 
 const SuccessScreen = ({ title, message, children }) => {
   return (

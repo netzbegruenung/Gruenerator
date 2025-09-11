@@ -1,6 +1,7 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import * as Switch from '@radix-ui/react-switch';
+import '../../assets/styles/components/ui/FeatureToggle.css';
 
 const FeatureToggle = ({ 
   isActive, 

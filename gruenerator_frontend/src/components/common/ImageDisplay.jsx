@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { IoAccessibility } from 'react-icons/io5';
 import { HiPencil } from 'react-icons/hi';
+import '../../assets/styles/components/common/image-display.css';
 import DownloadButton from '../../features/sharepic/core/components/DownloadButton';
 import CopyButton from './CopyButton';
 import HelpTooltip from './HelpTooltip';
