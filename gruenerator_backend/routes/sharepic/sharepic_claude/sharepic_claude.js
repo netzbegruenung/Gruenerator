@@ -516,7 +516,9 @@ Details: ${details}
         // Extract JSON from response
         const jsonMatch = textContent.match(/\[.*\]/s);
         if (jsonMatch) {
-          quotes = JSON.parse(jsonMatch[0]);
+          // Clean JSON by removing JavaScript-style comments
+          const cleanJson = jsonMatch[0].replace(/\/\/[^\n\r]*/g, '');
+          quotes = JSON.parse(cleanJson);
         } else {
           // Fallback: Extract individual quotes
           quotes = textContent

@@ -3,8 +3,15 @@ import { useDocumentsStore } from '../../../stores/documentsStore';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { HiDocumentText, HiCheckCircle, HiClock, HiExclamationCircle, HiPlus, HiX } from 'react-icons/hi';
 import Spinner from '../../../components/common/Spinner';
+import { ProfileIconButton } from '../../../components/profile/actions/ProfileActionButton';
 
-const DocumentSelector = ({ selectedDocuments = [], onDocumentsChange }) => {
+const DocumentSelector = ({ 
+  selectedDocuments = [], 
+  onDocumentsChange,
+  compact = false,
+  onRemoveDocument = null,
+  disabled = false
+}) => {
   const { user } = useOptimizedAuth();
   const {
     documents,
@@ -30,12 +37,20 @@ const DocumentSelector = ({ selectedDocuments = [], onDocumentsChange }) => {
 
   // Handle document selection/deselection
   const handleDocumentToggle = (document) => {
+    if (disabled) return;
+    
     const isSelected = selectedDocumentIds.includes(document.id);
     
     if (isSelected) {
       // Remove document
-      const newSelected = selectedDocuments.filter(doc => doc.id !== document.id);
-      onDocumentsChange(newSelected);
+      if (compact && onRemoveDocument) {
+        // In compact mode, use callback for removal (for detail views)
+        onRemoveDocument(document.id, document.title);
+      } else {
+        // Standard mode, update selected documents
+        const newSelected = selectedDocuments.filter(doc => doc.id !== document.id);
+        onDocumentsChange(newSelected);
+      }
     } else {
       // Add document
       const newSelected = [...selectedDocuments, document];
@@ -83,6 +98,39 @@ const DocumentSelector = ({ selectedDocuments = [], onDocumentsChange }) => {
     );
   }
 
+  // Compact mode for detail views
+  if (compact) {
+    return (
+      <div className="document-selector document-selector--compact">
+        {selectedDocuments.length > 0 && (
+          <div className="grünerator-documents-list">
+            {selectedDocuments.map((document) => (
+              <div key={document.id} className="grünerator-document-item">
+                <HiDocumentText className="document-icon" />
+                <span className="document-title">{document.title || document.name}</span>
+                {onRemoveDocument && !disabled && (
+                  <ProfileIconButton
+                    action="delete"
+                    variant="delete"
+                    onClick={() => onRemoveDocument(document.id, document.title || document.name)}
+                    title="Dokument entfernen"
+                    ariaLabel={`Dokument ${document.title || document.name} entfernen`}
+                    size="small"
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+        {selectedDocuments.length === 0 && (
+          <p className="no-documents-text">
+            Keine Dokumente zugewiesen. Dokumente können über die Bearbeitungsfunktion hinzugefügt werden.
+          </p>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="document-selector">
       {/* Selected Documents Display */}
@@ -107,6 +155,7 @@ const DocumentSelector = ({ selectedDocuments = [], onDocumentsChange }) => {
                   onClick={() => handleDocumentToggle(document)}
                   className="remove-document-button"
                   title="Dokument entfernen"
+                  disabled={disabled}
                 >
                   <HiX />
                 </button>
@@ -122,7 +171,7 @@ const DocumentSelector = ({ selectedDocuments = [], onDocumentsChange }) => {
           type="button"
           onClick={() => setShowDocumentList(!showDocumentList)}
           className="btn-secondary"
-          disabled={availableDocuments.length === 0}
+          disabled={availableDocuments.length === 0 || disabled}
         >
           <HiPlus />
           {selectedDocuments.length === 0 ? 'Dokumente hinzufügen' : 'Weitere Dokumente hinzufügen'}
@@ -158,7 +207,7 @@ const DocumentSelector = ({ selectedDocuments = [], onDocumentsChange }) => {
               return (
                 <div 
                   key={document.id} 
-                  className={`document-option ${isSelected ? 'selected' : ''}`}
+                  className={`document-option ${isSelected ? 'selected' : ''} ${disabled ? 'disabled' : ''}`}
                   onClick={() => handleDocumentToggle(document)}
                 >
                   <div className="document-option-header">

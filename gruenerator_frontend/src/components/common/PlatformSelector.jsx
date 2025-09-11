@@ -1,8 +1,7 @@
-import React, { lazy, Suspense, useState } from 'react';
+import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import { Controller } from 'react-hook-form';
-const Select = lazy(() => import('react-select'));
-import FormFieldWrapper from './Form/Input/FormFieldWrapper';
+import EnhancedSelect from './EnhancedSelect';
 import Icon from './Icon';
 
 /**
@@ -28,30 +27,16 @@ const PlatformSelector = ({
     return null;
   }
 
-  // Transform platform options to react-select format with icons
+  // Transform platform options to EnhancedSelect format with icons
   const selectOptions = platformOptions.map(option => ({
     value: option.id,
     label: option.label,
-    platform: option.id
+    icon: () => <Icon category="platforms" name={option.id} size={16} />
   }));
 
   // State to track if menu is open (for preventing Enter key form submission)
   const [menuIsOpen, setMenuIsOpen] = useState(false);
 
-  // Custom option component to display icons (only in dropdown, not in selected values)
-  const formatOptionLabel = ({ platform, label }, { context }) => {
-    // Show icons only in the dropdown menu, not in selected values to save space
-    if (context === 'menu') {
-      return (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Icon category="platforms" name={platform} size={16} />
-          <span>{label}</span>
-        </div>
-      );
-    }
-    // For selected values, show only text
-    return <span>{label}</span>;
-  };
 
   // Handle Enter key - prevent form submission when menu is open but no options available
   const handleKeyDown = (event) => {
@@ -85,57 +70,51 @@ const PlatformSelector = ({
       }}
       defaultValue={[]}
       render={({ field, fieldState: { error } }) => (
-        <FormFieldWrapper
-          label={label}
-          required={required}
-          error={error?.message}
-          helpText={helpText}
-          htmlFor={`${name}-select`}
-        >
-          <div className={`platform-selector ${className}`.trim()}>
-            <Suspense fallback={<div>Loading...</div>}>
-              <Select
-              {...field}
-              inputId={`${name}-select`}
-              className={`react-select ${error ? 'error' : ''}`.trim()}
-              classNamePrefix="react-select"
-              isMulti
-              options={selectOptions}
-              placeholder={placeholder}
-              isDisabled={disabled}
-              formatOptionLabel={formatOptionLabel}
-              value={field.value ? field.value.map(val => 
-                selectOptions.find(option => option.value === val)
-              ).filter(Boolean) : []}
-              onChange={(selectedOptions) => {
-                const values = selectedOptions ? selectedOptions.map(option => option.value) : [];
-                field.onChange(values);
-              }}
-              onBlur={field.onBlur}
-              onMenuOpen={() => setMenuIsOpen(true)}
-              onMenuClose={() => setMenuIsOpen(false)}
-              onKeyDown={handleKeyDown}
-              closeMenuOnSelect={false}
-              hideSelectedOptions={false}
-              isClearable={false}
-              isSearchable={true}
-              openMenuOnFocus={false}
-              blurInputOnSelect={true}
-              autoFocus={false}
-              tabSelectsValue={true}
-              backspaceRemovesValue={true}
-              captureMenuScroll={false}
-              menuShouldBlockScroll={false}
-              menuShouldScrollIntoView={false}
-              tabIndex={tabIndex}
-              noOptionsMessage={() => 'Keine Optionen verfügbar'}
-              menuPortalTarget={document.body}
-              menuPosition="fixed"
-              {...rest}
-            />
-            </Suspense>
-          </div>
-        </FormFieldWrapper>
+        <div className={`platform-selector ${className}`.trim()}>
+          <EnhancedSelect
+            {...field}
+            inputId={`${name}-select`}
+            label={label}
+            required={required}
+            error={error?.message}
+            helpText={helpText}
+            enableIcons={true}
+            className={`react-select ${error ? 'error' : ''}`.trim()}
+            classNamePrefix="react-select"
+            isMulti
+            options={selectOptions}
+            placeholder={placeholder}
+            isDisabled={disabled}
+            value={field.value ? field.value.map(val => 
+              selectOptions.find(option => option.value === val)
+            ).filter(Boolean) : []}
+            onChange={(selectedOptions) => {
+              const values = selectedOptions ? selectedOptions.map(option => option.value) : [];
+              field.onChange(values);
+            }}
+            onBlur={field.onBlur}
+            onMenuOpen={() => setMenuIsOpen(true)}
+            onMenuClose={() => setMenuIsOpen(false)}
+            onKeyDown={handleKeyDown}
+            closeMenuOnSelect={false}
+            hideSelectedOptions={false}
+            isClearable={false}
+            isSearchable={true}
+            openMenuOnFocus={false}
+            blurInputOnSelect={true}
+            autoFocus={false}
+            tabSelectsValue={true}
+            backspaceRemovesValue={true}
+            captureMenuScroll={false}
+            menuShouldBlockScroll={false}
+            menuShouldScrollIntoView={false}
+            tabIndex={tabIndex}
+            noOptionsMessage={() => 'Keine Optionen verfügbar'}
+            menuPortalTarget={document.body}
+            menuPosition="fixed"
+            {...rest}
+          />
+        </div>
       )}
     />
   );

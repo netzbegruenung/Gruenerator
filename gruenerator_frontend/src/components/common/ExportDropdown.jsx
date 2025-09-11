@@ -9,8 +9,8 @@ import { useExportStore } from '../../stores/core/exportStore';
 import { useLazyAuth } from '../../hooks/useAuth';
 import useApiSubmit from '../hooks/useApiSubmit';
 import useGeneratedTextStore from '../../stores/core/generatedTextStore';
-import { extractHTMLContent, extractFormattedText } from '../utils/contentExtractor';
-import { getNextcloudShareLinks, uploadToNextcloudShare, saveNextcloudShareLink } from '../utils/nextcloudUtils';
+import { extractPlainText, extractFormattedText } from '../utils/contentExtractor';
+import { NextcloudShareManager } from '../../utils/nextcloudShareManager';
 import WolkeSetupModal from '../../features/wolke/components/WolkeSetupModal';
 import { useLocation } from 'react-router-dom';
 import apiClient from '../utils/apiClient';
@@ -35,13 +35,18 @@ const ExportDropdown = ({ content, title, className = 'action-button', onSaveToL
 
   const isMobileView = window.innerWidth <= 768;
 
+  // Local modal state for copy/paste instruction
+  const [showPastePopup, setShowPastePopup] = useState(false);
+  const [copySucceeded, setCopySucceeded] = useState(false);
+  const [padURL, setPadURL] = useState('');
+
   // Load share links when dropdown opens
   const loadShareLinks = useCallback(async () => {
     if (!isAuthenticated) return;
     
     setLoadingShareLinks(true);
     try {
-      const links = await getNextcloudShareLinks();
+      const links = await NextcloudShareManager.getShareLinks();
       const activeLinks = links.filter(link => link.is_active);
       setShareLinks(activeLinks);
       if (activeLinks.length > 0 && !selectedShareLinkId) {
@@ -153,19 +158,31 @@ const ExportDropdown = ({ content, title, className = 'action-button', onSaveToL
         return;
       }
       
-      const htmlContent = extractHTMLContent(generatedText);
-      if (!htmlContent || htmlContent.trim().length === 0) {
+      const plainContent = await extractPlainText(generatedText);
+      if (!plainContent || plainContent.trim().length === 0) {
+        
         alert('Der extrahierte Text ist leer.');
         return;
       }
       
       const response = await submitForm({ 
-        text: htmlContent,
+        text: plainContent,
         documentType: getDocumentType()
       });
+
+      // Copy content to clipboard so user can paste into pad
+      try {
+        await navigator.clipboard.writeText(plainContent);
+        setCopySucceeded(true);
+      } catch (copyErr) {
+        console.warn('Clipboard copy failed:', copyErr);
+        setCopySucceeded(false);
+      } finally {
+        setShowPastePopup(true);
+      }
       
       if (response && response.padURL) {
-        window.open(response.padURL, '_blank');
+        setPadURL(response.padURL);
       }
     } catch (err) {
       console.error('Fehler beim Exportieren zu Docs:', err);
@@ -229,7 +246,7 @@ const ExportDropdown = ({ content, title, className = 'action-button', onSaveToL
       reader.onloadend = async () => {
         const base64Content = reader.result.split(',')[1]; // Remove data:application/vnd...;base64, prefix
         
-        const result = await uploadToNextcloudShare(shareLinkId, base64Content, filename);
+        const result = await NextcloudShareManager.upload(shareLinkId, base64Content, filename);
         
         if (result.success) {
           // Show checkmark icon instead of alert
@@ -271,7 +288,9 @@ const ExportDropdown = ({ content, title, className = 'action-button', onSaveToL
 
   const handleWolkeSetup = async (shareLink, label) => {
     try {
-      await saveNextcloudShareLink(shareLink, label);
+      const parsed = NextcloudShareManager.parseShareLink(shareLink);
+      if (!parsed) throw new Error('Ungültiger Wolke-Share-Link');
+      await NextcloudShareManager.saveShareLink(shareLink, label, parsed.baseUrl, parsed.shareToken);
       // Reload share links after successful setup
       await loadShareLinks();
       // Close modal and proceed with upload if we now have links
@@ -432,6 +451,33 @@ const ExportDropdown = ({ content, title, className = 'action-button', onSaveToL
           onClose={() => setShowWolkeSetupModal(false)}
           onSubmit={handleWolkeSetup}
         />
+      )}
+
+      {/* Paste Instruction Popup using existing modal structure */}
+      {showPastePopup && (
+        <div className="modal" role="dialog" aria-labelledby="paste-instruction-title" onClick={() => setShowPastePopup(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <h2 id="paste-instruction-title">Text in Docs einfügen</h2>
+            <p>
+              {copySucceeded
+                ? 'Der Text wurde in die Zwischenablage kopiert. Öffne das Docs-Dokument und füge ihn mit Strg+V ein.'
+                : 'Öffne das Docs-Dokument und füge den Text dort ein.'}
+            </p>
+            {padURL && (
+              <div className="url-container" style={{ marginTop: 'var(--spacing-small)' }}>
+                <input type="text" value={padURL} readOnly className="url-input" />
+              </div>
+            )}
+            <div className="button-group">
+              <button 
+                onClick={() => { if (padURL) { window.open(padURL, '_blank'); } setShowPastePopup(false); }} 
+                className="open-button"
+              >
+                Link öffnen
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

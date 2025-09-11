@@ -11,6 +11,76 @@ import { createCache } from '../utils/lruCache.js';
 import { SearchError, DatabaseError, createErrorHandler } from '../utils/errorHandling.js';
 import { vectorConfig } from '../config/vectorConfig.js';
 
+// ------- Simple lexical helpers for better on-topic excerpts -------
+function foldUmlauts(s) {
+  return (s || '')
+    .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue')
+    .replace(/Ä/g, 'Ae').replace(/Ö/g, 'Oe').replace(/Ü/g, 'Ue')
+    .replace(/ß/g, 'ss');
+}
+
+function normalizeQuery(q) {
+  if (!q) return '';
+  let out = q.replace(/\u00AD/g, ''); // soft hyphen
+  out = out.replace(/([A-Za-zÄÖÜäöüß])\s*[-–—]\s*([A-Za-zÄÖÜäöüß])/g, '$1$2'); // dehyphenate
+  out = foldUmlauts(out).toLowerCase().trim();
+  return out;
+}
+
+function normalizeText(t) {
+  if (!t) return '';
+  let out = t.replace(/\u00AD/g, '');
+  out = out.replace(/([A-Za-zÄÖÜäöüß])\s*[-–—]\s*([A-Za-zÄÖÜäöüß])/g, '$1$2');
+  out = foldUmlauts(out).toLowerCase();
+  return out;
+}
+
+function containsNormalized(text, normQuery) {
+  if (!normQuery) return false;
+  return normalizeText(text).includes(normQuery);
+}
+
+function looksLikeTOC(text) {
+  if (!text) return false;
+  const t = text.trim();
+  if (/inhaltsverzeichnis/i.test(t)) return true;
+  if (/\.\.{2,}\s*\d{1,4}\b/.test(t)) return true; // dot leaders + page number
+  const lines = t.split(/\n/);
+  const shortLines = lines.filter(l => l.trim().length > 0 && l.trim().length <= 60);
+  const digits = (t.match(/\d/g) || []).length;
+  if (shortLines.length >= 2 && digits >= 6) return true;
+  return false;
+}
+
+function escapeRegExp(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function highlightTerm(text, term) {
+  if (!text || !term) return text || '';
+  try {
+    const re = new RegExp(`(${escapeRegExp(term)})`, 'gi');
+    return text.replace(re, '**$1**');
+  } catch {
+    return text;
+  }
+}
+
+function extractMatchedExcerpt(text, term, maxLen = 300) {
+  if (!text) return '';
+  if (!term) return text.length <= maxLen ? text : text.slice(0, maxLen) + '...';
+  const lower = text.toLowerCase();
+  const q = term.toLowerCase();
+  const idx = lower.indexOf(q);
+  if (idx === -1) {
+    return text.length <= maxLen ? text : text.slice(0, maxLen) + '...';
+  }
+  const start = Math.max(0, idx - Math.floor(maxLen * 0.4));
+  const end = Math.min(text.length, start + maxLen);
+  const snippet = (start > 0 ? '...' : '') + text.slice(start, end) + (end < text.length ? '...' : '');
+  return highlightTerm(snippet, term);
+}
+
 /**
  * Base search service providing common search functionality
  */
@@ -78,7 +148,8 @@ class BaseSearchService {
         userId,
         filters,
         limit: Math.round(options.limit * this.chunkMultiplier), // Get more for better ranking
-        threshold
+        threshold,
+        query
       });
       console.log(`[${this.serviceName}] Retrieved ${chunks.length} chunks from vector search`);
       
@@ -87,8 +158,8 @@ class BaseSearchService {
         return this.handleEmptyResults(query, options, userId);
       }
       
-      // Group and rank results
-      const results = await this.groupAndRankResults(chunks, options.limit);
+      // Group and rank results (pass query for lexical-aware ranking)
+      const results = await this.groupAndRankResults(chunks, options.limit, query);
       
       // Build response
       const response = {
@@ -180,8 +251,8 @@ class BaseSearchService {
         return this.handleEmptyResults(query, options, userId);
       }
       
-      // Group and rank results with hybrid scoring
-      const results = await this.groupAndRankHybridResults(chunks, options.limit);
+      // Group and rank results with hybrid scoring (pass query for lexical-aware ranking)
+      const results = await this.groupAndRankHybridResults(chunks, options.limit, query);
       
       // Build response
       const response = {
@@ -276,8 +347,10 @@ class BaseSearchService {
    * @returns {Promise<Array>} Ranked document results
    * @protected
    */
-  async groupAndRankResults(chunks, limit) {
+  async groupAndRankResults(chunks, limit, query = '') {
     const documentMap = new Map();
+    const normQuery = normalizeQuery(query);
+    const isShortQuery = (query || '').trim().split(/\s+/).filter(Boolean).length <= 2;
     
     // Group chunks by document
     for (const chunk of chunks) {
@@ -297,6 +370,19 @@ class BaseSearchService {
       
       const docData = documentMap.get(docId);
       const chunkData = this.extractChunkData(chunk);
+      // Lexical-aware adjustments per chunk
+      const hasTerm = normQuery ? containsNormalized(chunkData.text, normQuery) : false;
+      const isTOC = looksLikeTOC(chunkData.text);
+      const inHeader = (chunkData.content_type === 'heading');
+      const adjusted = (chunkData.similarity || 0)
+        + (hasTerm ? 0.12 : 0)
+        + (hasTerm && inHeader ? 0.06 : 0)
+        - (isTOC ? 0.08 : 0);
+
+      chunkData.similarity_adjusted = adjusted;
+      chunkData.has_term = hasTerm;
+      chunkData.is_toc = isTOC;
+
       docData.chunks.push(chunkData);
       
       // Update max similarity
@@ -307,19 +393,39 @@ class BaseSearchService {
     
     // Calculate enhanced scores and format results
     const results = Array.from(documentMap.values()).map(doc => {
-      // Sort chunks by similarity
-      doc.chunks.sort((a, b) => b.similarity - a.similarity);
+      // For short queries, require at least one literal match
+      if (normQuery && isShortQuery && !doc.chunks.some(c => c.has_term)) {
+        return null; // filtered
+      }
+      // Sort chunks by adjusted similarity (fallback to raw)
+      doc.chunks.sort((a, b) => (b.similarity_adjusted ?? b.similarity) - (a.similarity_adjusted ?? a.similarity));
       
       // Calculate enhanced document score
       const enhancedScore = this.calculateEnhancedDocumentScore(doc.chunks);
       
       // Take top chunks per document using configuration
       const contentConfig = vectorConfig.get('content');
-      const topChunks = doc.chunks.slice(0, contentConfig.maxChunksPerDocument);
+      const maxN = contentConfig.maxChunksPerDocument;
+      let topChunks = doc.chunks.slice(0, maxN);
+      // Ensure at least one keyword-hit chunk is present and first
+      if (normQuery) {
+        const idx = topChunks.findIndex(c => c.has_term);
+        if (idx === -1) {
+          const firstHit = doc.chunks.find(c => c.has_term);
+          if (firstHit) {
+            topChunks = [firstHit, ...topChunks].slice(0, maxN);
+          }
+        } else if (idx > 0) {
+          const [hit] = topChunks.splice(idx, 1);
+          topChunks.unshift(hit);
+        }
+      }
       
       // Create combined relevant text
       const relevantContent = topChunks
-        .map(chunk => this.extractRelevantExcerpt(chunk.text))
+        .map(chunk => (normQuery && chunk.has_term)
+          ? extractMatchedExcerpt(chunk.text, query, contentConfig.maxExcerptLength)
+          : this.extractRelevantExcerpt(chunk.text))
         .join('\n\n---\n\n');
       
       return {
@@ -333,14 +439,29 @@ class BaseSearchService {
         avg_similarity: enhancedScore.avgSimilarity,
         position_score: enhancedScore.positionScore,
         diversity_bonus: enhancedScore.diversityBonus,
+        quality_avg: typeof enhancedScore.qualityAvg === 'number' ? enhancedScore.qualityAvg : null,
+        // expose first top chunk index for callers expecting it at top-level
+        chunk_index: topChunks[0]?.chunk_index ?? null,
+        top_chunks: topChunks.map(tc => ({
+          chunk_index: tc.chunk_index,
+          content_type: tc.content_type ?? null,
+          page_number: tc.page_number ?? null,
+          quality_score: typeof tc.quality_score === 'number' ? tc.quality_score : null,
+          has_term: !!tc.has_term,
+          preview: (normQuery && tc.has_term)
+            ? extractMatchedExcerpt(tc.text, query, contentConfig.maxExcerptLength)
+            : this.extractRelevantExcerpt(tc.text)
+        })),
         chunk_count: doc.chunks.length,
         relevance_info: this.buildRelevanceInfo(doc, enhancedScore)
       };
     });
     
+    // Remove filtered docs
+    const filtered = results.filter(Boolean);
     // Sort by enhanced final score and return top results
-    results.sort((a, b) => b.similarity_score - a.similarity_score);
-    return results.slice(0, limit);
+    filtered.sort((a, b) => b.similarity_score - a.similarity_score);
+    return filtered.slice(0, limit);
   }
 
   /**
@@ -362,18 +483,17 @@ class BaseSearchService {
       };
     }
     
-    const similarities = chunks.map(c => c.similarity);
+    const similarities = chunks.map(c => (c.similarity_adjusted ?? c.similarity) || 0);
     const maxSimilarity = Math.max(...similarities);
     const avgSimilarity = similarities.reduce((a, b) => a + b) / similarities.length;
     
     // Position-aware scoring using configuration
     let positionScore = 0;
+    const minPositionWeight = (typeof scoringConfig.minPositionWeight === 'number') ? scoringConfig.minPositionWeight : 0.1;
+    const positionDecayRate = (typeof scoringConfig.positionDecayRate === 'number') ? scoringConfig.positionDecayRate : 0.05;
     chunks.forEach((chunk) => {
-      const positionWeight = Math.max(
-        scoringConfig.minPositionWeight, 
-        1 - (chunk.chunk_index * scoringConfig.positionDecayRate)
-      );
-      positionScore += chunk.similarity * positionWeight;
+      const positionWeight = Math.max(minPositionWeight, 1 - (chunk.chunk_index * positionDecayRate));
+      positionScore += ((chunk.similarity_adjusted ?? chunk.similarity) || 0) * positionWeight;
     });
     positionScore = positionScore / chunks.length;
     
@@ -384,13 +504,13 @@ class BaseSearchService {
     );
     
     // Weighted final score using configuration
-    const finalScore = (maxSimilarity * scoringConfig.maxSimilarityWeight) + 
-                      (avgSimilarity * scoringConfig.avgSimilarityWeight) + 
-                      (positionScore * scoringConfig.positionWeight) + 
-                      diversityBonus;
+    const maxW = (typeof scoringConfig.maxSimilarityWeight === 'number') ? scoringConfig.maxSimilarityWeight : 0.6;
+    const avgW = (typeof scoringConfig.avgSimilarityWeight === 'number') ? scoringConfig.avgSimilarityWeight : 0.4;
+    const posW = (typeof scoringConfig.positionWeight === 'number') ? scoringConfig.positionWeight : 0.0;
+    const finalScore = (maxSimilarity * maxW) + (avgSimilarity * avgW) + (positionScore * posW) + diversityBonus;
     
     return {
-      finalScore: Math.min(scoringConfig.maxFinalScore, finalScore),
+      finalScore: Math.min((typeof scoringConfig.maxFinalScore === 'number' ? scoringConfig.maxFinalScore : 1.0), finalScore),
       maxSimilarity,
       avgSimilarity,
       positionScore,
@@ -566,6 +686,9 @@ class BaseSearchService {
       chunk_id: chunk.id,
       chunk_index: chunk.chunk_index,
       text: chunk.chunk_text,
+      // Surface optional metadata when available for UI hints
+      content_type: chunk.content_type ?? (chunk.metadata?.content_type),
+      page_number: chunk.page_number ?? (chunk.metadata?.page_number),
       similarity: chunk.similarity || 0,
       token_count: chunk.token_count
     };
@@ -616,9 +739,12 @@ class BaseSearchService {
    * @returns {Promise<Array>} Ranked document results with hybrid metadata
    * @protected
    */
-  async groupAndRankHybridResults(chunks, limit) {
+  async groupAndRankHybridResults(chunks, limit, query = '', options = {}) {
     // Enhanced version of groupAndRankResults with hybrid features
     const documentMap = new Map();
+    const normQuery = normalizeQuery(query);
+    const isShortQuery = (query || '').trim().split(/\s+/).filter(Boolean).length <= 2;
+    const dossierMode = options.dossierMode || false;
     
     // Group chunks by document with hybrid metadata
     for (const chunk of chunks) {
@@ -645,6 +771,17 @@ class BaseSearchService {
       
       const docData = documentMap.get(docId);
       const chunkData = this.extractChunkData(chunk);
+      // Lexical-aware adjustments per chunk
+      const hasTerm = normQuery ? containsNormalized(chunkData.text, normQuery) : false;
+      const isTOC = looksLikeTOC(chunkData.text);
+      const inHeader = (chunkData.content_type === 'heading');
+      const adjusted = (chunkData.similarity || 0)
+        + (hasTerm ? 0.12 : 0)
+        + (hasTerm && inHeader ? 0.06 : 0)
+        - (isTOC ? 0.08 : 0);
+      chunkData.similarity_adjusted = adjusted;
+      chunkData.has_term = hasTerm;
+      chunkData.is_toc = isTOC;
       
       // Add hybrid metadata
       chunkData.searchMethod = chunk.searchMethod || 'unknown';
@@ -672,19 +809,35 @@ class BaseSearchService {
     
     // Calculate enhanced scores and format results
     const results = Array.from(documentMap.values()).map(doc => {
-      // Sort chunks by similarity
-      doc.chunks.sort((a, b) => b.similarity - a.similarity);
+      if (normQuery && isShortQuery && !doc.chunks.some(c => c.has_term)) {
+        return null;
+      }
+      // Sort by adjusted score
+      doc.chunks.sort((a, b) => (b.similarity_adjusted ?? b.similarity) - (a.similarity_adjusted ?? a.similarity));
       
       // Calculate hybrid-aware enhanced document score
       const enhancedScore = this.calculateHybridDocumentScore(doc.chunks, doc.hybridMetadata);
       
       // Take top chunks per document using configuration
       const contentConfig = vectorConfig.get('content');
-      const topChunks = doc.chunks.slice(0, contentConfig.maxChunksPerDocument);
+      const maxN = contentConfig.maxChunksPerDocument;
+      let topChunks = doc.chunks.slice(0, maxN);
+      if (normQuery) {
+        const idx = topChunks.findIndex(c => c.has_term);
+        if (idx === -1) {
+          const firstHit = doc.chunks.find(c => c.has_term);
+          if (firstHit) topChunks = [firstHit, ...topChunks].slice(0, maxN);
+        } else if (idx > 0) {
+          const [hit] = topChunks.splice(idx, 1);
+          topChunks.unshift(hit);
+        }
+      }
       
       // Create combined relevant text
       const relevantContent = topChunks
-        .map(chunk => this.extractRelevantExcerpt(chunk.text))
+        .map(chunk => (normQuery && chunk.has_term)
+          ? extractMatchedExcerpt(chunk.text, query, contentConfig.maxExcerptLength)
+          : this.extractRelevantExcerpt(chunk.text))
         .join('\n\n---\n\n');
       
       // Generate hybrid search info
@@ -703,6 +856,19 @@ class BaseSearchService {
         position_score: enhancedScore.positionScore,
         diversity_bonus: enhancedScore.diversityBonus,
         hybrid_bonus: enhancedScore.hybridBonus || 0,
+        quality_avg: typeof enhancedScore.qualityAvg === 'number' ? enhancedScore.qualityAvg : null,
+        // expose first top chunk index for callers expecting it at top-level
+        chunk_index: topChunks[0]?.chunk_index ?? null,
+        top_chunks: topChunks.map(tc => ({
+          chunk_index: tc.chunk_index,
+          content_type: tc.content_type ?? null,
+          page_number: tc.page_number ?? null,
+          quality_score: typeof tc.quality_score === 'number' ? tc.quality_score : null,
+          has_term: !!tc.has_term,
+          preview: (normQuery && tc.has_term)
+            ? extractMatchedExcerpt(tc.text, query, contentConfig.maxExcerptLength)
+            : this.extractRelevantExcerpt(tc.text)
+        })),
         chunk_count: doc.chunks.length,
         search_methods: searchMethods,
         hybrid_metadata: {
@@ -719,9 +885,9 @@ class BaseSearchService {
       };
     });
     
-    // Sort by enhanced final score and return top results
-    results.sort((a, b) => b.similarity_score - a.similarity_score);
-    return results.slice(0, limit);
+    const filtered = results.filter(Boolean);
+    filtered.sort((a, b) => b.similarity_score - a.similarity_score);
+    return filtered.slice(0, limit);
   }
 
   /**
@@ -911,7 +1077,10 @@ class BaseSearchService {
         chunk_id: chunk.id,
         chunk_index: chunk.chunk_index,
         text: chunk.chunk_text,
-        similarity: chunk.similarity || 0,
+        // surface optional metadata for UI hints
+        content_type: chunk.content_type ?? (chunk.metadata?.content_type),
+        page_number: chunk.page_number ?? (chunk.metadata?.page_number),
+        similarity: (chunk.similarity_adjusted ?? chunk.similarity) || 0,
         token_count: chunk.token_count
       };
       
@@ -943,6 +1112,16 @@ class BaseSearchService {
         similarity_score: enhancedScore.finalScore,
         max_similarity: enhancedScore.maxSimilarity,
         avg_similarity: enhancedScore.avgSimilarity,
+        // expose first top chunk index for callers expecting a fallback hint
+        chunk_index: topChunks[0]?.chunk_index ?? null,
+        // include a minimal top_chunks structure for consistency with other paths
+        top_chunks: topChunks.map(tc => ({
+          chunk_index: tc.chunk_index,
+          content_type: tc.content_type ?? null,
+          page_number: tc.page_number ?? null,
+          quality_score: typeof tc.quality_score === 'number' ? tc.quality_score : null,
+          preview: BaseSearchService.extractExcerpt(tc.text, 300)
+        })),
         chunk_count: doc.chunks.length,
         relevance_info: `Found ${doc.chunks.length} relevant sections in "${doc.title}"`
       };
@@ -970,7 +1149,7 @@ class BaseSearchService {
       };
     }
     
-    const similarities = chunks.map(c => c.similarity);
+    const similarities = chunks.map(c => (c.similarity_adjusted ?? c.similarity) || 0);
     const maxSimilarity = Math.max(...similarities);
     const avgSimilarity = similarities.reduce((a, b) => a + b) / similarities.length;
     
@@ -978,7 +1157,7 @@ class BaseSearchService {
     let positionScore = 0;
     chunks.forEach((chunk) => {
       const positionWeight = Math.max(0.1, 1 - (chunk.chunk_index * 0.05));
-      positionScore += chunk.similarity * positionWeight;
+      positionScore += ((chunk.similarity_adjusted ?? chunk.similarity) || 0) * positionWeight;
     });
     positionScore = positionScore / chunks.length;
     

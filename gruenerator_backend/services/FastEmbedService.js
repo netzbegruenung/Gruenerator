@@ -48,8 +48,20 @@ class FastEmbedService {
     if (!Array.isArray(texts) || texts.length === 0) {
       throw new Error('Texts must be a non-empty array');
     }
-    // Do not use mock fallbacks; surface errors
-    return await this.client.generateBatchEmbeddings(texts);
+    
+    console.log(`[FastEmbedService] Generating embeddings for ${texts.length} texts`);
+    const startTime = Date.now();
+    
+    try {
+      const embeddings = await this.client.generateBatchEmbeddings(texts);
+      const duration = Date.now() - startTime;
+      console.log(`[FastEmbedService] Successfully generated ${embeddings.length} embeddings in ${duration}ms`);
+      return embeddings;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      console.error(`[FastEmbedService] Failed to generate embeddings after ${duration}ms:`, error.message);
+      throw error;
+    }
   }
 
   /**

@@ -1,6 +1,9 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 
+// Canva Button Feature CSS - Loaded only when this feature is accessed
+import '../../../../assets/styles/components/canva/canva-button.css';
+
 /**
  * Canva-branded button component following official brand guidelines
  * Uses official Canva icon and brand-compliant styling

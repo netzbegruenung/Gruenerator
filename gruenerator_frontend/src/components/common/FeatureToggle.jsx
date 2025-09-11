@@ -32,7 +32,7 @@ const FeatureToggle = ({
           <Switch.Thumb className="feature-switch-thumb" />
         </Switch.Root>
         <div className="feature-label">
-          <Icon className={`feature-icon ${isActive ? 'active' : ''} ${disabled ? 'disabled' : ''}`} />
+          <Icon className={`feature-toggle-icon ${isActive ? 'active' : ''} ${disabled ? 'disabled' : ''}`} />
           {label} {isActive ? '' : ''}
         </div>
       </div>

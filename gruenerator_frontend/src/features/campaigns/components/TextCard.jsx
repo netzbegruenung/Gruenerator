@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import CopyButton from '../../../components/common/CopyButton';
-import { truncateMiddle } from '../../../components/common/editor/textTruncation';
+import { truncateMiddle } from '../../../utils/textUtils';
 
 const TextCard = ({ text }) => {
   const [isExpanded, setIsExpanded] = useState(false);

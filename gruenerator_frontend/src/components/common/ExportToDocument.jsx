@@ -6,7 +6,7 @@ import { IoDocumentOutline, IoCopyOutline, IoOpenOutline, IoCloseOutline, IoPeop
 import { useLocation } from 'react-router-dom';
 import { useUnmount } from 'react-use';
 import useGeneratedTextStore from '../../stores/core/generatedTextStore';
-import { extractHTMLContent } from '../utils/contentExtractor';
+import { extractPlainText } from '../utils/contentExtractor';
 
 const ExportToDocument = () => {
   const location = useLocation();
@@ -16,6 +16,7 @@ const ExportToDocument = () => {
   const { submitForm, loading, error } = useApiSubmit('etherpad/create');
   const { getGeneratedText } = useGeneratedTextStore();
   const [isCopied, setIsCopied] = useState(false);
+  const [contentCopied, setContentCopied] = useState(false);
 
   // Cleanup beim Unmount (Seitenwechsel, Neuladen, etc.)
   useUnmount(() => {
@@ -138,11 +139,11 @@ Debug Info:
         throw new Error(helpfulError);
       }
       
-      // Use centralized content extractor which intelligently handles search exports
-      const htmlContent = extractHTMLContent(generatedText);
+      // Use centralized content extractor to produce plain text for ep_post_data
+      const plainContent = await extractPlainText(generatedText);
       
       // Final check that we have content after extraction
-      if (!htmlContent || htmlContent.trim().length === 0) {
+      if (!plainContent || plainContent.trim().length === 0) {
         throw new Error(`Der extrahierte Text ist leer. 
         
 Gefundener Text-Typ: ${typeof generatedText}
@@ -155,18 +156,25 @@ Bitte überprüfe den generierten Text oder kontaktiere den Support.`);
       if (process.env.NODE_ENV === 'development') {
         console.log('Export successful:', {
           actualComponentName,
-          htmlContentLength: htmlContent.length,
+          plainContentLength: plainContent.length,
           documentType
         });
       }
       
       const response = await submitForm({ 
-        text: htmlContent,
+        text: plainContent,
         documentType: documentType
       });
       
       if (response && response.padURL) {
         setDocURL(response.padURL);
+        try {
+          await navigator.clipboard.writeText(plainContent);
+          setContentCopied(true);
+        } catch (copyErr) {
+          console.warn('Clipboard copy failed:', copyErr);
+          setContentCopied(false);
+        }
       } else {
         throw new Error('Keine gültige Docs-URL erhalten');
       }
@@ -263,7 +271,13 @@ Bitte überprüfe den generierten Text oder kontaktiere den Support.`);
                 </>
               ) : (
                 <>
-                  <p>{documentType === 'Antrag' || documentType === 'Social Media Post' ? 'Dein' : 'Deine'} {documentType} wurde erfolgreich freigegeben. Hier ist dein Link:</p>
+                  <p>{documentType === 'Antrag' || documentType === 'Social Media Post' ? 'Dein' : 'Deine'} {documentType} wurde erfolgreich freigegeben.</p>
+                  {contentCopied ? (
+                    <p>Der Text wurde in die Zwischenablage kopiert. Öffne das Dokument und füge ihn dort mit <strong>Strg+V</strong> ein.</p>
+                  ) : (
+                    <p>Öffne das Dokument und füge deinen Text dort ein.</p>
+                  )}
+                  <p>Hier ist dein Link:</p>
                   <div className="url-container">
                     <input type="text" value={docURL} readOnly className="url-input" />
                     <button 

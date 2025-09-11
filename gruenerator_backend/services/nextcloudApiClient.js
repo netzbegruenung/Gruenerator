@@ -347,6 +347,67 @@ class NextcloudApiClient {
     }
     
     /**
+     * Download file content from Nextcloud share
+     * @param {string} filePath - File path from WebDAV response (e.g., "/public.php/webdav/filename.pdf")
+     * @returns {Buffer} File content as buffer
+     */
+    async downloadFile(filePath) {
+        try {
+            console.log(`[NextcloudApiClient] Downloading file: ${filePath}`);
+            
+            // Construct the full WebDAV URL for the file
+            // filePath already contains the WebDAV path structure from the share info
+            let fileUrl = `${this.baseURL}${filePath}`;
+            
+            // If the path doesn't start with WebDAV, prepend it
+            if (!filePath.startsWith('/public.php/webdav/')) {
+                // Handle relative paths - encode each segment properly
+                const encodedPath = filePath.split('/').map(segment => encodeURIComponent(segment)).join('/');
+                fileUrl = `${this.webdavUrl}/${encodedPath}`;
+            }
+            
+            console.log(`[NextcloudApiClient] Downloading from URL: ${fileUrl}`);
+            
+            const response = await this.axiosInstance.get(fileUrl, {
+                responseType: 'arraybuffer',
+                headers: {
+                    'Accept': '*/*'
+                }
+            });
+            
+            if (response.status === 200) {
+                const buffer = Buffer.from(response.data);
+                console.log(`[NextcloudApiClient] Successfully downloaded file: ${filePath} (${buffer.length} bytes)`);
+                
+                return {
+                    buffer: buffer,
+                    mimeType: response.headers['content-type'] || null,
+                    size: response.headers['content-length'] ? parseInt(response.headers['content-length']) : buffer.length
+                };
+            } else {
+                throw new Error(`Download failed with status: ${response.status}`);
+            }
+            
+        } catch (error) {
+            console.error(`[NextcloudApiClient] File download failed:`, {
+                filePath,
+                error: error.message,
+                status: error.response?.status
+            });
+            
+            if (error.response?.status === 401) {
+                throw new Error('Authentication failed - cannot download file');
+            } else if (error.response?.status === 404) {
+                throw new Error('File not found on Nextcloud share');
+            } else if (error.response?.status === 403) {
+                throw new Error('Access denied - file download not permitted');
+            }
+            
+            throw new Error(`File download failed: ${error.message}`);
+        }
+    }
+    
+    /**
      * Normalize axios errors
      */
     normalizeError(error) {

@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { HiX, HiShare, HiUserGroup, HiCheck } from 'react-icons/hi';
-import { useGroups, useGroupSharing } from '../../features/auth/utils/groupsUtils';
+import { useGroups, useGroupSharing } from '../../features/groups/hooks/useGroups';
 import Spinner from './Spinner';
 
 /**

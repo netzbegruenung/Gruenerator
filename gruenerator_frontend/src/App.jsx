@@ -7,6 +7,7 @@ import useDarkMode from './components/hooks/useDarkMode';
 import ErrorBoundary from './components/ErrorBoundary';
 import SuspenseWrapper from './components/common/SuspenseWrapper';
 import RouteComponent from './components/routing/RouteComponent';
+import LegacyGeneratorRedirect from './components/routing/LegacyGeneratorRedirect';
 import { routes } from './config/routes';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -94,6 +95,8 @@ function App() {
                   <div id="aria-live-region" aria-live="polite" className="sr-only"></div>
                   
                   <Routes>
+                    {/* Legacy redirect: /generator/:slug -> /gruenerator/:slug */}
+                    <Route path="/generator/:slug" element={<LegacyGeneratorRedirect />} />
                     {/* Standard-Routen */}
                     {routes.standard.map(({ path }) => (
                       <Route

@@ -75,9 +75,9 @@ const routeHandler = withErrorHandler(async (req, res) => {
     const builder = new PromptBuilderWithExamples('social', provider)
       .enableDebug(process.env.NODE_ENV === 'development')
       .configureExamples({
-        maxExamples: 3,
-        maxCharactersPerExample: 400,
-        includeSimilarityInfo: true,
+        maxExamples: 1,
+        maxCharactersPerExample: 500,
+        includeSimilarityInfo: false,
         formatStyle: 'structured'
       });
 
@@ -144,36 +144,27 @@ Achte bei der Umsetzung dieses Stils auf Klarheit, Präzision und eine ausgewoge
       requestContent = requestData;
     } else {
       // For standard requests, build descriptive content with clear instructions
-      requestContent = `WICHTIGE ANWEISUNGEN:
-- Erstelle GENAU EINEN Beitrag pro angegebener Plattform
-- Wenn nur eine Plattform genannt ist: Erstelle NUR EINEN EINZIGEN Beitrag
-- Gib NUR die fertigen Posts aus - keine Erklärungen, keine Kommentare
-- Halte dich STRIKT an die Zeichengrenzen jeder Plattform
-
-Erstelle einen maßgeschneiderten Social-Media-Beitrag für jede ausgewählte Plattform zu diesem Thema, der den Stil und die Werte von Bündnis 90/Die Grünen widerspiegelt. Berücksichtige diese plattformspezifischen Richtlinien:
+      requestContent = `STRIKTE ANWEISUNGEN:
+- Erstelle NUR den Beitragstext - KEINE Bildvorschläge, KEINE zusätzlichen Kommentare
+- Genau EIN Beitrag pro Plattform
+- Halte dich an die Zeichengrenzen
 
 ${platforms.map(platform => {
-  if (platform === 'pressemitteilung') return '';
-  const upperPlatform = platform === 'reelScript' ? 'INSTAGRAM REEL' : platform.toUpperCase();
   const guidelines = PLATFORM_SPECIFIC_GUIDELINES[platform] || {};
-  return `${upperPlatform}: Stil: ${guidelines.style || 'N/A'} Fokus: ${guidelines.focus || 'N/A'} Zusätzliche Richtlinien: ${guidelines.additionalGuidelines || ''}`;
-}).filter(Boolean).join('\n')}
+  if (guidelines.maxLength) {
+    return `${platform.toUpperCase()}: Max. ${guidelines.maxLength} Zeichen`;
+  }
+  return '';
+}).filter(Boolean).join(', ')}
 
-${platforms.includes('pressemitteilung') ? '' : `Inhaltliche Fokuspunkte:
-- Themen wie Klimaschutz, soziale Gerechtigkeit und Vielfalt betonen
-- Aktuelle Positionen der Grünen Partei einbeziehen
-- Emojis und Hashtags passend zur Plattform verwenden
-- Bei Bedarf auf weiterführende Informationen verweisen`}
-
-Aktuelles Datum: ${currentDate}
-
-Bitte erstelle die Inhalte für folgende Angaben:
 Thema: ${thema}
 Details: ${details}
 Plattformen: ${platforms.join(', ')}
 ${platforms.includes('pressemitteilung') && was ? `Was: ${was}` : ''}
 ${platforms.includes('pressemitteilung') && wie ? `Wie: ${wie}` : ''}
 ${platforms.includes('pressemitteilung') && zitatgeber ? `Zitat von: ${zitatgeber}` : ''}
+
+Erstelle einen Beitrag im Stil von Bündnis 90/Die Grünen. Nutze Emojis und Hashtags passend zur Plattform.
 
 ${TITLE_GENERATION_INSTRUCTION}`;
     }
@@ -193,7 +184,7 @@ ${TITLE_GENERATION_INSTRUCTION}`;
       // Fetch examples for each relevant platform and add to builder
       for (const platform of relevantPlatforms) {
         await addExamplesFromService(builder, platform, searchQuery, {
-          limit: 3,
+          limit: 1,
           useCache: true,
           formatStyle: 'structured'
         }, req, 'press/social', platforms);
@@ -215,7 +206,6 @@ ${TITLE_GENERATION_INSTRUCTION}`;
       systemPrompt,
       messages,
       options: {
-        temperature: 0.9,
         ...(tools.length > 0 && { tools }),
         ...(usePrivacyMode && provider && { provider: provider })
       },

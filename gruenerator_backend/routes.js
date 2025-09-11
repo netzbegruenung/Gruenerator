@@ -110,8 +110,6 @@ async function setupRoutes(app) {
   const { default: leichteSpracheRoute } = await import('./routes/leichte_sprache.js');
   // Import claude_gruenerator_ask as ES6 module
   const { default: claudeGrueneratorAskRoute } = await import('./routes/claude_gruenerator_ask.js');
-  // Import claude_gruenerator_ask_grundsatz as ES6 module
-  const { default: claudeGrueneratorAskGrundsatzRoute } = await import('./routes/claude_gruenerator_ask_grundsatz.js');
   // Import custom generator routes as ES6 modules
   const { default: customGeneratorRoute } = await import('./routes/custom_generator.mjs');
   const { default: generatorConfiguratorRoute } = await import('./routes/generator_configurator.mjs');
@@ -289,7 +287,6 @@ async function setupRoutes(app) {
   app.use('/api/claude_universal', universalRouter);
   app.use('/api/claude_gruene_jugend', claudeGrueneJugendRoute);
   app.use('/api/claude_gruenerator_ask', claudeGrueneratorAskRoute);
-  app.use('/api/claude_gruenerator_ask_grundsatz', claudeGrueneratorAskGrundsatzRoute);
   app.use('/api/you', claudeYouRoute);
   app.use('/api/custom_generator', customGeneratorRoute); // Public access for view operations
   app.use('/api/auth/custom_generator', customGeneratorRoute); // Authenticated access for management operations

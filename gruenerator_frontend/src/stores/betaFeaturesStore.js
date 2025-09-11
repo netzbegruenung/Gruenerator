@@ -19,7 +19,9 @@ const normalizeBetaFeatures = (features = {}) => {
     anweisungen: 'anweisungen',
     memory: 'memory',
     e_learning: 'e_learning',
-    content_management: 'contentManagement'
+    content_management: 'contentManagement',
+    canva: 'canva',
+    labor_enabled: 'labor'
   };
 
   const normalized = {};

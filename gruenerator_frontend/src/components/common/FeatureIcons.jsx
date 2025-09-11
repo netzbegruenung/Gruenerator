@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import '../../assets/styles/components/ui/FeatureIcons.css';
 import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import { HiGlobeAlt, HiEye, HiPaperClip, HiAdjustments, HiLightningBolt } from 'react-icons/hi';
@@ -233,7 +234,7 @@ const FeatureIcons = ({
           tabIndex={tabIndex.webSearch}
           type="button"
         >
-          <HiGlobeAlt className="feature-icon" />
+          <HiGlobeAlt className="feature-icons__icon" />
           <span className="feature-icons-button__label">Websuche</span>
         </button>
         
@@ -270,9 +271,9 @@ const FeatureIcons = ({
               }
             })}
           >
-            {(privacyModeActive && <HiEye className="feature-icon" />) ||
-             (proModeActive && <HiLightningBolt className="feature-icon" />) ||
-             (<HiAdjustments className="feature-icon" />)}
+            {(privacyModeActive && <HiEye className="feature-icons__icon" />) ||
+             (proModeActive && <HiLightningBolt className="feature-icons__icon" />) ||
+             (<HiAdjustments className="feature-icons__icon" />)}
             <span className="feature-icons-button__label">
               {privacyModeActive ? 'Privacy' : (proModeActive ? 'Pro' : 'Ausbalanciert')}
             </span>
@@ -351,7 +352,7 @@ const FeatureIcons = ({
           type="button"
           disabled={isValidatingFiles}
         >
-          <HiPaperClip className="feature-icon" />
+          <HiPaperClip className="feature-icons__icon" />
           <span className="feature-icons-button__label">
             {isValidatingFiles ? 'Prüfe Dateien...' : 'Anhang hinzufügen'}
           </span>
@@ -361,6 +362,7 @@ const FeatureIcons = ({
             multiple
             accept=".pdf,.jpg,.jpeg,.png,.webp"
             onChange={handleFileSelect}
+            onClick={(e) => e.stopPropagation()}
             className="attachment-file-input"
             aria-hidden="true"
             disabled={isValidatingFiles}

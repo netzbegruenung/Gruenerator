@@ -9,6 +9,30 @@ import { HiPencil } from 'react-icons/hi';
 import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
 import FormStateProvider, { useFormState, useFormStateSelector } from '../FormStateProvider';
 
+// Import all form-related CSS
+import '../../../../assets/styles/components/ui/forms.css';
+import '../../../../assets/styles/components/ui/form-select-modern.css';
+import '../../../../assets/styles/components/ui/form-toggle-button.css';
+import '../../../../assets/styles/components/ui/quote-form.css';
+import '../../../../assets/styles/components/ui/FeatureToggle.css';
+import '../../../../assets/styles/components/ui/AttachedFilesList.css';
+import '../../../../assets/styles/components/ui/button.css';
+import '../../../../assets/styles/components/ui/spinner.css';
+import '../../../../assets/styles/components/ui/tooltip.css';
+import '../../../../assets/styles/components/ui/react-select.css';
+import '../../../../assets/styles/components/ui/knowledge-selector.css';
+import '../../../../assets/styles/components/ui/enhanced-select.css';
+import '../../../../assets/styles/components/ui/animatedcheckbox.css';
+import '../../../../assets/styles/components/ui/SegmentedControl.css';
+import '../../../../assets/styles/components/form/form-inputs.css';
+import '../../../../assets/styles/components/form/file-upload.css';
+import '../../../../assets/styles/components/baseform/base.css';
+import '../../../../assets/styles/components/baseform/form-layout.css';
+import '../../../../assets/styles/components/baseform/form-toggle-fab.css';
+import '../../../../assets/styles/components/edit-mode/edit-mode-overlay.css';
+import '../../../../assets/styles/components/help-tooltip.css';
+import '../../../../assets/styles/pages/baseform.css';
+
 // Importiere die Komponenten
 import FormSection from './FormSection';
 import DisplaySection from './DisplaySection';
@@ -181,10 +205,27 @@ const BaseFormInternal = ({
   const [isEditModeToggled, setIsEditModeToggled] = React.useState(false);
   const isEditModeActive = isEditModeToggled && enableEditMode && hasContent;
   
+  // Auto-activate edit mode when new text is generated (desktop only)
+  const prevHasContentRef = useRef(hasContent);
+  useEffect(() => {
+    // Only auto-activate if:
+    // 1. Edit mode is enabled for this component
+    // 2. We just got content (transition from no content to has content)
+    // 3. Edit mode isn't already active
+    // 4. Not on mobile device
+    const isMobileDevice = window.innerWidth <= 768;
+    if (enableEditMode && !prevHasContentRef.current && hasContent && !isEditModeToggled && !isMobileDevice) {
+      setIsEditModeToggled(true);
+    }
+    prevHasContentRef.current = hasContent;
+  }, [hasContent, enableEditMode, isEditModeToggled]);
+  
   // Handler for edit mode toggle
   const handleToggleEditMode = React.useCallback(() => {
     setIsEditModeToggled(prev => !prev);
   }, []);
+
+  // Handler for finetune mode toggle
 
   // Consolidated config with backward compatibility
   const resolvedSubmitConfig = React.useMemo(() => {
@@ -249,7 +290,7 @@ const BaseFormInternal = ({
   const toggleFormVisibility = toggleStoreFormVisibility || fallbackFormVisibility.toggleFormVisibility;
 
   // Direct store access instead of useContentManagement
-  const value = useGeneratedTextStore(state => state.getGeneratedText(componentName));
+  const value = useGeneratedTextStore(state => state.generatedTexts[componentName] || '');
   const setGeneratedText = useGeneratedTextStore(state => state.setGeneratedText);
   
   // Initialize with initial content if needed

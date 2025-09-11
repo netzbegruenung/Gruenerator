@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { useForm, FormProvider, useFieldArray } from 'react-hook-form';
 import { HiOutlineTrash, HiPlus, HiLink, HiInformationCircle, HiPencil, HiCheck, HiX } from 'react-icons/hi';
+import { ProfileIconButton } from '../../../../components/profile/actions/ProfileActionButton';
 import { useAutosave } from '../../../../hooks/useAutosave';
-import { useGroups, useGroupSharing, getGroupInitials } from '../../utils/groupsUtils';
+import { useGroups, useGroupSharing, getGroupInitials } from '../../../../features/groups/hooks/useGroups';
 import { useAnweisungenWissen } from '../../hooks/useProfileData';
 import { useOptimizedAuth } from '../../../../hooks/useAuth';
 import { useFormFields } from '../../../../components/common/Form/hooks';
 import HelpTooltip from '../../../../components/common/HelpTooltip';
 import DeleteWarningTooltip from '../../../../components/common/DeleteWarningTooltip';
-import GroupMembersList from './GroupMembersList';
+import GroupMembersList from '../../../../features/groups/components/GroupMembersList';
 import SharedContentSelector from '../../../../features/groups/components/SharedContentSelector';
 import { useInstructionsUiStore } from '../../../../stores/auth/instructionsUiStore';
 import { useGroupsStore } from '../../../../stores/auth/groupsStore';
@@ -707,15 +708,14 @@ const GroupDetailView = memo(({
                                                     <div className="anweisungen-header">
                                                         <label htmlFor={`knowledge.${index}.title`}>Wissen #{index + 1}: Titel</label>
                                                         {data?.isAdmin && (
-                                                            <button
-                                                                type="button"
+                                                            <ProfileIconButton
+                                                                action="delete"
                                                                 onClick={() => handleDeleteKnowledge(field, index)}
                                                                 className="knowledge-delete-button icon-button danger"
                                                                 disabled={isDeletingKnowledge && deletingKnowledgeId === field.id}
-                                                                aria-label={`Wissenseintrag ${index + 1} löschen`}
-                                                            >
-                                                                <HiOutlineTrash />
-                                                            </button>
+                                                                ariaLabel={`Wissenseintrag ${index + 1} löschen`}
+                                                                title="Löschen"
+                                                            />
                                                         )}
                                                     </div>
                                                     {data?.isAdmin ? (

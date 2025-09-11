@@ -12,7 +12,6 @@ const UniversalEditForm = ({ componentName }) => {
   const [inputValue, setInputValue] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const initializedRef = useRef(false);
-  // No emoji hardcoding here; AI decides if/when to add emojis
 
   useEffect(() => {
     // Only initialize once per component

@@ -4,7 +4,6 @@ import FormSection from '../../components/common/Form/BaseForm/FormSection';
 import FormStateProvider from '../../components/common/Form/FormStateProvider';
 import FormInput from '../../components/common/Form/Input/FormInput';
 import FormTextarea from '../../components/common/Form/Input/FormTextarea';
-import { useNavigate } from 'react-router-dom';
 import FieldEditorAssistant from './components/FieldEditorAssistant';
 import { getCustomGeneratorHelpContent } from './constants/customGeneratorHelpContent';
 import { STEPS } from './constants/steps';
@@ -14,12 +13,15 @@ import apiClient from '../../components/utils/apiClient';
 import { profileApiService } from '../auth/services/profileApiService';
 import GeneratorStartScreen from './components/GeneratorStartScreen';
 import GeneratorCreationSuccessScreen from './components/GeneratorCreationSuccessScreen';
-import { useOptimizedAuth } from '../../hooks/useAuth';
-import InlineValidationMessage from '../../components/common/UI/InlineValidationMessage';
-import '../../assets/styles/components/custom-generator/custom-generator-page.css';
 
-// Auth Backend URL aus Environment Variable oder Fallback zu aktuellem Host
-const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+// Custom Generators Feature CSS - Loaded only when this feature is accessed
+import '../../assets/styles/components/custom-generator/create-custom-generator.css';
+import '../../assets/styles/components/custom-generator/field-editor-assistant.css';
+import '../../assets/styles/components/custom-generator/document-selector.css';
+import './styles/custom-generators-tab.css';
+import { useOptimizedAuth } from '../../hooks/useAuth';
+import { ProfileIconButton } from '../../components/profile/actions/ProfileActionButton';
+// Page-level CSS removed (embedded-only)
 
 // Define steps
 const MODE_SELECTION = -1;
@@ -29,20 +31,19 @@ const INITIAL_FORM_DATA = {
   name: '',
   slug: '',
   fields: [],
-  documents: [],
   prompt: '',
   title: '',
   description: '',
   contact_email: ''
 };
 
-const CreateCustomGeneratorPage = ({ showHeaderFooter = true }) => {
+// Embedded-only component; use in profile tab
+const CreateCustomGeneratorPage = ({ onCompleted, onCancel }) => {
   const [currentStep, setCurrentStep] = useState(MODE_SELECTION);
   const [aiDescription, setAiDescription] = useState('');
   const [isGeneratingWithAI, setIsGeneratingWithAI] = useState(false);
   const [error, setError] = useState(null);
   const [completionData, setCompletionData] = useState(null);
-  const navigate = useNavigate();
   const { user } = useOptimizedAuth();
   
   // React Hook Form setup
@@ -184,29 +185,6 @@ const CreateCustomGeneratorPage = ({ showHeaderFooter = true }) => {
   };
 
   // Field management
-  const handleFieldChange = (index, fieldData) => {
-    const { label } = fieldData;
-    let { name, type, required } = fieldData;
-
-    const sanitizedName = label
-      .toLowerCase()
-      .replace(/\s+/g, '_')
-      .replace(/[^a-z0-9_]/g, '');
-
-    if (type === 'text' && (label.includes('beschreibung') || label.includes('text') || label.includes('inhalt') || label.includes('prompt') || label.includes('abschnitt'))) {
-      type = 'textarea';
-    }
-    if (required === false && (label.toLowerCase().includes('email') || label.toLowerCase().includes('name') || label.toLowerCase().includes('titel'))) {
-      required = true;
-    }
-
-    const updatedFieldData = { ...fieldData, name: sanitizedName, type, required };
-    const currentFields = getValues('fields');
-    const newFields = [...currentFields];
-    newFields[index] = updatedFieldData;
-    setValue('fields', newFields);
-  };
-
   const startAddField = () => {
     const currentFields = getValues('fields');
     if (currentFields.length < 5) {
@@ -336,6 +314,10 @@ const CreateCustomGeneratorPage = ({ showHeaderFooter = true }) => {
       }
       
       setCompletionData({ name: dataToSave.name, slug: dataToSave.slug });
+      // Notify parent immediately so it can refresh lists
+      if (onCompleted) {
+        onCompleted({ name: dataToSave.name, slug: dataToSave.slug });
+      }
     } catch (err) {
       console.error("Error saving generator:", err);
       setError(`Fehler beim Speichern: ${err.message || 'Unbekannter Fehler'}`);
@@ -387,9 +369,7 @@ const CreateCustomGeneratorPage = ({ showHeaderFooter = true }) => {
               helpText={isCheckingSlug ? "Prüfe Verfügbarkeit..." : (slugAvailabilityError || "Nur Kleinbuchstaben, Zahlen und Bindestriche")}
               className={slugAvailabilityError ? 'error-input' : ''}
             />
-            {slugAvailabilityError && (
-              <InlineValidationMessage message={slugAvailabilityError} type="error" />
-            )}
+            {/* Inline validation message is reflected via helpText and input styling */}
             
             <FormInput
               name="title"
@@ -417,18 +397,28 @@ const CreateCustomGeneratorPage = ({ showHeaderFooter = true }) => {
         const currentFields = getValues('fields');
         return (
           <>
-            <h3>Formularfelder definieren (max. 5)</h3>
+            {/* Heading removed to avoid duplication with FormSection title */}
             {!isEditingField && currentFields.length > 0 && (
-              <ul className="list-group mb-3">
+              <ul className="list-group list-group--modern mb-3">
                 {currentFields.map((field, index) => (
-                  <li key={index} className="list-group-item d-flex justify-content-between align-items-center">
+                  <li key={index} className="list-group-item">
                     <div>
-                      <strong>{field.label || '(Ohne Label)'}</strong> ({field.type === 'textarea' ? 'Langer Text' : 'Kurzer Text'})
-                      <br />
+                      <div className="list-group-item__title">
+                        {field.label || '(Ohne Label)'}
+                        <span className="list-group-item__badge badge--field">
+                          {field.type === 'textarea' ? 'Langer Text' : 'Kurzer Text'}
+                        </span>
+                        {field.required && (
+                          <span className="list-group-item__badge" aria-label="Pflichtfeld">Pflichtfeld</span>
+                        )}
+                      </div>
+                      {field.placeholder && (
+                        <div className="list-group-item__meta">{field.placeholder}</div>
+                      )}
                     </div>
-                    <div>
-                      <button type="button" onClick={() => startEditField(index)} className="btn btn-sm btn-outline-secondary me-2">Bearbeiten</button>
-                      <button type="button" onClick={() => deleteField(index)} className="btn btn-sm btn-outline-danger">Löschen</button>
+                    <div className="list-group-item__actions">
+                      <ProfileIconButton action="edit" ariaLabel="Bearbeiten" title="Bearbeiten" onClick={() => startEditField(index)} />
+                      <ProfileIconButton action="delete" ariaLabel="Löschen" title="Löschen" onClick={() => deleteField(index)} />
                     </div>
                   </li>
                 ))}
@@ -460,7 +450,6 @@ const CreateCustomGeneratorPage = ({ showHeaderFooter = true }) => {
       case STEPS.PROMPT:
         return (
           <>
-            <h3>Prompt definieren</h3>
             <FormTextarea
               name="prompt"
               label="Prompt-Vorlage"
@@ -487,7 +476,7 @@ const CreateCustomGeneratorPage = ({ showHeaderFooter = true }) => {
               <div className="review-section">
                 <h4>Basisdaten</h4>
                 <p><strong>Name:</strong> {reviewFormValues.name}</p>
-                <p><strong>URL:</strong> /generator/{reviewFormValues.slug}</p>
+                <p><strong>URL:</strong> /gruenerator/{reviewFormValues.slug}</p>
                 <p><strong>Titel:</strong> {reviewFormValues.title}</p>
                 <p><strong>Beschreibung:</strong> {reviewFormValues.description}</p>
                 <p><strong>Kontakt-E-Mail:</strong> {reviewFormValues.contact_email}</p>
@@ -495,15 +484,29 @@ const CreateCustomGeneratorPage = ({ showHeaderFooter = true }) => {
               <div className="review-section">
                 <h4>Formularfelder</h4>
                 {reviewFormValues.fields.length > 0 ? (
-                  <ul className="list-group">
+                  <ul className="list-group list-group--modern">
                     {reviewFormValues.fields.map((field, index) => (
                       <li key={index} className="list-group-item">
-                        <strong>{field.label}</strong> ({field.name})<br />
-                        <small>
-                          Typ: {field.type === 'textarea' ? 'Langer Text' : 'Kurzer Text'},
-                          {field.required ? ' Pflichtfeld' : ' Optional'}
-                          {field.placeholder ? `, Platzhalter: "${field.placeholder}"` : ''}
-                        </small>
+                        <div>
+                          <div className="list-group-item__title">
+                            {field.label}
+                            <span className="list-group-item__badge badge--field">
+                              {field.type === 'textarea' ? 'Langer Text' : 
+                               field.type === 'select' ? 'Auswahlfeld' : 'Kurzer Text'}
+                            </span>
+                            {field.required && (
+                              <span className="list-group-item__badge" aria-label="Pflichtfeld">Pflichtfeld</span>
+                            )}
+                          </div>
+                          {field.placeholder && (
+                            <div className="list-group-item__meta">{field.placeholder}</div>
+                          )}
+                          {field.type === 'select' && field.options && field.options.length > 0 && (
+                            <div className="list-group-item__meta">
+                              Optionen: {field.options.map(opt => opt.label).join(', ')}
+                            </div>
+                          )}
+                        </div>
                       </li>
                     ))}
                   </ul>
@@ -530,14 +533,14 @@ const CreateCustomGeneratorPage = ({ showHeaderFooter = true }) => {
   // Main render logic: Show success screen or the creation process
   if (completionData) {
     return (
-      <div className={`create-generator-page ${showHeaderFooter ? 'with-header' : ''}`}>
-        <div className="container">
-          <GeneratorCreationSuccessScreen
-            name={completionData.name}
-            slug={completionData.slug}
-            onRestart={handleRestart}
-          />
-        </div>
+      <div>
+        <GeneratorCreationSuccessScreen
+          name={completionData.name}
+          slug={completionData.slug}
+          onRestart={handleRestart}
+          // Provide a simple way to close when embedded
+          onClose={onCancel}
+        />
       </div>
     );
   }
@@ -545,52 +548,44 @@ const CreateCustomGeneratorPage = ({ showHeaderFooter = true }) => {
   // If not completed, render the StartScreen or FormSection
   if (currentStep === MODE_SELECTION) {
     return (
-      <div className={`create-generator-page ${showHeaderFooter ? 'with-header' : ''}`}>
-        <div className="container">
-          <GeneratorStartScreen
-            aiDescription={aiDescription}
-            onDescriptionChange={handleAiDescriptionChange}
-            onGenerateWithAI={handleGenerateWithAI}
-            onManualSetup={handleManualSetup}
-            isLoading={isGeneratingWithAI || aiLoading}
-            error={error || aiError}
-          />
-        </div>
-      </div>
+      <GeneratorStartScreen
+        aiDescription={aiDescription}
+        onDescriptionChange={handleAiDescriptionChange}
+        onGenerateWithAI={handleGenerateWithAI}
+        onManualSetup={handleManualSetup}
+        isLoading={isGeneratingWithAI || aiLoading}
+        error={error || aiError}
+      />
     );
   }
 
   // Otherwise, render the FormSection with the current step
   return (
-    <div className={`create-generator-page ${showHeaderFooter ? 'with-header' : ''}`}>
-      <div className="container">
-        <FormStateProvider 
-          initialState={{
-            loading: isGeneratingWithAI,
-            formErrors: { general: error },
-            isFormVisible: true
-          }}
-          formId="create-custom-generator"
-        >
-          <FormSection
-            title={helpContent?.title || "Neuen Grünerator erstellen"}
-            onSubmit={handleNext}
-            onBack={handleBack}
-            isFormVisible={true}
-            isMultiStep={true}
-            showBackButton={currentStep > STEPS.BASICS && !isEditingField}
-            nextButtonText={currentStep === STEPS.REVIEW ? 'Speichern' : 'Weiter'}
-            useModernForm={true}
-            formControl={control}
-            defaultValues={INITIAL_FORM_DATA}
-            hideExtrasSection={true}
-            showSubmitButtonInInputSection={true}
-          >
-            {renderCurrentStep()}
-          </FormSection>
-        </FormStateProvider>
-      </div>
-    </div>
+    <FormStateProvider 
+      initialState={{
+        loading: isGeneratingWithAI,
+        formErrors: { general: error },
+        isFormVisible: true
+      }}
+      formId="create-custom-generator"
+    >
+      <FormSection
+        title={helpContent?.title || "Neuen Custom Grünerator erstellen"}
+        onSubmit={handleNext}
+        onBack={handleBack}
+        isFormVisible={true}
+        isMultiStep={true}
+        showBackButton={currentStep > STEPS.BASICS && !isEditingField}
+        nextButtonText={currentStep === STEPS.REVIEW ? 'Speichern' : 'Weiter'}
+        useModernForm={true}
+        formControl={control}
+        defaultValues={INITIAL_FORM_DATA}
+        hideExtrasSection={true}
+        showSubmitButtonInInputSection={true}
+      >
+        {renderCurrentStep()}
+      </FormSection>
+    </FormStateProvider>
   );
 };
 

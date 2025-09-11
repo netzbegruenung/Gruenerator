@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useOptimizedAuth } from '../../hooks/useAuth';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import BaseForm from '../../components/common/BaseForm';
 import FormInput from '../../components/common/Form/Input/FormInput';
 import FormTextarea from '../../components/common/Form/Input/FormTextarea';
+import EnhancedSelect from '../../components/common/EnhancedSelect';
 import useApiSubmit from '../../components/hooks/useApiSubmit';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import '../../assets/styles/components/custom-generator/custom-generator-page.css';
@@ -287,6 +288,39 @@ const CustomGeneratorPage = ({ showHeaderFooter = true }) => {
               rules={field.required ? { required: `${field.label} ist ein Pflichtfeld` } : {}}
               enableUrlDetection={true}
               onUrlsDetected={handleUrlsDetected}
+            />
+          );
+        }
+
+        if (field.type === 'select') {
+          // Transform options to EnhancedSelect format
+          const selectOptions = (field.options || []).map(option => ({
+            value: option.value,
+            label: option.label
+          }));
+
+          return (
+            <Controller
+              key={field.name}
+              name={field.name}
+              control={control}
+              defaultValue={field.defaultValue || ''}
+              rules={field.required ? { required: `${field.label} ist ein Pflichtfeld` } : {}}
+              render={({ field: controllerField, fieldState }) => (
+                <EnhancedSelect
+                  {...controllerField}
+                  inputId={`${field.name}-select`}
+                  label={field.label}
+                  options={selectOptions}
+                  placeholder={field.placeholder || 'Bitte wählen...'}
+                  isClearable={!field.required}
+                  isSearchable={false}
+                  className="custom-generator-select"
+                  classNamePrefix="custom-generator-select"
+                  error={fieldState.error?.message}
+                  required={field.required}
+                />
+              )}
             />
           );
         }

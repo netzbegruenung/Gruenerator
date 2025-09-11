@@ -80,15 +80,19 @@ class ContentExamplesService {
    */
   async searchExamples(contentType, query, options = {}) {
     try {
-      // Ensure services are ready
+      // Check service availability with detailed logging
+      console.log(`[ContentExamplesService] Searching for "${query}" in ${contentType}`);
+      
       await fastEmbedService.init();
       if (!fastEmbedService.isReady()) {
-        console.warn('[ContentExamplesService] FastEmbed not ready');
+        console.warn('[ContentExamplesService] FastEmbed service not ready - vector search disabled');
+        console.warn('[ContentExamplesService] This usually indicates missing MISTRAL_API_KEY environment variable');
         return [];
       }
 
-      if (!this.qdrant.isAvailable()) {
-        console.warn('[ContentExamplesService] Qdrant not available');
+      if (!(await this.qdrant.isAvailable())) {
+        console.warn('[ContentExamplesService] Qdrant not available - vector search disabled');
+        console.warn('[ContentExamplesService] This usually indicates missing QDRANT_API_KEY environment variable or connection issues');
         return [];
       }
 
@@ -99,41 +103,69 @@ class ContentExamplesService {
         tags = null
       } = options;
 
-      console.log(`[ContentExamplesService] Searching for "${query}" in ${contentType}`);
-
       // Generate embedding for search query
-      const queryEmbedding = await fastEmbedService.generateEmbedding(query);
+      console.log(`[ContentExamplesService] Generating embedding for query: "${query}"`);
+      let queryEmbedding;
+      try {
+        queryEmbedding = await fastEmbedService.generateEmbedding(query);
+        console.log(`[ContentExamplesService] Successfully generated embedding (${queryEmbedding.length} dimensions)`);
+      } catch (embeddingError) {
+        console.error('[ContentExamplesService] Failed to generate embedding:', embeddingError.message);
+        if (embeddingError.message.includes('MISTRAL_API_KEY')) {
+          console.error('[ContentExamplesService] MISTRAL_API_KEY environment variable is required for embedding generation');
+        }
+        return [];
+      }
 
       // Route to appropriate collection based on content type
       let searchResult;
-      if (contentType === 'facebook' || contentType === 'instagram') {
-        // Search social media collection with platform filtering
-        searchResult = await this.qdrant.searchSocialMediaExamples(queryEmbedding, {
-          platform: contentType,
-          limit,
-          threshold
-        });
-      } else {
-        // Search regular content examples collection
-        searchResult = await this.qdrant.searchContentExamples(queryEmbedding, {
-          contentType,
-          limit,
-          threshold,
-          categories,
-          tags
-        });
+      try {
+        if (contentType === 'facebook' || contentType === 'instagram') {
+          // Search social media collection with platform filtering
+          console.log(`[ContentExamplesService] Searching social media collection for platform: ${contentType}`);
+          searchResult = await this.qdrant.searchSocialMediaExamples(queryEmbedding, {
+            platform: contentType,
+            limit,
+            threshold
+          });
+        } else {
+          // Search regular content examples collection
+          console.log(`[ContentExamplesService] Searching content examples collection for type: ${contentType}`);
+          searchResult = await this.qdrant.searchContentExamples(queryEmbedding, {
+            contentType,
+            limit,
+            threshold,
+            categories,
+            tags
+          });
+        }
+      } catch (searchError) {
+        console.error('[ContentExamplesService] Qdrant search failed:', searchError.message);
+        if (searchError.message.includes('Unauthorized')) {
+          console.error('[ContentExamplesService] QDRANT_API_KEY environment variable is required for vector search');
+        }
+        return [];
       }
 
-      if (!searchResult.success || !searchResult.results) {
-        console.log(`[ContentExamplesService] Search returned no results`);
+      if (!searchResult || !searchResult.success || !searchResult.results) {
+        console.log(`[ContentExamplesService] Vector search returned no results for "${query}" in ${contentType}`);
         return [];
       }
 
       console.log(`[ContentExamplesService] Found ${searchResult.results.length} similar examples`);
+      
+      // Log example details for debugging
+      if (searchResult.results.length > 0) {
+        searchResult.results.forEach((result, index) => {
+          console.log(`[ContentExamplesService] Result ${index + 1}: ID="${result.id}", Score=${result.score?.toFixed(3)}, Content="${(result.content || 'undefined').substring(0, 50)}..."`);
+        });
+      }
+      
       return searchResult.results;
 
     } catch (error) {
-      console.error(`[ContentExamplesService] Search error:`, error);
+      console.error(`[ContentExamplesService] Unexpected search error:`, error.message);
+      console.error('[ContentExamplesService] Stack trace:', error.stack);
       return [];
     }
   }
@@ -147,9 +179,10 @@ class ContentExamplesService {
    */
   async getRandomExamples(contentType, limit = 3, filters = {}) {
     try {
-      if (!this.qdrant.isAvailable()) {
+      if (!(await this.qdrant.isAvailable())) {
         console.warn('[ContentExamplesService] Qdrant not available for random examples');
-        return [];
+        console.warn('[ContentExamplesService] This usually indicates missing QDRANT_API_KEY environment variable or connection issues');
+        return this._getMockExamples(contentType, limit);
       }
 
       console.log(`[ContentExamplesService] Getting ${limit} random ${contentType} examples`);
@@ -158,34 +191,96 @@ class ContentExamplesService {
 
       // Route to appropriate collection based on content type
       let result;
-      if (contentType === 'facebook' || contentType === 'instagram') {
-        // Get random social media examples with platform filtering
-        result = await this.qdrant.getRandomSocialMediaExamples({
-          platform: contentType,
-          limit
-        });
-      } else {
-        // Get random from regular content examples collection
-        result = await this.qdrant.getRandomContentExamples({
-          contentType,
-          limit,
-          categories,
-          tags
-        });
+      try {
+        if (contentType === 'facebook' || contentType === 'instagram') {
+          // Get random social media examples with platform filtering
+          result = await this.qdrant.getRandomSocialMediaExamples({
+            platform: contentType,
+            limit
+          });
+        } else {
+          // Get random from regular content examples collection
+          result = await this.qdrant.getRandomContentExamples({
+            contentType,
+            limit,
+            categories,
+            tags
+          });
+        }
+      } catch (qdrantError) {
+        console.error(`[ContentExamplesService] Qdrant random examples failed:`, qdrantError.message);
+        if (qdrantError.message.includes('Unauthorized')) {
+          console.error('[ContentExamplesService] QDRANT_API_KEY environment variable is required for vector search');
+        }
+        return this._getMockExamples(contentType, limit);
       }
 
-      if (result.success && result.results.length > 0) {
-        console.log(`[ContentExamplesService] Found ${result.results.length} random examples`);
+      if (result && result.success && result.results && result.results.length > 0) {
+        console.log(`[ContentExamplesService] Found ${result.results.length} random examples from Qdrant`);
+        
+        // Log example details for debugging
+        result.results.forEach((example, index) => {
+          console.log(`[ContentExamplesService] Random Example ${index + 1}: ID="${example.id}", Content="${(example.content || 'undefined').substring(0, 50)}..."`);
+        });
+        
         return result.results;
       }
 
-      console.log(`[ContentExamplesService] No random examples available`);
-      return [];
+      console.log(`[ContentExamplesService] No random examples available from Qdrant, using mock examples`);
+      return this._getMockExamples(contentType, limit);
 
     } catch (error) {
-      console.error(`[ContentExamplesService] Random examples error:`, error);
-      return [];
+      console.error(`[ContentExamplesService] Unexpected random examples error:`, error.message);
+      return this._getMockExamples(contentType, limit);
     }
+  }
+
+  /**
+   * Generate mock examples when vector services are unavailable
+   * @param {string} contentType - Type of content
+   * @param {number} limit - Number of examples to generate
+   * @returns {Array} Array of mock examples
+   * @private
+   */
+  _getMockExamples(contentType, limit = 3) {
+    console.log(`[ContentExamplesService] Generating ${limit} mock examples for ${contentType} (vector services unavailable)`);
+    
+    const mockExamples = [];
+    const mockContent = {
+      instagram: [
+        "🌱 Für eine grünere Zukunft! Unsere Vision für nachhaltige Politik beginnt heute. #Nachhaltigkeit #Grüne #Zukunft",
+        "💚 Klimaschutz ist Zukunftsschutz. Jede kleine Tat zählt für unseren Planeten. Gemeinsam schaffen wir den Wandel! #Klimaschutz",
+        "🌍 Eine bessere Welt ist möglich - mit grüner Politik, die Menschen und Umwelt in den Mittelpunkt stellt. #GrünePolitik"
+      ],
+      facebook: [
+        "Unsere Sozialpolitik setzt auf Gerechtigkeit und Solidarität. Wir kämpfen für ein Deutschland, in dem alle Menschen die gleichen Chancen haben - unabhängig von Herkunft oder sozialem Status.",
+        "Bildung ist der Schlüssel für eine gerechte Gesellschaft. Deshalb investieren wir in Schulen, Universitäten und lebenslanges Lernen für alle.",
+        "Gesundheit ist ein Menschenrecht. Unser Ziel ist ein Gesundheitssystem, das allen Menschen - nicht nur den wohlhabenden - beste Versorgung garantiert."
+      ]
+    };
+    
+    const contentArray = mockContent[contentType] || mockContent.instagram;
+    
+    for (let i = 0; i < Math.min(limit, contentArray.length); i++) {
+      mockExamples.push({
+        id: `mock_${contentType}_${i + 1}`,
+        title: `Mock ${contentType} Beispiel ${i + 1}`,
+        content: contentArray[i],
+        type: contentType,
+        platform: contentType,
+        similarity_score: null,
+        relevance: 'mock',
+        metadata: {
+          categories: [],
+          tags: ['mock', 'example'],
+          isMock: true
+        },
+        created_at: new Date().toISOString()
+      });
+    }
+    
+    console.log(`[ContentExamplesService] Generated ${mockExamples.length} mock examples`);
+    return mockExamples;
   }
 
   /**
@@ -197,7 +292,7 @@ class ContentExamplesService {
     try {
       // Ensure services are ready
       await fastEmbedService.init();
-      if (!fastEmbedService.isReady() || !this.qdrant.isAvailable()) {
+      if (!fastEmbedService.isReady() || !(await this.qdrant.isAvailable())) {
         console.warn('[ContentExamplesService] Services not ready for storing');
         return { success: false, error: 'Vector services not available' };
       }
@@ -248,7 +343,7 @@ class ContentExamplesService {
    */
   async getAvailableContentTypes() {
     try {
-      if (!this.qdrant.isAvailable()) {
+      if (!(await this.qdrant.isAvailable())) {
         console.warn('[ContentExamplesService] Qdrant not available for content types');
         return [];
       }
@@ -277,7 +372,7 @@ class ContentExamplesService {
    */
   async getExamplesStats() {
     try {
-      if (!this.qdrant.isAvailable()) {
+      if (!(await this.qdrant.isAvailable())) {
         console.warn('[ContentExamplesService] Qdrant not available for stats');
         return {};
       }
@@ -323,7 +418,7 @@ class ContentExamplesService {
 
       // Ensure services are ready
       await fastEmbedService.init();
-      if (!fastEmbedService.isReady() || !this.qdrant.isAvailable()) {
+      if (!fastEmbedService.isReady() || !(await this.qdrant.isAvailable())) {
         console.warn('[ContentExamplesService] Services not ready for social media search');
         return [];
       }
@@ -364,7 +459,7 @@ class ContentExamplesService {
     } = options;
 
     try {
-      if (!this.qdrant.isAvailable()) {
+      if (!(await this.qdrant.isAvailable())) {
         console.warn('[ContentExamplesService] Qdrant not available for random social media examples');
         return [];
       }
@@ -397,7 +492,7 @@ class ContentExamplesService {
    */
   async deleteExample(exampleId) {
     try {
-      if (!this.qdrant.isAvailable()) {
+      if (!(await this.qdrant.isAvailable())) {
         return { success: false, error: 'Qdrant not available' };
       }
 

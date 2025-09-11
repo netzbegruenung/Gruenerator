@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { HiRefresh, HiPlus } from 'react-icons/hi';
 import { useWolkeSync } from '../hooks/useWolkeSync';
 import WolkeFolderBrowser from './WolkeFolderBrowser';
 import './WolkeSyncManager.css';
+import { getIcon } from '../../../config/icons';
+// Import ProfileActionButton CSS for consistent button styling
+import '../../../assets/styles/components/profile/profile-action-buttons.css';
 
 export const WolkeSyncManager = ({ wolkeShareLinks = [], onRefreshShareLinks, onSyncComplete }) => {
     const [selectedFolder, setSelectedFolder] = useState(null);
@@ -18,18 +20,27 @@ export const WolkeSyncManager = ({ wolkeShareLinks = [], onRefreshShareLinks, on
         error, 
         syncFolder,
         setAutoSync,
-        initialized
+        initialized,
+        refresh: refreshSyncStatuses
     } = useWolkeSync();
 
     const hasWolkeFolders = syncStatuses.length > 0;
     const hasShareLinks = Array.isArray(wolkeShareLinks) && wolkeShareLinks.length > 0;
     
-    // Track when share links have been loaded at least once
+    // Track when share links have been loaded at least once and ensure sync statuses are loaded
     useEffect(() => {
         if (Array.isArray(wolkeShareLinks)) {
             setShareLinksLoading(false);
+            
+            // When share links are loaded, ensure sync statuses are also loaded
+            if (wolkeShareLinks.length > 0 && (!syncStatuses || syncStatuses.length === 0)) {
+                console.log('[WolkeSyncManager] Share links loaded, ensuring sync statuses are fetched...');
+                refreshSyncStatuses().catch(error => {
+                    console.error('[WolkeSyncManager] Failed to refresh sync statuses:', error);
+                });
+            }
         }
-    }, [wolkeShareLinks]);
+    }, [wolkeShareLinks, syncStatuses, refreshSyncStatuses]);
     
     console.log('[WolkeSyncManager] State check:', {
         hasWolkeFolders,
@@ -64,7 +75,7 @@ export const WolkeSyncManager = ({ wolkeShareLinks = [], onRefreshShareLinks, on
     };
 
     const handleConfigureWolke = () => {
-        navigate('/profile/dokumente/wolke');
+        navigate('/profile/integrationen/wolke');
     };
 
     // Show loading state while either sync status or share links are loading
@@ -104,7 +115,7 @@ export const WolkeSyncManager = ({ wolkeShareLinks = [], onRefreshShareLinks, on
                     {onRefreshShareLinks && (
                         <div className="header-actions">
                             <button 
-                                className="refresh-button"
+                                className="pabtn pabtn--secondary pabtn--s"
                                 onClick={() => {
                                     console.log('[WolkeSyncManager] Refresh button clicked');
                                     setShareLinksLoading(true);
@@ -115,8 +126,8 @@ export const WolkeSyncManager = ({ wolkeShareLinks = [], onRefreshShareLinks, on
                                 disabled={shareLinksLoading}
                                 title="Nach neuen Wolke-Verbindungen suchen"
                             >
-                                <HiRefresh className={shareLinksLoading ? 'spinning' : ''} />
-                                {shareLinksLoading ? 'Wird aktualisiert...' : 'Aktualisieren'}
+                                {React.createElement(getIcon('actions', 'refresh'), { className: `pabtn__icon ${shareLinksLoading ? 'spinning' : ''}` })}
+                                <span className="pabtn__label">{shareLinksLoading ? 'Wird aktualisiert...' : 'Aktualisieren'}</span>
                             </button>
                         </div>
                     )}
@@ -126,15 +137,11 @@ export const WolkeSyncManager = ({ wolkeShareLinks = [], onRefreshShareLinks, on
                     <div className="configure-message">
                         <p>{message}</p>
                         <button 
-                            className="configure-wolke-button"
+                            className="pabtn pabtn--primary pabtn--m"
                             onClick={handleConfigureWolke}
                         >
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M12 2L2 7v10c0 5.55 3.84 10 9 9 1.73-.09 3.39-.74 4.73-1.85"/>
-                                <path d="M22 12c0-1.66-.45-3.22-1.27-4.56"/>
-                                <circle cx="12" cy="12" r="3"/>
-                            </svg>
-                            {buttonText}
+                            {React.createElement(getIcon('actions', 'cloud'), { className: 'pabtn__icon' })}
+                            <span className="pabtn__label">{buttonText}</span>
                         </button>
                     </div>
                 </div>
@@ -148,10 +155,10 @@ export const WolkeSyncManager = ({ wolkeShareLinks = [], onRefreshShareLinks, on
                 <h2>Wolke-Synchronisation</h2>
                 {!showBrowser && selectedFolder && (
                     <button 
-                        className="back-link"
+                        className="pabtn pabtn--ghost pabtn--s"
                         onClick={handleBackToBrowser}
                     >
-                        ← Zurück
+                        <span className="pabtn__label">← Zurück</span>
                     </button>
                 )}
             </div>
@@ -212,6 +219,20 @@ const ShareLinksWithSync = ({ shareLinks, syncStatuses, onSyncFolder, onSyncComp
         return syncStatus ? syncStatus : null;
     };
 
+    // Debug logging for checkbox state
+    useEffect(() => {
+        if (shareLinks.length > 0 && syncStatuses.length > 0) {
+            console.log('[ShareLinksWithSync] Sync status check:', {
+                shareLinksCount: shareLinks.length,
+                syncStatusesCount: syncStatuses.length,
+                syncStatuses: syncStatuses.map(status => ({
+                    shareLink: status.share_link_id,
+                    autoSync: status.auto_sync_enabled
+                }))
+            });
+        }
+    }, [shareLinks, syncStatuses]);
+
     const getSimpleStatus = (status) => {
         switch (status) {
             case 'syncing': return 'Synchronisiert...';
@@ -225,9 +246,19 @@ const ShareLinksWithSync = ({ shareLinks, syncStatuses, onSyncFolder, onSyncComp
         <div className="wolke-share-links-simple">
             {shareLinks.map((shareLink) => {
                 const syncStatus = getSyncStatus(shareLink.id);
-                // Fix: Use actual auto_sync_enabled flag instead of just checking if syncStatus exists
-                const isSyncEnabled = syncStatus?.auto_sync_enabled || false;
+                // Improved: More robust checkbox state determination with explicit boolean conversion
+                const isSyncEnabled = Boolean(syncStatus?.auto_sync_enabled);
                 const isCurrentlySyncing = syncingFolders.has(`${shareLink.id}-`) || syncStatus?.sync_status === 'syncing';
+                
+                // Debug log for each checkbox
+                if (process.env.NODE_ENV === 'development') {
+                    console.log(`[ShareLinksWithSync] Checkbox state for ${shareLink.id}:`, {
+                        syncStatus: syncStatus,
+                        autoSyncEnabled: syncStatus?.auto_sync_enabled,
+                        isSyncEnabled: isSyncEnabled,
+                        rawValue: syncStatus?.auto_sync_enabled
+                    });
+                }
                 
                 return (
                     <div key={shareLink.id} className="wolke-share-link-card">
@@ -237,16 +268,27 @@ const ShareLinksWithSync = ({ shareLinks, syncStatuses, onSyncFolder, onSyncComp
                                     type="checkbox" 
                                     checked={isSyncEnabled}
                                     onChange={async (e) => {
+                                        const newCheckedState = e.target.checked;
+                                        console.log(`[ShareLinksWithSync] Toggling auto-sync for ${shareLink.id} to:`, newCheckedState);
+                                        
                                         try {
-                                            const result = await setAutoSync(shareLink.id, '', e.target.checked);
+                                            const result = await setAutoSync(shareLink.id, '', newCheckedState);
+                                            console.log(`[ShareLinksWithSync] Auto-sync toggle result:`, result);
                                             
-                                            // Force refresh sync statuses to update UI state
-                                            if (onSyncComplete) {
-                                                onSyncComplete();
-                                            }
+                                            // Force refresh sync statuses to update UI state immediately
+                                            setTimeout(async () => {
+                                                try {
+                                                    await refreshSyncStatuses();
+                                                    if (onSyncComplete) {
+                                                        onSyncComplete();
+                                                    }
+                                                } catch (refreshError) {
+                                                    console.error('[ShareLinksWithSync] Failed to refresh sync statuses:', refreshError);
+                                                }
+                                            }, 100);
                                             
                                             // If auto-sync was successfully enabled, immediately trigger a sync
-                                            if (result && result.success && result.autoSyncEnabled && e.target.checked) {
+                                            if (result && result.success && result.autoSyncEnabled && newCheckedState) {
                                                 console.log('[WolkeSyncManager] Auto-sync enabled, triggering immediate sync...');
                                                 try {
                                                     await handleSyncFolder(shareLink.id, '');
@@ -258,6 +300,8 @@ const ShareLinksWithSync = ({ shareLinks, syncStatuses, onSyncFolder, onSyncComp
                                             }
                                         } catch (error) {
                                             console.error('Failed to toggle sync:', error);
+                                            // Optionally revert the checkbox state if the operation failed
+                                            // The checkbox will revert automatically on next render due to state
                                         }
                                     }}
                                     className="sync-enable-checkbox"
@@ -273,12 +317,12 @@ const ShareLinksWithSync = ({ shareLinks, syncStatuses, onSyncFolder, onSyncComp
                         <div className="share-link-actions">
                             {isSyncEnabled && (
                                 <button 
-                                    className="sync-icon-button"
+                                    className="pabtn pabtn--ghost pabtn--s"
                                     onClick={() => handleSyncFolder(shareLink.id, '')}
                                     disabled={isCurrentlySyncing}
                                     title={isCurrentlySyncing ? 'Synchronisiert...' : 'Synchronisieren'}
                                 >
-                                    <HiRefresh className={isCurrentlySyncing ? 'spinning' : ''} />
+                                    {React.createElement(getIcon('actions', 'refresh'), { className: `pabtn__icon ${isCurrentlySyncing ? 'spinning' : ''}` })}
                                 </button>
                             )}
                         </div>

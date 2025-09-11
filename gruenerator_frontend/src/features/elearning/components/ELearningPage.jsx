@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { HiOutlineAcademicCap, HiOutlineLightBulb, HiOutlineInformationCircle } from 'react-icons/hi';
-import ChapterCard from './ChapterCard';
 import { useBetaFeatures } from '../../../hooks/useBetaFeatures';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
+
+// E-Learning Feature CSS - Loaded only when this feature is accessed
+import '../styles/elearning.css';
 
 const ELearningPage = () => {
   const { user, isAuthenticated } = useOptimizedAuth();
@@ -17,27 +19,6 @@ const ELearningPage = () => {
     }
   }, [isAuthenticated, user, getBetaFeatureState]);
 
-  // Tutorial chapters data
-  const tutorialChapters = [
-    {
-      id: 'gruenerator-tutorial',
-      title: 'Grünerator Tutorial - Wie funktioniert der Text-Generator?',
-      description: 'Lerne Schritt für Schritt, wie du den Grünerator verwendest. Entdecke die Benutzeroberfläche, erstelle deinen ersten Text und nutze alle verfügbaren Funktionen.',
-      duration: '15 Min',
-      difficulty: 'Einsteiger',
-      topics: ['Bedienung', 'Text-Generierung', 'Benutzeroberfläche'],
-      comingSoon: false
-    }
-  ];
-
-  const handleStartLearning = (chapterId) => {
-    if (chapterId === 'gruenerator-tutorial') {
-      // Navigate to the tutorial
-      window.location.href = '/e-learning/gruenerator-tutorial';
-    } else {
-      alert('Dieses Kapitel ist noch in Entwicklung und wird bald verfügbar sein.');
-    }
-  };
 
   if (!isAuthenticated) {
     return (
@@ -111,41 +92,25 @@ const ELearningPage = () => {
 
       <div className="elearning-content">
         <motion.section 
-          className="chapters-section"
+          className="overview-section"
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.3 }}
         >
           <div className="section-header">
-            <h2>Verfügbare Kapitel</h2>
-            <p>Wähle ein Kapitel aus, um mit dem Lernen zu beginnen</p>
+            <h2>E-Learning Übersicht</h2>
+            <p>Interaktive Lernmodule für grüne Politik und nachhaltige Entwicklung</p>
           </div>
 
-          <div className="chapters-grid">
-            {tutorialChapters.map((chapter, index) => (
-              <motion.div
-                key={chapter.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.1 * index }}
-              >
-                <ChapterCard
-                  title={chapter.title}
-                  description={chapter.description}
-                  duration={chapter.duration}
-                  difficulty={chapter.difficulty}
-                  topics={chapter.topics}
-                  disabled={chapter.comingSoon}
-                  className={chapter.comingSoon ? 'coming-soon' : ''}
-                  onStartLearning={() => handleStartLearning(chapter.id)}
-                />
-                {chapter.comingSoon && (
-                  <div className="coming-soon-badge">
-                    Bald verfügbar
-                  </div>
-                )}
-              </motion.div>
-            ))}
+          <div className="overview-content">
+            <div className="overview-card">
+              <h3>Was ist E-Learning im Grünerator?</h3>
+              <p>
+                Das E-Learning Feature bietet dir strukturierte Lernmodule zu wichtigen Themen 
+                der grünen Politik und nachhaltigen Entwicklung. Hier kannst du dein Wissen 
+                erweitern und praktische Fähigkeiten für dein politisches Engagement entwickeln.
+              </p>
+            </div>
           </div>
         </motion.section>
 
@@ -158,11 +123,12 @@ const ELearningPage = () => {
           <div className="info-card">
             <h3>Über das E-Learning</h3>
             <ul>
-              <li>✅ Interaktive Lernmodule zu aktuellen politischen Themen</li>
-              <li>✅ Praktische Anwendungen für dein politisches Engagement</li>
+              <li>✅ Strukturierte Lernmodule zu grüner Politik</li>
+              <li>✅ Praktische Anwendungen für politisches Engagement</li>
               <li>✅ Fundierte Informationen von Expert:innen</li>
-              <li>⏳ Progress-Tracking und Zertifikate (in Entwicklung)</li>
-              <li>⏳ Community-Features und Diskussionen (geplant)</li>
+              <li>🔨 Interaktive Inhalte (in Entwicklung)</li>
+              <li>🔨 Progress-Tracking und Zertifikate (geplant)</li>
+              <li>🔨 Community-Features und Diskussionen (geplant)</li>
             </ul>
           </div>
         </motion.section>

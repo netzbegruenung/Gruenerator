@@ -1,0 +1,236 @@
+/* Enhanced Select Styles */
+/* Reusable styles for EnhancedSelect component */
+
+/* Base Enhanced Select Styling */
+.enhanced-select {
+  margin-bottom: var(--spacing-medium);
+}
+
+/* Enhanced Select Control */
+.enhanced-select__control {
+  min-height: var(--form-element-min-height) !important;
+  font-size: var(--form-element-font-size) !important;
+  background-color: var(--input-background) !important;
+  border: var(--input-border) !important;
+  border-radius: var(--card-border-radius-small) !important;
+  box-shadow: none !important;
+  transition: var(--input-transition) !important;
+}
+
+.enhanced-select__control--is-focused {
+  border-color: var(--secondary-500) !important;
+  box-shadow: inset 0 0 0 1px var(--secondary-500) !important;
+}
+
+.enhanced-select__control:hover {
+  border-color: var(--secondary-300) !important;
+}
+
+.enhanced-select__value-container {
+  padding: var(--form-element-padding-y) var(--form-element-padding-x) !important;
+}
+
+.enhanced-select__placeholder {
+  color: var(--input-placeholder-color) !important;
+}
+
+.enhanced-select__input {
+  color: var(--input-text-color) !important;
+}
+
+.enhanced-select__menu {
+  background-color: var(--card-background) !important;
+  border: var(--card-border) !important;
+  border-radius: var(--card-border-radius-medium) !important;
+  box-shadow: var(--card-shadow-elevated) !important;
+  z-index: 1000 !important;
+}
+
+.enhanced-select__option {
+  background-color: transparent !important;
+  color: var(--font-color) !important;
+  padding: var(--spacing-small) var(--spacing-medium) !important;
+  cursor: pointer !important;
+  font-size: var(--form-element-font-size) !important;
+}
+
+.enhanced-select__option--is-selected {
+  background-color: var(--secondary-100) !important;
+  color: var(--secondary-700) !important;
+}
+
+.enhanced-select__option--is-focused {
+  background-color: var(--hover-color-alt) !important;
+  color: var(--font-color) !important;
+}
+
+.enhanced-select__option:active {
+  background-color: var(--secondary-200) !important;
+}
+
+.enhanced-select__multi-value {
+  background-color: var(--secondary-50) !important;
+  border-radius: var(--card-border-radius-small) !important;
+  border: 1px solid var(--secondary-200) !important;
+}
+
+.enhanced-select__multi-value__label {
+  color: var(--secondary-700) !important;
+  font-size: 0.875rem !important;
+  padding: var(--spacing-xxsmall) var(--spacing-xsmall) !important;
+}
+
+.enhanced-select__multi-value__remove {
+  color: var(--secondary-600) !important;
+}
+
+.enhanced-select__multi-value__remove:hover {
+  background-color: var(--secondary-200) !important;
+  color: var(--secondary-800) !important;
+}
+
+/* Enhanced Option Layout */
+.enhanced-option {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-small);
+}
+
+.enhanced-option__content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.enhanced-option__label {
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.enhanced-option__subtitle {
+  font-size: 0.75rem;
+  color: var(--font-color-disabled);
+  line-height: 1.2;
+}
+
+/* Option Icon Styles */
+.option-icon {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+}
+
+/* Source Tag System (extracted and enhanced from knowledge-selector.css) */
+.source-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xxsmall);
+  padding: var(--spacing-xxsmall) var(--spacing-xsmall);
+  border-radius: var(--card-border-radius-small);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.2;
+  margin-left: var(--spacing-xsmall);
+  border: 1px solid var(--grey-300);
+  flex-shrink: 0;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.source-tag__icon {
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+}
+
+.source-tag--user {
+  background-color: transparent;
+  border-color: var(--secondary-200);
+  color: var(--font-color);
+}
+
+.source-tag--group {
+  background-color: transparent;
+  border-color: var(--primary-200);
+  color: var(--font-color);
+}
+
+.source-tag--custom {
+  background-color: transparent;
+  border-color: var(--grey-300);
+  color: var(--font-color);
+}
+
+/* Enhanced option layout adjustments */
+.enhanced-option .source-tag {
+  margin-left: var(--spacing-small);
+  align-self: center;
+}
+
+/* Selected Option Display */
+.enhanced-selected-option {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xsmall);
+}
+
+.enhanced-selected-source {
+  font-size: 0.75rem;
+  color: var(--font-color-disabled);
+  margin-left: var(--spacing-xsmall);
+}
+
+/* Dark theme support */
+[data-theme="dark"] .source-tag {
+  background-color: transparent;
+  border-color: var(--grey-600);
+  color: var(--font-color);
+}
+
+[data-theme="dark"] .source-tag--user {
+  background-color: transparent;
+  border-color: var(--secondary-600);
+  color: var(--font-color);
+}
+
+[data-theme="dark"] .source-tag--group {
+  background-color: transparent;
+  border-color: var(--primary-600);
+  color: var(--font-color);
+}
+
+[data-theme="dark"] .source-tag--custom {
+  background-color: transparent;
+  border-color: var(--grey-600);
+  color: var(--font-color);
+}
+
+/* prefers-color-scheme: dark support */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .source-tag {
+    background-color: transparent;
+    border-color: var(--grey-600);
+    color: var(--font-color);
+  }
+
+  :root:not([data-theme="light"]) .source-tag--user {
+    background-color: transparent;
+    border-color: var(--secondary-600);
+    color: var(--font-color);
+  }
+
+  :root:not([data-theme="light"]) .source-tag--group {
+    background-color: transparent;
+    border-color: var(--primary-600);
+    color: var(--font-color);
+  }
+
+  :root:not([data-theme="light"]) .source-tag--custom {
+    background-color: transparent;
+    border-color: var(--grey-600);
+    color: var(--font-color);
+  }
+}
