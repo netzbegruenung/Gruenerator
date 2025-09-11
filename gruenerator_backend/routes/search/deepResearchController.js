@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { tavilyService } = require('../../utils/searchUtils');
 const { MARKDOWN_FORMATTING_INSTRUCTIONS } = require('../../utils/promptUtils');
-const { grundsatzSearchService } = require('../../services/GrundsatzSearchService.js');
+const { DocumentSearchService } = require('../../services/DocumentSearchService.js');
 
 const GENERATE_RESEARCH_QUESTIONS_TOOL = "generate_research_questions";
 const WEB_SEARCH_TOOL = "web_search";
@@ -791,15 +791,18 @@ function filterDataForAI(searchResults, allSources, grundsatzResults) {
 }
 
 /**
- * Execute Grundsatz document search
+ * Execute Grundsatz document search using DocumentSearchService
  */
 async function executeGrundsatzSearch(searchQuery) {
   try {
     console.log(`[deep-research] Searching Grundsatz documents for: "${searchQuery}"`);
     
-    const searchResults = await grundsatzSearchService.search({
+    const documentSearchService = new DocumentSearchService();
+    
+    const searchResults = await documentSearchService.search({
       query: searchQuery,
       user_id: 'deep-research', // Anonymous user for deep research
+      searchCollection: 'grundsatz_documents',
       limit: 3,
       mode: 'hybrid'
     });

@@ -1,12 +1,15 @@
-import Tesseract from 'tesseract.js';
+// Tesseract disabled: prefer Mistral OCR for markdown output
+// import Tesseract from 'tesseract.js';
 // Canvas import moved to dynamic import to avoid module loading issues
 import { promises as fs } from 'fs';
+import { createReadStream } from 'fs';
 import path from 'path';
 import os from 'os';
 import { fastEmbedService } from './FastEmbedService.js';
 import { smartChunkDocument } from '../utils/textChunker.js';
 import { getPostgresInstance } from '../database/services/PostgresService.js';
 import { getQdrantInstance } from '../database/services/QdrantService.js';
+import { vectorConfig } from '../config/vectorConfig.js';
 
 class OCRService {
   constructor() {
@@ -92,36 +95,37 @@ class OCRService {
     console.log(`[OCRService] Starting PDF text extraction: ${pdfPath}`);
 
     try {
-      // Step 1: Quick parseability check
+      // Step 1: Quick parseability check (for telemetry/fallback decisions)
       const parseCheck = await this.canExtractTextDirectly(pdfPath);
-      
-      if (parseCheck.isParseable && parseCheck.confidence >= 0.8) {
-        // Fast path: Direct text extraction
-        console.log(`[OCRService] Using direct text extraction (confidence: ${parseCheck.confidence.toFixed(2)})`);
-        const result = await this.extractTextDirectlyFromPDF(pdfPath);
-        const totalTime = Date.now() - startTime;
-        
-        console.log(`[OCRService] PDF extraction completed via direct method in ${totalTime}ms`);
-        return {
-          ...result,
-          extractionMethod: 'direct',
-          parseabilityStats: parseCheck.stats,
-          totalProcessingTimeMs: totalTime
-        };
-      } else {
-        // Slow path: OCR extraction
-        console.log(`[OCRService] Using OCR extraction (confidence: ${parseCheck.confidence.toFixed(2)}, reason: ${parseCheck.isParseable ? 'low confidence' : 'not parseable'})`);
-        const result = await this.extractTextWithOCR(pdfPath);
-        const totalTime = Date.now() - startTime;
-        
-        console.log(`[OCRService] PDF extraction completed via OCR method in ${totalTime}ms`);
-        return {
-          ...result,
-          extractionMethod: 'ocr',
-          parseabilityStats: parseCheck.stats,
-          totalProcessingTimeMs: totalTime
-        };
+
+      // Prefer Mistral OCR for markdown output when limits allow
+      const canUseMistral = await this.#canUseMistralOCR(pdfPath);
+      if (canUseMistral) {
+        try {
+          console.log(`[OCRService] Using Mistral OCR (preferred for markdown)`);
+          const result = await this.extractTextWithMistralOCR(pdfPath);
+          const totalTime = Date.now() - startTime;
+          return {
+            ...result,
+            extractionMethod: 'mistral-ocr',
+            parseabilityStats: parseCheck.stats,
+            totalProcessingTimeMs: totalTime
+          };
+        } catch (merr) {
+          console.warn('[OCRService] Mistral OCR failed, attempting direct text extraction:', merr.message);
+        }
       }
+
+      // Fallback: direct text extraction via pdf.js (not markdown-native)
+      console.log(`[OCRService] Using direct text extraction fallback (parseable=${parseCheck.isParseable}, conf=${parseCheck.confidence.toFixed(2)})`);
+      const result = await this.extractTextDirectlyFromPDF(pdfPath);
+      const totalTime = Date.now() - startTime;
+      return {
+        ...result,
+        extractionMethod: 'direct',
+        parseabilityStats: parseCheck.stats,
+        totalProcessingTimeMs: totalTime
+      };
     } catch (error) {
       const totalTime = Date.now() - startTime;
       console.error(`[OCRService] PDF extraction failed after ${totalTime}ms:`, error);
@@ -130,134 +134,98 @@ class OCRService {
   }
 
   /**
+   * Use Mistral OCR to extract text as markdown for PDFs and images
+   */
+  async extractTextWithMistralOCR(filePath) {
+    // Load CJS mistral client via dynamic import interop
+    const mod = await import('../workers/mistralClient.js');
+    const mistralClient = mod.default || mod;
+
+    // Strategy A: try passing a data URL via document_url
+    try {
+      const fileBufferA = await fs.readFile(filePath);
+      const base64A = fileBufferA.toString('base64');
+      const mediaTypeA = this.#getMediaType(path.extname(filePath));
+      const dataUrl = `data:${mediaTypeA};base64,${base64A}`;
+
+      const ocrResponseA = await mistralClient.ocr.process({
+        model: 'mistral-ocr-latest',
+        document: { type: 'document_url', documentUrl: dataUrl },
+        includeImageBase64: false
+      });
+
+      const pagesA = ocrResponseA?.pages || [];
+      if (pagesA.length > 0) {
+        const mdA = pagesA.map(p => (p.markdown || p.text || '').trim()).filter(Boolean).join('\n\n');
+        return {
+          text: mdA,
+          pageCount: pagesA.length,
+          method: 'mistral-ocr',
+          confidence: ocrResponseA?.confidence ?? 1.0,
+          stats: { pages: pagesA.length }
+        };
+      }
+    } catch (e) {
+      console.warn('[OCRService] Mistral OCR data-url attempt failed:', e.message);
+    }
+    // Upload file to Mistral Files API to obtain a fileId
+    let fileId;
+    try {
+      const fileBuffer = await fs.readFile(filePath);
+      const fileName = path.basename(filePath);
+      const mediaType = this.#getMediaType(path.extname(filePath));
+
+      // Prefer Blob when available, else Uint8Array
+      let uploadPayload;
+      try {
+        const blob = new Blob([fileBuffer], { type: mediaType });
+        uploadPayload = { file: { fileName, content: blob } };
+      } catch {
+        uploadPayload = { file: { fileName, content: new Uint8Array(fileBuffer) } };
+      }
+
+      let res;
+      if (mistralClient.files && typeof mistralClient.files.upload === 'function') {
+        res = await mistralClient.files.upload(uploadPayload);
+      } else if (mistralClient.files && typeof mistralClient.files.create === 'function') {
+        res = await mistralClient.files.create(uploadPayload);
+      } else if (mistralClient.files && typeof mistralClient.files.add === 'function') {
+        res = await mistralClient.files.add(uploadPayload);
+      } else {
+        throw new Error('Mistral client does not expose a files upload method');
+      }
+
+      fileId = res?.id || res?.file?.id || res?.data?.id;
+      if (!fileId) {
+        throw new Error('Missing fileId from Mistral file upload response');
+      }
+    } catch (e) {
+      throw new Error(`Mistral file upload failed: ${e.message}`);
+    }
+
+    // Call OCR with the uploaded fileId
+    const ocrResponse = await mistralClient.ocr.process({
+      model: 'mistral-ocr-latest',
+      document: { type: 'file', fileId },
+      includeImageBase64: false
+    });
+
+    const pages = ocrResponse?.pages || [];
+    const md = pages.map(p => (p.markdown || p.text || '').trim()).filter(Boolean).join('\n\n');
+    return {
+      text: md,
+      pageCount: pages.length,
+      method: 'mistral-ocr',
+      confidence: ocrResponse?.confidence ?? 1.0,
+      stats: { pages: pages.length }
+    };
+  }
+
+  /**
    * Extract text from PDF using OCR pipeline (pdf.js + Tesseract)
    */
-  async extractTextWithOCR(pdfPath) {
-    console.log(`[OCRService] Converting PDF to images: ${pdfPath}`);
-    
-    // Ensure pdf.js is loaded and configured
-    await this.getPdfJs();
-    
-    // Get PDF info to determine page count
-    const pdfInfo = await this.getPDFInfo(pdfPath);
-    const actualPageCount = Math.min(pdfInfo.pageCount, this.maxPages);
-    
-    if (pdfInfo.pageCount > this.maxPages) {
-      console.log(`[OCRService] PDF has ${pdfInfo.pageCount} pages, limiting to ${this.maxPages}`);
-    }
-
-    console.log(`[OCRService] Processing ${actualPageCount} pages with OCR (${pdfInfo.pageCount > this.maxPages ? 'limited from ' + pdfInfo.pageCount : 'all'} pages)`);
-
-    const allText = [];
-    const imagePaths = [];
-    const tempDir = os.tmpdir();
-
-    try {
-      const pdfDoc = await this.openPdfDocument(pdfPath);
-
-      // Process each page
-      let pagesWithText = 0;
-      let pagesWithOCR = 0;
-      
-      for (let pageNum = 1; pageNum <= actualPageCount; pageNum++) {
-        if (pageNum % 25 === 0 || pageNum === 1 || pageNum === actualPageCount) {
-          console.log(`[OCRService] Processing page ${pageNum}/${actualPageCount} (${Math.round((pageNum/actualPageCount)*100)}%)`);
-        }
-        
-        try {
-          const page = await pdfDoc.getPage(pageNum);
-          let text = '';
-          
-          // Strategy 1: Direct PDF text extraction
-          try {
-            const textContent = await page.getTextContent();
-            const directText = textContent.items.map(item => item.str).join(' ');
-            
-            if (directText.trim().length > 10) {
-              text = this.applyMarkdownFormatting(directText);
-              pagesWithText++;
-            }
-          } catch (directError) {
-            console.warn(`[OCRService] Direct text extraction failed for page ${pageNum}:`, directError.message);
-          }
-          
-          // Strategy 2: Canvas-based OCR (only if direct text extraction failed)
-          if (!text.trim()) {
-            try {
-              // Dynamic import of canvas to avoid module loading issues
-              const { createCanvas } = await import('canvas');
-              
-              const viewport = page.getViewport({ scale: 1.5 });
-              const canvas = createCanvas(Math.floor(viewport.width), Math.floor(viewport.height));
-              const context = canvas.getContext('2d');
-              
-              context.fillStyle = 'white';
-              context.fillRect(0, 0, canvas.width, canvas.height);
-              
-              const renderContext = {
-                canvasContext: context,
-                viewport: viewport,
-                enableWebGL: false,
-                renderInteractiveForms: false,
-                annotationMode: 0
-              };
-              
-              await page.render(renderContext).promise;
-              
-              const imagePath = path.join(tempDir, `ocr_page_${pageNum}_${Date.now()}.png`);
-              const buffer = canvas.toBuffer('image/png');
-              await fs.writeFile(imagePath, buffer);
-              imagePaths.push(imagePath);
-              
-              const { data: ocrResult } = await Tesseract.recognize(imagePath, 'eng', {
-                logger: () => {},
-                tessedit_pageseg_mode: '1',
-                tessedit_ocr_engine_mode: '2'
-              });
-              
-              if (ocrResult.text.trim()) {
-                text = this.applyMarkdownFormatting(ocrResult.text);
-                pagesWithOCR++;
-              }
-              
-            } catch (canvasError) {
-              console.error(`[OCRService] Canvas OCR failed for page ${pageNum}:`, canvasError.message);
-            }
-          }
-
-          if (text.trim()) {
-            allText.push(`## Seite ${pageNum}\n\n${text.trim()}`);
-          } else {
-            console.warn(`[OCRService] No text extracted from page ${pageNum}`);
-          }
-        } catch (pageError) {
-          console.error(`[OCRService] Error processing page ${pageNum}:`, pageError);
-        }
-      }
-      
-      console.log(`[OCRService] Completed OCR processing: ${pagesWithText} pages via direct extraction, ${pagesWithOCR} pages via OCR`);
-
-      const finalText = allText.join('\n\n');
-      
-      return {
-        text: finalText,
-        pageCount: actualPageCount,
-        stats: {
-          pagesWithDirectText: pagesWithText,
-          pagesWithOCR: pagesWithOCR,
-          method: 'ocr'
-        }
-      };
-
-    } finally {
-      for (const imagePath of imagePaths) {
-        try {
-          await fs.unlink(imagePath);
-        } catch (error) {
-          console.warn(`[OCRService] Failed to clean up image file ${imagePath}:`, error);
-        }
-      }
-    }
+  async extractTextWithOCR(_pdfPath) {
+    throw new Error('Tesseract OCR is disabled. Prefer Mistral OCR for markdown output.');
   }
 
   /**
@@ -552,17 +520,32 @@ class OCRService {
         throw new Error('No chunks created from document text');
       }
 
+      // Quality filtering
+      const qualityCfg = vectorConfig.get('quality');
+      let processedChunks = chunks;
+      if (qualityCfg.retrieval.enableQualityFilter) {
+        const minQ = qualityCfg.retrieval.minRetrievalQuality;
+        processedChunks = chunks.filter(c => {
+          const q = c?.metadata?.quality_score;
+          return typeof q === 'number' ? q >= minQ : true; // keep legacy
+        });
+        if (processedChunks.length === 0) {
+          console.warn('[OCRService] All chunks filtered out by quality; relaxing filter for this document');
+          processedChunks = chunks; // avoid empty storage
+        }
+      }
+
       // Generate embeddings
-      const chunkTexts = chunks.map(chunk => chunk.text);
+      const chunkTexts = processedChunks.map(chunk => chunk.text);
       const embeddings = await fastEmbedService.generateEmbeddings(chunkTexts);
 
-      if (embeddings.length !== chunks.length) {
-        throw new Error(`Embedding count mismatch: ${embeddings.length} embeddings for ${chunks.length} chunks`);
+      if (embeddings.length !== processedChunks.length) {
+        throw new Error(`Embedding count mismatch: ${embeddings.length} embeddings for ${processedChunks.length} chunks`);
       }
 
       // Store vectors in Qdrant
       await this.qdrant.init();
-      const points = chunks.map((chunk, index) => ({
+      const points = processedChunks.map((chunk, index) => ({
         id: `${documentId}_${index}`,
         vector: embeddings[index],
         payload: {
@@ -571,6 +554,14 @@ class OCRService {
           chunk_index: index,
           chunk_text: chunk.text,
           token_count: chunk.tokens || 0,
+          // Enriched metadata
+          content_type: chunk.metadata?.content_type,
+          markdown_headers: chunk.metadata?.markdown?.headers,
+          markdown_lists: chunk.metadata?.markdown?.lists,
+          markdown_tables: chunk.metadata?.markdown?.tables,
+          markdown_code_blocks: chunk.metadata?.markdown?.code_blocks,
+          page_number: chunk.metadata?.page_number,
+          quality_score: chunk.metadata?.quality_score,
           source_type: metadata.sourceType || 'manual',
           title: metadata.title || null,
           filename: metadata.filename || null,
@@ -585,17 +576,47 @@ class OCRService {
 
       // Update document with vector count
       await this.postgres.update('documents', 
-        { vector_count: chunks.length }, 
+        { vector_count: processedChunks.length }, 
         { id: documentId }
       );
 
       console.log(`[OCRService] Generated ${embeddings.length} embeddings for document ${documentId}`);
-      return { chunksProcessed: chunks.length, embeddings: embeddings.length };
+      return { chunksProcessed: processedChunks.length, embeddings: embeddings.length };
 
     } catch (error) {
       console.error(`[OCRService] Failed to generate embeddings for document ${documentId}:`, error);
       throw error;
     }
+  }
+
+  async #canUseMistralOCR(filePath) {
+    try {
+      const stat = await fs.stat(filePath);
+      const sizeOk = stat.size <= 50 * 1024 * 1024; // 50MB
+      if (!sizeOk) return false;
+      // Quick page count using pdfjs
+      try {
+        const pdf = await this.openPdfDocument(filePath);
+        return pdf.numPages <= 1000;
+      } catch (e) {
+        // If not a PDF or pdfjs can't open, still allow (images/docx handled by Mistral)
+        return true;
+      }
+    } catch {
+      return false;
+    }
+  }
+
+  #getMediaType(ext) {
+    const e = (ext || '').toLowerCase();
+    if (e === '.pdf') return 'application/pdf';
+    if (e === '.png') return 'image/png';
+    if (e === '.jpg' || e === '.jpeg') return 'image/jpeg';
+    if (e === '.webp') return 'image/webp';
+    if (e === '.avif') return 'image/avif';
+    if (e === '.docx') return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    if (e === '.pptx') return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+    return 'application/octet-stream';
   }
 
   /**

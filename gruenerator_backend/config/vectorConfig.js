@@ -70,7 +70,10 @@ class VectorConfig {
       content: {
         maxExcerptLength: parseInt(process.env.CONTENT_MAX_EXCERPT_LENGTH || '300'),
         excerptSentenceBoundary: parseFloat(process.env.CONTENT_EXCERPT_SENTENCE_BOUNDARY || '0.7'),
-        maxChunksPerDocument: parseInt(process.env.CONTENT_MAX_CHUNKS_PER_DOC || '3')
+        maxChunksPerDocument: parseInt(process.env.CONTENT_MAX_CHUNKS_PER_DOC || '3'),
+        // Dossier mode settings (no env vars needed)
+        maxChunksPerDocumentDossier: 10,
+        enableFullContentExtraction: true
       },
 
       // Embedding configuration
@@ -129,6 +132,60 @@ class VectorConfig {
         batchSize: parseInt(process.env.PERF_BATCH_SIZE || '10'),
         maxRetries: parseInt(process.env.PERF_MAX_RETRIES || '3'),
         retryDelay: parseInt(process.env.PERF_RETRY_DELAY || '1000')
+      },
+
+      // Quality scoring configuration
+      quality: {
+        enabled: process.env.QUALITY_SCORING_ENABLED !== 'false',
+        minChunkQuality: parseFloat(process.env.QUALITY_MIN_CHUNK || '0.3'),
+        
+        weights: {
+          readability: parseFloat(process.env.QUALITY_WEIGHT_READABILITY || '0.3'),
+          completeness: parseFloat(process.env.QUALITY_WEIGHT_COMPLETENESS || '0.25'),
+          structure: parseFloat(process.env.QUALITY_WEIGHT_STRUCTURE || '0.25'),
+          density: parseFloat(process.env.QUALITY_WEIGHT_DENSITY || '0.2')
+        },
+        
+        retrieval: {
+          enableQualityFilter: process.env.QUALITY_FILTER_ENABLED !== 'false',
+          minRetrievalQuality: parseFloat(process.env.QUALITY_MIN_RETRIEVAL || '0.4'),
+          qualityBoostFactor: parseFloat(process.env.QUALITY_BOOST_FACTOR || '1.2')
+        }
+      },
+
+      // Metadata enrichment configuration
+      metadata: {
+        enrichment: {
+          enabled: process.env.METADATA_ENRICHMENT_ENABLED !== 'false',
+          detectContentTypes: process.env.METADATA_DETECT_TYPES !== 'false',
+          detectMarkdownStructure: process.env.METADATA_DETECT_MARKDOWN !== 'false',
+          extractPageNumbers: process.env.METADATA_EXTRACT_PAGES !== 'false'
+        },
+        
+        contentTypes: {
+          heading: { preferredSize: 200, minQuality: 0.5 },
+          paragraph: { preferredSize: 400, minQuality: 0.3 },
+          list: { preferredSize: 300, minQuality: 0.4 },
+          code: { preferredSize: 500, minQuality: 0.5 },
+          table: { preferredSize: 600, minQuality: 0.4 }
+        }
+      },
+
+      // Chunking configuration
+      chunking: {
+        adaptive: {
+          enabled: process.env.ADAPTIVE_CHUNKING_ENABLED === 'true',
+          defaultSize: parseInt(process.env.CHUNK_DEFAULT_SIZE || '400'),
+          overlapSize: parseInt(process.env.CHUNK_OVERLAP_SIZE || '100')
+        }
+      },
+
+      // Retrieval configuration
+      retrieval: {
+        queryIntent: {
+          enabled: process.env.QUERY_INTENT_ENABLED !== 'false',
+          germanPatterns: process.env.USE_GERMAN_PATTERNS !== 'false'
+        }
       }
     };
   }
@@ -169,17 +226,36 @@ class VectorConfig {
       console.warn('[VectorConfig] minVectorOnlyThreshold should be >= minVectorWithTextThreshold for logical consistency');
     }
     
+    // Validate quality scoring weights
+    if (config.quality.enabled) {
+      const qualityWeightSum = Object.values(config.quality.weights).reduce((sum, weight) => sum + weight, 0);
+      if (Math.abs(qualityWeightSum - 1.0) > 0.01) {
+        console.warn(`[VectorConfig] Quality weights sum to ${qualityWeightSum}, should be 1.0`);
+      }
+      
+      // Validate quality thresholds
+      if (config.quality.minChunkQuality < 0 || config.quality.minChunkQuality > 1) {
+        throw new Error('QUALITY_MIN_CHUNK must be between 0 and 1');
+      }
+      
+      if (config.quality.retrieval.minRetrievalQuality < 0 || config.quality.retrieval.minRetrievalQuality > 1) {
+        throw new Error('QUALITY_MIN_RETRIEVAL must be between 0 and 1');
+      }
+    }
+    
     // Validate positive values
     const positiveValues = [
       'search.defaultLimit', 'search.maxLimit',
       'content.maxExcerptLength', 'content.maxChunksPerDocument',
       'timeouts.searchDefault', 'timeouts.embeddingGeneration',
-      'hybrid.confidenceBoost', 'hybrid.confidencePenalty'
+      'hybrid.confidenceBoost', 'hybrid.confidencePenalty',
+      'quality.retrieval.qualityBoostFactor',
+      'chunking.adaptive.defaultSize', 'chunking.adaptive.overlapSize'
     ];
     
     positiveValues.forEach(path => {
       const value = this.getNestedValue(config, path);
-      if (value <= 0) {
+      if (value && value <= 0) {
         throw new Error(`Configuration ${path} must be positive, got ${value}`);
       }
     });

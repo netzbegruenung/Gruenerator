@@ -10,6 +10,38 @@ const router = express.Router();
 // Add Passport session middleware only for auth routes
 router.use(passport.session());
 
+// Helpers for mobile deep-link support
+function parseAllowlist() {
+  const raw = process.env.MOBILE_REDIRECT_ALLOWLIST || '';
+  return raw
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
+}
+
+function isAllowedMobileRedirect(redirectUrl) {
+  if (!redirectUrl) return false;
+  // Only consider non-http(s) deep-links as mobile redirects
+  const lower = redirectUrl.toLowerCase();
+  if (lower.startsWith('http://') || lower.startsWith('https://')) return false;
+  const allow = parseAllowlist();
+  if (allow.length === 0) return false;
+  return allow.some(prefix => redirectUrl.startsWith(prefix));
+}
+
+function appendQueryParam(url, key, value) {
+  try {
+    // For custom schemes, URL may throw; fallback to simple concatenation
+    const hasQuery = url.includes('?');
+    const sep = hasQuery ? '&' : '?';
+    return `${url}${sep}${encodeURIComponent(key)}=${encodeURIComponent(value)}`;
+  } catch {
+    const hasQuery = url.includes('?');
+    const sep = hasQuery ? '&' : '?';
+    return `${url}${sep}${encodeURIComponent(key)}=${encodeURIComponent(value)}`;
+  }
+}
+
 
 // Health check endpoint
 router.get('/health', (req, res) => {
@@ -80,16 +112,57 @@ router.get('/callback',
   }),
   async (req, res, next) => {
     try {
-      const redirectTo = req.session.redirectTo || `${process.env.BASE_URL}/profile`;
+      const intendedRedirect = req.session.redirectTo;
       delete req.session.redirectTo;
       delete req.session.preferredSource;
       delete req.session.isRegistration;
-      
+
+      // If redirect target is an allowed mobile deep link, issue a short-lived login_code
+      if (intendedRedirect && isAllowedMobileRedirect(intendedRedirect)) {
+        try {
+          const { SignJWT } = await import('jose');
+          const { randomUUID } = await import('crypto');
+          const secret = new TextEncoder().encode(
+            process.env.SESSION_SECRET || 'fallback-secret-please-change'
+          );
+
+          const jti = randomUUID();
+          const code = await new SignJWT({
+            token_use: 'app_login_code',
+            sub: req.user?.id,
+            keycloak_id: req.user?.keycloak_id || null,
+            jti
+          })
+            .setProtectedHeader({ alg: 'HS256' })
+            .setIssuedAt()
+            .setExpirationTime('60s')
+            .setIssuer('gruenerator-auth')
+            .setAudience('gruenerator-app-login-code')
+            .sign(secret);
+
+          // Save then redirect to mobile deep link with code
+          req.session.save((err) => {
+            if (err) {
+              console.error('[AuthCallback] Error saving session (mobile deep link):', err);
+            }
+            const redirectWithCode = appendQueryParam(intendedRedirect, 'code', code);
+            return res.redirect(redirectWithCode);
+          });
+          return; // Stop further processing
+        } catch (e) {
+          console.error('[AuthCallback] Failed to create login_code for mobile redirect:', e);
+          // fall through to normal redirect
+        }
+      }
+
+      const fallback = `${process.env.BASE_URL}/profile`;
+      const redirectTo = intendedRedirect || fallback;
+
       req.session.save((err) => {
         if (err) {
           console.error('[AuthCallback] Error saving session:', err);
         }
-        res.redirect(redirectTo);
+        return res.redirect(redirectTo);
       });
       
     } catch (error) {

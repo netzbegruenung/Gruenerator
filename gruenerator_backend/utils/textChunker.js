@@ -5,189 +5,13 @@
  */
 
 import { documentStructureDetector } from '../services/documentStructureDetector.js';
+import { vectorConfig } from '../config/vectorConfig.js';
+import { detectContentType, detectMarkdownStructure, extractPageNumber } from './contentTypeDetector.js';
+import { chunkQualityService } from '../services/ChunkQualityService.js';
+import { cleanTextForEmbedding } from './textCleaning.js';
 
-/**
- * Split text into chunks with overlap
- * @param {string} text - Text to split into chunks
- * @param {Object} options - Chunking options
- * @param {number} options.maxTokens - Maximum tokens per chunk (default: 400)
- * @param {number} options.overlapTokens - Number of overlapping tokens (default: 50)
- * @param {number} options.minChunkSize - Minimum chunk size in characters (default: 100)
- * @returns {Array<{text: string, index: number, tokens: number}>} Array of chunks
- */
-export function chunkText(text, options = {}) {
-  const {
-    maxTokens = 400, // Conservative limit for 512 token model
-    overlapTokens = 50,
-    minChunkSize = 100
-  } = options;
 
-  if (!text || typeof text !== 'string') {
-    return [];
-  }
 
-  // Clean and normalize text
-  const cleanedText = text
-    .replace(/\r\n/g, '\n') // Normalize line endings
-    .replace(/\n{3,}/g, '\n\n') // Collapse multiple newlines
-    .trim();
-
-  if (cleanedText.length < minChunkSize) {
-    return [{
-      text: cleanedText,
-      index: 0,
-      tokens: estimateTokens(cleanedText)
-    }];
-  }
-
-  const chunks = [];
-  const sentences = splitIntoSentences(cleanedText);
-  
-  let currentChunk = '';
-  let currentTokens = 0;
-  let chunkIndex = 0;
-  let overlapBuffer = [];
-  let overlapTokenCount = 0;
-
-  for (let i = 0; i < sentences.length; i++) {
-    const sentence = sentences[i];
-    const sentenceTokens = estimateTokens(sentence);
-
-    // If adding this sentence would exceed the limit, create a new chunk
-    if (currentTokens + sentenceTokens > maxTokens && currentChunk.length > 0) {
-      // Save the current chunk
-      chunks.push({
-        text: currentChunk.trim(),
-        index: chunkIndex,
-        tokens: currentTokens
-      });
-      chunkIndex++;
-
-      // Start new chunk with overlap from previous chunk
-      currentChunk = overlapBuffer.join(' ') + ' ';
-      currentTokens = overlapTokenCount;
-      
-      // Reset overlap buffer
-      overlapBuffer = [];
-      overlapTokenCount = 0;
-    }
-
-    // Add sentence to current chunk
-    currentChunk += sentence + ' ';
-    currentTokens += sentenceTokens;
-
-    // Update overlap buffer
-    overlapBuffer.push(sentence);
-    overlapTokenCount += sentenceTokens;
-
-    // Maintain overlap buffer size
-    while (overlapTokenCount > overlapTokens && overlapBuffer.length > 1) {
-      const removed = overlapBuffer.shift();
-      overlapTokenCount -= estimateTokens(removed);
-    }
-  }
-
-  // Add the last chunk if it has content
-  if (currentChunk.trim().length > 0) {
-    chunks.push({
-      text: currentChunk.trim(),
-      index: chunkIndex,
-      tokens: currentTokens
-    });
-  }
-
-  return chunks;
-}
-
-/**
- * Split text into chunks by pages (for documents with clear page breaks)
- * @param {string} text - Text with page markers
- * @param {number} maxTokensPerChunk - Maximum tokens per chunk
- * @returns {Array<{text: string, index: number, tokens: number, pages: number[]}>} Array of chunks
- */
-export function chunkByPages(text, maxTokensPerChunk = 400) {
-  // Look for page markers like "## Seite X" or "Page X"
-  const pagePattern = /(?:##\s*(?:Seite|Page)\s*(\d+)|---\s*Page\s*(\d+)\s*---)/gi;
-  const pages = text.split(pagePattern);
-  
-  const chunks = [];
-  let currentChunk = '';
-  let currentTokens = 0;
-  let currentPages = [];
-  let chunkIndex = 0;
-
-  for (let i = 0; i < pages.length; i++) {
-    const pageContent = pages[i];
-    
-    // Skip page numbers captured by regex groups
-    if (!pageContent || /^\d+$/.test(pageContent.trim())) {
-      continue;
-    }
-
-    const pageTokens = estimateTokens(pageContent);
-    
-    // If this page would exceed the limit, save current chunk
-    if (currentTokens + pageTokens > maxTokensPerChunk && currentChunk.length > 0) {
-      chunks.push({
-        text: currentChunk.trim(),
-        index: chunkIndex,
-        tokens: currentTokens,
-        pages: [...currentPages]
-      });
-      
-      chunkIndex++;
-      currentChunk = '';
-      currentTokens = 0;
-      currentPages = [];
-    }
-
-    // Add page to current chunk
-    currentChunk += pageContent + '\n\n';
-    currentTokens += pageTokens;
-    
-    // Extract page number if available
-    const pageMatch = pageContent.match(/(?:Seite|Page)\s*(\d+)/i);
-    if (pageMatch) {
-      currentPages.push(parseInt(pageMatch[1]));
-    }
-  }
-
-  // Add last chunk
-  if (currentChunk.trim().length > 0) {
-    chunks.push({
-      text: currentChunk.trim(),
-      index: chunkIndex,
-      tokens: currentTokens,
-      pages: currentPages
-    });
-  }
-
-  return chunks;
-}
-
-/**
- * Split text into sentences
- * @private
- */
-function splitIntoSentences(text) {
-  // Split on sentence boundaries, but keep the delimiter
-  const sentences = text.split(/(?<=[.!?])\s+/);
-  
-  // Further split very long sentences on other boundaries if needed
-  const finalSentences = [];
-  
-  for (const sentence of sentences) {
-    if (estimateTokens(sentence) > 200) {
-      // Split long sentences on semicolons, colons, or commas
-      const subSentences = sentence.split(/(?<=[;:,])\s+/);
-      finalSentences.push(...subSentences);
-    } else {
-      finalSentences.push(sentence);
-    }
-  }
-  
-  return finalSentences.filter(s => s.trim().length > 0);
-}
 
 /**
  * Estimate token count for text
@@ -261,39 +85,25 @@ export function prepareTextForEmbedding(text) {
  */
 export function smartChunkDocument(text, options = {}) {
   const {
-    maxTokens = 600, // Increased from 400 for better context
-    overlapTokens = 150, // Increased from 50 for better overlap
-    preserveStructure = true,
-    useHierarchicalChunking = true
+    maxTokens = 600, // Increased for better context
+    overlapTokens = 150, // Increased for better overlap
+    baseMetadata = {}
   } = options;
+  // Backward-compatible synchronous behavior using hierarchical fallback
+  const cleaned = cleanTextForEmbedding(text);
+  const chunks = hierarchicalChunkDocument(cleaned, { maxTokens, overlapTokens });
+  return chunks.map(c => enrichChunkWithMetadata(c, baseMetadata));
+}
 
-  if (useHierarchicalChunking) {
-    return hierarchicalChunkDocument(text, { maxTokens, overlapTokens, preserveStructure });
-  }
-
-  // Fallback to original logic
-  const hasPageMarkers = /(?:##\s*(?:Seite|Page)\s*\d+|---\s*Page\s*\d+\s*---)/i.test(text);
-  
-  if (hasPageMarkers && preserveStructure) {
-    const pageChunks = chunkByPages(text, maxTokens);
-    return pageChunks.map(chunk => ({
-      ...chunk,
-      metadata: {
-        type: 'page-based',
-        pages: chunk.pages,
-        chunkingMethod: 'legacy'
-      }
-    }));
-  } else {
-    const chunks = chunkText(text, { maxTokens, overlapTokens });
-    return chunks.map(chunk => ({
-      ...chunk,
-      metadata: {
-        type: 'sentence-based',
-        overlap: overlapTokens,
-        chunkingMethod: 'legacy'
-      }
-    }));
+// New async variant that uses LangChain when available
+export async function smartChunkDocumentAsync(text, options = {}) {
+  const { baseMetadata = {}, maxTokens = 600, overlapTokens = 150 } = options;
+  try {
+    const { langChainChunker } = await import('../services/LangChainChunker.js');
+    return await langChainChunker.chunkDocument(cleanTextForEmbedding(text), baseMetadata);
+  } catch (e) {
+    const chunks = hierarchicalChunkDocument(cleanTextForEmbedding(text), { maxTokens, overlapTokens });
+    return chunks.map(c => enrichChunkWithMetadata(c, baseMetadata));
   }
 }
 
@@ -306,8 +116,7 @@ export function smartChunkDocument(text, options = {}) {
 export function hierarchicalChunkDocument(text, options = {}) {
   const {
     maxTokens = 600,
-    overlapTokens = 150,
-    preserveStructure = true
+    overlapTokens = 150
   } = options;
 
   console.log('[hierarchicalChunkDocument] Starting hierarchical chunking');
@@ -336,17 +145,18 @@ function createSemanticChunks(text, boundaries, structure, options) {
   const chunks = [];
 
   if (boundaries.length === 0) {
-    // No structure detected, fall back to sentence-based chunking
-    console.log('[createSemanticChunks] No boundaries found, falling back to sentence chunking');
-    const fallbackChunks = chunkText(text, { maxTokens, overlapTokens });
-    return fallbackChunks.map(chunk => ({
-      ...chunk,
+    // No structure detected, create a single chunk
+    console.log('[createSemanticChunks] No boundaries found, creating single chunk');
+    return [{
+      text: text.trim(),
+      index: 0,
+      tokens: estimateTokens(text),
       metadata: {
-        type: 'sentence-based',
-        chunkingMethod: 'hierarchical-fallback',
+        type: 'unstructured',
+        chunkingMethod: 'hierarchical-single',
         structure_detected: false
       }
-    }));
+    }];
   }
 
   let currentChunk = '';
@@ -619,4 +429,35 @@ function findRelatedChunks(chunk, allChunks) {
   }
   
   return related;
+}
+
+/**
+ * Enrich a single chunk with content type, markdown features, page number and quality score
+ */
+export function enrichChunkWithMetadata(chunk, baseMetadata = {}) {
+  const contentType = detectContentType(chunk.text);
+  const md = detectMarkdownStructure(chunk.text);
+  const pageNum = extractPageNumber(chunk.text);
+  const qualityCfg = vectorConfig.get('quality');
+  const quality = qualityCfg.enabled
+    ? chunkQualityService.calculateQualityScore(chunk.text, { contentType })
+    : 1.0;
+
+  return {
+    ...chunk,
+    metadata: {
+      ...chunk.metadata,
+      ...baseMetadata,
+      content_type: contentType,
+      markdown: {
+        headers: md.headers?.length || 0,
+        lists: md.lists || 0,
+        tables: md.tables || 0,
+        code_blocks: md.codeBlocks || 0,
+        blockquotes: !!md.blockquotes,
+      },
+      page_number: pageNum,
+      quality_score: Number.isFinite(quality) ? quality : 0,
+    }
+  };
 }

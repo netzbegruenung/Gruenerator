@@ -139,6 +139,7 @@ class DocumentSearchService extends BaseSearchService {
                 : undefined;
             const sourceType = params.filters?.sourceType;
             const group_id = params.filters?.group_id;
+            const searchCollection = params.filters?.searchCollection;
 
             // Extract and validate options
             const limit = InputValidator.validateNumber(
@@ -159,13 +160,14 @@ class DocumentSearchService extends BaseSearchService {
                 textWeight: params.options?.textWeight,
                 useRRF: params.options?.useRRF,
                 rrfK: params.options?.rrfK,
-                useCache: params.options?.useCache !== false
+                useCache: params.options?.useCache !== false,
+                qualityMin: typeof params.options?.qualityMin === 'number' ? params.options.qualityMin : undefined
             };
 
             return {
                 query,
                 userId,
-                filters: { documentIds, sourceType, group_id },
+                filters: { documentIds, sourceType, group_id, searchCollection },
                 options
             };
         }
@@ -191,7 +193,8 @@ class DocumentSearchService extends BaseSearchService {
             filters: {
                 documentIds: validated.documentIds,
                 sourceType: validated.sourceType,
-                group_id: validated.group_id
+                group_id: validated.group_id,
+                searchCollection: params.searchCollection
             },
             options: {
                 limit: validated.limit,
@@ -199,7 +202,8 @@ class DocumentSearchService extends BaseSearchService {
                 mode: validated.mode,
                 useCache: true,
                 ...(vectorWeightOpt !== undefined ? { vectorWeight: vectorWeightOpt } : {}),
-                ...(textWeightOpt !== undefined ? { textWeight: textWeightOpt } : {})
+                ...(textWeightOpt !== undefined ? { textWeight: textWeightOpt } : {}),
+                ...(typeof params.qualityMin === 'number' ? { qualityMin: params.qualityMin } : {})
             }
         };
     }
@@ -247,7 +251,8 @@ class DocumentSearchService extends BaseSearchService {
                 userId,
                 filters: {
                     documentIds: options.documentIds,
-                    sourceType: options.sourceType
+                    sourceType: options.sourceType,
+                    searchCollection: options.searchCollection
                 },
                 options: {
                     limit: options.limit || this.defaultLimit,
@@ -499,15 +504,25 @@ class DocumentSearchService extends BaseSearchService {
      * Find similar chunks using QdrantOperations
      */
     async findSimilarChunks(params) {
-        const { embedding, userId, filters, limit, threshold } = params;
+        const { embedding, userId, filters, limit, threshold, query, qualityMin } = params;
 
         if (!this.qdrantAvailable || !this.qdrantOps) {
             console.warn('[DocumentSearchService] Skipping vector search: Qdrant unavailable');
             return [];
         }
         
+        // Determine which collection to search
+        const searchCollection = filters.searchCollection || 'documents';
+        console.log(`[DocumentSearchService] Vector searching collection: ${searchCollection}`);
+        
         // Build Qdrant filter
-        const filter = { must: [{ key: 'user_id', match: { value: userId } }] };
+        const filter = { must: [] };
+        
+        // For regular documents collection, filter by user_id
+        // For system collections like grundsatz_documents, skip user_id filter
+        if (searchCollection === 'documents') {
+            filter.must.push({ key: 'user_id', match: { value: userId } });
+        }
         
         if (filters.documentIds && filters.documentIds.length > 0) {
             filter.must.push({
@@ -522,14 +537,27 @@ class DocumentSearchService extends BaseSearchService {
                 match: { value: filters.sourceType }
             });
         }
-        
-        console.log('[DocumentSearchService] Calling Qdrant vectorSearch...');
-        const results = await this.qdrantOps.vectorSearch(
-            'documents',
-            embedding,
-            filter,
-            { limit, threshold, withPayload: true }
-        );
+        // Optional quality_min range gating
+        if (typeof qualityMin === 'number') {
+            filter.must.push({ key: 'quality_score', range: { gte: qualityMin } });
+        }
+
+        // If intent detection is enabled, generate intent-based preferences
+        let results;
+        try {
+            const intentCfg = vectorConfig.get('retrieval')?.queryIntent;
+            if (intentCfg?.enabled) {
+                const { queryIntentService } = await import('./QueryIntentService.js');
+                const intent = queryIntentService.detectIntent(query || '');
+                // Prefer quality-aware search with intent filter
+                results = await this.qdrantOps.searchWithIntent(searchCollection, embedding, intent, filter, { limit, threshold, withPayload: true });
+            } else {
+                results = await this.qdrantOps.searchWithQuality(searchCollection, embedding, filter, { limit, threshold, withPayload: true });
+            }
+        } catch (e) {
+            console.warn('[DocumentSearchService] Intent-aware search failed, falling back to quality search:', e.message);
+            results = await this.qdrantOps.searchWithQuality(searchCollection, embedding, filter, { limit, threshold, withPayload: true });
+        }
         console.log(`[DocumentSearchService] Qdrant vectorSearch returned ${results.length} hits`);
         
         // Transform to expected format for BaseSearchService
@@ -540,6 +568,9 @@ class DocumentSearchService extends BaseSearchService {
             chunk_text: result.payload.chunk_text,
             similarity: result.score,
             token_count: result.payload.token_count,
+            quality_score: result.payload.quality_score ?? null,
+            content_type: result.payload.content_type ?? null,
+            page_number: result.payload.page_number ?? null,
             created_at: result.payload.created_at,
             documents: {
                 id: result.payload.document_id,
@@ -560,8 +591,18 @@ class DocumentSearchService extends BaseSearchService {
             return [];
         }
         
+        // Determine which collection to search
+        const searchCollection = filters.searchCollection || 'documents';
+        console.log(`[DocumentSearchService] Searching collection: ${searchCollection}`);
+        
         // Build Qdrant filter
-        const filter = { must: [{ key: 'user_id', match: { value: userId } }] };
+        const filter = { must: [] };
+        
+        // For regular documents collection, filter by user_id
+        // For system collections like grundsatz_documents, skip user_id filter
+        if (searchCollection === 'documents') {
+            filter.must.push({ key: 'user_id', match: { value: userId } });
+        }
         
         if (filters.documentIds && filters.documentIds.length > 0) {
             filter.must.push({
@@ -579,7 +620,7 @@ class DocumentSearchService extends BaseSearchService {
         
         console.log('[DocumentSearchService] Calling Qdrant hybridSearch...');
         const hybridResult = await this.qdrantOps.hybridSearch(
-            'documents',
+            searchCollection,
             embedding,
             query,
             filter,
@@ -599,6 +640,9 @@ class DocumentSearchService extends BaseSearchService {
             chunk_text: result.payload.chunk_text,
             similarity: result.score,
             token_count: result.payload.token_count,
+            quality_score: result.payload.quality_score ?? null,
+            content_type: result.payload.content_type ?? null,
+            page_number: result.payload.page_number ?? null,
             created_at: result.payload.created_at,
             searchMethod: result.searchMethod || 'hybrid',
             originalVectorScore: result.originalVectorScore,
@@ -610,6 +654,89 @@ class DocumentSearchService extends BaseSearchService {
                 created_at: result.payload.created_at
             }
         }));
+    }
+
+    /**
+     * Include quality metadata in chunk extraction
+     */
+    extractChunkData(chunk) {
+        const base = super.extractChunkData(chunk);
+        return {
+            ...base,
+            quality_score: chunk.quality_score ?? null,
+            content_type: chunk.content_type ?? null,
+            page_number: chunk.page_number ?? null
+        };
+    }
+
+  /**
+   * Apply quality-weighted adjustment to document score
+   */
+  calculateEnhancedDocumentScore(chunks) {
+        const base = this._computeSafeBaseScore(chunks);
+        // Compute average quality from available chunk metadata
+        const qualities = chunks.map(c => typeof c.quality_score === 'number' ? c.quality_score : 1.0);
+        const avgQ = qualities.length ? (qualities.reduce((a, b) => a + b, 0) / qualities.length) : 1.0;
+        const qCfg = vectorConfig.get('quality')?.retrieval || {};
+        const boost = qCfg.qualityBoostFactor ?? 1.2;
+        const factor = 1 + ((avgQ - 0.5) * (boost - 1));
+        return {
+            ...base,
+            finalScore: Math.min(1.0, base.finalScore * factor),
+            qualityAvg: avgQ
+        };
+  }
+
+    /**
+     * Apply quality-weighted adjustment in hybrid mode as well
+     */
+  calculateHybridDocumentScore(chunks, hybridMetadata) {
+        // Start from a safe base score, then add hybrid bonus if both signals present
+        const baseSimple = this._computeSafeBaseScore(chunks);
+        const bothSignals = hybridMetadata?.hasVectorMatch && hybridMetadata?.hasTextMatch;
+        const hybridBonus = bothSignals ? 0.05 : 0;
+
+        const qualities = chunks.map(c => typeof c.quality_score === 'number' ? c.quality_score : 1.0);
+        const avgQ = qualities.length ? (qualities.reduce((a, b) => a + b, 0) / qualities.length) : 1.0;
+        const qCfg = vectorConfig.get('quality')?.retrieval || {};
+        const boost = qCfg.qualityBoostFactor ?? 1.2;
+        const factor = 1 + ((avgQ - 0.5) * (boost - 1));
+
+        return {
+            ...baseSimple,
+            finalScore: Math.min(1.0, (baseSimple.finalScore + hybridBonus) * factor),
+            diversityBonus: baseSimple.diversityBonus,
+            hybridBonus,
+            qualityAvg: avgQ
+        };
+  }
+
+    /**
+     * Compute a stable base score using configured weights without relying on BaseSearchService internals
+     */
+    _computeSafeBaseScore(chunks) {
+        const scoringConfig = vectorConfig.get('scoring');
+        if (!chunks || chunks.length === 0) {
+            return { finalScore: 0, maxSimilarity: 0, avgSimilarity: 0, positionScore: 0, diversityBonus: 0 };
+        }
+        const sims = chunks.map(c => c.similarity || 0);
+        const maxSimilarity = Math.max(...sims);
+        const avgSimilarity = sims.reduce((a, b) => a + b, 0) / sims.length;
+        const diversityBonus = Math.min(scoringConfig.maxDiversityBonus, chunks.length * scoringConfig.diversityBonusRate);
+        const finalScoreRaw = (maxSimilarity * scoringConfig.maxSimilarityWeight) + (avgSimilarity * scoringConfig.avgSimilarityWeight) + diversityBonus;
+        const finalScore = Math.min(scoringConfig.maxFinalScore, finalScoreRaw);
+        return { finalScore, maxSimilarity, avgSimilarity, positionScore: 0, diversityBonus };
+    }
+
+    /**
+     * Include quality info in relevance string
+     */
+    buildRelevanceInfo(doc, enhancedScore) {
+        const base = super.buildRelevanceInfo(doc, enhancedScore);
+        if (typeof enhancedScore.qualityAvg === 'number') {
+            return `${base} (quality avg: ${(enhancedScore.qualityAvg).toFixed(2)})`;
+        }
+        return base;
     }
 
     /**
