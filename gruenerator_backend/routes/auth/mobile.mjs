@@ -5,6 +5,24 @@ import { getProfileService } from '../../services/ProfileService.mjs';
 
 const router = express.Router();
 
+// One-time login code replay protection (in-memory)
+const usedLoginCodes = new Map(); // jti -> expiresAt(ms)
+
+function markCodeUsed(jti, ttlMs = 2 * 60 * 1000) {
+  const expires = Date.now() + ttlMs;
+  usedLoginCodes.set(jti, expires);
+}
+
+function isCodeUsed(jti) {
+  const exp = usedLoginCodes.get(jti);
+  if (!exp) return false;
+  if (Date.now() > exp) {
+    usedLoginCodes.delete(jti);
+    return false;
+  }
+  return true;
+}
+
 // JWT Exchange endpoint - converts Keycloak token to simple JWT
 router.post('/exchange', async (req, res) => {
   const { token } = req.body;
@@ -40,10 +58,11 @@ router.post('/exchange', async (req, res) => {
     
     console.log('[Mobile Exchange] User found:', user.id);
     
-    // Create simple JWT with 30-day expiry
+    // Create simple JWT with configurable expiry (default 30 days)
     const secret = new TextEncoder().encode(
       process.env.SESSION_SECRET || 'fallback-secret-please-change'
     );
+    const ttl = process.env.MOBILE_JWT_TTL || '30d';
     
     const jwt = await new SignJWT({
       sub: user.id,
@@ -54,7 +73,7 @@ router.post('/exchange', async (req, res) => {
     })
       .setProtectedHeader({ alg: 'HS256' })
       .setIssuedAt()
-      .setExpirationTime('30d')
+      .setExpirationTime(ttl)
       .setIssuer('gruenerator-mobile')
       .setAudience('gruenerator-app')
       .sign(secret);
@@ -66,7 +85,9 @@ router.post('/exchange', async (req, res) => {
       success: true,
       token: jwt,
       user: user,
-      expiresIn: 30 * 24 * 60 * 60, // 30 days in seconds
+      expiresIn: typeof ttl === 'string' && ttl.endsWith('d')
+        ? parseInt(ttl) * 24 * 60 * 60
+        : undefined,
       tokenType: 'Bearer'
     });
     
@@ -184,6 +205,85 @@ router.post('/logout', jwtAuthMiddleware, async (req, res) => {
       message: 'Logout completed (with errors)',
       timestamp: Date.now()
     });
+  }
+});
+
+// export is placed at the end of the file
+
+// Consume short-lived login code and mint app JWT
+router.post('/consume-login-code', async (req, res) => {
+  try {
+    const { code } = req.body || {};
+    if (!code) {
+      return res.status(400).json({ error: 'login_code required' });
+    }
+
+    const { jwtVerify } = await import('jose');
+    const secret = new TextEncoder().encode(
+      process.env.SESSION_SECRET || 'fallback-secret-please-change'
+    );
+
+    const { payload } = await jwtVerify(code, secret, {
+      issuer: 'gruenerator-auth',
+      audience: 'gruenerator-app-login-code'
+    });
+
+    if (payload.token_use !== 'app_login_code') {
+      return res.status(400).json({ error: 'Invalid code type' });
+    }
+
+    if (!payload.sub) {
+      return res.status(400).json({ error: 'Invalid code: missing user' });
+    }
+
+    if (payload.jti && isCodeUsed(payload.jti)) {
+      return res.status(400).json({ error: 'Code already used' });
+    }
+
+    // Fetch user by ID
+    const profileService = getProfileService();
+    let user = await profileService.getProfileById(payload.sub);
+    if (!user && payload.keycloak_id) {
+      user = await profileService.getProfileByKeycloakId(payload.keycloak_id);
+    }
+    if (!user) {
+      return res.status(401).json({ error: 'User not found' });
+    }
+
+    // Mark code as used (short TTL)
+    if (payload.jti) markCodeUsed(payload.jti);
+
+    // Issue mobile JWT
+    const ttl = process.env.MOBILE_JWT_TTL || '30d';
+    const jwt = await new SignJWT({
+      sub: user.id,
+      keycloak_id: user.keycloak_id,
+      email: user.email,
+      username: user.username,
+      mobile: true
+    })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setIssuedAt()
+      .setExpirationTime(ttl)
+      .setIssuer('gruenerator-mobile')
+      .setAudience('gruenerator-app')
+      .sign(secret);
+
+    return res.json({
+      success: true,
+      token: jwt,
+      user,
+      expiresIn: typeof ttl === 'string' && ttl.endsWith('d')
+        ? parseInt(ttl) * 24 * 60 * 60
+        : undefined,
+      tokenType: 'Bearer'
+    });
+  } catch (error) {
+    console.error('[Mobile Consume Login Code] Error:', error);
+    if (String(error?.message || '').includes('exp') || String(error?.code || '').includes('ERR_JWT_EXPIRED')) {
+      return res.status(400).json({ error: 'Code expired' });
+    }
+    return res.status(401).json({ error: 'Invalid code' });
   }
 });
 

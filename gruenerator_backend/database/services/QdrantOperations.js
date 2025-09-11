@@ -12,6 +12,127 @@ class QdrantOperations {
     }
 
     /**
+     * Vector search with quality-aware filtering and boosting
+     * @param {string} collection
+     * @param {Array<number>} queryVector
+     * @param {Object} filter
+     * @param {Object} options { limit, threshold, withPayload, withVector, ef }
+     * @returns {Promise<Array>}
+     */
+    async searchWithQuality(collection, queryVector, filter = {}, options = {}) {
+        const qualityCfg = vectorConfig.get('quality');
+        const retrievalCfg = qualityCfg.retrieval || {};
+
+        const results = await this.vectorSearch(collection, queryVector, filter, options);
+
+        // Apply quality filter if enabled
+        let filtered = results;
+        if (retrievalCfg.enableQualityFilter) {
+            const minQ = retrievalCfg.minRetrievalQuality ?? 0.4;
+            filtered = results.filter(r => {
+                const q = r?.payload?.quality_score;
+                return typeof q === 'number' ? q >= minQ : true; // keep legacy chunks without quality
+            });
+        }
+
+        // Apply quality-based re-ranking/boosting
+        const boost = retrievalCfg.qualityBoostFactor ?? 1.2;
+        const rescored = filtered.map(r => {
+            const q = typeof r?.payload?.quality_score === 'number' ? r.payload.quality_score : 1.0;
+            return { ...r, score: r.score * (1 + (q - 0.5) * (boost - 1)) };
+        }).sort((a, b) => b.score - a.score);
+
+        const limit = options.limit || 10;
+        return rescored.slice(0, limit);
+    }
+
+    /**
+     * Intent-aware vector search. Merges base filter with intent-based preferences.
+     * @param {string} collection
+     * @param {Array<number>} queryVector
+     * @param {{type:string,language:string}} intent
+     * @param {Object} baseFilter
+     * @param {Object} options
+     */
+    async searchWithIntent(collection, queryVector, intent, baseFilter = {}, options = {}) {
+        const merged = this.mergeFilters(baseFilter, intent?.filter || {});
+        // If caller passed full intent object from QueryIntentService, generate filter structure
+        if (!intent?.filter && intent) {
+            try {
+                const { QueryIntentService } = await import('../../services/QueryIntentService.js');
+                const svc = new QueryIntentService();
+                const f = svc.generateSearchFilters(intent);
+                return await this.searchWithQuality(collection, queryVector, this.mergeFilters(baseFilter, f), options);
+            } catch (e) {
+                // If service not available, just fall back to quality search with base filter
+                return await this.searchWithQuality(collection, queryVector, baseFilter, options);
+            }
+        }
+        return await this.searchWithQuality(collection, queryVector, merged, options);
+    }
+
+    /**
+     * Fetch a chunk and its nearby context from the same document
+     * @param {string} collection
+     * @param {string|Object} pointOrId - point id or result object with payload
+     * @param {Object} options { window = 1 }
+     */
+    async getChunkWithContext(collection, pointOrId, options = {}) {
+        const { window = 1 } = options;
+        let point;
+        if (typeof pointOrId === 'string' || typeof pointOrId === 'number') {
+            const res = await this.client.getPoints(collection, {
+                ids: [pointOrId],
+                with_payload: true,
+                with_vector: false
+            });
+            point = res?.result?.[0];
+        } else {
+            point = pointOrId;
+        }
+
+        if (!point?.payload) return { center: null, context: [] };
+        const docId = point.payload.document_id;
+        const idx = point.payload.chunk_index ?? 0;
+
+        // Fetch neighbors by chunk_index +/- window
+        const filter = {
+            must: [
+                { key: 'document_id', match: { value: docId } },
+                { key: 'chunk_index', range: { gte: Math.max(0, idx - window), lte: idx + window } }
+            ]
+        };
+
+        const scroll = await this.client.scroll(collection, {
+            filter,
+            limit: 100,
+            with_payload: true,
+            with_vector: false
+        });
+        const points = (scroll.points || []).sort((a, b) => (a.payload.chunk_index ?? 0) - (b.payload.chunk_index ?? 0));
+        return {
+            center: point,
+            context: points
+        };
+    }
+
+    /** Merge two Qdrant filters (supports must/must_not/should) */
+    mergeFilters(a = {}, b = {}) {
+        const out = { must: [], must_not: [], should: [] };
+        if (Array.isArray(a.must)) out.must.push(...a.must);
+        if (Array.isArray(b.must)) out.must.push(...b.must);
+        if (Array.isArray(a.must_not)) out.must_not.push(...a.must_not);
+        if (Array.isArray(b.must_not)) out.must_not.push(...b.must_not);
+        if (Array.isArray(a.should)) out.should.push(...a.should);
+        if (Array.isArray(b.should)) out.should.push(...b.should);
+        // Clean up empty arrays to keep filter concise
+        if (out.must.length === 0) delete out.must;
+        if (out.must_not.length === 0) delete out.must_not;
+        if (out.should.length === 0) delete out.should;
+        return out;
+    }
+
+    /**
      * Perform vector similarity search
      * @param {string} collection - Collection name
      * @param {Array} queryVector - Query embedding vector
@@ -79,9 +200,9 @@ class QdrantOperations {
         try {
             console.log(`[QdrantOperations] Hybrid search - vector weight: ${vectorWeight}, text weight: ${textWeight}`);
 
-            // Execute text search first to determine dynamic threshold
+            // Execute text search first (with query normalization) to determine dynamic threshold
             const textResults = await this.performTextSearch(collection, query, filter, limit);
-            
+
             // Apply dynamic threshold adjustment based on text match presence
             const dynamicThreshold = this.hybridConfig.enableDynamicThresholds 
                 ? this.calculateDynamicThreshold(threshold, textResults.length > 0)
@@ -99,10 +220,24 @@ class QdrantOperations {
 
             console.log(`[QdrantOperations] Vector: ${vectorResults.length} results, Text: ${textResults.length} results`);
 
+            // Dynamic weight shifting if not using RRF
+            let vW = vectorWeight;
+            let tW = textWeight;
+            if (!useRRF) {
+                if (textResults.length === 0) {
+                    // No text hits → rely more on vectors
+                    vW = 0.85; tW = 0.15;
+                } else {
+                    // Text hits present → balanced
+                    vW = 0.5; tW = 0.5;
+                }
+                console.log(`[QdrantOperations] Dynamic weights applied: vectorWeight=${vW}, textWeight=${tW}`);
+            }
+
             // Apply fusion method with confidence weighting
             let combinedResults = useRRF 
                 ? this.applyReciprocalRankFusion(vectorResults, textResults, limit, rrfK)
-                : this.applyWeightedCombination(vectorResults, textResults, vectorWeight, textWeight, limit);
+                : this.applyWeightedCombination(vectorResults, textResults, vW, tW, limit);
 
             // Apply post-fusion quality gate
             if (this.hybridConfig.enableQualityGate) {
@@ -165,9 +300,69 @@ class QdrantOperations {
 
             console.log(`[QdrantOperations] Text search raw results: ${scrollResult.points?.length || 0} points found`);
 
+            // Query-side normalization & fallbacks if no results
+            let mergedPoints = scrollResult.points || [];
+            if (mergedPoints.length === 0) {
+                // Attempt 1: dehyphenated/cleaned variant
+                const normalizedTerm = this.normalizeQuery(searchTerm);
+                if (normalizedTerm && normalizedTerm !== searchTerm) {
+                    const normFilter = { must: [...(baseFilter.must || [])] };
+                    normFilter.must.push({ key: 'chunk_text', match: { text: normalizedTerm } });
+                    console.log(`[QdrantOperations] Retrying text search with normalized term: "${normalizedTerm}"`);
+                    const normRes = await this.client.scroll(collection, {
+                        filter: normFilter,
+                        limit: limit,
+                        with_payload: true,
+                        with_vector: false
+                    });
+                    mergedPoints = normRes.points || [];
+                    console.log(`[QdrantOperations] Normalized text search found: ${mergedPoints.length} points`);
+                }
+
+                // Attempt 2: umlaut-folded variant
+                if (mergedPoints.length === 0) {
+                    const folded = this.foldUmlauts(normalizedTerm || searchTerm);
+                    if (folded && folded !== searchTerm) {
+                        const foldFilter = { must: [...(baseFilter.must || [])] };
+                        foldFilter.must.push({ key: 'chunk_text', match: { text: folded } });
+                        console.log(`[QdrantOperations] Retrying text search with folded term: "${folded}"`);
+                        const foldRes = await this.client.scroll(collection, {
+                            filter: foldFilter,
+                            limit: limit,
+                            with_payload: true,
+                            with_vector: false
+                        });
+                        mergedPoints = foldRes.points || [];
+                        console.log(`[QdrantOperations] Folded text search found: ${mergedPoints.length} points`);
+                    }
+                }
+
+                // Attempt 3: token OR fallback (merge per-token hits)
+                if (mergedPoints.length === 0) {
+                    const tokens = this.tokenizeQuery(normalizedTerm || searchTerm).filter(t => t.length >= 4);
+                    if (tokens.length > 1) {
+                        console.log(`[QdrantOperations] Token fallback for terms: ${tokens.join(', ')}`);
+                        const seen = new Map();
+                        for (const tok of tokens) {
+                            const tokFilter = { must: [...(baseFilter.must || [])] };
+                            tokFilter.must.push({ key: 'chunk_text', match: { text: tok } });
+                            const tokRes = await this.client.scroll(collection, {
+                                filter: tokFilter,
+                                limit: limit,
+                                with_payload: true,
+                                with_vector: false
+                            });
+                            (tokRes.points || []).forEach(p => { if (!seen.has(p.id)) seen.set(p.id, p); });
+                        }
+                        mergedPoints = Array.from(seen.values());
+                        console.log(`[QdrantOperations] Token OR fallback found: ${mergedPoints.length} unique points`);
+                    }
+                }
+            }
+
             if (scrollResult.points && scrollResult.points.length > 0) {
                 console.log(`[QdrantOperations] Text search matches found:`);
-                scrollResult.points.forEach((point, index) => {
+                (scrollResult.points || []).forEach((point, index) => {
                     const chunkText = point.payload?.chunk_text || '';
                     const title = point.payload?.title || 'Untitled';
                     const filename = point.payload?.filename || 'No filename';
@@ -198,7 +393,7 @@ class QdrantOperations {
             }
 
             // Add search metadata and scores
-            const results = (scrollResult.points || []).map((point, index) => ({
+            const results = (mergedPoints || []).map((point, index) => ({
                 id: point.id,
                 score: this.calculateTextSearchScore(searchTerm, point.payload.chunk_text, index),
                 payload: point.payload,
@@ -214,6 +409,36 @@ class QdrantOperations {
             console.error(`[QdrantOperations] Text search error stack:`, error.stack);
             return [];
         }
+    }
+
+    /** Replace German umlauts with ASCII folds */
+    foldUmlauts(q) {
+        if (!q) return q;
+        return q
+            .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue')
+            .replace(/Ä/g, 'Ae').replace(/Ö/g, 'Oe').replace(/Ü/g, 'Ue')
+            .replace(/ß/g, 'ss');
+    }
+
+    /** Tokenize a query conservatively */
+    tokenizeQuery(q) {
+        return (q || '')
+            .replace(/[\u00AD]/g, '')
+            .replace(/[^A-Za-zÄÖÜäöüß0-9\-\s]/g, ' ')
+            .split(/\s+/)
+            .map(s => s.trim())
+            .filter(Boolean);
+    }
+
+    /** Normalize query for robust text matching (domain-agnostic) */
+    normalizeQuery(q) {
+        if (!q) return q;
+        let out = q.replace(/\u00AD/g, ''); // soft hyphen
+        // dehyphenate across spaces (simple): turn "Wärm- ewende" into "Wärmewende"
+        out = out.replace(/([A-Za-zÄÖÜäöüß])\s*[-–—]\s*([A-Za-zÄÖÜäöüß])/g, '$1$2');
+        // collapse whitespace
+        out = out.replace(/\s+/g, ' ').trim();
+        return out;
     }
 
     /**

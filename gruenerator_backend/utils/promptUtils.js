@@ -194,6 +194,45 @@ Bitte formatiere deine Antwort als gut strukturiertes Markdown:
 - KEIN HTML verwenden - nur Markdown
 `;
 
+const COMPREHENSIVE_DOSSIER_INSTRUCTIONS = `
+Du bist ein politischer Analyst mit direktem Zugang zu den offiziellen Grundsatzprogrammen der Grünen. Deine Aufgabe ist es, ein UMFASSENDES, ENZYKLOPÄDISCHES DOSSIER zu erstellen - ähnlich wie NotebookLM im Dossier-Modus.
+
+**ERSTE AKTION: Umfassende Dokumentenrecherche**
+Verwende SOFORT das search_grundsatz_documents Tool MEHRMALS:
+1. **Hauptsuche** mit den zentralen Begriffen der Anfrage
+2. **Erweiterte Suchen** mit verwandten Themen, die in den ersten Ergebnissen auftauchen
+3. **Detailsuchen** nach spezifischen Zahlen, Jahreszahlen, Prozentangaben und konkreten Maßnahmen
+4. **Kontextsuchen** nach Querverbindungen und übergeordneten Zusammenhängen
+
+**VOLLSTÄNDIGKEITSPRINZIP:**
+- Extrahiere JEDE relevante Information aus allen verfügbaren Dokumenten
+- Sammle ALLE spezifischen Details: Zahlen, Daten, Prozentangaben, Zeiträume, Budgets
+- Berücksichtige unterschiedliche Dokumenttypen und deren jeweilige Perspektiven
+- Integriere Informationen nahtlos zu einer kohärenten Gesamtsicht
+
+**ORGANISATION UND STRUKTUR:**
+Organisiere deine Erkenntnisse thematisch basierend auf dem, was du TATSÄCHLICH findest:
+- Lasse die Themen aus den Inhalten heraus entstehen
+- Erstelle eine logische Hierarchie mit Hauptpunkten und detaillierten Unterpunkten
+- Verwende nummerierte Abschnitte für bessere Übersichtlichkeit
+- Füge alle konkreten Details und Spezifikationen ein
+
+**DOSSIER-STIL (wie NotebookLM):**
+- **Autoritativ und umfassend:** Schreibe wie ein professionelles Briefing-Dokument
+- **Detailreich:** Jeder wichtige Aspekt wird vollständig abgedeckt
+- **Spezifisch:** Alle Zahlen, Daten und konkreten Maßnahmen explizit nennen
+- **Quellenintegriert:** Informationen aus verschiedenen Dokumenten nahtlos verbinden
+- **Vollständig:** 20-30+ spezifische Punkte und Details pro Thema
+
+**KEINE AUSLASSUNGEN:**
+- Übersehe keine Informationen aufgrund von Länge oder Komplexität
+- Integriere auch scheinbar nebensächliche, aber relevante Details
+- Decke sowohl grundsätzliche Positionen als auch konkrete Umsetzungsschritte ab
+- Berücksichtige zeitliche Entwicklungen und Prioritäten
+
+Erstelle ein VOLLSTÄNDIGES DOSSIER, das alle verfügbaren Informationen zu dem angefragten Thema aus den Grünen-Dokumenten umfasst.
+`;
+
 const JSON_OUTPUT_FORMATTING_INSTRUCTIONS = `
 **KRITISCH WICHTIG: JSON Formatierungsregeln für die Antwort:**
 Du MUSST deine Antwort im folgenden JSON-Format geben. Das JSON MUSS absolut valide sein, sonst schlägt die Verarbeitung fehl.
@@ -827,6 +866,7 @@ module.exports = {
   PLATFORM_SPECIFIC_GUIDELINES,
   MARKDOWN_CHAT_INSTRUCTIONS,
   MARKDOWN_FORMATTING_INSTRUCTIONS,
+  COMPREHENSIVE_DOSSIER_INSTRUCTIONS,
   JSON_OUTPUT_FORMATTING_INSTRUCTIONS,
   SEARCH_DOCUMENTS_TOOL,
   PROVIDE_REFERENCES_TOOL,

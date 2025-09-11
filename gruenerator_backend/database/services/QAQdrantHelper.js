@@ -493,6 +493,54 @@ class QAQdrantHelper {
             throw new Error(`Bulk delete failed: ${error.message}`);
         }
     }
+
+    /**
+     * Create the system Grundsatz collection if it doesn't exist
+     */
+    async ensureSystemGrundsatzCollection() {
+        await this.ensureInitialized();
+        
+        const systemCollectionId = 'grundsatz-system';
+        
+        try {
+            // Check if the system collection already exists
+            const existingCollection = await this.getQACollection(systemCollectionId);
+            if (existingCollection) {
+                console.log(`[QAQdrantHelper] System Grundsatz collection already exists: ${systemCollectionId}`);
+                return { success: true, collection_id: systemCollectionId, created: false };
+            }
+
+            // Import COMPREHENSIVE_DOSSIER_INSTRUCTIONS
+            const { COMPREHENSIVE_DOSSIER_INSTRUCTIONS } = await import('../../utils/promptUtils.js');
+            
+            // Create the system Grundsatz collection
+            const systemCollectionData = {
+                id: systemCollectionId,
+                user_id: 'SYSTEM',
+                name: 'Grüne Grundsatzprogramme',
+                description: 'Offizielle Grundsatzprogramme von Bündnis 90/Die Grünen (Grundsatzprogramm 2020, EU-Wahlprogramm 2024, Regierungsprogramm 2025)',
+                custom_prompt: COMPREHENSIVE_DOSSIER_INSTRUCTIONS,
+                selection_mode: 'documents',
+                is_active: true,
+                settings: {
+                    collection_type: 'grundsatz',
+                    search_collection: 'grundsatz_documents',
+                    min_quality: 0.25,
+                    system_collection: true,
+                    allow_public: false
+                },
+                created_at: new Date().toISOString()
+            };
+
+            const result = await this.storeQACollection(systemCollectionData);
+            console.log(`[QAQdrantHelper] Created system Grundsatz collection: ${systemCollectionId}`);
+            return { ...result, created: true };
+
+        } catch (error) {
+            console.error('[QAQdrantHelper] Error creating system Grundsatz collection:', error);
+            throw new Error(`Failed to create system Grundsatz collection: ${error.message}`);
+        }
+    }
 }
 
 export { QAQdrantHelper };

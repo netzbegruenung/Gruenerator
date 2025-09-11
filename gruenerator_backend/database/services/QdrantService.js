@@ -677,19 +677,37 @@ class QdrantService {
     async indexGrundsatzChunks(documentId, chunks) {
         this.ensureConnected();
         try {
-            const points = chunks.map((chunk, index) => ({
-                id: `grundsatz_${documentId}_${index}`,
-                vector: chunk.embedding,
-                payload: {
-                    document_id: documentId,
-                    chunk_index: index,
-                    chunk_text: chunk.text || chunk.chunk_text,
-                    token_count: chunk.token_count || chunk.tokens,
-                    metadata: chunk.metadata || {},
-                    document_type: 'grundsatz',
-                    created_at: new Date().toISOString()
+            const points = chunks.map((chunk, index) => {
+                // Generate numeric ID (deterministic) based on documentId and chunk index
+                const combinedString = `${documentId}_${index}`;
+                let hash = 0;
+                for (let i = 0; i < combinedString.length; i++) {
+                    const char = combinedString.charCodeAt(i);
+                    hash = ((hash << 5) - hash) + char;
+                    hash = hash & hash; // Convert to 32-bit integer
                 }
-            }));
+                const numericId = Math.abs(hash);
+
+                return {
+                    id: numericId,
+                    vector: chunk.embedding,
+                    payload: {
+                        document_id: documentId,
+                        chunk_index: index,
+                        chunk_text: chunk.text || chunk.chunk_text,
+                        token_count: chunk.token_count || chunk.tokens,
+                        // include commonly used metadata directly in payload for easier retrieval
+                        content_type: chunk.metadata?.content_type,
+                        // fallback to sequential page if not detected
+                        page_number: (typeof chunk.metadata?.page_number === 'number') ? chunk.metadata.page_number : (index + 1),
+                        title: chunk.metadata?.title || 'Grundsatzprogramm',
+                        filename: chunk.metadata?.filename || '',
+                        metadata: chunk.metadata || {},
+                        document_type: 'grundsatz',
+                        created_at: new Date().toISOString()
+                    }
+                };
+            });
 
             await this.client.upsert(this.collections.grundsatz_documents, {
                 points: points

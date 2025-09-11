@@ -1,5 +1,4 @@
 import { ocrService } from './ocrService.js';
-import officeparser from 'officeparser';
 import mammoth from 'mammoth';
 import fs from 'fs/promises';
 import path from 'path';
@@ -13,9 +12,7 @@ class DocumentTextExtractor {
     constructor() {
         this.supportedExtensions = [
             '.pdf',   // PDF files - via OCR service
-            '.docx',  // Word documents - via officeparser
-            '.doc',   // Legacy Word documents - via officeparser  
-            '.odt',   // OpenDocument Text - via officeparser
+            '.docx',  // Word documents - via mammoth
             '.txt',   // Plain text files - direct
             '.md',    // Markdown files - direct
             '.rtf'    // Rich Text Format - basic parsing
@@ -52,8 +49,6 @@ class DocumentTextExtractor {
                     break;
                     
                 case '.docx':
-                case '.doc':
-                case '.odt':
                     // Pass buffer and filename to office document processor
                     extractedText = await this.extractFromOfficeDocument(buffer, filename);
                     break;
@@ -108,31 +103,14 @@ class DocumentTextExtractor {
     }
 
     /**
-     * Extract text from Office documents using mammoth for .docx and officeparser for others
+     * Extract text from Office documents using mammoth for .docx
      */
     async extractFromOfficeDocument(buffer, filename) {
-        const ext = path.extname(filename).toLowerCase();
-        
         try {
-            if (ext === '.docx') {
-                // Use mammoth for .docx files - better extraction and works with buffers directly
-                console.log(`[DocumentTextExtractor] Using mammoth for .docx: ${filename}`);
-                const result = await mammoth.extractRawText({buffer: buffer});
-                return result.value || '';
-            } else {
-                // Use officeparser for .odt/.doc files (mammoth doesn't support these)
-                console.log(`[DocumentTextExtractor] Using officeparser for ${ext}: ${filename}`);
-                
-                // Create temp file for officeparser (it requires a file path)
-                const tempPath = await this.saveBufferToTemp(buffer, filename);
-                try {
-                    const text = await officeparser.parseOfficeAsync(tempPath);
-                    return text || '';
-                } finally {
-                    // Clean up temp file
-                    await fs.unlink(tempPath);
-                }
-            }
+            // Use mammoth for .docx files - works with buffers directly
+            console.log(`[DocumentTextExtractor] Using mammoth for .docx: ${filename}`);
+            const result = await mammoth.extractRawText({buffer: buffer});
+            return result.value || '';
         } catch (error) {
             console.error(`[DocumentTextExtractor] Office document extraction failed for ${filename}:`, error.message);
             throw new Error(`Office document extraction failed: ${error.message}`);
