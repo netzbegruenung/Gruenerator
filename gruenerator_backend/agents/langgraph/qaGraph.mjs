@@ -213,7 +213,9 @@ async function searchNode(subqueries, collection, searchOptions = {}) {
       textWeight: typeof searchOptions.textWeight === 'number' ? searchOptions.textWeight : undefined,
       threshold: typeof searchOptions.threshold === 'number' ? searchOptions.threshold : undefined,
       qualityMin: collection.settings?.min_quality || undefined,
-      searchCollection
+      searchCollection,
+      // hybrid tuning
+      recallLimit: 60
     });
     const list = (resp.results || []).map(normalizeSearchResult);
     all.push(...list);

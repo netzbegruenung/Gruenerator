@@ -194,14 +194,16 @@ class QdrantOperations {
             vectorWeight = 0.7,
             textWeight = 0.3,
             useRRF = true,
-            rrfK = 60
+            rrfK = 60,
+            recallLimit
         } = options;
 
         try {
             console.log(`[QdrantOperations] Hybrid search - vector weight: ${vectorWeight}, text weight: ${textWeight}`);
 
             // Execute text search first (with query normalization) to determine dynamic threshold
-            const textResults = await this.performTextSearch(collection, query, filter, limit);
+            const recallText = Math.max(limit, recallLimit || (limit * 4));
+            const textResults = await this.performTextSearch(collection, query, filter, recallText);
 
             // Apply dynamic threshold adjustment based on text match presence
             const dynamicThreshold = this.hybridConfig.enableDynamicThresholds 
@@ -211,11 +213,12 @@ class QdrantOperations {
             console.log(`[QdrantOperations] Using dynamic threshold: ${dynamicThreshold} (text matches: ${textResults.length})`);
 
             // Execute vector search with dynamic threshold
+            const recallVec = Math.max(limit, Math.round((recallLimit || (limit * 4)) * 1.5));
             const vectorResults = await this.vectorSearch(collection, queryVector, filter, {
-                limit: Math.round(limit * 1.5),
+                limit: recallVec,
                 threshold: dynamicThreshold,
                 withPayload: true,
-                ef: Math.max(100, limit * 2)
+                ef: Math.max(100, recallVec * 2)
             });
 
             console.log(`[QdrantOperations] Vector: ${vectorResults.length} results, Text: ${textResults.length} results`);

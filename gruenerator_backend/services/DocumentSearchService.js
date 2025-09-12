@@ -222,7 +222,8 @@ class DocumentSearchService extends BaseSearchService {
                     useCache: true,
                     ...(vectorWeightOpt !== undefined ? { vectorWeight: vectorWeightOpt } : {}),
                     ...(textWeightOpt !== undefined ? { textWeight: textWeightOpt } : {}),
-                    ...(typeof params.qualityMin === 'number' ? { qualityMin: params.qualityMin } : {})
+                    ...(typeof params.qualityMin === 'number' ? { qualityMin: params.qualityMin } : {}),
+                    ...(typeof params.recallLimit === 'number' ? { recallLimit: params.recallLimit } : {})
                 }
             };
         }
@@ -258,7 +259,8 @@ class DocumentSearchService extends BaseSearchService {
                 useCache: true,
                 ...(vectorWeightOpt !== undefined ? { vectorWeight: vectorWeightOpt } : {}),
                 ...(textWeightOpt !== undefined ? { textWeight: textWeightOpt } : {}),
-                ...(typeof params.qualityMin === 'number' ? { qualityMin: params.qualityMin } : {})
+                ...(typeof params.qualityMin === 'number' ? { qualityMin: params.qualityMin } : {}),
+                ...(typeof params.recallLimit === 'number' ? { recallLimit: params.recallLimit } : {})
             }
         };
     }
