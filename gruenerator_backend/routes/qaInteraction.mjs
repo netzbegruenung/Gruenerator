@@ -3,14 +3,7 @@ import { getPostgresInstance } from '../database/services/PostgresService.js';
 import { QAQdrantHelper } from '../database/services/QAQdrantHelper.js';
 import authMiddleware from '../middleware/authMiddleware.js';
 const { requireAuth } = authMiddleware;
-import { DocumentSearchService } from '../services/DocumentSearchService.js';
-const documentSearchService = new DocumentSearchService();
-import { 
-  MARKDOWN_FORMATTING_INSTRUCTIONS, 
-  SEARCH_DOCUMENTS_TOOL, 
-  PROVIDE_REFERENCES_TOOL,
-  processAIResponseWithCitations 
-} from '../utils/promptUtils.js';
+// Legacy tool-use imports removed; graph-based agent is used for all QA flows
 import { runQaGraph } from '../agents/langgraph/qaGraph.mjs';
 import { queryIntentService } from '../services/QueryIntentService.js';
 
@@ -80,12 +73,7 @@ router.post('/:id/ask', requireAuth, async (req, res) => {
             return res.status(400).json({ error: 'No documents found in this Q&A collection' });
         }
 
-        // Prepare hybrid search options (allow override from request)
-        const searchOptions = {
-            vectorWeight: typeof vectorWeight === 'number' ? vectorWeight : 0.4,
-            textWeight: typeof textWeight === 'number' ? textWeight : 0.5,
-            threshold: typeof threshold === 'number' ? threshold : undefined
-        };
+        // Legacy search options removed; graph handles retrieval parameters internally
 
         // Detect query intent (German/English patterns) for logging and potential routing
         const intent = queryIntentService.detectIntent(trimmedQuestion);
@@ -93,19 +81,34 @@ router.post('/:id/ask', requireAuth, async (req, res) => {
             console.log(`[QA Interaction] Detected intent: ${intent.type} (lang=${intent.language}, conf=${intent.confidence})`);
         }
 
-        // Compute collection-level quality threshold if configured
-        const minQuality = typeof collection.settings?.min_quality === 'number'
-            ? collection.settings.min_quality
-            : undefined;
+        // (Optional) Compute collection-level quality threshold if needed in future
 
         // If grundsatz system collection: use deterministic graph-based agent
         const isGrundsatzSystem = (collection.id === 'grundsatz-system') || ((collection.user_id === 'SYSTEM') && (collection.settings?.system_collection === true));
         let result;
         if (isGrundsatzSystem) {
-            result = await runQaGraph({ question: trimmedQuestion, collection, aiWorkerPool: req.app.locals.aiWorkerPool });
+            result = await runQaGraph({ 
+                question: trimmedQuestion, 
+                collection, 
+                aiWorkerPool: req.app.locals.aiWorkerPool,
+                searchCollection: 'grundsatz_documents',
+                userId: null,
+                documentIds: undefined,
+                recallLimit: 60
+            });
         } else {
-            // For other collections, keep existing tool-use flow
-            result = await handleQAQuestionWithTools(trimmedQuestion, collection, userId, req.app.locals.aiWorkerPool, mode, searchOptions);
+            // All user-created QA collections: scope to user and associated documentIds
+            const scopeDocIds = documentIds && documentIds.length > 0 ? documentIds : undefined;
+            const recallLimit = scopeDocIds && scopeDocIds.length <= 5 ? 40 : 60;
+            result = await runQaGraph({
+                question: trimmedQuestion,
+                collection,
+                aiWorkerPool: req.app.locals.aiWorkerPool,
+                searchCollection: 'documents',
+                userId: userId,
+                documentIds: scopeDocIds,
+                recallLimit
+            });
         }
         
         if (!result.success) {
@@ -231,99 +234,23 @@ router.post('/public/:token/ask', async (req, res) => {
             return res.status(404).json({ error: 'Q&A collection not found' });
         }
 
-        // Load documents for this collection
+        // Load documents for this collection and scope the graph
         const qaDocAssociations = await qaHelper.getCollectionDocuments(collection.id);
         const documentIds = qaDocAssociations.map(qcd => qcd.document_id);
-        
-        let qaDocs = [];
-        if (documentIds.length > 0) {
-            qaDocs = await postgres.query(
-                `SELECT id, title, ocr_text, filename
-                 FROM documents
-                 WHERE id = ANY($1)`,
-                [documentIds]
-            );
-            
-            // Add document_id for compatibility
-            qaDocs = qaDocs.map(doc => ({ ...doc, document_id: doc.id }));
-        }
-
-        if (qaDocs.length === 0) {
+        if (!documentIds || documentIds.length === 0) {
             return res.status(400).json({ error: 'No documents found in this Q&A collection' });
         }
 
-        // Prepare hybrid search options (allow override from request)
-        const searchOptions = {
-            vectorWeight: typeof vectorWeight === 'number' ? vectorWeight : 0.4,
-            textWeight: typeof textWeight === 'number' ? textWeight : 0.5,
-            threshold: typeof threshold === 'number' ? threshold : undefined
-        };
-
-        // Similar processing as authenticated endpoint but without user context
-        const minQuality = undefined; // Public route: use service default quality gating
-        const intent = queryIntentService.detectIntent(trimmedQuestion);
-        if (intent?.type) {
-            console.log(`[QA Public] Detected intent: ${intent.type} (lang=${intent.language}, conf=${intent.confidence})`);
-        }
-        // Perform vector search
-        let searchResults = [];
-        try {
-            const searchResponse = await documentSearchService.search({
-                query: trimmedQuestion,
-                user_id: null, // Public access, no user ID
-                documentIds,
-                limit: 10,
-                mode: 'hybrid',
-                vectorWeight: searchOptions.vectorWeight,
-                textWeight: searchOptions.textWeight,
-                threshold: searchOptions.threshold
-            });
-            searchResults = searchResponse.results || [];
-        } catch (searchError) {
-            console.error('[QA Public] Vector search error:', searchError);
-        }
-
-        // Prepare context and sources (same logic as authenticated endpoint)
-        let context = '';
-        let sources = [];
-
-        if (searchResults.length > 0) {
-            context = searchResults.map((result, index) => {
-                const title = result.title || result.document_title;
-                const content = result.relevant_content || result.chunk_text;
-                
-                sources.push({
-                    document_id: result.document_id,
-                    document_title: title,
-                    chunk_text: content,
-                    similarity_score: result.similarity_score,
-                    page_number: result.chunk_index || 1,
-                    filename: result.filename
-                });
-                return `[Quelle ${index + 1}]: ${content}`;
-            }).join('\n\n');
-        } else {
-            qaDocs.forEach((row, index) => {
-                if (row.ocr_text) {
-                    const truncatedText = row.ocr_text.substring(0, 2000);
-                    context += `[Dokument ${index + 1} - ${row.title}]:\n${truncatedText}\n\n`;
-                    sources.push({
-                        document_id: row.id,
-                        document_title: row.title,
-                        chunk_text: truncatedText,
-                        similarity_score: 0.8,
-                        page_number: 1
-                    });
-                }
-            });
-        }
-
-        if (!context.trim()) {
-            return res.status(400).json({ error: 'No content available in the documents for analysis' });
-        }
-
-        // Use tool-use approach for enhanced citation support (public version)
-        const result = await handleQAQuestionWithTools(trimmedQuestion, collection, null, req.app.locals.aiWorkerPool, mode, searchOptions);
+        const recallLimit = documentIds.length <= 5 ? 40 : 60;
+        const result = await runQaGraph({
+            question: trimmedQuestion,
+            collection,
+            aiWorkerPool: req.app.locals.aiWorkerPool,
+            searchCollection: 'documents',
+            userId: collection.user_id,
+            documentIds,
+            recallLimit
+        });
         
         if (!result.success) {
             return res.status(500).json({ error: result.error || 'Failed to process question' });
