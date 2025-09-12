@@ -888,7 +888,7 @@ async function processWithMistral(requestId, data) {
   // Mistral configuration
   const model = options.model || 'mistral-medium-latest';
   
-  // Type-specific temperature for better instruction following
+  // Type-specific temperature for better instruction following (can be overridden by options.temperature)
   const mistralTemperatures = {
     'social': 0.3,      // Social media needs some creativity but must follow format
     'presse': 0.3,      // Press releases need precision
@@ -896,7 +896,9 @@ async function processWithMistral(requestId, data) {
     'generator_config': 0.1, // Strongly bias toward strict JSON format
     'default': 0.35
   };
-  const temperature = mistralTemperatures[type] || mistralTemperatures.default;
+  const temperature = (typeof options.temperature === 'number')
+    ? options.temperature
+    : (mistralTemperatures[type] || mistralTemperatures.default);
   
   if (!mistralClient) {
     throw new Error('Mistral client not available. Check MISTRAL_API_KEY environment variable.');
@@ -947,35 +949,44 @@ async function processWithMistral(requestId, data) {
           .join('\n');
         
         if (toolCalls.length > 0) {
-          // Assistant message with tool calls
+          // Assistant message with tool calls (provide both snake_case and camelCase for SDK compatibility)
           const assistantMessage = {
             role: 'assistant',
-            content: textContent || '',
+            // Some SDKs reject explicit empty string; omit if empty
+            ...(textContent && textContent.trim().length > 0 ? { content: textContent } : {}),
+            tool_calls: toolCalls,
             toolCalls: toolCalls
           };
           console.log(`[AI Worker DEBUG] Adding assistant message with tool_calls:`, JSON.stringify(assistantMessage, null, 2));
           mistralMessages.push(assistantMessage);
-        } else {
-          // Regular assistant message
+        } else if (textContent && textContent.trim().length > 0) {
+          // Regular assistant message with non-empty content
           mistralMessages.push({
             role: 'assistant',
-            content: textContent || ''
+            content: textContent
           });
+        } else {
+          // Skip adding an empty assistant message (Mistral rejects empty assistant turns)
+          console.log('[AI Worker DEBUG] Skipping empty assistant message with no tool_calls');
         }
       } else if (msg.role === 'user' && Array.isArray(msg.content)) {
         // Handle tool results
         const toolResults = msg.content.filter(c => c.type === 'tool_result');
         if (toolResults.length > 0) {
-          // Format tool results as plain text
-          const resultsText = toolResults
-            .map(tr => tr.content)
-            .join('\n');
-          
-          mistralMessages.push({
-            role: 'tool',
-            content: resultsText,
-            toolCallId: toolResults[0].tool_use_id
-          });
+          // IMPORTANT: Mistral requires one tool response per tool_call with matching tool_call_id
+          // Do NOT merge multiple tool results into a single tool message.
+          for (const tr of toolResults) {
+            // Ensure content is a string (backend already stringifies JSON payloads)
+            const contentStr = typeof tr.content === 'string' ? tr.content : JSON.stringify(tr.content);
+            const toolCallId = tr.tool_use_id || tr.tool_call_id || tr.toolCallId || tr.id;
+            mistralMessages.push({
+              role: 'tool',
+              content: contentStr,
+              // Provide both snake_case and camelCase
+              tool_call_id: toolCallId,
+              toolCallId: toolCallId
+            });
+          }
         } else {
           // Regular user message with structured content - need async processing for PDFs
           const contentPromises = msg.content.map(async c => {
@@ -1068,8 +1079,8 @@ async function processWithMistral(requestId, data) {
     model: model,
     messages: mistralMessages,
     max_tokens: options.max_tokens || 4096,
-    temperature: temperature, // Use the type-specific temperature calculated above
-    top_p: options.top_p || 0.85  // Use options top_p if provided, otherwise 0.85 for better instruction following
+    temperature: temperature, // use override or type-specific default
+    top_p: (typeof options.top_p === 'number' ? options.top_p : 0.85)  // allow override
     // Note: safe_prompt removed - not supported by Mistral API
   };
   

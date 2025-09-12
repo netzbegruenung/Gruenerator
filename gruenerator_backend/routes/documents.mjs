@@ -488,12 +488,21 @@ router.get('/user', ensureAuthenticated, async (req, res) => {
     // Use PostgreSQL + Qdrant exclusively (no more Supabase fallback)
     const documents = await postgresDocumentService.getDocumentsBySourceType(req.user.id, null);
 
-    // Enrich with content_preview from metadata for consistent frontend access
+    // Enrich with all content fields for frontend access
     const enrichedDocs = documents.map((doc) => {
       let meta = {};
       try { meta = doc.metadata ? JSON.parse(doc.metadata) : {}; } catch (e) { meta = {}; }
+      
+      // Generate content_preview if not in metadata
       const preview = meta.content_preview || (meta.full_text ? generateContentPreview(meta.full_text) : null);
-      return preview ? { ...doc, content_preview: preview } : doc;
+      
+      // Include all content fields for optimal preview rendering
+      return {
+        ...doc,
+        content_preview: preview,
+        // Ensure markdown_content, ocr_text, and full_content are available for preview
+        full_content: meta.full_text || doc.full_content || null,
+      };
     });
     
     // Sort documents by created_at

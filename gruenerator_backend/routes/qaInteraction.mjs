@@ -11,6 +11,7 @@ import {
   PROVIDE_REFERENCES_TOOL,
   processAIResponseWithCitations 
 } from '../utils/promptUtils.js';
+import { runQaGraph } from '../agents/langgraph/qaGraph.mjs';
 import { queryIntentService } from '../services/QueryIntentService.js';
 
 const router = express.Router();
@@ -35,7 +36,7 @@ router.post('/:id/ask', requireAuth, async (req, res) => {
     try {
         const userId = req.user.id;
         const collectionId = req.params.id;
-        const { question, mode = 'dossier', vectorWeight, textWeight, threshold } = req.body;
+        const { question, mode = 'dossier', vectorWeight, textWeight, threshold, search_user_id } = req.body;
 
         // Validate input
         if (!question || !question.trim()) {
@@ -47,13 +48,6 @@ router.post('/:id/ask', requireAuth, async (req, res) => {
         // Verify user has access to the collection (Qdrant)
         let collection = await qaHelper.getQACollection(collectionId);
         
-        // Auto-create system Grundsatz collection if it doesn't exist
-        if (!collection && collectionId === 'grundsatz-system') {
-            console.log('[QA Interaction] System Grundsatz collection not found, creating it...');
-            await qaHelper.ensureSystemGrundsatzCollection();
-            // Try to get the collection again
-            collection = await qaHelper.getQACollection(collectionId);
-        }
         
         if (!collection) {
             return res.status(404).json({ error: 'Q&A collection not found' });
@@ -64,10 +58,6 @@ router.post('/:id/ask', requireAuth, async (req, res) => {
             return res.status(404).json({ error: 'Q&A collection access denied' });
         }
 
-        // For system collections, log access
-        if (collection.user_id === 'SYSTEM') {
-            console.log(`[QA Interaction] Accessing system collection "${collection.name}" for user ${userId}`);
-        }
 
         // Load documents for this collection
         const qaDocAssociations = await qaHelper.getCollectionDocuments(collectionId);
@@ -108,72 +98,15 @@ router.post('/:id/ask', requireAuth, async (req, res) => {
             ? collection.settings.min_quality
             : undefined;
 
-        // Perform vector/text (hybrid) search across the collection's documents
-        let searchResults = [];
-        try {
-            const searchResponse = await documentSearchService.search({
-                query: trimmedQuestion,
-                user_id: userId,
-                documentIds,
-                limit: 10,
-                mode: 'hybrid',
-                vectorWeight: searchOptions.vectorWeight,
-                textWeight: searchOptions.textWeight,
-                threshold: searchOptions.threshold,
-                qualityMin: minQuality
-            });
-            searchResults = searchResponse.results || [];
-        } catch (searchError) {
-            console.error('[QA Interaction] Vector search error:', searchError);
-            // Continue without search results if vector search fails
-        }
-
-        // Prepare context from search results and documents
-        let context = '';
-        let sources = [];
-
-        if (searchResults.length > 0) {
-            // Use vector search results
-            context = searchResults.map((result, index) => {
-                const title = result.title || result.document_title;
-                const content = result.relevant_content || result.chunk_text;
-                
-                const top = result.top_chunks?.[0] || {};
-                sources.push({
-                    document_id: result.document_id,
-                    document_title: title,
-                    chunk_text: content,
-                    similarity_score: result.similarity_score,
-                    quality_avg: result.quality_avg ?? null,
-                    page_number: (top.page_number ?? result.chunk_index) || 1,
-                    content_type: top.content_type ?? null,
-                    filename: result.filename
-                });
-                return `[Quelle ${index + 1}]: ${content}`;
-            }).join('\n\n');
+        // If grundsatz system collection: use deterministic graph-based agent
+        const isGrundsatzSystem = (collection.id === 'grundsatz-system') || ((collection.user_id === 'SYSTEM') && (collection.settings?.system_collection === true));
+        let result;
+        if (isGrundsatzSystem) {
+            result = await runQaGraph({ question: trimmedQuestion, collection, aiWorkerPool: req.app.locals.aiWorkerPool });
         } else {
-            // Fallback to using full document text (first few paragraphs)
-            qaDocs.forEach((row, index) => {
-                if (row.ocr_text) {
-                    const truncatedText = row.ocr_text.substring(0, 2000);
-                    context += `[Dokument ${index + 1} - ${row.title}]:\n${truncatedText}\n\n`;
-                    sources.push({
-                        document_id: row.id,
-                        document_title: row.title,
-                        chunk_text: truncatedText,
-                        similarity_score: 0.8, // Default score for fallback
-                        page_number: 1
-                    });
-                }
-            });
+            // For other collections, keep existing tool-use flow
+            result = await handleQAQuestionWithTools(trimmedQuestion, collection, userId, req.app.locals.aiWorkerPool, mode, searchOptions);
         }
-
-        if (!context.trim()) {
-            return res.status(400).json({ error: 'No content available in the documents for analysis' });
-        }
-
-        // Use tool-use approach for enhanced citation support
-        const result = await handleQAQuestionWithTools(trimmedQuestion, collection, userId, req.app.locals.aiWorkerPool, mode, searchOptions);
         
         if (!result.success) {
             return res.status(500).json({ error: result.error || 'Failed to process question' });
@@ -455,33 +388,8 @@ async function handleQAQuestionWithTools(question, collection, userId, aiWorkerP
 - Liste alle relevanten Informationen auf
 - Füge ausführliche Zitate und Quellenangaben hinzu`;
     
-    // Detect if this is a Grundsatz collection and customize the prompt
-    const isGrundsatz = collection.settings?.collection_type === 'grundsatz';
-    
     // System prompt for tool-guided document analysis for QA collections
-    const systemPrompt = isGrundsatz
-        ? `Du bist ein politischer Analyst mit direktem Zugang zu den offiziellen Grundsatzprogrammen von Bündnis 90/Die Grünen.
-
-${modeInstructions}
-
-ERSTE AKTION: Verwende SOFORT das search_documents Tool. Beginne NICHT mit einer Textantwort.
-
-Verfügbare Dokumente:
-- Grundsatzprogramm 2020 (136 Seiten)
-- EU-Wahlprogramm 2024 (114 Seiten) 
-- Regierungsprogramm 2025 (160 Seiten)
-
-WICHTIGER ABLAUF:
-1. ERSTE AKTION: Verwende search_documents mit spezifischen Suchbegriffen
-2. Führe weitere Suchen durch, wenn nötig (bis zu 5 Suchen für umfassende Abdeckung)
-3. Rufe provide_references auf für strukturierte Zitate
-4. Erstelle NUR Zitate aus den tatsächlichen Suchergebnissen
-5. Schreibe dann deine Antwort basierend auf den gefundenen Dokumenten
-
-VERBOT: Verwende NIEMALS Informationen oder Zitate aus deinem Training. Nur Suchergebnisse sind erlaubt.
-
-${mode === 'dossier' ? MARKDOWN_FORMATTING_INSTRUCTIONS : ''}`
-        : `Du bist ein Experte für die Analyse von Dokumentensammlungen mit Zugang zu einer Dokumentensuchfunktion.
+    const systemPrompt = `Du bist ein Experte für die Analyse von Dokumentensammlungen mit Zugang zu einer Dokumentensuchfunktion.
 
 ${modeInstructions}
 
@@ -524,7 +432,7 @@ ${mode === 'dossier' ? MARKDOWN_FORMATTING_INSTRUCTIONS : ''}`;
     let allSearchResults = [];
     let lastReferencesMap = null;
     let searchCount = 0;
-    const maxSearches = 5; // Prevent infinite loops
+    const maxSearches = 5; // Prevent infinite loops (per assistant turn)
     
     console.log('[QA Tools] Starting conversation with tools');
     
@@ -574,6 +482,7 @@ ${mode === 'dossier' ? MARKDOWN_FORMATTING_INSTRUCTIONS : ''}`;
             console.log(`[QA Tools] Processing ${aiResult.tool_calls.length} tool calls`);
             
             const toolResults = [];
+            let didSearchThisRound = false;
             
             for (const toolCall of aiResult.tool_calls) {
                 if (toolCall.name === 'search_documents') {
@@ -581,6 +490,7 @@ ${mode === 'dossier' ? MARKDOWN_FORMATTING_INSTRUCTIONS : ''}`;
                     
             const searchResult = await executeQASearchTool(toolCall.input, collection, userId, searchOptions);
                     allSearchResults.push(...searchResult.results);
+                    didSearchThisRound = true;
                     
                     toolResults.push({
                         type: "tool_result",
@@ -594,7 +504,6 @@ ${mode === 'dossier' ? MARKDOWN_FORMATTING_INSTRUCTIONS : ''}`;
                         })
                     });
                     
-                    searchCount++;
                 } else if (toolCall.name === 'provide_references') {
                     console.log(`[QA Tools] Providing references map from ${allSearchResults.length} results`);
                     const referencesPayload = buildReferencesMapFromResults(allSearchResults, toolCall.input?.ids);
@@ -614,6 +523,10 @@ ${mode === 'dossier' ? MARKDOWN_FORMATTING_INSTRUCTIONS : ''}`;
                     content: toolResults
                 });
             }
+            // Count at most one search round, even if multiple tool calls happened
+            if (didSearchThisRound) {
+                searchCount++;
+            }
             
             // Continue the conversation
             continue;
@@ -630,6 +543,26 @@ ${mode === 'dossier' ? MARKDOWN_FORMATTING_INSTRUCTIONS : ''}`;
     }
     
     // Fallback if conversation didn't complete normally
+    // If no results at all were found, return a graceful no-results answer
+    if (allSearchResults.length === 0) {
+        return {
+            success: true,
+            answer: 'Leider habe ich in den verknüpften Dokumenten keine passenden Stellen zu Ihrer Frage gefunden. Bitte formulieren Sie die Frage anders oder nutzen Sie spezifischere Stichworte.',
+            sources: [],
+            citations: [],
+            searchQuery: question,
+            searchCount: 0,
+            uniqueDocuments: 0,
+            metadata: {
+                provider: 'qa_tools',
+                timestamp: new Date().toISOString(),
+                toolUseEnabled: true,
+                collection_id: collection.id,
+                collection_name: collection.name,
+                token_count: 0
+            }
+        };
+    }
     throw new Error('QA conversation did not complete successfully');
 }
 
@@ -642,31 +575,26 @@ async function executeQASearchTool(toolInput, collection, userId, searchOptions 
         
         console.log(`[QA Tools] Executing search: "${query}" (mode: ${search_mode})`);
         
-        // Determine search parameters based on collection type
-        let documentIds = null;
-        let searchCollection = null;
-        
-        if (collection.settings?.collection_type === 'grundsatz') {
-            // For Grundsatz collections, search the grundsatz_documents collection directly
-            console.log(`[QA Tools] Grundsatz collection detected, searching grundsatz_documents`);
-            searchCollection = collection.settings.search_collection || 'grundsatz_documents';
-        } else {
-            // For regular collections, get document associations
-            const qaDocAssociations = await qaHelper.getCollectionDocuments(collection.id);
-            documentIds = qaDocAssociations.map(qcd => qcd.document_id);
-        }
+        // Get document associations for the collection
+        const qaDocAssociations = await qaHelper.getCollectionDocuments(collection.id);
+        const documentIds = qaDocAssociations.map(qcd => qcd.document_id);
+        const isSystemCollection = (collection.user_id === 'SYSTEM') || (collection.settings?.system_collection === true);
+        // For system collections search across grundsatz_documents without user filter or explicit doc IDs
+        const searchCollection = isSystemCollection ? 'grundsatz_documents' : 'documents';
+        const searchUserId = isSystemCollection ? null : userId;
+        const searchDocumentIds = isSystemCollection ? undefined : documentIds;
         
         const searchResults = await documentSearchService.search({
             query: query,
-            user_id: userId,
-            documentIds: documentIds,
-            searchCollection: searchCollection,
+            user_id: searchUserId,
+            documentIds: searchDocumentIds,
             limit: 5,
             mode: search_mode,
             vectorWeight: typeof searchOptions.vectorWeight === 'number' ? searchOptions.vectorWeight : undefined,
             textWeight: typeof searchOptions.textWeight === 'number' ? searchOptions.textWeight : undefined,
             threshold: typeof searchOptions.threshold === 'number' ? searchOptions.threshold : undefined,
-            qualityMin: collection.settings?.min_quality || undefined
+            qualityMin: collection.settings?.min_quality || undefined,
+            searchCollection
         });
         
         // Format results for Claude
@@ -834,10 +762,12 @@ async function processQAFinalResponseEnhanced(aiResult, allSearchResults, origin
 function buildReferencesMapFromResults(results, idsFilter = undefined) {
     const map = {};
     const list = results || [];
-    let idx = -1;
+    // Use 1-based indexing for NotebookLM-style citations
+    let idx = 0;
     for (const r of list) {
         idx += 1;
         const idStr = String(idx);
+        // If caller provided an ids filter, it is expected to be 1-based as well
         if (Array.isArray(idsFilter) && idsFilter.length > 0 && !idsFilter.includes(idx)) {
             continue;
         }

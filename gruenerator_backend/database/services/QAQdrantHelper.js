@@ -523,8 +523,6 @@ class QAQdrantHelper {
                 selection_mode: 'documents',
                 is_active: true,
                 settings: {
-                    collection_type: 'grundsatz',
-                    search_collection: 'grundsatz_documents',
                     min_quality: 0.25,
                     system_collection: true,
                     allow_public: false
