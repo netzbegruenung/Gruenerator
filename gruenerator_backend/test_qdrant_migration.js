@@ -60,7 +60,7 @@ async function runTest() {
 
     // Step 2: Test document chunking
     console.log('2️⃣  Testing document chunking...');
-    testChunks = smartChunkDocument(TEST_DOCUMENT_TEXT, {
+    testChunks = await smartChunkDocument(TEST_DOCUMENT_TEXT, {
       maxTokens: 400,
       overlapTokens: 50,
       preserveStructure: true

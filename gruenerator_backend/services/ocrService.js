@@ -98,8 +98,9 @@ class OCRService {
       // Step 1: Quick parseability check (for telemetry/fallback decisions)
       const parseCheck = await this.canExtractTextDirectly(pdfPath);
 
-      // Prefer Mistral OCR for markdown output when limits allow
-      const canUseMistral = await this.#canUseMistralOCR(pdfPath);
+      const forceMistral = process.env.OCR_FORCE_MISTRAL === 'true';
+      // Prefer Mistral OCR for markdown output; allow forcing via env var
+      const canUseMistral = forceMistral ? true : await this.#canUseMistralOCR(pdfPath);
       if (canUseMistral) {
         try {
           console.log(`[OCRService] Using Mistral OCR (preferred for markdown)`);
@@ -509,7 +510,7 @@ class OCRService {
       console.log(`[OCRService] Generating embeddings for document ${documentId}`);
 
       // Smart chunk the text
-      const chunks = smartChunkDocument(text, {
+      const chunks = await smartChunkDocument(text, {
         maxTokens: 512,
         overlapTokens: 50,
         preserveSentences: true,

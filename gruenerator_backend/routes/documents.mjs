@@ -150,7 +150,7 @@ router.post('/upload-manual', ensureAuthenticated, upload.single('document'), as
     }
 
     // Chunk the extracted text
-    const chunks = smartChunkDocument(extractedText, {
+    const chunks = await smartChunkDocument(extractedText, {
       maxTokens: 400,
       overlapTokens: 50,
       preserveStructure: true
@@ -237,7 +237,7 @@ router.post('/add-text', ensureAuthenticated, async (req, res) => {
     console.log(`[Documents /add-text] Processing manual text: ${title} (${content.length} chars)`);
 
     // Chunk the text content
-    const chunks = smartChunkDocument(content.trim(), {
+    const chunks = await smartChunkDocument(content.trim(), {
       maxTokens: 400,
       overlapTokens: 50,
       preserveStructure: true
@@ -488,12 +488,21 @@ router.get('/user', ensureAuthenticated, async (req, res) => {
     // Use PostgreSQL + Qdrant exclusively (no more Supabase fallback)
     const documents = await postgresDocumentService.getDocumentsBySourceType(req.user.id, null);
 
-    // Enrich with content_preview from metadata for consistent frontend access
+    // Enrich with all content fields for frontend access
     const enrichedDocs = documents.map((doc) => {
       let meta = {};
       try { meta = doc.metadata ? JSON.parse(doc.metadata) : {}; } catch (e) { meta = {}; }
+      
+      // Generate content_preview if not in metadata
       const preview = meta.content_preview || (meta.full_text ? generateContentPreview(meta.full_text) : null);
-      return preview ? { ...doc, content_preview: preview } : doc;
+      
+      // Include all content fields for optimal preview rendering
+      return {
+        ...doc,
+        content_preview: preview,
+        // Ensure markdown_content, ocr_text, and full_content are available for preview
+        full_content: meta.full_text || doc.full_content || null,
+      };
     });
     
     // Sort documents by created_at
@@ -1236,7 +1245,7 @@ const qdrantDocumentService = documentSearchService; // Backward compatibility
     }
 
     // Chunk the content
-    const chunks = smartChunkDocument(crawlResult.content, {
+    const chunks = await smartChunkDocument(crawlResult.content, {
       maxTokens: 400,
       overlapTokens: 50,
       preserveStructure: true
