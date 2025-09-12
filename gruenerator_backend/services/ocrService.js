@@ -1,6 +1,3 @@
-// Tesseract disabled: prefer Mistral OCR for markdown output
-// import Tesseract from 'tesseract.js';
-// Canvas import moved to dynamic import to avoid module loading issues
 import { promises as fs } from 'fs';
 import { createReadStream } from 'fs';
 import path from 'path';
@@ -87,50 +84,34 @@ class OCRService {
   }
 
   /**
-   * Extract text from PDF using the optimal method based on content type
-   * First attempts direct text extraction for parseable PDFs, falls back to OCR if needed
+   * Extract text from PDF using Mistral OCR exclusively
+   * Always uses Mistral OCR for consistent markdown output and better accuracy
    */
   async extractTextFromPDF(pdfPath) {
     const startTime = Date.now();
-    console.log(`[OCRService] Starting PDF text extraction: ${pdfPath}`);
+    console.log(`[OCRService] Starting PDF text extraction with Mistral OCR: ${pdfPath}`);
 
     try {
-      // Step 1: Quick parseability check (for telemetry/fallback decisions)
+      // Optional parseability check for telemetry/logging only
       const parseCheck = await this.canExtractTextDirectly(pdfPath);
 
-      const forceMistral = process.env.OCR_FORCE_MISTRAL === 'true';
-      // Prefer Mistral OCR for markdown output; allow forcing via env var
-      const canUseMistral = forceMistral ? true : await this.#canUseMistralOCR(pdfPath);
-      if (canUseMistral) {
-        try {
-          console.log(`[OCRService] Using Mistral OCR (preferred for markdown)`);
-          const result = await this.extractTextWithMistralOCR(pdfPath);
-          const totalTime = Date.now() - startTime;
-          return {
-            ...result,
-            extractionMethod: 'mistral-ocr',
-            parseabilityStats: parseCheck.stats,
-            totalProcessingTimeMs: totalTime
-          };
-        } catch (merr) {
-          console.warn('[OCRService] Mistral OCR failed, attempting direct text extraction:', merr.message);
-        }
-      }
-
-      // Fallback: direct text extraction via pdf.js (not markdown-native)
-      console.log(`[OCRService] Using direct text extraction fallback (parseable=${parseCheck.isParseable}, conf=${parseCheck.confidence.toFixed(2)})`);
-      const result = await this.extractTextDirectlyFromPDF(pdfPath);
+      // Always use Mistral OCR - no fallbacks
+      console.log(`[OCRService] Using Mistral OCR (exclusive method)`);
+      const result = await this.extractTextWithMistralOCR(pdfPath);
       const totalTime = Date.now() - startTime;
+      
+      console.log(`[OCRService] Mistral OCR completed successfully in ${totalTime}ms`);
+      
       return {
         ...result,
-        extractionMethod: 'direct',
+        extractionMethod: 'mistral-ocr',
         parseabilityStats: parseCheck.stats,
         totalProcessingTimeMs: totalTime
       };
     } catch (error) {
       const totalTime = Date.now() - startTime;
-      console.error(`[OCRService] PDF extraction failed after ${totalTime}ms:`, error);
-      throw error;
+      console.error(`[OCRService] Mistral OCR extraction failed after ${totalTime}ms:`, error);
+      throw new Error(`Mistral OCR extraction failed: ${error.message}`);
     }
   }
 
@@ -222,12 +203,6 @@ class OCRService {
     };
   }
 
-  /**
-   * Extract text from PDF using OCR pipeline (pdf.js + Tesseract)
-   */
-  async extractTextWithOCR(_pdfPath) {
-    throw new Error('Tesseract OCR is disabled. Prefer Mistral OCR for markdown output.');
-  }
 
   /**
    * Apply basic markdown formatting based on text patterns
@@ -590,23 +565,6 @@ class OCRService {
     }
   }
 
-  async #canUseMistralOCR(filePath) {
-    try {
-      const stat = await fs.stat(filePath);
-      const sizeOk = stat.size <= 50 * 1024 * 1024; // 50MB
-      if (!sizeOk) return false;
-      // Quick page count using pdfjs
-      try {
-        const pdf = await this.openPdfDocument(filePath);
-        return pdf.numPages <= 1000;
-      } catch (e) {
-        // If not a PDF or pdfjs can't open, still allow (images/docx handled by Mistral)
-        return true;
-      }
-    } catch {
-      return false;
-    }
-  }
 
   #getMediaType(ext) {
     const e = (ext || '').toLowerCase();
