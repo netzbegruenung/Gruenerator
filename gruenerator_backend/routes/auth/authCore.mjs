@@ -113,6 +113,7 @@ router.get('/callback',
   async (req, res, next) => {
     try {
       const intendedRedirect = req.session.redirectTo;
+      console.log('[AuthCallback] Intended redirect from session:', intendedRedirect);
       delete req.session.redirectTo;
       delete req.session.preferredSource;
       delete req.session.isRegistration;
@@ -120,6 +121,7 @@ router.get('/callback',
       // If redirect target is an allowed mobile deep link, issue a short-lived login_code
       if (intendedRedirect && isAllowedMobileRedirect(intendedRedirect)) {
         try {
+          console.log('[AuthCallback] Mobile deep link allowed. Creating login_code...');
           const { SignJWT } = await import('jose');
           const { randomUUID } = await import('crypto');
           const secret = new TextEncoder().encode(
@@ -146,6 +148,7 @@ router.get('/callback',
               console.error('[AuthCallback] Error saving session (mobile deep link):', err);
             }
             const redirectWithCode = appendQueryParam(intendedRedirect, 'code', code);
+            console.log('[AuthCallback] Redirecting to mobile deep link:', redirectWithCode);
             return res.redirect(redirectWithCode);
           });
           return; // Stop further processing
@@ -153,6 +156,11 @@ router.get('/callback',
           console.error('[AuthCallback] Failed to create login_code for mobile redirect:', e);
           // fall through to normal redirect
         }
+      } else if (intendedRedirect) {
+        console.warn('[AuthCallback] Mobile deep link NOT allowed. Check MOBILE_REDIRECT_ALLOWLIST.', {
+          intendedRedirect,
+          allowlist: process.env.MOBILE_REDIRECT_ALLOWLIST || '(empty)'
+        });
       }
 
       const fallback = `${process.env.BASE_URL}/profile`;
@@ -162,6 +170,7 @@ router.get('/callback',
         if (err) {
           console.error('[AuthCallback] Error saving session:', err);
         }
+        console.log('[AuthCallback] Redirecting to web URL:', redirectTo);
         return res.redirect(redirectTo);
       });
       

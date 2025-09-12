@@ -20,7 +20,8 @@ const AskGrundsatzPage = () => {
   const componentName = 'ask-grundsatz';
   const navigate = useNavigate();
   const { user } = useOptimizedAuth();
-  const { submitForm, loading: submitLoading } = useApiSubmit('/qa/grundsatz-system/ask');
+  const collectionId = 'grundsatz-system';
+  const { submitForm, loading: submitLoading } = useApiSubmit(`/auth/qa/${collectionId}/ask`);
   const { setGeneratedText, setGeneratedTextMetadata, getGeneratedTextMetadata, getLinkConfig } = useGeneratedTextStore();
   const [chatMessages, setChatMessages] = useState([]);
   const [inputValue, setInputValue] = useState("");
@@ -52,7 +53,11 @@ const AskGrundsatzPage = () => {
     setInputValue("");
 
     try {
-      const result = await submitForm({ question, mode });
+      const result = await submitForm({ 
+        question, 
+        mode,
+        search_user_id: '00000000-0000-0000-0000-000000000000' // SYSTEM user ID for Grundsatz documents
+      });
       
       if (result && result.answer) {
         // Add assistant response to chat
