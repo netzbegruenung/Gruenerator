@@ -663,26 +663,24 @@ class QdrantOperations {
         const filteredResults = results.filter((result, index) => {
             // Check minimum final score
             if (result.score < this.hybridConfig.minFinalScore) {
-                console.log(`   Filtered out #${index + 1}: score ${result.score.toFixed(6)} < minFinal ${this.hybridConfig.minFinalScore}`);
+                if ((this.logging?.level) === 'debug') console.log(`   Filtered out #${index + 1}: score ${result.score.toFixed(6)} < minFinal ${this.hybridConfig.minFinalScore}`);
                 return false;
             }
 
             // Apply stricter threshold for vector-only results
             if (result.searchMethod === 'vector' && !hasTextMatches) {
                 if (result.score < this.hybridConfig.minVectorOnlyFinalScore) {
-                    console.log(`   Filtered out #${index + 1}: vector-only score ${result.score.toFixed(6)} < minVectorOnly ${this.hybridConfig.minVectorOnlyFinalScore}`);
+                    if ((this.logging?.level) === 'debug') console.log(`   Filtered out #${index + 1}: vector-only score ${result.score.toFixed(6)} < minVectorOnly ${this.hybridConfig.minVectorOnlyFinalScore}`);
                     return false;
                 }
             }
 
-            console.log(`   Kept #${index + 1}: ${result.searchMethod} method, score ${result.score.toFixed(6)} (doc: ${result.payload?.document_id})`);
+            if ((this.logging?.level) === 'debug') console.log(`   Kept #${index + 1}: ${result.searchMethod} method, score ${result.score.toFixed(6)} (doc: ${result.payload?.document_id})`);
             return true;
         });
 
         const removedCount = results.length - filteredResults.length;
-        if (removedCount > 0) {
-            console.log(`[QdrantOperations] Quality gate: removed ${removedCount} low-quality results`);
-        }
+        console.log(`[QdrantOperations] Quality gate: kept ${filteredResults.length}/${results.length}${removedCount > 0 ? `, removed ${removedCount}` : ''}`);
 
         return filteredResults;
     }

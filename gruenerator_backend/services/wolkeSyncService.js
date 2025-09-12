@@ -240,7 +240,7 @@ class WolkeSyncService {
             console.log(`[WolkeSyncService] Extracted ${extractedText.length} characters from ${file.name}`);
             
             // Chunk the text
-            const chunks = smartChunkDocument(extractedText, {
+            const chunks = await smartChunkDocument(extractedText, {
                 maxTokens: 400,
                 overlapTokens: 50,
                 preserveStructure: true

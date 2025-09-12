@@ -400,7 +400,7 @@ async function generateBundestagDocumentEmbeddings(documentId, content) {
 
     // Split document into chunks
     const { smartChunkDocument } = await import('../utils/textChunker.js');
-    const chunks = smartChunkDocument(content, {
+    const chunks = await smartChunkDocument(content, {
       maxTokens: 400,
       overlapTokens: 50,
       preserveStructure: true

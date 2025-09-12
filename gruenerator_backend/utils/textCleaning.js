@@ -28,6 +28,10 @@ function cleanTextForEmbedding(text) {
   out = out.replace(/\u00AD/g, '');
   // Dehyphenate across line breaks: join word-\nword into wordword
   out = out.replace(/([A-Za-zÄÖÜäöüß])\-\s*\n\s*([A-Za-zÄÖÜäöüß])/g, '$1$2');
+  // Join split words caused by OCR spacing inside a word: e.g., "No  vember" -> "November"
+  out = out.replace(/([a-zäöüß])\s{2,}([a-zäöüß])/g, '$1$2');
+  // Collapse multiple spaces to single
+  out = out.replace(/\s{2,}/g, ' ');
   // Also handle common unicode letters (conservative, keep ASCII + German umlauts)
   out = removeMarkdownImages(out);
   out = collapseBlankLines(out);

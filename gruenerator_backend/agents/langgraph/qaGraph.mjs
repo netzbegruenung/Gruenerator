@@ -1,7 +1,12 @@
 // Deterministic QA agent (planner -> search -> references -> draft -> validate -> (repair) -> done)
 // No external graph deps; orchestrated step-by-step to avoid env/dependency changes.
 
-import { buildPlannerPrompt, buildDraftPrompt } from './prompts.mjs';
+import { 
+  buildPlannerPromptGrundsatz, 
+  buildPlannerPromptGeneral, 
+  buildDraftPromptGrundsatz, 
+  buildDraftPromptGeneral 
+} from './prompts.mjs';
 import { DocumentSearchService } from '../../services/DocumentSearchService.js';
 
 const documentSearchService = new DocumentSearchService();
@@ -174,8 +179,8 @@ function validateAndInjectCitations(draft, refMap) {
   return { cleanDraft: content, citations, sources, errors };
 }
 
-async function plannerNode(question, aiWorkerPool) {
-  const { system } = buildPlannerPrompt();
+async function plannerNode(question, aiWorkerPool, isGrundsatz) {
+  const { system } = isGrundsatz ? buildPlannerPromptGrundsatz() : buildPlannerPromptGeneral();
   const res = await aiWorkerPool.processRequest({
     type: 'qa_planner',
     messages: [{ role: 'user', content: `Question: ${question}\nRespond with JSON: {"subqueries":["..."]}` }],
@@ -232,8 +237,10 @@ async function searchNode(subqueries, collection, searchOptions = {}) {
   return dedupeAndDiversify(deduped, { limitPerDoc: 4, maxTotal: 12 });
 }
 
-async function draftNode(question, referencesMap, collection, aiWorkerPool) {
-  const { system } = buildDraftPrompt(collection?.name || 'Grüne Grundsatzprogramme');
+async function draftNode(question, referencesMap, collection, aiWorkerPool, isGrundsatz) {
+  const { system } = isGrundsatz 
+    ? buildDraftPromptGrundsatz(collection?.name || 'Grüne Grundsatzprogramme')
+    : buildDraftPromptGeneral(collection?.name || 'Ihre Sammlung');
   const refsSummary = summarizeReferencesForPrompt(referencesMap);
   const user = [
     `Question: ${question}`,
@@ -273,16 +280,48 @@ async function repairNode(badDraft, referencesMap, aiWorkerPool) {
   return text || badDraft;
 }
 
-export async function runQaGraph({ question, collection, aiWorkerPool }) {
+export async function runQaGraph({ question, collection, aiWorkerPool, searchCollection = null, userId = null, documentIds = undefined, recallLimit = 60 }) {
   // 1) plan subqueries
-  const subqueries = await plannerNode(question, aiWorkerPool);
+  const isGrundsatz = (collection?.id === 'grundsatz-system') || ((collection?.user_id === 'SYSTEM') && (collection?.settings?.system_collection === true));
+  const subqueries = await plannerNode(question, aiWorkerPool, isGrundsatz);
 
   // 2) search (recall -> diversify)
-  const searchResults = await searchNode(subqueries, collection, {});
+  const searchResults = await (async () => {
+    // Allow route to override scoping explicitly; fallback to collection-based inference
+    if (searchCollection) {
+      const all = [];
+      for (const q of subqueries) {
+        const resp = await documentSearchService.search({
+          query: q,
+          user_id: userId,
+          documentIds,
+          limit: 50,
+          mode: 'hybrid',
+          searchCollection,
+          recallLimit,
+          qualityMin: collection.settings?.min_quality || undefined
+        });
+        const list = (resp.results || []).map(normalizeSearchResult);
+        all.push(...list);
+      }
+      // Deduplicate per doc:chunk
+      const keySet = new Set();
+      const deduped = [];
+      for (const r of all) {
+        const key = `${r.document_id}:${r.chunk_index}`;
+        if (keySet.has(key)) continue;
+        keySet.add(key);
+        deduped.push(r);
+      }
+      return dedupeAndDiversify(deduped, { limitPerDoc: 4, maxTotal: 12 });
+    }
+    // Fallback: infer from collection
+    return await searchNode(subqueries, collection, {});
+  })();
   if (!searchResults || searchResults.length === 0) {
     return {
       success: true,
-      answer: 'Leider konnte ich in den Grundsatzprogrammen keine passenden Stellen zu Ihrer Frage finden. Bitte formulieren Sie die Frage anders oder nutzen Sie spezifischere Stichworte.',
+      answer: `Leider konnte ich in der Sammlung "${collection?.name || 'Ihre Dokumente'}" keine passenden Stellen zu Ihrer Frage finden. Bitte formulieren Sie die Frage anders oder nutzen Sie spezifischere Stichworte.`,
       citations: [],
       sources: [],
       metadata: { provider: 'qa_graph', timestamp: new Date().toISOString(), uniqueDocuments: 0 }
@@ -293,7 +332,7 @@ export async function runQaGraph({ question, collection, aiWorkerPool }) {
   const referencesMap = buildReferencesMap(searchResults);
 
   // 4) draft
-  let draft = await draftNode(question, referencesMap, collection, aiWorkerPool);
+  let draft = await draftNode(question, referencesMap, collection, aiWorkerPool, isGrundsatz);
 
   // 5) validate & inject markers
   let { cleanDraft, citations, sources, errors } = validateAndInjectCitations(draft, referencesMap);

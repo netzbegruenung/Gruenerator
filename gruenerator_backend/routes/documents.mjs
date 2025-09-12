@@ -150,7 +150,7 @@ router.post('/upload-manual', ensureAuthenticated, upload.single('document'), as
     }
 
     // Chunk the extracted text
-    const chunks = smartChunkDocument(extractedText, {
+    const chunks = await smartChunkDocument(extractedText, {
       maxTokens: 400,
       overlapTokens: 50,
       preserveStructure: true
@@ -237,7 +237,7 @@ router.post('/add-text', ensureAuthenticated, async (req, res) => {
     console.log(`[Documents /add-text] Processing manual text: ${title} (${content.length} chars)`);
 
     // Chunk the text content
-    const chunks = smartChunkDocument(content.trim(), {
+    const chunks = await smartChunkDocument(content.trim(), {
       maxTokens: 400,
       overlapTokens: 50,
       preserveStructure: true
@@ -1245,7 +1245,7 @@ const qdrantDocumentService = documentSearchService; // Backward compatibility
     }
 
     // Chunk the content
-    const chunks = smartChunkDocument(crawlResult.content, {
+    const chunks = await smartChunkDocument(crawlResult.content, {
       maxTokens: 400,
       overlapTokens: 50,
       preserveStructure: true
