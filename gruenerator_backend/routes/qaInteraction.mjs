@@ -38,42 +38,55 @@ router.post('/:id/ask', requireAuth, async (req, res) => {
 
         const trimmedQuestion = question.trim();
 
-        // Verify user has access to the collection (Qdrant)
-        let collection = await qaHelper.getQACollection(collectionId);
+        // Check if this is a grundsatz system collection first
+        const isGrundsatzSystem = (collectionId === 'grundsatz-system');
+        let collection;
         
-        
-        if (!collection) {
-            return res.status(404).json({ error: 'Q&A collection not found' });
-        }
-
-        // Check access permissions: either user owns the collection or it's a system collection
-        if (collection.user_id !== userId && collection.user_id !== 'SYSTEM') {
-            return res.status(404).json({ error: 'Q&A collection access denied' });
-        }
-
-
-        // Load documents for this collection
-        const qaDocAssociations = await qaHelper.getCollectionDocuments(collectionId);
-        const documentIds = qaDocAssociations.map(qcd => qcd.document_id);
-        
-        let qaDocs = [];
-        if (documentIds.length > 0) {
-            qaDocs = await postgres.query(
-                `SELECT id, title, ocr_text, filename
-                 FROM documents
-                 WHERE id = ANY($1)`,
-                [documentIds]
-            );
+        if (isGrundsatzSystem) {
+            // Hardcoded grundsatz collection info - no PostgreSQL needed
+            collection = {
+                id: 'grundsatz-system',
+                user_id: 'SYSTEM',
+                name: 'Grüne Grundsatzprogramme',
+                description: 'Offizielle Grundsatzprogramme und politische Dokumente der Grünen',
+                settings: { system_collection: true, min_quality: 0.3 }
+            };
             
-            // Add document_id for compatibility
-            qaDocs = qaDocs.map(doc => ({ ...doc, document_id: doc.id }));
-        }
+            console.log('[QA Interaction] Using hardcoded grundsatz system collection');
+        } else {
+            // Verify user has access to the collection (Qdrant)
+            collection = await qaHelper.getQACollection(collectionId);
+            
+            if (!collection) {
+                return res.status(404).json({ error: 'Q&A collection not found' });
+            }
 
-        if (qaDocs.length === 0) {
-            return res.status(400).json({ error: 'No documents found in this Q&A collection' });
-        }
+            // Check access permissions: either user owns the collection or it's a system collection
+            if (collection.user_id !== userId && collection.user_id !== 'SYSTEM') {
+                return res.status(404).json({ error: 'Q&A collection access denied' });
+            }
 
-        // Legacy search options removed; graph handles retrieval parameters internally
+            // Load documents for this collection (only for regular collections)
+            const qaDocAssociations = await qaHelper.getCollectionDocuments(collectionId);
+            const documentIds = qaDocAssociations.map(qcd => qcd.document_id);
+            
+            let qaDocs = [];
+            if (documentIds.length > 0) {
+                qaDocs = await postgres.query(
+                    `SELECT id, title, ocr_text, filename
+                     FROM documents
+                     WHERE id = ANY($1)`,
+                    [documentIds]
+                );
+                
+                // Add document_id for compatibility
+                qaDocs = qaDocs.map(doc => ({ ...doc, document_id: doc.id }));
+            }
+
+            if (qaDocs.length === 0) {
+                return res.status(400).json({ error: 'No documents found in this Q&A collection' });
+            }
+        }
 
         // Detect query intent (German/English patterns) for logging and potential routing
         const intent = queryIntentService.detectIntent(trimmedQuestion);
@@ -81,10 +94,6 @@ router.post('/:id/ask', requireAuth, async (req, res) => {
             console.log(`[QA Interaction] Detected intent: ${intent.type} (lang=${intent.language}, conf=${intent.confidence})`);
         }
 
-        // (Optional) Compute collection-level quality threshold if needed in future
-
-        // If grundsatz system collection: use deterministic graph-based agent
-        const isGrundsatzSystem = (collection.id === 'grundsatz-system') || ((collection.user_id === 'SYSTEM') && (collection.settings?.system_collection === true));
         let result;
         if (isGrundsatzSystem) {
             result = await runQaGraph({ 
