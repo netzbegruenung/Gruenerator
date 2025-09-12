@@ -229,10 +229,8 @@
 }
 
 /* Remove background gradient in dark mode */
-@media (prefers-color-scheme: dark) {
-    .feature-partner-section {
-        background: none;
-    }
+[data-theme="dark"] .feature-partner-section {
+    background: none;
 }
 
 .feature-partner-section::before {
@@ -284,12 +282,6 @@
     flex-wrap: nowrap;
     width: 100%;
     min-height: 400px;
-}
-
-.feature-card:hover {
-    transform: none !important;
-    box-shadow: none !important;
-    background: transparent !important;
 }
 
 .feature-content {
