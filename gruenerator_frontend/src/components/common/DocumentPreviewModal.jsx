@@ -2,16 +2,28 @@ import React, { lazy, Suspense } from 'react';
 import { motion } from 'motion/react';
 import { formatDate } from '../utils/documentOverviewUtils';
 
+// Import markdown styles for consistent rendering
+import '../../assets/styles/pages/AntragDetailPage.css';
+
 const ReactMarkdown = lazy(() => import('react-markdown'));
 
 const DocumentPreviewModal = ({ item, itemType = 'document', documentTypes = {}, onClose }) => {
   if (!item) return null;
 
   const itemTitle = itemType === 'qa' ? item.name : item.title;
-  const previewContent =
-    itemType === 'qa'
-      ? item.description || item.custom_prompt || 'Keine Beschreibung verfügbar'
-      : item.full_content || item.content_preview || item.ocr_text || 'Kein Inhalt verfügbar';
+  
+  // Enhanced content priority for optimal markdown rendering from Mistral OCR
+  const getDocumentContent = () => {
+    if (itemType === 'qa') {
+      return item.description || item.custom_prompt || 'Keine Beschreibung verfügbar';
+    }
+    
+    // Prioritize markdown content from Mistral OCR, then fallback to other content
+    return item.markdown_content || item.full_content || item.content_preview || item.ocr_text || 'Kein Inhalt verfügbar';
+  };
+  
+  const previewContent = getDocumentContent();
+  const isMarkdownContent = !!item.markdown_content;
 
   return (
     <motion.div
@@ -53,14 +65,16 @@ const DocumentPreviewModal = ({ item, itemType = 'document', documentTypes = {},
             )}
           </div>
           <div className="document-preview-text">
-            {item.markdown_content ? (
-              <div className="antrag-text-content">
-                <Suspense fallback={<div>Loading...</div>}>
-                  <ReactMarkdown>{item.markdown_content}</ReactMarkdown>
+            {isMarkdownContent ? (
+              <div className="markdown-content">
+                <Suspense fallback={<div>Loading markdown...</div>}>
+                  <ReactMarkdown>{previewContent}</ReactMarkdown>
                 </Suspense>
               </div>
             ) : (
-              previewContent
+              <div className="plain-text-content" style={{ whiteSpace: 'pre-wrap' }}>
+                {previewContent}
+              </div>
             )}
           </div>
         </div>

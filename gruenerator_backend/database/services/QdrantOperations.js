@@ -194,14 +194,16 @@ class QdrantOperations {
             vectorWeight = 0.7,
             textWeight = 0.3,
             useRRF = true,
-            rrfK = 60
+            rrfK = 60,
+            recallLimit
         } = options;
 
         try {
             console.log(`[QdrantOperations] Hybrid search - vector weight: ${vectorWeight}, text weight: ${textWeight}`);
 
             // Execute text search first (with query normalization) to determine dynamic threshold
-            const textResults = await this.performTextSearch(collection, query, filter, limit);
+            const recallText = Math.max(limit, recallLimit || (limit * 4));
+            const textResults = await this.performTextSearch(collection, query, filter, recallText);
 
             // Apply dynamic threshold adjustment based on text match presence
             const dynamicThreshold = this.hybridConfig.enableDynamicThresholds 
@@ -211,11 +213,12 @@ class QdrantOperations {
             console.log(`[QdrantOperations] Using dynamic threshold: ${dynamicThreshold} (text matches: ${textResults.length})`);
 
             // Execute vector search with dynamic threshold
+            const recallVec = Math.max(limit, Math.round((recallLimit || (limit * 4)) * 1.5));
             const vectorResults = await this.vectorSearch(collection, queryVector, filter, {
-                limit: Math.round(limit * 1.5),
+                limit: recallVec,
                 threshold: dynamicThreshold,
                 withPayload: true,
-                ef: Math.max(100, limit * 2)
+                ef: Math.max(100, recallVec * 2)
             });
 
             console.log(`[QdrantOperations] Vector: ${vectorResults.length} results, Text: ${textResults.length} results`);
@@ -660,26 +663,24 @@ class QdrantOperations {
         const filteredResults = results.filter((result, index) => {
             // Check minimum final score
             if (result.score < this.hybridConfig.minFinalScore) {
-                console.log(`   Filtered out #${index + 1}: score ${result.score.toFixed(6)} < minFinal ${this.hybridConfig.minFinalScore}`);
+                if ((this.logging?.level) === 'debug') console.log(`   Filtered out #${index + 1}: score ${result.score.toFixed(6)} < minFinal ${this.hybridConfig.minFinalScore}`);
                 return false;
             }
 
             // Apply stricter threshold for vector-only results
             if (result.searchMethod === 'vector' && !hasTextMatches) {
                 if (result.score < this.hybridConfig.minVectorOnlyFinalScore) {
-                    console.log(`   Filtered out #${index + 1}: vector-only score ${result.score.toFixed(6)} < minVectorOnly ${this.hybridConfig.minVectorOnlyFinalScore}`);
+                    if ((this.logging?.level) === 'debug') console.log(`   Filtered out #${index + 1}: vector-only score ${result.score.toFixed(6)} < minVectorOnly ${this.hybridConfig.minVectorOnlyFinalScore}`);
                     return false;
                 }
             }
 
-            console.log(`   Kept #${index + 1}: ${result.searchMethod} method, score ${result.score.toFixed(6)} (doc: ${result.payload?.document_id})`);
+            if ((this.logging?.level) === 'debug') console.log(`   Kept #${index + 1}: ${result.searchMethod} method, score ${result.score.toFixed(6)} (doc: ${result.payload?.document_id})`);
             return true;
         });
 
         const removedCount = results.length - filteredResults.length;
-        if (removedCount > 0) {
-            console.log(`[QdrantOperations] Quality gate: removed ${removedCount} low-quality results`);
-        }
+        console.log(`[QdrantOperations] Quality gate: kept ${filteredResults.length}/${results.length}${removedCount > 0 ? `, removed ${removedCount}` : ''}`);
 
         return filteredResults;
     }

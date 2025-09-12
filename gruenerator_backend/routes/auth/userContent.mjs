@@ -664,7 +664,7 @@ router.post('/save-to-library', ensureAuthenticated, async (req, res) => {
             }];
           } else {
             // For longer texts, use smart chunking
-            chunks = smartChunkDocument(textForEmbedding, {
+            chunks = await smartChunkDocument(textForEmbedding, {
               maxTokens: 600,
               overlapTokens: 150,
               preserveStructure: true

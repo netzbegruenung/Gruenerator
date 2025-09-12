@@ -2,24 +2,25 @@
  * LangChainChunker - Wrapper around LangChain's RecursiveCharacterTextSplitter
  * Provides German-optimized splitting and metadata enrichment.
  *
- * Graceful fallback: if langchain is not installed, falls back to
- * a simple paragraph splitter with overlap.
+ * Default behavior uses LangChain; a minimal paragraph fallback is kept
+ * only to avoid hard failures if the dependency is unavailable at runtime.
  */
 
-const { vectorConfig } = require('../config/vectorConfig.js');
-const {
+import { vectorConfig } from '../config/vectorConfig.js';
+import {
   detectContentType,
   detectMarkdownStructure,
   extractPageNumber,
-} = require('../utils/contentTypeDetector.js');
-const { chunkQualityService } = require('./ChunkQualityService.js');
-const { cleanTextForEmbedding } = require('../utils/textCleaning.js');
+} from '../utils/contentTypeDetector.js';
+import { chunkQualityService } from './ChunkQualityService.js';
+import { cleanTextForEmbedding } from '../utils/textCleaning.js';
 
 class LangChainChunker {
   constructor(options = {}) {
     const chunking = vectorConfig.get('chunking');
-    this.chunkSize = options.chunkSize || chunking?.adaptive?.defaultSize || 400;
-    this.chunkOverlap = options.chunkOverlap || chunking?.adaptive?.overlapSize || 100;
+    // Policy documents benefit from ~400 tokens ≈ ~1600 chars and ~100 tokens overlap ≈ ~400 chars
+    this.chunkSize = options.chunkSize || 1600 || chunking?.adaptive?.defaultSize;
+    this.chunkOverlap = options.chunkOverlap || 400 || chunking?.adaptive?.overlapSize;
   }
 
   /**
@@ -27,19 +28,34 @@ class LangChainChunker {
    * @private
    */
   async #getSplitter() {
+    const opts = {
+      chunkSize: this.chunkSize,
+      chunkOverlap: this.chunkOverlap,
+      // Prefer sentence-ish boundaries, then paragraphs/newlines, then spaces
+      separators: ['\n\n', '. ', '? ', '! ', '; ', ': ', '\n', ' ']
+    };
     try {
       const { RecursiveCharacterTextSplitter } = await import('langchain/text_splitter');
-      // fromLanguage supports 'german' for German-optimized separators
-      const splitter = RecursiveCharacterTextSplitter.fromLanguage('german', {
-        chunkSize: this.chunkSize,
-        chunkOverlap: this.chunkOverlap,
-      });
+      const splitter = new RecursiveCharacterTextSplitter(opts);
       return splitter;
-    } catch (err) {
-      if (vectorConfig.isVerboseMode()) {
-        console.warn('[LangChainChunker] LangChain not available; using fallback splitter:', err.message);
+    } catch (err1) {
+      // Try alternate import paths for newer versions
+      try {
+        const { RecursiveCharacterTextSplitter } = await import('@langchain/core/text_splitter');
+        const splitter = new RecursiveCharacterTextSplitter(opts);
+        return splitter;
+      } catch (err2) {
+        try {
+          const { RecursiveCharacterTextSplitter } = await import('@langchain/textsplitters');
+          const splitter = new RecursiveCharacterTextSplitter(opts);
+          return splitter;
+        } catch (err3) {
+          if (vectorConfig.isVerboseMode()) {
+            console.warn('[LangChainChunker] LangChain not available; using fallback splitter:', (err1 && err1.message) || (err2 && err2.message) || (err3 && err3.message));
+          }
+          return null;
+        }
       }
-      return null;
     }
   }
 
@@ -61,7 +77,8 @@ class LangChainChunker {
       rawChunks = this.#fallbackSplit(input);
     }
 
-    const chunks = rawChunks.map((t, i) => ({
+    // Initial chunk objects
+    let chunks = rawChunks.map((t, i) => ({
       text: t.trim(),
       index: i,
       tokens: this.#estimateTokens(t),
@@ -70,6 +87,9 @@ class LangChainChunker {
         ...baseMetadata,
       }
     })).filter(c => c.text.length > 0);
+
+    // Post-process: merge very short chunks to improve context
+    chunks = this.#mergeSmallChunks(chunks, { minChars: 800, maxMergedChars: 2400 });
 
     return this.enrichChunksWithMetadata(chunks);
   }
@@ -84,7 +104,7 @@ class LangChainChunker {
     const enriched = chunks.map(c => {
       const contentType = detectContentType(c.text);
       const md = detectMarkdownStructure(c.text);
-      const pageNumber = extractPageNumber(c.text);
+      const pageNumberDetected = extractPageNumber(c.text);
       const quality = qualityCfg.enabled
         ? chunkQualityService.calculateQualityScore(c.text, { contentType })
         : 1.0;
@@ -100,7 +120,8 @@ class LangChainChunker {
             code_blocks: md.codeBlocks || 0,
             blockquotes: !!md.blockquotes,
           },
-          page_number: pageNumber,
+          // Prefer pre-set page_number (e.g., from page-splitting) over detection
+          page_number: (c.metadata && c.metadata.page_number != null) ? c.metadata.page_number : pageNumberDetected,
           quality_score: Number.isFinite(quality) ? quality : 0,
         }
       };
@@ -146,11 +167,33 @@ class LangChainChunker {
     if (!text) return 0;
     return Math.ceil(text.length / 4);
   }
+
+  #mergeSmallChunks(chunks, { minChars = 800, maxMergedChars = 2400 } = {}) {
+    if (!Array.isArray(chunks) || chunks.length === 0) return chunks;
+    const merged = [];
+    let i = 0;
+    while (i < chunks.length) {
+      let cur = { ...chunks[i] };
+      // Ensure metadata exists
+      cur.metadata = cur.metadata || {};
+      while (cur.text.length < minChars && i + 1 < chunks.length) {
+        const next = chunks[i + 1];
+        // Stop if merging would overshoot too much
+        if ((cur.text.length + 1 + next.text.length) > maxMergedChars) break;
+        // Merge, preferring existing page_number
+        const page = cur.metadata.page_number ?? next.metadata?.page_number ?? null;
+        cur.text = `${cur.text}\n\n${(next.text || '').trim()}`.trim();
+        cur.tokens = this.#estimateTokens(cur.text);
+        cur.metadata = { ...cur.metadata, page_number: page };
+        i += 1;
+      }
+      merged.push(cur);
+      i += 1;
+    }
+    // Reindex
+    return merged.map((c, idx) => ({ ...c, index: idx }));
+  }
 }
 
-const langChainChunker = new LangChainChunker();
-
-module.exports = {
-  LangChainChunker,
-  langChainChunker,
-};
+export const langChainChunker = new LangChainChunker();
+export { LangChainChunker };

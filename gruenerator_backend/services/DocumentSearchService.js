@@ -131,7 +131,11 @@ class DocumentSearchService extends BaseSearchService {
         // Nested shape (from performSimilarity/Hybrid invocations)
         if (params && (params.userId || params.filters || params.options)) {
             const query = InputValidator.validateSearchQuery(params.query);
-            const userId = InputValidator.validateUserId(params.userId);
+            const isGrundsatz = params.filters?.searchCollection === 'grundsatz_documents';
+            // Allow null userId for system grundsatz searches
+            const userId = isGrundsatz && (params.userId === null || params.userId === undefined)
+                ? null
+                : InputValidator.validateUserId(params.userId);
 
             // Extract and validate optional filters
             const documentIds = params.filters?.documentIds
@@ -172,7 +176,59 @@ class DocumentSearchService extends BaseSearchService {
             };
         }
 
-        // Flat shape (direct external calls): delegate to InputValidator
+        // Flat shape (direct external calls)
+        // Special-case: allow null user_id when searching grundsatz_documents
+        if (params && params.searchCollection === 'grundsatz_documents' && (params.user_id === null || params.user_id === undefined)) {
+            const query = InputValidator.validateSearchQuery(params.query);
+            // Optional fields
+            const limit = InputValidator.validateNumber(
+                params.limit || this.defaultLimit,
+                'limit',
+                { min: 1, max: 100 }
+            );
+            const threshold = InputValidator.validateNumber(
+                params.threshold,
+                'threshold',
+                { min: 0, max: 1, allowNull: true }
+            );
+            let documentIds;
+            if (params.documentIds) {
+                documentIds = InputValidator.validateDocumentIds(params.documentIds);
+            }
+            let vectorWeightOpt; let textWeightOpt;
+            try {
+                if (typeof params.vectorWeight === 'number') {
+                    vectorWeightOpt = InputValidator.validateNumber(params.vectorWeight, 'vectorWeight', { min: 0, max: 1 });
+                }
+                if (typeof params.textWeight === 'number') {
+                    textWeightOpt = InputValidator.validateNumber(params.textWeight, 'textWeight', { min: 0, max: 1 });
+                }
+            } catch (e) {
+                // ignore invalid weights and fall back to defaults
+            }
+            return {
+                query,
+                userId: null,
+                filters: {
+                    documentIds,
+                    sourceType: params.sourceType,
+                    group_id: params.group_id,
+                    searchCollection: 'grundsatz_documents'
+                },
+                options: {
+                    limit,
+                    threshold,
+                    mode: params.mode,
+                    useCache: true,
+                    ...(vectorWeightOpt !== undefined ? { vectorWeight: vectorWeightOpt } : {}),
+                    ...(textWeightOpt !== undefined ? { textWeight: textWeightOpt } : {}),
+                    ...(typeof params.qualityMin === 'number' ? { qualityMin: params.qualityMin } : {}),
+                    ...(typeof params.recallLimit === 'number' ? { recallLimit: params.recallLimit } : {})
+                }
+            };
+        }
+
+        // Default flat validation via InputValidator
         const validated = InputValidator.validateSearchParams(params);
         // Optional hybrid weights passthrough for flat shape
         let vectorWeightOpt;
@@ -203,7 +259,8 @@ class DocumentSearchService extends BaseSearchService {
                 useCache: true,
                 ...(vectorWeightOpt !== undefined ? { vectorWeight: vectorWeightOpt } : {}),
                 ...(textWeightOpt !== undefined ? { textWeight: textWeightOpt } : {}),
-                ...(typeof params.qualityMin === 'number' ? { qualityMin: params.qualityMin } : {})
+                ...(typeof params.qualityMin === 'number' ? { qualityMin: params.qualityMin } : {}),
+                ...(typeof params.recallLimit === 'number' ? { recallLimit: params.recallLimit } : {})
             }
         };
     }
