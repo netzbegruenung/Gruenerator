@@ -9,15 +9,13 @@ import { StateGraph, Annotation } from "@langchain/langgraph";
 import { DocumentSearchService } from '../../services/DocumentSearchService.js';
 import searxngService from '../../services/searxngWebSearchService.js';
 
-// Import citation functions from qaGraph
+// Import citation functions
 import {
-  normalizeBracketListsToSingles,
-  stripCodeFences,
-  stripQuellenSection,
-  validateAndInjectCitations,
   normalizeSearchResult,
   dedupeAndDiversify,
-  buildReferencesMap
+  buildReferencesMap,
+  validateAndInjectCitations,
+  summarizeReferencesForPrompt
 } from './qaGraphCitations.mjs';
 
 // State schema for the search graph
@@ -57,6 +55,17 @@ const SearchState = Annotation.Root({
   }),
   categorizedSources: Annotation({
     reducer: (x, y) => ({ ...x, ...y }),
+  }),
+
+  // Citation support
+  referencesMap: Annotation({
+    reducer: (x, y) => y ?? x,
+  }),
+  citations: Annotation({
+    reducer: (x, y) => y ?? x,
+  }),
+  citationSources: Annotation({
+    reducer: (x, y) => y ?? x,
   }),
 
   // Output
@@ -336,17 +345,17 @@ async function aggregatorNode(state) {
 }
 
 /**
- * Summary Node: Generate AI summary for normal mode
+ * Summary Node: Generate AI summary for normal mode with citations
  */
 async function summaryNode(state) {
   if (state.mode !== 'normal' || !state.aggregatedResults?.length) {
     return { summary: null };
   }
 
-  console.log('[WebSearchGraph] Generating AI summary for normal mode');
+  console.log('[WebSearchGraph] Generating AI summary with citations for normal mode');
 
   try {
-    // Prepare content for summarization (use first web search results)
+    // Prepare search results with normalized format
     const firstWebSearch = state.webResults?.[0];
     if (!firstWebSearch?.success || !firstWebSearch.results?.length) {
       return {
@@ -358,26 +367,82 @@ async function summaryNode(state) {
       };
     }
 
-    // Use existing SearXNG summary generation logic
-    const mockSearchResults = {
-      results: firstWebSearch.results,
-      query: state.query
-    };
+    // Normalize and deduplicate search results
+    const normalizedResults = firstWebSearch.results.map(normalizeSearchResult);
+    const deduplicatedResults = dedupeAndDiversify(normalizedResults, {
+      limitPerDoc: 3,
+      maxTotal: 8
+    });
 
-    const summaryResults = await searxngService.generateAISummary(
-      mockSearchResults,
-      state.query,
-      state.aiWorkerPool,
-      state.searchOptions,
-      state.req
+    // Build references map for citations
+    const referencesMap = buildReferencesMap(deduplicatedResults);
+    const refsSummary = summarizeReferencesForPrompt(referencesMap);
+
+    // Enhanced system prompt for summary with citations
+    const systemPrompt = `Du bist ein Recherche-Assistent, der Suchergebnisse analysiert und zusammenfasst.
+
+WICHTIG: Du MUSST bei wichtigen Aussagen Zitationen verwenden. Verwende die Quellenreferenzen [1], [2], [3] usw. um deine Aussagen zu belegen.
+
+Erstelle eine gut strukturierte, informative Zusammenfassung der Suchergebnisse. Die Zusammenfassung sollte:
+- Die wichtigsten Erkenntnisse hervorheben
+- Bei wichtigen Fakten und Aussagen Quellenangaben [1], [2] etc. verwenden
+- Objektiv und ausgewogen sein
+- Verschiedene Perspektiven berücksichtigen
+- In zusammenhängenden Absätzen geschrieben sein
+
+Verwende NUR die folgenden Quellenreferenzen:
+${refsSummary}
+
+WICHTIG: Verwende nur die Referenz-IDs [1], [2], [3] etc. die in der obigen Liste stehen. Verwende KEINE anderen Zahlen.`;
+
+    const userPrompt = `Erstelle eine ausführliche Zusammenfassung zu: "${state.query}"
+
+Analysiere die verfügbaren Quellen und erstelle eine strukturierte Zusammenfassung. Verwende Quellenangaben [1], [2] etc. bei wichtigen Aussagen.
+
+Verfügbare Quellenreferenzen:
+${refsSummary}`;
+
+    const result = await state.aiWorkerPool.processRequest({
+      type: 'web_search_summary',
+      systemPrompt,
+      messages: [{ role: "user", content: userPrompt }],
+      options: {
+        max_tokens: 2000,
+        temperature: 0.7
+      }
+    }, state.req);
+
+    if (!result.success) {
+      throw new Error(result.error);
+    }
+
+    // Process the AI response for citations
+    const { cleanDraft, citations, citationSources, errors } = validateAndInjectCitations(
+      result.content,
+      referencesMap
     );
 
+    // Log citation validation errors if any
+    if (errors && errors.length > 0) {
+      console.warn('[WebSearchGraph] Citation validation errors:', errors);
+    }
+
     return {
-      summary: summaryResults.summary,
+      summary: {
+        text: cleanDraft,
+        generated: true
+      },
+      referencesMap,
+      citations,
+      citationSources,
       metadata: {
-        summaryGenerated: summaryResults.summary?.generated || false
+        summaryGenerated: true,
+        citationsCount: citations?.length || 0,
+        sourcesCount: citationSources?.length || 0,
+        citationErrors: errors?.length || 0
       }
     };
+
   } catch (error) {
     console.error('[WebSearchGraph] Summary generation error:', error);
     return {
@@ -391,21 +456,110 @@ async function summaryNode(state) {
 }
 
 /**
- * Dossier Node: Generate comprehensive research dossier for deep mode
+ * Dossier Node: Generate comprehensive research dossier for deep mode with citations
  */
 async function dossierNode(state) {
   if (state.mode !== 'deep') {
     return { dossier: null };
   }
 
-  console.log('[WebSearchGraph] Generating comprehensive research dossier');
+  console.log('[WebSearchGraph] Generating comprehensive research dossier with citations');
 
   try {
-    // Filter and prepare data for AI processing (similar to deepResearchController)
+    // Combine all sources for citation reference building
+    const allSources = [];
+
+    // Add web search results
+    if (state.aggregatedResults && state.aggregatedResults.length > 0) {
+      const normalizedWebSources = state.aggregatedResults.map(normalizeSearchResult);
+      allSources.push(...normalizedWebSources);
+    }
+
+    // Add Grundsatz document results
+    if (state.grundsatzResults?.success && state.grundsatzResults.results?.length > 0) {
+      const normalizedGrundsatzSources = state.grundsatzResults.results.map(result => ({
+        ...normalizeSearchResult(result),
+        source_type: 'official_document'
+      }));
+      allSources.push(...normalizedGrundsatzSources);
+    }
+
+    if (allSources.length === 0) {
+      return {
+        dossier: 'Keine Quellen für die Deep Research verfügbar.',
+        metadata: { dossierGenerated: false }
+      };
+    }
+
+    // Deduplicate and limit sources for citations
+    const deduplicatedSources = dedupeAndDiversify(allSources, {
+      limitPerDoc: 4,
+      maxTotal: 12
+    });
+
+    // Build references map for citations
+    const referencesMap = buildReferencesMap(deduplicatedSources);
+    const refsSummary = summarizeReferencesForPrompt(referencesMap);
+
+    // Enhanced system prompt with citations
+    const dossierSystemPrompt = `Du bist ein Experte für politische Recherche und erstellst faktische, tiefgreifende Dossiers basierend auf verfügbaren Daten.
+
+WICHTIG ZITATIONEN:
+- Du MUSST bei wichtigen Aussagen, Fakten und Daten Quellenangaben verwenden
+- Verwende [1], [2], [3] etc. um deine Aussagen zu belegen
+- Zitiere besonders bei konkreten Zahlen, Aussagen von Personen, und spezifischen Fakten
+- Die Zitationen machen dein Dossier vertrauenswürdig und nachprüfbar
+
+WICHTIG INHALT:
+- BEANTWORTE DIE NUTZERFRAGE DIREKT: Fokussiere dich primär darauf, die konkrete Frage des Nutzers zu beantworten
+- Verwende FAKTEN aus den Quellen, keine Spekulationen
+- Vermeide oberflächliche Stichpunkt-Listen
+- Schreibe in zusammenhängenden, analytischen Absätzen
+- Zitiere konkrete Daten, Zahlen und Aussagen aus den Quellen
+- Keine Fantasie oder Vermutungen - nur das, was die Quellen hergeben
+
+Struktur des Dossiers:
+1. **Executive Summary** - DIREKTE Beantwortung der Nutzerfrage basierend auf verfügbaren Erkenntnissen (mit Zitationen)
+2. **Position von Bündnis 90/Die Grünen** - Konkrete Aussagen aus Grundsatzprogrammen zur Frage (mit Zitationen)
+3. **Faktenlage nach Themenbereichen** - Detaillierte Analyse der verfügbaren Informationen zur Beantwortung der Frage (mit Zitationen)
+4. **Quellenbasierte Erkenntnisse** - Tiefere Analyse konkreter Daten und Aussagen die zur Antwort beitragen (mit Zitationen)
+
+Verwende NUR die folgenden Quellenreferenzen:
+${refsSummary}
+
+WICHTIG: Verwende nur die Referenz-IDs [1], [2], [3] etc. die in der obigen Liste stehen.
+
+Erstelle eine faktische, tiefgreifende Analyse die die Nutzerfrage beantwortet. Verwende zusammenhängende Absätze mit Quellenangaben.`;
+
+    // Filter and prepare data for AI processing
     const filteredData = filterDataForAI(state.webResults, state.aggregatedResults, state.grundsatzResults);
 
-    const dossierSystemPrompt = buildDossierSystemPrompt();
-    const dossierPrompt = buildDossierPrompt(state.query, filteredData);
+    const dossierPrompt = `Erstelle ein faktisches Recherche-Dossier zur FRAGE: "${state.query}"
+
+WICHTIGE ANWEISUNG: Die Nutzerfrage lautet "${state.query}" - BEANTWORTE DIESE FRAGE DIREKT mit den verfügbaren Daten!
+
+Verwende dabei Quellenangaben [1], [2], [3] etc. bei wichtigen Aussagen.
+
+Verfügbare Quellenreferenzen:
+${refsSummary}
+
+## Verfügbare Forschungsergebnisse:
+${JSON.stringify(filteredData.webResults, null, 2)}
+
+## Verfügbare Quellen mit Inhalten:
+${JSON.stringify(filteredData.sources, null, 2)}
+
+## Verfügbare Grundsatz-Position:
+${JSON.stringify(filteredData.grundsatz, null, 2)}
+
+ANWEISUNG:
+- BEANTWORTE DIE KONKRETE FRAGE: "${state.query}" - das ist das Hauptziel!
+- Analysiere diese Daten gründlich und faktisch um die Frage zu beantworten
+- Schreibe in zusammenhängenden Absätzen, nicht in Listen
+- Zitiere konkrete Aussagen und Daten aus den Quellen die zur Antwort beitragen [1], [2], [3]
+- Entwickle tiefere Erkenntnisse aus den verfügbaren Informationen zur Beantwortung der Frage
+- Verzichte auf Spekulationen oder allgemeine Aussagen ohne Quellenbeleg
+- Fokussiere auf das, was die Quellen zur Beantwortung der Frage tatsächlich aussagen`;
 
     const result = await state.aiWorkerPool.processRequest({
       type: 'text_adjustment',
@@ -421,7 +575,18 @@ async function dossierNode(state) {
       throw new Error(result.error);
     }
 
-    // Add methodology section
+    // Process the AI response for citations
+    const { cleanDraft, citations, citationSources, errors } = validateAndInjectCitations(
+      result.content,
+      referencesMap
+    );
+
+    // Log citation validation errors if any
+    if (errors && errors.length > 0) {
+      console.warn('[WebSearchGraph] Dossier citation validation errors:', errors);
+    }
+
+    // Add methodology section (without citations)
     const methodologySection = buildMethodologySection(
       state.grundsatzResults,
       state.subqueries,
@@ -429,15 +594,21 @@ async function dossierNode(state) {
       state.categorizedSources
     );
 
-    const completeDossier = result.content + methodologySection;
+    const completeDossier = cleanDraft + methodologySection;
 
-    console.log('[WebSearchGraph] Dossier generation completed');
+    console.log('[WebSearchGraph] Dossier generation with citations completed');
 
     return {
       dossier: completeDossier,
+      referencesMap,
+      citations,
+      citationSources,
       metadata: {
         dossierGenerated: true,
-        dossierLength: completeDossier.length
+        dossierLength: completeDossier.length,
+        citationsCount: citations?.length || 0,
+        sourcesCount: citationSources?.length || 0,
+        citationErrors: errors?.length || 0
       }
     };
   } catch (error) {
@@ -781,11 +952,15 @@ export async function runWebSearch({
         query: result.query,
         results: webResults,
         summary: result.summary,
+        // Add citation support for normal mode
+        citations: result.citations || [],
+        citationSources: result.citationSources || [],
         metadata: {
           ...result.metadata,
           searchType: 'normal_web_search',
           duration: Date.now() - result.metadata.startTime,
-          totalResults: webResults.length
+          totalResults: webResults.length,
+          citationsEnabled: !!(result.citations && result.citations.length > 0)
         }
       };
     } else {
@@ -797,11 +972,15 @@ export async function runWebSearch({
         sources: result.aggregatedResults || [],
         categorizedSources: result.categorizedSources || {},
         grundsatzResults: result.grundsatzResults || null,
+        // Add citation support for deep mode
+        citations: result.citations || [],
+        citationSources: result.citationSources || [],
         metadata: {
           ...result.metadata,
           searchType: 'deep_research',
           duration: Date.now() - result.metadata.startTime,
-          hasOfficialPosition: !!(result.grundsatzResults?.success && result.grundsatzResults.results?.length > 0)
+          hasOfficialPosition: !!(result.grundsatzResults?.success && result.grundsatzResults.results?.length > 0),
+          citationsEnabled: !!(result.citations && result.citations.length > 0)
         }
       };
     }

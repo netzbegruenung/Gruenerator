@@ -57,6 +57,10 @@ const useSearch = () => {
   
   // Web search specific state
   const [webResults, setWebResults] = useState(null);
+
+  // Citation support
+  const [citations, setCitations] = useState([]);
+  const [citationSources, setCitationSources] = useState([]);
   
   const { submitForm: submitSearch, loading: searchLoading } = useApiSubmit('search');
   const { submitForm: submitAnalysis, loading: analysisLoading } = useApiSubmit('analyze');
@@ -75,6 +79,9 @@ const useSearch = () => {
     setResearchQuestions([]);
     // Clear web search results
     setWebResults(null);
+    // Clear citations
+    setCitations([]);
+    setCitationSources([]);
   };
 
   const search = useCallback(async (query) => {
@@ -137,9 +144,17 @@ const useSearch = () => {
         setDossier(deepSearchData.dossier);
         setCategorizedSources(deepSearchData.categorizedSources || {});
         setResearchQuestions(deepSearchData.researchQuestions || []);
-        
+
         // Set general sources data for potential use
         setResults(deepSearchData.sources || []);
+
+        // Set citation data if available
+        if (deepSearchData.citations) {
+          setCitations(deepSearchData.citations);
+        }
+        if (deepSearchData.citationSources) {
+          setCitationSources(deepSearchData.citationSources);
+        }
         
         // For deep search, we don't use the standard analysis workflow
         // The dossier serves as the analysis
@@ -171,6 +186,14 @@ const useSearch = () => {
       if (webSearchData.success) {
         console.log('[useSearch] Web search successful:', webSearchData);
         setWebResults(webSearchData);
+
+        // Set citation data if available
+        if (webSearchData.citations) {
+          setCitations(webSearchData.citations);
+        }
+        if (webSearchData.sources) {
+          setCitationSources(webSearchData.sources);
+        }
       } else {
         throw new Error(webSearchData.error || 'Web search failed');
       }
@@ -196,7 +219,10 @@ const useSearch = () => {
     categorizedSources,
     researchQuestions,
     // Web search specific returns
-    webResults
+    webResults,
+    // Citation support
+    citations,
+    citationSources
   };
 };
 
