@@ -1,6 +1,7 @@
 
 
 const { PLATFORM_SPECIFIC_GUIDELINES, HTML_FORMATTING_INSTRUCTIONS, TITLE_GENERATION_INSTRUCTION, isStructuredPrompt, formatUserContent, processResponseWithTitle, WEB_SEARCH_TOOL } = require('./promptUtils');
+const { assemblePromptGraph } = require('../agents/langgraph/promptAssemblyGraph.js');
 
 // Environment-based logging levels
 const LOG_LEVEL = process.env.LOG_LEVEL || 'info'; // debug, info, warn, error
@@ -40,6 +41,7 @@ class UnifiedPromptBuilder {
       webSearchSources: [] // Store sources separately from content
     };
     this.debug = false;
+    this.graphMode = process.env.PROMPT_BUILDER_GRAPH === '1';
     
     // Tool management
     this.tools = [];
@@ -324,6 +326,16 @@ class UnifiedPromptBuilder {
   }
 
   /**
+   * Switch to graph-style prompt assembly
+   * @param {boolean} enabled
+   * @returns {UnifiedPromptBuilder}
+   */
+  useGraphAssembly(enabled = true) {
+    this.graphMode = !!enabled;
+    return this;
+  }
+
+  /**
    * Enable a tool with optional system instructions
    * @param {string} toolName - Name of the tool (must exist in TOOL_REGISTRY)
    * @param {boolean} enabled - Whether to enable the tool
@@ -395,6 +407,27 @@ class UnifiedPromptBuilder {
    * @returns {Object} Prompt object with system message, user messages, and tools
    */
   build() {
+    // Optional graph-style assembly (keeps return shape stable)
+    if (this.graphMode) {
+      const result = assemblePromptGraph({
+        systemRole: this.context.system.role,
+        constraints: this.context.system.constraints,
+        formatting: this.context.system.formatting,
+        documents: this.context.documents,
+        knowledge: this.context.knowledge,
+        instructions: this.context.instructions,
+        request: this.context.request,
+        examples: this.context.examples,
+        tools: this.tools,
+        toolInstructions: Array.from(this.toolInstructions.values()),
+        provider: this.provider
+      });
+      if (this.debug) {
+        this._logDebugInfo(result);
+      }
+      return this._adaptForProvider(result);
+    }
+
     const baseResult = {
       system: this._buildSystemMessage(),
       messages: this._buildUserMessages(),

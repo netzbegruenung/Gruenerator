@@ -4,7 +4,6 @@ import { getPostgresDocumentService } from './postgresDocumentService.js';
 import { NextcloudShareManager } from '../utils/nextcloudShareManager.js';
 import NextcloudApiClient from './nextcloudApiClient.js';
 import { ocrService } from './ocrService.js';
-import { documentTextExtractor } from './documentTextExtractor.js';
 import { fastEmbedService } from './FastEmbedService.js';
 import { smartChunkDocument } from '../utils/textChunker.js';
 import fs from 'fs/promises';
@@ -22,7 +21,7 @@ class WolkeSyncService {
         this.qdrantService = new DocumentSearchService();
         this.documentService = getPostgresDocumentService();
         this.supportedFileTypes = [
-            '.pdf', '.docx', '.doc', '.odt', '.txt', '.md', '.rtf'
+            '.pdf', '.docx', '.pptx', '.png', '.jpg', '.jpeg', '.avif', '.txt', '.md'
         ];
     }
 
@@ -212,8 +211,9 @@ class WolkeSyncService {
             }
             
             // Check if file type is supported
-            if (!documentTextExtractor.isSupported(file.name)) {
-                console.warn(`[WolkeSyncService] Unsupported file type: ${file.name}`);
+            const fileExtension = path.extname(file.name).toLowerCase();
+            if (!this.supportedFileTypes.includes(fileExtension)) {
+                console.warn(`[WolkeSyncService] Unsupported file type: ${file.name} (${fileExtension})`);
                 return { skipped: true, reason: 'unsupported_file_type' };
             }
             
@@ -228,9 +228,33 @@ class WolkeSyncService {
             console.log(`[WolkeSyncService] Downloading file: ${file.name}`);
             const fileData = await client.downloadFile(file.href);
             
-            // Extract text using our unified extractor
+            // Extract text using OCR service (supports documents and images via Mistral OCR)
             console.log(`[WolkeSyncService] Extracting text from: ${file.name}`);
-            const extractedText = await documentTextExtractor.extractTextFromBuffer(fileData.buffer, file.name);
+            let extractedText;
+            
+            const supportedMistralTypes = ['.pdf', '.docx', '.pptx', '.png', '.jpg', '.jpeg', '.avif'];
+            
+            if (supportedMistralTypes.includes(fileExtension)) {
+                // Use Mistral OCR for documents and images
+                const tempDir = os.tmpdir();
+                const tempFileName = `wolke_sync_${Date.now()}_${file.name}`;
+                const tempFilePath = path.join(tempDir, tempFileName);
+                
+                try {
+                    await fs.writeFile(tempFilePath, fileData.buffer);
+                    const ocrResult = await ocrService.extractTextFromDocument(tempFilePath);
+                    extractedText = ocrResult.text;
+                    await fs.unlink(tempFilePath); // Clean up
+                } catch (error) {
+                    try { await fs.unlink(tempFilePath); } catch {}
+                    throw error;
+                }
+            } else if (['.txt', '.md'].includes(fileExtension)) {
+                // Plain text files
+                extractedText = fileData.buffer.toString('utf-8');
+            } else {
+                throw new Error(`Unsupported file type for processing: ${fileExtension}`);
+            }
             
             if (!extractedText || extractedText.trim().length === 0) {
                 console.warn(`[WolkeSyncService] No text extracted from file: ${file.name}`);
