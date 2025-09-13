@@ -107,6 +107,16 @@ router.post('/', async (req, res) => {
       response.summary = searchResults.summary;
     }
 
+    // Add citations if available
+    if (searchResults.citations && searchResults.citations.length > 0) {
+      response.citations = searchResults.citations;
+    }
+
+    // Add citation sources if available
+    if (searchResults.citationSources && searchResults.citationSources.length > 0) {
+      response.sources = searchResults.citationSources;
+    }
+
     res.json(response);
 
   } catch (error) {
@@ -204,6 +214,9 @@ router.post('/deep-research', async (req, res) => {
       sources: searchResults.sources || [],
       categorizedSources: searchResults.categorizedSources || {},
       grundsatzResults: searchResults.grundsatzResults || null,
+      // Add citation support for deep research
+      citations: searchResults.citations || [],
+      citationSources: searchResults.citationSources || [],
       metadata: {
         ...searchResults.metadata,
         totalSources: (searchResults.sources?.length || 0) + (searchResults.grundsatzResults?.results?.length || 0),

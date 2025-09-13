@@ -74,6 +74,8 @@ const routeHandler = withErrorHandler(async (req, res) => {
     
     const builder = new PromptBuilderWithExamples('social', provider)
       .enableDebug(process.env.NODE_ENV === 'development')
+      // Use LangGraph-style prompt assembly (explicitly enabled for testing, no env changes required)
+      .useGraphAssembly(true)
       .configureExamples({
         maxExamples: 1,
         maxCharactersPerExample: 500,
