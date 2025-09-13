@@ -506,6 +506,35 @@ font-weight: 600;
   word-wrap: break-word;
 }
 
+/* Ensure markdown content in preview modal overrides any conflicting styles */
+.document-preview-content .markdown-content {
+  white-space: normal;
+  color: var(--font-color);
+  line-height: 1.7;
+}
+
+.document-preview-content .markdown-content p {
+  margin-bottom: var(--spacing-medium);
+}
+
+.document-preview-content .markdown-content h1,
+.document-preview-content .markdown-content h2,
+.document-preview-content .markdown-content h3,
+.document-preview-content .markdown-content h4,
+.document-preview-content .markdown-content h5,
+.document-preview-content .markdown-content h6 {
+  margin-top: var(--spacing-large);
+  margin-bottom: var(--spacing-small);
+  color: var(--font-color-h);
+  font-weight: bold;
+}
+
+.document-preview-content .markdown-content ul,
+.document-preview-content .markdown-content ol {
+  margin-bottom: var(--spacing-medium);
+  padding-left: var(--spacing-large);
+}
+
 .document-preview-actions {
   padding: var(--spacing-medium);
   border-top: 1px solid var(--border-subtle);

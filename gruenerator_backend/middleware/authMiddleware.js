@@ -7,15 +7,22 @@ const jwtAuthMiddleware = require('./jwtAuthMiddleware');
 
 // Dual authentication middleware - supports both JWT and session auth
 function requireAuth(req, res, next) {
-  // Development environment bypass - always grant authentication
-  if (process.env.NODE_ENV === 'development') {
-    console.log('[AuthMiddleware] Development mode - bypassing authentication');
-    req.user = { 
-      id: 'dev-user-123', 
-      email: 'dev@gruenerator.de',
-      display_name: 'Development User'
-    };
-    return next();
+  // Controlled development authentication bypass
+  if (process.env.NODE_ENV === 'development' && 
+      process.env.ALLOW_DEV_AUTH_BYPASS === 'true' &&
+      process.env.DEV_AUTH_BYPASS_TOKEN) {
+    
+    const bypassToken = req.headers['x-dev-auth-bypass'] || req.query.dev_auth_token;
+    
+    if (bypassToken && bypassToken === process.env.DEV_AUTH_BYPASS_TOKEN) {
+      console.log('[AuthMiddleware] Development auth bypass activated');
+      req.user = { 
+        id: 'dev-user-123', 
+        email: 'dev@gruenerator.de',
+        display_name: 'Development User'
+      };
+      return next();
+    }
   }
 
   // First try JWT authentication
