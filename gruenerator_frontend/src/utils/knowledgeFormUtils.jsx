@@ -483,24 +483,46 @@ export const createKnowledgePrompt = async ({
     });
   }
   
-  const finalPrompt = createPromptWithMemories(
+  // Return structured data for new backend processing
+  // Documents from KnowledgeSelector should be handled separately by vector search
+  const structuredData = {
+    instructions: activeInstruction?.trim() || null,
+    knowledgeContent: [
+      knowledgeContent?.trim() || null,
+      memoryContent?.trim() || null,
+      documentContent?.trim() || null, // API-searched documents
+      additionalContent?.trim() || null
+    ].filter(Boolean).join('\n\n---\n\n') || null,
+    // Note: selectedDocumentContent is excluded here because it will be handled
+    // by vector search in the backend using selectedDocumentIds
+  };
+
+  // For backward compatibility, also create the legacy concatenated version
+  const legacyFinalPrompt = createPromptWithMemories(
     activeInstruction,
     knowledgeContent,
     memoryContent,
     additionalContent,
     documentContent, // API-searched documents
-    selectedDocumentContent // Selected documents from store
+    selectedDocumentContent // Selected documents from store (legacy)
   );
-  
-  console.log('[createKnowledgePrompt] DEBUG: Final prompt created:', {
-    finalPromptLength: finalPrompt?.length || 0,
+
+  console.log('[createKnowledgePrompt] DEBUG: Structured prompt created:', {
+    hasInstructions: !!structuredData.instructions,
+    hasKnowledgeContent: !!structuredData.knowledgeContent,
+    knowledgeContentLength: structuredData.knowledgeContent?.length || 0,
+    legacyPromptLength: legacyFinalPrompt?.length || 0,
     hasMemoryContent: !!memoryContent,
     hasDocumentContent: !!documentContent,
-    hasSelectedDocumentContent: !!selectedDocumentContent,
-    finalPromptPreview: finalPrompt?.substring(0, 300) + '...'
+    hasSelectedDocumentContent: !!selectedDocumentContent
   });
-  
-  return finalPrompt;
+
+  // Return structured data if any components exist, otherwise null
+  if (structuredData.instructions || structuredData.knowledgeContent) {
+    return structuredData;
+  }
+
+  return null;
 };
 
 /**

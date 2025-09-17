@@ -326,7 +326,7 @@
 
 .enhanced-knowledge-select__value-container {
   /* Even more compact vertical padding */
-  padding: var(--form-element-padding-y) var(--form-element-padding-x) !important;
+  padding: var(--form-element-padding-y) var(--form-element-padding-x);
 }
 
 .enhanced-knowledge-select__placeholder {

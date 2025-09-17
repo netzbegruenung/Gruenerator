@@ -14,6 +14,7 @@ import { NextcloudShareManager } from '../../utils/nextcloudShareManager';
 import WolkeSetupModal from '../../features/wolke/components/WolkeSetupModal';
 import { useLocation } from 'react-router-dom';
 import apiClient from '../utils/apiClient';
+import '../../assets/styles/components/actions/exportToDocument.css';
 
 const ExportDropdown = ({ content, title, className = 'action-button', onSaveToLibrary, saveToLibraryLoading }) => {
   const [showDropdown, setShowDropdown] = useState(false);

@@ -41,6 +41,7 @@ router.post('/:id/ask', requireAuth, async (req, res) => {
         // Check if this is a grundsatz system collection first
         const isGrundsatzSystem = (collectionId === 'grundsatz-system');
         let collection;
+        let documentIds;
         
         if (isGrundsatzSystem) {
             // Hardcoded grundsatz collection info - no PostgreSQL needed
@@ -96,14 +97,15 @@ router.post('/:id/ask', requireAuth, async (req, res) => {
 
         let result;
         if (isGrundsatzSystem) {
-            result = await runQaGraph({ 
-                question: trimmedQuestion, 
-                collection, 
+            result = await runQaGraph({
+                question: trimmedQuestion,
+                collection,
                 aiWorkerPool: req.app.locals.aiWorkerPool,
                 searchCollection: 'grundsatz_documents',
                 userId: null,
                 documentIds: undefined,
-                recallLimit: 60
+                recallLimit: 60,
+                mode
             });
         } else {
             // All user-created QA collections: scope to user and associated documentIds
@@ -116,7 +118,8 @@ router.post('/:id/ask', requireAuth, async (req, res) => {
                 searchCollection: 'documents',
                 userId: userId,
                 documentIds: scopeDocIds,
-                recallLimit
+                recallLimit,
+                mode
             });
         }
         
@@ -258,7 +261,8 @@ router.post('/public/:token/ask', async (req, res) => {
             searchCollection: 'documents',
             userId: collection.user_id,
             documentIds,
-            recallLimit
+            recallLimit,
+            mode
         });
         
         if (!result.success) {

@@ -1,12 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const searchController = require('./searchController');
-const deepResearchController = require('./deepResearchController');
+const unifiedSearchController = require('./unifiedSearchController');
 
-// Mount the existing search controller (which handles POST /)
-router.use('/', searchController);
-
-// Add the deep research route
-router.use('/deep-research', deepResearchController);
+// Mount the unified search controller (handles all search modes)
+router.use('/', unifiedSearchController);
 
 module.exports = router; 

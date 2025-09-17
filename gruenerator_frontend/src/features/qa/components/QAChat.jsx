@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, lazy } from 'react';
 import { useParams } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { HiOutlineQuestionMarkCircle, HiDocumentText, HiInformationCircle, HiChip } from 'react-icons/hi';
+import { HiDocumentText, HiInformationCircle, HiChip } from 'react-icons/hi';
 import { NotebookIcon } from '../../../config/icons';
 const ReactMarkdown = lazy(() => import('react-markdown'));
 import ChatUI from '../../../components/common/Chat/ChatUI';
@@ -14,6 +14,7 @@ import useQAStore from '../stores/qaStore';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import useApiSubmit from '../../../components/hooks/useApiSubmit';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
+import '../../../assets/styles/features/qa/qa-chat.css';
 
 const QAChat = () => {
   const { id } = useParams();

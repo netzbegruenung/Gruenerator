@@ -1,4 +1,4 @@
-const { tavily } = require('@tavily/core');
+const MistralWebSearchService = require('../services/mistralWebSearchService');
 const dotenv = require('dotenv');
 
 dotenv.config();
@@ -21,50 +21,43 @@ const searchConfig = {
   }
 };
 
-class TavilyService {
+class WebSearchService {
   constructor() {
-    this.client = tavily({ apiKey: process.env.TAVILY_API_KEY });
+    this.mistralService = new MistralWebSearchService();
   }
 
   async search(query, options = {}) {
     try {
-      const searchParams = {
-        search_depth: options.searchDepth || searchConfig.defaultSearchOptions.searchDepth,
-        max_results: options.maxResults || searchConfig.defaultSearchOptions.maxResults,
-        include_domains: options.includeDomains || searchConfig.defaultSearchOptions.includeDomains,
-        exclude_domains: options.excludeDomains || searchConfig.defaultSearchOptions.excludeDomains,
-        include_answer: options.includeAnswer,
-        auto_parameters: options.autoParameters !== false // Default to true unless explicitly disabled
-      };
-
-      // Add enhanced content options when using advanced search
-      if (searchParams.search_depth === 'advanced') {
-        searchParams.chunks_per_source = options.chunksPerSource || 3;
-        searchParams.include_raw_content = options.includeRawContent || 'markdown';
-      }
-
-      // Add topic and time filtering options
-      if (options.topic) {
-        searchParams.topic = options.topic;
-      }
-      if (options.timeRange) {
-        searchParams.time_range = options.timeRange;
-      }
-
-      console.log('Sending request to Tavily:', {
+      console.log('Sending request to MistralWebSearchService:', {
         query,
-        options: searchParams
+        options
       });
 
-      const response = await this.client.search(query, searchParams);
+      // Use Mistral's content agent type for comprehensive search
+      const agentType = 'content';
+      const mistralResults = await this.mistralService.performWebSearch(query, agentType);
 
-      if (!response) {
-        throw new Error('Keine Daten von Tavily API erhalten');
+      if (!mistralResults) {
+        throw new Error('Keine Daten von Mistral Web Search erhalten');
       }
 
-      return response;
+      // Convert Mistral response to Tavily-compatible format
+      const tavilyCompatibleResponse = {
+        results: mistralResults.sources.map(source => ({
+          url: source.url,
+          title: source.title,
+          content: source.snippet,
+          raw_content: mistralResults.textContent,
+          score: source.relevance
+        })),
+        answer: mistralResults.textContent,
+        query: query,
+        response_time: 0 // Not available from Mistral
+      };
+
+      return tavilyCompatibleResponse;
     } catch (error) {
-      console.error('Tavily API Error:', {
+      console.error('MistralWebSearchService API Error:', {
         message: error.message,
         details: error.details || error
       });
@@ -74,24 +67,13 @@ class TavilyService {
 
   async deepSearch(queries, options = {}) {
     try {
-      console.log(`[TavilyService] Starting deep search with ${queries.length} queries`);
+      console.log(`[WebSearchService] Starting deep search with ${queries.length} queries`);
       
       // Execute all searches in parallel
       const searchPromises = queries.map(async (query, index) => {
         try {
-          console.log(`[TavilyService] Executing search ${index + 1}/${queries.length}: ${query}`);
-          const result = await this.search(query, {
-            searchDepth: options.searchDepth || 'advanced',
-            maxResults: options.maxResults || 8,
-            includeAnswer: options.includeAnswer || true,
-            includeDomains: options.includeDomains,
-            excludeDomains: options.excludeDomains,
-            chunksPerSource: options.chunksPerSource || 3,
-            includeRawContent: options.includeRawContent || 'markdown',
-            autoParameters: options.autoParameters !== false,
-            topic: options.topic,
-            timeRange: options.timeRange
-          });
+          console.log(`[WebSearchService] Executing search ${index + 1}/${queries.length}: ${query}`);
+          const result = await this.search(query, options);
           
           return {
             query,
@@ -99,7 +81,7 @@ class TavilyService {
             result
           };
         } catch (error) {
-          console.error(`[TavilyService] Error in search ${index + 1}:`, error);
+          console.error(`[WebSearchService] Error in search ${index + 1}:`, error);
           return {
             query,
             success: false,
@@ -110,11 +92,11 @@ class TavilyService {
       });
 
       const searchResults = await Promise.all(searchPromises);
-      console.log(`[TavilyService] Deep search completed. ${searchResults.filter(r => r.success).length}/${queries.length} searches successful`);
+      console.log(`[WebSearchService] Deep search completed. ${searchResults.filter(r => r.success).length}/${queries.length} searches successful`);
 
       return searchResults;
     } catch (error) {
-      console.error('[TavilyService] Deep search error:', error);
+      console.error('[WebSearchService] Deep search error:', error);
       throw new Error(`Deep search failed: ${error.message}`);
     }
   }
@@ -156,7 +138,7 @@ class TavilyService {
       });
     });
 
-    console.log(`[TavilyService] Deduplicated ${deduplicatedSources.length} unique sources from ${searchResults.length} searches`);
+    console.log(`[WebSearchService] Deduplicated ${deduplicatedSources.length} unique sources from ${searchResults.length} searches`);
     return deduplicatedSources;
   }
 
@@ -177,12 +159,14 @@ class TavilyService {
       });
     });
 
-    console.log(`[TavilyService] Categorized sources into ${Object.keys(categorized).length} categories`);
+    console.log(`[WebSearchService] Categorized sources into ${Object.keys(categorized).length} categories`);
     return categorized;
   }
 }
 
 module.exports = {
   searchConfig,
-  tavilyService: new TavilyService()
+  webSearchService: new WebSearchService(),
+  // Backward compatibility aliases
+  tavilyService: new WebSearchService()
 }; 

@@ -4,6 +4,9 @@
  */
 
 const crypto = require('crypto');
+const LOG_LEVEL = process.env.LOG_LEVEL || 'info';
+const isDebug = LOG_LEVEL === 'debug';
+const isVerbose = ['debug', 'verbose'].includes(LOG_LEVEL);
 
 class SearXNGWebSearchService {
   constructor() {
@@ -36,12 +39,12 @@ class SearXNGWebSearchService {
       // Test Redis connection
       await redisClient.ping();
       this.redisClient = redisClient;
-      console.log('[SearXNGWebSearchService] Redis caching enabled');
+      if (isVerbose) console.log('[SearXNG] Redis caching enabled');
       
       // Clear in-memory cache if Redis is available
       this.cache.clear();
     } catch (error) {
-      console.warn('[SearXNGWebSearchService] Redis unavailable, using in-memory cache:', error.message);
+      if (isVerbose) console.warn('[SearXNG] Redis unavailable, using in-memory cache:', error.message);
       this.redisClient = null;
     }
   }
@@ -68,11 +71,11 @@ class SearXNGWebSearchService {
     // Check cache first
     const cachedResult = await this.getCachedResult(cacheKey, searchOptions);
     if (cachedResult) {
-      console.log(`💾 [SearXNG] Cache hit (${Math.round((Date.now() - new Date(cachedResult.timestamp)) / 1000)}s old)`);
+      if (isVerbose) console.log(`💾 [SearXNG] Cache hit (${Math.round((Date.now() - new Date(cachedResult.timestamp)) / 1000)}s old)`);
       return cachedResult;
     }
-
-    console.log(`🔍 [SearXNG] Searching: "${query.length > 50 ? query.substring(0, 50) + '...' : query}"`);
+    
+    if (isVerbose) console.log(`🔍 [SearXNG] Searching: "${query.length > 50 ? query.substring(0, 50) + '...' : query}"`);
 
     try {
       const searchResults = await this.querySearXNG(query, searchOptions);
@@ -82,12 +85,12 @@ class SearXNGWebSearchService {
       // Cache the results
       await this.setCachedResult(cacheKey, formattedResults, searchOptions);
       
-      console.log(`✅ [SearXNG] Found ${formattedResults.resultCount} results (${formattedResults.contentStats.resultsWithContent} with content)`);
+      console.log(`🔍 [SearXNG] ${formattedResults.resultCount} results (${formattedResults.contentStats.resultsWithContent} with content)`);
       
       return formattedResults;
       
     } catch (error) {
-      console.error(`[SearXNGWebSearchService] Search failed for query "${query}":`, error.message);
+      console.error(`[SearXNG] Search failed:`, error.message);
       throw new Error(`Web search failed: ${error.message}`);
     }
   }
@@ -115,7 +118,7 @@ class SearXNGWebSearchService {
 
     const searchUrl = `${this.baseUrl}/search?${searchParams.toString()}`;
     
-    console.log(`[SearXNGWebSearchService] Querying: ${this.baseUrl}/search`);
+    if (isDebug) console.log(`[SearXNG] Querying: ${this.baseUrl}/search`);
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), options.timeout || this.defaultOptions.timeout);
@@ -234,7 +237,7 @@ class SearXNGWebSearchService {
     }
 
     if (!aiWorkerPool) {
-      console.warn('[SearXNGWebSearchService] No AI worker pool provided for summary generation');
+      if (isVerbose) console.warn('[SearXNG] No AI worker pool for summary');
       return {
         ...searchResults,
         summary: {
@@ -269,7 +272,7 @@ Gib eine direkte, hilfreiche Antwort auf die Frage des Nutzers. Nutze die Inform
         }
       };
 
-      console.log(`[SearXNGWebSearchService] Generating AI summary for query: "${originalQuery}"`);
+      if (isVerbose) console.log(`[SearXNG] Generating AI summary`);
       
       // Use the AI worker pool to process the request (pass req for privacy mode)
       const aiResponse = await aiWorkerPool.processRequest(summaryRequest, req);
@@ -287,7 +290,7 @@ Gib eine direkte, hilfreiche Antwort auf die Frage des Nutzers. Nutze die Inform
           }
         };
       } else {
-        console.warn('[SearXNGWebSearchService] AI summary generation failed:', aiResponse.error);
+        if (isVerbose) console.warn('[SearXNG] Summary generation failed:', aiResponse.error);
         return {
           ...searchResults,
           summary: {
@@ -299,7 +302,7 @@ Gib eine direkte, hilfreiche Antwort auf die Frage des Nutzers. Nutze die Inform
       }
       
     } catch (error) {
-      console.error('[SearXNGWebSearchService] Error generating AI summary:', error);
+      console.error('[SearXNG] Error generating summary:', error.message || error);
       return {
         ...searchResults,
         summary: {
@@ -418,7 +421,7 @@ URL: ${result.url}
         // Use Redis cache
         const cachedData = await this.redisClient.get(cacheKey);
         if (cachedData) {
-          console.log(`[SearXNGWebSearchService] Redis cache hit for key: ${cacheKey.substring(0, 20)}...`);
+          if (isDebug) console.log(`[SearXNG] Redis cache hit: ${cacheKey.substring(0, 20)}...`);
           return JSON.parse(cachedData);
         }
       } else {
@@ -429,7 +432,7 @@ URL: ${result.url}
           : this.cacheTimeout * 1000;
           
         if (cached && Date.now() - cached.timestamp < timeout) {
-          console.log(`[SearXNGWebSearchService] Memory cache hit for key: ${cacheKey.substring(0, 20)}...`);
+          if (isDebug) console.log(`[SearXNG] Memory cache hit: ${cacheKey.substring(0, 20)}...`);
           return cached.data;
         }
         
@@ -439,7 +442,7 @@ URL: ${result.url}
         }
       }
     } catch (error) {
-      console.warn('[SearXNGWebSearchService] Cache read error:', error.message);
+      if (isVerbose) console.warn('[SearXNG] Cache read error:', error.message);
     }
     
     return null;
@@ -458,7 +461,7 @@ URL: ${result.url}
         // Use Redis cache with appropriate TTL
         const ttl = searchOptions.categories === 'news' ? this.newsCache : this.cacheTimeout;
         await this.redisClient.setEx(cacheKey, ttl, JSON.stringify(data));
-        console.log(`[SearXNGWebSearchService] Cached result in Redis with ${ttl}s TTL`);
+        if (isVerbose) console.log(`[SearXNG] Cached in Redis (${ttl}s)`);
       } else {
         // Fallback to in-memory cache
         // Simple cache size management - remove oldest entries if cache gets too large
@@ -471,10 +474,10 @@ URL: ${result.url}
           data,
           timestamp: Date.now()
         });
-        console.log(`[SearXNGWebSearchService] Cached result in memory`);
+        if (isVerbose) console.log(`[SearXNG] Cached in memory`);
       }
     } catch (error) {
-      console.warn('[SearXNGWebSearchService] Cache write error:', error.message);
+      if (isVerbose) console.warn('[SearXNG] Cache write error:', error.message);
     }
   }
 
@@ -488,17 +491,17 @@ URL: ${result.url}
         const keys = await this.redisClient.keys('searxng:*');
         if (keys.length > 0) {
           await this.redisClient.del(keys);
-          console.log(`[SearXNGWebSearchService] Cleared ${keys.length} Redis cache entries`);
+          if (isVerbose) console.log(`[SearXNG] Cleared ${keys.length} Redis cache entries`);
         } else {
-          console.log('[SearXNGWebSearchService] No Redis cache entries to clear');
+          if (isVerbose) console.log('[SearXNG] No Redis cache entries to clear');
         }
       } else {
         // Clear in-memory cache
         this.cache.clear();
-        console.log('[SearXNGWebSearchService] In-memory cache cleared');
+        if (isVerbose) console.log('[SearXNG] In-memory cache cleared');
       }
     } catch (error) {
-      console.error('[SearXNGWebSearchService] Error clearing cache:', error.message);
+      if (isVerbose) console.error('[SearXNG] Error clearing cache:', error.message);
       // Fallback to clearing in-memory cache
       this.cache.clear();
     }

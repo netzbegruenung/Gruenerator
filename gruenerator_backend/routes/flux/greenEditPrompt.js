@@ -41,10 +41,27 @@ function buildGreenEditPromptOriginal(userText) {
   ].join('\n');
 }
 
-function buildGreenEditPrompt(userText) {
+function buildGreenEditPrompt(userText, isPrecision = false) {
   const trimmed = (userText || '').toString().trim();
   const hasUserInput = trimmed.length > 0;
-  
+
+  if (isPrecision && hasUserInput) {
+    return [
+      'Edit this street photo according to the specific user instructions while maintaining photorealistic quality.',
+      '',
+      'Follow these user instructions exactly:',
+      `"${trimmed}"`,
+      '',
+      'Implementation guidelines:',
+      '- Execute the user\'s specific requests with precise spatial placement',
+      '- Maintain original architecture, facades, lighting, and overall composition',
+      '- Ensure all additions look natural and realistic for the environment',
+      '- Preserve existing people, vehicles, and signage unless specifically requested to modify',
+      '- Match textures, materials, shadows, and lighting conditions of the original photo',
+      '- Scale and proportion all new elements appropriately to the scene'
+    ].join('\n');
+  }
+
   let prompt = `Edit this street photo to make it more ecological and pleasant while preserving the original architecture and composition.
 
 Add green infrastructure where relevant: trees, plants, bike lanes, pedestrian improvements, sustainable materials.
@@ -55,18 +72,34 @@ Keep unchanged: buildings, perspective, lighting, people, vehicles, signage.`;
 
 Optional user guidance: "${trimmed}"`;
   }
-  
+
   return prompt;
 }
 
-function buildAllyMakerPrompt(placementText) {
+function buildAllyMakerPrompt(placementText, isPrecision = false) {
   const trimmed = (placementText || '').toString().trim();
+
+  if (isPrecision && trimmed.length > 0) {
+    return [
+      'Add a rainbow flag tattoo to the person in the image following these precise instructions:',
+      `"${trimmed}"`,
+      '',
+      'Requirements:',
+      '- Keep the person exactly the same: face, hair, expression, pose, clothing, background',
+      '- Only add the tattoo as specified in the instructions',
+      '- Make the tattoo look natural, realistic, and professionally done',
+      '- Ensure proper size, placement, and integration with the skin tone',
+      '- The tattoo should not cover or obscure facial features unless specifically requested',
+      '- Match lighting and shadows to make the tattoo appear naturally part of the photo'
+    ].join('\n');
+  }
+
   let prompt = `Add one small and decent rainbow flag face tattoo to the person on the image. Keep the person exactly the same - same face, same hair, same expression, same pose, same clothing, same background. Only add the tattoo. It shouldn't cover the face. Make it look natural and realistic. The user should be able to tell where it's added.`;
-  
+
   if (trimmed.length > 0) {
     prompt += ` Place the tattoo on: ${trimmed}.`;
   }
-  
+
   return prompt;
 }
 
@@ -92,8 +125,9 @@ router.post('/prompt', requireAuth, upload.single('image'), async (req, res) => 
     }
 
     const userText = req.body?.text || req.body?.instruction || '';
-    console.log(`[Flux Green Edit] Processing request with instruction: "${userText?.substring(0, 100)}..." (User: ${userId}, Usage: ${limitStatus.count + 1}/${limitStatus.limit})`);
-    
+    const isPrecision = req.body?.precision === 'true' || req.body?.precision === true;
+    console.log(`[Flux Green Edit] Processing request with instruction: "${userText?.substring(0, 100)}..." (User: ${userId}, Usage: ${limitStatus.count + 1}/${limitStatus.limit}, Precision: ${isPrecision})`);
+
     if (!userText || userText.trim().length === 0) {
       console.log('[Flux Green Edit] Request rejected: Missing text instruction');
       return res.status(400).json({ success: false, error: 'Missing text instruction' });
@@ -124,9 +158,9 @@ router.post('/prompt', requireAuth, upload.single('image'), async (req, res) => 
     const relativePath = path.join('uploads', 'flux', 'edits', today, filename);
 
     const requestType = req.body?.type || 'green-edit';
-    const prompt = requestType === 'ally-maker' 
-      ? buildAllyMakerPrompt(userText)
-      : buildGreenEditPrompt(userText);
+    const prompt = requestType === 'ally-maker'
+      ? buildAllyMakerPrompt(userText, isPrecision)
+      : buildGreenEditPrompt(userText, isPrecision);
 
     // Edit image with FLUX (image-to-image)
     const flux = new FluxImageService();
@@ -212,8 +246,9 @@ router.post('/generate', requireAuth, upload.single('image'), async (req, res) =
     }
 
     const userText = req.body?.text || req.body?.instruction || '';
-    console.log(`[Flux Green Edit Generate] Processing request with instruction: "${userText?.substring(0, 100)}..." (User: ${userId}, Usage: ${limitStatus.count + 1}/${limitStatus.limit})`);
-    
+    const isPrecision = req.body?.precision === 'true' || req.body?.precision === true;
+    console.log(`[Flux Green Edit Generate] Processing request with instruction: "${userText?.substring(0, 100)}..." (User: ${userId}, Usage: ${limitStatus.count + 1}/${limitStatus.limit}, Precision: ${isPrecision})`);
+
     if (!userText || userText.trim().length === 0) {
       console.log('[Flux Green Edit Generate] Request rejected: Missing text instruction');
       return res.status(400).json({ success: false, error: 'Missing text instruction' });
@@ -235,9 +270,9 @@ router.post('/generate', requireAuth, upload.single('image'), async (req, res) =
     }
 
     const requestType = req.body?.type || 'green-edit';
-    const prompt = requestType === 'ally-maker' 
-      ? buildAllyMakerPrompt(userText)
-      : buildGreenEditPrompt(userText);
+    const prompt = requestType === 'ally-maker'
+      ? buildAllyMakerPrompt(userText, isPrecision)
+      : buildGreenEditPrompt(userText, isPrecision);
 
     // Edit image with FLUX (image-to-image) - only if image was provided
     const flux = new FluxImageService();

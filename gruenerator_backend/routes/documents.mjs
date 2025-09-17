@@ -120,26 +120,61 @@ router.post('/upload-manual', ensureAuthenticated, upload.single('document'), as
 
     // Extract text from file buffer (in memory)
     let extractedText;
+    const supportedMistralTypes = [
+      'application/pdf',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // DOCX
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation', // PPTX
+      'image/png',
+      'image/jpeg', 
+      'image/jpg',
+      'image/avif'
+    ];
+
     try {
-      if (file.mimetype === 'application/pdf') {
-        // Create temporary file for OCR processing
+      if (supportedMistralTypes.includes(file.mimetype)) {
+        // Use Mistral OCR for supported document and image formats
         const tempDir = os.tmpdir();
         const tempFileName = `manual_upload_${Date.now()}_${file.originalname}`;
         const tempFilePath = path.join(tempDir, tempFileName);
         
         await fs.writeFile(tempFilePath, file.buffer);
-        const ocrResult = await ocrService.extractTextFromPDF(tempFilePath);
-        extractedText = ocrResult.text;
+        
+        try {
+          const ocrResult = await ocrService.extractTextFromDocument(tempFilePath);
+          extractedText = ocrResult.text;
+        } catch (validationError) {
+          // Clean up temp file on validation error
+          await fs.unlink(tempFilePath);
+          
+          // Check if it's a validation error (size/page limits)
+          if (validationError.message.includes('zu groß') || 
+              validationError.message.includes('zu viele Seiten')) {
+            return res.status(400).json({
+              success: false,
+              message: validationError.message
+            });
+          }
+          throw validationError;
+        }
         
         // Clean up temp file
         await fs.unlink(tempFilePath);
-      } else {
-        // For text files, convert buffer to string
+      } else if (file.mimetype.startsWith('text/')) {
+        // For plain text files, convert buffer to string
         extractedText = file.buffer.toString('utf-8');
+      } else {
+        // Unsupported file type
+        return res.status(400).json({
+          success: false,
+          message: `Dateityp nicht unterstützt: ${file.mimetype}. Unterstützt werden: PDF, Word (DOCX), PowerPoint (PPTX), Bilder (PNG, JPG, AVIF) und Textdateien.`
+        });
       }
     } catch (ocrError) {
-      console.error('[Documents /upload-manual] OCR error:', ocrError);
-      throw new Error('Failed to extract text from document');
+      console.error('[Documents /upload-manual] Document processing error:', ocrError);
+      return res.status(400).json({
+        success: false,
+        message: 'Fehler beim Verarbeiten der Datei. Bitte versuchen Sie es erneut.'
+      });
     }
 
     if (!extractedText || extractedText.trim().length === 0) {
@@ -488,14 +523,21 @@ router.get('/user', ensureAuthenticated, async (req, res) => {
     // Use PostgreSQL + Qdrant exclusively (no more Supabase fallback)
     const documents = await postgresDocumentService.getDocumentsBySourceType(req.user.id, null);
 
+    // Get first chunks from Qdrant for documents that need previews
+    const documentIds = documents.map(doc => doc.id);
+    const firstChunksResult = await qdrantDocumentService.getDocumentFirstChunks(req.user.id, documentIds);
+    const firstChunks = firstChunksResult.chunks || {};
+
     // Enrich with all content fields for frontend access
     const enrichedDocs = documents.map((doc) => {
       let meta = {};
       try { meta = doc.metadata ? JSON.parse(doc.metadata) : {}; } catch (e) { meta = {}; }
-      
-      // Generate content_preview if not in metadata
-      const preview = meta.content_preview || (meta.full_text ? generateContentPreview(meta.full_text) : null);
-      
+
+      // Generate content_preview from metadata, full_text, or Qdrant first chunk
+      const preview = meta.content_preview ||
+                     (meta.full_text ? generateContentPreview(meta.full_text) : null) ||
+                     (firstChunks[doc.id] ? generateContentPreview(firstChunks[doc.id]) : null);
+
       // Include all content fields for optimal preview rendering
       return {
         ...doc,

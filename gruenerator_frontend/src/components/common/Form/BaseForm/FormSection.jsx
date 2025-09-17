@@ -56,6 +56,7 @@ const FormSection = forwardRef(({
   submitButtonProps = {},
   webSearchFeatureToggle,
   privacyModeToggle,
+  proModeToggle,
   onAttachmentClick,
   onRemoveFile,
   enablePlatformSelector = false,
@@ -183,6 +184,7 @@ const FormSection = forwardRef(({
               <FormExtrasSection
                 webSearchFeatureToggle={webSearchFeatureToggle}
                 privacyModeToggle={privacyModeToggle}
+                proModeToggle={proModeToggle}
                 onAttachmentClick={onAttachmentClick}
                 onRemoveFile={onRemoveFile}
                 formControl={formControl}
@@ -246,6 +248,12 @@ FormSection.propTypes = {
     onToggle: PropTypes.func,
     label: PropTypes.string,
     icon: PropTypes.elementType,
+    description: PropTypes.string
+  }),
+  proModeToggle: PropTypes.shape({
+    isActive: PropTypes.bool,
+    onToggle: PropTypes.func,
+    label: PropTypes.string,
     description: PropTypes.string
   }),
   enableKnowledgeSelector: PropTypes.bool,

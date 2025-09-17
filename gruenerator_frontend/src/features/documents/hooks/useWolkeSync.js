@@ -84,10 +84,8 @@ export const useWolkeSync = (useStore = true) => {
             if (response.data && response.data.success) {
                 console.log(`[useWolkeSync] Started sync for share link ${shareLinkId}`);
                 
-                // Refresh sync statuses after a short delay to show the started sync
-                setTimeout(() => {
-                    fetchSyncStatuses();
-                }, 1000);
+                // Refresh sync statuses immediately to show the started sync
+                fetchSyncStatuses();
                 
                 return { success: true, message: response.data.message };
             } else {
@@ -110,10 +108,8 @@ export const useWolkeSync = (useStore = true) => {
     const setAutoSync = useCallback(async (shareLinkId, folderPath = '', enabled) => {
         if (useStore) {
             const result = await storeSetAutoSync(shareLinkId, folderPath, enabled);
-            // Force refresh sync statuses to ensure UI state update
-            setTimeout(() => {
-                storeFetchSyncStatuses();
-            }, 100);
+            // Refresh sync statuses to ensure UI state update
+            storeFetchSyncStatuses();
             return result;
         }
 
@@ -157,10 +153,8 @@ export const useWolkeSync = (useStore = true) => {
                     return prev;
                 });
                 
-                // Force refresh from backend after a short delay
-                setTimeout(() => {
-                    fetchSyncStatuses();
-                }, 100);
+                // Refresh from backend immediately
+                fetchSyncStatuses();
                 
                 return { success: true, autoSyncEnabled: enabled };
             } else {
@@ -245,12 +239,14 @@ export const useWolkeSync = (useStore = true) => {
         }
     }, [useStore, localInitialized, fetchSyncStatuses, storeFetchSyncStatuses]);
 
-    // Auto-refresh sync statuses periodically
+    // Auto-refresh sync statuses only when syncs are active
     useEffect(() => {
-        if (initialized && syncStatuses.some(status => status.sync_status === 'syncing')) {
+        const activeSyncs = syncStatuses.filter(status => status.sync_status === 'syncing');
+
+        if (initialized && activeSyncs.length > 0) {
             const interval = setInterval(() => {
                 fetchSyncStatuses();
-            }, 5000); // Refresh every 5 seconds if any sync is in progress
+            }, 10000); // Refresh every 10 seconds if any sync is in progress
 
             return () => clearInterval(interval);
         }

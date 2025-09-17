@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { tavilyService } = require('../../utils/searchUtils');
+const { webSearchService } = require('../../utils/searchUtils');
 const { MARKDOWN_FORMATTING_INSTRUCTIONS } = require('../../utils/promptUtils');
 const { DocumentSearchService } = require('../../services/DocumentSearchService.js');
 
@@ -10,17 +10,17 @@ const SEARCH_GRUNDSATZ_DOCUMENTS_TOOL = "search_grundsatz_documents";
 
 /**
  * Determine intelligent search options based on question content and category
- * Following Tavily best practices for optimal results
+ * Following Mistral web search best practices for optimal results
  */
 function getIntelligentSearchOptions(question, category) {
-  // Base options following Tavily best practices
+  // Base options following Mistral web search best practices
   const baseOptions = {
     search_depth: 'advanced',        // Always use advanced for better relevance
     max_results: 10,                 // 10 for better relevance vs default 5
     include_answer: true,            // Include LLM-generated answer
     chunks_per_source: 3,            // Maximum chunks per source with advanced
     include_raw_content: true,       // Full content extraction for better processing
-    auto_parameters: true            // Let Tavily optimize parameters
+    auto_parameters: true            // Maintain compatibility with search options
   };
 
   const questionLower = question.toLowerCase();
@@ -194,13 +194,13 @@ router.post('/', async (req, res) => {
     },
     {
       name: WEB_SEARCH_TOOL,
-      description: "Führt eine Websuche mit Tavily durch und liefert detaillierte Ergebnisse zurück.",
+      description: "Führt eine Websuche mit Mistral Web Search durch und liefert detaillierte Ergebnisse zurück.",
       input_schema: {
         type: "object",
         properties: {
           query: {
             type: "string",
-            description: "Die Suchanfrage für Tavily"
+            description: "Die Suchanfrage für Mistral Web Search"
           }
         },
         required: ["query"]
@@ -340,7 +340,7 @@ WICHTIG: Erstelle KEINE Frage zur Grünen Position, da diese bereits separat rec
         const subSearchPromises = queriesToExecute.map(async (query, subIndex) => {
           try {
             console.log(`[deep-research] Executing sub-query ${subIndex + 1}/${queriesToExecute.length}: "${query}"`);
-            const searchResults = await tavilyService.search(query, searchOptions);
+            const searchResults = await webSearchService.search(query, searchOptions);
             return {
               query,
               results: searchResults.results || [],
@@ -402,7 +402,7 @@ WICHTIG: Erstelle KEINE Frage zur Grünen Position, da diese bereits separat rec
             ...source,
             categories: [result.category],
             questions: [result.question],
-            // Include content snippets from Tavily
+            // Include content snippets from Mistral Web Search
             content_snippets: source.content || null,
             raw_content: source.raw_content || null
           });
@@ -540,7 +540,7 @@ Diese Deep Research wurde mit folgender Methodik durchgeführt:
 
 1. **Grundsatz-Recherche**: Suche in offiziellen Grundsatzprogrammen von Bündnis 90/Die Grünen (${grundsatzResults?.results?.length || 0} Dokumente gefunden)
 2. **Strategische Fragengenerierung**: ${researchQuestions.length} Forschungsfragen zu verschiedenen Aspekten des Themas
-3. **Optimierte Webrecherche**: Tavily Advanced Search mit deutschen Domains und regionaler Filterung (${allSources.length} Quellen analysiert)
+3. **Optimierte Webrecherche**: Mistral Web Search mit intelligenter Quellenauswahl und regionaler Filterung (${allSources.length} Quellen analysiert)
 4. **Query-Optimierung**: Automatische Anpassung für deutsche Suchbegriffe und <400 Zeichen Limit
 5. **KI-Synthese**: Professionelle Analyse und Strukturierung durch Claude AI
 
@@ -550,7 +550,7 @@ Diese Deep Research wurde mit folgender Methodik durchgeführt:
 - Kategorien: ${Object.keys(categorizedSources).length}
 - Forschungsfragen: ${researchQuestions.length}
 
-**Qualitätssicherung:** Tavily Advanced Search mit deutschen Domains, Auto-Parameters und regionaler Filterung für maximale Relevanz.`;
+**Qualitätssicherung:** Mistral Web Search mit intelligenter Quellenauswahl und regionaler Filterung für maximale Relevanz.`;
 
     dossier += methodologySection;
 
@@ -605,7 +605,7 @@ Diese Deep Research wurde mit folgender Methodik durchgeführt:
 });
 
 /**
- * Optimize search query for better Tavily results following best practices
+ * Optimize search query for better Mistral web search results following best practices
  * - Keep queries under 400 characters
  * - Add German synonyms and regional terms
  * - Remove unnecessary words

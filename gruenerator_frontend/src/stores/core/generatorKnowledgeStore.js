@@ -14,7 +14,9 @@ const initialState = {
     antragGliederung: null,
     social: null,
     universal: null,
-    gruenejugend: null
+    gruenejugend: null,
+    rede: null,
+    buergeranfragen: null
   },
   isInstructionsActive: false,
   // New: Documents state
@@ -54,7 +56,7 @@ export const useGeneratorKnowledgeStore = create(immer((set, get) => {
     state.selectedKnowledgeIds = [];
     state.isLoading = !!source && source.type !== 'neutral';
     // Reset instructions when source changes
-    state.instructions = { antrag: null, antragGliederung: null, social: null, universal: null, gruenejugend: null };
+    state.instructions = { antrag: null, antragGliederung: null, social: null, universal: null, gruenejugend: null, rede: null, buergeranfragen: null };
     state.isInstructionsActive = false;
     // Reset documents when source changes (documents are user-scoped, not source-scoped)
     // Only clear if switching to neutral to avoid unnecessary reloads

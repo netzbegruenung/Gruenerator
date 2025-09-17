@@ -1,7 +1,8 @@
 /**
- * Text chunking utility for document processing
+ * Unified text chunking utility for document processing
  * Splits documents into chunks suitable for embedding generation
- * Enhanced with hierarchical structure detection for better context preservation
+ * Enhanced with hierarchical structure detection and LangChain integration
+ * Merged LangChainChunker functionality for better maintainability
  */
 
 import { documentStructureDetector } from '../services/documentStructureDetector.js';
@@ -78,6 +79,125 @@ export function prepareTextForEmbedding(text) {
 }
 
 /**
+ * LangChain-based chunker implementation
+ * Integrated into textChunker for better maintainability
+ * @private
+ */
+class LangChainChunker {
+  constructor(options = {}) {
+    const chunking = vectorConfig.get('chunking');
+    this.chunkSize = options.chunkSize || 1600 || chunking?.adaptive?.defaultSize;
+    this.chunkOverlap = options.chunkOverlap || 400 || chunking?.adaptive?.overlapSize;
+  }
+
+  async #getSplitter() {
+    const opts = {
+      chunkSize: this.chunkSize,
+      chunkOverlap: this.chunkOverlap,
+      // Enhanced German-aware separators
+      separators: ['\n\n', '. ', '? ', '! ', '; ', ': ', ', ', '\n', ' ']
+    };
+    try {
+      const { RecursiveCharacterTextSplitter } = await import('langchain/text_splitter');
+      return new RecursiveCharacterTextSplitter(opts);
+    } catch (err1) {
+      try {
+        const { RecursiveCharacterTextSplitter } = await import('@langchain/core/text_splitter');
+        return new RecursiveCharacterTextSplitter(opts);
+      } catch (err2) {
+        try {
+          const { RecursiveCharacterTextSplitter } = await import('@langchain/textsplitters');
+          return new RecursiveCharacterTextSplitter(opts);
+        } catch (err3) {
+          if (vectorConfig.isVerboseMode()) {
+            console.warn('[LangChainChunker] LangChain not available; using fallback');
+          }
+          return null;
+        }
+      }
+    }
+  }
+
+  async chunkDocument(text, baseMetadata = {}) {
+    if (!text || typeof text !== 'string') return [];
+    const input = cleanTextForEmbedding(text);
+
+    const splitter = await this.#getSplitter();
+    let rawChunks;
+    if (splitter && typeof splitter.splitText === 'function') {
+      rawChunks = await splitter.splitText(input);
+    } else {
+      rawChunks = this.#fallbackSplit(input);
+    }
+
+    let chunks = rawChunks.map((t, i) => ({
+      text: t.trim(),
+      index: i,
+      tokens: this.#estimateTokens(t),
+      metadata: {
+        chunkingMethod: splitter ? 'langchain' : 'fallback-paragraph',
+        ...baseMetadata,
+      }
+    })).filter(c => c.text.length > 0);
+
+    // Post-process: merge very short chunks to improve context
+    chunks = this.#mergeSmallChunks(chunks, { minChars: 800, maxMergedChars: 2400 });
+    return chunks;
+  }
+
+  #fallbackSplit(text) {
+    const paras = text.split(/\n{2,}/).map(p => p.trim()).filter(Boolean);
+    const chunks = [];
+    let buf = '';
+    for (const p of paras) {
+      if (this.#estimateTokens(buf + '\n\n' + p) > this.chunkSize && buf) {
+        chunks.push(buf);
+        buf = p;
+      } else {
+        buf = buf ? `${buf}\n\n${p}` : p;
+      }
+    }
+    if (buf) chunks.push(buf);
+
+    // Add simple overlap
+    const overlapped = [];
+    const approxChars = Math.floor(this.chunkOverlap * 4);
+    for (let i = 0; i < chunks.length; i++) {
+      if (i === 0) overlapped.push(chunks[i]);
+      else overlapped.push(chunks[i - 1].slice(-approxChars) + '\n\n' + chunks[i]);
+    }
+    return overlapped;
+  }
+
+  #estimateTokens(text) {
+    if (!text) return 0;
+    return Math.ceil(text.length / 4);
+  }
+
+  #mergeSmallChunks(chunks, { minChars = 800, maxMergedChars = 2400 } = {}) {
+    if (!Array.isArray(chunks) || chunks.length === 0) return chunks;
+    const merged = [];
+    let i = 0;
+    while (i < chunks.length) {
+      let cur = { ...chunks[i] };
+      cur.metadata = cur.metadata || {};
+      while (cur.text.length < minChars && i + 1 < chunks.length) {
+        const next = chunks[i + 1];
+        if ((cur.text.length + 1 + next.text.length) > maxMergedChars) break;
+        const page = cur.metadata.page_number ?? next.metadata?.page_number ?? null;
+        cur.text = `${cur.text}\n\n${(next.text || '').trim()}`.trim();
+        cur.tokens = this.#estimateTokens(cur.text);
+        cur.metadata = { ...cur.metadata, page_number: page };
+        i += 1;
+      }
+      merged.push(cur);
+      i += 1;
+    }
+    return merged.map((c, idx) => ({ ...c, index: idx }));
+  }
+}
+
+/**
  * Chunk a document intelligently based on its structure
  * @param {string} text - Document text
  * @param {Object} options - Chunking options
@@ -85,23 +205,29 @@ export function prepareTextForEmbedding(text) {
  */
 export async function smartChunkDocument(text, options = {}) {
   const { baseMetadata = {} } = options;
-  // IMPORTANT: detect page markers before aggressive cleaning (which collapses newlines)
+
+  // STEP 1: Detect page markers BEFORE any text cleaning
+  // Use raw text to find page markers reliably
   const pages = splitTextByPageMarkers(text);
 
   try {
-    const mod = await import('../services/LangChainChunker.js');
-    const { langChainChunker } = mod;
+    const langChainChunker = new LangChainChunker();
 
     let all = [];
     if (pages.length === 0) {
-      const cleaned = cleanTextForEmbedding(text);
+      // No pages detected - process entire document
+      // Build page ranges from raw text before cleaning
       const pageRanges = buildPageRangesFromRaw(text);
+      // Now clean the text for processing
+      const cleaned = cleanTextForEmbedding(text);
       const chunks = await langChainChunker.chunkDocument(cleaned, baseMetadata);
       all = sentenceRepack(chunks, { baseMetadata, originalRawText: text, pageRanges });
     } else {
+      // Process each page separately
       for (const p of pages) {
         const pageMeta = { ...baseMetadata, page_number: p.pageNumber };
-        const pageText = cleanTextForEmbedding(p.textWithoutMarker);
+        // Clean each page's text separately (preserving structure initially)
+        const pageText = cleanTextForEmbedding(p.textWithoutMarker, false);
         const chunks = await langChainChunker.chunkDocument(pageText, pageMeta);
         const repacked = sentenceRepack(chunks, { baseMetadata: pageMeta });
         // Ensure page_number is set on every chunk (prefer explicit over detection)
@@ -116,6 +242,7 @@ export async function smartChunkDocument(text, options = {}) {
   } catch (e) {
     // Minimal safety fallback to avoid hard failure if LangChain is unavailable
     const { maxTokens = 600, overlapTokens = 150 } = options;
+    const cleaned = cleanTextForEmbedding(text);
     const chunks = hierarchicalChunkDocument(cleaned, { maxTokens, overlapTokens });
     return chunks.map(c => enrichChunkWithMetadata(c, baseMetadata));
   }
@@ -165,22 +292,85 @@ function buildPageRangesFromRaw(text) {
 function sentenceSegments(text) {
   const segments = [];
   if (!text) return segments;
+
+  // Normalize line breaks but preserve paragraph structure
   const normalized = text.replace(/\n+/g, ' ').trim();
-  // Greedy sentence matcher ending with ., !, or ? followed by whitespace or end
-  const re = /[^.!?]+[.!?]+(?=\s|$)/g;
-  let m;
-  while ((m = re.exec(normalized)) !== null) {
-    const s = m[0].trim();
-    const start = m.index;
-    const end = m.index + m[0].length;
-    if (s) segments.push({ s, start, end });
+
+  // German abbreviations that should NOT end sentences
+  const germanAbbreviations = new Set([
+    'bzw', 'z.b', 'z.B', 'etc', 'usw', 'ggf', 'ca', 'Prof', 'Dr', 'Hr', 'Fr',
+    'Abs', 'Art', 'Nr', 'Tel', 'Fax', 'E-Mail', 'e.V', 'GmbH', 'AG', 'Ltd',
+    'Inc', 'Co', 'Corp', 'kg', 'mg', 'km', 'cm', 'mm', 'm²', 'qm', 'min',
+    'max', 'zzgl', 'inkl', 'exkl', 'evtl', 'i.d.R', 'u.a', 'o.ä', 'o.g',
+    'sog', 'bzw', 'ggf', 'z.T', 'z.Z', 'z.Zt'
+  ]);
+
+  // Split into potential sentences using multiple delimiters
+  const potentialSentences = normalized.split(/([.!?]+)(?=\s|$)/);
+
+  let currentSentence = '';
+  let currentStart = 0;
+
+  for (let i = 0; i < potentialSentences.length; i++) {
+    const part = potentialSentences[i];
+
+    if (!part) continue;
+
+    if (/^[.!?]+$/.test(part)) {
+      // This is punctuation - check if it's a real sentence end
+      currentSentence += part;
+
+      // Look ahead to see what follows
+      const nextPart = potentialSentences[i + 1];
+      const afterPunctuation = nextPart ? nextPart.trim() : '';
+
+      // Check if this might be an abbreviation
+      const beforePunctuation = currentSentence.slice(0, -part.length).trim();
+      const lastWord = beforePunctuation.split(/\s+/).pop() || '';
+
+      // Decide if this is a real sentence boundary
+      const isAbbreviation = germanAbbreviations.has(lastWord) ||
+                           germanAbbreviations.has(lastWord.replace(/\./g, ''));
+      const nextStartsWithLower = afterPunctuation && /^[a-zäöüß]/.test(afterPunctuation);
+      const isRealSentenceEnd = !isAbbreviation &&
+                               (!afterPunctuation || /^[A-ZÄÖÜ0-9„(]/.test(afterPunctuation));
+
+      if (isRealSentenceEnd || i === potentialSentences.length - 1) {
+        // End current sentence
+        const sentence = currentSentence.trim();
+        if (sentence) {
+          segments.push({
+            s: sentence,
+            start: currentStart,
+            end: currentStart + sentence.length
+          });
+        }
+
+        // Start new sentence
+        currentStart += currentSentence.length;
+        if (nextPart) {
+          currentStart += nextPart.match(/^\s*/)?.[0]?.length || 0;
+        }
+        currentSentence = '';
+      }
+    } else {
+      // Regular text part
+      if (currentSentence === '') {
+        currentStart = normalized.indexOf(part, currentStart);
+      }
+      currentSentence += part;
+    }
   }
-  // If trailing fragment without punctuation exists, append it as a segment
-  const lastEnd = segments.length ? segments[segments.length - 1].end : 0;
-  if (normalized.length > lastEnd) {
-    const tail = normalized.slice(lastEnd).trim();
-    if (tail) segments.push({ s: tail, start: lastEnd, end: normalized.length });
+
+  // Handle any remaining text
+  if (currentSentence.trim()) {
+    segments.push({
+      s: currentSentence.trim(),
+      start: currentStart,
+      end: currentStart + currentSentence.length
+    });
   }
+
   return segments;
 }
 
@@ -204,36 +394,47 @@ function sentenceRepack(chunks, { baseMetadata = {}, targetChars = 1600, overlap
   const sentences = sentenceSegments(text);
   const markers = findPageMarkers(text);
   const results = [];
-  let buf = '';
-  let bufStart = null;
+
+  let currentSentences = [];
+  let currentLength = 0;
+
   for (let i = 0; i < sentences.length; i++) {
-    const s = sentences[i].s;
-    const tentative = buf ? `${buf} ${s}` : s;
-    if (tentative.length <= targetChars || buf.length === 0) {
-      if (buf.length === 0) bufStart = sentences[i].start;
-      buf = tentative;
+    const sentence = sentences[i];
+    const sentenceText = sentence.s;
+
+    // Check if adding this sentence would exceed target
+    const tentativeLength = currentLength + (currentSentences.length > 0 ? 1 : 0) + sentenceText.length;
+
+    if (tentativeLength <= targetChars || currentSentences.length === 0) {
+      // Add sentence to current chunk
+      currentSentences.push(sentence);
+      currentLength = tentativeLength;
     } else {
-      // push current buffer
-      const chunkText = buf.trim();
-      const chunkStart = bufStart ?? 0;
-      const chunkEnd = chunkStart + chunkText.length;
-      const pn = resolvePageNumberForOffset(markers, pageNum, chunkStart);
-      results.push({ text: chunkText, start: chunkStart, end: chunkEnd, page_number: pn });
-      // start new buffer with overlap from end of previous
-      if (overlapChars > 0 && buf.length > overlapChars) {
-        const overlap = buf.slice(-overlapChars);
-        bufStart = Math.max(0, (chunkEnd - overlap.length));
-        buf = `${overlap} ${s}`;
+      // Finalize current chunk
+      if (currentSentences.length > 0) {
+        const chunkText = currentSentences.map(s => s.s).join(' ').trim();
+        const chunkStart = currentSentences[0].start;
+        const chunkEnd = currentSentences[currentSentences.length - 1].end;
+        const pn = resolvePageNumberForOffset(markers, pageNum, chunkStart);
+        results.push({ text: chunkText, start: chunkStart, end: chunkEnd, page_number: pn });
+
+        // Create overlap using complete sentences from the end
+        const overlapSentences = createSentenceOverlap(currentSentences, overlapChars);
+        currentSentences = [...overlapSentences, sentence];
+        currentLength = currentSentences.map(s => s.s).join(' ').length;
       } else {
-        buf = s;
-        bufStart = sentences[i].start;
+        // Single sentence chunk
+        currentSentences = [sentence];
+        currentLength = sentenceText.length;
       }
     }
   }
-  if (buf.trim()) {
-    const chunkText = buf.trim();
-    const chunkStart = bufStart ?? 0;
-    const chunkEnd = chunkStart + chunkText.length;
+
+  // Handle final chunk
+  if (currentSentences.length > 0) {
+    const chunkText = currentSentences.map(s => s.s).join(' ').trim();
+    const chunkStart = currentSentences[0].start;
+    const chunkEnd = currentSentences[currentSentences.length - 1].end;
     const pn = resolvePageNumberForOffset(markers, pageNum, chunkStart);
     results.push({ text: chunkText, start: chunkStart, end: chunkEnd, page_number: pn });
   }
@@ -251,6 +452,38 @@ function sentenceRepack(chunks, { baseMetadata = {}, targetChars = 1600, overlap
   }));
 }
 
+/**
+ * Create overlap using complete sentences from the end of previous chunk
+ * @param {Array} sentences - Array of sentence objects
+ * @param {number} targetOverlapChars - Target overlap length in characters
+ * @returns {Array} Array of sentences for overlap
+ */
+function createSentenceOverlap(sentences, targetOverlapChars) {
+  if (!sentences.length || targetOverlapChars <= 0) return [];
+
+  const overlap = [];
+  let overlapLength = 0;
+
+  // Work backwards from the end, adding complete sentences
+  for (let i = sentences.length - 1; i >= 0; i--) {
+    const sentence = sentences[i];
+    const sentenceLength = sentence.s.length;
+
+    // Add sentence if it fits within target overlap or if we have no overlap yet
+    if (overlapLength + sentenceLength <= targetOverlapChars || overlap.length === 0) {
+      overlap.unshift(sentence);
+      overlapLength += sentenceLength + (overlap.length > 1 ? 1 : 0); // +1 for space
+    } else {
+      break;
+    }
+
+    // Don't include more than 2 sentences in overlap to keep context manageable
+    if (overlap.length >= 2) break;
+  }
+
+  return overlap;
+}
+
 function resolvePageNumberForOffset(markers, defaultPage, offset) {
   if (markers.length === 0) return defaultPage ?? null;
   let pn = defaultPage ?? null;
@@ -265,6 +498,15 @@ function resolvePageNumberForOffset(markers, defaultPage, offset) {
 export async function smartChunkDocumentAsync(text, options = {}) {
   return smartChunkDocument(text, options);
 }
+
+// Export LangChainChunker for backward compatibility
+export { LangChainChunker };
+
+// Create instance for backward compatibility
+export const langChainChunker = new LangChainChunker();
+
+// Export utility functions for testing
+export { sentenceSegments, createSentenceOverlap };
 
 /**
  * Hierarchical document chunking with structure awareness
@@ -591,12 +833,13 @@ function findRelatedChunks(chunk, allChunks) {
 }
 
 /**
- * Enrich a single chunk with content type, markdown features, page number and quality score
+ * Unified metadata enrichment for chunks
+ * Consolidates all enrichment logic from both LangChainChunker and textChunker
  */
 export function enrichChunkWithMetadata(chunk, baseMetadata = {}) {
   const contentType = detectContentType(chunk.text);
   const md = detectMarkdownStructure(chunk.text);
-  const pageNum = extractPageNumber(chunk.text);
+  const pageNumberDetected = extractPageNumber(chunk.text);
   const qualityCfg = vectorConfig.get('quality');
   const quality = qualityCfg.enabled
     ? chunkQualityService.calculateQualityScore(chunk.text, { contentType })
@@ -615,7 +858,8 @@ export function enrichChunkWithMetadata(chunk, baseMetadata = {}) {
         code_blocks: md.codeBlocks || 0,
         blockquotes: !!md.blockquotes,
       },
-      page_number: pageNum,
+      // Prefer pre-set page_number (e.g., from page-splitting) over detection
+      page_number: (chunk.metadata && chunk.metadata.page_number != null) ? chunk.metadata.page_number : pageNumberDetected,
       quality_score: Number.isFinite(quality) ? quality : 0,
     }
   };

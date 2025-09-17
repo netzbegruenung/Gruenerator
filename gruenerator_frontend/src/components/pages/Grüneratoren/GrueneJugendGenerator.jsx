@@ -1,70 +1,16 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import PropTypes from 'prop-types';
-import { useForm, Controller } from 'react-hook-form';
-import { HiShieldCheck } from 'react-icons/hi';
 import BaseForm from '../../common/BaseForm';
 import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../utils/constants';
-import useApiSubmit from '../../hooks/useApiSubmit';
 import { useSharedContent } from '../../hooks/useSharedContent';
-// import { useDynamicTextSize } from '../../utils/commonFunctions';
 import ErrorBoundary from '../../ErrorBoundary';
 import { useFormFields } from '../../common/Form/hooks';
-import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
-import useKnowledge from '../../hooks/useKnowledge';
-import { useOptimizedAuth } from '../../../hooks/useAuth';
-import { createKnowledgeFormNotice, createKnowledgePrompt } from '../../../utils/knowledgeFormUtils';
-import { useGeneratorKnowledgeStore } from '../../../stores/core/generatorKnowledgeStore';
-import { useAuthStore } from '../../../stores/authStore';
-import { useTabIndex, useBaseFormTabIndex } from '../../../hooks/useTabIndex';
-import { prepareFilesForSubmission } from '../../../utils/fileAttachmentUtils';
-import { HiGlobeAlt } from 'react-icons/hi';
+import useBaseForm from '../../common/Form/hooks/useBaseForm';
 
 const GrueneJugendGenerator = ({ showHeaderFooter = true }) => {
   const componentName = 'gruene-jugend';
   const { initialContent } = useSharedContent();
   const { Input, Textarea } = useFormFields();
-  const { setGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
-
-  const { user } = useOptimizedAuth();
-  const { memoryEnabled } = useAuthStore();
-
-  // Initialize knowledge system with UI configuration
-  const instructionType = 'gruenejugend';
-  useKnowledge({ 
-    instructionType, 
-    ui: {
-      enableKnowledge: true,
-      enableDocuments: true,
-      enableTexts: true
-    }
-  });
-
-  // Initialize tabIndex configuration
-  const tabIndex = useTabIndex('GRUENE_JUGEND');
-  const baseFormTabIndex = useBaseFormTabIndex('GRUENE_JUGEND');
-  
-  // Get knowledge state from store
-  const {
-    source,
-    availableKnowledge,
-    isInstructionsActive,
-    instructions,
-    getKnowledgeContent,
-    getDocumentContent,
-    getActiveInstruction,
-    groupData: groupDetailsData
-  } = useGeneratorKnowledgeStore();
-  
-  // Create form notice
-  const formNotice = createKnowledgeFormNotice({
-    source,
-    isLoadingGroupDetails: false, // useKnowledge handles loading
-    isInstructionsActive,
-    instructions,
-    instructionType,
-    groupDetailsData,
-    availableKnowledge,
-  });
 
   const platformOptions = useMemo(() => [
     { id: 'instagram', label: 'Instagram' },
@@ -85,177 +31,67 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }) => {
         return selectedPlatforms; // Return all selected platforms
       }
     }
-    
+
     // Default for sharepic content
     if (initialContent?.isFromSharepic) {
       return ['instagram'];
     }
-    
+
     return []; // No default selection
   }, [initialContent]);
-  
-  const {
-    control,
-    handleSubmit,
-    reset,
-    watch,
-    setValue,
-    formState: { errors }
-  } = useForm({
+
+  const helpContent = {
+    content: "Dieser Grünerator erstellt jugendgerechte Social Media Inhalte und Aktionsideen speziell für die Grüne Jugend. Du kannst auch PDFs und Bilder als Hintergrundinformation anhängen.",
+    title: "Grüne Jugend",
+    tips: [
+      "Wähle ein aktuelles, jugendrelevantes Thema",
+      "Formuliere Details verständlich und ansprechend",
+      "TikTok und Instagram sind besonders effektiv für junge Zielgruppen",
+      "Aktionsideen helfen bei der praktischen Umsetzung",
+      "Instagram Reels erreichen eine große Reichweite"
+    ]
+  };
+
+  const form = useBaseForm({
     defaultValues: {
       thema: initialContent?.thema || '',
       details: initialContent?.details || '',
       platforms: defaultPlatforms,
       useWebSearchTool: false,
       usePrivacyMode: false
-    }
+    },
+    // Generator configuration
+    generatorType: 'gruene-jugend',
+    componentName: componentName,
+    endpoint: '/claude_gruene_jugend',
+    instructionType: 'gruenejugend',
+    features: ['webSearch', 'privacyMode', 'platforms'],
+    tabIndexKey: 'GRUENE_JUGEND',
+    helpContent: helpContent,
+    platformOptions: platformOptions,
+    enablePlatformSelector: true
   });
-
-  const watchUseWebSearch = watch('useWebSearchTool');
-  const watchUsePrivacyMode = watch('usePrivacyMode');
-
-  // Use store for content management (no local state needed)
-  const socialMediaContent = useGeneratedTextStore(state => state.getGeneratedText(componentName)) || '';
-  const [attachedFiles, setAttachedFiles] = useState([]);
-  const [processedAttachments, setProcessedAttachments] = useState([]);
-  const { submitForm, loading, success, resetSuccess, error } = useApiSubmit('/claude_gruene_jugend');
-
-  const onSubmitRHF = useCallback(async (rhfData) => {
-    setStoreIsLoading(true);
-    try {
-      // Use platforms array directly from multi-select
-      const selectedPlatforms = rhfData.platforms || [];
-
-      const formDataToSubmit = { 
-        thema: rhfData.thema, 
-        details: rhfData.details, 
-        platforms: selectedPlatforms,
-        useWebSearchTool: rhfData.useWebSearchTool,
-        usePrivacyMode: rhfData.usePrivacyMode,
-        attachments: processedAttachments
-      };
-      
-      // Add knowledge, instructions, documents, and memories
-      const finalPrompt = await createKnowledgePrompt({
-        source,
-        isInstructionsActive,
-        getActiveInstruction,
-        instructionType,
-        groupDetailsData,
-        getKnowledgeContent,
-        getDocumentContent,
-        memoryOptions: {
-          enableMemories: memoryEnabled,
-          query: rhfData.thema,
-          generatorType: 'gruenejugend',
-          userId: user?.id
-        }
-      });
-      
-      if (finalPrompt) {
-        formDataToSubmit.customPrompt = finalPrompt;
-        console.log('[GrueneJugendGenerator] Final structured prompt added to formData.', finalPrompt.substring(0,100)+'...');
-      } else {
-        console.log('[GrueneJugendGenerator] No custom instructions or knowledge for generation.');
-      }
-
-      console.log('[GrueneJugendGenerator] Sende Formular mit Daten:', formDataToSubmit);
-      const content = await submitForm(formDataToSubmit);
-      console.log('[GrueneJugendGenerator] API Antwort erhalten:', content);
-      if (content) {
-        console.log('[GrueneJugendGenerator] Setze generierten Content:', content.substring(0, 100) + '...');
-        setGeneratedText(componentName, content);
-        setTimeout(resetSuccess, 3000);
-      }
-    } catch (err) {
-      console.error('[GrueneJugendGenerator] Fehler beim Formular-Submit:', err);
-    } finally {
-      setStoreIsLoading(false);
-    }
-  }, [submitForm, resetSuccess, setGeneratedText, setStoreIsLoading, source, isInstructionsActive, getActiveInstruction, groupDetailsData, getKnowledgeContent, memoryEnabled, user?.id, componentName, processedAttachments]);
-
-  const handleGeneratedContentChange = useCallback((content) => {
-    console.log('[GrueneJugendGenerator] Content Change Handler aufgerufen mit:', content?.substring(0, 100) + '...');
-    setGeneratedText(componentName, content);
-  }, [setGeneratedText, componentName]);
-
-  const handleAttachmentClick = useCallback(async (files) => {
-    try {
-      console.log(`[GrueneJugendGenerator] Processing ${files.length} new attached files`);
-      const processed = await prepareFilesForSubmission(files);
-      
-      // Accumulate files instead of replacing
-      setAttachedFiles(prevFiles => [...prevFiles, ...files]);
-      setProcessedAttachments(prevProcessed => [...prevProcessed, ...processed]);
-      
-      console.log('[GrueneJugendGenerator] Files successfully processed for submission');
-    } catch (error) {
-      console.error('[GrueneJugendGenerator] File processing error:', error);
-      // Here you could show a toast notification or error message to the user
-      // For now, we'll just log the error
-    }
-  }, []);
-
-  const handleRemoveFile = useCallback((index) => {
-    console.log(`[GrueneJugendGenerator] Removing file at index ${index}`);
-    setAttachedFiles(prevFiles => prevFiles.filter((_, i) => i !== index));
-    setProcessedAttachments(prevProcessed => prevProcessed.filter((_, i) => i !== index));
-  }, []);
-
-  const helpContent = {
-    content: "Dieser Grünerator erstellt jugendgerechte Social Media Inhalte und Aktionsideen speziell für die Grüne Jugend. Du kannst auch PDFs und Bilder als Hintergrundinformation anhängen.",
-    tips: [
-      "Wähle ein aktuelles, jugendrelevantes Thema",
-      "Formuliere Details verständlich und ansprechend",
-      "TikTok und Instagram sind besonders effektiv für junge Zielgruppen",
-      "Hänge PDFs oder Bilder als Kontext an (max. 5MB pro Datei)",
-      "Aktionsideen helfen bei der praktischen Umsetzung",
-      "Instagram Reels erreichen eine große Reichweite"
-    ]
-  };
-
-  const webSearchFeatureToggle = {
-    isActive: watchUseWebSearch,
-    onToggle: (checked) => {
-      setValue('useWebSearchTool', checked);
-    },
-    label: "Websuche verwenden",
-    icon: HiGlobeAlt,
-    description: "",
-    tabIndex: tabIndex.webSearch || 11
-  };
-
-  const privacyModeToggle = {
-    isActive: watchUsePrivacyMode,
-    onToggle: (checked) => {
-      setValue('usePrivacyMode', checked);
-    },
-    label: "Privacy-Mode",
-    icon: HiShieldCheck,
-    description: "Verwendet deutsche Server der Netzbegrünung.",
-    tabIndex: tabIndex.privacyMode || 13
-  };
 
   const renderFormInputs = () => (
     <>
       <Input
         name="thema"
-        control={control}
+        control={form.control}
         label={FORM_LABELS.THEME}
         placeholder={FORM_PLACEHOLDERS.THEME}
         rules={{ required: 'Thema ist ein Pflichtfeld' }}
-        tabIndex={tabIndex.thema}
+        tabIndex={form.generator.tabIndex?.thema}
       />
 
       <Textarea
         name="details"
-        control={control}
+        control={form.control}
         label={FORM_LABELS.DETAILS}
         placeholder={FORM_PLACEHOLDERS.DETAILS}
         rules={{ required: 'Details sind ein Pflichtfeld' }}
         minRows={3}
         maxRows={10}
-        tabIndex={tabIndex.details}
+        tabIndex={form.generator.tabIndex?.details}
       />
     </>
   );
@@ -265,34 +101,8 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }) => {
     <ErrorBoundary>
       <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
         <BaseForm
-          title="Grüne Jugend"
-          onSubmit={handleSubmit(onSubmitRHF)}
-          loading={loading}
-          success={success}
-          error={error}
-          generatedContent={socialMediaContent}
-          onGeneratedContentChange={handleGeneratedContentChange}
-          formNotice={formNotice}
-          enableKnowledgeSelector={true}
-          enableDocumentSelector={true}
-          enablePlatformSelector={true}
-          platformOptions={platformOptions}
-          formControl={control}
-          helpContent={helpContent}
-          componentName={componentName}
-          webSearchFeatureToggle={webSearchFeatureToggle}
-          useWebSearchFeatureToggle={true}
-          privacyModeToggle={privacyModeToggle}
-          usePrivacyModeToggle={true}
-          useFeatureIcons={true}
-          onAttachmentClick={handleAttachmentClick}
-          onRemoveFile={handleRemoveFile}
-          attachedFiles={attachedFiles}
-          platformSelectorTabIndex={baseFormTabIndex.platformSelectorTabIndex}
-          knowledgeSelectorTabIndex={baseFormTabIndex.knowledgeSelectorTabIndex}
-          knowledgeSourceSelectorTabIndex={baseFormTabIndex.knowledgeSourceSelectorTabIndex}
-          documentSelectorTabIndex={baseFormTabIndex.documentSelectorTabIndex}
-          submitButtonTabIndex={baseFormTabIndex.submitButtonTabIndex}
+          {...form.generator.baseFormProps}
+          onSubmit={form.generator.onSubmit}
         >
           {renderFormInputs()}
         </BaseForm>

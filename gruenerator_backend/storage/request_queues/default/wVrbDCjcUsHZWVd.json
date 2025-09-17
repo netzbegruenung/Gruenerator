@@ -1,9 +1,0 @@
-{
-	"id": "wVrbDCjcUsHZWVd",
-	"json": "{\"id\":\"wVrbDCjcUsHZWVd\",\"url\":\"https://www.gruene.de/\",\"loadedUrl\":\"https://www.gruene.de/\",\"uniqueKey\":\"https://www.gruene.de\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":2,\"errorMessages\":[\"Error: requestHandler timed out after 20 seconds.\\n    at Timeout._onTimeout (/home/morit/gruenerator/gruenerator_backend/node_modules/@apify/timeout/cjs/index.cjs:64:68)\\n    at listOnTimeout (node:internal/timers:588:17)\\n    at process.processTimers (node:internal/timers:523:7)\",\"Error: requestHandler timed out after 20 seconds.\\n    at Timeout._onTimeout (/home/morit/gruenerator/gruenerator_backend/node_modules/@apify/timeout/cjs/index.cjs:64:68)\\n    at listOnTimeout (node:internal/timers:588:17)\\n    at process.processTimers (node:internal/timers:523:7)\",\"Error: requestHandler timed out after 20 seconds.\\n    at Timeout._onTimeout (/home/morit/gruenerator/gruenerator_backend/node_modules/@apify/timeout/cjs/index.cjs:64:68)\\n    at listOnTimeout (node:internal/timers:588:17)\\n    at process.processTimers (node:internal/timers:523:7)\"],\"headers\":{},\"userData\":{\"__crawlee\":{\"state\":5}},\"handledAt\":\"2025-06-26T21:49:13.495Z\"}",
-	"method": "GET",
-	"orderNo": null,
-	"retryCount": 2,
-	"uniqueKey": "https://www.gruene.de",
-	"url": "https://www.gruene.de/"
-}

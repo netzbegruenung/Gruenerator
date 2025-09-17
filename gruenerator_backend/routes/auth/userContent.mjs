@@ -27,7 +27,7 @@ router.get('/instructions-status/:instructionType', ensureAuthenticated, async (
     const { instructionType } = req.params;
     
     // Validate instruction type
-    const validInstructionTypes = ['antrag', 'social', 'universal', 'gruenejugend', 'custom_generator'];
+    const validInstructionTypes = ['antrag', 'social', 'universal', 'gruenejugend', 'rede', 'buergeranfragen', 'custom_generator'];
     if (!validInstructionTypes.includes(instructionType)) {
       return res.status(400).json({
         success: false,
@@ -38,9 +38,11 @@ router.get('/instructions-status/:instructionType', ensureAuthenticated, async (
     // Map instruction types to database fields
     const fieldMapping = {
       antrag: ['custom_antrag_prompt', 'custom_antrag_gliederung'],
-      social: ['custom_social_prompt', 'presseabbinder'], 
+      social: ['custom_social_prompt', 'presseabbinder'],
       universal: ['custom_universal_prompt'],
-      gruenejugend: ['custom_gruenejugend_prompt']
+      gruenejugend: ['custom_gruenejugend_prompt'],
+      rede: ['custom_rede_prompt'],
+      buergeranfragen: ['custom_buergeranfragen_prompt']
     };
     
     // Special handling for custom_generator - they don't use traditional instruction fields
@@ -319,6 +321,8 @@ router.get('/anweisungen-wissen', ensureAuthenticated, async (req, res) => {
       socialPrompt: profileData?.custom_social_prompt || '',
       universalPrompt: profileData?.custom_universal_prompt || '',
       gruenejugendPrompt: profileData?.custom_gruenejugend_prompt || '',
+      redePrompt: profileData?.custom_rede_prompt || '',
+      buergeranfragenPrompt: profileData?.custom_buergeranfragen_prompt || '',
       presseabbinder: profileData?.presseabbinder || '',
       knowledge: knowledgeEntries?.map(entry => ({
         id: entry.id,

@@ -2,28 +2,76 @@ import * as cheerio from 'cheerio';
 import { URL } from 'url';
 import TurndownService from 'turndown';
 
+/**
+ * In-memory storage adapter for Crawlee to avoid persistence issues
+ */
+class MemoryStorage {
+  constructor() {
+    this.data = new Map();
+    this.queues = new Map();
+  }
+
+  async getValue(key) {
+    return this.data.get(key) || null;
+  }
+
+  async setValue(key, value) {
+    this.data.set(key, value);
+  }
+
+  async deleteValue(key) {
+    this.data.delete(key);
+  }
+
+  async clear() {
+    this.data.clear();
+    this.queues.clear();
+  }
+
+  // Queue-specific methods
+  async addRequest(queueId, request) {
+    if (!this.queues.has(queueId)) {
+      this.queues.set(queueId, []);
+    }
+    this.queues.get(queueId).push(request);
+  }
+
+  async getRequest(queueId) {
+    const queue = this.queues.get(queueId);
+    return queue && queue.length > 0 ? queue.shift() : null;
+  }
+
+  async isEmpty(queueId) {
+    const queue = this.queues.get(queueId);
+    return !queue || queue.length === 0;
+  }
+}
+
 class URLCrawlerService {
   constructor() {
-    this.defaultOptions = {
-      // Request timeout in milliseconds
-      timeout: 10000,
-      // Maximum redirects to follow
-      maxRedirects: 5,
-      // User agent string
+    this.config = {
+      // Crawler preference: 'crawlee', 'fetch', 'auto'
+      crawlerMode: process.env.CRAWLER_MODE || 'auto',
+      maxConcurrency: 3,
+      maxRetries: 3,
+      timeout: 15000,
+      maxContentLength: 10 * 1024 * 1024, // 10MB
       userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      // Maximum content length (10MB)
-      maxContentLength: 10 * 1024 * 1024,
+      usePersistentStorage: false
     };
 
     // Initialize Turndown service for HTML to Markdown conversion
     this.turndownService = new TurndownService({
-      headingStyle: 'atx', // Use # for headings
+      headingStyle: 'atx',
       hr: '---',
       bulletListMarker: '-',
       codeBlockStyle: 'fenced',
       emDelimiter: '*',
       strongDelimiter: '**',
     });
+
+    // Memory storage instance
+    this.memoryStorage = new MemoryStorage();
   }
 
   /**
@@ -33,10 +81,8 @@ class URLCrawlerService {
    */
   async validateUrl(url) {
     try {
-      // Basic URL format validation
       const urlObj = new URL(url);
-      
-      // Check for supported protocols
+
       if (!['http:', 'https:'].includes(urlObj.protocol)) {
         return {
           isValid: false,
@@ -47,8 +93,8 @@ class URLCrawlerService {
       // Check for localhost or private IP addresses in production
       if (process.env.NODE_ENV === 'production') {
         const hostname = urlObj.hostname.toLowerCase();
-        if (hostname === 'localhost' || 
-            hostname.startsWith('127.') || 
+        if (hostname === 'localhost' ||
+            hostname.startsWith('127.') ||
             hostname.startsWith('10.') ||
             hostname.startsWith('192.168.') ||
             hostname.startsWith('172.')) {
@@ -69,18 +115,307 @@ class URLCrawlerService {
   }
 
   /**
-   * Fetches HTML content from a URL
-   * @param {string} url - The URL to fetch
-   * @param {Object} options - Fetch options
-   * @returns {Promise<{html: string, finalUrl: string, statusCode: number}>}
+   * Main crawling method with automatic fallback
+   * @param {string} url - The URL to crawl
+   * @param {Object} options - Crawling options
+   * @returns {Promise<{success: boolean, data?: Object, error?: string}>}
    */
-  async fetchUrl(url, options = {}) {
+  async crawlUrl(url, options = {}) {
+    console.log(`[URLCrawlerService] Starting crawl for URL: ${url}`);
+    const startTime = Date.now();
+
+    try {
+      // Validate URL first
+      const validation = await this.validateUrl(url);
+      if (!validation.isValid) {
+        throw new Error(validation.error);
+      }
+
+      console.log(`[URLCrawlerService] URL validation passed, starting crawl...`);
+
+      let html, finalUrl, statusCode;
+
+      // Try Crawlee first (if available and preferred)
+      if (this.config.crawlerMode === 'crawlee' || this.config.crawlerMode === 'auto') {
+        try {
+          const result = await this._crawlWithCrawlee(url, options);
+          html = result.html;
+          finalUrl = result.finalUrl;
+          statusCode = result.statusCode;
+          console.log(`[URLCrawlerService] Successfully crawled with Crawlee: ${url}`);
+        } catch (crawleeError) {
+          console.log(`[URLCrawlerService] Crawlee failed for ${url}, falling back to fetch:`, crawleeError.message);
+
+          if (this.config.crawlerMode === 'crawlee') {
+            // If explicitly using Crawlee, don't fallback
+            throw crawleeError;
+          }
+
+          // Fallback to fetch
+          const result = await this._crawlWithFetch(url, options);
+          html = result.html;
+          finalUrl = result.finalUrl;
+          statusCode = result.statusCode;
+          console.log(`[URLCrawlerService] Successfully crawled with fetch fallback: ${url}`);
+        }
+      } else {
+        // Use fetch directly
+        const result = await this._crawlWithFetch(url, options);
+        html = result.html;
+        finalUrl = result.finalUrl;
+        statusCode = result.statusCode;
+        console.log(`[URLCrawlerService] Successfully crawled with fetch: ${url}`);
+      }
+
+      // Extract content using Cheerio
+      const contentData = this.extractContent(html, finalUrl, options.enhancedMetadata);
+
+      // Validate extracted content
+      if (!contentData.content || contentData.content.trim().length < 50) {
+        throw new Error('Insufficient content extracted from the page. The page might be empty or require JavaScript.');
+      }
+
+      console.log(`[URLCrawlerService] Crawl completed successfully for ${url}`);
+
+      return {
+        success: true,
+        data: {
+          ...contentData,
+          originalUrl: url,
+          statusCode,
+          processingTimeMs: Date.now() - startTime
+        }
+      };
+
+    } catch (error) {
+      console.error(`[URLCrawlerService] Crawl failed for ${url}:`, error);
+      return {
+        success: false,
+        error: error.message || 'Failed to crawl URL'
+      };
+    }
+  }
+
+  /**
+   * Crawls URL using Crawlee with memory-only storage
+   * @private
+   */
+  async _crawlWithCrawlee(url, options = {}) {
+    let crawlee;
+    try {
+      crawlee = await import('crawlee');
+    } catch (importError) {
+      throw new Error('Crawlee not available: ' + importError.message);
+    }
+
+    const { CheerioCrawler, PlaywrightCrawler, Configuration } = crawlee;
+
+    // Clear memory storage before starting
+    await this.memoryStorage.clear();
+
+    const crawlOptions = {
+      ...this.config,
+      ...options,
+      requestTimeoutSecs: Math.floor((options.timeout || this.config.timeout) / 1000),
+    };
+
+    // Try CheerioCrawler first
+    try {
+      return await this._runCheerioCrawler(url, crawlOptions, CheerioCrawler);
+    } catch (cheerioError) {
+      console.log(`[URLCrawlerService] CheerioCrawler failed, trying PlaywrightCrawler:`, cheerioError.message);
+
+      // Check if error suggests JavaScript requirement
+      if (this._requiresJavaScript(cheerioError)) {
+        try {
+          return await this._runPlaywrightCrawler(url, crawlOptions, PlaywrightCrawler);
+        } catch (playwrightError) {
+          console.error(`[URLCrawlerService] Both crawlers failed for ${url}:`, playwrightError.message);
+          throw playwrightError;
+        }
+      } else {
+        throw cheerioError;
+      }
+    }
+  }
+
+  /**
+   * Runs CheerioCrawler with memory storage
+   * @private
+   */
+  async _runCheerioCrawler(url, options, CheerioCrawler) {
+    const results = [];
+    const queueId = `queue-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+    // Add request to memory storage
+    await this.memoryStorage.addRequest(queueId, {
+      url,
+      uniqueKey: `${url}-${Date.now()}`
+    });
+
+    const crawler = new CheerioCrawler({
+      maxRequestRetries: options.maxRetries,
+      requestHandlerTimeoutSecs: options.requestTimeoutSecs,
+      maxConcurrency: 1, // Single URL crawl
+      maxRequestsPerCrawl: 1,
+      persistCookiesPerSession: false,
+      useSessionPool: false,
+
+      requestHandler: async ({ request, response, $ }) => {
+        try {
+          // Validate response
+          if (response.statusCode >= 400) {
+            throw new Error(`HTTP ${response.statusCode}: ${response.statusMessage || 'Request failed'}`);
+          }
+
+          // Check content type
+          const contentType = response.headers['content-type'] || '';
+          if (!contentType.includes('text/html')) {
+            throw new Error(`Unsupported content type: ${contentType}`);
+          }
+
+          // Check content length
+          const contentLength = response.headers['content-length'];
+          if (contentLength && parseInt(contentLength) > options.maxContentLength) {
+            throw new Error(`Content too large: ${contentLength} bytes`);
+          }
+
+          const html = $.html();
+
+          // Basic check for JavaScript requirement
+          if (this._detectJavaScriptRequired($, html)) {
+            throw new Error('JavaScript required for this page');
+          }
+
+          results.push({
+            html,
+            finalUrl: request.loadedUrl || request.url,
+            statusCode: response.statusCode || 200
+          });
+        } catch (error) {
+          console.error(`[URLCrawlerService] CheerioCrawler request handler error for ${request.url}:`, error.message);
+          throw error;
+        }
+      },
+
+      errorHandler: ({ request, error }) => {
+        console.error(`[URLCrawlerService] CheerioCrawler error for ${request.url}:`, error.message);
+      },
+
+      // Custom headers
+      preNavigationHooks: [
+        async ({ request }) => {
+          request.headers = {
+            ...request.headers,
+            'User-Agent': options.userAgent,
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'DNT': '1',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1'
+          };
+        }
+      ]
+    });
+
+    try {
+      await crawler.run([url]);
+
+      if (results.length === 0) {
+        throw new Error('No content extracted from the page');
+      }
+
+      return results[0];
+    } finally {
+      try {
+        await crawler.teardown();
+      } catch (cleanupError) {
+        console.warn('[URLCrawlerService] Failed to cleanup CheerioCrawler:', cleanupError.message);
+      }
+    }
+  }
+
+  /**
+   * Runs PlaywrightCrawler with memory storage
+   * @private
+   */
+  async _runPlaywrightCrawler(url, options, PlaywrightCrawler) {
+    const results = [];
+
+    const crawler = new PlaywrightCrawler({
+      maxRequestRetries: options.maxRetries,
+      requestHandlerTimeoutSecs: options.requestTimeoutSecs * 2, // More time for browser
+      maxConcurrency: 1,
+      maxRequestsPerCrawl: 1,
+      headless: options.headless !== false, // Default to headless
+      persistCookiesPerSession: false,
+      useSessionPool: false,
+
+      launchContext: {
+        userAgent: options.userAgent
+      },
+
+      requestHandler: async ({ request, page }) => {
+        try {
+          // Wait for page to load
+          await page.waitForLoadState('domcontentloaded');
+
+          // Get final URL after redirects
+          const finalUrl = page.url();
+
+          // Get HTML content
+          const html = await page.content();
+
+          // Check content length
+          if (html.length > options.maxContentLength) {
+            throw new Error(`Content too large: ${html.length} characters`);
+          }
+
+          results.push({
+            html,
+            finalUrl,
+            statusCode: 200 // Playwright doesn't provide direct access to status code
+          });
+        } catch (error) {
+          console.error(`[URLCrawlerService] PlaywrightCrawler request handler error for ${request.url}:`, error.message);
+          throw error;
+        }
+      },
+
+      errorHandler: ({ request, error }) => {
+        console.error(`[URLCrawlerService] PlaywrightCrawler error for ${request.url}:`, error.message);
+      }
+    });
+
+    try {
+      await crawler.run([url]);
+
+      if (results.length === 0) {
+        throw new Error('No content extracted from the page');
+      }
+
+      return results[0];
+    } finally {
+      try {
+        await crawler.teardown();
+      } catch (cleanupError) {
+        console.warn('[URLCrawlerService] Failed to cleanup PlaywrightCrawler:', cleanupError.message);
+      }
+    }
+  }
+
+  /**
+   * Fallback crawling using native fetch
+   * @private
+   */
+  async _crawlWithFetch(url, options = {}) {
     const fetchOptions = {
-      ...this.defaultOptions,
+      ...this.config,
       ...options
     };
 
-    console.log(`[URLCrawlerService] Fetching URL: ${url}`);
+    console.log(`[URLCrawlerService] Fetching URL with fetch: ${url}`);
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), fetchOptions.timeout);
@@ -120,7 +455,7 @@ class URLCrawlerService {
       }
 
       const html = await response.text();
-      
+
       return {
         html,
         finalUrl: response.url,
@@ -129,11 +464,11 @@ class URLCrawlerService {
 
     } catch (error) {
       clearTimeout(timeoutId);
-      
+
       if (error.name === 'AbortError') {
         throw new Error(`Request timeout after ${fetchOptions.timeout}ms`);
       }
-      
+
       throw error;
     }
   }
@@ -142,20 +477,20 @@ class URLCrawlerService {
    * Extracts clean text content from HTML using Cheerio
    * @param {string} html - The HTML content
    * @param {string} url - The source URL for context
-   * @param {boolean} enhancedMetadata - Whether to extract enhanced metadata (images, dimensions, etc.)
+   * @param {boolean} enhancedMetadata - Whether to extract enhanced metadata
    * @returns {Object} Extracted content data
    */
   extractContent(html, url, enhancedMetadata = false) {
     console.log(`[URLCrawlerService] Extracting content from HTML (${html.length} characters), enhanced: ${enhancedMetadata}`);
 
     const $ = cheerio.load(html);
-    
+
     // Remove unwanted elements
     $('script, style, nav, header, footer, .navigation, .sidebar, .ads, .advertisement, noscript, iframe').remove();
-    
+
     // Extract metadata
     const title = $('title').text().trim() || $('h1').first().text().trim() || 'Untitled';
-    const metaDescription = $('meta[name="description"]').attr('content') || 
+    const metaDescription = $('meta[name="description"]').attr('content') ||
                           $('meta[property="og:description"]').attr('content') || '';
     const canonical = $('link[rel="canonical"]').attr('href') || url;
 
@@ -206,7 +541,7 @@ class URLCrawlerService {
 
     // Clean the extracted text
     const cleanedContent = this.cleanExtractedText(extractedContent);
-    
+
     // Convert HTML to Markdown
     const markdownContent = this.convertHtmlToMarkdown(extractedHtml);
 
@@ -229,56 +564,107 @@ class URLCrawlerService {
     };
 
     console.log(`[URLCrawlerService] Successfully extracted ${result.wordCount} words from ${url}`);
-    
+
     return result;
   }
 
   /**
-   * Extracts clean text content from a web page using HTTP + Cheerio
-   * @param {string} url - The URL to crawl
-   * @param {Object} options - Crawling options
-   * @param {boolean} options.enhancedMetadata - Whether to extract enhanced metadata
+   * Gets a preview of content without full crawling (for validation)
+   * @param {string} url - The URL to preview
    * @returns {Promise<{success: boolean, data?: Object, error?: string}>}
    */
-  async crawlUrl(url, options = {}) {
-    console.log(`[URLCrawlerService] Starting crawl for URL: ${url}`);
-    
+  async previewUrl(url) {
     try {
-      // Validate URL first
       const validation = await this.validateUrl(url);
       if (!validation.isValid) {
         throw new Error(validation.error);
       }
 
-      // Fetch the HTML content
-      const { html, finalUrl, statusCode } = await this.fetchUrl(url, options);
-      
-      // Extract content using Cheerio with optional enhanced metadata
-      const contentData = this.extractContent(html, finalUrl, options.enhancedMetadata);
-      
-      // Validate extracted content
-      if (!contentData.content || contentData.content.trim().length < 50) {
-        throw new Error('Insufficient content extracted from the page. The page might be empty or require JavaScript.');
+      // For preview, we'll just do a HEAD request to check if the URL is accessible
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+      try {
+        const response = await fetch(url, {
+          method: 'HEAD',
+          headers: {
+            'User-Agent': this.config.userAgent,
+          },
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        return {
+          success: true,
+          data: {
+            url,
+            accessible: response.ok,
+            statusCode: response.status,
+            contentType: response.headers.get('content-type'),
+            preview: `URL is ${response.ok ? 'accessible' : 'not accessible'} (${response.status})`
+          }
+        };
+
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        throw fetchError;
       }
 
-      console.log(`[URLCrawlerService] Crawl completed successfully for ${url}`);
-      
-      return {
-        success: true,
-        data: {
-          ...contentData,
-          originalUrl: url,
-          statusCode
-        }
-      };
-
     } catch (error) {
-      console.error(`[URLCrawlerService] Crawl failed for ${url}:`, error);
       return {
         success: false,
-        error: error.message || 'Failed to crawl URL'
+        error: error.message || 'Failed to preview URL'
       };
     }
+  }
+
+  // Helper methods
+
+  /**
+   * Determines if a page requires JavaScript
+   * @private
+   */
+  _requiresJavaScript(error) {
+    const errorMessage = error.message.toLowerCase();
+    return (
+      errorMessage.includes('javascript required') ||
+      errorMessage.includes('javascript') ||
+      errorMessage.includes('blocked') ||
+      errorMessage.includes('403') ||
+      errorMessage.includes('cloudflare') ||
+      errorMessage.includes('bot protection') ||
+      errorMessage.includes('captcha')
+    );
+  }
+
+  /**
+   * Basic detection for JavaScript-heavy pages
+   * @private
+   */
+  _detectJavaScriptRequired($, html) {
+    // Check for common indicators of JavaScript requirement
+    const indicators = [
+      // Text content indicating JS requirement
+      /enable\s+javascript/i,
+      /javascript\s+(is\s+)?required/i,
+      /javascript\s+(is\s+)?disabled/i,
+      /please\s+enable\s+javascript/i,
+
+      // Very minimal content (potential SPA)
+      html.length < 1000 && $('script').length > 5,
+
+      // No meaningful text content
+      $('body').text().trim().length < 50 && $('script').length > 0,
+
+      // Common framework indicators with minimal content
+      (html.includes('ng-app') || html.includes('data-reactroot') || html.includes('__NEXT_DATA__')) &&
+      $('body').text().trim().length < 100
+    ];
+
+    return indicators.some(indicator =>
+      typeof indicator === 'boolean' ? indicator : indicator.test(html)
+    );
   }
 
   /**
@@ -317,7 +703,7 @@ class URLCrawlerService {
     try {
       // Convert HTML to Markdown using turndown
       let markdown = this.turndownService.turndown(html);
-      
+
       // Clean up the markdown
       markdown = markdown
         // Remove excessive whitespace and line breaks
@@ -336,7 +722,7 @@ class URLCrawlerService {
   }
 
   /**
-   * Attempts to extract publication date from the page using Cheerio
+   * Attempts to extract publication date from the page
    * @param {Object} $ - Cheerio instance
    * @returns {string|null} Publication date or null
    */
@@ -357,7 +743,7 @@ class URLCrawlerService {
     for (const selector of dateSelectors) {
       try {
         let dateValue = null;
-        
+
         if (selector.includes('meta')) {
           dateValue = $(selector).attr('content');
         } else if (selector.includes('time')) {
@@ -409,7 +795,7 @@ class URLCrawlerService {
     // Extract dimensions from Open Graph
     const ogWidth = $('meta[property="og:image:width"]').attr('content');
     const ogHeight = $('meta[property="og:image:height"]').attr('content');
-    
+
     if (ogWidth && ogHeight) {
       enhancedData.dimensions = {
         width: parseInt(ogWidth, 10),
@@ -419,7 +805,7 @@ class URLCrawlerService {
 
     // Extract categories from various sources
     const categories = new Set();
-    
+
     // Try meta keywords
     const keywords = $('meta[name="keywords"]').attr('content');
     if (keywords) {
@@ -449,8 +835,8 @@ class URLCrawlerService {
     const combinedText = `${titleLower} ${descLower}`;
 
     const templateTypes = [
-      'flyer', 'poster', 'brochure', 'presentation', 'instagram', 'facebook', 
-      'twitter', 'social media', 'newsletter', 'business card', 'logo', 
+      'flyer', 'poster', 'brochure', 'presentation', 'instagram', 'facebook',
+      'twitter', 'social media', 'newsletter', 'business card', 'logo',
       'banner', 'story', 'post', 'card', 'invitation', 'resume', 'cv'
     ];
 
@@ -497,59 +883,8 @@ class URLCrawlerService {
     } catch (error) {
       console.warn('[URLCrawlerService] Error parsing structured data:', error.message);
     }
-    
+
     return null;
-  }
-
-  /**
-   * Gets a preview of content without full crawling (for validation)
-   * @param {string} url - The URL to preview
-   * @returns {Promise<{success: boolean, data?: Object, error?: string}>}
-   */
-  async previewUrl(url) {
-    try {
-      const validation = await this.validateUrl(url);
-      if (!validation.isValid) {
-        throw new Error(validation.error);
-      }
-
-      // For preview, we'll just do a HEAD request to check if the URL is accessible
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-      try {
-        const response = await fetch(url, {
-          method: 'HEAD',
-          headers: {
-            'User-Agent': this.defaultOptions.userAgent,
-          },
-          signal: controller.signal,
-        });
-
-        clearTimeout(timeoutId);
-
-        return {
-          success: true,
-          data: {
-            url,
-            accessible: response.ok,
-            statusCode: response.status,
-            contentType: response.headers.get('content-type'),
-            preview: `URL is ${response.ok ? 'accessible' : 'not accessible'} (${response.status})`
-          }
-        };
-
-      } catch (fetchError) {
-        clearTimeout(timeoutId);
-        throw fetchError;
-      }
-
-    } catch (error) {
-      return {
-        success: false,
-        error: error.message || 'Failed to preview URL'
-      };
-    }
   }
 }
 

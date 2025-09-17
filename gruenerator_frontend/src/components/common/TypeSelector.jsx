@@ -20,7 +20,6 @@ const TypeSelector = ({
   return (
     <div style={{ marginBottom }}>
       <FormSelect
-        key={selectedType}
         name={name}
         label={label}
         options={typeOptions}

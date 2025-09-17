@@ -1,6 +1,7 @@
 
 
 const { PLATFORM_SPECIFIC_GUIDELINES, HTML_FORMATTING_INSTRUCTIONS, TITLE_GENERATION_INSTRUCTION, isStructuredPrompt, formatUserContent, processResponseWithTitle, WEB_SEARCH_TOOL } = require('./promptUtils');
+const { assemblePromptGraph, assemblePromptGraphAsync } = require('../agents/langgraph/promptAssemblyGraph.js');
 
 // Environment-based logging levels
 const LOG_LEVEL = process.env.LOG_LEVEL || 'info'; // debug, info, warn, error
@@ -40,6 +41,9 @@ class UnifiedPromptBuilder {
       webSearchSources: [] // Store sources separately from content
     };
     this.debug = false;
+    // Always use graph mode since the graph is integrated and should always be used
+    this.graphMode = true;
+    this.assemblyFlags = { docQnAEnabled: false };
     
     // Tool management
     this.tools = [];
@@ -180,7 +184,7 @@ class UnifiedPromptBuilder {
       if (searchResults && searchResults.success) {
         // Generate AI summary to get textContent for prompt context
         if (!aiWorkerPool) {
-          console.warn('[UnifiedPromptBuilder] No aiWorkerPool provided to handleWebSearch - AI summary will be skipped');
+          if (isVerboseMode) console.warn('⚠️ [Prompt] No aiWorkerPool for web search summary (skipped)');
         }
         
         const searchResultsWithSummary = aiWorkerPool 
@@ -205,19 +209,23 @@ class UnifiedPromptBuilder {
         const sourcesCount = searchResults.sourcesCount || 0;
         
         if (hasResults || hasTextContent) {
-          // Get preview of first 2 sentences for logging
-          const contentPreview = hasTextContent ? this._getContentPreview(searchResults.textContent, 2) : 'No text content';
-          
-          console.log(`[UnifiedPromptBuilder] Web search complete: Content added to context (${contentLength} chars${hasResults ? `, ${searchResults.results.length} individual results` : ''}${hasSources ? `, ${sourcesCount} sources captured` : ''})`);
-          console.log(`[UnifiedPromptBuilder] Search result preview: ${contentPreview}`);
+          const resCount = hasResults ? searchResults.results.length : 0;
+          const bits = [`+context=${contentLength} chars`];
+          if (resCount) bits.push(`results=${resCount}`);
+          if (hasSources) bits.push(`sources=${sourcesCount}`);
+          console.log(`🔍 [Prompt] Web search OK (${bits.join(', ')})`);
+          if (isDebugMode && hasTextContent) {
+            const contentPreview = this._getContentPreview(searchResults.textContent, 2);
+            console.debug(`🔎 [Prompt] Preview: ${contentPreview}`);
+          }
         } else {
-          console.log(`[UnifiedPromptBuilder] Web search complete: No usable content found`);
+          console.log('🔍 [Prompt] Web search returned no usable content');
         }
         
         // Store sources separately from content (for frontend display)
         if (hasSources) {
           this.context.webSearchSources = searchResults.sources;
-          console.log(`[UnifiedPromptBuilder] Stored ${sourcesCount} sources separately for frontend display`);
+          if (isVerboseMode) console.log(`🗂️ [Prompt] Stored ${sourcesCount} sources for UI`);
         }
         
         // Add search results as context (only content, not sources)
@@ -228,12 +236,12 @@ class UnifiedPromptBuilder {
           'Nutze die bereitgestellten aktuellen Suchergebnisse für Informationen und Fakten. Zitiere Quellen wenn verfügbar.'
         );
       } else {
-        console.warn('[UnifiedPromptBuilder] Web search returned no results');
+        console.warn('⚠️ [Prompt] Web search returned no results');
         this._addSearchFailureNotice(query);
       }
       
     } catch (error) {
-      console.error('[UnifiedPromptBuilder] Web search failed:', error.message);
+      console.error('❌ [Prompt] Web search failed:', error.message);
       this._addSearchFailureNotice(query, error.message);
     }
     
@@ -324,6 +332,26 @@ class UnifiedPromptBuilder {
   }
 
   /**
+   * Switch to graph-style prompt assembly
+   * @param {boolean} enabled
+   * @returns {UnifiedPromptBuilder}
+   */
+  useGraphAssembly(enabled = true) {
+    this.graphMode = !!enabled;
+    return this;
+  }
+
+  /**
+   * Enable Document QnA pre-extraction stage for uploads
+   * @param {boolean} enabled
+   * @returns {UnifiedPromptBuilder}
+   */
+  enableDocumentQnA(enabled = true) {
+    this.assemblyFlags.docQnAEnabled = !!enabled;
+    return this;
+  }
+
+  /**
    * Enable a tool with optional system instructions
    * @param {string} toolName - Name of the tool (must exist in TOOL_REGISTRY)
    * @param {boolean} enabled - Whether to enable the tool
@@ -336,13 +364,13 @@ class UnifiedPromptBuilder {
       // Remove tool if it exists
       this.tools = this.tools.filter(tool => tool.name !== (TOOL_REGISTRY[toolName]?.name || toolName));
       this.toolInstructions.delete(toolName);
-      console.log(`[UnifiedPromptBuilder] Disabled tool: ${toolName}`);
+      if (isVerboseMode) console.log(`🧰 [Prompt] Tool disabled: ${toolName}`);
       return this;
     }
 
     // Special handling for web search with Bedrock - disable tool but keep instructions
     if (toolName === 'webSearch' && options.forceDisableForBedrock) {
-      console.log(`[UnifiedPromptBuilder] Web search disabled for Bedrock - results will be pre-fetched`);
+      if (isVerboseMode) console.log('🧰 [Prompt] Web search tool disabled for Bedrock (prefetch)');
       
       // Store instructions but don't add the tool
       if (systemInstructions) {
@@ -357,7 +385,7 @@ class UnifiedPromptBuilder {
 
     const tool = TOOL_REGISTRY[toolName];
     if (!tool) {
-      console.warn(`[UnifiedPromptBuilder] Unknown tool: ${toolName}. Available tools:`, Object.keys(TOOL_REGISTRY));
+      console.warn(`⚠️ [Prompt] Unknown tool: ${toolName}. Available:`, Object.keys(TOOL_REGISTRY));
       return this;
     }
 
@@ -366,10 +394,10 @@ class UnifiedPromptBuilder {
     if (existingIndex >= 0) {
       // Replace existing tool (in case of configuration updates)
       this.tools[existingIndex] = tool;
-      console.log(`[UnifiedPromptBuilder] Updated tool: ${toolName}`);
+      if (isVerboseMode) console.log(`🧰 [Prompt] Tool updated: ${toolName}`);
     } else {
       this.tools.push(tool);
-      console.log(`[UnifiedPromptBuilder] Enabled tool: ${toolName}`);
+      if (isVerboseMode) console.log(`🧰 [Prompt] Tool enabled: ${toolName}`);
     }
 
     // Store system instructions if provided
@@ -395,6 +423,30 @@ class UnifiedPromptBuilder {
    * @returns {Object} Prompt object with system message, user messages, and tools
    */
   build() {
+    // Optional graph-style assembly (keeps return shape stable)
+    if (this.graphMode) {
+      const result = assemblePromptGraph({
+        systemRole: this.context.system.role,
+        constraints: this.context.system.constraints,
+        formatting: this.context.system.formatting,
+        documents: this.context.documents,
+        knowledge: this.context.knowledge,
+        instructions: this.context.instructions,
+        request: this.context.request,
+        examples: this.context.examples,
+        tools: this.tools,
+        toolInstructions: Array.from(this.toolInstructions.values()),
+        provider: this.provider,
+        type: this.type
+      });
+      // Visual marker that LangGraph-style assembly is active
+      console.log(`🧭 [LangGraph] Prompt assembled (type=${this.type}, msgs=${result.messages.length}, tools=${result.tools.length})`);
+      if (this.debug) {
+        this._logDebugInfo(result);
+      }
+      return this._adaptForProvider(result);
+    }
+
     const baseResult = {
       system: this._buildSystemMessage(),
       messages: this._buildUserMessages(),
@@ -407,6 +459,32 @@ class UnifiedPromptBuilder {
 
     // Apply provider-specific adaptations
     return this._adaptForProvider(baseResult);
+  }
+
+  /**
+   * Async build with LangGraph assembly (enables DocQnA stage)
+   */
+  async buildAsync() {
+    if (!this.graphMode) {
+      return this.build();
+    }
+    const result = await assemblePromptGraphAsync({
+      systemRole: this.context.system.role,
+      constraints: this.context.system.constraints,
+      formatting: this.context.system.formatting,
+      documents: this.context.documents,
+      knowledge: this.context.knowledge,
+      instructions: this.context.instructions,
+      request: this.context.request,
+      examples: this.context.examples,
+      tools: this.tools,
+      toolInstructions: Array.from(this.toolInstructions.values()),
+      provider: this.provider,
+      type: this.type
+    }, this.assemblyFlags);
+    console.log(`🧭 [LangGraph] Prompt assembled (type=${this.type}, msgs=${result.messages.length}, tools=${result.tools.length})`);
+    if (this.debug) this._logDebugInfo(result);
+    return this._adaptForProvider(result);
   }
 
   /**
@@ -453,7 +531,7 @@ class UnifiedPromptBuilder {
       
       if (reinforcement) {
         lastUserMsg.content = reinforcement + lastUserMsg.content;
-        console.log(`[PromptBuilder] Applied Mistral adaptations for ${this.type}`);
+        if (isVerboseMode) console.log(`🧪 [Prompt] Applied Mistral adaptations (${this.type})`);
       }
     }
 
@@ -553,7 +631,7 @@ class UnifiedPromptBuilder {
   _logExampleDetails(examples) {
     // Environment-based example logging
     if (isVerboseMode && examples && examples.length > 0) {
-      console.log(`[PromptBuilder] Added ${examples.length} examples`);
+      console.log(`🎯 [Prompt] Examples added: ${examples.length}`);
     }
   }
 
@@ -861,7 +939,7 @@ class UnifiedPromptBuilder {
     // Environment-based logging
     if (isVerboseMode) {
       const toolNames = this.tools.map(t => t.name).join(', ');
-      console.log(`[PromptBuilder] ${this.type} prompt: ${result.system.length} chars system, ${result.messages.length} messages, ${this.context.examples.length} examples, ${this.tools.length} tools${toolNames ? ` (${toolNames})` : ''}`);
+      console.log(`🧩 [Prompt] Built: type=${this.type}, system=${result.system.length} chars, msgs=${result.messages.length}, ex=${this.context.examples.length}, tools=${this.tools.length}${toolNames ? ` (${toolNames})` : ''}`);
     }
   }
 
@@ -877,7 +955,7 @@ class UnifiedPromptBuilder {
     for (const doc of documents) {
       if (doc.type === 'document' && doc.source?.media_type === 'application/pdf') {
         try {
-          console.log(`[PromptBuilder] Processing PDF for privacy mode: ${doc.source.name || 'unknown'}`);
+          console.log(`📄 [Prompt] OCR PDF (privacy): ${doc.source.name || 'unknown'}`);
           
           // Safe dynamic import with error boundaries
           let ocrService;
@@ -889,7 +967,7 @@ class UnifiedPromptBuilder {
               throw new Error('OCR service not properly initialized');
             }
           } catch (importError) {
-            console.error('[PromptBuilder] Failed to import OCR service:', importError.message);
+            console.error('❌ [Prompt] OCR import failed:', importError.message);
             throw new Error('OCR service unavailable');
           }
           
@@ -915,10 +993,10 @@ class UnifiedPromptBuilder {
             }
           });
           
-          console.log(`[PromptBuilder] PDF processed for privacy mode: ${result.pageCount} pages, ${result.text.length} chars, method: ${result.method}`);
+          console.log(`✅ [Prompt] OCR done: ${result.pageCount}p, ${result.text.length} chars, method=${result.method}`);
           
         } catch (error) {
-          console.error(`[PromptBuilder] Failed to extract PDF text for privacy mode:`, error);
+          console.error('❌ [Prompt] OCR extract failed:', error);
           // Fallback: skip the PDF with error notice
           processedDocs.push({
             type: 'text',
@@ -990,7 +1068,7 @@ async function addExamplesFromService(builder, contentType, query, options = {},
   // Validate if examples should be used for this route and platform combination
   if (routeType && platforms.length > 0) {
     if (!shouldUseExamples(routeType, platforms)) {
-      console.log(`[addExamplesFromService] Skipping examples for route "${routeType}" with platforms [${platforms.join(', ')}] - not configured for examples`);
+      if (isVerboseMode) console.log(`🎯 [Examples] Skip for route=${routeType} platforms=[${platforms.join(', ')}]`);
       return builder;
     }
   }
@@ -1006,8 +1084,8 @@ async function addExamplesFromService(builder, contentType, query, options = {},
         throw new Error('Content examples service not properly initialized');
       }
     } catch (importError) {
-      console.error('[addExamplesFromService] Failed to import content examples service:', importError.message);
-      console.log('[addExamplesFromService] Continuing without examples due to service unavailability');
+      console.error('❌ [Examples] Service import failed:', importError.message);
+      if (isVerboseMode) console.log('🎯 [Examples] Continue without examples');
       return builder; // Return builder without examples rather than failing
     }
     
@@ -1018,12 +1096,7 @@ async function addExamplesFromService(builder, contentType, query, options = {},
     }, req);
 
     if (examples && examples.length > 0) {
-      console.log(`[addExamplesFromService] Found ${examples.length} examples for ${contentType} with query: "${query}"`);
-      examples.forEach((example, index) => {
-        // Use title if available, otherwise use content preview
-        const displayText = example.title || (example.content ? example.content.substring(0, 50) + '...' : 'No content');
-        console.log(`  ${index + 1}. "${displayText}" (relevance: ${example.relevance || 'N/A'}, score: ${example.similarity_score?.toFixed(3) || 'N/A'})`);
-      });
+      console.log(`🎯 [Examples] Found ${examples.length} (${contentType}) for "${query}"`);
       
       builder.addExamples(examples, {
         formatStyle: options.formatStyle || 'structured',
@@ -1031,12 +1104,12 @@ async function addExamplesFromService(builder, contentType, query, options = {},
         includeSimilarityInfo: true  // Enable relevance labels for examples
       });
     } else {
-      console.log(`[addExamplesFromService] No examples found for ${contentType} with query: "${query}"`);
+      if (isVerboseMode) console.log(`🎯 [Examples] None for ${contentType} ("${query}")`);
     }
     
     return builder;
   } catch (error) {
-    console.error(`[addExamplesFromService] Error fetching examples for ${contentType}:`, error);
+    console.error(`❌ [Examples] Error fetching for ${contentType}:`, error);
     return builder; // Return builder even on error to not break the chain
   }
 }
