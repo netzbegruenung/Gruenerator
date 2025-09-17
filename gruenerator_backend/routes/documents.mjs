@@ -523,14 +523,21 @@ router.get('/user', ensureAuthenticated, async (req, res) => {
     // Use PostgreSQL + Qdrant exclusively (no more Supabase fallback)
     const documents = await postgresDocumentService.getDocumentsBySourceType(req.user.id, null);
 
+    // Get first chunks from Qdrant for documents that need previews
+    const documentIds = documents.map(doc => doc.id);
+    const firstChunksResult = await qdrantDocumentService.getDocumentFirstChunks(req.user.id, documentIds);
+    const firstChunks = firstChunksResult.chunks || {};
+
     // Enrich with all content fields for frontend access
     const enrichedDocs = documents.map((doc) => {
       let meta = {};
       try { meta = doc.metadata ? JSON.parse(doc.metadata) : {}; } catch (e) { meta = {}; }
-      
-      // Generate content_preview if not in metadata
-      const preview = meta.content_preview || (meta.full_text ? generateContentPreview(meta.full_text) : null);
-      
+
+      // Generate content_preview from metadata, full_text, or Qdrant first chunk
+      const preview = meta.content_preview ||
+                     (meta.full_text ? generateContentPreview(meta.full_text) : null) ||
+                     (firstChunks[doc.id] ? generateContentPreview(firstChunks[doc.id]) : null);
+
       // Include all content fields for optimal preview rendering
       return {
         ...doc,

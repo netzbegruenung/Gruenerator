@@ -48,6 +48,14 @@
 
 .action-button-disabled:hover {
   background-color: var(--button-hover-color);
+}
+
+/* Hide edit mode button on mobile */
+@media (max-width: 768px) {
+  .hidden-mobile {
+    display: none !important;
+  }
+}
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 

@@ -1,8 +1,8 @@
-import React, { lazy, Suspense, useState, useCallback, useContext, useEffect, useMemo } from 'react';
+import React, { lazy, useState, useCallback, useEffect, useMemo } from 'react';
 import PropTypes from 'prop-types';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm, Controller, useWatch } from 'react-hook-form';
 import { motion, AnimatePresence } from 'motion/react';
-const Select = lazy(() => import('react-select'));
+const ReactSelect = lazy(() => import('react-select'));
 import BaseForm from '../../../components/common/BaseForm';
 import FormFieldWrapper from '../../../components/common/Form/Input/FormFieldWrapper';
 import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../../components/utils/constants';
@@ -31,7 +31,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   const componentName = 'presse-social';
   const { initialContent } = useSharedContent();
   const { isAuthenticated } = useOptimizedAuth();
-  const { Input, Textarea, Select } = useFormFields();
+  const { Input, Textarea } = useFormFields();
   const { setGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
 
   // Initialize knowledge system with UI configuration
@@ -93,7 +93,6 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
     control,
     handleSubmit,
     reset,
-    watch,
     setValue,
     formState: { errors }
   } = useForm({
@@ -109,12 +108,13 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
     }
   });
 
-  const watchPlatforms = watch('platforms');
-  const watchPressemitteilung = watchPlatforms && watchPlatforms.includes('pressemitteilung');
-  const watchSharepic = isAuthenticated && watchPlatforms && watchPlatforms.includes('sharepic');
-  const watchSharepicType = watch('sharepicType');
-  const watchUseWebSearch = watch('useWebSearchTool');
-  const watchUsePrivacyMode = watch('usePrivacyMode');
+  const watchPlatforms = useWatch({ control, name: 'platforms', defaultValue: defaultPlatforms });
+  const watchSharepicType = useWatch({ control, name: 'sharepicType', defaultValue: 'dreizeilen' });
+  const watchUseWebSearch = useWatch({ control, name: 'useWebSearchTool', defaultValue: false });
+  const watchUsePrivacyMode = useWatch({ control, name: 'usePrivacyMode', defaultValue: false });
+
+  const watchPressemitteilung = Array.isArray(watchPlatforms) && watchPlatforms.includes('pressemitteilung');
+  const watchSharepic = isAuthenticated && Array.isArray(watchPlatforms) && watchPlatforms.includes('sharepic');
 
   // Ensure sharepic is not selected when user is not authenticated
   useEffect(() => {
@@ -253,7 +253,21 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
             rhfData.zitatAuthor,
             finalPrompt // Pass knowledge prompt to sharepic generation
           );
-          combinedResults.sharepic = sharepicResult;
+          // Merge newly generated sharepic with previous ones so users can keep a history
+          const previousContent = useGeneratedTextStore.getState().generatedTexts?.[componentName] || socialMediaContent;
+          const existingSharepics = Array.isArray(previousContent?.sharepic)
+            ? previousContent.sharepic
+            : previousContent?.sharepic
+              ? [previousContent.sharepic]
+              : [];
+
+          const newSharepicEntry = {
+            ...sharepicResult,
+            id: `sharepic-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+            createdAt: new Date().toISOString()
+          };
+
+          combinedResults.sharepic = [newSharepicEntry, ...existingSharepics];
         } catch (sharepicError) {
           console.error('[PresseSocialGenerator] Sharepic generation failed:', sharepicError);
           // Continue with social generation even if sharepic fails
@@ -296,7 +310,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
     } finally {
       setStoreIsLoading(false);
     }
-  }, [submitForm, resetSuccess, setGeneratedText, setStoreIsLoading, source, isInstructionsActive, getActiveInstruction, groupDetailsData, getKnowledgeContent, getDocumentContent, generateSharepic, uploadedImage, processedAttachments, crawledUrls]);
+  }, [submitForm, resetSuccess, setGeneratedText, setStoreIsLoading, source, isInstructionsActive, getActiveInstruction, groupDetailsData, getKnowledgeContent, getDocumentContent, generateSharepic, uploadedImage, processedAttachments, crawledUrls, socialMediaContent]);
 
   const handleGeneratedContentChange = useCallback((content) => {
     setSocialMediaContent(content);
@@ -505,7 +519,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
                   htmlFor="sharepicType-select"
                 >
                   <div className="sharepic-type-selector">
-                    <Select
+                    <ReactSelect
                       {...field}
                       inputId="sharepicType-select"
                       className={`react-select ${error ? 'error' : ''}`.trim()}

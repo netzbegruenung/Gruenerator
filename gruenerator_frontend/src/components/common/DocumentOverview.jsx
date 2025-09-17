@@ -483,11 +483,6 @@ const DocumentOverview = ({
                             {(() => {
                                 const raw = item.full_content || item.content_preview || item.ocr_text;
                                 const text = truncateForPreview(raw);
-                                // If no inline preview is available but the document is completed,
-                                // hint that the preview loads on open instead of "Kein Inhalt verfügbar".
-                                if (!text && item.status === 'completed') {
-                                    return 'Vorschau beim Öffnen verfügbar';
-                                }
                                 return text || 'Kein Inhalt verfügbar';
                             })()}
                         </p>
@@ -700,21 +695,6 @@ const DocumentOverview = ({
                     </div>
                     
                     <div className="document-overview-header-actions">
-                        {/* Bulk delete button */}
-                        {enableBulkSelect && onBulkDelete && selectedItemIds.size > 0 && (
-                            <div className="document-overview-bulk-actions">
-                                <button
-                                    type="button"
-                                    className="pabtn pabtn--delete pabtn--s"
-                                    onClick={() => setShowBulkDeleteModal(true)}
-                                    disabled={isBulkDeleting}
-                                >
-                                    <HiOutlineTrash className="pabtn__icon" />
-                                    <span className="pabtn__label">{selectedItemIds.size} löschen</span>
-                                </button>
-                            </div>
-                        )}
-                        
                         {headerActions && (
                             <div className="document-overview-custom-actions">
                                 {headerActions}
@@ -838,6 +818,27 @@ const DocumentOverview = ({
                         );
                     })()}
                 </div>
+
+                {/* Bulk delete section at the end for better UX */}
+                {enableBulkSelect && onBulkDelete && selectedItemIds.size > 0 && (
+                    <div className="document-overview-bulk-actions" style={{
+                        padding: 'var(--spacing-medium)',
+                        borderTop: '1px solid var(--border-color)',
+                        display: 'flex',
+                        justifyContent: 'center',
+                        backgroundColor: 'var(--background-secondary)'
+                    }}>
+                        <button
+                            type="button"
+                            className="pabtn pabtn--delete pabtn--s"
+                            onClick={() => setShowBulkDeleteModal(true)}
+                            disabled={isBulkDeleting}
+                        >
+                            <HiOutlineTrash className="pabtn__icon" />
+                            <span className="pabtn__label">{selectedItemIds.size} löschen</span>
+                        </button>
+                    </div>
+                )}
             </div>
 
             {/* Preview Modal */}

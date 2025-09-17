@@ -230,13 +230,15 @@ const ActionButtons = ({
               {saveIcon}
             </button>
           )}
-          {showEditMode && activeContent && onEditModeToggle && !isMobileView && (
+          {showEditMode && activeContent && onEditModeToggle && (
             <button
               onClick={onEditModeToggle}
-              className={`action-button ${isEditModeActive ? 'active' : ''}`}
+              className={`action-button ${isEditModeActive ? 'active' : ''} hidden-mobile`}
               aria-label={isEditModeActive ? "Edit Mode schließen" : "Edit Mode umschalten"}
-              data-tooltip-id="action-tooltip"
-              data-tooltip-content={isEditModeActive ? "Schließen" : "Edit Mode"}
+              {...(!isMobileView && {
+                'data-tooltip-id': "action-tooltip",
+                'data-tooltip-content': isEditModeActive ? "Schließen" : "Edit Mode"
+              })}
             >
               {isEditModeActive ? getIcon('actions', 'close')({ size: 16 }) : <HiPencil size={16} />}
             </button>

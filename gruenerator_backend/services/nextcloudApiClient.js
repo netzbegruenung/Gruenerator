@@ -94,6 +94,7 @@ class NextcloudApiClient {
                                <resourcetype/>
                                <getcontentlength/>
                                <getlastmodified/>
+                               <getetag/>
                            </prop>
                        </propfind>`
             });
@@ -258,6 +259,7 @@ class NextcloudApiClient {
                                <getcontentlength/>
                                <getlastmodified/>
                                <displayname/>
+                               <getetag/>
                            </prop>
                        </propfind>`
             });
@@ -321,20 +323,28 @@ class NextcloudApiClient {
                     const displayNameMatch = responseXml.match(/<d:displayname[^>]*>(.*?)<\/d:displayname>/);
                     const contentLengthMatch = responseXml.match(/<d:getcontentlength[^>]*>(.*?)<\/d:getcontentlength>/);
                     const lastModifiedMatch = responseXml.match(/<d:getlastmodified[^>]*>(.*?)<\/d:getlastmodified>/);
-                    
+                    const etagMatch = responseXml.match(/<d:getetag[^>]*>(.*?)<\/d:getetag>/);
+
                     if (hrefMatch && hrefMatch[1]) {
                         const href = hrefMatch[1].trim();
-                        
+
                         // Skip the root directory
                         if (href.endsWith('/webdav/') || href.endsWith('/webdav')) {
                             return;
                         }
-                        
+
+                        // Clean up etag value - remove quotes if present
+                        let etag = null;
+                        if (etagMatch && etagMatch[1]) {
+                            etag = etagMatch[1].trim().replace(/^["']|["']$/g, '');
+                        }
+
                         files.push({
                             href: href,
                             name: displayNameMatch ? displayNameMatch[1].trim() : href.split('/').pop(),
                             size: contentLengthMatch ? parseInt(contentLengthMatch[1]) : null,
-                            lastModified: lastModifiedMatch ? new Date(lastModifiedMatch[1]) : null
+                            lastModified: lastModifiedMatch ? new Date(lastModifiedMatch[1]) : null,
+                            etag: etag
                         });
                     }
                 });

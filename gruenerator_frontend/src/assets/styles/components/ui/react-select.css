@@ -46,14 +46,6 @@
   color: var(--input-text-color) !important;
   font-size: var(--form-element-font-size) !important;
 }
-
-
-/* Value container - holds selected value(s) and input */
-.react-select__value-container {
-  /* Even more compact vertical padding */
-  padding: var(--form-element-padding-y) var(--form-element-padding-x) !important;
-}
-
 /* Single selected value */
 .react-select__single-value {
   color: var(--input-text-color) !important;

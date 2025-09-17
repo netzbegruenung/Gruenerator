@@ -56,7 +56,7 @@ module.exports = {
     
     // Logging-Einstellungen
     logging: {
-      level: process.env.LOG_LEVEL || 'info',
+      level: process.env.LOG_LEVEL || 'full',
       aiRequests: process.env.LOG_AI_REQUESTS !== 'false',
       performance: process.env.LOG_PERFORMANCE !== 'false',
       // Detaillierte Antwort-Logs

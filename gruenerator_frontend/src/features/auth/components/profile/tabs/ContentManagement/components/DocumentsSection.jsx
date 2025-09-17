@@ -4,13 +4,16 @@ import { HiPlus } from 'react-icons/hi';
 // Components
 import DocumentOverview from '../../../../../../../components/common/DocumentOverview';
 import DocumentUpload from '../../../../../../../components/common/DocumentUpload';
+import TextInput from '../../../../../../../components/common/Form/Input/TextInput';
+import Spinner from '../../../../../../../components/common/Spinner';
 import { WolkeSyncManager } from '../../../../../../documents/components/WolkeSyncManager';
-import { ProfileIconButton } from '../../../../../../../components/profile/actions/ProfileActionButton';
+import { ProfileIconButton, ProfileActionButton } from '../../../../../../../components/profile/actions/ProfileActionButton';
 
 // Hooks
 import { useOptimizedAuth } from '../../../../../../../hooks/useAuth';
 import { useTabIndex } from '../../../../../../../hooks/useTabIndex';
 import { useDocumentMode } from '../../../../../../documents/hooks/useDocumentMode';
+import { useWolkeSync } from '../../../../../../documents/hooks/useWolkeSync';
 
 // Stores
 import { useDocumentsStore } from '../../../../../../../stores/documentsStore';
@@ -60,6 +63,12 @@ const DocumentsSection = ({
     // Document upload form state
     const [showUploadForm, setShowUploadForm] = useState(false);
 
+    // Delete all state
+    const [showDeleteAllForm, setShowDeleteAllForm] = useState(false);
+    const [deleteConfirmText, setDeleteConfirmText] = useState('');
+    const [isDeletingAll, setIsDeletingAll] = useState(false);
+    const [deleteAllError, setDeleteAllError] = useState('');
+
     // Documents store integration
     const {
         documents,
@@ -83,6 +92,12 @@ const DocumentsSection = ({
         fetchShareLinks,
         initialized: wolkeInitialized
     } = useWolkeStore();
+
+    // Wolke sync integration for delete all functionality
+    const {
+        syncStatuses,
+        setAutoSync
+    } = useWolkeSync();
 
     // Stable remote search handler to avoid re-triggering effect
     const handleDocumentsRemoteSearch = useCallback((q, mode) => {
@@ -163,6 +178,64 @@ const DocumentsSection = ({
         }
         setShowUploadForm(false);
     }, [handleUploadComplete]);
+
+    // Delete all handlers
+    const handleToggleDeleteAllForm = useCallback(() => {
+        setShowDeleteAllForm(!showDeleteAllForm);
+        if (!showDeleteAllForm) {
+            setDeleteConfirmText('');
+            setDeleteAllError('');
+        }
+    }, [showDeleteAllForm]);
+
+    const handleDeleteAllSubmit = useCallback(async (e) => {
+        e.preventDefault();
+        setDeleteAllError('');
+        onErrorMessage('');
+
+        const expectedText = 'alles löschen';
+        if ((deleteConfirmText || '').trim().toLowerCase() !== expectedText) {
+            const msg = `Bitte gib "${expectedText}" zur Bestätigung ein.`;
+            setDeleteAllError(msg);
+            onErrorMessage(msg);
+            return;
+        }
+
+        setIsDeletingAll(true);
+        try {
+            // 1. Delete all documents
+            const allDocIds = documents.map(d => d.id);
+            if (allDocIds.length > 0) {
+                await handleBulkDeleteDocuments(allDocIds);
+            }
+
+            // 2. Disable all Wolke auto-sync
+            if (syncStatuses && syncStatuses.length > 0) {
+                for (const status of syncStatuses) {
+                    if (status.auto_sync_enabled) {
+                        await setAutoSync(status.share_link_id, '', false);
+                    }
+                }
+            }
+
+            // 3. Refresh all data
+            await fetchDocuments();
+            if (fetchShareLinks) {
+                await fetchShareLinks();
+            }
+
+            onSuccessMessage('Alle Inhalte wurden erfolgreich gelöscht und Wolke-Synchronisation deaktiviert.');
+            setShowDeleteAllForm(false);
+            setDeleteConfirmText('');
+        } catch (error) {
+            console.error('[DocumentsSection] Error in delete all:', error);
+            const msg = error.message || 'Fehler beim Löschen aller Inhalte.';
+            setDeleteAllError(msg);
+            onErrorMessage(msg);
+        } finally {
+            setIsDeletingAll(false);
+        }
+    }, [deleteConfirmText, documents, syncStatuses, handleBulkDeleteDocuments, setAutoSync, fetchDocuments, fetchShareLinks, onSuccessMessage, onErrorMessage]);
 
     // =====================================================================
     // WOLKE SYNC FUNCTIONALITY
@@ -281,20 +354,96 @@ const DocumentsSection = ({
                                         ariaLabel="Alle Dokumente aktualisieren"
                                         title="Aktualisieren"
                                     />
-                                    <button
-                                        type="button"
-                                        className="btn-primary size-s"
+                                    <ProfileActionButton
+                                        action="add"
                                         onClick={() => setShowUploadForm(true)}
-                                        tabIndex={tabIndex.addContentButton}
-                                        aria-label="Neuen Inhalt hinzufügen"
-                                    >
-                                        <HiPlus className="icon" />
-                                        Inhalt hinzufügen
-                                    </button>
+                                        disabled={documentsLoading}
+                                        ariaLabel="Neuen Inhalt hinzufügen"
+                                        title="Inhalt hinzufügen"
+                                        size="s"
+                                    />
                                 </div>
                             }
                         />
-                        
+
+                    {/* Delete all button at the end for better UX */}
+                    {!showDeleteAllForm && documents.length > 0 && (
+                        <div style={{
+                            padding: 'var(--spacing-medium)',
+                            borderTop: '1px solid var(--border-color)',
+                            display: 'flex',
+                            justifyContent: 'center',
+                            backgroundColor: 'var(--background-secondary)',
+                            marginTop: 'var(--spacing-small)'
+                        }}>
+                            <button
+                                type="button"
+                                className="delete-all-link"
+                                onClick={() => setShowDeleteAllForm(true)}
+                                disabled={documentsLoading}
+                                aria-label="Alle Inhalte löschen"
+                            >
+                                Alle Inhalte löschen
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Delete all confirmation form */}
+                    {showDeleteAllForm && (
+                        <form className="auth-form" onSubmit={handleDeleteAllSubmit}>
+                            <div className="form-group">
+                                <div className="form-group-title">Alle Inhalte löschen</div>
+                                <p className="warning-text">
+                                    <strong>Warnung:</strong> Diese Aktion löscht:
+                                </p>
+                                <ul className="warning-text">
+                                    <li>{documents.length} Dokumente</li>
+                                    <li>{syncStatuses ? syncStatuses.filter(s => s.auto_sync_enabled).length : 0} aktive Wolke-Synchronisationen</li>
+                                </ul>
+                                <p className="warning-text">
+                                    Diese Aktion kann <strong>nicht rückgängig</strong> gemacht werden!
+                                </p>
+
+                                {deleteAllError && (
+                                    <div className="auth-error-message">{deleteAllError}</div>
+                                )}
+
+                                <div className="form-field-wrapper">
+                                    <label htmlFor="deleteConfirmText">
+                                        Um fortzufahren, gib "alles löschen" ein:
+                                    </label>
+                                    <TextInput
+                                        id="deleteConfirmText"
+                                        type="text"
+                                        value={deleteConfirmText}
+                                        onChange={(e) => setDeleteConfirmText(e.target.value)}
+                                        placeholder="alles löschen"
+                                        aria-label="Bestätigung: alles löschen"
+                                        disabled={isDeletingAll}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="profile-actions">
+                                <button
+                                    type="submit"
+                                    className="profile-action-button profile-danger-button"
+                                    disabled={isDeletingAll}
+                                >
+                                    {isDeletingAll ? <Spinner size="small" /> : 'Alles unwiderruflich löschen'}
+                                </button>
+                                <button
+                                    type="button"
+                                    className="profile-action-button"
+                                    onClick={handleToggleDeleteAllForm}
+                                    disabled={isDeletingAll}
+                                >
+                                    Abbrechen
+                                </button>
+                            </div>
+                        </form>
+                    )}
+
                     {/* Upload form modal/overlay */}
                     {showUploadForm && (
                         <DocumentUpload 

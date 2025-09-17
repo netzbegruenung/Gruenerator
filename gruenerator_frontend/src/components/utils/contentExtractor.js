@@ -72,11 +72,22 @@ export const extractMixedContent = (mixedContent) => {
   const parts = [];
   
   if (mixedContent.sharepic) {
-    // Extract content property if it's an object, otherwise use as-is
-    const sharepicContent = typeof mixedContent.sharepic === 'object' 
-      ? (mixedContent.sharepic.content || '')
-      : mixedContent.sharepic;
-    if (sharepicContent) parts.push(sharepicContent);
+    const sharepicEntries = Array.isArray(mixedContent.sharepic)
+      ? mixedContent.sharepic
+      : [mixedContent.sharepic];
+
+    sharepicEntries
+      .filter(Boolean)
+      .forEach(entry => {
+        if (typeof entry === 'object') {
+          const sharepicText = entry.text || entry.content || '';
+          if (sharepicText) {
+            parts.push(sharepicText);
+          }
+        } else if (entry) {
+          parts.push(entry);
+        }
+      });
   }
   
   if (mixedContent.social) {

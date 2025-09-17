@@ -4,16 +4,26 @@ import ChatUI from '../../Chat/ChatUI';
 import apiClient from '../../../utils/apiClient';
 import useTextEditActions from '../../../../stores/hooks/useTextEditActions';
 import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
+import { extractEditableText } from '../../../../stores/hooks/useTextEditActions';
 
 const UniversalEditForm = ({ componentName }) => {
   const { getEditableText, applyEdits } = useTextEditActions(componentName);
+  const storeContent = useGeneratedTextStore(state => state.generatedTexts[componentName] || null);
 
   const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const initializedRef = useRef(false);
 
+  const editableText = extractEditableText(storeContent) || '';
+  const hasEditableText = editableText.trim().length > 0;
+  const hasSharepic = Boolean(storeContent && typeof storeContent === 'object' && storeContent.sharepic);
+  const isSharepicOnly = hasSharepic && !hasEditableText;
+
   useEffect(() => {
+    if (isSharepicOnly) {
+      return;
+    }
     // Only initialize once per component
     if (!initializedRef.current) {
       const existingMessages = useGeneratedTextStore.getState().getEditChat(componentName);
@@ -31,16 +41,22 @@ const UniversalEditForm = ({ componentName }) => {
       }
       initializedRef.current = true;
     }
-  }, [componentName]);
+  }, [componentName, isSharepicOnly]);
 
   // Save messages to store whenever they change (but skip initial load)
   useEffect(() => {
+    if (isSharepicOnly) {
+      return;
+    }
     if (initializedRef.current && messages.length > 0) {
       useGeneratedTextStore.getState().setEditChat(componentName, messages);
     }
-  }, [messages, componentName]);
+  }, [messages, componentName, isSharepicOnly]);
 
   const handleSubmit = useCallback(async (instruction) => {
+    if (isSharepicOnly || !hasEditableText) {
+      return;
+    }
     const trimmed = (instruction || '').trim();
     if (!trimmed) return;
 
@@ -114,7 +130,11 @@ const UniversalEditForm = ({ componentName }) => {
     } finally {
       setIsProcessing(false);
     }
-  }, [getEditableText, applyEdits]);
+  }, [getEditableText, applyEdits, hasEditableText, isSharepicOnly]);
+
+  if (isSharepicOnly) {
+    return null;
+  }
 
   return (
     <div className="universal-edit-form enhanced">

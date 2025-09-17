@@ -30,6 +30,8 @@ export const useWolkeStore = create(immer((set, get) => ({
 
   // Internal state
   initialized: false,
+  lastFetchTimestamp: 0,
+  fetchPromise: null,
 
   // Actions
   setScope: (scope, scopeId = null, permissions = null) => set(state => {
@@ -319,19 +321,36 @@ export const useWolkeStore = create(immer((set, get) => ({
 
   // Fetch sync statuses
   fetchSyncStatuses: async (forceRefresh = false) => {
-    try {
-      // Only show loading if we don't have existing sync statuses or force refresh
-      const currentSyncStatuses = get().syncStatuses;
-      const shouldShowLoading = forceRefresh || !currentSyncStatuses || currentSyncStatuses.length === 0;
-      
-      if (shouldShowLoading) {
-        set(state => {
-          state.isLoading = true;
-          state.error = null;
-        });
-      }
+    const state = get();
 
-      const { scope, scopeId } = get();
+    // Check if we have a recent fetch and don't force refresh
+    const now = Date.now();
+    const timeSinceLastFetch = now - state.lastFetchTimestamp;
+    const CACHE_DURATION = 3000; // 3 seconds
+
+    if (!forceRefresh && timeSinceLastFetch < CACHE_DURATION && state.syncStatuses.length > 0) {
+      return state.syncStatuses;
+    }
+
+    // Deduplicate concurrent requests
+    if (state.fetchPromise) {
+      return state.fetchPromise;
+    }
+
+    const fetchPromise = (async () => {
+      try {
+        // Only show loading if we don't have existing sync statuses or force refresh
+        const currentSyncStatuses = get().syncStatuses;
+        const shouldShowLoading = forceRefresh || !currentSyncStatuses || currentSyncStatuses.length === 0;
+
+        if (shouldShowLoading) {
+          set(state => {
+            state.isLoading = true;
+            state.error = null;
+          });
+        }
+
+        const { scope, scopeId } = get();
       let syncStatuses = [];
 
       if (scope === 'group') {
@@ -353,30 +372,41 @@ export const useWolkeStore = create(immer((set, get) => ({
         }
       }
 
-      set(state => {
-        state.syncStatuses = syncStatuses;
-        state.isLoading = false;
-        // Mark as initialized after successful fetch
-        if (!state.initialized) {
-          state.initialized = true;
-        }
-      });
+        set(state => {
+          state.syncStatuses = syncStatuses;
+          state.isLoading = false;
+          state.lastFetchTimestamp = Date.now();
+          state.fetchPromise = null;
+          // Mark as initialized after successful fetch
+          if (!state.initialized) {
+            state.initialized = true;
+          }
+        });
 
-      console.log('[WolkeStore] Fetched sync statuses:', syncStatuses.length);
-      return syncStatuses;
+        console.log('[WolkeStore] Fetched sync statuses:', syncStatuses.length);
+        return syncStatuses;
 
-    } catch (error) {
-      console.error('[WolkeStore] Error fetching sync statuses:', error);
-      set(state => {
-        state.error = error.message;
-        state.isLoading = false;
-        // Still mark as initialized even on error to prevent infinite retry loops
-        if (!state.initialized) {
-          state.initialized = true;
-        }
-      });
-      throw error;
-    }
+      } catch (error) {
+        console.error('[WolkeStore] Error fetching sync statuses:', error);
+        set(state => {
+          state.error = error.message;
+          state.isLoading = false;
+          state.fetchPromise = null;
+          // Still mark as initialized even on error to prevent infinite retry loops
+          if (!state.initialized) {
+            state.initialized = true;
+          }
+        });
+        throw error;
+      }
+    })();
+
+    // Store the promise to deduplicate
+    set(state => {
+      state.fetchPromise = fetchPromise;
+    });
+
+    return fetchPromise;
   },
 
   // Ensure sync statuses are available (fetch if needed)
@@ -426,10 +456,8 @@ export const useWolkeStore = create(immer((set, get) => ({
           state.successMessage = 'Synchronisation gestartet.';
         });
         
-        // Refresh sync statuses after a delay
-        setTimeout(() => {
-          get().fetchSyncStatuses();
-        }, 1000);
+        // Refresh sync statuses immediately
+        get().fetchSyncStatuses();
 
         return response.data;
       } else {
@@ -504,10 +532,8 @@ export const useWolkeStore = create(immer((set, get) => ({
           state.successMessage = `Auto-Sync ${enabled ? 'aktiviert' : 'deaktiviert'}.`;
         });
 
-        // Force refresh from backend to ensure consistency
-        setTimeout(() => {
-          get().fetchSyncStatuses();
-        }, 200);
+        // Refresh from backend to ensure consistency
+        get().fetchSyncStatuses();
 
         return response.data;
       } else {

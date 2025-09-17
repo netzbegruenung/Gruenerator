@@ -1,9 +1,10 @@
-/* Minimal styling for attached files list */
+/* Responsive styling for attached files list */
 .attached-files-list {
   display: flex;
   flex-wrap: wrap;
   gap: var(--spacing-xsmall);
   margin-top: var(--spacing-small);
+  width: 100%;
 }
 
 .file-tag {
@@ -14,20 +15,54 @@
   border: 1px solid var(--secondary-200);
   border-radius: var(--card-border-radius-small);
   font-size: 0.8rem;
-  max-width: 600px;
+  max-width: 100%;
+  min-width: 0;
+  flex-shrink: 1;
 }
 
 .file-tag .file-name {
-  /* Allow the filename to take available space without CSS truncation */
   flex: 1 1 auto;
   min-width: 0;
   display: block;
   color: var(--font-color);
-  max-width: none !important;
-  overflow: visible !important;
-  text-overflow: initial !important;
-  white-space: normal !important;
-  /* Removed CSS truncation since we handle it in JavaScript */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Mobile-first responsive breakpoints */
+@media (max-width: 480px) {
+  .attached-files-list {
+    gap: var(--spacing-xxsmall);
+  }
+  
+  .file-tag {
+    font-size: 0.75rem;
+    padding: var(--spacing-xxsmall);
+    max-width: calc(100vw - 2 * var(--spacing-medium));
+  }
+  
+  .file-tag .file-name {
+    max-width: calc(100% - 24px); /* Account for remove button */
+  }
+  
+  .file-remove-btn {
+    width: 18px;
+    height: 18px;
+    min-width: 18px;
+  }
+}
+
+@media (min-width: 481px) and (max-width: 768px) {
+  .file-tag {
+    max-width: calc(50vw - var(--spacing-small));
+  }
+}
+
+@media (min-width: 769px) {
+  .file-tag {
+    max-width: 300px;
+  }
 }
 
 .file-remove-btn {
@@ -44,6 +79,8 @@
   height: 16px;
   border-radius: 50%;
   transition: var(--input-transition);
+  flex-shrink: 0;
+  min-width: 16px;
 }
 
 .file-remove-btn:hover {
