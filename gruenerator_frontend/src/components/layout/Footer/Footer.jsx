@@ -30,7 +30,6 @@ const Footer = () => {
                                 <ul>
                                     <li><Link to="/suche">Suche</Link></li>
                                     <li><Link to="/imagine">Imagine</Link></li>
-                                    <li><Link to="/antragscheck">Antragscheck</Link></li>
                                     <li><Link to="/reel">Reel</Link></li>
                                     <li><Link to="/sharepic">Sharepics</Link></li>
                                     <li><Link to="/barrierefreiheit">Barrierefreiheit</Link></li>

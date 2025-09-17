@@ -6,7 +6,6 @@
   justify-content: center;
   align-items: center;
   padding: 1rem;
-  margin-top: 60px;
 }
 
 .type-selector-content {
@@ -31,7 +30,7 @@
 
 .type-options-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 2rem;
   margin-top: 2rem;
 }
@@ -77,12 +76,12 @@
 
 @media (max-width: 1024px) and (min-width: 769px) {
   .type-options-grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(3, 1fr);
     gap: 1.5rem;
   }
-  
+
   .type-card {
-    padding: 1.75rem;
+    padding: 1.5rem;
   }
 }
 

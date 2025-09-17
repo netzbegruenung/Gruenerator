@@ -7,6 +7,9 @@ import { validateUrl, normalizeUrl, generateTitleFromUrl } from '../../utils/url
 import Spinner from './Spinner';
 import FeatureToggle from './FeatureToggle';
 
+// Import button styles for modal
+import '../../assets/styles/components/ui/button.css';
+
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 const ACCEPTED_FILE_TYPES = [
   'application/pdf',
@@ -553,7 +556,7 @@ const DocumentUpload = forwardRef(({
                 <div className="document-preview-actions">
                   <button 
                     onClick={handleUpload}
-                    className="btn-primary"
+                    className="button"
                     disabled={isUploading || 
                       (uploadMode === 'file' && (!selectedFile || !uploadTitle.trim())) ||
                       (uploadMode === 'url' && (!urlInput.trim() || !uploadTitle.trim()))
@@ -572,7 +575,7 @@ const DocumentUpload = forwardRef(({
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
-                      className="btn-secondary"
+                      className="button"
                       disabled={isUploading}
                     >
                       Datei ändern
@@ -587,7 +590,7 @@ const DocumentUpload = forwardRef(({
                         resetForm();
                       }
                     }}
-                    className="btn-secondary"
+                    className="button"
                     disabled={isUploading}
                   >
                     Abbrechen
@@ -710,7 +713,7 @@ const DocumentUpload = forwardRef(({
               <div className="profile-actions" style={{justifyContent: 'flex-start', gap: '10px'}}>
                 <button 
                   onClick={handleUpload}
-                  className="btn-primary"
+                  className="button"
                   disabled={isUploading || 
                     (uploadMode === 'file' && (!selectedFile || !uploadTitle.trim())) ||
                     (uploadMode === 'url' && (!urlInput.trim() || !uploadTitle.trim()))
@@ -729,7 +732,7 @@ const DocumentUpload = forwardRef(({
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="btn-secondary"
+                    className="button"
                     disabled={isUploading}
                   >
                     Datei ändern

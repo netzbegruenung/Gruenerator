@@ -265,8 +265,8 @@ ${contentForSummary}
 Gib eine direkte, hilfreiche Antwort auf die Frage des Nutzers. Nutze die Informationen, um fundierte Erkenntnisse zu liefern, erkläre Zusammenhänge und gib praktische Hinweise wo sinnvoll.`
         }],
         options: {
-          max_tokens: 1000,
-          temperature: 0.3
+          max_tokens: 400,
+          temperature: 0.2
         }
       };
 

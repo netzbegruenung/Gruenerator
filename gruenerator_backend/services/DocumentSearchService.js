@@ -882,6 +882,55 @@ class DocumentSearchService extends BaseSearchService {
     }
 
     /**
+     * Get first chunks for multiple documents for previews
+     */
+    async getDocumentFirstChunks(userId, documentIds) {
+        try {
+            await this.ensureInitialized();
+
+            const filter = {
+                must: [
+                    { key: 'user_id', match: { value: userId } },
+                    { key: 'document_id', match: { any: documentIds } },
+                    { key: 'chunk_index', match: { value: 0 } }
+                ]
+            };
+
+            // Get first chunks for all documents
+            const chunks = await this.qdrantOps.scrollDocuments('documents', filter, {
+                limit: documentIds.length,
+                withPayload: true,
+                withVector: false
+            });
+
+            // Build map of documentId -> chunk_text
+            const chunkMap = {};
+            chunks.forEach(chunk => {
+                const docId = chunk.payload.document_id;
+                const text = chunk.payload.chunk_text;
+                if (docId && text) {
+                    chunkMap[docId] = text;
+                }
+            });
+
+            return {
+                success: true,
+                chunks: chunkMap,
+                foundCount: Object.keys(chunkMap).length
+            };
+
+        } catch (error) {
+            console.error('[DocumentSearchService] Error getting first chunks:', error);
+            return {
+                success: false,
+                chunks: {},
+                foundCount: 0,
+                error: error.message
+            };
+        }
+    }
+
+    /**
      * Check if service is ready
      */
     async isReady() {

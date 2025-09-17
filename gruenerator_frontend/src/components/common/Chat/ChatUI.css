@@ -87,7 +87,8 @@
   /* Use shared typography scale for readability */
   font-size: var(--display-font-size, var(--font-size-md));
   line-height: var(--display-line-height, 1.6);
-  word-break: break-word;
+  word-wrap: break-word;
+  margin-bottom: var(--spacing-small, 8px);
 }
 
 .chat-message.user {
@@ -356,34 +357,8 @@
   word-break: break-word;
 }
 
-/* Fullscreen mode */
-.editor-chat-fullscreen {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 9999;
-  max-width: none;
-  height: 100vh;
-  border-radius: 0;
-}
-
-.editor-chat-messages-fullscreen {
-  padding-bottom: 140px;
-}
-
-/* Responsive design */
-@media (max-width: 1200px) {
-  .editor-chat {
-    /* Additional styling for medium screens */
-  }
-}
-
 @media (max-width: 992px) {
-  .editor-chat {
-    /* Additional styling for tablets */
-  }
+
   
   .chat-message {
     max-width: 95%;
@@ -402,7 +377,8 @@
 }
 
 @media (max-width: 768px) {
-  .editor-chat {
+  /* Only apply fullscreen positioning when NOT in edit mode */
+  .editor-chat:not(.base-container.edit-mode-active .editor-chat) {
     position: fixed;
     bottom: 0;
     top: auto;
@@ -414,31 +390,43 @@
     z-index: 1000;
   }
 
+
   .editor-chat-messages {
     padding: 16px 16px 120px 16px;
   }
-  
+
+
+  /* Floating input positioning - fixed at bottom on mobile */
   .floating-input {
-    bottom: var(--spacing-large);
-    left: var(--spacing-large);
-    right: var(--spacing-large);
+    position: fixed;
+    bottom: var(--spacing-small);
+    left: var(--spacing-small);
+    right: var(--spacing-small);
+    margin: 0;
   }
+
 }
 
 @media (max-width: 480px) {
-  .editor-chat {
-    /* Additional styling for small mobile */
-  }
-  
   .editor-chat-header h3 {
     font-size: 14px;
   }
-  
+
+  /* Floating input adjustments for small screens - fixed at bottom */
+  .floating-input {
+    position: fixed;
+    bottom: 0;
+    left: var(--spacing-xsmall);
+    right: var(--spacing-xsmall);
+    margin: 0;
+  }
+
   .floating-input .input-elements {
-    padding: 12px;
+    padding: 0;
   }
-  
+
   .floating-input input {
-    font-size: 12px;
+    font-size: 16px; /* Prevent zoom on iOS */
   }
+
 }

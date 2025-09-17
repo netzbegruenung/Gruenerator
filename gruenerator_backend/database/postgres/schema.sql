@@ -24,6 +24,8 @@ CREATE TABLE IF NOT EXISTS profiles (
     email TEXT,
     custom_universal_prompt TEXT,
     custom_gruenejugend_prompt TEXT,
+    custom_rede_prompt TEXT,
+    custom_buergeranfragen_prompt TEXT,
     memory_enabled BOOLEAN DEFAULT FALSE,
     igel_modus BOOLEAN DEFAULT FALSE,
     beta_features JSONB DEFAULT '{}',

@@ -99,6 +99,8 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
             customSocialPrompt: '',
             customUniversalPrompt: '',
             customGruenejugendPrompt: '',
+            customRedePrompt: '',
+            customBuergeranfragenPrompt: '',
             presseabbinder: '',
             knowledge: [],
         },
@@ -124,6 +126,8 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                 customSocialPrompt: changedFields.customSocialPrompt !== undefined ? changedFields.customSocialPrompt : currentValues.customSocialPrompt || '',
                 customUniversalPrompt: changedFields.customUniversalPrompt !== undefined ? changedFields.customUniversalPrompt : currentValues.customUniversalPrompt || '',
                 customGruenejugendPrompt: changedFields.customGruenejugendPrompt !== undefined ? changedFields.customGruenejugendPrompt : currentValues.customGruenejugendPrompt || '',
+                customRedePrompt: changedFields.customRedePrompt !== undefined ? changedFields.customRedePrompt : currentValues.customRedePrompt || '',
+                customBuergeranfragenPrompt: changedFields.customBuergeranfragenPrompt !== undefined ? changedFields.customBuergeranfragenPrompt : currentValues.customBuergeranfragenPrompt || '',
                 presseabbinder: changedFields.presseabbinder !== undefined ? changedFields.presseabbinder : currentValues.presseabbinder || '',
                 knowledge: changedFields.knowledge !== undefined ? changedFields.knowledge : currentValues.knowledge || []
             };
@@ -135,10 +139,12 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
         debounceMs: 2000,
         getFieldsToTrack: () => [
             'customAntragPrompt',
-            'customAntragGliederung', 
+            'customAntragGliederung',
             'customSocialPrompt',
             'customUniversalPrompt',
             'customGruenejugendPrompt',
+            'customRedePrompt',
+            'customBuergeranfragenPrompt',
             'presseabbinder',
             'knowledge'
         ],
@@ -157,6 +163,8 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
             customSocialPrompt: data.socialPrompt || '',
             customUniversalPrompt: data.universalPrompt || '',
             customGruenejugendPrompt: data.gruenejugendPrompt || '',
+            customRedePrompt: data.redePrompt || '',
+            customBuergeranfragenPrompt: data.buergeranfragenPrompt || '',
             presseabbinder: data.presseabbinder || '',
             knowledge: data.knowledge || []
         };
@@ -494,6 +502,28 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                             label="Persönliche Anweisungen:"
                                             placeholder="Gib hier deine Anweisungen für die Erstellung von universellen Texten ein..."
                                             helpText="z.B. allgemeine Schreibweise, politische Grundhaltung, Formulierungspräferenzen"
+                                            minRows={2}
+                                            maxRows={8}
+                                            control={control}
+                                        />
+                                    </ProfileCard>
+                                    <ProfileCard title="Anweisungen für Reden">
+                                        <Textarea
+                                            name="customRedePrompt"
+                                            label="Persönliche Anweisungen:"
+                                            placeholder="Gib hier deine Anweisungen für die Erstellung von Reden ein..."
+                                            helpText="z.B. bevorzugter Redestil, rhetorische Mittel, Ansprache der Zielgruppe"
+                                            minRows={2}
+                                            maxRows={8}
+                                            control={control}
+                                        />
+                                    </ProfileCard>
+                                    <ProfileCard title="Anweisungen für Bürger*innenanfragen">
+                                        <Textarea
+                                            name="customBuergeranfragenPrompt"
+                                            label="Persönliche Anweisungen:"
+                                            placeholder="Gib hier deine Anweisungen für die Beantwortung von Bürger*innenanfragen ein..."
+                                            helpText="z.B. bevorzugte Tonalität, Detailgrad, Ansprechpartner-Informationen"
                                             minRows={2}
                                             maxRows={8}
                                             control={control}

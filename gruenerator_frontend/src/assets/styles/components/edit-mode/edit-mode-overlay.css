@@ -94,7 +94,6 @@
     flex-direction: column;
   }
 
-
   .edit-mode-display-column {
     flex: 1;
     padding: var(--spacing-medium);
@@ -110,6 +109,57 @@
     bottom: var(--spacing-small);
     left: var(--spacing-small);
     right: var(--spacing-small);
+  }
+
+  /* Mobile 50/50 split enhancements for UniversalEditForm */
+  .base-container.edit-mode-active .universal-edit-form.enhanced {
+    height: 100%;
+    min-height: unset;
+    border-radius: var(--border-radius-small);
+  }
+
+  .base-container.edit-mode-active .editor-chat-embedded {
+    font-size: 0.9rem;
+    height: 100%;
+}
+
+  .base-container.edit-mode-active .floating-input input {
+    font-size: 0.9rem;
+    padding: var(--spacing-xxsmall) var(--spacing-xsmall);
+  }
+
+  /* Ensure chat messages are readable in narrow space */
+  .base-container.edit-mode-active .chat-message {
+    word-break: break-word;
+    hyphens: auto;
+  }
+
+  /* Adjust form card padding in mobile edit mode */
+  .base-container.edit-mode-active .form-card--large {
+    padding: var(--spacing-small);
+  }
+
+  .base-container.edit-mode-active .form-card__header {
+    padding: var(--spacing-small) var(--spacing-medium) var(--spacing-small);
+    margin: calc(-1 * var(--spacing-small)) calc(-1 * var(--spacing-medium)) 0;
+  }
+
+  .base-container.edit-mode-active .form-card__title {
+    font-size: 1.2em;
+  }
+
+  /* Remove top padding for display section motion wrapper on mobile */
+  .base-container.edit-mode-active .display-section-motion-wrapper {
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    padding-left: var(--spacing-small) !important;
+    padding-right: var(--spacing-small) !important;
+  }
+
+  /* Remove padding top/bottom from display-container on mobile */
+  .base-container.edit-mode-active .display-container {
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
   }
 }
 
@@ -221,5 +271,6 @@ body:has(.base-container.edit-mode-active) .container.with-header {
   font-weight: 500;
   color: var(--font-color);
 }
+
 
 

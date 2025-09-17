@@ -1,23 +1,64 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import '../../../assets/styles/components/mock-generator.css';
 
 const MockGenerator = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [showResult, setShowResult] = useState(false);
+  const containerRef = useRef(null);
+  const timeoutRef = useRef(null);
+  const hasAutoTriggeredRef = useRef(false);
   
-  const handleGenerate = async () => {
+  const handleGenerate = useCallback(() => {
     if (isGenerating) return;
-    
+
     setIsGenerating(true);
     setShowResult(false);
-    
+
     // Simulate generation delay
-    setTimeout(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+
+    timeoutRef.current = setTimeout(() => {
       setIsGenerating(false);
       setShowResult(true);
+      timeoutRef.current = null;
     }, 1500);
-  };
+  }, [isGenerating]);
+
+  useEffect(() => {
+    const node = containerRef.current;
+    if (!node || typeof window === 'undefined' || typeof IntersectionObserver === 'undefined') {
+      return undefined;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && entry.intersectionRatio > 0.35 && !hasAutoTriggeredRef.current) {
+            hasAutoTriggeredRef.current = true;
+            handleGenerate();
+          }
+        });
+      },
+      {
+        threshold: [0.25, 0.35, 0.5],
+      }
+    );
+
+    observer.observe(node);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [handleGenerate]);
+
+  useEffect(() => () => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+  }, []);
 
   const instagramExampleText = "🌱 Die Energiewende ist unser Weg in eine klimaneutrale Zukunft! 💚 Mit Wind, Sonne und Innovation schaffen wir grüne Jobs und schützen unseren Planeten. Jetzt handeln für kommende Generationen! #Klimaschutz #Energiewende #GrüneMachtZukunft";
 
@@ -31,7 +72,7 @@ const MockGenerator = () => {
   } : {};
 
   return (
-    <div className="mock-generator-interface">
+    <div className="mock-generator-interface" ref={containerRef}>
       <div className="mock-form-container">
         <h3 className="mock-form-title">Presse- & Social Media Grünerator</h3>
         

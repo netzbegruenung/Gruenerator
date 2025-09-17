@@ -8,6 +8,7 @@
 import { StateGraph, Annotation } from "@langchain/langgraph";
 import { DocumentSearchService } from '../../services/DocumentSearchService.js';
 import searxngService from '../../services/searxngWebSearchService.js';
+import { urlCrawlerService } from '../../services/urlCrawlerService.js';
 
 // Import citation functions
 import {
@@ -66,6 +67,17 @@ const SearchState = Annotation.Root({
   }),
   citationSources: Annotation({
     reducer: (x, y) => y ?? x,
+  }),
+
+  // Intelligent crawling support
+  crawlDecisions: Annotation({
+    reducer: (x, y) => y ?? x,
+  }),
+  enrichedResults: Annotation({
+    reducer: (x, y) => y ?? x,
+  }),
+  crawlMetadata: Annotation({
+    reducer: (x, y) => ({ ...x, ...y }),
   }),
 
   // Output
@@ -188,6 +200,257 @@ async function searxngNode(state) {
       webResults: [],
       error: `Web search failed: ${error.message}`,
       metadata: { webSearches: 0, successfulWebSearches: 0 }
+    };
+  }
+}
+
+/**
+ * Intelligent Crawler Agent Node: AI decides which URLs to crawl for full content
+ */
+async function intelligentCrawlerAgent(state) {
+  console.log('[WebSearchGraph] Running intelligent crawler agent');
+
+  try {
+    // Check if we have web results to analyze
+    if (!state.webResults || state.webResults.length === 0 || !state.webResults[0].success) {
+      console.log('[IntelligentCrawler] No web results available for analysis');
+      return {
+        crawlDecisions: [],
+        crawlMetadata: { noResultsToAnalyze: true }
+      };
+    }
+
+    const firstWebSearch = state.webResults[0];
+    const results = firstWebSearch.results || [];
+
+    if (results.length === 0) {
+      console.log('[IntelligentCrawler] No individual results to analyze');
+      return {
+        crawlDecisions: [],
+        crawlMetadata: { emptyResults: true }
+      };
+    }
+
+    // Configuration based on mode
+    const maxCrawls = state.mode === 'deep' ? 5 : 2;
+    const timeout = state.mode === 'deep' ? 5000 : 3000;
+
+    // Build the analysis prompt
+    const analysisContent = results.map((r, i) => `
+[${i+1}] ${r.title}
+URL: ${r.url}
+Domain: ${r.domain || 'unknown'}
+Snippet: ${r.snippet || r.content || 'No preview available'}
+`).join('\n');
+
+    console.log(`[IntelligentCrawler] Analyzing ${results.length} results to select max ${maxCrawls} for crawling`);
+
+    // AI analyzes snippets and decides which URLs to crawl
+    const crawlDecision = await state.aiWorkerPool.processRequest({
+      type: 'crawler_agent',
+      systemPrompt: `You are an intelligent web research agent. Based on search snippets, decide which URLs to crawl for full content.
+
+Evaluation criteria:
+- RELEVANCE: How directly does the snippet address the query?
+- AUTHORITY: Is this a credible, authoritative source? (gov, edu, established organizations)
+- UNIQUENESS: Does this offer unique information not in other results?
+- DEPTH: Does the snippet suggest rich, detailed content beyond what's shown?
+- ACCESSIBILITY: Avoid paywalled sites (wsj.com, nytimes.com, etc.)
+
+Select up to ${maxCrawls} URLs maximum that would provide the most value.
+Prioritize quality over quantity - fewer high-quality sources are better than many mediocre ones.`,
+
+      messages: [{
+        role: "user",
+        content: `Query: "${state.query}"
+Mode: ${state.mode} research
+
+Available search results:
+${analysisContent}
+
+Analyze these results and select the ${maxCrawls} most valuable URLs to crawl for full content.
+
+Respond with JSON:
+{
+  "selections": [
+    {
+      "index": 1,
+      "url": "...",
+      "reason": "Brief reason why this source is valuable",
+      "expectedValue": "high|medium|low"
+    }
+  ],
+  "reasoning": "Overall strategy for this query and why these sources were chosen"
+}`
+      }],
+      options: {
+        max_tokens: 600,
+        temperature: 0.1
+      }
+    }, state.req);
+
+    if (!crawlDecision.success) {
+      throw new Error(`AI crawler agent failed: ${crawlDecision.error}`);
+    }
+
+    // Parse AI decision
+    let decision;
+    try {
+      decision = JSON.parse(crawlDecision.content);
+    } catch (parseError) {
+      console.warn('[IntelligentCrawler] Failed to parse AI decision, falling back to top results');
+      // Fallback: select top results by ranking
+      decision = {
+        selections: results.slice(0, maxCrawls).map((r, i) => ({
+          index: i + 1,
+          url: r.url,
+          reason: 'Fallback selection - top ranked result',
+          expectedValue: 'medium'
+        })),
+        reasoning: 'Fallback due to JSON parsing error'
+      };
+    }
+
+    console.log(`[IntelligentCrawler] Selected ${decision.selections.length} URLs to crawl: ${decision.reasoning}`);
+
+    // Log selected URLs for debugging
+    decision.selections.forEach(sel => {
+      console.log(`[IntelligentCrawler] Will crawl [${sel.index}]: ${sel.url} - ${sel.reason}`);
+    });
+
+    return {
+      crawlDecisions: decision.selections,
+      crawlMetadata: {
+        strategy: decision.reasoning,
+        totalResultsAnalyzed: results.length,
+        maxCrawlsAllowed: maxCrawls,
+        selectedCount: decision.selections.length,
+        timeout
+      }
+    };
+
+  } catch (error) {
+    console.error('[WebSearchGraph] Intelligent crawler agent error:', error);
+    return {
+      crawlDecisions: [],
+      error: `Crawler agent failed: ${error.message}`,
+      crawlMetadata: { failed: true }
+    };
+  }
+}
+
+/**
+ * Content Enricher Node: Performs actual crawling of selected URLs
+ */
+async function contentEnricherNode(state) {
+  console.log('[WebSearchGraph] Running content enricher');
+
+  try {
+    if (!state.crawlDecisions || state.crawlDecisions.length === 0) {
+      console.log('[ContentEnricher] No URLs selected for crawling');
+      return {
+        enrichedResults: state.webResults?.[0]?.results || [],
+        crawlMetadata: {
+          ...state.crawlMetadata,
+          crawledCount: 0,
+          nothingToCrawl: true
+        }
+      };
+    }
+
+    const webResults = state.webResults?.[0]?.results || [];
+    const timeout = state.crawlMetadata?.timeout || 3000;
+
+    // Perform parallel crawling of selected URLs
+    console.log(`[ContentEnricher] Starting parallel crawl of ${state.crawlDecisions.length} URLs`);
+
+    const crawlPromises = state.crawlDecisions.map(async (decision) => {
+      try {
+        const originalResult = webResults[decision.index - 1];
+        if (!originalResult) {
+          console.warn(`[ContentEnricher] Invalid index ${decision.index}, skipping`);
+          return null;
+        }
+
+        console.log(`[ContentEnricher] Crawling: ${originalResult.url}`);
+
+        const crawlResult = await urlCrawlerService.crawlUrl(originalResult.url, {
+          timeout,
+          maxContentLength: 50000 // 50KB limit
+        });
+
+        if (crawlResult.success && crawlResult.content) {
+          return {
+            ...originalResult,
+            content: crawlResult.content,
+            contentType: 'full',
+            fullContent: crawlResult.content,
+            selectionReason: decision.reason,
+            expectedValue: decision.expectedValue,
+            crawlSuccess: true,
+            wordCount: crawlResult.wordCount,
+            extractedAt: new Date().toISOString()
+          };
+        } else {
+          console.warn(`[ContentEnricher] Crawl failed for ${originalResult.url}: ${crawlResult.error}`);
+          return {
+            ...originalResult,
+            contentType: 'snippet',
+            crawlSuccess: false,
+            crawlError: crawlResult.error
+          };
+        }
+      } catch (error) {
+        console.warn(`[ContentEnricher] Crawl error for ${decision.url}:`, error.message);
+        const originalResult = webResults[decision.index - 1];
+        return originalResult ? {
+          ...originalResult,
+          contentType: 'snippet',
+          crawlSuccess: false,
+          crawlError: error.message
+        } : null;
+      }
+    });
+
+    const crawlResults = await Promise.all(crawlPromises);
+    const validResults = crawlResults.filter(r => r !== null);
+    const successfulCrawls = validResults.filter(r => r.crawlSuccess).length;
+
+    // Merge crawled results with non-crawled results
+    const enrichedResults = webResults.map(originalResult => {
+      const crawled = validResults.find(c => c.url === originalResult.url);
+      if (crawled) {
+        return crawled;
+      }
+      return {
+        ...originalResult,
+        contentType: 'snippet',
+        content: originalResult.snippet || originalResult.content || ''
+      };
+    });
+
+    console.log(`[ContentEnricher] Crawl completed: ${successfulCrawls}/${state.crawlDecisions.length} successful`);
+
+    return {
+      enrichedResults,
+      crawlMetadata: {
+        ...state.crawlMetadata,
+        crawledCount: successfulCrawls,
+        failedCount: state.crawlDecisions.length - successfulCrawls,
+        totalEnriched: enrichedResults.length
+      }
+    };
+
+  } catch (error) {
+    console.error('[WebSearchGraph] Content enricher error:', error);
+    return {
+      enrichedResults: state.webResults?.[0]?.results || [],
+      error: `Content enrichment failed: ${error.message}`,
+      crawlMetadata: {
+        ...state.crawlMetadata,
+        crawledCount: 0,
+        failed: true
+      }
     };
   }
 }
@@ -345,19 +608,24 @@ async function aggregatorNode(state) {
 }
 
 /**
- * Summary Node: Generate AI summary for normal mode with citations
+ * Intelligent Summary Node: Generate AI summary using enriched results (full content + snippets)
  */
-async function summaryNode(state) {
-  if (state.mode !== 'normal' || !state.aggregatedResults?.length) {
+async function intelligentSummaryNode(state) {
+  if (state.mode !== 'normal') {
     return { summary: null };
   }
 
-  console.log('[WebSearchGraph] Generating AI summary with citations for normal mode');
+  console.log('[WebSearchGraph] Generating intelligent summary with enriched results');
 
   try {
-    // Prepare search results with normalized format
-    const firstWebSearch = state.webResults?.[0];
-    if (!firstWebSearch?.success || !firstWebSearch.results?.length) {
+    // Use enriched results if available, otherwise fall back to original web results
+    let resultsToUse = state.enrichedResults;
+    if (!resultsToUse || resultsToUse.length === 0) {
+      const firstWebSearch = state.webResults?.[0];
+      resultsToUse = firstWebSearch?.results || [];
+    }
+
+    if (resultsToUse.length === 0) {
       return {
         summary: {
           text: 'Keine Suchergebnisse zum Zusammenfassen verfügbar.',
@@ -367,54 +635,110 @@ async function summaryNode(state) {
       };
     }
 
-    // Normalize and deduplicate search results
-    const normalizedResults = firstWebSearch.results.map(normalizeSearchResult);
-    const deduplicatedResults = dedupeAndDiversify(normalizedResults, {
-      limitPerDoc: 3,
-      maxTotal: 8
-    });
+    console.log(`[IntelligentSummary] Processing ${resultsToUse.length} results (${resultsToUse.filter(r => r.contentType === 'full').length} with full content)`);
 
-    // Build references map for citations
-    const referencesMap = buildReferencesMap(deduplicatedResults);
-    const refsSummary = summarizeReferencesForPrompt(referencesMap);
+    // Separate full content from snippets
+    const fullContentResults = resultsToUse.filter(r => r.contentType === 'full' && r.crawlSuccess);
+    const snippetResults = resultsToUse.filter(r => r.contentType === 'snippet' || !r.crawlSuccess);
 
-    // Enhanced system prompt for summary with citations
-    const systemPrompt = `Du bist ein Recherche-Assistent, der Suchergebnisse analysiert und zusammenfasst.
+    // Build hierarchical references - prioritize full content
+    let references = [];
+    let refIndex = 1;
 
-WICHTIG: Du MUSST bei wichtigen Aussagen Zitationen verwenden. Verwende die Quellenreferenzen [1], [2], [3] usw. um deine Aussagen zu belegen.
+    // Primary sources (full content) - extract key paragraphs
+    for (const result of fullContentResults.slice(0, 3)) {
+      const keyContent = extractKeyParagraphs(result.fullContent || result.content, state.query, 400);
+      references.push({
+        id: refIndex++,
+        title: result.title,
+        content: keyContent,
+        type: 'primary',
+        source: result.url,
+        reason: result.selectionReason || 'Full content crawled'
+      });
+    }
 
-Erstelle eine gut strukturierte, informative Zusammenfassung der Suchergebnisse. Die Zusammenfassung sollte:
-- Die wichtigsten Erkenntnisse hervorheben
-- Bei wichtigen Fakten und Aussagen Quellenangaben [1], [2] etc. verwenden
-- Objektiv und ausgewogen sein
-- Verschiedene Perspektiven berücksichtigen
-- In zusammenhängenden Absätzen geschrieben sein
+    // Supplementary sources (snippets) - up to 5 more
+    for (const result of snippetResults.slice(0, 5)) {
+      references.push({
+        id: refIndex++,
+        title: result.title,
+        content: result.snippet || result.content || 'No preview available',
+        type: 'supplementary',
+        source: result.url
+      });
+    }
 
-Verwende NUR die folgenden Quellenreferenzen:
-${refsSummary}
+    if (references.length === 0) {
+      return {
+        summary: {
+          text: 'Keine verwertbaren Inhalte zum Zusammenfassen gefunden.',
+          generated: false,
+          error: 'No usable content found'
+        }
+      };
+    }
 
-WICHTIG: Verwende nur die Referenz-IDs [1], [2], [3] etc. die in der obigen Liste stehen. Verwende KEINE anderen Zahlen.`;
+    // Build references summary for AI
+    const referencesText = references.map(r => {
+      const typeLabel = r.type === 'primary' ? '(VOLLTEXT)' : '(Snippet)';
+      return `[${r.id}] ${r.title} ${typeLabel}: ${r.content.slice(0, 300)}`;
+    }).join('\n\n');
 
-    const userPrompt = `Erstelle eine ausführliche Zusammenfassung zu: "${state.query}"
+    // Enhanced system prompt that handles mixed content types
+    const systemPrompt = `Du bist ein Experte für intelligente Web-Zusammenfassungen. Du erhältst sowohl Volltext-Quellen als auch Snippets.
 
-Analysiere die verfügbaren Quellen und erstelle eine strukturierte Zusammenfassung. Verwende Quellenangaben [1], [2] etc. bei wichtigen Aussagen.
+HIERARCHIE:
+- VOLLTEXT-Quellen [1-${fullContentResults.length}]: Primärquellen mit vollständigem Inhalt
+- Snippet-Quellen [${fullContentResults.length + 1}-${references.length}]: Ergänzende Kurzzusammenfassungen
 
-Verfügbare Quellenreferenzen:
-${refsSummary}`;
+ANWEISUNGEN:
+- MAX. 800 Zeichen (ca. 3-4 Sätze)
+- PRIORISIERE Volltext-Quellen für Zitationen
+- Verwende [1], [2], [3] für alle wichtigen Aussagen
+- NIEMALS "Quelle:", "laut", "nach" - NUR [1], [2], [3]
+- Zusammenhängende Absätze, keine Listen
+
+BEISPIEL: "Kommunaler Klimaschutz zeigt konkrete Erfolge [1]. Pop-up-Radwege werden dauerhaft übernommen [2]. Freiburg dient als Vorbild für andere Städte [3]."`;
+
+    const userPrompt = `Erstelle eine präzise Zusammenfassung zu: "${state.query}"
+
+MAX. 800 Zeichen! Fokussiere auf die wichtigsten Erkenntnisse mit [1], [2], [3] Zitationen.
+
+Verfügbare Quellen (VOLLTEXT-Quellen bevorzugen):
+${referencesText}
+
+Crawl-Statistik: ${state.crawlMetadata?.crawledCount || 0} erfolgreich gecrawlt, ${state.crawlMetadata?.strategy || 'Standard-Auswahl'}`;
 
     const result = await state.aiWorkerPool.processRequest({
       type: 'web_search_summary',
       systemPrompt,
       messages: [{ role: "user", content: userPrompt }],
       options: {
-        max_tokens: 2000,
-        temperature: 0.7
+        max_tokens: 500,
+        temperature: 0.2
       }
     }, state.req);
 
     if (!result.success) {
       throw new Error(result.error);
     }
+
+    // Build references map for citation validation
+    const referencesMap = {};
+    references.forEach((ref, index) => {
+      referencesMap[String(ref.id)] = {
+        title: ref.title,
+        snippets: [[ref.content]],
+        description: null,
+        date: new Date().toISOString(),
+        source: ref.type === 'primary' ? 'full_content' : 'web_snippet',
+        url: ref.source,
+        source_type: 'web',
+        similarity_score: 1.0,
+        chunk_index: 0
+      };
+    });
 
     // Process the AI response for citations
     const { cleanDraft, citations, citationSources, errors } = validateAndInjectCitations(
@@ -424,7 +748,7 @@ ${refsSummary}`;
 
     // Log citation validation errors if any
     if (errors && errors.length > 0) {
-      console.warn('[WebSearchGraph] Citation validation errors:', errors);
+      console.warn('[WebSearchGraph] Intelligent summary citation validation errors:', errors);
     }
 
     return {
@@ -439,20 +763,67 @@ ${refsSummary}`;
         summaryGenerated: true,
         citationsCount: citations?.length || 0,
         sourcesCount: citationSources?.length || 0,
-        citationErrors: errors?.length || 0
+        citationErrors: errors?.length || 0,
+        intelligentCrawl: {
+          fullContentSources: fullContentResults.length,
+          snippetSources: snippetResults.length,
+          crawlMetadata: state.crawlMetadata
+        }
       }
     };
 
   } catch (error) {
-    console.error('[WebSearchGraph] Summary generation error:', error);
+    console.error('[WebSearchGraph] Intelligent summary generation error:', error);
     return {
       summary: {
-        text: 'Fehler beim Generieren der Zusammenfassung.',
+        text: 'Fehler beim Generieren der intelligenten Zusammenfassung.',
         generated: false,
         error: error.message
       }
     };
   }
+}
+
+/**
+ * Helper function to extract key paragraphs from full content based on query relevance
+ */
+function extractKeyParagraphs(content, query, maxLength = 400) {
+  if (!content || content.length <= maxLength) {
+    return content || '';
+  }
+
+  // Split content into paragraphs
+  const paragraphs = content.split(/\n\s*\n/).filter(p => p.trim().length > 50);
+
+  // Simple relevance scoring based on query terms
+  const queryTerms = query.toLowerCase().split(/\s+/).filter(term => term.length > 2);
+
+  const scoredParagraphs = paragraphs.map(paragraph => {
+    const lowerPara = paragraph.toLowerCase();
+    const score = queryTerms.reduce((score, term) => {
+      return score + (lowerPara.split(term).length - 1);
+    }, 0);
+
+    return { paragraph: paragraph.trim(), score };
+  });
+
+  // Sort by relevance and take top paragraphs that fit within maxLength
+  scoredParagraphs.sort((a, b) => b.score - a.score);
+
+  let result = '';
+  for (const { paragraph } of scoredParagraphs) {
+    if (result.length + paragraph.length + 3 <= maxLength) { // +3 for spacing
+      result += (result ? '\n\n' : '') + paragraph;
+    } else if (result.length === 0) {
+      // If even the first paragraph is too long, truncate it
+      result = paragraph.slice(0, maxLength - 3) + '...';
+      break;
+    } else {
+      break;
+    }
+  }
+
+  return result || content.slice(0, maxLength - 3) + '...';
 }
 
 /**
@@ -567,7 +938,7 @@ ANWEISUNG:
       messages: [{ role: "user", content: dossierPrompt }],
       options: {
         max_tokens: 6000,
-        temperature: 0.7
+        temperature: 0.3
       }
     }, state.req);
 
