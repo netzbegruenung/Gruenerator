@@ -84,20 +84,69 @@ class OCRService {
   }
 
   /**
-   * Extract text from PDF using Mistral OCR exclusively
-   * Always uses Mistral OCR for consistent markdown output and better accuracy
+   * Validate document limits before processing
    */
-  async extractTextFromPDF(pdfPath) {
+  async validateDocumentLimits(filePath, fileExtension) {
+    try {
+      // Check file size (50MB limit for all files)
+      const stats = await fs.stat(filePath);
+      const fileSizeMB = stats.size / (1024 * 1024);
+      const maxSizeMB = 50;
+
+      if (fileSizeMB > maxSizeMB) {
+        throw new Error(
+          `Das Dokument ist zu groß. Maximale Dateigröße: ${maxSizeMB}MB. ` +
+          `Ihre Datei: ${fileSizeMB.toFixed(1)}MB.`
+        );
+      }
+
+      // Check page count only for PDFs (1000 pages limit)
+      if (fileExtension === '.pdf') {
+        const pdfDoc = await this.openPdfDocument(filePath);
+        const pageCount = pdfDoc.numPages;
+        const maxPages = 1000;
+
+        if (pageCount > maxPages) {
+          throw new Error(
+            `Das Dokument hat zu viele Seiten. Maximum: ${maxPages} Seiten. ` +
+            `Ihr Dokument: ${pageCount} Seiten.`
+          );
+        }
+
+        console.log(`[OCRService] Document validation passed: ${pageCount} pages, ${fileSizeMB.toFixed(1)}MB`);
+        return { pageCount, fileSizeMB };
+      }
+
+      console.log(`[OCRService] Document validation passed: ${fileSizeMB.toFixed(1)}MB`);
+      return { fileSizeMB };
+    } catch (error) {
+      console.error(`[OCRService] Document validation failed:`, error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Extract text from documents using Mistral OCR exclusively
+   * Supports PDF, DOCX, PPTX, and image formats with markdown output
+   */
+  async extractTextFromDocument(filePath) {
     const startTime = Date.now();
-    console.log(`[OCRService] Starting PDF text extraction with Mistral OCR: ${pdfPath}`);
+    const fileExtension = path.extname(filePath).toLowerCase();
+    console.log(`[OCRService] Starting document text extraction with Mistral OCR: ${filePath} (${fileExtension})`);
 
     try {
-      // Optional parseability check for telemetry/logging only
-      const parseCheck = await this.canExtractTextDirectly(pdfPath);
+      // Validate document limits first
+      await this.validateDocumentLimits(filePath, fileExtension);
 
-      // Always use Mistral OCR - no fallbacks
-      console.log(`[OCRService] Using Mistral OCR (exclusive method)`);
-      const result = await this.extractTextWithMistralOCR(pdfPath);
+      // Optional parseability check for PDFs only (for telemetry)
+      let parseCheck = null;
+      if (fileExtension === '.pdf') {
+        parseCheck = await this.canExtractTextDirectly(filePath);
+      }
+
+      // Always use Mistral OCR - supports PDF, DOCX, PPTX, images
+      console.log(`[OCRService] Using Mistral OCR for ${fileExtension} document`);
+      const result = await this.extractTextWithMistralOCR(filePath);
       const totalTime = Date.now() - startTime;
       
       console.log(`[OCRService] Mistral OCR completed successfully in ${totalTime}ms`);
@@ -105,13 +154,14 @@ class OCRService {
       return {
         ...result,
         extractionMethod: 'mistral-ocr',
-        parseabilityStats: parseCheck.stats,
+        fileType: fileExtension,
+        parseabilityStats: parseCheck?.stats || null,
         totalProcessingTimeMs: totalTime
       };
     } catch (error) {
       const totalTime = Date.now() - startTime;
       console.error(`[OCRService] Mistral OCR extraction failed after ${totalTime}ms:`, error);
-      throw new Error(`Mistral OCR extraction failed: ${error.message}`);
+      throw error;
     }
   }
 

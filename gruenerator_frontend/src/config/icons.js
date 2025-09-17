@@ -19,13 +19,14 @@ import {
   PiArrowRight
 } from 'react-icons/pi';
 
-import { 
-  FaInstagram, 
-  FaFacebook, 
-  FaTwitter, 
+import {
+  FaInstagram,
+  FaFacebook,
+  FaTwitter,
   FaLinkedin,
   FaCloud,
-  FaBook 
+  FaBook,
+  FaTiktok
 } from 'react-icons/fa';
 
 import { FaFileWord } from 'react-icons/fa6';
@@ -34,14 +35,15 @@ import { CiMemoPad } from 'react-icons/ci';
 
 import { GiHedgehog } from 'react-icons/gi';
 
-import { 
+import {
   HiInformationCircle,
   HiOutlineTrash,
   HiCog,
   HiRefresh,
   HiArrowLeft,
   HiLockClosed,
-  HiBeaker
+  HiBeaker,
+  HiChat
 } from 'react-icons/hi';
 
 import { 
@@ -72,6 +74,8 @@ export const ICONS = {
     facebook: FaFacebook,
     twitter: FaTwitter,
     linkedin: FaLinkedin,
+    tiktok: FaTiktok,
+    messenger: HiChat,
     sharepic: PiImageSquare,
     pressemitteilung: PiNewspaper,
     actionIdeas: PiMagicWand,

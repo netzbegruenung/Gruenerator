@@ -94,16 +94,55 @@ export const TAB_INDEX_CONFIG = {
     // Form fields (100-399)
     formType: 100,
     hauptfeld: 110,
-    
+
     // Feature icons (400-499)
     webSearch: 400,
     privacyMode: 410,
     attachment: 420,
-    
+
     // Selectors (500-699)
     knowledgeSourceSelector: 500,
     knowledgeSelector: 510,
-    
+
+    // Actions (900-999)
+    submit: 900
+  },
+
+  // Alt-Text Generator
+  ALT_TEXT: {
+    // Form fields (100-399)
+    imageSource: 100,
+    imageUpload: 110,
+    imageDescription: 120,
+
+    // Feature icons (400-499)
+    privacyMode: 400,
+
+    // Selectors (500-699)
+    platformSelector: 500,
+    knowledgeSourceSelector: 510,
+    knowledgeSelector: 520,
+
+    // Actions (900-999)
+    submit: 900
+  },
+
+  // Leichte Sprache Generator
+  LEICHTE_SPRACHE: {
+    // Form fields (100-399)
+    originalText: 100,
+    targetLanguage: 110,
+
+    // Feature icons (400-499)
+    webSearch: 400,
+    privacyMode: 410,
+    attachment: 420,
+
+    // Selectors (500-699)
+    platformSelector: 500,
+    knowledgeSourceSelector: 510,
+    knowledgeSelector: 520,
+
     // Actions (900-999)
     submit: 900
   },
@@ -367,6 +406,8 @@ export const {
   ANTRAG,
   GRUENE_JUGEND,
   UNIVERSAL,
+  ALT_TEXT,
+  LEICHTE_SPRACHE,
   PROFILE,
   PROFILE_INFO,
   PROFILE_GROUPS,

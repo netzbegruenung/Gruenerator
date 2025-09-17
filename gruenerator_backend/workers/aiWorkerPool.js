@@ -65,6 +65,14 @@ class AIWorkerPool {
       clearTimeout(timeout);
       
       console.log(`[AIWorkerPool] Successful response for request ${requestId} (${data.content?.length || 0} chars)`);
+      // Optional: log full response payload for testing
+      try {
+        const cfg = require('./worker.config');
+        if (cfg?.logging?.fullResponses) {
+          // Avoid blowing up logs if content is huge: still print full object as requested
+          console.log(`[AIWorkerPool][FullResponse ${requestId}]`, JSON.stringify(data, null, 2));
+        }
+      } catch (_) {}
       resolve({
         content: data.content,
         stop_reason: data.stop_reason,
@@ -170,6 +178,7 @@ class AIWorkerPool {
     console.log(`[AIWorkerPool] Processing request ${requestId}:`, {
       type: processedData.type,
       usePrivacyMode: processedData.usePrivacyMode,
+      useBedrock: processedData.useBedrock,
       provider: processedData.provider || 'default'
     });
 

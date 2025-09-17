@@ -15,7 +15,7 @@ import { useGeneratorKnowledgeStore } from '../../../stores/core/generatorKnowle
 import useKnowledge from '../../../components/hooks/useKnowledge';
 import { useTabIndex, useBaseFormTabIndex } from '../../../hooks/useTabIndex';
 import AntragSavePopup from './components/AntragSavePopup';
-import FormSelect from '../../../components/common/Form/Input/FormSelect';
+import TypeSelector from '../../../components/common/TypeSelector';
 import BundestagDocumentSelector from '../../../components/common/BundestagDocumentSelector/BundestagDocumentSelector';
 import { prepareFilesForSubmission } from '../../../utils/fileAttachmentUtils';
 import apiClient from '../../../components/utils/apiClient';
@@ -44,6 +44,9 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
   const { Input, Textarea } = useFormFields();
   const { setGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
 
+  // State for request type - moved outside of form control
+  const [selectedRequestType, setSelectedRequestType] = useState(REQUEST_TYPES.ANTRAG);
+
   // Initialize knowledge system with UI configuration
   useKnowledge({ 
     instructionType: 'antrag', 
@@ -68,7 +71,6 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
     formState: { errors }
   } = useForm({
     defaultValues: {
-      requestType: REQUEST_TYPES.ANTRAG,
       idee: '',
       details: '',
       gliederung: '',
@@ -79,7 +81,6 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
 
   const watchUseWebSearch = watch('useWebSearchTool');
   const watchUsePrivacyMode = watch('usePrivacyMode');
-  const watchRequestType = watch('requestType');
 
   const [antragContent, setAntragContent] = useState('');
   const [isSavePopupOpen, setIsSavePopupOpen] = useState(false);
@@ -125,7 +126,7 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
 
     try {
       const formDataToSubmit = {
-        requestType: rhfData.requestType,
+        requestType: selectedRequestType,
         idee: rhfData.idee,
         details: rhfData.details,
         gliederung: rhfData.gliederung,
@@ -201,9 +202,9 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
   const handleConfirmSave = useCallback(async (popupData) => {
     setIsSavePopupOpen(false);
     setIsSaving(true);
-    
+
     try {
-      const requestTypeLabel = REQUEST_TYPE_LABELS[getValues('requestType')] || 'Antrag';
+      const requestTypeLabel = REQUEST_TYPE_LABELS[selectedRequestType] || 'Antrag';
       const payload = {
         title: popupData.title || `${requestTypeLabel}: ${getValues('idee')}` || `Unbenannte ${requestTypeLabel}`,
         antragstext: storeGeneratedText || antragContent,
@@ -219,7 +220,7 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
     } finally {
       setIsSaving(false);
     }
-  }, [watch, storeGeneratedText, antragContent]);
+  }, [selectedRequestType, getValues, storeGeneratedText, antragContent]);
 
   const handleAttachmentClick = useCallback(async (files) => {
     try {
@@ -259,21 +260,19 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
     ]
   };
 
-  const requestTypeOptions = Object.entries(REQUEST_TYPE_LABELS).map(([value, label]) => ({
-    value,
-    label
-  }));
+  const renderRequestTypeSection = () => (
+    <TypeSelector
+      types={REQUEST_TYPES}
+      typeLabels={REQUEST_TYPE_LABELS}
+      selectedType={selectedRequestType}
+      onTypeChange={setSelectedRequestType}
+      label="Art der Anfrage"
+      name="requestType"
+    />
+  );
 
   const renderFormInputs = () => (
     <>
-      <FormSelect
-        name="requestType"
-        control={control}
-        label="Art der Anfrage"
-        options={requestTypeOptions}
-        tabIndex={tabIndex.requestType || 1}
-      />
-
       <Input
         name="idee"
         control={control}
@@ -340,7 +339,7 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
     <ErrorBoundary>
       <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
         <BaseForm
-          title={REQUEST_TYPE_TITLES[watchRequestType] || REQUEST_TYPE_TITLES[REQUEST_TYPES.ANTRAG]}
+          title={REQUEST_TYPE_TITLES[selectedRequestType] || REQUEST_TYPE_TITLES[REQUEST_TYPES.ANTRAG]}
           onSubmit={handleSubmit(onSubmitRHF)}
           loading={loading}
           success={success}
@@ -367,7 +366,7 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
           knowledgeSourceSelectorTabIndex={baseFormTabIndex.knowledgeSourceSelectorTabIndex}
           documentSelectorTabIndex={baseFormTabIndex.documentSelectorTabIndex}
           submitButtonTabIndex={baseFormTabIndex.submitButtonTabIndex}
-          // firstExtrasChildren={bundestagDocumentSelector}
+          firstExtrasChildren={renderRequestTypeSection()}
         >
           {renderFormInputs()}
         </BaseForm>
@@ -378,7 +377,7 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
           onConfirm={handleConfirmSave}
           isSaving={isSaving}
           antragstext={storeGeneratedText || antragContent}
-          initialData={{ title: `${REQUEST_TYPE_LABELS[getValues('requestType')] || 'Antrag'}: ${getValues('idee')}` }}
+          initialData={{ title: `${REQUEST_TYPE_LABELS[selectedRequestType] || 'Antrag'}: ${getValues('idee')}` }}
         />
       </div>
     </ErrorBoundary>

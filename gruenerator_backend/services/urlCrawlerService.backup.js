@@ -1,0 +1,586 @@
+import * as cheerio from 'cheerio';
+import { URL } from 'url';
+import TurndownService from 'turndown';
+import { crawleeService } from './crawleeService.js';
+
+class URLCrawlerService {
+  constructor() {
+    this.defaultOptions = {
+      // Request timeout in milliseconds
+      timeout: 10000,
+      // Maximum redirects to follow
+      maxRedirects: 5,
+      // User agent string
+      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      // Maximum content length (10MB)
+      maxContentLength: 10 * 1024 * 1024,
+    };
+
+    // Initialize Turndown service for HTML to Markdown conversion
+    this.turndownService = new TurndownService({
+      headingStyle: 'atx', // Use # for headings
+      hr: '---',
+      bulletListMarker: '-',
+      codeBlockStyle: 'fenced',
+      emDelimiter: '*',
+      strongDelimiter: '**',
+    });
+
+    // Feature flag to enable Crawlee (default: true)
+    this.useCrawlee = process.env.USE_CRAWLEE !== 'false';
+  }
+
+  /**
+   * Validates if a URL is valid and accessible
+   * @param {string} url - The URL to validate
+   * @returns {Promise<{isValid: boolean, error?: string}>}
+   */
+  async validateUrl(url) {
+    // Use Crawlee service validation if available, fallback to original logic
+    if (this.useCrawlee) {
+      return await crawleeService.validateUrl(url);
+    }
+
+    try {
+      // Basic URL format validation
+      const urlObj = new URL(url);
+
+      // Check for supported protocols
+      if (!['http:', 'https:'].includes(urlObj.protocol)) {
+        return {
+          isValid: false,
+          error: 'Only HTTP and HTTPS protocols are supported'
+        };
+      }
+
+      // Check for localhost or private IP addresses in production
+      if (process.env.NODE_ENV === 'production') {
+        const hostname = urlObj.hostname.toLowerCase();
+        if (hostname === 'localhost' ||
+            hostname.startsWith('127.') ||
+            hostname.startsWith('10.') ||
+            hostname.startsWith('192.168.') ||
+            hostname.startsWith('172.')) {
+          return {
+            isValid: false,
+            error: 'Local and private network URLs are not allowed'
+          };
+        }
+      }
+
+      return { isValid: true };
+    } catch (error) {
+      return {
+        isValid: false,
+        error: 'Invalid URL format'
+      };
+    }
+  }
+
+  /**
+   * Fetches HTML content from a URL
+   * @param {string} url - The URL to fetch
+   * @param {Object} options - Fetch options
+   * @returns {Promise<{html: string, finalUrl: string, statusCode: number}>}
+   */
+  async fetchUrl(url, options = {}) {
+    // Use Crawlee service if enabled
+    if (this.useCrawlee) {
+      const crawlOptions = {
+        ...options,
+        requestTimeoutSecs: Math.floor((options.timeout || this.defaultOptions.timeout) / 1000),
+        maxContentLength: options.maxContentLength || this.defaultOptions.maxContentLength,
+        userAgent: options.userAgent || this.defaultOptions.userAgent
+      };
+
+      console.log(`[URLCrawlerService] Fetching URL via Crawlee: ${url}`);
+      return await crawleeService.crawlUrl(url, crawlOptions);
+    }
+
+    // Fallback to original fetch logic
+    const fetchOptions = {
+      ...this.defaultOptions,
+      ...options
+    };
+
+    console.log(`[URLCrawlerService] Fetching URL: ${url}`);
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), fetchOptions.timeout);
+
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'User-Agent': fetchOptions.userAgent,
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.5',
+          'Accept-Encoding': 'gzip, deflate, br',
+          'DNT': '1',
+          'Connection': 'keep-alive',
+          'Upgrade-Insecure-Requests': '1',
+        },
+        signal: controller.signal,
+        redirect: 'follow',
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      // Check content type
+      const contentType = response.headers.get('content-type') || '';
+      if (!contentType.includes('text/html')) {
+        throw new Error(`Unsupported content type: ${contentType}`);
+      }
+
+      // Check content length
+      const contentLength = response.headers.get('content-length');
+      if (contentLength && parseInt(contentLength) > fetchOptions.maxContentLength) {
+        throw new Error(`Content too large: ${contentLength} bytes`);
+      }
+
+      const html = await response.text();
+
+      return {
+        html,
+        finalUrl: response.url,
+        statusCode: response.status
+      };
+
+    } catch (error) {
+      clearTimeout(timeoutId);
+
+      if (error.name === 'AbortError') {
+        throw new Error(`Request timeout after ${fetchOptions.timeout}ms`);
+      }
+
+      throw error;
+    }
+  }
+
+  /**
+   * Extracts clean text content from HTML using Cheerio
+   * @param {string} html - The HTML content
+   * @param {string} url - The source URL for context
+   * @param {boolean} enhancedMetadata - Whether to extract enhanced metadata (images, dimensions, etc.)
+   * @returns {Object} Extracted content data
+   */
+  extractContent(html, url, enhancedMetadata = false) {
+    console.log(`[URLCrawlerService] Extracting content from HTML (${html.length} characters), enhanced: ${enhancedMetadata}`);
+
+    const $ = cheerio.load(html);
+    
+    // Remove unwanted elements
+    $('script, style, nav, header, footer, .navigation, .sidebar, .ads, .advertisement, noscript, iframe').remove();
+    
+    // Extract metadata
+    const title = $('title').text().trim() || $('h1').first().text().trim() || 'Untitled';
+    const metaDescription = $('meta[name="description"]').attr('content') || 
+                          $('meta[property="og:description"]').attr('content') || '';
+    const canonical = $('link[rel="canonical"]').attr('href') || url;
+
+    // Extract enhanced metadata if requested
+    let enhancedData = {};
+    if (enhancedMetadata) {
+      enhancedData = this.extractEnhancedMetadata($, url);
+    }
+
+    // Content extraction selectors in order of preference
+    const contentSelectors = [
+      'article',
+      'main',
+      '[role="main"]',
+      '.content',
+      '.post-content',
+      '.article-content',
+      '.entry-content',
+      '#content',
+      '.main-content',
+      '.page-content',
+      '.text-content'
+    ];
+
+    let extractedContent = '';
+    let extractedHtml = '';
+    let contentSource = 'body';
+
+    // Try each selector to find the main content
+    for (const selector of contentSelectors) {
+      const element = $(selector).first();
+      if (element.length > 0) {
+        extractedContent = element.text();
+        extractedHtml = element.html();
+        contentSource = selector;
+        break;
+      }
+    }
+
+    // Fallback to body if no specific content area found
+    if (!extractedContent) {
+      // Remove additional unwanted elements from body
+      $('body').find('.cookie-notice, .cookie-banner, .popup, .modal, .overlay, .social-share').remove();
+      extractedContent = $('body').text();
+      extractedHtml = $('body').html();
+      contentSource = 'body (cleaned)';
+    }
+
+    // Clean the extracted text
+    const cleanedContent = this.cleanExtractedText(extractedContent);
+    
+    // Convert HTML to Markdown
+    const markdownContent = this.convertHtmlToMarkdown(extractedHtml);
+
+    // Extract publication date
+    const publicationDate = this.extractPublicationDate($);
+
+    const result = {
+      url: url,
+      title: title || 'Untitled',
+      description: metaDescription || '',
+      content: cleanedContent,
+      markdownContent: markdownContent,
+      contentSource,
+      publicationDate,
+      canonical: canonical || url,
+      wordCount: cleanedContent.split(/\s+/).filter(word => word.length > 0).length,
+      characterCount: cleanedContent.length,
+      extractedAt: new Date().toISOString(),
+      ...enhancedData
+    };
+
+    console.log(`[URLCrawlerService] Successfully extracted ${result.wordCount} words from ${url}`);
+    
+    return result;
+  }
+
+  /**
+   * Extracts clean text content from a web page using HTTP + Cheerio
+   * @param {string} url - The URL to crawl
+   * @param {Object} options - Crawling options
+   * @param {boolean} options.enhancedMetadata - Whether to extract enhanced metadata
+   * @returns {Promise<{success: boolean, data?: Object, error?: string}>}
+   */
+  async crawlUrl(url, options = {}) {
+    console.log(`[URLCrawlerService] Starting crawl for URL: ${url}`);
+    
+    try {
+      // Validate URL first
+      const validation = await this.validateUrl(url);
+      if (!validation.isValid) {
+        throw new Error(validation.error);
+      }
+
+      // Fetch the HTML content
+      const { html, finalUrl, statusCode } = await this.fetchUrl(url, options);
+      
+      // Extract content using Cheerio with optional enhanced metadata
+      const contentData = this.extractContent(html, finalUrl, options.enhancedMetadata);
+      
+      // Validate extracted content
+      if (!contentData.content || contentData.content.trim().length < 50) {
+        throw new Error('Insufficient content extracted from the page. The page might be empty or require JavaScript.');
+      }
+
+      console.log(`[URLCrawlerService] Crawl completed successfully for ${url}`);
+      
+      return {
+        success: true,
+        data: {
+          ...contentData,
+          originalUrl: url,
+          statusCode
+        }
+      };
+
+    } catch (error) {
+      console.error(`[URLCrawlerService] Crawl failed for ${url}:`, error);
+      return {
+        success: false,
+        error: error.message || 'Failed to crawl URL'
+      };
+    }
+  }
+
+  /**
+   * Cleans extracted text content
+   * @param {string} text - Raw extracted text
+   * @returns {string} Cleaned text
+   */
+  cleanExtractedText(text) {
+    if (!text) return '';
+
+    return text
+      // Normalize whitespace
+      .replace(/\s+/g, ' ')
+      // Remove excessive line breaks
+      .replace(/\n\s*\n\s*\n/g, '\n\n')
+      // Trim leading/trailing whitespace
+      .trim()
+      // Remove common boilerplate text patterns
+      .replace(/Cookie\s+(Policy|Notice|Consent)[\s\S]*?(?=\n\n|\n[A-Z]|$)/gi, '')
+      .replace(/Accept\s+all\s+cookies?[\s\S]*?(?=\n\n|\n[A-Z]|$)/gi, '')
+      // Remove social media sharing text
+      .replace(/Share\s+on\s+(Facebook|Twitter|LinkedIn|Instagram)[\s\S]*?(?=\n|\s[A-Z])/gi, '')
+      // Clean up remaining whitespace
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  /**
+   * Converts HTML content to Markdown format
+   * @param {string} html - Raw HTML content
+   * @returns {string} Cleaned Markdown content
+   */
+  convertHtmlToMarkdown(html) {
+    if (!html) return '';
+
+    try {
+      // Convert HTML to Markdown using turndown
+      let markdown = this.turndownService.turndown(html);
+      
+      // Clean up the markdown
+      markdown = markdown
+        // Remove excessive whitespace and line breaks
+        .replace(/\n\s*\n\s*\n/g, '\n\n')
+        // Clean up lists spacing
+        .replace(/(\n- .+)\n\n(\n- .+)/g, '$1\n$2')
+        // Remove empty lines at start/end
+        .trim();
+
+      return markdown;
+    } catch (error) {
+      console.warn('[URLCrawlerService] Error converting HTML to Markdown:', error.message);
+      // Fallback to plain text extraction if conversion fails
+      return html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+    }
+  }
+
+  /**
+   * Attempts to extract publication date from the page using Cheerio
+   * @param {Object} $ - Cheerio instance
+   * @returns {string|null} Publication date or null
+   */
+  extractPublicationDate($) {
+    const dateSelectors = [
+      'meta[property="article:published_time"]',
+      'meta[name="article:published_time"]',
+      'meta[property="og:article:published_time"]',
+      'meta[name="published_time"]',
+      'meta[name="date"]',
+      'time[datetime]',
+      '.published-date',
+      '.publication-date',
+      '.article-date',
+      '.post-date'
+    ];
+
+    for (const selector of dateSelectors) {
+      try {
+        let dateValue = null;
+        
+        if (selector.includes('meta')) {
+          dateValue = $(selector).attr('content');
+        } else if (selector.includes('time')) {
+          dateValue = $(selector).attr('datetime') || $(selector).text();
+        } else {
+          dateValue = $(selector).text();
+        }
+
+        if (dateValue) {
+          // Try to parse the date
+          const parsedDate = new Date(dateValue.trim());
+          if (!isNaN(parsedDate.getTime())) {
+            return parsedDate.toISOString();
+          }
+        }
+      } catch (err) {
+        // Continue to next selector
+        continue;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Extracts enhanced metadata from HTML for rich content like templates
+   * @param {Object} $ - Cheerio instance
+   * @param {string} url - The source URL for context
+   * @returns {Object} Enhanced metadata object
+   */
+  extractEnhancedMetadata($, url) {
+    const enhancedData = {};
+
+    // Extract Open Graph image (preview image)
+    const ogImage = $('meta[property="og:image"]').attr('content') ||
+                   $('meta[name="twitter:image"]').attr('content') ||
+                   $('link[rel="image_src"]').attr('href');
+
+    if (ogImage) {
+      // Make URL absolute if relative
+      try {
+        const imageUrl = new URL(ogImage, url).href;
+        enhancedData.previewImage = imageUrl;
+      } catch (error) {
+        console.warn('[URLCrawlerService] Invalid image URL:', ogImage);
+      }
+    }
+
+    // Extract dimensions from Open Graph
+    const ogWidth = $('meta[property="og:image:width"]').attr('content');
+    const ogHeight = $('meta[property="og:image:height"]').attr('content');
+    
+    if (ogWidth && ogHeight) {
+      enhancedData.dimensions = {
+        width: parseInt(ogWidth, 10),
+        height: parseInt(ogHeight, 10)
+      };
+    }
+
+    // Extract categories from various sources
+    const categories = new Set();
+    
+    // Try meta keywords
+    const keywords = $('meta[name="keywords"]').attr('content');
+    if (keywords) {
+      keywords.split(',').forEach(keyword => {
+        const cleaned = keyword.trim().toLowerCase();
+        if (cleaned && cleaned.length > 2) {
+          categories.add(cleaned);
+        }
+      });
+    }
+
+    // Try Open Graph tags
+    const ogTags = $('meta[property="og:tags"]').attr('content') ||
+                   $('meta[property="article:tag"]').attr('content');
+    if (ogTags) {
+      ogTags.split(',').forEach(tag => {
+        const cleaned = tag.trim().toLowerCase();
+        if (cleaned && cleaned.length > 2) {
+          categories.add(cleaned);
+        }
+      });
+    }
+
+    // Try to extract template type/category from title or description
+    const titleLower = ($('title').text() || '').toLowerCase();
+    const descLower = ($('meta[name="description"]').attr('content') || '').toLowerCase();
+    const combinedText = `${titleLower} ${descLower}`;
+
+    const templateTypes = [
+      'flyer', 'poster', 'brochure', 'presentation', 'instagram', 'facebook', 
+      'twitter', 'social media', 'newsletter', 'business card', 'logo', 
+      'banner', 'story', 'post', 'card', 'invitation', 'resume', 'cv'
+    ];
+
+    templateTypes.forEach(type => {
+      if (combinedText.includes(type)) {
+        categories.add(type);
+      }
+    });
+
+    if (categories.size > 0) {
+      enhancedData.categories = Array.from(categories).slice(0, 5); // Limit to 5 categories
+    }
+
+    // Extract additional structured data if available
+    const structuredData = this.extractStructuredData($);
+    if (structuredData) {
+      enhancedData.structuredData = structuredData;
+    }
+
+    console.log('[URLCrawlerService] Extracted enhanced metadata:', {
+      hasPreviewImage: !!enhancedData.previewImage,
+      hasDimensions: !!enhancedData.dimensions,
+      categoriesCount: enhancedData.categories?.length || 0
+    });
+
+    return enhancedData;
+  }
+
+  /**
+   * Extracts structured data (JSON-LD, microdata) from HTML
+   * @param {Object} $ - Cheerio instance
+   * @returns {Object|null} Structured data object or null
+   */
+  extractStructuredData($) {
+    try {
+      // Look for JSON-LD structured data
+      const jsonLdScript = $('script[type="application/ld+json"]').first();
+      if (jsonLdScript.length > 0) {
+        const jsonLdText = jsonLdScript.html();
+        if (jsonLdText) {
+          return JSON.parse(jsonLdText);
+        }
+      }
+    } catch (error) {
+      console.warn('[URLCrawlerService] Error parsing structured data:', error.message);
+    }
+    
+    return null;
+  }
+
+  /**
+   * Gets a preview of content without full crawling (for validation)
+   * @param {string} url - The URL to preview
+   * @returns {Promise<{success: boolean, data?: Object, error?: string}>}
+   */
+  async previewUrl(url) {
+    // Use Crawlee service preview if available
+    if (this.useCrawlee) {
+      return await crawleeService.previewUrl(url);
+    }
+
+    // Fallback to original preview logic
+    try {
+      const validation = await this.validateUrl(url);
+      if (!validation.isValid) {
+        throw new Error(validation.error);
+      }
+
+      // For preview, we'll just do a HEAD request to check if the URL is accessible
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+      try {
+        const response = await fetch(url, {
+          method: 'HEAD',
+          headers: {
+            'User-Agent': this.defaultOptions.userAgent,
+          },
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        return {
+          success: true,
+          data: {
+            url,
+            accessible: response.ok,
+            statusCode: response.status,
+            contentType: response.headers.get('content-type'),
+            preview: `URL is ${response.ok ? 'accessible' : 'not accessible'} (${response.status})`
+          }
+        };
+
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        throw fetchError;
+      }
+
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message || 'Failed to preview URL'
+      };
+    }
+  }
+}
+
+// Export singleton instance
+export const urlCrawlerService = new URLCrawlerService();

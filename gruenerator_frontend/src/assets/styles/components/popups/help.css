@@ -13,6 +13,15 @@
   line-height: 1.5;
 }
 
+.help-content-text p {
+  margin-bottom: var(--spacing-small);
+  white-space: pre-line;
+}
+
+.help-content-text p:last-child {
+  margin-bottom: 0;
+}
+
 .help-content h4 {
   margin-top: 15px;
   margin-bottom: 10px;

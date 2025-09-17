@@ -2,7 +2,6 @@ const express = require('express');
 const multer = require('multer');
 const { createCanvas, loadImage } = require('canvas');
 const fs = require('fs').promises;
-const sharp = require('sharp');
 
 const { TESTBILD_PATH, params, SUNFLOWER_PATH } = require('./config');
 const { isValidHexColor, getDefaultColor } = require('./utils');
@@ -372,15 +371,12 @@ router.post('/', upload.single('image'), async (req, res) => {
     }
 
     try {
-      const metadata = await sharp(imageBuffer).metadata();
-      console.log('Image metadata:', metadata); // Hilft bei der Diagnose
+      // Validate image by attempting to load it with canvas
+      // This will throw an error if the image format is invalid or corrupted
+      await loadImage(imageBuffer);
+      console.log('Image validation successful');
 
-      // Stellen Sie sicher, dass wir ein gültiges Bildformat haben
-      if (!metadata.format) {
-        throw new Error('Bildformat konnte nicht erkannt werden');
-      }
-
-      // Verwenden Sie das verarbeitete Bild für addTextToImage
+      // Generate the image with validated buffer
       const generatedImageBuffer = await addTextToImage(imageBuffer, processedText, validatedParams);
       const base64Image = `data:image/png;base64,${generatedImageBuffer.toString('base64')}`;
 

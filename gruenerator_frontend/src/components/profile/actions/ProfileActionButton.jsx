@@ -6,9 +6,9 @@ const DEFAULTS = {
   edit: { label: 'Bearbeiten', variant: 'secondary' },
   delete: { label: 'Löschen', variant: 'danger' },
   back: { label: 'Zurück', variant: 'ghost' },
-  refresh: { label: 'Aktualisieren', variant: 'secondary' },
+  refresh: { label: 'Aktualisieren', variant: 'ghost' },
   open: { label: 'Öffnen', variant: 'secondary' },
-  add: { label: 'Hinzufügen', variant: 'primary' },
+  add: { label: 'Hinzufügen', variant: 'ghost' },
   info: { label: 'Info', variant: 'ghost' }
 };
 

@@ -4,6 +4,7 @@ import { formatDate } from '../utils/documentOverviewUtils';
 
 // Import markdown styles for consistent rendering
 import '../../assets/styles/pages/AntragDetailPage.css';
+import '../../assets/styles/common/markdown-styles.css';
 
 const ReactMarkdown = lazy(() => import('react-markdown'));
 
@@ -64,13 +65,11 @@ const DocumentPreviewModal = ({ item, itemType = 'document', documentTypes = {},
               </>
             )}
           </div>
-          <div className="document-preview-text">
+          <div className={isMarkdownContent ? "antrag-text-content markdown-content" : "document-preview-text"}>
             {isMarkdownContent ? (
-              <div className="markdown-content">
-                <Suspense fallback={<div>Loading markdown...</div>}>
-                  <ReactMarkdown>{previewContent}</ReactMarkdown>
-                </Suspense>
-              </div>
+              <Suspense fallback={<div>Loading markdown...</div>}>
+                <ReactMarkdown>{previewContent}</ReactMarkdown>
+              </Suspense>
             ) : (
               <div className="plain-text-content" style={{ whiteSpace: 'pre-wrap' }}>
                 {previewContent}

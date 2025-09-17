@@ -1,4 +1,3 @@
-/* Q&A Chat Layout Styles */
 .qa-chat-container {
   display: flex;
   flex-direction: column;
@@ -8,15 +7,9 @@
   box-sizing: border-box;
 }
 
-/* Mode-specific container styles */
-.qa-chat-dossier {
-  /* Dossier mode uses default container behavior */
-}
-
 .qa-chat-chat {
-  /* Chat mode specific adjustments */
   padding: 0;
-  position: relative; /* Ensure proper stacking context */
+  position: relative;
 }
 
 .qa-chat-main {
@@ -61,7 +54,6 @@
   flex: 1;
 }
 
-/* Mode selector in QA context - unified floating style */
 .qa-chat-mode-selector {
   flex-shrink: 0;
 }
@@ -94,7 +86,6 @@
   height: 20px;
 }
 
-/* Override chat input button styles for mode selector */
 .qa-chat-floating-input .qa-chat-mode-selector .mode-button,
 .qa-chat-dossier-input-wrapper .qa-chat-mode-selector .mode-button {
   background: var(--card-background);
@@ -116,7 +107,6 @@
   transform: translateY(-2px);
 }
 
-/* Dossier mode input wrapper with floating selector */
 .qa-chat-dossier-input-wrapper {
   display: flex;
   align-items: center;
@@ -183,7 +173,6 @@
   background: var(--background-color);
 }
 
-/* Chat UI customizations for Q&A */
 .qa-chat-ui {
   flex: 1;
   max-width: none;
@@ -196,7 +185,6 @@
   min-height: 0;
 }
 
-/* Chat messages area styling */
 .qa-chat-ui .editor-chat-messages {
   flex: 1;
   overflow-y: auto;
@@ -205,26 +193,20 @@
   background: var(--background-color);
 }
 
-/* Individual chat message styling */
 .qa-chat-ui .chat-message {
   margin-bottom: var(--spacing-medium);
   padding: var(--spacing-medium);
   border-radius: var(--card-border-radius-medium);
   max-width: 85%;
-  word-wrap: break-word;
 }
 
 .qa-chat-ui .chat-message.user {
   background: var(--secondary-100);
-  margin-left: auto;
-  margin-right: 0;
   color: var(--secondary-800);
 }
 
 .qa-chat-ui .chat-message.assistant {
   background: var(--background-color-alt);
-  margin-left: 0;
-  margin-right: auto;
   color: var(--ai-message-text-color);
   border: var(--border-subtle);
   display: flex;
@@ -238,8 +220,6 @@
   background: rgba(211, 47, 47, 0.1);
   border: 1px solid var(--error-red);
   color: var(--error-red);
-  margin-left: 0;
-  margin-right: auto;
 }
 
 .qa-chat-ui .assistant-icon {
@@ -248,14 +228,6 @@
   right: var(--spacing-medium);
   width: 20px;
   height: 20px;
-  color: var(--assistant-icon-color);
-}
-
-.qa-chat-ui .chat-message-user-name {
-  font-size: 12px;
-  color: var(--chat-message-user-name-color);
-  margin-bottom: var(--spacing-xsmall);
-  font-weight: 500;
 }
 
 .qa-chat-ui .chat-message.assistant .chat-message-user-name {
@@ -263,62 +235,11 @@
   font-weight: 600;
 }
 
-/* Chat input form styling */
 .qa-chat-ui .editor-chat-input {
-  flex-shrink: 0;
   padding: var(--spacing-medium);
-  border-top: var(--border-subtle);
   background: var(--card-background);
-  display: flex;
-  gap: var(--spacing-small);
-  align-items: center;
 }
 
-.qa-chat-ui .editor-chat-input input {
-  flex: 1;
-  padding: var(--spacing-small) var(--spacing-medium);
-  border: var(--input-border);
-  border-radius: var(--card-border-radius-small);
-  background: var(--input-background);
-  color: var(--input-text-color);
-  font-size: 14px;
-  transition: var(--input-transition);
-}
-
-.qa-chat-ui .editor-chat-input input:focus {
-  outline: none;
-  border: var(--input-border-focus);
-  box-shadow: var(--input-shadow-focus);
-}
-
-.qa-chat-ui .editor-chat-input input::placeholder {
-  color: var(--input-placeholder-color);
-}
-
-.qa-chat-ui .editor-chat-input button {
-  padding: var(--spacing-small) var(--spacing-medium);
-  background: var(--interactive-accent-color);
-  color: var(--white);
-  border: none;
-  border-radius: var(--card-border-radius-small);
-  cursor: pointer;
-  font-size: 16px;
-  min-width: 44px;
-  height: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: var(--input-transition);
-}
-
-.qa-chat-ui .editor-chat-input button:disabled {
-  background: var(--grey-300);
-  color: var(--font-color-disabled);
-  cursor: not-allowed;
-  transform: none;
-}
-
-/* Full-screen chat mode */
 .qa-chat-fullscreen {
   display: flex;
   gap: var(--spacing-medium);
@@ -328,15 +249,12 @@
 
 .qa-chat-fullscreen-content {
   flex: 1;
-  position: relative; /* Create positioning context for floating input */
+  position: relative;
   overflow: hidden;
   display: flex;
   flex-direction: column;
 }
 
-/* Headers removed for chat mode - collection name shown in chat bubbles instead */
-
-/* Full-screen ChatUI styling */
 .qa-chat-ui-fullscreen {
   flex: 1;
   background: var(--card-background);
@@ -344,7 +262,7 @@
   border: var(--card-border);
   box-shadow: var(--card-shadow-elevated);
   overflow: hidden;
-  margin: 0; /* No margin in fullscreen */
+  margin: 0;
   display: flex;
   flex-direction: column;
 }
@@ -384,7 +302,6 @@
   height: 50px;
 }
 
-/* Floating input bar for full-screen chat mode */
 .qa-chat-floating-input {
   position: absolute;
   bottom: var(--spacing-large);
@@ -399,7 +316,7 @@
   box-shadow: var(--card-shadow-elevated);
   padding: var(--spacing-small);
   max-width: 600px;
-  margin: 0 auto; /* Center horizontally */
+  margin: 0 auto;
   z-index: 100;
 }
 
@@ -454,21 +371,19 @@
   transform: none;
 }
 
-/* Hide default input in full-screen mode */
-.editor-chat-fullscreen .editor-chat-input {
+.qa-chat-ui-fullscreen .editor-chat-input {
   display: none;
 }
 
-/* Chat message with citations styling */
-.chat-message-with-citations {
+.qa-chat-ui .chat-message-with-citations {
   max-width: 85%;
 }
 
-.chat-message-content {
+.qa-chat-ui .chat-message-content {
   flex: 1;
 }
 
-.chat-message-sources {
+.qa-chat-ui .chat-message-sources {
   margin-top: var(--spacing-medium);
   padding-top: var(--spacing-medium);
   border-top: var(--border-subtle);
@@ -487,7 +402,6 @@
   color: var(--font-color-muted);
 }
 
-/* Empty state for right panel */
 .qa-chat-empty-state {
   display: flex;
   flex-direction: column;
@@ -514,7 +428,6 @@
   max-width: 400px;
 }
 
-/* Answer display */
 .qa-chat-answer {
   flex: 1;
   overflow-y: auto;
@@ -541,7 +454,6 @@
   white-space: pre-wrap;
 }
 
-/* Sources display */
 .qa-chat-sources h4 {
   margin: 0 0 var(--spacing-small) 0;
   color: var(--font-color);
@@ -594,14 +506,12 @@
   padding-left: var(--spacing-large);
 }
 
-/* Citations */
 .qa-chat-citations h4 {
   margin: 0 0 var(--spacing-small) 0;
   color: var(--font-color);
   font-size: 1.1rem;
 }
 
-/* Error state */
 .qa-chat-error {
   display: flex;
   align-items: center;
@@ -612,7 +522,6 @@
   color: var(--error-red);
 }
 
-/* Responsive design */
 @media (max-width: 768px) {
   .qa-chat-container {
     padding: var(--spacing-small);
@@ -642,7 +551,6 @@
     font-size: 1.1rem;
   }
   
-  /* Full screen mode on mobile - single column, no info panel */
   .qa-chat-fullscreen {
     flex-direction: column;
     padding: 0;
@@ -725,7 +633,7 @@
   }
   
   .qa-chat-ui .editor-chat-input input {
-    font-size: 16px; /* Prevents zoom on iOS */
+    font-size: 16px;
   }
   
   .editor-chat-fullscreen .chat-message {
@@ -763,7 +671,7 @@
   
   
   .qa-floating-input {
-    font-size: 16px; /* Prevents zoom on iOS */
+    font-size: 16px;
     min-height: 36px;
     padding: var(--spacing-xsmall) var(--spacing-small);
   }
@@ -776,7 +684,6 @@
   
 }
 
-/* Q&A Collection Info Panel */
 .qa-collection-info {
   background: var(--card-background);
   border: var(--card-border);
@@ -859,7 +766,6 @@
   word-break: break-word;
 }
 
-/* Dossier mode - full panel */
 .qa-collection-info-dossier {
   height: 100%;
   display: flex;
@@ -871,7 +777,6 @@
   max-height: none;
 }
 
-/* Chat mode - compact card panel */
 .qa-collection-info-chat {
   width: 300px;
   min-width: 250px;
@@ -917,7 +822,6 @@
   font-size: 0.85rem;
 }
 
-/* Scrollbar styling for info panel */
 .qa-collection-info-documents ul::-webkit-scrollbar,
 .qa-collection-info-description::-webkit-scrollbar {
   width: 6px;
@@ -940,14 +844,12 @@
   background: var(--scrollbar-thumb-hover-color);
 }
 
-/* Hide collection info on mobile */
 @media (max-width: 768px) {
   .qa-collection-info {
     display: none;
   }
 }
 
-/* Adjust fullscreen layout for medium screens */
 @media (max-width: 1200px) {
   .qa-chat-fullscreen {
     padding: var(--spacing-small);
@@ -960,7 +862,6 @@
   }
 }
 
-/* Further adjustments for smaller screens before mobile */
 @media (max-width: 900px) {
   .qa-collection-info-chat {
     width: 200px;

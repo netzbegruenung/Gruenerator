@@ -1,4 +1,4 @@
-import React, { useEffect, useContext, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useContext, useRef, useState, useCallback, useMemo } from 'react';
 import PropTypes from 'prop-types';
 import { Tooltip } from 'react-tooltip';
 import useAccessibility from '../../../hooks/useAccessibility';
@@ -43,6 +43,7 @@ import { useFormVisibility } from '../hooks/useFormVisibility';
 
 // Importiere die Utility-Funktionen
 import { getExportableContent } from '../utils/contentUtils';
+import { extractEditableText } from '../../../../stores/hooks/useTextEditActions';
 
 // Inline utility function (moved from classNameUtils)
 const getBaseContainerClasses = ({ title, generatedContent, isFormVisible, isEditModeActive }) => {
@@ -112,6 +113,9 @@ const BaseFormInternal = ({
   privacyModeToggle = null,
   usePrivacyModeToggle = false,
   privacyModeConfig = null,
+  proModeToggle = null,
+  useProModeToggle = false,
+  proModeConfig = null,
   useFeatureIcons: propUseFeatureIcons = false,
   onAttachmentClick,
   onRemoveFile,
@@ -167,11 +171,15 @@ const BaseFormInternal = ({
   const storeSaveLoading = useFormStateSelector(state => state.saveLoading);
   const storeWebSearchConfig = useFormStateSelector(state => state.webSearchConfig);
   const storePrivacyModeConfig = useFormStateSelector(state => state.privacyModeConfig);
+  const storeProModeConfig = useFormStateSelector(state => state.proModeConfig);
   const storeUseFeatureIcons = useFormStateSelector(state => state.useFeatureIcons);
   const storeAttachedFiles = useFormStateSelector(state => state.attachedFiles);
   const storeUploadedImage = useFormStateSelector(state => state.uploadedImage);
   const storeIsFormVisible = useFormStateSelector(state => state.isFormVisible);
-  
+
+  // Store helper functions
+  const getFeatureState = useFormStateSelector(state => state.getFeatureState);
+
   // Store actions
   const setStoreLoading = useFormStateSelector(state => state.setLoading);
   const setStoreSuccess = useFormStateSelector(state => state.setSuccess);
@@ -185,7 +193,7 @@ const BaseFormInternal = ({
   const setStoreAttachedFiles = useFormStateSelector(state => state.setAttachedFiles);
   const setStoreUploadedImage = useFormStateSelector(state => state.setUploadedImage);
   const toggleStoreFormVisibility = useFormStateSelector(state => state.toggleFormVisibility);
-  
+
   const {
     error,
     setError
@@ -200,13 +208,22 @@ const BaseFormInternal = ({
   const attachedFiles = storeAttachedFiles.length > 0 ? storeAttachedFiles : propAttachedFiles;
   const uploadedImage = storeUploadedImage || propUploadedImage;
   
+  const value = useGeneratedTextStore(state => state.generatedTexts[componentName] || '');
   const isStreaming = useGeneratedTextStore(state => state.isStreaming);
-  const hasContent = !!generatedContent || isStreaming;
+  const editableSource = useMemo(
+    () => (generatedContent !== undefined && generatedContent !== null ? generatedContent : value),
+    [generatedContent, value]
+  );
+  const editableText = useMemo(() => {
+    const extracted = extractEditableText(editableSource);
+    return typeof extracted === 'string' ? extracted.trim() : '';
+  }, [editableSource]);
+  const hasEditableContent = isStreaming || editableText.length > 0;
   const [isEditModeToggled, setIsEditModeToggled] = React.useState(false);
-  const isEditModeActive = isEditModeToggled && enableEditMode && hasContent;
+  const isEditModeActive = isEditModeToggled && enableEditMode && hasEditableContent;
   
   // Auto-activate edit mode when new text is generated (desktop only)
-  const prevHasContentRef = useRef(hasContent);
+  const prevHasEditableContentRef = useRef(hasEditableContent);
   useEffect(() => {
     // Only auto-activate if:
     // 1. Edit mode is enabled for this component
@@ -214,11 +231,11 @@ const BaseFormInternal = ({
     // 3. Edit mode isn't already active
     // 4. Not on mobile device
     const isMobileDevice = window.innerWidth <= 768;
-    if (enableEditMode && !prevHasContentRef.current && hasContent && !isEditModeToggled && !isMobileDevice) {
+    if (enableEditMode && !prevHasEditableContentRef.current && hasEditableContent && !isEditModeToggled && !isMobileDevice) {
       setIsEditModeToggled(true);
     }
-    prevHasContentRef.current = hasContent;
-  }, [hasContent, enableEditMode, isEditModeToggled]);
+    prevHasEditableContentRef.current = hasEditableContent;
+  }, [hasEditableContent, enableEditMode, isEditModeToggled]);
   
   // Handler for edit mode toggle
   const handleToggleEditMode = React.useCallback(() => {
@@ -283,14 +300,28 @@ const BaseFormInternal = ({
       toggle: privacyModeToggle
     };
   }, [privacyModeConfig, usePrivacyModeToggle, privacyModeToggle, storePrivacyModeConfig]);
-  
+
+  // Consolidated proMode config with store integration
+  const resolvedProModeConfig = React.useMemo(() => {
+    if (proModeConfig) {
+      return {
+        enabled: proModeConfig.enabled ?? storeProModeConfig.enabled ?? useProModeToggle,
+        toggle: proModeConfig.toggle ?? proModeToggle,
+        ...proModeConfig
+      };
+    }
+    return {
+      enabled: storeProModeConfig.enabled || useProModeToggle,
+      toggle: proModeToggle
+    };
+  }, [proModeConfig, useProModeToggle, proModeToggle, storeProModeConfig]);
+
   // Use store form visibility with fallback to useFormVisibility
-  const fallbackFormVisibility = useFormVisibility(hasContent, disableAutoCollapse);
+  const fallbackFormVisibility = useFormVisibility(hasEditableContent, disableAutoCollapse);
   const isFormVisible = storeIsFormVisible !== undefined ? storeIsFormVisible : fallbackFormVisibility.isFormVisible;
   const toggleFormVisibility = toggleStoreFormVisibility || fallbackFormVisibility.toggleFormVisibility;
 
   // Direct store access instead of useContentManagement
-  const value = useGeneratedTextStore(state => state.generatedTexts[componentName] || '');
   const setGeneratedText = useGeneratedTextStore(state => state.setGeneratedText);
   
   // Initialize with initial content if needed
@@ -362,59 +393,66 @@ const BaseFormInternal = ({
     }
   }, [registerFormElement]);
 
-  // Synchronize props with store state
+  // Synchronize props with store state - separate effects to prevent loops
   useEffect(() => {
-    if (propLoading !== undefined) setStoreLoading(propLoading);
-  }, [propLoading, setStoreLoading]);
-  
+    if (propLoading !== undefined && propLoading !== storeLoading) {
+      setStoreLoading(propLoading);
+    }
+  }, [propLoading, storeLoading, setStoreLoading]);
+
   useEffect(() => {
-    if (propSuccess !== undefined) setStoreSuccess(propSuccess);
-  }, [propSuccess, setStoreSuccess]);
-  
+    if (propSuccess !== undefined && propSuccess !== storeSuccess) {
+      setStoreSuccess(propSuccess);
+    }
+  }, [propSuccess, storeSuccess, setStoreSuccess]);
+
   useEffect(() => {
     if (propFormErrors && Object.keys(propFormErrors).length > 0) {
-      setStoreFormErrors(propFormErrors);
+      const currentErrorsLength = Object.keys(storeFormErrors).length;
+      if (Object.keys(propFormErrors).length !== currentErrorsLength) {
+        setStoreFormErrors(propFormErrors);
+      }
     }
-  }, [propFormErrors, setStoreFormErrors]);
-  
+  }, [propFormErrors, storeFormErrors, setStoreFormErrors]);
+
   useEffect(() => {
-    if (useWebSearchFeatureToggle !== undefined) {
+    if (useWebSearchFeatureToggle !== undefined && useWebSearchFeatureToggle !== storeWebSearchConfig.enabled) {
       setStoreWebSearchEnabled(useWebSearchFeatureToggle);
     }
-  }, [useWebSearchFeatureToggle, setStoreWebSearchEnabled]);
-  
+  }, [useWebSearchFeatureToggle, storeWebSearchConfig.enabled, setStoreWebSearchEnabled]);
+
   useEffect(() => {
-    if (usePrivacyModeToggle !== undefined) {
+    if (usePrivacyModeToggle !== undefined && usePrivacyModeToggle !== storePrivacyModeConfig.enabled) {
       setStorePrivacyModeEnabled(usePrivacyModeToggle);
     }
-  }, [usePrivacyModeToggle, setStorePrivacyModeEnabled]);
-  
+  }, [usePrivacyModeToggle, storePrivacyModeConfig.enabled, setStorePrivacyModeEnabled]);
+
   useEffect(() => {
-    if (propUseFeatureIcons !== undefined) {
+    if (propUseFeatureIcons !== undefined && propUseFeatureIcons !== storeUseFeatureIcons) {
       setStoreUseFeatureIcons(propUseFeatureIcons);
     }
-  }, [propUseFeatureIcons, setStoreUseFeatureIcons]);
-  
+  }, [propUseFeatureIcons, storeUseFeatureIcons, setStoreUseFeatureIcons]);
+
   useEffect(() => {
-    if (propAttachedFiles?.length > 0) {
+    if (propAttachedFiles?.length > 0 && propAttachedFiles.length !== storeAttachedFiles.length) {
       setStoreAttachedFiles(propAttachedFiles);
     }
-  }, [propAttachedFiles, setStoreAttachedFiles]);
-  
+  }, [propAttachedFiles, storeAttachedFiles.length, setStoreAttachedFiles]);
+
   useEffect(() => {
-    if (propUploadedImage) {
+    if (propUploadedImage && propUploadedImage !== storeUploadedImage) {
       setStoreUploadedImage(propUploadedImage);
     }
-  }, [propUploadedImage, setStoreUploadedImage]);
+  }, [propUploadedImage, storeUploadedImage, setStoreUploadedImage]);
 
-  // Setze Fehler aus Props
+  // Handle errors separately to avoid dependency loops
   useEffect(() => {
-    if (propError) {
+    if (propError && propError !== storeError) {
       setError(propError);
       setStoreError(propError);
       handleFormError(propError);
     }
-  }, [propError, setError, setStoreError, handleFormError]);
+  }, [propError, storeError, setError, setStoreError, handleFormError]);
 
   // Handle success states
   useEffect(() => {
@@ -492,7 +530,34 @@ const BaseFormInternal = ({
         await editSubmitHandlerRef.current();
         return;
       }
-      await onSubmit(formData);
+      
+      // Get current feature states from the store
+      const featureState = getFeatureState();
+
+      // Debug: Log feature state
+      console.log('[BaseForm] Feature state:', {
+        proModeActive: featureState.proModeConfig?.isActive,
+        privacyModeActive: featureState.privacyModeConfig?.isActive,
+        webSearchActive: featureState.webSearchConfig?.isActive
+      });
+
+      // Enhance form data with current feature states
+      const enhancedFormData = {
+        ...formData,
+        // Add pro mode flag for backend
+        useBedrock: featureState.proModeConfig?.isActive || false,
+        // Include other feature states if needed
+        useWebSearchTool: featureState.webSearchConfig?.isActive || formData.useWebSearchTool || false,
+        usePrivacyMode: featureState.privacyModeConfig?.isActive || formData.usePrivacyMode || false
+      };
+
+      console.log('[BaseForm] Enhanced form data:', {
+        useBedrock: enhancedFormData.useBedrock,
+        usePrivacyMode: enhancedFormData.usePrivacyMode,
+        useWebSearchTool: enhancedFormData.useWebSearchTool
+      });
+      
+      await onSubmit(enhancedFormData);
       // Success is handled in the success useEffect above
     } catch (error) {
       handleFormError(error.message || 'Ein Fehler ist aufgetreten');
@@ -536,100 +601,132 @@ const BaseFormInternal = ({
         id="main-content"
       >
         <AnimatePresence initial={false}>
-          {!isFormVisible && hasContent && (
+          {!isFormVisible && hasEditableContent && !isEditModeActive && (
             <FormToggleButtonFAB onClick={toggleFormVisibility} />
           )}
         </AnimatePresence>
-        
-          <AnimatePresence initial={false}>
-            {isFormVisible && (
-              <motion.div
-                key="form-section"
-                layout
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ 
-                  duration: 0.25, 
-                  ease: "easeOut"
-                }}
-                className="form-section-motion-wrapper"
+
+        {/* In mobile edit mode, show DisplaySection first (top 50%) */}
+        {isEditModeActive && isMobileView && (
+          <motion.div
+            layout
+            transition={{ duration: 0.25, ease: "easeOut" }}
+            className={`display-section-motion-wrapper ${isFormVisible ? 'form-visible' : 'form-hidden'}`}
+          >
+            <DisplaySection
+              ref={displaySectionRef}
+              title={displayTitle}
+              error={error || propError}
+              value={value}
+              generatedContent={generatedContent}
+              useMarkdown={useMarkdown}
+              helpContent={inlineHelpContentOverride || helpContent}
+              generatedPost={generatedPost}
+              onGeneratePost={onGeneratePost}
+              getExportableContent={getExportableContentCallback}
+              displayActions={displayActions}
+              onSave={onSave}
+              componentName={componentName}
+              onErrorDismiss={handleErrorDismiss}
+              onEditModeToggle={handleToggleEditMode}
+              isEditModeActive={isEditModeActive}
+            />
+          </motion.div>
+        )}
+
+        <AnimatePresence initial={false}>
+          {isFormVisible && (
+            <motion.div
+              key="form-section"
+              layout
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{
+                duration: 0.25,
+                ease: "easeOut"
+              }}
+              className="form-section-motion-wrapper"
+            >
+              <FormSection
+                ref={formSectionRef}
+                title={title}
+                onSubmit={isEditModeActive && onEditSubmit ? onEditSubmit : (useModernForm ? handleEnhancedSubmit : onSubmit)}
+                isFormVisible={isFormVisible}
+                isMultiStep={isMultiStep}
+                onBack={onBack}
+                showBackButton={showBackButton}
+                nextButtonText={resolvedSubmitConfig.buttonText}
+                submitButtonProps={effectiveSubmitButtonProps}
+                webSearchFeatureToggle={resolvedWebSearchConfig.toggle}
+                privacyModeToggle={resolvedPrivacyModeConfig.toggle}
+                proModeToggle={resolvedProModeConfig.toggle}
+                onAttachmentClick={onAttachmentClick}
+                onRemoveFile={onRemoveFile}
+                onPrivacyInfoClick={handlePrivacyInfoClick}
+                enablePlatformSelector={enablePlatformSelector}
+                platformOptions={platformOptions}
+                platformSelectorLabel={platformSelectorLabel}
+                platformSelectorPlaceholder={platformSelectorPlaceholder}
+                platformSelectorHelpText={platformSelectorHelpText}
+                formControl={formControl}
+                showSubmitButton={showSubmitButtonFinal}
+                formNotice={formNotice}
+                defaultValues={defaultValues}
+                validationRules={validationRules}
+                useModernForm={useModernForm}
+                onFormChange={onFormChange}
+                bottomSectionChildren={bottomSectionChildren}
+                showHideButton={hasEditableContent} // Show hide button when content is available for manual toggle
+                onHide={toggleFormVisibility}
+                firstExtrasChildren={firstExtrasChildren}
+                featureIconsTabIndex={featureIconsTabIndex}
+                platformSelectorTabIndex={platformSelectorTabIndex}
+                knowledgeSelectorTabIndex={knowledgeSelectorTabIndex}
+                knowledgeSourceSelectorTabIndex={knowledgeSourceSelectorTabIndex}
+                documentSelectorTabIndex={documentSelectorTabIndex}
+                submitButtonTabIndex={submitButtonTabIndex}
+                showProfileSelector={showProfileSelector}
+                showImageUpload={showImageUpload}
+                onImageChange={onImageChange}
+                componentName={componentName}
+                onWebSearchInfoClick={handleWebSearchInfoClick}
+                useEditMode={isEditModeActive}
+                registerEditHandler={(fn) => { editSubmitHandlerRef.current = fn; }}
               >
-                <FormSection
-                  ref={formSectionRef}
-                  title={title}
-                  onSubmit={isEditModeActive && onEditSubmit ? onEditSubmit : (useModernForm ? handleEnhancedSubmit : onSubmit)}
-                  isFormVisible={isFormVisible}
-                  isMultiStep={isMultiStep}
-                  onBack={onBack}
-                  showBackButton={showBackButton}
-                  nextButtonText={resolvedSubmitConfig.buttonText}
-                  submitButtonProps={effectiveSubmitButtonProps}
-                  webSearchFeatureToggle={resolvedWebSearchConfig.toggle}
-                  privacyModeToggle={resolvedPrivacyModeConfig.toggle}
-                  onAttachmentClick={onAttachmentClick}
-                  onRemoveFile={onRemoveFile}
-                  onPrivacyInfoClick={handlePrivacyInfoClick}
-                  enablePlatformSelector={enablePlatformSelector}
-                  platformOptions={platformOptions}
-                  platformSelectorLabel={platformSelectorLabel}
-                  platformSelectorPlaceholder={platformSelectorPlaceholder}
-                  platformSelectorHelpText={platformSelectorHelpText}
-                  formControl={formControl}
-                  showSubmitButton={showSubmitButtonFinal}
-                  formNotice={formNotice}
-                  defaultValues={defaultValues}
-                  validationRules={validationRules}
-                  useModernForm={useModernForm}
-                  onFormChange={onFormChange}
-                  bottomSectionChildren={bottomSectionChildren}
-                  showHideButton={hasContent} // Show hide button when content is available for manual toggle
-                  onHide={toggleFormVisibility}
-                  firstExtrasChildren={firstExtrasChildren}
-                  featureIconsTabIndex={featureIconsTabIndex}
-                  platformSelectorTabIndex={platformSelectorTabIndex}
-                  knowledgeSelectorTabIndex={knowledgeSelectorTabIndex}
-                  knowledgeSourceSelectorTabIndex={knowledgeSourceSelectorTabIndex}
-                  documentSelectorTabIndex={documentSelectorTabIndex}
-                  submitButtonTabIndex={submitButtonTabIndex}
-                  showProfileSelector={showProfileSelector}
-                  showImageUpload={showImageUpload}
-                  onImageChange={onImageChange}
-                  componentName={componentName}
-                  onWebSearchInfoClick={handleWebSearchInfoClick}
-                  useEditMode={isEditModeActive}
-                  registerEditHandler={(fn) => { editSubmitHandlerRef.current = fn; }}
-                >
-                  {children}
-                </FormSection>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        
-        <motion.div
-          layout
-          transition={{ duration: 0.25, ease: "easeOut" }}
-          className={`display-section-motion-wrapper ${isFormVisible ? 'form-visible' : 'form-hidden'}`}
-        >
-          <DisplaySection
-            ref={displaySectionRef}
-            title={displayTitle}
-            error={error || propError}
-            value={value}
-            generatedContent={generatedContent}
-            useMarkdown={useMarkdown}
-            helpContent={inlineHelpContentOverride || helpContent}
-            generatedPost={generatedPost}
-            onGeneratePost={onGeneratePost}
-            getExportableContent={getExportableContentCallback}
-            displayActions={displayActions}
-            onSave={onSave}
-            componentName={componentName}
-            onErrorDismiss={handleErrorDismiss}
-            onEditModeToggle={handleToggleEditMode}
-            isEditModeActive={isEditModeActive}
-          />
-        </motion.div>
+                {children}
+              </FormSection>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* In desktop mode or non-edit mode, show DisplaySection after FormSection */}
+        {(!isEditModeActive || !isMobileView) && (
+          <motion.div
+            layout
+            transition={{ duration: 0.25, ease: "easeOut" }}
+            className={`display-section-motion-wrapper ${isFormVisible ? 'form-visible' : 'form-hidden'}`}
+          >
+            <DisplaySection
+              ref={displaySectionRef}
+              title={displayTitle}
+              error={error || propError}
+              value={value}
+              generatedContent={generatedContent}
+              useMarkdown={useMarkdown}
+              helpContent={inlineHelpContentOverride || helpContent}
+              generatedPost={generatedPost}
+              onGeneratePost={onGeneratePost}
+              getExportableContent={getExportableContentCallback}
+              displayActions={displayActions}
+              onSave={onSave}
+              componentName={componentName}
+              onErrorDismiss={handleErrorDismiss}
+              onEditModeToggle={handleToggleEditMode}
+              isEditModeActive={isEditModeActive}
+            />
+          </motion.div>
+        )}
 
         {!isMobileView && (
           <Tooltip id="action-tooltip" place="bottom" />
@@ -769,6 +866,17 @@ BaseFormInternal.propTypes = {
     enabled: PropTypes.bool,
     toggle: PropTypes.object
   }),
+  proModeToggle: PropTypes.shape({
+    isActive: PropTypes.bool,
+    onToggle: PropTypes.func,
+    label: PropTypes.string,
+    description: PropTypes.string
+  }),
+  useProModeToggle: PropTypes.bool,
+  proModeConfig: PropTypes.shape({
+    enabled: PropTypes.bool,
+    toggle: PropTypes.object
+  }),
   displayActions: PropTypes.node,
   formNotice: PropTypes.node,
   enableKnowledgeSelector: PropTypes.bool,
@@ -811,6 +919,8 @@ BaseFormInternal.defaultProps = {
   useWebSearchFeatureToggle: false,
   privacyModeToggle: null,
   usePrivacyModeToggle: false,
+  proModeToggle: null,
+  useProModeToggle: false,
   displayActions: null,
   formNotice: null,
   onEditSubmit: null,
@@ -843,4 +953,61 @@ BaseFormInternal.defaultProps = {
 BaseForm.propTypes = BaseFormInternal.propTypes;
 BaseForm.defaultProps = BaseFormInternal.defaultProps;
 
-export default React.memo(BaseForm); 
+// Optimized areEqual function for React.memo
+const areEqual = (prevProps, nextProps) => {
+  // Skip re-render if only callback functions changed (they're stable with useCallback)
+  const callbackProps = [
+    'onSubmit', 'onGeneratedContentChange', 'onAttachmentClick', 'onRemoveFile',
+    'onFormChange', 'onImageChange', 'onSave', 'onBack', 'onEditSubmit',
+    'onGeneratePost'
+  ];
+
+  // Check non-callback props for equality
+  for (const [key, value] of Object.entries(nextProps)) {
+    if (callbackProps.includes(key)) continue; // Skip callback comparison
+
+    if (key === 'children') {
+      // Special handling for children - compare type and key if available
+      if (React.isValidElement(prevProps[key]) && React.isValidElement(value)) {
+        if (prevProps[key].type !== value.type || prevProps[key].key !== value.key) {
+          return false;
+        }
+      } else if (prevProps[key] !== value) {
+        return false;
+      }
+    } else if (key === 'generatedContent') {
+      // Deep comparison for generated content object
+      if (typeof prevProps[key] === 'object' && typeof value === 'object') {
+        if (JSON.stringify(prevProps[key]) !== JSON.stringify(value)) {
+          return false;
+        }
+      } else if (prevProps[key] !== value) {
+        return false;
+      }
+    } else if (key === 'attachedFiles' || key === 'platformOptions') {
+      // Array comparison
+      if (Array.isArray(prevProps[key]) && Array.isArray(value)) {
+        if (prevProps[key].length !== value.length) return false;
+        for (let i = 0; i < prevProps[key].length; i++) {
+          if (prevProps[key][i] !== value[i]) return false;
+        }
+      } else if (prevProps[key] !== value) {
+        return false;
+      }
+    } else if (typeof value === 'object' && value !== null && typeof prevProps[key] === 'object' && prevProps[key] !== null) {
+      // Shallow object comparison for feature toggles, tab indices, etc.
+      const prevKeys = Object.keys(prevProps[key]);
+      const nextKeys = Object.keys(value);
+      if (prevKeys.length !== nextKeys.length) return false;
+      for (const objKey of prevKeys) {
+        if (prevProps[key][objKey] !== value[objKey]) return false;
+      }
+    } else if (prevProps[key] !== value) {
+      return false;
+    }
+  }
+
+  return true;
+};
+
+export default React.memo(BaseForm, areEqual); 

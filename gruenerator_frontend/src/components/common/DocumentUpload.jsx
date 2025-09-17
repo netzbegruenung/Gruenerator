@@ -7,13 +7,19 @@ import { validateUrl, normalizeUrl, generateTitleFromUrl } from '../../utils/url
 import Spinner from './Spinner';
 import FeatureToggle from './FeatureToggle';
 
+// Import button styles for modal
+import '../../assets/styles/components/ui/button.css';
+
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 const ACCEPTED_FILE_TYPES = [
   'application/pdf',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // DOCX
-  'application/vnd.oasis.opendocument.text', // ODT
-  'application/vnd.ms-excel', // XLS
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' // XLSX
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation', // PPTX
+  'image/png',
+  'image/jpeg',
+  'image/avif',
+  'text/plain',
+  'text/markdown'
 ];
 
 // Document Preview Component
@@ -181,11 +187,12 @@ const DocumentUpload = forwardRef(({
   // Validate file
   const validateFile = useCallback((file) => {
     if (!ACCEPTED_FILE_TYPES.includes(file.type)) {
-      return 'Nur PDF-, DOCX-, ODT- und Excel-Dateien sind erlaubt.';
+      return 'Nur PDF, Word (DOCX), PowerPoint (PPTX), Bilder (PNG, JPG, AVIF) und Textdateien sind erlaubt.';
     }
     
     if (file.size > MAX_FILE_SIZE) {
-      return 'Datei ist zu groß. Maximum: 50MB.';
+      const fileSizeMB = (file.size / (1024 * 1024)).toFixed(1);
+      return `Datei ist zu groß. Maximum: 50MB. Ihre Datei: ${fileSizeMB}MB.`;
     }
     
     return null;
@@ -449,7 +456,7 @@ const DocumentUpload = forwardRef(({
                         <input
                           ref={fileInputRef}
                           type="file"
-                          accept=".pdf,.docx,.odt,.xls,.xlsx"
+                          accept=".pdf,.docx,.pptx,.png,.jpg,.jpeg,.avif,.txt,.md"
                           onChange={handleInputChange}
                           style={{ display: 'none' }}
                         />
@@ -469,7 +476,7 @@ const DocumentUpload = forwardRef(({
                           >
                             <div className="file-placeholder">
                               <HiOutlineDocumentAdd className="upload-icon" />
-                              <p>PDF-, DOCX-, ODT- oder Excel-Datei hier ablegen oder klicken zum Auswählen</p>
+                              <p>PDF, Word (DOCX), PowerPoint (PPTX), Bilder oder Textdateien hier ablegen oder klicken zum Auswählen</p>
                               <p className="file-requirements">Max. 1.000 Seiten, 50MB</p>
                             </div>
                           </div>
@@ -549,7 +556,7 @@ const DocumentUpload = forwardRef(({
                 <div className="document-preview-actions">
                   <button 
                     onClick={handleUpload}
-                    className="btn-primary"
+                    className="button"
                     disabled={isUploading || 
                       (uploadMode === 'file' && (!selectedFile || !uploadTitle.trim())) ||
                       (uploadMode === 'url' && (!urlInput.trim() || !uploadTitle.trim()))
@@ -568,7 +575,7 @@ const DocumentUpload = forwardRef(({
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
-                      className="btn-secondary"
+                      className="button"
                       disabled={isUploading}
                     >
                       Datei ändern
@@ -583,7 +590,7 @@ const DocumentUpload = forwardRef(({
                         resetForm();
                       }
                     }}
-                    className="btn-secondary"
+                    className="button"
                     disabled={isUploading}
                   >
                     Abbrechen
@@ -604,7 +611,7 @@ const DocumentUpload = forwardRef(({
                     <input
                       ref={fileInputRef}
                       type="file"
-                      accept=".pdf,.docx,.odt,.xls,.xlsx"
+                      accept=".pdf,.docx,.pptx,.png,.jpg,.jpeg,.avif,.txt,.md"
                       onChange={handleInputChange}
                       style={{ display: 'none' }}
                     />
@@ -624,8 +631,8 @@ const DocumentUpload = forwardRef(({
                       >
                         <div className="file-placeholder">
                           <HiOutlineDocumentAdd className="upload-icon" />
-                          <p>PDF-, DOCX-, ODT- oder Excel-Datei hier ablegen oder klicken zum Auswählen</p>
-                          <p className="file-requirements">Max. 50 Seiten, 50MB</p>
+                          <p>PDF, Word (DOCX), PowerPoint (PPTX), Bilder oder Textdateien hier ablegen oder klicken zum Auswählen</p>
+                          <p className="file-requirements">Max. 1.000 Seiten, 50MB</p>
                         </div>
                       </div>
                     )}
@@ -706,7 +713,7 @@ const DocumentUpload = forwardRef(({
               <div className="profile-actions" style={{justifyContent: 'flex-start', gap: '10px'}}>
                 <button 
                   onClick={handleUpload}
-                  className="btn-primary"
+                  className="button"
                   disabled={isUploading || 
                     (uploadMode === 'file' && (!selectedFile || !uploadTitle.trim())) ||
                     (uploadMode === 'url' && (!urlInput.trim() || !uploadTitle.trim()))
@@ -725,7 +732,7 @@ const DocumentUpload = forwardRef(({
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="btn-secondary"
+                    className="button"
                     disabled={isUploading}
                   >
                     Datei ändern
@@ -759,7 +766,7 @@ const DocumentUpload = forwardRef(({
               <HiDocumentText size={48} className="empty-state-icon" />
               <p>Keine Dokumente vorhanden</p>
               <p className="empty-state-description">
-                Laden Sie PDF-, DOCX-, ODT- oder Excel-Dokumente hoch, um sie als Wissensquelle zu nutzen.
+                Laden Sie PDF, Word (DOCX), PowerPoint (PPTX), Bilder oder Textdateien hoch, um sie als Wissensquelle zu nutzen.
               </p>
             </div>
           ) : (

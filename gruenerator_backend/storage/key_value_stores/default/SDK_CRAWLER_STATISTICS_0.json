@@ -2,35 +2,36 @@
   "requestsFinished": 0,
   "requestsFailed": 1,
   "requestsRetries": 1,
-  "requestsFailedPerMinute": 1,
+  "requestsFailedPerMinute": 34,
   "requestsFinishedPerMinute": 0,
   "requestMinDurationMillis": null,
   "requestMaxDurationMillis": 0,
-  "requestTotalFailedDurationMillis": 20357,
+  "requestTotalFailedDurationMillis": 179,
   "requestTotalFinishedDurationMillis": 0,
-  "crawlerStartedAt": "2025-06-26T21:48:15.325Z",
-  "crawlerFinishedAt": "2025-06-26T21:49:13.612Z",
-  "statsPersistedAt": "2025-06-26T21:49:13.612Z",
-  "crawlerRuntimeMillis": 58453,
-  "crawlerLastStartTimestamp": 1750974495159,
+  "crawlerStartedAt": "2025-09-14T10:38:24.304Z",
+  "crawlerFinishedAt": "2025-09-14T10:38:26.025Z",
+  "statsPersistedAt": "2025-09-14T10:38:26.025Z",
+  "crawlerRuntimeMillis": 1747,
+  "crawlerLastStartTimestamp": 1757846304278,
   "requestRetryHistogram": [
+    null,
     null,
     null,
     1
   ],
   "statsId": 0,
-  "requestAvgFailedDurationMillis": 20357,
+  "requestAvgFailedDurationMillis": 179,
   "requestAvgFinishedDurationMillis": null,
-  "requestTotalDurationMillis": 20357,
+  "requestTotalDurationMillis": 179,
   "requestsTotal": 1,
   "requestsWithStatusCode": {
-    "200": 3
+    "404": 4
   },
   "errors": {
-    "/home/morit/gruenerator/gruenerator_backend/node_modules/@apify/timeout/cjs/index.cjs:64:68": {
+    "file:///home/morit/gruenerator/gruenerator_backend/services/urlCrawlerService.js:268:19": {
       "missing error code": {
         "Error": {
-          "requestHandler timed out after 20 seconds.": {
+          "HTTP 404: Request failed": {
             "count": 1
           }
         }
@@ -38,11 +39,11 @@
     }
   },
   "retryErrors": {
-    "/home/morit/gruenerator/gruenerator_backend/node_modules/@apify/timeout/cjs/index.cjs:64:68": {
+    "file:///home/morit/gruenerator/gruenerator_backend/services/urlCrawlerService.js:268:19": {
       "missing error code": {
         "Error": {
-          "requestHandler timed out after 20 seconds.": {
-            "count": 2
+          "HTTP 404: Request failed": {
+            "count": 3
           }
         }
       }

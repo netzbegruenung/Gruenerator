@@ -1,7 +1,7 @@
 import React, { lazy, Suspense } from 'react';
 import PropTypes from 'prop-types';
 const ReactMarkdown = lazy(() => import('react-markdown'));
-import { isReactElement, isMarkdownContent, normalizeLineBreaks, removeGruenTitleTags } from '../utils/contentUtils';
+import { isReactElement, isMarkdownContent, normalizeLineBreaks, removeGruenTitleTags, stripWrappingCodeFence } from '../utils/contentUtils';
 import { CitationBadge } from '../../Citation';
 import ImageDisplay from '../../ImageDisplay';
 import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
@@ -71,17 +71,25 @@ const ContentRenderer = ({
   const pushToHistory = useGeneratedTextStore(state => state.pushToHistory);
   const { getEditableText } = useTextEditActions(componentName);
   
+  // Handle API response object structure {success, content, metadata}
+  let processedGeneratedContent = generatedContent;
+  if (generatedContent && typeof generatedContent === 'object' && 
+      generatedContent.hasOwnProperty('content') && 
+      generatedContent.hasOwnProperty('success')) {
+    processedGeneratedContent = generatedContent.content;
+  }
+  
   // Check if we have mixed content (social + sharepic)
-  const isMixedContent = generatedContent && typeof generatedContent === 'object' && 
-    (generatedContent.sharepic || generatedContent.social);
+  const isMixedContent = processedGeneratedContent && typeof processedGeneratedContent === 'object' && 
+    (processedGeneratedContent.sharepic || processedGeneratedContent.social);
   
   const rawContent = isMixedContent 
-    ? (generatedContent.social?.content || generatedContent.content || '')
-    : (value || generatedContent || '');
+    ? (processedGeneratedContent.social?.content || processedGeneratedContent.content || '')
+    : (value || processedGeneratedContent || '');
     
   // Clean and normalize content
   const contentToRender = typeof rawContent === 'string' 
-    ? normalizeLineBreaks(removeGruenTitleTags(rawContent))
+    ? normalizeLineBreaks(stripWrappingCodeFence(removeGruenTitleTags(rawContent)))
     : rawContent;
   
   // Get citations from metadata if componentName is provided
@@ -94,6 +102,12 @@ const ContentRenderer = ({
   
   // Handle mixed content (social + sharepic)
   if (isMixedContent) {
+    const sharepicItems = Array.isArray(processedGeneratedContent.sharepic)
+      ? processedGeneratedContent.sharepic.filter(Boolean)
+      : processedGeneratedContent.sharepic
+        ? [processedGeneratedContent.sharepic]
+        : [];
+
     return (
       <div className="generated-content-wrapper mixed-content">
         {/* Render social content if available */}
@@ -101,7 +115,8 @@ const ContentRenderer = ({
           <div className="social-content-section">
             <div className="content-display">
               {typeof contentToRender === 'string' ? (
-                isMarkdownContent(contentToRender) ? (
+                // Honor explicit markdown override if provided
+                ((useMarkdown !== null ? useMarkdown : isMarkdownContent(contentToRender))) ? (
                   <Suspense fallback={<div>Loading...</div>}><ReactMarkdown>{contentToRender}</ReactMarkdown></Suspense>
                 ) : (
                   <div dangerouslySetInnerHTML={{ __html: contentToRender }} />
@@ -114,16 +129,31 @@ const ContentRenderer = ({
         )}
         
         {/* Render sharepic if available */}
-        {generatedContent.sharepic && (
+        {sharepicItems.length > 0 && (
           <div className="sharepic-content-section">
-            <ImageDisplay 
-              sharepicData={generatedContent.sharepic} 
-              onEdit={generatedContent.onEditSharepic}
-              showEditButton={generatedContent.showEditButton !== false}
-              title={generatedContent.sharepicTitle}
-              downloadButtonText={generatedContent.sharepicDownloadText}
-              downloadFilename={generatedContent.sharepicDownloadFilename}
-            />
+            {sharepicItems.map((sharepicData, index) => {
+              const sharepicTitle = Array.isArray(processedGeneratedContent.sharepicTitle)
+                ? processedGeneratedContent.sharepicTitle[index]
+                : processedGeneratedContent.sharepicTitle;
+              const downloadButtonText = Array.isArray(processedGeneratedContent.sharepicDownloadText)
+                ? processedGeneratedContent.sharepicDownloadText[index]
+                : processedGeneratedContent.sharepicDownloadText;
+              const downloadFilename = Array.isArray(processedGeneratedContent.sharepicDownloadFilename)
+                ? processedGeneratedContent.sharepicDownloadFilename[index]
+                : processedGeneratedContent.sharepicDownloadFilename;
+
+              return (
+                <ImageDisplay 
+                  key={sharepicData.id || `${sharepicData.type || 'sharepic'}-${index}`}
+                  sharepicData={sharepicData} 
+                  onEdit={processedGeneratedContent.onEditSharepic}
+                  showEditButton={processedGeneratedContent.showEditButton !== false}
+                  title={sharepicTitle}
+                  downloadButtonText={downloadButtonText}
+                  downloadFilename={downloadFilename}
+                />
+              );
+            })}
           </div>
         )}
       </div>
@@ -135,9 +165,9 @@ const ContentRenderer = ({
     return null;
   }
 
-  // Wenn generatedContent ein React-Element ist, direkt anzeigen
-  if (isReactElement(generatedContent)) {
-    return generatedContent;
+  // Wenn processedGeneratedContent ein React-Element ist, direkt anzeigen
+  if (isReactElement(processedGeneratedContent)) {
+    return processedGeneratedContent;
   }
 
   // Determine if we should render as markdown
