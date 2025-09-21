@@ -42,15 +42,22 @@ const FileUpload = ({ handleChange, error, allowedTypes, loading, file, label = 
           {file ? (
             <>
               <span className="file-upload-filename">{file.name}</span>
-              <button
-                type="button"
+              <span
+                role="button"
                 onClick={handleRemoveFile}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleRemoveFile(e);
+                  }
+                }}
                 className="file-upload-remove"
                 aria-label="Datei entfernen"
-                disabled={loading}
+                tabIndex={loading ? -1 : 0}
+                style={{ pointerEvents: loading ? 'none' : 'auto', opacity: loading ? 0.5 : 1 }}
               >
                 <HiX />
-              </button>
+              </span>
             </>
           ) : (
             loading ? 'Laden...' : 'Datei auswählen'

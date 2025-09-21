@@ -11,6 +11,7 @@ import ErrorBoundary from '../../components/ErrorBoundary';
 import TextAreaInput from '../../components/common/Form/Input/TextAreaInput';
 import FeatureToggle from '../../components/common/FeatureToggle';
 import { PiCrosshair } from 'react-icons/pi';
+import useApiSubmit from '../../components/hooks/useApiSubmit';
 import apiClient from '../../components/utils/apiClient';
 import useGeneratedTextStore from '../../stores/core/generatedTextStore';
 import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
@@ -41,6 +42,7 @@ const GrueneratorImagine = ({ showHeaderFooter = true }) => {
   const componentName = 'imagine';
   const { setGeneratedText, getGeneratedText } = useGeneratedTextStore();
   const { data: imageLimitData, isLoading: imageLimitLoading, refetch: refetchImageLimit } = useImageGenerationLimit();
+  const { submitForm, loading: apiLoading } = useApiSubmit('/flux/green-edit/prompt');
 
   const [selectedType, setSelectedType] = useState(IMAGINE_TYPES.GREEN_EDIT);
   const [uploadedImage, setUploadedImage] = useState(null);
@@ -48,6 +50,7 @@ const GrueneratorImagine = ({ showHeaderFooter = true }) => {
   const [result, setResult] = useState(null);
   const [isPrecisionMode, setIsPrecisionMode] = useState(false);
   const [precisionInstruction, setPrecisionInstruction] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useOptimizedAuth();
 
@@ -153,6 +156,27 @@ const GrueneratorImagine = ({ showHeaderFooter = true }) => {
     helpContent: helpContent
   });
 
+  // Use local loading state for manual management
+  const isLoading = isSubmitting;
+
+  const updateSharepicInStore = useCallback((updatedSharepic) => {
+    if (!updatedSharepic) return;
+
+    const store = useGeneratedTextStore.getState();
+    const currentContent = store.generatedTexts?.[componentName];
+    const baseContent = (currentContent && typeof currentContent === 'object') ? currentContent : {};
+
+    const nextContent = {
+      ...baseContent,
+      sharepic: updatedSharepic,
+      enableKiLabel: true
+    };
+
+    nextContent.onSharepicUpdate = updateSharepicInStore;
+
+    store.setGeneratedText(componentName, nextContent);
+  }, [componentName]);
+
   const handleTypeChange = useCallback((newType) => {
     setSelectedType(newType);
     // Reset form state when changing types
@@ -171,23 +195,24 @@ const GrueneratorImagine = ({ showHeaderFooter = true }) => {
   }, [selectedType, currentFormRef]);
 
   const customSubmit = useCallback(async (formData) => {
-    // Check image generation limit before processing
-    if (imageLimitData && !imageLimitData.canGenerate) {
-      const timeUntilReset = imageLimitData.timeUntilReset || 'morgen';
-      form.handleSubmitError(new Error(`Tageslimit erreicht (${imageLimitData.count}/${imageLimitData.limit}). Nächste Nutzung ${timeUntilReset} möglich.`));
-      return;
-    }
-
-    if (selectedType === IMAGINE_TYPES.GREEN_EDIT) {
-      if (!uploadedImage) {
-        form.handleSubmitError(new Error('Bitte ein Bild auswählen.'));
-        return;
-      }
-    }
+    setIsSubmitting(true);
 
     try {
-      let response;
-      
+      // Check image generation limit before processing
+      if (imageLimitData && !imageLimitData.canGenerate) {
+        const timeUntilReset = imageLimitData.timeUntilReset || 'morgen';
+        form.handleSubmitError(new Error(`Tageslimit erreicht (${imageLimitData.count}/${imageLimitData.limit}). Nächste Nutzung ${timeUntilReset} möglich.`));
+        return;
+      }
+
+      if (selectedType === IMAGINE_TYPES.GREEN_EDIT) {
+        if (!uploadedImage) {
+          form.handleSubmitError(new Error('Bitte ein Bild auswählen.'));
+          return;
+        }
+      }
+      let formDataToSubmit;
+
       if (selectedType === IMAGINE_TYPES.GREEN_EDIT) {
         // Build instruction from selected options or precision text
         const instruction = isPrecisionMode
@@ -196,14 +221,10 @@ const GrueneratorImagine = ({ showHeaderFooter = true }) => {
               ? selectedInfrastructure.map(opt => opt.label || opt.value).join(', ')
               : '');
 
-        const fd = new FormData();
-        fd.append('image', uploadedImage);
-        fd.append('text', instruction);
-        fd.append('precision', isPrecisionMode.toString());
-
-        response = await apiClient.post('/flux/green-edit/prompt', fd, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        });
+        formDataToSubmit = new FormData();
+        formDataToSubmit.append('image', uploadedImage);
+        formDataToSubmit.append('text', instruction);
+        formDataToSubmit.append('precision', isPrecisionMode.toString());
       } else if (selectedType === IMAGINE_TYPES.ALLY_MAKER) {
         // For ally-maker, get form data from form ref
         if (!allyMakerFormRef.current?.isValid()) {
@@ -213,20 +234,19 @@ const GrueneratorImagine = ({ showHeaderFooter = true }) => {
 
         const allyData = allyMakerFormRef.current.getFormData();
 
-        const fd = new FormData();
-        fd.append('image', allyData.image);
-        fd.append('text', allyData.placement || '');
-        fd.append('type', 'ally-maker');
-        fd.append('precision', isPrecisionMode.toString());
-
-        response = await apiClient.post('/flux/green-edit/prompt', fd, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        });
+        formDataToSubmit = new FormData();
+        formDataToSubmit.append('image', allyData.image);
+        formDataToSubmit.append('text', allyData.placement || '');
+        formDataToSubmit.append('type', 'ally-maker');
+        formDataToSubmit.append('precision', isPrecisionMode.toString());
       }
 
+      const response = await apiClient.post('/flux/green-edit/prompt', formDataToSubmit, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
       const data = response?.data || {};
       setResult(data);
-      
+
       if (selectedType === IMAGINE_TYPES.GREEN_EDIT && data?.image?.base64) {
         // Format the response for Green Edit
         const sharepicData = {
@@ -238,15 +258,17 @@ const GrueneratorImagine = ({ showHeaderFooter = true }) => {
                 : 'Grüne Stadtgestaltung'),
           type: 'green-edit'
         };
-        
+
         const mixedContent = {
           sharepic: sharepicData,
           showEditButton: false,
           sharepicTitle: "Grüneriertes Bild",
           sharepicDownloadText: "Herunterladen",
-          sharepicDownloadFilename: "gruenerator_imagine.png"
+          sharepicDownloadFilename: "gruenerator_imagine.png",
+          enableKiLabel: true,
+          onSharepicUpdate: updateSharepicInStore
         };
-        
+
         form.generator.handleGeneratedContentChange(mixedContent);
       } else if (selectedType === IMAGINE_TYPES.ALLY_MAKER && data?.image?.base64) {
         // For ally-maker, format as image content
@@ -261,7 +283,9 @@ const GrueneratorImagine = ({ showHeaderFooter = true }) => {
           showEditButton: false,
           sharepicTitle: "Ally-Maker Bild",
           sharepicDownloadText: "Herunterladen",
-          sharepicDownloadFilename: "gruenerator_ally_maker.png"
+          sharepicDownloadFilename: "gruenerator_ally_maker.png",
+          enableKiLabel: true,
+          onSharepicUpdate: updateSharepicInStore
         };
 
         form.generator.handleGeneratedContentChange(mixedContent);
@@ -278,8 +302,10 @@ const GrueneratorImagine = ({ showHeaderFooter = true }) => {
       if (e.response?.status === 429) {
         refetchImageLimit();
       }
+    } finally {
+      setIsSubmitting(false);
     }
-  }, [uploadedImage, selectedInfrastructure, selectedType, refetchImageLimit, form, isPrecisionMode, precisionInstruction]);
+  }, [uploadedImage, selectedInfrastructure, selectedType, refetchImageLimit, form, isPrecisionMode, precisionInstruction, setIsSubmitting, updateSharepicInStore]);
 
   const handleGeneratedContentChange = useCallback((content) => {
     form.generator.handleGeneratedContentChange(content);
@@ -295,7 +321,12 @@ const GrueneratorImagine = ({ showHeaderFooter = true }) => {
   };
 
   const getSubmitDisabled = () => {
-    // Check image limit first
+    // Always disable during loading to prevent multiple clicks
+    if (isLoading) {
+      return true;
+    }
+
+    // Check image limit
     if (imageLimitData && !imageLimitData.canGenerate) {
       return true;
     }
@@ -339,7 +370,7 @@ const GrueneratorImagine = ({ showHeaderFooter = true }) => {
         ? "Aktiviert: Verwende detaillierte Textanweisungen für präzise Kontrolle"
         : "Deaktiviert: Verwende vorgefertigte Optionen für schnelle Auswahl"
       }
-      disabled={form.generator.loading}
+      disabled={isLoading}
       className="precision-mode-toggle"
     />
   );
@@ -350,7 +381,7 @@ const GrueneratorImagine = ({ showHeaderFooter = true }) => {
         handleChange={handleImageChange}
         allowedTypes={['.jpg', '.jpeg', '.png', '.webp']}
         file={uploadedImage}
-        loading={form.generator.loading}
+        loading={isLoading}
         label="Straßenfoto hochladen"
       />
 
@@ -367,7 +398,7 @@ const GrueneratorImagine = ({ showHeaderFooter = true }) => {
               placeholder="Beschreibe präzise, was wo hinzugefügt werden soll, z.B.: 'Füge drei große Linden auf der linken Straßenseite hinzu, platziere eine Bank unter dem zweiten Baum von links, erweitere den Gehweg um 1 Meter...'"
               rows={6}
               maxLength={500}
-              disabled={form.generator.loading}
+              disabled={isLoading}
             />
             <div style={{
               fontSize: 'var(--font-size-small)',
@@ -398,7 +429,7 @@ const GrueneratorImagine = ({ showHeaderFooter = true }) => {
             isSearchable={true}
             closeMenuOnSelect={false}
             hideSelectedOptions={false}
-            isDisabled={form.generator.loading}
+            isDisabled={isLoading}
             menuPortalTarget={document.body}
             menuPosition="fixed"
             styles={{
@@ -425,7 +456,7 @@ const GrueneratorImagine = ({ showHeaderFooter = true }) => {
     <>
       <AllyMakerForm
         ref={allyMakerFormRef}
-        loading={form.generator.loading}
+        loading={isLoading}
         isPrecisionMode={isPrecisionMode}
       />
     </>
@@ -449,6 +480,7 @@ const GrueneratorImagine = ({ showHeaderFooter = true }) => {
         <BaseForm
           key={selectedType}
           {...form.generator.baseFormProps}
+          loading={isLoading}
           title={<span className="gradient-title">{IMAGINE_TYPE_TITLES[selectedType]}</span>}
           onSubmit={form.handleSubmit(customSubmit)}
           generatedContent={generatedContent}

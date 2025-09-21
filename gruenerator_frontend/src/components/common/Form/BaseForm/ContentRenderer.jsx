@@ -141,6 +141,12 @@ const ContentRenderer = ({
               const downloadFilename = Array.isArray(processedGeneratedContent.sharepicDownloadFilename)
                 ? processedGeneratedContent.sharepicDownloadFilename[index]
                 : processedGeneratedContent.sharepicDownloadFilename;
+              const enableKiLabel = Array.isArray(processedGeneratedContent.enableKiLabel)
+                ? processedGeneratedContent.enableKiLabel[index]
+                : processedGeneratedContent.enableKiLabel;
+              const onSharepicUpdate = Array.isArray(processedGeneratedContent.onSharepicUpdate)
+                ? processedGeneratedContent.onSharepicUpdate[index]
+                : processedGeneratedContent.onSharepicUpdate;
 
               return (
                 <ImageDisplay 
@@ -151,6 +157,8 @@ const ContentRenderer = ({
                   title={sharepicTitle}
                   downloadButtonText={downloadButtonText}
                   downloadFilename={downloadFilename}
+                  enableKiLabel={enableKiLabel}
+                  onSharepicUpdate={onSharepicUpdate}
                 />
               );
             })}

@@ -13,6 +13,7 @@ const {
   TITLE_GENERATION_INSTRUCTION,
   PLATFORM_SPECIFIC_GUIDELINES
 } = require('../../utils/promptUtils');
+const { localizePromptObject, extractLocaleFromRequest } = require('../../utils/localizationHelper');
 
 // For custom_generator database access
 // PostgresService imported dynamically in loadCustomGeneratorPrompt function
@@ -369,8 +370,11 @@ async function processGraphRequest(routeType, req, res) {
       hasOtherData: Object.keys(requestData).length
     });
 
-    // Load configuration
-    const config = loadPromptConfig(routeType);
+    // Load configuration and localize it
+    const baseConfig = loadPromptConfig(routeType);
+    const userLocale = extractLocaleFromRequest(req);
+    const config = localizePromptObject(baseConfig, userLocale);
+    console.log(`[promptProcessor] Using locale: ${userLocale}`);
 
     // Validate request
     const validationError = validateRequest(requestData, config);

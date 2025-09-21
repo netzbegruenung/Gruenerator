@@ -1,144 +1,28 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs').promises;
-const { nodewhisper } = require('nodejs-whisper');
-const { exec } = require('child_process');
-const util = require('util');
-const execPromise = util.promisify(exec);
-const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
+const mistralVoiceService = require('./mistralVoiceService');
 
-// Konfiguration für Multer (Datei-Upload)
-const storage = multer.diskStorage({
-  destination: async (req, file, cb) => {
-    const uploadDir = path.join(__dirname, '../../uploads/voice');
-    try {
-      await fs.mkdir(uploadDir, { recursive: true });
-      cb(null, uploadDir);
-    } catch (error) {
-      cb(error);
-    }
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    // Speichere als mp3, um Probleme mit dem WAV-Format zu vermeiden
-    cb(null, 'audio-' + uniqueSuffix + '.mp3');
-  }
-});
+// Konfiguration für Multer (Memory-Upload für direkte Verarbeitung)
+const storage = multer.memoryStorage();
 
 const upload = multer({
   storage,
-  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB Limit
-  fileFilter: (req, file, cb) => {
-    // Akzeptiere nur Audio-Dateien
-    if (file.mimetype.startsWith('audio/')) {
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB Limit (Mistral supports ~15 minutes)
+  fileFilter: (_, file, cb) => {
+    // Check if audio format is supported by Mistral
+    if (mistralVoiceService.isFormatSupported(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Nur Audio-Dateien werden unterstützt'));
+      cb(new Error(`Unsupported audio format: ${file.mimetype}. Supported formats: ${mistralVoiceService.getSupportedFormats().join(', ')}`));
     }
   }
 });
 
-// Konvertiere Audio-Datei zu WAV mit ffmpeg
-async function convertToWav(inputPath) {
-  try {
-    const outputPath = inputPath.replace(/\.[^/.]+$/, '') + '.wav';
-    
-    // Verwende den installierten ffmpeg-Pfad
-    const ffmpegCommand = `"${ffmpegPath}" -y -i "${inputPath}" -acodec pcm_s16le -ar 16000 -ac 1 "${outputPath}"`;
-    console.log('Ausführung von ffmpeg-Befehl:', ffmpegCommand);
-    
-    const { stdout, stderr } = await execPromise(ffmpegCommand);
-    if (stderr) {
-      console.log('ffmpeg stderr:', stderr);
-    }
-    
-    // Prüfe, ob die Ausgabedatei existiert
-    try {
-      await fs.access(outputPath);
-      console.log('WAV-Datei erfolgreich erstellt:', outputPath);
-      
-      // Lösche die ursprüngliche Datei
-      await fs.unlink(inputPath);
-      
-      return outputPath;
-    } catch (err) {
-      throw new Error(`Konvertierte Datei wurde nicht erstellt: ${err.message}`);
-    }
-  } catch (error) {
-    console.error('Fehler bei der Konvertierung:', error);
-    throw new Error('Fehler bei der Audio-Konvertierung: ' + error.message);
-  }
-}
 
-// Transkribiere Audio-Datei mit Whisper
-async function transcribeAudio(audioPath, options = {}) {
-  const { language = 'de', removeTimestamps = false } = options;
-  
-  try {
-    console.log('Starte Transkription:', audioPath, 'Optionen:', options);
-    
-    // Konvertiere die Datei zu WAV
-    const wavPath = await convertToWav(audioPath);
-    console.log('Konvertiert zu WAV:', wavPath);
-    
-    const whisperConfig = {
-      modelName: "base",
-      whisperOptions: {
-        language: language,
-        task: "transcribe"
-      }
-    };
-    
-    const result = await nodewhisper(wavPath, whisperConfig);
-    let transcription = typeof result === 'string' ? result : result.text;
-    
-    if (!transcription) {
-      throw new Error('Keine Transkription erhalten');
-    }
-    
-    // Entferne Zeitstempel nur wenn gewünscht
-    if (removeTimestamps) {
-      console.log('Entferne Zeitstempel aus der Transkription');
-      
-      // Entferne Zeitstempel (Format [00:00:00.000 --> 00:00:00.000] oder [00:00.000 --> 00:00.000])
-      transcription = transcription.replace(/\[\d{2}:\d{2}(:\d{2})?\.\d{3} --> \d{2}:\d{2}(:\d{2})?\.\d{3}\]\s*/g, '');
-      
-      // Entferne andere mögliche Zeitformate
-      transcription = transcription.replace(/\d{2}:\d{2}:\d{2}\s*-\s*\d{2}:\d{2}:\d{2}\s*/g, '');
-      transcription = transcription.replace(/\d{2}:\d{2}\s*-\s*\d{2}:\d{2}\s*/g, '');
-      
-      // Entferne Whisper-spezifische Zeitstempel (z.B. [00:00.000] oder [00:00:00.000])
-      transcription = transcription.replace(/\[\d{2}:\d{2}(:\d{2})?\.\d{3}\]\s*/g, '');
-      
-      // Entferne doppelte Leerzeichen und trimme
-      transcription = transcription.replace(/\s+/g, ' ').trim();
-    } else {
-      // Nur trimmen, wenn Zeitstempel beibehalten werden sollen
-      transcription = transcription.trim();
-    }
-    
-    return transcription;
-  } catch (error) {
-    console.error('Fehler bei der Transkription:', error);
-    throw error;
-  }
-}
 
-// Cleanup-Funktion für temporäre Dateien
-async function cleanupFile(filePath) {
-  try {
-    if (await fs.access(filePath).then(() => true).catch(() => false)) {
-      await fs.unlink(filePath);
-      console.log('Datei gelöscht:', filePath);
-    }
-  } catch (error) {
-    console.error('Fehler beim Löschen der Datei:', error);
-  }
-}
 
-// POST /api/voice/transcribe - Transkribiere Audio-Datei
+// POST /api/voice/transcribe - Transkribiere Audio-Datei mit Mistral Voxtral
 router.post('/transcribe', upload.single('audio'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({
@@ -147,34 +31,129 @@ router.post('/transcribe', upload.single('audio'), async (req, res) => {
     });
   }
 
-  const audioPath = req.file.path;
-  
+  const audioBuffer = req.file.buffer;
+  const filename = req.file.originalname;
+
   // Optionen aus Query-Parametern oder Body extrahieren
   const options = {
     language: req.query.language || req.body.language || 'de',
-    removeTimestamps: req.query.removeTimestamps === 'true' || req.body.removeTimestamps === true
+    removeTimestamps: req.query.removeTimestamps === 'true' || req.body.removeTimestamps === true,
+    timestamp_granularities: (req.query.timestamps === 'true' || req.body.timestamps === true) ? ['segment'] : undefined
   };
-  
+
   try {
-    const transcription = await transcribeAudio(audioPath, options);
-    
-    // Cleanup nach erfolgreicher Transkription
-    await cleanupFile(audioPath);
-    
+    console.log('[Voice Controller] Starting transcription for:', filename, 'Options:', options);
+
+    const result = await mistralVoiceService.transcribeFromBuffer(audioBuffer, filename, options);
+
     return res.json({
       success: true,
-      text: transcription,
-      withTimestamps: !options.removeTimestamps
+      text: result.text,
+      segments: result.segments || undefined,
+      hasTimestamps: result.hasTimestamps,
+      language: options.language
     });
   } catch (error) {
-    console.error('Fehler bei der Verarbeitung:', error);
-    
-    // Cleanup bei Fehler
-    await cleanupFile(audioPath);
-    
+    console.error('[Voice Controller] Transcription error:', error);
+
     return res.status(500).json({
       success: false,
       error: 'Fehler bei der Transkription: ' + error.message
+    });
+  }
+});
+
+// POST /api/voice/transcribe-url - Transkribiere Audio von URL
+router.post('/transcribe-url', async (req, res) => {
+  const { url, language = 'de', removeTimestamps = false, timestamps = false } = req.body;
+
+  if (!url) {
+    return res.status(400).json({
+      success: false,
+      error: 'Audio URL ist erforderlich'
+    });
+  }
+
+  const options = {
+    language,
+    removeTimestamps,
+    timestamp_granularities: timestamps ? ['segment'] : undefined
+  };
+
+  try {
+    console.log('[Voice Controller] Starting URL transcription for:', url, 'Options:', options);
+
+    const result = await mistralVoiceService.transcribeFromUrl(url, options);
+
+    return res.json({
+      success: true,
+      text: result.text,
+      segments: result.segments || undefined,
+      hasTimestamps: result.hasTimestamps,
+      language: options.language,
+      sourceUrl: url
+    });
+  } catch (error) {
+    console.error('[Voice Controller] URL transcription error:', error);
+
+    return res.status(500).json({
+      success: false,
+      error: 'Fehler bei der URL-Transkription: ' + error.message
+    });
+  }
+});
+
+// POST /api/voice/chat - Chat mit Audio-Eingabe
+router.post('/chat', upload.single('audio'), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({
+      success: false,
+      error: 'Keine Audio-Datei erhalten'
+    });
+  }
+
+  const audioBuffer = req.file.buffer;
+  const filename = req.file.originalname;
+  const prompt = req.body.prompt || req.query.prompt || "Was ist in dieser Audio-Datei?";
+
+  try {
+    console.log('[Voice Controller] Starting audio chat for:', filename, 'Prompt:', prompt);
+
+    const response = await mistralVoiceService.chatWithAudio(audioBuffer, filename, prompt);
+
+    return res.json({
+      success: true,
+      response: response,
+      prompt: prompt
+    });
+  } catch (error) {
+    console.error('[Voice Controller] Audio chat error:', error);
+
+    return res.status(500).json({
+      success: false,
+      error: 'Fehler beim Audio-Chat: ' + error.message
+    });
+  }
+});
+
+// GET /api/voice/formats - Unterstützte Audio-Formate
+router.get('/formats', (_, res) => {
+  try {
+    const formats = mistralVoiceService.getSupportedFormats();
+
+    return res.json({
+      success: true,
+      supportedFormats: formats,
+      maxFileSize: '50MB',
+      maxDuration: '~15 minutes for transcription, ~20 minutes for chat',
+      provider: 'Mistral Voxtral'
+    });
+  } catch (error) {
+    console.error('[Voice Controller] Formats error:', error);
+
+    return res.status(500).json({
+      success: false,
+      error: 'Fehler beim Abrufen der unterstützten Formate'
     });
   }
 });

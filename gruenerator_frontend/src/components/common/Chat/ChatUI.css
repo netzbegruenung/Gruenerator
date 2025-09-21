@@ -1,5 +1,47 @@
 /* ChatUI Component Styles */
 
+/* Chat-specific CSS variables */
+:root {
+  /* Light mode chat variables */
+  --chat-background: var(--backgroundgruen);
+  --ai-message-background: var(--neutral-600);
+  --ai-message-text-color: var(--grey-800);
+  --assistant-icon-background: var(--white);
+  --assistant-icon-color: var(--grey-800);
+  --chat-message-user-name-color: var(--grey-600);
+  --chat-input-background: var(--white);
+  --chat-input-text-color: var(--font-color);
+  --chat-input-border-color: var(--background-color-alt);
+}
+
+[data-theme="dark"] {
+  /* Dark mode chat variables */
+  --chat-background: var(--background-color);
+  --ai-message-background: var(--background-color-alt);
+  --ai-message-text-color: var(--font-color);
+  --assistant-icon-background: var(--background-color-alt);
+  --assistant-icon-color: var(--font-color);
+  --chat-message-user-name-color: var(--grey-400);
+  --chat-input-background: var(--background-color);
+  --chat-input-text-color: var(--font-color);
+  --chat-input-border-color: var(--background-color-alt);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    /* Auto dark mode chat variables */
+    --chat-background: var(--background-color);
+    --ai-message-background: var(--background-color-alt);
+    --ai-message-text-color: var(--font-color);
+    --assistant-icon-background: var(--background-color-alt);
+    --assistant-icon-color: var(--font-color);
+    --chat-message-user-name-color: var(--grey-400);
+    --chat-input-background: var(--background-color);
+    --chat-input-text-color: var(--font-color);
+    --chat-input-border-color: var(--background-color-alt);
+  }
+}
+
 /* Main chat container */
 .editor-chat {
   width: 100%;
@@ -131,16 +173,16 @@
   margin-top: 0 !important;
 }
 
-/* Ensure assistant text is not downsized by surrounding form styles */
+/* Ensure assistant text is appropriately sized for chat */
 .chat-message.assistant p {
-  font-size: var(--display-font-size, var(--font-size-md));
-  line-height: var(--display-line-height, 1.6);
+  font-size: var(--form-element-font-size);
+  line-height: var(--form-element-line-height);
 }
 
-/* Keep user message paragraphs aligned with global typography */
+/* Keep user message paragraphs aligned with chat typography */
 .chat-message.user p {
-  font-size: var(--display-font-size, var(--font-size-md));
-  line-height: var(--display-line-height, 1.6);
+  font-size: var(--form-element-font-size);
+  line-height: var(--form-element-line-height);
 }
 
 .assistant-icon {
@@ -229,13 +271,108 @@
   border: none;
   padding: 0;
   margin: 0;
+  position: relative;
+}
+
+/* Input controls layout */
+.chat-input-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+}
+
+.chat-input-controls .form-input {
+  flex: 1;
+  margin: 0;
+}
+
+/* Chat input buttons container */
+.chat-input-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* File upload button */
+.chat-file-upload-button {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  background: var(--background-color-alt);
+  color: var(--font-color);
+  border: 1px solid var(--border-subtle);
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-sm);
+}
+
+.chat-file-upload-button:hover:not(:disabled) {
+  background: var(--klee);
+  color: var(--weiß);
+  transform: scale(1.05);
+  box-shadow: var(--shadow-md);
+}
+
+.chat-file-upload-button:disabled {
+  background: var(--background-color-alt);
+  cursor: not-allowed;
+  opacity: 0.5;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Attached files in chat */
+.chat-attached-files {
+  margin: 0 12px 8px 12px;
+  padding: 8px 0;
+}
+
+.floating-input .chat-send-button {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  background: var(--klee);
+  color: var(--weiß);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-sm);
+  margin-right: 8px;
+  margin-top: -4px;
+}
+
+.floating-input .chat-send-button:hover:not(:disabled) {
+  background: var(--primary);
+  transform: scale(1.05);
+  box-shadow: var(--shadow-md);
+}
+
+.floating-input .chat-send-button:disabled {
+  background: var(--background-color-alt);
+  cursor: not-allowed;
+  opacity: 0.5;
+  transform: none;
+  box-shadow: none;
 }
 
 .floating-input .input-elements {
   padding: 0;
   display: flex;
-  align-items: stretch;
-  gap: 12px;
+  align-items: center;
+  gap: 8px;
   background: transparent;
 }
 
@@ -314,14 +451,16 @@
   color: var(--weiß);
   border: none;
   border-radius: 50%;
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s ease;
   box-shadow: var(--shadow-sm);
+  margin-right: 8px;
+  margin-top: -2px;
 }
 
 .floating-input button:hover:not(:disabled) {
@@ -356,6 +495,71 @@
   border: 1px solid var(--hellgrau);
   word-break: break-word;
 }
+
+/* Voice Recorder Positioning - moved to floating input */
+.editor-chat-voice-recorder {
+  position: relative;
+  z-index: 1;
+}
+
+.editor-chat-voice-recorder .voice-recorder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.editor-chat-voice-recorder .voice-recorder-controls {
+  margin: 0;
+}
+
+.editor-chat-voice-recorder .voice-recorder-button {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  transition: all 0.25s ease-out;
+}
+
+.editor-chat-voice-recorder .voice-recorder-button.start {
+  background: var(--secondary-600);
+  color: var(--white);
+  border: none;
+}
+
+.editor-chat-voice-recorder .voice-recorder-button.start:hover:not(:disabled) {
+  background: var(--secondary-700);
+}
+
+.editor-chat-voice-recorder .voice-recorder-button.stop {
+  background: var(--error-red);
+  color: var(--white);
+  border: none;
+}
+
+.editor-chat-voice-recorder .voice-recorder-button.stop:hover:not(:disabled) {
+  background: #b71c1c;
+}
+
+.editor-chat-voice-recorder .voice-recorder-button:hover:not(:disabled) {
+  transform: scale(1.05);
+}
+
+.editor-chat-voice-recorder .voice-recorder-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Hide other voice recorder elements when positioned as icon */
+.editor-chat-voice-recorder .voice-recorder-error,
+.editor-chat-voice-recorder .voice-recorder-animation,
+.editor-chat-voice-recorder .voice-recorder-processing {
+  display: none;
+}
+
 
 @media (max-width: 992px) {
 
@@ -423,10 +627,24 @@
 
   .floating-input .input-elements {
     padding: 0;
+    gap: 6px;
   }
 
-  .floating-input input {
+  .floating-input input,
+  .floating-input textarea {
     font-size: 16px; /* Prevent zoom on iOS */
+  }
+
+  .chat-send-button {
+    width: 36px;
+    height: 36px;
+    font-size: 14px;
+  }
+
+  .editor-chat-voice-recorder .voice-recorder-button {
+    width: 36px;
+    height: 36px;
+    font-size: 14px;
   }
 
 }

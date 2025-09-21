@@ -1,10 +1,41 @@
 import React from 'react';
 import { motion } from 'motion/react';
+import { useTranslation } from 'react-i18next';
 import Spinner from '../../../../../../components/common/Spinner';
 import TextInput from '../../../../../../components/common/Form/Input/TextInput';
 import FeatureToggle from '../../../../../../components/common/FeatureToggle';
 import { GiHedgehog } from 'react-icons/gi';
 import { getIcon } from '../../../../../../config/icons';
+import { useAuthStore } from '../../../../../../stores/authStore';
+
+const LocaleSelector = () => {
+  const { t } = useTranslation();
+  const { locale, updateLocale } = useAuthStore();
+
+  const handleLocaleChange = async (event) => {
+    const newLocale = event.target.value;
+    const success = await updateLocale(newLocale);
+    if (!success) {
+      console.error('Failed to update locale');
+    }
+  };
+
+  return (
+    <div className="form-field-wrapper">
+      <label htmlFor="locale">Sprache:</label>
+      <select
+        id="locale"
+        value={locale}
+        onChange={handleLocaleChange}
+        className="form-select"
+        aria-label="Sprachvariant auswählen"
+      >
+        <option value="de-DE">Deutsch (Deutschland)</option>
+        <option value="de-AT">Deutsch (Österreich)</option>
+      </select>
+    </div>
+  );
+};
 
 const ProfileView = ({
   // User and profile
@@ -158,6 +189,7 @@ const ProfileView = ({
                   disabled={isLoading || (profile?.keycloak_id && profile?.username)}
                 />
               </div>
+              <LocaleSelector />
             </div>
             <div className="form-help-text">Änderungen werden automatisch gespeichert</div>
           </div>
