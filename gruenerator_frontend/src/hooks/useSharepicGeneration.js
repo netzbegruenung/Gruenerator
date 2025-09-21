@@ -1,7 +1,6 @@
 import { useState, useCallback } from 'react';
 import apiClient from '../components/utils/apiClient';
-import { prepareDataForCanvas } from '../features/sharepic/dreizeilen/utils/dataPreparation';
-import { DEFAULT_COLORS } from '../components/utils/constants';
+import { generateSharepicImage } from '../features/sharepic/core/services/sharepicImageService';
 
 /**
  * Hook for generating sharepics using existing backend endpoints
@@ -94,46 +93,21 @@ const useSharepicGeneration = () => {
     const slogan = responseData.mainSlogan;
 
     // Step 2: Generate image using existing dreizeilen_canvas endpoint
-    const formData = prepareDataForCanvas(
-      {
-        line1: slogan.line1 || '',
-        line2: slogan.line2 || '',
-        line3: slogan.line3 || '',
-        uploadedImage: uploadedImage
-      },
-      {
-        colorScheme: DEFAULT_COLORS, // Use full Green Party color scheme array
-        fontSize: 85, // Default font size
-        balkenOffset: [50, -100, 50], // Default offsets
-        balkenGruppenOffset: [0, 0],
-        sunflowerOffset: [0, 0],
-        sunflowerPosition: 'bottomRight'
-      },
-      'dreizeilen'
-    );
-
-    console.log('[useSharepicGeneration] Prepared FormData for canvas generation');
-
-    const imageResponse = await apiClient.post('/dreizeilen_canvas', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
+    const image = await generateSharepicImage('dreizeilen', {
+      line1: slogan.line1 || '',
+      line2: slogan.line2 || '',
+      line3: slogan.line3 || '',
+      uploadedImage
     });
 
-    console.log('[useSharepicGeneration] Image generation response received');
-
-    // Handle Axios response wrapper - extract data
-    const imageData = imageResponse.data || imageResponse;
-    console.log('[useSharepicGeneration] Processed image data:', imageData);
-
-    if (!imageData.image) {
+    if (!image) {
       throw new Error('Keine gültige Bild-Antwort erhalten');
     }
 
     // Return combined result
     return {
       text: `${slogan.line1 || ''}\n${slogan.line2 || ''}\n${slogan.line3 || ''}`.trim(),
-      image: imageData.image,
+      image,
       slogans: responseData.alternatives || [], // Include alternatives for potential future use
       type: 'dreizeilen'
     };
@@ -192,41 +166,20 @@ const useSharepicGeneration = () => {
     }
 
     // Step 2: Generate image using existing zitat_canvas endpoint
-    const formData = prepareDataForCanvas(
-      {
-        quote: mainQuote,
-        name: zitatAuthor,
-        uploadedImage: uploadedImage
-      },
-      {
-        colorScheme: DEFAULT_COLORS,
-        fontSize: 85
-      },
-      'quote'
-    );
-
-    console.log('[useSharepicGeneration] Prepared FormData for quote canvas generation');
-
-    const imageResponse = await apiClient.post('/zitat_canvas', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
+    const image = await generateSharepicImage('quote', {
+      quote: mainQuote,
+      name: zitatAuthor,
+      uploadedImage
     });
 
-    console.log('[useSharepicGeneration] Quote image generation response received');
-
-    // Handle Axios response wrapper - extract data
-    const imageData = imageResponse.data || imageResponse;
-    console.log('[useSharepicGeneration] Processed quote image data:', imageData);
-
-    if (!imageData.image) {
+    if (!image) {
       throw new Error('Keine gültige Bild-Antwort erhalten');
     }
 
     // Return combined result
     return {
       text: `"${mainQuote}" - ${zitatAuthor}`,
-      image: imageData.image,
+      image,
       quotes: responseData.alternatives || [], // Use alternatives array from response
       type: 'quote',
       originalImage: uploadedImage // Preserve original background image for editing
@@ -285,26 +238,19 @@ const useSharepicGeneration = () => {
 
     console.log('[useSharepicGeneration] Prepared FormData for quote pure canvas generation');
 
-    const imageResponse = await apiClient.post('/zitat_pure_canvas', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
+    const image = await generateSharepicImage('quote_pure', {
+      quote: mainQuote,
+      name: zitatAuthor
     });
 
-    console.log('[useSharepicGeneration] Quote pure image generation response received');
-
-    // Handle Axios response wrapper - extract data
-    const imageData = imageResponse.data || imageResponse;
-    console.log('[useSharepicGeneration] Processed quote pure image data:', imageData);
-
-    if (!imageData.image) {
+    if (!image) {
       throw new Error('Keine gültige Bild-Antwort erhalten');
     }
 
     // Return combined result
     return {
       text: `"${mainQuote}" - ${zitatAuthor}`,
-      image: imageData.image,
+      image,
       quotes: responseData.alternatives || [],
       type: 'quote_pure'
     };
@@ -352,37 +298,20 @@ const useSharepicGeneration = () => {
     const { header, subheader, body } = responseData.mainInfo;
 
     // Step 2: Generate image using existing info_canvas endpoint
-    const formData = new FormData();
-    formData.append('header', header);
-    
-    // Combine subheader and body for backend compatibility
-    const combinedBody = subheader && body 
-      ? `${subheader}. ${body}`
-      : subheader || body || '';
-    formData.append('body', combinedBody);
-
-    console.log('[useSharepicGeneration] Prepared FormData for info canvas generation');
-
-    const imageResponse = await apiClient.post('/info_canvas', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
+    const image = await generateSharepicImage('info', {
+      header,
+      subheader,
+      body
     });
 
-    console.log('[useSharepicGeneration] Info image generation response received');
-
-    // Handle Axios response wrapper - extract data
-    const imageData = imageResponse.data || imageResponse;
-    console.log('[useSharepicGeneration] Processed info image data:', imageData);
-
-    if (!imageData.image) {
+    if (!image) {
       throw new Error('Keine gültige Bild-Antwort erhalten');
     }
 
     // Return combined result
     return {
       text: `${header}\n${subheader || ''}\n${body || ''}`.trim(),
-      image: imageData.image,
+      image,
       alternatives: responseData.alternatives || [],
       type: 'info'
     };
@@ -430,33 +359,20 @@ const useSharepicGeneration = () => {
     const slogan = responseData.mainSlogan;
 
     // Step 2: Generate image using existing headline_canvas endpoint
-    const formData = new FormData();
-    formData.append('line1', slogan.line1 || '');
-    formData.append('line2', slogan.line2 || '');
-    formData.append('line3', slogan.line3 || '');
-
-    console.log('[useSharepicGeneration] Prepared FormData for headline canvas generation');
-
-    const imageResponse = await apiClient.post('/headline_canvas', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
+    const image = await generateSharepicImage('headline', {
+      line1: slogan.line1 || '',
+      line2: slogan.line2 || '',
+      line3: slogan.line3 || ''
     });
 
-    console.log('[useSharepicGeneration] Headline image generation response received');
-
-    // Handle Axios response wrapper - extract data
-    const imageData = imageResponse.data || imageResponse;
-    console.log('[useSharepicGeneration] Processed headline image data:', imageData);
-
-    if (!imageData.image) {
+    if (!image) {
       throw new Error('Keine gültige Bild-Antwort erhalten');
     }
 
     // Return combined result
     return {
       text: `${slogan.line1 || ''}\n${slogan.line2 || ''}\n${slogan.line3 || ''}`.trim(),
-      image: imageData.image,
+      image,
       slogans: responseData.alternatives || [],
       type: 'headline'
     };

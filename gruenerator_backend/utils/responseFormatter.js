@@ -33,6 +33,11 @@ const createSuccessResponse = (result, routePath, formData = {}, additionalMetad
     }
   };
 
+  const agent = processedResult.agent || result.agent || formData.agent;
+  if (agent) {
+    response.agent = agent;
+  }
+
   return response;
 };
 

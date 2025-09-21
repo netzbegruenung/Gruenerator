@@ -57,9 +57,8 @@
 .image-overlay-buttons {
     position: absolute;
     top: var(--spacing-small);
-    right: var(--spacing-small);
+    right: var(--spacing-xsmall);
     display: flex;
-    gap: var(--spacing-xsmall);
     z-index: 2;
 }
 
@@ -94,11 +93,18 @@
     height: 16px;
 }
 
+.image-label-button {
+    background-color: var(--tanne);
+}
+
+.image-label-button:hover {
+    background-color: var(--tanne-dark);
+}
+
 .image-display__actions {
     display: flex;
     justify-content: center;
     gap: var(--spacing-small);
-    width: 100%;
 }
 
 .image-edit-button {
@@ -115,6 +121,13 @@
     font-weight: 600;
     font-family: inherit;
     transition: all 0.2s ease;
+}
+
+.image-label-error {
+    margin-top: var(--spacing-small);
+    color: var(--error-color, #d73a49);
+    font-size: var(--font-size-small);
+    text-align: center;
 }
 
 .image-edit-button:hover {

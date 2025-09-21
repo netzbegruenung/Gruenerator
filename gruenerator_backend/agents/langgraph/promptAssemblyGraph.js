@@ -8,17 +8,29 @@ const { contentExamplesService } = (() => {
   try { return require('../../services/contentExamplesService.js'); } catch (_) { return { contentExamplesService: null }; }
 })();
 
+const { localizePlaceholders } = require('../../utils/localizationHelper.js');
+
 // URL detection is now handled by requestEnrichment.js
 
-function buildSystemText({ systemRole, toolInstructions = [], constraints = null, formatting = null }) {
+function buildSystemText({ systemRole, toolInstructions = [], constraints = null, formatting = null, locale = 'de-DE' }) {
   if (!systemRole) throw new Error("System role is required");
-  const parts = [systemRole];
+
+  // Localize the system role
+  const localizedSystemRole = localizePlaceholders(systemRole, locale);
+  const parts = [localizedSystemRole];
+
   if (toolInstructions && toolInstructions.length > 0) {
-    parts.push("\n" + toolInstructions.join(" "));
+    // Localize tool instructions as well
+    const localizedInstructions = toolInstructions.map(instr => localizePlaceholders(instr, locale));
+    parts.push("\n" + localizedInstructions.join(" "));
   }
-  if (constraints) parts.push("\n" + constraints);
-  if (formatting) parts.push("\n" + formatting);
-  console.log(`📋 [PromptAssembly] System text built (tools=${toolInstructions?.length || 0}, constraints=${constraints ? 'y' : 'n'}, formatting=${formatting ? 'y' : 'n'})`);
+  if (constraints) {
+    parts.push("\n" + localizePlaceholders(constraints, locale));
+  }
+  if (formatting) {
+    parts.push("\n" + localizePlaceholders(formatting, locale));
+  }
+  console.log(`📋 [PromptAssembly] System text built (tools=${toolInstructions?.length || 0}, constraints=${constraints ? 'y' : 'n'}, formatting=${formatting ? 'y' : 'n'}, locale=${locale})`);
   return parts.join("");
 }
 
@@ -54,7 +66,7 @@ function formatExamples(examples = []) {
   return out;
 }
 
-function formatRequestObject(request) {
+function formatRequestObject(request, locale = 'de-DE') {
   const parts = [];
   if (request.theme || request.thema) parts.push(`Thema: ${request.theme || request.thema}`);
   if (request.details) parts.push(`Details: ${request.details}`);
@@ -63,27 +75,45 @@ function formatRequestObject(request) {
   if (request.textForm) parts.push(`Textform: ${request.textForm}`);
   for (const [k, v] of Object.entries(request)) {
     if (["theme", "thema", "details", "platforms", "zitatgeber", "textForm"].includes(k)) continue;
-    if (v) parts.push(`${k}: ${v}`);
+    if (v) {
+      // Localize the value if it's a string
+      const localizedValue = typeof v === 'string' ? localizePlaceholders(v, locale) : v;
+      parts.push(`${k}: ${localizedValue}`);
+    }
   }
   const result = parts.join("\n");
-  console.log(`📋 [PromptAssembly] Request object formatted (lines=${parts.length})`);
+  console.log(`📋 [PromptAssembly] Request object formatted (lines=${parts.length}, locale=${locale})`);
   return result;
 }
 
-function buildMainUserContent({ examples = [], knowledge = [], instructions = null, request = null }) {
+function buildMainUserContent({ examples = [], knowledge = [], instructions = null, request = null, locale = 'de-DE' }) {
   const parts = [];
   const ex = formatExamples(examples);
   if (ex) parts.push(ex);
-  if (Array.isArray(knowledge) && knowledge.length > 0) parts.push(`<knowledge>\n${knowledge.join("\n\n")}\n</knowledge>`);
-  if (instructions) parts.push(`<instructions>\n${instructions}\n</instructions>`);
+
+  // Localize knowledge content
+  if (Array.isArray(knowledge) && knowledge.length > 0) {
+    const localizedKnowledge = knowledge.map(k => localizePlaceholders(k, locale));
+    parts.push(`<knowledge>\n${localizedKnowledge.join("\n\n")}\n</knowledge>`);
+  }
+
+  // Localize instructions
+  if (instructions) {
+    const localizedInstructions = localizePlaceholders(instructions, locale);
+    parts.push(`<instructions>\n${localizedInstructions}\n</instructions>`);
+  }
+
   if (request) {
     let txt;
-    if (typeof request === "string") txt = request;
-    else txt = formatRequestObject(request);
+    if (typeof request === "string") {
+      txt = localizePlaceholders(request, locale);
+    } else {
+      txt = formatRequestObject(request, locale);
+    }
     parts.push(`<request>\n${txt}\n</request>`);
   }
   const combined = parts.length > 0 ? parts.join("\n\n---\n\n") : null;
-  console.log(`📋 [PromptAssembly] Main user content built (sections=${parts.length})`);
+  console.log(`📋 [PromptAssembly] Main user content built (sections=${parts.length}, locale=${locale})`);
   return combined;
 }
 
@@ -93,7 +123,8 @@ function assemblePromptGraph(state) {
     systemRole: state.systemRole,
     toolInstructions: state.toolInstructions || [],
     constraints: state.constraints,
-    formatting: state.formatting
+    formatting: state.formatting,
+    locale: state.locale || 'de-DE'
   });
 
   console.log('📋 [PromptAssembly] Processing documents and content...');
@@ -116,7 +147,8 @@ function assemblePromptGraph(state) {
     examples: useExamples ? state.examples : [],
     knowledge: state.knowledge,
     instructions: state.instructions,
-    request: state.requestFormatted || state.request
+    request: state.requestFormatted || state.request,
+    locale: state.locale || 'de-DE'
   });
   if (mainUser) {
     console.log('📋 [PromptAssembly] Added main user content');
@@ -316,7 +348,8 @@ async function assemblePromptGraphAsync(enrichedState, flags = {}) {
     systemRole: enrichedState.systemRole,
     toolInstructions: enrichedState.toolInstructions || [],
     constraints: enrichedState.constraints,
-    formatting: enrichedState.formatting
+    formatting: enrichedState.formatting,
+    locale: enrichedState.locale || 'de-DE'
   });
 
   console.log('📋 [PromptAssemblyAsync] Processing final content blocks...');
@@ -383,7 +416,8 @@ async function assemblePromptGraphAsync(enrichedState, flags = {}) {
     examples: useExamples ? enrichedState.examples : [],
     knowledge: baseKnowledge,
     instructions: enrichedState.instructions,
-    request: enrichedState.requestFormatted || enrichedState.request
+    request: enrichedState.requestFormatted || enrichedState.request,
+    locale: enrichedState.locale || 'de-DE'
   });
   if (mainUser) {
     console.log('📋 [PromptAssemblyAsync] Added main user content');

@@ -4,17 +4,16 @@ import { motion } from 'motion/react';
 import { HiDocumentText, HiInformationCircle, HiChip } from 'react-icons/hi';
 import { NotebookIcon } from '../../../config/icons';
 const ReactMarkdown = lazy(() => import('react-markdown'));
-import ChatUI from '../../../components/common/Chat/ChatUI';
-import ModeSelector from '../../../components/common/Chat/ModeSelector';
 import { CitationModal, CitationSourcesDisplay } from '../../../components/common/Citation';
 import DisplaySection from '../../../components/common/Form/BaseForm/DisplaySection';
 import FormStateProvider from '../../../components/common/Form/FormStateProvider';
 import ContentRenderer from '../../../components/common/Form/BaseForm/ContentRenderer';
+import ChatWorkbenchLayout from '../../../components/common/Chat/ChatWorkbenchLayout';
+import UniversalEditForm from '../../../components/common/Form/EditMode/UniversalEditForm';
 import useQAStore from '../stores/qaStore';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import useApiSubmit from '../../../components/hooks/useApiSubmit';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
-import '../../../assets/styles/features/qa/qa-chat.css';
 
 const QAChat = () => {
   const { id } = useParams();
@@ -25,6 +24,7 @@ const QAChat = () => {
   const [collection, setCollection] = useState(null);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState('dossier'); // 'dossier' or 'chat'
+  const [showEditTools, setShowEditTools] = useState(false);
   
   const componentName = `qa-${id}`;
   const { setGeneratedText, setGeneratedTextMetadata, getGeneratedTextMetadata, getLinkConfig } = useGeneratedTextStore();
@@ -254,49 +254,11 @@ const QAChat = () => {
     );
   };
 
-  // Custom floating input renderer for chat mode
-  const renderFloatingInput = () => {
-    const handleSubmit = (e) => {
-      e.preventDefault();
-      if (inputValue.trim() && !submitLoading) {
-        handleSubmitQuestion(inputValue.trim());
-      }
-    };
-
-    const handleKeyDown = (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        handleSubmit(e);
-      }
-    };
-
-    return (
-      <form onSubmit={handleSubmit} className="qa-chat-floating-input">
-        <ModeSelector
-          currentMode={viewMode}
-          modes={modes}
-          onModeChange={handleModeChange}
-          className="qa-chat-mode-selector"
-        />
-        <input
-          type="text"
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Stellen Sie eine Frage zu den Dokumenten..."
-          disabled={submitLoading}
-          className="qa-floating-input"
-        />
-        <button 
-          type="submit" 
-          disabled={!inputValue.trim() || submitLoading}
-          className="qa-floating-submit"
-        >
-          ➤
-        </button>
-      </form>
-    );
-  };
+  useEffect(() => {
+    if (!storeGeneratedText) {
+      setShowEditTools(false);
+    }
+  }, [storeGeneratedText]);
 
   const renderRightPanel = () => {
     if (!storeGeneratedText) {
@@ -329,6 +291,27 @@ const QAChat = () => {
     );
   };
 
+  const renderEditTools = () => {
+    if (!storeGeneratedText) return null;
+
+    return (
+      <div className={`qa-edit-tools ${showEditTools ? 'qa-edit-tools-active' : ''}`}>
+        <button
+          type="button"
+          className="qa-edit-tools-toggle"
+          onClick={() => setShowEditTools(prev => !prev)}
+        >
+          {showEditTools ? 'Editor ausblenden' : 'Text bearbeiten'}
+        </button>
+        {showEditTools && (
+          <div className="qa-edit-tools-form">
+            <UniversalEditForm componentName={componentName} />
+          </div>
+        )}
+      </div>
+    );
+  };
+
   if (loading) {
     return (
       <div className="qa-chat-error">
@@ -350,108 +333,28 @@ const QAChat = () => {
     );
   }
 
-  const renderDossierMode = () => (
-    <div className="qa-chat-main qa-chat-dossier">
-      <div className="qa-chat-left-panel">
-        <div className="qa-chat-header">
-          <div className="qa-chat-header-content">
-            <h2>{collection.name}</h2>
-          </div>
-        </div>
-        
-        <ChatUI
-          messages={chatMessages}
-          onSubmit={handleSubmitQuestion}
-          isProcessing={submitLoading}
-          placeholder="Stellen Sie eine Frage zu den Dokumenten..."
-          inputValue={inputValue}
-          onInputChange={setInputValue}
-          disabled={submitLoading}
-          className="qa-chat-ui"
-          renderInput={() => (
-            <form
-              className="qa-chat-dossier-input-wrapper"
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (inputValue.trim() && !submitLoading) {
-                  handleSubmitQuestion(inputValue.trim());
-                }
-              }}
-            >
-              <ModeSelector
-                currentMode={viewMode}
-                modes={modes}
-                onModeChange={handleModeChange}
-                className="qa-chat-mode-selector"
-              />
-              <input
-                type="text"
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    if (inputValue.trim() && !submitLoading) {
-                      handleSubmitQuestion(inputValue.trim());
-                    }
-                  }
-                }}
-                placeholder="Stellen Sie eine Frage zu den Dokumenten..."
-                disabled={submitLoading}
-              />
-              <button 
-                type="submit" 
-                disabled={!inputValue.trim() || submitLoading}
-              >
-                ➤
-              </button>
-            </form>
-          )}
-        />
-      </div>
-      
-      <div className="qa-chat-right-panel">
-        {renderRightPanel()}
-      </div>
-    </div>
-  );
-
-  const renderChatMode = () => (
-    <div className="qa-chat-main qa-chat-fullscreen">
-      <div className="qa-chat-fullscreen-content">
-        <ChatUI
-          messages={chatMessages}
-          onSubmit={handleSubmitQuestion}
-          isProcessing={submitLoading}
-          placeholder="Stellen Sie eine Frage zu den Dokumenten..."
-          inputValue={inputValue}
-          onInputChange={setInputValue}
-          disabled={submitLoading}
-          className="qa-chat-ui qa-chat-ui-fullscreen"
-          fullScreen={true}
-          renderMessage={(msg, index) => renderChatMessage(msg, index)}
-          renderInput={() => null} // Hide the default input
-        />
-        
-        {/* Render floating input within the chat container */}
-        {renderFloatingInput()}
-      </div>
-      
-      {/* Render collection info as a persistent element in chat mode */}
-      {renderCollectionInfo()}
-    </div>
-  );
-
   return (
-    <motion.div 
-      className={`qa-chat-container qa-chat-${viewMode}`}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.3 }}
-    >
+    <>
       <CitationModal />
-      {viewMode === 'dossier' ? renderDossierMode() : renderChatMode()}
-    </motion.div>
+      <ChatWorkbenchLayout
+        mode={viewMode}
+        modes={modes}
+        onModeChange={handleModeChange}
+        title={collection.name}
+        messages={chatMessages}
+        onSubmit={handleSubmitQuestion}
+        isProcessing={submitLoading}
+        placeholder="Stellen Sie eine Frage zu den Dokumenten..."
+        inputValue={inputValue}
+        onInputChange={setInputValue}
+        disabled={submitLoading}
+        renderMessage={renderChatMessage}
+        rightPanelContent={renderRightPanel()}
+        rightPanelFooter={renderEditTools()}
+        infoPanelContent={renderCollectionInfo()}
+        enableVoiceInput={true}
+      />
+    </>
   );
 };
 
