@@ -9,10 +9,12 @@ async function execute(requestId, data) {
   const openAIMessages = [];
 
   if (type === 'social') {
-    openAIMessages.push({
-      role: 'system',
-      content: systemPrompt || 'Du bist ein Social Media Manager für Bündnis 90/Die Grünen. Erstelle Vorschläge für Social Media Beiträge für die angegebenen Plattformen und passe den Inhalt sowie den Stil an jede Plattform an. Gib deine Antwort in einem strukturierten JSON-Format zurück.'
-    });
+    if (systemPrompt) {
+      openAIMessages.push({
+        role: 'system',
+        content: systemPrompt
+      });
+    }
     if (messages) {
       messages.forEach(msg => {
         openAIMessages.push({

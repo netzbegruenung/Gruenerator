@@ -118,6 +118,12 @@ async function handleUserProfile(profile, req = null) {
   // Determine auth source based on session data or claims
   let authSource = req?.session?.preferredSource || 'gruenerator-login';
 
+  // Determine locale based on auth source
+  let locale = 'de-DE'; // Default to German
+  if (authSource === 'gruene-oesterreich-login') {
+    locale = 'de-AT'; // Austrian German
+  }
+
   // Allow users without email (use username or keycloak ID as fallback)
   const userIdentifier = email || username || keycloakId;
 
@@ -142,6 +148,7 @@ async function handleUserProfile(profile, req = null) {
           display_name: name,
           username,
           email: existingUser.email || null, // Keep existing email to avoid conflict
+          locale: existingUser.locale || locale, // Preserve existing locale or set new one
           last_login: new Date().toISOString(),
         }, authSource);
       }
@@ -151,6 +158,7 @@ async function handleUserProfile(profile, req = null) {
       display_name: name,
       username,
       email: email || existingUser.email || null, // Sync email from auth, preserve existing if no new email
+      locale: existingUser.locale || locale, // Preserve existing locale or set new one
       last_login: new Date().toISOString(),
     }, authSource);
   }
@@ -164,6 +172,7 @@ async function handleUserProfile(profile, req = null) {
         keycloak_id: keycloakId,
         display_name: name,
         username,
+        locale: userByEmail.locale || locale, // Preserve existing locale or set new one
         last_login: new Date().toISOString(),
       }, authSource);
     }
@@ -174,6 +183,7 @@ async function handleUserProfile(profile, req = null) {
     email: email || null,
     name,
     username,
+    locale,
     last_login: new Date().toISOString(),
     auth_source: authSource,
   });
@@ -241,6 +251,7 @@ async function createProfileUser(profileData) {
       username: profileData.username,
       display_name: profileData.name,
       email: profileData.email || null,
+      locale: profileData.locale || 'de-DE',
       last_login: profileData.last_login,
       // Default values
       beta_features: {

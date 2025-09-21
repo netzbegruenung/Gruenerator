@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { IoCopyOutline, IoCheckmarkOutline } from "react-icons/io5";
-import { HiCog, HiPencil, HiSave, HiX } from "react-icons/hi";
+import { HiCog, HiPencil, HiSave } from "react-icons/hi";
 import '../../assets/styles/components/actions/action-buttons.css';
 import { IoArrowUndoOutline, IoArrowRedoOutline } from "react-icons/io5";
 import { getIcon } from '../../config/icons';
@@ -27,6 +27,9 @@ const ActionButtons = ({
   showUndo = true,
   showRedo = true,
   onEditModeToggle,
+  onRequestEdit,
+  onReset,
+  showReset = false,
   isEditModeActive = false,
   onRegenerate,
   onSave,
@@ -230,9 +233,28 @@ const ActionButtons = ({
               {saveIcon}
             </button>
           )}
-          {showEditMode && activeContent && onEditModeToggle && (
+          {showReset && onReset && (
             <button
-              onClick={onEditModeToggle}
+              onClick={onReset}
+              className="action-button"
+              aria-label="Zurücksetzen"
+              {...(!isMobileView && {
+                'data-tooltip-id': "action-tooltip",
+                'data-tooltip-content': "Zurücksetzen"
+              })}
+            >
+              {getIcon('actions', 'refresh')({ size: 16 })}
+            </button>
+          )}
+          {showEditMode && activeContent && (onRequestEdit || onEditModeToggle) && (
+            <button
+              onClick={() => {
+                if (onRequestEdit) {
+                  onRequestEdit();
+                } else if (onEditModeToggle) {
+                  onEditModeToggle();
+                }
+              }}
               className={`action-button ${isEditModeActive ? 'active' : ''} hidden-mobile`}
               aria-label={isEditModeActive ? "Edit Mode schließen" : "Edit Mode umschalten"}
               {...(!isMobileView && {
@@ -262,6 +284,9 @@ ActionButtons.propTypes = {
   showUndo: PropTypes.bool,
   showRedo: PropTypes.bool,
   onEditModeToggle: PropTypes.func,
+  onRequestEdit: PropTypes.func,
+  onReset: PropTypes.func,
+  showReset: PropTypes.bool,
   isEditModeActive: PropTypes.bool,
   onRegenerate: PropTypes.func,
   onSave: PropTypes.func,
@@ -276,6 +301,13 @@ ActionButtons.propTypes = {
   generatedContent: PropTypes.any,
   title: PropTypes.string,
   componentName: PropTypes.string,
+};
+
+ActionButtons.defaultProps = {
+  onEditModeToggle: null,
+  onRequestEdit: null,
+  onReset: null,
+  showReset: false,
 };
 
 export default ActionButtons; 

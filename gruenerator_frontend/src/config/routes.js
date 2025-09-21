@@ -2,7 +2,7 @@ import { lazy } from 'react';
 // Statische Importe in dynamische umwandeln
 const UniversalTextGenerator = lazy(() => import('../features/texte/universal/UniversalTextGenerator'));
 const AntragPage = lazy(() => import('../features/texte/antrag/AntragPage'));
-const AntraegeGallery = lazy(() => import('../features/templates/antraege/AntraegeGallery'));
+const GalleryPage = lazy(() => import('../components/common/Gallery'));
 const AntragDetailPage = lazy(() => import('../features/templates/antraege/AntragDetailPage'));
 const YouPage = lazy(() => import('../features/you'));
 // EmptyEditor removed - deprecated component
@@ -43,6 +43,9 @@ const AltTextGenerator = lazy(() => import('../features/texte/alttext/AltTextGen
 // Q&A Chat Komponente importieren
 const QAChat = lazy(() => import('../features/qa/components/QAChat'));
 
+// Grünerator Chat Komponente importieren
+const GrueneratorChat = lazy(() => import('../features/chat/components/GrueneratorChat'));
+
 // E-Learning Komponente importieren
 const ELearningPage = lazy(() => import('../features/elearning'));
 // ELearningTutorial component doesn't exist - using ELearningPage instead
@@ -75,7 +78,7 @@ export const GrueneratorenBundle = {
   Ask: AskPage,
   AskGrundsatz: AskGrundsatzPage,
   DocumentView: DocumentViewPage,
-  AntraegeListe: AntraegeGallery,
+  AntraegeListe: GalleryPage,
   AntragDetail: AntragDetailPage,
   Reel: Reel,
   You: YouPage,
@@ -84,6 +87,7 @@ export const GrueneratorenBundle = {
   // EmptyEditor: EmptyEditor, // Removed - deprecated
   CustomGenerator: CustomGeneratorPage,
   QAChat: QAChat,
+  Chat: GrueneratorChat,
   ELearning: ELearningPage,
   ELearningTutorial: ELearningPage,
   DynamicPageView: DynamicPageView,
@@ -140,6 +144,8 @@ const standardRoutes = [
   // { path: '/editor/collab/:documentId/preview', component: CollabEditorPage, showHeaderFooter: false }, // Preview-Modus ohne Header/Footer
   // Q&A Chat Routen
   { path: '/qa/:id', component: GrueneratorenBundle.QAChat },
+  // Grünerator Chat Route
+  { path: '/chat', component: GrueneratorenBundle.Chat },
   // E-Learning Routes
   { path: '/e-learning', component: GrueneratorenBundle.ELearning },
   // Pages Feature Routes

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { IoAccessibility } from 'react-icons/io5';
-import { HiPencil } from 'react-icons/hi';
+import { HiPencil, HiDownload } from 'react-icons/hi';
+import { FaMagic } from 'react-icons/fa';
 import '../../assets/styles/components/common/image-display.css';
 import DownloadButton from '../../features/sharepic/core/components/DownloadButton';
 import CopyButton from './CopyButton';
@@ -20,9 +21,21 @@ import apiClient from '../utils/apiClient';
  * @param {Function} props.onEdit - Callback function when edit button is clicked (optional)
  * @returns {JSX.Element} ImageDisplay component
  */
-const ImageDisplay = ({ sharepicData, onEdit, showEditButton = true, title = "Generiertes Bild", downloadButtonText = "Bild herunterladen", downloadFilename }) => {
+const ImageDisplay = ({
+  sharepicData,
+  onEdit,
+  showEditButton = true,
+  title = "Generiertes Bild",
+  downloadButtonText = "Bild herunterladen",
+  downloadFilename,
+  enableKiLabel = false,
+  onSharepicUpdate,
+  minimal = false
+}) => {
   // Lightbox state
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const [isKiLabelLoading, setIsKiLabelLoading] = useState(false);
+  const [kiLabelError, setKiLabelError] = useState(null);
   
   // Alt text functionality
   const { generateAltTextForImage } = useAltTextGeneration();
@@ -78,7 +91,7 @@ const ImageDisplay = ({ sharepicData, onEdit, showEditButton = true, title = "Ge
   });
 
   const handleGenerateAltText = async () => {
-    if (isAltTextLoading) return;
+    if (isAltTextLoading || isKiLabelLoading) return;
 
     setAltTextLoading(true);
     setAltTextError(null);
@@ -173,13 +186,80 @@ const ImageDisplay = ({ sharepicData, onEdit, showEditButton = true, title = "Ge
     window.open(url.toString(), '_blank');
   };
 
+  const resetAltTextState = () => {
+    setAltText('');
+    setAltTextError(null);
+    setShowAltText(false);
+  };
+
+  const handleAddKiLabel = async () => {
+    if (!enableKiLabel || isKiLabelLoading || !sharepicData?.image) {
+      return;
+    }
+
+    setKiLabelError(null);
+    setIsKiLabelLoading(true);
+
+    try {
+      const response = await fetch(sharepicData.image);
+      if (!response.ok) {
+        throw new Error('Bild konnte nicht gelesen werden.');
+      }
+
+      const blob = await response.blob();
+      const mimeType = blob.type || 'image/png';
+      const extension = mimeType.split('/')[1] || 'png';
+
+      const formData = new FormData();
+      formData.append('image', blob, `imagine-sharepic.${extension}`);
+
+      const labelResponse = await apiClient.post('/imagine_label_canvas', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
+      const labeledImage = labelResponse?.data?.image;
+      if (!labeledImage) {
+        throw new Error('Keine Antwort vom KI-Label-Service erhalten.');
+      }
+
+      if (typeof onSharepicUpdate === 'function') {
+        onSharepicUpdate({ ...sharepicData, image: labeledImage });
+      }
+
+      resetAltTextState();
+    } catch (error) {
+      console.error('[ImageDisplay] KI label generation failed:', error);
+      setKiLabelError(error.message || 'Fehler beim Hinzufügen des KI-Labels');
+    } finally {
+      setIsKiLabelLoading(false);
+    }
+  };
+
+  const effectiveDownloadText = minimal ? 'Herunterladen' : downloadButtonText;
+  const effectiveDownloadFilename = downloadFilename || 'sharepic.png';
+
+  const handleDownload = React.useCallback(() => {
+    try {
+      const link = document.createElement('a');
+      link.href = sharepicData.image;
+      link.download = effectiveDownloadFilename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('[ImageDisplay] Download failed:', error);
+    }
+  }, [sharepicData.image, effectiveDownloadFilename]);
+
   return (
     <>
       <div className="image-display">
-        <div className="image-display__header">
-          <h4 className="image-display__title">{title}</h4>
-        </div>
-        
+        {!minimal && (
+          <div className="image-display__header">
+            <h4 className="image-display__title">{title}</h4>
+          </div>
+        )}
+
         <div className="image-display__content">
           <div className="image-display__preview">
             <div className="image-container">
@@ -192,14 +272,25 @@ const ImageDisplay = ({ sharepicData, onEdit, showEditButton = true, title = "Ge
               />
               <div className="image-overlay-buttons">
                 <button 
-                  className="image-button image-alt-button"
+                  className={minimal ? 'image-button image-edit-button' : 'image-button image-alt-button'}
                   onClick={handleGenerateAltText}
-                  disabled={isAltTextLoading}
+                  disabled={isAltTextLoading || isKiLabelLoading}
                   title="Alt-Text generieren"
                 >
                   <IoAccessibility />
-                  {isAltTextLoading ? 'Lädt...' : 'Alt-Text'}
+                  {!minimal && (isAltTextLoading ? 'Lädt...' : 'Alt-Text')}
                 </button>
+                {enableKiLabel && (
+                  <button
+                    className="image-button image-label-button"
+                    onClick={handleAddKiLabel}
+                    disabled={isKiLabelLoading || isAltTextLoading}
+                    title="KI-Label hinzufügen"
+                  >
+                    <FaMagic />
+                    {isKiLabelLoading ? 'Beschriftet…' : 'KI-Label'}
+                  </button>
+                )}
                 {showEditButton && (
                   <button 
                     className="image-button image-edit-button"
@@ -209,21 +300,38 @@ const ImageDisplay = ({ sharepicData, onEdit, showEditButton = true, title = "Ge
                     <HiPencil />
                   </button>
                 )}
+                {minimal && (
+                  <button
+                    className="image-button image-edit-button"
+                    onClick={handleDownload}
+                    title="Bild herunterladen"
+                  >
+                    <HiDownload />
+                  </button>
+                )}
               </div>
             </div>
           </div>
           
-          <div className="image-display__actions">
-            <DownloadButton 
-              imageUrl={sharepicData.image} 
-              buttonText={downloadButtonText}
-              downloadFilename={downloadFilename}
-            />
-          </div>
+          {!minimal && (
+            <div className="image-display__actions">
+              <DownloadButton 
+                imageUrl={sharepicData.image} 
+                buttonText={effectiveDownloadText}
+                downloadFilename={downloadFilename}
+              />
+            </div>
+          )}
+
+          {!minimal && kiLabelError && (
+            <div className="image-label-error">
+              <span>⚠️ {kiLabelError}</span>
+            </div>
+          )}
         </div>
 
       {/* Alt text display section */}
-      {showAltText && (
+      {!minimal && showAltText && (
         <div className="alt-text-inline-section">
           <div className="alt-text-header">
             <h3>Alt-Text für Barrierefreiheit</h3>
@@ -306,7 +414,14 @@ ImageDisplay.propTypes = {
   showEditButton: PropTypes.bool,
   title: PropTypes.string,
   downloadButtonText: PropTypes.string,
-  downloadFilename: PropTypes.string
+  downloadFilename: PropTypes.string,
+  enableKiLabel: PropTypes.bool,
+  onSharepicUpdate: PropTypes.func,
+  minimal: PropTypes.bool
+};
+
+ImageDisplay.defaultProps = {
+  minimal: false
 };
 
 export default ImageDisplay;

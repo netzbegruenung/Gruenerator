@@ -6,6 +6,7 @@
 
 const { extractUrlsFromContent, filterNewUrls, getUrlDomain } = require('./urlDetection.js');
 const { processAndBuildAttachments } = require('./attachmentUtils.js');
+const { extractLocaleFromRequest } = require('./localizationHelper.js');
 
 // Import services with fallback handling
 const { urlCrawlerService } = (() => {
@@ -29,9 +30,10 @@ class RequestEnricher {
    * Main enrichment method that orchestrates all content enrichment
    * @param {Object} requestBody - Original request from route
    * @param {Object} options - Enrichment options
+   * @param {Object} req - Express request object (for locale extraction)
    * @returns {Object} Enriched state ready for prompt assembly
    */
-  async enrichRequest(requestBody, options = {}) {
+  async enrichRequest(requestBody, options = {}, req = null) {
     const {
       type = 'universal',
       enableUrls = true,
@@ -52,12 +54,15 @@ class RequestEnricher {
       searchQuery = null
     } = options;
 
-    console.log(`🎯 [RequestEnricher] Starting enrichment (type=${type}, urls=${enableUrls}, search=${enableWebSearch}, privacy=${usePrivacyMode}, vectorSearch=${selectedDocumentIds.length > 0})`);
+    // Extract user locale for localization
+    const userLocale = req ? extractLocaleFromRequest(req) : 'de-DE';
+    console.log(`🎯 [RequestEnricher] Starting enrichment (type=${type}, urls=${enableUrls}, search=${enableWebSearch}, privacy=${usePrivacyMode}, vectorSearch=${selectedDocumentIds.length > 0}, locale=${userLocale})`);
 
-    // Initialize state with KnowledgeSelector content
+    // Initialize state with KnowledgeSelector content and locale
     const state = {
       type,
       provider: options.provider,
+      locale: userLocale,
       systemRole,
       constraints,
       formatting,
@@ -74,20 +79,31 @@ class RequestEnricher {
       searchQuery
     };
 
-    // Process attachments first (always enabled)
-    const attachmentResult = await this.processRequestAttachments(
-      requestBody.attachments,
-      usePrivacyMode,
-      type,
-      requestBody.userId || 'unknown'
-    );
+    // Check if document knowledge was already processed (from chat route)
+    if (requestBody.documentKnowledge) {
+      console.log('🎯 [RequestEnricher] Using pre-processed document knowledge from chat');
+      state.knowledge.push(requestBody.documentKnowledge);
+      state.enrichmentMetadata = {
+        ...state.enrichmentMetadata,
+        documentsPreProcessed: true
+      };
+      // Skip attachment processing since documents were already handled
+    } else {
+      // Process attachments (normal flow for non-chat routes)
+      const attachmentResult = await this.processRequestAttachments(
+        requestBody.attachments,
+        usePrivacyMode,
+        type,
+        requestBody.userId || 'unknown'
+      );
 
-    if (attachmentResult.error) {
-      throw new Error(`Attachment processing failed: ${attachmentResult.error}`);
-    }
+      if (attachmentResult.error) {
+        throw new Error(`Attachment processing failed: ${attachmentResult.error}`);
+      }
 
-    if (attachmentResult.documents) {
-      state.documents = [...attachmentResult.documents];
+      if (attachmentResult.documents) {
+        state.documents = [...attachmentResult.documents];
+      }
     }
 
     // Prepare parallel enrichment tasks
@@ -396,11 +412,12 @@ class RequestEnricher {
  * Main export function for routes
  * @param {Object} requestBody - Request body from route
  * @param {Object} options - Enrichment options
+ * @param {Object} req - Express request object (for locale extraction)
  * @returns {Object} Enriched state ready for prompt assembly
  */
-async function enrichRequest(requestBody, options = {}) {
+async function enrichRequest(requestBody, options = {}, req = null) {
   const enricher = new RequestEnricher();
-  return await enricher.enrichRequest(requestBody, options);
+  return await enricher.enrichRequest(requestBody, options, req);
 }
 
 module.exports = {
