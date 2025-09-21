@@ -34,6 +34,45 @@ const replaceTemplate = (template, data) => {
   });
 };
 
+// Attempt to turn slightly malformed JSON with raw newlines inside strings
+// into something `JSON.parse` can handle without silently dropping content.
+const repairJsonString = (raw) => {
+  if (typeof raw !== 'string') return raw;
+
+  let result = '';
+  let inString = false;
+  let escaped = false;
+
+  for (let i = 0; i < raw.length; i += 1) {
+    const char = raw[i];
+
+    if (char === '"' && !escaped) {
+      inString = !inString;
+    }
+
+    if (inString && (char === '\n' || char === '\r')) {
+      result += char === '\r' ? '\\r' : '\\n';
+      escaped = false;
+      continue;
+    }
+
+    result += char;
+
+    if (char === '\\' && !escaped) {
+      escaped = true;
+    } else {
+      escaped = false;
+    }
+  }
+
+  return result;
+};
+
+const sanitizeInfoField = (value) => {
+  if (typeof value !== 'string') return value;
+  return value.replace(/\*\*/g, '').trim();
+};
+
 // Normalize slightly messy model responses into valid JSON arrays
 const extractQuoteArray = (content) => {
   if (typeof content !== 'string') {
@@ -222,27 +261,51 @@ const handleZitatRequest = async (req, res) => {
 const handleZitatPureRequest = async (req, res) => {
   console.log('[sharepic_zitat_pure] Processing request directly');
 
-  const { thema, details, quote, name } = req.body;
+  const { thema, details, quote, name, count = 5 } = req.body;
+  const singleItem = count === 1;
 
   const systemRole = "Du bist ein erfahrener Social-Media-Manager für Bündnis 90/Die Grünen. Deine Aufgabe ist es, prägnante und aussagekräftige Zitate mit exakt 100-160 Zeichen im Stil von Bündnis 90/Die Grünen zu erstellen. Die Zitate sollen KEINE Hashtags enthalten und als klare, lesbare Aussagen formuliert sein. Achte penibel auf die Zeichenzahl! Gib die Zitate immer als JSON-Array zurück.";
 
   let requestTemplate;
-  if (thema && details) {
-    requestTemplate = `Erstelle 4 verschiedene Zitate zum Thema "${thema}" basierend auf folgenden Details: ${details}. Ist unter Details kein Inhalt, nimm nur das Thema. Die Zitate sollen:
-- Exakt 100-160 Zeichen lang sein (inklusive Leerzeichen und Satzzeichen)
-- KEINE Hashtags enthalten
-- Als klare, aussagekräftige Statements formuliert sein
-- Perfekt für das grüne Farbtemplate geeignet sein
-- Vollständige, bedeutungsvolle Aussagen sein
-Gib die Zitate in einem JSON-Array zurück, wobei jedes Objekt ein "quote" Feld hat. WICHTIG: Zähle die Zeichen genau!`;
+
+  if (singleItem) {
+    // JSON format for single item (more reliable parsing)
+    if (thema && details) {
+      requestTemplate = `Antworte ausschließlich im JSON-Format ohne zusätzlichen Text. Erstelle ein Zitat zum Thema "${thema}" basierend auf Details: ${details}. Das Zitat soll 100-160 Zeichen lang sein, KEINE Hashtags enthalten und als klare Aussage im Stil der Grünen formuliert sein.
+
+JSON-Format:
+{
+  "quote": "Das Zitat hier",
+  "name": ""
+}`;
+    } else {
+      requestTemplate = `Antworte ausschließlich im JSON-Format ohne zusätzlichen Text. Optimiere folgendes Zitat: "${quote}". Das Zitat soll 100-160 Zeichen lang sein, KEINE Hashtags enthalten und als klare Aussage im Stil der Grünen formuliert sein.
+
+JSON-Format:
+{
+  "quote": "Das optimierte Zitat hier",
+  "name": ""
+}`;
+    }
   } else {
-    requestTemplate = `Optimiere folgendes Zitat: "${quote}" und erstelle 3 weitere Varianten. Die Zitate sollen:
+    // Original format for multiple items (backward compatibility)
+    if (thema && details) {
+      requestTemplate = `Erstelle 4 verschiedene Zitate zum Thema "${thema}" basierend auf folgenden Details: ${details}. Ist unter Details kein Inhalt, nimm nur das Thema. Die Zitate sollen:
 - Exakt 100-160 Zeichen lang sein (inklusive Leerzeichen und Satzzeichen)
 - KEINE Hashtags enthalten
 - Als klare, aussagekräftige Statements formuliert sein
 - Perfekt für das grüne Farbtemplate geeignet sein
 - Vollständige, bedeutungsvolle Aussagen sein
 Gib die Zitate in einem JSON-Array zurück, wobei jedes Objekt ein "quote" Feld hat. WICHTIG: Zähle die Zeichen genau!`;
+    } else {
+      requestTemplate = `Optimiere folgendes Zitat: "${quote}" und erstelle 3 weitere Varianten. Die Zitate sollen:
+- Exakt 100-160 Zeichen lang sein (inklusive Leerzeichen und Satzzeichen)
+- KEINE Hashtags enthalten
+- Als klare, aussagekräftige Statements formuliert sein
+- Perfekt für das grüne Farbtemplate geeignet sein
+- Vollständige, bedeutungsvolle Aussagen sein
+Gib die Zitate in einem JSON-Array zurück, wobei jedes Objekt ein "quote" Feld hat. WICHTIG: Zähle die Zeichen genau!`;
+    }
   }
 
   try {
@@ -258,14 +321,38 @@ Gib die Zitate in einem JSON-Array zurück, wobei jedes Objekt ein "quote" Feld 
       return res.status(500).json({ success: false, error: result.error });
     }
 
-    // Parse the AI response to extract quotes
-    let quotes = extractQuoteArray(result.content);
-    if (!quotes || quotes.length === 0) {
-      quotes = [{ quote: (result.content || '').trim() }];
+    // Parse the AI response based on format
+    let quotes = [];
+    let quoteName = name || '';
+    console.log('[sharepic_zitat_pure] Result content:', result.content);
+
+    if (singleItem) {
+      // Parse JSON format for single item
+      try {
+        const jsonMatch = result.content.match(/\{[\s\S]*?\}/);
+        if (jsonMatch) {
+          const zitatData = JSON.parse(jsonMatch[0]);
+          quotes = [{ quote: zitatData.quote || '' }];
+          quoteName = zitatData.name || quoteName;
+          console.log('[sharepic_zitat_pure] Successfully parsed JSON format:', zitatData);
+        } else {
+          throw new Error('No JSON object found in response');
+        }
+      } catch (parseError) {
+        console.warn('[sharepic_zitat_pure] JSON parsing failed, using fallback:', parseError.message);
+        console.warn('[sharepic_zitat_pure] Using original quoteName from req.body:', quoteName);
+        quotes = [{ quote: (result.content || '').trim() }];
+      }
     } else {
-      quotes = quotes.map((item) =>
-        typeof item === 'string' ? { quote: item } : item
-      );
+      // Parse original format for multiple items
+      quotes = extractQuoteArray(result.content);
+      if (!quotes || quotes.length === 0) {
+        quotes = [{ quote: (result.content || '').trim() }];
+      } else {
+        quotes = quotes.map((item) =>
+          typeof item === 'string' ? { quote: item } : item
+        );
+      }
     }
 
     // Format response for frontend
@@ -276,7 +363,7 @@ Gib die Zitate in einem JSON-Array zurück, wobei jedes Objekt ein "quote" Feld 
       success: true,
       quote: firstQuote,
       alternatives: alternatives,
-      name: name || ''
+      name: quoteName
     });
   } catch (error) {
     console.error('[sharepic_zitat_pure] Error:', error);
@@ -387,11 +474,47 @@ Zeile 3: ${line3 || ''}
 const handleInfoRequest = async (req, res) => {
   console.log('[sharepic_info] Processing request directly');
 
-  const { thema, details } = req.body;
+  const { thema, details, count = 5 } = req.body;
+  const singleItem = count === 1;
 
   const systemRole = "Du bist ein erfahrener Kommunikationsexperte für Bündnis 90/Die Grünen. Deine Aufgabe ist es, strukturierte, informative Inhalte zu erstellen.";
 
-  let requestTemplate = `<context>
+  let requestTemplate;
+
+  if (singleItem) {
+    // Single item format with JSON response
+    requestTemplate = `<context>
+Du bist ein erfahrener Kommunikationsexperte für Bündnis 90/Die Grünen. Deine Aufgabe ist es, strukturierte Informations-Inhalte für Sharepics zu erstellen.
+</context>
+
+<instructions>
+Erstelle EIN strukturiertes Info-Element zum gegebenen Thema mit:
+- Einem Header: Die Hauptaussage/Behauptung (50-60 Zeichen)
+- Einem Subheader: Schlüsselfakt oder wichtigster Beleg (80-120 Zeichen)
+- Einem Body: Zusätzliche Details und Kontext (150-250 Zeichen)
+- Sachlich aber engaging
+- Die grüne Position klar vermittelnd
+- Faktisch fundiert und verständlich
+</instructions>
+
+<format>
+Antworte ausschließlich im JSON-Format:
+{
+  "header": "Hauptaussage (50-60 Zeichen)",
+  "subheader": "Wichtigster Beleg/Fakt (80-120 Zeichen)",
+  "body": "Zusätzliche Details (150-250 Zeichen)",
+  "searchTerm": "Suchbegriff für Hintergrundbild"
+}
+
+WICHTIG: Gib nur das JSON zurück, keine zusätzlichen Erklärungen oder Formatierungen.
+Verwende KEIN Markdown (keine **Fettschrift**, Listen, Links).
+Wenn du Zeilenumbrüche brauchst, gib sie als literales "\\n" innerhalb der Strings aus.
+</format>
+
+<task>`;
+  } else {
+    // Multiple items format (backward compatibility)
+    requestTemplate = `<context>
 Du bist ein erfahrener Kommunikationsexperte für Bündnis 90/Die Grünen. Deine Aufgabe ist es, strukturierte Informations-Inhalte für Sharepics zu erstellen.
 </context>
 
@@ -415,17 +538,32 @@ Erstelle 5 verschiedene strukturierte Info-Inhalte zum gegebenen Thema. Jeder In
 </format>
 
 <task>`;
+  }
 
   if (thema && details) {
-    requestTemplate += `
+    if (singleItem) {
+      requestTemplate += `
+Erstelle nun ein Info-Element basierend auf folgendem Input:
+<input>
+Thema: ${thema}
+Details: ${details}
+</input>`;
+    } else {
+      requestTemplate += `
 Erstelle nun fünf verschiedene Info-Inhalte basierend auf folgendem Input:
 <input>
 Thema: ${thema}
 Details: ${details}
 </input>`;
+    }
   } else {
-    requestTemplate += `
+    if (singleItem) {
+      requestTemplate += `
+Erstelle ein Info-Element basierend auf diesem Thema: ${thema || 'Umweltschutz'}`;
+    } else {
+      requestTemplate += `
 Erstelle Info-Inhalte basierend auf diesem Thema: ${thema || 'Umweltschutz'}`;
+    }
   }
 
   requestTemplate += `
@@ -444,34 +582,95 @@ Erstelle Info-Inhalte basierend auf diesem Thema: ${thema || 'Umweltschutz'}`;
       return res.status(500).json({ success: false, error: result.error });
     }
 
-    // Parse response to extract info items and search terms
+    // Adaptive parsing based on requested format
     const content = result.content;
-    const infos = [];
-    const searchTermMatch = content.match(/Suchbegriff[^:]*:(.+?)(?:\n|$)/i);
-    const searchTerms = searchTermMatch ? [searchTermMatch[1].trim()] : [];
+    let responseData;
 
-    // Extract info items
-    const infoMatches = content.matchAll(/Info \d+:\s*\nHeader:\s*([^\n]+)\s*\nSubheader:\s*([^\n]+)\s*\nBody:\s*([^\n]+)/gi);
-    for (const match of infoMatches) {
-      infos.push({
-        header: match[1].trim(),
-        subheader: match[2].trim(),
-        body: match[3].trim()
-      });
+    if (singleItem) {
+      // Parse JSON response for single item
+      try {
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const rawJson = jsonMatch[0];
+          const repairedJson = repairJsonString(rawJson);
+          const infoData = JSON.parse(repairedJson);
+
+          const header = sanitizeInfoField(infoData.header);
+          const subheader = sanitizeInfoField(infoData.subheader);
+          const body = sanitizeInfoField(infoData.body);
+          const searchTerm = sanitizeInfoField(infoData.searchTerm);
+
+          // Validate required fields
+          if (!header || !subheader || !body) {
+            throw new Error('Missing required fields in JSON response');
+          }
+
+          console.log('[sharepic_info] Successfully parsed single item JSON:', {
+            header,
+            subheader,
+            body,
+            searchTerm
+          });
+
+          responseData = {
+            success: true,
+            header,
+            subheader,
+            body,
+            alternatives: [], // No alternatives for single item
+            searchTerms: searchTerm ? [searchTerm] : []
+          };
+        } else {
+          throw new Error('No JSON found in single item response');
+        }
+      } catch (parseError) {
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        const previewSource = jsonMatch ? repairJsonString(jsonMatch[0]) : content;
+        const preview = typeof previewSource === 'string'
+          ? previewSource.replace(/\s+/g, ' ').slice(0, 200)
+          : '';
+        const previewSuffix = previewSource && previewSource.length > 200 ? '…' : '';
+
+        console.error('[sharepic_info] Failed to parse single item JSON:', parseError.message);
+        console.error('[sharepic_info] Raw content preview:', preview);
+
+        // Return error for single item parsing failure
+        return res.status(500).json({
+          success: false,
+          error: `Single item parsing failed: ${parseError.message}. Snippet: ${preview}${previewSuffix}`
+        });
+      }
+    } else {
+      // Parse multiple items using existing regex (backward compatibility)
+      const infos = [];
+      const searchTermMatch = content.match(/Suchbegriff[^:]*:(.+?)(?:\n|$)/i);
+      const searchTerms = searchTermMatch ? [searchTermMatch[1].trim()] : [];
+
+      // Extract info items
+      const infoMatches = content.matchAll(/Info \d+:\s*\nHeader:\s*([^\n]+)\s*\nSubheader:\s*([^\n]+)\s*\nBody:\s*([^\n]+)/gi);
+      for (const match of infoMatches) {
+        infos.push({
+          header: match[1].trim(),
+          subheader: match[2].trim(),
+          body: match[3].trim()
+        });
+      }
+
+      // Format for frontend - first item as main, rest as alternatives
+      const firstInfo = infos[0] || { header: '', subheader: '', body: '' };
+      const alternatives = infos.slice(1);
+
+      responseData = {
+        success: true,
+        header: firstInfo.header,
+        subheader: firstInfo.subheader,
+        body: firstInfo.body,
+        alternatives: alternatives,
+        searchTerms: searchTerms
+      };
     }
 
-    // Format for frontend - first item as main, rest as alternatives
-    const firstInfo = infos[0] || { header: '', subheader: '', body: '' };
-    const alternatives = infos.slice(1);
-
-    res.json({
-      success: true,
-      header: firstInfo.header,
-      subheader: firstInfo.subheader,
-      body: firstInfo.body,
-      alternatives: alternatives,
-      searchTerms: searchTerms
-    });
+    res.json(responseData);
   } catch (error) {
     console.error('[sharepic_info] Error:', error);
     res.status(500).json({ success: false, error: error.message });

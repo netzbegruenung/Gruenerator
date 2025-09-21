@@ -94,6 +94,13 @@ export const getMenuItems = (betaFeatures = {}) => {
           icon: getIcon('navigation', 'suche')
         },
         {
+          id: 'chat',
+          path: '/chat',
+          title: 'Chat',
+          description: 'KI-Assistent für alle Textarten',
+          icon: getIcon('ui', 'assistant')
+        },
+        {
           id: 'barrierefreiheit',
           path: '/barrierefreiheit',
           title: 'Barrierefreiheit',

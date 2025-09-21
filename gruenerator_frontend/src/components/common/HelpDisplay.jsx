@@ -56,32 +56,35 @@ const HelpDisplay = ({ content, tips, forceHidden, hasGeneratedContent }) => {
               {tips.map((tip, index) => (
                 <li key={index}>
                   {(() => {
-                    // Check if tip contains "Bei X:" pattern with formats
-                    const beiMatch = tip.match(/^(Bei [^:]+:\s*)(.+)$/);
-                    if (beiMatch && beiMatch[2].includes(' - ')) {
-                      const [, prefix, rest] = beiMatch;
-                      const parts = rest.split(' - ');
-                      const description = parts[0];
-                      const formats = parts[1];
+                    // Only attempt pattern matching if tip is a string
+                    if (typeof tip === 'string') {
+                      // Check if tip contains "Bei X:" pattern with formats
+                      const beiMatch = tip.match(/^(Bei [^:]+:\s*)(.+)$/);
+                      if (beiMatch && beiMatch[2].includes(' - ')) {
+                        const [, prefix, rest] = beiMatch;
+                        const parts = rest.split(' - ');
+                        const description = parts[0];
+                        const formats = parts[1];
 
-                      // Check if formats contain comma-separated items
-                      if (formats && formats.includes(', ')) {
-                        const formatItems = formats.split(', ').map(item => item.trim());
-                        return (
-                          <>
-                            <strong>{prefix}</strong>
-                            {description}
-                            <ul style={{marginTop: '4px'}}>
-                              {formatItems.map((format, idx) => (
-                                <li key={idx}>{format}</li>
-                              ))}
-                            </ul>
-                          </>
-                        );
+                        // Check if formats contain comma-separated items
+                        if (formats && formats.includes(', ')) {
+                          const formatItems = formats.split(', ').map(item => item.trim());
+                          return (
+                            <>
+                              <strong>{prefix}</strong>
+                              {description}
+                              <ul style={{marginTop: '4px'}}>
+                                {formatItems.map((format, idx) => (
+                                  <li key={idx}>{format}</li>
+                                ))}
+                              </ul>
+                            </>
+                          );
+                        }
                       }
                     }
 
-                    // Otherwise return tip as-is
+                    // Otherwise return tip as-is (string or JSX element)
                     return tip;
                   })()}
                 </li>

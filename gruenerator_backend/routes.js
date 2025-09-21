@@ -14,6 +14,7 @@ const zitatSharepicCanvasRoute = require('./routes/sharepic/sharepic_canvas/zita
 const zitatPureSharepicCanvasRoute = require('./routes/sharepic/sharepic_canvas/zitat_pure_canvas');
 const headlineSharepicCanvasRoute = require('./routes/sharepic/sharepic_canvas/headline_canvas');
 const infoSharepicCanvasRoute = require('./routes/sharepic/sharepic_canvas/info_canvas');
+const imagineLabelCanvasRoute = require('./routes/sharepic/sharepic_canvas/imagine_label_canvas');
 const sharepicClaudeRoute = require('./routes/sharepic/sharepic_claude/sharepic_claude');
 const aiImageModificationRouter = require('./routes/sharepic/sharepic_canvas/aiImageModification');
 const imageUploadRouter = require('./routes/sharepic/sharepic_canvas/imageUploadRouter');
@@ -24,12 +25,11 @@ const claudeSuggestEditsRoute = require('./routes/claude_suggest_edits');
 const etherpadRoute = require('./routes/etherpad/etherpadController');
 const claudeKandidatRoute = require('./routes/claude_kandidat');
 const claudeGrueneJugendRoute = require('./routes/claude_gruene_jugend');
-const claudeYouRoute = require('./routes/claude_you');
 const searchRouter = require('./routes/search/searchRoutes');
 const searchAnalysisRouter = require('./routes/search/searchAnalysis');
 const subtitlerRouter = require('./routes/subtitler/subtitlerController');
 const subtitlerSocialRouter = require('./routes/subtitler/subtitlerSocialController');
-// const voiceRouter = require('./routes/voice/voiceController'); // COMMENTED OUT - nodejs-whisper dependency missing
+// voiceRouter now imported and enabled below
 // customGeneratorRoute and generatorConfiguratorRoute will be imported as ES6 modules
 // const customGeneratorRoute = require('./routes/custom_generator');
 // const generatorConfiguratorRoute = require('./routes/generator_configurator');
@@ -151,6 +151,10 @@ async function setupRoutes(app) {
   app.use('/api/claude_buergeranfragen', buergeranfragenRouter);
   app.use('/api/claude_chat', claudeChatRoute);
   app.use('/api/claude_suggest_edits', claudeSuggestEditsRoute);
+
+  // Grünerator Chat - Unified chat interface for all agents
+  const { default: grueneratorChatRoute } = await import('./routes/chat/grueneratorChat.js');
+  app.use('/api/chat', grueneratorChatRoute);
   app.use('/api/antragsversteher', antragsversteherRoute);
   app.use('/api/wahlpruefsteinbundestagswahl', wahlpruefsteinBundestagswahlRoute);
   app.use('/api/dreizeilen_canvas', sharepicDreizeilenCanvasRoute);
@@ -158,6 +162,7 @@ async function setupRoutes(app) {
   app.use('/api/zitat_pure_canvas', zitatPureSharepicCanvasRoute);
   app.use('/api/headline_canvas', headlineSharepicCanvasRoute);
   app.use('/api/info_canvas', infoSharepicCanvasRoute);
+  app.use('/api/imagine_label_canvas', imagineLabelCanvasRoute);
   app.use('/api/dreizeilen_claude', sharepicClaudeRoute);
   app.use('/api/sharepic/edit-session', editSessionRouter);
   
@@ -279,7 +284,6 @@ async function setupRoutes(app) {
   app.use('/api/claude_universal', universalRouter);
   app.use('/api/claude_gruene_jugend', claudeGrueneJugendRoute);
   app.use('/api/claude_gruenerator_ask', claudeGrueneratorAskRoute);
-  app.use('/api/you', claudeYouRoute);
   app.use('/api/custom_generator', customGeneratorRoute); // Public access for view operations
   app.use('/api/auth/custom_generator', customGeneratorRoute); // Authenticated access for management operations
   app.use('/api/generate_generator_config', generatorConfiguratorRoute);
@@ -287,7 +291,10 @@ async function setupRoutes(app) {
 
   app.use('/api/subtitler', subtitlerRouter);
   app.use('/api/subtitler', subtitlerSocialRouter);
-  // app.use('/api/voice', voiceRouter); // COMMENTED OUT - nodejs-whisper dependency missing
+
+  // Import and enable Mistral-based voice routes
+  const voiceRouter = require('./routes/voice/voiceController');
+  app.use('/api/voice', voiceRouter);
 
   // Unified LangGraph-based search system
   app.use('/api/search', searchRouter); // Handles /, /deep-research, /analyze endpoints

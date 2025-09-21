@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS profiles (
     presseabbinder TEXT,
     custom_antrag_gliederung TEXT,
     auth_source TEXT,
+    locale TEXT DEFAULT 'de-DE' CHECK (locale IN ('de-DE', 'de-AT')),
     bundestag_api_enabled BOOLEAN DEFAULT FALSE,
     canva_access_token TEXT,
     canva_refresh_token TEXT,
@@ -405,6 +406,7 @@ CREATE TABLE IF NOT EXISTS grundsatz_documents (
 CREATE INDEX IF NOT EXISTS idx_profiles_email ON profiles(email);
 CREATE INDEX IF NOT EXISTS idx_profiles_keycloak_id ON profiles(keycloak_id);
 CREATE INDEX IF NOT EXISTS idx_profiles_username ON profiles(username);
+CREATE INDEX IF NOT EXISTS idx_profiles_locale ON profiles(locale);
 
 CREATE INDEX IF NOT EXISTS idx_documents_user_id ON documents(user_id);
 CREATE INDEX IF NOT EXISTS idx_documents_status ON documents(status);

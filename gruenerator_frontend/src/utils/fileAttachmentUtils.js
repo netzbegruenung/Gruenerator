@@ -52,10 +52,14 @@ export const validateFile = (file) => {
  * @returns {boolean} True if all valid
  */
 export const validateFiles = (files) => {
+  console.log('[fileAttachmentUtils] Validating files:', files?.length || 0, 'files');
+
   if (!Array.isArray(files) || files.length === 0) {
+    console.error('[fileAttachmentUtils] No files provided');
     throw new Error('Keine Dateien ausgewählt');
   }
 
+  console.log('[fileAttachmentUtils] Validating individual files...');
   // Validate individual files
   for (const file of files) {
     validateFile(file);
@@ -63,12 +67,16 @@ export const validateFiles = (files) => {
 
   // Check total size
   const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+  console.log('[fileAttachmentUtils] Total file size:', totalSize, 'bytes');
+
   if (totalSize > MAX_TOTAL_SIZE) {
     const totalSizeMB = Math.round(totalSize / (1024 * 1024));
     const maxTotalSizeMB = Math.round(MAX_TOTAL_SIZE / (1024 * 1024));
+    console.error('[fileAttachmentUtils] Total size too large:', totalSizeMB, 'MB >', maxTotalSizeMB, 'MB');
     throw new Error(`Gesamtgröße zu groß: ${totalSizeMB}MB. Maximum: ${maxTotalSizeMB}MB`);
   }
 
+  console.log('[fileAttachmentUtils] Files validated successfully');
   return true;
 };
 
@@ -105,19 +113,24 @@ export const fileToBase64 = (file) => {
  * @returns {Promise<Object[]>} Array of processed file objects
  */
 export const prepareFilesForSubmission = async (files) => {
+  console.log('[fileAttachmentUtils] Starting file preparation:', files?.length || 0, 'files');
+  console.log('[fileAttachmentUtils] Files to process:', files?.map(f => ({ name: f.name, type: f.type, size: f.size })) || []);
+
   // Validate all files first
   validateFiles(files);
-  
+
   const processedFiles = [];
-  
+
   try {
     // Process files sequentially to avoid memory issues
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      
-      console.log(`Processing file ${i + 1}/${files.length}: ${file.name}`);
-      
+
+      console.log(`[fileAttachmentUtils] Processing file ${i + 1}/${files.length}: ${file.name}`);
+      console.log(`[fileAttachmentUtils] File details:`, { name: file.name, type: file.type, size: file.size });
+
       const base64Data = await fileToBase64(file);
+      console.log(`[fileAttachmentUtils] File ${file.name} converted to base64, size:`, base64Data?.length || 0);
       
       processedFiles.push({
         name: file.name,

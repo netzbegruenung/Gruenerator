@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import SearchBar from '../../search/components/SearchBar';
-import GalleryLayout from '../../../components/common/Gallery/GalleryLayout';
 import BundestagDocumentCard from './BundestagDocumentCard';
 import useBundestagSearch from '../hooks/useBundestagSearch';
 import ErrorBoundary from '../../../components/ErrorBoundary';
@@ -311,11 +310,15 @@ const BundestagSearchPage = () => {
   return (
     <ErrorBoundary>
       <div className="bundestag-search-page">
-        <GalleryLayout
-          title="Bundestag-Dokumentensuche"
-          introText="Durchsuchen Sie Drucksachen, Plenarprotokolle und Vorgänge des Deutschen Bundestags"
-          mainSearchBar={searchBarElement}
-        >
+        <div className="gallery-layout">
+          <div className="gallery-header">
+            <h1>Bundestag-Dokumentensuche</h1>
+            <p>Durchsuchen Sie Drucksachen, Plenarprotokolle und Vorgänge des Deutschen Bundestags</p>
+            <div className="gallery-main-searchbar-section">
+              {searchBarElement}
+            </div>
+          </div>
+          <div className="gallery-content">
           {/* Save messages */}
           {saveMessage && (
             <div className="search-success" style={{ marginBottom: 'var(--spacing-medium)' }}>
@@ -399,7 +402,8 @@ const BundestagSearchPage = () => {
               })}
             </>
           )}
-        </GalleryLayout>
+          </div>
+        </div>
       </div>
     </ErrorBoundary>
   );
