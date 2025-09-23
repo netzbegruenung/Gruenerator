@@ -1,5 +1,7 @@
 const express = require('express');
 const router = express.Router();
+const prompts = require('../../../prompts/sharepic');
+const aiShortenerService = require('../../../services/aiShortenerService');
 
 // Template helper function to replace placeholders
 const replaceTemplate = (template, data) => {
@@ -104,99 +106,170 @@ const extractQuoteArray = (content) => {
   }
 };
 
-// Handler for dreizeilen type
-const handleDreizeilenRequest = async (req, res) => {
-  console.log('[sharepic_dreizeilen] Processing request directly');
+// Helper function to parse dreizeilen response
+const parseDreizeilenResponse = (content) => {
+  const lines = content.split('\n').filter(line => line.trim() && !line.toLowerCase().includes('suchbegriff'));
 
-  const { thema, details, line1, line2, line3 } = req.body;
+  // Find three consecutive lines that look like slogans (short lines)
+  for (let i = 0; i < lines.length - 2; i++) {
+    const line1 = lines[i].trim();
+    const line2 = lines[i + 1].trim();
+    const line3 = lines[i + 2].trim();
 
-  const systemRole = "Du bist ein erfahrener Texter für Bündnis 90/Die Grünen. Deine Aufgabe ist es, kurze, prägnante Slogans für Sharepics zu erstellen.";
-
-  let requestTemplate = `<context>
-Du bist ein erfahrener Texter für Bündnis 90/Die Grünen. Deine Aufgabe ist es, kurze, prägnante Slogans für Sharepics zu erstellen.
-</context>
-
-<instructions>
-Erstelle 5 verschiedene prägnante, zusammenhängende Slogans zum gegebenen Thema. Jeder Slogan soll:
-- Einen durchgängigen Gedanken oder eine Botschaft über drei Zeilen vermitteln
-- Die Werte der Grünen widerspiegeln
-- Inspirierend und zukunftsorientiert sein
-- Für eine breite Zielgruppe geeignet sein
-- Fachbegriffe und komplexe Satzkonstruktionen vermeiden
-</instructions>
-
-<format>
-- Formuliere jeden Slogan als einen zusammenhängenden Satz oder Gedanken
-- Teile jeden Satz auf drei Zeilen auf
-- Maximal 15 Zeichen pro Zeile, inklusive Leerzeichen
-- Die Slogans sollten auch beim Lesen über die Zeilenumbrüche hinweg Sinn ergeben und flüssig sein
-- Vermeide Bindestriche oder andere Satzzeichen am Ende der Zeilen
-- Gib die Slogans im Format "Slogan 1:", "Slogan 2:" etc. aus
-- Schlage zusätzlich ein Wort als Suchbegriff für ein passendes Unsplash-Hintergrundbild vor
-- Das Bild soll präzise zum Thema passen
-</format>
-
-<task>`;
-
-  if (thema && details) {
-    requestTemplate += `
-Erstelle nun fünf verschiedene Slogans basierend auf folgendem Input:
-<input>
-Thema: ${thema}
-Details: ${details}
-</input>`;
-  } else {
-    requestTemplate += `
-Optimiere diese Zeilen zu fünf verschiedenen Slogans:
-<input>
-Zeile 1: ${line1 || ''}
-Zeile 2: ${line2 || ''}
-Zeile 3: ${line3 || ''}
-</input>`;
+    // Check if these lines look like slogan lines (max 15 chars and not descriptive text)
+    if (line1.length > 0 && line1.length <= 15 &&
+        line2.length > 0 && line2.length <= 15 &&
+        line3.length > 0 && line3.length <= 15 &&
+        !line1.toLowerCase().includes('slogan') &&
+        !line1.toLowerCase().includes('zeile') &&
+        !line1.startsWith('**') &&
+        !line1.includes('suchbegriff')) {
+      return { line1, line2, line3 };
+    }
   }
 
-  requestTemplate += `
-</task>`;
+  return { line1: '', line2: '', line3: '' };
+};
+
+// Helper function to check if slogan is valid
+const isSloganValid = (slogan) => {
+  return slogan.line1 && slogan.line2 && slogan.line3;
+};
+
+// Helper function to check if info post is valid (character limits)
+const isInfoValid = (info) => {
+  if (!info.header || !info.subheader || !info.body) {
+    return false;
+  }
+
+  const headerLength = info.header.length;
+  const subheaderLength = info.subheader.length;
+  const bodyLength = info.body.length;
+
+  return headerLength >= 50 && headerLength <= 60 &&
+         subheaderLength >= 80 && subheaderLength <= 120 &&
+         bodyLength >= 150 && bodyLength <= 250;
+};
+
+// Handler for dreizeilen type
+const handleDreizeilenRequest = async (req, res) => {
+
+  const { thema, details, line1, line2, line3, count = 1 } = req.body;
+  const singleItem = count === 1;
+
+  const config = prompts.dreizeilen;
+  const systemRole = config.systemRole;
+
+  const getRequestTemplate = () => {
+    const template = singleItem ? config.singleItemTemplate : config.requestTemplate;
+    return replaceTemplate(template, { thema, details, line1, line2, line3 });
+  };
 
   try {
-    const result = await req.app.locals.aiWorkerPool.processRequest({
-      type: 'sharepic_dreizeilen',
-      systemPrompt: systemRole,
-      messages: [{ role: 'user', content: requestTemplate }],
-      options: { max_tokens: 4000, temperature: 1.0 }
-    }, req);
+    let attempts = 0;
+    const maxAttempts = 3;
+    let mainSlogan = { line1: '', line2: '', line3: '' };
+    let searchTerms = [];
 
-    if (!result.success) {
-      console.error('[sharepic_dreizeilen] AI Worker error:', result.error);
-      return res.status(500).json({ success: false, error: result.error });
+    // Retry loop for AI generation
+    while (attempts < maxAttempts) {
+      attempts++;
+
+      const requestTemplate = getRequestTemplate();
+
+      const requestOptions = config.options;
+
+      const result = await req.app.locals.aiWorkerPool.processRequest({
+        type: 'sharepic_dreizeilen',
+        systemPrompt: systemRole,
+        messages: [{ role: 'user', content: requestTemplate }],
+        options: requestOptions
+      }, req);
+
+      if (!result.success) {
+        console.error(`[sharepic_dreizeilen] AI Worker error on attempt ${attempts}:`, result.error);
+        if (attempts === maxAttempts) {
+          return res.status(500).json({ success: false, error: result.error });
+        }
+        continue;
+      }
+
+      // Parse response to extract slogans and search terms
+      const content = result.content;
+
+      const searchTermMatch = content.match(/Suchbegriff[^:]*:(.+?)(?:\n|$)/i);
+      searchTerms = searchTermMatch ? [searchTermMatch[1].trim()] : [];
+
+      if (singleItem) {
+        // Parse single item response
+        mainSlogan = parseDreizeilenResponse(content);
+
+        // Check if parsing succeeded
+        if (isSloganValid(mainSlogan)) {
+          break;
+        }
+      } else {
+        // Handle multiple slogans (original behavior)
+        const slogans = [];
+        const sloganMatches = content.matchAll(/\*\*Slogan \d+:\*\*\s*\n([^\n]+)\n([^\n]+)\n([^\n]+)/g);
+        for (const match of sloganMatches) {
+          slogans.push({
+            line1: match[1].trim(),
+            line2: match[2].trim(),
+            line3: match[3].trim()
+          });
+        }
+
+        mainSlogan = slogans[0] || { line1: '', line2: '', line3: '' };
+        if (isSloganValid(mainSlogan)) {
+          const alternatives = slogans.slice(1);
+
+          return res.json({
+            success: true,
+            mainSlogan: mainSlogan,
+            alternatives: alternatives,
+            searchTerms: searchTerms
+          });
+        }
+      }
     }
 
-    // Parse response to extract slogans and search terms
-    const content = result.content;
-    const slogans = [];
-    const searchTermMatch = content.match(/Suchbegriff[^:]*:(.+?)(?:\n|$)/i);
-    const searchTerms = searchTermMatch ? [searchTermMatch[1].trim()] : [];
+    // After all attempts, check if we have a valid result
+    if (!isSloganValid(mainSlogan)) {
+      console.log(`[sharepic_dreizeilen] Main attempts failed, trying AI shortener fallback`);
 
-    // Extract slogans
-    const sloganMatches = content.matchAll(/Slogan \d+:\s*\n([^\n]+)\n([^\n]+)\n([^\n]+)/g);
-    for (const match of sloganMatches) {
-      slogans.push({
-        line1: match[1].trim(),
-        line2: match[2].trim(),
-        line3: match[3].trim()
+      // Try AI shortener as fallback
+      try {
+        const shortenedSlogan = await aiShortenerService.shortenSharepicText('dreizeilen', mainSlogan, req);
+
+        if (isSloganValid(shortenedSlogan)) {
+          console.log(`[sharepic_dreizeilen] AI shortener successful:`, JSON.stringify(shortenedSlogan));
+          return res.json({
+            success: true,
+            mainSlogan: shortenedSlogan,
+            alternatives: [],
+            searchTerms: searchTerms
+          });
+        }
+      } catch (shortenerError) {
+        console.error(`[sharepic_dreizeilen] AI shortener error:`, shortenerError);
+      }
+
+      console.error(`[sharepic_dreizeilen] Failed to generate valid dreizeilen after ${maxAttempts} attempts and AI shortener`);
+      return res.status(500).json({
+        success: false,
+        error: `Failed to generate valid dreizeilen after ${maxAttempts} attempts and AI shortener`
       });
     }
 
-    // Format for frontend
-    const mainSlogan = slogans[0] || { line1: '', line2: '', line3: '' };
-    const alternatives = slogans.slice(1);
-
+    // Return successful single item result
     res.json({
       success: true,
       mainSlogan: mainSlogan,
-      alternatives: alternatives,
+      alternatives: [],
       searchTerms: searchTerms
     });
+
   } catch (error) {
     console.error('[sharepic_dreizeilen] Error:', error);
     res.status(500).json({ success: false, error: error.message });
@@ -205,25 +278,24 @@ Zeile 3: ${line3 || ''}
 
 // Handler for zitat type
 const handleZitatRequest = async (req, res) => {
-  console.log('[sharepic_zitat] Processing request directly');
 
-  const { thema, details, quote, name } = req.body;
+  const { thema, details, quote, name, count = 1 } = req.body;
+  const singleItem = count === 1;
 
-  const systemRole = "Du bist ein erfahrener Social-Media-Manager für Bündnis 90/Die Grünen. Deine Aufgabe ist es, prägnante und aussagekräftige Zitate mit maximal 140 Zeichen im Stil von Bündnis 90/Die Grünen zu erstellen. Die Zitate sollen KEINE Hashtags enthalten und als klare, lesbare Aussagen formuliert sein. Gib die Zitate immer als JSON-Array zurück.";
+  const config = prompts.zitat;
+  const systemRole = config.systemRole;
 
-  let requestTemplate;
-  if (thema && details) {
-    requestTemplate = `Erstelle 4 verschiedene Zitate zum Thema "${thema}" basierend auf folgenden Details: ${details}. Ist unter Details kein Inhalt, nimm nur das Thema. Die Zitate sollen KEINE Hashtags enthalten und als klare, aussagekräftige Statements formuliert sein. Gib die Zitate in einem JSON-Array zurück, wobei jedes Objekt ein "quote" Feld hat.`;
-  } else {
-    requestTemplate = `Optimiere folgendes Zitat: "${quote}" und erstelle 3 weitere Varianten. Die Zitate sollen KEINE Hashtags enthalten und als klare, aussagekräftige Statements formuliert sein. Gib die Zitate in einem JSON-Array zurück, wobei jedes Objekt ein "quote" Feld hat.`;
-  }
+  const requestTemplate = replaceTemplate(
+    singleItem ? config.singleItemTemplate : config.requestTemplate,
+    { thema, details, quote, name }
+  );
 
   try {
     const result = await req.app.locals.aiWorkerPool.processRequest({
       type: 'sharepic_zitat',
       systemPrompt: systemRole,
       messages: [{ role: 'user', content: requestTemplate }],
-      options: { max_tokens: 1000, temperature: 0.7 }
+      options: config.options
     }, req);
 
     if (!result.success) {
@@ -232,18 +304,81 @@ const handleZitatRequest = async (req, res) => {
     }
 
     // Parse the AI response to extract quotes
-    let quotes = extractQuoteArray(result.content);
-    if (!quotes || quotes.length === 0) {
-      quotes = [{ quote: (result.content || '').trim() }];
-    } else {
-      quotes = quotes.map((item) =>
-        typeof item === 'string' ? { quote: item } : item
-      );
-    }
+    let quotes = [];
+    let firstQuote = '';
+    let alternatives = [];
 
-    // Format response for frontend
-    const firstQuote = quotes[0]?.quote || (result.content || '').trim();
-    const alternatives = quotes.slice(1);
+    if (singleItem) {
+      // For single item, try to parse JSON object first
+      try {
+        const jsonMatch = result.content.match(/\{[^}]*"quote"\s*:\s*"[^"]+"\s*[^}]*\}/);
+        if (jsonMatch) {
+          const quoteData = JSON.parse(jsonMatch[0]);
+          firstQuote = quoteData.quote || '';
+        } else {
+          // Fallback: extract quote from content
+          firstQuote = (result.content || '').trim();
+        }
+        alternatives = []; // No alternatives for single item
+
+        // Check if quote exceeds 140 characters and use shortener if needed
+        if (firstQuote.length > 140) {
+          console.log(`[sharepic_zitat] Quote too long (${firstQuote.length} chars), using shortener`);
+          try {
+            const shortenedResult = await aiShortenerService.shortenSharepicText('zitat', { quote: firstQuote, name }, req);
+            firstQuote = shortenedResult.quote;
+            console.log(`[sharepic_zitat] Quote shortened to ${firstQuote.length} chars`);
+          } catch (shortenerError) {
+            console.error(`[sharepic_zitat] Shortener error:`, shortenerError);
+            // Fallback truncation
+            firstQuote = firstQuote.substring(0, 137) + '...';
+          }
+        }
+
+      } catch (parseError) {
+        console.warn('[sharepic_zitat] Single item JSON parsing failed, using fallback:', parseError.message);
+        firstQuote = (result.content || '').trim();
+        alternatives = [];
+
+        // Apply shortener to fallback as well if needed
+        if (firstQuote.length > 140) {
+          try {
+            const shortenedResult = await aiShortenerService.shortenSharepicText('zitat', { quote: firstQuote, name }, req);
+            firstQuote = shortenedResult.quote;
+          } catch (shortenerError) {
+            console.error(`[sharepic_zitat] Shortener error in fallback:`, shortenerError);
+            firstQuote = firstQuote.substring(0, 137) + '...';
+          }
+        }
+      }
+    } else {
+      // Multiple items (original behavior)
+      quotes = extractQuoteArray(result.content);
+      if (!quotes || quotes.length === 0) {
+        quotes = [{ quote: (result.content || '').trim() }];
+      } else {
+        quotes = quotes.map((item) =>
+          typeof item === 'string' ? { quote: item } : item
+        );
+      }
+
+      // Apply shortener to all quotes if any exceed 140 chars
+      for (let i = 0; i < quotes.length; i++) {
+        if (quotes[i].quote && quotes[i].quote.length > 140) {
+          console.log(`[sharepic_zitat] Quote ${i} too long (${quotes[i].quote.length} chars), using shortener`);
+          try {
+            const shortenedResult = await aiShortenerService.shortenSharepicText('zitat', { quote: quotes[i].quote, name }, req);
+            quotes[i].quote = shortenedResult.quote;
+          } catch (shortenerError) {
+            console.error(`[sharepic_zitat] Shortener error for quote ${i}:`, shortenerError);
+            quotes[i].quote = quotes[i].quote.substring(0, 137) + '...';
+          }
+        }
+      }
+
+      firstQuote = quotes[0]?.quote || (result.content || '').trim();
+      alternatives = quotes.slice(1);
+    }
 
     res.json({
       success: true,
@@ -261,59 +396,23 @@ const handleZitatRequest = async (req, res) => {
 const handleZitatPureRequest = async (req, res) => {
   console.log('[sharepic_zitat_pure] Processing request directly');
 
-  const { thema, details, quote, name, count = 5 } = req.body;
+  const { thema, details, quote, name, count = 5, preserveName = false } = req.body;
   const singleItem = count === 1;
 
-  const systemRole = "Du bist ein erfahrener Social-Media-Manager für Bündnis 90/Die Grünen. Deine Aufgabe ist es, prägnante und aussagekräftige Zitate mit exakt 100-160 Zeichen im Stil von Bündnis 90/Die Grünen zu erstellen. Die Zitate sollen KEINE Hashtags enthalten und als klare, lesbare Aussagen formuliert sein. Achte penibel auf die Zeichenzahl! Gib die Zitate immer als JSON-Array zurück.";
+  const config = prompts.zitat_pure;
+  const systemRole = config.systemRole;
 
-  let requestTemplate;
-
-  if (singleItem) {
-    // JSON format for single item (more reliable parsing)
-    if (thema && details) {
-      requestTemplate = `Antworte ausschließlich im JSON-Format ohne zusätzlichen Text. Erstelle ein Zitat zum Thema "${thema}" basierend auf Details: ${details}. Das Zitat soll 100-160 Zeichen lang sein, KEINE Hashtags enthalten und als klare Aussage im Stil der Grünen formuliert sein.
-
-JSON-Format:
-{
-  "quote": "Das Zitat hier",
-  "name": ""
-}`;
-    } else {
-      requestTemplate = `Antworte ausschließlich im JSON-Format ohne zusätzlichen Text. Optimiere folgendes Zitat: "${quote}". Das Zitat soll 100-160 Zeichen lang sein, KEINE Hashtags enthalten und als klare Aussage im Stil der Grünen formuliert sein.
-
-JSON-Format:
-{
-  "quote": "Das optimierte Zitat hier",
-  "name": ""
-}`;
-    }
-  } else {
-    // Original format for multiple items (backward compatibility)
-    if (thema && details) {
-      requestTemplate = `Erstelle 4 verschiedene Zitate zum Thema "${thema}" basierend auf folgenden Details: ${details}. Ist unter Details kein Inhalt, nimm nur das Thema. Die Zitate sollen:
-- Exakt 100-160 Zeichen lang sein (inklusive Leerzeichen und Satzzeichen)
-- KEINE Hashtags enthalten
-- Als klare, aussagekräftige Statements formuliert sein
-- Perfekt für das grüne Farbtemplate geeignet sein
-- Vollständige, bedeutungsvolle Aussagen sein
-Gib die Zitate in einem JSON-Array zurück, wobei jedes Objekt ein "quote" Feld hat. WICHTIG: Zähle die Zeichen genau!`;
-    } else {
-      requestTemplate = `Optimiere folgendes Zitat: "${quote}" und erstelle 3 weitere Varianten. Die Zitate sollen:
-- Exakt 100-160 Zeichen lang sein (inklusive Leerzeichen und Satzzeichen)
-- KEINE Hashtags enthalten
-- Als klare, aussagekräftige Statements formuliert sein
-- Perfekt für das grüne Farbtemplate geeignet sein
-- Vollständige, bedeutungsvolle Aussagen sein
-Gib die Zitate in einem JSON-Array zurück, wobei jedes Objekt ein "quote" Feld hat. WICHTIG: Zähle die Zeichen genau!`;
-    }
-  }
+  const requestTemplate = replaceTemplate(
+    singleItem ? config.singleItemTemplate : config.requestTemplate,
+    { thema, details, quote, name, preserveName }
+  );
 
   try {
     const result = await req.app.locals.aiWorkerPool.processRequest({
       type: 'sharepic_zitat_pure',
       systemPrompt: systemRole,
       messages: [{ role: 'user', content: requestTemplate }],
-      options: { max_tokens: 1000, temperature: 0.7 }
+      options: config.options
     }, req);
 
     if (!result.success) {
@@ -327,21 +426,29 @@ Gib die Zitate in einem JSON-Array zurück, wobei jedes Objekt ein "quote" Feld 
     console.log('[sharepic_zitat_pure] Result content:', result.content);
 
     if (singleItem) {
-      // Parse JSON format for single item
-      try {
-        const jsonMatch = result.content.match(/\{[\s\S]*?\}/);
-        if (jsonMatch) {
-          const zitatData = JSON.parse(jsonMatch[0]);
-          quotes = [{ quote: zitatData.quote || '' }];
-          quoteName = zitatData.name || quoteName;
-          console.log('[sharepic_zitat_pure] Successfully parsed JSON format:', zitatData);
-        } else {
-          throw new Error('No JSON object found in response');
-        }
-      } catch (parseError) {
-        console.warn('[sharepic_zitat_pure] JSON parsing failed, using fallback:', parseError.message);
-        console.warn('[sharepic_zitat_pure] Using original quoteName from req.body:', quoteName);
+      // Parse response based on preserveName flag
+      if (preserveName && name) {
+        // Chat feature: AI returns just the quote text, use provided name
         quotes = [{ quote: (result.content || '').trim() }];
+        quoteName = name; // Use the preserved name
+        console.log('[sharepic_zitat_pure] Using preserved name mode:', { quote: quotes[0].quote, name: quoteName });
+      } else {
+        // Backward compatibility: Parse JSON format for single item
+        try {
+          const jsonMatch = result.content.match(/\{[\s\S]*?\}/);
+          if (jsonMatch) {
+            const zitatData = JSON.parse(jsonMatch[0]);
+            quotes = [{ quote: zitatData.quote || '' }];
+            quoteName = zitatData.name || quoteName;
+            console.log('[sharepic_zitat_pure] Successfully parsed JSON format:', zitatData);
+          } else {
+            throw new Error('No JSON object found in response');
+          }
+        } catch (parseError) {
+          console.warn('[sharepic_zitat_pure] JSON parsing failed, using fallback:', parseError.message);
+          console.warn('[sharepic_zitat_pure] Using original quoteName from req.body:', quoteName);
+          quotes = [{ quote: (result.content || '').trim() }];
+        }
       }
     } else {
       // Parse original format for multiple items
@@ -356,8 +463,41 @@ Gib die Zitate in einem JSON-Array zurück, wobei jedes Objekt ein "quote" Feld 
     }
 
     // Format response for frontend
-    const firstQuote = quotes[0]?.quote || (result.content || '').trim();
-    const alternatives = quotes.slice(1);
+    let firstQuote = quotes[0]?.quote || (result.content || '').trim();
+    let alternatives = quotes.slice(1);
+
+    // Check if quotes need shortening (100-160 characters for zitat_pure)
+    if (firstQuote.length < 100 || firstQuote.length > 160) {
+      console.log(`[sharepic_zitat_pure] Quote length ${firstQuote.length} out of range (100-160), using shortener`);
+      try {
+        const shortenedResult = await aiShortenerService.shortenSharepicText('zitat_pure', { quote: firstQuote, name: quoteName }, req);
+        firstQuote = shortenedResult.quote;
+        console.log(`[sharepic_zitat_pure] Quote adjusted to ${firstQuote.length} chars`);
+      } catch (shortenerError) {
+        console.error(`[sharepic_zitat_pure] Shortener error:`, shortenerError);
+        // Fallback: adjust length manually
+        if (firstQuote.length > 160) {
+          firstQuote = firstQuote.substring(0, 157) + '...';
+        }
+        // If too short, leave as is
+      }
+    }
+
+    // Check alternatives too
+    for (let i = 0; i < alternatives.length; i++) {
+      if (alternatives[i].quote && (alternatives[i].quote.length < 100 || alternatives[i].quote.length > 160)) {
+        console.log(`[sharepic_zitat_pure] Alternative ${i} length ${alternatives[i].quote.length} out of range, using shortener`);
+        try {
+          const shortenedResult = await aiShortenerService.shortenSharepicText('zitat_pure', { quote: alternatives[i].quote, name: quoteName }, req);
+          alternatives[i].quote = shortenedResult.quote;
+        } catch (shortenerError) {
+          console.error(`[sharepic_zitat_pure] Shortener error for alternative ${i}:`, shortenerError);
+          if (alternatives[i].quote.length > 160) {
+            alternatives[i].quote = alternatives[i].quote.substring(0, 157) + '...';
+          }
+        }
+      }
+    }
 
     res.json({
       success: true,
@@ -375,62 +515,23 @@ Gib die Zitate in einem JSON-Array zurück, wobei jedes Objekt ein "quote" Feld 
 const handleHeadlineRequest = async (req, res) => {
   console.log('[sharepic_headline] Processing request directly');
 
-  const { thema, details, line1, line2, line3 } = req.body;
+  const { thema, details, line1, line2, line3, count = 1 } = req.body;
+  const singleItem = count === 1;
 
-  const systemRole = "Du bist ein erfahrener Headline-Texter für Bündnis 90/Die Grünen. Deine Aufgabe ist es, kraftvolle, prägnante Headlines zu erstellen.";
+  const config = prompts.headline;
+  const systemRole = config.systemRole;
 
-  let requestTemplate = `<context>
-Du bist ein erfahrener Headline-Texter für Bündnis 90/Die Grünen. Deine Aufgabe ist es, kraftvolle, prägnante Headlines für Sharepics zu erstellen.
-</context>
-
-<instructions>
-Erstelle 5 verschiedene kraftvolle Headlines zum gegebenen Thema. Jede Headline soll:
-- Exakt 3 Zeilen haben
-- Pro Zeile 6-12 Zeichen (inklusive Leerzeichen)
-- Sehr kraftvoll und direkt sein
-- Die grüne Botschaft klar vermitteln
-- Emotional aktivierend wirken
-- Einfache, starke Worte verwenden
-- Perfekt für große, fette Schrift geeignet sein
-</instructions>
-
-<format>
-- Jede Headline besteht aus exakt 3 Zeilen
-- 6-12 Zeichen pro Zeile (inklusive Leerzeichen)
-- Verwende starke, emotionale Begriffe
-- Gib die Headlines im Format "Headline 1:", "Headline 2:" etc. aus
-- Schlage zusätzlich einen Suchbegriff für ein passendes Unsplash-Hintergrundbild vor
-- WICHTIG: Zähle die Zeichen pro Zeile genau (6-12 Zeichen)!
-</format>
-
-<task>`;
-
-  if (thema && details) {
-    requestTemplate += `
-Erstelle nun fünf verschiedene Headlines basierend auf folgendem Input:
-<input>
-Thema: ${thema}
-Details: ${details}
-</input>`;
-  } else {
-    requestTemplate += `
-Optimiere diese Zeilen zu fünf verschiedenen Headlines:
-<input>
-Zeile 1: ${line1 || ''}
-Zeile 2: ${line2 || ''}
-Zeile 3: ${line3 || ''}
-</input>`;
-  }
-
-  requestTemplate += `
-</task>`;
+  const requestTemplate = replaceTemplate(
+    singleItem ? config.singleItemTemplate : config.requestTemplate,
+    { thema, details, line1, line2, line3 }
+  );
 
   try {
     const result = await req.app.locals.aiWorkerPool.processRequest({
       type: 'sharepic_headline',
       systemPrompt: systemRole,
       messages: [{ role: 'user', content: requestTemplate }],
-      options: { max_tokens: 2000, temperature: 0.8 }
+      options: config.options
     }, req);
 
     if (!result.success) {
@@ -444,26 +545,99 @@ Zeile 3: ${line3 || ''}
     const searchTermMatch = content.match(/Suchbegriff[^:]*:(.+?)(?:\n|$)/i);
     const searchTerms = searchTermMatch ? [searchTermMatch[1].trim()] : [];
 
-    // Extract headlines
-    const headlineMatches = content.matchAll(/Headline \d+:\s*\n([^\n]+)\n([^\n]+)\n([^\n]+)/g);
-    for (const match of headlineMatches) {
-      headlines.push({
-        line1: match[1].trim(),
-        line2: match[2].trim(),
-        line3: match[3].trim()
+    if (singleItem) {
+      // For single item, try to extract lines directly from content without Headline headers
+      const lines = content.split('\n').filter(line => line.trim() && !line.toLowerCase().includes('suchbegriff'));
+
+      // Find three consecutive lines that look like headlines (short lines)
+      let mainSlogan = { line1: '', line2: '', line3: '' };
+
+      for (let i = 0; i < lines.length - 2; i++) {
+        const line1 = lines[i].trim();
+        const line2 = lines[i + 1].trim();
+        const line3 = lines[i + 2].trim();
+
+        // Check if these lines look like headline lines (short and not descriptive text)
+        if (line1.length >= 6 && line1.length <= 15 &&
+            line2.length >= 6 && line2.length <= 15 &&
+            line3.length >= 6 && line3.length <= 15 &&
+            !line1.toLowerCase().includes('headline') &&
+            !line1.toLowerCase().includes('zeile') &&
+            !line1.startsWith('**') &&
+            !line1.includes('suchbegriff')) {
+          mainSlogan = { line1, line2, line3 };
+          break;
+        }
+      }
+
+      console.log('[sharepic_headline] Single item mainSlogan:', JSON.stringify(mainSlogan));
+
+      // Check if headline needs shortening (6-12 chars per line)
+      const needsShortening = mainSlogan.line1.length > 12 || mainSlogan.line2.length > 12 || mainSlogan.line3.length > 12;
+
+      if (needsShortening) {
+        console.log('[sharepic_headline] Lines too long, using shortener');
+        try {
+          const shortenedResult = await aiShortenerService.shortenSharepicText('headline', mainSlogan, req);
+          mainSlogan = shortenedResult;
+          console.log('[sharepic_headline] Headlines shortened successfully:', JSON.stringify(shortenedResult));
+        } catch (shortenerError) {
+          console.error('[sharepic_headline] Shortener error:', shortenerError);
+          // Fallback truncation
+          mainSlogan.line1 = mainSlogan.line1.substring(0, 9) + '...';
+          mainSlogan.line2 = mainSlogan.line2.substring(0, 9) + '...';
+          mainSlogan.line3 = mainSlogan.line3.substring(0, 9) + '...';
+        }
+      }
+
+      res.json({
+        success: true,
+        mainSlogan: mainSlogan,
+        alternatives: [], // No alternatives for single item
+        searchTerms: searchTerms
+      });
+    } else {
+      // Extract multiple headlines (original behavior)
+      const headlineMatches = content.matchAll(/\*\*Headline \d+:\*\*\s*\n([^\n]+)\n([^\n]+)\n([^\n]+)/g);
+      for (const match of headlineMatches) {
+        headlines.push({
+          line1: match[1].trim(),
+          line2: match[2].trim(),
+          line3: match[3].trim()
+        });
+      }
+
+      // Apply shortener to all headlines if needed (6-12 chars per line)
+      for (let i = 0; i < headlines.length; i++) {
+        const headline = headlines[i];
+        const needsShortening = headline.line1.length > 12 || headline.line2.length > 12 || headline.line3.length > 12;
+
+        if (needsShortening) {
+          console.log(`[sharepic_headline] Headline ${i} too long, using shortener`);
+          try {
+            const shortenedResult = await aiShortenerService.shortenSharepicText('headline', headline, req);
+            headlines[i] = shortenedResult;
+          } catch (shortenerError) {
+            console.error(`[sharepic_headline] Shortener error for headline ${i}:`, shortenerError);
+            // Fallback truncation
+            headlines[i].line1 = headline.line1.substring(0, 9) + '...';
+            headlines[i].line2 = headline.line2.substring(0, 9) + '...';
+            headlines[i].line3 = headline.line3.substring(0, 9) + '...';
+          }
+        }
+      }
+
+      // Format for frontend
+      const mainSlogan = headlines[0] || { line1: '', line2: '', line3: '' };
+      const alternatives = headlines.slice(1);
+
+      res.json({
+        success: true,
+        mainSlogan: mainSlogan,
+        alternatives: alternatives,
+        searchTerms: searchTerms
       });
     }
-
-    // Format for frontend
-    const mainSlogan = headlines[0] || { line1: '', line2: '', line3: '' };
-    const alternatives = headlines.slice(1);
-
-    res.json({
-      success: true,
-      mainSlogan: mainSlogan,
-      alternatives: alternatives,
-      searchTerms: searchTerms
-    });
   } catch (error) {
     console.error('[sharepic_headline] Error:', error);
     res.status(500).json({ success: false, error: error.message });
@@ -477,202 +651,206 @@ const handleInfoRequest = async (req, res) => {
   const { thema, details, count = 5 } = req.body;
   const singleItem = count === 1;
 
-  const systemRole = "Du bist ein erfahrener Kommunikationsexperte für Bündnis 90/Die Grünen. Deine Aufgabe ist es, strukturierte, informative Inhalte zu erstellen.";
+  const config = prompts.info;
+  const systemRole = config.systemRole;
 
-  let requestTemplate;
-
-  if (singleItem) {
-    // Single item format with JSON response
-    requestTemplate = `<context>
-Du bist ein erfahrener Kommunikationsexperte für Bündnis 90/Die Grünen. Deine Aufgabe ist es, strukturierte Informations-Inhalte für Sharepics zu erstellen.
-</context>
-
-<instructions>
-Erstelle EIN strukturiertes Info-Element zum gegebenen Thema mit:
-- Einem Header: Die Hauptaussage/Behauptung (50-60 Zeichen)
-- Einem Subheader: Schlüsselfakt oder wichtigster Beleg (80-120 Zeichen)
-- Einem Body: Zusätzliche Details und Kontext (150-250 Zeichen)
-- Sachlich aber engaging
-- Die grüne Position klar vermittelnd
-- Faktisch fundiert und verständlich
-</instructions>
-
-<format>
-Antworte ausschließlich im JSON-Format:
-{
-  "header": "Hauptaussage (50-60 Zeichen)",
-  "subheader": "Wichtigster Beleg/Fakt (80-120 Zeichen)",
-  "body": "Zusätzliche Details (150-250 Zeichen)",
-  "searchTerm": "Suchbegriff für Hintergrundbild"
-}
-
-WICHTIG: Gib nur das JSON zurück, keine zusätzlichen Erklärungen oder Formatierungen.
-Verwende KEIN Markdown (keine **Fettschrift**, Listen, Links).
-Wenn du Zeilenumbrüche brauchst, gib sie als literales "\\n" innerhalb der Strings aus.
-</format>
-
-<task>`;
-  } else {
-    // Multiple items format (backward compatibility)
-    requestTemplate = `<context>
-Du bist ein erfahrener Kommunikationsexperte für Bündnis 90/Die Grünen. Deine Aufgabe ist es, strukturierte Informations-Inhalte für Sharepics zu erstellen.
-</context>
-
-<instructions>
-Erstelle 5 verschiedene strukturierte Info-Inhalte zum gegebenen Thema. Jeder Info-Inhalt soll:
-- Einen Header: Die Hauptaussage/Behauptung (50-60 Zeichen)
-- Einen Subheader: Schlüsselfakt oder wichtigster Beleg (80-120 Zeichen)
-- Einen Body: Zusätzliche Details und Kontext (150-250 Zeichen)
-- Sachlich aber engaging sein
-- Die grüne Position klar vermitteln
-- Faktisch fundiert und verständlich sein
-</instructions>
-
-<format>
-- Header: Hauptaussage (50-60 Zeichen)
-- Subheader: Wichtigster Beleg/Fakt (80-120 Zeichen)
-- Body: Zusätzliche Details (150-250 Zeichen)
-- Gib die Info-Inhalte im Format "Info 1:", "Info 2:" etc. aus
-- Schlage zusätzlich einen Suchbegriff für ein passendes Unsplash-Hintergrundbild vor
-- Halte dich an die Zeichenvorgaben, aber gib diese NICHT im Text aus
-</format>
-
-<task>`;
-  }
-
-  if (thema && details) {
-    if (singleItem) {
-      requestTemplate += `
-Erstelle nun ein Info-Element basierend auf folgendem Input:
-<input>
-Thema: ${thema}
-Details: ${details}
-</input>`;
-    } else {
-      requestTemplate += `
-Erstelle nun fünf verschiedene Info-Inhalte basierend auf folgendem Input:
-<input>
-Thema: ${thema}
-Details: ${details}
-</input>`;
-    }
-  } else {
-    if (singleItem) {
-      requestTemplate += `
-Erstelle ein Info-Element basierend auf diesem Thema: ${thema || 'Umweltschutz'}`;
-    } else {
-      requestTemplate += `
-Erstelle Info-Inhalte basierend auf diesem Thema: ${thema || 'Umweltschutz'}`;
-    }
-  }
-
-  requestTemplate += `
-</task>`;
+  const getInfoRequestTemplate = () => {
+    const template = singleItem ? config.singleItemTemplate : config.requestTemplate;
+    return replaceTemplate(template, { thema, details });
+  };
 
   try {
-    const result = await req.app.locals.aiWorkerPool.processRequest({
-      type: 'sharepic_info',
-      systemPrompt: systemRole,
-      messages: [{ role: 'user', content: requestTemplate }],
-      options: { max_tokens: 3000, temperature: 0.8 }
-    }, req);
+    let attempts = 0;
+    const maxAttempts = 3;
+    let responseData = null;
 
-    if (!result.success) {
-      console.error('[sharepic_info] AI Worker error:', result.error);
-      return res.status(500).json({ success: false, error: result.error });
-    }
+    // Retry loop for AI generation
+    while (attempts < maxAttempts && !responseData) {
+      attempts++;
+      console.log(`[sharepic_info] Attempt ${attempts}/${maxAttempts}`);
 
-    // Adaptive parsing based on requested format
-    const content = result.content;
-    let responseData;
+      const currentRequestTemplate = getInfoRequestTemplate();
 
-    if (singleItem) {
-      // Parse JSON response for single item
-      try {
-        const jsonMatch = content.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          const rawJson = jsonMatch[0];
-          const repairedJson = repairJsonString(rawJson);
-          const infoData = JSON.parse(repairedJson);
+      const result = await req.app.locals.aiWorkerPool.processRequest({
+        type: 'sharepic_info',
+        systemPrompt: systemRole,
+        messages: [{ role: 'user', content: currentRequestTemplate }],
+        options: config.options
+      }, req);
 
-          const header = sanitizeInfoField(infoData.header);
-          const subheader = sanitizeInfoField(infoData.subheader);
-          const body = sanitizeInfoField(infoData.body);
-          const searchTerm = sanitizeInfoField(infoData.searchTerm);
-
-          // Validate required fields
-          if (!header || !subheader || !body) {
-            throw new Error('Missing required fields in JSON response');
-          }
-
-          console.log('[sharepic_info] Successfully parsed single item JSON:', {
-            header,
-            subheader,
-            body,
-            searchTerm
-          });
-
-          responseData = {
-            success: true,
-            header,
-            subheader,
-            body,
-            alternatives: [], // No alternatives for single item
-            searchTerms: searchTerm ? [searchTerm] : []
-          };
-        } else {
-          throw new Error('No JSON found in single item response');
+      if (!result.success) {
+        console.error(`[sharepic_info] AI Worker error on attempt ${attempts}:`, result.error);
+        if (attempts === maxAttempts) {
+          return res.status(500).json({ success: false, error: result.error });
         }
-      } catch (parseError) {
-        const jsonMatch = content.match(/\{[\s\S]*\}/);
-        const previewSource = jsonMatch ? repairJsonString(jsonMatch[0]) : content;
-        const preview = typeof previewSource === 'string'
-          ? previewSource.replace(/\s+/g, ' ').slice(0, 200)
-          : '';
-        const previewSuffix = previewSource && previewSource.length > 200 ? '…' : '';
-
-        console.error('[sharepic_info] Failed to parse single item JSON:', parseError.message);
-        console.error('[sharepic_info] Raw content preview:', preview);
-
-        // Return error for single item parsing failure
-        return res.status(500).json({
-          success: false,
-          error: `Single item parsing failed: ${parseError.message}. Snippet: ${preview}${previewSuffix}`
-        });
-      }
-    } else {
-      // Parse multiple items using existing regex (backward compatibility)
-      const infos = [];
-      const searchTermMatch = content.match(/Suchbegriff[^:]*:(.+?)(?:\n|$)/i);
-      const searchTerms = searchTermMatch ? [searchTermMatch[1].trim()] : [];
-
-      // Extract info items
-      const infoMatches = content.matchAll(/Info \d+:\s*\nHeader:\s*([^\n]+)\s*\nSubheader:\s*([^\n]+)\s*\nBody:\s*([^\n]+)/gi);
-      for (const match of infoMatches) {
-        infos.push({
-          header: match[1].trim(),
-          subheader: match[2].trim(),
-          body: match[3].trim()
-        });
+        continue;
       }
 
-      // Format for frontend - first item as main, rest as alternatives
-      const firstInfo = infos[0] || { header: '', subheader: '', body: '' };
-      const alternatives = infos.slice(1);
+      // Adaptive parsing based on requested format
+      const content = result.content;
 
-      responseData = {
-        success: true,
-        header: firstInfo.header,
-        subheader: firstInfo.subheader,
-        body: firstInfo.body,
-        alternatives: alternatives,
-        searchTerms: searchTerms
-      };
+      if (singleItem) {
+        // Parse JSON response for single item
+        try {
+          const jsonMatch = content.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            const rawJson = jsonMatch[0];
+            const repairedJson = repairJsonString(rawJson);
+            const infoData = JSON.parse(repairedJson);
+
+            const header = sanitizeInfoField(infoData.header);
+            const subheader = sanitizeInfoField(infoData.subheader);
+            const body = sanitizeInfoField(infoData.body);
+            const searchTerm = sanitizeInfoField(infoData.searchTerm);
+
+            // Validate required fields
+            if (!header || !subheader || !body) {
+              throw new Error('Missing required fields in JSON response');
+            }
+
+            // Validate character lengths
+            const infoForValidation = { header, subheader, body };
+            if (!isInfoValid(infoForValidation)) {
+              console.log(`[sharepic_info] Attempt ${attempts} failed character validation`);
+              if (attempts === maxAttempts) {
+                console.log(`[sharepic_info] Max attempts reached, trying AI shortener fallback`);
+
+                // Try AI shortener as fallback
+                try {
+                  const shortenedInfo = await aiShortenerService.shortenSharepicText('info', infoForValidation, req);
+
+                  if (isInfoValid(shortenedInfo)) {
+                    console.log(`[sharepic_info] AI shortener successful`);
+                    responseData = {
+                      success: true,
+                      header: shortenedInfo.header,
+                      subheader: shortenedInfo.subheader,
+                      body: shortenedInfo.body,
+                      alternatives: [],
+                      searchTerms: shortenedInfo.searchTerm ? [shortenedInfo.searchTerm] : []
+                    };
+                    break; // Exit the retry loop
+                  }
+                } catch (shortenerError) {
+                  console.error(`[sharepic_info] AI shortener error:`, shortenerError);
+                }
+
+                console.error(`[sharepic_info] Failed to generate valid info after ${maxAttempts} attempts and AI shortener`);
+                return res.status(500).json({
+                  success: false,
+                  error: `Failed to generate info with correct character limits after ${maxAttempts} attempts and AI shortener`
+                });
+              }
+              // Continue to next attempt
+              continue;
+            }
+
+            console.log(`[sharepic_info] Attempt ${attempts} successful with valid character lengths`);
+            console.log('[sharepic_info] Successfully parsed single item JSON:', {
+              header,
+              subheader,
+              body,
+              searchTerm
+            });
+
+            responseData = {
+              success: true,
+              header,
+              subheader,
+              body,
+              alternatives: [], // No alternatives for single item
+              searchTerms: searchTerm ? [searchTerm] : []
+            };
+          } else {
+            throw new Error('No JSON found in single item response');
+          }
+        } catch (parseError) {
+          console.error(`[sharepic_info] Failed to parse single item JSON on attempt ${attempts}:`, parseError.message);
+          if (attempts === maxAttempts) {
+            const jsonMatch = content.match(/\{[\s\S]*\}/);
+            const previewSource = jsonMatch ? repairJsonString(jsonMatch[0]) : content;
+            const preview = typeof previewSource === 'string'
+              ? previewSource.replace(/\s+/g, ' ').slice(0, 200)
+              : '';
+            const previewSuffix = previewSource && previewSource.length > 200 ? '…' : '';
+
+            console.error('[sharepic_info] Raw content preview:', preview);
+            return res.status(500).json({
+              success: false,
+              error: `Single item parsing failed after ${maxAttempts} attempts: ${parseError.message}. Snippet: ${preview}${previewSuffix}`
+            });
+          }
+          // Continue to next attempt
+          continue;
+        }
+      } else {
+        // Parse multiple items using existing regex (backward compatibility)
+        const infos = [];
+        const searchTermMatch = content.match(/Suchbegriff[^:]*:(.+?)(?:\n|$)/i);
+        const searchTerms = searchTermMatch ? [searchTermMatch[1].trim()] : [];
+
+        // Extract info items
+        const infoMatches = content.matchAll(/Info \d+:\s*\nHeader:\s*([^\n]+)\s*\nSubheader:\s*([^\n]+)\s*\nBody:\s*([^\n]+)/gi);
+        for (const match of infoMatches) {
+          infos.push({
+            header: match[1].trim(),
+            subheader: match[2].trim(),
+            body: match[3].trim()
+          });
+        }
+
+        // Format for frontend - first item as main, rest as alternatives
+        const firstInfo = infos[0] || { header: '', subheader: '', body: '' };
+        const alternatives = infos.slice(1);
+
+        responseData = {
+          success: true,
+          header: firstInfo.header,
+          subheader: firstInfo.subheader,
+          body: firstInfo.body,
+          alternatives: alternatives,
+          searchTerms: searchTerms
+        };
+      }
     }
 
-    res.json(responseData);
+    // Return successful result if we have one
+    if (responseData) {
+      res.json(responseData);
+    } else {
+      console.error(`[sharepic_info] Failed to generate valid info after ${maxAttempts} attempts`);
+      res.status(500).json({
+        success: false,
+        error: `Failed to generate valid info after ${maxAttempts} attempts`
+      });
+    }
   } catch (error) {
     console.error('[sharepic_info] Error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// Handler for default type (generates 3 sharepics)
+const handleDefaultRequest = async (req, res) => {
+  console.log('[sharepic_default] Processing request for 3 default sharepics');
+
+  try {
+    const { generateDefaultSharepics } = require('../../../services/defaultSharepicService');
+    const result = await generateDefaultSharepics(req, req.body);
+
+    if (!result.success) {
+      return res.status(500).json({ success: false, error: 'Failed to generate default sharepics' });
+    }
+
+    // Return the array of sharepics for frontend consumption
+    res.json({
+      success: true,
+      sharepics: result.sharepics,
+      metadata: result.metadata
+    });
+
+  } catch (error) {
+    console.error('[sharepic_default] Error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 };
@@ -680,6 +858,8 @@ Erstelle Info-Inhalte basierend auf diesem Thema: ${thema || 'Umweltschutz'}`;
 // Unified handler for backward compatibility
 const handleClaudeRequest = async (req, res, type = 'dreizeilen') => {
   switch (type) {
+    case 'default':
+      return await handleDefaultRequest(req, res);
     case 'dreizeilen':
       return await handleDreizeilenRequest(req, res);
     case 'zitat':
