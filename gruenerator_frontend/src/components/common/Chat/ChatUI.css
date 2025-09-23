@@ -51,13 +51,14 @@
   box-shadow: var(--shadow-md);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible;
   position: sticky;
   top: 0;
   flex-shrink: 0;
   position: relative;
   transition: all 0.3s ease;
   padding: 0;
+  height: 100%;
 }
 
 /* Chat header */
@@ -100,6 +101,8 @@
   background: var(--chat-background);
   scrollbar-width: thin;
   scrollbar-color: var(--scrollbar-thumb-color) var(--scrollbar-track-color);
+  min-height: 0;
+  height: 100%;
 }
 
 .editor-chat-messages::-webkit-scrollbar {
@@ -243,7 +246,7 @@
   box-shadow: var(--shadow-lg);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  z-index: 100;
+  z-index: 1000;
   transition: all 0.3s ease;
 }
 
@@ -266,11 +269,10 @@
 
 /* Input form */
 .editor-chat-input {
-  position: static;
   background: transparent;
   border: none;
   padding: 0;
-  margin: 0;
+  margin: 20px;
   position: relative;
 }
 

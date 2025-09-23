@@ -3,7 +3,7 @@ const multer = require('multer');
 const { createCanvas, loadImage } = require('canvas');
 const fs = require('fs').promises;
 
-const { TESTBILD_PATH, params, SUNFLOWER_PATH } = require('./config');
+const { TESTBILD_PATH, params, SUNFLOWER_PATH, COLORS } = require('./config');
 const { isValidHexColor, getDefaultColor } = require('./utils');
 const { checkFiles, registerFonts } = require('./fileManagement');
 const { validateParams } = require('./paramValidation');
@@ -12,8 +12,6 @@ const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
 async function processText(textData) {
-  console.log('processText aufgerufen mit:', textData);
-
   const { line1, line2, line3 } = textData;
 
   if (!line1 && !line2 && !line3) {
@@ -22,7 +20,6 @@ async function processText(textData) {
 
   const processedTextData = [line1, line2, line3].map((line, index) => ({
     text: line,
-    // Hier können Sie weitere Verarbeitungsschritte hinzufügen, z.B. Zeilenumbrüche, Formatierung, etc.
   }));
 
   return processedTextData;
@@ -38,10 +35,8 @@ async function fileExists(filePath) {
 }
 
 async function testLoadImage(filePath) {
-  console.log(`Testing loadImage for ${filePath}...`);
   try {
     const image = await loadImage(filePath);
-    console.log(`Successfully loaded image from ${filePath}`);
     return image;
   } catch (err) {
     console.error(`Failed to load image from ${filePath}:`, err);
@@ -50,17 +45,15 @@ async function testLoadImage(filePath) {
 }
 
 async function addTextToImage(uploadedImageBuffer, processedText, validatedParams) {
-  console.log('Starting addTextToImage function');
   try {
       let img;
+      let hasBackgroundImage = false;
   if (uploadedImageBuffer) {
-    console.log('Loading image from buffer, size:', uploadedImageBuffer.length);
     img = await loadImage(uploadedImageBuffer);
+    hasBackgroundImage = true;
   } else {
-    console.log('testbild nicht gefunden, weiter - kein uploadedImageBuffer vorhanden');
-    throw new Error('Kein Bild verfügbar - weder hochgeladen noch Testbild vorhanden');
+    hasBackgroundImage = false;
   }
-    console.log('Image loaded successfully, dimensions:', img.width, 'x', img.height);
 
     await checkFiles();
     registerFonts();
@@ -68,60 +61,34 @@ async function addTextToImage(uploadedImageBuffer, processedText, validatedParam
     const canvas = createCanvas(params.OUTPUT_WIDTH, params.OUTPUT_HEIGHT);
     const ctx = canvas.getContext('2d');
 
-    // Hintergrundbild zeichnen
+    // Hintergrund zeichnen
     const { width: canvasWidth, height: canvasHeight } = canvas;
-    const imageAspectRatio = img.width / img.height;
-    const canvasAspectRatio = canvasWidth / canvasHeight;
 
-    let sx, sy, sWidth, sHeight;
-    if (imageAspectRatio > canvasAspectRatio) {
-      sHeight = img.height;
-      sWidth = img.height * canvasAspectRatio;
-      sx = (img.width - sWidth) / 2;
-      sy = 0;
+    if (hasBackgroundImage) {
+      const imageAspectRatio = img.width / img.height;
+      const canvasAspectRatio = canvasWidth / canvasHeight;
+
+      let sx, sy, sWidth, sHeight;
+      if (imageAspectRatio > canvasAspectRatio) {
+        sHeight = img.height;
+        sWidth = img.height * canvasAspectRatio;
+        sx = (img.width - sWidth) / 2;
+        sy = 0;
+      } else {
+        sWidth = img.width;
+        sHeight = img.width / canvasAspectRatio;
+        sx = 0;
+        sy = (img.height - sHeight) / 2;
+      }
+
+      ctx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, canvasWidth, canvasHeight);
     } else {
-      sWidth = img.width;
-      sHeight = img.width / canvasAspectRatio;
-      sx = 0;
-      sy = (img.height - sHeight) / 2;
+      ctx.fillStyle = COLORS.SAND;
+      ctx.fillRect(0, 0, canvasWidth, canvasHeight);
     }
-
-    console.log('Drawing background image...');
-    ctx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, canvasWidth, canvasHeight);
-    console.log('Background image drawn.');
 
     const { balkenGruppenOffset, fontSize, colors, balkenOffset, sunflowerOffset, sunflowerPosition, credit } = validatedParams;
     ctx.font = `${fontSize}px GrueneType`;
-    console.log('Font set to:', ctx.font);
-    
-    // Try alternative font specifications
-    console.log('Testing different font specifications...');
-    const altFont1 = `${fontSize}px "GrueneType"`;
-    const altFont2 = `normal ${fontSize}px GrueneType`;
-    const altFont3 = `normal ${fontSize}px "GrueneType"`;
-    
-    console.log('Alternative fonts:', {
-      current: ctx.font,
-      altFont1,
-      altFont2,
-      altFont3
-    });
-    
-    // Test if font is actually loaded
-    const testText = "Test";
-    const beforeWidth = ctx.measureText(testText).width;
-    ctx.font = `${fontSize}px serif`; // Fallback font
-    const serifWidth = ctx.measureText(testText).width;
-    ctx.font = `${fontSize}px GrueneType`; // Set back to GrueneType
-    const afterWidth = ctx.measureText(testText).width;
-    
-    console.log('Font loading test:', {
-      grueneTypeWidth: beforeWidth,
-      serifWidth: serifWidth,
-      grueneTypeWidthAfter: afterWidth,
-      fontsMatch: beforeWidth === afterWidth,
-      differentFromSerif: afterWidth !== serifWidth
-    });
     
     ctx.textBaseline = 'middle';
     ctx.textAlign = 'center';
@@ -141,13 +108,6 @@ async function addTextToImage(uploadedImageBuffer, processedText, validatedParam
         (canvasWidth - rectWidth) / 2 + balkenOffset[index] + balkenGruppenOffset[0]));
       const y = startY + (balkenHeight * index) + balkenGruppenOffset[1];
 
-      console.log(`Balken ${index} Berechnung:`, {
-        baseX: (canvasWidth - rectWidth) / 2,
-        offset: balkenOffset[index],
-        gruppenOffset: balkenGruppenOffset[0],
-        finalX: x
-      });
-
       return { x, y, width: rectWidth, height: balkenHeight };
     });
 
@@ -158,15 +118,6 @@ async function addTextToImage(uploadedImageBuffer, processedText, validatedParam
     const textBlockBottom = balkenPositions[balkenPositions.length - 1].y + balkenHeight;
     const textBlockWidth = textBlockRight - textBlockLeft;
     const textBlockHeight = textBlockBottom - textBlockTop;
-
-    console.log('Textblock Dimensionen:', {
-      left: textBlockLeft,
-      right: textBlockRight,
-      top: textBlockTop,
-      bottom: textBlockBottom,
-      width: textBlockWidth,
-      height: textBlockHeight
-    });
 
     // Berechne die Größe und Position der Sonnenblume
     const baseSunflowerSize = Math.min(textBlockWidth, textBlockHeight) * params.SUNFLOWER_SIZE_FACTOR;
@@ -225,11 +176,9 @@ async function addTextToImage(uploadedImageBuffer, processedText, validatedParam
     const adjustedSunflowerX = Math.max(0, Math.min(canvasWidth - sunflowerSize, sunflowerX + sunflowerOffset[0]));
     const adjustedSunflowerY = Math.max(0, Math.min(canvasHeight - sunflowerSize, sunflowerY + sunflowerOffset[1]));
 
-    console.log('Drawing sunflower image...');
     const sunflowerBuffer = await fs.readFile(SUNFLOWER_PATH);
     const sunflowerImage = await loadImage(sunflowerBuffer);
     ctx.drawImage(sunflowerImage, adjustedSunflowerX, adjustedSunflowerY, sunflowerSize, sunflowerSize);
-    console.log('Sunflower image drawn at:', { adjustedSunflowerX, adjustedSunflowerY, sunflowerSize });
 
     // Zeichne die Balken
     balkenPositions.forEach((balken, index) => {
@@ -257,25 +206,17 @@ async function addTextToImage(uploadedImageBuffer, processedText, validatedParam
       const textY = y + height / 2;
       ctx.fillText(activeTextLines[index].text, textX, textY);
 
-      console.log(`Balken ${index} drawn at: x=${x}, y=${y}, width=${width}, height=${height}`);
     });
-   
+
     if (credit) {
-      console.log('Zeichne Credit-Text:', credit);
-      ctx.font = '60px GrueneType'; // Feste Schriftgröße für Credit
-      console.log('Credit font set to:', ctx.font);
+      ctx.font = '60px GrueneType';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'bottom';
-      
-      const creditY = canvasHeight - 40; // 20px vom unteren Ran
-      
-      // Text zeichnen
-      ctx.fillStyle = '#FFFFFF'; // Weiße Schriftfarbe für Credit
+
+      const creditY = canvasHeight - 40;
+
+      ctx.fillStyle = '#FFFFFF';
       ctx.fillText(credit, canvasWidth / 2, creditY);
-      
-      console.log('Credit-Text gezeichnet an Position:', { x: canvasWidth / 2, y: creditY });
-    } else {
-      console.log('Kein Credit-Text vorhanden, wird nicht gezeichnet');
     }
 
     return canvas.toBuffer('image/png');
@@ -289,19 +230,7 @@ async function addTextToImage(uploadedImageBuffer, processedText, validatedParam
 }
 
 router.post('/', upload.single('image'), async (req, res) => {
-  console.log('Received request for dreizeilen_canvas');
   try {
-    if (req.file) {
-      console.log('Received file details:', {
-        fieldname: req.file.fieldname,
-        originalname: req.file.originalname,
-        encoding: req.file.encoding,
-        mimetype: req.file.mimetype,
-        size: req.file.size
-      });
-    }
-
-    console.log('Received request body:', req.body);
 
     const {
       balkenGruppe_offset_x, balkenGruppe_offset_y, fontSize,
@@ -323,21 +252,37 @@ router.post('/', upload.single('image'), async (req, res) => {
       colors_2_background, colors_2_text
     });
     
+    // Determine if we have a background image to choose appropriate default colors
+    const hasBackgroundImage = !!uploadedImageBuffer;
+
+    const getColorForNoBackground = (type, index) => {
+      if (hasBackgroundImage) {
+        return getDefaultColor(type, index);
+      }
+
+      // When no background image, use KLEE and TANNE for balken backgrounds
+      if (type === 'background') {
+        return index === 0 ? COLORS.KLEE : COLORS.TANNE;
+      } else {
+        return COLORS.SAND; // White text on colored backgrounds
+      }
+    };
+
     const modParams = {
       balkenGruppenOffset: [parseFloat(balkenGruppe_offset_x) || 0, parseFloat(balkenGruppe_offset_y) || 0],
       fontSize: parseInt(fontSize, 10) || params.DEFAULT_FONT_SIZE,
             colors: [
         {
-          background: isValidHexColor(colors_0_background) ? colors_0_background : getDefaultColor('background', 0),
-          text: isValidHexColor(colors_0_text) ? colors_0_text : getDefaultColor('text', 0)
+          background: isValidHexColor(colors_0_background) ? colors_0_background : getColorForNoBackground('background', 0),
+          text: isValidHexColor(colors_0_text) ? colors_0_text : getColorForNoBackground('text', 0)
         },
         {
-          background: isValidHexColor(colors_1_background) ? colors_1_background : getDefaultColor('background', 1),
-          text: isValidHexColor(colors_1_text) ? colors_1_text : getDefaultColor('text', 1)
+          background: isValidHexColor(colors_1_background) ? colors_1_background : getColorForNoBackground('background', 1),
+          text: isValidHexColor(colors_1_text) ? colors_1_text : getColorForNoBackground('text', 1)
         },
         {
-          background: isValidHexColor(colors_2_background) ? colors_2_background : getDefaultColor('background', 2),
-          text: isValidHexColor(colors_2_text) ? colors_2_text : getDefaultColor('text', 2)
+          background: isValidHexColor(colors_2_background) ? colors_2_background : getColorForNoBackground('background', 2),
+          text: isValidHexColor(colors_2_text) ? colors_2_text : getColorForNoBackground('text', 2)
         }
       ],
       balkenOffset: [
@@ -354,33 +299,21 @@ router.post('/', upload.single('image'), async (req, res) => {
 
     };
 
-    console.log('Parsed modParams:', modParams);
-
     await checkFiles();
     registerFonts();
 
     const validatedParams = validateParams(modParams);
-    console.log('Validated params:', validatedParams);
-
     const processedText = await processText({ line1, line2, line3 });
-    console.log('Processed text:', processedText);
-
     const imageBuffer = req.file?.buffer;
-    if (!imageBuffer) {
-      throw new Error('Kein Bild gefunden');
-    }
 
     try {
-      // Validate image by attempting to load it with canvas
-      // This will throw an error if the image format is invalid or corrupted
-      await loadImage(imageBuffer);
-      console.log('Image validation successful');
+      if (imageBuffer) {
+        await loadImage(imageBuffer);
+      }
 
-      // Generate the image with validated buffer
       const generatedImageBuffer = await addTextToImage(imageBuffer, processedText, validatedParams);
       const base64Image = `data:image/png;base64,${generatedImageBuffer.toString('base64')}`;
 
-      console.log('Image generated successfully and converted to Base64');
       res.json({ image: base64Image });
     } catch (error) {
       console.error('Fehler bei der Bildverarbeitung:', error);

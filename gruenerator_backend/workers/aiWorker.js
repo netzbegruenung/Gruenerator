@@ -20,7 +20,6 @@ parentPort.on('message', async (message) => {
     return;
   }
   
-  console.log(`[AI Worker] Processing request ${requestId} of type ${data.type}`);
   
   try {
     // Send progress update at 10%
@@ -89,14 +88,12 @@ async function processAIRequest(requestId, data) {
   const { type, prompt, options = {}, systemPrompt, messages, metadata: requestMetadata = {} } = data;
 
   // Provider selection delegated to selector (preserves legacy behavior)
-  console.log(`[AI Worker] Request ${requestId} - useBedrock in data: ${data.useBedrock}, in options: ${options.useBedrock}`);
   const selection = providerSelector.selectProviderAndModel({
     type,
     options,
     metadata: requestMetadata,
     env: process.env
   });
-  console.log(`[AI Worker] Provider selection for ${requestId}:`, selection);
   let effectiveOptions = { ...options, provider: selection.provider, model: selection.model, useBedrock: !!selection.useBedrock };
 
   try {
@@ -106,21 +103,18 @@ async function processAIRequest(requestId, data) {
     // Only treat top-level data.provider as explicit; selection.provider is a default
     const explicitProvider = data.provider || null;
     if (explicitProvider) {
-      if (isVerbose) console.log(`[AI Worker] Using ${explicitProvider} for ${requestId}`);
       sendProgress(requestId, 15);
       result = await providers.executeProvider(explicitProvider, requestId, { ...data, options: effectiveOptions });
     }
-    
+
     // Default logic refactor: prefer Mistral by default; use Claude only when explicitly chosen; Bedrock only when enabled by flow/options.
     if (!result && explicitProvider === 'claude') {
       sendProgress(requestId, 15);
       result = await providers.executeProvider('claude', requestId, { ...data, options: effectiveOptions });
     } else if (!result && effectiveOptions.useBedrock === true && !explicitProvider) {
-      console.log(`[AI Worker] Using AWS Bedrock provider for ${requestId}`);
       sendProgress(requestId, 15);
       result = await providers.executeProvider('bedrock', requestId, { ...data, options: effectiveOptions });
     } else if (!result && !explicitProvider) {
-      console.log(`[AI Worker] Using Mistral provider by default for ${requestId}`);
       sendProgress(requestId, 15);
       result = await providers.executeProvider('mistral', requestId, { ...data, options: effectiveOptions });
     }
@@ -132,14 +126,11 @@ async function processAIRequest(requestId, data) {
     console.error(`[AI Worker] Error in processAIRequest for ${requestId}:`, error);
     // Final safety net: try privacy mode providers as backup via helper
     try {
-      console.log(`[AI Worker] Main processing failed for ${requestId}, attempting privacy mode fallback`);
       const result = await providerFallback.tryPrivacyModeProviders(async (providerName, privacyData) => {
         return providers.executeProvider(providerName, requestId, privacyData);
       }, requestId, data);
-      console.log(`[AI Worker] Privacy mode fallback successful for ${requestId}`);
       return result;
     } catch (privacyError) {
-      console.error(`[AI Worker] Privacy mode fallback also failed for ${requestId}:`, privacyError);
       throw error;
     }
   }

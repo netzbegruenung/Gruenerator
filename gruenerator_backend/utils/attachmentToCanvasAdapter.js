@@ -40,8 +40,21 @@ function convertToBuffer(attachment) {
     throw new Error(`Invalid file type for sharepic: ${attachment.type}. Expected image.`);
   }
 
+  // Extract base64 from data URL if needed
+  let base64Data = attachment.data;
+  if (base64Data.startsWith('data:')) {
+    // Handle data URL format: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA..."
+    const base64Match = base64Data.match(/^data:[^;]+;base64,(.+)$/);
+    if (base64Match) {
+      base64Data = base64Match[1];
+      console.log('[AttachmentAdapter] Extracted base64 from data URL');
+    } else {
+      throw new Error('Invalid data URL format');
+    }
+  }
+
   // Convert base64 to buffer
-  const buffer = Buffer.from(attachment.data, 'base64');
+  const buffer = Buffer.from(base64Data, 'base64');
 
   // Return mock multer file object
   return {
@@ -83,8 +96,21 @@ async function convertToTempFile(attachment) {
   const filename = `sharepic_temp_${tempId}${extension}`;
   const tempPath = path.join(uploadsDir, filename);
 
+  // Extract base64 from data URL if needed
+  let base64Data = attachment.data;
+  if (base64Data.startsWith('data:')) {
+    // Handle data URL format: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA..."
+    const base64Match = base64Data.match(/^data:[^;]+;base64,(.+)$/);
+    if (base64Match) {
+      base64Data = base64Match[1];
+      console.log('[AttachmentAdapter] Extracted base64 from data URL for temp file');
+    } else {
+      throw new Error('Invalid data URL format');
+    }
+  }
+
   // Convert base64 to buffer and save to file
-  const buffer = Buffer.from(attachment.data, 'base64');
+  const buffer = Buffer.from(base64Data, 'base64');
   await fs.writeFile(tempPath, buffer);
 
   console.log(`[AttachmentAdapter] Created temp file: ${tempPath} (${buffer.length} bytes)`);
@@ -154,7 +180,18 @@ function validateImageAttachment(attachment) {
 
   // Basic size check (Buffer.from will validate the base64)
   try {
-    const buffer = Buffer.from(attachment.data, 'base64');
+    // Extract base64 from data URL if needed
+    let base64Data = attachment.data;
+    if (base64Data.startsWith('data:')) {
+      const base64Match = base64Data.match(/^data:[^;]+;base64,(.+)$/);
+      if (base64Match) {
+        base64Data = base64Match[1];
+      } else {
+        throw new Error('Invalid data URL format');
+      }
+    }
+
+    const buffer = Buffer.from(base64Data, 'base64');
     if (buffer.length === 0) {
       throw new Error('Empty image data');
     }

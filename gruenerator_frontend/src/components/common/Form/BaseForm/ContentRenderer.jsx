@@ -131,37 +131,53 @@ const ContentRenderer = ({
         {/* Render sharepic if available */}
         {sharepicItems.length > 0 && (
           <div className="sharepic-content-section">
-            {sharepicItems.map((sharepicData, index) => {
-              const sharepicTitle = Array.isArray(processedGeneratedContent.sharepicTitle)
-                ? processedGeneratedContent.sharepicTitle[index]
-                : processedGeneratedContent.sharepicTitle;
-              const downloadButtonText = Array.isArray(processedGeneratedContent.sharepicDownloadText)
-                ? processedGeneratedContent.sharepicDownloadText[index]
-                : processedGeneratedContent.sharepicDownloadText;
-              const downloadFilename = Array.isArray(processedGeneratedContent.sharepicDownloadFilename)
-                ? processedGeneratedContent.sharepicDownloadFilename[index]
-                : processedGeneratedContent.sharepicDownloadFilename;
-              const enableKiLabel = Array.isArray(processedGeneratedContent.enableKiLabel)
-                ? processedGeneratedContent.enableKiLabel[index]
-                : processedGeneratedContent.enableKiLabel;
-              const onSharepicUpdate = Array.isArray(processedGeneratedContent.onSharepicUpdate)
-                ? processedGeneratedContent.onSharepicUpdate[index]
-                : processedGeneratedContent.onSharepicUpdate;
+            {sharepicItems.length > 1 ? (
+              // Multiple sharepics - pass as array to single ImageDisplay
+              <ImageDisplay
+                key="multiple-sharepics"
+                sharepicData={sharepicItems}
+                onEdit={processedGeneratedContent.onEditSharepic}
+                showEditButton={processedGeneratedContent.showEditButton !== false}
+                title={processedGeneratedContent.sharepicTitle || "Generierte Sharepics"}
+                downloadButtonText={processedGeneratedContent.sharepicDownloadText}
+                downloadFilename={processedGeneratedContent.sharepicDownloadFilename || "sharepic.png"}
+                enableKiLabel={processedGeneratedContent.enableKiLabel}
+                onSharepicUpdate={processedGeneratedContent.onSharepicUpdate}
+              />
+            ) : (
+              // Single sharepic - render individually as before
+              sharepicItems.map((sharepicData, index) => {
+                const sharepicTitle = Array.isArray(processedGeneratedContent.sharepicTitle)
+                  ? processedGeneratedContent.sharepicTitle[index]
+                  : processedGeneratedContent.sharepicTitle;
+                const downloadButtonText = Array.isArray(processedGeneratedContent.sharepicDownloadText)
+                  ? processedGeneratedContent.sharepicDownloadText[index]
+                  : processedGeneratedContent.sharepicDownloadText;
+                const downloadFilename = Array.isArray(processedGeneratedContent.sharepicDownloadFilename)
+                  ? processedGeneratedContent.sharepicDownloadFilename[index]
+                  : processedGeneratedContent.sharepicDownloadFilename;
+                const enableKiLabel = Array.isArray(processedGeneratedContent.enableKiLabel)
+                  ? processedGeneratedContent.enableKiLabel[index]
+                  : processedGeneratedContent.enableKiLabel;
+                const onSharepicUpdate = Array.isArray(processedGeneratedContent.onSharepicUpdate)
+                  ? processedGeneratedContent.onSharepicUpdate[index]
+                  : processedGeneratedContent.onSharepicUpdate;
 
-              return (
-                <ImageDisplay 
-                  key={sharepicData.id || `${sharepicData.type || 'sharepic'}-${index}`}
-                  sharepicData={sharepicData} 
-                  onEdit={processedGeneratedContent.onEditSharepic}
-                  showEditButton={processedGeneratedContent.showEditButton !== false}
-                  title={sharepicTitle}
-                  downloadButtonText={downloadButtonText}
-                  downloadFilename={downloadFilename}
-                  enableKiLabel={enableKiLabel}
-                  onSharepicUpdate={onSharepicUpdate}
-                />
-              );
-            })}
+                return (
+                  <ImageDisplay
+                    key={sharepicData.id || `${sharepicData.type || 'sharepic'}-${index}`}
+                    sharepicData={sharepicData}
+                    onEdit={processedGeneratedContent.onEditSharepic}
+                    showEditButton={processedGeneratedContent.showEditButton !== false}
+                    title={sharepicTitle}
+                    downloadButtonText={downloadButtonText}
+                    downloadFilename={downloadFilename}
+                    enableKiLabel={enableKiLabel}
+                    onSharepicUpdate={onSharepicUpdate}
+                  />
+                );
+              })
+            )}
           </div>
         )}
       </div>

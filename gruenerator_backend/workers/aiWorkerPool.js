@@ -48,7 +48,6 @@ class AIWorkerPool {
   handleWorkerMessage(workerIndex, message) {
     const { type, requestId, data, error } = message;
     
-    console.log(`[AIWorkerPool] Received ${type} from worker ${workerIndex} for request ${requestId}`);
     
     const pendingRequest = this.pendingRequests.get(requestId);
     if (!pendingRequest) {
@@ -64,15 +63,6 @@ class AIWorkerPool {
       this.workers[workerIndex].pendingRequests.delete(requestId);
       clearTimeout(timeout);
       
-      console.log(`[AIWorkerPool] Successful response for request ${requestId} (${data.content?.length || 0} chars)`);
-      // Optional: log full response payload for testing
-      try {
-        const cfg = require('./worker.config');
-        if (cfg?.logging?.fullResponses) {
-          // Avoid blowing up logs if content is huge: still print full object as requested
-          console.log(`[AIWorkerPool][FullResponse ${requestId}]`, JSON.stringify(data, null, 2));
-        }
-      } catch (_) {}
       resolve({
         content: data.content,
         stop_reason: data.stop_reason,
@@ -165,7 +155,6 @@ class AIWorkerPool {
           // Override any existing provider selection for privacy mode
           processedData.provider = privacyProvider;
           
-          console.log(`[AIWorkerPool] Privacy mode: User ${userId} routed to ${privacyProvider}`);
         } else {
           console.warn('[AIWorkerPool] Privacy mode enabled but no user ID found, using default provider');
         }
@@ -174,13 +163,6 @@ class AIWorkerPool {
         // Continue with original data on error
       }
     }
-    
-    console.log(`[AIWorkerPool] Processing request ${requestId}:`, {
-      type: processedData.type,
-      usePrivacyMode: processedData.usePrivacyMode,
-      useBedrock: processedData.useBedrock,
-      provider: processedData.provider || 'default'
-    });
 
     return new Promise((resolve, reject) => {
       const { workerIndex, worker } = this.selectWorker();

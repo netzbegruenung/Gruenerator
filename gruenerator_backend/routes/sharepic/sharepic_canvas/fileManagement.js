@@ -22,7 +22,7 @@ async function checkFiles() {
 
 function registerFonts() {
   const fs = require('fs');
-  
+
   const fonts = [
     { path: FONT_PATH, family: 'GrueneType', name: 'GrueneType' },
     { path: PTSANS_REGULAR_PATH, family: 'PTSans-Regular', name: 'PTSans Regular' },
@@ -31,17 +31,7 @@ function registerFonts() {
 
   for (const font of fonts) {
     try {
-      console.log(`Attempting to register ${font.name} font from:`, font.path);
       registerFont(font.path, { family: font.family });
-      console.log(`${font.name} erfolgreich registriert:`, font.path);
-      
-      // Verify the font file exists and is readable
-      const stats = fs.statSync(font.path);
-      console.log(`${font.name} file stats:`, {
-        size: stats.size,
-        isFile: stats.isFile(),
-        readable: fs.constants.R_OK
-      });
     } catch (err) {
       console.error(`Fehler beim Registrieren der ${font.name} Schriftart:`, err);
       throw err;

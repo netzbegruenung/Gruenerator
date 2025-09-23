@@ -13,8 +13,10 @@ const { generateSharepicForChat } = require('./services/sharepicGenerationServic
 const chatMemory = require('../../services/chatMemoryService');
 const { trimMessagesToTokenLimit } = require('../../utils/tokenCounter');
 const DocumentQnAService = require('../../services/documentQnAService');
+const SharepicImageManager = require('../../services/sharepicImageManager');
 const redisClient = require('../../utils/redisClient');
 const mistralClient = require('../../workers/mistralClient');
+const crypto = require('crypto');
 
 // Create authenticated router
 const router = createAuthenticatedRouter();
@@ -75,22 +77,63 @@ router.post('/', withErrorHandler(async (req, res) => {
     const conversation = await chatMemory.getConversation(userId);
     const trimmedHistory = trimMessagesToTokenLimit(conversation.messages, 6000);
 
-    // Step 1.5: Process and store attachments in Redis if present
+    // Step 1.5: Separate attachments by type and handle appropriately
+    const requestId = crypto.randomBytes(8).toString('hex');
     let documentIds = [];
+    let sharepicImages = [];
+
     if (attachments && attachments.length > 0) {
-      console.log(`[GrueneratorChat] Storing ${attachments.length} attachments in Redis`);
-      try {
-        documentIds = await documentQnAService.storeAttachments(userId, attachments);
-        console.log(`[GrueneratorChat] Successfully stored attachments with IDs:`, documentIds);
-      } catch (error) {
-        console.error('[GrueneratorChat] Error storing attachments:', error);
-        // Continue without documents rather than failing the request
+      console.log(`[GrueneratorChat] Processing ${attachments.length} attachments`);
+
+      // Separate attachments by type
+      const textAttachments = [];
+      const imageAttachments = [];
+
+      for (const attachment of attachments) {
+        if (attachment.type && attachment.type.startsWith('image/')) {
+          imageAttachments.push(attachment);
+        } else {
+          // Text documents, PDFs, etc. for knowledge extraction
+          textAttachments.push(attachment);
+        }
+      }
+
+      console.log(`[GrueneratorChat] Separated: ${textAttachments.length} text documents, ${imageAttachments.length} images`);
+
+      // Store text documents for knowledge extraction via DocumentQnAService
+      if (textAttachments.length > 0) {
+        try {
+          documentIds = await documentQnAService.storeAttachments(userId, textAttachments);
+          console.log(`[GrueneratorChat] Successfully stored ${textAttachments.length} text documents with IDs:`, documentIds);
+        } catch (error) {
+          console.error('[GrueneratorChat] Error storing text attachments:', error);
+          // Continue without documents rather than failing the request
+        }
+      }
+
+      // Store images temporarily for sharepic generation via SharepicImageManager
+      if (imageAttachments.length > 0) {
+        try {
+          const sharepicImageManager = req.app.locals.sharepicImageManager;
+          if (!sharepicImageManager) {
+            console.error('[GrueneratorChat] SharepicImageManager not initialized');
+          } else {
+            for (const img of imageAttachments) {
+              await sharepicImageManager.storeForRequest(requestId, userId, img);
+            }
+            sharepicImages = imageAttachments;
+            console.log(`[GrueneratorChat] Stored ${imageAttachments.length} images temporarily for sharepic generation`);
+          }
+        } catch (error) {
+          console.error('[GrueneratorChat] Error storing sharepic images:', error);
+          // Continue without images rather than failing the request
+        }
       }
     } else {
-      console.log('[GrueneratorChat] No attachments to store');
+      console.log('[GrueneratorChat] No attachments to process');
     }
 
-    // Step 1.6: Retrieve recent documents from Redis and include as attachments
+    // Step 1.6: Retrieve recent documents from Redis (EXCLUDE IMAGES for context)
     let recentDocuments = [];
     try {
       const recentDocIds = await documentQnAService.getRecentDocuments(userId, 10);
@@ -109,6 +152,14 @@ router.post('/', withErrorHandler(async (req, res) => {
             const docData = await documentQnAService.redis.get(docId);
             if (docData) {
               const document = JSON.parse(docData);
+
+              // IMPORTANT: Skip images from context retrieval
+              // Images should only be used explicitly for current sharepic generation
+              if (document.type && document.type.startsWith('image/')) {
+                console.log(`[GrueneratorChat] Skipping image document: ${document.name} (${document.type})`);
+                continue;
+              }
+
               recentDocuments.push(document);
               console.log(`[GrueneratorChat] Retrieved recent document: ${document.name} (${document.type})`);
             } else {
@@ -125,17 +176,18 @@ router.post('/', withErrorHandler(async (req, res) => {
     }
 
     // Combine attachments from request body and recent documents
+    // Note: recentDocuments now excludes images, so allAttachments won't have stale images
     const allAttachments = [...(attachments || []), ...recentDocuments];
     console.log('[GrueneratorChat] Combined attachments:', {
       fromRequest: attachments?.length || 0,
       fromRecent: recentDocuments.length,
-      total: allAttachments.length
+      total: allAttachments.length,
+      currentRequestImages: sharepicImages.length
     });
 
     // Enhance context with conversation history and document IDs
-    const hasImageAttachment = allAttachments.some(attachment =>
-      attachment.type && attachment.type.startsWith('image/')
-    );
+    // Check for images in current request only (not from old attachments)
+    const hasImageAttachment = sharepicImages.length > 0;
 
     console.log('[GrueneratorChat] Image detection result:', {
       hasImageAttachment,
@@ -151,7 +203,8 @@ router.post('/', withErrorHandler(async (req, res) => {
       messageHistory: trimmedHistory,
       lastAgent: conversation.metadata?.lastAgent,
       documentIds: documentIds,
-      hasImageAttachment: hasImageAttachment
+      hasImageAttachment: hasImageAttachment,
+      sharepicRequestId: requestId  // Pass request ID for image retrieval
     };
 
     console.log('[GrueneratorChat] Using conversation context:', {
@@ -207,11 +260,41 @@ router.post('/', withErrorHandler(async (req, res) => {
           documentIds: completedRequest.documentIds || []
         };
 
+        // Check if we have image attachments and upgrade agent accordingly
+        const hasImageAttachment = completedRequest.attachments &&
+          Array.isArray(completedRequest.attachments) &&
+          completedRequest.attachments.some(att => att.type && att.type.startsWith('image/'));
+
+        let finalAgent = completedRequest.agent;
+        if (completedRequest.agent === 'zitat' && hasImageAttachment) {
+          console.log('[GrueneratorChat] Upgrading completed request agent from zitat to zitat_with_image due to image attachment');
+          finalAgent = 'zitat_with_image';
+        } else if (completedRequest.agent === 'dreizeilen' && hasImageAttachment) {
+          console.log('[GrueneratorChat] Keeping completed request agent as dreizeilen with image attachment');
+          // dreizeilen already handles images correctly
+        }
+
+        console.log('[GrueneratorChat] Processing completed request:', {
+          originalAgent: completedRequest.agent,
+          finalAgent: finalAgent,
+          hasImageAttachment: hasImageAttachment,
+          attachmentCount: completedRequest.attachments?.length || 0
+        });
+
         // Process the completed request as a sharepic
-        if (completedRequest.agent === 'zitat') {
+        if (finalAgent === 'zitat' || finalAgent === 'zitat_with_image') {
           try {
-            req.body = { ...req.body, ...completedRequestContext };
-            const sharepicResponse = await generateSharepicForChat(req, 'zitat_pure', req.body);
+            // Determine correct sharepic type based on final agent
+            const sharepicType = finalAgent === 'zitat_with_image' ? 'zitat' : 'zitat_pure';
+            console.log('[GrueneratorChat] Using sharepic type for completed request:', sharepicType);
+
+            req.body = {
+              ...req.body,
+              ...completedRequestContext,
+              count: 1,
+              preserveName: true  // Enable name preservation for chat requests
+            };
+            const sharepicResponse = await generateSharepicForChat(req, sharepicType, req.body);
 
             // Don't store sharepic responses as chat messages to avoid text content conflicts
 
@@ -228,17 +311,42 @@ router.post('/', withErrorHandler(async (req, res) => {
           }
         }
 
+        // Handle dreizeilen completion
+        if (finalAgent === 'dreizeilen') {
+          try {
+            console.log('[GrueneratorChat] Processing completed dreizeilen request');
+            req.body = {
+              ...req.body,
+              ...completedRequestContext,
+              count: 1,
+              preserveName: true  // Enable name preservation for chat requests
+            };
+            const sharepicResponse = await generateSharepicForChat(req, 'dreizeilen', req.body);
+
+            res.json(sharepicResponse);
+            return;
+          } catch (error) {
+            console.error('[GrueneratorChat] Error processing completed dreizeilen request:', error);
+            res.status(500).json({
+              success: false,
+              error: 'Fehler beim Erstellen des Dreizeilen-Sharepics mit den bereitgestellten Informationen',
+              code: 'COMPLETION_ERROR'
+            });
+            return;
+          }
+        }
+
         // Handle cases where agent is still undefined or unrecognized
-        if (!completedRequest.agent || completedRequest.agent === 'undefined') {
+        if (!finalAgent || finalAgent === 'undefined') {
           console.log('[GrueneratorChat] No valid agent in completed request, clearing and treating as new request');
           await chatMemory.clearPendingRequest(userId);
           // Continue with normal intent classification instead of returning error
         } else {
           // For any other completed request, log and return to prevent further processing
-          console.log('[GrueneratorChat] Completed pending request for agent:', completedRequest.agent);
+          console.log('[GrueneratorChat] Completed pending request for agent:', finalAgent);
           res.status(500).json({
             success: false,
-            error: 'Handler for completed request not implemented for agent: ' + completedRequest.agent,
+            error: 'Handler for completed request not implemented for agent: ' + finalAgent,
             code: 'UNHANDLED_AGENT_TYPE'
           });
           return;
@@ -263,7 +371,9 @@ router.post('/', withErrorHandler(async (req, res) => {
       isMultiIntent: intentResult.isMultiIntent,
       totalIntents: intentResult.intents.length,
       agents: intentResult.intents.map(i => i.agent),
-      method: intentResult.method
+      method: intentResult.method,
+      hasImageAttachment: enhancedContext.hasImageAttachment,
+      imageUpgradeApplied: intentResult.intents.some(i => i.agent === 'zitat_with_image')
     });
 
     // Create response wrapper to capture responses for memory
@@ -602,17 +712,34 @@ async function processSharepicRequest(intentResult, req, res, userId = null) {
 
   // Map sharepic agent to appropriate type for sharepic_claude.json
   const sharepicTypeMapping = {
-    'zitat': 'zitat_pure',
-    'quote': 'zitat_pure',
+    'quote': 'zitat_pure', // Legacy alias for zitat_pure
     'zitat_with_image': 'zitat', // Handle image-based zitat
     'info': 'info',
     'headline': 'headline',
     'dreizeilen': 'dreizeilen'
   };
 
-  const sharepicType = sharepicTypeMapping[intentResult.agent] ||
-                      intentResult.params?.type ||
-                      'dreizeilen'; // Default fallback
+  // Dynamic type determination for zitat based on image presence
+  let sharepicType;
+  if (intentResult.agent === 'zitat') {
+    // Check if we have image attachments for zitat
+    const hasImageAttachment = req.body.attachments &&
+      Array.isArray(req.body.attachments) &&
+      req.body.attachments.some(att => att.type && att.type.startsWith('image/'));
+
+    console.log('[GrueneratorChat] Zitat type determination:', {
+      agent: intentResult.agent,
+      hasImageAttachment,
+      attachmentCount: req.body.attachments?.length || 0
+    });
+
+    sharepicType = hasImageAttachment ? 'zitat' : 'zitat_pure';
+  } else {
+    // Use static mapping for other agents
+    sharepicType = sharepicTypeMapping[intentResult.agent] ||
+                   intentResult.params?.type ||
+                   'dreizeilen'; // Default fallback
+  }
 
   // Update request body with sharepic-specific parameters
   req.body = {
@@ -621,21 +748,25 @@ async function processSharepicRequest(intentResult, req, res, userId = null) {
     sharepicType: sharepicType
   };
 
-  console.log('[GrueneratorChat] Routing sharepic with type:', sharepicType);
+  console.log('[GrueneratorChat] Routing sharepic with type:', {
+    originalAgent: intentResult.agent,
+    finalSharepicType: sharepicType,
+    hasImageAttachment: req.body.attachments?.some(att => att.type?.startsWith('image/')) || false,
+    attachmentCount: req.body.attachments?.length || 0
+  });
 
-  if (sharepicType === 'info' || sharepicType === 'zitat_pure' || sharepicType === 'zitat') {
+  // Route all supported sharepic types to the generation service
+  if (sharepicType === 'info' || sharepicType === 'zitat_pure' || sharepicType === 'zitat' || sharepicType === 'dreizeilen' || sharepicType === 'headline') {
     try {
-      // Extract parameters for the sharepic type, preserving existing name parameter
-      const newExtractedParams = await extractParameters(
-        req.body.message || req.body.originalMessage || '',
-        (sharepicType === 'zitat_pure' || sharepicType === 'zitat') ? 'zitat' : sharepicType,
-        req.body.chatContext || {}
-      );
-
-      // Preserve existing name parameter from first extraction
+      // Use parameters from the initial extraction (already in req.body)
+      // No need for redundant parameter extraction
       const extractedParams = {
-        ...newExtractedParams,
-        name: req.body.name || newExtractedParams.name
+        thema: req.body.thema || 'Grüne Politik',
+        details: req.body.details || req.body.originalMessage || '',
+        name: req.body.name || '',
+        type: sharepicType,
+        originalMessage: req.body.originalMessage || '',
+        chatContext: req.body.chatContext || {}
       };
 
       // Check for missing information (especially for quotes)
@@ -680,6 +811,12 @@ async function processSharepicRequest(intentResult, req, res, userId = null) {
           ...informationResult.data
         };
       }
+
+      // Ensure count: 1 for single sharepic generation
+      finalRequestBody = {
+        ...finalRequestBody,
+        count: 1
+      };
 
       const sharepicResponse = await generateSharepicForChat(req, sharepicType, finalRequestBody);
       res.json(sharepicResponse);
@@ -750,6 +887,7 @@ router.delete('/clear', withErrorHandler(async (req, res) => {
  */
 function isSharepicIntent(agent) {
   return agent === 'zitat' ||
+         agent === 'zitat_pure' ||
          agent === 'quote' ||
          agent === 'info' ||
          agent === 'headline' ||

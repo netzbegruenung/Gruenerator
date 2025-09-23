@@ -4,6 +4,13 @@ import { useChatStore } from '../../../stores/chatStore';
 import { useAuthStore } from '../../../stores/authStore';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 import { applyChangesToContent, extractEditableText } from '../../../stores/hooks/useTextEditActions';
+import {
+  getSingleResultMessage,
+  getMultiResultMessage,
+  getEditSuccessMessage,
+  getErrorMessage,
+  getNoChangesMessage
+} from '../utils/chatMessages';
 
 const SHAREPIC_AGENT_SET = new Set(['dreizeilen', 'headline', 'info', 'zitat', 'quote', 'zitat_pure']);
 const normalizeChatResponse = (response) => {
@@ -187,7 +194,7 @@ export const useChatApi = () => {
    */
   const sendMessage = useCallback(async (message, options = {}) => {
     if (!message?.trim()) {
-      setError('Nachricht darf nicht leer sein');
+      setError(getErrorMessage('empty_message'));
       return;
     }
 
@@ -302,12 +309,24 @@ export const useChatApi = () => {
             continue;
           }
 
+          // Handle information requests as direct chat messages in multi-agent flow
+          if (parsedIntentResponse.agent === 'information_request') {
+            addMessage({
+              type: 'assistant',
+              content: parsedIntentResponse.content.text,
+              timestamp: Date.now(),
+              agent: 'information_request'
+            });
+            continue; // Don't add to results, just show in chat
+          }
+
           // Collect successful parsed intent responses; defer store updates to dedicated handler
           successfulResponses.push(parsedIntentResponse);
         }
 
         if (successfulResponses.length === 0) {
-          throw new Error('Alle Teilantworten sind fehlgeschlagen');
+          // If we only had information requests, that's okay - they were already added to chat
+          return [];
         }
 
         handleMultiAgentResponses(successfulResponses);
@@ -319,7 +338,7 @@ export const useChatApi = () => {
 
         addMessage({
           type: 'assistant',
-          content: `Ich habe ${successfulResponses.length} Ergebnisse erstellt:\n${summaryLines.join('\n')}`,
+          content: `${getMultiResultMessage(successfulResponses.length)}\n${summaryLines.join('\n')}`,
           timestamp: Date.now(),
           agent: 'multi_intent_summary'
         });
@@ -340,48 +359,50 @@ export const useChatApi = () => {
 
       // Validate response structure
       if (!parsedResponse || !parsedResponse.success) {
-        throw new Error(parsedResponse?.error || 'Unerwartete Antwort vom Server');
+        throw new Error(parsedResponse?.error || getErrorMessage('unexpected_response'));
       }
 
       if (!parsedResponse.agent) {
-        throw new Error('Kein Agent in der Antwort gefunden');
+        throw new Error(getErrorMessage('no_agent'));
       }
 
-      if (!parsedResponse.content?.text && parsedResponse.agent !== 'information_request') {
-        throw new Error('Keine Textantwort erhalten');
+      if (!parsedResponse.content?.text && !parsedResponse.content?.sharepic && parsedResponse.agent !== 'information_request') {
+        throw new Error(getErrorMessage('no_content'));
       }
 
-      // Check if we have existing multi-results to preserve
-      const currentStore = useChatStore.getState();
-      const hasExistingResults = currentStore.multiResults && currentStore.multiResults.length > 0;
-
-      if (hasExistingResults) {
-        // Add this single response to existing multi-results
-        const existingResults = [...currentStore.multiResults];
-
-        // Convert single response to multi-result format
-        const newResult = {
-          ...parsedResponse,
-          id: parsedResponse.id || `single_${Date.now()}`,
-          title: parsedResponse.content?.metadata?.title || parsedResponse.agent,
-          componentId: `result_${existingResults.length}`
-        };
-
-        existingResults.push(newResult);
-        handleMultiAgentResponses(existingResults);
-
-        // Add summary message
+      // Handle information requests as direct chat messages
+      if (parsedResponse.agent === 'information_request') {
         addMessage({
           type: 'assistant',
-          content: `Neues Ergebnis hinzugefügt: ${newResult.title}`,
+          content: parsedResponse.content.text,
           timestamp: Date.now(),
-          agent: parsedResponse.agent
+          agent: 'information_request'
         });
-      } else {
-        // No existing results, handle as single response
-        clearMultiResults();
-        handleAgentResponse(parsedResponse);
+        return parsedResponse;
       }
+
+      // Always get existing results and append new response
+      const currentStore = useChatStore.getState();
+      const existingResults = currentStore.multiResults || [];
+
+      // Convert single response to multi-result format
+      const newResult = {
+        ...parsedResponse,
+        id: parsedResponse.id || `single_${Date.now()}`,
+        title: parsedResponse.content?.metadata?.title || parsedResponse.agent,
+        componentId: `result_${existingResults.length}_${Date.now()}`
+      };
+
+      // Add to existing results
+      const allResults = [...existingResults, newResult];
+      handleMultiAgentResponses(allResults);
+
+      addMessage({
+        type: 'assistant',
+        content: getSingleResultMessage(parsedResponse.agent, newResult.title),
+        timestamp: Date.now(),
+        agent: parsedResponse.agent
+      });
 
       return parsedResponse;
 
@@ -391,12 +412,12 @@ export const useChatApi = () => {
       // Add error message to chat
       const errorMessage = {
         type: 'error',
-        content: `Fehler: ${error.message || 'Unbekannter Fehler beim Senden der Nachricht'}`,
+        content: getErrorMessage('general_error', error.message || 'Unbekannter Fehler beim Senden der Nachricht'),
         timestamp: Date.now()
       };
 
       addMessage(errorMessage);
-      setError(error.message || 'Fehler beim Senden der Nachricht');
+      setError(error.message || getErrorMessage('general_error'));
 
       throw error;
     } finally {
@@ -418,7 +439,7 @@ export const useChatApi = () => {
   const sendEditInstruction = useCallback(async (instruction) => {
     const trimmedInstruction = (instruction || '').trim();
     if (!trimmedInstruction) {
-      setError('Anweisung darf nicht leer sein');
+      setError(getErrorMessage('empty_instruction'));
       return;
     }
 
@@ -436,7 +457,7 @@ export const useChatApi = () => {
     const editableText = extractEditableText(currentContent) || (typeof currentContent === 'string' ? currentContent : '');
 
     if (!editableText) {
-      const fallbackMessage = 'Kein Text zum Bearbeiten vorhanden. Bitte generieren Sie zuerst einen Vorschlag.';
+      const fallbackMessage = getErrorMessage('no_text_to_edit');
       const timestamp = Date.now();
       addMessage({ type: 'error', content: fallbackMessage, timestamp });
       setError(fallbackMessage);
@@ -467,7 +488,7 @@ export const useChatApi = () => {
       if (changes.length === 0) {
         addMessage({
           type: 'assistant',
-          content: summaryFromApi || 'Keine konkreten Änderungen vorgeschlagen. Präzisiere gern, was verändert werden soll.',
+          content: summaryFromApi || getNoChangesMessage(),
           timestamp: Date.now(),
           agent: 'edit'
         });
@@ -518,7 +539,7 @@ export const useChatApi = () => {
         }
       }
 
-      const successSummary = summaryFromApi || `✅ ${changes.length} ${changes.length === 1 ? 'Änderung' : 'Änderungen'} angewendet.`;
+      const successSummary = summaryFromApi || getEditSuccessMessage(changes.length);
       addMessage({
         type: 'assistant',
         content: successSummary,
@@ -530,7 +551,7 @@ export const useChatApi = () => {
       const errorMessage = error?.response?.data?.error || error.message || 'Fehler bei der Bearbeitung';
       addMessage({
         type: 'error',
-        content: `Fehler: ${errorMessage}`,
+        content: getErrorMessage('general_error', errorMessage),
         timestamp: Date.now()
       });
       setError(errorMessage);
