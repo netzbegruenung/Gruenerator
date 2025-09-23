@@ -55,10 +55,8 @@ passport.serializeUser((user, done) => {
 passport.deserializeUser(async (userData, done) => {
   try {
     if (typeof userData === 'object' && userData.id) {
-      console.log(`[Auth] 🔄 Deserializing user ${userData.id}, session avatar_robot_id=${userData.avatar_robot_id}`);
       const userToReturn = await getUserById(userData.id);
       if (userToReturn) {
-        console.log(`[Auth] 🔄 Database avatar_robot_id=${userToReturn.avatar_robot_id}, session avatar_robot_id=${userData.avatar_robot_id}`);
         
         // Preserve session data that might have been updated
         if (userData.id_token) {
@@ -85,11 +83,8 @@ passport.deserializeUser(async (userData, done) => {
         }
         // CRITICAL: Preserve avatar_robot_id from session if it was updated
         if (userData.hasOwnProperty('avatar_robot_id') && userData.avatar_robot_id) {
-          console.log(`[Auth] 🎨 Using session avatar_robot_id: ${userData.avatar_robot_id} (overriding DB value: ${userToReturn.avatar_robot_id})`);
           userToReturn.avatar_robot_id = userData.avatar_robot_id;
         }
-        
-        console.log(`[Auth] ✅ Final user object avatar_robot_id=${userToReturn.avatar_robot_id}`);
       }
       return done(null, userToReturn || userData);
     }
@@ -104,7 +99,6 @@ passport.deserializeUser(async (userData, done) => {
 
 // Helper function to handle user profile from Keycloak
 async function handleUserProfile(profile, req = null) {
-  console.log('[handleUserProfile] Processing profile for ID:', profile.id);
 
   const keycloakId = profile.id;
   const email = profile.emails?.[0]?.value;
@@ -192,14 +186,8 @@ async function handleUserProfile(profile, req = null) {
 // Get user by Keycloak ID
 async function getUserByKeycloakId(keycloakId) {
   try {
-    console.log(`[Auth] 🔍 Looking up user by Keycloak ID: ${keycloakId}`);
     const profileService = getProfileService();
     const profile = await profileService.getProfileByKeycloakId(keycloakId);
-    if (profile) {
-      console.log(`[Auth] ✅ User found by Keycloak ID ${keycloakId}: user_id=${profile.id}, avatar_robot_id=${profile.avatar_robot_id}`);
-    } else {
-      console.log(`[Auth] ❌ No user found for Keycloak ID: ${keycloakId}`);
-    }
     return profile;
   } catch (error) {
     console.error('[getUserByKeycloakId] Error:', error);
@@ -222,14 +210,8 @@ async function getUserByEmail(email) {
 // Get user by ID
 async function getUserById(id) {
   try {
-    console.log(`[Auth] 🔍 Looking up user by ID: ${id}`);
     const profileService = getProfileService();
     const profile = await profileService.getProfileById(id);
-    if (profile) {
-      console.log(`[Auth] ✅ User found by ID ${id}: avatar_robot_id=${profile.avatar_robot_id}`);
-    } else {
-      console.log(`[Auth] ❌ No user found for ID: ${id}`);
-    }
     return profile;
   } catch (error) {
     console.error('[getUserById] Error:', error);

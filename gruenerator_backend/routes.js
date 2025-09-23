@@ -27,6 +27,7 @@ const claudeKandidatRoute = require('./routes/claude_kandidat');
 const claudeGrueneJugendRoute = require('./routes/claude_gruene_jugend');
 const searchRouter = require('./routes/search/searchRoutes');
 const searchAnalysisRouter = require('./routes/search/searchAnalysis');
+const imagePickerRoute = require('./routes/imagePickerRoute');
 const subtitlerRouter = require('./routes/subtitler/subtitlerController');
 const subtitlerSocialRouter = require('./routes/subtitler/subtitlerSocialController');
 // voiceRouter now imported and enabled below
@@ -55,6 +56,7 @@ const webSearchRouter = require('./routes/webSearch'); // Import the web search 
 const imageGenerationRouter = require('./routes/imageGeneration'); // Import the image generation router
 const exportDocumentsRouter = require('./routes/exportDocuments'); // Server-side DOCX/PDF export
 const markdownRouter = require('./routes/markdown'); // Server-side markdown conversion
+const databaseTestRouter = require('./routes/databaseTest'); // Database schema test route
 // mem0Router will be imported dynamically like auth routes
 // Auth routes will be imported dynamically
 
@@ -183,6 +185,10 @@ async function setupRoutes(app) {
     await sharepicClaudeRoute.handleClaudeRequest(req, res, 'zitat_pure');
   });
 
+  app.post('/api/default_claude', async (req, res) => {
+    await sharepicClaudeRoute.handleClaudeRequest(req, res, 'default');
+  });
+
   // Zitat with Abyssale generation route - combines text generation + professional template
   app.post('/api/zitat_abyssale', async (req, res) => {
     try {
@@ -299,11 +305,13 @@ async function setupRoutes(app) {
   // Unified LangGraph-based search system
   app.use('/api/search', searchRouter); // Handles /, /deep-research, /analyze endpoints
   app.use('/api/analyze', searchRouter); // Redirect to unified controller
+  app.use('/api/image-picker', imagePickerRoute); // AI-powered image selection for sharepics
   // DEPRECATED: Legacy SearXNG endpoint - use /api/search instead
   app.use('/api/web-search', webSearchRouter); // TODO: Remove after migration
   app.use('/api/image-generation', imageGenerationRouter);
   app.use('/api/exports', exportDocumentsRouter);
   app.use('/api/markdown', markdownRouter);
+  app.use('/api/database', databaseTestRouter);
 
   // Add the Collab Editor route - DISABLED - Feature removed, backup available in archive/collab-feature-backup-2025-01
   // app.use('/api/collab-editor', collabEditorRouter);

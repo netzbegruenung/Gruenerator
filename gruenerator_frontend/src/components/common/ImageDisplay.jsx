@@ -14,10 +14,10 @@ import apiClient from '../utils/apiClient';
 /**
  * Component for displaying generated images with preview, lightbox, and download functionality
  * @param {Object} props - Component props
- * @param {Object} props.sharepicData - The image data containing text and image
- * @param {string} props.sharepicData.text - The generated text/description
- * @param {string} props.sharepicData.image - Base64 encoded image data
- * @param {string} props.sharepicData.type - The type of image (info, quote, etc.)
+ * @param {Object|Array} props.sharepicData - Single image data object or array of image data objects
+ * @param {string} props.sharepicData.text - The generated text/description (for single)
+ * @param {string} props.sharepicData.image - Base64 encoded image data (for single)
+ * @param {string} props.sharepicData.type - The type of image (info, quote, etc.) (for single)
  * @param {Function} props.onEdit - Callback function when edit button is clicked (optional)
  * @returns {JSX.Element} ImageDisplay component
  */
@@ -32,6 +32,13 @@ const ImageDisplay = ({
   onSharepicUpdate,
   minimal = false
 }) => {
+  // Determine if we have multiple sharepics
+  const isMultiple = Array.isArray(sharepicData);
+  const sharepicItems = isMultiple ? sharepicData.filter(Boolean) : [sharepicData];
+
+  // State for multiple image handling
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const currentSharepic = sharepicItems[activeImageIndex] || sharepicItems[0];
   // Lightbox state
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const [isKiLabelLoading, setIsKiLabelLoading] = useState(false);
@@ -50,7 +57,7 @@ const ImageDisplay = ({
     setShowAltText
   } = useSharepicStore();
 
-  if (!sharepicData?.image) {
+  if (!sharepicItems.length || !sharepicItems.some(item => item?.image)) {
     return null;
   }
 
@@ -85,7 +92,10 @@ const ImageDisplay = ({
 
   // Debug logging
   console.log('[ImageDisplay] Component rendered:', {
-    imageType: sharepicData?.type,
+    isMultiple,
+    itemCount: sharepicItems.length,
+    activeIndex: activeImageIndex,
+    imageType: currentSharepic?.type,
     hasOnEdit: !!onEdit,
     editButtonAlwaysVisible: true
   });
@@ -98,10 +108,10 @@ const ImageDisplay = ({
 
     try {
       // Extract base64 data from image
-      const imageBase64 = sharepicData.image.replace(/^data:image\/[^;]+;base64,/, '');
-      
+      const imageBase64 = currentSharepic.image.replace(/^data:image\/[^;]+;base64,/, '');
+
       // Generate alt text using the existing hook
-      const response = await generateAltTextForImage(imageBase64, sharepicData.text);
+      const response = await generateAltTextForImage(imageBase64, currentSharepic.text);
       
       if (response?.altText) {
         setAltText(response.altText);
@@ -120,7 +130,7 @@ const ImageDisplay = ({
   const handleEditSharepic = async () => {
     // If onEdit prop is provided, use that instead (for social media generator)
     if (onEdit && typeof onEdit === 'function') {
-      onEdit(sharepicData);
+      onEdit(currentSharepic);
       return;
     }
     
@@ -132,12 +142,12 @@ const ImageDisplay = ({
       let imageSessionId = null;
       
       // Upload image to backend Redis storage if available
-      if (sharepicData.image) {
+      if (currentSharepic.image) {
         try {
           const imageResponse = await apiClient.post('/sharepic/edit-session', {
-            imageData: sharepicData.image,
+            imageData: currentSharepic.image,
             metadata: {
-              type: sharepicData.type,
+              type: currentSharepic.type,
               timestamp: Date.now()
             }
           });
@@ -153,10 +163,10 @@ const ImageDisplay = ({
       
       // Store minimal data in sessionStorage
       const sessionData = {
-        text: sharepicData.text,
-        type: sharepicData.type,
-        slogans: sharepicData.slogans,
-        hasImage: !!sharepicData.image,
+        text: currentSharepic.text,
+        type: currentSharepic.type,
+        slogans: currentSharepic.slogans,
+        hasImage: !!currentSharepic.image,
         imageSessionId: imageSessionId // Store session ID instead of image
       };
       
@@ -171,9 +181,9 @@ const ImageDisplay = ({
       sessionStorage.setItem(editingSessionId, JSON.stringify({
         source: 'presseSocial',
         data: {
-          text: sharepicData.text,
-          type: sharepicData.type,
-          slogans: sharepicData.slogans,
+          text: currentSharepic.text,
+          type: currentSharepic.type,
+          slogans: currentSharepic.slogans,
           hasImage: false
         },
         timestamp: Date.now()
@@ -193,7 +203,7 @@ const ImageDisplay = ({
   };
 
   const handleAddKiLabel = async () => {
-    if (!enableKiLabel || isKiLabelLoading || !sharepicData?.image) {
+    if (!enableKiLabel || isKiLabelLoading || !currentSharepic?.image) {
       return;
     }
 
@@ -201,7 +211,7 @@ const ImageDisplay = ({
     setIsKiLabelLoading(true);
 
     try {
-      const response = await fetch(sharepicData.image);
+      const response = await fetch(currentSharepic.image);
       if (!response.ok) {
         throw new Error('Bild konnte nicht gelesen werden.');
       }
@@ -223,7 +233,14 @@ const ImageDisplay = ({
       }
 
       if (typeof onSharepicUpdate === 'function') {
-        onSharepicUpdate({ ...sharepicData, image: labeledImage });
+        // Update the current sharepic in the array if multiple, or single item
+        if (isMultiple) {
+          const updatedItems = [...sharepicItems];
+          updatedItems[activeImageIndex] = { ...currentSharepic, image: labeledImage };
+          onSharepicUpdate(updatedItems);
+        } else {
+          onSharepicUpdate({ ...currentSharepic, image: labeledImage });
+        }
       }
 
       resetAltTextState();
@@ -238,40 +255,71 @@ const ImageDisplay = ({
   const effectiveDownloadText = minimal ? 'Herunterladen' : downloadButtonText;
   const effectiveDownloadFilename = downloadFilename || 'sharepic.png';
 
-  const handleDownload = React.useCallback(() => {
+  const handleDownload = React.useCallback((imageIndex = null) => {
     try {
+      const targetSharepic = imageIndex !== null ? sharepicItems[imageIndex] : currentSharepic;
+      const targetFilename = imageIndex !== null
+        ? `${effectiveDownloadFilename.replace(/\.([^.]+)$/, '')}-${imageIndex + 1}.$1`
+        : effectiveDownloadFilename;
+
       const link = document.createElement('a');
-      link.href = sharepicData.image;
-      link.download = effectiveDownloadFilename;
+      link.href = targetSharepic.image;
+      link.download = targetFilename;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
     } catch (error) {
       console.error('[ImageDisplay] Download failed:', error);
     }
-  }, [sharepicData.image, effectiveDownloadFilename]);
+  }, [sharepicItems, currentSharepic, effectiveDownloadFilename]);
+
+  const handleDownloadAll = React.useCallback(() => {
+    sharepicItems.forEach((item, index) => {
+      setTimeout(() => {
+        handleDownload(index);
+      }, index * 200); // 200ms delay between downloads
+    });
+  }, [sharepicItems, handleDownload]);
 
   return (
     <>
-      <div className="image-display">
+      <div className={`image-display ${isMultiple ? 'multiple-images' : ''}`}>
         {!minimal && (
           <div className="image-display__header">
-            <h4 className="image-display__title">{title}</h4>
+            <h4 className="image-display__title">
+              {isMultiple ? `${title} (${sharepicItems.length} Bilder)` : title}
+            </h4>
           </div>
         )}
 
         <div className="image-display__content">
+          {isMultiple && !minimal && (
+            <div className="image-thumbnails">
+              {sharepicItems.map((item, index) => (
+                <button
+                  key={index}
+                  className={`thumbnail ${index === activeImageIndex ? 'active' : ''}`}
+                  onClick={() => setActiveImageIndex(index)}
+                  title={`${item.type || 'Sharepic'} ${index + 1}`}
+                >
+                  <img src={item.image} alt={`Thumbnail ${index + 1}`} />
+                  <span className="thumbnail-label">{item.type || `Bild ${index + 1}`}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
           <div className="image-display__preview">
             <div className="image-container">
-              <img 
-                src={sharepicData.image} 
-                alt="Generiertes Bild" 
+              <img
+                src={currentSharepic.image}
+                alt="Generiertes Bild"
                 className="image-preview"
                 onClick={openLightbox}
                 style={{ cursor: 'pointer' }}
               />
               <div className="image-overlay-buttons">
-                <button 
+                <button
                   className={minimal ? 'image-button image-edit-button' : 'image-button image-alt-button'}
                   onClick={handleGenerateAltText}
                   disabled={isAltTextLoading || isKiLabelLoading}
@@ -292,7 +340,7 @@ const ImageDisplay = ({
                   </button>
                 )}
                 {showEditButton && (
-                  <button 
+                  <button
                     className="image-button image-edit-button"
                     onClick={handleEditSharepic}
                     title="Bild bearbeiten"
@@ -300,26 +348,35 @@ const ImageDisplay = ({
                     <HiPencil />
                   </button>
                 )}
-                {minimal && (
-                  <button
-                    className="image-button image-edit-button"
-                    onClick={handleDownload}
-                    title="Bild herunterladen"
-                  >
-                    <HiDownload />
-                  </button>
-                )}
+                <button
+                  className="image-button image-download-button"
+                  onClick={() => handleDownload()}
+                  title="Bild herunterladen"
+                >
+                  <HiDownload />
+                </button>
               </div>
             </div>
           </div>
-          
+
           {!minimal && (
             <div className="image-display__actions">
-              <DownloadButton 
-                imageUrl={sharepicData.image} 
-                buttonText={effectiveDownloadText}
-                downloadFilename={downloadFilename}
-              />
+              {isMultiple ? (
+                <button
+                  className="sharepic-download-button"
+                  onClick={handleDownloadAll}
+                  title="Alle Bilder herunterladen"
+                >
+                  <HiDownload />
+                  Alle {sharepicItems.length} Bilder herunterladen
+                </button>
+              ) : (
+                <DownloadButton
+                  imageUrl={currentSharepic.image}
+                  buttonText={effectiveDownloadText}
+                  downloadFilename={downloadFilename}
+                />
+              )}
             </div>
           )}
 
@@ -384,18 +441,48 @@ const ImageDisplay = ({
       {isLightboxOpen && (
         <div className="image-lightbox-overlay" onClick={handleLightboxOverlayClick}>
           <div className="image-lightbox-content">
-            <button 
+            <button
               className="image-lightbox-close"
               onClick={closeLightbox}
               aria-label="Lightbox schließen"
             >
               ×
             </button>
-            <img 
-              src={sharepicData.image} 
-              alt="Vergrößertes Bild" 
+            {isMultiple && sharepicItems.length > 1 && (
+              <>
+                <button
+                  className="lightbox-nav lightbox-prev"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveImageIndex(prev => (prev - 1 + sharepicItems.length) % sharepicItems.length);
+                  }}
+                  title="Vorheriges Bild"
+                >
+                  ←
+                </button>
+                <button
+                  className="lightbox-nav lightbox-next"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveImageIndex(prev => (prev + 1) % sharepicItems.length);
+                  }}
+                  title="Nächstes Bild"
+                >
+                  →
+                </button>
+              </>
+            )}
+            <img
+              src={currentSharepic.image}
+              alt="Vergrößertes Bild"
               className="image-lightbox-image"
             />
+            {isMultiple && (
+              <div className="lightbox-info">
+                <span>{activeImageIndex + 1} / {sharepicItems.length}</span>
+                {currentSharepic.type && <span className="lightbox-type">({currentSharepic.type})</span>}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -404,12 +491,20 @@ const ImageDisplay = ({
 };
 
 ImageDisplay.propTypes = {
-  sharepicData: PropTypes.shape({
-    text: PropTypes.string,
-    image: PropTypes.string.isRequired,
-    type: PropTypes.string,
-    slogans: PropTypes.array
-  }).isRequired,
+  sharepicData: PropTypes.oneOfType([
+    PropTypes.shape({
+      text: PropTypes.string,
+      image: PropTypes.string.isRequired,
+      type: PropTypes.string,
+      slogans: PropTypes.array
+    }),
+    PropTypes.arrayOf(PropTypes.shape({
+      text: PropTypes.string,
+      image: PropTypes.string.isRequired,
+      type: PropTypes.string,
+      slogans: PropTypes.array
+    }))
+  ]).isRequired,
   onEdit: PropTypes.func, // Optional - for backward compatibility, but not used anymore
   showEditButton: PropTypes.bool,
   title: PropTypes.string,
@@ -424,4 +519,4 @@ ImageDisplay.defaultProps = {
   minimal: false
 };
 
-export default ImageDisplay;
+export default React.memo(ImageDisplay);

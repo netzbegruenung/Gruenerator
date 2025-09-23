@@ -6,9 +6,90 @@ const dreizeilenCanvasRouter = require('../../sharepic/sharepic_canvas/dreizeile
 const headlineCanvasRouter = require('../../sharepic/sharepic_canvas/headline_canvas');
 
 const { getFirstImageAttachment, convertToBuffer, convertToTempFile, validateImageAttachment } = require('../../../utils/attachmentToCanvasAdapter');
+const imagePickerService = require('../../../services/imagePickerService');
+const fs = require('fs').promises;
+const path = require('path');
 
 const SHAREPIC_TYPES = new Set(['info', 'zitat_pure', 'zitat', 'dreizeilen', 'headline']);
 const IMAGE_REQUIRED_TYPES = new Set(['zitat', 'dreizeilen']);
+
+/**
+ * Create a mock image attachment from an AI-selected image file
+ * @param {string} filename - Selected image filename
+ * @returns {Object} Mock attachment object
+ */
+const createImageAttachmentFromFile = async (filename) => {
+  const imagePath = imagePickerService.getImagePath(filename);
+
+  try {
+    // Read the image file
+    const imageBuffer = await fs.readFile(imagePath);
+
+    // Create base64 data URL
+    const base64Data = imageBuffer.toString('base64');
+    const mimeType = filename.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
+    const dataUrl = `data:${mimeType};base64,${base64Data}`;
+
+    return {
+      type: mimeType,
+      data: dataUrl,
+      name: filename,
+      size: imageBuffer.length,
+      source: 'ai-selected' // Mark as AI-selected for logging
+    };
+  } catch (error) {
+    console.error(`[SharepicGeneration] Failed to load image ${filename}:`, error);
+    throw new Error(`Failed to load selected image: ${filename}`);
+  }
+};
+
+/**
+ * Select and prepare an image attachment for sharepic generation
+ * @param {string} textContent - Text content to analyze for image selection
+ * @param {string} sharepicType - Type of sharepic being generated
+ * @param {Object} aiWorkerPool - AI worker pool instance
+ * @param {Object} req - Express request object (optional)
+ * @returns {Object} Image attachment object
+ */
+const selectAndPrepareImage = async (textContent, sharepicType, aiWorkerPool, req = null) => {
+  console.log(`[SharepicGeneration] Selecting image for ${sharepicType} sharepic`);
+
+  try {
+    // Use image picker service to select best image
+    const selection = await imagePickerService.selectBestImage(textContent, aiWorkerPool, {}, req);
+
+    console.log(`[SharepicGeneration] Selected image: ${selection.selectedImage.filename} (confidence: ${selection.confidence})`);
+    console.log(`[SharepicGeneration] Selection reasoning: ${selection.reasoning}`);
+
+    // Create attachment from selected image
+    const imageAttachment = await createImageAttachmentFromFile(selection.selectedImage.filename);
+
+    return {
+      attachment: imageAttachment,
+      selection: selection // Include selection details for logging/debugging
+    };
+
+  } catch (error) {
+    console.error('[SharepicGeneration] Failed to select image:', error);
+
+    // Fallback to a default safe image
+    try {
+      console.log('[SharepicGeneration] Using fallback image');
+      const fallbackImage = await createImageAttachmentFromFile('mike-marrah-XNCv-DcTLx4-unsplash.jpg'); // Sunflower image as fallback
+      return {
+        attachment: fallbackImage,
+        selection: {
+          selectedImage: { filename: 'mike-marrah-XNCv-DcTLx4-unsplash.jpg' },
+          confidence: 0.1,
+          reasoning: 'Fallback after selection failed'
+        }
+      };
+    } catch (fallbackError) {
+      console.error('[SharepicGeneration] Even fallback image failed:', fallbackError);
+      throw new Error('Failed to select any image for sharepic generation');
+    }
+  }
+};
 
 const getRouteHandler = (router) => {
   const layer = router.stack?.find((entry) => entry.route && entry.route.path === '/' && entry.route.methods?.post);
@@ -51,7 +132,10 @@ const callSharepicClaude = async (expressReq, type, body) => {
     headers: expressReq.headers,
     user: expressReq.user,
     correlationId: expressReq.correlationId,
-    body
+    body: {
+      ...body,
+      count: 1 // Force single item generation for all sharepic requests
+    }
   };
 
   return new Promise((resolve, reject) => {
@@ -96,23 +180,6 @@ const callCanvasRoute = async (router, body, file = null) => {
   });
 };
 
-const formatInfoText = ({ header, subheader, body }) => {
-  const parts = [];
-  if (header) {
-    parts.push(`**${header}**`);
-  }
-  if (subheader) {
-    parts.push(`*${subheader}*`);
-  }
-  if (body) {
-    parts.push(body);
-  }
-  return parts.join('\n\n');
-};
-
-const formatZitatPureText = ({ quote, name }) => {
-  return name ? `"${quote}"\n\n— ${name}` : `"${quote}"`;
-};
 
 const buildInfoCanvasPayload = ({ header, subheader, body }) => {
   const combinedBody = subheader && body ? `${subheader}. ${body}` : subheader || body || '';
@@ -141,13 +208,13 @@ const generateInfoSharepic = async (expressReq, requestBody) => {
     success: true,
     agent: 'info',
     content: {
-      text: formatInfoText({ header, subheader, body }),
       metadata: {
         sharepicType: 'info'
       },
       sharepic: {
         image: canvasPayload.image,
         type: 'info',
+        text: `${header}\n${subheader || ''}\n${body || ''}`.trim(),
         header,
         subheader,
         body,
@@ -161,13 +228,20 @@ const generateInfoSharepic = async (expressReq, requestBody) => {
 };
 
 const generateZitatPureSharepic = async (expressReq, requestBody) => {
-  const textResponse = await callSharepicClaude(expressReq, 'zitat_pure', requestBody);
+  const textResponse = await callSharepicClaude(expressReq, 'zitat_pure', {
+    ...requestBody,
+    preserveName: requestBody.preserveName || false  // Pass through preserveName flag
+  });
 
   if (!textResponse?.success) {
     throw new Error(textResponse?.error || 'Zitat Pure Sharepic generation failed');
   }
 
-  const { quote, name, alternatives = [] } = textResponse;
+  const { quote, alternatives = [] } = textResponse;
+  // Use preserved name from request body if preserveName flag was set, otherwise use AI response
+  const name = (requestBody.preserveName && expressReq.body.name)
+    ? expressReq.body.name
+    : textResponse.name || '';
 
   const { payload: canvasPayload } = await callCanvasRoute(zitatPureCanvasRouter, { quote, name });
 
@@ -179,7 +253,6 @@ const generateZitatPureSharepic = async (expressReq, requestBody) => {
     success: true,
     agent: 'zitat_pure',
     content: {
-      text: formatZitatPureText({ quote, name }),
       metadata: {
         sharepicType: 'zitat_pure',
         quoteAuthor: name
@@ -187,6 +260,7 @@ const generateZitatPureSharepic = async (expressReq, requestBody) => {
       sharepic: {
         image: canvasPayload.image,
         type: 'zitat_pure',
+        text: `"${quote}" - ${name}`,
         quote,
         name,
         alternatives
@@ -198,13 +272,6 @@ const generateZitatPureSharepic = async (expressReq, requestBody) => {
   };
 };
 
-const formatDreizeilenText = ({ line1, line2, line3 }) => {
-  return [line1, line2, line3].filter(Boolean).join('\n');
-};
-
-const formatHeadlineText = ({ line1, line2, line3 }) => {
-  return [line1, line2, line3].filter(Boolean).join('\n');
-};
 
 const buildDreizeilenCanvasPayload = ({ line1, line2, line3 }) => {
   return { line1, line2, line3 };
@@ -222,8 +289,9 @@ const generateDreizeilenSharepic = async (expressReq, requestBody) => {
   }
 
   const { mainSlogan, alternatives = [] } = textResponse;
+  console.log('[SharepicGeneration] Dreizeilen mainSlogan received:', JSON.stringify(mainSlogan));
 
-  const { payload: canvasPayload } = await callCanvasRoute(dreizeilenCanvasRouter, buildDreizeilenCanvasPayload(mainSlogan));
+  const { payload: canvasPayload } = await callCanvasRoute(dreizeilenCanvasRouter, mainSlogan);
 
   if (!canvasPayload?.image) {
     throw new Error('Dreizeilen canvas did not return an image');
@@ -233,13 +301,13 @@ const generateDreizeilenSharepic = async (expressReq, requestBody) => {
     success: true,
     agent: 'dreizeilen',
     content: {
-      text: formatDreizeilenText(mainSlogan),
       metadata: {
         sharepicType: 'dreizeilen'
       },
       sharepic: {
         image: canvasPayload.image,
         type: 'dreizeilen',
+        text: `${mainSlogan.line1 || ''}\n${mainSlogan.line2 || ''}\n${mainSlogan.line3 || ''}`.trim(),
         mainSlogan,
         alternatives
       },
@@ -259,7 +327,7 @@ const generateHeadlineSharepic = async (expressReq, requestBody) => {
 
   const { mainSlogan, alternatives = [] } = textResponse;
 
-  const { payload: canvasPayload } = await callCanvasRoute(headlineCanvasRouter, buildHeadlineCanvasPayload(mainSlogan));
+  const { payload: canvasPayload } = await callCanvasRoute(headlineCanvasRouter, mainSlogan);
 
   if (!canvasPayload?.image) {
     throw new Error('Headline canvas did not return an image');
@@ -269,13 +337,13 @@ const generateHeadlineSharepic = async (expressReq, requestBody) => {
     success: true,
     agent: 'headline',
     content: {
-      text: formatHeadlineText(mainSlogan),
       metadata: {
         sharepicType: 'headline'
       },
       sharepic: {
         image: canvasPayload.image,
         type: 'headline',
+        text: `${mainSlogan.line1 || ''}\n${mainSlogan.line2 || ''}\n${mainSlogan.line3 || ''}`.trim(),
         mainSlogan,
         alternatives
       },
@@ -289,8 +357,22 @@ const generateHeadlineSharepic = async (expressReq, requestBody) => {
 const generateZitatWithImageSharepic = async (expressReq, requestBody) => {
   console.log('[SharepicGeneration] Generating zitat with image');
 
-  // Get and validate image attachment
-  const imageAttachment = getFirstImageAttachment(requestBody.attachments);
+  // First try to get image from SharepicImageManager (preferred)
+  let imageAttachment = null;
+  const sharepicImageManager = expressReq.app?.locals?.sharepicImageManager;
+  const sharepicRequestId = requestBody.sharepicRequestId;
+
+  if (sharepicImageManager && sharepicRequestId) {
+    console.log('[SharepicGeneration] Attempting to retrieve image from SharepicImageManager');
+    imageAttachment = await sharepicImageManager.retrieveAndConsume(sharepicRequestId);
+  }
+
+  // Fallback to legacy attachment method
+  if (!imageAttachment) {
+    console.log('[SharepicGeneration] Falling back to legacy attachment method');
+    imageAttachment = getFirstImageAttachment(requestBody.attachments);
+  }
+
   if (!imageAttachment) {
     throw new Error('Zitat sharepic requires an image attachment');
   }
@@ -300,12 +382,17 @@ const generateZitatWithImageSharepic = async (expressReq, requestBody) => {
   try {
     // Generate text content first
     // Generate text content first - use expressReq.body to include extracted name parameter
-    const textResponse = await callSharepicClaude(expressReq, 'zitat_pure', expressReq.body);
+    const textResponse = await callSharepicClaude(expressReq, 'zitat_pure', {
+      ...expressReq.body,
+      preserveName: true  // Flag to preserve user-provided name for chat requests
+    });
     if (!textResponse?.success) {
       throw new Error(textResponse?.error || 'Zitat text generation failed');
     }
 
-    const { quote, name, alternatives = [] } = textResponse;
+    const { quote, alternatives = [] } = textResponse;
+    // Use preserved name from request body if preserveName flag was set
+    const name = expressReq.body.name || textResponse.name || '';
 
     // Convert attachment to temp file for zitat_canvas
     tempFile = await convertToTempFile(imageAttachment);
@@ -327,7 +414,6 @@ const generateZitatWithImageSharepic = async (expressReq, requestBody) => {
       success: true,
       agent: 'zitat',
       content: {
-        text: formatZitatPureText({ quote, name }),
         metadata: {
           sharepicType: 'zitat',
           quoteAuthor: name
@@ -335,6 +421,7 @@ const generateZitatWithImageSharepic = async (expressReq, requestBody) => {
         sharepic: {
           image: canvasPayload.image,
           type: 'zitat',
+          text: `"${quote}" - ${name}`,
           quote,
           name,
           alternatives
@@ -356,8 +443,22 @@ const generateZitatWithImageSharepic = async (expressReq, requestBody) => {
 const generateDreizeilenWithImageSharepic = async (expressReq, requestBody) => {
   console.log('[SharepicGeneration] Generating dreizeilen with image');
 
-  // Get and validate image attachment
-  const imageAttachment = getFirstImageAttachment(requestBody.attachments);
+  // First try to get image from SharepicImageManager (preferred)
+  let imageAttachment = null;
+  const sharepicImageManager = expressReq.app?.locals?.sharepicImageManager;
+  const sharepicRequestId = requestBody.sharepicRequestId;
+
+  if (sharepicImageManager && sharepicRequestId) {
+    console.log('[SharepicGeneration] Attempting to retrieve image from SharepicImageManager');
+    imageAttachment = await sharepicImageManager.retrieveAndConsume(sharepicRequestId);
+  }
+
+  // Fallback to legacy attachment method
+  if (!imageAttachment) {
+    console.log('[SharepicGeneration] Falling back to legacy attachment method');
+    imageAttachment = getFirstImageAttachment(requestBody.attachments);
+  }
+
   if (!imageAttachment) {
     throw new Error('Dreizeilen sharepic requires an image attachment');
   }
@@ -377,7 +478,7 @@ const generateDreizeilenWithImageSharepic = async (expressReq, requestBody) => {
 
     // Create mock request for dreizeilen_canvas
     const mockReq = {
-      body: buildDreizeilenCanvasPayload(mainSlogan),
+      body: mainSlogan,
       file: mockFile
     };
 
@@ -392,13 +493,13 @@ const generateDreizeilenWithImageSharepic = async (expressReq, requestBody) => {
       success: true,
       agent: 'dreizeilen',
       content: {
-        text: formatDreizeilenText(mainSlogan),
         metadata: {
           sharepicType: 'dreizeilen'
         },
         sharepic: {
           image: canvasPayload.image,
           type: 'dreizeilen',
+          text: `${mainSlogan.line1 || ''}\n${mainSlogan.line2 || ''}\n${mainSlogan.line3 || ''}`.trim(),
           mainSlogan,
           alternatives
         },
@@ -414,15 +515,215 @@ const generateDreizeilenWithImageSharepic = async (expressReq, requestBody) => {
   }
 };
 
+const generateZitatWithAIImageSharepic = async (expressReq, requestBody) => {
+  console.log('[SharepicGeneration] Generating zitat with AI-selected image');
+
+  // Clean up any uploaded images first (since we're using AI-selected images)
+  const sharepicImageManager = expressReq.app?.locals?.sharepicImageManager;
+  const sharepicRequestId = requestBody.sharepicRequestId;
+  if (sharepicImageManager && sharepicRequestId) {
+    const hadUploadedImage = await sharepicImageManager.hasImageForRequest(sharepicRequestId);
+    if (hadUploadedImage) {
+      await sharepicImageManager.deleteImageForRequest(sharepicRequestId);
+      console.log('[SharepicGeneration] Cleaned up uploaded image since AI selection is used');
+    }
+  }
+
+  try {
+    // Generate text content first to analyze for image selection
+    const textResponse = await callSharepicClaude(expressReq, 'zitat_pure', {
+      ...expressReq.body,
+      preserveName: true
+    });
+    if (!textResponse?.success) {
+      throw new Error(textResponse?.error || 'Zitat text generation failed');
+    }
+
+    const { quote, alternatives = [] } = textResponse;
+    const name = expressReq.body.name || textResponse.name || '';
+
+    // Select appropriate image based on quote content
+    const textForAnalysis = `${quote} ${name}`.trim();
+    const { attachment: aiImageAttachment, selection } = await selectAndPrepareImage(textForAnalysis, 'zitat', expressReq.app.locals.aiWorkerPool, expressReq);
+
+    // Convert AI-selected image to temp file for zitat_canvas
+    const tempFile = await convertToTempFile(aiImageAttachment);
+
+    // Create mock request for zitat_canvas
+    const mockReq = {
+      body: { quote, name },
+      file: tempFile
+    };
+
+    // Call zitat_canvas route
+    const { payload: canvasPayload } = await callCanvasRoute(zitatCanvasRouter, mockReq.body, mockReq.file);
+
+    if (!canvasPayload?.image) {
+      throw new Error('Zitat canvas did not return an image');
+    }
+
+    return {
+      success: true,
+      agent: 'zitat',
+      content: {
+        metadata: {
+          sharepicType: 'zitat',
+          quoteAuthor: name,
+          aiSelectedImage: {
+            filename: selection.selectedImage.filename,
+            confidence: selection.confidence,
+            reasoning: selection.reasoning
+          }
+        },
+        sharepic: {
+          image: canvasPayload.image,
+          type: 'zitat',
+          text: `"${quote}" - ${name}`,
+          quote,
+          name,
+          alternatives,
+          selectedImage: selection.selectedImage.filename
+        },
+        sharepicTitle: 'Sharepic Vorschau',
+        sharepicDownloadText: 'Sharepic herunterladen',
+        sharepicDownloadFilename: `sharepic-zitat-${Date.now()}.png`
+      }
+    };
+
+  } catch (error) {
+    console.error('[SharepicGeneration] Error in zitat with AI image:', error);
+    throw error;
+  } finally {
+    // Cleanup any remaining uploaded images for this request
+    if (sharepicImageManager && sharepicRequestId) {
+      try {
+        const hasRemainingImage = await sharepicImageManager.hasImageForRequest(sharepicRequestId);
+        if (hasRemainingImage) {
+          await sharepicImageManager.deleteImageForRequest(sharepicRequestId);
+          console.log('[SharepicGeneration] Cleaned up remaining uploaded image after zitat AI generation');
+        }
+      } catch (cleanupError) {
+        console.warn('[SharepicGeneration] Error during image cleanup:', cleanupError);
+      }
+    }
+    // Cleanup temp file if it exists
+    // Note: tempFile cleanup is handled by convertToTempFile utility
+  }
+};
+
+const generateDreizeilenWithAIImageSharepic = async (expressReq, requestBody) => {
+  console.log('[SharepicGeneration] Generating dreizeilen with AI-selected image');
+
+  // Clean up any uploaded images first (since we're using AI-selected images)
+  const sharepicImageManager = expressReq.app?.locals?.sharepicImageManager;
+  const sharepicRequestId = requestBody.sharepicRequestId;
+  if (sharepicImageManager && sharepicRequestId) {
+    const hadUploadedImage = await sharepicImageManager.hasImageForRequest(sharepicRequestId);
+    if (hadUploadedImage) {
+      await sharepicImageManager.deleteImageForRequest(sharepicRequestId);
+      console.log('[SharepicGeneration] Cleaned up uploaded image since AI selection is used');
+    }
+  }
+
+  try {
+    // Generate text content first to analyze for image selection
+    const textResponse = await callSharepicClaude(expressReq, 'dreizeilen', requestBody);
+
+    if (!textResponse?.success) {
+      throw new Error(textResponse?.error || 'Dreizeilen text generation failed');
+    }
+
+    const { mainSlogan, alternatives = [] } = textResponse;
+
+    // Select appropriate image based on slogan content
+    const textForAnalysis = `${mainSlogan.line1 || ''} ${mainSlogan.line2 || ''} ${mainSlogan.line3 || ''}`.trim();
+    const { attachment: aiImageAttachment, selection } = await selectAndPrepareImage(textForAnalysis, 'dreizeilen', expressReq.app.locals.aiWorkerPool, expressReq);
+
+    // Convert AI-selected image to buffer for dreizeilen_canvas (uses memory storage)
+    const mockFile = convertToBuffer(aiImageAttachment);
+
+    // Create mock request for dreizeilen_canvas
+    const mockReq = {
+      body: mainSlogan,
+      file: mockFile
+    };
+
+    // Call dreizeilen_canvas route
+    const { payload: canvasPayload } = await callCanvasRoute(dreizeilenCanvasRouter, mockReq.body, mockReq.file);
+
+    if (!canvasPayload?.image) {
+      throw new Error('Dreizeilen canvas did not return an image');
+    }
+
+    return {
+      success: true,
+      agent: 'dreizeilen',
+      content: {
+        metadata: {
+          sharepicType: 'dreizeilen',
+          aiSelectedImage: {
+            filename: selection.selectedImage.filename,
+            confidence: selection.confidence,
+            reasoning: selection.reasoning
+          }
+        },
+        sharepic: {
+          image: canvasPayload.image,
+          type: 'dreizeilen',
+          text: `${mainSlogan.line1 || ''}\n${mainSlogan.line2 || ''}\n${mainSlogan.line3 || ''}`.trim(),
+          mainSlogan,
+          alternatives,
+          selectedImage: selection.selectedImage.filename
+        },
+        sharepicTitle: 'Sharepic Vorschau',
+        sharepicDownloadText: 'Sharepic herunterladen',
+        sharepicDownloadFilename: `sharepic-dreizeilen-${Date.now()}.png`
+      }
+    };
+
+  } catch (error) {
+    console.error('[SharepicGeneration] Error in dreizeilen with AI image:', error);
+    throw error;
+  } finally {
+    // Cleanup any remaining uploaded images for this request
+    if (sharepicImageManager && sharepicRequestId) {
+      try {
+        const hasRemainingImage = await sharepicImageManager.hasImageForRequest(sharepicRequestId);
+        if (hasRemainingImage) {
+          await sharepicImageManager.deleteImageForRequest(sharepicRequestId);
+          console.log('[SharepicGeneration] Cleaned up remaining uploaded image after dreizeilen AI generation');
+        }
+      } catch (cleanupError) {
+        console.warn('[SharepicGeneration] Error during image cleanup:', cleanupError);
+      }
+    }
+    // Cleanup temp file if it exists
+    // Note: tempFile cleanup is handled by convertToTempFile utility
+  }
+};
+
 const generateSharepicForChat = async (expressReq, type, requestBody) => {
   if (!SHAREPIC_TYPES.has(type)) {
     throw new Error(`Unsupported sharepic type: ${type}`);
   }
 
-  // Check for image attachments for image-required types
-  const hasImageAttachment = requestBody.attachments &&
-    Array.isArray(requestBody.attachments) &&
-    requestBody.attachments.some(att => att.type && att.type.startsWith('image/'));
+  // Check for image attachments - prioritize SharepicImageManager over legacy attachments
+  let hasImageAttachment = false;
+  const sharepicImageManager = expressReq.app?.locals?.sharepicImageManager;
+  const sharepicRequestId = requestBody.sharepicRequestId;
+
+  if (sharepicImageManager && sharepicRequestId) {
+    hasImageAttachment = await sharepicImageManager.hasImageForRequest(sharepicRequestId);
+    console.log(`[SharepicGeneration] SharepicImageManager check: hasImage=${hasImageAttachment}`);
+  }
+
+  // Fallback to legacy attachment check
+  if (!hasImageAttachment) {
+    hasImageAttachment = requestBody.attachments &&
+      Array.isArray(requestBody.attachments) &&
+      requestBody.attachments.some(att => att.type && att.type.startsWith('image/'));
+    console.log(`[SharepicGeneration] Legacy attachment check: hasImage=${hasImageAttachment}`);
+  }
 
   console.log(`[SharepicGeneration] Processing ${type} with image: ${hasImageAttachment}`);
 
@@ -432,18 +733,20 @@ const generateSharepicForChat = async (expressReq, type, requestBody) => {
     case 'zitat_pure':
       return generateZitatPureSharepic(expressReq, requestBody);
     case 'zitat':
-      // Image-based zitat
+      // Image-based zitat - use AI selection if no image provided
       if (!hasImageAttachment) {
-        throw new Error('Zitat sharepic requires an image upload. Please attach an image or use text-only quotes.');
+        console.log('[SharepicGeneration] No image provided for zitat, using AI selection');
+        return generateZitatWithAIImageSharepic(expressReq, requestBody);
       }
       return generateZitatWithImageSharepic(expressReq, requestBody);
     case 'dreizeilen':
-      // Check if we have image or should use existing text-only version
+      // Check if we have image or should use AI-selected image or text-only version
       if (hasImageAttachment) {
         return generateDreizeilenWithImageSharepic(expressReq, requestBody);
       } else {
-        // Fall back to existing dreizeilen (text-only)
-        return generateDreizeilenSharepic(expressReq, requestBody);
+        // Use AI image selection for better visual impact
+        console.log('[SharepicGeneration] No image provided for dreizeilen, using AI selection');
+        return generateDreizeilenWithAIImageSharepic(expressReq, requestBody);
       }
     case 'headline':
       return generateHeadlineSharepic(expressReq, requestBody);

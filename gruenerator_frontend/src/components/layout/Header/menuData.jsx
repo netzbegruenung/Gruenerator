@@ -23,6 +23,36 @@ export const getMobileOnlyMenuItems = () => {
 
 // Funktion zur Generierung der Hauptmenüstruktur inkl. dynamischem "Labor"-Menü
 export const getMenuItems = (betaFeatures = {}) => {
+  // Dynamic tools items based on beta features
+  const toolsItems = [
+    {
+      id: 'suche',
+      path: '/suche',
+      title: 'Suche',
+      description: 'Webrecherche für aktuelle Informationen',
+      icon: getIcon('navigation', 'suche')
+    }
+  ];
+
+  // Add chat if beta feature is enabled
+  if (betaFeatures.chatBetaEnabled) {
+    toolsItems.push({
+      id: 'chat',
+      path: '/chat',
+      title: 'Chat',
+      description: 'KI-Assistent für alle Textarten',
+      icon: getIcon('ui', 'assistant')
+    });
+  }
+
+  toolsItems.push({
+    id: 'barrierefreiheit',
+    path: '/barrierefreiheit',
+    title: 'Barrierefreiheit',
+    description: 'Alt-Text & Leichte Sprache',
+    icon: getIcon('navigation', 'barrierefreiheit')
+  });
+
   const staticMenuItems = {
     texte: {
       title: 'Texte',
@@ -85,29 +115,7 @@ export const getMenuItems = (betaFeatures = {}) => {
     },
     tools: {
       title: 'Tools',
-      items: [
-        {
-          id: 'suche',
-          path: '/suche',
-          title: 'Suche',
-          description: 'Webrecherche für aktuelle Informationen',
-          icon: getIcon('navigation', 'suche')
-        },
-        {
-          id: 'chat',
-          path: '/chat',
-          title: 'Chat',
-          description: 'KI-Assistent für alle Textarten',
-          icon: getIcon('ui', 'assistant')
-        },
-        {
-          id: 'barrierefreiheit',
-          path: '/barrierefreiheit',
-          title: 'Barrierefreiheit',
-          description: 'Alt-Text & Leichte Sprache',
-          icon: getIcon('navigation', 'barrierefreiheit')
-        }
-      ]
+      items: toolsItems
     }
     /* Temporär ausgeblendet - Grafik
     ,grafik: {

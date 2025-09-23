@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo } from 'react';
 import { debounce } from 'lodash-es';
 import { prepareDataForCanvas } from '../features/sharepic/dreizeilen/utils/dataPreparation';
 import { ERROR_MESSAGES } from '../components/utils/constants';
+import apiClient from '../components/utils/apiClient';
 
 /**
  * Custom hook for modifying sharepic images
@@ -16,13 +17,13 @@ const useSharepicModification = () => {
   // Helper function to get the correct API endpoint based on sharepic type
   const getEndpointForType = (type) => {
     const endpoints = {
-      'Dreizeilen': '/api/dreizeilen_canvas',
-      'Zitat': '/api/zitat_canvas',
-      'Zitat_Pure': '/api/zitat_pure_canvas',
-      'Info': '/api/info_canvas',
-      'Headline': '/api/headline_canvas'
+      'Dreizeilen': '/dreizeilen_canvas',
+      'Zitat': '/zitat_canvas',
+      'Zitat_Pure': '/zitat_pure_canvas',
+      'Info': '/info_canvas',
+      'Headline': '/headline_canvas'
     };
-    return endpoints[type] || '/api/dreizeilen_canvas';
+    return endpoints[type] || '/dreizeilen_canvas';
   };
 
   // Helper function to map frontend types to data preparation types
@@ -40,16 +41,16 @@ const useSharepicModification = () => {
   const modifySharepic = useCallback(async (formData, modificationData) => {
     setLoading(true);
     setError(null);
-    
+
     try {
       console.log('Modifying image with data:', { formData, modificationData });
-      
+
       // Determine the sharepic type from formData
       const sharepicType = formData.type || 'Dreizeilen';
       const dataPreparationType = mapTypeForDataPreparation(sharepicType);
-      
+
       console.log(`Processing ${sharepicType} sharepic (${dataPreparationType} data preparation)`);
-      
+
       // Prepare the form data for the API call based on type
       let formDataToSend;
       if (dataPreparationType === 'info') {
@@ -59,22 +60,25 @@ const useSharepicModification = () => {
         // Text-only sharepics don't need image data
         formDataToSend = prepareDataForTextOnlyCanvas(formData, modificationData, dataPreparationType);
       } else {
+        // Ensure image is available in modificationData if present in formData
+        const imageData = formData.uploadedImage || formData.image || formData.file;
+        if (imageData && !modificationData.image) {
+          modificationData.image = imageData;
+        }
         // Use existing unified preparation for dreizeilen and quote types
         formDataToSend = prepareDataForCanvas(formData, modificationData, dataPreparationType);
       }
 
-      // Make the API call to the appropriate endpoint
+      // Make the API call to the appropriate endpoint using apiClient
       const endpoint = getEndpointForType(sharepicType);
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        body: formDataToSend,
+      const response = await apiClient.post(endpoint, formDataToSend, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
       });
 
-      if (!response.ok) {
-        throw new Error(ERROR_MESSAGES.NETWORK_ERROR);
-      }
-
-      const result = await response.json();
+      // Handle Axios response wrapper - extract data
+      const result = response.data || response;
       if (!result.image) {
         throw new Error(ERROR_MESSAGES.NO_IMAGE_DATA);
       }

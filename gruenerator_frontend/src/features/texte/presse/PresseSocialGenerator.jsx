@@ -1,8 +1,8 @@
-import React, { lazy, useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import PropTypes from 'prop-types';
 import { useForm, Controller, useWatch } from 'react-hook-form';
 import { motion, AnimatePresence } from 'motion/react';
-const ReactSelect = lazy(() => import('react-select'));
+import ReactSelect from 'react-select';
 import BaseForm from '../../../components/common/BaseForm';
 import FormFieldWrapper from '../../../components/common/Form/Input/FormFieldWrapper';
 import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../../components/utils/constants';
@@ -23,6 +23,7 @@ import { TabIndexHelpers } from '../../../utils/tabIndexConfig';
 import useSharepicGeneration from '../../../hooks/useSharepicGeneration';
 import FileUpload from '../../../components/common/FileUpload';
 import Icon from '../../../components/common/Icon';
+import PlatformSelector from '../../../components/common/PlatformSelector';
 import { prepareFilesForSubmission } from '../../../utils/fileAttachmentUtils';
 import { HiGlobeAlt } from 'react-icons/hi';
 import { useUrlCrawler } from '../../../hooks/useUrlCrawler';
@@ -63,6 +64,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   }, [isAuthenticated]);
 
   const sharepicTypeOptions = [
+    { value: 'default', label: 'Standard (3 Sharepics automatisch)' },
     { value: 'dreizeilen', label: '3-Zeilen Slogan (mit Bild)' },
     { value: 'quote', label: 'Zitat mit Bild' },
     { value: 'quote_pure', label: 'Zitat (Nur Text)' },
@@ -101,7 +103,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
       details: initialContent?.details || '',
       zitatgeber: initialContent?.zitatgeber || '',
       platforms: defaultPlatforms,
-      sharepicType: 'dreizeilen',
+      sharepicType: 'default',
       zitatAuthor: '',
       useWebSearchTool: false,
       usePrivacyMode: false
@@ -109,7 +111,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   });
 
   const watchPlatforms = useWatch({ control, name: 'platforms', defaultValue: defaultPlatforms });
-  const watchSharepicType = useWatch({ control, name: 'sharepicType', defaultValue: 'dreizeilen' });
+  const watchSharepicType = useWatch({ control, name: 'sharepicType', defaultValue: 'default' });
   const watchUseWebSearch = useWatch({ control, name: 'useWebSearchTool', defaultValue: false });
   const watchUsePrivacyMode = useWatch({ control, name: 'usePrivacyMode', defaultValue: false });
 
@@ -246,14 +248,17 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
       if (hasSharepic) {
         try {
           const sharepicResult = await generateSharepic(
-            rhfData.thema, 
-            rhfData.details, 
+            rhfData.thema,
+            rhfData.details,
             uploadedImage,
-            rhfData.sharepicType || 'dreizeilen',
+            rhfData.sharepicType || 'default',
             rhfData.zitatAuthor,
-            finalPrompt // Pass knowledge prompt to sharepic generation
+            finalPrompt, // Pass knowledge prompt to sharepic generation
+            allAttachments, // Include attachments
+            rhfData.usePrivacyMode, // Include privacy mode
+            null // provider - will be handled by privacy mode settings
           );
-          // Merge newly generated sharepic with previous ones so users can keep a history
+          // Handle both single sharepic and array of sharepics (default mode)
           const previousContent = useGeneratedTextStore.getState().generatedTexts?.[componentName] || socialMediaContent;
           const existingSharepics = Array.isArray(previousContent?.sharepic)
             ? previousContent.sharepic
@@ -261,13 +266,24 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
               ? [previousContent.sharepic]
               : [];
 
-          const newSharepicEntry = {
-            ...sharepicResult,
-            id: `sharepic-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-            createdAt: new Date().toISOString()
-          };
+          let newSharepicEntries;
+          if (Array.isArray(sharepicResult)) {
+            // Default mode returns array - add IDs if not already present
+            newSharepicEntries = sharepicResult.map(sharepic => ({
+              ...sharepic,
+              id: sharepic.id || `sharepic-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+              createdAt: sharepic.createdAt || new Date().toISOString()
+            }));
+          } else {
+            // Individual modes return single object
+            newSharepicEntries = [{
+              ...sharepicResult,
+              id: `sharepic-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+              createdAt: new Date().toISOString()
+            }];
+          }
 
-          combinedResults.sharepic = [newSharepicEntry, ...existingSharepics];
+          combinedResults.sharepic = [...newSharepicEntries, ...existingSharepics];
         } catch (sharepicError) {
           console.error('[PresseSocialGenerator] Sharepic generation failed:', sharepicError);
           // Continue with social generation even if sharepic fails
@@ -351,16 +367,18 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
         try {
           const imageResponse = await apiClient.post('/sharepic/edit-session', {
             imageData: sharepicData.image,
+            originalImageData: sharepicData.originalImage, // Store original background
             metadata: {
               type: sharepicData.type,
+              hasOriginalImage: !!sharepicData.originalImage,
               timestamp: Date.now()
             }
           });
-          
+
           // Handle Axios response wrapper - extract data
           const result = imageResponse.data || imageResponse;
           imageSessionId = result.sessionId;
-          console.log('[PresseSocialGenerator] Image stored in backend:', imageSessionId);
+          console.log('[PresseSocialGenerator] Images stored in backend:', imageSessionId, 'hasOriginal:', !!sharepicData.originalImage);
         } catch (imageUploadError) {
           console.warn('[PresseSocialGenerator] Failed to store image in backend:', imageUploadError);
         }
@@ -466,6 +484,19 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
     tabIndex: tabIndex.privacyMode || 13
   };
 
+  const renderPlatformSection = () => (
+    <PlatformSelector
+      name="platforms"
+      control={control}
+      platformOptions={platformOptions}
+      label="Formate"
+      placeholder="Formate auswählen..."
+      required={true}
+      helpText="Wähle ein oder mehrere Formate für die dein Content optimiert werden soll"
+      tabIndex={baseFormTabIndex.platformSelectorTabIndex}
+    />
+  );
+
   const renderFormInputs = () => (
     <>
       <Input
@@ -510,7 +541,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
               name="sharepicType"
               control={control}
               rules={{}}
-              defaultValue="dreizeilen"
+              defaultValue="default"
               render={({ field, fieldState: { error } }) => (
                 <FormFieldWrapper
                   label="Sharepic Art"
@@ -635,12 +666,6 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
           formNotice={formNotice}
           enableKnowledgeSelector={true}
           enableDocumentSelector={true}
-          enablePlatformSelector={true}
-          platformOptions={platformOptions}
-          platformSelectorLabel="Formate"
-          platformSelectorPlaceholder="Formate auswählen..."
-          platformSelectorHelpText="Wähle ein oder mehrere Formate für die dein Content optimiert werden soll"
-          formControl={control}
           helpContent={helpContent}
           componentName={componentName}
           webSearchFeatureToggle={webSearchFeatureToggle}
@@ -656,11 +681,11 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
             privacyMode: tabIndex.privacyMode,
             attachment: tabIndex.attachment
           }}
-          platformSelectorTabIndex={baseFormTabIndex.platformSelectorTabIndex}
           knowledgeSelectorTabIndex={baseFormTabIndex.knowledgeSelectorTabIndex}
           knowledgeSourceSelectorTabIndex={baseFormTabIndex.knowledgeSourceSelectorTabIndex}
           documentSelectorTabIndex={baseFormTabIndex.documentSelectorTabIndex}
           submitButtonTabIndex={baseFormTabIndex.submitButtonTabIndex}
+          firstExtrasChildren={renderPlatformSection()}
         >
           {renderFormInputs()}
         </BaseForm>
