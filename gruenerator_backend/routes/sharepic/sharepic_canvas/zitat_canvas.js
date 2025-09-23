@@ -16,7 +16,6 @@ const quotationMarkPath = path.resolve(__dirname, '../../../public/quote.svg');
 // Initialize fonts using shared system
 try {
   registerFonts();
-  console.log('All fonts registered successfully via shared system');
 } catch (err) {
   console.error('Fehler beim Registrieren der Schriftarten:', err);
   process.exit(1);

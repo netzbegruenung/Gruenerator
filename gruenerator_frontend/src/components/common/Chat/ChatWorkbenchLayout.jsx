@@ -133,16 +133,14 @@ const ChatWorkbenchLayout = ({
             className="chat-attached-files"
           />
         )}
-        <div className="chat-input-wrapper">
-          <textarea
-            value={inputValue}
-            onChange={(event) => onInputChange && onInputChange(event.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={placeholder}
-            disabled={disabled}
-            rows={1}
-          />
-        </div>
+        <textarea
+          value={inputValue}
+          onChange={(event) => onInputChange && onInputChange(event.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder={placeholder}
+          disabled={disabled}
+          rows={1}
+        />
         {enableFileUpload && (
           <>
             <button
@@ -176,46 +174,6 @@ const ChatWorkbenchLayout = ({
     );
   };
 
-  const renderFloatingInput = () => {
-
-    const hasText = (inputValue || '').trim();
-    const effectiveSubmitLabel = hasText ?
-      (submitLabel ?? <BsArrowUpCircleFill size={18} />) :
-      (isVoiceRecording ? <FaStop size={18} /> : <FaMicrophone size={18} />);
-
-    const handleButtonClick = () => {
-      if (hasText) {
-        handleSubmit({ preventDefault: () => {} });
-      } else if (isVoiceRecording) {
-        stopRecording();
-      } else {
-        startRecording();
-      }
-    };
-
-    return (
-      <form onSubmit={handleSubmit} className="qa-chat-floating-input">
-        {renderModeSelector()}
-        <textarea
-          value={inputValue}
-          onChange={(event) => onInputChange && onInputChange(event.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={placeholder}
-          disabled={disabled}
-          className="qa-floating-input"
-          rows={1}
-        />
-        <button
-          type={hasText ? "submit" : "button"}
-          onClick={!hasText ? handleButtonClick : undefined}
-          disabled={disabled || isVoiceProcessing}
-          className={`qa-floating-submit ${isVoiceRecording ? 'voice-recording' : ''}`}
-        >
-          {effectiveSubmitLabel}
-        </button>
-      </form>
-    );
-  };
 
   const renderHeader = () => {
     if (hideHeader || (!title && !headerContent)) return null;
@@ -276,7 +234,6 @@ const ChatWorkbenchLayout = ({
           className="qa-chat-ui qa-chat-ui-fullscreen"
           fullScreen={true}
           renderMessage={renderMessage}
-          renderInput={() => null}
           showHeader={false}
           onVoiceRecorderTranscription={onVoiceRecorderTranscription}
           autoSubmitVoice={autoSubmitVoice}
@@ -285,7 +242,6 @@ const ChatWorkbenchLayout = ({
           attachedFiles={attachedFiles}
           onRemoveFile={onRemoveFile}
         />
-        {renderFloatingInput()}
       </div>
       {infoPanelContent}
     </div>

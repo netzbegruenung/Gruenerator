@@ -46,6 +46,25 @@ const QAChat = lazy(() => import('../features/qa/components/QAChat'));
 // Grünerator Chat Komponente importieren
 const GrueneratorChat = lazy(() => import('../features/chat/components/GrueneratorChat'));
 
+// Beta Feature Wrapper importieren
+const BetaFeatureWrapper = lazy(() => import('../components/common/BetaFeatureWrapper'));
+
+// Wrapped Chat Component für Beta Feature
+const WrappedGrueneratorChat = lazy(() =>
+  Promise.all([
+    import('../features/chat/components/GrueneratorChat'),
+    import('../components/common/BetaFeatureWrapper')
+  ]).then(([chatModule, wrapperModule]) => ({
+    default: (props) => (
+      wrapperModule.default({
+        children: chatModule.default(props),
+        featureKey: 'chat',
+        fallbackPath: '/profile?tab=labor'
+      })
+    )
+  }))
+);
+
 // E-Learning Komponente importieren
 const ELearningPage = lazy(() => import('../features/elearning'));
 // ELearningTutorial component doesn't exist - using ELearningPage instead
@@ -87,7 +106,7 @@ export const GrueneratorenBundle = {
   // EmptyEditor: EmptyEditor, // Removed - deprecated
   CustomGenerator: CustomGeneratorPage,
   QAChat: QAChat,
-  Chat: GrueneratorChat,
+  Chat: WrappedGrueneratorChat,
   ELearning: ELearningPage,
   ELearningTutorial: ELearningPage,
   DynamicPageView: DynamicPageView,

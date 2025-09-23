@@ -7,24 +7,12 @@ import FormStateProvider from '../../../components/common/Form/FormStateProvider
 import ResultsDeck from './ResultsDeck';
 import StartPage from './StartPage';
 import { useChatStore } from '../../../stores/chatStore';
+import { shallow } from 'zustand/shallow';
 import { useChatApi } from '../hooks/useChatApi';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 import { validateFiles, prepareFilesForSubmission } from '../../../utils/fileAttachmentUtils';
+import { resolveTextContent } from '../utils/textResolvers';
 import '../../../assets/styles/components/chat/chat-workbench.css';
-
-const resolveTextContent = (content) => {
-  if (!content) return '';
-  if (typeof content === 'string') return content;
-  if (typeof content.text === 'string') return content.text;
-  if (typeof content.content === 'string') return content.content;
-  if (content.social?.content && typeof content.social.content === 'string') {
-    return content.social.content;
-  }
-  if (Array.isArray(content.lines)) {
-    return content.lines.filter(Boolean).join('\n');
-  }
-  return '';
-};
 
 const GrueneratorChat = () => {
   const INITIAL_GREETING = 'Hallo! Ich bin der Grünerator Chat. Ich kann Ihnen bei der Texterstellung helfen. Sagen Sie mir einfach, was Sie benötigen - einen Social Media Post, eine Pressemitteilung, einen Antrag oder etwas anderes. Ich wähle automatisch den passenden Assistenten für Sie aus.';
@@ -33,19 +21,17 @@ const GrueneratorChat = () => {
   const [isEditModeActive, setIsEditModeActive] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState([]);
 
-  const {
-    messages,
-    currentAgent,
-    isLoading,
-    error,
-    initializeChat,
-    setError,
-    clearMessages,
-    multiResults,
-    clearMultiResults,
-    activeResultId,
-    setActiveResultId,
-  } = useChatStore();
+  const messages = useChatStore(state => state.messages, shallow);
+  const currentAgent = useChatStore(state => state.currentAgent);
+  const isLoading = useChatStore(state => state.isLoading);
+  const error = useChatStore(state => state.error);
+  const initializeChat = useChatStore(state => state.initializeChat);
+  const setError = useChatStore(state => state.setError);
+  const clearMessages = useChatStore(state => state.clearMessages);
+  const multiResults = useChatStore(state => state.multiResults, shallow);
+  const clearMultiResults = useChatStore(state => state.clearMultiResults);
+  const activeResultId = useChatStore(state => state.activeResultId);
+  const setActiveResultId = useChatStore(state => state.setActiveResultId);
 
   const { sendMessage, sendEditInstruction } = useChatApi();
 
@@ -393,7 +379,7 @@ const GrueneratorChat = () => {
     );
   };
 
-  const getPlaceholder = () => {
+  const placeholder = useMemo(() => {
     if (isEditModeActive) {
       return 'Beschreibe kurz, welche Änderungen ich am Text vornehmen soll.';
     }
@@ -411,12 +397,12 @@ const GrueneratorChat = () => {
       return placeholders[currentAgent] || 'Ihre Nachricht...';
     }
     return 'Sagen Sie mir, was Sie benötigen - z.B. "Schreibe einen Facebook-Post über Klimaschutz"';
-  };
+  }, [isEditModeActive, currentAgent]);
 
-  const modes = {
+  const modes = useMemo(() => ({
     dossier: { label: 'Dossier', icon: HiChat },
     chat: { label: 'Chat', icon: HiChip }
-  };
+  }), []);
 
   return (
     <motion.div
@@ -432,7 +418,7 @@ const GrueneratorChat = () => {
         messages={messages}
         onSubmit={handleSubmit}
         isProcessing={isLoading}
-        placeholder={getPlaceholder()}
+        placeholder={placeholder}
         inputValue={inputValue}
         onInputChange={setInputValue}
         disabled={isLoading}

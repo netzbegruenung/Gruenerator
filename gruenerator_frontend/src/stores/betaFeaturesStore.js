@@ -21,6 +21,7 @@ const normalizeBetaFeatures = (features = {}) => {
     e_learning: 'e_learning',
     content_management: 'contentManagement',
     canva: 'canva',
+    chat: 'chat',
     labor_enabled: 'labor'
   };
 

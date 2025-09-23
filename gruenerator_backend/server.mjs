@@ -233,6 +233,18 @@ if (cluster.isMaster) {
     console.error('Warning: Could not initialize AI Search Agent:', error.message);
   }
 
+  // Initialize SharepicImageManager for temporary image storage
+  try {
+    const { createRequire } = await import('module');
+    const require = createRequire(import.meta.url);
+    const SharepicImageManager = require('./services/sharepicImageManager.js');
+    const sharepicImageManager = new SharepicImageManager(redisClient);
+    app.locals.sharepicImageManager = sharepicImageManager;
+    console.log(`[Worker ${process.pid}] SharepicImageManager initialized with Redis client`);
+  } catch (error) {
+    console.error(`[Worker ${process.pid}] Warning: Could not initialize SharepicImageManager:`, error.message);
+  }
+
   // Initialize PostgreSQL database connection (minimal - no schema)
   try {
     const { getPostgresInstance } = await import('./database/services/PostgresService.js');
@@ -568,6 +580,15 @@ if (cluster.isMaster) {
       res.set('Cross-Origin-Resource-Policy', 'cross-origin');
       res.set('Access-Control-Allow-Origin', '*');
       res.set('Cache-Control', 'no-cache');
+    }
+  }));
+
+  // Statisches Verzeichnis für Sharepic-Hintergrundbilder
+  app.use('/public', express.static(path.join(__dirname, 'public'), {
+    setHeaders: (res, path, stat) => {
+      res.set('Cross-Origin-Resource-Policy', 'cross-origin');
+      res.set('Access-Control-Allow-Origin', '*');
+      res.set('Cache-Control', 'public, max-age=86400'); // Cache for 24 hours
     }
   }));
 

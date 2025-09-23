@@ -394,8 +394,7 @@ export const useChatStore = create((set, get) => ({
   handleAgentResponse: (response) => {
     const state = get();
 
-    // Clear any existing multi-results when falling back to single intent handling
-    state.clearMultiResults();
+    // Note: No longer clearing multi-results to allow accumulation of responses
 
     // Update current agent
     if (response.agent) {
@@ -438,9 +437,33 @@ export const useChatStore = create((set, get) => ({
     }
 
     // Add assistant message
+    let messageContent = response.content?.text;
+
+    // For sharepic responses without text, show a nice message
+    if (!messageContent && response.content?.sharepic) {
+      const sharepicType = response.content.metadata?.sharepicType || response.agent;
+      switch (sharepicType) {
+        case 'zitat':
+        case 'zitat_pure':
+          messageContent = 'Hier ist Ihr Zitat-Sharepic! 📝';
+          break;
+        case 'info':
+          messageContent = 'Hier ist Ihr Info-Sharepic! ℹ️';
+          break;
+        case 'dreizeilen':
+          messageContent = 'Hier ist Ihr Dreizeilen-Sharepic! 📢';
+          break;
+        case 'headline':
+          messageContent = 'Hier ist Ihr Headline-Sharepic! 🎯';
+          break;
+        default:
+          messageContent = 'Hier ist Ihr Sharepic! 🎨';
+      }
+    }
+
     state.addMessage({
       type: 'assistant',
-      content: response.content?.text || 'Entschuldigung, ich konnte keine Antwort generieren.',
+      content: messageContent || 'Entschuldigung, ich konnte keine Antwort generieren.',
       agent: response.agent,
       metadata: response.content?.metadata,
       suggestions: response.suggestions

@@ -163,6 +163,8 @@ function buildSystemRole(config, requestData, generatorData = null) {
     if (typeConfig?.systemRole) {
       return typeConfig.systemRole;
     }
+    // If we have types config but type not found, throw descriptive error
+    throw new Error(`Configuration error: Type '${type}' not found in types configuration. Available types: ${Object.keys(config.types).join(', ')}`);
   }
 
   let systemRole = generatorData?.prompt || config.systemRole;
@@ -259,7 +261,7 @@ function buildRequestContent(config, requestData, generatorData = null) {
 
   // Handle sharepic multi-type case
   if (config.types) {
-    const type = requestData.type || requestData.sharepicType || 'dreizeilen'; // Default to dreizeilen
+    const type = requestData.type || requestData.sharepicType || 'dreizeilen';
     const typeConfig = config.types[type];
     if (typeConfig) {
       return SimpleTemplateEngine.render(typeConfig.requestTemplate, {
