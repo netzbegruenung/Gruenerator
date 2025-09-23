@@ -227,7 +227,6 @@ router.patch('/profile/beta-features', ensureAuthenticated, async (req, res) => 
       'sharepic', 
       'anweisungen', 
       'you', 
-      'collab',
       'qa',
       'advanced_editor',
       'collaborative_editing',
@@ -236,6 +235,7 @@ router.patch('/profile/beta-features', ensureAuthenticated, async (req, res) => 
       'memory',
       'contentManagement',
       'canva',
+      'chat',
       'labor',
       // Profile settings treated as beta features for consistency
       'igel_modus',
