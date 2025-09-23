@@ -181,9 +181,9 @@ const DisplaySection = forwardRef(({
   return (
     <div className="display-container" id="display-section-container" ref={ref}>
       {actionsNode}
-      {hasRenderableContent && helpContent && (
+      {!hasRenderableContent && helpContent && (
         <div className="help-section">
-          <HelpDisplay 
+          <HelpDisplay
             content={helpContent.content}
             tips={helpContent.tips}
             hasGeneratedContent={!!activeContent}
