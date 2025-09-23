@@ -146,6 +146,7 @@ const UniversalEditForm = ({ componentName }) => {
         inputValue={inputValue}
         onInputChange={setInputValue}
         className="editor-chat-embedded"
+        showHeader={false}
         renderInput={() => (
           <div className="floating-input">
             <div className="input-elements">

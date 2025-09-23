@@ -32,6 +32,30 @@ const REQUIRED_FIELDS = {
       ],
       extractionPattern: /(?:von|autor|name:?\s*)([a-züäöß\s-]+)/i
     }
+  },
+  'zitat_with_image': {
+    'name': {
+      field: 'name',
+      displayName: 'Autor/Name',
+      questions: [
+        'Für das Zitat brauche ich noch den Namen des Autors. Wer hat das gesagt?',
+        'Von wem stammt dieses Zitat? Bitte gib mir den Namen an.',
+        'Um das Zitat zu vervollständigen, benötige ich noch den Autorennamen. Wie heißt die Person?'
+      ],
+      extractionPattern: /(?:von|autor|name:?\s*)([a-züäöß\s-]+)/i
+    }
+  },
+  'dreizeilen': {
+    'thema': {
+      field: 'thema',
+      displayName: 'Thema',
+      questions: [
+        'Zu welchem Thema soll ich den Dreizeilen-Slogan erstellen?',
+        'Welches Thema soll der Slogan behandeln?',
+        'Über welches Thema soll der Dreizeilen-Text gehen?'
+      ],
+      extractionPattern: /(?:thema|über|zum thema|bezüglich:?\s*)([a-züäöß\s-]+)/i
+    }
   }
   // Can be extended for other intents like 'pressemitteilung' requiring spokesman names, etc.
 };
@@ -172,6 +196,36 @@ function extractRequestedInformation(message, pendingRequest) {
 
     // Check if it looks like a name (contains letters, reasonable length)
     if (cleanedMessage && /^[a-züäöß\s.-]{2,50}$/i.test(cleanedMessage)) {
+      console.log(`[InformationRequestHandler] Extracted ${missingField} via heuristics:`, cleanedMessage);
+      return {
+        [missingField]: cleanedMessage
+      };
+    }
+  }
+
+  // Fallback: for thema fields, try simple heuristics
+  if (missingField === 'thema') {
+    // Remove common prefixes and use the remaining text as theme
+    const cleanedMessage = message
+      .replace(/^(das thema ist|thema:?\s*|über|zum thema|bezüglich)\s*/i, '')
+      .trim();
+
+    // Reject if it contains command keywords that indicate a new request
+    const commandKeywords = ['erstelle', 'mache', 'schreibe', 'generiere'];
+    if (commandKeywords.some(keyword => cleanedMessage.toLowerCase().includes(keyword))) {
+      console.log(`[InformationRequestHandler] Message contains commands, not a theme:`, cleanedMessage);
+      return null;
+    }
+
+    // Accept 1-8 word responses (reasonable for themes)
+    const wordCount = cleanedMessage.split(/\s+/).filter(word => word.length > 0).length;
+    if (wordCount > 8) {
+      console.log(`[InformationRequestHandler] Too many words for a theme (${wordCount}):`, cleanedMessage);
+      return null;
+    }
+
+    // Check if it looks like a theme (contains letters, reasonable length)
+    if (cleanedMessage && /^[a-züäöß\s.-]{2,100}$/i.test(cleanedMessage)) {
       console.log(`[InformationRequestHandler] Extracted ${missingField} via heuristics:`, cleanedMessage);
       return {
         [missingField]: cleanedMessage

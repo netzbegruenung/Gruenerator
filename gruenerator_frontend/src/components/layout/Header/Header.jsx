@@ -10,18 +10,16 @@ import { getMenuItems, getDirectMenuItems, MenuItem, menuStyles, handleMenuInter
 import Icon from '../../common/Icon';
 
 import { useLazyAuth } from '../../../hooks/useAuth';
-// import { useBetaFeatures } from '../../../hooks/useBetaFeatures';
+import { useBetaFeatures } from '../../../hooks/useBetaFeatures';
 
 const Header = () => {
     useLazyAuth(); // Keep for other auth functionality
     const location = useLocation();
-    // const { getBetaFeatureState } = useBetaFeatures();
-    
-    // Temporarily disable beta features to isolate issue
-    // const databaseBetaEnabled = useMemo(() => getBetaFeatureState('database'), [getBetaFeatureState]);
-    // const youBetaEnabled = useMemo(() => getBetaFeatureState('you'), [getBetaFeatureState]);
-    const databaseBetaEnabled = false;
-    const youBetaEnabled = false;
+    const { getBetaFeatureState } = useBetaFeatures();
+
+    const databaseBetaEnabled = useMemo(() => getBetaFeatureState('database'), [getBetaFeatureState]);
+    const youBetaEnabled = useMemo(() => getBetaFeatureState('you'), [getBetaFeatureState]);
+    const chatBetaEnabled = useMemo(() => getBetaFeatureState('chat'), [getBetaFeatureState]);
     const [menuActive, setMenuActive] = useState(false);
     const [activeDropdown, setActiveDropdown] = useState(null);
     const [darkMode, toggleDarkMode] = useDarkMode();
@@ -30,8 +28,8 @@ const Header = () => {
     const closeTimeoutRef = useRef(null);
 
     // Memoize menu items to prevent unnecessary recalculations
-    const menuItems = useMemo(() => getMenuItems({ databaseBetaEnabled, youBetaEnabled }), [databaseBetaEnabled, youBetaEnabled]);
-    const directMenuItems = useMemo(() => getDirectMenuItems({ databaseBetaEnabled, youBetaEnabled }), [databaseBetaEnabled, youBetaEnabled]);
+    const menuItems = useMemo(() => getMenuItems({ databaseBetaEnabled, youBetaEnabled, chatBetaEnabled }), [databaseBetaEnabled, youBetaEnabled, chatBetaEnabled]);
+    const directMenuItems = useMemo(() => getDirectMenuItems({ databaseBetaEnabled, youBetaEnabled, chatBetaEnabled }), [databaseBetaEnabled, youBetaEnabled, chatBetaEnabled]);
 
     // Close dropdown when location changes (navigation occurs)
     useEffect(() => {

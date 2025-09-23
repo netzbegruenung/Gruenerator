@@ -24,25 +24,11 @@
   width: 44px;
   height: 44px;
   border-radius: 12px;
-  color: var(--secondary-700);
+  color: var(--font-color-h);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-}
-
-.chat-startpage__hero h2 {
-  margin: 0;
-  font-size: 1.4rem;
-  color: var(--font-color);
-}
-
-.chat-startpage__hero p {
-  margin: var(--spacing-xsmall, 8px) 0 0;
-  color: var(--font-color);
-  opacity: 0.85;
-  line-height: 1.5;
-  max-width: 60ch;
 }
 
 .chat-startpage__features {
@@ -59,19 +45,6 @@
   box-shadow: var(--card-shadow-subtle, 0 4px 12px rgba(15, 23, 42, 0.06));
 }
 
-.chat-startpage__feature h3 {
-  margin: 0 0 var(--spacing-small, 12px);
-  font-size: 1rem;
-  color: var(--secondary-700);
-}
-
-.chat-startpage__feature p {
-  margin: 0;
-  color: var(--font-color);
-  opacity: 0.8;
-  line-height: 1.45;
-}
-
 .chat-startpage__help .help-display {
   margin: 0;
   background: transparent;
@@ -85,7 +58,6 @@
   gap: var(--spacing-small, 12px);
   border-radius: var(--card-border-radius-medium, 12px);
   padding: var(--spacing-small, 12px) var(--spacing-medium, 16px);
-  color: var(--primary-700);
 }
 
 .chat-startpage__hint-label {
@@ -93,7 +65,6 @@
   align-items: center;
   justify-content: center;
   padding: 0.1rem 0.6rem;
-  background: var(--primary-100);
   border-radius: 999px;
   font-size: 0.75rem;
   font-weight: 600;

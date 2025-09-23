@@ -29,6 +29,7 @@ const LaborTab = ({
     BUNDESTAG_API: 'bundestag_api_enabled',
     MEMORY: 'memory',
     CANVA: 'canva',
+    CHAT: 'chat',
   };
 
   const handleBetaToggle = (setter, currentValue, featureName) => {
@@ -147,6 +148,18 @@ const LaborTab = ({
           featureName: 'Canva Integration',
           checkboxLabel: 'Canva-Tab in Texte & Grafik anzeigen und Funktionalität aktivieren',
           icon: HiOutlinePhotograph
+        };
+      case BETA_VIEWS.CHAT:
+        return {
+          title: 'Grünerator Chat',
+          description: 'KI-Chat-Assistent für alle Textarten mit intelligenter Texterstellung. Wähle automatisch den passenden Assistenten für Social Media Posts, Pressemitteilungen, Anträge und mehr.',
+          checked: getBetaFeatureState('chat'),
+          setter: (value) => updateUserBetaFeatures('chat', value),
+          featureName: 'Grünerator Chat',
+          checkboxLabel: 'Chat-Assistent aktivieren und in Navigation anzeigen',
+          linkTo: '/chat',
+          linkText: 'Zum Chat-Assistenten',
+          icon: HiChip
         };
       default:
         return null;

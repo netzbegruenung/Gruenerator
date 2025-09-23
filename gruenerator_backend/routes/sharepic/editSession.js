@@ -8,38 +8,39 @@ const router = express.Router();
  */
 router.post('/', async (req, res) => {
   try {
-    const { imageData, metadata = {} } = req.body;
-    
+    const { imageData, originalImageData, metadata = {} } = req.body;
+
     if (!imageData) {
-      return res.status(400).json({ 
-        error: 'Image data is required' 
+      return res.status(400).json({
+        error: 'Image data is required'
       });
     }
 
     // Generate unique session ID
     const sessionId = `sharepic-edit-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    
-    // Store image data in Redis with 1-hour expiration
+
+    // Store both image data in Redis with 1-hour expiration
     const sessionData = {
       imageData,
+      originalImageData, // Store original background image
       metadata,
       createdAt: new Date().toISOString()
     };
-    
+
     // Set TTL to 1 hour (3600 seconds)
     await redisClient.setEx(sessionId, 3600, JSON.stringify(sessionData));
-    
-    console.log(`[EditSession] Stored image data for session: ${sessionId}`);
-    
-    res.json({ 
+
+    console.log(`[EditSession] Stored image data for session: ${sessionId}, hasOriginal: ${!!originalImageData}`);
+
+    res.json({
       sessionId,
       expiresIn: 3600 // seconds
     });
-    
+
   } catch (error) {
     console.error('[EditSession] Error storing session data:', error);
-    res.status(500).json({ 
-      error: 'Failed to store edit session data' 
+    res.status(500).json({
+      error: 'Failed to store edit session data'
     });
   }
 });
@@ -69,10 +70,11 @@ router.get('/:sessionId', async (req, res) => {
     
     const sessionData = JSON.parse(sessionDataString);
     
-    console.log(`[EditSession] Retrieved image data for session: ${sessionId}`);
-    
+    console.log(`[EditSession] Retrieved image data for session: ${sessionId}, hasOriginal: ${!!sessionData.originalImageData}`);
+
     res.json({
       imageData: sessionData.imageData,
+      originalImageData: sessionData.originalImageData, // Return original background
       metadata: sessionData.metadata,
       createdAt: sessionData.createdAt
     });

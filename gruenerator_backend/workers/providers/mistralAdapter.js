@@ -20,6 +20,12 @@ async function execute(requestId, data) {
       if (platforms.includes('actionIdeas')) return 0.95;
     }
 
+    // Type-specific values for all sharepic text generation (needs precise instruction following)
+    if (type && type.startsWith('sharepic_')) return 0.7;
+
+    // Image picker needs focused selection
+    if (type === 'image_picker') return 0.8;
+
     // Temperature-based defaults for other types
     if (temperature <= 0.3) return 0.85;
     if (temperature <= 0.5) return 0.9;
@@ -46,6 +52,9 @@ async function execute(requestId, data) {
       return 800;
     }
 
+    // Image picker responses should be concise JSON
+    if (type === 'image_picker') return 300;
+
     // Use original or default for non-social content
     return typeof originalMaxTokens === 'number' ? originalMaxTokens : 4096;
   }
@@ -56,7 +65,6 @@ async function execute(requestId, data) {
     if (type === 'social') {
       // Check for press release (Pressemitteilung)
       if (platforms && Array.isArray(platforms) && platforms.includes('pressemitteilung')) {
-        console.log(`[Mistral Adapter] Platform pressemitteilung detected → temperature 0.3`);
         return 0.3;
       }
 
@@ -65,7 +73,6 @@ async function execute(requestId, data) {
         const formalKeywords = ['pressemitteilung', 'förmlich', 'sachlich', 'presseverteiler', 'journalistisch'];
         const promptLower = systemPrompt.toLowerCase();
         if (formalKeywords.some(keyword => promptLower.includes(keyword))) {
-          console.log(`[Mistral Adapter] Formal content detected in system prompt → temperature 0.3`);
           return 0.3;
         }
       }
@@ -91,8 +98,12 @@ async function execute(requestId, data) {
       generator_config: 0.1,
       crawler_agent: 0.1,
       qa_tools: 0.3,
-      leichte_sprache: 0.3
+      leichte_sprache: 0.3,
+      image_picker: 0.2
     };
+
+    // All sharepic types need very low temperature for precise instruction following
+    if (type && type.startsWith('sharepic_')) return 0.1;
 
     // For other types, respect config temperature if provided, otherwise use type defaults
     if (typeDefaults[type] !== undefined) {
@@ -122,13 +133,6 @@ async function execute(requestId, data) {
     options.max_tokens
   );
 
-  console.log(`[Mistral Adapter] Final config for ${requestId} (type=${type}): temperature=${temperature}, top_p=${top_p}, max_tokens=${max_tokens} (original options: temp=${options.temperature}, tokens=${options.max_tokens})`);
-  if (type === 'social' && typeof options.temperature === 'number') {
-    console.log(`[Mistral Adapter] Social type - ignoring config temperature ${options.temperature} in favor of content-aware temperature ${temperature}`);
-  }
-  if (type === 'social' && typeof options.max_tokens === 'number' && max_tokens !== options.max_tokens) {
-    console.log(`[Mistral Adapter] Social type - ignoring config max_tokens ${options.max_tokens} in favor of content-aware max_tokens ${max_tokens}`);
-  }
 
   if (!mistralClient) {
     throw new Error('Mistral client not available. Check MISTRAL_API_KEY environment variable.');
@@ -295,18 +299,19 @@ async function execute(requestId, data) {
     frequency_penalty: options.frequency_penalty || 0
   };
 
+  // Enable JSON mode for types that require structured JSON output
+  if (type === 'image_picker') {
+    mistralConfig.response_format = {
+      type: "json_object"
+    };
+  }
+
   const toolsPayload = ToolHandler.prepareToolsPayload(options, 'mistral', requestId, type);
   if (toolsPayload.tools) {
     mistralConfig.tools = toolsPayload.tools;
     if (toolsPayload.tool_choice) mistralConfig.tool_choice = toolsPayload.tool_choice;
   }
 
-  // Debug logging for full prompt (uncut)
-  console.log(`[Mistral Adapter] Full prompt for ${requestId} (${mistralMessages.length} messages):`);
-  mistralMessages.forEach((msg, idx) => {
-    const content = typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content);
-    console.log(`[Mistral Adapter] Message ${idx} (${msg.role}) (complete): ${content}`);
-  });
 
   let response;
   try {

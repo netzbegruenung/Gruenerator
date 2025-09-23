@@ -40,15 +40,14 @@ const NavMenu = ({ open, onClose }) => {
   const { announce } = useAccessibility();
   const navMenuRef = useRef(null);
   useLazyAuth(); // Keep for other auth functionality
-  // const { getBetaFeatureState } = useBetaFeatures();
-  
-  // Temporarily disable beta features to isolate issue
-  // const databaseBetaEnabled = useMemo(() => getBetaFeatureState('database'), [getBetaFeatureState]);
-  const databaseBetaEnabled = false;
+  const { getBetaFeatureState } = useBetaFeatures();
+
+  const databaseBetaEnabled = useMemo(() => getBetaFeatureState('database'), [getBetaFeatureState]);
+  const chatBetaEnabled = useMemo(() => getBetaFeatureState('chat'), [getBetaFeatureState]);
 
   // Memoize menu items to prevent unnecessary recalculations
-  const menuItems = useMemo(() => getMenuItems({ databaseBetaEnabled }), [databaseBetaEnabled]);
-  const directMenuItems = useMemo(() => getDirectMenuItems({ databaseBetaEnabled }), [databaseBetaEnabled]);
+  const menuItems = useMemo(() => getMenuItems({ databaseBetaEnabled, chatBetaEnabled }), [databaseBetaEnabled, chatBetaEnabled]);
+  const directMenuItems = useMemo(() => getDirectMenuItems({ databaseBetaEnabled, chatBetaEnabled }), [databaseBetaEnabled, chatBetaEnabled]);
   const mobileOnlyItems = useMemo(() => getMobileOnlyMenuItems(), []);
   const dynamicTopLevelItems = useMemo(() => [...Object.values(directMenuItems), ...Object.values(mobileOnlyItems)], [directMenuItems, mobileOnlyItems]);
 

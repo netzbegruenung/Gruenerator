@@ -6,6 +6,7 @@ import { useSharedContent } from '../../hooks/useSharedContent';
 import ErrorBoundary from '../../ErrorBoundary';
 import { useFormFields } from '../../common/Form/hooks';
 import useBaseForm from '../../common/Form/hooks/useBaseForm';
+import PlatformSelector from '../../common/PlatformSelector';
 
 const GrueneJugendGenerator = ({ showHeaderFooter = true }) => {
   const componentName = 'gruene-jugend';
@@ -65,12 +66,23 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }) => {
     componentName: componentName,
     endpoint: '/claude_gruene_jugend',
     instructionType: 'gruenejugend',
-    features: ['webSearch', 'privacyMode', 'platforms'],
+    features: ['webSearch', 'privacyMode'],
     tabIndexKey: 'GRUENE_JUGEND',
-    helpContent: helpContent,
-    platformOptions: platformOptions,
-    enablePlatformSelector: true
+    helpContent: helpContent
   });
+
+  const renderPlatformSection = () => (
+    <PlatformSelector
+      name="platforms"
+      control={form.control}
+      platformOptions={platformOptions}
+      label="Formate"
+      placeholder="Formate auswählen..."
+      required={true}
+      helpText="Wähle ein oder mehrere Formate für die dein Content optimiert werden soll"
+      tabIndex={form.generator.baseFormProps?.platformSelectorTabIndex}
+    />
+  );
 
   const renderFormInputs = () => (
     <>
@@ -103,6 +115,7 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }) => {
         <BaseForm
           {...form.generator.baseFormProps}
           onSubmit={form.generator.onSubmit}
+          firstExtrasChildren={renderPlatformSection()}
         >
           {renderFormInputs()}
         </BaseForm>

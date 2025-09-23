@@ -48,19 +48,9 @@ function requireAuth(req, res, next) {
       }
     }
 
-    console.log('[Auth] Checking authentication status:', {
-      isAuthenticated: req.isAuthenticated ? req.isAuthenticated() : false,
-      hasUser: !!req.user,
-      sessionId: req.sessionID,
-      url: req.originalUrl
-    });
-
     if (req.isAuthenticated && req.isAuthenticated()) {
-      console.log('[Auth] User authenticated:', { id: req.user?.id, email: req.user?.email });
       return next();
     }
-    
-    console.log('[Auth] User not authenticated, returning 401');
     
     // For API calls (JSON requests)
     if (req.headers['content-type'] === 'application/json' || 

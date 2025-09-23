@@ -59,8 +59,8 @@ const AGENT_MAPPINGS = {
   'sharepic_auto': {
     route: 'sharepic',
     keywords: ['sharepic', 'share-pic', 'bild erstellen', 'grafik erstellen'],
-    description: 'AI-powered sharepic generation with intelligent type selection',
-    params: { type: 'auto' }
+    description: 'AI-powered sharepic generation with default dreizeilen format',
+    params: { type: 'dreizeilen' }
   },
   'zitat': {
     route: 'sharepic',
@@ -134,12 +134,23 @@ async function classifyIntent(message, context = {}, aiWorkerPool = null) {
   const keywordMatch = findKeywordMatch(normalizedMessage);
   if (keywordMatch) {
     console.log('[IntentClassifier] Keyword fallback match:', keywordMatch.agent);
+
+    // Upgrade zitat to zitat_with_image if image is present
+    let agent = keywordMatch.agent;
+    let params = keywordMatch.mapping.params;
+
+    if (agent === 'zitat' && context.hasImageAttachment) {
+      console.log('[IntentClassifier] Keyword fallback: Upgrading zitat to zitat_with_image due to image attachment');
+      agent = 'zitat_with_image';
+      params = { ...params, type: 'zitat' };
+    }
+
     return {
       isMultiIntent: false,
       intents: [{
-        agent: keywordMatch.agent,
+        agent: agent,
         route: keywordMatch.mapping.route,
-        params: keywordMatch.mapping.params,
+        params: params,
         confidence: 0.9
       }],
       method: 'keyword'
@@ -324,9 +335,26 @@ Wenn nur ein Intent erkannt wird, verwende trotzdem Array-Format.`;
       return null;
     }
 
-    console.log('[IntentClassifier] AI successfully classified', validIntents.length, 'intents:',
-                validIntents.map(i => i.agent));
-    return validIntents;
+    // Post-process intents to upgrade zitat to zitat_with_image when images are present
+    const hasImageAttachment = context.hasImageAttachment || false;
+    const processedIntents = validIntents.map(intent => {
+      if (intent.agent === 'zitat' && hasImageAttachment) {
+        console.log('[IntentClassifier] Upgrading zitat to zitat_with_image due to image attachment');
+        return {
+          ...intent,
+          agent: 'zitat_with_image',
+          params: {
+            ...intent.params,
+            type: 'zitat' // Ensure correct type for image-based zitat
+          }
+        };
+      }
+      return intent;
+    });
+
+    console.log('[IntentClassifier] AI successfully classified', processedIntents.length, 'intents:',
+                processedIntents.map(i => i.agent));
+    return processedIntents;
 
   } catch (error) {
     console.warn('[IntentClassifier] AI classification error:', error.message);
@@ -353,12 +381,23 @@ function classifyFromContext(normalizedMessage, context) {
   if (hasTransformationKeyword && context.lastAgent) {
     // Check if user wants to transform to a sharepic type
     if (normalizedMessage.includes('zitat') || normalizedMessage.includes('quote')) {
-      return {
-        agent: 'zitat',
-        route: 'sharepic',
-        params: { type: 'zitat_pure' },
-        confidence: 0.8
-      };
+      // Upgrade to zitat_with_image if image is present
+      if (context.hasImageAttachment) {
+        console.log('[IntentClassifier] Context classification: Upgrading zitat to zitat_with_image due to image attachment');
+        return {
+          agent: 'zitat_with_image',
+          route: 'sharepic',
+          params: { type: 'zitat' },
+          confidence: 0.8
+        };
+      } else {
+        return {
+          agent: 'zitat',
+          route: 'sharepic',
+          params: { type: 'zitat_pure' },
+          confidence: 0.8
+        };
+      }
     }
     if (normalizedMessage.includes('info')) {
       return {

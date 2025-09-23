@@ -29,6 +29,8 @@ const useSharepicGeneration = () => {
 
       // Route to appropriate generation function based on type
       switch (sharepicType) {
+        case 'default':
+          return await generateDefaultSharepics(thema, details, customPrompt, attachments, usePrivacyMode, provider);
         case 'quote':
           return await generateQuoteSharepic(thema, details, zitatAuthor, uploadedImage, customPrompt, attachments, usePrivacyMode, provider);
         case 'quote_pure':
@@ -104,10 +106,26 @@ const useSharepicGeneration = () => {
       throw new Error('Keine gültige Bild-Antwort erhalten');
     }
 
+    // Convert original image to base64 for storage if available
+    let originalImageBase64 = null;
+    if (uploadedImage && (uploadedImage instanceof File || uploadedImage instanceof Blob)) {
+      try {
+        originalImageBase64 = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.readAsDataURL(uploadedImage);
+        });
+        console.log('[useSharepicGeneration] Preserved original background image for editing');
+      } catch (error) {
+        console.warn('[useSharepicGeneration] Failed to convert original image to base64:', error);
+      }
+    }
+
     // Return combined result
     return {
       text: `${slogan.line1 || ''}\n${slogan.line2 || ''}\n${slogan.line3 || ''}`.trim(),
       image,
+      originalImage: originalImageBase64, // Preserve original background for editing
       slogans: responseData.alternatives || [], // Include alternatives for potential future use
       type: 'dreizeilen'
     };
@@ -176,13 +194,28 @@ const useSharepicGeneration = () => {
       throw new Error('Keine gültige Bild-Antwort erhalten');
     }
 
+    // Convert original image to base64 for storage if available
+    let originalImageBase64 = null;
+    if (uploadedImage && (uploadedImage instanceof File || uploadedImage instanceof Blob)) {
+      try {
+        originalImageBase64 = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.readAsDataURL(uploadedImage);
+        });
+        console.log('[useSharepicGeneration] Preserved original background image for quote editing');
+      } catch (error) {
+        console.warn('[useSharepicGeneration] Failed to convert original image to base64:', error);
+      }
+    }
+
     // Return combined result
     return {
       text: `"${mainQuote}" - ${zitatAuthor}`,
       image,
+      originalImage: originalImageBase64, // Preserve original background for editing
       quotes: responseData.alternatives || [], // Use alternatives array from response
-      type: 'quote',
-      originalImage: uploadedImage // Preserve original background image for editing
+      type: 'quote'
     };
   }, []);
 
@@ -376,6 +409,56 @@ const useSharepicGeneration = () => {
       slogans: responseData.alternatives || [],
       type: 'headline'
     };
+  }, []);
+
+  const generateDefaultSharepics = useCallback(async (thema, details, customPrompt = null, attachments = null, usePrivacyMode = false, provider = null) => {
+    console.log('[useSharepicGeneration] Starting default sharepic generation (3 types) - using backend service');
+
+    // Prepare request data
+    const requestData = {
+      thema,
+      details
+    };
+
+    // Add customPrompt if provided
+    if (customPrompt) {
+      requestData.customPrompt = customPrompt;
+    }
+
+    // Add attachments if provided
+    if (attachments && attachments.length > 0) {
+      requestData.attachments = attachments;
+    }
+
+    // Add privacy mode and provider if specified
+    if (usePrivacyMode) {
+      requestData.usePrivacyMode = usePrivacyMode;
+      if (provider) {
+        requestData.provider = provider;
+      }
+    }
+
+    try {
+      // Use backend service to generate all 3 sharepics
+      const response = await apiClient.post('/default_claude', requestData);
+      console.log('[useSharepicGeneration] Default backend response:', response);
+
+      // Handle Axios response wrapper - extract data
+      const responseData = response.data || response;
+
+      if (!responseData.success || !responseData.sharepics) {
+        throw new Error('Backend failed to generate default sharepics');
+      }
+
+      console.log('[useSharepicGeneration] All 3 default sharepics generated successfully via backend');
+
+      // Return the sharepics array directly (backend already formats them properly)
+      return responseData.sharepics;
+
+    } catch (error) {
+      console.error('[useSharepicGeneration] Error in default generation:', error);
+      throw error;
+    }
   }, []);
 
   return {
