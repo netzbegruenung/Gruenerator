@@ -58,7 +58,8 @@ const FormExtrasSection = ({
   showProfileSelector = true,
   onPrivacyInfoClick,
   onWebSearchInfoClick,
-  componentName
+  componentName,
+  enableKnowledgeSelector = false
 }) => {
   // Store selectors
   const loading = useFormStateSelector(state => state.loading);
@@ -101,16 +102,18 @@ const FormExtrasSection = ({
           </div>
         )}
         
-        {/* Knowledge Selector - manages its own visibility based on store configuration */}
-        <div className="form-extras__item">
-          <KnowledgeSelector 
-            disabled={isLoadingBetaFeatures}
-            tabIndex={knowledgeSelectorTabIndex}
-            sourceTabIndex={knowledgeSourceSelectorTabIndex}
-            documentTabIndex={documentSelectorTabIndex}
-            showProfileSelector={showProfileSelector}
-          />
-        </div>
+        {/* Knowledge Selector - conditionally rendered based on enableKnowledgeSelector prop */}
+        {enableKnowledgeSelector !== false && (
+          <div className="form-extras__item">
+            <KnowledgeSelector
+              disabled={isLoadingBetaFeatures}
+              tabIndex={knowledgeSelectorTabIndex}
+              sourceTabIndex={knowledgeSourceSelectorTabIndex}
+              documentTabIndex={documentSelectorTabIndex}
+              showProfileSelector={showProfileSelector}
+            />
+          </div>
+        )}
 
         {/* Feature Icons - alternative to feature toggles */}
         {useFeatureIcons && webSearchFeatureToggle && privacyModeToggle && (
@@ -246,7 +249,8 @@ FormExtrasSection.propTypes = {
   submitButtonTabIndex: PropTypes.number,
   onPrivacyInfoClick: PropTypes.func,
   onWebSearchInfoClick: PropTypes.func,
-  componentName: PropTypes.string
+  componentName: PropTypes.string,
+  enableKnowledgeSelector: PropTypes.bool
 };
 
 FormExtrasSection.defaultProps = {

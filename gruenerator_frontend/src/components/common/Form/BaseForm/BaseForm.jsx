@@ -154,7 +154,8 @@ const BaseFormInternal = ({
   submitButtonTabIndex = 17,
   showImageUpload = false,
   uploadedImage: propUploadedImage = null,
-  onImageChange = null
+  onImageChange = null,
+  enableKnowledgeSelector = false
 }) => {
 
   const baseFormRef = useRef(null);
@@ -693,6 +694,7 @@ const BaseFormInternal = ({
                 onWebSearchInfoClick={handleWebSearchInfoClick}
                 useEditMode={isEditModeActive}
                 registerEditHandler={(fn) => { editSubmitHandlerRef.current = fn; }}
+                enableKnowledgeSelector={enableKnowledgeSelector}
               >
                 {children}
               </FormSection>
