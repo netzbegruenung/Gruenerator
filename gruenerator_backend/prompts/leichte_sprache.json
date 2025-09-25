@@ -16,6 +16,7 @@
   "shortFormThreshold": 300,
   "options": {
     "max_tokens": 4000,
-    "temperature": 0.3
+    "temperature": 0.3,
+    "useBedrock": true
   }
 }

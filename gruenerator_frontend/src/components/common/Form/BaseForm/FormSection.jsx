@@ -97,7 +97,8 @@ const FormSection = forwardRef(({
   onWebSearchInfoClick,
   componentName,
   useEditMode = false,
-  registerEditHandler = null
+  registerEditHandler = null,
+  enableKnowledgeSelector = false
 }, ref) => {
   // Store selectors
   const loading = useFormStateSelector(state => state.loading);
@@ -204,6 +205,7 @@ const FormSection = forwardRef(({
                 onPrivacyInfoClick={onPrivacyInfoClick}
                 onWebSearchInfoClick={onWebSearchInfoClick}
                 componentName={componentName}
+                enableKnowledgeSelector={enableKnowledgeSelector}
               >
                 {extrasChildren}
               </FormExtrasSection>

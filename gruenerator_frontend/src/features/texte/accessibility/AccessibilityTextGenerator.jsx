@@ -314,7 +314,7 @@ const AccessibilityTextGenerator = ({ showHeaderFooter = true }) => {
           isSubmitDisabled={!formRef.current?.isValid?.()}
           // Override feature toggles based on generator type
           useWebSearchFeatureToggle={showWebSearch}
-          useFeatureIcons={showWebSearch || true}
+          useFeatureIcons={false}
           onAttachmentClick={showFileAttachment ? form.generator.handleAttachmentClick : null}
           onRemoveFile={showFileAttachment ? form.generator.handleRemoveFile : null}
           attachedFiles={showFileAttachment ? form.generator.attachedFiles : []}
