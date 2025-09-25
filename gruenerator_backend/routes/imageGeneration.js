@@ -32,8 +32,6 @@ router.get('/status', async (req, res) => {
     const status = await imageCounter.checkLimit(userId);
     const timeUntilReset = imageCounter.getTimeUntilReset();
     
-    console.log(`[ImageGeneration API] Status for user ${userId}:`, status);
-    
     return res.json({
       success: true,
       data: {
@@ -76,8 +74,6 @@ router.post('/increment', async (req, res) => {
       });
     }
     
-    console.log(`[ImageGeneration API] Incremented counter for user ${userId}:`, result);
-    
     return res.json({
       success: true,
       data: result
@@ -107,8 +103,6 @@ router.post('/reset', async (req, res) => {
     }
 
     const success = await imageCounter.resetUserCounter(userId);
-    
-    console.log(`[ImageGeneration API] Reset counter for user ${userId}: ${success}`);
     
     return res.json({
       success,

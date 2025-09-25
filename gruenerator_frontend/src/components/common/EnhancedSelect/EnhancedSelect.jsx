@@ -1,6 +1,7 @@
 import React, { lazy, Suspense, useCallback, memo } from 'react';
 import PropTypes from 'prop-types';
 const Select = lazy(() => import('react-select'));
+const CreatableSelect = lazy(() => import('react-select/creatable'));
 import FormFieldWrapper from '../Form/Input/FormFieldWrapper';
 import SourceTag from './SourceTag';
 import OptionIcon from './OptionIcon';
@@ -34,13 +35,16 @@ const EnhancedSelect = ({
   enableSubtitles = false,
   tagVariants = {},
   iconConfig = {},
-  
+
+  // Creatable functionality
+  isCreatable = false,
+
   // Form wrapper props
   label,
   helpText,
   required = false,
   error,
-  
+
   // Standard react-select props
   options = [],
   formatOptionLabel: customFormatOptionLabel,
@@ -109,9 +113,11 @@ const EnhancedSelect = ({
     );
   }, [customFormatOptionLabel, enableTags, enableIcons, enableSubtitles, tagVariants, iconConfig]);
 
+  const SelectComponent = isCreatable ? CreatableSelect : Select;
+
   const selectElement = (
     <Suspense fallback={<div>Loading...</div>}>
-      <Select
+      <SelectComponent
         options={options}
         formatOptionLabel={internalFormatOptionLabel}
         className={`enhanced-select ${className}`.trim()}
@@ -147,7 +153,10 @@ EnhancedSelect.propTypes = {
   enableSubtitles: PropTypes.bool,
   tagVariants: PropTypes.object,
   iconConfig: PropTypes.object,
-  
+
+  // Creatable functionality
+  isCreatable: PropTypes.bool,
+
   // Form wrapper
   label: PropTypes.string,
   helpText: PropTypes.string,

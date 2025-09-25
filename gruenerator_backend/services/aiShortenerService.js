@@ -2,6 +2,24 @@
 // Fallback service to ensure all sharepic text meets character limits
 
 /**
+ * Helper function to clean AI response from unwanted formatting
+ */
+const cleanAIResponse = (content) => {
+  if (!content || typeof content !== 'string') {
+    return '';
+  }
+
+  return content
+    .replace(/^\d+\.\s*\*?["„]?/g, '') // Remove numbers, asterisks, quotes at start
+    .replace(/["„]?\*?\s*\(\d+\s*Zeichen\)\s*$/g, '') // Remove character counts at end
+    .replace(/["„]?\*?\s*$/g, '') // Remove trailing quotes/asterisks
+    .replace(/\*\*.*?\*\*/g, '') // Remove markdown bold
+    .replace(/^\*?["„]?/g, '') // Remove leading asterisks/quotes
+    .replace(/["„]?\*?$/g, '') // Remove trailing quotes/asterisks
+    .trim();
+};
+
+/**
  * Character limits for each sharepic type
  */
 const CHARACTER_LIMITS = {
@@ -33,6 +51,16 @@ const CHARACTER_LIMITS = {
  */
 const shortenDreizeilen = async (data, req) => {
   console.log('[aiShortener] Shortening dreizeilen:', JSON.stringify(data));
+
+  // Check if all lines are empty or missing - return early to avoid generating error messages
+  if (!data.line1 && !data.line2 && !data.line3) {
+    console.log('[aiShortener] All lines are empty, returning empty data as-is');
+    return {
+      line1: data.line1 || '',
+      line2: data.line2 || '',
+      line3: data.line3 || ''
+    };
+  }
 
   const prompt = `Kürze diese drei Zeilen auf MAXIMAL 15 Zeichen pro Zeile:
 Zeile 1: "${data.line1}"
@@ -84,6 +112,16 @@ Zeile 3`;
  */
 const shortenHeadline = async (data, req) => {
   console.log('[aiShortener] Shortening headline:', JSON.stringify(data));
+
+  // Check if all lines are empty or missing - return early to avoid generating error messages
+  if (!data.line1 && !data.line2 && !data.line3) {
+    console.log('[aiShortener] All headline lines are empty, returning empty data as-is');
+    return {
+      line1: data.line1 || '',
+      line2: data.line2 || '',
+      line3: data.line3 || ''
+    };
+  }
 
   const prompt = `Kürze diese drei Zeilen auf 6-12 Zeichen pro Zeile für eine kraftvolle Headline:
 Zeile 1: "${data.line1}"
@@ -137,6 +175,15 @@ Zeile 3`;
 const shortenZitat = async (data, req) => {
   console.log('[aiShortener] Shortening zitat:', data.quote?.substring(0, 50) + '...');
 
+  // Check if quote is empty or missing - return early to avoid generating error messages
+  if (!data.quote || data.quote.trim() === '') {
+    console.log('[aiShortener] Quote is empty, returning empty data as-is');
+    return {
+      ...data,
+      quote: data.quote || ''
+    };
+  }
+
   const prompt = `Kürze dieses Zitat auf MAXIMAL 140 Zeichen:
 "${data.quote}"
 
@@ -144,7 +191,10 @@ WICHTIG:
 - Maximal 140 Zeichen
 - Behalt die Kernaussage bei
 - Keine Hashtags
-- Gib nur das gekürzte Zitat zurück`;
+- Keine Nummerierung oder Aufzählung
+- Keine Anführungszeichen oder Sterne
+- Keine Zeichenzahlen in Klammern
+- Gib nur den sauberen Zitattext zurück`;
 
   try {
     const result = await req.app.locals.aiWorkerPool.processRequest({
@@ -161,7 +211,7 @@ WICHTIG:
 
     const shortened = {
       ...data,
-      quote: result.content.trim().substring(0, 140)
+      quote: cleanAIResponse(result.content).substring(0, 140)
     };
 
     console.log('[aiShortener] Zitat shortened successfully to', shortened.quote.length, 'chars');
@@ -179,6 +229,15 @@ WICHTIG:
 const shortenZitatPure = async (data, req) => {
   console.log('[aiShortener] Shortening zitat_pure:', data.quote?.substring(0, 50) + '...');
 
+  // Check if quote is empty or missing - return early to avoid generating error messages
+  if (!data.quote || data.quote.trim() === '') {
+    console.log('[aiShortener] Zitat_pure quote is empty, returning empty data as-is');
+    return {
+      ...data,
+      quote: data.quote || ''
+    };
+  }
+
   const prompt = `Kürze dieses Zitat auf EXAKT 100-160 Zeichen:
 "${data.quote}"
 
@@ -186,7 +245,10 @@ WICHTIG:
 - Zwischen 100-160 Zeichen
 - Behalt die Kernaussage bei
 - Keine Hashtags
-- Gib nur das gekürzte Zitat zurück`;
+- Keine Nummerierung oder Aufzählung
+- Keine Anführungszeichen oder Sterne
+- Keine Zeichenzahlen in Klammern
+- Gib nur den sauberen Zitattext zurück`;
 
   try {
     const result = await req.app.locals.aiWorkerPool.processRequest({
@@ -201,7 +263,7 @@ WICHTIG:
       return fallbackTruncate('zitat_pure', data);
     }
 
-    let shortened = result.content.trim();
+    let shortened = cleanAIResponse(result.content);
 
     // Ensure it's within 100-160 range
     if (shortened.length < 100) {
@@ -234,6 +296,19 @@ const shortenInfo = async (data, req) => {
     subheader: data.subheader?.length,
     body: data.body?.length
   });
+
+  // Check if all info components are empty - return early to avoid generating error messages
+  if ((!data.header || data.header.trim() === '') &&
+      (!data.subheader || data.subheader.trim() === '') &&
+      (!data.body || data.body.trim() === '')) {
+    console.log('[aiShortener] All info components are empty, returning empty data as-is');
+    return {
+      header: data.header || '',
+      subheader: data.subheader || '',
+      body: data.body || '',
+      searchTerm: data.searchTerm || ''
+    };
+  }
 
   const prompt = `Kürze diese Info-Komponenten auf die exakten Zeichenlimits:
 

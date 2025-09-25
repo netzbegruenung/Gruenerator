@@ -15,23 +15,10 @@ const { localizePlaceholders } = require('../../utils/localizationHelper.js');
 function buildSystemText({ systemRole, toolInstructions = [], constraints = null, formatting = null, locale = 'de-DE' }) {
   if (!systemRole) throw new Error("System role is required");
 
-  // Localize the system role
+  // Localize and return only the system role
   const localizedSystemRole = localizePlaceholders(systemRole, locale);
-  const parts = [localizedSystemRole];
-
-  if (toolInstructions && toolInstructions.length > 0) {
-    // Localize tool instructions as well
-    const localizedInstructions = toolInstructions.map(instr => localizePlaceholders(instr, locale));
-    parts.push("\n" + localizedInstructions.join(" "));
-  }
-  if (constraints) {
-    parts.push("\n" + localizePlaceholders(constraints, locale));
-  }
-  if (formatting) {
-    parts.push("\n" + localizePlaceholders(formatting, locale));
-  }
-  console.log(`📋 [PromptAssembly] System text built (tools=${toolInstructions?.length || 0}, constraints=${constraints ? 'y' : 'n'}, formatting=${formatting ? 'y' : 'n'}, locale=${locale})`);
-  return parts.join("");
+  console.log(`📋 [PromptAssembly] System text built (role only, locale=${locale})`);
+  return localizedSystemRole;
 }
 
 function buildDocumentBlocks(documents = []) {
@@ -86,8 +73,26 @@ function formatRequestObject(request, locale = 'de-DE') {
   return result;
 }
 
-function buildMainUserContent({ examples = [], knowledge = [], instructions = null, request = null, locale = 'de-DE' }) {
+function buildMainUserContent({ examples = [], knowledge = [], instructions = null, request = null, toolInstructions = [], constraints = null, formatting = null, locale = 'de-DE' }) {
   const parts = [];
+
+  // Add tool instructions first
+  if (toolInstructions && toolInstructions.length > 0) {
+    const localizedInstructions = toolInstructions.map(instr => localizePlaceholders(instr, locale));
+    parts.push(localizedInstructions.join(" "));
+  }
+
+  // Add constraints
+  if (constraints) {
+    parts.push(localizePlaceholders(constraints, locale));
+  }
+
+  // Add formatting instructions
+  if (formatting) {
+    parts.push(localizePlaceholders(formatting, locale));
+  }
+
+  // Add examples
   const ex = formatExamples(examples);
   if (ex) parts.push(ex);
 
@@ -113,7 +118,7 @@ function buildMainUserContent({ examples = [], knowledge = [], instructions = nu
     parts.push(`<request>\n${txt}\n</request>`);
   }
   const combined = parts.length > 0 ? parts.join("\n\n---\n\n") : null;
-  console.log(`📋 [PromptAssembly] Main user content built (sections=${parts.length}, locale=${locale})`);
+  console.log(`📋 [PromptAssembly] Main user content built (sections=${parts.length}, tools=${toolInstructions?.length || 0}, constraints=${constraints ? 'y' : 'n'}, formatting=${formatting ? 'y' : 'n'}, locale=${locale})`);
   return combined;
 }
 
@@ -121,9 +126,6 @@ function assemblePromptGraph(state) {
   console.log('📋 [PromptAssembly] Building system text...');
   const system = buildSystemText({
     systemRole: state.systemRole,
-    toolInstructions: state.toolInstructions || [],
-    constraints: state.constraints,
-    formatting: state.formatting,
     locale: state.locale || 'de-DE'
   });
 
@@ -148,6 +150,9 @@ function assemblePromptGraph(state) {
     knowledge: state.knowledge,
     instructions: state.instructions,
     request: state.requestFormatted || state.request,
+    toolInstructions: state.toolInstructions || [],
+    constraints: state.constraints,
+    formatting: state.formatting,
     locale: state.locale || 'de-DE'
   });
   if (mainUser) {
@@ -346,9 +351,6 @@ async function assemblePromptGraphAsync(enrichedState, flags = {}) {
   console.log('📋 [PromptAssemblyAsync] Building system text...');
   const system = buildSystemText({
     systemRole: enrichedState.systemRole,
-    toolInstructions: enrichedState.toolInstructions || [],
-    constraints: enrichedState.constraints,
-    formatting: enrichedState.formatting,
     locale: enrichedState.locale || 'de-DE'
   });
 
@@ -417,6 +419,9 @@ async function assemblePromptGraphAsync(enrichedState, flags = {}) {
     knowledge: baseKnowledge,
     instructions: enrichedState.instructions,
     request: enrichedState.requestFormatted || enrichedState.request,
+    toolInstructions: enrichedState.toolInstructions || [],
+    constraints: enrichedState.constraints,
+    formatting: enrichedState.formatting,
     locale: enrichedState.locale || 'de-DE'
   });
   if (mainUser) {

@@ -56,7 +56,7 @@ const selectAndPrepareImage = async (textContent, sharepicType, aiWorkerPool, re
 
   try {
     // Use image picker service to select best image
-    const selection = await imagePickerService.selectBestImage(textContent, aiWorkerPool, {}, req);
+    const selection = await imagePickerService.selectBestImage(textContent, aiWorkerPool, { sharepicType }, req);
 
     console.log(`[SharepicGeneration] Selected image: ${selection.selectedImage.filename} (confidence: ${selection.confidence})`);
     console.log(`[SharepicGeneration] Selection reasoning: ${selection.reasoning}`);
@@ -196,7 +196,8 @@ const generateInfoSharepic = async (expressReq, requestBody) => {
     throw new Error(textResponse?.error || 'Info Sharepic generation failed');
   }
 
-  const { header, subheader, body, alternatives = [] } = textResponse;
+  const { mainInfo, alternatives = [] } = textResponse;
+  const { header, subheader, body } = mainInfo;
 
   const { payload: canvasPayload } = await callCanvasRoute(infoCanvasRouter, buildInfoCanvasPayload({ header, subheader, body }));
 
@@ -515,101 +516,6 @@ const generateDreizeilenWithImageSharepic = async (expressReq, requestBody) => {
   }
 };
 
-const generateZitatWithAIImageSharepic = async (expressReq, requestBody) => {
-  console.log('[SharepicGeneration] Generating zitat with AI-selected image');
-
-  // Clean up any uploaded images first (since we're using AI-selected images)
-  const sharepicImageManager = expressReq.app?.locals?.sharepicImageManager;
-  const sharepicRequestId = requestBody.sharepicRequestId;
-  if (sharepicImageManager && sharepicRequestId) {
-    const hadUploadedImage = await sharepicImageManager.hasImageForRequest(sharepicRequestId);
-    if (hadUploadedImage) {
-      await sharepicImageManager.deleteImageForRequest(sharepicRequestId);
-      console.log('[SharepicGeneration] Cleaned up uploaded image since AI selection is used');
-    }
-  }
-
-  try {
-    // Generate text content first to analyze for image selection
-    const textResponse = await callSharepicClaude(expressReq, 'zitat_pure', {
-      ...expressReq.body,
-      preserveName: true
-    });
-    if (!textResponse?.success) {
-      throw new Error(textResponse?.error || 'Zitat text generation failed');
-    }
-
-    const { quote, alternatives = [] } = textResponse;
-    const name = expressReq.body.name || textResponse.name || '';
-
-    // Select appropriate image based on quote content
-    const textForAnalysis = `${quote} ${name}`.trim();
-    const { attachment: aiImageAttachment, selection } = await selectAndPrepareImage(textForAnalysis, 'zitat', expressReq.app.locals.aiWorkerPool, expressReq);
-
-    // Convert AI-selected image to temp file for zitat_canvas
-    const tempFile = await convertToTempFile(aiImageAttachment);
-
-    // Create mock request for zitat_canvas
-    const mockReq = {
-      body: { quote, name },
-      file: tempFile
-    };
-
-    // Call zitat_canvas route
-    const { payload: canvasPayload } = await callCanvasRoute(zitatCanvasRouter, mockReq.body, mockReq.file);
-
-    if (!canvasPayload?.image) {
-      throw new Error('Zitat canvas did not return an image');
-    }
-
-    return {
-      success: true,
-      agent: 'zitat',
-      content: {
-        metadata: {
-          sharepicType: 'zitat',
-          quoteAuthor: name,
-          aiSelectedImage: {
-            filename: selection.selectedImage.filename,
-            confidence: selection.confidence,
-            reasoning: selection.reasoning
-          }
-        },
-        sharepic: {
-          image: canvasPayload.image,
-          type: 'zitat',
-          text: `"${quote}" - ${name}`,
-          quote,
-          name,
-          alternatives,
-          selectedImage: selection.selectedImage.filename
-        },
-        sharepicTitle: 'Sharepic Vorschau',
-        sharepicDownloadText: 'Sharepic herunterladen',
-        sharepicDownloadFilename: `sharepic-zitat-${Date.now()}.png`
-      }
-    };
-
-  } catch (error) {
-    console.error('[SharepicGeneration] Error in zitat with AI image:', error);
-    throw error;
-  } finally {
-    // Cleanup any remaining uploaded images for this request
-    if (sharepicImageManager && sharepicRequestId) {
-      try {
-        const hasRemainingImage = await sharepicImageManager.hasImageForRequest(sharepicRequestId);
-        if (hasRemainingImage) {
-          await sharepicImageManager.deleteImageForRequest(sharepicRequestId);
-          console.log('[SharepicGeneration] Cleaned up remaining uploaded image after zitat AI generation');
-        }
-      } catch (cleanupError) {
-        console.warn('[SharepicGeneration] Error during image cleanup:', cleanupError);
-      }
-    }
-    // Cleanup temp file if it exists
-    // Note: tempFile cleanup is handled by convertToTempFile utility
-  }
-};
 
 const generateDreizeilenWithAIImageSharepic = async (expressReq, requestBody) => {
   console.log('[SharepicGeneration] Generating dreizeilen with AI-selected image');
@@ -733,10 +639,10 @@ const generateSharepicForChat = async (expressReq, type, requestBody) => {
     case 'zitat_pure':
       return generateZitatPureSharepic(expressReq, requestBody);
     case 'zitat':
-      // Image-based zitat - use AI selection if no image provided
+      // Image-based zitat - fallback to zitat_pure if no image provided
       if (!hasImageAttachment) {
-        console.log('[SharepicGeneration] No image provided for zitat, using AI selection');
-        return generateZitatWithAIImageSharepic(expressReq, requestBody);
+        console.log('[SharepicGeneration] No image provided for zitat, generating zitat_pure instead');
+        return generateZitatPureSharepic(expressReq, requestBody);
       }
       return generateZitatWithImageSharepic(expressReq, requestBody);
     case 'dreizeilen':
