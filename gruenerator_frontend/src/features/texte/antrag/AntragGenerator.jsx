@@ -7,6 +7,7 @@ import useApiSubmit from '../../../components/hooks/useApiSubmit';
 import StyledCheckbox from '../../../components/common/AnimatedCheckbox';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
+import SmartInput from '../../../components/common/Form/SmartInput';
 import { HiInformationCircle, HiGlobeAlt, HiShieldCheck } from 'react-icons/hi';
 import { createKnowledgeFormNotice, createKnowledgePrompt } from '../../../utils/knowledgeFormUtils';
 import { useFormFields } from '../../../components/common/Form/hooks';
@@ -294,12 +295,16 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
         tabIndex={tabIndex.details}
       />
 
-      <Input
+      <SmartInput
+        fieldType="gliederung"
         name="gliederung"
         control={control}
         label={FORM_LABELS.GLIEDERUNG}
         placeholder={FORM_PLACEHOLDERS.GLIEDERUNG}
         tabIndex={tabIndex.gliederung}
+        onSubmitSuccess={success ? getValues('gliederung') : null}
+        shouldSave={success}
+        formName="antrag"
       />
     </>
   );

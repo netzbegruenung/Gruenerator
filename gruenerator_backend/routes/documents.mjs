@@ -36,7 +36,6 @@ const upload = multer({
 
 // Add debugging middleware to all document routes
 router.use((req, res, next) => {
-  console.log(`[Documents] ${req.method} ${req.originalUrl} - User ID: ${req.user?.id}`);
   next();
 });
 
@@ -514,11 +513,8 @@ router.get('/stats', ensureAuthenticated, async (req, res) => {
 // Get user documents
 router.get('/user', ensureAuthenticated, async (req, res) => {
   try {
-    console.log('[Documents /user] Request received for user:', req.user?.id);
-    
     // Get user's document mode preference (defaults to manual)
     const userMode = await postgresDocumentService.getUserDocumentMode(req.user.id);
-    console.log(`[Documents /user] User mode: ${userMode}`);
     
     // Use PostgreSQL + Qdrant exclusively (no more Supabase fallback)
     const documents = await postgresDocumentService.getDocumentsBySourceType(req.user.id, null);
@@ -549,8 +545,6 @@ router.get('/user', ensureAuthenticated, async (req, res) => {
     
     // Sort documents by created_at
     enrichedDocs.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-    
-    console.log(`[Documents /user] Found ${enrichedDocs.length} documents from PostgreSQL`);
     
     res.json({
       success: true,

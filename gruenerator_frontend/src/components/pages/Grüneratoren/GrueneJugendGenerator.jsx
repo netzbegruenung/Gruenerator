@@ -79,7 +79,6 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }) => {
       label="Formate"
       placeholder="Formate auswählen..."
       required={true}
-      helpText="Wähle ein oder mehrere Formate für die dein Content optimiert werden soll"
       tabIndex={form.generator.baseFormProps?.platformSelectorTabIndex}
     />
   );

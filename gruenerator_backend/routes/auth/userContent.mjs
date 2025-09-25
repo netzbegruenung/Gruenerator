@@ -14,7 +14,6 @@ const router = express.Router();
 
 // Add debugging middleware to all user content routes
 router.use((req, res, next) => {
-  console.log(`[User Content] ${req.method} ${req.originalUrl} - User ID: ${req.user?.id}`);
   next();
 });
 
@@ -119,8 +118,6 @@ router.get('/instructions-status/:instructionType', ensureAuthenticated, async (
     }
     
     const hasAnyInstructions = hasUserInstructions || groupsWithInstructions.length > 0;
-    
-    console.log(`[Instructions Status ${instructionType.toUpperCase()}] User ${userId}: hasUser=${hasUserInstructions}, groupsWithInstructions=[${groupsWithInstructions.join(',')}], hasAny=${hasAnyInstructions}`);
     
     res.json({
       success: true,

@@ -481,7 +481,6 @@ const EnhancedKnowledgeSelector = ({
     <div className="enhanced-knowledge-selector">
       <EnhancedSelect
         label="Wissen, Dokumente & Texte auswählen"
-        helpText="Wähle Wissen, Dokumente und Texte aus"
         inputId="enhanced-knowledge-select"
         classNamePrefix="enhanced-knowledge-select"
         className="enhanced-knowledge-select"
