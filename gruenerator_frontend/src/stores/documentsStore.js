@@ -5,6 +5,7 @@ const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 const initialState = {
   documents: [],
+  texts: [], // Add texts array for combined content
   isLoading: false,
   isUploading: false,
   uploadProgress: 0,
@@ -78,6 +79,51 @@ export const useDocumentsStore = create(immer((set, get) => {
           state.error = error.message;
           state.isLoading = false;
         });
+      }
+    },
+
+    // Fetch combined content (documents + texts) for improved performance
+    fetchCombinedContent: async () => {
+      set((state) => {
+        state.isLoading = true;
+        state.error = null;
+      });
+
+      try {
+        console.log('[DocumentsStore] Fetching combined content (documents + texts)');
+
+        const response = await fetch(`${AUTH_BASE_URL}/documents/combined-content`, {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+
+        if (result.success) {
+          set((state) => {
+            state.documents = result.data.documents || [];
+            state.texts = result.data.texts || [];
+            state.isLoading = false;
+          });
+          console.log(`[DocumentsStore] Combined content fetched: ${result.data.documents?.length || 0} documents, ${result.data.texts?.length || 0} texts`);
+          return result.data;
+        } else {
+          throw new Error(result.message || 'Failed to fetch combined content');
+        }
+      } catch (error) {
+        console.error('[DocumentsStore] Error fetching combined content:', error);
+        set((state) => {
+          state.error = error.message;
+          state.isLoading = false;
+        });
+        throw error;
       }
     },
 
@@ -397,6 +443,134 @@ export const useDocumentsStore = create(immer((set, get) => {
         }
       } catch (error) {
         console.error('[DocumentsStore] Error refreshing document:', error);
+        throw error;
+      }
+    },
+
+    // Browse files in a Wolke share
+    browseWolkeFiles: async (shareLinkId) => {
+      set((state) => {
+        state.isLoading = true;
+        state.error = null;
+      });
+
+      try {
+        console.log('[DocumentsStore] Browsing Wolke files for share link:', shareLinkId);
+
+        const response = await fetch(`${AUTH_BASE_URL}/documents/wolke/browse/${shareLinkId}`, {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+
+        set((state) => {
+          state.isLoading = false;
+        });
+
+        if (result.success) {
+          console.log('[DocumentsStore] Wolke files loaded successfully:', result.files.length, 'files');
+          return result;
+        } else {
+          throw new Error(result.message || 'Failed to browse Wolke files');
+        }
+      } catch (error) {
+        console.error('[DocumentsStore] Error browsing Wolke files:', error);
+        set((state) => {
+          state.error = error.message;
+          state.isLoading = false;
+        });
+        throw error;
+      }
+    },
+
+    // Import selected files from Wolke
+    importWolkeFiles: async (shareLinkId, files, onProgress = null) => {
+      set((state) => {
+        state.isUploading = true;
+        state.uploadProgress = 0;
+        state.error = null;
+      });
+
+      try {
+        console.log('[DocumentsStore] Importing Wolke files:', { shareLinkId, fileCount: files.length });
+
+        // Simulate progress updates during the import
+        let progressInterval;
+        if (onProgress) {
+          let currentProgress = 0;
+          progressInterval = setInterval(() => {
+            if (currentProgress < 90) {
+              currentProgress += Math.random() * 10;
+              set((state) => {
+                state.uploadProgress = Math.min(currentProgress, 90);
+              });
+              onProgress(Math.min(currentProgress, 90));
+            }
+          }, 200);
+        }
+
+        const response = await fetch(`${AUTH_BASE_URL}/documents/wolke/import`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            shareLinkId,
+            files
+          }),
+        });
+
+        // Clear progress interval
+        if (progressInterval) {
+          clearInterval(progressInterval);
+        }
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+
+        set((state) => {
+          state.isUploading = false;
+          state.uploadProgress = 100;
+        });
+
+        if (onProgress) {
+          onProgress(100);
+        }
+
+        if (result.success) {
+          console.log('[DocumentsStore] Wolke files imported successfully:', result.summary);
+
+          // Refresh documents list to show newly imported files
+          await get().fetchDocuments();
+
+          return result;
+        } else {
+          throw new Error(result.message || 'Failed to import Wolke files');
+        }
+      } catch (error) {
+        console.error('[DocumentsStore] Error importing Wolke files:', error);
+        set((state) => {
+          state.error = error.message;
+          state.isUploading = false;
+          state.uploadProgress = 0;
+        });
+
+        if (onProgress) {
+          onProgress(0);
+        }
+
         throw error;
       }
     },

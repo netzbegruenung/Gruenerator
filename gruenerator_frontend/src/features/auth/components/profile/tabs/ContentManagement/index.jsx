@@ -13,11 +13,12 @@ const ContentManagementLoadingFallback = () => (
     </div>
 );
 
-const ContentManagementTabContainer = ({ 
+const ContentManagementTabContainer = ({
     isActive,
-    onSuccessMessage, 
+    onSuccessMessage,
     onErrorMessage,
-    initialTab = 'dokumente',
+    initialTab = 'inhalte',
+    canvaSubsection = 'overview',
     onTabChange
 }) => {
     const { user, isAuthenticated } = useOptimizedAuth();
@@ -38,6 +39,7 @@ const ContentManagementTabContainer = ({
                 onSuccessMessage={onSuccessMessage}
                 onErrorMessage={onErrorMessage}
                 initialTab={initialTab}
+                canvaSubsection={canvaSubsection}
                 onTabChange={onTabChange}
             />
         </Suspense>

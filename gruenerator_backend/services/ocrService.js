@@ -183,7 +183,7 @@ class OCRService {
       const ocrResponseA = await mistralClient.ocr.process({
         model: 'mistral-ocr-latest',
         document: { type: 'document_url', documentUrl: dataUrl },
-        includeImageBase64: false
+        image_limit: 0
       });
 
       const pagesA = ocrResponseA?.pages || [];
@@ -239,7 +239,7 @@ class OCRService {
     const ocrResponse = await mistralClient.ocr.process({
       model: 'mistral-ocr-latest',
       document: { type: 'file', fileId },
-      includeImageBase64: false
+      image_limit: 0
     });
 
     const pages = ocrResponse?.pages || [];

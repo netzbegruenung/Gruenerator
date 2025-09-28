@@ -46,6 +46,13 @@ const createFormStateStore = (initialState = {}) => {
       // Form visibility state
       isFormVisible: true,
 
+      // Configuration sections (new, optional)
+      tabIndexConfig: {},
+      platformConfig: {},
+      submitConfig: {},
+      uiConfig: {},
+      helpConfig: {},
+
       // Override with any initial state
       ...initialState,
 
@@ -181,6 +188,35 @@ const createFormStateStore = (initialState = {}) => {
       setFormVisible: (isFormVisible) => set({ isFormVisible }),
       toggleFormVisibility: () => set((state) => ({ isFormVisible: !state.isFormVisible })),
 
+      // Actions for configuration sections
+      setTabIndexConfig: (tabIndexConfig) => set({ tabIndexConfig }),
+      setPlatformConfig: (platformConfig) => set({ platformConfig }),
+      setSubmitConfig: (submitConfig) => set({ submitConfig }),
+      setUIConfig: (uiConfig) => set({ uiConfig }),
+      setHelpConfig: (helpConfig) => set({ helpConfig }),
+
+      // Merge configuration updates (non-destructive)
+      updateTabIndexConfig: (updates) =>
+        set((state) => ({
+          tabIndexConfig: { ...state.tabIndexConfig, ...updates }
+        })),
+      updatePlatformConfig: (updates) =>
+        set((state) => ({
+          platformConfig: { ...state.platformConfig, ...updates }
+        })),
+      updateSubmitConfig: (updates) =>
+        set((state) => ({
+          submitConfig: { ...state.submitConfig, ...updates }
+        })),
+      updateUIConfig: (updates) =>
+        set((state) => ({
+          uiConfig: { ...state.uiConfig, ...updates }
+        })),
+      updateHelpConfig: (updates) =>
+        set((state) => ({
+          helpConfig: { ...state.helpConfig, ...updates }
+        })),
+
       // Reset all form state to initial values
       resetFormState: () => set({
         loading: false,
@@ -206,6 +242,12 @@ const createFormStateStore = (initialState = {}) => {
         attachedFiles: [],
         uploadedImage: null,
         isFormVisible: true,
+        // Configuration sections reset to empty (preserve initial state if provided)
+        tabIndexConfig: initialState.tabIndexConfig || {},
+        platformConfig: initialState.platformConfig || {},
+        submitConfig: initialState.submitConfig || {},
+        uiConfig: initialState.uiConfig || {},
+        helpConfig: initialState.helpConfig || {},
         ...initialState // Reset to initial state, not defaults
       }),
 
@@ -237,6 +279,44 @@ const createFormStateStore = (initialState = {}) => {
           attachedFiles: state.attachedFiles,
           uploadedImage: state.uploadedImage
         };
+      },
+
+      // Helper selectors for configuration sections
+      getConfigState: () => {
+        const state = get();
+        return {
+          tabIndexConfig: state.tabIndexConfig,
+          platformConfig: state.platformConfig,
+          submitConfig: state.submitConfig,
+          uiConfig: state.uiConfig,
+          helpConfig: state.helpConfig
+        };
+      },
+
+      // Get specific config with fallback
+      getTabIndex: (key, fallback) => {
+        const state = get();
+        return state.tabIndexConfig[key] ?? fallback;
+      },
+
+      getPlatformConfig: (key, fallback) => {
+        const state = get();
+        return state.platformConfig[key] ?? fallback;
+      },
+
+      getSubmitConfig: (key, fallback) => {
+        const state = get();
+        return state.submitConfig[key] ?? fallback;
+      },
+
+      getUIConfig: (key, fallback) => {
+        const state = get();
+        return state.uiConfig[key] ?? fallback;
+      },
+
+      getHelpConfig: (key, fallback) => {
+        const state = get();
+        return state.helpConfig[key] ?? fallback;
       }
     }))
   );

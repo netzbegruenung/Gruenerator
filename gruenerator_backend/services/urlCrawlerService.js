@@ -170,9 +170,18 @@ class URLCrawlerService {
       // Extract content using Cheerio
       const contentData = this.extractContent(html, finalUrl, options.enhancedMetadata);
 
-      // Validate extracted content
-      if (!contentData.content || contentData.content.trim().length < 50) {
-        throw new Error('Insufficient content extracted from the page. The page might be empty or require JavaScript.');
+      // Validate extracted content with better error messages
+      if (!contentData.content || contentData.content.trim().length === 0) {
+        throw new Error('No content could be extracted from the page. The page might be empty or require JavaScript.');
+      }
+
+      if (contentData.content.trim().length < 50) {
+        console.warn(`[URLCrawlerService] Low content extraction for ${url}: ${contentData.wordCount} words, source: ${contentData.contentSource}`);
+
+        // Allow very short content but warn about it
+        if (contentData.wordCount < 10) {
+          throw new Error(`Insufficient content extracted: only ${contentData.wordCount} words found. The page might require JavaScript or have restricted access.`);
+        }
       }
 
       console.log(`[URLCrawlerService] Crawl completed successfully for ${url}`);
@@ -485,8 +494,9 @@ class URLCrawlerService {
 
     const $ = cheerio.load(html);
 
-    // Remove unwanted elements
-    $('script, style, nav, header, footer, .navigation, .sidebar, .ads, .advertisement, noscript, iframe').remove();
+    // Remove unwanted elements (be more selective to preserve content)
+    $('script, style, noscript, iframe').remove();
+    $('.ads, .advertisement, .cookie-notice, .cookie-banner, .popup, .modal, .overlay, .social-share').remove();
 
     // Extract metadata
     const title = $('title').text().trim() || $('h1').first().text().trim() || 'Untitled';
@@ -512,7 +522,19 @@ class URLCrawlerService {
       '#content',
       '.main-content',
       '.page-content',
-      '.text-content'
+      '.text-content',
+      // German-specific selectors
+      '.inhalt',
+      '#inhalt',
+      '.hauptinhalt',
+      '.artikel',
+      '.beitrag',
+      '.inhaltsbereich',
+      '.contentbereich',
+      '.text',
+      '.textbereich',
+      '.col-content',
+      '.content-area'
     ];
 
     let extractedContent = '';
@@ -531,12 +553,22 @@ class URLCrawlerService {
     }
 
     // Fallback to body if no specific content area found
-    if (!extractedContent) {
-      // Remove additional unwanted elements from body
-      $('body').find('.cookie-notice, .cookie-banner, .popup, .modal, .overlay, .social-share').remove();
-      extractedContent = $('body').text();
-      extractedHtml = $('body').html();
-      contentSource = 'body (cleaned)';
+    if (!extractedContent || extractedContent.trim().length < 100) {
+      // Try removing only navigation elements while keeping main content
+      const bodyClone = $('body').clone();
+      bodyClone.find('nav, header[role="banner"], footer[role="contentinfo"], .navigation, .sidebar').remove();
+
+      const fallbackContent = bodyClone.text().trim();
+      if (fallbackContent.length > extractedContent.length) {
+        extractedContent = fallbackContent;
+        extractedHtml = bodyClone.html();
+        contentSource = 'body (nav removed)';
+      } else {
+        // Final fallback - use body as-is (already cleaned of scripts/ads above)
+        extractedContent = $('body').text();
+        extractedHtml = $('body').html();
+        contentSource = 'body (cleaned)';
+      }
     }
 
     // Clean the extracted text
@@ -563,7 +595,7 @@ class URLCrawlerService {
       ...enhancedData
     };
 
-    console.log(`[URLCrawlerService] Successfully extracted ${result.wordCount} words from ${url}`);
+    console.log(`[URLCrawlerService] Successfully extracted ${result.wordCount} words from ${url} (source: ${contentSource}, chars: ${result.characterCount})`);
 
     return result;
   }

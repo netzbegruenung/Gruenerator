@@ -1,42 +1,77 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { Controller } from 'react-hook-form';
-import EnhancedSelect from './EnhancedSelect';
+import EnhancedSelect from './EnhancedSelect/EnhancedSelect';
 import Icon from './Icon';
 
 /**
- * PlatformSelector - Multi-selectable platform selection component using react-select
- * Used for selecting multiple social media platforms and content formats
+ * PlatformSelector - Flexible selection component using react-select
+ * Supports both single and multi-select modes
+ * Can be used for platforms, types, or any other selection needs
+ * Supports both controlled (react-hook-form) and uncontrolled modes
  */
 const PlatformSelector = ({
   name = 'platforms',
   control,
-  platformOptions = [],
-  label = 'Formate wählen',
-  placeholder = 'Formate auswählen...',
+  platformOptions = [], // Legacy prop for backward compatibility
+  options = [], // New generic options prop
+  label = 'Auswählen',
+  placeholder = 'Option auswählen...',
   required = true,
   disabled = false,
   helpText,
   className = '',
   rules = {},
   tabIndex,
+  // New props for enhanced functionality
+  isMulti = true,
+  value,
+  defaultValue,
+  onChange,
+  enableIcons = true,
+  enableSubtitles = false,
+  iconType = 'component', // 'component' | 'react-icon' | 'function'
+  isSearchable = true,
   ...rest
 }) => {
-  if (!control) {
-    console.error('PlatformSelector requires a control prop from react-hook-form');
-    return null;
+  // Determine options source (backward compatibility)
+  const selectOptionsSource = options.length > 0 ? options : platformOptions;
+
+  // Control is now optional - support both controlled and uncontrolled modes
+  const isControlled = !!control;
+  const isUncontrolled = !isControlled;
+
+  if (isUncontrolled && !onChange) {
+    console.warn('PlatformSelector in uncontrolled mode should have an onChange handler');
   }
 
-  // Transform platform options to EnhancedSelect format with icons
-  const selectOptions = platformOptions.map(option => ({
-    value: option.id,
-    label: option.label,
-    icon: () => <Icon category="platforms" name={option.id} size={16} />
-  }));
+  // Transform options to EnhancedSelect format with flexible icon support
+  const selectOptions = selectOptionsSource.map(option => {
+    const transformedOption = {
+      value: option.id || option.value,
+      label: option.label,
+      subtitle: option.subtitle || option.description
+    };
+
+    // Handle different icon types
+    if (enableIcons && option.icon) {
+      if (iconType === 'component') {
+        // Legacy platform icons using Icon component
+        transformedOption.icon = () => <Icon category="platforms" name={option.id || option.value} size={16} />;
+      } else if (iconType === 'react-icon') {
+        // Direct React Icon component
+        transformedOption.icon = option.icon;
+      } else if (iconType === 'function') {
+        // Custom icon function
+        transformedOption.icon = option.icon;
+      }
+    }
+
+    return transformedOption;
+  });
 
   // State to track if menu is open (for preventing Enter key form submission)
   const [menuIsOpen, setMenuIsOpen] = useState(false);
-
 
   // Handle Enter key - prevent form submission when menu is open but no options available
   const handleKeyDown = (event) => {
@@ -53,22 +88,91 @@ const PlatformSelector = ({
     // Allow natural Tab navigation - don't interfere
   };
 
+  // Uncontrolled mode (no react-hook-form)
+  if (isUncontrolled) {
+    const selectRef = useRef(null);
+    const selectedValue = isMulti
+      ? (value ? value.map(val =>
+          selectOptions.find(option => option.value === val)
+        ).filter(Boolean) : [])
+      : (value ? selectOptions.find(option => option.value === value) : null);
 
+    return (
+      <div className={`platform-selector ${className}`.trim()}>
+        <EnhancedSelect
+          ref={selectRef}
+          inputId={`${name}-select`}
+          label={label}
+          required={required}
+          helpText={helpText}
+          enableIcons={enableIcons}
+          enableSubtitles={enableSubtitles}
+          className="react-select"
+          classNamePrefix="react-select"
+          isMulti={isMulti}
+          options={selectOptions}
+          placeholder={placeholder}
+          isDisabled={disabled}
+          value={selectedValue}
+          defaultValue={defaultValue}
+          onChange={(selectedOptions) => {
+            if (onChange) {
+              if (isMulti) {
+                const values = selectedOptions ? selectedOptions.map(option => option.value) : [];
+                onChange(values);
+              } else {
+                const value = selectedOptions ? selectedOptions.value : null;
+                onChange(value);
+              }
+            }
+          }}
+          onMenuOpen={() => setMenuIsOpen(true)}
+          onMenuClose={() => setMenuIsOpen(false)}
+          onKeyDown={handleKeyDown}
+          closeMenuOnSelect={!isMulti}
+          hideSelectedOptions={false}
+          isClearable={false}
+          isSearchable={isSearchable}
+          openMenuOnFocus={false}
+          blurInputOnSelect={true}
+          autoFocus={false}
+          tabSelectsValue={true}
+          backspaceRemovesValue={true}
+          captureMenuScroll={false}
+          menuShouldBlockScroll={false}
+          menuShouldScrollIntoView={false}
+          tabIndex={tabIndex}
+          noOptionsMessage={() => 'Keine Optionen verfügbar'}
+          menuPortalTarget={document.body}
+          menuPosition="fixed"
+          {...rest}
+        />
+      </div>
+    );
+  }
+
+  // Controlled mode (with react-hook-form)
   return (
     <Controller
       name={name}
       control={control}
       rules={{
-        required: required ? 'Bitte wählen Sie mindestens ein Format' : false,
+        required: required ? (isMulti ? 'Bitte wählen Sie mindestens eine Option' : 'Bitte wählen Sie eine Option') : false,
         validate: required ? (value) => {
-          if (!value || (Array.isArray(value) && value.length === 0)) {
-            return 'Bitte wählen Sie mindestens ein Format';
+          if (isMulti) {
+            if (!value || (Array.isArray(value) && value.length === 0)) {
+              return 'Bitte wählen Sie mindestens eine Option';
+            }
+          } else {
+            if (!value) {
+              return 'Bitte wählen Sie eine Option';
+            }
           }
           return true;
         } : undefined,
         ...rules
       }}
-      defaultValue={[]}
+      defaultValue={isMulti ? [] : null}
       render={({ field, fieldState: { error } }) => (
         <div className={`platform-selector ${className}`.trim()}>
           <EnhancedSelect
@@ -78,28 +182,37 @@ const PlatformSelector = ({
             required={required}
             error={error?.message}
             helpText={helpText}
-            enableIcons={true}
+            enableIcons={enableIcons}
+            enableSubtitles={enableSubtitles}
             className={`react-select ${error ? 'error' : ''}`.trim()}
             classNamePrefix="react-select"
-            isMulti
+            isMulti={isMulti}
             options={selectOptions}
             placeholder={placeholder}
             isDisabled={disabled}
-            value={field.value ? field.value.map(val => 
-              selectOptions.find(option => option.value === val)
-            ).filter(Boolean) : []}
+            value={isMulti
+              ? (field.value ? field.value.map(val =>
+                  selectOptions.find(option => option.value === val)
+                ).filter(Boolean) : [])
+              : (field.value ? selectOptions.find(option => option.value === field.value) : null)
+            }
             onChange={(selectedOptions) => {
-              const values = selectedOptions ? selectedOptions.map(option => option.value) : [];
-              field.onChange(values);
+              if (isMulti) {
+                const values = selectedOptions ? selectedOptions.map(option => option.value) : [];
+                field.onChange(values);
+              } else {
+                const value = selectedOptions ? selectedOptions.value : null;
+                field.onChange(value);
+              }
             }}
             onBlur={field.onBlur}
             onMenuOpen={() => setMenuIsOpen(true)}
             onMenuClose={() => setMenuIsOpen(false)}
             onKeyDown={handleKeyDown}
-            closeMenuOnSelect={false}
+            closeMenuOnSelect={!isMulti}
             hideSelectedOptions={false}
             isClearable={false}
-            isSearchable={true}
+            isSearchable={isSearchable}
             openMenuOnFocus={false}
             blurInputOnSelect={true}
             autoFocus={false}
@@ -122,13 +235,22 @@ const PlatformSelector = ({
 
 PlatformSelector.propTypes = {
   name: PropTypes.string,
-  control: PropTypes.object.isRequired,
+  control: PropTypes.object, // Optional now
   platformOptions: PropTypes.arrayOf(
     PropTypes.shape({
       id: PropTypes.string.isRequired,
       label: PropTypes.string.isRequired
     })
-  ).isRequired,
+  ),
+  options: PropTypes.arrayOf(
+    PropTypes.shape({
+      value: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+      label: PropTypes.string.isRequired,
+      icon: PropTypes.oneOfType([PropTypes.func, PropTypes.elementType]),
+      subtitle: PropTypes.string,
+      description: PropTypes.string
+    })
+  ),
   label: PropTypes.string,
   placeholder: PropTypes.string,
   required: PropTypes.bool,
@@ -136,7 +258,15 @@ PlatformSelector.propTypes = {
   helpText: PropTypes.string,
   className: PropTypes.string,
   rules: PropTypes.object,
-  tabIndex: PropTypes.number
+  tabIndex: PropTypes.number,
+  isMulti: PropTypes.bool,
+  value: PropTypes.any,
+  defaultValue: PropTypes.any,
+  onChange: PropTypes.func,
+  enableIcons: PropTypes.bool,
+  enableSubtitles: PropTypes.bool,
+  iconType: PropTypes.oneOf(['component', 'react-icon', 'function']),
+  isSearchable: PropTypes.bool
 };
 
 export default PlatformSelector;

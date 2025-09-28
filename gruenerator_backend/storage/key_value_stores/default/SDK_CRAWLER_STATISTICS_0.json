@@ -1,52 +1,27 @@
 {
-  "requestsFinished": 0,
-  "requestsFailed": 1,
-  "requestsRetries": 1,
-  "requestsFailedPerMinute": 34,
-  "requestsFinishedPerMinute": 0,
-  "requestMinDurationMillis": null,
-  "requestMaxDurationMillis": 0,
-  "requestTotalFailedDurationMillis": 179,
-  "requestTotalFinishedDurationMillis": 0,
-  "crawlerStartedAt": "2025-09-14T10:38:24.304Z",
-  "crawlerFinishedAt": "2025-09-14T10:38:26.025Z",
-  "statsPersistedAt": "2025-09-14T10:38:26.025Z",
-  "crawlerRuntimeMillis": 1747,
-  "crawlerLastStartTimestamp": 1757846304278,
+  "requestsFinished": 1,
+  "requestsFailed": 0,
+  "requestsRetries": 0,
+  "requestsFailedPerMinute": 0,
+  "requestsFinishedPerMinute": 114,
+  "requestMinDurationMillis": 449,
+  "requestMaxDurationMillis": 449,
+  "requestTotalFailedDurationMillis": 0,
+  "requestTotalFinishedDurationMillis": 449,
+  "crawlerStartedAt": "2025-09-27T15:40:34.501Z",
+  "crawlerFinishedAt": "2025-09-27T15:40:35.006Z",
+  "statsPersistedAt": "2025-09-27T15:40:35.006Z",
+  "crawlerRuntimeMillis": 527,
+  "crawlerLastStartTimestamp": 1758987634479,
   "requestRetryHistogram": [
-    null,
-    null,
-    null,
     1
   ],
   "statsId": 0,
-  "requestAvgFailedDurationMillis": 179,
-  "requestAvgFinishedDurationMillis": null,
-  "requestTotalDurationMillis": 179,
+  "requestAvgFailedDurationMillis": null,
+  "requestAvgFinishedDurationMillis": 449,
+  "requestTotalDurationMillis": 449,
   "requestsTotal": 1,
-  "requestsWithStatusCode": {
-    "404": 4
-  },
-  "errors": {
-    "file:///home/morit/gruenerator/gruenerator_backend/services/urlCrawlerService.js:268:19": {
-      "missing error code": {
-        "Error": {
-          "HTTP 404: Request failed": {
-            "count": 1
-          }
-        }
-      }
-    }
-  },
-  "retryErrors": {
-    "file:///home/morit/gruenerator/gruenerator_backend/services/urlCrawlerService.js:268:19": {
-      "missing error code": {
-        "Error": {
-          "HTTP 404: Request failed": {
-            "count": 3
-          }
-        }
-      }
-    }
-  }
+  "requestsWithStatusCode": {},
+  "errors": {},
+  "retryErrors": {}
 }

@@ -27,11 +27,12 @@ import PlatformSelector from '../../../components/common/PlatformSelector';
 import { prepareFilesForSubmission } from '../../../utils/fileAttachmentUtils';
 import { HiGlobeAlt } from 'react-icons/hi';
 import { useUrlCrawler } from '../../../hooks/useUrlCrawler';
+import SmartInput from '../../../components/common/Form/SmartInput';
 
 const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   const componentName = 'presse-social';
   const { initialContent } = useSharedContent();
-  const { isAuthenticated } = useOptimizedAuth();
+  const { isAuthenticated, user } = useOptimizedAuth();
   const { Input, Textarea } = useFormFields();
   const { setGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
 
@@ -71,6 +72,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
     { value: 'info', label: 'Infopost' },
   ];
 
+  // Optimization: Memoize defaultPlatforms to prevent recalculation on every render
   const defaultPlatforms = useMemo(() => {
     // Determine default platforms based on initial content
     let selectedPlatforms = [];
@@ -96,6 +98,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
     handleSubmit,
     reset,
     setValue,
+    getValues,
     formState: { errors }
   } = useForm({
     defaultValues: {
@@ -107,7 +110,8 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
       zitatAuthor: '',
       useWebSearchTool: false,
       usePrivacyMode: false
-    }
+    },
+    shouldUnregister: false  // Preserve field values when conditionally rendered
   });
 
   const watchPlatforms = useWatch({ control, name: 'platforms', defaultValue: defaultPlatforms });
@@ -125,6 +129,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
       setValue('platforms', filtered);
     }
   }, [isAuthenticated, watchPlatforms, setValue]);
+
 
   const handleImageChange = useCallback((file) => {
     setUploadedImage(file);
@@ -492,7 +497,6 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
       label="Formate"
       placeholder="Formate auswählen..."
       required={true}
-      helpText="Wähle ein oder mehrere Formate für die dein Content optimiert werden soll"
       tabIndex={baseFormTabIndex.platformSelectorTabIndex}
     />
   );
@@ -595,13 +599,17 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
                     duration: 0.25 
                   }}
                 >
-                  <Input
+                  <SmartInput
+                    fieldType="zitatAuthor"
+                    formName="presseSocial"
                     name="zitatAuthor"
                     control={control}
                     label="Autor/Urheber des Zitats"
                     placeholder="z.B. Anton Hofreiter"
                     rules={{ required: 'Autor ist für Zitat-Sharepics erforderlich' }}
                     tabIndex={TabIndexHelpers.getConditional(tabIndex.zitatAuthor, watchSharepicType === 'quote' || watchSharepicType === 'quote_pure')}
+                    onSubmitSuccess={success ? getValues('zitatAuthor') : null}
+                    shouldSave={success}
                   />
                 </motion.div>
               )}
@@ -635,7 +643,9 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
             }}
           >
             <h4>Pressemitteilung:</h4>
-            <Input
+            <SmartInput
+              fieldType="zitatgeber"
+              formName="presseSocial"
               name="zitatgeber"
               control={control}
               label={FORM_LABELS.WHO_QUOTE}
@@ -643,6 +653,8 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
               placeholder={FORM_PLACEHOLDERS.WHO_QUOTE}
               rules={{ required: 'Zitatgeber ist ein Pflichtfeld für Pressemitteilungen' }}
               tabIndex={TabIndexHelpers.getConditional(tabIndex.zitatgeber, watchPressemitteilung)}
+              onSubmitSuccess={success ? getValues('zitatgeber') : null}
+              shouldSave={success}
             />
           </motion.div>
         )}

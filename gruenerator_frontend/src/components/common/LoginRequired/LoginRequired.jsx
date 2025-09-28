@@ -2,6 +2,7 @@ import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import LoginPage from '../../../features/auth/pages/LoginPage';
+import { getCurrentPath, buildLoginUrl } from '../../../utils/authRedirect';
 
 const LoginRequired = ({ 
   title,
@@ -37,9 +38,9 @@ const LoginRequired = ({
   // Keep simple inline variant for special cases
   if (variant === 'inline') {
     const handleLoginClick = () => {
-      const currentPath = window.location.pathname + window.location.search;
-      sessionStorage.setItem('redirectAfterLogin', currentPath);
-      window.location.href = '/login';
+      const currentPath = getCurrentPath(location);
+      const loginUrl = buildLoginUrl(currentPath);
+      window.location.href = loginUrl;
     };
 
     return (

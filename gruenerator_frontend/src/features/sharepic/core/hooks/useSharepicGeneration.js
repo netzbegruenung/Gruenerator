@@ -15,7 +15,14 @@ export const useSharepicGeneration = () => {
   // const abyssaleSubmit = useApiSubmit('zitat_abyssale'); // Commented out for now
 
   const generateText = useCallback(async (type, formData) => {
-    console.log(`Generating text for ${type}:`, formData);
+    console.log(`[useSharepicGeneration] Generating text for ${type}:`, formData);
+    console.log('[useSharepicGeneration] Input validation:', {
+      hasThema: !!formData.thema,
+      themaLength: formData.thema?.length,
+      hasDetails: !!formData.details,
+      detailsLength: formData.details?.length,
+      isEmpty: !formData.thema || formData.thema.trim() === ''
+    });
     try {
       let submitFn;
       let isQuoteType = false;
@@ -44,8 +51,26 @@ export const useSharepicGeneration = () => {
           break;
       }
       
-      const response = await submitFn(formData);
-      console.log("Text generation response:", response);
+      const dataToSend = {
+        ...formData,
+        source: 'sharepicgenerator',
+        count: 5
+      };
+
+      console.log('[useSharepicGeneration] Sending to backend:', {
+        type,
+        source: dataToSend.source,
+        hasThema: !!dataToSend.thema,
+        hasDetails: !!dataToSend.details,
+        dataToSend
+      });
+
+      const response = await submitFn(dataToSend);
+      console.log("[useSharepicGeneration] Text generation response:", {
+        success: !!response,
+        responseKeys: response ? Object.keys(response) : [],
+        response
+      });
       
       // Handle different response structures based on type
       if (isQuoteType) {

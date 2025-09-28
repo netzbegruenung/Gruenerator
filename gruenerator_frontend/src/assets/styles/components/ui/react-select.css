@@ -8,8 +8,8 @@
   box-shadow: none !important; 
   /* Ensure same font family as native inputs */
   font-family: 'PT Sans', Arial, sans-serif !important;
-  /* Even more compact control height */
-  min-height: calc(var(--form-element-min-height) - 16px) !important; 
+  /* Match normal form input height */
+  min-height: var(--form-element-min-height) !important; 
   line-height: 1.2 !important;
   padding: 0 !important; 
   transition: var(--input-transition) !important;
@@ -31,9 +31,17 @@
 .react-select__placeholder {
   color: var(--font-color) !important;
   opacity: 0.95 !important;
-  margin-left: 2px !important;
-  margin-right: 2px !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
   font-size: var(--form-element-font-size) !important;
+}
+
+/* Value container (wraps input and selected values) */
+.react-select__value-container {
+  padding: 8px 12px !important;
+  min-height: 38px !important;
+  display: flex !important;
+  align-items: center !important;
 }
 
 /* Input field itself */
@@ -45,12 +53,14 @@
 .react-select__input {
   color: var(--input-text-color) !important;
   font-size: var(--form-element-font-size) !important;
+  min-height: 24px !important;
+  line-height: 1.4 !important;
 }
 /* Single selected value */
 .react-select__single-value {
   color: var(--input-text-color) !important;
-  margin-left: 2px !important;
-  margin-right: 2px !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
   font-size: var(--form-element-font-size) !important;
 }
 
@@ -199,4 +209,306 @@
 .react-select.error .react-select__control--is-focused {
   border: var(--input-border-error) !important;
   box-shadow: none !important;
+}
+
+/* =========================
+   ENHANCED SELECT FEATURES
+   ========================= */
+
+/* Enhanced Option Layout */
+.enhanced-option {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-small);
+}
+
+.enhanced-option__content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.enhanced-option__label {
+  font-weight: 500;
+  line-height: 1.3;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.enhanced-option__subtitle {
+  font-size: 0.75rem;
+  color: var(--font-color-disabled);
+  line-height: 1.2;
+}
+
+/* Option Icon Styles */
+.option-icon {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+}
+
+/* Source Tag System */
+.source-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xxsmall);
+  padding: var(--spacing-xxsmall) var(--spacing-xsmall);
+  border-radius: var(--card-border-radius-small);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.2;
+  margin-left: var(--spacing-xsmall);
+  border: 1px solid var(--grey-300);
+  flex-shrink: 0;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.source-tag__icon {
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+}
+
+.source-tag--user {
+  background-color: transparent;
+  border-color: var(--secondary-200);
+  color: var(--font-color);
+}
+
+.source-tag--group {
+  background-color: transparent;
+  border-color: var(--primary-200);
+  color: var(--font-color);
+}
+
+.source-tag--custom {
+  background-color: transparent;
+  border-color: var(--grey-300);
+  color: var(--font-color);
+}
+
+/* Enhanced option layout adjustments */
+.enhanced-option .source-tag {
+  margin-left: var(--spacing-small);
+  align-self: center;
+}
+
+/* Selected Option Display */
+.enhanced-selected-option {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xsmall);
+}
+
+.enhanced-selected-source {
+  font-size: 0.75rem;
+  color: var(--font-color-disabled);
+  margin-left: var(--spacing-xsmall);
+}
+
+/* Dark theme support */
+[data-theme="dark"] .source-tag {
+  background-color: transparent;
+  border-color: var(--grey-600);
+  color: var(--font-color);
+}
+
+[data-theme="dark"] .source-tag--user {
+  background-color: transparent;
+  border-color: var(--secondary-600);
+  color: var(--font-color);
+}
+
+[data-theme="dark"] .source-tag--group {
+  background-color: transparent;
+  border-color: var(--primary-600);
+  color: var(--font-color);
+}
+
+[data-theme="dark"] .source-tag--custom {
+  background-color: transparent;
+  border-color: var(--grey-600);
+  color: var(--font-color);
+}
+
+/* prefers-color-scheme: dark support */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .source-tag {
+    background-color: transparent;
+    border-color: var(--grey-600);
+    color: var(--font-color);
+  }
+
+  :root:not([data-theme="light"]) .source-tag--user {
+    background-color: transparent;
+    border-color: var(--secondary-600);
+    color: var(--font-color);
+  }
+
+  :root:not([data-theme="light"]) .source-tag--group {
+    background-color: transparent;
+    border-color: var(--primary-600);
+    color: var(--font-color);
+  }
+
+  :root:not([data-theme="light"]) .source-tag--custom {
+    background-color: transparent;
+    border-color: var(--grey-600);
+    color: var(--font-color);
+  }
+}
+
+/* Responsive text truncation for smaller screens */
+@media (max-width: 768px) {
+  .enhanced-select__single-value {
+    max-width: calc(100vw - 120px); /* Account for padding and controls */
+  }
+
+  .enhanced-option__label {
+    max-width: calc(100vw - 140px); /* Account for padding, icons and tags */
+  }
+}
+
+@media (max-width: 480px) {
+  .enhanced-select__single-value {
+    max-width: calc(100vw - 100px); /* Tighter constraint on very small screens */
+  }
+
+  .enhanced-option__label {
+    max-width: calc(100vw - 120px);
+  }
+}
+
+/* =========================
+   VARIANT: CANVA SELECT
+   ========================= */
+
+/* Custom react-select styles for Canva selector */
+.canva-select__control {
+  border: 1px solid var(--border-color) !important;
+  background: var(--background-color) !important;
+  min-height: 40px;
+  border-radius: var(--border-radius) !important;
+  box-shadow: none !important;
+  transition: all 0.2s ease !important;
+}
+
+.canva-select__control:hover {
+  border-color: var(--tanne) !important;
+}
+
+.canva-select__control--is-focused {
+  border-color: var(--tanne) !important;
+  box-shadow: 0 0 0 1px var(--tanne) !important;
+}
+
+.canva-select__value-container {
+  padding: 2px 8px !important;
+}
+
+.canva-select__input-container {
+  color: var(--font-color) !important;
+}
+
+.canva-select__placeholder {
+  color: var(--font-color-secondary) !important;
+}
+
+.canva-select__single-value {
+  color: var(--font-color) !important;
+}
+
+.canva-select__menu {
+  background: var(--background-color) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: var(--border-radius) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+  z-index: 9999 !important;
+}
+
+.canva-select__menu-list {
+  padding: 0 !important;
+  max-height: 300px !important;
+}
+
+.canva-select__option {
+  background: transparent !important;
+  color: var(--font-color) !important;
+  padding: 0 !important;
+  cursor: pointer !important;
+}
+
+.canva-select__option:hover {
+  background: var(--background-color-secondary) !important;
+}
+
+.canva-select__option--is-focused {
+  background: var(--background-color-secondary) !important;
+}
+
+.canva-select__option--is-selected {
+  background: var(--tanne) !important;
+  color: white !important;
+}
+
+/* Custom option styling */
+.canva-option {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-small);
+  padding: var(--spacing-small);
+  transition: all 0.2s ease;
+}
+
+.canva-option__thumbnail {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--border-radius-small);
+  overflow: hidden;
+  background: var(--background-color-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.canva-option__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.canva-option__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.canva-option__label {
+  display: block;
+  font-weight: 500;
+  color: inherit;
+  line-height: 1.3;
+  margin-bottom: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.canva-option__date {
+  display: block;
+  font-size: var(--font-size-xsmall);
+  color: var(--font-color-secondary);
+  opacity: 0.8;
+}
+
+/* Selected option styling */
+.canva-select__option--is-selected .canva-option__date {
+  color: rgba(255, 255, 255, 0.8);
 } 

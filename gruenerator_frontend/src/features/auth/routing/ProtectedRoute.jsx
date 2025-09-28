@@ -3,6 +3,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import Spinner from '../../../components/common/Spinner';
 import { useInstantAuth } from '../../../hooks/useAuth';
+import { getCurrentPath } from '../../../utils/authRedirect';
 
 /**
  * Komponente zum Schutz von Routen, die nur für eingeloggte Benutzer zugänglich sein sollen.
@@ -32,9 +33,10 @@ const ProtectedRoute = ({ children, adminRequired = false }) => {
   }
 
   // Wenn kein Benutzer eingeloggt ist, zur Login-Seite weiterleiten
-  // und den aktuellen Pfad in der Location speichern
+  // und den aktuellen Pfad (mit Search-Parametern) in der Location speichern
   if (!isAuthenticated || !user) {
-    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
+    const currentPath = getCurrentPath(location);
+    return <Navigate to={`/login?redirectTo=${encodeURIComponent(currentPath)}`} state={{ from: location }} replace />;
   }
 
   // Wenn Admin-Rechte erforderlich sind, aber der Benutzer kein Admin ist

@@ -38,34 +38,56 @@ async function execute(requestId, data) {
   });
 
   let retryCount = 0;
-  const maxRetries = 3;
+  const maxRetries = 1;
   let response;
   const bedrockModelHierarchy = [
     'arn:aws:bedrock:eu-central-1:481665093592:inference-profile/eu.anthropic.claude-sonnet-4-20250514-v1:0',
     'arn:aws:bedrock:eu-central-1:481665093592:inference-profile/eu.anthropic.claude-3-7-sonnet-20250219-v1:0',
     'arn:aws:bedrock:eu-central-1:481665093592:inference-profile/eu.anthropic.claude-3-5-sonnet-20240620-v1:0'
   ];
-  const modelsToTry = [modelIdentifier, ...bedrockModelHierarchy.filter(m => m !== modelIdentifier)];
+
+  // Build unique models list - start with requested model, then add remaining from hierarchy
+  const modelsToTry = [modelIdentifier];
+  bedrockModelHierarchy.forEach(model => {
+    if (model !== modelIdentifier && !modelsToTry.includes(model)) {
+      modelsToTry.push(model);
+    }
+  });
+
   let modelIndex = 0;
   let currentModelId = modelsToTry[modelIndex];
 
-  while (retryCount <= maxRetries && modelIndex < modelsToTry.length) {
+  while (modelIndex < modelsToTry.length) {
     try {
       response = await bedrockClient.send(baseCommand(currentModelId));
       break;
     } catch (error) {
       if (error.name === 'ThrottlingException' && retryCount < maxRetries) {
         const delay = Math.pow(2, retryCount) * 1000;
+        console.log(`[Bedrock ${requestId}] Throttled on ${currentModelId}, retrying after ${delay}ms (attempt ${retryCount + 1}/${maxRetries})`);
         await new Promise(r => setTimeout(r, delay));
         retryCount++;
         continue;
       }
       if ((error.$metadata?.httpStatusCode || 0) >= 500 && retryCount < maxRetries) {
         const delay = Math.pow(2, retryCount) * 1000;
+        console.log(`[Bedrock ${requestId}] Server error on ${currentModelId}, retrying after ${delay}ms (attempt ${retryCount + 1}/${maxRetries})`);
         await new Promise(r => setTimeout(r, delay));
         retryCount++;
         continue;
       }
+
+      // If throttled or server error and max retries exhausted, try next model
+      if ((error.name === 'ThrottlingException' || (error.$metadata?.httpStatusCode || 0) >= 500) && modelIndex + 1 < modelsToTry.length) {
+        console.log(`[Bedrock ${requestId}] Max retries exhausted for ${currentModelId}, switching to next model`);
+        modelIndex++;
+        currentModelId = modelsToTry[modelIndex];
+        retryCount = 0; // Reset retry count for new model
+        console.log(`[Bedrock ${requestId}] Trying fallback model: ${currentModelId}`);
+        continue;
+      }
+
+      // If all models exhausted or other error type, throw the error
       throw error;
     }
   }
