@@ -108,22 +108,14 @@ router.use((req, res, next) => {
 });
 
 // Helpers for mobile deep-link support
-function parseAllowlist() {
-  const raw = process.env.MOBILE_REDIRECT_ALLOWLIST || '';
-  return raw
-    .split(',')
-    .map(s => s.trim())
-    .filter(Boolean);
-}
 
 function isAllowedMobileRedirect(redirectUrl) {
   if (!redirectUrl) return false;
   // Only consider non-http(s) deep-links as mobile redirects
   const lower = redirectUrl.toLowerCase();
   if (lower.startsWith('http://') || lower.startsWith('https://')) return false;
-  const allow = parseAllowlist();
-  if (allow.length === 0) return false;
-  return allow.some(prefix => redirectUrl.startsWith(prefix));
+  // Allow gruenerator:// URLs by default
+  return redirectUrl.startsWith('gruenerator://');
 }
 
 function appendQueryParam(url, key, value) {
@@ -267,10 +259,7 @@ router.get('/callback',
           // fall through to normal redirect
         }
       } else if (intendedRedirect) {
-        console.warn('[AuthCallback] Mobile deep link NOT allowed. Check MOBILE_REDIRECT_ALLOWLIST.', {
-          intendedRedirect,
-          allowlist: process.env.MOBILE_REDIRECT_ALLOWLIST || '(empty)'
-        });
+        console.log('[AuthCallback] Mobile deep link not detected or not a gruenerator:// URL:', intendedRedirect);
       }
 
       // Ensure all redirect URLs are absolute
