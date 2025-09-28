@@ -213,21 +213,18 @@ const Home = () => {
               </h3>
               <p>Tools und Vorlagen speziell für die Grüne Jugend.</p>
             </div>
+
+            <div className="use-case-card">
+              <div className="use-case-icon">
+                <Icon category="actions" name="lock" />
+              </div>
+              <h3>Hier bist du sicher!</h3>
+              <p>Deine Daten werden sicher in Europa verarbeitet und nicht für KI-Training verwendet.</p>
+            </div>
           </div>
         </div>
       </section>
 
-      <section className="privacy-section">
-        <div className="privacy-container">
-          <div className="privacy-content">
-            <div className="privacy-icon">
-              <Icon category="actions" name="lock" />
-            </div>
-            <h3>Hier bist du sicher!</h3>
-            <p>Der Grünerator nutzt deine persönlichen Daten, einschließlich deiner hochgeladenen Quellen, Anfragen und Antworten nicht für das Training des Grünerators. Wir arbeiten ausschließlich mit europäischen Anbietern zusammen und tracken keine IP-Adressen, wenn nicht anders angegeben.</p>
-          </div>
-        </div>
-      </section>
 
       {/*
       <section className="testimonials-section" aria-labelledby="testimonials-title">

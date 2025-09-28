@@ -4,13 +4,15 @@ import { Controller } from 'react-hook-form';
 import { useRecentValues } from '../../../hooks/useRecentValues';
 import { FormInput } from './Input';
 import EnhancedSelect from '../EnhancedSelect/EnhancedSelect';
+import { useLazyAuth } from '../../../hooks/useAuth';
 
 /**
  * SmartInput - A unified form input component that intelligently handles recent values
  *
  * Behavior:
- * - 0 recent values: Shows standard FormInput
- * - 1+ recent values: Shows CreatableSelect dropdown with recent values
+ * - Not authenticated: Shows standard FormInput
+ * - Authenticated + 0 recent values: Shows standard FormInput
+ * - Authenticated + 1+ recent values: Shows CreatableSelect dropdown with recent values
  */
 const SmartInput = ({
   // Field identification
@@ -38,7 +40,10 @@ const SmartInput = ({
   ...inputProps
 }) => {
 
-  // Fetch recent values
+  // Check authentication status
+  const { isAuthenticated } = useLazyAuth();
+
+  // Fetch recent values (hook handles errors gracefully)
   const {
     recentValues,
     isLoading,
@@ -51,7 +56,7 @@ const SmartInput = ({
 
   // Handle saving value after successful submission
   const handleSaveValue = useCallback(async () => {
-    if (shouldSave && onSubmitSuccess && typeof onSubmitSuccess === 'string' && onSubmitSuccess.trim()) {
+    if (isAuthenticated && shouldSave && onSubmitSuccess && typeof onSubmitSuccess === 'string' && onSubmitSuccess.trim()) {
       const valueToSave = onSubmitSuccess.trim();
 
       // Only save if it's not already in recent values
@@ -64,7 +69,7 @@ const SmartInput = ({
         }
       }
     }
-  }, [shouldSave, onSubmitSuccess, hasRecentValue, saveRecentValue, formName, fieldType]);
+  }, [isAuthenticated, shouldSave, onSubmitSuccess, hasRecentValue, saveRecentValue, formName, fieldType]);
 
   // Execute save when shouldSave becomes true
   useEffect(() => {
@@ -87,7 +92,7 @@ const SmartInput = ({
 
 
 
-  const showDropdown = !isLoading && recentValues.length > 0;
+  const showDropdown = isAuthenticated && !isLoading && recentValues.length > 0;
 
   // For loading state or no recent values, show regular input (FormInput has its own Controller)
   if (!showDropdown) {

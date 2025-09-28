@@ -53,7 +53,9 @@ export const useRecentValues = (fieldType, options = {}) => {
     setError(null);
 
     try {
-      const response = await apiClient.get(`/recent-values/${fieldType}?limit=${limit}`);
+      const response = await apiClient.get(`/recent-values/${fieldType}?limit=${limit}`, {
+        skipAuthRedirect: true
+      });
 
       if (response.data?.success && response.data?.data) {
         const values = response.data.data.map(item => item.field_value);
@@ -97,6 +99,8 @@ export const useRecentValues = (fieldType, options = {}) => {
         fieldType,
         fieldValue: trimmedValue,
         formName
+      }, {
+        skipAuthRedirect: true
       });
 
       if (response.data?.success) {
@@ -128,7 +132,9 @@ export const useRecentValues = (fieldType, options = {}) => {
     if (!fieldType) return;
 
     try {
-      const response = await apiClient.delete(`/recent-values/${fieldType}`);
+      const response = await apiClient.delete(`/recent-values/${fieldType}`, {
+        skipAuthRedirect: true
+      });
 
       if (response.data?.success) {
         setRecentValues([]);

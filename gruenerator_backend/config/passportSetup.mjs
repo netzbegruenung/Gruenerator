@@ -1,50 +1,20 @@
 import passport from 'passport';
-import { KeycloakStrategy } from './keycloakStrategy.mjs';
+import { initializeKeycloakOIDCStrategy } from './keycloakOIDCStrategy.mjs';
 
 // Import ProfileService for database operations
 import { getProfileService } from '../services/ProfileService.mjs';
 
-console.log('[PassportSetup] Initializing Keycloak OpenID Connect strategy');
+console.log('[PassportSetup] Initializing Keycloak OpenID Connect strategy with openid-client');
 
-// Passport Keycloak Strategy Configuration (extends OpenID Connect)
-passport.use('oidc', new KeycloakStrategy({
-  issuer: `${process.env.KEYCLOAK_BASE_URL}/realms/${process.env.KEYCLOAK_REALM}`,
-  authorizationURL: `${process.env.KEYCLOAK_BASE_URL}/realms/${process.env.KEYCLOAK_REALM}/protocol/openid-connect/auth`,
-  tokenURL: `${process.env.KEYCLOAK_BASE_URL}/realms/${process.env.KEYCLOAK_REALM}/protocol/openid-connect/token`,
-  userInfoURL: `${process.env.KEYCLOAK_BASE_URL}/realms/${process.env.KEYCLOAK_REALM}/protocol/openid-connect/userinfo`,
-  clientID: process.env.KEYCLOAK_CLIENT_ID,
-  clientSecret: process.env.KEYCLOAK_CLIENT_SECRET,
-  callbackURL: `${process.env.AUTH_BASE_URL || process.env.BASE_URL || 'https://beta.gruenerator.de'}/auth/callback`,
-  scope: 'openid profile email offline_access'
-}, async (issuer, profile, done) => {
-  try {
-    if (!profile) {
-      console.error('[PassportSetup OIDC Verify Callback] Profile is undefined');
-      return done(new Error('Profile is undefined'), null);
-    }
-
-    // passport-openidconnect provides profile in standard format
-    const normalizedProfile = {
-      id: profile.id,
-      displayName: profile.displayName || profile.username || profile.preferred_username,
-      emails: profile.emails || [],
-      username: profile.username || profile.preferred_username,
-      _raw: profile._raw,
-      _json: profile._json
-    };
-
-    // Create a mock request object for handleUserProfile  
-    const mockReq = { user: null };
-    const user = await handleUserProfile(normalizedProfile, mockReq);
-
-    // Note: passport-openidconnect doesn't provide tokenset in callback
-
-    return done(null, user);
-  } catch (error) {
-    console.error('[PassportSetup OIDC Verify Callback] Error in strategy callback:', error);
-    return done(error, null);
-  }
-}));
+// Initialize the new OpenID Connect strategy
+try {
+  const keycloakStrategy = await initializeKeycloakOIDCStrategy();
+  passport.use(keycloakStrategy);
+  console.log('[PassportSetup] Keycloak OIDC strategy registered successfully');
+} catch (error) {
+  console.error('[PassportSetup] Failed to initialize Keycloak OIDC strategy:', error);
+  throw error;
+}
 
 // Serialize user for session
 passport.serializeUser((user, done) => {
@@ -85,6 +55,10 @@ passport.deserializeUser(async (userData, done) => {
         if (userData.hasOwnProperty('avatar_robot_id') && userData.avatar_robot_id) {
           userToReturn.avatar_robot_id = userData.avatar_robot_id;
         }
+        // Preserve _redirectTo field if it exists (used for redirect after auth)
+        if (userData._redirectTo) {
+          userToReturn._redirectTo = userData._redirectTo;
+        }
       }
       return done(null, userToReturn || userData);
     }
@@ -98,7 +72,7 @@ passport.deserializeUser(async (userData, done) => {
 });
 
 // Helper function to handle user profile from Keycloak
-async function handleUserProfile(profile, req = null) {
+export async function handleUserProfile(profile, req = null) {
 
   const keycloakId = profile.id;
   const email = profile.emails?.[0]?.value;

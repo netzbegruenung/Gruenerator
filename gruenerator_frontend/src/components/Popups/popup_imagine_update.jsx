@@ -12,11 +12,33 @@ const ImagineUpdatePopup = () => {
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
   const intervalRef = useRef(null);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
   const [isVisible, setIsVisible] = useState(() => {
     if (isNoHeaderFooterRoute) return false;
     return !localStorage.getItem('imagineUpdateShown2025');
   });
+
+  // Dynamic viewport height and mobile detection
+  useEffect(() => {
+    const setAppHeight = () => {
+      document.documentElement.style.setProperty('--app-height', `${window.innerHeight}px`);
+    };
+
+    const handleResize = () => {
+      setAppHeight();
+      setIsMobile(window.innerWidth <= 768);
+    };
+
+    setAppHeight();
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleResize);
+    };
+  }, []);
 
   // Slide content
   const slides = [
@@ -202,7 +224,7 @@ const ImagineUpdatePopup = () => {
   };
 
   const handleStartExploring = () => {
-    window.open('/imagine', '_self');
+    window.open('/', '_self');
     handleClosePopup();
   };
 
@@ -256,7 +278,7 @@ const ImagineUpdatePopup = () => {
                 {/* Floating Particles for Start Screen */}
                 {slides[currentSlide].isStartScreen && (
                   <div className="imagine-particles">
-                    {[...Array(20)].map((_, i) => (
+                    {[...Array(isMobile ? 8 : 20)].map((_, i) => (
                       <motion.div
                         key={i}
                         className="particle"
@@ -278,6 +300,18 @@ const ImagineUpdatePopup = () => {
                       />
                     ))}
                   </div>
+                )}
+
+                {/* Swipe Indicators for Mobile */}
+                {isMobile && !slides[currentSlide].isStartScreen && (
+                  <>
+                    <div className="swipe-indicator swipe-indicator-left">
+                      <Icon category="ui" name="arrowLeft" />
+                    </div>
+                    <div className="swipe-indicator swipe-indicator-right">
+                      <Icon category="ui" name="arrowRight" />
+                    </div>
+                  </>
                 )}
 
                 {/* Preview Cards for Start Screen */}
@@ -321,33 +355,33 @@ const ImagineUpdatePopup = () => {
                     <>
                       <motion.div
                         className="slide-text-content"
-                        initial={{ x: -30, opacity: 0 }}
-                        animate={{ x: 0, opacity: 1 }}
-                        transition={{ delay: 0.2, duration: 0.5 }}
+                        initial={isMobile ? {} : { x: -30, opacity: 0 }}
+                        animate={isMobile ? {} : { x: 0, opacity: 1 }}
+                        transition={isMobile ? {} : { delay: 0.2, duration: 0.5 }}
                       >
                         <motion.h2
                           className="imagine-update-slide-title"
-                          initial={{ y: 20, opacity: 0 }}
-                          animate={{ y: 0, opacity: 1 }}
-                          transition={{ delay: 0.3, duration: 0.4 }}
+                          initial={isMobile ? {} : { y: 20, opacity: 0 }}
+                          animate={isMobile ? {} : { y: 0, opacity: 1 }}
+                          transition={isMobile ? {} : { delay: 0.3, duration: 0.4 }}
                         >
                           {slides[currentSlide].title}
                         </motion.h2>
 
                         <motion.h3
                           className="imagine-update-slide-subtitle"
-                          initial={{ y: 15, opacity: 0 }}
-                          animate={{ y: 0, opacity: 1 }}
-                          transition={{ delay: 0.4, duration: 0.4 }}
+                          initial={isMobile ? {} : { y: 15, opacity: 0 }}
+                          animate={isMobile ? {} : { y: 0, opacity: 1 }}
+                          transition={isMobile ? {} : { delay: 0.4, duration: 0.4 }}
                         >
                           {slides[currentSlide].subtitle}
                         </motion.h3>
 
                         <motion.p
                           className="imagine-update-slide-text"
-                          initial={{ y: 15, opacity: 0 }}
-                          animate={{ y: 0, opacity: 1 }}
-                          transition={{ delay: 0.5, duration: 0.4 }}
+                          initial={isMobile ? {} : { y: 15, opacity: 0 }}
+                          animate={isMobile ? {} : { y: 0, opacity: 1 }}
+                          transition={isMobile ? {} : { delay: 0.5, duration: 0.4 }}
                         >
                           {slides[currentSlide].content}
                         </motion.p>
@@ -355,9 +389,9 @@ const ImagineUpdatePopup = () => {
 
                       <motion.div
                         className="slide-icon-container"
-                        initial={{ x: 30, opacity: 0, scale: 0.8 }}
-                        animate={{ x: 0, opacity: 1, scale: 1 }}
-                        transition={{ delay: 0.3, duration: 0.5, type: "spring" }}
+                        initial={isMobile ? {} : { x: 30, opacity: 0, scale: 0.8 }}
+                        animate={isMobile ? {} : { x: 0, opacity: 1, scale: 1 }}
+                        transition={isMobile ? {} : { delay: 0.3, duration: 0.5, type: "spring" }}
                       >
                         <div className="imagine-update-slide-icon">
                           <Icon category={slides[currentSlide].iconCategory || "ui"} name={slides[currentSlide].icon || "file"} />
@@ -369,9 +403,9 @@ const ImagineUpdatePopup = () => {
                       {/* Special Start Screen Layout */}
                       <motion.h1
                         className="start-screen-title"
-                        initial={{ y: 50, opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        transition={{ delay: 0.2, duration: 0.6 }}
+                        initial={isMobile ? {} : { y: 50, opacity: 0 }}
+                        animate={isMobile ? {} : { y: 0, opacity: 1 }}
+                        transition={isMobile ? {} : { delay: 0.2, duration: 0.6 }}
                       >
                         <span className="title-normal">GRÜNERATOR </span>
                         <span className="title-gradient">REIMAGINED</span>
@@ -379,18 +413,18 @@ const ImagineUpdatePopup = () => {
 
                       <motion.p
                         className="start-screen-subtitle"
-                        initial={{ y: 30, opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        transition={{ delay: 0.4, duration: 0.5 }}
+                        initial={isMobile ? {} : { y: 30, opacity: 0 }}
+                        animate={isMobile ? {} : { y: 0, opacity: 1 }}
+                        transition={isMobile ? {} : { delay: 0.4, duration: 0.5 }}
                       >
                         {slides[currentSlide].subtitle}
                       </motion.p>
 
                       <motion.p
                         className="start-screen-description"
-                        initial={{ y: 20, opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        transition={{ delay: 0.6, duration: 0.5 }}
+                        initial={isMobile ? {} : { y: 20, opacity: 0 }}
+                        animate={isMobile ? {} : { y: 0, opacity: 1 }}
+                        transition={isMobile ? {} : { delay: 0.6, duration: 0.5 }}
                       >
                         {slides[currentSlide].content}
                       </motion.p>
@@ -398,11 +432,11 @@ const ImagineUpdatePopup = () => {
                       <motion.button
                         className="start-screen-button"
                         onClick={handleNextSlide}
-                        initial={{ y: 30, opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        transition={{ delay: 0.8, duration: 0.5 }}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
+                        initial={isMobile ? {} : { y: 30, opacity: 0 }}
+                        animate={isMobile ? {} : { y: 0, opacity: 1 }}
+                        transition={isMobile ? {} : { delay: 0.8, duration: 0.5 }}
+                        whileHover={isMobile ? {} : { scale: 1.05 }}
+                        whileTap={isMobile ? {} : { scale: 0.95 }}
                       >
                         <span>Entdecken</span>
                         <Icon category="actions" name="arrowRight" />
@@ -413,22 +447,26 @@ const ImagineUpdatePopup = () => {
               </motion.div>
             </AnimatePresence>
 
-            {/* Navigation Arrows */}
-            <button
-              className="imagine-update-nav imagine-update-nav-prev"
-              onClick={handlePrevSlide}
-              aria-label="Vorherige Folie"
-            >
-              <Icon category="ui" name="arrowLeft" />
-            </button>
+            {/* Navigation Arrows - Hidden on Mobile */}
+            {!isMobile && (
+              <>
+                <button
+                  className="imagine-update-nav imagine-update-nav-prev"
+                  onClick={handlePrevSlide}
+                  aria-label="Vorherige Folie"
+                >
+                  <Icon category="ui" name="arrowLeft" />
+                </button>
 
-            <button
-              className="imagine-update-nav imagine-update-nav-next"
-              onClick={handleNextSlide}
-              aria-label="Nächste Folie"
-            >
-              <Icon category="ui" name="arrowRight" />
-            </button>
+                <button
+                  className="imagine-update-nav imagine-update-nav-next"
+                  onClick={handleNextSlide}
+                  aria-label="Nächste Folie"
+                >
+                  <Icon category="ui" name="arrowRight" />
+                </button>
+              </>
+            )}
           </div>
 
           {/* Navigation Dots - positioned over the popup */}

@@ -40,7 +40,11 @@ export const useFilteredAndGroupedItems = ({
   const groupedItems = useMemo(() => {
     if (!enableGrouping || itemType !== 'document') return {};
     return filteredItems.reduce((groups, item) => {
-      let sourceType = item.source_type === 'wolke' ? 'wolke' : 'manual';
+      let sourceType = item.source_type;
+      // Support the new 'gruenerierte_texte' group and default to 'manual' for unrecognized types
+      if (!['manual', 'wolke', 'url', 'gruenerierte_texte'].includes(sourceType)) {
+        sourceType = 'manual';
+      }
       if (!groups[sourceType]) groups[sourceType] = [];
       groups[sourceType].push(item);
       return groups;

@@ -97,7 +97,7 @@ CREATE TABLE IF NOT EXISTS documents (
     markdown_content TEXT,
     group_id UUID REFERENCES groups(id) ON DELETE SET NULL,
     -- New columns for dual-mode support
-    source_type TEXT DEFAULT 'manual', -- 'manual' or 'wolke'
+    source_type TEXT DEFAULT 'manual', -- 'manual', 'wolke', or 'url'
     wolke_share_link_id TEXT,
     wolke_file_path TEXT,
     wolke_etag TEXT,

@@ -21,7 +21,6 @@ import '../../../../assets/styles/components/ui/spinner.css';
 import '../../../../assets/styles/components/ui/tooltip.css';
 import '../../../../assets/styles/components/ui/react-select.css';
 import '../../../../assets/styles/components/ui/knowledge-selector.css';
-import '../../../../assets/styles/components/ui/enhanced-select.css';
 import '../../../../assets/styles/components/ui/animatedcheckbox.css';
 import '../../../../assets/styles/components/ui/SegmentedControl.css';
 import '../../../../assets/styles/components/form/form-inputs.css';
@@ -178,8 +177,81 @@ const BaseFormInternal = ({
   const storeUploadedImage = useFormStateSelector(state => state.uploadedImage);
   const storeIsFormVisible = useFormStateSelector(state => state.isFormVisible);
 
+  // Configuration selectors (new, safe with fallbacks)
+  const storeTabIndexConfig = useFormStateSelector(state => state.tabIndexConfig);
+  const storePlatformConfig = useFormStateSelector(state => state.platformConfig);
+  const storeSubmitConfig = useFormStateSelector(state => state.submitConfig);
+  const storeUIConfig = useFormStateSelector(state => state.uiConfig);
+  const storeHelpConfig = useFormStateSelector(state => state.helpConfig);
+
   // Store helper functions
   const getFeatureState = useFormStateSelector(state => state.getFeatureState);
+
+  // Configuration fallback helpers (store first, props second)
+  const getConfigValue = React.useCallback((storeConfig, propValue, key, defaultValue) => {
+    // Priority: store[key] -> propValue -> defaultValue
+    return storeConfig[key] ?? propValue ?? defaultValue;
+  }, []);
+
+  const getTabIndexValue = React.useCallback((key, propValue, defaultValue) => {
+    return getConfigValue(storeTabIndexConfig, propValue, key, defaultValue);
+  }, [storeTabIndexConfig, getConfigValue]);
+
+  // Resolved tabIndex values with store fallbacks
+  const resolvedTabIndexes = React.useMemo(() => ({
+    featureIcons: getTabIndexValue('featureIcons', featureIconsTabIndex, {
+      webSearch: 11,
+      privacyMode: 12,
+      attachment: 13
+    }),
+    platformSelector: getTabIndexValue('platformSelector', platformSelectorTabIndex, 12),
+    knowledgeSelector: getTabIndexValue('knowledgeSelector', knowledgeSelectorTabIndex, 14),
+    knowledgeSourceSelector: getTabIndexValue('knowledgeSourceSelector', knowledgeSourceSelectorTabIndex, 13),
+    documentSelector: getTabIndexValue('documentSelector', documentSelectorTabIndex, 15),
+    submitButton: getTabIndexValue('submitButton', submitButtonTabIndex, 17)
+  }), [
+    getTabIndexValue,
+    featureIconsTabIndex,
+    platformSelectorTabIndex,
+    knowledgeSelectorTabIndex,
+    knowledgeSourceSelectorTabIndex,
+    documentSelectorTabIndex,
+    submitButtonTabIndex
+  ]);
+
+  // Resolved platform configuration with store fallbacks
+  const resolvedPlatformConfig = React.useMemo(() => ({
+    enabled: getConfigValue(storePlatformConfig, enablePlatformSelector, 'enabled', false),
+    options: getConfigValue(storePlatformConfig, platformOptions, 'options', []),
+    label: getConfigValue(storePlatformConfig, platformSelectorLabel, 'label', undefined),
+    placeholder: getConfigValue(storePlatformConfig, platformSelectorPlaceholder, 'placeholder', undefined),
+    helpText: getConfigValue(storePlatformConfig, platformSelectorHelpText, 'helpText', undefined)
+  }), [
+    storePlatformConfig,
+    getConfigValue,
+    enablePlatformSelector,
+    platformOptions,
+    platformSelectorLabel,
+    platformSelectorPlaceholder,
+    platformSelectorHelpText
+  ]);
+
+  // Resolved UI configuration with store fallbacks
+  const resolvedUIConfig = React.useMemo(() => ({
+    enableKnowledgeSelector: getConfigValue(storeUIConfig, enableKnowledgeSelector, 'enableKnowledgeSelector', false),
+    showProfileSelector: getConfigValue(storeUIConfig, showProfileSelector, 'showProfileSelector', true),
+    showImageUpload: getConfigValue(storeUIConfig, showImageUpload, 'showImageUpload', false),
+    enableEditMode: getConfigValue(storeUIConfig, enableEditMode, 'enableEditMode', false),
+    useMarkdown: getConfigValue(storeUIConfig, useMarkdown, 'useMarkdown', null)
+  }), [
+    storeUIConfig,
+    getConfigValue,
+    enableKnowledgeSelector,
+    showProfileSelector,
+    showImageUpload,
+    enableEditMode,
+    useMarkdown
+  ]);
 
   // Store actions
   const setStoreLoading = useFormStateSelector(state => state.setLoading);
@@ -245,22 +317,27 @@ const BaseFormInternal = ({
 
   // Handler for finetune mode toggle
 
-  // Consolidated config with backward compatibility
+  // Consolidated config with store fallbacks and backward compatibility
   const resolvedSubmitConfig = React.useMemo(() => {
+    // Check store first, then props
+    const storeShowButton = getConfigValue(storeSubmitConfig, null, 'showButton', null);
+    const storeButtonText = getConfigValue(storeSubmitConfig, null, 'buttonText', null);
+    const storeButtonProps = getConfigValue(storeSubmitConfig, null, 'buttonProps', null);
+
     if (submitConfig) {
       return {
-        showButton: submitConfig.showButton ?? showNextButton,
-        buttonText: submitConfig.buttonText ?? nextButtonText,
-        buttonProps: submitConfig.buttonProps ?? submitButtonProps,
+        showButton: submitConfig.showButton ?? storeShowButton ?? showNextButton,
+        buttonText: submitConfig.buttonText ?? storeButtonText ?? nextButtonText,
+        buttonProps: submitConfig.buttonProps ?? storeButtonProps ?? submitButtonProps,
         ...submitConfig
       };
     }
     return {
-      showButton: showNextButton,
-      buttonText: nextButtonText,
-      buttonProps: submitButtonProps
+      showButton: storeShowButton ?? showNextButton,
+      buttonText: storeButtonText ?? nextButtonText,
+      buttonProps: storeButtonProps ?? submitButtonProps
     };
-  }, [submitConfig, showNextButton, nextButtonText, submitButtonProps]);
+  }, [submitConfig, showNextButton, nextButtonText, submitButtonProps, storeSubmitConfig, getConfigValue]);
   const showSubmitButtonFinal = resolvedSubmitConfig.showButton;
 
   // In Edit Mode, reuse the same submit button but adapt default text
@@ -620,7 +697,7 @@ const BaseFormInternal = ({
               error={error || propError}
               value={value}
               generatedContent={generatedContent}
-              useMarkdown={useMarkdown}
+              useMarkdown={resolvedUIConfig.useMarkdown}
               helpContent={inlineHelpContentOverride || helpContent}
               generatedPost={generatedPost}
               onGeneratePost={onGeneratePost}
@@ -665,11 +742,11 @@ const BaseFormInternal = ({
                 onAttachmentClick={onAttachmentClick}
                 onRemoveFile={onRemoveFile}
                 onPrivacyInfoClick={handlePrivacyInfoClick}
-                enablePlatformSelector={enablePlatformSelector}
-                platformOptions={platformOptions}
-                platformSelectorLabel={platformSelectorLabel}
-                platformSelectorPlaceholder={platformSelectorPlaceholder}
-                platformSelectorHelpText={platformSelectorHelpText}
+                enablePlatformSelector={resolvedPlatformConfig.enabled}
+                platformOptions={resolvedPlatformConfig.options}
+                platformSelectorLabel={resolvedPlatformConfig.label}
+                platformSelectorPlaceholder={resolvedPlatformConfig.placeholder}
+                platformSelectorHelpText={resolvedPlatformConfig.helpText}
                 formControl={formControl}
                 showSubmitButton={showSubmitButtonFinal}
                 formNotice={formNotice}
@@ -681,20 +758,20 @@ const BaseFormInternal = ({
                 showHideButton={hasEditableContent} // Show hide button when content is available for manual toggle
                 onHide={toggleFormVisibility}
                 firstExtrasChildren={firstExtrasChildren}
-                featureIconsTabIndex={featureIconsTabIndex}
-                platformSelectorTabIndex={platformSelectorTabIndex}
-                knowledgeSelectorTabIndex={knowledgeSelectorTabIndex}
-                knowledgeSourceSelectorTabIndex={knowledgeSourceSelectorTabIndex}
-                documentSelectorTabIndex={documentSelectorTabIndex}
-                submitButtonTabIndex={submitButtonTabIndex}
-                showProfileSelector={showProfileSelector}
-                showImageUpload={showImageUpload}
+                featureIconsTabIndex={resolvedTabIndexes.featureIcons}
+                platformSelectorTabIndex={resolvedTabIndexes.platformSelector}
+                knowledgeSelectorTabIndex={resolvedTabIndexes.knowledgeSelector}
+                knowledgeSourceSelectorTabIndex={resolvedTabIndexes.knowledgeSourceSelector}
+                documentSelectorTabIndex={resolvedTabIndexes.documentSelector}
+                submitButtonTabIndex={resolvedTabIndexes.submitButton}
+                showProfileSelector={resolvedUIConfig.showProfileSelector}
+                showImageUpload={resolvedUIConfig.showImageUpload}
                 onImageChange={onImageChange}
                 componentName={componentName}
                 onWebSearchInfoClick={handleWebSearchInfoClick}
                 useEditMode={isEditModeActive}
                 registerEditHandler={(fn) => { editSubmitHandlerRef.current = fn; }}
-                enableKnowledgeSelector={enableKnowledgeSelector}
+                enableKnowledgeSelector={resolvedUIConfig.enableKnowledgeSelector}
               >
                 {children}
               </FormSection>
@@ -715,7 +792,7 @@ const BaseFormInternal = ({
               error={error || propError}
               value={value}
               generatedContent={generatedContent}
-              useMarkdown={useMarkdown}
+              useMarkdown={resolvedUIConfig.useMarkdown}
               helpContent={inlineHelpContentOverride || helpContent}
               generatedPost={generatedPost}
               onGeneratePost={onGeneratePost}

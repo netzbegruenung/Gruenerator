@@ -15,6 +15,7 @@ import TabNavigation from '../../../../../../../components/common/TabNavigation'
 // Stores and hooks
 import { useCanvaStore, useCanvaConnection, useCanvaDesigns, useSavingDesignState } from '../../../../../../../stores/canvaStore';
 import { useOptimizedAuth } from '../../../../../../../hooks/useAuth';
+import { useLocation } from 'react-router-dom';
 import { useUserTemplates } from '../../../../../hooks/useProfileData';
 import { useTabIndex } from '../../../../../../../hooks/useTabIndex';
 import { useTabNavigation } from '../../../../../../../hooks/useTabNavigation';
@@ -22,6 +23,7 @@ import { useBetaFeatures } from '../../../../../../../hooks/useBetaFeatures';
 
 // Utils
 import * as canvaUtils from '../../../../../../../components/utils/canvaUtils';
+import { getCurrentPath, buildLoginUrl } from '../../../../../../../utils/authRedirect';
 import * as documentAndTextUtils from '../../../../../../../components/utils/documentAndTextUtils';
 import { announceToScreenReader } from '../../../../../../../utils/focusManagement';
 
@@ -34,13 +36,14 @@ const CanvaSection = ({
     onShareToGroup
 }) => {
     const navigate = useNavigate();
-    
+    const location = useLocation();
+
     // Beta features check
     const { canAccessBetaFeature } = useBetaFeatures();
-    
+
     // Tab index configuration
     const tabIndex = useTabIndex('PROFILE_INTEGRATIONEN_CANVA');
-    
+
     // Auth state
     const { user, isAuthenticated } = useOptimizedAuth();
 
@@ -451,10 +454,9 @@ const CanvaSection = ({
                 <div className="login-required-actions">
                     <button 
                         onClick={() => {
-                            // Save current location for redirect after login
-                            const currentPath = window.location.pathname + window.location.search;
-                            sessionStorage.setItem('redirectAfterLogin', currentPath);
-                            navigate('/login');
+                            const currentPath = getCurrentPath(location);
+                            const loginUrl = buildLoginUrl(currentPath);
+                            navigate(loginUrl);
                         }}
                         className="btn-primary"
                     >

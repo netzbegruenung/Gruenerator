@@ -2,15 +2,11 @@ import express from 'express';
 import multer from 'multer';
 import authMiddlewareModule from '../middleware/authMiddleware.js';
 import { DocumentSearchService } from '../services/DocumentSearchService.js';
-import { fastEmbedService } from '../services/FastEmbedService.js';
-import { urlCrawlerService } from '../services/urlCrawlerService.js';
 import { getPostgresDocumentService } from '../services/postgresDocumentService.js';
 import { getWolkeSyncService } from '../services/wolkeSyncService.js';
-import { smartChunkDocument } from '../utils/textChunker.js';
-import fs from 'fs/promises';
 import path from 'path';
-import os from 'os';
-import { ocrService } from '../services/ocrService.js';
+import { getDocumentProcessingService } from '../services/documentProcessingService.js';
+import { getDocumentContentService } from '../services/documentContentService.js';
 import passport from '../config/passportSetup.mjs';
 
 const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
@@ -22,6 +18,8 @@ const postgresDocumentService = getPostgresDocumentService();
 const documentSearchService = new DocumentSearchService();
 const qdrantDocumentService = documentSearchService; // Backward compatibility
 const wolkeSyncService = getWolkeSyncService();
+const documentProcessingService = getDocumentProcessingService();
+const documentContentService = getDocumentContentService();
 
 // Add Passport session middleware for documents routes
 router.use(passport.session());
@@ -115,129 +113,13 @@ router.post('/upload-manual', ensureAuthenticated, upload.single('document'), as
       });
     }
 
-    console.log(`[Documents /upload-manual] Processing manual upload: ${title}`);
-
-    // Extract text from file buffer (in memory)
-    let extractedText;
-    const supportedMistralTypes = [
-      'application/pdf',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // DOCX
-      'application/vnd.openxmlformats-officedocument.presentationml.presentation', // PPTX
-      'image/png',
-      'image/jpeg', 
-      'image/jpg',
-      'image/avif'
-    ];
-
-    try {
-      if (supportedMistralTypes.includes(file.mimetype)) {
-        // Use Mistral OCR for supported document and image formats
-        const tempDir = os.tmpdir();
-        const tempFileName = `manual_upload_${Date.now()}_${file.originalname}`;
-        const tempFilePath = path.join(tempDir, tempFileName);
-        
-        await fs.writeFile(tempFilePath, file.buffer);
-        
-        try {
-          const ocrResult = await ocrService.extractTextFromDocument(tempFilePath);
-          extractedText = ocrResult.text;
-        } catch (validationError) {
-          // Clean up temp file on validation error
-          await fs.unlink(tempFilePath);
-          
-          // Check if it's a validation error (size/page limits)
-          if (validationError.message.includes('zu groß') || 
-              validationError.message.includes('zu viele Seiten')) {
-            return res.status(400).json({
-              success: false,
-              message: validationError.message
-            });
-          }
-          throw validationError;
-        }
-        
-        // Clean up temp file
-        await fs.unlink(tempFilePath);
-      } else if (file.mimetype.startsWith('text/')) {
-        // For plain text files, convert buffer to string
-        extractedText = file.buffer.toString('utf-8');
-      } else {
-        // Unsupported file type
-        return res.status(400).json({
-          success: false,
-          message: `Dateityp nicht unterstützt: ${file.mimetype}. Unterstützt werden: PDF, Word (DOCX), PowerPoint (PPTX), Bilder (PNG, JPG, AVIF) und Textdateien.`
-        });
-      }
-    } catch (ocrError) {
-      console.error('[Documents /upload-manual] Document processing error:', ocrError);
-      return res.status(400).json({
-        success: false,
-        message: 'Fehler beim Verarbeiten der Datei. Bitte versuchen Sie es erneut.'
-      });
-    }
-
-    if (!extractedText || extractedText.trim().length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'No text could be extracted from the document'
-      });
-    }
-
-    // Chunk the extracted text
-    const chunks = await smartChunkDocument(extractedText, {
-      maxTokens: 400,
-      overlapTokens: 50,
-      preserveStructure: true
-    });
-
-    if (chunks.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Document could not be processed into chunks'
-      });
-    }
-
-    // Generate embeddings
-    const texts = chunks.map(chunk => chunk.text);
-    const embeddings = await fastEmbedService.generateBatchEmbeddings(texts, 'search_document');
-
-    // Save document metadata (no file storage)
-    const documentMetadata = await postgresDocumentService.saveDocumentMetadata(req.user.id, {
-      title: title.trim(),
-      filename: file.originalname,
-      sourceType: 'manual',
-      vectorCount: chunks.length,
-      fileSize: file.size,
-      status: 'completed',
-      additionalMetadata: {
-        content_preview: generateContentPreview(extractedText)
-      }
-    });
-
-    // Store vectors in Qdrant only
-    await qdrantDocumentService.storeDocumentVectors(
-      req.user.id,
-      documentMetadata.id,
-      chunks,
-      embeddings,
-      {
-        sourceType: 'manual',
-        title: title.trim(),
-        filename: file.originalname
-      }
-    );
-
-    console.log(`[Documents /upload-manual] Successfully processed: ${title} (${chunks.length} vectors)`);
+    // Use document processing service
+    const result = await documentProcessingService.processFileUpload(req.user.id, file, title, 'manual');
 
     res.json({
       success: true,
       message: 'Document processed and vectorized successfully',
-      data: {
-        id: documentMetadata.id,
-        title: documentMetadata.title,
-        vectorCount: chunks.length,
-        sourceType: 'manual'
-      }
+      data: result
     });
 
   } catch (error) {
@@ -268,63 +150,13 @@ router.post('/add-text', ensureAuthenticated, async (req, res) => {
       });
     }
 
-    console.log(`[Documents /add-text] Processing manual text: ${title} (${content.length} chars)`);
-
-    // Chunk the text content
-    const chunks = await smartChunkDocument(content.trim(), {
-      maxTokens: 400,
-      overlapTokens: 50,
-      preserveStructure: true
-    });
-
-    if (chunks.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Text could not be processed into chunks'
-      });
-    }
-
-    // Generate embeddings
-    const texts = chunks.map(chunk => chunk.text);
-    const embeddings = await fastEmbedService.generateBatchEmbeddings(texts, 'search_document');
-
-    // Save document metadata (no file storage)
-    const documentMetadata = await postgresDocumentService.saveDocumentMetadata(req.user.id, {
-      title: title.trim(),
-      filename: 'manual_text_input.txt',
-      sourceType: 'manual',
-      vectorCount: chunks.length,
-      fileSize: content.length,
-      status: 'completed',
-      additionalMetadata: {
-        content_preview: generateContentPreview(content)
-      }
-    });
-
-    // Store vectors in Qdrant
-    await qdrantDocumentService.storeDocumentVectors(
-      req.user.id,
-      documentMetadata.id,
-      chunks,
-      embeddings,
-      {
-        sourceType: 'manual',
-        title: title.trim(),
-        filename: 'manual_text_input.txt'
-      }
-    );
-
-    console.log(`[Documents /add-text] Successfully processed: ${title} (${chunks.length} vectors)`);
+    // Use document processing service
+    const result = await documentProcessingService.processTextContent(req.user.id, title, content, 'manual');
 
     res.json({
       success: true,
       message: 'Text processed and vectorized successfully',
-      data: {
-        id: documentMetadata.id,
-        title: documentMetadata.title,
-        vectorCount: chunks.length,
-        sourceType: 'manual'
-      }
+      data: result
     });
 
   } catch (error) {
@@ -562,6 +394,71 @@ router.get('/user', ensureAuthenticated, async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to fetch documents'
+    });
+  }
+});
+
+// Get combined user content (documents + texts) for improved performance
+router.get('/combined-content', ensureAuthenticated, async (req, res) => {
+  try {
+    console.log(`[Documents /combined-content] Fetching combined content for user: ${req.user.id}`);
+
+    // Fetch documents and texts in parallel for better performance
+    const [documents, texts] = await Promise.all([
+      postgresDocumentService.getDocumentsBySourceType(req.user.id, null),
+      postgresDocumentService.getUserTexts(req.user.id)
+    ]);
+
+    // Get first chunks from Qdrant for documents that need previews
+    const documentIds = documents.map(doc => doc.id);
+    const firstChunksResult = await qdrantDocumentService.getDocumentFirstChunks(req.user.id, documentIds);
+    const firstChunks = firstChunksResult.chunks || {};
+
+    // Enrich documents with all content fields for frontend access
+    const enrichedDocs = documents.map((doc) => {
+      let meta = {};
+      try { meta = doc.metadata ? JSON.parse(doc.metadata) : {}; } catch (e) { meta = {}; }
+
+      // Generate content_preview from metadata, full_text, or Qdrant first chunk
+      const preview = meta.content_preview ||
+                     (meta.full_text ? generateContentPreview(meta.full_text) : null) ||
+                     (firstChunks[doc.id] ? generateContentPreview(firstChunks[doc.id]) : null);
+
+      // Include all content fields for optimal preview rendering
+      return {
+        ...doc,
+        content_preview: preview,
+        // Ensure markdown_content, ocr_text, and full_content are available for preview
+        full_content: meta.full_text || doc.full_content || null,
+      };
+    });
+
+    // Sort both documents and texts by created_at
+    enrichedDocs.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    texts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+    console.log(`[Documents /combined-content] Returning ${enrichedDocs.length} documents and ${texts.length} texts`);
+
+    res.json({
+      success: true,
+      data: {
+        documents: enrichedDocs,
+        texts: texts
+      },
+      meta: {
+        documentCount: enrichedDocs.length,
+        textCount: texts.length,
+        totalCount: enrichedDocs.length + texts.length,
+        source: 'postgres'
+      },
+      message: `Found ${enrichedDocs.length} documents and ${texts.length} texts`
+    });
+
+  } catch (error) {
+    console.error('[Documents /combined-content] Error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to fetch combined content'
     });
   }
 });
@@ -912,10 +809,7 @@ router.post('/search/hybrid-test', ensureAuthenticated, async (req, res) => {
  * Uses PostgreSQL + Qdrant only
  */
 router.post('/search-content', ensureAuthenticated, async (req, res) => {
-    const startTime = Date.now();
-    
     try {
-        const userId = req.user.id;
         const { query, documentIds, limit = 5, mode = 'hybrid' } = req.body;
 
         // Validate input
@@ -927,328 +821,31 @@ router.post('/search-content', ensureAuthenticated, async (req, res) => {
             return res.status(400).json({ error: 'Document IDs array is required' });
         }
 
-        const trimmedQuery = query.trim();
-
-        console.log(`[Documents API] Content search request: query="${trimmedQuery}", documentIds=[${documentIds.length} docs], user=${userId}`);
-
-        // Verify user owns the requested documents using PostgreSQL
-        const accessibleDocuments = [];
-        for (const docId of documentIds) {
-            try {
-                const doc = await postgresDocumentService.getDocumentById(docId, userId);
-                if (doc) {
-                    accessibleDocuments.push(doc);
-                }
-            } catch (error) {
-                console.warn(`[Documents API] Document ${docId} not accessible:`, error.message);
-            }
-        }
-
-        if (accessibleDocuments.length === 0) {
-            return res.status(404).json({ error: 'No accessible documents found' });
-        }
-
-        const accessibleDocumentIds = accessibleDocuments.map(doc => doc.id);
-
-        // Perform vector search with document filtering
-        let searchResults = [];
-        try {
-            const searchResponse = await documentSearchService.search({
-                query: trimmedQuery,
-                user_id: userId,
-                documentIds: accessibleDocumentIds,
-                limit: limit * 2, // Get more results for better content selection
-                mode: mode
-            });
-            searchResults = searchResponse.results || [];
-            
-            console.log(`[Documents API] Vector search found ${searchResults.length} results`);
-        } catch (searchError) {
-            console.error('[Documents API] Vector search error:', searchError);
-            searchResults = [];
-        }
-
-        // Process results and create intelligent content extracts
-        const documentContents = new Map();
-        
-        if (searchResults.length > 0) {
-            // Use vector search results to create intelligent content
-            searchResults.forEach(result => {
-                const docId = result.document_id;
-                const content = result.relevant_content || result.chunk_text || '';
-                
-                if (!documentContents.has(docId)) {
-                    const docInfo = accessibleDocuments.find(d => d.id === docId);
-                    
-                    documentContents.set(docId, {
-                        document_id: docId,
-                        title: docInfo?.title || result.title || 'Untitled',
-                        filename: docInfo?.filename || result.filename || null,
-                        vector_count: docInfo?.vector_count || 0,
-                        content_type: 'vector_search',
-                        content: content,
-                        similarity_score: result.similarity_score,
-                        search_info: result.relevance_info || 'Vector search found relevant content'
-                    });
-                } else {
-                    // Append additional content if we have more chunks from the same document
-                    const existing = documentContents.get(docId);
-                    existing.content += '\n\n---\n\n' + content;
-                    // Keep the higher similarity score
-                    if (result.similarity_score > existing.similarity_score) {
-                        existing.similarity_score = result.similarity_score;
-                    }
-                }
-            });
-        }
-        
-        // For documents not found in vector search, get full text from Qdrant
-        for (const doc of accessibleDocuments) {
-            if (!documentContents.has(doc.id)) {
-                try {
-                    const qdrantResult = await qdrantDocumentService.getDocumentFullText(userId, doc.id);
-                    let content = '';
-                    let contentType = 'full_text_from_vectors';
-                    
-                    if (qdrantResult.success && qdrantResult.fullText) {
-                        const fullText = qdrantResult.fullText;
-                        
-                        // Create intelligent excerpt if document is large
-                        if (fullText.length > 2000) {
-                            content = createIntelligentExcerpt(fullText, trimmedQuery, 1500);
-                            contentType = 'intelligent_excerpt_from_vectors';
-                        } else {
-                            content = fullText;
-                        }
-                    }
-                    
-                    documentContents.set(doc.id, {
-                        document_id: doc.id,
-                        title: doc.title,
-                        filename: doc.filename,
-                        vector_count: doc.vector_count || 0,
-                        content_type: contentType,
-                        content: content,
-                        similarity_score: null,
-                        search_info: contentType === 'full_text_from_vectors' 
-                            ? 'Full text retrieved from vectors'
-                            : 'Intelligent excerpt created from vectors'
-                    });
-                } catch (qdrantError) {
-                    console.error(`[Documents API] Failed to get full text for document ${doc.id}:`, qdrantError);
-                    // Add empty entry to indicate document was processed
-                    documentContents.set(doc.id, {
-                        document_id: doc.id,
-                        title: doc.title,
-                        filename: doc.filename,
-                        vector_count: doc.vector_count || 0,
-                        content_type: 'no_content',
-                        content: '',
-                        similarity_score: null,
-                        search_info: 'No content available'
-                    });
-                }
-            }
-        }
-
-        const results = Array.from(documentContents.values());
-        const responseTime = Date.now() - startTime;
-
-        console.log(`[Documents API] Returning ${results.length} document contents (${responseTime}ms)`);
-
-        // Count different content types for metadata
-        const contentTypeCounts = {};
-        results.forEach(result => {
-            const type = result.content_type || 'unknown';
-            contentTypeCounts[type] = (contentTypeCounts[type] || 0) + 1;
+        // Use document content service
+        const result = await documentContentService.searchDocumentContent(req.user.id, {
+            query,
+            documentIds,
+            limit,
+            mode
         });
 
-        res.json({
-            success: true,
-            results: results,
-            query: trimmedQuery,
-            search_mode: mode,
-            metadata: {
-                response_time_ms: responseTime,
-                documents_processed: results.length,
-                vector_search_results: searchResults.length,
-                content_type_breakdown: contentTypeCounts,
-                processing_version: '3.0_postgres_qdrant',
-                user_id: userId
-            }
-        });
+        res.json(result);
 
     } catch (error) {
         console.error('[Documents API] Error in POST /search-content:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: 'Internal server error', 
-            message: error.message 
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error',
+            message: error.message
         });
     }
 });
-
-/**
- * Determine the best content strategy for a document based on multiple factors
- * @param {Object} doc - Document object with metadata
- * @param {string} query - Search query for context
- * @returns {boolean} True if full content should be used, false for excerpt
- */
-function determineContentStrategy(doc, query) {
-    const text = doc.ocr_text || '';
-    const pageCount = doc.page_count || 0;
-    const charCount = text.length;
-    const wordCount = text.split(/\s+/).filter(word => word.length > 0).length;
-    
-    // Factor 1: Page count (most reliable indicator)
-    if (pageCount <= 1) return true; // Single page documents always use full content
-    if (pageCount >= 10) return false; // Very long documents always use excerpts
-    
-    // Factor 2: Character count
-    if (charCount <= 1500) return true; // Very short documents
-    if (charCount >= 8000) return false; // Very long documents
-    
-    // Factor 3: Word density (chars per word) - detect scanned documents with OCR errors
-    const avgCharsPerWord = wordCount > 0 ? charCount / wordCount : 0;
-    if (avgCharsPerWord > 15) return false; // Likely OCR errors, use excerpt to avoid noise
-    
-    // Factor 4: Query relevance - if query matches document title/filename, more likely to be relevant
-    if (query && query.trim()) {
-        const queryLower = query.toLowerCase();
-        const titleLower = (doc.title || '').toLowerCase();
-        const filenameLower = (doc.filename || '').toLowerCase();
-        
-        if (titleLower.includes(queryLower) || filenameLower.includes(queryLower)) {
-            // High relevance - be more generous with full content for smaller docs
-            return pageCount <= 3 && charCount <= 4000;
-        }
-    }
-    
-    // Factor 5: Default thresholds for medium-size documents
-    if (pageCount <= 2 && charCount <= 3000) return true;
-    
-    // Default to excerpt for everything else
-    return false;
-}
-
-/**
- * Create an intelligent excerpt from document text based on search query
- * Falls back when vector search is not available
- */
-function createIntelligentExcerpt(text, query, maxLength = 1500) {
-    if (!text || text.length <= maxLength) {
-        return text;
-    }
-
-    const queryLower = query.toLowerCase();
-    const textLower = text.toLowerCase();
-    
-    // Find all occurrences of query terms
-    const queryTerms = queryLower.split(/\s+/).filter(term => term.length > 2);
-    const matches = [];
-    
-    queryTerms.forEach(term => {
-        let index = textLower.indexOf(term);
-        while (index !== -1) {
-            matches.push({ index, term, length: term.length });
-            index = textLower.indexOf(term, index + 1);
-        }
-    });
-    
-    if (matches.length === 0) {
-        // No matches found, return beginning of document
-        return text.substring(0, maxLength) + '...';
-    }
-    
-    // Sort matches by position
-    matches.sort((a, b) => a.index - b.index);
-    
-    // Create excerpt around the first significant match
-    const firstMatch = matches[0];
-    const excerptStart = Math.max(0, firstMatch.index - Math.floor(maxLength / 3));
-    const excerptEnd = Math.min(text.length, excerptStart + maxLength);
-    
-    let excerpt = text.substring(excerptStart, excerptEnd);
-    
-    // Try to cut at sentence boundaries
-    if (excerptStart > 0) {
-        const sentenceStart = excerpt.indexOf('. ');
-        if (sentenceStart > 0 && sentenceStart < 100) {
-            excerpt = excerpt.substring(sentenceStart + 2);
-        } else {
-            excerpt = '...' + excerpt;
-        }
-    }
-    
-    if (excerptEnd < text.length) {
-        const lastSentence = excerpt.lastIndexOf('.');
-        if (lastSentence > excerpt.length * 0.8) {
-            excerpt = excerpt.substring(0, lastSentence + 1);
-        } else {
-            excerpt = excerpt + '...';
-        }
-    }
-    
-    return excerpt;
-}
-
-// Helper function to extract relevant text around search terms
-function extractRelevantText(text, query, maxLength = 300) {
-  if (!text) return '';
-  
-  const queryLower = query.toLowerCase();
-  const textLower = text.toLowerCase();
-  const index = textLower.indexOf(queryLower);
-  
-  if (index === -1) {
-    // If exact match not found, return beginning of text
-    return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
-  }
-  
-  // Extract text around the match
-  const start = Math.max(0, index - Math.floor(maxLength / 3));
-  const end = Math.min(text.length, start + maxLength);
-  
-  let excerpt = text.substring(start, end);
-  
-  if (start > 0) excerpt = '...' + excerpt;
-  if (end < text.length) excerpt = excerpt + '...';
-  
-  return excerpt;
-}
-
-
-
-
-/**
- * Sanitize metadata for database storage
- * @private
- */
-function sanitizeMetadata(metadata) {
-  // Ensure all metadata values are JSON-serializable
-  const sanitized = {};
-  
-  for (const [key, value] of Object.entries(metadata)) {
-    if (value !== undefined && value !== null) {
-      // Convert non-serializable values to strings
-      if (typeof value === 'function') {
-        sanitized[key] = '[Function]';
-      } else if (typeof value === 'object' && value.constructor !== Object && value.constructor !== Array) {
-        sanitized[key] = value.toString();
-      } else {
-        sanitized[key] = value;
-      }
-    }
-  }
-  
-  return sanitized;
-}
 
 
 // Manual URL crawling (vectors-only)
 router.post('/crawl-url-manual', ensureAuthenticated, async (req, res) => {
   try {
-    const { url, title, group_id } = req.body;
+    const { url, title } = req.body;
 
     if (!url || !url.trim()) {
       return res.status(400).json({
@@ -1266,82 +863,30 @@ router.post('/crawl-url-manual', ensureAuthenticated, async (req, res) => {
 
     console.log(`[Documents /crawl-url-manual] Starting crawl for URL: ${url} with title: ${title}`);
 
-    // Initialize services
-    const documentService = getPostgresDocumentService();
-    const documentSearchService = new DocumentSearchService();
-const qdrantDocumentService = documentSearchService; // Backward compatibility
+    // Import URL crawler
+    const { urlCrawlerService } = await import('../services/urlCrawlerService.js');
 
-    // Import URL crawler if available
-    const urlCrawlerService = (await import('../services/urlCrawlerService.js')).default;
-    
     // Crawl the URL
     const crawlResult = await urlCrawlerService.crawlUrl(url.trim());
-    if (!crawlResult.success || !crawlResult.content) {
+    if (!crawlResult.success || !crawlResult.data?.content) {
       throw new Error(crawlResult.error || 'Failed to crawl URL');
     }
 
-    // Chunk the content
-    const chunks = await smartChunkDocument(crawlResult.content, {
-      maxTokens: 400,
-      overlapTokens: 50,
-      preserveStructure: true
-    });
-
-    if (chunks.length === 0) {
-      throw new Error('No content could be extracted from URL');
-    }
-
-    // Generate embeddings
-    const texts = chunks.map(chunk => chunk.text);
-    const embeddings = await fastEmbedService.generateBatchEmbeddings(texts, 'search_document');
-
-    // Save document metadata (no file storage)
-    const documentMetadata = await documentService.saveDocumentMetadata(req.user.id, {
-      title: title.trim(),
-      filename: `crawled_${Date.now()}.txt`,
-      sourceType: 'manual',
-      vectorCount: chunks.length,
-      fileSize: crawlResult.content.length,
-      status: 'completed',
-      additionalMetadata: {
-        originalUrl: url.trim(),
-        wordCount: crawlResult.wordCount || 0,
-        characterCount: crawlResult.content.length
-      }
-    });
-
-    // Store vectors in Qdrant only
-    await qdrantDocumentService.storeDocumentVectors(
+    // Use document processing service
+    const result = await documentProcessingService.processUrlContent(
       req.user.id,
-      documentMetadata.id,
-      chunks,
-      embeddings,
-      {
-        sourceType: 'manual',
-        title: title.trim(),
-        filename: `crawled_${Date.now()}.txt`,
-        additionalPayload: {
-          source_url: url.trim(),
-          word_count: crawlResult.wordCount || 0,
-          crawled_at: new Date().toISOString()
-        }
-      }
+      url,
+      title,
+      crawlResult.data.content,
+      'url'
     );
-
-    console.log(`[Documents /crawl-url-manual] Successfully processed: ${title} (${chunks.length} vectors)`);
 
     res.json({
       success: true,
       message: 'URL crawled and vectorized successfully',
-      data: {
-        id: documentMetadata.id,
-        title: documentMetadata.title,
-        vectorCount: chunks.length,
-        sourceUrl: url.trim(),
-        status: 'completed',
-        created_at: documentMetadata.created_at
-      }
+      data: result
     });
+
   } catch (error) {
     console.error('[Documents /crawl-url-manual] Error:', error);
     res.status(500).json({
@@ -1576,5 +1121,163 @@ router.get('/qdrant/stats', ensureAuthenticated, async (req, res) => {
     });
   }
 });
+
+// Browse files in a Wolke share without syncing
+router.get('/wolke/browse/:shareLinkId', ensureAuthenticated, async (req, res) => {
+  try {
+    const { shareLinkId } = req.params;
+
+    if (!shareLinkId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Share link ID is required'
+      });
+    }
+
+    console.log(`[Documents /wolke/browse] Browsing files for share link ${shareLinkId}`);
+
+    // Get the share link
+    const shareLink = await wolkeSyncService.getShareLink(req.user.id, shareLinkId);
+
+    // List files in the folder
+    const files = await wolkeSyncService.listFolderContents(shareLink);
+
+    // Filter and enrich files with additional metadata for UI
+    const enrichedFiles = files.map(file => ({
+      ...file,
+      fileExtension: path.extname(file.name).toLowerCase(),
+      isSupported: wolkeSyncService.supportedFileTypes.includes(path.extname(file.name).toLowerCase()),
+      sizeFormatted: file.size ? formatFileSize(file.size) : 'Unknown',
+      lastModifiedFormatted: file.lastModified ? file.lastModified.toLocaleDateString('de-DE') : 'Unknown'
+    }));
+
+    res.json({
+      success: true,
+      shareLink: {
+        id: shareLink.id,
+        label: shareLink.label,
+        baseUrl: shareLink.base_url
+      },
+      files: enrichedFiles,
+      totalFiles: enrichedFiles.length,
+      supportedFiles: enrichedFiles.filter(f => f.isSupported).length
+    });
+
+  } catch (error) {
+    console.error('[Documents /wolke/browse] Error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to browse Wolke files'
+    });
+  }
+});
+
+// Import selected files from Wolke
+router.post('/wolke/import', ensureAuthenticated, async (req, res) => {
+  try {
+    const { shareLinkId, files } = req.body;
+
+    if (!shareLinkId || !Array.isArray(files) || files.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Share link ID and files array are required'
+      });
+    }
+
+    console.log(`[Documents /wolke/import] Importing ${files.length} files from share link ${shareLinkId}`);
+
+    // Get the share link
+    const shareLink = await wolkeSyncService.getShareLink(req.user.id, shareLinkId);
+
+    const results = [];
+    let successCount = 0;
+    let failedCount = 0;
+
+    // Process each selected file
+    for (const fileInfo of files) {
+      try {
+        console.log(`[Documents /wolke/import] Processing file: ${fileInfo.name}`);
+
+        // Check if file already exists to prevent duplicates
+        const existingDoc = await postgresDocumentService.getDocumentByWolkeFile(
+          req.user.id,
+          shareLinkId,
+          fileInfo.href
+        );
+
+        if (existingDoc) {
+          console.log(`[Documents /wolke/import] File already imported: ${fileInfo.name}`);
+          results.push({
+            filename: fileInfo.name,
+            success: false,
+            skipped: true,
+            reason: 'already_imported',
+            documentId: existingDoc.id
+          });
+          continue;
+        }
+
+        // Use the wolke sync service to process the file
+        const result = await wolkeSyncService.processFile(req.user.id, shareLinkId, fileInfo, shareLink);
+
+        if (result.success) {
+          successCount++;
+          results.push({
+            filename: fileInfo.name,
+            success: true,
+            documentId: result.documentId,
+            vectorsCreated: result.vectorsCreated
+          });
+        } else if (result.skipped) {
+          results.push({
+            filename: fileInfo.name,
+            success: false,
+            skipped: true,
+            reason: result.reason
+          });
+        }
+
+      } catch (error) {
+        failedCount++;
+        console.error(`[Documents /wolke/import] Failed to process file ${fileInfo.name}:`, error);
+        results.push({
+          filename: fileInfo.name,
+          success: false,
+          error: error.message
+        });
+      }
+    }
+
+    console.log(`[Documents /wolke/import] Import completed: ${successCount} successful, ${failedCount} failed`);
+
+    res.json({
+      success: true,
+      message: `Import completed: ${successCount} of ${files.length} files imported successfully`,
+      results,
+      summary: {
+        total: files.length,
+        successful: successCount,
+        failed: failedCount,
+        skipped: results.filter(r => r.skipped).length
+      }
+    });
+
+  } catch (error) {
+    console.error('[Documents /wolke/import] Error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to import Wolke files'
+    });
+  }
+});
+
+// Helper function to format file sizes
+function formatFileSize(bytes) {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
 
 export default router;

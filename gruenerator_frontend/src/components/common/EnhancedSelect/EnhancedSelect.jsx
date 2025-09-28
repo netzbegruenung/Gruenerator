@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useCallback, memo } from 'react';
+import React, { lazy, Suspense, useCallback, memo, forwardRef } from 'react';
 import PropTypes from 'prop-types';
 const Select = lazy(() => import('react-select'));
 const CreatableSelect = lazy(() => import('react-select/creatable'));
@@ -6,11 +6,10 @@ import FormFieldWrapper from '../Form/Input/FormFieldWrapper';
 import SourceTag from './SourceTag';
 import OptionIcon from './OptionIcon';
 import '../../../assets/styles/components/ui/react-select.css';
-import '../../../assets/styles/components/ui/enhanced-select.css';
 
 /**
  * EnhancedSelect - A wrapper around react-select with native support for tags, icons, and metadata
- * 
+ *
  * Standardized option format:
  * {
  *   value: string,
@@ -28,7 +27,7 @@ import '../../../assets/styles/components/ui/enhanced-select.css';
  *   metadata?: object
  * }
  */
-const EnhancedSelect = ({
+const EnhancedSelect = forwardRef(({
   // Enhanced functionality props
   enableTags = false,
   enableIcons = false,
@@ -49,9 +48,9 @@ const EnhancedSelect = ({
   options = [],
   formatOptionLabel: customFormatOptionLabel,
   className = '',
-  classNamePrefix = 'enhanced-select',
+  classNamePrefix = 'react-select',
   ...selectProps
-}) => {
+}, ref) => {
   
   // Internal formatOptionLabel that handles enhanced features
   const internalFormatOptionLabel = useCallback((option, { context }) => {
@@ -118,6 +117,7 @@ const EnhancedSelect = ({
   const selectElement = (
     <Suspense fallback={<div>Loading...</div>}>
       <SelectComponent
+        ref={ref}
         options={options}
         formatOptionLabel={internalFormatOptionLabel}
         className={`enhanced-select ${className}`.trim()}
@@ -144,7 +144,7 @@ const EnhancedSelect = ({
       {selectElement}
     </FormFieldWrapper>
   );
-};
+});
 
 EnhancedSelect.propTypes = {
   // Enhanced functionality
@@ -183,6 +183,8 @@ EnhancedSelect.propTypes = {
   className: PropTypes.string,
   classNamePrefix: PropTypes.string
 };
+
+EnhancedSelect.displayName = 'EnhancedSelect';
 
 EnhancedSelect.displayName = 'EnhancedSelect';
 

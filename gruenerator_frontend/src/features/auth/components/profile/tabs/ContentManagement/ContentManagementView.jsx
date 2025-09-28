@@ -7,7 +7,10 @@ import ShareToGroupModal from '../../../../../../components/common/ShareToGroupM
 
 // Content sections
 import DocumentsSection from './components/DocumentsSection';
-import TextsSection from './components/TextsSection';
+
+// Integration sections
+import CanvaSection from './components/CanvaSection';
+import WolkeSection from './components/WolkeSection';
 
 // Hooks
 import { useTabNavigation } from '../../../../../../hooks/useTabNavigation';
@@ -17,48 +20,65 @@ import { useBetaFeatures } from '../../../../../../hooks/useBetaFeatures';
 // Utils
 import * as documentAndTextUtils from '../../../../../../components/utils/documentAndTextUtils';
 
-const ContentManagementView = ({ 
-    isActive, 
-    onSuccessMessage, 
+const ContentManagementView = ({
+    isActive,
+    onSuccessMessage,
     onErrorMessage,
-    initialTab = 'dokumente',
+    initialTab = 'inhalte',
+    canvaSubsection = 'overview',
     onTabChange
 }) => {
     // Beta features check
     const { canAccessBetaFeature } = useBetaFeatures();
-    
-    // Message handling
-    const { clearMessages, showSuccess, showError } = useMessageHandling(onSuccessMessage, onErrorMessage);
-    
-    // Available tabs - separate Documents and Texts
-    const availableTabs = [
-        { key: 'dokumente', label: 'Dokumente' },
-        { key: 'texte', label: 'Texte' }
-    ];
-    
-    // Use initialTab as-is since we now have separate tabs
-    let normalizedInitialTab = initialTab;
 
-    // Simple tab navigation like IntelligenceTab
+    // Message handling
+    const { clearMessages } = useMessageHandling(onSuccessMessage, onErrorMessage);
+
+    // Available tabs - content plus integrations
+    const availableTabs = [
+        { key: 'inhalte', label: 'Inhalte' },
+        ...(canAccessBetaFeature('canva') ? [{ key: 'canva', label: 'Canva' }] : []),
+        { key: 'wolke', label: 'Wolke' }
+    ];
+
+    // Simple tab navigation
     const { currentTab, handleTabClick, setCurrentTab } = useTabNavigation(
-        normalizedInitialTab,
+        initialTab === 'dokumente' || initialTab === 'texte' ? 'inhalte' : initialTab,
         availableTabs,
         (tabKey) => {
             clearMessages();
             onTabChange?.(tabKey);
         }
     );
-    
-    // Sync tab state with URL changes - prevent circular dependency
+
+    // Sync tab state with URL changes
     useEffect(() => {
-        // Use functional update to get current state without dependency
+        const normalizedTab = initialTab === 'dokumente' || initialTab === 'texte' ? 'inhalte' : initialTab;
         setCurrentTab(prevTab => {
-            if (prevTab !== initialTab) {
-                return initialTab;
+            if (prevTab !== normalizedTab) {
+                return normalizedTab;
             }
             return prevTab;
         });
     }, [initialTab, setCurrentTab]);
+
+    // =====================================================================
+    // CANVA SUBSECTION HANDLING
+    // =====================================================================
+
+    // Canva subsection state for when user is on the Canva tab
+    const [currentCanvaSubsection, setCurrentCanvaSubsection] = useState(canvaSubsection);
+
+    // Update canva subsection when prop changes
+    useEffect(() => {
+        setCurrentCanvaSubsection(canvaSubsection);
+    }, [canvaSubsection]);
+
+    const handleCanvaSubsectionChange = useCallback((subsection) => {
+        setCurrentCanvaSubsection(subsection);
+        // Notify parent about the subsection change for URL updates
+        onTabChange?.('canva', subsection);
+    }, [onTabChange]);
 
 
     // =====================================================================
@@ -103,7 +123,7 @@ const ContentManagementView = ({
 
     // Render main content based on current tab
     const renderMainContent = () => {
-        if (currentTab === 'dokumente') {
+        if (currentTab === 'inhalte') {
             return (
                 <DocumentsSection
                     isActive={isActive}
@@ -113,23 +133,35 @@ const ContentManagementView = ({
                 />
             );
         }
-        
-        if (currentTab === 'texte') {
+
+        if (currentTab === 'canva') {
             return (
-                <TextsSection
+                <CanvaSection
                     isActive={isActive}
                     onSuccessMessage={onSuccessMessage}
                     onErrorMessage={onErrorMessage}
-                    onShareToGroup={createShareAction('user_documents')}
+                    initialSubsection={currentCanvaSubsection}
+                    onSubsectionChange={handleCanvaSubsectionChange}
+                    onShareToGroup={handleShareToGroup}
                 />
             );
         }
-        
+
+        if (currentTab === 'wolke') {
+            return (
+                <WolkeSection
+                    isActive={isActive}
+                    onSuccessMessage={onSuccessMessage}
+                    onErrorMessage={onErrorMessage}
+                />
+            );
+        }
+
         return <div>Content not found</div>;
     };
 
     return (
-        <motion.div 
+        <motion.div
             className="profile-content profile-management-layout"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -144,10 +176,8 @@ const ContentManagementView = ({
                 />
             </div>
             <div className="profile-content-panel profile-form-section">
-                <div className="profile-content-card">
-                    <div className="auth-form">
-                        {renderMainContent()}
-                    </div>
+                <div className="auth-form">
+                    {renderMainContent()}
                 </div>
             </div>
 
