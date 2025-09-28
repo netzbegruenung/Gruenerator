@@ -2,7 +2,11 @@ import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import PropTypes from 'prop-types';
 import CreatableSelect from 'react-select/creatable';
 import BaseForm from '../../components/common/BaseForm';
-import TypeSelector from '../../components/common/TypeSelector';
+import PlatformSelector from '../../components/common/PlatformSelector';
+import {
+  HiPhotograph,
+  HiColorSwatch
+} from 'react-icons/hi';
 import { useFormFields } from '../../components/common/Form/hooks';
 import FileUpload from '../../components/common/FileUpload';
 import FormFieldWrapper from '../../components/common/Form/Input/FormFieldWrapper';
@@ -31,6 +35,16 @@ export const IMAGINE_TYPES = {
 export const IMAGINE_TYPE_LABELS = {
   [IMAGINE_TYPES.GREEN_EDIT]: 'Grüne Straßengestaltung',
   [IMAGINE_TYPES.ALLY_MAKER]: 'Ally-Maker (Regenbogen-Tattoo)'
+};
+
+const IMAGINE_TYPE_ICONS = {
+  [IMAGINE_TYPES.GREEN_EDIT]: HiPhotograph,
+  [IMAGINE_TYPES.ALLY_MAKER]: HiColorSwatch
+};
+
+const IMAGINE_TYPE_DESCRIPTIONS = {
+  [IMAGINE_TYPES.GREEN_EDIT]: 'Verwandle Straßen und öffentliche Räume grün',
+  [IMAGINE_TYPES.ALLY_MAKER]: 'Füge Regenbogen-Tattoos zu Bildern hinzu'
 };
 
 export const IMAGINE_TYPE_TITLES = {
@@ -341,17 +355,32 @@ const GrueneratorImagine = ({ showHeaderFooter = true }) => {
     return false;
   };
 
-  const renderTypeSelector = () => (
-    <TypeSelector
-      types={IMAGINE_TYPES}
-      typeLabels={IMAGINE_TYPE_LABELS}
-      selectedType={selectedType}
-      onTypeChange={handleTypeChange}
-      label="Imagine-Modus"
-      name="imagineType"
-      required={true}
-    />
-  );
+  const renderTypeSelector = () => {
+    const imagineTypeOptions = Object.entries(IMAGINE_TYPE_LABELS).map(([value, label]) => ({
+      value,
+      label,
+      icon: IMAGINE_TYPE_ICONS[value],
+      subtitle: IMAGINE_TYPE_DESCRIPTIONS[value]
+    }));
+
+    return (
+      <PlatformSelector
+        name="imagineType"
+        options={imagineTypeOptions}
+        value={selectedType}
+        onChange={handleTypeChange}
+        label="Imagine-Modus"
+        placeholder="Modus auswählen..."
+        isMulti={false}
+        control={null}
+        enableIcons={true}
+        enableSubtitles={true}
+        iconType="react-icon"
+        isSearchable={false}
+        required={true}
+      />
+    );
+  };
 
   const renderPrecisionToggle = () => (
     <FeatureToggle

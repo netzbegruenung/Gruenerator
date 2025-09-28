@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback, memo } from 'react';
+import React, { useState, useRef, useEffect, useCallback, memo, useMemo } from 'react';
 import { HiPlus } from 'react-icons/hi';
 
 // Components
@@ -14,6 +14,7 @@ import { useOptimizedAuth } from '../../../../../../../hooks/useAuth';
 import { useTabIndex } from '../../../../../../../hooks/useTabIndex';
 import { useDocumentMode } from '../../../../../../documents/hooks/useDocumentMode';
 import { useWolkeSync } from '../../../../../../documents/hooks/useWolkeSync';
+// Removed useUserTexts import - now using combined fetch from documentsStore
 
 // Stores
 import { useDocumentsStore } from '../../../../../../../stores/documentsStore';
@@ -69,12 +70,14 @@ const DocumentsSection = ({
     const [isDeletingAll, setIsDeletingAll] = useState(false);
     const [deleteAllError, setDeleteAllError] = useState('');
 
-    // Documents store integration
+    // Documents store integration with combined content
     const {
         documents,
+        texts,
         isLoading: documentsLoading,
         error: documentsError,
         fetchDocuments,
+        fetchCombinedContent,
         deleteDocument,
         updateDocumentTitle,
         refreshDocument,
@@ -99,6 +102,26 @@ const DocumentsSection = ({
         setAutoSync
     } = useWolkeSync();
 
+    // Texts are now fetched through combined content - no separate hook needed
+    // Text operations will need to be implemented in the store or as separate API calls
+
+    // Combine documents and texts into a single array
+    const combinedItems = useMemo(() => {
+        const documentsWithType = documents.map(doc => ({ ...doc, itemType: 'document' }));
+        const textsWithType = texts.map(text => ({
+            ...text,
+            itemType: 'text',
+            source_type: 'gruenerierte_texte', // Mark texts as generated content
+            full_content: text.content, // Map content field for preview modal
+            type: text.document_type, // Map document_type to type for metadata display
+            word_count: text.word_count || (text.content ? text.content.split(/\s+/).length : 0) // Calculate word count if missing
+        }));
+        return [...documentsWithType, ...textsWithType];
+    }, [documents, texts]);
+
+    // Combined loading state - using single fetch now
+    const combinedLoading = documentsLoading;
+
     // Stable remote search handler to avoid re-triggering effect
     const handleDocumentsRemoteSearch = useCallback((q, mode) => {
         return searchDocumentsApi(q, { limit: 10, mode });
@@ -122,6 +145,82 @@ const DocumentsSection = ({
 
     const handleDocumentEdit = (document) => {
         onSuccessMessage('Dokumentbearbeitung wird bald verfügbar sein.');
+    };
+
+    // Text handlers
+    const handleTextEdit = (text) => {
+        window.open(`/editor/collab/${text.id}`, '_blank');
+    };
+
+    const handleTextTitleUpdate = async (textId, newTitle) => {
+        try {
+            // Direct API call for text title update
+            const response = await fetch(`/api/auth/saved-texts/${textId}/title`, {
+                method: 'PUT',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title: newTitle })
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            // Refresh combined content after update
+            await handleCombinedFetch();
+        } catch (error) {
+            console.error('[DocumentsSection] Error updating text title:', error);
+            onErrorMessage('Fehler beim Aktualisieren des Texttitels: ' + error.message);
+            throw error;
+        }
+    };
+
+    const handleTextDelete = async (textId) => {
+        try {
+            // Direct API call for text deletion
+            const response = await fetch(`/api/auth/saved-texts/${textId}`, {
+                method: 'DELETE',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            onSuccessMessage('Text wurde erfolgreich gelöscht.');
+            // Refresh combined content after deletion
+            await handleCombinedFetch();
+        } catch (error) {
+            console.error('[DocumentsSection] Error deleting text:', error);
+            onErrorMessage('Fehler beim Löschen des Texts: ' + error.message);
+            throw error;
+        }
+    };
+
+    // Combined handlers for both documents and texts
+    const handleCombinedEdit = (item) => {
+        if (item.itemType === 'text') {
+            handleTextEdit(item);
+        } else {
+            handleDocumentEdit(item);
+        }
+    };
+
+    const handleCombinedTitleUpdate = async (itemId, newTitle, item) => {
+        if (item.itemType === 'text') {
+            await handleTextTitleUpdate(itemId, newTitle);
+        } else {
+            await handleDocumentTitleUpdate(itemId, newTitle);
+        }
+    };
+
+    const handleCombinedDelete = async (itemId, item) => {
+        if (item.itemType === 'text') {
+            await handleTextDelete(itemId);
+        } else {
+            await handleDocumentDelete(itemId);
+        }
     };
 
     const handleDocumentTitleUpdate = async (documentId, newTitle) => {
@@ -209,7 +308,13 @@ const DocumentsSection = ({
                 await handleBulkDeleteDocuments(allDocIds);
             }
 
-            // 2. Disable all Wolke auto-sync
+            // 2. Delete all texts
+            const allTextIds = texts.map(t => t.id);
+            for (const textId of allTextIds) {
+                await handleTextDelete(textId);
+            }
+
+            // 3. Disable all Wolke auto-sync
             if (syncStatuses && syncStatuses.length > 0) {
                 for (const status of syncStatuses) {
                     if (status.auto_sync_enabled) {
@@ -218,8 +323,8 @@ const DocumentsSection = ({
                 }
             }
 
-            // 3. Refresh all data
-            await fetchDocuments();
+            // 4. Refresh all data
+            await handleCombinedFetch();
             if (fetchShareLinks) {
                 await fetchShareLinks();
             }
@@ -269,6 +374,8 @@ const DocumentsSection = ({
         }
     }, [documentsError, onErrorMessage]);
 
+    // Text errors are now handled by the combined fetch (documentsError)
+
     // Handle Wolke errors
     useEffect(() => {
         if (wolkeError) {
@@ -277,13 +384,23 @@ const DocumentsSection = ({
         }
     }, [wolkeError, onErrorMessage]);
 
-    // Fetch documents when documents tab becomes active - use ref to prevent loops
-    const fetchDocumentsRef = useRef();
-    fetchDocumentsRef.current = fetchDocuments;
-    
+    // Combined fetch handler using the new unified endpoint
+    const handleCombinedFetch = useCallback(async () => {
+        try {
+            await fetchCombinedContent();
+        } catch (error) {
+            console.error('[DocumentsSection] Error fetching combined content:', error);
+            onErrorMessage('Fehler beim Aktualisieren der Inhalte: ' + error.message);
+        }
+    }, [fetchCombinedContent, onErrorMessage]);
+
+    // Fetch combined content when tab becomes active - use ref to prevent loops
+    const fetchCombinedRef = useRef();
+    fetchCombinedRef.current = handleCombinedFetch;
+
     useEffect(() => {
         if (isActive) {
-            fetchDocumentsRef.current();
+            fetchCombinedRef.current();
             // Also fetch Wolke share links when tab becomes active
             if (!wolkeInitialized) {
                 handleRefreshWolkeShareLinks();
@@ -312,31 +429,31 @@ const DocumentsSection = ({
                 </div>
             ) : (
                 <>
-                    {/* Wolke Sync Manager Section */}
-                    <WolkeSyncManager
+                    {/* Wolke Sync Manager Section - Hidden for now */}
+                    {/* <WolkeSyncManager
                         wolkeShareLinks={wolkeShareLinks}
                         onRefreshShareLinks={handleRefreshWolkeShareLinks}
                         onSyncComplete={handleWolkeSyncComplete}
-                    />
+                    /> */}
 
                     <DocumentOverview
-                            documents={documents}
-                            loading={documentsLoading}
-                            onFetch={fetchDocuments}
-                            onDelete={handleDocumentDelete}
+                            documents={combinedItems}
+                            loading={combinedLoading}
+                            onFetch={handleCombinedFetch}
+                            onDelete={(itemId, item) => handleCombinedDelete(itemId, item)}
                             onBulkDelete={handleBulkDeleteDocuments}
-                            onUpdateTitle={handleDocumentTitleUpdate}
-                            onEdit={handleDocumentEdit}
+                            onUpdateTitle={(itemId, newTitle, item) => handleCombinedTitleUpdate(itemId, newTitle, item)}
+                            onEdit={handleCombinedEdit}
                             onRefreshDocument={handleDocumentRefresh}
                             onShare={onShareToGroup}
                             documentTypes={documentTypes}
                             emptyStateConfig={{
-                                noDocuments: 'Keine Dokumente vorhanden.',
-                                createMessage: 'Lade dein erstes Dokument hoch um loszulegen. Alle Dokumente werden als durchsuchbare Vektoren gespeichert.'
+                                noDocuments: 'Keine Inhalte vorhanden.',
+                                createMessage: 'Lade dein erstes Dokument hoch oder erstelle einen Text um loszulegen. Alle Inhalte werden als durchsuchbare Vektoren gespeichert.'
                             }}
-                            searchPlaceholder="Alle Dokumente durchsuchen..."
-                            title="Meine Dokumente"
-                            subtitle="Dokumente und Dateien"
+                            searchPlaceholder="Alle Inhalte durchsuchen..."
+                            title="Meine Inhalte"
+                            subtitle="Dokumente, Dateien und Grünerierte Texte"
                             onSuccessMessage={onSuccessMessage}
                             onErrorMessage={onErrorMessage}
                             enableGrouping={true}
@@ -349,15 +466,15 @@ const DocumentsSection = ({
                                 <div style={{ display: 'flex', gap: 'var(--spacing-small)' }}>
                                     <ProfileIconButton
                                         action="refresh"
-                                        onClick={fetchDocuments}
-                                        disabled={documentsLoading}
-                                        ariaLabel="Alle Dokumente aktualisieren"
+                                        onClick={handleCombinedFetch}
+                                        disabled={combinedLoading}
+                                        ariaLabel="Alle Inhalte aktualisieren"
                                         title="Aktualisieren"
                                     />
                                     <ProfileActionButton
                                         action="add"
                                         onClick={() => setShowUploadForm(true)}
-                                        disabled={documentsLoading}
+                                        disabled={combinedLoading}
                                         ariaLabel="Neuen Inhalt hinzufügen"
                                         title="Inhalt hinzufügen"
                                         size="s"
@@ -367,7 +484,7 @@ const DocumentsSection = ({
                         />
 
                     {/* Delete all button at the end for better UX */}
-                    {!showDeleteAllForm && documents.length > 0 && (
+                    {!showDeleteAllForm && combinedItems.length > 0 && (
                         <div style={{
                             padding: 'var(--spacing-medium)',
                             borderTop: '1px solid var(--border-color)',
@@ -398,6 +515,7 @@ const DocumentsSection = ({
                                 </p>
                                 <ul className="warning-text">
                                     <li>{documents.length} Dokumente</li>
+                                    <li>{texts.length} Grünerierte Texte</li>
                                     <li>{syncStatuses ? syncStatuses.filter(s => s.auto_sync_enabled).length : 0} aktive Wolke-Synchronisationen</li>
                                 </ul>
                                 <p className="warning-text">

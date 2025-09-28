@@ -30,7 +30,6 @@ const ProfileInfoTab = lazy(() => import('../components/profile/ProfileInfoTab')
 const GroupsManagementTab = lazy(() => import('../components/profile/GroupsManagementTab'));
 const IntelligenceTab = lazy(() => import('../components/profile/IntelligenceTab'));
 const ContentManagementTab = lazy(() => import('../components/profile/tabs/ContentManagement'));
-const IntegrationenTab = lazy(() => import('../components/profile/IntegrationenTab'));
 const CustomGeneratorsTab = lazy(() => import('../components/profile/CustomGeneratorsTab'));
 const LaborTab = lazy(() => import('../components/profile/LaborTab'));
 
@@ -182,8 +181,7 @@ const ProfilePage = () => {
   const availableTabs = [
     'profile',
     'intelligence',
-    'inhalte', // ContentManagementTab is now always available
-    'integrationen', // IntegrationenTab for Canva and Wolke integrations
+    'inhalte', // ContentManagementTab with integrated Canva and Wolke
     ...(shouldShowTab('groups') ? ['gruppen'] : []),
     ...(shouldShowTab('customGenerators') ? ['custom_generators'] : []),
     ...(shouldShowTab('labor') ? ['labor'] : [])
@@ -217,39 +215,33 @@ const ProfilePage = () => {
       return;
     }
     
-    // Redirect old integration URLs to new integrationen tab
-    if (tab === 'inhalte' && (subtab === 'canva' || subtab === 'wolke')) {
+    // Redirect old integrationen URLs to inhalte tab
+    if (tab === 'integrationen') {
       if (subtab === 'canva') {
-        const targetUrl = subsubtab ? `/profile/integrationen/canva/${subsubtab}` : '/profile/integrationen/canva';
+        const targetUrl = subsubtab ? `/profile/inhalte/canva/${subsubtab}` : '/profile/inhalte/canva';
         navigate(targetUrl, { replace: true });
+      } else if (subtab === 'wolke') {
+        navigate('/profile/inhalte/wolke', { replace: true });
       } else {
-        navigate('/profile/integrationen/wolke', { replace: true });
+        // Default integrationen tab goes to canva
+        navigate('/profile/inhalte/canva', { replace: true });
       }
       return;
     }
     
-    // Validate subtab URLs for content management tab
+    // Validate subtab URLs for content management tab (now includes integrations)
     if (tab === 'inhalte' && subtab) {
-      const validSubtabs = ['dokumente', 'texte', 'qa'];
+      const validSubtabs = ['inhalte', 'canva', 'wolke'];
       if (!validSubtabs.includes(subtab)) {
         navigate('/profile/inhalte', { replace: true });
         return;
       }
-    }
-    
-    // Validate subtab URLs for integrationen tab
-    if (tab === 'integrationen' && subtab) {
-      const validIntegrationTabs = ['canva', 'wolke'];
-      if (!validIntegrationTabs.includes(subtab)) {
-        navigate('/profile/integrationen', { replace: true });
-        return;
-      }
-      
+
       // Validate subsubtabs for Canva
       if (subtab === 'canva' && subsubtab) {
         const validCanvaSubtabs = ['overview', 'vorlagen', 'assets'];
         if (!validCanvaSubtabs.includes(subsubtab)) {
-          navigate('/profile/integrationen/canva', { replace: true });
+          navigate('/profile/inhalte/canva', { replace: true });
           return;
         }
       }
@@ -287,7 +279,7 @@ const ProfilePage = () => {
   // Handle tab changes for content management tab
   const handleContentSubtabChange = useCallback((tabKey, subsection = null) => {
     if (activeTab !== 'inhalte') return;
-    
+
     // Build the appropriate URL based on the active tab
     if (tabKey === 'canva') {
       if (subsection && subsection !== 'overview') {
@@ -295,12 +287,10 @@ const ProfilePage = () => {
       } else {
         navigate('/profile/inhalte/canva', { replace: true });
       }
-    } else if (tabKey === 'dokumente') {
-      navigate('/profile/inhalte/dokumente', { replace: true });
-    } else if (tabKey === 'texte') {
-      navigate('/profile/inhalte/texte', { replace: true });
-    } else if (tabKey === 'qa') {
-      navigate('/profile/inhalte/qa', { replace: true });
+    } else if (tabKey === 'wolke') {
+      navigate('/profile/inhalte/wolke', { replace: true });
+    } else if (tabKey === 'inhalte') {
+      navigate('/profile/inhalte', { replace: true });
     } else {
       navigate(`/profile/inhalte/${tabKey}`, { replace: true });
     }
@@ -364,7 +354,7 @@ const ProfilePage = () => {
     <div className="profile-container">
       <div className="profile-header">
         <h1>Mein Profil</h1>
-        <p>Verwalte deine persönlichen Daten, dein Passwort, Dokumente, Texte, Gruppen und Anweisungen.</p>
+        <p>Alle Profil-Features befinden sich in der Beta-Phase und können instabil sein.</p>
       </div>
 
       {/* Tab Navigation */}
@@ -411,20 +401,7 @@ const ProfilePage = () => {
           registerRef={registerItemRef}
           ariaSelected={ariaSelected('inhalte')}
         >
-          Texte & Dokumente
-        </TabButton>
-        
-        <TabButton
-          activeTab={activeTab}
-          tabKey="integrationen"
-          onClick={handleTabChange}
-          onMouseEnter={() => onTabHover('integrationen')}
-          underlineTransition={underlineTransition}
-          tabIndex={getTabIndex('integrationen')}
-          registerRef={registerItemRef}
-          ariaSelected={ariaSelected('integrationen')}
-        >
-          Wolke
+          Inhalte & Integrationen
         </TabButton>
         
         {shouldShowTab('groups') && (
@@ -527,18 +504,7 @@ const ProfilePage = () => {
               onSuccessMessage={handleSuccessMessage}
               onErrorMessage={handleErrorMessage}
               isActive={activeTab === 'inhalte'}
-              initialTab={subtab || 'dokumente'}
-              onTabChange={handleContentSubtabChange}
-            />
-          )}
-          
-          {activeTab === 'integrationen' && (
-            <IntegrationenTab
-              user={user}
-              onSuccessMessage={handleSuccessMessage}
-              onErrorMessage={handleErrorMessage}
-              isActive={activeTab === 'integrationen'}
-              initialTab={subtab || 'canva'}
+              initialTab={subtab || 'inhalte'}
               canvaSubsection={subtab === 'canva' ? (subsubtab || 'overview') : 'overview'}
               onTabChange={handleContentSubtabChange}
             />

@@ -1,0 +1,557 @@
+/* WolkeFilePicker Component Styles */
+
+/* Inline Container */
+.wolke-file-picker-inline {
+    width: 100%;
+    border: var(--border-subtle);
+    border-radius: var(--card-border-radius-medium);
+    background: var(--card-background);
+    overflow: hidden;
+    box-shadow: var(--card-shadow-subtle);
+}
+
+/* Modal Overlay */
+.wolke-file-picker-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--background-color);
+    opacity: 0.95;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: var(--spacing-medium);
+}
+
+.wolke-file-picker-overlay::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--font-color);
+    opacity: 0.3;
+    z-index: -1;
+}
+
+.wolke-file-picker {
+    background: var(--background-color);
+    border-radius: var(--card-border-radius-medium);
+    box-shadow: var(--shadow-lg);
+    max-width: 800px;
+    width: 100%;
+    max-height: 80vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Header */
+.picker-header {
+    padding: var(--spacing-small);
+    border-bottom: var(--border-subtle);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--background-color-alt);
+}
+
+.picker-header h3 {
+    margin: 0;
+    color: var(--font-color-h3);
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.close-button {
+    background: none;
+    border: none;
+    color: var(--font-color);
+    cursor: pointer;
+    padding: var(--spacing-xsmall);
+    border-radius: var(--card-border-radius-small);
+    transition: var(--input-transition);
+}
+
+
+/* Loading and Error States */
+.picker-loading,
+.picker-error,
+.picker-empty {
+    padding: var(--spacing-xlarge);
+    text-align: center;
+    color: var(--font-color);
+}
+
+.picker-error button,
+.picker-empty button {
+    margin-top: var(--spacing-medium);
+}
+
+
+/* Share Link Selection */
+.share-link-selection {
+    padding: var(--spacing-medium);
+}
+
+.share-link-selection h4 {
+    margin: 0 0 var(--spacing-medium) 0;
+    color: var(--font-color-h3);
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.share-links-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: var(--spacing-small);
+}
+
+.share-link-card {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-small);
+    padding: var(--spacing-medium);
+    background: var(--background-color);
+    border: var(--border-subtle);
+    border-radius: var(--card-border-radius-small);
+    cursor: pointer;
+    transition: var(--input-transition);
+    text-align: left;
+}
+
+
+.share-link-info {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xxsmall);
+}
+
+.share-link-label {
+    font-weight: 600;
+    color: var(--font-color);
+}
+
+.share-link-url {
+    font-size: 12px;
+    color: var(--font-color-disabled);
+}
+
+/* File Browser */
+.file-browser {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* Compact Toolbar */
+.compact-toolbar {
+    padding: var(--spacing-small);
+    border-bottom: var(--border-subtle);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-small);
+    background: var(--background-color-alt);
+    min-height: 40px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.toolbar-folder {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xxsmall);
+    color: var(--font-color);
+    font-size: 13px;
+    font-weight: 500;
+    flex-shrink: 0;
+}
+
+.toolbar-search {
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex: 1;
+    max-width: 200px;
+}
+
+.toolbar-search svg {
+    position: absolute;
+    left: var(--spacing-xsmall);
+    color: var(--font-color-disabled);
+    z-index: 1;
+}
+
+.toolbar-search input {
+    width: 100%;
+    padding: var(--spacing-xxsmall) var(--spacing-xxsmall) var(--spacing-xxsmall) var(--spacing-xlarge);
+    background: var(--input-background);
+    border: var(--input-border);
+    border-radius: var(--card-border-radius-small);
+    color: var(--input-text-color);
+    font-size: 13px;
+}
+
+.toolbar-search input:focus {
+    outline: none;
+}
+
+.toolbar-search input::placeholder {
+    color: var(--input-placeholder-color);
+}
+
+.toolbar-selection {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xsmall);
+    flex-shrink: 0;
+}
+
+.select-all-compact {
+    background: none;
+    border: none;
+    color: var(--interactive-accent-color);
+    cursor: pointer;
+    padding: var(--spacing-xxsmall);
+    border-radius: var(--card-border-radius-small);
+    transition: var(--input-transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.select-all-compact:hover {
+    background: var(--hover-color-alt);
+}
+
+.selection-count-compact {
+    font-size: 12px;
+    color: var(--font-color-disabled);
+    font-weight: 500;
+    min-width: 30px;
+}
+
+
+/* Files List */
+.files-loading,
+.files-error,
+.no-files,
+.no-supported-files {
+    padding: var(--spacing-large);
+    text-align: center;
+    color: var(--font-color);
+}
+
+.files-error button {
+    margin-top: var(--spacing-medium);
+}
+
+
+.files-grid {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--spacing-small);
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: var(--spacing-small);
+    align-content: start;
+}
+
+.wolke-file-card {
+    background: var(--card-background);
+    border: var(--border-subtle);
+    border-radius: var(--card-border-radius-medium);
+    padding: var(--spacing-medium);
+    position: relative;
+    cursor: pointer;
+    transition: var(--input-transition);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    min-height: 200px;
+    box-shadow: var(--card-shadow-subtle);
+}
+
+.wolke-file-card.selected {
+    background: var(--hover-color-alt);
+    border: 2px solid var(--interactive-accent-color);
+    box-shadow: var(--card-shadow-elevated);
+}
+
+.wolke-file-card-checkbox {
+    position: absolute;
+    top: var(--spacing-small);
+    right: var(--spacing-small);
+    z-index: 1;
+}
+
+.wolke-file-card-checkbox input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    cursor: pointer;
+}
+
+.wolke-file-card-icon {
+    font-size: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    margin: var(--spacing-xsmall) 0;
+    flex-shrink: 0;
+}
+
+.wolke-file-card-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    width: 100%;
+    min-height: 0;
+}
+
+.wolke-file-card-name {
+    font-weight: 600;
+    color: var(--font-color);
+    word-break: break-word;
+    line-height: 1.4;
+    margin-bottom: var(--spacing-small);
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    font-size: 14px;
+}
+
+.wolke-file-card-meta {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xxsmall);
+    font-size: 12px;
+    color: var(--font-color-disabled);
+    margin-top: auto;
+}
+
+.wolke-file-card-size,
+.wolke-file-card-modified {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Action Buttons */
+.picker-actions {
+    padding: var(--spacing-medium);
+    border-top: var(--border-subtle);
+    background: var(--background-color-alt);
+    display: flex;
+    justify-content: flex-end;
+}
+
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .wolke-file-picker-overlay {
+        padding: var(--spacing-small);
+    }
+
+    .wolke-file-picker {
+        max-width: 100%;
+        max-height: 90vh;
+        margin: 0;
+    }
+
+    .share-links-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .compact-toolbar {
+        padding: var(--spacing-xsmall);
+        gap: var(--spacing-xsmall);
+    }
+
+    .toolbar-folder {
+        display: none; /* Hide folder name on mobile */
+    }
+
+    .toolbar-search {
+        max-width: none;
+        flex: 1;
+    }
+
+    .selection-count-compact {
+        display: none; /* Hide count text on mobile */
+    }
+
+    .files-grid {
+        padding: var(--spacing-small);
+        gap: var(--spacing-small);
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    }
+
+    .wolke-file-card {
+        padding: var(--spacing-small);
+        min-height: 180px;
+    }
+
+    .wolke-file-card-icon {
+        font-size: 32px;
+        width: 40px;
+        height: 40px;
+        margin: var(--spacing-xxsmall) 0;
+    }
+
+    .wolke-file-card-meta {
+        font-size: 11px;
+    }
+}
+
+/* Additional responsive breakpoints for better grid control */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .files-grid {
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    }
+}
+
+@media (min-width: 1025px) and (max-width: 1440px) {
+    .files-grid {
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    }
+}
+
+@media (min-width: 1441px) {
+    .files-grid {
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: var(--spacing-large);
+    }
+
+    .wolke-file-card {
+        min-height: 220px;
+    }
+}
+
+@media (max-width: 480px) {
+    .files-grid {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: var(--spacing-xsmall);
+        padding: var(--spacing-xsmall);
+    }
+
+    .wolke-file-card {
+        padding: var(--spacing-xsmall);
+        min-height: 160px;
+    }
+
+    .wolke-file-card-icon {
+        font-size: 28px;
+        width: 36px;
+        height: 36px;
+        margin: var(--spacing-xxsmall) 0;
+    }
+
+    .wolke-file-card-name {
+        font-size: 12px;
+        line-height: 1.3;
+    }
+
+    .wolke-file-card-meta {
+        font-size: 10px;
+    }
+}
+
+/* Scrollbar styling for files grid */
+.files-grid::-webkit-scrollbar {
+    width: 8px;
+}
+
+.files-grid::-webkit-scrollbar-track {
+    background: var(--scrollbar-track-color);
+}
+
+.files-grid::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb-color);
+    border-radius: 4px;
+}
+
+.files-grid::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover-color);
+}
+
+/* Inline Mode Adjustments */
+.wolke-file-picker-inline .files-grid {
+    max-height: 400px;
+    padding: var(--spacing-small);
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: var(--spacing-small);
+}
+
+.wolke-file-picker-inline .wolke-file-card {
+    min-height: 160px;
+    padding: var(--spacing-small);
+}
+
+.wolke-file-picker-inline .wolke-file-card-icon {
+    font-size: 36px;
+    width: 48px;
+    height: 48px;
+}
+
+.wolke-file-picker-inline .wolke-file-card-name {
+    font-size: 13px;
+}
+
+.wolke-file-picker-inline .wolke-file-card-meta {
+    font-size: 11px;
+}
+
+.wolke-file-picker-inline .compact-toolbar {
+    padding: var(--spacing-xsmall);
+    min-height: 32px; /* Even more compact for inline */
+}
+
+.wolke-file-picker-inline .picker-actions {
+    padding: var(--spacing-xsmall);
+}
+
+.wolke-file-picker-inline .toolbar-search {
+    max-width: none; /* Use all available space in inline mode */
+    flex: 1;
+}
+
+.wolke-file-picker-inline .toolbar-search input {
+    font-size: 13px;
+    padding: var(--spacing-xxsmall) var(--spacing-xxsmall) var(--spacing-xxsmall) var(--spacing-xlarge);
+}
+
+.wolke-file-picker-inline .toolbar-selection {
+    flex-shrink: 0;
+}
+
+/* Mobile adjustments for inline mode */
+@media (max-width: 768px) {
+    .wolke-file-picker-inline .files-grid {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        max-height: 300px;
+    }
+
+    .wolke-file-picker-inline .wolke-file-card {
+        min-height: 140px;
+    }
+
+    .wolke-file-picker-inline .compact-toolbar {
+        padding: var(--spacing-xxsmall);
+    }
+
+    .wolke-file-picker-inline .toolbar-search {
+        max-width: none;
+    }
+}

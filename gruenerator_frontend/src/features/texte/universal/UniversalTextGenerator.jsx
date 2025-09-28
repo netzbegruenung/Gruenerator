@@ -3,13 +3,50 @@ import { useLocation } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import BaseForm from '../../../components/common/BaseForm';
 import ErrorBoundary from '../../../components/ErrorBoundary';
-import TextTypeSelector, { TEXT_TYPES, TEXT_TYPE_TITLES } from './components/TextTypeSelector';
+import PlatformSelector from '../../../components/common/PlatformSelector';
+import Icon from '../../../components/common/Icon';
 import RedeForm from './RedeForm';
 import WahlprogrammForm from './WahlprogrammForm';
 import BuergeranfragenForm from './BuergeranfragenForm';
 import UniversalForm from './UniversalForm';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import useBaseForm from '../../../components/common/Form/hooks/useBaseForm';
+
+// Text type constants (moved from TextTypeSelector)
+export const TEXT_TYPES = {
+  REDE: 'rede',
+  WAHLPROGRAMM: 'wahlprogramm',
+  BUERGERANFRAGEN: 'buergeranfragen',
+  UNIVERSAL: 'universal'
+};
+
+export const TEXT_TYPE_LABELS = {
+  [TEXT_TYPES.REDE]: 'Rede',
+  [TEXT_TYPES.WAHLPROGRAMM]: 'Wahlprogramm',
+  [TEXT_TYPES.BUERGERANFRAGEN]: 'Bürger*innenanfragen',
+  [TEXT_TYPES.UNIVERSAL]: 'Universal'
+};
+
+export const TEXT_TYPE_TITLES = {
+  [TEXT_TYPES.REDE]: 'Grünerator für Reden',
+  [TEXT_TYPES.WAHLPROGRAMM]: 'Grünerator für Wahlprogramm-Kapitel',
+  [TEXT_TYPES.BUERGERANFRAGEN]: 'Grünerator für Bürger*innenanfragen',
+  [TEXT_TYPES.UNIVERSAL]: 'Universal Grünerator'
+};
+
+const TEXT_TYPE_ICONS = {
+  [TEXT_TYPES.REDE]: () => <Icon category="textTypes" name="rede" size={16} />,
+  [TEXT_TYPES.WAHLPROGRAMM]: () => <Icon category="textTypes" name="wahlprogramm" size={16} />,
+  [TEXT_TYPES.BUERGERANFRAGEN]: () => <Icon category="textTypes" name="buergeranfragen" size={16} />,
+  [TEXT_TYPES.UNIVERSAL]: () => <Icon category="textTypes" name="universal" size={16} />
+};
+
+const TEXT_TYPE_DESCRIPTIONS = {
+  [TEXT_TYPES.REDE]: 'Perfekt für Veranstaltungen und öffentliche Auftritte',
+  [TEXT_TYPES.WAHLPROGRAMM]: 'Strukturierte politische Inhalte',
+  [TEXT_TYPES.BUERGERANFRAGEN]: 'Professionelle Antworten auf Anfragen von Bürger*innen',
+  [TEXT_TYPES.UNIVERSAL]: 'Für alle anderen Textarten geeignet'
+};
 
 const API_ENDPOINTS = {
   [TEXT_TYPES.REDE]: '/claude_rede',
@@ -163,10 +200,26 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
     }
   };
 
+  const textTypeOptions = useMemo(() => Object.entries(TEXT_TYPE_LABELS).map(([value, label]) => ({
+    value,
+    label,
+    icon: TEXT_TYPE_ICONS[value]
+  })), []);
+
   const renderTextTypeSection = () => (
-    <TextTypeSelector 
-      selectedType={selectedType}
-      onTypeChange={setSelectedType}
+    <PlatformSelector
+      name="textType"
+      options={textTypeOptions}
+      value={selectedType}
+      onChange={setSelectedType}
+      label="Art des Textes"
+      placeholder="Textart auswählen..."
+      isMulti={false}
+      control={null}
+      enableIcons={true}
+      enableSubtitles={false}
+      isSearchable={false}
+      required={true}
     />
   );
 

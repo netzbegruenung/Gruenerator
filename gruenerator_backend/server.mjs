@@ -433,7 +433,7 @@ if (cluster.isMaster) {
       secure: process.env.NODE_ENV === 'production',
       httpOnly: true,
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
-      sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax', // Allow cross-port in development
+      sameSite: 'lax', // Use 'lax' for OAuth flows - 'strict' blocks cross-site redirects from Keycloak
       domain: process.env.NODE_ENV === 'production' ? undefined : undefined, // Don't set domain in development
       path: '/' // Ensure cookie is available for all paths
     }

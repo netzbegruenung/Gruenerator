@@ -24,7 +24,7 @@ const DocumentPreviewModal = ({ item, itemType = 'document', documentTypes = {},
   };
   
   const previewContent = getDocumentContent();
-  const isMarkdownContent = !!item.markdown_content;
+  const isMarkdownContent = itemType !== 'qa'; // All documents use markdown renderer
 
   return (
     <motion.div
