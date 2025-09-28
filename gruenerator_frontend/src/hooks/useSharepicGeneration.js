@@ -32,16 +32,16 @@ const useSharepicGeneration = () => {
         case 'default':
           return await generateDefaultSharepics(thema, details, customPrompt, attachments, usePrivacyMode, provider);
         case 'quote':
-          return await generateQuoteSharepic(thema, details, zitatAuthor, uploadedImage, customPrompt, attachments, usePrivacyMode, provider);
+          return await generateUnifiedSharepic('zitat', thema, details, uploadedImage, zitatAuthor, customPrompt, attachments, usePrivacyMode, provider);
         case 'quote_pure':
-          return await generateQuotePureSharepic(thema, details, zitatAuthor, customPrompt, attachments, usePrivacyMode, provider);
+          return await generateUnifiedSharepic('zitat_pure', thema, details, null, zitatAuthor, customPrompt, attachments, usePrivacyMode, provider);
         case 'info':
-          return await generateInfoSharepic(thema, details, customPrompt, attachments, usePrivacyMode, provider);
+          return await generateUnifiedSharepic('info', thema, details, null, null, customPrompt, attachments, usePrivacyMode, provider);
         case 'headline':
-          return await generateHeadlineSharepic(thema, details, customPrompt, attachments, usePrivacyMode, provider);
+          return await generateUnifiedSharepic('headline', thema, details, null, null, customPrompt, attachments, usePrivacyMode, provider);
         case 'dreizeilen':
         default:
-          return await generateDreizeilenSharepic(thema, details, uploadedImage, customPrompt, attachments, usePrivacyMode, provider);
+          return await generateUnifiedSharepic('dreizeilen', thema, details, uploadedImage, null, customPrompt, attachments, usePrivacyMode, provider);
       }
 
     } catch (err) {
@@ -53,15 +53,21 @@ const useSharepicGeneration = () => {
     }
   }, []);
 
-  const generateDreizeilenSharepic = useCallback(async (thema, details, uploadedImage, customPrompt = null, attachments = null, usePrivacyMode = false, provider = null) => {
-    console.log('[useSharepicGeneration] Starting dreizeilen sharepic generation');
+  // Unified sharepic generation function - handles all types via single backend endpoint
+  const generateUnifiedSharepic = useCallback(async (type, thema, details, uploadedImage = null, zitatAuthor = null, customPrompt = null, attachments = null, usePrivacyMode = false, provider = null) => {
+    console.log(`[useSharepicGeneration] Starting ${type} sharepic generation via unified endpoint`);
 
-    // Step 1: Generate text using existing dreizeilen_claude endpoint
     const requestData = {
+      type,
       thema,
       details
     };
-    
+
+    // Add type-specific fields
+    if (zitatAuthor) {
+      requestData.name = zitatAuthor;
+    }
+
     // Add customPrompt if provided (knowledge from KnowledgeSelector)
     if (customPrompt) {
       requestData.customPrompt = customPrompt;
@@ -80,30 +86,32 @@ const useSharepicGeneration = () => {
       }
     }
 
-    const textResponse = await apiClient.post('/dreizeilen_claude', requestData);
+    // Handle uploaded image for relevant types
+    if (uploadedImage && (type === 'dreizeilen' || type === 'quote')) {
+      // Convert image to base64 for backend processing
+      let imageBase64 = null;
+      if (uploadedImage instanceof File || uploadedImage instanceof Blob) {
+        try {
+          imageBase64 = await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.readAsDataURL(uploadedImage);
+          });
+        } catch (error) {
+          console.warn('[useSharepicGeneration] Failed to convert image to base64:', error);
+        }
+      }
 
-    console.log('[useSharepicGeneration] Text generation response:', textResponse);
-
-    // Handle Axios response wrapper - extract data
-    const responseData = textResponse.data || textResponse;
-    console.log('[useSharepicGeneration] Processed response data:', responseData);
-
-    if (!responseData.mainSlogan) {
-      throw new Error('Keine gültige Slogan-Antwort erhalten');
+      if (imageBase64) {
+        requestData.uploadedImage = imageBase64;
+      }
     }
 
-    const slogan = responseData.mainSlogan;
+    const response = await apiClient.post('/generate-sharepic', requestData);
+    const responseData = response.data || response;
 
-    // Step 2: Generate image using existing dreizeilen_canvas endpoint
-    const image = await generateSharepicImage('dreizeilen', {
-      line1: slogan.line1 || '',
-      line2: slogan.line2 || '',
-      line3: slogan.line3 || '',
-      uploadedImage
-    });
-
-    if (!image) {
-      throw new Error('Keine gültige Bild-Antwort erhalten');
+    if (!responseData.success) {
+      throw new Error(responseData.error || 'Sharepic generation failed');
     }
 
     // Convert original image to base64 for storage if available
@@ -115,301 +123,19 @@ const useSharepicGeneration = () => {
           reader.onloadend = () => resolve(reader.result);
           reader.readAsDataURL(uploadedImage);
         });
-        console.log('[useSharepicGeneration] Preserved original background image for editing');
       } catch (error) {
         console.warn('[useSharepicGeneration] Failed to convert original image to base64:', error);
       }
     }
 
-    // Return combined result
+    // Return unified structure
     return {
-      text: `${slogan.line1 || ''}\n${slogan.line2 || ''}\n${slogan.line3 || ''}`.trim(),
-      image,
+      ...responseData,
       originalImage: originalImageBase64, // Preserve original background for editing
-      slogans: responseData.alternatives || [], // Include alternatives for potential future use
-      type: 'dreizeilen'
+      success: undefined // Remove success flag from response structure
     };
   }, []);
 
-  const generateQuoteSharepic = useCallback(async (thema, details, zitatAuthor, uploadedImage, customPrompt = null, attachments = null, usePrivacyMode = false, provider = null) => {
-    console.log('[useSharepicGeneration] Starting quote sharepic generation');
-
-    if (!zitatAuthor) {
-      throw new Error('Autor ist für Zitat-Sharepics erforderlich');
-    }
-
-    // Step 1: Generate quote text using existing zitat_claude endpoint
-    const requestData = {
-      thema,
-      details
-    };
-    
-    // Add customPrompt if provided (knowledge from KnowledgeSelector)
-    if (customPrompt) {
-      requestData.customPrompt = customPrompt;
-    }
-
-    // Add attachments if provided
-    if (attachments && attachments.length > 0) {
-      requestData.attachments = attachments;
-    }
-
-    // Add privacy mode and provider if specified
-    if (usePrivacyMode) {
-      requestData.usePrivacyMode = usePrivacyMode;
-      if (provider) {
-        requestData.provider = provider;
-      }
-    }
-
-    const textResponse = await apiClient.post('/zitat_claude', requestData);
-
-    console.log('[useSharepicGeneration] Quote text generation response:', textResponse);
-
-    // Handle Axios response wrapper - extract data
-    const responseData = textResponse.data || textResponse;
-    console.log('[useSharepicGeneration] Processed quote response data:', responseData);
-
-    // Handle the actual response structure with alternatives array and main quote
-    if (!responseData || (!responseData.alternatives && !responseData.quote)) {
-      throw new Error('Keine gültigen Zitate erhalten');
-    }
-
-    // Use the main quote if available, otherwise fall back to first alternative
-    const mainQuote = responseData.quote || 
-      (responseData.alternatives && responseData.alternatives[0]?.quote);
-
-    if (!mainQuote) {
-      throw new Error('Keine gültige Zitat-Antwort erhalten');
-    }
-
-    // Step 2: Generate image using existing zitat_canvas endpoint
-    const image = await generateSharepicImage('quote', {
-      quote: mainQuote,
-      name: zitatAuthor,
-      uploadedImage
-    });
-
-    if (!image) {
-      throw new Error('Keine gültige Bild-Antwort erhalten');
-    }
-
-    // Convert original image to base64 for storage if available
-    let originalImageBase64 = null;
-    if (uploadedImage && (uploadedImage instanceof File || uploadedImage instanceof Blob)) {
-      try {
-        originalImageBase64 = await new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result);
-          reader.readAsDataURL(uploadedImage);
-        });
-        console.log('[useSharepicGeneration] Preserved original background image for quote editing');
-      } catch (error) {
-        console.warn('[useSharepicGeneration] Failed to convert original image to base64:', error);
-      }
-    }
-
-    // Return combined result
-    return {
-      text: `"${mainQuote}" - ${zitatAuthor}`,
-      image,
-      originalImage: originalImageBase64, // Preserve original background for editing
-      quotes: responseData.alternatives || [], // Use alternatives array from response
-      type: 'quote'
-    };
-  }, []);
-
-  const generateQuotePureSharepic = useCallback(async (thema, details, zitatAuthor, customPrompt = null, attachments = null, usePrivacyMode = false, provider = null) => {
-    console.log('[useSharepicGeneration] Starting quote pure sharepic generation');
-
-    if (!zitatAuthor) {
-      throw new Error('Autor ist für Zitat-Pure-Sharepics erforderlich');
-    }
-
-    // Step 1: Generate quote text using existing zitat_pure_claude endpoint
-    const requestData = {
-      thema,
-      details
-    };
-    
-    // Add customPrompt if provided (knowledge from KnowledgeSelector)
-    if (customPrompt) {
-      requestData.customPrompt = customPrompt;
-    }
-
-    // Add attachments if provided
-    if (attachments && attachments.length > 0) {
-      requestData.attachments = attachments;
-    }
-
-    // Add privacy mode and provider if specified
-    if (usePrivacyMode) {
-      requestData.usePrivacyMode = usePrivacyMode;
-      if (provider) {
-        requestData.provider = provider;
-      }
-    }
-
-    const textResponse = await apiClient.post('/zitat_pure_claude', requestData);
-
-    console.log('[useSharepicGeneration] Quote pure text generation response:', textResponse);
-
-    // Handle Axios response wrapper - extract data
-    const responseData = textResponse.data || textResponse;
-    console.log('[useSharepicGeneration] Processed quote pure response data:', responseData);
-
-    if (!responseData || !responseData.quote) {
-      throw new Error('Keine gültige Zitat-Pure-Antwort erhalten');
-    }
-
-    const mainQuote = responseData.quote;
-
-    // Step 2: Generate image using existing zitat_pure_canvas endpoint
-    const formData = new FormData();
-    formData.append('quote', mainQuote);
-    formData.append('name', zitatAuthor);
-
-    console.log('[useSharepicGeneration] Prepared FormData for quote pure canvas generation');
-
-    const image = await generateSharepicImage('quote_pure', {
-      quote: mainQuote,
-      name: zitatAuthor
-    });
-
-    if (!image) {
-      throw new Error('Keine gültige Bild-Antwort erhalten');
-    }
-
-    // Return combined result
-    return {
-      text: `"${mainQuote}" - ${zitatAuthor}`,
-      image,
-      quotes: responseData.alternatives || [],
-      type: 'quote_pure'
-    };
-  }, []);
-
-  const generateInfoSharepic = useCallback(async (thema, details, customPrompt = null, attachments = null, usePrivacyMode = false, provider = null) => {
-    console.log('[useSharepicGeneration] Starting info sharepic generation');
-
-    // Step 1: Generate info text using existing info_claude endpoint
-    const requestData = {
-      thema,
-      details
-    };
-    
-    // Add customPrompt if provided (knowledge from KnowledgeSelector)
-    if (customPrompt) {
-      requestData.customPrompt = customPrompt;
-    }
-
-    // Add attachments if provided
-    if (attachments && attachments.length > 0) {
-      requestData.attachments = attachments;
-    }
-
-    // Add privacy mode and provider if specified
-    if (usePrivacyMode) {
-      requestData.usePrivacyMode = usePrivacyMode;
-      if (provider) {
-        requestData.provider = provider;
-      }
-    }
-
-    const textResponse = await apiClient.post('/info_claude', requestData);
-
-    console.log('[useSharepicGeneration] Info text generation response:', textResponse);
-
-    // Handle Axios response wrapper - extract data
-    const responseData = textResponse.data || textResponse;
-    console.log('[useSharepicGeneration] Processed info response data:', responseData);
-
-    if (!responseData || !responseData.mainInfo || !responseData.mainInfo.header) {
-      throw new Error('Keine gültige Info-Antwort erhalten');
-    }
-
-    const { header, subheader, body } = responseData.mainInfo;
-
-    // Step 2: Generate image using existing info_canvas endpoint
-    const image = await generateSharepicImage('info', {
-      header,
-      subheader,
-      body
-    });
-
-    if (!image) {
-      throw new Error('Keine gültige Bild-Antwort erhalten');
-    }
-
-    // Return combined result
-    return {
-      text: `${header}\n${subheader || ''}\n${body || ''}`.trim(),
-      image,
-      alternatives: responseData.alternatives || [],
-      type: 'info'
-    };
-  }, []);
-
-  const generateHeadlineSharepic = useCallback(async (thema, details, customPrompt = null, attachments = null, usePrivacyMode = false, provider = null) => {
-    console.log('[useSharepicGeneration] Starting headline sharepic generation');
-
-    // Step 1: Generate headline text using existing headline_claude endpoint
-    const requestData = {
-      thema,
-      details
-    };
-    
-    // Add customPrompt if provided (knowledge from KnowledgeSelector)
-    if (customPrompt) {
-      requestData.customPrompt = customPrompt;
-    }
-
-    // Add attachments if provided
-    if (attachments && attachments.length > 0) {
-      requestData.attachments = attachments;
-    }
-
-    // Add privacy mode and provider if specified
-    if (usePrivacyMode) {
-      requestData.usePrivacyMode = usePrivacyMode;
-      if (provider) {
-        requestData.provider = provider;
-      }
-    }
-
-    const textResponse = await apiClient.post('/headline_claude', requestData);
-
-    console.log('[useSharepicGeneration] Headline text generation response:', textResponse);
-
-    // Handle Axios response wrapper - extract data
-    const responseData = textResponse.data || textResponse;
-    console.log('[useSharepicGeneration] Processed headline response data:', responseData);
-
-    if (!responseData.mainSlogan) {
-      throw new Error('Keine gültige Headline-Antwort erhalten');
-    }
-
-    const slogan = responseData.mainSlogan;
-
-    // Step 2: Generate image using existing headline_canvas endpoint
-    const image = await generateSharepicImage('headline', {
-      line1: slogan.line1 || '',
-      line2: slogan.line2 || '',
-      line3: slogan.line3 || ''
-    });
-
-    if (!image) {
-      throw new Error('Keine gültige Bild-Antwort erhalten');
-    }
-
-    // Return combined result
-    return {
-      text: `${slogan.line1 || ''}\n${slogan.line2 || ''}\n${slogan.line3 || ''}`.trim(),
-      image,
-      slogans: responseData.alternatives || [],
-      type: 'headline'
-    };
-  }, []);
 
   const generateDefaultSharepics = useCallback(async (thema, details, customPrompt = null, attachments = null, usePrivacyMode = false, provider = null) => {
     console.log('[useSharepicGeneration] Starting default sharepic generation (3 types) - using backend service');

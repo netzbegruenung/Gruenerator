@@ -15,6 +15,98 @@ const router = express.Router();
 // Add Passport session middleware only for auth routes
 router.use(passport.session());
 
+// Intelligent request/response logging for auth core
+// - Correlates requests with a short ID
+// - Logs minimal auth/session hints (no secrets)
+// - Captures redirects and response status/content-type
+router.use((req, res, next) => {
+  const reqId = `AC-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  req._authReqId = reqId;
+
+  const start = Date.now();
+  const originalSend = res.send.bind(res);
+  const originalJson = res.json.bind(res);
+  const originalRedirect = res.redirect ? res.redirect.bind(res) : null;
+
+  const logPrefix = `[authCore][${reqId}]`;
+
+  try {
+    // Basic request context (no sensitive data)
+    console.log(`${logPrefix} Incoming ${req.method} ${req.originalUrl}`, {
+      sessionID: req.sessionID,
+      hasCookieHeader: !!req.headers['cookie'],
+      accept: req.headers['accept'],
+      contentType: req.headers['content-type'],
+      isAuthenticated: typeof req.isAuthenticated === 'function' ? req.isAuthenticated() : false,
+      hasReqUser: !!req.user,
+      hasSessionPassportUser: !!(req.session?.passport?.user)
+    });
+  } catch (_) {}
+
+  function logResponseBody(body, channel = 'send') {
+    try {
+      const elapsed = Date.now() - start;
+      const status = res.statusCode;
+      const ct = res.get('Content-Type');
+      let snippet = '';
+      if (typeof body === 'string') {
+        snippet = body.slice(0, 180);
+      } else if (Buffer.isBuffer(body)) {
+        snippet = body.toString('utf8', 0, Math.min(body.length, 180));
+      } else if (typeof body === 'object' && body !== null) {
+        // Avoid logging tokens or large objects
+        try {
+          const safe = { ...body };
+          if (safe.user) {
+            const { id, email, locale } = safe.user;
+            safe.user = { id, email, locale };
+          }
+          snippet = JSON.stringify(safe).slice(0, 220);
+        } catch (_) {
+          snippet = '[object]';
+        }
+      }
+      const looksHtml = typeof snippet === 'string' && /<html|<!DOCTYPE html/i.test(snippet);
+      console.log(`${logPrefix} Response via ${channel}`, {
+        status,
+        contentType: ct,
+        durationMs: elapsed,
+        looksHtml,
+        bodySnippet: snippet
+      });
+    } catch (e) {
+      console.warn(`${logPrefix} Failed to log response body:`, e.message);
+    }
+  }
+
+  res.send = function (body) {
+    logResponseBody(body, 'send');
+    return originalSend(body);
+  };
+
+  res.json = function (body) {
+    logResponseBody(body, 'json');
+    return originalJson(body);
+  };
+
+  if (originalRedirect) {
+    res.redirect = function (url) {
+      const elapsed = Date.now() - start;
+      console.log(`${logPrefix} Redirect`, { status: res.statusCode, url, durationMs: elapsed });
+      return originalRedirect(url);
+    };
+  }
+
+  res.on('finish', () => {
+    // Fallback if body wasn’t captured
+    const elapsed = Date.now() - start;
+    const ct = res.get('Content-Type');
+    console.log(`${logPrefix} Finished`, { status: res.statusCode, contentType: ct, durationMs: elapsed });
+  });
+
+  next();
+});
+
 // Helpers for mobile deep-link support
 function parseAllowlist() {
   const raw = process.env.MOBILE_REDIRECT_ALLOWLIST || '';
@@ -70,6 +162,10 @@ router.get('/login', (req, res, next) => {
   // Store redirect URL in session for all login types
   if (redirectTo) {
     req.session.redirectTo = redirectTo;
+    console.log('[Auth Login] Storing redirectTo in session:', redirectTo);
+    console.log('[Auth Login] Session ID:', req.sessionID);
+  } else {
+    console.log('[Auth Login] No redirectTo parameter provided');
   }
 
   // Store source preference for callback handling
@@ -106,6 +202,7 @@ router.get('/login', (req, res, next) => {
     }
   }
 
+  // openid-client handles session persistence properly
   passport.authenticate('oidc', options)(req, res, next);
 });
 
@@ -117,8 +214,16 @@ router.get('/callback',
   }),
   async (req, res, next) => {
     try {
-      const intendedRedirect = req.session.redirectTo;
+      // Get redirectTo from user object (survives session regeneration) or fallback to session
+      const intendedRedirect = req.user?._redirectTo || req.session.redirectTo;
+      console.log('[AuthCallback] Session ID:', req.sessionID);
       console.log('[AuthCallback] Intended redirect from session:', intendedRedirect);
+      console.log('[AuthCallback] Session contents:', Object.keys(req.session || {}).join(', '));
+
+      // Clean up
+      if (req.user && req.user._redirectTo) {
+        delete req.user._redirectTo;
+      }
       delete req.session.redirectTo;
       delete req.session.preferredSource;
       delete req.session.isRegistration;
@@ -168,8 +273,32 @@ router.get('/callback',
         });
       }
 
-      const fallback = `${process.env.BASE_URL}/profile`;
-      const redirectTo = intendedRedirect || fallback;
+      // Ensure all redirect URLs are absolute
+      const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
+
+      let absoluteRedirect;
+      if (intendedRedirect) {
+        if (intendedRedirect.startsWith('http://') || intendedRedirect.startsWith('https://')) {
+          // Already absolute URL (including mobile deep-links)
+          absoluteRedirect = intendedRedirect;
+        } else if (intendedRedirect.includes('://')) {
+          // Mobile deep-link (app://, gruenerator://, etc.)
+          absoluteRedirect = intendedRedirect;
+        } else {
+          // Relative URL - convert to absolute
+          absoluteRedirect = `${baseUrl}${intendedRedirect.startsWith('/') ? '' : '/'}${intendedRedirect}`;
+        }
+      } else {
+        // Default fallback
+        absoluteRedirect = `${baseUrl}/profile`;
+      }
+
+      const redirectTo = absoluteRedirect;
+
+      console.log('[AuthCallback] URL conversion details:');
+      console.log('  - Original intendedRedirect:', intendedRedirect);
+      console.log('  - Base URL:', baseUrl);
+      console.log('  - Final absolute redirect:', redirectTo);
 
       req.session.save((err) => {
         if (err) {

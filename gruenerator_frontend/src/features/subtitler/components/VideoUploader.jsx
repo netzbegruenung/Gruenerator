@@ -4,6 +4,7 @@ import { useDropzone } from 'react-dropzone';
 import { FaUpload, FaTimes } from 'react-icons/fa';
 import * as tus from 'tus-js-client';
 import apiClient from '../../../components/utils/apiClient';
+import '../styles/subtitler.css';
 
 // Get base URL from apiClient instead of hardcoding
 const TUS_UPLOAD_ENDPOINT = `${apiClient.defaults.baseURL}/subtitler/upload`;

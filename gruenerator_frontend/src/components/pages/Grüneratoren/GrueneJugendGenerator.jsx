@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import PropTypes from 'prop-types';
 import BaseForm from '../../common/BaseForm';
+import FormStateProvider from '../../common/Form/FormStateProvider';
 import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../utils/constants';
 import { useSharedContent } from '../../hooks/useSharedContent';
 import ErrorBoundary from '../../ErrorBoundary';
@@ -79,7 +80,6 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }) => {
       label="Formate"
       placeholder="Formate auswählen..."
       required={true}
-      helpText="Wähle ein oder mehrere Formate für die dein Content optimiert werden soll"
       tabIndex={form.generator.baseFormProps?.platformSelectorTabIndex}
     />
   );
@@ -108,17 +108,59 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }) => {
     </>
   );
 
+  // Extract static configuration for the store
+  const formConfig = useMemo(() => ({
+    tabIndex: {
+      featureIcons: {
+        webSearch: form.generator.tabIndex?.webSearch || 11,
+        privacyMode: form.generator.tabIndex?.privacyMode || 12,
+        attachment: form.generator.tabIndex?.attachment || 13
+      },
+      platformSelector: form.generator.baseFormTabIndex?.platformSelectorTabIndex || 12,
+      knowledgeSelector: form.generator.baseFormTabIndex?.knowledgeSelectorTabIndex || 14,
+      knowledgeSourceSelector: form.generator.baseFormTabIndex?.knowledgeSourceSelectorTabIndex || 13,
+      documentSelector: form.generator.baseFormTabIndex?.documentSelectorTabIndex || 15,
+      submitButton: form.generator.baseFormTabIndex?.submitButtonTabIndex || 17
+    },
+    ui: {
+      enableKnowledgeSelector: true,
+      enableDocumentSelector: true,
+      showProfileSelector: true,
+      enablePlatformSelector: false,
+      useFeatureIcons: true
+    },
+    platform: {
+      options: platformOptions
+    }
+  }), [platformOptions, form.generator.tabIndex, form.generator.baseFormTabIndex]);
 
   return (
     <ErrorBoundary>
       <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
-        <BaseForm
-          {...form.generator.baseFormProps}
-          onSubmit={form.generator.onSubmit}
-          firstExtrasChildren={renderPlatformSection()}
-        >
-          {renderFormInputs()}
-        </BaseForm>
+        <FormStateProvider formId={componentName} initialState={formConfig}>
+          <BaseForm
+            title={helpContent.title}
+            onSubmit={form.generator.onSubmit}
+            loading={form.generator.loading}
+            error={form.generator.error}
+            success={form.generator.success}
+            generatedContent={form.generator.generatedContent}
+            onGeneratedContentChange={form.generator.handleGeneratedContentChange}
+            componentName={componentName}
+            helpContent={helpContent}
+            formNotice={form.generator.formNotice}
+            webSearchFeatureToggle={form.generator.baseFormProps?.webSearchFeatureToggle}
+            privacyModeToggle={form.generator.baseFormProps?.privacyModeToggle}
+            useWebSearchFeatureToggle={true}
+            usePrivacyModeToggle={true}
+            onAttachmentClick={form.generator.handleAttachmentClick}
+            onRemoveFile={form.generator.handleRemoveFile}
+            attachedFiles={form.generator.attachedFiles}
+            firstExtrasChildren={renderPlatformSection()}
+          >
+            {renderFormInputs()}
+          </BaseForm>
+        </FormStateProvider>
       </div>
     </ErrorBoundary>
   );

@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useInstantAuth } from '../../../hooks/useAuth';
 import PropTypes from 'prop-types';
+import { getIntendedRedirect, getCurrentPath, isMobileAppContext, clearRedirectState } from '../../../utils/authRedirect';
 
 // Login Feature CSS - Loaded only when this feature is accessed
 import '../../../assets/styles/features/auth/login-page.css';
@@ -34,22 +35,22 @@ const LoginPage = ({
   const { t } = useTranslation();
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const { loading, isAuthenticated, setLoginIntent } = useInstantAuth();
-  const searchParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
-  const redirectToParam = searchParams.get('redirectTo');
+
+  // Get the intended redirect URL using the unified helper
+  // When mode is 'required', use current pathname since we're blocking access to this page
+  const intendedRedirect = mode === 'required'
+    ? location.pathname
+    : getIntendedRedirect(location, '/profile');
+
+  // Check if this is a mobile app context
+  const isMobileApp = isMobileAppContext(location);
 
   // Get success message from navigation state (e.g., from registration)
   const successMessage = location.state?.message;
-  
+
   // Auto-detect page name if not provided and in required mode
   const displayPageName = pageName || (mode === 'required' ? getPageName(location.pathname, t) : null);
-  
-  // Store redirect path when in required mode
-  useEffect(() => {
-    if (mode === 'required') {
-      const currentPath = window.location.pathname + window.location.search;
-      sessionStorage.setItem('redirectAfterLogin', currentPath);
-    }
-  }, [mode]);
+
 
   // Handle modal close
   const handleClose = useCallback(() => {
@@ -85,9 +86,10 @@ const LoginPage = ({
     setIsAuthenticating(true);
     try {
       setLoginIntent();
-      
-      const authUrl = `${AUTH_BASE_URL}/auth/login?source=gruenes-netz-login${redirectToParam ? `&redirectTo=${encodeURIComponent(redirectToParam)}` : ''}`;
+
+      const authUrl = `${AUTH_BASE_URL}/auth/login?source=gruenes-netz-login${intendedRedirect ? `&redirectTo=${encodeURIComponent(intendedRedirect)}` : ''}`;
       console.log(`[LoginPage] Grünes Netz Login - Redirecting to: ${authUrl}`);
+      console.log(`[LoginPage] Intended redirect: ${intendedRedirect}`);
       window.location.href = authUrl;
     } catch (err) {
       console.error('Fehler beim Initiieren des Grünes Netz Logins:', err);
@@ -99,9 +101,10 @@ const LoginPage = ({
     setIsAuthenticating(true);
     try {
       setLoginIntent();
-      
-      const authUrl = `${AUTH_BASE_URL}/auth/login?source=netzbegruenung-login${redirectToParam ? `&redirectTo=${encodeURIComponent(redirectToParam)}` : ''}`;
+
+      const authUrl = `${AUTH_BASE_URL}/auth/login?source=netzbegruenung-login${intendedRedirect ? `&redirectTo=${encodeURIComponent(intendedRedirect)}` : ''}`;
       console.log(`[LoginPage] Netzbegrünung Login - Redirecting to: ${authUrl}`);
+      console.log(`[LoginPage] Intended redirect: ${intendedRedirect}`);
       window.location.href = authUrl;
     } catch (err) {
       console.error('Fehler beim Initiieren des Netzbegrünung Logins:', err);
@@ -113,9 +116,10 @@ const LoginPage = ({
     setIsAuthenticating(true);
     try {
       setLoginIntent();
-      
-      const authUrl = `${AUTH_BASE_URL}/auth/login?source=gruenerator-login${redirectToParam ? `&redirectTo=${encodeURIComponent(redirectToParam)}` : ''}`;
+
+      const authUrl = `${AUTH_BASE_URL}/auth/login?source=gruenerator-login${intendedRedirect ? `&redirectTo=${encodeURIComponent(intendedRedirect)}` : ''}`;
       console.log(`[LoginPage] Grünerator Login - Redirecting to: ${authUrl}`);
+      console.log(`[LoginPage] Intended redirect: ${intendedRedirect}`);
       window.location.href = authUrl;
     } catch (err) {
       console.error('Fehler beim Initiieren des Grünerator Logins:', err);
@@ -127,9 +131,10 @@ const LoginPage = ({
     setIsAuthenticating(true);
     try {
       setLoginIntent();
-      
-      const authUrl = `${AUTH_BASE_URL}/auth/login?source=gruene-oesterreich-login${redirectToParam ? `&redirectTo=${encodeURIComponent(redirectToParam)}` : ''}`;
+
+      const authUrl = `${AUTH_BASE_URL}/auth/login?source=gruene-oesterreich-login${intendedRedirect ? `&redirectTo=${encodeURIComponent(intendedRedirect)}` : ''}`;
       console.log(`[LoginPage] Grüne Österreich Login - Redirecting to: ${authUrl}`);
+      console.log(`[LoginPage] Intended redirect: ${intendedRedirect}`);
       window.location.href = authUrl;
     } catch (err) {
       console.error('Fehler beim Initiieren des Grüne Österreich Logins:', err);
@@ -143,9 +148,11 @@ const LoginPage = ({
         <div className="auth-header auth-header--required">
           <h1 className="gradient-title">{displayPageName}</h1>
           <p className="auth-subtitle">
-            {customMessage || (displayPageName === t('pages.this_page')
-              ? t('login.subtitle')
-              : t('login.subtitle_with_page', { pageName: displayPageName })
+            {customMessage || (isMobileApp
+              ? t('login.mobile_app_subtitle', { pageName: displayPageName || 'App' })
+              : displayPageName === t('pages.this_page')
+                ? t('login.subtitle')
+                : t('login.subtitle_with_page', { pageName: displayPageName })
             )}
           </p>
         </div>
@@ -154,7 +161,7 @@ const LoginPage = ({
 
     return (
       <div className="auth-header">
-        <h1 className="gradient-title">{t('welcome_back')}</h1>
+        <h1 className="gradient-title">{isMobileApp ? t('login.mobile_welcome') : t('welcome_back')}</h1>
       </div>
     );
   };
@@ -287,7 +294,7 @@ const LoginPage = ({
 
               {isAuthenticating && (
                 <div className="auth-status-message">
-                  <p>Weiterleitung zum Login...</p>
+                  <p>{isMobileApp ? 'Zurück zur App...' : 'Weiterleitung zum Login...'}</p>
                 </div>
               )}
             </div>
@@ -333,7 +340,7 @@ const LoginPage = ({
 
           {isAuthenticating && (
             <div className="auth-status-message">
-              <p>Weiterleitung zum Login...</p>
+              <p>{isMobileApp ? 'Zurück zur App...' : 'Weiterleitung zum Login...'}</p>
             </div>
           )}
         </div>

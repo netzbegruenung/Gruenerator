@@ -347,7 +347,11 @@ class WolkeSyncService {
                 filename: file.name,
                 additionalPayload: {
                     file_size: file.size,
-                    last_modified: file.lastModified?.toISOString()
+                    last_modified: file.lastModified ?
+                        (file.lastModified instanceof Date ?
+                            file.lastModified.toISOString() :
+                            new Date(file.lastModified).toISOString()) :
+                        null
                 }
             };
             

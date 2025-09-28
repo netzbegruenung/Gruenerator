@@ -1,5 +1,5 @@
 import { useEffect, useCallback, useMemo } from 'react';
-import { useAuth } from '../../hooks/useAuth';
+import { useOptimizedAuth } from '../../hooks/useAuth';
 import { useQuery } from '@tanstack/react-query';
 import { useGeneratorKnowledgeStore } from '../../stores/core/generatorKnowledgeStore';
 import { useDocumentsStore } from '../../stores/documentsStore';
@@ -24,7 +24,7 @@ const useKnowledge = ({
   enableDocuments = false, // deprecated, use ui.enableDocuments
   ui = {}
 } = {}) => {
-  const { user, betaFeatures } = useAuth();
+  const { user, betaFeatures } = useOptimizedAuth();
   const { 
     source, 
     availableKnowledge, 

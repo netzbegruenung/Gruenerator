@@ -1,5 +1,6 @@
 //routes.js
 const antraegeRouter = require('./routes/antraege/index'); // Import the consolidated Anträge router
+const recentValuesRouter = require('./routes/recentValues'); // Import recent values router
 // const saveAntragRoute = require('./routes/antraege/saveAntrag');
 // const getMyAntraegeRouter = require('./routes/antraege/getMyAntraege');
 // const deleteAntragRouter = require('./routes/antraege/deleteAntrag');
@@ -16,6 +17,7 @@ const headlineSharepicCanvasRoute = require('./routes/sharepic/sharepic_canvas/h
 const infoSharepicCanvasRoute = require('./routes/sharepic/sharepic_canvas/info_canvas');
 const imagineLabelCanvasRoute = require('./routes/sharepic/sharepic_canvas/imagine_label_canvas');
 const sharepicClaudeRoute = require('./routes/sharepic/sharepic_claude/sharepic_claude');
+const { generateSharepicForChat } = require('./routes/chat/services/sharepicGenerationService');
 const aiImageModificationRouter = require('./routes/sharepic/sharepic_canvas/aiImageModification');
 const imageUploadRouter = require('./routes/sharepic/sharepic_canvas/imageUploadRouter');
 const processTextRouter = require('./routes/sharepic/sharepic_canvas/processTextRouter');
@@ -64,7 +66,6 @@ const databaseTestRouter = require('./routes/databaseTest'); // Database schema 
 async function setupRoutes(app) {
   // Add debug middleware to trace ALL requests before anything else
   app.use('*', (req, res, next) => {
-    console.log(`[SERVER REQUEST] ${req.method} ${req.originalUrl} - From: ${req.headers.origin || 'unknown'}`);
     next();
   });
 
@@ -136,6 +137,7 @@ async function setupRoutes(app) {
   app.use('/api/documents', documentsRouter);
   app.use('/api/bundestag', bundestagRouter);
   app.use('/api/crawl-url', crawlUrlRouter);
+  app.use('/api/recent-values', recentValuesRouter);
 
   
   // Use the single consolidated router for all /api/antraege paths
@@ -187,6 +189,38 @@ async function setupRoutes(app) {
 
   app.post('/api/default_claude', async (req, res) => {
     await sharepicClaudeRoute.handleClaudeRequest(req, res, 'default');
+  });
+
+  // Unified sharepic generation endpoint - generates complete sharepic (text + image) in one call
+  app.post('/api/generate-sharepic', async (req, res) => {
+    try {
+      const { type, ...requestBody } = req.body;
+
+      if (!type) {
+        return res.status(400).json({
+          success: false,
+          error: 'Sharepic type is required'
+        });
+      }
+
+      console.log(`[UnifiedSharepic] Generating ${type} sharepic`);
+
+      const result = await generateSharepicForChat(req, type, requestBody);
+
+      // Return the complete sharepic with consistent structure
+      res.json({
+        success: true,
+        ...result.content.sharepic,
+        metadata: result.content.metadata
+      });
+
+    } catch (error) {
+      console.error('[UnifiedSharepic] Error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message || 'Failed to generate sharepic'
+      });
+    }
   });
 
   // Zitat with Abyssale generation route - combines text generation + professional template

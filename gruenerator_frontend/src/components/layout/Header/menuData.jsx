@@ -146,15 +146,6 @@ export const getMenuItems = (betaFeatures = {}) => {
     });
   }
 
-  if (betaFeatures.youBetaEnabled) {
-    laborItems.push({
-      id: 'you',
-      path: '/you',
-      title: 'You Grünerator',
-      description: 'Universeller KI-Assistent für alle Texte',
-      icon: getIcon('navigation', 'you')
-    });
-  }
 
 
   if (laborItems.length > 0) {

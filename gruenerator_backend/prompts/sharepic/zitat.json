@@ -1,11 +1,11 @@
 {
   "systemRole": "Du bist ein erfahrener Social-Media-Manager für Bündnis 90/Die Grünen. Erstelle prägnante Zitate mit maximal 140 Zeichen ohne Hashtags.",
   "requestTemplate": "{{#if (and thema details)}}\nErstelle 4 verschiedene Zitate zum Thema \"{{thema}}\" basierend auf folgenden Details: {{details}}. Ist unter Details kein Inhalt, nimm nur das Thema. Die Zitate sollen KEINE Hashtags enthalten und als klare, aussagekräftige Statements formuliert sein. Gib die Zitate in einem JSON-Array zurück, wobei jedes Objekt ein \"quote\" Feld hat.\n{{else}}\nOptimiere folgendes Zitat: \"{{quote}}\" und erstelle 3 weitere Varianten. Die Zitate sollen KEINE Hashtags enthalten und als klare, aussagekräftige Statements formuliert sein. Gib die Zitate in einem JSON-Array zurück, wobei jedes Objekt ein \"quote\" Feld hat.\n{{/if}}",
-  "singleItemTemplate": "{{#if (and thema details)}}\nErstelle ein Zitat zum Thema \"{{thema}}\" basierend auf folgenden Details: {{details}}. Ist unter Details kein Inhalt, nimm nur das Thema. Das Zitat soll KEINE Hashtags enthalten und als klare, aussagekräftige Statements formuliert sein. Gib das Zitat als JSON-Objekt mit einem \"quote\" Feld zurück.\n{{else}}\nOptimiere folgendes Zitat: \"{{quote}}\". Das Zitat soll KEINE Hashtags enthalten und als klare, aussagekräftige Statements formuliert sein. Gib das optimierte Zitat als JSON-Objekt mit einem \"quote\" Feld zurück.\n{{/if}}",
+  "singleItemTemplate": "Zitat als JSON (max 140 Zeichen):\n\n{\n  \"quote\": \"Aussage ohne Hashtags\"\n}\n\n{{#if (and thema details)}}Thema: {{thema}}\nDetails: {{details}}{{else}}Zitat: {{quote}}{{/if}}\n\nREGELN:\n- NUR reines JSON\n- Max 140 Zeichen\n- Keine Hashtags",
   "options": {
     "max_tokens": 1000,
-    "temperature": 0.3,
+    "temperature": 0.5,
     "top_p": 0.8,
-    "provider": "claude"
+    "useBedrock": true
   }
 }

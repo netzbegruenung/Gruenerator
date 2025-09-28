@@ -43,7 +43,14 @@ import {
   HiArrowLeft,
   HiLockClosed,
   HiBeaker,
-  HiChat
+  HiChat,
+  HiMicrophone,
+  HiClipboardCheck,
+  HiUserGroup,
+  HiPencilAlt,
+  HiClipboardList,
+  HiQuestionMarkCircle,
+  HiSpeakerphone
 } from 'react-icons/hi';
 
 import { 
@@ -80,6 +87,17 @@ export const ICONS = {
     pressemitteilung: PiNewspaper,
     actionIdeas: PiMagicWand,
     reelScript: PiVideoCamera
+  },
+
+  // Text type icons for form selectors
+  textTypes: {
+    rede: HiMicrophone,
+    wahlprogramm: HiClipboardCheck,
+    buergeranfragen: HiUserGroup,
+    universal: HiPencilAlt,
+    antrag: HiClipboardList,
+    kleine_anfrage: HiQuestionMarkCircle,
+    grosse_anfrage: HiSpeakerphone
   },
 
   // Navigation icons for header menu and routing
