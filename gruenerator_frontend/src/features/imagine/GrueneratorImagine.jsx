@@ -5,7 +5,8 @@ import BaseForm from '../../components/common/BaseForm';
 import PlatformSelector from '../../components/common/PlatformSelector';
 import {
   HiPhotograph,
-  HiColorSwatch
+  HiColorSwatch,
+  HiSparkles
 } from 'react-icons/hi';
 import { useFormFields } from '../../components/common/Form/hooks';
 import FileUpload from '../../components/common/FileUpload';
@@ -29,27 +30,32 @@ import '../../assets/styles/features/imagine/image-limit-indicator.css';
 // Imagine types
 export const IMAGINE_TYPES = {
   GREEN_EDIT: 'green-edit',
-  ALLY_MAKER: 'ally-maker'
+  ALLY_MAKER: 'ally-maker',
+  UNIVERSAL: 'universal'
 };
 
 export const IMAGINE_TYPE_LABELS = {
   [IMAGINE_TYPES.GREEN_EDIT]: 'Grüne Straßengestaltung',
-  [IMAGINE_TYPES.ALLY_MAKER]: 'Ally-Maker (Regenbogen-Tattoo)'
+  [IMAGINE_TYPES.ALLY_MAKER]: 'Ally-Maker',
+  [IMAGINE_TYPES.UNIVERSAL]: 'Universal'
 };
 
 const IMAGINE_TYPE_ICONS = {
   [IMAGINE_TYPES.GREEN_EDIT]: HiPhotograph,
-  [IMAGINE_TYPES.ALLY_MAKER]: HiColorSwatch
+  [IMAGINE_TYPES.ALLY_MAKER]: HiColorSwatch,
+  [IMAGINE_TYPES.UNIVERSAL]: HiSparkles
 };
 
 const IMAGINE_TYPE_DESCRIPTIONS = {
   [IMAGINE_TYPES.GREEN_EDIT]: 'Verwandle Straßen und öffentliche Räume grün',
-  [IMAGINE_TYPES.ALLY_MAKER]: 'Füge Regenbogen-Tattoos zu Bildern hinzu'
+  [IMAGINE_TYPES.ALLY_MAKER]: 'Füge Regenbogen-Tattoos zu Bildern hinzu',
+  [IMAGINE_TYPES.UNIVERSAL]: 'Freie Bildbearbeitung nach deinen Wünschen'
 };
 
 export const IMAGINE_TYPE_TITLES = {
   [IMAGINE_TYPES.GREEN_EDIT]: 'Grünerator Imagine',
-  [IMAGINE_TYPES.ALLY_MAKER]: 'Grünerator Imagine'
+  [IMAGINE_TYPES.ALLY_MAKER]: 'Grünerator Imagine',
+  [IMAGINE_TYPES.UNIVERSAL]: 'Grünerator Imagine'
 };
 
 const GrueneratorImagine = ({ showHeaderFooter = true }) => {
@@ -71,7 +77,8 @@ const GrueneratorImagine = ({ showHeaderFooter = true }) => {
   // Separate refs for each form type
   const formRefs = useRef({
     [IMAGINE_TYPES.GREEN_EDIT]: useRef(),
-    [IMAGINE_TYPES.ALLY_MAKER]: useRef()
+    [IMAGINE_TYPES.ALLY_MAKER]: useRef(),
+    [IMAGINE_TYPES.UNIVERSAL]: useRef()
   });
   const allyMakerFormRef = formRefs.current[IMAGINE_TYPES.ALLY_MAKER];
   const currentFormRef = formRefs.current[selectedType];
@@ -137,6 +144,16 @@ const GrueneratorImagine = ({ showHeaderFooter = true }) => {
           <span key="unchanged">Person bleibt <strong>komplett unverändert</strong>: Gesicht, Haare, Ausdruck, Pose</span>,
           <span key="co2" style={{color: 'var(--warning-color, #e67e22)'}}>Bilderzeugung ist CO₂-intensiv - bitte sparsam verwenden!</span>
         ]
+      },
+      [IMAGINE_TYPES.UNIVERSAL]: {
+        precision: [
+          <span key="freedom"><strong>Freie Bildbearbeitung</strong> - beschreibe beliebige Änderungen</span>,
+          <span key="detail">Verwende <strong>detaillierte Beschreibungen</strong> für beste Ergebnisse</span>,
+          <span key="examples"><strong>Beispiele</strong>: Objekte hinzufügen/entfernen, Farben ändern, Himmel austauschen, Personen/Tiere einfügen</span>,
+          <span key="position">Gib <strong>klare Positionsangaben</strong> an: links/rechts, Vordergrund/Hintergrund</span>,
+          <span key="iterate">Starte mit einfachen Änderungen und erweitere schrittweise</span>,
+          <span key="co2" style={{color: 'var(--warning-color, #e67e22)'}}>⚠️ Bilderzeugung ist CO₂-intensiv - bitte sparsam verwenden!</span>
+        ]
       }
     };
 
@@ -151,6 +168,12 @@ const GrueneratorImagine = ({ showHeaderFooter = true }) => {
         content: "Der Ally-Maker fügt ein kleines, dezentes Regenbogen-Flaggen-Tattoo zu Fotos von Personen hinzu, um Solidarität mit der LGBTQ+ Community zu zeigen.",
         title: IMAGINE_TYPE_TITLES[selectedType],
         tips: baseTips[selectedType][isPrecisionMode ? 'precision' : 'standard']
+      };
+    } else if (selectedType === IMAGINE_TYPES.UNIVERSAL) {
+      return {
+        content: "Freie KI-gestützte Bildbearbeitung - beschreibe beliebige Änderungen und transformiere Bilder nach deinen Wünschen.",
+        title: IMAGINE_TYPE_TITLES[selectedType],
+        tips: baseTips[selectedType].precision
       };
     }
     return { content: '', title: '' };
@@ -198,7 +221,8 @@ const GrueneratorImagine = ({ showHeaderFooter = true }) => {
     setSelectedInfrastructure([]);
     setResult(null);
     setPrecisionInstruction('');
-    setIsPrecisionMode(false);
+    // Force precision mode for UNIVERSAL, otherwise reset to false
+    setIsPrecisionMode(newType === IMAGINE_TYPES.UNIVERSAL);
   }, []);
 
   // Reset form when type changes
@@ -222,6 +246,15 @@ const GrueneratorImagine = ({ showHeaderFooter = true }) => {
       if (selectedType === IMAGINE_TYPES.GREEN_EDIT) {
         if (!uploadedImage) {
           form.handleSubmitError(new Error('Bitte ein Bild auswählen.'));
+          return;
+        }
+      } else if (selectedType === IMAGINE_TYPES.UNIVERSAL) {
+        if (!uploadedImage) {
+          form.handleSubmitError(new Error('Bitte ein Bild auswählen.'));
+          return;
+        }
+        if (!precisionInstruction || precisionInstruction.trim().length < 15) {
+          form.handleSubmitError(new Error('Bitte mindestens 15 Zeichen für die Anweisungen eingeben.'));
           return;
         }
       }
@@ -253,6 +286,13 @@ const GrueneratorImagine = ({ showHeaderFooter = true }) => {
         formDataToSubmit.append('text', allyData.placement || '');
         formDataToSubmit.append('type', 'ally-maker');
         formDataToSubmit.append('precision', isPrecisionMode.toString());
+      } else if (selectedType === IMAGINE_TYPES.UNIVERSAL) {
+        // For universal mode, always use precision mode
+        formDataToSubmit = new FormData();
+        formDataToSubmit.append('image', uploadedImage);
+        formDataToSubmit.append('text', precisionInstruction);
+        formDataToSubmit.append('type', 'universal');
+        formDataToSubmit.append('precision', 'true');
       }
 
       const response = await apiClient.post('/flux/green-edit/prompt', formDataToSubmit, {
@@ -303,6 +343,25 @@ const GrueneratorImagine = ({ showHeaderFooter = true }) => {
         };
 
         form.generator.handleGeneratedContentChange(mixedContent);
+      } else if (selectedType === IMAGINE_TYPES.UNIVERSAL && data?.image?.base64) {
+        // For universal mode, format as generic image content
+        const sharepicData = {
+          image: data.image.base64,
+          text: precisionInstruction.substring(0, 100) || 'Universal Bildbearbeitung',
+          type: 'universal'
+        };
+
+        const mixedContent = {
+          sharepic: sharepicData,
+          showEditButton: false,
+          sharepicTitle: "Bearbeitetes Bild",
+          sharepicDownloadText: "Herunterladen",
+          sharepicDownloadFilename: "gruenerator_universal.png",
+          enableKiLabel: true,
+          onSharepicUpdate: updateSharepicInStore
+        };
+
+        form.generator.handleGeneratedContentChange(mixedContent);
       } else {
         form.generator.handleGeneratedContentChange('');
       }
@@ -330,6 +389,8 @@ const GrueneratorImagine = ({ showHeaderFooter = true }) => {
       return "Straße verwandeln";
     } else if (selectedType === IMAGINE_TYPES.ALLY_MAKER) {
       return "Ally-Botschaft erstellen";
+    } else if (selectedType === IMAGINE_TYPES.UNIVERSAL) {
+      return "Bild bearbeiten";
     }
     return "Generieren";
   };
@@ -351,6 +412,10 @@ const GrueneratorImagine = ({ showHeaderFooter = true }) => {
       return false;
     } else if (selectedType === IMAGINE_TYPES.ALLY_MAKER) {
       return !allyMakerFormRef.current?.isValid();
+    } else if (selectedType === IMAGINE_TYPES.UNIVERSAL) {
+      if (!uploadedImage) return true;
+      if (!precisionInstruction || precisionInstruction.trim().length < 15) return true;
+      return false;
     }
     return false;
   };
@@ -382,27 +447,34 @@ const GrueneratorImagine = ({ showHeaderFooter = true }) => {
     );
   };
 
-  const renderPrecisionToggle = () => (
-    <FeatureToggle
-      isActive={isPrecisionMode}
-      onToggle={(checked) => {
-        setIsPrecisionMode(checked);
-        if (checked) {
-          setSelectedInfrastructure([]);
-        } else {
-          setPrecisionInstruction('');
+  const renderPrecisionToggle = () => {
+    // Don't show toggle for UNIVERSAL mode - precision is always active
+    if (selectedType === IMAGINE_TYPES.UNIVERSAL) {
+      return null;
+    }
+
+    return (
+      <FeatureToggle
+        isActive={isPrecisionMode}
+        onToggle={(checked) => {
+          setIsPrecisionMode(checked);
+          if (checked) {
+            setSelectedInfrastructure([]);
+          } else {
+            setPrecisionInstruction('');
+          }
+        }}
+        label="Präzisionsmodus"
+        icon={PiCrosshair}
+        description={isPrecisionMode
+          ? "Aktiviert: Verwende detaillierte Textanweisungen für präzise Kontrolle"
+          : "Deaktiviert: Verwende vorgefertigte Optionen für schnelle Auswahl"
         }
-      }}
-      label="Präzisionsmodus"
-      icon={PiCrosshair}
-      description={isPrecisionMode
-        ? "Aktiviert: Verwende detaillierte Textanweisungen für präzise Kontrolle"
-        : "Deaktiviert: Verwende vorgefertigte Optionen für schnelle Auswahl"
-      }
-      disabled={isLoading}
-      className="precision-mode-toggle"
-    />
-  );
+        disabled={isLoading}
+        className="precision-mode-toggle"
+      />
+    );
+  };
 
   const renderGreenEditForm = () => (
     <>
@@ -417,7 +489,6 @@ const GrueneratorImagine = ({ showHeaderFooter = true }) => {
       {isPrecisionMode ? (
         <FormFieldWrapper
           label="Präzise Anweisungen"
-          helpText="Beschreibe detailliert, was wo hinzugefügt oder verändert werden soll (mindestens 10 Zeichen)"
         >
           <div>
             <TextAreaInput
@@ -429,14 +500,16 @@ const GrueneratorImagine = ({ showHeaderFooter = true }) => {
               maxLength={500}
               disabled={isLoading}
             />
-            <div style={{
-              fontSize: 'var(--font-size-small)',
-              color: 'var(--text-color-secondary)',
-              textAlign: 'right',
-              marginTop: 'var(--spacing-xsmall)'
-            }}>
-              {precisionInstruction.length}/500 Zeichen
-            </div>
+            {precisionInstruction.length >= 450 && (
+              <div style={{
+                fontSize: 'var(--font-size-small)',
+                color: 'var(--text-color-secondary)',
+                textAlign: 'right',
+                marginTop: 'var(--spacing-xsmall)'
+              }}>
+                {precisionInstruction.length}/500 Zeichen
+              </div>
+            )}
           </div>
         </FormFieldWrapper>
       ) : (
@@ -491,11 +564,52 @@ const GrueneratorImagine = ({ showHeaderFooter = true }) => {
     </>
   );
 
+  const renderUniversalForm = () => (
+    <>
+      <FileUpload
+        handleChange={handleImageChange}
+        allowedTypes={['.jpg', '.jpeg', '.png', '.webp']}
+        file={uploadedImage}
+        loading={isLoading}
+        label="Bild hochladen"
+      />
+
+      <FormFieldWrapper
+        label="Bearbeitungsanweisungen"
+        helpText="Beschreibe detailliert, was im Bild verändert werden soll (mindestens 15 Zeichen)"
+      >
+        <div>
+          <TextAreaInput
+            id="universal-instruction"
+            value={precisionInstruction}
+            onChange={(e) => setPrecisionInstruction(e.target.value)}
+            placeholder="Beschreibe präzise, welche Änderungen vorgenommen werden sollen, z.B.: 'Ersetze den Himmel durch einen Sonnenuntergang, füge einen Hund im Vordergrund hinzu...'"
+            rows={6}
+            maxLength={500}
+            disabled={isLoading}
+          />
+          {precisionInstruction.length >= 450 && (
+            <div style={{
+              fontSize: 'var(--font-size-small)',
+              color: 'var(--text-color-secondary)',
+              textAlign: 'right',
+              marginTop: 'var(--spacing-xsmall)'
+            }}>
+              {precisionInstruction.length}/500 Zeichen
+            </div>
+          )}
+        </div>
+      </FormFieldWrapper>
+    </>
+  );
+
   const renderFormInputs = () => {
     if (selectedType === IMAGINE_TYPES.GREEN_EDIT) {
       return renderGreenEditForm();
     } else if (selectedType === IMAGINE_TYPES.ALLY_MAKER) {
       return renderAllyMakerForm();
+    } else if (selectedType === IMAGINE_TYPES.UNIVERSAL) {
+      return renderUniversalForm();
     }
     return null;
   };

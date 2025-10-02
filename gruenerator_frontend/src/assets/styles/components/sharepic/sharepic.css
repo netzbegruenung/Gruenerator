@@ -231,6 +231,11 @@
     text-align: center;
 }
 
+.image-modification-controls .left-column .form-button {
+    height: 42px;
+    max-height: 42px;
+}
+
 .social-media-button:hover,
 .alttext-button:hover:not(:disabled) {
     background-color: var(--grashalm);
@@ -352,6 +357,10 @@
     color: var(--font-color);
     margin-top: 0;
     margin-bottom: 0;
+}
+
+.sharepic-base-container .form-container h3 {
+    margin-top: 0.5rem;
 }
 
 

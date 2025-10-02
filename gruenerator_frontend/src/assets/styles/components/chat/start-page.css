@@ -1,14 +1,14 @@
 .chat-startpage {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-large, 24px);
-  padding: var(--spacing-xlarge, 32px);
+  gap: var(--spacing-large);
+  padding: var(--spacing-xlarge);
   width: 100%;
   max-width: 960px;
   margin: 0 auto;
-  border-radius: var(--card-border-radius-large, 16px);
-  border: var(--card-border, 1px solid rgba(0,0,0,0.08));
-  box-shadow: var(--card-shadow-subtle, 0 8px 24px rgba(15, 23, 42, 0.08));
+  border-radius: var(--card-border-radius-large);
+  border: var(--card-border);
+  box-shadow: var(--card-shadow-subtle);
   min-height: 80vh;
   box-sizing: border-box;
 }
@@ -16,14 +16,14 @@
 .chat-startpage__hero {
   display: flex;
   align-items: flex-start;
-  gap: var(--spacing-medium, 16px);
+  gap: var(--spacing-medium);
   flex-wrap: wrap;
 }
 
 .chat-startpage__icon {
   width: 44px;
   height: 44px;
-  border-radius: 12px;
+  border-radius: var(--card-border-radius-small);
   color: var(--font-color-h);
   display: flex;
   align-items: center;
@@ -34,15 +34,15 @@
 .chat-startpage__features {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: var(--spacing-medium, 16px);
+  gap: var(--spacing-medium);
   width: 100%;
 }
 
 .chat-startpage__feature {
-  border-radius: var(--card-border-radius-medium, 12px);
-  padding: calc(var(--spacing-medium, 16px) * 1.15);
-  border: var(--card-border, 1px solid rgba(0,0,0,0.05));
-  box-shadow: var(--card-shadow-subtle, 0 4px 12px rgba(15, 23, 42, 0.06));
+  border-radius: var(--card-border-radius-medium);
+  padding: calc(var(--spacing-medium) * 1.15);
+  border: var(--card-border);
+  box-shadow: var(--card-shadow-subtle);
 }
 
 .chat-startpage__help .help-display {
@@ -55,18 +55,18 @@
 .chat-startpage__hint {
   display: flex;
   align-items: center;
-  gap: var(--spacing-small, 12px);
-  border-radius: var(--card-border-radius-medium, 12px);
-  padding: var(--spacing-small, 12px) var(--spacing-medium, 16px);
+  gap: var(--spacing-small);
+  border-radius: var(--card-border-radius-medium);
+  padding: var(--spacing-small) var(--spacing-medium);
 }
 
 .chat-startpage__hint-label {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0.1rem 0.6rem;
+  padding: var(--spacing-xxsmall) var(--spacing-small);
   border-radius: 999px;
-  font-size: 0.75rem;
+  font-size: var(--font-size-xxs);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;

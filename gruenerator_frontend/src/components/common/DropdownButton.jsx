@@ -2,14 +2,16 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import { Link } from 'react-router-dom';
-import { HiChevronDown, HiCog } from 'react-icons/hi';
+import { HiChevronDown, HiCog, HiGlobe } from 'react-icons/hi';
 import { NotebookIcon } from '../../config/icons';
 import '../../assets/styles/components/ui/dropdown-button.css';
 
-const DropdownButton = ({ 
-  onCreateNotebook, 
+const DropdownButton = ({
+  onCreateNotebook,
   onCreateCustomGenerator, // required for custom generator creation (embedded only)
-  showNotebook = false, 
+  onCreateSite,
+  showNotebook = false,
+  showSite = false,
   className = 'groups-action-button create-new-group-button',
   variant = 'navigation' // 'navigation' or 'content'
 }) => {
@@ -181,6 +183,21 @@ const DropdownButton = ({
               <span>Notebook</span>
             </button>
           )}
+
+          {showSite && (
+            <button
+              className="dropdown-button-option"
+              onClick={() => {
+                onCreateSite();
+                handleClose();
+              }}
+              aria-label="Neue Site erstellen"
+              role="menuitem"
+            >
+              <HiGlobe />
+              <span>Site</span>
+            </button>
+          )}
         </div>,
         document.body
       )}
@@ -191,7 +208,9 @@ const DropdownButton = ({
 DropdownButton.propTypes = {
   onCreateNotebook: PropTypes.func,
   onCreateCustomGenerator: PropTypes.func,
+  onCreateSite: PropTypes.func,
   showNotebook: PropTypes.bool,
+  showSite: PropTypes.bool,
   className: PropTypes.string,
   variant: PropTypes.oneOf(['navigation', 'content'])
 };

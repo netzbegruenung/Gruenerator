@@ -1,31 +1,35 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { motion } from "motion/react";
 import { useNavigate } from 'react-router-dom';
 
 // Common components
 import DropdownButton from '../../../../../../components/common/DropdownButton';
 
-// Section components (to be created)
+// Section components
 import GeneratorsSection from './components/GeneratorsSection';
 import NotebooksSection from './components/NotebooksSection';
 import GeneratorDetail from './components/GeneratorDetail';
 import NotebookDetail from './components/NotebookDetail';
 import GeneratorCreator from './components/GeneratorCreator';
 import NotebookCreator from './components/NotebookCreator';
+import SiteCreator from './components/Site/components/SiteCreator';
+import SiteEditor from './components/Site/components/SiteEditor';
+import SitePreview from './components/Site/components/SitePreview';
 
 // Hooks
 import { useMessageHandling } from '../../../../../../hooks/useMessageHandling';
 import { useBetaFeatures } from '../../../../../../hooks/useBetaFeatures';
 import { useOptimizedAuth } from '../../../../../../hooks/useAuth';
-import { 
+import {
     useCustomGeneratorsData,
     useCustomGeneratorsMutations,
-    useAvailableDocuments, 
-    useQACollections, 
-    QUERY_KEYS 
+    useAvailableDocuments,
+    useQACollections,
+    QUERY_KEYS
 } from '../../../../hooks/useProfileData';
 import { useProfileStore } from '../../../../../../stores/profileStore';
 import { useQueryClient } from '@tanstack/react-query';
+import apiClient from '../../../../../../components/utils/apiClient';
 
 // Styles for generator/notebook list buttons
 import '../../../../../generators/styles/custom-generators-tab.css';
@@ -46,6 +50,7 @@ const CustomGeneratorsView = ({
     const { user: authUser } = useOptimizedAuth();
     const { canAccessBetaFeature } = useBetaFeatures();
     const isQAEnabled = canAccessBetaFeature('qa');
+    const isSitesEnabled = canAccessBetaFeature('sites');
     
     // Message handling
     const { clearMessages } = useMessageHandling(onSuccessMessage, onErrorMessage);
@@ -54,6 +59,8 @@ const CustomGeneratorsView = ({
     const [selectedGeneratorId, setSelectedGeneratorId] = useState(initialGeneratorId);
     const [selectedQAId, setSelectedQAId] = useState(initialQAId);
     const [view, setView] = useState(initialTab);
+    const [site, setSite] = useState(null);
+    const [siteLoading, setSiteLoading] = useState(false);
     
     // View-only navigation; no separate tab controller
 
@@ -67,9 +74,30 @@ const CustomGeneratorsView = ({
     
     const availableDocuments = useAvailableDocuments();
 
-    // Remove debug logging
+    // Fetch site data
+    const fetchSite = useCallback(async () => {
+        try {
+            setSiteLoading(true);
+            const response = await apiClient.get('/sites/my-site');
+            if (response.data.site) {
+                setSite(response.data.site);
+            } else {
+                setSite(null);
+            }
+        } catch (err) {
+            console.error('[CustomGenerators] Error fetching site:', err);
+            setSite(null);
+        } finally {
+            setSiteLoading(false);
+        }
+    }, []);
 
-    // No auto-switching; stay on the selected initial view until user changes it
+    // Fetch site on mount if active and sites are enabled
+    useEffect(() => {
+        if (isActive && isSitesEnabled) {
+            fetchSite();
+        }
+    }, [isActive, isSitesEnabled, fetchSite]);
     
     // Navigation handlers
     const handleGeneratorSelect = useCallback((generatorId) => {
@@ -95,6 +123,27 @@ const CustomGeneratorsView = ({
     
     const handleCreateNotebook = useCallback(() => {
         setView('create-notebook');
+        setSelectedGeneratorId(null);
+        setSelectedQAId(null);
+        clearMessages();
+    }, [clearMessages]);
+
+    const handleSiteView = useCallback(() => {
+        setView('site-view');
+        setSelectedGeneratorId(null);
+        setSelectedQAId(null);
+        clearMessages();
+    }, [clearMessages]);
+
+    const handleCreateSite = useCallback(() => {
+        setView('create-site');
+        setSelectedGeneratorId(null);
+        setSelectedQAId(null);
+        clearMessages();
+    }, [clearMessages]);
+
+    const handleEditSite = useCallback(() => {
+        setView('edit-site');
         setSelectedGeneratorId(null);
         setSelectedQAId(null);
         clearMessages();
@@ -132,6 +181,42 @@ const CustomGeneratorsView = ({
         setView('notebooks');
         onSuccessMessage('Notebook erfolgreich erstellt.');
     }, [onSuccessMessage]);
+
+    const handleSiteCreated = useCallback(async (siteData) => {
+        try {
+            const response = await apiClient.post('/sites/create', siteData);
+            setSite(response.data.site);
+            setView('site-view');
+            onSuccessMessage('Site erfolgreich erstellt!');
+        } catch (err) {
+            onErrorMessage(err.response?.data?.error || 'Fehler beim Erstellen der Site');
+            throw err;
+        }
+    }, [onSuccessMessage, onErrorMessage]);
+
+    const handleSiteUpdated = useCallback(async (siteData) => {
+        try {
+            const response = await apiClient.put(`/sites/${site.id}`, siteData);
+            setSite(response.data.site);
+            setView('site-view');
+            onSuccessMessage('Site erfolgreich aktualisiert!');
+        } catch (err) {
+            onErrorMessage(err.response?.data?.error || 'Fehler beim Aktualisieren der Site');
+            throw err;
+        }
+    }, [site, onSuccessMessage, onErrorMessage]);
+
+    const handlePublish = useCallback(async () => {
+        try {
+            const response = await apiClient.post(`/sites/${site.id}/publish`, {
+                publish: !site.is_published
+            });
+            setSite(response.data.site);
+            onSuccessMessage(response.data.site.is_published ? 'Site veröffentlicht!' : 'Site unveröffentlicht');
+        } catch (err) {
+            onErrorMessage('Fehler beim Veröffentlichen der Site');
+        }
+    }, [site, onSuccessMessage, onErrorMessage]);
     
     // QA navigation handler
     const handleViewQA = useCallback((qaId) => {
@@ -156,19 +241,20 @@ const CustomGeneratorsView = ({
                                 <section className="group-overview-section">
                                     <p>
                                         Hier findest du alle von dir erstellten benutzerdefinierten Grüneratoren
-                                        {isQAEnabled ? ' und Notebooks' : ''}. Du kannst neue Grüneratoren erstellen,
+                                        {isQAEnabled ? ', Notebooks' : ''} und deine Web-Visitenkarte. Du kannst neue Grüneratoren erstellen,
                                         bestehende ansehen und sie direkt nutzen.
                                         {isQAEnabled ? ' Zusätzlich kannst du intelligente Notebook-Systeme basierend auf deinen Dokumenten erstellen.' : ''}
+                                        {' '}Erstelle auch deine eigene One-Page-Site unter deiner Subdomain.
                                     </p>
                                     <p>
                                         Wähle oben einen Tab, um deine Inhalte zu verwalten, oder erstelle neue
-                                        Custom Grüneratoren{isQAEnabled ? ' und Notebooks' : ''} nach deinen Vorstellungen.
+                                        Custom Grüneratoren{isQAEnabled ? ', Notebooks' : ''}{isSitesEnabled ? ' oder deine Site' : ''} nach deinen Vorstellungen.
                                     </p>
                                 </section>
-                                {(!generators || generators.length === 0) && (!isQAEnabled || !qaCollections || qaCollections.length === 0) && (
+                                {(!generators || generators.length === 0) && (!isQAEnabled || !qaCollections || qaCollections.length === 0) && (!isSitesEnabled || !site) && (
                                     <section className="group-overview-section">
                                         <p>
-                                            Du hast noch keine eigenen Grüneratoren{isQAEnabled ? ' oder Notebooks' : ''} erstellt. 
+                                            Du hast noch keine eigenen Grüneratoren{isQAEnabled ? ', Notebooks' : ''}{isSitesEnabled ? ' oder Site' : ''} erstellt.
                                             Nutze die Tabs oben, um deine ersten Inhalte zu erstellen!
                                         </p>
                                     </section>
@@ -261,7 +347,59 @@ const CustomGeneratorsView = ({
                         availableDocuments={availableDocuments.data}
                     />
                 );
-            
+
+            case 'site-view':
+                return (
+                    <div className="profile-content-card">
+                        <div className="profile-info-panel">
+                            <SitePreview
+                                site={site}
+                                onEdit={handleEditSite}
+                                onPublish={handlePublish}
+                            />
+                        </div>
+                    </div>
+                );
+
+            case 'create-site':
+                return (
+                    <div className="profile-content-card">
+                        <div className="profile-info-panel">
+                            <div className="profile-header-section">
+                                <div className="group-title-area">
+                                    <h2 className="profile-user-name large-profile-title">
+                                        Neue Site erstellen
+                                    </h2>
+                                </div>
+                            </div>
+                            <SiteCreator
+                                onSubmit={handleSiteCreated}
+                                onCancel={handleSiteView}
+                            />
+                        </div>
+                    </div>
+                );
+
+            case 'edit-site':
+                return (
+                    <div className="profile-content-card">
+                        <div className="profile-info-panel">
+                            <div className="profile-header-section">
+                                <div className="group-title-area">
+                                    <h2 className="profile-user-name large-profile-title">
+                                        Site bearbeiten
+                                    </h2>
+                                </div>
+                            </div>
+                            <SiteEditor
+                                site={site}
+                                onSubmit={handleSiteUpdated}
+                                onCancel={handleSiteView}
+                            />
+                        </div>
+                    </div>
+                );
+
             default:
                 return <div>Content nicht gefunden</div>;
         }
@@ -325,11 +463,27 @@ const CustomGeneratorsView = ({
                         </>
                     )}
 
+                    {isSitesEnabled && site && (
+                        <button
+                            className={`profile-vertical-tab site-tab ${view === 'site-view' || view === 'edit-site' ? 'active' : ''}`}
+                            onClick={handleSiteView}
+                            role="tab"
+                            aria-selected={view === 'site-view' || view === 'edit-site'}
+                            aria-controls="site-panel"
+                            id="site-tab"
+                            aria-label={`Site ${site.site_title || site.subdomain}`}
+                        >
+                            <span>{site.site_title || site.subdomain}</span>
+                        </button>
+                    )}
+
                     <div className="create-new-options">
                         <DropdownButton
                             onCreateNotebook={handleCreateNotebook}
                             onCreateCustomGenerator={handleCreateGenerator}
+                            onCreateSite={site ? null : handleCreateSite}
                             showNotebook={isQAEnabled}
+                            showSite={isSitesEnabled && !site}
                             variant="navigation"
                         />
                     </div>

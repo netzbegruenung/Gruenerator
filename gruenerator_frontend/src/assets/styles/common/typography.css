@@ -35,6 +35,78 @@
     font-display: swap;
 }
 
+@font-face {
+    font-family: 'Raleway';
+    src: url('../../fonts/Raleway-Thin.woff') format('woff');
+    font-weight: 100;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Raleway';
+    src: url('../../fonts/Raleway-Light.woff') format('woff');
+    font-weight: 300;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Raleway';
+    src: url('../../fonts/Raleway-Regular.woff') format('woff');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Raleway';
+    src: url('../../fonts/Raleway-Italic.woff') format('woff');
+    font-weight: 400;
+    font-style: italic;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Raleway';
+    src: url('../../fonts/Raleway-Medium.woff') format('woff');
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Raleway';
+    src: url('../../fonts/Raleway-MediumItalic.woff') format('woff');
+    font-weight: 500;
+    font-style: italic;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Raleway';
+    src: url('../../fonts/Raleway-SemiBold.woff') format('woff');
+    font-weight: 600;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Raleway';
+    src: url('../../fonts/Raleway-SemiBoldItalic.woff') format('woff');
+    font-weight: 600;
+    font-style: italic;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Raleway';
+    src: url('../../fonts/Raleway-Bold.woff') format('woff');
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
+
 /* Typography Scale - Fluid responsive font sizes */
 :root {
     --font-size-base: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);
@@ -131,21 +203,15 @@ body {
     -moz-osx-font-smoothing: grayscale;
 }
 
-h1, h2 {
-    font-family: 'GrueneType', Arial, sans-serif;
-    color: var(--font-color-h);
-}
-
 /* Gradient Title Classes - Reusable gradient text styling */
 .gradient-title {
     background: linear-gradient(135deg, var(--primary) 0%, var(--klee) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    color: var(--font-color-h); /* Fallback for browsers that don't support gradient text */
+    color: var(--font-color-h);
 }
 
-/* Dark mode handling for gradient titles */
 [data-theme="dark"] .gradient-title {
     background: none;
     -webkit-text-fill-color: var(--secondary);
@@ -160,15 +226,31 @@ h1, h2 {
     }
 }
 
+/* Heading Hierarchy - Raleway for headings, PT Sans for body */
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'Raleway', 'PT Sans', Arial, sans-serif;
+    margin: 0;
+    letter-spacing: -0.01em;
+}
+
+p, li, div, span {
+    font-family: 'PT Sans', Arial, sans-serif;
+}
+
 h1 {
     font-size: var(--font-size-4xl);
+    font-weight: 700;
     line-height: var(--line-height-tight);
+    color: var(--font-color-h);
     margin: 0 0 0.5em 0;
+    letter-spacing: -0.02em;
 }
 
 h2 {
     font-size: var(--font-size-3xl);
+    font-weight: 600;
     line-height: var(--line-height-tight);
+    color: var(--font-color-h);
     margin: 1.5em 0 0.5em 0;
 }
 
@@ -177,10 +259,10 @@ h2:first-child {
 }
 
 h3 {
-    font-family: 'GrueneType', Arial, sans-serif;
-    color: var(--font-color-h3);
     font-size: var(--font-size-2xl);
+    font-weight: 600;
     line-height: var(--line-height-snug);
+    color: var(--font-color-h3);
     margin: 1.5em 0 0.5em 0;
 }
 
@@ -189,11 +271,10 @@ h3:first-child {
 }
 
 h4 {
-    font-family: 'GrueneType', Arial, sans-serif;
-    color: var(--font-color-h3);
     font-size: var(--font-size-xl);
+    font-weight: 500;
     line-height: var(--line-height-snug);
-    font-weight: normal;
+    color: var(--font-color-h3);
     margin: 1.25em 0 0.5em 0;
 }
 
@@ -202,11 +283,10 @@ h4:first-child {
 }
 
 h5 {
-    font-family: 'PT Sans', Arial, sans-serif;
-    color: var(--font-color);
     font-size: var(--font-size-lg);
+    font-weight: 500;
     line-height: var(--line-height-normal);
-    font-weight: 600;
+    color: var(--font-color);
     margin: 1em 0 0.5em 0;
 }
 
@@ -215,12 +295,13 @@ h5:first-child {
 }
 
 h6 {
-    font-family: 'PT Sans', Arial, sans-serif;
-    color: var(--font-color-subtle);
     font-size: var(--font-size-md);
+    font-weight: 400;
     line-height: var(--line-height-normal);
-    font-weight: 500;
+    color: var(--font-color-subtle);
     margin: 1em 0 0.5em 0;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
 }
 
 h6:first-child {

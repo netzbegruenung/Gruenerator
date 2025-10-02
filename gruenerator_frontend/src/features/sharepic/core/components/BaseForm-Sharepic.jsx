@@ -222,10 +222,10 @@ const BaseForm = ({
         <div className="button-wrapper">
           <SloganAlternativesButton {...fileUploadProps.alternativesButtonProps} buttonText={formData.type === 'Zitat' ? "Andere Zitate" : "Anderer Slogan"} />
         </div>
-        {(formData.type === 'Dreizeilen' || formData.type === 'Zitat') && (
+        {formData.type === 'Dreizeilen' && (
           <>
             <div className="button-wrapper">
-              <UnsplashButton 
+              <UnsplashButton
                 searchTerms={formData.searchTerms}
               />
             </div>
@@ -233,6 +233,11 @@ const BaseForm = ({
               <FileUpload {...fileUploadProps} buttonText="Upload" />
             </div>
           </>
+        )}
+        {formData.type === 'Zitat' && (
+          <div className="button-wrapper">
+            <FileUpload {...fileUploadProps} buttonText="Upload" />
+          </div>
         )}
       </div>
       <div className="button-container">

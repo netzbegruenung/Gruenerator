@@ -73,7 +73,6 @@
   font-size: 1.2rem;
   color: var(--font-color-h);
   margin: 0;
-  font-family: 'GrueneType', Arial, sans-serif;
   transition: color 0.25s ease-out;
 }
 

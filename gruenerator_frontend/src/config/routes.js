@@ -23,6 +23,7 @@ const JoinGroupPage = lazy(() => import('../features/groups/pages/JoinGroupPage'
 const Home = lazy(() => import('../components/pages/Startseite'));
 const Datenschutz = lazy(() => import('../components/pages/Impressum_Datenschutz_Terms/Datenschutz'));
 const Impressum = lazy(() => import('../components/pages/Impressum_Datenschutz_Terms/Impressum'));
+const Support = lazy(() => import('../components/pages/Impressum_Datenschutz_Terms/Support'));
 const NotFound = lazy(() => import('../components/pages/NotFound'));
 const Search = lazy(() => import('../features/search/components/SearchPage'));
 const BundestagSearch = lazy(() => import('../features/bundestag/components/BundestagSearchPage'));
@@ -145,6 +146,7 @@ const standardRoutes = [
   { path: '/gruenerator/:slug', component: GrueneratorenBundle.CustomGenerator, withForm: true },
   { path: '/datenschutz', component: Datenschutz },
   { path: '/impressum', component: Impressum },
+  { path: '/support', component: Support },
   // Auth-Routen (only components still used after Authentic integration)
   { path: '/login', component: LoginPage },
   { path: '/register', component: RegistrationPage },
