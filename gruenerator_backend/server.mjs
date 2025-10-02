@@ -493,8 +493,9 @@ if (cluster.isMaster) {
 
   // === Subdomain Handler for Sites ===
   // WICHTIG: Muss vor setupRoutes kommen!
-  const { subdomainHandler } = await import('./middleware/subdomainHandler.js');
-  app.use(subdomainHandler);
+  // TEMPORARILY DISABLED FOR DEBUGGING
+  // const { subdomainHandler } = await import('./middleware/subdomainHandler.js');
+  // app.use(subdomainHandler);
   // === Ende Subdomain Handler ===
 
   // === TUS Upload Handler ===
@@ -571,13 +572,14 @@ if (cluster.isMaster) {
   }));
 
   // Handle subdomain public sites BEFORE SPA routing
-  const { default: publicSiteRouter } = await import('./routes/publicSite.mjs');
-  app.use((req, res, next) => {
-    if (req.siteData) {
-      return publicSiteRouter(req, res, next);
-    }
-    next();
-  });
+  // TEMPORARILY DISABLED FOR DEBUGGING
+  // const { default: publicSiteRouter } = await import('./routes/publicSite.mjs');
+  // app.use((req, res, next) => {
+  //   if (req.siteData) {
+  //     return publicSiteRouter(req, res, next);
+  //   }
+  //   next();
+  // });
 
   // SPA-Routing: Alle anderen Anfragen zu index.html
   app.get('*', (req, res, next) => {
