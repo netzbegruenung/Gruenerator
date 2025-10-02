@@ -16,7 +16,6 @@
 }
 
 .page-header__title {
-    font-family: 'GrueneType', Arial, sans-serif;
     font-size: clamp(2rem, 5vw, 4rem);
     color: var(--font-color-h);
     line-height: 1.2;

@@ -28,6 +28,7 @@ import { prepareFilesForSubmission } from '../../../utils/fileAttachmentUtils';
 import { HiGlobeAlt } from 'react-icons/hi';
 import { useUrlCrawler } from '../../../hooks/useUrlCrawler';
 import SmartInput from '../../../components/common/Form/SmartInput';
+import { getIcon } from '../../../config/icons';
 
 const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   const componentName = 'presse-social';
@@ -55,7 +56,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
       { id: 'pressemitteilung', label: 'Pressemitteilung', icon: <Icon category="platforms" name="pressemitteilung" size={16} /> },
       { id: 'instagram', label: 'Instagram', icon: <Icon category="platforms" name="instagram" size={16} /> },
       { id: 'facebook', label: 'Facebook', icon: <Icon category="platforms" name="facebook" size={16} /> },
-      { id: 'twitter', label: 'Twitter/X, Mastodon & Bluesky', icon: <Icon category="platforms" name="twitter" size={16} /> },
+      { id: 'twitter', label: 'Twitter/X, Mastodon & Bsky', icon: <Icon category="platforms" name="twitter" size={16} /> },
       { id: 'linkedin', label: 'LinkedIn', icon: <Icon category="platforms" name="linkedin" size={16} /> },
       { id: 'sharepic', label: 'Sharepic', icon: <Icon category="platforms" name="sharepic" size={16} /> },
       { id: 'actionIdeas', label: 'Aktionsideen', icon: <Icon category="platforms" name="actionIdeas" size={16} /> },

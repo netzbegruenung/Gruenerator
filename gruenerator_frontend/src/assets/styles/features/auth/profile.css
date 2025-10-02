@@ -15,7 +15,6 @@
 
 .profile-header h1 {
   color: var(--font-color-h);
-  font-family: 'GrueneType', Arial, sans-serif;
   margin-bottom: var(--spacing-small);
 }
 

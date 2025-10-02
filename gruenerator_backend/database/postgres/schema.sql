@@ -56,6 +56,8 @@ CREATE TABLE IF NOT EXISTS profiles (
     content_management BOOLEAN DEFAULT FALSE,
     canva BOOLEAN DEFAULT FALSE,
     labor_enabled BOOLEAN DEFAULT FALSE,
+    sites BOOLEAN DEFAULT FALSE,
+    chat BOOLEAN DEFAULT FALSE,
     nextcloud_share_links JSONB DEFAULT '[]',
     -- Document mode preference
     document_mode TEXT DEFAULT 'manual' -- 'manual' or 'wolke'
@@ -671,3 +673,50 @@ CREATE TRIGGER cleanup_recent_values_trigger
     AFTER INSERT ON user_recent_values
     FOR EACH ROW
     EXECUTE FUNCTION cleanup_recent_values();
+
+-- User sites table (Web-Visitenkarte)
+CREATE TABLE IF NOT EXISTS user_sites (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+    subdomain TEXT UNIQUE NOT NULL,
+    is_published BOOLEAN DEFAULT FALSE,
+    -- Basic Info
+    site_title TEXT NOT NULL,
+    tagline TEXT,
+    bio TEXT,
+    -- Contact Info
+    contact_email TEXT,
+    contact_phone TEXT,
+    contact_website TEXT,
+    -- Social Links
+    social_links JSONB DEFAULT '{}',
+    -- Visual Settings
+    theme TEXT DEFAULT 'gruene',
+    accent_color TEXT DEFAULT '#46962b',
+    profile_image TEXT,
+    background_image TEXT,
+    -- Content Sections
+    sections JSONB DEFAULT '[]',
+    -- Meta
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    last_published TIMESTAMPTZ,
+    visit_count INTEGER DEFAULT 0,
+    -- SEO
+    meta_description TEXT,
+    meta_keywords TEXT[]
+);
+
+-- Create indexes for user_sites
+CREATE INDEX IF NOT EXISTS idx_user_sites_user_id ON user_sites(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_sites_subdomain ON user_sites(subdomain);
+CREATE INDEX IF NOT EXISTS idx_user_sites_published ON user_sites(is_published);
+
+-- Add sites feature flag to profiles
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS sites_enabled BOOLEAN DEFAULT TRUE;
+
+-- Add trigger for user_sites updated_at
+CREATE TRIGGER update_user_sites_updated_at
+    BEFORE UPDATE ON user_sites
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();

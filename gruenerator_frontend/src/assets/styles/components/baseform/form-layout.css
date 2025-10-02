@@ -170,6 +170,12 @@
   margin-bottom: 0;
 }
 
+/* Add spacing between multiple children within a single extras item */
+.form-extras__first > *:not(:last-child),
+.form-extras__item > *:not(:last-child) {
+  margin-bottom: var(--spacing-medium);
+}
+
 
 .form-extras__notice {
   border-radius: var(--card-border-radius-small);
@@ -201,10 +207,6 @@
 
 .form-extras__submit-button {
   width: 100%;
-  border: 0px solid var(--font-color-h) ;
-  color: var(--weiß);
-  background-color: var(--klee);
-  border-radius: 20px;
 }
 
 /* Form Field Layouts */

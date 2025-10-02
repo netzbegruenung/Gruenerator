@@ -168,13 +168,14 @@
   overflow: hidden;
   padding: var(--button-padding, 10px 20px);
   border: none;
-  border-radius: var(--button-border-radius, 5px);
+  border-radius: 72px;
   font-size: var(--button-font-size, 1em);
   cursor: pointer;
-  background: var(--secondary-600);
+  background: var(--primary-600);
   color: var(--weiß);
   transition: all 0.25s ease-out;
   z-index: 1;
+  opacity: 1;
 }
 
 .submit-button__gradient-layer {
@@ -189,23 +190,23 @@
 }
 
 .submit-button__gradient-layer--1 {
-  background: linear-gradient(45deg, var(--primary-500) 0%, var(--secondary-600) 50%, var(--secondary-600) 100%);
+  background: linear-gradient(45deg, var(--primary-600) 0%, var(--klee) 50%, var(--primary-600) 100%);
 }
 
 .submit-button__gradient-layer--2 {
-  background: linear-gradient(135deg, var(--secondary-600) 0%, var(--primary-600) 50%, var(--secondary-600) 100%);
+  background: linear-gradient(135deg, var(--primary-600) 0%, var(--klee) 50%, var(--primary-600) 100%);
 }
 
 .submit-button__gradient-layer--3 {
-  background: linear-gradient(225deg, var(--primary-400) 0%, var(--secondary-500) 50%, var(--primary-600) 100%);
+  background: linear-gradient(225deg, var(--klee) 0%, var(--primary-600) 50%, var(--klee) 100%);
 }
 
 .submit-button__gradient-layer--4 {
-  background: linear-gradient(315deg, var(--secondary-600) 0%, var(--primary-500) 50%, var(--secondary-600) 100%);
+  background: linear-gradient(315deg, var(--primary-600) 0%, var(--klee) 50%, var(--primary-600) 100%);
 }
 
 .submit-button__gradient-layer--5 {
-  background: linear-gradient(90deg, var(--secondary-600) 0%, var(--primary-600) 25%, var(--secondary-600) 50%, var(--primary-600) 75%, var(--secondary-600) 100%);
+  background: linear-gradient(90deg, var(--primary-600) 0%, var(--klee) 25%, var(--primary-600) 50%, var(--klee) 75%, var(--primary-600) 100%);
 }
 
 .submit-button__content-wrapper {

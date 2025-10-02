@@ -194,6 +194,12 @@ const EnhancedKnowledgeSelector = ({
   // State for current search term to trigger re-sorting
   const [currentSearchTerm, setCurrentSearchTerm] = useState('');
 
+  // Helper function to truncate long titles
+  const truncateTitle = useCallback((title, maxLength = 80) => {
+    if (!title || title.length <= maxLength) return title;
+    return title.substring(0, maxLength) + '...';
+  }, []);
+
   // Relevance scoring function for search ranking
   const calculateRelevanceScore = useCallback((option, searchTerm) => {
     if (!searchTerm) return 0;
@@ -266,7 +272,7 @@ const EnhancedKnowledgeSelector = ({
     if (enableKnowledge && availableKnowledge.length > 0) {
       const userKnowledgeItems = availableKnowledge.map(item => ({
         value: `knowledge_${item.id}`,
-        label: item.title,
+        label: truncateTitle(item.title),
         iconType: item.type || 'knowledge',
         tag: { label: 'Mein Profil', variant: 'user' },
         itemType: 'knowledge',
@@ -284,13 +290,12 @@ const EnhancedKnowledgeSelector = ({
         .filter(doc => doc.status === 'completed')
         .map(doc => ({
           value: `document_${doc.id}`,
-          label: doc.title,
+          label: truncateTitle(doc.title),
           iconType: 'user_document',
           tag: { label: 'Mein Profil', variant: 'user' },
           itemType: 'document',
           originalId: doc.id,
           sourceType: 'user',
-          subtitle: doc.filename,
           searchableContent: `${doc.title} ${doc.filename || ''} ${doc.ocr_text || ''}`.toLowerCase(),
           created_at: doc.created_at || null
         }));
@@ -301,13 +306,12 @@ const EnhancedKnowledgeSelector = ({
     if (enableTexts && availableTexts.length > 0) {
       const userTextItems = availableTexts.map(text => ({
         value: `text_${text.id}`,
-        label: text.title,
+        label: truncateTitle(text.title),
         iconType: 'user_text',
         tag: { label: 'Mein Profil', variant: 'user' },
         itemType: 'text',
         originalId: text.id,
         sourceType: 'user',
-        subtitle: text.type || 'Text',
         searchableContent: `${text.title} ${text.type || ''} ${text.full_content || text.content || ''}`.toLowerCase(),
         created_at: text.created_at || null
       }));
@@ -329,7 +333,7 @@ const EnhancedKnowledgeSelector = ({
           return {
             ...baseItem,
             value: `group_knowledge_${item.id}`,
-            label: item.title,
+            label: truncateTitle(item.title),
             iconType: 'group_knowledge',
             itemType: 'knowledge',
             searchableContent: `${item.title} ${item.content || ''}`.toLowerCase()
@@ -338,20 +342,18 @@ const EnhancedKnowledgeSelector = ({
           return {
             ...baseItem,
             value: `group_document_${item.id}`,
-            label: item.title,
+            label: truncateTitle(item.title),
             iconType: 'group_document',
             itemType: 'document',
-            subtitle: item.filename,
             searchableContent: `${item.title} ${item.filename || ''} ${item.ocr_text || ''}`.toLowerCase()
           };
         } else {
           return {
             ...baseItem,
             value: `group_text_${item.id}`,
-            label: item.title,
+            label: truncateTitle(item.title),
             iconType: 'group_text',
             itemType: 'text',
-            subtitle: item.type || 'Text',
             searchableContent: `${item.title} ${item.type || ''} ${item.full_content || item.content || ''}`.toLowerCase()
           };
         }
@@ -360,7 +362,7 @@ const EnhancedKnowledgeSelector = ({
     }
     
     return allOptions;
-  }, [enableKnowledge, enableDocuments, enableTexts, availableKnowledge, documentsStoreData, availableTexts, allGroupContent]);
+  }, [enableKnowledge, enableDocuments, enableTexts, availableKnowledge, documentsStoreData, availableTexts, allGroupContent, truncateTitle]);
 
   // Sorted and filtered options based on current search term
   const knowledgeOptions = useMemo(() => {
@@ -486,7 +488,7 @@ const EnhancedKnowledgeSelector = ({
         className="enhanced-knowledge-select"
         enableTags={true}
         enableIcons={true}
-        enableSubtitles={true}
+        enableSubtitles={false}
         isMulti
         options={knowledgeOptions}
         // Allow placeholder to hyphenate and wrap: Aus­wählen (soft hyphen)

@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from "motion/react";
 import FeatureToggle from '../../../../components/common/FeatureToggle';
-import { HiOutlineExternalLink, HiOutlineGlobe, HiOutlineUserGroup, HiOutlineDatabase, HiOutlineCog, HiOutlinePhotograph, HiOutlineAcademicCap, HiOutlineUser, HiOutlineUsers, HiOutlineOfficeBuilding, HiChip } from 'react-icons/hi';
+import { HiOutlineExternalLink, HiOutlineGlobe, HiOutlineUserGroup, HiOutlineDatabase, HiOutlineCog, HiOutlinePhotograph, HiOutlineAcademicCap, HiOutlineUser, HiOutlineUsers, HiOutlineOfficeBuilding, HiChip, HiOutlineIdentification } from 'react-icons/hi';
 import { NotebookIcon } from '../../../../config/icons';
 import { useBetaFeatures } from '../../../../hooks/useBetaFeatures';
 
@@ -30,6 +30,7 @@ const LaborTab = ({
     MEMORY: 'memory',
     CANVA: 'canva',
     CHAT: 'chat',
+    SITES: 'sites',
   };
 
   const handleBetaToggle = (setter, currentValue, featureName) => {
@@ -160,6 +161,16 @@ const LaborTab = ({
           linkTo: '/chat',
           linkText: 'Zum Chat-Assistenten',
           icon: HiChip
+        };
+      case BETA_VIEWS.SITES:
+        return {
+          title: 'Web-Visitenkarte',
+          description: 'Erstelle deine eigene One-Page-Website auf einer persönlichen Subdomain (grsites.de). Perfekt für persönliche Vorstellung, Kontaktdaten und Social Media Links.',
+          checked: getBetaFeatureState('sites'),
+          setter: (value) => updateUserBetaFeatures('sites', value),
+          featureName: 'Web-Visitenkarte',
+          checkboxLabel: 'Sites-Funktion in Meine Grüneratoren aktivieren',
+          icon: HiOutlineIdentification
         };
       default:
         return null;
