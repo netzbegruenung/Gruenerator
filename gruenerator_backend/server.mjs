@@ -168,7 +168,9 @@ if (cluster.isMaster) {
 
   const corsOptions = {
     origin: function (origin, callback) {
-      if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
+      // Remove trailing slash from origin if present for comparison
+      const normalizedOrigin = origin?.replace(/\/$/, '');
+      if (allowedOrigins.indexOf(normalizedOrigin) !== -1 || !origin) {
         callback(null, true);
       } else {
         callback(new Error('Not allowed by CORS'));
@@ -427,12 +429,12 @@ if (cluster.isMaster) {
     store: new RedisStore({ client: redisClient }),
     secret: process.env.SESSION_SECRET || 'fallback-secret-please-change',
     resave: false,
-    saveUninitialized: false,
+    saveUninitialized: true, // Changed to true to support anonymous user rate limiting
     name: 'gruenerator.sid', // Custom session name to avoid conflicts
     cookie: {
       secure: process.env.NODE_ENV === 'production',
       httpOnly: true,
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days (extended for anonymous session tracking)
       sameSite: 'lax', // Use 'lax' for OAuth flows - 'strict' blocks cross-site redirects from Keycloak
       domain: process.env.NODE_ENV === 'production' ? undefined : undefined, // Don't set domain in development
       path: '/' // Ensure cookie is available for all paths
@@ -479,6 +481,12 @@ if (cluster.isMaster) {
       uptime: process.uptime()
     });
   });
+
+  // === Subdomain Handler for Sites ===
+  // WICHTIG: Muss vor setupRoutes kommen!
+  const { subdomainHandler } = await import('./middleware/subdomainHandler.js');
+  app.use(subdomainHandler);
+  // === Ende Subdomain Handler ===
 
   // === TUS Upload Handler ===
   // WICHTIG: Muss VOR setupRoutes und VOR den statischen Fallbacks stehen!
@@ -553,13 +561,22 @@ if (cluster.isMaster) {
     extensions: ['html', 'js', 'css', 'png', 'jpg', 'gif', 'svg', 'ico']
   }));
 
+  // Handle subdomain public sites BEFORE SPA routing
+  const { default: publicSiteRouter } = await import('./routes/publicSite.mjs');
+  app.use((req, res, next) => {
+    if (req.siteData) {
+      return publicSiteRouter(req, res, next);
+    }
+    next();
+  });
+
   // SPA-Routing: Alle anderen Anfragen zu index.html
   app.get('*', (req, res, next) => {
     // API-Routen ignorieren
     if (req.path.startsWith('/api')) {
       return next(); // Ensure next() is called for API routes
     }
-    
+
     const indexPath = path.join(staticFilesPath, 'index.html');
     if (fs.existsSync(indexPath)) {
       res.sendFile(indexPath);

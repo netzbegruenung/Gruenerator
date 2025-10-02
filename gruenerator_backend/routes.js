@@ -59,6 +59,7 @@ const imageGenerationRouter = require('./routes/imageGeneration'); // Import the
 const exportDocumentsRouter = require('./routes/exportDocuments'); // Server-side DOCX/PDF export
 const markdownRouter = require('./routes/markdown'); // Server-side markdown conversion
 const databaseTestRouter = require('./routes/databaseTest'); // Database schema test route
+const rateLimitRouter = require('./routes/rateLimit'); // Universal rate limiting status API
 // mem0Router will be imported dynamically like auth routes
 // Auth routes will be imported dynamically
 
@@ -343,6 +344,7 @@ async function setupRoutes(app) {
   // DEPRECATED: Legacy SearXNG endpoint - use /api/search instead
   app.use('/api/web-search', webSearchRouter); // TODO: Remove after migration
   app.use('/api/image-generation', imageGenerationRouter);
+  app.use('/api/rate-limit', rateLimitRouter); // Universal rate limiting status API for all resource types
   app.use('/api/exports', exportDocumentsRouter);
   app.use('/api/markdown', markdownRouter);
   app.use('/api/database', databaseTestRouter);
@@ -370,6 +372,11 @@ async function setupRoutes(app) {
   app.use('/api/abyssale', abyssaleRouter);
   console.log('[Setup] Abyssale routes registered');
 
+  // Add Sites routes (Web-Visitenkarte)
+  const { default: sitesRouter } = await import('./routes/sites.mjs');
+  const { default: publicSiteRouter } = await import('./routes/publicSite.mjs');
+  app.use('/api/sites', sitesRouter);
+  console.log('[Setup] Sites routes registered');
 
   // Add Flux greener edit prompt route (ES module)
   const { default: fluxGreenEditPrompt } = await import('./routes/flux/greenEditPrompt.js');

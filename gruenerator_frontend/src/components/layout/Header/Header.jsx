@@ -6,7 +6,7 @@ import ProfileButton from './ProfileButton';
 import ThemeToggleButton from './ThemeToggleButton';
 import useDarkMode from '../../hooks/useDarkMode';
 import useAccessibility from '../../hooks/useAccessibility';
-import { getMenuItems, getDirectMenuItems, MenuItem, menuStyles, handleMenuInteraction } from './menuData';
+import { getMenuItems, getDirectMenuItems, MenuItem, menuStyles } from './menuData';
 import Icon from '../../common/Icon';
 
 import { useLazyAuth } from '../../../hooks/useAuth';
@@ -211,9 +211,9 @@ const Header = () => {
             <div className="header-container">
                 <div className="header-logo">
                     <Link to="/" aria-label="Zur Startseite">
-                        <img 
-                            src={darkMode ? "/images/Logo_Sand.svg" : "/images/Logo_Grün.svg"} 
-                            alt="Grünerator Logo" 
+                        <img
+                            src={darkMode ? "/images/gruenerator_logo_weiß.svg" : "/images/gruenerator_logo_grün.svg"}
+                            alt="Grünerator Logo"
                         />
                     </Link>
                 </div>

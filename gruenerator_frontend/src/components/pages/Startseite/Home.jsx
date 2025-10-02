@@ -218,7 +218,7 @@ const Home = () => {
               <div className="use-case-icon">
                 <Icon category="actions" name="lock" />
               </div>
-              <h3>Hier bist du sicher!</h3>
+              <h3>Sicherheit</h3>
               <p>Deine Daten werden sicher in Europa verarbeitet und nicht für KI-Training verwendet.</p>
             </div>
           </div>

@@ -26,7 +26,7 @@ const EditorMaintenancePopup = ({ isVisible, onClose }) => {
               <strong>Voraussichtliche Rückkehr:</strong> 3. Quartal 2025
             </p>
             <p>
-              In der Zwischenzeit nutze bitte den <strong>Grünerator Docs Export</strong> für deine Textbearbeitung.
+              In der Zwischenzeit nutze bitte den <strong>Textbegrünung Export</strong> für deine Textbearbeitung.
             </p>
           </div>
         </div>

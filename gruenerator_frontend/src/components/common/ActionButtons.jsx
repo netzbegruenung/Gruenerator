@@ -249,6 +249,12 @@ const ActionButtons = ({
           {showEditMode && activeContent && (onRequestEdit || onEditModeToggle) && (
             <button
               onClick={() => {
+                console.log('[ActionButtons] Edit button clicked', {
+                  showEditMode,
+                  isEditModeActive,
+                  hasOnRequestEdit: !!onRequestEdit,
+                  hasOnEditModeToggle: !!onEditModeToggle
+                });
                 if (onRequestEdit) {
                   onRequestEdit();
                 } else if (onEditModeToggle) {

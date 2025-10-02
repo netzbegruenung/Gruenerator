@@ -9,7 +9,10 @@ const DEFAULTS = {
   refresh: { label: 'Aktualisieren', variant: 'ghost' },
   open: { label: 'Öffnen', variant: 'secondary' },
   add: { label: 'Hinzufügen', variant: 'ghost' },
-  info: { label: 'Info', variant: 'ghost' }
+  info: { label: 'Info', variant: 'ghost' },
+  altText: { label: 'Alt-Text', variant: 'secondary' },
+  kiLabel: { label: 'KI-Label', variant: 'primary' },
+  download: { label: 'Herunterladen', variant: 'primary' }
 };
 
 const variantToClass = (variant) => {
@@ -74,7 +77,7 @@ export const ProfileActionButton = ({
 };
 
 ProfileActionButton.propTypes = {
-  action: PropTypes.oneOf(['edit','delete','back','refresh','open','add','info']).isRequired,
+  action: PropTypes.oneOf(['edit','delete','back','refresh','open','add','info','altText','kiLabel','download']).isRequired,
   label: PropTypes.string,
   ariaLabel: PropTypes.string,
   title: PropTypes.string,

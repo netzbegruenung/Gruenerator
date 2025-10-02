@@ -103,6 +103,25 @@ function buildAllyMakerPrompt(placementText, isPrecision = false) {
   return prompt;
 }
 
+function buildUniversalPrompt(userText) {
+  const trimmed = (userText || '').toString().trim();
+
+  return [
+    'Edit this image according to the user\'s instructions while maintaining photorealistic quality.',
+    '',
+    'User instructions:',
+    `"${trimmed}"`,
+    '',
+    'Implementation guidelines:',
+    '- Execute the user\'s requests precisely as described',
+    '- Maintain photorealistic quality and natural integration',
+    '- Preserve aspects not mentioned in the instructions',
+    '- Match lighting, shadows, and textures to the original image',
+    '- Ensure all changes look natural and believable',
+    '- Scale and proportion all elements appropriately'
+  ].join('\n');
+}
+
 router.post('/prompt', requireAuth, upload.single('image'), async (req, res) => {
   try {
     const userId = req.user?.id;
@@ -160,7 +179,9 @@ router.post('/prompt', requireAuth, upload.single('image'), async (req, res) => 
     const requestType = req.body?.type || 'green-edit';
     const prompt = requestType === 'ally-maker'
       ? buildAllyMakerPrompt(userText, isPrecision)
-      : buildGreenEditPrompt(userText, isPrecision);
+      : requestType === 'universal'
+        ? buildUniversalPrompt(userText)
+        : buildGreenEditPrompt(userText, isPrecision);
 
     // Edit image with FLUX (image-to-image)
     const flux = new FluxImageService();
@@ -272,7 +293,9 @@ router.post('/generate', requireAuth, upload.single('image'), async (req, res) =
     const requestType = req.body?.type || 'green-edit';
     const prompt = requestType === 'ally-maker'
       ? buildAllyMakerPrompt(userText, isPrecision)
-      : buildGreenEditPrompt(userText, isPrecision);
+      : requestType === 'universal'
+        ? buildUniversalPrompt(userText)
+        : buildGreenEditPrompt(userText, isPrecision);
 
     // Edit image with FLUX (image-to-image) - only if image was provided
     const flux = new FluxImageService();

@@ -126,7 +126,7 @@ const ProfilePage = () => {
   // Tab mapping for URL paths to internal tab names
   const TAB_MAPPING = {
     'profil': 'profile',
-    'intelligence': 'intelligence', 
+    'intelligence': 'intelligence',
     'inhalte': 'inhalte',
     'integrationen': 'integrationen',
     'gruppen': 'gruppen',
@@ -403,7 +403,7 @@ const ProfilePage = () => {
         >
           Inhalte & Integrationen
         </TabButton>
-        
+
         {shouldShowTab('groups') && (
           <TabButton
             activeTab={activeTab}
@@ -509,7 +509,7 @@ const ProfilePage = () => {
               onTabChange={handleContentSubtabChange}
             />
           )}
-          
+
           {activeTab === 'gruppen' && shouldShowTab('groups') && (
             <GroupsManagementTab
               user={user}

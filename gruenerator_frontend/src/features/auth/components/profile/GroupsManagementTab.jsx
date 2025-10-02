@@ -543,9 +543,11 @@ const GroupDetailView = memo(({
                                 e.target.style.height = (e.target.scrollHeight + 2) + 'px';
                             }}
                         />
-                        <div className="character-count">
-                            {editedGroupDescription.length}/500 Zeichen
-                        </div>
+                        {editedGroupDescription.length >= 450 && (
+                            <div className="character-count">
+                                {editedGroupDescription.length}/500 Zeichen
+                            </div>
+                        )}
                         <div className="group-name-edit-actions" style={{ marginTop: 'var(--spacing-small)' }}>
                             <button
                                 onClick={saveGroupDescription}

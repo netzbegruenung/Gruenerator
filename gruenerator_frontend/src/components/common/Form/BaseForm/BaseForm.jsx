@@ -312,8 +312,14 @@ const BaseFormInternal = ({
   
   // Handler for edit mode toggle
   const handleToggleEditMode = React.useCallback(() => {
+    console.log('[BaseForm] Toggling edit mode', {
+      currentToggled: isEditModeToggled,
+      enableEditMode,
+      hasEditableContent,
+      willBeActive: !isEditModeToggled && enableEditMode && hasEditableContent
+    });
     setIsEditModeToggled(prev => !prev);
-  }, []);
+  }, [isEditModeToggled, enableEditMode, hasEditableContent]);
 
   // Handler for finetune mode toggle
 
@@ -708,6 +714,7 @@ const BaseFormInternal = ({
               onErrorDismiss={handleErrorDismiss}
               onEditModeToggle={handleToggleEditMode}
               isEditModeActive={isEditModeActive}
+              showEditModeToggle={resolvedUIConfig.enableEditMode}
             />
           </motion.div>
         )}
@@ -803,6 +810,7 @@ const BaseFormInternal = ({
               onErrorDismiss={handleErrorDismiss}
               onEditModeToggle={handleToggleEditMode}
               isEditModeActive={isEditModeActive}
+              showEditModeToggle={resolvedUIConfig.enableEditMode}
             />
           </motion.div>
         )}

@@ -17,7 +17,6 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   font-feature-settings: "kern" 1;
-  font-family: 'GrueneType', Arial, sans-serif;
 }
 
 .video-loading {
@@ -35,7 +34,6 @@
     padding: 0.15em 0.3em !important;
     max-width: 90% !important;
     text-shadow: none !important;
-    font-family: 'GrueneType', Arial, sans-serif !important;
   }
   
   .live-subtitle-preview {
