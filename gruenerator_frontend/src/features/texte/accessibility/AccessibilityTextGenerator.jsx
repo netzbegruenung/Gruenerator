@@ -16,7 +16,8 @@ import useBaseForm from '../../../components/common/Form/hooks/useBaseForm';
 import AltTextForm from './components/AltTextForm';
 import LeichteSpracheForm from './components/LeichteSpracheForm';
 import { convertCanvaDesignToBase64 } from './utils/canvaImageHelper';
-import FormSelect from '../../../components/common/Form/Input/FormSelect';
+import PlatformSelector from '../../../components/common/PlatformSelector';
+import Icon from '../../../components/common/Icon';
 
 // Define types and labels directly in this file
 export const ACCESSIBILITY_TYPES = {
@@ -32,6 +33,16 @@ export const ACCESSIBILITY_TYPE_LABELS = {
 export const ACCESSIBILITY_TYPE_TITLES = {
   [ACCESSIBILITY_TYPES.ALT_TEXT]: 'Barrierefreiheit - Alt-Text',
   [ACCESSIBILITY_TYPES.LEICHTE_SPRACHE]: 'Barrierefreiheit - Leichte Sprache'
+};
+
+const ACCESSIBILITY_TYPE_ICONS = {
+  [ACCESSIBILITY_TYPES.ALT_TEXT]: () => <Icon category="accessibility" name="alt-text" size={16} />,
+  [ACCESSIBILITY_TYPES.LEICHTE_SPRACHE]: () => <Icon category="accessibility" name="leichte-sprache" size={16} />
+};
+
+const ACCESSIBILITY_TYPE_DESCRIPTIONS = {
+  [ACCESSIBILITY_TYPES.ALT_TEXT]: 'Barrierefreie Bildbeschreibungen für Screenreader',
+  [ACCESSIBILITY_TYPES.LEICHTE_SPRACHE]: 'Vereinfachte Texte für bessere Verständlichkeit'
 };
 
 // Import styles
@@ -93,8 +104,8 @@ const AccessibilityTextGenerator = ({ showHeaderFooter = true }) => {
     generatorType: `accessibility-${selectedType}`,
     componentName: componentName,
     endpoint: API_ENDPOINTS[selectedType],
-    disableKnowledgeSystem: true, // Disable knowledge system - accessibility generators don't need custom instructions/Anweisungen
-    features: selectedType === ACCESSIBILITY_TYPES.LEICHTE_SPRACHE ? ['webSearch', 'privacyMode'] : ['privacyMode'],
+    disableKnowledgeSystem: true,
+    features: [],
     tabIndexKey: selectedType === ACCESSIBILITY_TYPES.ALT_TEXT ? 'ALT_TEXT' : 'LEICHTE_SPRACHE',
     helpContent: helpContent
   });
@@ -119,16 +130,16 @@ const AccessibilityTextGenerator = ({ showHeaderFooter = true }) => {
   // Handle URL detection and crawling for Leichte Sprache
   const handleUrlsDetected = useCallback(async (urls) => {
     if (selectedType === ACCESSIBILITY_TYPES.LEICHTE_SPRACHE && !isCrawling && urls.length > 0) {
-      await detectAndCrawlUrls(urls.join(' '), form.generator.toggles.privacyMode);
+      await detectAndCrawlUrls(urls.join(' '), false);
     }
-  }, [detectAndCrawlUrls, isCrawling, form.generator.toggles.privacyMode, selectedType]);
+  }, [detectAndCrawlUrls, isCrawling, selectedType]);
 
   // Handle URL retry for Leichte Sprache
   const handleRetryUrl = useCallback(async (url) => {
     if (selectedType === ACCESSIBILITY_TYPES.LEICHTE_SPRACHE) {
-      await retryUrl(url, form.generator.toggles.privacyMode);
+      await retryUrl(url, false);
     }
-  }, [retryUrl, form.generator.toggles.privacyMode, selectedType]);
+  }, [retryUrl, selectedType]);
 
   // Handle pre-selected Canva template from URL parameters (Alt-Text only)
   useEffect(() => {
@@ -222,8 +233,8 @@ const AccessibilityTextGenerator = ({ showHeaderFooter = true }) => {
         const formDataToSubmit = {
           originalText: formData.originalText,
           targetLanguage: formData.targetLanguage,
-          useWebSearchTool: form.generator.toggles.webSearch,
-          usePrivacyMode: form.generator.toggles.privacyMode,
+          useWebSearchTool: false,
+          usePrivacyMode: false,
           attachments: allAttachments
         };
 
@@ -256,10 +267,6 @@ const AccessibilityTextGenerator = ({ showHeaderFooter = true }) => {
     form.generator.handleGeneratedContentChange(content);
   }, [form.generator]);
 
-  // Feature toggles - only show for Leichte Sprache or when both support them
-  const showWebSearch = selectedType === ACCESSIBILITY_TYPES.LEICHTE_SPRACHE;
-  const showFileAttachment = selectedType === ACCESSIBILITY_TYPES.LEICHTE_SPRACHE;
-
   const renderForm = () => {
     switch (selectedType) {
       case ACCESSIBILITY_TYPES.ALT_TEXT:
@@ -277,25 +284,28 @@ const AccessibilityTextGenerator = ({ showHeaderFooter = true }) => {
     }
   };
 
-  const renderTypeSelector = () => {
-    const accessibilityTypeOptions = Object.entries(ACCESSIBILITY_TYPE_LABELS).map(([value, label]) => ({
-      value,
-      label
-    }));
+  const accessibilityTypeOptions = useMemo(() => Object.entries(ACCESSIBILITY_TYPE_LABELS).map(([value, label]) => ({
+    value,
+    label,
+    icon: ACCESSIBILITY_TYPE_ICONS[value]
+  })), []);
 
-    return (
-      <div style={{ marginBottom: 'var(--spacing-large)' }}>
-        <FormSelect
-          name="accessibilityType"
-          label="Art der Barrierefreiheit"
-          options={accessibilityTypeOptions}
-          value={selectedType}
-          onChange={(e) => setSelectedType(e.target.value)}
-          required
-        />
-      </div>
-    );
-  };
+  const renderTypeSelector = () => (
+    <PlatformSelector
+      name="accessibilityType"
+      options={accessibilityTypeOptions}
+      value={selectedType}
+      onChange={setSelectedType}
+      label="Art der Barrierefreiheit"
+      placeholder="Barrierefreiheit-Typ auswählen..."
+      isMulti={false}
+      control={null}
+      enableIcons={true}
+      enableSubtitles={false}
+      isSearchable={false}
+      required={true}
+    />
+  );
 
   // Get stored generated text
   const storeGeneratedText = useGeneratedTextStore(state => state.getGeneratedText(componentName));
@@ -312,12 +322,7 @@ const AccessibilityTextGenerator = ({ showHeaderFooter = true }) => {
           firstExtrasChildren={renderTypeSelector()}
           submitButtonText={selectedType === ACCESSIBILITY_TYPES.ALT_TEXT ? "Alt-Text generieren" : "In Leichte Sprache übersetzen"}
           isSubmitDisabled={!formRef.current?.isValid?.()}
-          // Override feature toggles based on generator type
-          useWebSearchFeatureToggle={showWebSearch}
           useFeatureIcons={false}
-          onAttachmentClick={showFileAttachment ? form.generator.handleAttachmentClick : null}
-          onRemoveFile={showFileAttachment ? form.generator.handleRemoveFile : null}
-          attachedFiles={showFileAttachment ? form.generator.attachedFiles : []}
         >
           {renderForm()}
         </BaseForm>
