@@ -9,7 +9,7 @@ export const getSubdomain = (host) => {
 
     if (parts.length >= 3) {
         const subdomain = parts[0];
-        if (subdomain !== 'www' && subdomain !== 'api' && subdomain !== 'app') {
+        if (subdomain !== 'www' && subdomain !== 'api' && subdomain !== 'app' && subdomain !== 'beta') {
             return subdomain;
         }
     }
