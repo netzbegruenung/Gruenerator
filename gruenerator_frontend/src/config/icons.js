@@ -2,21 +2,23 @@
 // Centralized icon management for consistent usage across the application
 
 // Import all needed icons from react-icons
-import { 
-  PiFileText, 
-  PiNewspaper, 
-  PiMagicWand, 
-  PiMagnifyingGlass, 
-  PiVideoCamera, 
-  PiImageSquare, 
-  PiArchive, 
-  PiUser, 
+import {
+  PiFileText,
+  PiNewspaper,
+  PiMagicWand,
+  PiMagnifyingGlass,
+  PiVideoCamera,
+  PiImageSquare,
+  PiArchive,
+  PiUser,
   PiWrench,
   PiPlus,
   PiPencilSimple,
   PiCaretDown,
   PiCaretUp,
-  PiArrowRight
+  PiArrowRight,
+  PiBrain,
+  PiTextAlignLeftFill
 } from 'react-icons/pi';
 
 import {
@@ -50,14 +52,16 @@ import {
   HiPencilAlt,
   HiClipboardList,
   HiQuestionMarkCircle,
-  HiSpeakerphone
+  HiSpeakerphone,
+  HiDownload
 } from 'react-icons/hi';
 
-import { 
+import {
   IoDownloadOutline,
   IoCopyOutline,
   IoShareOutline,
-  IoAccessibilityOutline
+  IoAccessibilityOutline,
+  IoAccessibility
 } from 'react-icons/io5';
 
 import {
@@ -69,6 +73,8 @@ import {
 } from 'react-icons/fi';
 
 import { RiMagicLine, RiRobot3Line } from 'react-icons/ri';
+
+import { FaMagic } from 'react-icons/fa';
 
 /**
  * Comprehensive icon registry organized by usage category
@@ -119,7 +125,7 @@ export const ICONS = {
   // Action icons for buttons and interactive elements
   actions: {
     copy: IoCopyOutline,
-    download: IoDownloadOutline,
+    download: HiDownload,
     share: IoShareOutline,
     docs: CiMemoPad,
     cloud: FaCloud,
@@ -137,7 +143,9 @@ export const ICONS = {
     back: HiArrowLeft,
     refresh: HiRefresh,
     lock: HiLockClosed,
-    labor: HiBeaker
+    labor: HiBeaker,
+    altText: IoAccessibility,
+    kiLabel: PiTextAlignLeftFill
   },
 
   // UI/Form icons for form elements and components
@@ -151,7 +159,8 @@ export const ICONS = {
     search: PiMagnifyingGlass,
     caretDown: PiCaretDown,
     caretUp: PiCaretUp,
-    assistant: RiRobot3Line
+    assistant: RiRobot3Line,
+    brain: PiBrain
   }
 };
 

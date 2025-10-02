@@ -13,8 +13,7 @@
 
 .error-boundary h1 {
   color: var(--font-color-h);
-  font-family: 'GrueneType', Arial, sans-serif;
-  font-size: 2em; /* Example size, adjust as needed */
+  font-size: 2em;
   margin-bottom: var(--spacing-medium);
 }
 

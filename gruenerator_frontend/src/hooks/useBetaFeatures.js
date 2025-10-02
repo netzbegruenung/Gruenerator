@@ -15,6 +15,7 @@ const BETA_FEATURES_CONFIG = [
   // { key: 'memory', label: 'Memory (Mem0ry)', isAdminOnly: false },
   // { key: 'canva', label: 'Canva Integration', isAdminOnly: false },
   { key: 'chat', label: 'Grünerator Chat', isAdminOnly: false },
+  { key: 'sites', label: 'Web-Visitenkarte', isAdminOnly: false },
   // Profile-only settings (not shown in Labor tab)
   { key: 'igel_modus', label: 'Igel-Modus', isAdminOnly: false, isProfileSetting: true },
   { key: 'labor', label: 'Labor', isAdminOnly: false, isProfileSetting: true },

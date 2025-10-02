@@ -1,15 +1,5 @@
 @import '../../../assets/styles/common/variables.css';
 
-@font-face {
-  font-family: 'GrueneType';
-  src: url('../../../assets/fonts/GrueneType.woff2') format('woff2'),
-       url('../../../assets/fonts/GrueneType.woff') format('woff');
-  font-weight: normal;
-  font-style: normal;
-  font-display: swap;
-}
-
-
 .subtitler-container {
   display: flex;
   flex-direction: column;
@@ -19,7 +9,6 @@
 
 .subtitler-title {
   color: var(--font-color-h);
-  font-family: 'GrueneType', sans-serif;
   text-align: center;
   margin-bottom: 2rem;
   font-size: 2rem;

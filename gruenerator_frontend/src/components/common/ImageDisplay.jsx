@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
-import { IoAccessibility } from 'react-icons/io5';
-import { HiPencil, HiDownload } from 'react-icons/hi';
-import { FaMagic } from 'react-icons/fa';
+import { HiDownload } from 'react-icons/hi';
 import '../../assets/styles/components/common/image-display.css';
-import DownloadButton from '../../features/sharepic/core/components/DownloadButton';
 import CopyButton from './CopyButton';
 import HelpTooltip from './HelpTooltip';
+import { ProfileIconButton, ProfileActionButton } from '../profile/actions/ProfileActionButton';
 import useAltTextGeneration from '../hooks/useAltTextGeneration';
 import useSharepicStore from '../../stores/sharepicStore';
 import apiClient from '../utils/apiClient';
@@ -90,15 +88,6 @@ const ImageDisplay = ({
     };
   }, [isLightboxOpen]);
 
-  // Debug logging
-  console.log('[ImageDisplay] Component rendered:', {
-    isMultiple,
-    itemCount: sharepicItems.length,
-    activeIndex: activeImageIndex,
-    imageType: currentSharepic?.type,
-    hasOnEdit: !!onEdit,
-    editButtonAlwaysVisible: true
-  });
 
   const handleGenerateAltText = async () => {
     if (isAltTextLoading || isKiLabelLoading) return;
@@ -319,66 +308,45 @@ const ImageDisplay = ({
                 style={{ cursor: 'pointer' }}
               />
               <div className="image-overlay-buttons">
-                <button
-                  className={minimal ? 'image-button image-edit-button' : 'image-button image-alt-button'}
+                <ProfileIconButton
+                  action="altText"
                   onClick={handleGenerateAltText}
                   disabled={isAltTextLoading || isKiLabelLoading}
+                  loading={isAltTextLoading}
+                  size="s"
+                  className="image-overlay-btn"
                   title="Alt-Text generieren"
-                >
-                  <IoAccessibility />
-                  {!minimal && (isAltTextLoading ? 'Lädt...' : 'Alt-Text')}
-                </button>
+                />
                 {enableKiLabel && (
-                  <button
-                    className="image-button image-label-button"
+                  <ProfileIconButton
+                    action="kiLabel"
                     onClick={handleAddKiLabel}
                     disabled={isKiLabelLoading || isAltTextLoading}
+                    loading={isKiLabelLoading}
+                    size="s"
+                    className="image-overlay-btn"
                     title="KI-Label hinzufügen"
-                  >
-                    <FaMagic />
-                    {isKiLabelLoading ? 'Beschriftet…' : 'KI-Label'}
-                  </button>
+                  />
                 )}
                 {showEditButton && (
-                  <button
-                    className="image-button image-edit-button"
+                  <ProfileIconButton
+                    action="edit"
                     onClick={handleEditSharepic}
+                    size="s"
+                    className="image-overlay-btn"
                     title="Bild bearbeiten"
-                  >
-                    <HiPencil />
-                  </button>
+                  />
                 )}
-                <button
-                  className="image-button image-download-button"
+                <ProfileIconButton
+                  action="download"
                   onClick={() => handleDownload()}
+                  size="s"
+                  className="image-overlay-btn"
                   title="Bild herunterladen"
-                >
-                  <HiDownload />
-                </button>
+                />
               </div>
             </div>
           </div>
-
-          {!minimal && (
-            <div className="image-display__actions">
-              {isMultiple ? (
-                <button
-                  className="sharepic-download-button"
-                  onClick={handleDownloadAll}
-                  title="Alle Bilder herunterladen"
-                >
-                  <HiDownload />
-                  Alle {sharepicItems.length} Bilder herunterladen
-                </button>
-              ) : (
-                <DownloadButton
-                  imageUrl={currentSharepic.image}
-                  buttonText={effectiveDownloadText}
-                  downloadFilename={downloadFilename}
-                />
-              )}
-            </div>
-          )}
 
           {!minimal && kiLabelError && (
             <div className="image-label-error">

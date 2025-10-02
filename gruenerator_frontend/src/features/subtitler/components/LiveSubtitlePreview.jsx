@@ -27,7 +27,6 @@ const LiveSubtitlePreview = ({
 
   const getStyleForPreference = useMemo(() => {
     const baseStyles = {
-      fontFamily: "'GrueneType', Arial, sans-serif",
       fontWeight: 'bold',
       color: '#ffffff',
       textAlign: 'center',

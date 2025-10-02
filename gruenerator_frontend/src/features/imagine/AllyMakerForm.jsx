@@ -75,14 +75,16 @@ const AllyMakerForm = forwardRef(({ loading, isPrecisionMode = false }, ref) => 
               maxLength={200}
               disabled={loading}
             />
-            <div style={{
-              fontSize: 'var(--font-size-small)',
-              color: 'var(--text-color-secondary)',
-              textAlign: 'right',
-              marginTop: 'var(--spacing-xsmall)'
-            }}>
-              {precisionPlacement.length}/200 Zeichen
-            </div>
+            {precisionPlacement.length >= 180 && (
+              <div style={{
+                fontSize: 'var(--font-size-small)',
+                color: 'var(--text-color-secondary)',
+                textAlign: 'right',
+                marginTop: 'var(--spacing-xsmall)'
+              }}>
+                {precisionPlacement.length}/200 Zeichen
+              </div>
+            )}
           </div>
         </FormFieldWrapper>
       ) : (

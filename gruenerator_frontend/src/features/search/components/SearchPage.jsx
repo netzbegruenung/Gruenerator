@@ -6,7 +6,6 @@ import ActionButtons from '../../../components/common/ActionButtons';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import { formatExportContent } from '../../../components/utils/exportUtils';
 import ContentRenderer from '../../../components/common/Form/BaseForm/ContentRenderer';
-import SearchModeFilter from './SearchModeFilter';
 import { CitationModal, CitationSourcesDisplay } from '../../../components/common/Citation';
 
 // Search Feature CSS - Loaded only when this feature is accessed
@@ -115,8 +114,7 @@ SourceList.propTypes = {
 
 const SearchPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchMode, setSearchMode] = useState('web'); // 'web', 'standard' or 'deep'
-  const [showFilters, setShowFilters] = useState(false);
+  const [searchMode, setSearchMode] = useState('web');
   const {
     results,
     usedSources,
@@ -137,22 +135,19 @@ const SearchPage = () => {
   const handleSearch = async (query) => {
     if (searchMode === 'deep') {
       await deepSearch(query);
-    } else if (searchMode === 'web') {
-      await webSearch(query);
     } else {
-      await search(query);
+      await webSearch(query);
     }
+  };
+
+  const toggleDeepResearch = () => {
+    setSearchMode(prev => prev === 'deep' ? 'web' : 'deep');
   };
 
   // Berechne die nicht verwendeten Quellen
   const unusedSources = results.filter(
     result => !usedSources.some(used => used.url === result.url)
   );
-
-  // Filter toggle handler
-  const handleFilterToggle = () => {
-    setShowFilters(!showFilters);
-  };
 
   return (
     <ErrorBoundary>
@@ -163,25 +158,18 @@ const SearchPage = () => {
           <p className="search-subtitle">KI-Suche des Grünerators</p>
         </div>
         
-        <SearchBar 
-          onSearch={handleSearch} 
-          loading={loading} 
+        <SearchBar
+          onSearch={handleSearch}
+          loading={loading}
           value={searchQuery}
           onChange={setSearchQuery}
           placeholder={
-            searchMode === 'deep' ? 'Thema für umfassende Recherche eingeben...' :
-            searchMode === 'web' ? 'Web-Suchbegriff eingeben...' :
-            'Suchbegriff eingeben...'
+            searchMode === 'deep'
+              ? 'Thema für umfassende Recherche eingeben...'
+              : 'Web-Suchbegriff eingeben...'
           }
-          onFilterClick={handleFilterToggle}
-          filterComponent={
-            <SearchModeFilter
-              activeSearchMode={searchMode}
-              onSearchModeChange={setSearchMode}
-            />
-          }
-          showFilters={showFilters}
-          filterTitle="Suchmodus"
+          onDeepResearchToggle={toggleDeepResearch}
+          isDeepResearchActive={searchMode === 'deep'}
         />
         
         {loading && searchMode === 'deep' && (

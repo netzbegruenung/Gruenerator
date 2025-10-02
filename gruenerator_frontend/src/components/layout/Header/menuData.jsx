@@ -168,7 +168,7 @@ export const MenuItem = ({ item }) => (
       {item.icon && <item.icon aria-hidden="true" />}
     </div>
     <div className="menu-item-header">
-      <span className="menu-item-title">{item.title}</span>
+      <h4 className="menu-item-title">{item.title}</h4>
       <p className="menu-item-description">{item.description}</p>
     </div>
   </div>

@@ -41,6 +41,34 @@ const extractCleanJSON = (content) => {
   return null;
 };
 
+// Helper function to extract clean JSON array from malformed responses
+const extractCleanJSONArray = (content) => {
+  if (!content || typeof content !== 'string') {
+    return null;
+  }
+
+  // Remove markdown backticks and "json" language markers
+  const cleanedContent = content
+    .replace(/```json\s*/g, '')
+    .replace(/```\s*/g, '')
+    .trim();
+
+  // Try to find valid JSON array
+  const jsonMatch = cleanedContent.match(/\[[\s\S]*?\]/);
+  if (jsonMatch) {
+    try {
+      const parsed = JSON.parse(jsonMatch[0]);
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
+    } catch (parseError) {
+      console.warn('[extractCleanJSONArray] Parse error:', parseError.message);
+    }
+  }
+
+  return null;
+};
+
 const replaceTemplate = (template, data) => {
   if (!template || typeof template !== 'string') {
     return template;
@@ -803,10 +831,13 @@ const handleHeadlineRequest = async (req, res) => {
 
 // Handler for info type
 const handleInfoRequest = async (req, res) => {
+  console.log('[sharepic_info] handleInfoRequest called with body:', req.body);
 
   const { thema, details, count = 5, source } = req.body;
   const singleItem = count === 1;
   const skipShortener = source === 'sharepicgenerator';
+
+  console.log('[sharepic_info] Config:', { singleItem, skipShortener, count, source });
 
   const config = prompts.info;
   const systemRole = config.systemRole;
@@ -856,14 +887,28 @@ const handleInfoRequest = async (req, res) => {
       if (singleItem) {
         // Parse JSON response for single item
         const infoData = extractCleanJSON(content);
+        console.log(`[sharepic_info] Attempt ${attempts} - Raw content preview:`, content.substring(0, 200));
+        console.log(`[sharepic_info] Attempt ${attempts} - Parsed infoData:`, infoData);
+
         if (infoData) {
           const header = sanitizeInfoField(infoData.header);
           const subheader = sanitizeInfoField(infoData.subheader);
           const body = sanitizeInfoField(infoData.body);
           const searchTerm = sanitizeInfoField(infoData.searchTerm);
 
-          // Validate required fields
-          if (!header || !subheader || !body) {
+          console.log(`[sharepic_info] Attempt ${attempts} - Sanitized values:`, {
+            header: header?.substring(0, 50) + '...',
+            subheader: subheader?.substring(0, 50) + '...',
+            body: body?.substring(0, 50) + '...',
+            headerLength: header?.length,
+            subheaderLength: subheader?.length,
+            bodyLength: body?.length
+          });
+
+          // Validate required fields - check for empty strings
+          if (!header || !subheader || !body ||
+              header.trim() === '' || subheader.trim() === '' || body.trim() === '') {
+            console.log(`[sharepic_info] Attempt ${attempts} - Validation failed: empty or missing fields`);
             if (attempts === maxAttempts) {
               return res.status(500).json({
                 success: false,
@@ -949,33 +994,72 @@ const handleInfoRequest = async (req, res) => {
           continue;
         }
       } else {
-        // Parse multiple items using existing regex (backward compatibility)
-        const infos = [];
-        const searchTermMatch = content.match(/Suchbegriff[^:]*:(.+?)(?:\n|$)/i);
-        const searchTerms = searchTermMatch ? [searchTermMatch[1].trim()] : [];
+        // Parse JSON array response for multiple items
+        const infoArray = extractCleanJSONArray(content);
+        console.log(`[sharepic_info] Attempt ${attempts} - Raw content preview:`, content.substring(0, 200));
+        console.log(`[sharepic_info] Attempt ${attempts} - Parsed array:`, infoArray?.length || 0, 'items');
 
-        // Extract info items
-        const infoMatches = content.matchAll(/Info \d+:\s*\nHeader:\s*([^\n]+)\s*\nSubheader:\s*([^\n]+)\s*\nBody:\s*([^\n]+)/gi);
-        for (const match of infoMatches) {
-          infos.push({
-            header: match[1].trim(),
-            subheader: match[2].trim(),
-            body: match[3].trim()
-          });
+        if (!infoArray || !Array.isArray(infoArray) || infoArray.length === 0) {
+          console.log(`[sharepic_info] Attempt ${attempts} - Array extraction failed or empty`);
+          if (attempts === maxAttempts) {
+            return res.status(500).json({
+              success: false,
+              error: `Failed to extract info array after ${maxAttempts} attempts`
+            });
+          }
+          continue;
         }
 
-        // Format for frontend - first item as main, rest as alternatives
-        const firstInfo = infos[0] || { header: '', subheader: '', body: '' };
-        const alternatives = infos.slice(1);
+        // Validate and sanitize each item
+        const validInfos = [];
+        for (const item of infoArray) {
+          const header = sanitizeInfoField(item.header);
+          const subheader = sanitizeInfoField(item.subheader);
+          const body = sanitizeInfoField(item.body);
 
+          console.log(`[sharepic_info] Validating item:`, {
+            header: header?.substring(0, 30) + '...',
+            subheader: subheader?.substring(0, 30) + '...',
+            body: body?.substring(0, 30) + '...',
+            headerLength: header?.length,
+            subheaderLength: subheader?.length,
+            bodyLength: body?.length
+          });
+
+          // Check for empty strings
+          if (header && subheader && body &&
+              header.trim() !== '' && subheader.trim() !== '' && body.trim() !== '') {
+            validInfos.push({
+              header: header.length > 65 ? header.substring(0, 65).trim() : header,
+              subheader: subheader.length > 125 ? subheader.substring(0, 125).trim() : subheader,
+              body: body.length > 255 ? body.substring(0, 255).trim() : body
+            });
+          } else {
+            console.log(`[sharepic_info] Item rejected: empty field(s)`);
+          }
+        }
+
+        if (validInfos.length === 0) {
+          console.log(`[sharepic_info] Attempt ${attempts} - No valid items after validation`);
+          if (attempts === maxAttempts) {
+            return res.status(500).json({
+              success: false,
+              error: `No valid info items after ${maxAttempts} attempts`
+            });
+          }
+          continue;
+        }
+
+        // Extract search term from first item
+        const searchTerms = infoArray[0]?.searchTerm ? [infoArray[0].searchTerm] : [];
+
+        console.log(`[sharepic_info] Success: ${validInfos.length} valid items, searchTerms:`, searchTerms);
+
+        // Format: first as main, rest as alternatives
         responseData = {
           success: true,
-          mainInfo: {
-            header: firstInfo.header,
-            subheader: firstInfo.subheader,
-            body: firstInfo.body
-          },
-          alternatives: alternatives,
+          mainInfo: validInfos[0],
+          alternatives: validInfos.slice(1),
           searchTerms: searchTerms
         };
       }

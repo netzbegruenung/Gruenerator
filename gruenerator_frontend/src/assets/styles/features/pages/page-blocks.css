@@ -39,7 +39,6 @@
 
 .quote-block::before {
     content: "„";
-    font-family: 'GrueneType', Arial, sans-serif;
     font-size: clamp(6rem, 15vw, 12rem);
     color: #FDE047; /* Official yellow from Grüne.de */
     position: absolute;
@@ -51,7 +50,6 @@
 }
 
 .quote-block__text {
-    font-family: 'GrueneType', Arial, sans-serif;
     font-size: clamp(1.5rem, 4vw, 2.5rem);
     font-style: normal;
     font-weight: normal;
@@ -111,7 +109,6 @@
 }
 
 .info-box__title {
-    font-family: 'GrueneType', Arial, sans-serif;
     font-size: 1.25rem;
     color: var(--font-color-h3);
     margin: 0 0 var(--spacing-medium) 0;
@@ -162,7 +159,6 @@
 }
 
 .fact-box__number {
-    font-family: 'GrueneType', Arial, sans-serif;
     font-size: clamp(2rem, 4vw, 3rem);
     color: var(--secondary-600);
     font-weight: normal;
@@ -193,7 +189,6 @@
 }
 
 .callout-block__title {
-    font-family: 'GrueneType', Arial, sans-serif;
     font-size: 1.75rem;
     margin: 0 0 var(--spacing-medium) 0;
     color: var(--white);
@@ -272,7 +267,6 @@
 }
 
 .timeline-block__title {
-    font-family: 'GrueneType', Arial, sans-serif;
     font-size: 1.25rem;
     color: var(--font-color-h3);
     margin: 0 0 var(--spacing-small) 0;

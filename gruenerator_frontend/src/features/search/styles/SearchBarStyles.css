@@ -104,39 +104,43 @@
   transform: none !important;
 }
 
-/* Filter icon button styles - matches search icon button */
-.search-bar-container .search-form .search-input-wrapper .filter-icon-button {
+/* Deep research toggle button - brain icon for activating deep research mode */
+.search-bar-container .search-form .search-input-wrapper .deep-research-toggle {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 48px;
-  height: 48px;
   border: none;
   background-color: transparent;
   cursor: pointer;
-  padding: 0;
+  padding: 8px;
   color: var(--font-color);
-  transition: color 0.2s ease, background-color 0.2s ease;
+  opacity: 0.7;
+  transition: color 0.2s ease, background-color 0.2s ease, opacity 0.2s ease, transform 0.2s ease;
+  border-radius: 50%;
 }
 
-.search-bar-container .search-form .search-input-wrapper .filter-icon-button:hover {
+.search-bar-container .search-form .search-input-wrapper .deep-research-toggle:hover {
   color: var(--klee);
+  opacity: 1;
   background-color: var(--background-color-alt);
+  transform: scale(1.05);
 }
 
-.search-bar-container .search-form .search-input-wrapper .filter-icon-button:disabled {
+.search-bar-container .search-form .search-input-wrapper .deep-research-toggle:disabled {
   color: var(--font-color-disabled);
   cursor: not-allowed;
+  opacity: 0.5;
 }
 
-.search-bar-container .search-form .search-input-wrapper .filter-icon-button.active {
+.search-bar-container .search-form .search-input-wrapper .deep-research-toggle.active {
   color: var(--klee);
+  opacity: 1;
   background-color: var(--background-color-alt);
 }
 
-.search-bar-container .search-form .search-input-wrapper .filter-icon {
-  width: 18px;
-  height: 18px;
+.search-bar-container .search-form .search-input-wrapper .deep-research-toggle svg {
+  width: 20px;
+  height: 20px;
   transition: transform 0.2s ease-in-out;
 }
 
@@ -238,7 +242,7 @@
   }
   
   .search-bar-container .search-form .search-input-wrapper .search-icon-button,
-  .search-bar-container .search-form .search-input-wrapper .filter-icon-button {
+  .search-bar-container .search-form .search-input-wrapper .deep-research-toggle {
     width: 42px;
     height: 42px;
   }
