@@ -168,7 +168,9 @@ if (cluster.isMaster) {
 
   const corsOptions = {
     origin: function (origin, callback) {
-      if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
+      // Remove trailing slash from origin if present for comparison
+      const normalizedOrigin = origin?.replace(/\/$/, '');
+      if (allowedOrigins.indexOf(normalizedOrigin) !== -1 || !origin) {
         callback(null, true);
       } else {
         callback(new Error('Not allowed by CORS'));
