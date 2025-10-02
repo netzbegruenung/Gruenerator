@@ -168,11 +168,14 @@ if (cluster.isMaster) {
 
   const corsOptions = {
     origin: function (origin, callback) {
-      // Remove trailing slash from origin if present for comparison
-      const normalizedOrigin = origin?.replace(/\/$/, '');
-      if (allowedOrigins.indexOf(normalizedOrigin) !== -1 || !origin) {
+      console.log(`[CORS] Request from origin: "${origin}"`);
+
+      if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
+        console.log(`[CORS] ✓ Origin allowed: ${origin || 'no origin header'}`);
         callback(null, true);
       } else {
+        console.log(`[CORS] ✗ Origin BLOCKED: ${origin}`);
+        console.log(`[CORS] First 5 allowed origins:`, allowedOrigins.slice(0, 5));
         callback(new Error('Not allowed by CORS'));
       }
     },
@@ -205,7 +208,13 @@ if (cluster.isMaster) {
 
   // CORS muss ZUERST kommen!
   app.use(cors(corsOptions));
-  
+
+  // Debug logging for all requests
+  app.use((req, res, next) => {
+    console.log(`[Request] ${req.method} ${req.url} | Host: ${req.headers.host} | Origin: ${req.headers.origin || 'none'}`);
+    next();
+  });
+
   // Setze Express Limit
   app.use(express.json({limit: '500mb'}));
   app.use(express.raw({limit: '500mb'}));
