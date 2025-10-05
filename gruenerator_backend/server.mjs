@@ -170,11 +170,22 @@ if (cluster.isMaster) {
     origin: function (origin, callback) {
       console.log(`[CORS] Request from origin: "${origin}"`);
 
-      if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
-        console.log(`[CORS] ✓ Origin allowed: ${origin || 'no origin header'}`);
+      // Fallback: If nginx strips Origin header, reconstruct from X-Forwarded-Host
+      let effectiveOrigin = origin;
+      if (!origin && this && this.headers) {
+        const forwardedHost = this.headers['x-forwarded-host'];
+        const forwardedProto = this.headers['x-forwarded-proto'] || 'https';
+        if (forwardedHost) {
+          effectiveOrigin = `${forwardedProto}://${forwardedHost}`;
+          console.log(`[CORS] Reconstructed origin from X-Forwarded-Host: "${effectiveOrigin}"`);
+        }
+      }
+
+      if (allowedOrigins.indexOf(effectiveOrigin) !== -1 || !effectiveOrigin) {
+        console.log(`[CORS] ✓ Origin allowed: ${effectiveOrigin || 'no origin header'}`);
         callback(null, true);
       } else {
-        console.log(`[CORS] ✗ Origin BLOCKED: ${origin}`);
+        console.log(`[CORS] ✗ Origin BLOCKED: ${effectiveOrigin}`);
         console.log(`[CORS] First 5 allowed origins:`, allowedOrigins.slice(0, 5));
         callback(new Error('Not allowed by CORS'));
       }
