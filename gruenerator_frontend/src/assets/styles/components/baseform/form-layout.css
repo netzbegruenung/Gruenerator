@@ -266,18 +266,13 @@
   /* Split Layout Mobile */
   .form-section__container {
     flex-direction: column;
-    gap: var(--spacing-medium);
+    gap: 0;
   }
-  
-  .form-section__inputs,
+
   .form-section__extras {
-    flex: 1 1 auto;
+    align-self: stretch;
   }
-  
-  .form-section__extras {
-    order: 2;
-  }
-  
+
   .form-inputs__buttons {
     flex-direction: column;
     gap: var(--spacing-small);
@@ -357,6 +352,10 @@
   .form-section__mobile-first-extras {
     display: block;
     margin-bottom: var(--spacing-large);
+  }
+
+  .form-section__mobile-first-extras > *:not(:last-child) {
+    margin-bottom: var(--spacing-medium);
   }
 }
 

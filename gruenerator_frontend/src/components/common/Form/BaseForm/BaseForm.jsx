@@ -26,7 +26,6 @@ import '../../../../assets/styles/components/ui/SegmentedControl.css';
 import '../../../../assets/styles/components/form/form-inputs.css';
 import '../../../../assets/styles/components/form/file-upload.css';
 import '../../../../assets/styles/components/baseform/base.css';
-import '../../../../assets/styles/components/baseform/form-layout.css';
 import '../../../../assets/styles/components/baseform/form-toggle-fab.css';
 import '../../../../assets/styles/components/edit-mode/edit-mode-overlay.css';
 import '../../../../assets/styles/components/help-tooltip.css';
@@ -37,7 +36,7 @@ import FormSection from './FormSection';
 import DisplaySection from './DisplaySection';
 
 // Importiere die neuen Hooks
-import { useErrorHandling, useResponsive } from '../hooks';
+import { useErrorHandling, useResponsive, useAutoScrollToContent } from '../hooks';
 import { useFormVisibility } from '../hooks/useFormVisibility';
 
 // Importiere die Utility-Funktionen
@@ -309,7 +308,14 @@ const BaseFormInternal = ({
     }
     prevHasEditableContentRef.current = hasEditableContent;
   }, [hasEditableContent, enableEditMode, isEditModeToggled]);
-  
+
+  // Auto-scroll to generated text on mobile with smart positioning
+  useAutoScrollToContent(displaySectionRef, hasEditableContent, {
+    mobileOnly: true,
+    delay: 100,
+    topOffset: 80
+  });
+
   // Handler for edit mode toggle
   const handleToggleEditMode = React.useCallback(() => {
     console.log('[BaseForm] Toggling edit mode', {

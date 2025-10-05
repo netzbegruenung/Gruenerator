@@ -87,13 +87,16 @@ class QdrantService {
         try {
             // Validate environment variables
             const apiKey = process.env.QDRANT_API_KEY;
+            const qdrantUrl = process.env.QDRANT_URL;
+
             if (!apiKey || apiKey.trim() === '') {
                 throw new Error('QDRANT_API_KEY environment variable is required but not set or empty');
             }
-            
-            // Hardcoded domain for testing
-            const qdrantUrl = 'https://qdrant.services.moritz-waechter.de:443';
-            
+
+            if (!qdrantUrl || qdrantUrl.trim() === '') {
+                throw new Error('QDRANT_URL environment variable is required but not set or empty');
+            }
+
             console.log(`[QdrantService] Initializing with API key: ${apiKey.substring(0, 8)}...`);
             console.log(`[QdrantService] Connecting to: ${qdrantUrl}`);
 
@@ -111,14 +114,20 @@ class QdrantService {
             // Use host/port approach for HTTPS support due to Qdrant client URL parsing bug
             if (qdrantUrl.startsWith('https://')) {
                 const url = new URL(qdrantUrl);
+                const port = url.port ? parseInt(url.port) : 443;
+
+                // Extract path as prefix if it exists (e.g., /qdrant/)
+                const basePath = url.pathname && url.pathname !== '/' ? url.pathname : undefined;
+
                 this.client = new QdrantClient({
                     host: url.hostname,
-                    port: url.port ? parseInt(url.port) : 443,
+                    port: port,
                     https: true,
                     apiKey: apiKey,
                     timeout: 60000,
                     checkCompatibility: false,  // Skip compatibility check for faster startup
-                    agent: httpAgent
+                    agent: httpAgent,
+                    ...(basePath ? { prefix: basePath } : {})
                 });
             } else {
                 this.client = new QdrantClient({

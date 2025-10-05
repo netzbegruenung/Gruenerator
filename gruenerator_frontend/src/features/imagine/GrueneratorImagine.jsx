@@ -89,9 +89,8 @@ const GrueneratorImagine = ({ showHeaderFooter = true }) => {
     { value: 'fahrradwege', label: 'Geschützte Fahrradwege' },
     { value: 'sitzgelegenheiten', label: 'Sitzbänke im Schatten' },
     { value: 'fussgaenger', label: 'Breitere Gehwege' },
-    { value: 'nachhaltige_materialien', label: 'Nachhaltige Materialien' },
-    { value: 'verkehrsberuhigung', label: 'Verkehrsberuhigung' },
-    { value: 'barrierefreiheit', label: 'Barrierefreie Gestaltung' }
+    { value: 'strassenbahn', label: 'Straßenbahn' },
+    { value: 'bushaltestelle', label: 'Bushaltestelle' }
   ];
 
   const handleImageChange = useCallback((file) => {

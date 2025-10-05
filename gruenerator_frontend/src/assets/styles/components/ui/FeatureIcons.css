@@ -29,7 +29,6 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  /* Always fit 3 icons on one line: width is based on row width via CSS var */
   width: clamp(18px, var(--item-size), 56px);
   height: clamp(18px, var(--item-size), 56px);
   padding: 0;
@@ -39,7 +38,7 @@
   cursor: pointer;
   transition: var(--input-transition);
   outline: none;
-  flex: 0 0 auto; /* Prevent stretching when wrapping */
+  flex: 0 0 auto;
 }
 
 .feature-icon-button:hover {
@@ -179,7 +178,6 @@
   justify-content: center;
   width: clamp(18px, var(--item-size), 56px);
   height: clamp(18px, var(--item-size), 56px);
-  /* Prevent shrinking compared to sibling buttons */
   flex: 0 0 auto;
 }
 
@@ -314,8 +312,21 @@
     padding: var(--spacing-xxsmall);
   }
 
-  /* Sizes are controlled via clamp and container width; no overrides needed */
-  
+  /* Ensure proper touch target size (44px minimum for accessibility) */
+  .feature-icon-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .balanced-mode-container {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .feature-icons__icon {
+    font-size: clamp(1.1rem, 1.3rem + 1vw, 2.2rem);
+  }
+
   .feature-icon-button .attachment-badge {
     width: 16px;
     height: 16px;
