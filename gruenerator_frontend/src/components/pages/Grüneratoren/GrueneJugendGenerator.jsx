@@ -303,7 +303,7 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }) => {
     <ErrorBoundary>
       <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
         <BaseForm
-          title="Grüne Jugend"
+          title={<span className="gradient-title">Grüne Jugend</span>}
           onSubmit={handleSubmit(onSubmitRHF)}
           loading={loading}
           success={success}

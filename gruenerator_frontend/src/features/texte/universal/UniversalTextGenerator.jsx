@@ -122,7 +122,7 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
 
   // Memoize helpContent to prevent unnecessary re-renders
   const helpContent = useMemo(() => ({
-    content: "Der Universal Text Grünerator erstellt verschiedene Textarten - von Reden über Wahlprogramme bis hin zu Bürger*innenanfragen und allgemeinen Texten. Du kannst auch PDFs und Bilder als Hintergrundinformation anhängen.",
+    content: "Der Universal Text Grünerator erstellt verschiedene Textarten - von Reden über Wahlprogramme bis hin zu Bürger*innenanfragen und allgemeinen Texten.",
     title: TEXT_TYPE_TITLES[selectedType],
     tips: [
       "Wähle zunächst den passenden Texttyp aus",
@@ -229,7 +229,7 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
         <BaseForm
           key={selectedType}
           {...form.generator.baseFormProps}
-          title={TEXT_TYPE_TITLES[selectedType]}
+          title={<span className="gradient-title">{TEXT_TYPE_TITLES[selectedType]}</span>}
           generatedContent={generatedContent}
           onGeneratedContentChange={handleGeneratedContentChange}
           onSubmit={handleSubmit}

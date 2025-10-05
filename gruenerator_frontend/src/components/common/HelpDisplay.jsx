@@ -51,7 +51,7 @@ const HelpDisplay = ({ content, tips, forceHidden, hasGeneratedContent }) => {
         </div>
         {tips && tips.length > 0 && (
           <>
-            <h4>Tipps:</h4>
+            <p><strong>Tipps:</strong></p>
             <ul>
               {tips.map((tip, index) => (
                 <li key={index}>
