@@ -456,15 +456,13 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
 
 
   const helpContent = {
-    content: "Dieser Grünerator erstellt professionelle Pressemitteilungen und Social Media Inhalte basierend auf deinen Angaben. Du kannst auch PDFs, Bilder und URLs als Hintergrundinformation verwenden.",
+    content: "Dieser Grünerator erstellt professionelle Pressemitteilungen und Social Media Inhalte basierend auf deinen Angaben.",
     tips: [
       "Gib ein klares, prägnantes Thema an",
       "Füge wichtige Details und Fakten hinzu",
       "Wähle die gewünschten Formate aus",
-      "Hänge PDFs oder Bilder als Kontext an (max. 5MB pro Datei)",
-      
-      "Bei Pressemitteilungen: Angabe von Zitatgeber erforderlich - Abbinder wird automatisch hinzugefügt",
-      "Bei Sharepics: Wähle zwischen 5 Formaten - 3-Zeilen Slogan (mit Bild), Zitat mit Bild, Zitat (Nur Text), Infopost oder Nur Text (Groß). Bei Zitat-Formaten ist die Angabe des Autors erforderlich"
+      "Bei Pressemitteilungen: Angabe von Zitatgeber erforderlich",
+      "Bei Sharepics: Standard erstellt automatisch 3 verschiedene Sharepics. Weitere Formate: 3-Zeilen Slogan, Zitat mit/ohne Bild, Infopost"
     ]
   };
 
@@ -668,7 +666,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
     <ErrorBoundary>
       <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
         <BaseForm
-          title="Presse- & Social Media Grünerator"
+          title={<span className="gradient-title">Presse- & Social Media Grünerator</span>}
           onSubmit={handleSubmit(onSubmitRHF)}
           loading={loading || sharepicLoading}
           success={success}

@@ -25,6 +25,19 @@ function requireAuth(req, res, next) {
     }
   }
 
+  // Mobile app token bypass - simple shared token authentication
+  const appToken = req.headers['x-app-token'];
+  if (appToken && process.env.MOBILE_APP_TOKEN && appToken === process.env.MOBILE_APP_TOKEN) {
+    console.log('[AuthMiddleware] Mobile app token validated');
+    req.user = {
+      id: 'mobile-app',
+      email: 'app@gruenerator.de',
+      display_name: 'Mobile App',
+      isMobileApp: true
+    };
+    return next();
+  }
+
   // First try JWT authentication
   jwtAuthMiddleware(req, res, (jwtError) => {
     if (req.mobileAuth) {

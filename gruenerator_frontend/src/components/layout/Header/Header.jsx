@@ -22,6 +22,7 @@ const Header = () => {
     const chatBetaEnabled = useMemo(() => getBetaFeatureState('chat'), [getBetaFeatureState]);
     const [menuActive, setMenuActive] = useState(false);
     const [activeDropdown, setActiveDropdown] = useState(null);
+    const [scrolled, setScrolled] = useState(false);
     const [darkMode, toggleDarkMode] = useDarkMode();
     const { announce } = useAccessibility();
     const headerRef = useRef(null);
@@ -48,6 +49,16 @@ const Header = () => {
                 clearTimeout(closeTimeoutRef.current);
             }
         };
+    }, []);
+
+    // Handle scroll for compact header
+    useEffect(() => {
+        const handleScroll = () => {
+            setScrolled(window.scrollY > 50);
+        };
+
+        window.addEventListener('scroll', handleScroll);
+        return () => window.removeEventListener('scroll', handleScroll);
     }, []);
 
     // Removed deprecated setupKeyboardNav - browser handles keyboard navigation natively
@@ -207,12 +218,12 @@ const Header = () => {
 
 
     return (
-        <header className="header" ref={headerRef} role="banner" onMouseEnter={handleHeaderMouseEnter} onMouseLeave={handleHeaderMouseLeave}>
+        <header className={`header ${scrolled ? 'scrolled' : ''}`} ref={headerRef} role="banner" onMouseEnter={handleHeaderMouseEnter} onMouseLeave={handleHeaderMouseLeave}>
             <div className="header-container">
                 <div className="header-logo">
                     <Link to="/" aria-label="Zur Startseite">
                         <img
-                            src={darkMode ? "/images/gruenerator_logo_weiß.svg" : "/images/gruenerator_logo_grün.svg"}
+                            src={darkMode ? "/images/gruenerator_logo_weiss.svg" : "/images/gruenerator_logo_gruen.svg"}
                             alt="Grünerator Logo"
                         />
                     </Link>

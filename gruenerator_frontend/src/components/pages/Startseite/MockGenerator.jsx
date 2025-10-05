@@ -54,6 +54,21 @@ const MockGenerator = () => {
     };
   }, [handleGenerate]);
 
+  useEffect(() => {
+    if (showResult) {
+      const restartTimeout = setTimeout(() => {
+        setShowResult(false);
+        hasAutoTriggeredRef.current = false;
+
+        setTimeout(() => {
+          handleGenerate();
+        }, 600);
+      }, 5000);
+
+      return () => clearTimeout(restartTimeout);
+    }
+  }, [showResult, handleGenerate]);
+
   useEffect(() => () => {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
@@ -176,12 +191,16 @@ const MockGenerator = () => {
 
         <AnimatePresence mode="wait">
           {showResult && (
-            <motion.div 
+            <motion.div
               className="mock-result-container"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.4, ease: "easeOut" }}
+              initial={{ opacity: 0, y: 10, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -10, scale: 0.95 }}
+              transition={{
+                duration: 0.5,
+                ease: [0.34, 1.56, 0.64, 1],
+                scale: { duration: 0.6, ease: [0.34, 1.56, 0.64, 1] }
+              }}
             >
               <div className="mock-result-header">
                 <div className="mock-instagram-icon">📸</div>
