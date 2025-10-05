@@ -112,11 +112,17 @@ const AccessibilityTextGenerator = ({ showHeaderFooter = true }) => {
 
   // Hooks for different functionality
   const {
-    generateAltTextForImage
+    generateAltTextForImage,
+    loading: altTextLoading,
+    success: altTextSuccess,
+    error: altTextError
   } = useAltTextGeneration();
 
   const {
-    submitForm: submitLeichteSprache
+    submitForm: submitLeichteSprache,
+    loading: leichteSpracheLoading,
+    success: leichteSpracheSuccess,
+    error: leichteSpracheError
   } = useApiSubmit(API_ENDPOINTS[ACCESSIBILITY_TYPES.LEICHTE_SPRACHE]);
 
   // URL crawler hook for Leichte Sprache
@@ -140,6 +146,11 @@ const AccessibilityTextGenerator = ({ showHeaderFooter = true }) => {
       await retryUrl(url, false);
     }
   }, [retryUrl, selectedType]);
+
+  // Combine loading states from both API submission hooks
+  const combinedLoading = altTextLoading || leichteSpracheLoading;
+  const combinedSuccess = altTextSuccess || leichteSpracheSuccess;
+  const combinedError = altTextError || leichteSpracheError;
 
   // Handle pre-selected Canva template from URL parameters (Alt-Text only)
   useEffect(() => {
@@ -315,7 +326,7 @@ const AccessibilityTextGenerator = ({ showHeaderFooter = true }) => {
       <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
         <BaseForm
           {...form.generator.baseFormProps}
-          title={ACCESSIBILITY_TYPE_TITLES[selectedType]}
+          title={<span className="gradient-title">{ACCESSIBILITY_TYPE_TITLES[selectedType]}</span>}
           generatedContent={storeGeneratedText || generatedContent}
           onGeneratedContentChange={handleGeneratedContentChange}
           onSubmit={handleSubmit}
@@ -323,6 +334,9 @@ const AccessibilityTextGenerator = ({ showHeaderFooter = true }) => {
           submitButtonText={selectedType === ACCESSIBILITY_TYPES.ALT_TEXT ? "Alt-Text generieren" : "In Leichte Sprache übersetzen"}
           isSubmitDisabled={!formRef.current?.isValid?.()}
           useFeatureIcons={false}
+          loading={combinedLoading}
+          success={combinedSuccess}
+          error={combinedError}
         >
           {renderForm()}
         </BaseForm>
