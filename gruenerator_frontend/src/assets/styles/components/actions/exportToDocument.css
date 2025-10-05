@@ -186,11 +186,6 @@
     gap: 0.5rem;
 }
 
-.export-action-button:hover, .open-button:hover {
-    background-color: var(--klee);
-    transform: translateY(-1px);
-}
-
 .export-action-button:disabled {
     background-color: var(--hellgrau);
     cursor: not-allowed;
