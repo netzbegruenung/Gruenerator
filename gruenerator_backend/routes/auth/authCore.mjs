@@ -15,94 +15,24 @@ const router = express.Router();
 // Add Passport session middleware only for auth routes
 router.use(passport.session());
 
-// Intelligent request/response logging for auth core
-// - Correlates requests with a short ID
-// - Logs minimal auth/session hints (no secrets)
-// - Captures redirects and response status/content-type
+// Minimal error-only logging for auth core
 router.use((req, res, next) => {
-  const reqId = `AC-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-  req._authReqId = reqId;
-
-  const start = Date.now();
   const originalSend = res.send.bind(res);
   const originalJson = res.json.bind(res);
-  const originalRedirect = res.redirect ? res.redirect.bind(res) : null;
-
-  const logPrefix = `[authCore][${reqId}]`;
-
-  try {
-    // Basic request context (no sensitive data)
-    console.log(`${logPrefix} Incoming ${req.method} ${req.originalUrl}`, {
-      sessionID: req.sessionID,
-      hasCookieHeader: !!req.headers['cookie'],
-      accept: req.headers['accept'],
-      contentType: req.headers['content-type'],
-      isAuthenticated: typeof req.isAuthenticated === 'function' ? req.isAuthenticated() : false,
-      hasReqUser: !!req.user,
-      hasSessionPassportUser: !!(req.session?.passport?.user)
-    });
-  } catch (_) {}
-
-  function logResponseBody(body, channel = 'send') {
-    try {
-      const elapsed = Date.now() - start;
-      const status = res.statusCode;
-      const ct = res.get('Content-Type');
-      let snippet = '';
-      if (typeof body === 'string') {
-        snippet = body.slice(0, 180);
-      } else if (Buffer.isBuffer(body)) {
-        snippet = body.toString('utf8', 0, Math.min(body.length, 180));
-      } else if (typeof body === 'object' && body !== null) {
-        // Avoid logging tokens or large objects
-        try {
-          const safe = { ...body };
-          if (safe.user) {
-            const { id, email, locale } = safe.user;
-            safe.user = { id, email, locale };
-          }
-          snippet = JSON.stringify(safe).slice(0, 220);
-        } catch (_) {
-          snippet = '[object]';
-        }
-      }
-      const looksHtml = typeof snippet === 'string' && /<html|<!DOCTYPE html/i.test(snippet);
-      console.log(`${logPrefix} Response via ${channel}`, {
-        status,
-        contentType: ct,
-        durationMs: elapsed,
-        looksHtml,
-        bodySnippet: snippet
-      });
-    } catch (e) {
-      console.warn(`${logPrefix} Failed to log response body:`, e.message);
-    }
-  }
 
   res.send = function (body) {
-    logResponseBody(body, 'send');
+    if (res.statusCode >= 400) {
+      console.error(`[authCore] ${req.method} ${req.originalUrl} - Status: ${res.statusCode}`);
+    }
     return originalSend(body);
   };
 
   res.json = function (body) {
-    logResponseBody(body, 'json');
+    if (res.statusCode >= 400) {
+      console.error(`[authCore] ${req.method} ${req.originalUrl} - Status: ${res.statusCode}`);
+    }
     return originalJson(body);
   };
-
-  if (originalRedirect) {
-    res.redirect = function (url) {
-      const elapsed = Date.now() - start;
-      console.log(`${logPrefix} Redirect`, { status: res.statusCode, url, durationMs: elapsed });
-      return originalRedirect(url);
-    };
-  }
-
-  res.on('finish', () => {
-    // Fallback if body wasn’t captured
-    const elapsed = Date.now() - start;
-    const ct = res.get('Content-Type');
-    console.log(`${logPrefix} Finished`, { status: res.statusCode, contentType: ct, durationMs: elapsed });
-  });
 
   next();
 });

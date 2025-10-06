@@ -106,6 +106,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
       thema: initialContent?.thema || '',
       details: initialContent?.details || '',
       zitatgeber: initialContent?.zitatgeber || '',
+      presseabbinder: '',
       platforms: defaultPlatforms,
       sharepicType: 'default',
       zitatAuthor: '',
@@ -303,11 +304,17 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
           ...formDataToSubmit,
           platforms: otherPlatforms
         });
-        
+
         if (response) {
           // Handle both old string format and new {content, metadata} format
-          const content = typeof response === 'string' ? response : response.content;
+          let content = typeof response === 'string' ? response : response.content;
           const metadata = typeof response === 'object' ? response.metadata : {};
+
+          // Append presseabbinder to pressemitteilung content if provided
+          if (otherPlatforms.includes('pressemitteilung') && rhfData.presseabbinder?.trim()) {
+            content = `${content}\n\n---\n\n${rhfData.presseabbinder.trim()}`;
+          }
+
           combinedResults.social = { content, metadata };
         }
       }
@@ -653,6 +660,18 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
               rules={{ required: 'Zitatgeber ist ein Pflichtfeld für Pressemitteilungen' }}
               tabIndex={TabIndexHelpers.getConditional(tabIndex.zitatgeber, watchPressemitteilung)}
               onSubmitSuccess={success ? getValues('zitatgeber') : null}
+              shouldSave={success}
+            />
+            <SmartInput
+              fieldType="presseabbinder"
+              formName="presseSocial"
+              name="presseabbinder"
+              control={control}
+              label="Presseabbinder (optional)"
+              subtext="Standard-Abbinder, der an die Pressemitteilung angehängt wird (z.B. Kontaktdaten, Vereinsinformationen)."
+              placeholder="z.B. Kontakt: Max Mustermann, presse@gruene-example.de"
+              tabIndex={TabIndexHelpers.getConditional(tabIndex.presseabbinder, watchPressemitteilung)}
+              onSubmitSuccess={success ? getValues('presseabbinder') : null}
               shouldSave={success}
             />
           </motion.div>

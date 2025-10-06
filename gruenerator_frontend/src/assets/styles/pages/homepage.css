@@ -1502,25 +1502,25 @@
     .animated-heading h2 {
         font-size: 4rem;
     }
-    
+
     .top-section p {
         font-size: 1.25em;
     }
-    
+
     .link-buttons a,
     .link-buttons button {
         font-size: 1.05em;
         padding: calc(var(--spacing-responsive-medium) * 1.1);
     }
-    
+
     .text-column h2 {
         font-size: 2.6em;
     }
-    
+
     .text-column p {
         font-size: 1.25em;
     }
-    
+
     .link-buttons a svg,
     .link-buttons button svg {
         font-size: 1.35em;
@@ -1528,31 +1528,65 @@
     }
 }
 
+@media (min-width: 1400px) {
+    .top-section {
+        max-width: 1400px;
+    }
+
+    .link-buttons-container {
+        max-width: 1400px;
+    }
+
+    .feature-partner-container {
+        max-width: 1400px;
+    }
+
+    .use-cases-container {
+        max-width: 1400px;
+    }
+}
+
 @media (min-width: 1440px) {
+    .top-section {
+        max-width: 1500px;
+    }
+
+    .link-buttons-container {
+        max-width: 1500px;
+    }
+
+    .feature-partner-container {
+        max-width: 1500px;
+    }
+
+    .use-cases-container {
+        max-width: 1500px;
+    }
+
     .animated-heading .typing-text,
     .animated-heading h2 {
         font-size: 4.2rem;
     }
-    
+
     .top-section p {
         font-size: 1.3em;
     }
-    
+
     .link-buttons a,
     .link-buttons button {
         font-size: 1.08em;
         padding: calc(var(--spacing-responsive-medium) * 1.15);
         border-radius: calc(var(--spacing-responsive-medium) * 1.1);
     }
-    
+
     .text-column h2 {
         font-size: 2.7em;
     }
-    
+
     .text-column p {
         font-size: 1.3em;
     }
-    
+
     .link-buttons a svg,
     .link-buttons button svg {
         font-size: 1.4em;
@@ -1563,18 +1597,56 @@
 @media (min-width: 1920px) {
     .top-section {
         min-height: 55vh;
+        max-width: 1600px;
+        padding-left: 60px;
+        padding-right: 60px;
     }
-    
+
+    .link-buttons-container {
+        max-width: 1600px;
+    }
+
+    .feature-partner-container {
+        max-width: 1600px;
+        padding: 0 60px;
+    }
+
+    .feature-partner-title {
+        font-size: 3.2rem;
+        margin-bottom: 90px;
+    }
+
+    .feature-cards {
+        gap: 140px;
+    }
+
+    .feature-card {
+        gap: 70px;
+    }
+
+    .use-cases-container {
+        max-width: 1600px;
+        padding: 0 60px;
+    }
+
+    .use-cases-title {
+        font-size: 2.8em;
+    }
+
+    .use-cases-grid {
+        gap: calc(var(--spacing-responsive-xlarge) * 1.2);
+    }
+
     .animated-heading .typing-text,
     .animated-heading h2 {
         font-size: 4.5rem;
     }
-    
+
     .top-section p {
         font-size: 1.35em;
         line-height: 1.65;
     }
-    
+
     .link-buttons a,
     .link-buttons button {
         font-size: 1.1em;
@@ -1582,23 +1654,23 @@
         border-radius: calc(var(--spacing-responsive-medium) * 1.2);
         min-width: 180px;
     }
-    
+
     .text-column h2 {
         font-size: 2.8em;
         margin: 0 0 1.2rem;
     }
-    
+
     .text-column p {
         font-size: 1.35em;
         line-height: 1.65;
     }
-    
+
     .link-buttons a svg,
     .link-buttons button svg {
         font-size: 1.45em;
         margin-right: calc(var(--spacing-responsive-small) * 1.2);
     }
-    
+
     .image-column {
         padding: var(--spacing-responsive-medium);
     }
@@ -1607,18 +1679,56 @@
 @media (min-width: 2560px) {
     .top-section {
         min-height: 60vh;
+        max-width: 1900px;
+        padding-left: 80px;
+        padding-right: 80px;
     }
-    
+
+    .link-buttons-container {
+        max-width: 1900px;
+    }
+
+    .feature-partner-container {
+        max-width: 1900px;
+        padding: 0 80px;
+    }
+
+    .feature-partner-title {
+        font-size: 3.5rem;
+        margin-bottom: 100px;
+    }
+
+    .feature-cards {
+        gap: 160px;
+    }
+
+    .feature-card {
+        gap: 80px;
+    }
+
+    .use-cases-container {
+        max-width: 1900px;
+        padding: 0 80px;
+    }
+
+    .use-cases-title {
+        font-size: 3.2em;
+    }
+
+    .use-cases-grid {
+        gap: calc(var(--spacing-responsive-xlarge) * 1.4);
+    }
+
     .animated-heading .typing-text,
     .animated-heading h2 {
         font-size: 5rem;
     }
-    
+
     .top-section p {
         font-size: 1.45em;
         line-height: 1.7;
     }
-    
+
     .link-buttons a,
     .link-buttons button {
         font-size: 1.15em;
@@ -1626,24 +1736,91 @@
         border-radius: calc(var(--spacing-responsive-medium) * 1.3);
         min-width: 200px;
     }
-    
+
     .text-column h2 {
         font-size: 3rem;
         margin: 0 0 1.4rem;
     }
-    
+
     .text-column p {
         font-size: 1.45em;
         line-height: 1.7;
     }
-    
+
     .link-buttons a svg,
     .link-buttons button svg {
         font-size: 1.5em;
         margin-right: calc(var(--spacing-responsive-small) * 1.3);
     }
-    
+
     .image-column {
         padding: calc(var(--spacing-responsive-medium) * 1.2);
+    }
+}
+
+@media (min-width: 3840px) {
+    .top-section {
+        max-width: 2400px;
+        padding-left: 100px;
+        padding-right: 100px;
+    }
+
+    .link-buttons-container {
+        max-width: 2400px;
+    }
+
+    .feature-partner-container {
+        max-width: 2400px;
+        padding: 0 100px;
+    }
+
+    .feature-partner-title {
+        font-size: 4rem;
+        margin-bottom: 110px;
+    }
+
+    .feature-cards {
+        gap: 180px;
+    }
+
+    .feature-card {
+        gap: 90px;
+    }
+
+    .use-cases-container {
+        max-width: 2400px;
+        padding: 0 100px;
+    }
+
+    .use-cases-title {
+        font-size: 3.5em;
+    }
+
+    .use-cases-grid {
+        gap: calc(var(--spacing-responsive-xlarge) * 1.6);
+    }
+
+    .animated-heading .typing-text,
+    .animated-heading h2 {
+        font-size: 5.5rem;
+    }
+
+    .top-section p {
+        font-size: 1.55em;
+        line-height: 1.75;
+    }
+
+    .link-buttons a,
+    .link-buttons button {
+        font-size: 1.2em;
+        padding: calc(var(--spacing-responsive-medium) * 1.5);
+        border-radius: calc(var(--spacing-responsive-medium) * 1.4);
+        min-width: 220px;
+    }
+
+    .link-buttons a svg,
+    .link-buttons button svg {
+        font-size: 1.6em;
+        margin-right: calc(var(--spacing-responsive-small) * 1.4);
     }
 }

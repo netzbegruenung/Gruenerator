@@ -5,14 +5,14 @@ const { markdownForExport, isMarkdownContent } = require('../utils/markdownServi
 // Parse content with formatting information preserved
 function parseFormattedContent(input) {
   if (!input) return [];
-  
+
   let content = String(input);
-  
+
   // First check if this is markdown and convert it
   if (isMarkdownContent(content)) {
     content = markdownForExport(content);
   }
-  
+
   // Convert basic HTML entities
   content = content
     .replace(/&nbsp;/gi, ' ')
@@ -20,24 +20,71 @@ function parseFormattedContent(input) {
     .replace(/&lt;/gi, '<')
     .replace(/&gt;/gi, '>')
     .replace(/&quot;/gi, '"');
-  
-  // Split by paragraphs, preserving formatting within each paragraph
-  const paragraphs = content
-    .split(/<\/(h[1-6]|p|div|section|article)>/gi)
-    .map(para => {
-      // Remove opening tags
-      para = para.replace(/^<(h[1-6]|p|div|section|article)[^>]*>/gi, '');
-      // Remove any stray closing tags that might be left
-      para = para.replace(/<\/(h[1-6]|p|div|section|article)>/gi, '');
-      // Remove standalone paragraph tags
-      para = para.replace(/^<p>$/gi, '').replace(/^<\/p>$/gi, '');
-      return para.trim();
-    })
-    .filter(para => para.length > 0 && para !== 'p' && para !== '/p');
-  
-  return paragraphs.map(paragraph => {
-    // Parse each paragraph for formatting
-    return parseFormattedParagraph(paragraph.trim());
+
+  // Parse paragraphs and headers separately
+  const elements = [];
+  const regex = /<(h[1-6]|p|div|section|article)[^>]*>(.*?)<\/\1>/gi;
+  let match;
+
+  while ((match = regex.exec(content)) !== null) {
+    const tag = match[1].toLowerCase();
+    const innerContent = match[2].trim();
+
+    if (!innerContent) continue;
+
+    // Check if this is a header tag
+    const isHeader = /^h[1-6]$/.test(tag);
+    const headerLevel = isHeader ? parseInt(tag[1]) : null;
+
+    elements.push({
+      content: innerContent,
+      isHeader,
+      headerLevel,
+      tag
+    });
+  }
+
+  // If no elements were found, try splitting by tags
+  if (elements.length === 0) {
+    const paragraphs = content
+      .split(/<\/(h[1-6]|p|div|section|article)>/gi)
+      .map(para => {
+        const headerMatch = para.match(/^<(h[1-6])[^>]*>(.*)/i);
+        if (headerMatch) {
+          return {
+            content: headerMatch[2].trim(),
+            isHeader: true,
+            headerLevel: parseInt(headerMatch[1][1]),
+            tag: headerMatch[1].toLowerCase()
+          };
+        }
+
+        para = para.replace(/^<(h[1-6]|p|div|section|article)[^>]*>/gi, '');
+        para = para.replace(/<\/(h[1-6]|p|div|section|article)>/gi, '');
+        para = para.replace(/^<p>$/gi, '').replace(/^<\/p>$/gi, '');
+        para = para.trim();
+
+        if (!para || para === 'p' || para === '/p') return null;
+
+        return {
+          content: para,
+          isHeader: false,
+          headerLevel: null,
+          tag: 'p'
+        };
+      })
+      .filter(el => el !== null);
+
+    elements.push(...paragraphs);
+  }
+
+  return elements.map(element => {
+    const segments = parseFormattedParagraph(element.content);
+    return {
+      segments,
+      isHeader: element.isHeader,
+      headerLevel: element.headerLevel
+    };
   });
 }
 
@@ -300,42 +347,44 @@ router.post('/docx', async (req, res) => {
     );
 
     // Process each paragraph with its formatting
-    for (const paragraphSegments of formattedParagraphs) {
-      if (paragraphSegments.length === 0) continue;
-      
-      // Check if this paragraph looks like a header (short text, all caps, or ends with colon)
-      const fullText = paragraphSegments.map(seg => seg.text).join('');
-      const isHeader = fullText.length < 100 && (fullText === fullText.toUpperCase() || /^.+:\s*$/.test(fullText));
-      
-      if (isHeader) {
-        // Create header paragraph
-        const textRuns = paragraphSegments.map(segment => 
-          new TextRun({ 
-            text: segment.text, 
-            bold: true, // Headers are always bold
+    for (const paragraph of formattedParagraphs) {
+      if (!paragraph.segments || paragraph.segments.length === 0) continue;
+
+      const fullText = paragraph.segments.map(seg => seg.text).join('');
+
+      if (paragraph.isHeader) {
+        // Create header paragraph based on header level
+        const textRuns = paragraph.segments.map(segment =>
+          new TextRun({
+            text: segment.text,
+            bold: true,
             italics: segment.italic,
-            size: 24 
+            size: paragraph.headerLevel === 1 ? 28 : paragraph.headerLevel === 2 ? 26 : 24
           })
         );
-        
+
+        const headingLevel = paragraph.headerLevel === 1 ? HeadingLevel.HEADING_1 :
+                           paragraph.headerLevel === 2 ? HeadingLevel.HEADING_2 :
+                           HeadingLevel.HEADING_3;
+
         children.push(new Paragraph({
           children: textRuns,
-          heading: HeadingLevel.HEADING_1,
+          heading: headingLevel,
           spacing: { before: 300, after: 200 },
         }));
       } else {
         // Create regular paragraph with formatting
-        const textRuns = paragraphSegments.map(segment => 
-          new TextRun({ 
-            text: segment.text, 
+        const textRuns = paragraph.segments.map(segment =>
+          new TextRun({
+            text: segment.text,
             bold: segment.bold,
             italics: segment.italic,
-            size: 22 
+            size: 22
           })
         );
-        
+
         const isList = fullText.startsWith('•') || /^\d+\./.test(fullText);
-        
+
         children.push(new Paragraph({
           children: textRuns,
           spacing: { after: isList ? 100 : 200 },
@@ -346,7 +395,10 @@ router.post('/docx', async (req, res) => {
     }
 
     children.push(new Paragraph({
-      children: [ new TextRun({ text: `Erstellt mit Grünerator • ${new Date().toLocaleDateString('de-DE')}`, size: 18, italics: true, color: '666666' }) ],
+      children: [
+        new TextRun({ text: `Erstellt mit dem Grünerator von Moritz Wächter • ${new Date().toLocaleDateString('de-DE')} • `, size: 18, italics: true, color: '666666' }),
+        new TextRun({ text: 'gruenerator.de', size: 18, italics: true, color: '0066cc', style: 'Hyperlink' })
+      ],
       alignment: AlignmentType.CENTER,
       spacing: { before: 600 },
     }));

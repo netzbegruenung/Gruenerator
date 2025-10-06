@@ -168,8 +168,6 @@ if (cluster.isMaster) {
 
   const corsOptions = {
     origin: function (origin, callback) {
-      console.log(`[CORS] Request from origin: "${origin}"`);
-
       // Fallback: If nginx strips Origin header, reconstruct from X-Forwarded-Host
       let effectiveOrigin = origin;
       if (!origin && this && this.headers) {
@@ -177,16 +175,13 @@ if (cluster.isMaster) {
         const forwardedProto = this.headers['x-forwarded-proto'] || 'https';
         if (forwardedHost) {
           effectiveOrigin = `${forwardedProto}://${forwardedHost}`;
-          console.log(`[CORS] Reconstructed origin from X-Forwarded-Host: "${effectiveOrigin}"`);
         }
       }
 
       if (allowedOrigins.indexOf(effectiveOrigin) !== -1 || !effectiveOrigin) {
-        console.log(`[CORS] ✓ Origin allowed: ${effectiveOrigin || 'no origin header'}`);
         callback(null, true);
       } else {
-        console.log(`[CORS] ✗ Origin BLOCKED: ${effectiveOrigin}`);
-        console.log(`[CORS] First 5 allowed origins:`, allowedOrigins.slice(0, 5));
+        console.error(`[CORS] Origin BLOCKED: ${effectiveOrigin}`);
         callback(new Error('Not allowed by CORS'));
       }
     },
@@ -219,12 +214,6 @@ if (cluster.isMaster) {
 
   // CORS muss ZUERST kommen!
   app.use(cors(corsOptions));
-
-  // Debug logging for all requests
-  app.use((req, res, next) => {
-    console.log(`[Request] ${req.method} ${req.url} | Host: ${req.headers.host} | Origin: ${req.headers.origin || 'none'}`);
-    next();
-  });
 
   // Setze Express Limit
   app.use(express.json({limit: '500mb'}));

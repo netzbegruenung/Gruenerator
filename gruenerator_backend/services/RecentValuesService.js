@@ -41,7 +41,6 @@ async function saveRecentValue(userId, fieldType, fieldValue, formName = null) {
       'UPDATE user_recent_values SET created_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *',
       [existingResult[0].id]
     );
-    console.log(`[RecentValuesService] Updated existing value for ${fieldType}:`, trimmedValue.substring(0, 50) + '...');
     return updateResult[0];
   }
 
@@ -55,7 +54,6 @@ async function saveRecentValue(userId, fieldType, fieldValue, formName = null) {
 
   try {
     const result = await db.insert('user_recent_values', dataToInsert);
-    console.log(`[RecentValuesService] Saved new recent value for ${fieldType}:`, trimmedValue.substring(0, 50) + '...');
     return result;
   } catch (error) {
     console.error('[RecentValuesService] Error saving recent value:', error);
@@ -98,9 +96,7 @@ async function getRecentValues(userId, fieldType, limit = 5) {
       [userId, fieldType, safeLimit]
     );
 
-    const values = result || [];
-    console.log(`[RecentValuesService] Retrieved ${values.length} recent values for ${fieldType}`);
-    return values;
+    return result || [];
   } catch (error) {
     console.error(`[RecentValuesService] Error retrieving recent values for ${fieldType}:`, error);
     throw new Error(error.message || 'Failed to retrieve recent values');
@@ -132,9 +128,7 @@ async function clearRecentValues(userId, fieldType) {
       field_type: fieldType
     });
 
-    const deletedCount = result.rowCount || 0;
-    console.log(`[RecentValuesService] Cleared ${deletedCount} recent values for ${fieldType}`);
-    return deletedCount;
+    return result.rowCount || 0;
   } catch (error) {
     console.error(`[RecentValuesService] Error clearing recent values for ${fieldType}:`, error);
     throw new Error(error.message || 'Failed to clear recent values');
@@ -166,9 +160,7 @@ async function getFieldTypesWithCounts(userId) {
       [userId]
     );
 
-    const fieldTypes = result || [];
-    console.log(`[RecentValuesService] Found ${fieldTypes.length} field types with recent values`);
-    return fieldTypes;
+    return result || [];
   } catch (error) {
     console.error('[RecentValuesService] Error retrieving field types:', error);
     throw new Error(error.message || 'Failed to retrieve field types');

@@ -163,8 +163,12 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
       });
       
       if (finalPrompt) {
-        formDataToSubmit.customPrompt = finalPrompt; 
-        console.log('[AntragGenerator] Final structured prompt added to formData.', finalPrompt.substring(0,100)+'...');
+        formDataToSubmit.customPrompt = finalPrompt;
+        console.log('[AntragGenerator] Final structured prompt added to formData.',
+          typeof finalPrompt === 'string'
+            ? finalPrompt.substring(0,100)+'...'
+            : JSON.stringify(finalPrompt).substring(0,100)+'...'
+        );
       } else {
         console.log('[AntragGenerator] No custom instructions or knowledge for generation.');
       }

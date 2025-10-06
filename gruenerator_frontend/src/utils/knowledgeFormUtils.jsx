@@ -517,12 +517,9 @@ export const createKnowledgePrompt = async ({
     hasSelectedDocumentContent: !!selectedDocumentContent
   });
 
-  // Return structured data if any components exist, otherwise null
-  if (structuredData.instructions || structuredData.knowledgeContent) {
-    return structuredData;
-  }
-
-  return null;
+  // Always return structured data to indicate frontend is using the new format
+  // Even if both fields are null, the backend needs to know this is structured data
+  return structuredData;
 };
 
 /**

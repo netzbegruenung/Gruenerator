@@ -358,13 +358,29 @@ async function processGraphRequest(routeType, req, res) {
       searchQuery
     } = requestData;
 
+    // Handle structured customPrompt from frontend
+    let extractedInstructions = customPrompt;
+    let extractedKnowledgeContent = knowledgeContent;
+
+    if (customPrompt && typeof customPrompt === 'object' && !Array.isArray(customPrompt)) {
+      // Frontend sent structured data with instructions and knowledgeContent
+      extractedInstructions = customPrompt.instructions || null;
+      extractedKnowledgeContent = customPrompt.knowledgeContent || knowledgeContent || null;
+
+      console.log('[promptProcessor] Detected structured customPrompt:', {
+        hasInstructions: !!extractedInstructions,
+        hasKnowledge: !!extractedKnowledgeContent,
+        knowledgeLength: extractedKnowledgeContent ? extractedKnowledgeContent.length : 0
+      });
+    }
+
     console.log(`[promptProcessor] Processing ${routeType} request`);
     console.log(`[promptProcessor] Request data:`, {
       useBedrock: requestData.useBedrock,
       usePrivacyMode: requestData.usePrivacyMode,
       provider: requestData.provider,
       hasCustomPrompt: !!customPrompt,
-      hasKnowledgeContent: !!knowledgeContent,
+      hasKnowledgeContent: !!extractedKnowledgeContent,
       hasSelectedKnowledge: !!(selectedKnowledgeIds && selectedKnowledgeIds.length > 0),
       hasSelectedDocuments: !!(selectedDocumentIds && selectedDocumentIds.length > 0),
       hasSelectedTexts: !!(selectedTextIds && selectedTextIds.length > 0),
@@ -417,8 +433,8 @@ async function processGraphRequest(routeType, req, res) {
       systemRole,
       constraints,
       formatting,
-      instructions: customPrompt || null,
-      knowledgeContent: knowledgeContent || null,
+      instructions: extractedInstructions || null,
+      knowledgeContent: extractedKnowledgeContent || null,
       selectedKnowledgeIds: selectedKnowledgeIds || [],
       selectedDocumentIds: selectedDocumentIds || [],
       selectedTextIds: selectedTextIds || [],
@@ -445,6 +461,11 @@ async function processGraphRequest(routeType, req, res) {
     const aiOptions = getAIOptions(config, requestData);
     console.log(`[promptProcessor] AI Options:`, aiOptions);
     console.log(`[promptProcessor] About to send useBedrock:`, requestData.useBedrock);
+
+    // Log instructions if present
+    if (enrichedState.instructions) {
+      console.log(`[promptProcessor] Instructions (customPrompt):`, enrichedState.instructions);
+    }
 
     const payload = {
       systemPrompt: promptResult.system,
