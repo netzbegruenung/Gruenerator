@@ -1,5 +1,3 @@
-// Note: PostgresService is ESM. Import lazily inside functions where needed.
-
 async function jwtAuthMiddleware(req, res, next) {
   const authHeader = req.headers.authorization;
   
@@ -16,9 +14,13 @@ async function jwtAuthMiddleware(req, res, next) {
     // Try to decode as simple mobile JWT first
     try {
       const { jwtVerify } = await import('jose');
-      const secret = new TextEncoder().encode(
-        process.env.SESSION_SECRET || 'fallback-secret-please-change'
-      );
+
+      // Validate SESSION_SECRET exists
+      if (!process.env.SESSION_SECRET || process.env.SESSION_SECRET.length < 32) {
+        throw new Error('SESSION_SECRET must be set and at least 32 characters');
+      }
+
+      const secret = new TextEncoder().encode(process.env.SESSION_SECRET);
       
       const { payload } = await jwtVerify(token, secret, {
         issuer: 'gruenerator-mobile',
