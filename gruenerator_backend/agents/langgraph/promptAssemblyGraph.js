@@ -61,7 +61,7 @@ function formatRequestObject(request, locale = 'de-DE') {
   if (request.zitatgeber) parts.push(`Zitatgeber: ${request.zitatgeber}`);
   if (request.textForm) parts.push(`Textform: ${request.textForm}`);
   for (const [k, v] of Object.entries(request)) {
-    if (["theme", "thema", "details", "platforms", "zitatgeber", "textForm"].includes(k)) continue;
+    if (["theme", "thema", "details", "platforms", "zitatgeber", "textForm", "presseabbinder"].includes(k)) continue;
     if (v) {
       // Localize the value if it's a string
       const localizedValue = typeof v === 'string' ? localizePlaceholders(v, locale) : v;

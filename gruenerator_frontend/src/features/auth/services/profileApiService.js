@@ -201,11 +201,11 @@ export const profileApiService = {
         method: 'GET',
         credentials: 'include'
       });
-      
+
       if (!response.ok) {
         throw new Error('Fehler beim Laden');
       }
-      
+
       const json = await response.json();
       return {
         antragPrompt: json.antragPrompt || '',
@@ -213,6 +213,8 @@ export const profileApiService = {
         socialPrompt: json.socialPrompt || '',
         universalPrompt: json.universalPrompt || '',
         gruenejugendPrompt: json.gruenejugendPrompt || '',
+        redePrompt: json.redePrompt || '',
+        buergeranfragenPrompt: json.buergeranfragenPrompt || '',
         presseabbinder: json.presseabbinder || '',
         knowledge: json.knowledge || []
       };
@@ -335,6 +337,8 @@ export const profileApiService = {
         custom_social_prompt: data.customSocialPrompt,
         custom_universal_prompt: data.customUniversalPrompt,
         custom_gruenejugend_prompt: data.customGruenejugendPrompt,
+        custom_rede_prompt: data.customRedePrompt,
+        custom_buergeranfragen_prompt: data.customBuergeranfragenPrompt,
         presseabbinder: data.presseabbinder,
         knowledge: cleanedKnowledge
       };

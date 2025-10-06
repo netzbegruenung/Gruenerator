@@ -8,16 +8,15 @@ const jwtAuthMiddleware = require('./jwtAuthMiddleware');
 // Dual authentication middleware - supports both JWT and session auth
 function requireAuth(req, res, next) {
   // Controlled development authentication bypass
-  if (process.env.NODE_ENV === 'development' && 
+  if (process.env.NODE_ENV === 'development' &&
       process.env.ALLOW_DEV_AUTH_BYPASS === 'true' &&
       process.env.DEV_AUTH_BYPASS_TOKEN) {
-    
+
     const bypassToken = req.headers['x-dev-auth-bypass'] || req.query.dev_auth_token;
-    
+
     if (bypassToken && bypassToken === process.env.DEV_AUTH_BYPASS_TOKEN) {
-      console.log('[AuthMiddleware] Development auth bypass activated');
-      req.user = { 
-        id: 'dev-user-123', 
+      req.user = {
+        id: 'dev-user-123',
         email: 'dev@gruenerator.de',
         display_name: 'Development User'
       };
@@ -28,7 +27,6 @@ function requireAuth(req, res, next) {
   // Mobile app token bypass - simple shared token authentication
   const appToken = req.headers['x-app-token'];
   if (appToken && process.env.MOBILE_APP_TOKEN && appToken === process.env.MOBILE_APP_TOKEN) {
-    console.log('[AuthMiddleware] Mobile app token validated');
     req.user = {
       id: 'mobile-app',
       email: 'app@gruenerator.de',
