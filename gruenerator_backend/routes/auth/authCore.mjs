@@ -1,10 +1,8 @@
 import express from 'express';
 import passport from '../../config/passportSetup.mjs';
-// Supabase deprecated – remove dependency
 import authMiddlewareModule from '../../middleware/authMiddleware.js';
 import { createRequire } from 'module';
 
-// Import chat memory service for cleanup on logout
 const require = createRequire(import.meta.url);
 const chatMemory = require('../../services/chatMemoryService');
 
@@ -12,10 +10,8 @@ const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
 
 const router = express.Router();
 
-// Add Passport session middleware only for auth routes
 router.use(passport.session());
 
-// Minimal error-only logging for auth core
 router.use((req, res, next) => {
   const originalSend = res.send.bind(res);
   const originalJson = res.json.bind(res);
@@ -37,20 +33,15 @@ router.use((req, res, next) => {
   next();
 });
 
-// Helpers for mobile deep-link support
-
 function isAllowedMobileRedirect(redirectUrl) {
   if (!redirectUrl) return false;
-  // Only consider non-http(s) deep-links as mobile redirects
   const lower = redirectUrl.toLowerCase();
   if (lower.startsWith('http://') || lower.startsWith('https://')) return false;
-  // Allow gruenerator:// URLs by default
   return redirectUrl.startsWith('gruenerator://');
 }
 
 function appendQueryParam(url, key, value) {
   try {
-    // For custom schemes, URL may throw; fallback to simple concatenation
     const hasQuery = url.includes('?');
     const sep = hasQuery ? '&' : '?';
     return `${url}${sep}${encodeURIComponent(key)}=${encodeURIComponent(value)}`;
@@ -67,7 +58,6 @@ router.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', message: 'Backend is healthy' });
 });
 
-// Simple test endpoint to verify routing works
 router.get('/test', (req, res) => {
   res.json({ 
     success: true, 
