@@ -73,41 +73,10 @@ function formatRequestObject(request, locale = 'de-DE') {
   return result;
 }
 
-function buildMainUserContent({ examples = [], knowledge = [], instructions = null, request = null, toolInstructions = [], constraints = null, formatting = null, locale = 'de-DE' }) {
+function buildMainUserContent({ examples = [], knowledge = [], instructions = null, request = null, toolInstructions = [], constraints = null, formatting = null, taskInstructions = null, outputFormat = null, locale = 'de-DE' }) {
   const parts = [];
 
-  // Add tool instructions first
-  if (toolInstructions && toolInstructions.length > 0) {
-    const localizedInstructions = toolInstructions.map(instr => localizePlaceholders(instr, locale));
-    parts.push(localizedInstructions.join(" "));
-  }
-
-  // Add constraints
-  if (constraints) {
-    parts.push(localizePlaceholders(constraints, locale));
-  }
-
-  // Add formatting instructions
-  if (formatting) {
-    parts.push(localizePlaceholders(formatting, locale));
-  }
-
-  // Add examples
-  const ex = formatExamples(examples);
-  if (ex) parts.push(ex);
-
-  // Localize knowledge content
-  if (Array.isArray(knowledge) && knowledge.length > 0) {
-    const localizedKnowledge = knowledge.map(k => localizePlaceholders(k, locale));
-    parts.push(`<knowledge>\n${localizedKnowledge.join("\n\n")}\n</knowledge>`);
-  }
-
-  // Localize instructions
-  if (instructions) {
-    const localizedInstructions = localizePlaceholders(instructions, locale);
-    parts.push(`<instructions>\n${localizedInstructions}\n</instructions>`);
-  }
-
+  // 1. USER REQUEST (what they want) - FIRST!
   if (request) {
     let txt;
     if (typeof request === "string") {
@@ -117,8 +86,51 @@ function buildMainUserContent({ examples = [], knowledge = [], instructions = nu
     }
     parts.push(`<request>\n${txt}\n</request>`);
   }
+
+  // 2. TASK INSTRUCTIONS (how to execute this specific task)
+  if (taskInstructions) {
+    parts.push(localizePlaceholders(taskInstructions, locale));
+  }
+
+  // 3. CUSTOM INSTRUCTIONS (user's personal guidance)
+  if (instructions) {
+    const localizedInstructions = localizePlaceholders(instructions, locale);
+    parts.push(`<instructions>\n${localizedInstructions}\n</instructions>`);
+  }
+
+  // 4. CONSTRAINTS (absolute limits)
+  if (constraints) {
+    parts.push(localizePlaceholders(constraints, locale));
+  }
+
+  // 5. FORMATTING RULES
+  if (formatting) {
+    parts.push(localizePlaceholders(formatting, locale));
+  }
+
+  // 6. EXAMPLES (if applicable)
+  const ex = formatExamples(examples);
+  if (ex) parts.push(ex);
+
+  // 7. CONTEXT HINTS (passive, informational)
+  if (toolInstructions && toolInstructions.length > 0) {
+    const localizedInstructions = toolInstructions.map(instr => localizePlaceholders(instr, locale));
+    parts.push(localizedInstructions.join(" "));
+  }
+
+  // 8. BACKGROUND KNOWLEDGE (optional context)
+  if (Array.isArray(knowledge) && knowledge.length > 0) {
+    const localizedKnowledge = knowledge.map(k => localizePlaceholders(k, locale));
+    parts.push(`<knowledge>\n${localizedKnowledge.join("\n\n")}\n</knowledge>`);
+  }
+
+  // 9. OUTPUT FORMAT (how to structure response) - LAST
+  if (outputFormat) {
+    parts.push(localizePlaceholders(outputFormat, locale));
+  }
+
   const combined = parts.length > 0 ? parts.join("\n\n---\n\n") : null;
-  console.log(`📋 [PromptAssembly] Main user content built (sections=${parts.length}, tools=${toolInstructions?.length || 0}, constraints=${constraints ? 'y' : 'n'}, formatting=${formatting ? 'y' : 'n'}, locale=${locale})`);
+  console.log(`📋 [PromptAssembly] Main user content built (sections=${parts.length}, task=${taskInstructions ? 'y' : 'n'}, custom=${instructions ? 'y' : 'n'}, constraints=${constraints ? 'y' : 'n'}, formatting=${formatting ? 'y' : 'n'}, locale=${locale})`);
   return combined;
 }
 
@@ -153,6 +165,8 @@ function assemblePromptGraph(state) {
     toolInstructions: state.toolInstructions || [],
     constraints: state.constraints,
     formatting: state.formatting,
+    taskInstructions: state.taskInstructions,
+    outputFormat: state.outputFormat,
     locale: state.locale || 'de-DE'
   });
   if (mainUser) {
@@ -422,6 +436,8 @@ async function assemblePromptGraphAsync(enrichedState, flags = {}) {
     toolInstructions: enrichedState.toolInstructions || [],
     constraints: enrichedState.constraints,
     formatting: enrichedState.formatting,
+    taskInstructions: enrichedState.taskInstructions,
+    outputFormat: enrichedState.outputFormat,
     locale: enrichedState.locale || 'de-DE'
   });
   if (mainUser) {

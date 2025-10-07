@@ -10,38 +10,39 @@ const useSharepicGeneration = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const generateSharepic = useCallback(async (thema, details, uploadedImage = null, sharepicType = 'dreizeilen', zitatAuthor = null, customPrompt = null, attachments = null, usePrivacyMode = false, provider = null) => {
+  const generateSharepic = useCallback(async (thema, details, uploadedImage = null, sharepicType = 'dreizeilen', zitatAuthor = null, customPrompt = null, attachments = null, usePrivacyMode = false, provider = null, useProMode = false) => {
     setLoading(true);
     setError(null);
 
     try {
-      console.log('[useSharepicGeneration] Starting sharepic generation:', { 
-        thema, 
-        details, 
-        hasImage: !!uploadedImage, 
-        sharepicType, 
-        zitatAuthor, 
+      console.log('[useSharepicGeneration] Starting sharepic generation:', {
+        thema,
+        details,
+        hasImage: !!uploadedImage,
+        sharepicType,
+        zitatAuthor,
         hasCustomPrompt: !!customPrompt,
         hasAttachments: attachments && attachments.length > 0,
         usePrivacyMode,
-        provider
+        provider,
+        useProMode
       });
 
       // Route to appropriate generation function based on type
       switch (sharepicType) {
         case 'default':
-          return await generateDefaultSharepics(thema, details, customPrompt, attachments, usePrivacyMode, provider);
+          return await generateDefaultSharepics(thema, details, customPrompt, attachments, usePrivacyMode, provider, useProMode);
         case 'quote':
-          return await generateUnifiedSharepic('zitat', thema, details, uploadedImage, zitatAuthor, customPrompt, attachments, usePrivacyMode, provider);
+          return await generateUnifiedSharepic('zitat', thema, details, uploadedImage, zitatAuthor, customPrompt, attachments, usePrivacyMode, provider, useProMode);
         case 'quote_pure':
-          return await generateUnifiedSharepic('zitat_pure', thema, details, null, zitatAuthor, customPrompt, attachments, usePrivacyMode, provider);
+          return await generateUnifiedSharepic('zitat_pure', thema, details, null, zitatAuthor, customPrompt, attachments, usePrivacyMode, provider, useProMode);
         case 'info':
-          return await generateUnifiedSharepic('info', thema, details, null, null, customPrompt, attachments, usePrivacyMode, provider);
+          return await generateUnifiedSharepic('info', thema, details, null, null, customPrompt, attachments, usePrivacyMode, provider, useProMode);
         case 'headline':
-          return await generateUnifiedSharepic('headline', thema, details, null, null, customPrompt, attachments, usePrivacyMode, provider);
+          return await generateUnifiedSharepic('headline', thema, details, null, null, customPrompt, attachments, usePrivacyMode, provider, useProMode);
         case 'dreizeilen':
         default:
-          return await generateUnifiedSharepic('dreizeilen', thema, details, uploadedImage, null, customPrompt, attachments, usePrivacyMode, provider);
+          return await generateUnifiedSharepic('dreizeilen', thema, details, uploadedImage, null, customPrompt, attachments, usePrivacyMode, provider, useProMode);
       }
 
     } catch (err) {
@@ -54,7 +55,7 @@ const useSharepicGeneration = () => {
   }, []);
 
   // Unified sharepic generation function - handles all types via single backend endpoint
-  const generateUnifiedSharepic = useCallback(async (type, thema, details, uploadedImage = null, zitatAuthor = null, customPrompt = null, attachments = null, usePrivacyMode = false, provider = null) => {
+  const generateUnifiedSharepic = useCallback(async (type, thema, details, uploadedImage = null, zitatAuthor = null, customPrompt = null, attachments = null, usePrivacyMode = false, provider = null, useProMode = false) => {
     console.log(`[useSharepicGeneration] Starting ${type} sharepic generation via unified endpoint`);
 
     const requestData = {
@@ -84,6 +85,11 @@ const useSharepicGeneration = () => {
       if (provider) {
         requestData.provider = provider;
       }
+    }
+
+    // Add Pro mode flag for backend
+    if (useProMode) {
+      requestData.useBedrock = useProMode;
     }
 
     // Handle uploaded image for relevant types
