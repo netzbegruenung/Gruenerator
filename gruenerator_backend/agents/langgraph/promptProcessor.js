@@ -298,6 +298,24 @@ function getFormattingInstructions(config) {
   return config.formatting || null;
 }
 
+// Get task-specific instructions
+function getTaskInstructions(config, requestData) {
+  if (!config.taskInstructions) return null;
+  return SimpleTemplateEngine.render(config.taskInstructions, {
+    ...requestData,
+    config
+  });
+}
+
+// Get output format instructions
+function getOutputFormat(config, requestData) {
+  if (!config.outputFormat) return null;
+  return SimpleTemplateEngine.render(config.outputFormat, {
+    ...requestData,
+    config
+  });
+}
+
 // Build constraints from platform guidelines
 function buildConstraints(config, requestData) {
   const { platforms } = requestData;
@@ -419,6 +437,12 @@ async function processGraphRequest(routeType, req, res) {
     // Get formatting instructions
     const formatting = getFormattingInstructions(config);
 
+    // Get task-specific instructions
+    const taskInstructions = getTaskInstructions(config, requestData);
+
+    // Get output format instructions
+    const outputFormat = getOutputFormat(config, requestData);
+
     // Build web search query
     const webSearchQuery = buildWebSearchQuery(config, requestData);
 
@@ -433,6 +457,8 @@ async function processGraphRequest(routeType, req, res) {
       systemRole,
       constraints,
       formatting,
+      taskInstructions: taskInstructions || null,
+      outputFormat: outputFormat || null,
       instructions: extractedInstructions || null,
       knowledgeContent: extractedKnowledgeContent || null,
       selectedKnowledgeIds: selectedKnowledgeIds || [],

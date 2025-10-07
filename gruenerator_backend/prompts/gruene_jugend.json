@@ -47,7 +47,9 @@
     "examples": false
   },
   "requestFields": ["thema", "details", "platforms"],
-  "requestTemplate": "Erstelle einen maßgeschneiderten Social-Media-Beitrag für jede ausgewählte Plattform zu diesem Thema im charakteristischen Stil der GRÜNEN JUGEND. Berücksichtige diese plattformspezifischen Richtlinien:\n\n{{platformGuidelines}}\n\nJeder Beitrag sollte:\n1. Eine klare linke, aktivistische Perspektive zeigen\n2. Direkte Kritik an Missständen üben\n3. Konkrete Handlungsaufforderungen enthalten\n4. Solidarität mit marginalisierten Gruppen ausdrücken\n5. Emojis effektiv zur Betonung wichtiger Punkte einsetzen\n6. Hashtags strategisch verwenden\n7. Eine jugendliche, authentische Sprache nutzen\n8. Zum direkten politischen Handeln aufrufen\n\nAktuelles Datum: {{currentDate}}\n\nBitte erstelle die Inhalte für folgende Angaben:\nThema: {{thema}}\nDetails: {{details}}\nPlattformen: {{platforms}}\n\n{{TITLE_GENERATION_INSTRUCTION}}",
+  "requestTemplate": "Thema: {{thema}}\nDetails: {{details}}\nPlattformen: {{platforms}}\nAktuelles Datum: {{currentDate}}",
+  "taskInstructions": "Erstelle einen maßgeschneiderten Social-Media-Beitrag für jede ausgewählte Plattform im charakteristischen Stil der GRÜNEN JUGEND. Jeder Beitrag sollte: eine klare linke, aktivistische Perspektive zeigen, direkte Kritik an Missständen üben, konkrete Handlungsaufforderungen enthalten, Solidarität mit marginalisierten Gruppen ausdrücken, Emojis effektiv zur Betonung wichtiger Punkte einsetzen, Hashtags strategisch verwenden, eine jugendliche, authentische Sprache nutzen und zum direkten politischen Handeln aufrufen.",
+  "outputFormat": "{{TITLE_GENERATION_INSTRUCTION}}",
   "webSearchQuery": "{{thema}} {{details}} Bündnis 90 Die Grünen Politik",
   "formatting": "MARKDOWN_FORMATTING_INSTRUCTIONS",
   "shortFormThreshold": 300,

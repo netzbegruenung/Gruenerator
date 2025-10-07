@@ -10,7 +10,8 @@
     "examples": false
   },
   "requestFields": ["originalText", "targetLanguage"],
-  "requestTemplate": "Übersetze den folgenden Text in Leichte Sprache:\n\n<originaltext>\n{{originalText}}\n</originaltext>\n\n{{#if targetLanguage}}\nZielsprache: {{targetLanguage}}\n{{/if}}\n\nWICHTIG: Befolge alle Regeln der Leichten Sprache strikt. Zähle die Wörter in jedem Satz!",
+  "requestTemplate": "<originaltext>\n{{originalText}}\n</originaltext>\n\n{{#if targetLanguage}}\nZielsprache: {{targetLanguage}}\n{{/if}}",
+  "taskInstructions": "Übersetze den Text in Leichte Sprache. WICHTIG: Befolge alle Regeln der Leichten Sprache strikt. Zähle die Wörter in jedem Satz!",
   "webSearchQuery": "{{originalText}} Leichte Sprache Übersetzung",
   "formatting": "HTML_FORMATTING_INSTRUCTIONS",
   "shortFormThreshold": 300,

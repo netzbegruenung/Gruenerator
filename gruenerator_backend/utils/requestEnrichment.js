@@ -44,6 +44,8 @@ class RequestEnricher {
       systemRole = null,
       constraints = null,
       formatting = null,
+      taskInstructions = null,
+      outputFormat = null,
       examples = [],
       toolInstructions = [],
       // New options for KnowledgeSelector documents
@@ -66,6 +68,8 @@ class RequestEnricher {
       systemRole,
       constraints,
       formatting,
+      taskInstructions,
+      outputFormat,
       documents: [],
       knowledge: knowledgeContent ? [knowledgeContent] : [],
       instructions: options.instructions || null,
@@ -171,7 +175,7 @@ class RequestEnricher {
         }
         webSearchSources = result.sources;
         if (result.knowledge.length > 0) {
-          state.toolInstructions.push('Nutze die bereitgestellten aktuellen Suchergebnisse für Informationen und Fakten. Zitiere Quellen wenn verfügbar.');
+          state.toolInstructions.push('Hinweis: Aktuelle Informationen aus einer Websuche sind als Hintergrundwissen verfügbar. Du kannst diese bei Bedarf nutzen.');
         }
       } else if (result.type === 'vectorsearch') {
         if (result.knowledge.length > 0) {
@@ -322,7 +326,7 @@ class RequestEnricher {
           );
 
           if (summary?.summary?.generated && summary.summary.text) {
-            knowledge.push(`AKTUELLE INFORMATIONEN:\n${summary.summary.text.trim()}`);
+            knowledge.push(`HINTERGRUNDWISSEN (Websuche):\n${summary.summary.text.trim()}`);
           }
         }
       } catch (summaryError) {

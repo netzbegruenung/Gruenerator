@@ -111,7 +111,8 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
       sharepicType: 'default',
       zitatAuthor: '',
       useWebSearchTool: false,
-      usePrivacyMode: false
+      usePrivacyMode: false,
+      useProMode: false
     },
     shouldUnregister: false  // Preserve field values when conditionally rendered
   });
@@ -120,6 +121,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   const watchSharepicType = useWatch({ control, name: 'sharepicType', defaultValue: 'default' });
   const watchUseWebSearch = useWatch({ control, name: 'useWebSearchTool', defaultValue: false });
   const watchUsePrivacyMode = useWatch({ control, name: 'usePrivacyMode', defaultValue: false });
+  const watchUseProMode = useWatch({ control, name: 'useProMode', defaultValue: false });
 
   const watchPressemitteilung = Array.isArray(watchPlatforms) && watchPlatforms.includes('pressemitteilung');
   const watchSharepic = isAuthenticated && Array.isArray(watchPlatforms) && watchPlatforms.includes('sharepic');
@@ -216,6 +218,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
         zitatgeber: rhfData.zitatgeber,
         useWebSearchTool: rhfData.useWebSearchTool,
         usePrivacyMode: rhfData.usePrivacyMode,
+        useBedrock: rhfData.useProMode,  // Pro mode flag for backend API
         attachments: allAttachments
       };
       
@@ -263,7 +266,8 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
             finalPrompt, // Pass knowledge prompt to sharepic generation
             allAttachments, // Include attachments
             rhfData.usePrivacyMode, // Include privacy mode
-            null // provider - will be handled by privacy mode settings
+            null, // provider - will be handled by privacy mode settings
+            rhfData.useProMode // Pass Pro mode flag for sharepic generation
           );
           // Handle both single sharepic and array of sharepics (default mode)
           const previousContent = useGeneratedTextStore.getState().generatedTexts?.[componentName] || socialMediaContent;
@@ -495,6 +499,15 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
     tabIndex: tabIndex.privacyMode || 13
   };
 
+  const proModeToggle = {
+    isActive: watchUseProMode,
+    onToggle: (checked) => {
+      setValue('useProMode', checked);
+    },
+    label: "Pro-Mode",
+    description: "Nutzt ein fortgeschrittenes Sprachmodell – ideal für komplexere Texte."
+  };
+
   const renderPlatformSection = () => (
     <PlatformSelector
       name="platforms"
@@ -702,6 +715,8 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
           useWebSearchFeatureToggle={true}
           privacyModeToggle={privacyModeToggle}
           usePrivacyModeToggle={true}
+          proModeToggle={proModeToggle}
+          useProModeToggle={true}
           useFeatureIcons={true}
           onAttachmentClick={handleAttachmentClick}
           onRemoveFile={handleRemoveFile}

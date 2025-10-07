@@ -78,12 +78,14 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
       details: '',
       gliederung: '',
       useWebSearchTool: false,
-      usePrivacyMode: false
+      usePrivacyMode: false,
+      useProMode: false
     }
   });
 
   const watchUseWebSearch = watch('useWebSearchTool');
   const watchUsePrivacyMode = watch('usePrivacyMode');
+  const watchUseProMode = watch('useProMode');
 
   const [antragContent, setAntragContent] = useState('');
   const [attachedFiles, setAttachedFiles] = useState([]);
@@ -132,6 +134,7 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
         gliederung: rhfData.gliederung,
         useWebSearchTool: rhfData.useWebSearchTool,
         usePrivacyMode: rhfData.usePrivacyMode,
+        useBedrock: rhfData.useProMode,  // Pro mode flag for backend API
         attachments: processedAttachments
       };
       
@@ -190,7 +193,7 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
     } finally {
       setStoreIsLoading(false);
     }
-  }, [submitForm, resetSuccess, setGeneratedText, setStoreIsLoading, componentName, source, isInstructionsActive, getActiveInstruction, groupDetailsData, getKnowledgeContent, getDocumentContent, processedAttachments]);
+  }, [submitForm, resetSuccess, setGeneratedText, setStoreIsLoading, componentName, source, isInstructionsActive, getActiveInstruction, groupDetailsData, getKnowledgeContent, getDocumentContent, processedAttachments, selectedRequestType]);
 
   const handleGeneratedContentChange = useCallback((content) => {
     setAntragContent(content);
@@ -318,6 +321,15 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
     tabIndex: tabIndex.privacyMode || 13
   };
 
+  const proModeToggle = {
+    isActive: watchUseProMode,
+    onToggle: (checked) => {
+      setValue('useProMode', checked);
+    },
+    label: "Pro-Mode",
+    description: "Nutzt ein fortgeschrittenes Sprachmodell – ideal für komplexere Texte."
+  };
+
 
   return (
     <ErrorBoundary>
@@ -338,6 +350,8 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
           useWebSearchFeatureToggle={true}
           privacyModeToggle={privacyModeToggle}
           usePrivacyModeToggle={true}
+          proModeToggle={proModeToggle}
+          useProModeToggle={true}
           useFeatureIcons={true}
           onAttachmentClick={handleAttachmentClick}
           onRemoveFile={handleRemoveFile}
