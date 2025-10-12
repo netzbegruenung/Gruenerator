@@ -155,11 +155,10 @@ const EnhancedKnowledgeSelector = ({
   } = uiConfig;
 
   // Get user groups and authentication
-  const { 
+  const {
     userGroups: groups
   } = useGroups();
-  
-  const { fetchDocuments, isLoading: documentsLoading } = useDocumentsStore();
+
   const { user } = useAuth();
   
   // Load content from all groups using the new hook
@@ -180,25 +179,16 @@ const EnhancedKnowledgeSelector = ({
   
   // Removed console.log for performance
 
-  // Load user documents and texts
-  const { documents: documentsStoreData } = useDocumentsStore();
-  
-  // Track if initial document fetch has been attempted to prevent loops
-  const hasAttemptedDocumentFetch = useRef(false);
-  
-  useEffect(() => {
-    if (enableDocuments && !hasAttemptedDocumentFetch.current && !documentsLoading) {
-      hasAttemptedDocumentFetch.current = true;
-      fetchDocuments();
-    }
-  }, [enableDocuments, documentsLoading, fetchDocuments]);
-  
-  // Reset the fetch flag when enableDocuments changes from false to true
-  useEffect(() => {
-    if (enableDocuments) {
-      hasAttemptedDocumentFetch.current = false;
-    }
-  }, [enableDocuments]);
+  // Get documents from generatorKnowledgeStore (now properly synced by useKnowledge)
+  const {
+    availableDocuments: documentsFromKnowledgeStore
+  } = useGeneratorKnowledgeStore();
+
+  // Use documents from the knowledge store which are synced from documentsStore
+  const documentsStoreData = documentsFromKnowledgeStore;
+
+  // Note: Document fetching is now handled by useKnowledge hook in parent components
+  // This prevents duplicate fetches and ensures proper synchronization
 
   useEffect(() => {
     if (enableTexts) {
@@ -550,7 +540,7 @@ const EnhancedKnowledgeSelector = ({
           if (currentSearchTerm && currentSearchTerm.trim()) {
             return `Keine Ergebnisse für "${currentSearchTerm}"`;
           }
-          if (isLoadingAllGroups || documentsLoading || isLoadingTexts) {
+          if (isLoadingAllGroups || isLoadingTexts) {
             return 'Lade verfügbare Inhalte...';
           }
           if (hasGroupErrors) {
