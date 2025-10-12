@@ -253,7 +253,7 @@ const ChatUI = ({
   return (
     <div className={`editor-chat ${fullScreen ? 'editor-chat-fullscreen' : ''} ${className}`}>
       {showHeader && (
-        <div className="editor-chat-header">
+        <div className="chat-header">
           <h3>{headerTitle}</h3>
           {onClose && (
             <button className="close-button" onClick={onClose}>

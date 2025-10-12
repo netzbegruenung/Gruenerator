@@ -125,51 +125,54 @@ const ChatWorkbenchLayout = ({
         className="qa-chat-dossier-input-wrapper"
         onSubmit={handleSubmit}
       >
-        {!hideModeSelector && renderModeSelector()}
-        {enableFileUpload && attachedFiles.length > 0 && (
-          <AttachedFilesList
-            files={attachedFiles}
-            onRemoveFile={onRemoveFile}
-            className="chat-attached-files"
-          />
-        )}
-        <textarea
-          value={inputValue}
-          onChange={(event) => onInputChange && onInputChange(event.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={placeholder}
-          disabled={disabled}
-          rows={1}
-        />
-        {enableFileUpload && (
-          <>
-            <button
-              type="button"
-              className="chat-file-upload-button chat-file-upload-button-workbench"
-              onClick={handleFileUploadClick}
-              disabled={disabled}
-              aria-label="Datei hinzufügen"
-            >
-              <FaPlus />
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept=".pdf,.jpg,.jpeg,.png,.webp"
-              onChange={handleFileChange}
-              style={{ display: 'none' }}
+        {/* Temporarily hidden until chat mode CSS is complete */}
+        {/* {!hideModeSelector && renderModeSelector()} */}
+        <div className="textarea-wrapper">
+          {enableFileUpload && attachedFiles.length > 0 && (
+            <AttachedFilesList
+              files={attachedFiles}
+              onRemoveFile={onRemoveFile}
+              className="chat-attached-files"
             />
-          </>
-        )}
-        <button
-          type={hasText ? "submit" : "button"}
-          onClick={!hasText ? handleButtonClick : undefined}
-          disabled={disabled || isVoiceProcessing}
-          className={isVoiceRecording ? 'voice-recording' : ''}
-        >
-          {effectiveSubmitLabel}
-        </button>
+          )}
+          <textarea
+            value={inputValue}
+            onChange={(event) => onInputChange && onInputChange(event.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={placeholder}
+            disabled={disabled}
+            rows={1}
+          />
+          {enableFileUpload && (
+            <>
+              <button
+                type="button"
+                className="chat-file-upload-button chat-file-upload-button-workbench"
+                onClick={handleFileUploadClick}
+                disabled={disabled}
+                aria-label="Datei hinzufügen"
+              >
+                <FaPlus />
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept=".pdf,.jpg,.jpeg,.png,.webp"
+                onChange={handleFileChange}
+                style={{ display: 'none' }}
+              />
+            </>
+          )}
+          <button
+            type={hasText ? "submit" : "button"}
+            onClick={!hasText ? handleButtonClick : undefined}
+            disabled={disabled || isVoiceProcessing}
+            className={isVoiceRecording ? 'voice-recording' : ''}
+          >
+            {effectiveSubmitLabel}
+          </button>
+        </div>
       </form>
     );
   };
@@ -179,8 +182,8 @@ const ChatWorkbenchLayout = ({
     if (hideHeader || (!title && !headerContent)) return null;
 
     return (
-      <div className="qa-chat-header">
-        <div className="qa-chat-header-content">
+      <div className="chat-header">
+        <div className="chat-header-content">
           {headerContent || (title ? <h2>{title}</h2> : null)}
           {isEditModeActive && (
             <span className="qa-chat-edit-badge">Edit-Modus aktiv</span>
