@@ -61,9 +61,9 @@ const CustomGeneratorPage = ({ showHeaderFooter = true }) => {
     componentName: 'customGenerator',
     endpoint: '/custom_generator',
     instructionType: 'custom_generator',
-    features: ['webSearch', 'privacyMode', 'proMode'],
     tabIndexKey: 'CUSTOM_GENERATOR',
-    helpContent: helpContent
+    helpContent: helpContent,
+    useFeatureIcons: false
   });
 
   // Reset form when generator config changes
