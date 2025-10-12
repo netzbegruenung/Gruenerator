@@ -1,6 +1,6 @@
 /**
  * Canva Image Helper Utilities
- * 
+ *
  * Handles image extraction and conversion from Canva designs for Alt Text generation
  */
 
@@ -11,42 +11,34 @@
  */
 export const imageUrlToBase64 = async (imageUrl) => {
   return new Promise((resolve, reject) => {
-    // Create a new image element
     const img = new Image();
-    
-    // Handle CORS by setting crossOrigin
+
     img.crossOrigin = 'anonymous';
-    
+
     img.onload = () => {
       try {
-        // Create canvas and draw image
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
-        
-        // Set canvas dimensions to match image
+
         canvas.width = img.naturalWidth;
         canvas.height = img.naturalHeight;
-        
-        // Draw image on canvas
+
         ctx.drawImage(img, 0, 0);
-        
-        // Convert canvas to base64
+
         const dataURL = canvas.toDataURL('image/png');
-        
-        // Remove data URL prefix to get just the base64 string
+
         const base64String = dataURL.split(',')[1];
-        
+
         resolve(base64String);
       } catch (error) {
         reject(new Error(`Failed to convert image to base64: ${error.message}`));
       }
     };
-    
+
     img.onerror = () => {
       reject(new Error('Failed to load image from URL'));
     };
-    
-    // Start loading the image
+
     img.src = imageUrl;
   });
 };
@@ -58,36 +50,33 @@ export const imageUrlToBase64 = async (imageUrl) => {
  */
 export const fetchImageAsBase64 = async (imageUrl) => {
   try {
-    // Fetch the image as blob
     const response = await fetch(imageUrl, {
       mode: 'cors',
       credentials: 'omit'
     });
-    
+
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
-    
+
     const blob = await response.blob();
-    
-    // Convert blob to base64
+
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      
+
       reader.onload = () => {
         try {
-          // Remove data URL prefix to get just the base64 string
           const base64String = reader.result.split(',')[1];
           resolve(base64String);
         } catch (error) {
           reject(new Error(`Failed to convert blob to base64: ${error.message}`));
         }
       };
-      
+
       reader.onerror = () => {
         reject(new Error('Failed to read blob as data URL'));
       };
-      
+
       reader.readAsDataURL(blob);
     });
   } catch (error) {
@@ -102,25 +91,23 @@ export const fetchImageAsBase64 = async (imageUrl) => {
  */
 export const convertCanvaDesignToBase64 = async (canvaDesign) => {
   const { thumbnail_url, title, id } = canvaDesign;
-  
+
   if (!thumbnail_url) {
     throw new Error('No thumbnail URL available for this design');
   }
-  
+
   console.log(`[canvaImageHelper] Converting Canva design "${title}" to base64`);
-  
+
   let base64Data;
   let conversionMethod;
-  
+
   try {
-    // Try canvas method first (better quality, works with most images)
     base64Data = await imageUrlToBase64(thumbnail_url);
     conversionMethod = 'canvas';
   } catch (canvasError) {
     console.warn(`[canvaImageHelper] Canvas method failed, trying fetch method:`, canvasError.message);
-    
+
     try {
-      // Fallback to fetch method
       base64Data = await fetchImageAsBase64(thumbnail_url);
       conversionMethod = 'fetch';
     } catch (fetchError) {
@@ -131,9 +118,9 @@ export const convertCanvaDesignToBase64 = async (canvaDesign) => {
       throw new Error(`Failed to convert image: ${fetchError.message}`);
     }
   }
-  
+
   console.log(`[canvaImageHelper] Successfully converted using ${conversionMethod} method`);
-  
+
   return {
     base64: base64Data,
     metadata: {
@@ -156,15 +143,13 @@ export const hasValidImage = (canvaDesign) => {
   if (!canvaDesign || typeof canvaDesign !== 'object') {
     return false;
   }
-  
+
   const { thumbnail_url } = canvaDesign;
-  
-  // Check if thumbnail URL exists and is a valid string
+
   if (!thumbnail_url || typeof thumbnail_url !== 'string' || thumbnail_url.trim() === '') {
     return false;
   }
-  
-  // Basic URL validation
+
   try {
     new URL(thumbnail_url);
     return true;
@@ -182,7 +167,7 @@ export const filterDesignsWithValidImages = (designs) => {
   if (!Array.isArray(designs)) {
     return [];
   }
-  
+
   return designs.filter(design => hasValidImage(design));
 };
 
@@ -197,13 +182,11 @@ export const filterDesignsWithValidImages = (designs) => {
  */
 export const getCanvaImagePreviewUrl = (canvaDesign, options = {}) => {
   const { thumbnail_url } = canvaDesign;
-  
+
   if (!hasValidImage(canvaDesign)) {
     return null;
   }
-  
-  // For now, return the original thumbnail URL
-  // In the future, we could add Canva API parameters for resizing
+
   return thumbnail_url;
 };
 
@@ -241,12 +224,11 @@ export const estimateBase64Size = (base64String) => {
   if (!base64String || typeof base64String !== 'string') {
     return 0;
   }
-  
-  // Base64 encoding increases size by ~33%
+
   const sizeInBytes = (base64String.length * 3) / 4;
   const sizeInMB = sizeInBytes / (1024 * 1024);
-  
-  return Math.round(sizeInMB * 100) / 100; // Round to 2 decimal places
+
+  return Math.round(sizeInMB * 100) / 100;
 };
 
 /**
@@ -257,12 +239,12 @@ export const estimateBase64Size = (base64String) => {
  */
 export const validateImageSize = (base64String, maxSizeMB = 5) => {
   const sizeMB = estimateBase64Size(base64String);
-  
+
   return {
     isValid: sizeMB <= maxSizeMB,
     sizeMB: sizeMB,
     maxSizeMB: maxSizeMB,
-    message: sizeMB > maxSizeMB 
+    message: sizeMB > maxSizeMB
       ? `Image size (${sizeMB}MB) exceeds maximum allowed size (${maxSizeMB}MB)`
       : 'Image size is valid'
   };

@@ -14,6 +14,7 @@ import useQAStore from '../stores/qaStore';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import useApiSubmit from '../../../components/hooks/useApiSubmit';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
+import '../../../assets/styles/features/qa/qa-chat.css';
 
 const QAChat = () => {
   const { id } = useParams();
@@ -353,6 +354,7 @@ const QAChat = () => {
         rightPanelFooter={renderEditTools()}
         infoPanelContent={renderCollectionInfo()}
         enableVoiceInput={true}
+        hideHeader={true}
       />
     </>
   );
