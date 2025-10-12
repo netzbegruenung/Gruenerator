@@ -300,10 +300,11 @@ async function execute(requestId, data) {
   };
 
   // Enable JSON mode for types that require structured JSON output
-  if (type === 'image_picker') {
+  if (type === 'image_picker' || type === 'text_adjustment') {
     mistralConfig.response_format = {
       type: "json_object"
     };
+    console.log('[mistralAdapter] JSON mode enabled for type:', type);
   }
 
   const toolsPayload = ToolHandler.prepareToolsPayload(options, 'mistral', requestId, type);

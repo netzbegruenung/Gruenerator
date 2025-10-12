@@ -12,6 +12,7 @@ import apiClient from '../../components/utils/apiClient';
 import useGeneratedTextStore from '../../stores/core/generatedTextStore';
 import { useUrlCrawler } from '../../hooks/useUrlCrawler';
 import useBaseForm from '../../components/common/Form/hooks/useBaseForm';
+import useApiSubmit from '../../components/hooks/useApiSubmit';
 
 const CustomGeneratorPage = ({ showHeaderFooter = true }) => {
   const { slug } = useParams();
@@ -31,10 +32,14 @@ const CustomGeneratorPage = ({ showHeaderFooter = true }) => {
     retryUrl
   } = useUrlCrawler();
 
+  // API submission hook for loading state management
+  const { submitForm, loading: isSubmitting, success: submissionSuccess, resetSuccess, error: submissionError } = useApiSubmit('/custom_generator');
+
   // Create default values for the form
   const defaultValues = {
     useWebSearchTool: false,
-    usePrivacyMode: false
+    usePrivacyMode: false,
+    useBedrock: false
   };
   if (generatorConfig) {
     generatorConfig.form_schema.fields.forEach(field => {
@@ -56,7 +61,7 @@ const CustomGeneratorPage = ({ showHeaderFooter = true }) => {
     componentName: 'customGenerator',
     endpoint: '/custom_generator',
     instructionType: 'custom_generator',
-    features: ['webSearch', 'privacyMode'],
+    features: ['webSearch', 'privacyMode', 'proMode'],
     tabIndexKey: 'CUSTOM_GENERATOR',
     helpContent: helpContent
   });
@@ -66,14 +71,16 @@ const CustomGeneratorPage = ({ showHeaderFooter = true }) => {
     if (generatorConfig) {
       const newDefaults = {
         useWebSearchTool: false,
-        usePrivacyMode: false
+        usePrivacyMode: false,
+        useBedrock: false
       };
       generatorConfig.form_schema.fields.forEach(field => {
         newDefaults[field.name] = field.defaultValue || '';
       });
       form.reset(newDefaults);
     }
-  }, [generatorConfig, form]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [generatorConfig]);
 
 
   useEffect(() => {
@@ -145,31 +152,31 @@ const CustomGeneratorPage = ({ showHeaderFooter = true }) => {
       ];
 
       // Add feature flags and attachments to form data
-      cleanFormData.useWebSearchTool = formData.useWebSearchTool;
-      cleanFormData.usePrivacyMode = formData.usePrivacyMode;
+      cleanFormData.useWebSearchTool = form.generator.toggles.webSearch;
+      cleanFormData.usePrivacyMode = form.generator.toggles.privacyMode;
+      cleanFormData.useBedrock = form.generator.toggles.proMode;  // Pro mode flag for backend API
       cleanFormData.attachments = allAttachments;
 
-      // Submit with custom payload structure
-      const { default: apiClient } = await import('../../components/utils/apiClient');
-      const response = await apiClient.post('/custom_generator', {
+      // Use submitForm instead of apiClient.post for automatic loading state management
+      const response = await submitForm({
         slug,
         formData: cleanFormData
       });
 
-      const content = response?.data?.content || response?.data || response;
+      const content = response?.content || response?.data?.content || response?.data || response;
 
       if (content) {
         setLocalGeneratedContent(content);
         form.generator.handleGeneratedContentChange(content);
+        setTimeout(resetSuccess, 3000);
       } else {
         setLocalGeneratedContent('');
       }
     } catch (err) {
       console.error('Fehler bei der Generierung:', err);
-      form.handleSubmitError(err);
       setLocalGeneratedContent('');
     }
-  }, [generatorConfig, form, slug, crawledUrls]);
+  }, [submitForm, resetSuccess, generatorConfig, form, slug, crawledUrls]);
 
   const handleGeneratedContentChange = useCallback((content) => {
     setLocalGeneratedContent(content);
@@ -216,17 +223,24 @@ const CustomGeneratorPage = ({ showHeaderFooter = true }) => {
               rules={field.required ? { required: `${field.label} ist ein Pflichtfeld` } : {}}
               render={({ field: controllerField, fieldState }) => (
                 <EnhancedSelect
-                  {...controllerField}
                   inputId={`${field.name}-select`}
                   label={field.label}
                   options={selectOptions}
                   placeholder={field.placeholder || 'Bitte wählen...'}
+                  value={controllerField.value ? selectOptions.find(opt => opt.value === controllerField.value) : null}
+                  onChange={(selectedOption) => {
+                    const value = selectedOption ? selectedOption.value : null;
+                    controllerField.onChange(value);
+                  }}
+                  onBlur={controllerField.onBlur}
                   isClearable={!field.required}
                   isSearchable={false}
-                  className="custom-generator-select"
-                  classNamePrefix="custom-generator-select"
+                  className="react-select"
+                  classNamePrefix="react-select"
                   error={fieldState.error?.message}
                   required={field.required}
+                  menuPortalTarget={document.body}
+                  menuPosition="fixed"
                 />
               )}
             />
@@ -257,16 +271,14 @@ const CustomGeneratorPage = ({ showHeaderFooter = true }) => {
           {...form.generator.baseFormProps}
           title={generatorConfig.name || generatorConfig.title}
           onSubmit={form.handleSubmit(customSubmit)}
+          loading={isSubmitting}
+          success={submissionSuccess}
+          error={submissionError}
           generatedContent={localGeneratedContent}
           onGeneratedContentChange={handleGeneratedContentChange}
           submitButtonProps={{
             defaultText: 'Grünerieren'
           }}
-          formNotice={
-            generatorConfig.description && (
-              <p className="generator-description">{generatorConfig.description}</p>
-            )
-          }
           showProfileSelector={false}
         >
           {renderFormInputs()}

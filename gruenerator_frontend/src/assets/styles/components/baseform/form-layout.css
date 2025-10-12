@@ -407,10 +407,9 @@
   justify-content: flex-start;
 }
 
-/* Edit Mode: if the input column contains the edit-mode card, expand display to 2 parts */
-/* With generated content: allocate more space to display for better reading */
+/* 50/50 split: equal space for form and display when content is generated */
 .base-container.has-generated-content .display-section-motion-wrapper.form-visible {
-  flex: 2; /* Display takes 2 parts, form keeps 1 part */
+  flex: 1; /* Display takes 1 part, form also has 1 part = 50/50 */
 }
 
 /* Enhanced Edit Mode Layout - similar to collab editor split */
@@ -431,8 +430,9 @@
   border-right: 1px solid var(--border-subtle);
 }
 
-.base-container.edit-mode-active .display-section-motion-wrapper {
-  flex: 2; /* Display side gets 2 parts, like collab editor */
+.base-container.edit-mode-active .display-section-motion-wrapper,
+.base-container.edit-mode-active .display-section-motion-wrapper.form-visible {
+  flex: 2; /* Display side gets 2 parts, like collab editor - 1/3 : 2/3 split */
   background: var(--background-color-pure);
   padding: var(--spacing-large);
 }

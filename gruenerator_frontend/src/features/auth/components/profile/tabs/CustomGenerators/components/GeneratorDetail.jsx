@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from "motion/react";
-import { HiInformationCircle, HiArrowRight } from 'react-icons/hi';
+import { HiInformationCircle, HiArrowRight, HiCheckCircle, HiXCircle } from 'react-icons/hi';
 
 // Common components
 import { ProfileIconButton, ProfileActionButton } from '../../../../../../../components/profile/actions/ProfileActionButton';
@@ -179,8 +179,18 @@ const GeneratorDetail = ({
                                     <div key={index} className="field-item">
                                         <div className="field-header">
                                             <span className="field-name">{field.label || field.name}</span>
-                                            <span className="field-required">
-                                                {field.required ? 'Pflichtfeld' : 'Optional'}
+                                            <span className={`field-required ${field.required ? 'required' : 'optional'}`}>
+                                                {field.required ? (
+                                                    <>
+                                                        <HiCheckCircle size={14} />
+                                                        Pflichtfeld
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <HiXCircle size={14} />
+                                                        Optional
+                                                    </>
+                                                )}
                                             </span>
                                         </div>
                                         <div className="field-details">

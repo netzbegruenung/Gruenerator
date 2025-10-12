@@ -31,7 +31,14 @@ function buildDocumentBlocks(documents = []) {
     } else if (doc?.type === "image" && doc.source) {
       blocks.push({ type: "image", source: doc.source });
     } else if (doc?.type === "text" && doc.source?.text) {
-      blocks.push({ type: "text", text: doc.source.text });
+      let textContent = doc.source.text;
+      // Add source attribution for crawled URLs
+      if (doc.source.metadata?.contentSource === 'url_crawl') {
+        const title = doc.source.metadata.title || 'Crawled Content';
+        const url = doc.source.metadata.url || '';
+        textContent = `[Quelle: ${title}${url ? ` - ${url}` : ''}]\n\n${textContent}`;
+      }
+      blocks.push({ type: "text", text: textContent });
     }
   }
   const blockCounts = blocks.reduce((acc, b) => { acc[b.type] = (acc[b.type] || 0) + 1; return acc; }, {});
@@ -318,12 +325,21 @@ async function assemblePromptGraphAsync(enrichedState, flags = {}) {
 
   if (shouldUseDocQnA) {
     console.log(`📋 [PromptAssemblyAsync] DocQnA enabled with ${effectiveDocuments.length} documents`);
-    // Build doc URLs (upload if needed)
-    const rawDocs = effectiveDocuments.filter(d => d && d.type === 'document' && d.source);
-    console.log(`📋 [PromptAssemblyAsync] Processing ${rawDocs.length} document uploads...`);
-    
+
+    // Separate crawled URLs from file attachments
+    // Crawled URLs should NOT go through DocQnA (already processed text)
+    const crawledUrlDocs = effectiveDocuments.filter(d =>
+      d && d.type === 'text' && d.source?.metadata?.contentSource === 'url_crawl'
+    );
+    const fileAttachmentDocs = effectiveDocuments.filter(d =>
+      d && d.type === 'document' && d.source
+    );
+
+    console.log(`📋 [PromptAssemblyAsync] Document split: ${fileAttachmentDocs.length} file attachments, ${crawledUrlDocs.length} crawled URLs`);
+    console.log(`📋 [PromptAssemblyAsync] Processing ${fileAttachmentDocs.length} file attachment uploads for DocQnA...`);
+
     const urlList = [];
-    for (const d of rawDocs) {
+    for (const d of fileAttachmentDocs) {
       const url = await uploadDocAndGetUrl(d);
       if (url) urlList.push(url);
     }
@@ -335,24 +351,24 @@ async function assemblePromptGraphAsync(enrichedState, flags = {}) {
         console.log('⚠️ [PromptAssemblyAsync] Doc URLs are data: URIs. Provider may reject them. Skipping DocQnA.');
         knowledgeCapsule = null;
       } else {
-        knowledgeCapsule = await runDocumentQnA(state, urlList);
+        knowledgeCapsule = await runDocumentQnA(enrichedState, urlList);
       }
-      // Suppress documents in final prompt if capsule succeeded
+      // Suppress file attachments in final prompt if capsule succeeded, but keep crawled URLs
       if (knowledgeCapsule) {
         console.log(`🧭 [LangGraph] DocQnA used: docs=${urlList.length}`);
-        effectiveDocuments = []; // don't include raw docs
+        effectiveDocuments = crawledUrlDocs; // keep crawled URLs, remove file attachments
       } else {
-        console.log('📋 [PromptAssemblyAsync] DocQnA returned no capsule; retaining raw documents');
+        console.log('📋 [PromptAssemblyAsync] DocQnA returned no capsule; retaining all documents');
       }
-    } else if (rawDocs.length > 0) {
+    } else if (fileAttachmentDocs.length > 0) {
       // Fallback when no URLs could be prepared (e.g., upload error): send direct document blocks
       console.log('📋 [PromptAssemblyAsync] No Doc URLs prepared; falling back to direct documents for DocQnA');
-      knowledgeCapsule = await runDocumentQnA(state, rawDocs);
+      knowledgeCapsule = await runDocumentQnA(enrichedState, fileAttachmentDocs);
       if (knowledgeCapsule) {
-        console.log(`🧭 [LangGraph] DocQnA used with direct documents: docs=${rawDocs.length}`);
-        effectiveDocuments = [];
+        console.log(`🧭 [LangGraph] DocQnA used with direct documents: docs=${fileAttachmentDocs.length}`);
+        effectiveDocuments = crawledUrlDocs; // keep crawled URLs, remove file attachments
       } else {
-        console.log('📋 [PromptAssemblyAsync] DocQnA fallback produced no capsule; retaining raw documents');
+        console.log('📋 [PromptAssemblyAsync] DocQnA fallback produced no capsule; retaining all documents');
       }
     }
   } else if (hasKnowledgeSelectorDocuments) {
@@ -370,11 +386,6 @@ async function assemblePromptGraphAsync(enrichedState, flags = {}) {
 
   console.log('📋 [PromptAssemblyAsync] Processing final content blocks...');
   const messages = [];
-
-  if (effectiveDocuments.length > 0) {
-    console.log(`📋 [PromptAssemblyAsync] Adding ${effectiveDocuments.length} effective documents`);
-    messages.push({ role: 'user', content: buildDocumentBlocks(effectiveDocuments) });
-  }
 
   const baseKnowledge = Array.isArray(enrichedState.knowledge) ? [...enrichedState.knowledge] : [];
   if (knowledgeCapsule) {
@@ -443,6 +454,11 @@ async function assemblePromptGraphAsync(enrichedState, flags = {}) {
   if (mainUser) {
     console.log('📋 [PromptAssemblyAsync] Added main user content');
     messages.push({ role: 'user', content: mainUser });
+  }
+
+  if (effectiveDocuments.length > 0) {
+    console.log(`📋 [PromptAssemblyAsync] Adding ${effectiveDocuments.length} effective documents`);
+    messages.push({ role: 'user', content: buildDocumentBlocks(effectiveDocuments) });
   }
 
   const tools = Array.isArray(enrichedState.tools) ? [...enrichedState.tools] : [];
