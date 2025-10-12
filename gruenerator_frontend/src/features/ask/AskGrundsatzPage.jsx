@@ -34,7 +34,7 @@ const AskGrundsatzPage = () => {
   useEffect(() => {
     const welcomeMessage = {
       type: 'assistant',
-      content: 'Hallo! Ich bin bereit, Ihre Fragen zu den Grundsatzprogrammen von Bündnis 90/Die Grünen zu beantworten. Sie können mich zu allen Inhalten des Grundsatzprogramms 2020, EU-Wahlprogramms 2024 und Regierungsprogramms 2025 fragen.',
+      content: 'Willkommen im Grünen Notebook! Ich beantworte deine Fragen zu den Grundsatzprogrammen von Bündnis 90/Die Grünen. Du kannst mich zu allen Inhalten des Grundsatzprogramms 2020, EU-Wahlprogramms 2024 und Regierungsprogramms 2025 fragen.',
       timestamp: Date.now()
     };
     setChatMessages([welcomeMessage]);
@@ -45,7 +45,7 @@ const AskGrundsatzPage = () => {
       type: 'user',
       content: question,
       timestamp: Date.now(),
-      userName: user?.user_metadata?.firstName || user?.email || 'Sie'
+      userName: user?.user_metadata?.firstName || user?.email || 'Du'
     };
 
     // Add user message to chat
@@ -63,7 +63,7 @@ const AskGrundsatzPage = () => {
         // Add assistant response to chat
         const assistantMessage = {
           type: 'assistant',
-          content: 'Hier ist meine Antwort basierend auf den Grundsatzprogrammen:',
+          content: 'Hier ist meine Antwort aus dem Grünen Notebook:',
           timestamp: Date.now()
         };
         setChatMessages(prev => [...prev, assistantMessage]);
@@ -79,7 +79,7 @@ const AskGrundsatzPage = () => {
       console.error('[AskGrundsatzPage] Error submitting question:', error);
       const errorMessage = {
         type: 'error',
-        content: 'Entschuldigung, es gab einen Fehler beim Verarbeiten Ihrer Frage. Bitte versuchen Sie es erneut.',
+        content: 'Entschuldigung, es gab einen Fehler beim Verarbeiten deiner Frage. Bitte versuche es erneut.',
         timestamp: Date.now()
       };
       setChatMessages(prev => [...prev, errorMessage]);
@@ -124,12 +124,12 @@ const AskGrundsatzPage = () => {
         <div className="chat-message-user-name">{msg.userName}</div>
       )}
       {msg.type === 'assistant' && mode === 'chat' && (
-        <div className="chat-message-user-name">Grüne Grundsatzprogramme</div>
+        <div className="chat-message-user-name">Grünes Notebook</div>
       )}
       {msg.type === 'assistant' && <HiChip className="assistant-icon" />}
       
       <div className="chat-message-content">
-        {msg.type === 'assistant' && msg.content === 'Hier ist meine Antwort basierend auf den Grundsatzprogrammen:' && storeGeneratedText ? (
+        {msg.type === 'assistant' && msg.content === 'Hier ist meine Antwort aus dem Grünen Notebook:' && storeGeneratedText ? (
           <ContentRenderer
             value={storeGeneratedText}
             generatedContent={storeGeneratedText}
@@ -186,9 +186,9 @@ const AskGrundsatzPage = () => {
       <div className={`qa-collection-info qa-collection-info-${mode}`}>
         <div className="qa-collection-info-header">
           <HiInformationCircle className="qa-collection-info-icon" />
-          <h3>Grüne Grundsatzprogramme</h3>
+          <h3>Grünes Notebook</h3>
         </div>
-        
+
         <div className="qa-collection-info-description">
           Durchsuchbar sind die offiziellen Grundsatzprogramme von Bündnis 90/Die Grünen.
         </div>
@@ -243,7 +243,7 @@ const AskGrundsatzPage = () => {
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Stellen Sie eine Frage zu den Grundsatzprogrammen..."
+          placeholder="Stell deine Frage zu den Grundsatzprogrammen..."
           disabled={submitLoading}
           className="qa-floating-input"
         />
@@ -294,7 +294,7 @@ const AskGrundsatzPage = () => {
       <div className="qa-chat-left-panel">
         <div className="qa-chat-header">
           <div className="qa-chat-header-content">
-            <h2>Grundsatzprogramme durchsuchen</h2>
+            <h2>Grünes Notebook</h2>
           </div>
         </div>
         
@@ -302,7 +302,7 @@ const AskGrundsatzPage = () => {
           messages={chatMessages}
           onSubmit={handleSubmitQuestion}
           isProcessing={submitLoading}
-          placeholder="Stellen Sie eine Frage zu den Grundsatzprogrammen..."
+          placeholder="Stell deine Frage zu den Grundsatzprogrammen..."
           inputValue={inputValue}
           onInputChange={setInputValue}
           disabled={submitLoading}
@@ -335,7 +335,7 @@ const AskGrundsatzPage = () => {
                     }
                   }
                 }}
-                placeholder="Stellen Sie eine Frage zu den Grundsatzprogrammen..."
+                placeholder="Stell deine Frage zu den Grundsatzprogrammen..."
                 disabled={submitLoading}
               />
               <button 
@@ -362,7 +362,7 @@ const AskGrundsatzPage = () => {
           messages={chatMessages}
           onSubmit={handleSubmitQuestion}
           isProcessing={submitLoading}
-          placeholder="Stellen Sie eine Frage zu den Grundsatzprogrammen..."
+          placeholder="Stell deine Frage zu den Grundsatzprogrammen..."
           inputValue={inputValue}
           onInputChange={setInputValue}
           disabled={submitLoading}
