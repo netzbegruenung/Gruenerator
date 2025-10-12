@@ -1,6 +1,7 @@
 const { mergeMetadata } = require('./adapterUtils');
 const ToolHandler = require('../../services/toolHandler');
 const mistralClient = require('../mistralClient');
+const { connectionMetrics } = require('../mistralClient');
 
 async function execute(requestId, data) {
   const { messages, systemPrompt, options = {}, type, metadata: requestMetadata = {} } = data;
@@ -315,10 +316,52 @@ async function execute(requestId, data) {
 
 
   let response;
-  try {
-    response = await mistralClient.chat.complete(mistralConfig);
-  } catch (mistralError) {
-    throw mistralError;
+  let lastError;
+  const maxRetries = 3;
+  const baseDelay = 1000;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      if (attempt > 1) {
+        connectionMetrics.retries++;
+        const delay = baseDelay * Math.pow(2, attempt - 1);
+        console.log(`[mistralAdapter ${requestId}] Retry attempt ${attempt}/${maxRetries} after ${delay}ms delay`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+
+      connectionMetrics.attempts++;
+      response = await mistralClient.chat.complete(mistralConfig);
+      connectionMetrics.successes++;
+
+      if (attempt > 1) {
+        console.log(`[mistralAdapter ${requestId}] Retry successful on attempt ${attempt}`);
+      }
+      break;
+
+    } catch (mistralError) {
+      lastError = mistralError;
+      connectionMetrics.failures++;
+      connectionMetrics.lastFailureTime = Date.now();
+      connectionMetrics.lastFailureReason = mistralError.message;
+
+      const isRetryable =
+        mistralError.message?.includes('fetch failed') ||
+        mistralError.message?.includes('socket') ||
+        mistralError.message?.includes('ECONNRESET') ||
+        mistralError.message?.includes('UND_ERR_SOCKET') ||
+        mistralError.cause?.code === 'UND_ERR_SOCKET';
+
+      if (!isRetryable || attempt === maxRetries) {
+        console.error(`[mistralAdapter ${requestId}] ${isRetryable ? 'Max retries reached' : 'Non-retryable error'}:`, {
+          message: mistralError.message,
+          code: mistralError.code || mistralError.cause?.code,
+          attempt: attempt
+        });
+        throw mistralError;
+      }
+
+      console.warn(`[mistralAdapter ${requestId}] Retryable connection error on attempt ${attempt}:`, mistralError.message);
+    }
   }
 
   const messageContent = response.choices[0]?.message?.content || null;

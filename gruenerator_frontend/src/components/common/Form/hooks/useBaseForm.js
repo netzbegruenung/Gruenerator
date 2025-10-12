@@ -64,6 +64,7 @@ const useBaseForm = ({
   platformOptions = null,
   enablePlatformSelector = false,
   disableKnowledgeSystem = false,
+  useFeatureIcons = true,
 
   ...restOptions
 } = {}) => {
@@ -464,7 +465,7 @@ const useBaseForm = ({
       usePrivacyModeToggle: features.includes('privacyMode'),
       proModeToggle: features.includes('proMode') ? proModeToggle : undefined,
       useProModeToggle: features.includes('proMode'),
-      useFeatureIcons: true,
+      useFeatureIcons,
       onAttachmentClick: handleAttachmentClick,
       onRemoveFile: handleRemoveFile,
       attachedFiles,
@@ -484,7 +485,7 @@ const useBaseForm = ({
       handleGeneratedContentChange, formNotice, disableKnowledgeSystem, enablePlatformSelector, platformOptions,
       componentName, features, webSearchFeatureToggle, privacyModeToggle, proModeToggle,
       handleAttachmentClick, handleRemoveFile, attachedFiles, tabIndex, baseFormTabIndex,
-      control
+      control, useFeatureIcons
     ]);
 
     generatorLogic = {
