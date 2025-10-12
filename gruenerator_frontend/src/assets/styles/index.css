@@ -40,6 +40,9 @@
 @import url('./components/actions/collection-actions.css');
 
 
+/* Feature styles */
+@import url('./features/auth/profile-cards.css');
+
 
 
 

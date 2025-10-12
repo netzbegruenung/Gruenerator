@@ -29,10 +29,6 @@
   min-height: 0;
 }
 
-.qa-chat-mode-selector {
-  flex-shrink: 0;
-}
-
 .qa-chat-mode-selector .mode-button {
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.2);
@@ -86,6 +82,9 @@
 
 .qa-chat-dossier-input-wrapper {
   position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-small);
   padding: var(--spacing-xsmall);
   margin-bottom: var(--spacing-medium);
   background: var(--background-color);
@@ -107,13 +106,18 @@
 }
 
 .qa-chat-dossier-input-wrapper .qa-chat-mode-selector {
-  position: absolute;
-  top: var(--spacing-small);
-  left: var(--spacing-small);
-  z-index: 2;
+  flex-shrink: 0;
 }
 
-.qa-chat-dossier-input-wrapper textarea {
+.textarea-wrapper {
+  flex: 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.textarea-wrapper textarea {
   width: 100%;
   min-height: 120px;
   max-height: 300px;
@@ -133,19 +137,19 @@
   box-sizing: border-box;
 }
 
-.qa-chat-dossier-input-wrapper textarea:focus {
+.textarea-wrapper textarea:focus {
   outline: none;
   border: none;
   box-shadow: none;
 }
 
-.qa-chat-dossier-input-wrapper textarea::placeholder {
+.textarea-wrapper textarea::placeholder {
   color: var(--input-placeholder-color);
 }
 
 
 
-.qa-chat-dossier-input-wrapper button {
+.textarea-wrapper button {
   position: absolute;
   bottom: var(--spacing-small);
   right: var(--spacing-small);
@@ -168,11 +172,11 @@
   margin-top: -8px;
 }
 
-.qa-chat-dossier-input-wrapper button:hover:not(:disabled) {
+.textarea-wrapper button:hover:not(:disabled) {
   background: var(--secondary-700);
 }
 
-.qa-chat-dossier-input-wrapper button:disabled {
+.textarea-wrapper button:disabled {
   background: var(--grey-300);
   color: var(--font-color-disabled);
   cursor: not-allowed;
@@ -251,11 +255,7 @@
   .qa-chat-dossier .qa-chat-right-panel {
     height: 60vh;
   }
-  
-  .qa-chat-header h2 {
-    font-size: 1.1rem;
-  }
-  
+
   .qa-chat-fullscreen {
     flex-direction: column;
     padding: 0;
@@ -296,14 +296,7 @@
   .qa-chat-dossier .qa-chat-right-panel {
     height: 50vh;
   }
-  
-  .qa-chat-header {
-    padding: var(--spacing-xsmall);
-  }
-  
-  
-  
-  
+
   .qa-chat-mode-selector .mode-button {
     width: 40px;
     height: 40px;
@@ -541,7 +534,7 @@
 }
 
 /* File upload button - minimal plus icon at bottom left */
-.qa-chat-dossier-input-wrapper .chat-file-upload-button-workbench {
+.textarea-wrapper .chat-file-upload-button-workbench {
   position: absolute;
   bottom: calc(var(--spacing-small) + 8px);
   left: var(--spacing-small);
@@ -554,9 +547,9 @@
   box-shadow: none;
 }
 
-.qa-chat-dossier-input-wrapper .chat-file-upload-button-workbench:hover,
-.qa-chat-dossier-input-wrapper .chat-file-upload-button-workbench:active,
-.qa-chat-dossier-input-wrapper .chat-file-upload-button-workbench:focus {
+.textarea-wrapper .chat-file-upload-button-workbench:hover,
+.textarea-wrapper .chat-file-upload-button-workbench:active,
+.textarea-wrapper .chat-file-upload-button-workbench:focus {
   background: none !important;
   border: none !important;
   outline: none !important;
