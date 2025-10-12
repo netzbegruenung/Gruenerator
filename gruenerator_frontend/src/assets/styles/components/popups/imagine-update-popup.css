@@ -541,8 +541,8 @@
 }
 
 .imagine-update-dot {
-  width: 16px;
-  height: 16px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   border: none;
   background: rgba(0, 0, 0, 0.2);
