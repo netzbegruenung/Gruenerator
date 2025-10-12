@@ -33,7 +33,7 @@ export const getActionItems = (item, ctx) => {
     return [
       {
         icon: HiOutlineEye,
-        label: 'Q&A öffnen',
+        label: 'Notebook öffnen',
         onClick: () => onViewItem?.(item),
         primary: true,
       },

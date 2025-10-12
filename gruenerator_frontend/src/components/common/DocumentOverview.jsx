@@ -194,10 +194,10 @@ const DocumentOverview = ({
     // Handle item deletion
     const handleDelete = async (item) => {
         const itemName = itemType === 'qa' ? item.name : item.title;
-        const confirmMessage = itemType === 'qa' 
-            ? `Möchten Sie die Q&A-Sammlung "${itemName}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`
+        const confirmMessage = itemType === 'qa'
+            ? `Möchten Sie das Notebook "${itemName}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`
             : 'Möchtest du dieses Dokument wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.';
-            
+
         if (!window.confirm(confirmMessage)) {
             return;
         }
@@ -688,8 +688,8 @@ const DocumentOverview = ({
     const renderEmptyState = () => {
         const defaultIcon = itemType === 'qa' ? NotebookIcon : HiOutlineDocumentText;
         const DefaultIcon = defaultIcon;
-        const defaultMessage = itemType === 'qa' ? 'Keine Q&A-Sammlungen vorhanden.' : 'Keine Dokumente vorhanden.';
-        
+        const defaultMessage = itemType === 'qa' ? 'Keine Notebooks vorhanden.' : 'Keine Dokumente vorhanden.';
+
         return (
             <div className="document-overview-empty-state">
                 <DefaultIcon size={48} className="empty-state-icon" />

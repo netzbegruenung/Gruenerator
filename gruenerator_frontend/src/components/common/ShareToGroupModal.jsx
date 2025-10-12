@@ -80,7 +80,7 @@ const ShareToGroupModal = ({
     const labels = {
       'documents': 'Dokument',
       'custom_generators': 'Custom Generator',
-      'qa_collections': 'Q&A-Sammlung',
+      'qa_collections': 'Notebook',
       'user_documents': 'Text',
       'database': 'Template'
     };

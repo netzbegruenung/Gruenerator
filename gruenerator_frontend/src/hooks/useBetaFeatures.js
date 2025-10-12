@@ -9,7 +9,7 @@ const BETA_FEATURES_CONFIG = [
   { key: 'groups', label: 'Gruppen', isAdminOnly: false },
   { key: 'database', label: 'Datenbank', isAdminOnly: true },
   { key: 'customGenerators', label: 'Grüneratoren', isAdminOnly: false },
-  { key: 'qa', label: 'Q&A Sammlungen', isAdminOnly: false },
+  { key: 'qa', label: 'Notebooks', isAdminOnly: false },
   // { key: 'e_learning', label: 'E-Learning', isAdminOnly: false },
   // { key: 'bundestag_api_enabled', label: 'Bundestag API', isAdminOnly: false },
   // { key: 'memory', label: 'Memory (Mem0ry)', isAdminOnly: false },

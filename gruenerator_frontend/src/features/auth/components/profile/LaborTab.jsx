@@ -98,12 +98,12 @@ const LaborTab = ({
         };
       case BETA_VIEWS.QA:
         return {
-          title: 'Q&A Sammlungen',
+          title: 'Notebooks',
           description: 'Erstelle intelligente Fragesysteme basierend auf deinen Dokumenten für natürliche Gespräche.',
           checked: getBetaFeatureState('qa'),
           setter: (value) => updateUserBetaFeatures('qa', value),
-          featureName: 'Q&A Sammlungen',
-          checkboxLabel: 'Q&A-Tab in Texte & Grafik anzeigen und Funktionalität aktivieren',
+          featureName: 'Notebooks',
+          checkboxLabel: 'Notebook-Tab in Texte & Grafik anzeigen und Funktionalität aktivieren',
           icon: NotebookIcon
         };
       case BETA_VIEWS.ELEARNING:
