@@ -276,9 +276,11 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
               const mapTypeForEditor = (type) => {
                 const typeMap = {
                   'info': 'Info',
-                  'dreizeilen': 'Dreizeilen', 
+                  'dreizeilen': 'Dreizeilen',
                   'quote': 'Zitat',
                   'quote_pure': 'Zitat_Pure',
+                  'zitat': 'Zitat',
+                  'zitat_pure': 'Zitat_Pure',
                   'headline': 'Headline'
                 };
                 return typeMap[type] || type;
