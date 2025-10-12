@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import { HiOutlineTrash, HiPencil, HiShare, HiEye } from 'react-icons/hi';
 import { NotebookIcon } from '../../../config/icons';
 import { motion } from "motion/react";
+import '../../../assets/styles/features/qa/qa-collections.css';
+import '../../../assets/styles/features/auth/profile-cards.css';
+import '../../../assets/styles/components/actions/collection-actions.css';
 
 const QAList = ({ qaCollections = [], onEdit, onDelete, onShare, onView, loading = false }) => {
     const [deletingId, setDeletingId] = useState(null);
