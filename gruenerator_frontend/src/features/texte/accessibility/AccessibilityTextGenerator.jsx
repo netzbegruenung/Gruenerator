@@ -73,8 +73,7 @@ const AccessibilityTextGenerator = ({ showHeaderFooter = true }) => {
         content: "Erstelle barrierefreie Alt-Texte für Bilder nach den Richtlinien des Deutschen Blinden- und Sehbehindertenverbands (DBSV). Alt-Texte sind essentiell für Screenreader und die Zugänglichkeit von Webinhalten.",
         title: ACCESSIBILITY_TYPE_TITLES[selectedType],
         tips: [
-          "Wähle zwischen Datei-Upload oder Canva-Design",
-          "Lade ein Bild hoch (JPG, PNG, WebP) oder wähle aus deinen Canva-Designs",
+          "Lade ein Bild hoch (JPG, PNG, WebP)",
           "Füge optional eine Beschreibung hinzu für besseren Kontext",
           "Der generierte Alt-Text folgt DBSV-Richtlinien für Barrierefreiheit",
           "Alt-Texte sollten prägnant aber beschreibend sein"
