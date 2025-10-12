@@ -15,7 +15,7 @@ import useBaseForm from '../../../components/common/Form/hooks/useBaseForm';
 // Import components
 import AltTextForm from './components/AltTextForm';
 import LeichteSpracheForm from './components/LeichteSpracheForm';
-import { convertCanvaDesignToBase64 } from './utils/canvaImageHelper';
+import { convertCanvaDesignToBase64 } from '../../../utils/canvaImageHelper';
 import PlatformSelector from '../../../components/common/PlatformSelector';
 import Icon from '../../../components/common/Icon';
 
@@ -45,9 +45,6 @@ const ACCESSIBILITY_TYPE_DESCRIPTIONS = {
   [ACCESSIBILITY_TYPES.LEICHTE_SPRACHE]: 'Vereinfachte Texte für bessere Verständlichkeit'
 };
 
-// Import styles
-import './styles/canva-selector.css';
-
 const API_ENDPOINTS = {
   [ACCESSIBILITY_TYPES.ALT_TEXT]: '/claude_alttext', // Update this to correct endpoint
   [ACCESSIBILITY_TYPES.LEICHTE_SPRACHE]: '/leichte_sprache'
@@ -73,8 +70,7 @@ const AccessibilityTextGenerator = ({ showHeaderFooter = true }) => {
         content: "Erstelle barrierefreie Alt-Texte für Bilder nach den Richtlinien des Deutschen Blinden- und Sehbehindertenverbands (DBSV). Alt-Texte sind essentiell für Screenreader und die Zugänglichkeit von Webinhalten.",
         title: ACCESSIBILITY_TYPE_TITLES[selectedType],
         tips: [
-          "Wähle zwischen Datei-Upload oder Canva-Design",
-          "Lade ein Bild hoch (JPG, PNG, WebP) oder wähle aus deinen Canva-Designs",
+          "Lade ein Bild hoch (JPG, PNG, WebP)",
           "Füge optional eine Beschreibung hinzu für besseren Kontext",
           "Der generierte Alt-Text folgt DBSV-Richtlinien für Barrierefreiheit",
           "Alt-Texte sollten prägnant aber beschreibend sein"

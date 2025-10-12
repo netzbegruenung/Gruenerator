@@ -30,13 +30,8 @@ export const ROUTE_RELATIONSHIPS = {
       styles: ['typography', 'baseform']
     },
     '/wahlprogramm': {
-      immediate: ['WahlpruefsteinBundestagswahl'],
-      delayed: ['WahlpruefsteinThueringen'],
-      styles: ['typography', 'baseform']
-    },
-    '/wahlpruefstein-bundestagswahl': {
-      immediate: ['Wahlprogramm'],
-      delayed: ['WahlpruefsteinThueringen'],
+      immediate: [],
+      delayed: [],
       styles: ['typography', 'baseform']
     }
   };

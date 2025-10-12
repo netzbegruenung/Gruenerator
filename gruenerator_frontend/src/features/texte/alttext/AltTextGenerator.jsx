@@ -10,9 +10,8 @@ import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 import { fileToBase64 } from '../../../utils/fileAttachmentUtils';
 import FileUpload from '../../../components/common/FileUpload';
 import ErrorBoundary from '../../../components/ErrorBoundary';
-import CanvaSelector from './components/CanvaSelector';
-import { convertCanvaDesignToBase64 } from './utils/canvaImageHelper';
-import './styles/canva-selector.css';
+import CanvaSelector from '../../../components/common/CanvaSelector';
+import { convertCanvaDesignToBase64 } from '../../../utils/canvaImageHelper';
 
 const AltTextGenerator = ({ showHeaderFooter = true }) => {
   const componentName = 'alt-text';
@@ -223,6 +222,7 @@ const AltTextGenerator = ({ showHeaderFooter = true }) => {
             onImageSelect={handleCanvaImageSelect}
             selectedImageId={selectedCanvaDesign?.design?.id}
             loading={loading}
+            variant="grid"
           />
         </div>
       )}
