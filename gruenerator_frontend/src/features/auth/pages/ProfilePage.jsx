@@ -126,7 +126,7 @@ const ProfilePage = () => {
   // Tab mapping for URL paths to internal tab names
   const TAB_MAPPING = {
     'profil': 'profile',
-    'intelligence': 'intelligence',
+    'anweisungen': 'anweisungen',
     'inhalte': 'inhalte',
     'integrationen': 'integrationen',
     'gruppen': 'gruppen',
@@ -180,7 +180,7 @@ const ProfilePage = () => {
   // Available tabs (filtered based on feature flags)
   const availableTabs = [
     'profile',
-    'intelligence',
+    'anweisungen',
     'inhalte', // ContentManagementTab with integrated Canva and Wolke
     ...(shouldShowTab('groups') ? ['gruppen'] : []),
     ...(shouldShowTab('customGenerators') ? ['custom_generators'] : []),
@@ -380,15 +380,15 @@ const ProfilePage = () => {
         
         <TabButton
           activeTab={activeTab}
-          tabKey="intelligence"
+          tabKey="anweisungen"
           onClick={handleTabChange}
-          onMouseEnter={() => onTabHover('intelligence')}
+          onMouseEnter={() => onTabHover('anweisungen')}
           underlineTransition={underlineTransition}
-          tabIndex={getTabIndex('intelligence')}
+          tabIndex={getTabIndex('anweisungen')}
           registerRef={registerItemRef}
-          ariaSelected={ariaSelected('intelligence')}
+          ariaSelected={ariaSelected('anweisungen')}
         >
-          Anweisungen & Wissen
+          Anweisungen
         </TabButton>
         
         <TabButton
@@ -489,12 +489,12 @@ const ProfilePage = () => {
             />
           )}
           
-          {activeTab === 'intelligence' && (
+          {activeTab === 'anweisungen' && (
             <IntelligenceTab
               user={user}
               onSuccessMessage={handleSuccessMessage}
               onErrorMessage={handleErrorMessage}
-              isActive={activeTab === 'intelligence'}
+              isActive={activeTab === 'anweisungen'}
             />
           )}
           
