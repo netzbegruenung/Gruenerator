@@ -70,14 +70,21 @@ class KeycloakOIDCStrategy extends passport.Strategy {
 
   async initiateAuthorization(req, options) {
     try {
+      // Generate correlation ID for tracking
+      const correlationId = `auth_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
       // Generate state
       const state = randomState();
 
       // Store state and redirect URL in session
       req.session['oidc:keycloak'] = {
         state,
-        redirectTo: req.session.redirectTo || null
+        redirectTo: req.session.redirectTo || null,
+        correlationId,
+        timestamp: Date.now()
       };
+
+      console.log(`[KeycloakOIDC:${correlationId}] Initiating auth flow`);
 
       // Build authorization parameters
       const authParams = {
@@ -90,26 +97,54 @@ class KeycloakOIDCStrategy extends passport.Strategy {
       // Add Keycloak-specific parameters
       if (options.kc_idp_hint) {
         authParams.kc_idp_hint = options.kc_idp_hint;
-        console.log('[KeycloakOIDC] Adding kc_idp_hint:', options.kc_idp_hint);
+        console.log(`[KeycloakOIDC:${correlationId}] Adding kc_idp_hint:`, options.kc_idp_hint);
       }
 
       if (options.prompt) {
         authParams.prompt = options.prompt;
-        console.log('[KeycloakOIDC] Adding prompt:', options.prompt);
+        console.log(`[KeycloakOIDC:${correlationId}] Adding prompt:`, options.prompt);
       }
 
       // Build authorization URL
       const authUrl = buildAuthorizationUrl(this.config, authParams);
-      console.log('[KeycloakOIDC] Redirecting to:', authUrl.href);
+      console.log(`[KeycloakOIDC:${correlationId}] Redirecting to:`, authUrl.href);
 
-      // Save session and redirect
-      req.session.save((err) => {
-        if (err) {
-          console.error('[KeycloakOIDC] Session save error:', err);
-          return this.error(err);
+      // Promisified session save with timeout
+      const saveSession = () => {
+        return new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            reject(new Error('Session save timeout after 5 seconds'));
+          }, 5000);
+
+          req.session.save((err) => {
+            clearTimeout(timeout);
+            if (err) {
+              console.error(`[KeycloakOIDC:${correlationId}] Session save error:`, err);
+              reject(err);
+            } else {
+              console.log(`[KeycloakOIDC:${correlationId}] Session saved successfully`);
+              resolve();
+            }
+          });
+        });
+      };
+
+      // Save session with timeout and verification
+      try {
+        await saveSession();
+
+        // Verify session was actually saved by checking if we can retrieve it
+        if (!req.session['oidc:keycloak']) {
+          throw new Error('Session data verification failed - data not found after save');
         }
+
+        console.log(`[KeycloakOIDC:${correlationId}] Session verified, redirecting`);
         this.redirect(authUrl.href);
-      });
+      } catch (saveError) {
+        console.error(`[KeycloakOIDC:${correlationId}] Failed to save session:`, saveError);
+        // Redirect to error page with recovery option
+        return this.redirect(`/auth/error?message=session_save_failed&correlationId=${correlationId}`);
+      }
     } catch (error) {
       console.error('[KeycloakOIDC] Authorization initiation error:', error);
       return this.error(error);
@@ -120,11 +155,22 @@ class KeycloakOIDCStrategy extends passport.Strategy {
     try {
       // Retrieve session data
       const sessionData = req.session['oidc:keycloak'];
-      console.log('[KeycloakOIDC] Session data:', sessionData);
-      console.log('[KeycloakOIDC] Callback state:', req.query.state);
+      const correlationId = sessionData?.correlationId || 'unknown';
+
+      console.log(`[KeycloakOIDC:${correlationId}] Callback received`);
+      console.log(`[KeycloakOIDC:${correlationId}] Session data:`, sessionData);
+      console.log(`[KeycloakOIDC:${correlationId}] Callback state:`, req.query.state);
 
       if (!sessionData) {
-        throw new Error('No session data found');
+        console.error(`[KeycloakOIDC:${correlationId}] No session data found - possible session loss`);
+        // Redirect to error page with retry option
+        return this.redirect(`/auth/error?message=session_not_found&retry=true`);
+      }
+
+      // Check for stale session (older than 10 minutes)
+      if (sessionData.timestamp && (Date.now() - sessionData.timestamp) > 600000) {
+        console.error(`[KeycloakOIDC:${correlationId}] Session data is stale (${Math.round((Date.now() - sessionData.timestamp) / 1000)}s old)`);
+        return this.redirect(`/auth/error?message=session_expired&retry=true`);
       }
 
       // State validation will be handled by the library
@@ -134,16 +180,22 @@ class KeycloakOIDCStrategy extends passport.Strategy {
       const host = req.headers.host || 'localhost:3001';
       const currentUrl = new URL(`${protocol}://${host}${req.originalUrl}`);
 
-      console.log('[KeycloakOIDC] Exchanging code for tokens with URL:', currentUrl.href);
+      console.log(`[KeycloakOIDC:${correlationId}] Exchanging code for tokens with URL:`, currentUrl.href);
 
       // Exchange code for tokens with expected state for validation
-      // The config already contains the client authentication method from discovery
-      const tokenSet = await authorizationCodeGrant(
-        this.config,
-        currentUrl,
-        { expectedState: sessionData.state }
-      );
-      console.log('[KeycloakOIDC] Token exchange successful');
+      let tokenSet;
+      try {
+        tokenSet = await authorizationCodeGrant(
+          this.config,
+          currentUrl,
+          { expectedState: sessionData.state }
+        );
+        console.log(`[KeycloakOIDC:${correlationId}] Token exchange successful`);
+      } catch (tokenError) {
+        console.error(`[KeycloakOIDC:${correlationId}] Token exchange failed:`, tokenError);
+        // Redirect to error page with specific error info
+        return this.redirect(`/auth/error?message=token_exchange_failed&retry=true&correlationId=${correlationId}`);
+      }
 
       // Extract the subject from ID token claims if available
       let expectedSubject;
@@ -155,21 +207,25 @@ class KeycloakOIDCStrategy extends passport.Strategy {
             Buffer.from(tokenSet.id_token.split('.')[1], 'base64').toString()
           );
           expectedSubject = idTokenPayload.sub;
-          console.log('[KeycloakOIDC] Extracted subject from ID token:', expectedSubject);
+          console.log(`[KeycloakOIDC:${correlationId}] Extracted subject from ID token:`, expectedSubject);
         } catch (error) {
-          console.warn('[KeycloakOIDC] Could not extract subject from ID token:', error);
+          console.warn(`[KeycloakOIDC:${correlationId}] Could not extract subject from ID token:`, error);
         }
       }
 
       // Fetch user info - fetchUserInfo requires config, access token, and expectedSubject
-      // If we don't have expectedSubject, we can use skipSubjectCheck (though less secure)
-      const userinfo = await fetchUserInfo(
-        this.config,
-        tokenSet.access_token || tokenSet.access,
-        expectedSubject || skipSubjectCheck
-      );
-
-      console.log('[KeycloakOIDC] Authentication successful for user:', userinfo.sub);
+      let userinfo;
+      try {
+        userinfo = await fetchUserInfo(
+          this.config,
+          tokenSet.access_token || tokenSet.access,
+          expectedSubject || skipSubjectCheck
+        );
+        console.log(`[KeycloakOIDC:${correlationId}] Authentication successful for user:`, userinfo.sub);
+      } catch (userinfoError) {
+        console.error(`[KeycloakOIDC:${correlationId}] Failed to fetch user info:`, userinfoError);
+        return this.redirect(`/auth/error?message=userinfo_fetch_failed&retry=true&correlationId=${correlationId}`);
+      }
 
       // Convert userinfo to passport-compatible profile format
       const profile = {
@@ -228,11 +284,12 @@ export async function initializeKeycloakOIDCStrategy() {
 
           // Attach redirectTo to user object to survive session regeneration
           const sessionData = req.session['oidc:keycloak'];
+          const correlationId = sessionData?.correlationId || 'unknown';
           if (sessionData?.redirectTo) {
             user._redirectTo = sessionData.redirectTo;
           }
 
-          console.log('[KeycloakOIDC] User profile processed successfully');
+          console.log(`[KeycloakOIDC:${correlationId}] User profile processed successfully`);
           return done(null, user);
         } catch (error) {
           console.error('[KeycloakOIDC] Error in verify callback:', error);
