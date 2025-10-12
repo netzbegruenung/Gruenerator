@@ -153,6 +153,8 @@ export const useEditableDetail = ({
             setGeneratorLoading(entityId, true);
             
             const updateData = entityType === 'generator' ? {
+                name: entity.name,
+                slug: entity.slug,
                 title: getDisplayValue('title'),
                 description: getDisplayValue('description'),
                 contact_email: getDisplayValue('contact_email'),
