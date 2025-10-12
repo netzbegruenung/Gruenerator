@@ -297,7 +297,6 @@ const resolvedTabIndex = getConfigValue(
 
 ### Simple Generators (Easy Migration)
 - GrueneJugendGenerator ✅ Ready
-- WahlpruefsteinBundestagswahl ✅ Ready
 
 ### Complex Generators (Careful Migration)
 - PresseSocialGenerator ⚠️ Many custom props
@@ -307,9 +306,8 @@ const resolvedTabIndex = getConfigValue(
 ### Migration Order Recommendation
 1. GrueneJugendGenerator (simplest)
 2. Kandidatengenerator
-3. WahlpruefsteinBundestagswahl
-4. AltTextGenerator
-5. AccessibilityTextGenerator
-6. PresseSocialGenerator (most complex)
+3. AltTextGenerator
+4. AccessibilityTextGenerator
+5. PresseSocialGenerator (most complex)
 
 This approach ensures **zero downtime** and **zero breaking changes** while gradually reducing complexity.
