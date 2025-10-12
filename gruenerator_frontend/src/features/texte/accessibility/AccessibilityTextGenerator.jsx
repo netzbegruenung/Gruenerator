@@ -15,7 +15,7 @@ import useBaseForm from '../../../components/common/Form/hooks/useBaseForm';
 // Import components
 import AltTextForm from './components/AltTextForm';
 import LeichteSpracheForm from './components/LeichteSpracheForm';
-import { convertCanvaDesignToBase64 } from './utils/canvaImageHelper';
+import { convertCanvaDesignToBase64 } from '../../../utils/canvaImageHelper';
 import PlatformSelector from '../../../components/common/PlatformSelector';
 import Icon from '../../../components/common/Icon';
 
@@ -44,9 +44,6 @@ const ACCESSIBILITY_TYPE_DESCRIPTIONS = {
   [ACCESSIBILITY_TYPES.ALT_TEXT]: 'Barrierefreie Bildbeschreibungen für Screenreader',
   [ACCESSIBILITY_TYPES.LEICHTE_SPRACHE]: 'Vereinfachte Texte für bessere Verständlichkeit'
 };
-
-// Import styles
-import './styles/canva-selector.css';
 
 const API_ENDPOINTS = {
   [ACCESSIBILITY_TYPES.ALT_TEXT]: '/claude_alttext', // Update this to correct endpoint
