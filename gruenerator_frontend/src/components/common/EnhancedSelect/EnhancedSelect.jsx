@@ -120,7 +120,7 @@ const EnhancedSelect = forwardRef(({
         ref={ref}
         options={options}
         formatOptionLabel={internalFormatOptionLabel}
-        className={`enhanced-select ${className}`.trim()}
+        className={`react-select ${className}`.trim()}
         classNamePrefix={classNamePrefix}
         {...selectProps}
       />

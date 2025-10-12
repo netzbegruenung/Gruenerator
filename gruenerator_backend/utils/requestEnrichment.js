@@ -249,13 +249,12 @@ class RequestEnricher {
 
           if (result.success) {
             const crawledDocument = {
-              type: 'document',
+              type: 'text',
               source: {
-                type: 'text',
                 text: result.data.content || result.data.markdownContent,
-                title: result.data.title || `Content from ${getUrlDomain(url)}`,
-                url: result.data.originalUrl,
                 metadata: {
+                  title: result.data.title || `Content from ${getUrlDomain(url)}`,
+                  url: result.data.originalUrl,
                   wordCount: result.data.wordCount,
                   extractedAt: result.data.extractedAt,
                   contentSource: 'url_crawl'

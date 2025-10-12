@@ -124,11 +124,38 @@
 }
 
 .field-required {
-  font-size: 0.8rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 999px;
+  transition: all 0.2s ease;
+}
+
+.field-required.required {
+  background: color-mix(in srgb, var(--tanne) 15%, transparent);
+  color: var(--tanne);
+  border: 1px solid color-mix(in srgb, var(--tanne) 30%, transparent);
+}
+
+.field-required.optional {
+  background: var(--background-color-alt);
   color: var(--font-color-subtle);
-  padding: var(--spacing-xxsmall) var(--spacing-xsmall);
-  background: var(--background-color);
-  border-radius: var(--border-radius-medium);
+  border: 1px solid var(--border-subtle);
+}
+
+[data-theme="dark"] .field-required.required {
+  background: color-mix(in srgb, var(--klee) 20%, transparent);
+  color: var(--klee);
+  border: 1px solid color-mix(in srgb, var(--klee) 35%, transparent);
+}
+
+[data-theme="dark"] .field-required.optional {
+  background: color-mix(in srgb, var(--font-color) 8%, transparent);
+  color: var(--font-color-subtle);
+  border: 1px solid var(--border-subtle);
 }
 
 .field-details {
@@ -136,6 +163,68 @@
   gap: var(--spacing-xxsmall);
   font-size: 0.9rem;
   color: var(--font-color-subtle);
+}
+
+/* Field Editor Styles */
+.field-editor-item {
+  margin-bottom: var(--spacing-medium);
+}
+
+.field-editor-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto auto;
+  gap: var(--spacing-small);
+  align-items: center;
+}
+
+.field-placeholder-input {
+  margin-top: var(--spacing-xsmall);
+}
+
+/* Select Options Editor */
+.select-options-container {
+  margin-top: var(--spacing-small);
+  padding: var(--spacing-medium);
+  background: var(--background-color-alt);
+  border-radius: var(--border-radius-small);
+  border: 1px solid var(--border-subtle);
+}
+
+.select-options-container .form-field-label {
+  display: block;
+  margin-bottom: var(--spacing-small);
+  font-weight: 600;
+  color: var(--font-color);
+  font-size: 0.9rem;
+}
+
+.option-input-group {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: var(--spacing-small);
+  align-items: center;
+  margin-bottom: var(--spacing-small);
+}
+
+.option-label-input,
+.option-value-input {
+  min-width: 0;
+}
+
+.option-input-group:last-of-type {
+  margin-bottom: var(--spacing-medium);
+}
+
+@media (max-width: 768px) {
+  .field-editor-row {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-xsmall);
+  }
+
+  .option-input-group {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-xsmall);
+  }
 }
 
 .prompt-container {

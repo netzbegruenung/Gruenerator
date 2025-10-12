@@ -540,7 +540,7 @@ export const profileApiService = {
   // === CUSTOM GENERATORS ===
   async getCustomGenerators() {
     const response = await apiClient.get('/auth/custom_generator');
-    return response.data || [];
+    return response.data?.generators || [];
   },
 
   async updateCustomGenerator(generatorId, updateData) {

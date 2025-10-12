@@ -520,6 +520,62 @@ async function processGraphRequest(routeType, req, res) {
       throw new Error(result.error);
     }
 
+    // Cache enriched context for future edit requests
+    if (req.session?.id) {
+      try {
+        const redisClient = require('../../utils/redisClient');
+        const contextCacheKey = `edit_context:${req.session.id}:${routeType}`;
+
+        const contextData = {
+          originalRequest: requestData,
+          enrichedState: {
+            type: routeType,
+            platforms: requestData.platforms || [],
+            theme: requestData.theme || requestData.thema || requestData.details || null,
+            urlsScraped: enrichedState.enrichmentMetadata?.urlsProcessed || [],
+            documentsUsed: enrichedState.documents?.filter(d =>
+              d.type === 'text' && d.source?.metadata?.contentSource === 'url_crawl'
+            ).map(d => ({
+              title: d.source.metadata?.title || 'Document',
+              url: d.source.metadata?.url || null
+            })) || [],
+            docQnAUsed: enrichedState.enrichmentMetadata?.enableDocQnA || false,
+            vectorSearchUsed: (selectedDocumentIds && selectedDocumentIds.length > 0) || false,
+            webSearchUsed: enrichedState.enrichmentMetadata?.webSearchSources?.length > 0 || false
+          },
+          timestamp: Date.now()
+        };
+
+        // Cache for 1 hour
+        await redisClient.setEx(contextCacheKey, 3600, JSON.stringify(contextData));
+        console.log(`[promptProcessor] Cached edit context: ${contextCacheKey}`);
+      } catch (cacheError) {
+        // Don't fail the request if caching fails
+        console.error('[promptProcessor] Failed to cache edit context:', cacheError.message);
+      }
+    }
+
+    // Build enrichment summary for frontend
+    const enrichmentSummary = {
+      urlsScraped: enrichedState.enrichmentMetadata?.urlsProcessed?.length || 0,
+      documentsProcessed: enrichedState.documents?.length || 0,
+      docQnAUsed: enrichedState.enrichmentMetadata?.enableDocQnA || false,
+      vectorSearchUsed: (selectedDocumentIds && selectedDocumentIds.length > 0) || false,
+      webSearchUsed: enrichedState.enrichmentMetadata?.webSearchSources?.length > 0 || false,
+      sources: [
+        ...((enrichedState.enrichmentMetadata?.urlsProcessed || []).map(url => ({
+          type: 'url',
+          title: 'Gescrapte Website',
+          url: url
+        }))),
+        ...((enrichedState.enrichmentMetadata?.webSearchSources || []).map(source => ({
+          type: 'websearch',
+          title: source.title || source.url,
+          url: source.url
+        })))
+      ]
+    };
+
     // Send standardized success response
     sendSuccessResponseWithAttachments(
       res,
@@ -528,7 +584,8 @@ async function processGraphRequest(routeType, req, res) {
       requestData,
       {
         hasAttachments: enrichedState.documents.length > 0,
-        summary: { count: enrichedState.documents.length, totalSizeMB: 0 }
+        summary: { count: enrichedState.documents.length, totalSizeMB: 0 },
+        enrichmentSummary
       },
       usePrivacyMode,
       provider

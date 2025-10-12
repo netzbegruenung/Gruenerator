@@ -4,10 +4,10 @@
 :root {
   /* Light mode chat variables */
   --chat-background: var(--backgroundgruen);
-  --ai-message-background: var(--secondary-600);
+  --ai-message-background: var(--secondary-700);
   --ai-message-text-color: var(--white);
-  --assistant-icon-background: var(--white);
-  --assistant-icon-color: var(--grey-800);
+  --assistant-icon-background: var(--secondary-700);
+  --assistant-icon-color: var(--white);
   --chat-message-user-name-color: var(--grey-600);
   --chat-input-background: var(--white);
   --chat-input-text-color: var(--font-color);
