@@ -587,13 +587,14 @@
   .editor-chat:not(.base-container.edit-mode-active .editor-chat) {
     position: fixed;
     bottom: 0;
-    top: auto;
+    top: 60px;
     left: 0;
     right: 0;
     max-width: 100%;
     width: 100%;
+    max-height: calc(100vh - 60px);
     border-radius: 12px 12px 0 0;
-    z-index: 1000;
+    z-index: 999;
   }
 
 
