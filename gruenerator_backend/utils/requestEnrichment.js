@@ -7,6 +7,7 @@
 const { extractUrlsFromContent, filterNewUrls, getUrlDomain } = require('./urlDetection.js');
 const { processAndBuildAttachments } = require('./attachmentUtils.js');
 const { extractLocaleFromRequest } = require('./localizationHelper.js');
+const { getQdrantDocumentService } = require('../services/DocumentSearchService.js');
 
 // Import services with fallback handling
 const { urlCrawlerService } = (() => {
@@ -24,6 +25,102 @@ class RequestEnricher {
   constructor() {
     this.maxConcurrentUrls = 3;
     this.urlCrawlTimeout = 15000;
+  }
+
+  /**
+   * Format knowledge entries with detailed metadata (matches frontend formatting)
+   * @param {Array} knowledgeData - Raw knowledge entries from database
+   * @returns {Array} Formatted knowledge strings
+   */
+  formatKnowledgeEntries(knowledgeData) {
+    if (!knowledgeData || knowledgeData.length === 0) {
+      return [];
+    }
+
+    return knowledgeData.map(entry => {
+      return `## ${entry.title}\n${entry.content}`;
+    });
+  }
+
+  /**
+   * Format saved texts with rich metadata (matches frontend formatting)
+   * @param {Array} textData - Raw text entries from database
+   * @returns {Array} Formatted text strings
+   */
+  formatSavedTexts(textData) {
+    if (!textData || textData.length === 0) {
+      return [];
+    }
+
+    const typeDisplayNames = {
+      'antrag': 'Antrag',
+      'social': 'Social Media',
+      'universal': 'Universal',
+      'press': 'Pressemitteilung',
+      'gruene_jugend': 'Grüne Jugend',
+      'text': 'Allgemeiner Text'
+    };
+
+    return textData.map(text => {
+      const textType = text.document_type || 'text';
+      const typeDisplayName = typeDisplayNames[textType] || textType;
+
+      // Strip HTML tags from content
+      const plainContent = (text.content || '').replace(/<[^>]*>/g, '').trim();
+
+      // Format created date in German locale
+      const createdDate = text.created_at
+        ? new Date(text.created_at).toLocaleDateString('de-DE')
+        : 'Unbekannt';
+
+      return `## Text: ${text.title}\n**Typ:** ${typeDisplayName}\n**Wörter:** ${text.word_count || 'Unbekannt'}\n**Erstellt:** ${createdDate}\n\n${plainContent}`;
+    });
+  }
+
+  /**
+   * Format vector search results with detailed metadata (matches frontend formatting)
+   * @param {Array} searchResults - Vector search results from API
+   * @returns {Array} Formatted document strings
+   */
+  formatVectorSearchResults(searchResults) {
+    if (!searchResults || searchResults.length === 0) {
+      return [];
+    }
+
+    return searchResults.map(doc => {
+      const contentType = doc.content_type === 'vector_search' ? 'Vector Search' :
+                        doc.content_type === 'full_text' ? 'Volltext' : 'Intelligenter Auszug';
+
+      return `## Dokument: ${doc.title}\n**Datei:** ${doc.filename}\n**Seiten:** ${doc.page_count || 'Unbekannt'}\n**Inhalt:** ${contentType}\n**Info:** ${doc.search_info}\n\n${doc.content}`;
+    });
+  }
+
+  /**
+   * Format full documents retrieved from Qdrant chunks
+   * @param {Array} fullTextResults - Full text results from getMultipleDocumentsFullText
+   * @param {Array} docsMetadata - Document metadata from PostgreSQL
+   * @returns {Array} Formatted document strings
+   */
+  formatFullDocuments(fullTextResults, docsMetadata) {
+    if (!fullTextResults || fullTextResults.length === 0) {
+      return [];
+    }
+
+    return fullTextResults.map(result => {
+      const meta = docsMetadata.find(d => d.id === result.id);
+      if (!meta) {
+        console.warn(`[RequestEnricher] Metadata not found for document ${result.id}`);
+        return null;
+      }
+
+      // Estimate page count (roughly 2.5 chunks per page)
+      const estimatedPages = Math.ceil(result.chunkCount / 2.5);
+
+      // Calculate word count for better context understanding
+      const wordCount = result.fullText.split(/\s+/).filter(w => w.length > 0).length;
+
+      return `## Dokument: ${meta.title}\n**Datei:** ${meta.filename || 'Unbekannt'}\n**Seiten:** ~${estimatedPages}\n**Wörter:** ~${wordCount}\n**Inhalt:** Volltext (${result.chunkCount} Abschnitte)\n**Info:** Dokument vollständig übermittelt - ${result.chunkCount} Chunks zusammengefügt\n\n${result.fullText}`;
+    }).filter(Boolean);
   }
 
   /**
@@ -149,6 +246,30 @@ class RequestEnricher {
       );
     }
 
+    // Fetch knowledge entries by IDs (if knowledge items selected)
+    if (selectedKnowledgeIds.length > 0) {
+      enrichmentTasks.push(
+        this.fetchKnowledgeByIds(selectedKnowledgeIds, options.req)
+          .then(result => ({ type: 'knowledge', knowledge: result.knowledge }))
+          .catch(error => {
+            console.log('🎯 [RequestEnricher] Knowledge fetch failed:', error.message);
+            return { type: 'knowledge', knowledge: [] };
+          })
+      );
+    }
+
+    // Fetch saved texts by IDs (if texts selected)
+    if (selectedTextIds.length > 0) {
+      enrichmentTasks.push(
+        this.fetchTextsByIds(selectedTextIds, options.req)
+          .then(result => ({ type: 'texts', knowledge: result.knowledge }))
+          .catch(error => {
+            console.log('🎯 [RequestEnricher] Texts fetch failed:', error.message);
+            return { type: 'texts', knowledge: [] };
+          })
+      );
+    }
+
     // Execute all enrichment tasks in parallel
     let enrichmentResults = [];
     if (enrichmentTasks.length > 0) {
@@ -181,6 +302,16 @@ class RequestEnricher {
         if (result.knowledge.length > 0) {
           state.knowledge.push(...result.knowledge);
           console.log(`🎯 [RequestEnricher] Added vector search knowledge from ${selectedDocumentIds.length} documents`);
+        }
+      } else if (result.type === 'knowledge') {
+        if (result.knowledge.length > 0) {
+          state.knowledge.push(...result.knowledge);
+          console.log(`🎯 [RequestEnricher] Added ${result.knowledge.length} knowledge entries`);
+        }
+      } else if (result.type === 'texts') {
+        if (result.knowledge.length > 0) {
+          state.knowledge.push(...result.knowledge);
+          console.log(`🎯 [RequestEnricher] Added ${result.knowledge.length} saved texts`);
         }
       }
     }
@@ -355,60 +486,203 @@ class RequestEnricher {
   }
 
   /**
-   * Perform vector search on KnowledgeSelector documents
+   * Perform intelligent document retrieval using full text or vector search
+   * Automatically decides based on document size (vector_count)
    */
   async performDocumentVectorSearch(selectedDocumentIds, searchQuery, req) {
     if (!selectedDocumentIds || selectedDocumentIds.length === 0 || !searchQuery) {
-      console.log('🎯 [RequestEnricher] Vector search skipped: no documents or query');
+      console.log('🎯 [RequestEnricher] Document search skipped: no documents or query');
+      return { knowledge: [] };
+    }
+
+    const startTime = Date.now();
+    const userId = req?.user?.id;
+
+    if (!userId) {
+      console.log('🎯 [RequestEnricher] Document search skipped: no user ID');
       return { knowledge: [] };
     }
 
     try {
-      console.log(`🎯 [RequestEnricher] Performing vector search on ${selectedDocumentIds.length} documents: "${searchQuery}"`);
+      console.log(`🎯 [RequestEnricher] Smart document retrieval for ${selectedDocumentIds.length} documents: "${searchQuery}"`);
 
-      // Use the existing document search API endpoint
-      const response = await fetch('http://localhost:3001/api/documents/search-content', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          // Forward authentication headers from original request if available
-          ...(req?.headers?.cookie && { 'Cookie': req.headers.cookie }),
-          ...(req?.headers?.authorization && { 'Authorization': req.headers.authorization })
-        },
-        body: JSON.stringify({
-          query: searchQuery.trim(),
-          documentIds: selectedDocumentIds,
-          limit: 5,
-          mode: 'hybrid'
+      // Step 1: Fetch metadata from PostgreSQL to determine document sizes
+      const { getPostgresInstance } = await import('../database/services/PostgresService.js');
+      const postgres = getPostgresInstance();
+      await postgres.ensureInitialized();
+
+      const documentsMetadata = await Promise.all(
+        selectedDocumentIds.map(async (docId) => {
+          try {
+            const doc = await postgres.queryOne(
+              'SELECT id, title, filename, vector_count, file_size FROM documents WHERE id = $1 AND user_id = $2',
+              [docId, userId],
+              { table: 'documents' }
+            );
+            return doc;
+          } catch (error) {
+            console.warn(`🎯 [RequestEnricher] Failed to fetch metadata for document ${docId}:`, error.message);
+            return null;
+          }
         })
-      });
+      );
 
-      if (!response.ok) {
-        console.log(`🎯 [RequestEnricher] Vector search API failed: ${response.status}`);
+      const validDocs = documentsMetadata.filter(Boolean);
+
+      if (validDocs.length === 0) {
+        console.log('🎯 [RequestEnricher] No accessible documents found');
         return { knowledge: [] };
       }
 
-      const result = await response.json();
+      // Step 2: Classify documents by size (threshold: 13 chunks ~= 5000 tokens)
+      const CHUNK_THRESHOLD = 13;
+      const smallDocs = validDocs.filter(doc => (doc.vector_count || 0) <= CHUNK_THRESHOLD);
+      const largeDocs = validDocs.filter(doc => (doc.vector_count || 0) > CHUNK_THRESHOLD);
 
-      if (!result.success || !result.results || result.results.length === 0) {
-        console.log('🎯 [RequestEnricher] Vector search returned no results');
+      console.log(`🎯 [RequestEnricher] Document classification: ${smallDocs.length} small (full text), ${largeDocs.length} large (vector search)`);
+
+      // Step 3: Process in parallel
+      const documentSearchService = getQdrantDocumentService();
+
+      const [fullTextResults, vectorSearchResults] = await Promise.all([
+        // Small documents: fetch full text from Qdrant
+        smallDocs.length > 0
+          ? documentSearchService.getMultipleDocumentsFullText(userId, smallDocs.map(d => d.id))
+              .catch(error => {
+                console.warn('🎯 [RequestEnricher] Full text retrieval failed:', error.message);
+                return { documents: [], errors: [] };
+              })
+          : Promise.resolve({ documents: [], errors: [] }),
+
+        // Large documents: use vector search
+        largeDocs.length > 0
+          ? fetch('http://localhost:3001/api/documents/search-content', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                ...(req?.headers?.cookie && { 'Cookie': req.headers.cookie }),
+                ...(req?.headers?.authorization && { 'Authorization': req.headers.authorization })
+              },
+              body: JSON.stringify({
+                query: searchQuery.trim(),
+                documentIds: largeDocs.map(d => d.id),
+                limit: 5,
+                mode: 'hybrid'
+              })
+            })
+              .then(res => res.ok ? res.json() : { success: false, results: [] })
+              .then(result => result.success ? result.results : [])
+              .catch(error => {
+                console.warn('🎯 [RequestEnricher] Vector search failed:', error.message);
+                return [];
+              })
+          : Promise.resolve([])
+      ]);
+
+      // Step 4: Format results consistently
+      const fullDocsFormatted = this.formatFullDocuments(fullTextResults.documents, smallDocs);
+      const vectorDocsFormatted = this.formatVectorSearchResults(vectorSearchResults);
+
+      // Step 5: Merge results
+      const allKnowledge = [...fullDocsFormatted, ...vectorDocsFormatted];
+
+      const elapsedTime = Date.now() - startTime;
+
+      // Enhanced logging with performance metrics
+      console.log(`🎯 [RequestEnricher] Smart retrieval complete (${elapsedTime}ms):`);
+      console.log(`   - Full text: ${fullTextResults.documents.length} docs, ${fullTextResults.errors.length} errors`);
+      console.log(`   - Vector search: ${vectorSearchResults.length} excerpts`);
+      console.log(`   - Total knowledge entries: ${allKnowledge.length}`);
+      console.log(`   - Estimated tokens saved: ~${smallDocs.length * 200} (no vector search overhead)`);
+
+      return { knowledge: allKnowledge };
+
+    } catch (error) {
+      console.error('🎯 [RequestEnricher] Smart document retrieval error:', error);
+      return { knowledge: [] };
+    }
+  }
+
+  /**
+   * Fetch knowledge entries by IDs from the database
+   */
+  async fetchKnowledgeByIds(knowledgeIds, req) {
+    if (!knowledgeIds || knowledgeIds.length === 0) {
+      console.log('🎯 [RequestEnricher] Knowledge fetch skipped: no IDs provided');
+      return { knowledge: [] };
+    }
+
+    try {
+      console.log(`🎯 [RequestEnricher] Fetching ${knowledgeIds.length} knowledge entries by IDs`);
+
+      // Get database instance
+      const { getPostgresInstance } = await import('../database/services/PostgresService.js');
+      const postgres = getPostgresInstance();
+      await postgres.ensureInitialized();
+
+      // Fetch knowledge entries from user_knowledge table
+      const knowledgeData = await postgres.query(
+        'SELECT id, title, content FROM user_knowledge WHERE id = ANY($1) AND is_active = true',
+        [knowledgeIds],
+        { table: 'user_knowledge' }
+      );
+
+      if (!knowledgeData || knowledgeData.length === 0) {
+        console.log('🎯 [RequestEnricher] No knowledge entries found for provided IDs');
         return { knowledge: [] };
       }
 
-      // Format results as knowledge content
-      const knowledgeEntries = result.results.map(doc => {
-        const contentType = doc.content_type === 'vector_search' ? 'Vector Search' :
-                          doc.content_type === 'full_text' ? 'Volltext' : 'Intelligenter Auszug';
+      // Format as knowledge content using new formatter
+      const knowledgeEntries = this.formatKnowledgeEntries(knowledgeData);
 
-        return `DOKUMENT-WISSEN aus "${doc.title}" (${doc.filename}):\n${doc.content}`;
-      });
-
-      console.log(`🎯 [RequestEnricher] Vector search complete: ${knowledgeEntries.length} document excerpts extracted`);
+      console.log(`🎯 [RequestEnricher] Successfully fetched ${knowledgeEntries.length} knowledge entries`);
 
       return { knowledge: knowledgeEntries };
 
     } catch (error) {
-      console.log('🎯 [RequestEnricher] Vector search error:', error.message);
+      console.log('🎯 [RequestEnricher] Knowledge fetch error:', error.message);
+      return { knowledge: [] };
+    }
+  }
+
+  /**
+   * Fetch saved texts by IDs from the database
+   */
+  async fetchTextsByIds(textIds, req) {
+    if (!textIds || textIds.length === 0) {
+      console.log('🎯 [RequestEnricher] Texts fetch skipped: no IDs provided');
+      return { knowledge: [] };
+    }
+
+    try {
+      console.log(`🎯 [RequestEnricher] Fetching ${textIds.length} saved texts by IDs`);
+
+      // Get database instance
+      const { getPostgresInstance } = await import('../database/services/PostgresService.js');
+      const postgres = getPostgresInstance();
+      await postgres.ensureInitialized();
+
+      // Fetch texts from user_documents table with additional metadata
+      const textData = await postgres.query(
+        'SELECT id, title, content, document_type, word_count, created_at FROM user_documents WHERE id = ANY($1) AND is_active = true',
+        [textIds],
+        { table: 'user_documents' }
+      );
+
+      if (!textData || textData.length === 0) {
+        console.log('🎯 [RequestEnricher] No texts found for provided IDs');
+        return { knowledge: [] };
+      }
+
+      // Format as knowledge content using new formatter
+      const textEntries = this.formatSavedTexts(textData);
+
+      console.log(`🎯 [RequestEnricher] Successfully fetched ${textEntries.length} saved texts`);
+
+      return { knowledge: textEntries };
+
+    } catch (error) {
+      console.log('🎯 [RequestEnricher] Texts fetch error:', error.message);
       return { knowledge: [] };
     }
   }
