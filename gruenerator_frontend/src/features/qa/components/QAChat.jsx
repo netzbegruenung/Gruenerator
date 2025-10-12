@@ -14,17 +14,19 @@ import useQAStore from '../stores/qaStore';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import useApiSubmit from '../../../components/hooks/useApiSubmit';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
+import useResponsive from '../../../components/common/Form/hooks/useResponsive';
 import '../../../assets/styles/features/qa/qa-chat.css';
 
 const QAChat = () => {
   const { id } = useParams();
   const { user } = useOptimizedAuth();
+  const { isMobileView } = useResponsive(768);
   const { getQACollection, fetchQACollections, qaCollections, loading: storeLoading } = useQAStore();
   const [chatMessages, setChatMessages] = useState([]);
   const [inputValue, setInputValue] = useState("");
   const [collection, setCollection] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState('dossier'); // 'dossier' or 'chat'
+  const [viewMode, setViewMode] = useState(isMobileView ? 'chat' : 'dossier');
   const [showEditTools, setShowEditTools] = useState(false);
   
   const componentName = `qa-${id}`;
@@ -78,6 +80,13 @@ const QAChat = () => {
       loadCollection();
     }
   }, [id, getQACollection, fetchQACollections, user, qaCollections]);
+
+  // Force chat mode on mobile devices
+  useEffect(() => {
+    if (isMobileView && viewMode !== 'chat') {
+      setViewMode('chat');
+    }
+  }, [isMobileView, viewMode]);
 
   const handleSubmitQuestion = useCallback(async (question) => {
     const userMessage = {
