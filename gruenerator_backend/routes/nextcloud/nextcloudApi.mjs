@@ -288,6 +288,79 @@ router.post('/upload', async (req, res) => {
 });
 
 /**
+ * Upload test file to a Nextcloud share
+ * POST /api/nextcloud/upload-test
+ */
+router.post('/upload-test', async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { shareLinkId, content, filename } = req.body;
+
+        console.log('[NextcloudApi] Uploading test file to Nextcloud', { userId, filename, shareLinkId });
+
+        // Validate required fields
+        if (!shareLinkId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Share link ID is required'
+            });
+        }
+
+        if (!content) {
+            return res.status(400).json({
+                success: false,
+                message: 'File content is required'
+            });
+        }
+
+        if (!filename) {
+            return res.status(400).json({
+                success: false,
+                message: 'Filename is required'
+            });
+        }
+
+        // Get the share link from database
+        const shareLink = await NextcloudShareManager.getShareLinkById(userId, shareLinkId);
+
+        if (!shareLink || !shareLink.is_active) {
+            return res.status(404).json({
+                success: false,
+                message: 'Share link not found or inactive'
+            });
+        }
+
+        // Upload the test file
+        const client = new NextcloudApiClient(shareLink.share_link);
+        const uploadResult = await client.uploadFile(content, filename);
+
+        res.json(uploadResult);
+
+    } catch (error) {
+        console.error('[NextcloudApi] Error uploading test file', { error: error.message });
+
+        if (error.message.includes('not found')) {
+            return res.status(404).json({
+                success: false,
+                message: error.message
+            });
+        }
+
+        if (error.message.includes('Authentication failed') || error.message.includes('forbidden')) {
+            return res.status(403).json({
+                success: false,
+                message: error.message
+            });
+        }
+
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+});
+
+/**
  * Get share information (list files)
  * GET /api/nextcloud/share-links/:id/info
  */

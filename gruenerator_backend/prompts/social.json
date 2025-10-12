@@ -64,7 +64,9 @@
     "examplesPlatforms": ["instagram", "facebook"]
   },
   "requestFields": ["thema", "details", "platforms", "was", "wie", "zitatgeber"],
-  "requestTemplate": "STRIKTE ANWEISUNGEN:\n- Erstelle NUR den Beitragstext - KEINE Bildvorschläge, KEINE zusätzlichen Kommentare\n- Genau EIN Beitrag pro Plattform\n- Halte dich an die Zeichengrenzen\n\n{{platformLimits}}\n\nThema: {{thema}}\nDetails: {{details}}\nPlattformen: {{platforms}}\n{{#if pressemitteilung}}\n{{#if was}}Was: {{was}}{{/if}}\n{{#if wie}}Wie: {{wie}}{{/if}}\n{{#if zitatgeber}}Zitat von: {{zitatgeber}}{{/if}}\n{{/if}}\n\nErstelle einen Beitrag im Stil von {{partyName}}. Nutze Emojis und Hashtags passend zur Plattform.\n\n{{TITLE_GENERATION_INSTRUCTION}}",
+  "requestTemplate": "Thema: {{thema}}\nDetails: {{details}}\nPlattformen: {{platforms}}\n{{#if pressemitteilung}}\n{{#if was}}Was: {{was}}{{/if}}\n{{#if wie}}Wie: {{wie}}{{/if}}\n{{#if zitatgeber}}Zitat von: {{zitatgeber}}{{/if}}\n{{/if}}",
+  "taskInstructions": "Erstelle genau EINEN Beitrag pro Plattform im Stil von {{partyName}}. Nutze Emojis und Hashtags passend zur Plattform. Gib NUR den Beitragstext aus - KEINE Bildvorschläge oder zusätzlichen Kommentare.",
+  "outputFormat": "{{TITLE_GENERATION_INSTRUCTION}}",
   "webSearchQuery": "{{thema}} {{details}} {{partyName}} Politik",
   "formatting": "MARKDOWN_FORMATTING_INSTRUCTIONS",
   "shortFormThreshold": 300,

@@ -44,7 +44,7 @@
   ],
   "requestTemplate": "{{processedPrompt}}\n\n{{#if formDataFields}}\nFormulardaten:\n{{#each formDataFields}}\n{{key}}: {{value}}\n{{/each}}\n{{/if}}",
   "webSearchQuery": "{{extractedTerms}} {{generatorName}}",
-  "formatting": "HTML_FORMATTING_INSTRUCTIONS",
+  "formatting": "MARKDOWN_FORMATTING_INSTRUCTIONS",
   "shortFormThreshold": 300,
   "options": {
     "max_tokens": 8000,

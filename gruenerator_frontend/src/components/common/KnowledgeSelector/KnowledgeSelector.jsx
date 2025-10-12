@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo, memo, useCallback, useRef } from 'react';
 import PropTypes from 'prop-types';
-import FormSelect from '../Form/Input/FormSelect';
 import EnhancedSelect from '../EnhancedSelect';
 import '../../../assets/styles/components/ui/knowledge-selector.css';
 import { useGeneratorKnowledgeStore } from '../../../stores/core/generatorKnowledgeStore';
@@ -30,13 +29,15 @@ const ProfileSelector = ({ disabled = false, tabIndex, instructionType = 'social
   } = useGroups();
   
   // Handle profile source selection (for instructions only)
-  const handleSourceChange = useCallback((e) => {
-    const value = e.target.value;
-    
+  const handleSourceChange = useCallback((selectedOption) => {
+    if (!selectedOption) return;
+
+    const value = selectedOption.value;
+
     if (value === 'neutral') {
       setSource({ type: 'neutral', id: null, name: null });
     } else if (value === 'user') {
-      setSource({ type: 'user', id: null, name: 'Mein Profil' });
+      setSource({ type: 'user', id: null, name: 'Meine Anweisungen' });
     } else if (value.startsWith('group-')) {
       const groupId = value.substring("group-".length);
       const selectedGroup = groups.find(g => g.id === groupId);
@@ -57,8 +58,8 @@ const ProfileSelector = ({ disabled = false, tabIndex, instructionType = 'social
   // Memoize source options array
   const sourceOptions = useMemo(() => {
     const baseOptions = [
-      { value: 'neutral', label: 'Neutral' },
-      { value: 'user', label: 'Mein Profil' }
+      { value: 'neutral', label: 'Keine Anweisungen' },
+      { value: 'user', label: 'Meine Anweisungen' }
     ];
 
     const loadingOptions = [];
@@ -84,16 +85,30 @@ const ProfileSelector = ({ disabled = false, tabIndex, instructionType = 'social
   
   return (
     <div className="profile-selector">
-      <FormSelect
-        name="profile-source"
+      <EnhancedSelect
+        inputId="profile-source"
+        classNamePrefix="enhanced-knowledge-select"
+        className="enhanced-knowledge-select"
         label="Profil für Anweisungen auswählen"
         options={sourceOptions}
-        value={getCurrentSourceValue()}
+        value={sourceOptions.find(opt => opt.value === getCurrentSourceValue())}
         onChange={handleSourceChange}
-        disabled={isLoadingGroups || isLoadingBetaFeatures || !anweisungenBetaEnabled || disabled}
-        placeholder=""
+        isDisabled={isLoadingGroups || isLoadingBetaFeatures || !anweisungenBetaEnabled || disabled}
+        placeholder="Auswählen"
         tabIndex={tabIndex}
-        helpText="Wähle das Profil aus, dessen Anweisungen verwendet werden sollen"
+        isMulti={false}
+        isClearable={false}
+        isSearchable={false}
+        closeMenuOnSelect={true}
+        hideSelectedOptions={false}
+        blurInputOnSelect={true}
+        openMenuOnFocus={false}
+        tabSelectsValue={true}
+        captureMenuScroll={false}
+        menuShouldBlockScroll={false}
+        menuShouldScrollIntoView={false}
+        menuPortalTarget={document.body}
+        menuPosition="fixed"
       />
     </div>
   );

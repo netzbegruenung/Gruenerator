@@ -93,6 +93,7 @@ async function setupRoutes(app) {
   const { default: userProfile } = await import('./routes/auth/userProfile.mjs');
   const { default: userContent } = await import('./routes/auth/userContent.mjs');
   const { default: userGroups } = await import('./routes/auth/userGroups.mjs');
+  const { default: userCustomGenerators } = await import('./routes/auth/userCustomGenerators.mjs');
   const { default: userTemplates } = await import('./routes/auth/userTemplates.mjs');
   const { default: mobileAuthRoutes } = await import('./routes/auth/mobile.mjs');
   const { default: documentsRouter } = await import('./routes/documents.mjs');
@@ -130,7 +131,7 @@ async function setupRoutes(app) {
   app.use('/api/auth', userProfile);
   app.use('/api/auth', userContent);
   app.use('/api/auth', userGroups);
-  // app.use('/api/auth', userCustomGenerators); // REMOVED - consolidated
+  app.use('/api/auth', userCustomGenerators);
   app.use('/api/auth', userTemplates);
   app.use('/api/auth/mobile', mobileAuthRoutes);
   app.use('/api/auth/qa-collections', qaCollectionsRouter);

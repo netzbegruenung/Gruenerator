@@ -35,8 +35,9 @@ export class NextcloudShareManager {
                 { table: 'profiles' }
             );
             
-            const currentLinks = profile?.nextcloud_share_links || [];
-            
+            const rawCurrentLinks = profile?.nextcloud_share_links;
+            const currentLinks = Array.isArray(rawCurrentLinks) ? rawCurrentLinks : [];
+
             // Check if share link already exists
             const existingLink = currentLinks.find(link => link.share_link === shareLink);
             if (existingLink) {
@@ -60,7 +61,7 @@ export class NextcloudShareManager {
             // Update the profile with new links
             const result = await postgres.update(
                 'profiles',
-                { nextcloud_share_links: updatedLinks },
+                { nextcloud_share_links: JSON.stringify(updatedLinks) },
                 { id: userId }
             );
             
@@ -96,13 +97,14 @@ export class NextcloudShareManager {
                 { table: 'profiles' }
             );
             
-            const shareLinks = profile?.nextcloud_share_links || [];
-            
+            const rawShareLinks = profile?.nextcloud_share_links;
+            const shareLinks = Array.isArray(rawShareLinks) ? rawShareLinks : [];
+
             // Sort by created_at descending (newest first)
-            const sortedLinks = shareLinks.sort((a, b) => 
+            const sortedLinks = shareLinks.sort((a, b) =>
                 new Date(b.created_at) - new Date(a.created_at)
             );
-            
+
             console.log('[NextcloudShareManager] Retrieved share links', { userId, count: sortedLinks.length });
             return sortedLinks;
             
@@ -131,7 +133,8 @@ export class NextcloudShareManager {
                 { table: 'profiles' }
             );
             
-            const shareLinks = profile?.nextcloud_share_links || [];
+            const rawShareLinksById = profile?.nextcloud_share_links;
+            const shareLinks = Array.isArray(rawShareLinksById) ? rawShareLinksById : [];
             const shareLink = shareLinks.find(link => link.id === shareLinkId);
             
             if (!shareLink) {
@@ -166,9 +169,10 @@ export class NextcloudShareManager {
                 { table: 'profiles' }
             );
             
-            const currentLinks = profile?.nextcloud_share_links || [];
+            const rawCurrentLinksUpdate = profile?.nextcloud_share_links;
+            const currentLinks = Array.isArray(rawCurrentLinksUpdate) ? rawCurrentLinksUpdate : [];
             const linkIndex = currentLinks.findIndex(link => link.id === shareLinkId);
-            
+
             if (linkIndex === -1) {
                 throw new Error('Share link not found or no permission to update');
             }
@@ -183,11 +187,11 @@ export class NextcloudShareManager {
             // Replace the link in the array
             const updatedLinks = [...currentLinks];
             updatedLinks[linkIndex] = updatedLink;
-            
+
             // Update the profile
             const result = await postgres.update(
                 'profiles',
-                { nextcloud_share_links: updatedLinks },
+                { nextcloud_share_links: JSON.stringify(updatedLinks) },
                 { id: userId }
             );
             
@@ -224,20 +228,21 @@ export class NextcloudShareManager {
                 { table: 'profiles' }
             );
             
-            const currentLinks = profile?.nextcloud_share_links || [];
+            const rawCurrentLinksDelete = profile?.nextcloud_share_links;
+            const currentLinks = Array.isArray(rawCurrentLinksDelete) ? rawCurrentLinksDelete : [];
             const linkToDelete = currentLinks.find(link => link.id === shareLinkId);
-            
+
             if (!linkToDelete) {
                 throw new Error('Share link not found or no permission to delete');
             }
             
             // Remove the link from the array
             const updatedLinks = currentLinks.filter(link => link.id !== shareLinkId);
-            
+
             // Update the profile
             const result = await postgres.update(
                 'profiles',
-                { nextcloud_share_links: updatedLinks },
+                { nextcloud_share_links: JSON.stringify(updatedLinks) },
                 { id: userId }
             );
             
@@ -331,8 +336,9 @@ export class NextcloudShareManager {
                 { table: 'profiles' }
             );
             
-            const currentLinks = profile?.nextcloud_share_links || [];
-            
+            const rawCurrentLinksDeactivate = profile?.nextcloud_share_links;
+            const currentLinks = Array.isArray(rawCurrentLinksDeactivate) ? rawCurrentLinksDeactivate : [];
+
             // Deactivate all links
             const updatedLinks = currentLinks.map(link => ({
                 ...link,
@@ -344,10 +350,10 @@ export class NextcloudShareManager {
             if (currentLinks.length > 0) {
                 const result = await postgres.update(
                     'profiles',
-                    { nextcloud_share_links: updatedLinks },
+                    { nextcloud_share_links: JSON.stringify(updatedLinks) },
                     { id: userId }
                 );
-                
+
                 if (!result || result.length === 0) {
                     throw new Error('Failed to deactivate share links - profile not found');
                 }
@@ -385,8 +391,9 @@ export class NextcloudShareManager {
                 { table: 'profiles' }
             );
             
-            const shareLinks = profile?.nextcloud_share_links || [];
-            
+            const rawShareLinksStats = profile?.nextcloud_share_links;
+            const shareLinks = Array.isArray(rawShareLinksStats) ? rawShareLinksStats : [];
+
             const stats = {
                 totalLinks: shareLinks.length,
                 activeLinks: shareLinks.filter(link => link.is_active).length,

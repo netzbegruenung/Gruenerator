@@ -3,7 +3,6 @@ import crypto from 'crypto';
 import axios from 'axios';
 import passport from '../../config/passportSetup.mjs';
 import authMiddlewareModule from '../../middleware/authMiddleware.js';
-// Import CanvaTokenManager and Redis OAuth State Manager using createRequire for CommonJS compatibility
 import { createRequire } from 'module';
 import { getProfileService } from '../../services/ProfileService.mjs';
 const require = createRequire(import.meta.url);
@@ -19,23 +18,19 @@ if (!CanvaTokenManager.validateConfiguration()) {
   console.error('[Canva Auth] Invalid Canva configuration - routes may not work correctly');
 }
 
-// Log Redis OAuth state manager availability
 redisOAuthStateManager.getStats().then(stats => {
   console.log('[Canva Auth] Redis OAuth state manager status:', stats);
 }).catch(err => {
   console.warn('[Canva Auth] Could not get Redis OAuth stats:', err.message);
 });
 
-// Add Passport session middleware for Canva auth routes
 router.use(passport.session());
 
-// Add debugging middleware to all Canva auth routes
 router.use((req, res, next) => {
   console.log(`[Canva Auth] ${req.method} ${req.originalUrl} - Session ID: ${req.sessionID} - User: ${req.user?.id}`);
   next();
 });
 
-// Configuration validation middleware for critical routes
 router.use('/authorize', (req, res, next) => {
   if (!CanvaTokenManager.validateConfiguration()) {
     return res.status(500).json({
@@ -57,18 +52,15 @@ router.get('/authorize', ensureAuthenticated, (req, res) => {
       userAgent: req.headers['user-agent'],
       origin: req.headers.origin
     });
-    
-    // Generate PKCE values
+
     const codeVerifier = crypto.randomBytes(96).toString('base64url');
     const codeChallenge = crypto
       .createHash('sha256')
       .update(codeVerifier)
       .digest('base64url');
-    
-    // Generate state for CSRF protection
+
     const state = crypto.randomBytes(96).toString('base64url');
-    
-    // Store PKCE values and user context in Redis for callback retrieval
+
     const oauthData = {
       userId: req.user.id,
       codeVerifier: codeVerifier,
@@ -82,8 +74,7 @@ router.get('/authorize', ensureAuthenticated, (req, res) => {
       codeVerifierLength: codeVerifier.length,
       redirectUri: process.env.CANVA_REDIRECT_URI
     });
-    
-    // Define required scopes based on our integration needs
+
     const scopes = [
       'asset:read',
       'asset:write', 
@@ -92,8 +83,7 @@ router.get('/authorize', ensureAuthenticated, (req, res) => {
       'design:content:write',
       'folder:read'
     ].join(' ');
-    
-    // Build authorization URL
+
     const authUrl = new URL('https://www.canva.com/api/oauth/authorize');
     authUrl.searchParams.set('code_challenge', codeChallenge);
     authUrl.searchParams.set('code_challenge_method', 'S256');
@@ -104,8 +94,7 @@ router.get('/authorize', ensureAuthenticated, (req, res) => {
     authUrl.searchParams.set('redirect_uri', process.env.CANVA_REDIRECT_URI);
     
     console.log('[Canva Auth] Authorization URL generated for scopes:', scopes);
-    
-    // Store OAuth state in Redis (with fallback to session)
+
     const storeOAuthState = async () => {
       try {
         // Try Redis first
@@ -241,8 +230,7 @@ router.get('/callback', async (req, res) => {
     }
     
     console.log('[Canva Auth] State verified, exchanging code for tokens');
-    
-    // Exchange authorization code for access token
+
     const tokenResponse = await exchangeCodeForTokens(code, codeVerifier);
     
     if (!tokenResponse.access_token) {
@@ -254,7 +242,7 @@ router.get('/callback', async (req, res) => {
     // Get user info from Canva to validate token and get user ID
     const canvaUser = await getCanvaUserInfo(tokenResponse.access_token);
     
-    // Save tokens using CanvaTokenManager for consistent encryption
+    // Save tokens using CanvaTokenManager
     await CanvaTokenManager.saveTokens(userId, tokenResponse);
     
     // Save additional Canva user info to profile

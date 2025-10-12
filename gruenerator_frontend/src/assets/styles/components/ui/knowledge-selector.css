@@ -304,8 +304,7 @@
 
 /* Enhanced Knowledge Select - Use classNamePrefix="enhanced-knowledge-select" */
 .enhanced-knowledge-select__control {
-  /* Even more compact control height for compact layout */
-  min-height: calc(var(--form-element-min-height) - 16px) !important;
+  min-height: var(--form-element-min-height) !important;
   line-height: 1.2 !important;
   font-size: var(--form-element-font-size) !important;
   background-color: var(--input-background) !important;
@@ -325,7 +324,6 @@
 }
 
 .enhanced-knowledge-select__value-container {
-  /* Even more compact vertical padding */
   padding: var(--form-element-padding-y) var(--form-element-padding-x);
 }
 

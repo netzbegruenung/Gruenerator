@@ -1,10 +1,8 @@
 import express from 'express';
 import passport from '../../config/passportSetup.mjs';
-// Supabase deprecated – remove dependency
 import authMiddlewareModule from '../../middleware/authMiddleware.js';
 import { createRequire } from 'module';
 
-// Import chat memory service for cleanup on logout
 const require = createRequire(import.meta.url);
 const chatMemory = require('../../services/chatMemoryService');
 
@@ -12,115 +10,38 @@ const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
 
 const router = express.Router();
 
-// Add Passport session middleware only for auth routes
 router.use(passport.session());
 
-// Intelligent request/response logging for auth core
-// - Correlates requests with a short ID
-// - Logs minimal auth/session hints (no secrets)
-// - Captures redirects and response status/content-type
 router.use((req, res, next) => {
-  const reqId = `AC-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-  req._authReqId = reqId;
-
-  const start = Date.now();
   const originalSend = res.send.bind(res);
   const originalJson = res.json.bind(res);
-  const originalRedirect = res.redirect ? res.redirect.bind(res) : null;
-
-  const logPrefix = `[authCore][${reqId}]`;
-
-  try {
-    // Basic request context (no sensitive data)
-    console.log(`${logPrefix} Incoming ${req.method} ${req.originalUrl}`, {
-      sessionID: req.sessionID,
-      hasCookieHeader: !!req.headers['cookie'],
-      accept: req.headers['accept'],
-      contentType: req.headers['content-type'],
-      isAuthenticated: typeof req.isAuthenticated === 'function' ? req.isAuthenticated() : false,
-      hasReqUser: !!req.user,
-      hasSessionPassportUser: !!(req.session?.passport?.user)
-    });
-  } catch (_) {}
-
-  function logResponseBody(body, channel = 'send') {
-    try {
-      const elapsed = Date.now() - start;
-      const status = res.statusCode;
-      const ct = res.get('Content-Type');
-      let snippet = '';
-      if (typeof body === 'string') {
-        snippet = body.slice(0, 180);
-      } else if (Buffer.isBuffer(body)) {
-        snippet = body.toString('utf8', 0, Math.min(body.length, 180));
-      } else if (typeof body === 'object' && body !== null) {
-        // Avoid logging tokens or large objects
-        try {
-          const safe = { ...body };
-          if (safe.user) {
-            const { id, email, locale } = safe.user;
-            safe.user = { id, email, locale };
-          }
-          snippet = JSON.stringify(safe).slice(0, 220);
-        } catch (_) {
-          snippet = '[object]';
-        }
-      }
-      const looksHtml = typeof snippet === 'string' && /<html|<!DOCTYPE html/i.test(snippet);
-      console.log(`${logPrefix} Response via ${channel}`, {
-        status,
-        contentType: ct,
-        durationMs: elapsed,
-        looksHtml,
-        bodySnippet: snippet
-      });
-    } catch (e) {
-      console.warn(`${logPrefix} Failed to log response body:`, e.message);
-    }
-  }
 
   res.send = function (body) {
-    logResponseBody(body, 'send');
+    if (res.statusCode >= 400) {
+      console.error(`[authCore] ${req.method} ${req.originalUrl} - Status: ${res.statusCode}`);
+    }
     return originalSend(body);
   };
 
   res.json = function (body) {
-    logResponseBody(body, 'json');
+    if (res.statusCode >= 400) {
+      console.error(`[authCore] ${req.method} ${req.originalUrl} - Status: ${res.statusCode}`);
+    }
     return originalJson(body);
   };
-
-  if (originalRedirect) {
-    res.redirect = function (url) {
-      const elapsed = Date.now() - start;
-      console.log(`${logPrefix} Redirect`, { status: res.statusCode, url, durationMs: elapsed });
-      return originalRedirect(url);
-    };
-  }
-
-  res.on('finish', () => {
-    // Fallback if body wasn’t captured
-    const elapsed = Date.now() - start;
-    const ct = res.get('Content-Type');
-    console.log(`${logPrefix} Finished`, { status: res.statusCode, contentType: ct, durationMs: elapsed });
-  });
 
   next();
 });
 
-// Helpers for mobile deep-link support
-
 function isAllowedMobileRedirect(redirectUrl) {
   if (!redirectUrl) return false;
-  // Only consider non-http(s) deep-links as mobile redirects
   const lower = redirectUrl.toLowerCase();
   if (lower.startsWith('http://') || lower.startsWith('https://')) return false;
-  // Allow gruenerator:// URLs by default
   return redirectUrl.startsWith('gruenerator://');
 }
 
 function appendQueryParam(url, key, value) {
   try {
-    // For custom schemes, URL may throw; fallback to simple concatenation
     const hasQuery = url.includes('?');
     const sep = hasQuery ? '&' : '?';
     return `${url}${sep}${encodeURIComponent(key)}=${encodeURIComponent(value)}`;
@@ -137,7 +58,6 @@ router.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', message: 'Backend is healthy' });
 });
 
-// Simple test endpoint to verify routing works
 router.get('/test', (req, res) => {
   res.json({ 
     success: true, 

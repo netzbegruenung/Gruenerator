@@ -107,13 +107,15 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }) => {
       details: initialContent?.details || '',
       platforms: defaultPlatforms,
       useWebSearchTool: false,
-      usePrivacyMode: false
+      usePrivacyMode: false,
+      useProMode: false
     }
   });
 
   // Watch form values to update toggle states
   const watchUseWebSearch = useWatch({ control, name: 'useWebSearchTool', defaultValue: false });
   const watchUsePrivacyMode = useWatch({ control, name: 'usePrivacyMode', defaultValue: false });
+  const watchUseProMode = useWatch({ control, name: 'useProMode', defaultValue: false });
 
   // Use store for content management (no local state needed)
   const socialMediaContent = useGeneratedTextStore(state => state.getGeneratedText(componentName)) || '';
@@ -152,6 +154,7 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }) => {
         platforms: selectedPlatforms,
         useWebSearchTool: rhfData.useWebSearchTool,
         usePrivacyMode: rhfData.usePrivacyMode,
+        useBedrock: rhfData.useProMode,  // Pro mode flag for backend API
         attachments: allAttachments
       };
       
@@ -260,6 +263,15 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }) => {
     tabIndex: tabIndex.privacyMode || 13
   };
 
+  const proModeToggle = {
+    isActive: watchUseProMode,
+    onToggle: (checked) => {
+      setValue('useProMode', checked);
+    },
+    label: "Pro-Mode",
+    description: "Nutzt ein fortgeschrittenes Sprachmodell – ideal für komplexere Texte."
+  };
+
   const renderPlatformSection = () => (
     <PlatformSelector
       name="platforms"
@@ -319,6 +331,8 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }) => {
           useWebSearchFeatureToggle={true}
           privacyModeToggle={privacyModeToggle}
           usePrivacyModeToggle={true}
+          proModeToggle={proModeToggle}
+          useProModeToggle={true}
           useFeatureIcons={true}
           onAttachmentClick={handleAttachmentClick}
           onRemoveFile={handleRemoveFile}

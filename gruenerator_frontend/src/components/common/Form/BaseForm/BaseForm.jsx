@@ -293,21 +293,21 @@ const BaseFormInternal = ({
   const hasEditableContent = isStreaming || editableText.length > 0;
   const [isEditModeToggled, setIsEditModeToggled] = React.useState(false);
   const isEditModeActive = isEditModeToggled && enableEditMode && hasEditableContent;
-  
+
   // Auto-activate edit mode when new text is generated (desktop only)
-  const prevHasEditableContentRef = useRef(hasEditableContent);
-  useEffect(() => {
-    // Only auto-activate if:
-    // 1. Edit mode is enabled for this component
-    // 2. We just got content (transition from no content to has content)
-    // 3. Edit mode isn't already active
-    // 4. Not on mobile device
-    const isMobileDevice = window.innerWidth <= 768;
-    if (enableEditMode && !prevHasEditableContentRef.current && hasEditableContent && !isEditModeToggled && !isMobileDevice) {
-      setIsEditModeToggled(true);
-    }
-    prevHasEditableContentRef.current = hasEditableContent;
-  }, [hasEditableContent, enableEditMode, isEditModeToggled]);
+  // const prevHasEditableContentRef = useRef(hasEditableContent);
+  // useEffect(() => {
+  //   // Only auto-activate if:
+  //   // 1. Edit mode is enabled for this component
+  //   // 2. We just got content (transition from no content to has content)
+  //   // 3. Edit mode isn't already active
+  //   // 4. Not on mobile device
+  //   const isMobileDevice = window.innerWidth <= 768;
+  //   if (enableEditMode && !prevHasEditableContentRef.current && hasEditableContent && !isEditModeToggled && !isMobileDevice) {
+  //     setIsEditModeToggled(true);
+  //   }
+  //   prevHasEditableContentRef.current = hasEditableContent;
+  // }, [hasEditableContent, enableEditMode, isEditModeToggled]);
 
   // Auto-scroll to generated text on mobile with smart positioning
   useAutoScrollToContent(displaySectionRef, hasEditableContent, {
@@ -485,16 +485,16 @@ const BaseFormInternal = ({
 
   // Synchronize props with store state - separate effects to prevent loops
   useEffect(() => {
-    if (propLoading !== undefined && propLoading !== storeLoading) {
+    if (propLoading !== undefined) {
       setStoreLoading(propLoading);
     }
-  }, [propLoading, storeLoading, setStoreLoading]);
+  }, [propLoading, setStoreLoading]);
 
   useEffect(() => {
-    if (propSuccess !== undefined && propSuccess !== storeSuccess) {
+    if (propSuccess !== undefined) {
       setStoreSuccess(propSuccess);
     }
-  }, [propSuccess, storeSuccess, setStoreSuccess]);
+  }, [propSuccess, setStoreSuccess]);
 
   useEffect(() => {
     if (propFormErrors && Object.keys(propFormErrors).length > 0) {

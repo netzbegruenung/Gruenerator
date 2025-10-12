@@ -72,13 +72,47 @@ const UniversalEditForm = ({ componentName }) => {
       return;
     }
 
+    // Helper: Frontend fallback parsing for malformed JSON
+    const attemptFrontendParsing = (rawData) => {
+      if (!rawData?.raw) return null;
+
+      try {
+        // Clean markdown and parse
+        let cleaned = rawData.raw
+          .replace(/```json\s*|\s*```/g, '')  // Remove code fences
+          .replace(/(\*\*|__|~~)\s*"/g, '"')   // Remove markdown before quotes
+          .replace(/"\s*(\*\*|__|~~)/g, '"')   // Remove markdown after quotes
+          .trim();
+
+        const parsed = JSON.parse(cleaned);
+        if (parsed.changes && Array.isArray(parsed.changes)) {
+          console.log('[UniversalEditForm] Frontend parsing succeeded');
+          return parsed;
+        }
+      } catch (e) {
+        console.warn('[UniversalEditForm] Frontend parsing failed:', e.message);
+      }
+      return null;
+    };
+
     setIsProcessing(true);
     try {
       const response = await apiClient.post('/claude_suggest_edits', {
         instruction: trimmed,
-        currentText
+        currentText,
+        componentName
       });
-      const changes = response?.data?.changes || [];
+
+      // Try frontend parsing if backend indicates it's needed
+      let data = response?.data;
+      if (data?.needsFrontendParsing) {
+        const frontendParsed = attemptFrontendParsing(data);
+        if (frontendParsed) {
+          data = frontendParsed;
+        }
+      }
+
+      const changes = data?.changes || [];
 
       if (!Array.isArray(changes) || changes.length === 0) {
         setMessages(prev => [...prev, { type: 'assistant', content: 'Keine konkreten Änderungen vorgeschlagen. Präzisiere gern, was verändert werden soll.', timestamp: Date.now() }]);

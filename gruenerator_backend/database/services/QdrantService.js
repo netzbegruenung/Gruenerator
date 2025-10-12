@@ -111,6 +111,17 @@ class QdrantService {
                 freeSocketTimeout: 15000
             });
 
+            // Prepare basic auth header if credentials are provided
+            const basicAuthUsername = process.env.QDRANT_BASIC_AUTH_USERNAME;
+            const basicAuthPassword = process.env.QDRANT_BASIC_AUTH_PASSWORD;
+            const headers = {};
+
+            if (basicAuthUsername && basicAuthPassword) {
+                const basicAuth = Buffer.from(`${basicAuthUsername}:${basicAuthPassword}`).toString('base64');
+                headers['Authorization'] = `Basic ${basicAuth}`;
+                console.log(`[QdrantService] Using basic authentication for user: ${basicAuthUsername}`);
+            }
+
             // Use host/port approach for HTTPS support due to Qdrant client URL parsing bug
             if (qdrantUrl.startsWith('https://')) {
                 const url = new URL(qdrantUrl);
@@ -127,6 +138,7 @@ class QdrantService {
                     timeout: 60000,
                     checkCompatibility: false,  // Skip compatibility check for faster startup
                     agent: httpAgent,
+                    ...(Object.keys(headers).length > 0 ? { headers } : {}),
                     ...(basePath ? { prefix: basePath } : {})
                 });
             } else {
@@ -135,7 +147,8 @@ class QdrantService {
                     apiKey: apiKey,
                     https: false,  // Force HTTP for non-HTTPS URLs
                     timeout: 60000,
-                    agent: httpAgent
+                    agent: httpAgent,
+                    ...(Object.keys(headers).length > 0 ? { headers } : {})
                 });
             }
 

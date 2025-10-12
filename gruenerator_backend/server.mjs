@@ -17,7 +17,6 @@ import multer from 'multer';
 import axios from 'axios';
 import { createRequire } from 'module';
 
-// Adjusted imports for CommonJS modules
 import routesModule from './routes.js';
 const { setupRoutes } = routesModule;
 
@@ -27,7 +26,6 @@ const AIWorkerPool = AiWorkerPoolModule;
 import tusServiceModule from './routes/subtitler/services/tusService.js';
 const { tusServer } = tusServiceModule;
 
-// Import session and auth modules at the top level
 import session from 'express-session';
 import {RedisStore} from 'connect-redis';
 import passport from './config/passportSetup.mjs';
@@ -36,42 +34,32 @@ const require = createRequire(import.meta.url);
 
 const numCPUs = os.cpus().length;
 
-// Load environment variables
 dotenv.config();
 
-// ES-Module friendly __dirname
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Globaler Worker-Pool für AI-Anfragen
 let aiWorkerPool;
 let masterShutdownInProgress = false;
-
-// ... existing code ...
 
 if (cluster.isMaster) {
   console.log(`Master ${process.pid} is running`);
 
-  // Anzahl der Worker aus Umgebungsvariable lesen oder Standardwert verwenden
   const workerCount = parseInt(process.env.WORKER_COUNT, 10) || 2;
   console.log(`Starting ${workerCount} workers (WORKER_COUNT: ${workerCount})`);
 
-  // Fork Workers
   for (let i = 0; i < workerCount; i++) {
     cluster.fork();
   }
 
-  // Verbesserte Worker-Exit-Behandlung
   cluster.on('exit', (worker, code, signal) => {
     console.log(`Worker ${worker.process.pid} died with code ${code} and signal ${signal}`);
-    // Nur neue Worker starten, wenn es kein geplanter Shutdown war
     if (!worker.exitedAfterDisconnect && !masterShutdownInProgress) {
       console.log('Starting new worker...');
       cluster.fork();
     }
   });
 
-  // Koordinierte Shutdown-Sequenz für den Master
   const masterShutdown = async (signal) => {
     if (masterShutdownInProgress) {
       console.log(`Master shutdown already in progress, ignoring ${signal}`);
@@ -80,14 +68,12 @@ if (cluster.isMaster) {
     masterShutdownInProgress = true;
     
     console.log(`Master received ${signal}, initiating graceful shutdown...`);
-    
-    // Disconnect alle Worker (verhindert neue Worker bei Exit)
+
     const workers = Object.values(cluster.workers);
     workers.forEach(worker => {
       worker.disconnect();
     });
-    
-    // Benachrichtige alle Worker über den bevorstehenden Shutdown
+
     const shutdownPromises = workers.map(worker => {
       return new Promise((resolve) => {
         const timeout = setTimeout(() => {
@@ -124,14 +110,9 @@ if (cluster.isMaster) {
 
   const app = express();
   let workerShutdownInProgress = false;
-  
-  // Import Redis client only in worker process
-  const redisClient = require('./utils/redisClient.js');
-  
-  // Redis Client is already configured and connected in utils/redisClient.js
-  // No need to create a new client here
 
-  // CORS Setup - MUSS GANZ AM ANFANG kommen!
+  const redisClient = require('./utils/redisClient.js');
+
   const allowedOrigins = [
     'https://gruenerator-test.de',
     'https://www.gruenerator-test.de',
@@ -168,8 +149,6 @@ if (cluster.isMaster) {
 
   const corsOptions = {
     origin: function (origin, callback) {
-      console.log(`[CORS] Request from origin: "${origin}"`);
-
       // Fallback: If nginx strips Origin header, reconstruct from X-Forwarded-Host
       let effectiveOrigin = origin;
       if (!origin && this && this.headers) {
@@ -177,16 +156,13 @@ if (cluster.isMaster) {
         const forwardedProto = this.headers['x-forwarded-proto'] || 'https';
         if (forwardedHost) {
           effectiveOrigin = `${forwardedProto}://${forwardedHost}`;
-          console.log(`[CORS] Reconstructed origin from X-Forwarded-Host: "${effectiveOrigin}"`);
         }
       }
 
       if (allowedOrigins.indexOf(effectiveOrigin) !== -1 || !effectiveOrigin) {
-        console.log(`[CORS] ✓ Origin allowed: ${effectiveOrigin || 'no origin header'}`);
         callback(null, true);
       } else {
-        console.log(`[CORS] ✗ Origin BLOCKED: ${effectiveOrigin}`);
-        console.log(`[CORS] First 5 allowed origins:`, allowedOrigins.slice(0, 5));
+        console.error(`[CORS] Origin BLOCKED: ${effectiveOrigin}`);
         callback(new Error('Not allowed by CORS'));
       }
     },
@@ -217,34 +193,23 @@ if (cluster.isMaster) {
     optionsSuccessStatus: 204
   };
 
-  // CORS muss ZUERST kommen!
   app.use(cors(corsOptions));
 
-  // Debug logging for all requests
-  app.use((req, res, next) => {
-    console.log(`[Request] ${req.method} ${req.url} | Host: ${req.headers.host} | Origin: ${req.headers.origin || 'none'}`);
-    next();
-  });
-
-  // Setze Express Limit
   app.use(express.json({limit: '500mb'}));
   app.use(express.raw({limit: '500mb'}));
   app.use(bodyParser.json({ limit: '105mb' }));
   app.use(bodyParser.urlencoded({ limit: '105mb', extended: true }));
-  
-  // Timeout-Einstellungen
+
   app.use((req, res, next) => {
     res.setTimeout(900000); // 15 Minuten
     next();
   });
 
-  // Worker-Pool für AI-Anfragen initialisieren
   const aiWorkerCount = parseInt(process.env.AI_WORKER_COUNT, 10) || 6;
   console.log(`Initializing AI worker pool with ${aiWorkerCount} workers (with Redis support for privacy mode)`);
   aiWorkerPool = new AIWorkerPool(aiWorkerCount, redisClient);
   app.locals.aiWorkerPool = aiWorkerPool;
 
-  // Initialize AI Search Agent with worker pool
   try {
     const { createRequire } = await import('module');
     const require = createRequire(import.meta.url);
@@ -255,7 +220,6 @@ if (cluster.isMaster) {
     console.error('Warning: Could not initialize AI Search Agent:', error.message);
   }
 
-  // Initialize SharepicImageManager for temporary image storage
   try {
     const { createRequire } = await import('module');
     const require = createRequire(import.meta.url);
@@ -267,7 +231,6 @@ if (cluster.isMaster) {
     console.error(`[Worker ${process.pid}] Warning: Could not initialize SharepicImageManager:`, error.message);
   }
 
-  // Initialize PostgreSQL database connection (minimal - no schema)
   try {
     const { getPostgresInstance } = await import('./database/services/PostgresService.js');
     const postgresService = getPostgresInstance();
@@ -278,7 +241,6 @@ if (cluster.isMaster) {
     console.error(`[Worker ${process.pid}] Warning: Could not initialize PostgreSQL connection:`, error.message);
   }
 
-  // Initialize ProfileService (database connection should be ready)
   try {
     const { getProfileService } = await import('./services/ProfileService.js');
     const profileService = getProfileService();
@@ -288,7 +250,6 @@ if (cluster.isMaster) {
     console.error(`[Worker ${process.pid}] Warning: Could not initialize ProfileService:`, error.message);
   }
 
-  // Compression Middleware
   app.use(compression({
     filter: (req, res) => {
       if (req.headers['x-no-compression']) {
@@ -296,10 +257,9 @@ if (cluster.isMaster) {
       }
       return compression.filter(req, res);
     },
-    level: 6 // Optimaler Kompromiss zwischen CPU und Kompression
+    level: 6
   }));
 
-  // Security Helmet
   app.use(helmet({
     contentSecurityPolicy: {
       directives: {
@@ -341,29 +301,22 @@ if (cluster.isMaster) {
   const desiredPort = process.env.PORT || 3001;
   const host = process.env.HOST || "127.0.0.1";
 
-  // Multer Konfiguration für Videouploads - MOVED AFTER ROUTES
-  // Die Multer-Middleware wird nach setupRoutes verschoben
-
-  // Verbesserte Graceful Shutdown Handler für Worker
   process.on('message', async (msg) => {
     if (msg.type === 'shutdown' && !workerShutdownInProgress) {
       workerShutdownInProgress = true;
       console.log(`Worker ${process.pid} received shutdown signal`);
-      
+
       try {
-        // Beende AI Worker Pool
         if (aiWorkerPool) {
           console.log('Shutting down AI worker pool...');
           await aiWorkerPool.shutdown();
         }
 
-        // Schließe Redis-Verbindung nur wenn sie offen ist
         if (redisClient && redisClient.isOpen) {
           console.log('Closing Redis connection...');
           await redisClient.quit();
         }
 
-        // Schließe den Server
         server.close(() => {
           console.log(`Worker ${process.pid} server closed`);
           if (process.send) {
@@ -381,7 +334,6 @@ if (cluster.isMaster) {
     }
   });
 
-  // Fallback für direkte Signal-Behandlung
   const workerShutdown = async (signal) => {
     if (workerShutdownInProgress) {
       console.log(`Worker ${process.pid} shutdown already in progress, ignoring ${signal}`);
@@ -410,9 +362,7 @@ if (cluster.isMaster) {
   process.on('SIGTERM', () => workerShutdown('SIGTERM'));
   process.on('SIGINT', () => workerShutdown('SIGINT'));
 
-  // Redis-Cache für statische Dateien (EXCLUDE API ROUTES) - BUGFIX!
   const cacheMiddleware = async (req, res, next) => {
-    // WICHTIG: API-Routen NIEMALS cachen!
     if (req.method !== 'GET' || req.path.startsWith('/api')) {
       return next();
     }
@@ -423,11 +373,9 @@ if (cluster.isMaster) {
       if (cachedResponse) {
         return res.send(JSON.parse(cachedResponse));
       }
-      
-      // Nur für NICHT-API-Routen cachen
+
       const originalSend = res.send;
       res.send = function(body) {
-        // Nur cachen wenn es keine API-Route ist
         if (!req.originalUrl.startsWith('/api/')) {
           redisClient.set(key, JSON.stringify(body), {
             EX: 3600 // 1 Stunde Cache
@@ -444,10 +392,22 @@ if (cluster.isMaster) {
 
   // Session and Authentication setup
   console.log('[Server.mjs] Setting up session middleware...');
-  
+
+  // Commented out for mobile-only usage - uncomment when sessions are needed
+  // if (!process.env.SESSION_SECRET || process.env.SESSION_SECRET.length < 32) {
+  //   console.error('[CRITICAL] SESSION_SECRET must be set and at least 32 characters');
+  //   process.exit(1);
+  // }
+
+  // Use SESSION_SECRET if available, otherwise use fallback with warning
+  const sessionSecret = process.env.SESSION_SECRET || 'temporary-fallback-secret-for-mobile-only';
+  if (!process.env.SESSION_SECRET) {
+    console.warn('[WARNING] SESSION_SECRET not set - using temporary fallback. Set SESSION_SECRET for production!');
+  }
+
   app.use(session({
     store: new RedisStore({ client: redisClient }),
-    secret: process.env.SESSION_SECRET || 'fallback-secret-please-change',
+    secret: sessionSecret,
     resave: false,
     saveUninitialized: true, // Changed to true to support anonymous user rate limiting
     name: 'gruenerator.sid', // Custom session name to avoid conflicts

@@ -298,6 +298,24 @@ function getFormattingInstructions(config) {
   return config.formatting || null;
 }
 
+// Get task-specific instructions
+function getTaskInstructions(config, requestData) {
+  if (!config.taskInstructions) return null;
+  return SimpleTemplateEngine.render(config.taskInstructions, {
+    ...requestData,
+    config
+  });
+}
+
+// Get output format instructions
+function getOutputFormat(config, requestData) {
+  if (!config.outputFormat) return null;
+  return SimpleTemplateEngine.render(config.outputFormat, {
+    ...requestData,
+    config
+  });
+}
+
 // Build constraints from platform guidelines
 function buildConstraints(config, requestData) {
   const { platforms } = requestData;
@@ -358,13 +376,29 @@ async function processGraphRequest(routeType, req, res) {
       searchQuery
     } = requestData;
 
+    // Handle structured customPrompt from frontend
+    let extractedInstructions = customPrompt;
+    let extractedKnowledgeContent = knowledgeContent;
+
+    if (customPrompt && typeof customPrompt === 'object' && !Array.isArray(customPrompt)) {
+      // Frontend sent structured data with instructions and knowledgeContent
+      extractedInstructions = customPrompt.instructions || null;
+      extractedKnowledgeContent = customPrompt.knowledgeContent || knowledgeContent || null;
+
+      console.log('[promptProcessor] Detected structured customPrompt:', {
+        hasInstructions: !!extractedInstructions,
+        hasKnowledge: !!extractedKnowledgeContent,
+        knowledgeLength: extractedKnowledgeContent ? extractedKnowledgeContent.length : 0
+      });
+    }
+
     console.log(`[promptProcessor] Processing ${routeType} request`);
     console.log(`[promptProcessor] Request data:`, {
       useBedrock: requestData.useBedrock,
       usePrivacyMode: requestData.usePrivacyMode,
       provider: requestData.provider,
       hasCustomPrompt: !!customPrompt,
-      hasKnowledgeContent: !!knowledgeContent,
+      hasKnowledgeContent: !!extractedKnowledgeContent,
       hasSelectedKnowledge: !!(selectedKnowledgeIds && selectedKnowledgeIds.length > 0),
       hasSelectedDocuments: !!(selectedDocumentIds && selectedDocumentIds.length > 0),
       hasSelectedTexts: !!(selectedTextIds && selectedTextIds.length > 0),
@@ -403,6 +437,12 @@ async function processGraphRequest(routeType, req, res) {
     // Get formatting instructions
     const formatting = getFormattingInstructions(config);
 
+    // Get task-specific instructions
+    const taskInstructions = getTaskInstructions(config, requestData);
+
+    // Get output format instructions
+    const outputFormat = getOutputFormat(config, requestData);
+
     // Build web search query
     const webSearchQuery = buildWebSearchQuery(config, requestData);
 
@@ -417,8 +457,10 @@ async function processGraphRequest(routeType, req, res) {
       systemRole,
       constraints,
       formatting,
-      instructions: customPrompt || null,
-      knowledgeContent: knowledgeContent || null,
+      taskInstructions: taskInstructions || null,
+      outputFormat: outputFormat || null,
+      instructions: extractedInstructions || null,
+      knowledgeContent: extractedKnowledgeContent || null,
       selectedKnowledgeIds: selectedKnowledgeIds || [],
       selectedDocumentIds: selectedDocumentIds || [],
       selectedTextIds: selectedTextIds || [],
@@ -445,6 +487,11 @@ async function processGraphRequest(routeType, req, res) {
     const aiOptions = getAIOptions(config, requestData);
     console.log(`[promptProcessor] AI Options:`, aiOptions);
     console.log(`[promptProcessor] About to send useBedrock:`, requestData.useBedrock);
+
+    // Log instructions if present
+    if (enrichedState.instructions) {
+      console.log(`[promptProcessor] Instructions (customPrompt):`, enrichedState.instructions);
+    }
 
     const payload = {
       systemPrompt: promptResult.system,
@@ -473,6 +520,62 @@ async function processGraphRequest(routeType, req, res) {
       throw new Error(result.error);
     }
 
+    // Cache enriched context for future edit requests
+    if (req.session?.id) {
+      try {
+        const redisClient = require('../../utils/redisClient');
+        const contextCacheKey = `edit_context:${req.session.id}:${routeType}`;
+
+        const contextData = {
+          originalRequest: requestData,
+          enrichedState: {
+            type: routeType,
+            platforms: requestData.platforms || [],
+            theme: requestData.theme || requestData.thema || requestData.details || null,
+            urlsScraped: enrichedState.enrichmentMetadata?.urlsProcessed || [],
+            documentsUsed: enrichedState.documents?.filter(d =>
+              d.type === 'text' && d.source?.metadata?.contentSource === 'url_crawl'
+            ).map(d => ({
+              title: d.source.metadata?.title || 'Document',
+              url: d.source.metadata?.url || null
+            })) || [],
+            docQnAUsed: enrichedState.enrichmentMetadata?.enableDocQnA || false,
+            vectorSearchUsed: (selectedDocumentIds && selectedDocumentIds.length > 0) || false,
+            webSearchUsed: enrichedState.enrichmentMetadata?.webSearchSources?.length > 0 || false
+          },
+          timestamp: Date.now()
+        };
+
+        // Cache for 1 hour
+        await redisClient.setEx(contextCacheKey, 3600, JSON.stringify(contextData));
+        console.log(`[promptProcessor] Cached edit context: ${contextCacheKey}`);
+      } catch (cacheError) {
+        // Don't fail the request if caching fails
+        console.error('[promptProcessor] Failed to cache edit context:', cacheError.message);
+      }
+    }
+
+    // Build enrichment summary for frontend
+    const enrichmentSummary = {
+      urlsScraped: enrichedState.enrichmentMetadata?.urlsProcessed?.length || 0,
+      documentsProcessed: enrichedState.documents?.length || 0,
+      docQnAUsed: enrichedState.enrichmentMetadata?.enableDocQnA || false,
+      vectorSearchUsed: (selectedDocumentIds && selectedDocumentIds.length > 0) || false,
+      webSearchUsed: enrichedState.enrichmentMetadata?.webSearchSources?.length > 0 || false,
+      sources: [
+        ...((enrichedState.enrichmentMetadata?.urlsProcessed || []).map(url => ({
+          type: 'url',
+          title: 'Gescrapte Website',
+          url: url
+        }))),
+        ...((enrichedState.enrichmentMetadata?.webSearchSources || []).map(source => ({
+          type: 'websearch',
+          title: source.title || source.url,
+          url: source.url
+        })))
+      ]
+    };
+
     // Send standardized success response
     sendSuccessResponseWithAttachments(
       res,
@@ -481,7 +584,8 @@ async function processGraphRequest(routeType, req, res) {
       requestData,
       {
         hasAttachments: enrichedState.documents.length > 0,
-        summary: { count: enrichedState.documents.length, totalSizeMB: 0 }
+        summary: { count: enrichedState.documents.length, totalSizeMB: 0 },
+        enrichmentSummary
       },
       usePrivacyMode,
       provider
