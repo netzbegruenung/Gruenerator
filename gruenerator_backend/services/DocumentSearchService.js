@@ -882,6 +882,94 @@ class DocumentSearchService extends BaseSearchService {
     }
 
     /**
+     * Get full text for multiple documents in bulk (optimized)
+     */
+    async getMultipleDocumentsFullText(userId, documentIds) {
+        try {
+            await this.ensureInitialized();
+
+            if (!documentIds || documentIds.length === 0) {
+                return { documents: [], errors: [] };
+            }
+
+            console.log(`[DocumentSearchService] Bulk retrieving full text for ${documentIds.length} documents`);
+
+            const filter = {
+                must: [
+                    { key: 'user_id', match: { value: userId } },
+                    { key: 'document_id', match: { any: documentIds } }
+                ]
+            };
+
+            // Get all chunks for these documents in one query
+            const chunks = await this.qdrantOps.scrollDocuments('documents', filter, {
+                limit: documentIds.length * 20, // Assume avg 20 chunks per doc
+                withPayload: true,
+                withVector: false
+            });
+
+            if (!chunks || chunks.length === 0) {
+                return {
+                    documents: [],
+                    errors: documentIds.map(id => ({ documentId: id, error: 'No chunks found' }))
+                };
+            }
+
+            // Group chunks by document_id
+            const chunksByDocument = {};
+            chunks.forEach(chunk => {
+                const docId = chunk.payload.document_id;
+                if (!chunksByDocument[docId]) {
+                    chunksByDocument[docId] = [];
+                }
+                chunksByDocument[docId].push(chunk);
+            });
+
+            // Reconstruct full text for each document
+            const documents = [];
+            const errors = [];
+
+            documentIds.forEach(docId => {
+                const docChunks = chunksByDocument[docId];
+
+                if (!docChunks || docChunks.length === 0) {
+                    errors.push({ documentId: docId, error: 'No chunks found for document' });
+                    return;
+                }
+
+                // Sort chunks by index and reconstruct text
+                const sortedChunks = docChunks
+                    .sort((a, b) => (a.payload.chunk_index || 0) - (b.payload.chunk_index || 0))
+                    .map(chunk => chunk.payload.chunk_text || '')
+                    .filter(text => text.trim().length > 0);
+
+                const fullText = sortedChunks.join('\n\n');
+
+                documents.push({
+                    id: docId,
+                    fullText: fullText,
+                    chunkCount: sortedChunks.length,
+                    totalCharsReconstructed: fullText.length
+                });
+            });
+
+            console.log(`[DocumentSearchService] Bulk reconstruction complete: ${documents.length} documents, ${errors.length} errors`);
+
+            return {
+                documents,
+                errors
+            };
+
+        } catch (error) {
+            console.error('[DocumentSearchService] Error in bulk document retrieval:', error);
+            return {
+                documents: [],
+                errors: documentIds.map(id => ({ documentId: id, error: error.message }))
+            };
+        }
+    }
+
+    /**
      * Get first chunks for multiple documents for previews
      */
     async getDocumentFirstChunks(userId, documentIds) {

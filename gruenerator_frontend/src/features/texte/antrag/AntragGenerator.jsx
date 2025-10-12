@@ -7,7 +7,7 @@ import useApiSubmit from '../../../components/hooks/useApiSubmit';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import SmartInput from '../../../components/common/Form/SmartInput';
 import { HiGlobeAlt, HiShieldCheck } from 'react-icons/hi';
-import { createKnowledgeFormNotice, createKnowledgePrompt } from '../../../utils/knowledgeFormUtils';
+import { createKnowledgeFormNotice } from '../../../utils/knowledgeFormUtils';
 import { useFormFields } from '../../../components/common/Form/hooks';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 import { useGeneratorKnowledgeStore } from '../../../stores/core/generatorKnowledgeStore';
@@ -97,10 +97,11 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
   const {
     source,
     availableKnowledge,
+    selectedKnowledgeIds,
+    selectedDocumentIds,
+    selectedTextIds,
     isInstructionsActive,
     instructions,
-    getKnowledgeContent,
-    getDocumentContent,
     getActiveInstruction,
     groupData: groupDetailsData
   } = useGeneratorKnowledgeStore();
@@ -148,33 +149,18 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
       };
       
       const searchQuery = extractQueryFromFormData(formDataToSubmit);
-      console.log('[AntragGenerator] Extracted search query from form:', searchQuery);
 
-      // Add knowledge, instructions, and documents
-      const finalPrompt = await createKnowledgePrompt({
-        source,
-        isInstructionsActive,
-        getActiveInstruction,
-        instructionType: 'antrag',
-        groupDetailsData,
-        getKnowledgeContent,
-        getDocumentContent,
-        memoryOptions: {
-          enableMemories: false, // Not using memories in this context
-          query: searchQuery
-        }
-      });
-      
-      if (finalPrompt) {
-        formDataToSubmit.customPrompt = finalPrompt;
-        console.log('[AntragGenerator] Final structured prompt added to formData.',
-          typeof finalPrompt === 'string'
-            ? finalPrompt.substring(0,100)+'...'
-            : JSON.stringify(finalPrompt).substring(0,100)+'...'
-        );
-      } else {
-        console.log('[AntragGenerator] No custom instructions or knowledge for generation.');
-      }
+      // Get instructions for backend (if active) - backend handles all content extraction
+      const customPrompt = isInstructionsActive && getActiveInstruction
+        ? getActiveInstruction('antrag')
+        : null;
+
+      // Send only IDs and searchQuery - backend handles all content extraction
+      formDataToSubmit.customPrompt = customPrompt;
+      formDataToSubmit.selectedKnowledgeIds = selectedKnowledgeIds || [];
+      formDataToSubmit.selectedDocumentIds = selectedDocumentIds || [];
+      formDataToSubmit.selectedTextIds = selectedTextIds || [];
+      formDataToSubmit.searchQuery = searchQuery || '';
 
       const response = await submitForm(formDataToSubmit);
       if (response) {
@@ -193,7 +179,7 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
     } finally {
       setStoreIsLoading(false);
     }
-  }, [submitForm, resetSuccess, setGeneratedText, setStoreIsLoading, componentName, source, isInstructionsActive, getActiveInstruction, groupDetailsData, getKnowledgeContent, getDocumentContent, processedAttachments, selectedRequestType]);
+  }, [submitForm, resetSuccess, setGeneratedText, setStoreIsLoading, componentName, isInstructionsActive, getActiveInstruction, processedAttachments, selectedRequestType, selectedKnowledgeIds, selectedDocumentIds, selectedTextIds]);
 
   const handleGeneratedContentChange = useCallback((content) => {
     setAntragContent(content);
