@@ -3,7 +3,6 @@ const { Pool, Client } = pkg;
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { getEncryptionService, SENSITIVE_FIELDS, OBJECT_ENCRYPTED_FIELDS } from './EncryptionService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -59,19 +58,13 @@ class PostgresService {
         this.healthStatus = 'initializing';
         this.lastError = null;
         this.initPromise = null;
-        this.encryption = getEncryptionService();
-        // Don't call init() in constructor - it's async
     }
 
-    /**
-     * Build a safe view of the config for logging (no secrets)
-     */
     getSafeConfigForLog() {
         if (this.config?.connectionString) {
             return {
                 mode: 'connection_string',
                 ssl: !!(this.config.ssl),
-                // Don’t print the connection string
             };
         }
         return {
@@ -84,36 +77,19 @@ class PostgresService {
         };
     }
 
-    /**
-     * Initialize the PostgreSQL connection pool (MINIMAL VERSION)
-     */
     async init() {
         console.log('[PostgresService] Starting minimal initialization...');
         try {
             this.healthStatus = 'connecting';
-            // Log effective (safe) configuration for troubleshooting
             console.log('[PostgresService] Effective configuration:', this.getSafeConfigForLog());
-            
-            // COMMENTED OUT: Database creation (do manually if needed)
-            // console.log('[PostgresService] Creating database if not exists...');
-            // await this.createDatabaseIfNotExists();
-            // console.log('[PostgresService] Database creation check complete');
-            
-            // Create connection pool to the target database
+
             console.log('[PostgresService] Creating connection pool...');
             this.pool = new Pool(this.config);
             console.log('[PostgresService] Pool created, testing connection...');
-            
-            // Test connection ONLY
+
             await this.testConnection();
             console.log('[PostgresService] Connection test successful');
-            
-            // COMMENTED OUT: Schema and migrations initialization
-            // this.healthStatus = 'schema_sync';
-            // console.log('[PostgresService] Starting schema initialization...');
-            // await this.initSchema();
-            // console.log('[PostgresService] Schema initialization complete');
-            
+
             this.isInitialized = true;
             this.isHealthy = true;
             this.healthStatus = 'healthy';
@@ -127,8 +103,7 @@ class PostgresService {
             this.lastError = error.message;
             
             console.error('[PostgresService] Failed to initialize PostgreSQL connection:', error);
-            
-            // Start retry mechanism instead of throwing
+
             console.log('[PostgresService] Scheduling retry in 5 seconds...');
             setTimeout(() => {
                 console.log('[PostgresService] Retry timer fired, calling retryInit()');
@@ -170,27 +145,23 @@ class PostgresService {
      * Create database if it doesn't exist
      */
     async createDatabaseIfNotExists() {
-        // Skip automatic DB creation when using a connection string or when disabled via env
         if (this.config.connectionString || process.env.POSTGRES_AUTO_CREATE_DB === 'false') {
             return;
         }
         const dbName = this.config.database;
-        
-        // Connect to postgres database to create our target database
+
         const tempConfig = { ...this.config, database: 'postgres' };
         const tempClient = new Client(tempConfig);
         
         try {
             await tempClient.connect();
-            
-            // Check if database exists
+
             const result = await tempClient.query(
                 'SELECT 1 FROM pg_database WHERE datname = $1',
                 [dbName]
             );
-            
+
             if (result.rows.length === 0) {
-                // Database doesn't exist, create it
                 await tempClient.query(`CREATE DATABASE "${dbName}"`);
                 console.log(`[PostgresService] Created database '${dbName}'`);
             } else {
@@ -224,31 +195,26 @@ class PostgresService {
      */
     parseSchemaFile(schemaContent) {
         const tables = {};
-        
-        // Match CREATE TABLE statements with all their contents
+
         const tableMatches = schemaContent.match(/CREATE TABLE IF NOT EXISTS (\w+)\s*\(([\s\S]*?)\);/g);
         
         if (!tableMatches) return tables;
         
         tableMatches.forEach(tableMatch => {
-            // Extract table name
             const tableNameMatch = tableMatch.match(/CREATE TABLE IF NOT EXISTS (\w+)/);
             if (!tableNameMatch) return;
             
             const tableName = tableNameMatch[1];
-            
-            // Extract column definitions between parentheses
+
             const columnSectionMatch = tableMatch.match(/CREATE TABLE IF NOT EXISTS \w+\s*\(([\s\S]*)\);/);
             if (!columnSectionMatch) return;
             
             const columnSection = columnSectionMatch[1];
             const columns = [];
-            
-            // Split by comma and parse each line
+
             const lines = columnSection.split('\n').map(line => line.trim()).filter(line => line);
-            
+
             for (const line of lines) {
-                // Skip comments, constraints, and other non-column definitions
                 if (line.startsWith('--') || 
                     line.includes('CONSTRAINT') || 
                     line.includes('UNIQUE(') ||
@@ -258,8 +224,7 @@ class PostgresService {
                     line.includes('FOREIGN KEY')) {
                     continue;
                 }
-                
-                // Parse column definition: column_name TYPE constraints
+
                 const columnMatch = line.match(/^([a-zA-Z_]\w*)\s+([A-Z]+(?:\([^)]+\))?(?:\s*\[\])?)\s*(.*?)(?:,\s*)?$/);
                 if (columnMatch) {
                     const [, columnName, dataType, constraints] = columnMatch;
@@ -330,24 +295,17 @@ class PostgresService {
             const existingTables = await this.getExistingColumns();
             
             const alterStatements = [];
-            
-            // Check each expected table
+
             for (const [tableName, expectedColumns] of Object.entries(expectedTables)) {
                 const existingColumns = existingTables[tableName] || [];
                 const existingColumnNames = existingColumns.map(col => col.name);
-                
-                // Find missing columns
+
                 for (const expectedColumn of expectedColumns) {
                     if (!existingColumnNames.includes(expectedColumn.name)) {
-                        // Generate ALTER TABLE statement
                         let alterStatement = `ALTER TABLE ${tableName} ADD COLUMN ${expectedColumn.name} ${expectedColumn.type}`;
-                        
-                        // Add constraints if they exist
+
                         if (expectedColumn.constraints) {
-                            // Parse common constraints
                             if (expectedColumn.constraints.includes('NOT NULL')) {
-                                // For existing tables, we should be careful with NOT NULL
-                                // Only add NOT NULL if there's a DEFAULT
                                 if (expectedColumn.constraints.includes('DEFAULT')) {
                                     alterStatement += ` ${expectedColumn.constraints}`;
                                 } else {
@@ -550,104 +508,6 @@ class PostgresService {
         }
     }
 
-    /**
-     * Get sensitive fields for a table
-     */
-    getSensitiveFields(table) {
-        return SENSITIVE_FIELDS[table] || [];
-    }
-
-    /**
-     * Get fields that should use object encryption for a table
-     */
-    getObjectEncryptedFields(table) {
-        return OBJECT_ENCRYPTED_FIELDS[table] || [];
-    }
-
-    /**
-     * Check if a field should use object encryption
-     */
-    isObjectEncryptedField(table, field) {
-        const objectFields = this.getObjectEncryptedFields(table);
-        return objectFields.includes(field);
-    }
-
-    /**
-     * Encrypt sensitive fields in data before storing
-     */
-    encryptSensitiveFields(table, data) {
-        const sensitiveFields = this.getSensitiveFields(table);
-        if (sensitiveFields.length === 0) {
-            return data;
-        }
-
-        const encrypted = { ...data };
-        for (const field of sensitiveFields) {
-            if (encrypted[field] !== undefined && encrypted[field] !== null && encrypted[field] !== '') {
-                try {
-                    // Use explicit field type mapping instead of runtime type detection
-                    if (this.isObjectEncryptedField(table, field)) {
-                        encrypted[field] = this.encryption.encryptObject(encrypted[field]);
-                    } else {
-                        encrypted[field] = this.encryption.encrypt(encrypted[field]);
-                    }
-                } catch (error) {
-                    console.error(`[PostgresService] Failed to encrypt field ${field}:`, error);
-                }
-            }
-        }
-        return encrypted;
-    }
-
-    /**
-     * Decrypt sensitive fields in data after reading
-     */
-    decryptSensitiveFields(table, data) {
-        if (!data) return data;
-        
-        const sensitiveFields = this.getSensitiveFields(table);
-        if (sensitiveFields.length === 0) {
-            return data;
-        }
-
-        const decrypted = { ...data };
-        for (const field of sensitiveFields) {
-            if (decrypted[field] !== undefined && decrypted[field] !== null && decrypted[field] !== '') {
-                try {
-                    // Use explicit field type mapping for proper decryption
-                    if (this.isObjectEncryptedField(table, field)) {
-                        decrypted[field] = this.encryption.decryptObject(decrypted[field]);
-                    } else {
-                        decrypted[field] = this.encryption.decrypt(decrypted[field]);
-                    }
-                } catch (error) {
-                    console.warn(`[PostgresService] Failed to decrypt field ${field}:`, error.message);
-                    
-                    // Set appropriate defaults for failed decryption
-                    if (this.isObjectEncryptedField(table, field)) {
-                        if (field === 'nextcloud_share_links') {
-                            decrypted[field] = [];
-                        } else if (field === 'beta_features') {
-                            decrypted[field] = {};
-                        } else {
-                            decrypted[field] = {};
-                        }
-                    } else {
-                        decrypted[field] = null;
-                    }
-                }
-            }
-        }
-        return decrypted;
-    }
-
-    /**
-     * Process array of results with decryption
-     */
-    decryptResultArray(table, results) {
-        if (!Array.isArray(results)) return results;
-        return results.map(item => this.decryptSensitiveFields(table, item));
-    }
 
     /**
      * Ensure service is initialized
@@ -687,16 +547,10 @@ class PostgresService {
             console.error('[PostgresService] Database not initialized:', initError.message);
             throw new Error('Database service unavailable. Please try again later.');
         }
-        
+
         const client = await this.pool.connect();
         try {
             const result = await client.query(sql, params);
-            
-            // If table is specified in options, decrypt sensitive fields
-            if (options.table) {
-                return this.decryptResultArray(options.table, result.rows);
-            }
-            
             return result.rows;
         } catch (error) {
             console.error('[PostgresService] Query error:', error, { sql, params });
@@ -749,23 +603,19 @@ class PostgresService {
      * Insert a record into a table
      */
     async insert(table, data) {
-        // Encrypt sensitive fields before inserting
-        const encryptedData = this.encryptSensitiveFields(table, data);
-        
-        const columns = Object.keys(encryptedData);
-        const values = Object.values(encryptedData);
+        const columns = Object.keys(data);
+        const values = Object.values(data);
         const placeholders = values.map((_, index) => `$${index + 1}`);
 
         const sql = `
-            INSERT INTO ${table} (${columns.join(', ')}) 
-            VALUES (${placeholders.join(', ')}) 
+            INSERT INTO ${table} (${columns.join(', ')})
+            VALUES (${placeholders.join(', ')})
             RETURNING *
         `;
 
         try {
             const result = await this.query(sql, values);
-            // Return decrypted result
-            return this.decryptSensitiveFields(table, result[0]);
+            return result[0];
         } catch (error) {
             console.error('[PostgresService] Insert error:', error, { table, data });
             throw new Error(`Insert failed: ${error.message}`);
@@ -776,29 +626,25 @@ class PostgresService {
      * Update records in a table
      */
     async update(table, data, whereConditions) {
-        // Encrypt sensitive fields before updating
-        const encryptedData = this.encryptSensitiveFields(table, data);
-        
-        const setClause = Object.keys(encryptedData).map((key, index) => `${key} = $${index + 1}`);
-        const whereClause = Object.keys(whereConditions).map((key, index) => 
-            `${key} = $${Object.keys(encryptedData).length + index + 1}`
+        const setClause = Object.keys(data).map((key, index) => `${key} = $${index + 1}`);
+        const whereClause = Object.keys(whereConditions).map((key, index) =>
+            `${key} = $${Object.keys(data).length + index + 1}`
         );
 
         const sql = `
-            UPDATE ${table} 
+            UPDATE ${table}
             SET ${setClause.join(', ')}, updated_at = CURRENT_TIMESTAMP
-            WHERE ${whereClause.join(' AND ')} 
+            WHERE ${whereClause.join(' AND ')}
             RETURNING *
         `;
 
-        const values = [...Object.values(encryptedData), ...Object.values(whereConditions)];
+        const values = [...Object.values(data), ...Object.values(whereConditions)];
 
         try {
             const result = await this.query(sql, values);
-            // Return decrypted results
-            return { 
-                changes: result.length, 
-                data: this.decryptResultArray(table, result) 
+            return {
+                changes: result.length,
+                data: result
             };
         } catch (error) {
             console.error('[PostgresService] Update error:', error, { table, data, whereConditions });
@@ -828,28 +674,24 @@ class PostgresService {
      * Upsert (INSERT ... ON CONFLICT UPDATE) a record
      */
     async upsert(table, data, conflictColumns = ['id']) {
-        // Encrypt sensitive fields before upserting
-        const encryptedData = this.encryptSensitiveFields(table, data);
-        
-        const columns = Object.keys(encryptedData);
-        const values = Object.values(encryptedData);
+        const columns = Object.keys(data);
+        const values = Object.values(data);
         const placeholders = values.map((_, index) => `$${index + 1}`);
-        
+
         const updateColumns = columns.filter(col => !conflictColumns.includes(col));
         const updateClause = updateColumns.map(col => `${col} = EXCLUDED.${col}`).join(', ');
 
         const sql = `
-            INSERT INTO ${table} (${columns.join(', ')}) 
+            INSERT INTO ${table} (${columns.join(', ')})
             VALUES (${placeholders.join(', ')})
-            ON CONFLICT (${conflictColumns.join(', ')}) 
+            ON CONFLICT (${conflictColumns.join(', ')})
             DO UPDATE SET ${updateClause}
             RETURNING *
         `;
 
         try {
             const result = await this.query(sql, values);
-            // Return decrypted result
-            return this.decryptSensitiveFields(table, result[0]);
+            return result[0];
         } catch (error) {
             console.error('[PostgresService] Upsert error:', error, { table, data });
             throw new Error(`Upsert failed: ${error.message}`);
@@ -862,31 +704,25 @@ class PostgresService {
     async bulkInsert(table, records) {
         if (!records.length) return [];
 
-        // Encrypt sensitive fields in all records
-        const encryptedRecords = records.map(record => 
-            this.encryptSensitiveFields(table, record)
-        );
-
-        const columns = Object.keys(encryptedRecords[0]);
-        const valuesClause = encryptedRecords.map((_, recordIndex) => {
-            const placeholders = columns.map((_, colIndex) => 
+        const columns = Object.keys(records[0]);
+        const valuesClause = records.map((_, recordIndex) => {
+            const placeholders = columns.map((_, colIndex) =>
                 `$${recordIndex * columns.length + colIndex + 1}`
             );
             return `(${placeholders.join(', ')})`;
         }).join(', ');
 
-        const values = encryptedRecords.flatMap(record => Object.values(record));
+        const values = records.flatMap(record => Object.values(record));
 
         const sql = `
-            INSERT INTO ${table} (${columns.join(', ')}) 
-            VALUES ${valuesClause} 
+            INSERT INTO ${table} (${columns.join(', ')})
+            VALUES ${valuesClause}
             RETURNING *
         `;
 
         try {
             const result = await this.query(sql, values);
-            // Return decrypted results
-            return this.decryptResultArray(table, result);
+            return result;
         } catch (error) {
             console.error('[PostgresService] Bulk insert error:', error, { table, count: records.length });
             throw new Error(`Bulk insert failed: ${error.message}`);
@@ -1028,12 +864,6 @@ class PostgresService {
     async transactionQuery(client, sql, params = [], options = {}) {
         try {
             const result = await client.query(sql, params);
-            
-            // If table is specified in options, decrypt sensitive fields
-            if (options.table) {
-                return this.decryptResultArray(options.table, result.rows);
-            }
-            
             return result.rows;
         } catch (error) {
             console.error('[PostgresService] Transaction query error:', error, { sql, params });

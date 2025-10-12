@@ -42,7 +42,6 @@ async function getPostgresAndCheckMembership(groupId, userId, requireAdmin = fal
 
 // Add debugging middleware to all groups routes
 router.use((req, res, next) => {
-  console.log(`[User Groups] ${req.method} ${req.originalUrl} - User ID: ${req.user?.id}`);
   next();
 });
 
@@ -51,7 +50,6 @@ router.use((req, res, next) => {
 // Get user groups
 router.get('/groups', ensureAuthenticated, async (req, res) => {
   try {
-    console.log('[User Groups /groups GET] Groups get request for user:', req.user.id);
     
     const userId = req.user.id;
     const postgres = getPostgresInstance();
@@ -106,7 +104,6 @@ router.get('/groups', ensureAuthenticated, async (req, res) => {
 // Create a new group
 router.post('/groups', ensureAuthenticated, async (req, res) => {
   try {
-    console.log('[User Groups /groups POST] Create group request for user:', req.user.id);
     const { name } = req.body;
     
     if (!name?.trim()) {
@@ -155,7 +152,6 @@ router.post('/groups', ensureAuthenticated, async (req, res) => {
       return group;
     });
 
-    console.log('[User Groups /groups POST] Group created successfully:', newGroup.id);
 
     res.json({
       success: true,
@@ -179,7 +175,6 @@ router.post('/groups', ensureAuthenticated, async (req, res) => {
 // Delete a group
 router.delete('/groups/:groupId', ensureAuthenticated, async (req, res) => {
   try {
-    console.log('[User Groups /groups DELETE] Delete group request for user:', req.user.id);
     const { groupId } = req.params;
     const userId = req.user.id;
     const postgres = getPostgresInstance();
@@ -246,7 +241,6 @@ router.delete('/groups/:groupId', ensureAuthenticated, async (req, res) => {
       }
     });
 
-    console.log('[User Groups /groups DELETE] Group deleted successfully:', groupId);
 
     res.json({
       success: true,
@@ -265,7 +259,6 @@ router.delete('/groups/:groupId', ensureAuthenticated, async (req, res) => {
 // Verify join token (for JoinGroupPage)
 router.get('/groups/verify-token/:joinToken', ensureAuthenticated, async (req, res) => {
   try {
-    console.log('[User Groups /groups/verify-token GET] Verify token request for user:', req.user.id);
     const { joinToken } = req.params;
     const userId = req.user.id;
     const postgres = getPostgresInstance();
@@ -299,7 +292,6 @@ router.get('/groups/verify-token/:joinToken', ensureAuthenticated, async (req, r
       { table: 'group_memberships' }
     );
 
-    console.log('[User Groups /groups/verify-token GET] Token verified successfully');
 
     res.json({
       success: true,
@@ -319,7 +311,6 @@ router.get('/groups/verify-token/:joinToken', ensureAuthenticated, async (req, r
 // Join a group with token
 router.post('/groups/join', ensureAuthenticated, async (req, res) => {
   try {
-    console.log('[User Groups /groups/join POST] Join group request for user:', req.user.id);
     const { joinToken } = req.body;
     const userId = req.user.id;
     const postgres = getPostgresInstance();
@@ -368,7 +359,6 @@ router.post('/groups/join', ensureAuthenticated, async (req, res) => {
       [group.id, userId, 'member']
     );
 
-    console.log('[User Groups /groups/join POST] Successfully joined group:', group.id);
 
     res.json({
       success: true,
@@ -388,7 +378,6 @@ router.post('/groups/join', ensureAuthenticated, async (req, res) => {
 // Get group details (info, instructions, knowledge)
 router.get('/groups/:groupId/details', ensureAuthenticated, async (req, res) => {
   try {
-    console.log('[User Groups /groups/:groupId/details GET] Group details request for user:', req.user.id);
     const { groupId } = req.params;
     const userId = req.user.id;
     const postgres = getPostgresInstance();
@@ -443,7 +432,6 @@ router.get('/groups/:groupId/details', ensureAuthenticated, async (req, res) => 
     // Determine if user is admin
     const isAdmin = membership.role === 'admin' || group.created_by === userId;
 
-    console.log('[User Groups /groups/:groupId/details GET] Group details loaded successfully');
 
     res.json({
       success: true,
@@ -475,7 +463,6 @@ router.get('/groups/:groupId/details', ensureAuthenticated, async (req, res) => 
 // Update group name and description
 router.put('/groups/:groupId/info', ensureAuthenticated, async (req, res) => {
   try {
-    console.log('[User Groups /groups/:groupId/info PUT] Update group info request for user:', req.user.id);
     const { groupId } = req.params;
     const userId = req.user.id;
     const { name, description } = req.body;
@@ -553,7 +540,6 @@ router.put('/groups/:groupId/info', ensureAuthenticated, async (req, res) => {
       throw new Error('Group not found or no changes made');
     }
 
-    console.log('[User Groups /groups/:groupId/info PUT] Group info updated successfully');
 
     res.json({
       success: true,
@@ -572,7 +558,6 @@ router.put('/groups/:groupId/info', ensureAuthenticated, async (req, res) => {
 // Legacy endpoint for backward compatibility
 router.put('/groups/:groupId/name', ensureAuthenticated, async (req, res) => {
   try {
-    console.log('[User Groups /groups/:groupId/name PUT] Update group name request for user:', req.user.id);
     const { groupId } = req.params;
     const userId = req.user.id;
     const { name } = req.body;
@@ -603,7 +588,6 @@ router.put('/groups/:groupId/name', ensureAuthenticated, async (req, res) => {
       throw new Error('Group not found or no changes made');
     }
 
-    console.log('[User Groups /groups/:groupId/name PUT] Group name updated successfully');
 
     res.json({
       success: true,
@@ -622,7 +606,6 @@ router.put('/groups/:groupId/name', ensureAuthenticated, async (req, res) => {
 // Get group instructions
 router.get('/groups/:groupId/instructions', ensureAuthenticated, async (req, res) => {
   try {
-    console.log('[User Groups /groups/:groupId/instructions GET] Get instructions request for user:', req.user.id);
     const { groupId } = req.params;
     const userId = req.user.id;
     
@@ -642,7 +625,6 @@ router.get('/groups/:groupId/instructions', ensureAuthenticated, async (req, res
       { table: 'group_instructions' }
     );
 
-    console.log('[User Groups /groups/:groupId/instructions GET] Instructions loaded successfully');
 
     res.json({
       success: true,
@@ -667,7 +649,6 @@ router.get('/groups/:groupId/instructions', ensureAuthenticated, async (req, res
 // Update group instructions
 router.put('/groups/:groupId/instructions', ensureAuthenticated, async (req, res) => {
   try {
-    console.log('[User Groups /groups/:groupId/instructions PUT] Update instructions request for user:', req.user.id);
     const { groupId } = req.params;
     const userId = req.user.id;
     const { 
@@ -728,7 +709,6 @@ router.put('/groups/:groupId/instructions', ensureAuthenticated, async (req, res
     
     const result = await postgres.exec(upsertSQL, updateValues);
 
-    console.log('[User Groups /groups/:groupId/instructions PUT] Instructions updated successfully');
 
     res.json({
       success: true,
@@ -747,7 +727,6 @@ router.put('/groups/:groupId/instructions', ensureAuthenticated, async (req, res
 // Add knowledge entry
 router.post('/groups/:groupId/knowledge', ensureAuthenticated, async (req, res) => {
   try {
-    console.log('[User Groups /groups/:groupId/knowledge POST] Add knowledge request for user:', req.user.id);
     const { groupId } = req.params;
     const userId = req.user.id;
     const { title, content } = req.body;
@@ -781,7 +760,6 @@ router.post('/groups/:groupId/knowledge', ensureAuthenticated, async (req, res) 
       throw new Error('Failed to create knowledge entry');
     }
 
-    console.log('[User Groups /groups/:groupId/knowledge POST] Knowledge added successfully');
 
     res.json({
       success: true,
@@ -801,7 +779,6 @@ router.post('/groups/:groupId/knowledge', ensureAuthenticated, async (req, res) 
 // Get individual knowledge entry
 router.get('/groups/:groupId/knowledge/:knowledgeId', ensureAuthenticated, async (req, res) => {
   try {
-    console.log('[User Groups /groups/:groupId/knowledge/:knowledgeId GET] Get knowledge entry request for user:', req.user.id);
     const { groupId, knowledgeId } = req.params;
     const userId = req.user.id;
     
@@ -828,7 +805,6 @@ router.get('/groups/:groupId/knowledge/:knowledgeId', ensureAuthenticated, async
       });
     }
 
-    console.log('[User Groups /groups/:groupId/knowledge/:knowledgeId GET] Knowledge entry loaded successfully');
 
     res.json({
       success: true,
@@ -847,7 +823,6 @@ router.get('/groups/:groupId/knowledge/:knowledgeId', ensureAuthenticated, async
 // Update knowledge entry
 router.put('/groups/:groupId/knowledge/:knowledgeId', ensureAuthenticated, async (req, res) => {
   try {
-    console.log('[User Groups /groups/:groupId/knowledge/:knowledgeId PUT] Update knowledge request for user:', req.user.id);
     const { groupId, knowledgeId } = req.params;
     const userId = req.user.id;
     const { title, content } = req.body;
@@ -898,7 +873,6 @@ router.put('/groups/:groupId/knowledge/:knowledgeId', ensureAuthenticated, async
       throw new Error('Knowledge entry not found or no changes made');
     }
 
-    console.log('[User Groups /groups/:groupId/knowledge/:knowledgeId PUT] Knowledge updated successfully');
 
     res.json({
       success: true,
@@ -918,7 +892,6 @@ router.put('/groups/:groupId/knowledge/:knowledgeId', ensureAuthenticated, async
 // Delete knowledge entry
 router.delete('/groups/:groupId/knowledge/:knowledgeId', ensureAuthenticated, async (req, res) => {
   try {
-    console.log('[User Groups /groups/:groupId/knowledge/:knowledgeId DELETE] Delete knowledge request for user:', req.user.id);
     const { groupId, knowledgeId } = req.params;
     const userId = req.user.id;
     
@@ -944,7 +917,6 @@ router.delete('/groups/:groupId/knowledge/:knowledgeId', ensureAuthenticated, as
       });
     }
 
-    console.log('[User Groups /groups/:groupId/knowledge/:knowledgeId DELETE] Knowledge deleted successfully');
 
     res.json({
       success: true,
@@ -963,7 +935,6 @@ router.delete('/groups/:groupId/knowledge/:knowledgeId', ensureAuthenticated, as
 // Get group members
 router.get('/groups/:groupId/members', ensureAuthenticated, async (req, res) => {
   try {
-    console.log('[User Groups /groups/:groupId/members GET] Get group members request for user:', req.user.id);
     const { groupId } = req.params;
     const userId = req.user.id;
     
@@ -1001,7 +972,6 @@ router.get('/groups/:groupId/members', ensureAuthenticated, async (req, res) => 
       avatar_robot_id: member.avatar_robot_id || 1
     }));
 
-    console.log('[User Groups /groups/:groupId/members GET] Members loaded successfully');
 
     res.json({
       success: true,
@@ -1022,20 +992,10 @@ router.get('/groups/:groupId/members', ensureAuthenticated, async (req, res) => 
 // Share content to a group
 router.post('/groups/:groupId/share', ensureAuthenticated, async (req, res) => {
   try {
-    console.log('[User Groups /groups/:groupId/share POST] Share content request for user:', req.user.id);
     const { groupId } = req.params;
     const userId = req.user.id;
     const { contentType, contentId, permissions } = req.body;
-    
-    console.log('[User Groups /groups/:groupId/share POST] Request parameters:', {
-      groupId,
-      userId,
-      requestBody: req.body,
-      contentType,
-      contentId,
-      permissions
-    });
-    
+
     if (!groupId || !contentType || !contentId) {
       return res.status(400).json({
         success: false,
@@ -1055,12 +1015,6 @@ router.post('/groups/:groupId/share', ensureAuthenticated, async (req, res) => {
     const { postgres } = await getPostgresAndCheckMembership(groupId, userId, false);
 
     // Verify user owns the content
-    console.log('[User Groups /groups/:groupId/share POST] Verifying content ownership:', {
-      contentType,
-      contentId,
-      userId,
-      table: contentType
-    });
     
     // Build ownership query based on content type
     let ownershipSQL = `SELECT user_id FROM ${contentType} WHERE id = $1`;
@@ -1089,11 +1043,6 @@ router.post('/groups/:groupId/share', ensureAuthenticated, async (req, res) => {
         message: 'Inhalt nicht gefunden.'
       });
     }
-
-    console.log('[User Groups /groups/:groupId/share POST] Content ownership verified:', {
-      contentOwnership,
-      userIdMatches: contentOwnership.user_id === userId
-    });
 
     if (contentOwnership.user_id !== userId) {
       return res.status(403).json({
@@ -1129,7 +1078,6 @@ router.post('/groups/:groupId/share', ensureAuthenticated, async (req, res) => {
       [contentType, contentId, groupId, userId, JSON.stringify(sharePermissions)]
     );
 
-    console.log('[User Groups /groups/:groupId/share POST] Content shared successfully');
 
     res.json({
       success: true,
@@ -1148,19 +1096,10 @@ router.post('/groups/:groupId/share', ensureAuthenticated, async (req, res) => {
 // Unshare content from a group
 router.delete('/groups/:groupId/share', ensureAuthenticated, async (req, res) => {
   try {
-    console.log('[User Groups /groups/:groupId/share DELETE] Unshare content request for user:', req.user.id);
     const { groupId } = req.params;
     const userId = req.user.id;
     const { contentType, contentId } = req.body;
-    
-    console.log('[User Groups /groups/:groupId/share DELETE] Request parameters:', {
-      groupId,
-      userId,
-      requestBody: req.body,
-      contentType,
-      contentId
-    });
-    
+
     if (!groupId || !contentType || !contentId) {
       return res.status(400).json({
         success: false,
@@ -1202,7 +1141,6 @@ router.delete('/groups/:groupId/share', ensureAuthenticated, async (req, res) =>
       throw new Error('Share record not found or already deleted');
     }
 
-    console.log('[User Groups /groups/:groupId/share DELETE] Content unshared successfully');
 
     res.json({
       success: true,
@@ -1221,7 +1159,6 @@ router.delete('/groups/:groupId/share', ensureAuthenticated, async (req, res) =>
 // Get all content shared with a group
 router.get('/groups/:groupId/content', ensureAuthenticated, async (req, res) => {
   try {
-    console.log('[User Groups /groups/:groupId/content GET] Get group content request for user:', req.user.id);
     const { groupId } = req.params;
     const userId = req.user.id;
     
@@ -1385,7 +1322,6 @@ router.get('/groups/:groupId/content', ensureAuthenticated, async (req, res) => 
       groupContent[keyMap[type]] = items;
     });
 
-    console.log('[User Groups /groups/:groupId/content GET] Group content loaded successfully');
 
     res.json({
       success: true,
@@ -1404,7 +1340,6 @@ router.get('/groups/:groupId/content', ensureAuthenticated, async (req, res) => 
 // Update content permissions
 router.put('/groups/:groupId/content/:contentId/permissions', ensureAuthenticated, async (req, res) => {
   try {
-    console.log('[User Groups /groups/:groupId/content/:contentId/permissions PUT] Update permissions request for user:', req.user.id);
     const { groupId, contentId } = req.params;
     const userId = req.user.id;
     const { contentType, permissions } = req.body;
@@ -1462,7 +1397,6 @@ router.put('/groups/:groupId/content/:contentId/permissions', ensureAuthenticate
       throw new Error('Share record not found or no changes made');
     }
 
-    console.log('[User Groups /groups/:groupId/content/:contentId/permissions PUT] Permissions updated successfully');
 
     res.json({
       success: true,
@@ -1481,19 +1415,10 @@ router.put('/groups/:groupId/content/:contentId/permissions', ensureAuthenticate
 // Remove content from group (unshare)
 router.delete('/groups/:groupId/content/:contentId', ensureAuthenticated, async (req, res) => {
   try {
-    console.log('[User Groups /groups/:groupId/content/:contentId DELETE] Unshare content request for user:', req.user.id);
     const { groupId, contentId } = req.params;
     const userId = req.user.id;
     const { contentType } = req.body;
-    
-    console.log('[User Groups /groups/:groupId/content/:contentId DELETE] Request parameters:', {
-      groupId,
-      contentId,
-      userId,
-      requestBody: req.body,
-      contentType
-    });
-    
+
     if (!groupId || !contentId || !contentType) {
       return res.status(400).json({
         success: false,
@@ -1549,7 +1474,6 @@ router.delete('/groups/:groupId/content/:contentId', ensureAuthenticated, async 
       throw new Error('Share record not found or already deleted');
     }
 
-    console.log('[User Groups /groups/:groupId/content/:contentId DELETE] Content unshared successfully');
 
     res.json({
       success: true,
@@ -1578,7 +1502,6 @@ router.get('/:groupId/wolke/share-links', ensureAuthenticated, async (req, res) 
     const groupId = req.params.groupId;
     const userId = req.user.id;
 
-    console.log('[User Groups /groups/:groupId/wolke/share-links GET] Request received', { groupId, userId });
 
     // Check if user is member of the group
     const { postgres } = await getPostgresAndCheckMembership(groupId, userId, false);
@@ -1599,7 +1522,6 @@ router.get('/:groupId/wolke/share-links', ensureAuthenticated, async (req, res) 
 
     const shareLinks = group.wolke_share_links || [];
 
-    console.log('[User Groups /groups/:groupId/wolke/share-links GET] Retrieved share links', { count: shareLinks.length });
 
     res.json({
       success: true,
@@ -1625,7 +1547,6 @@ router.post('/:groupId/wolke/share-links', ensureAuthenticated, async (req, res)
     const userId = req.user.id;
     const { shareLink, label, baseUrl, shareToken } = req.body;
 
-    console.log('[User Groups /groups/:groupId/wolke/share-links POST] Request received', { groupId, userId, label });
 
     // Check if user is admin of the group (only admins can add Wolke links)
     const { postgres } = await getPostgresAndCheckMembership(groupId, userId, true);
@@ -1696,7 +1617,6 @@ router.post('/:groupId/wolke/share-links', ensureAuthenticated, async (req, res)
       throw new Error('Fehler beim Speichern des Share-Links');
     }
 
-    console.log('[User Groups /groups/:groupId/wolke/share-links POST] Share link added successfully', { shareLinkId: newLink.id });
 
     res.status(201).json({
       success: true,
@@ -1731,7 +1651,6 @@ router.delete('/:groupId/wolke/share-links/:shareId', ensureAuthenticated, async
     const shareId = req.params.shareId;
     const userId = req.user.id;
 
-    console.log('[User Groups /groups/:groupId/wolke/share-links/:shareId DELETE] Request received', { groupId, shareId, userId });
 
     // Check if user is admin of the group (only admins can delete Wolke links)
     const { postgres } = await getPostgresAndCheckMembership(groupId, userId, true);
@@ -1774,7 +1693,6 @@ router.delete('/:groupId/wolke/share-links/:shareId', ensureAuthenticated, async
       throw new Error('Fehler beim Löschen des Share-Links');
     }
 
-    console.log('[User Groups /groups/:groupId/wolke/share-links/:shareId DELETE] Share link deleted successfully', { shareId });
 
     res.json({
       success: true,
@@ -1809,7 +1727,6 @@ router.post('/:groupId/wolke/test-connection', ensureAuthenticated, async (req, 
     const userId = req.user.id;
     const { shareLink } = req.body;
 
-    console.log('[User Groups /groups/:groupId/wolke/test-connection POST] Request received', { groupId, userId });
 
     // Check if user is member of the group
     const { postgres } = await getPostgresAndCheckMembership(groupId, userId, false);
@@ -1849,7 +1766,6 @@ router.post('/:groupId/wolke/upload-test', ensureAuthenticated, async (req, res)
     const userId = req.user.id;
     const { shareLinkId, content, filename } = req.body;
 
-    console.log('[User Groups /groups/:groupId/wolke/upload-test POST] Request received', { groupId, userId, filename, shareLinkId });
 
     // Check if user is member of the group
     const { postgres } = await getPostgresAndCheckMembership(groupId, userId, false);
@@ -1906,7 +1822,6 @@ router.get('/:groupId/wolke/sync-status', ensureAuthenticated, async (req, res) 
     const groupId = req.params.groupId;
     const userId = req.user.id;
 
-    console.log('[User Groups /groups/:groupId/wolke/sync-status GET] Request received', { groupId, userId });
 
     // Check if user is member of the group
     const { postgres } = await getPostgresAndCheckMembership(groupId, userId, false);
@@ -1917,7 +1832,6 @@ router.get('/:groupId/wolke/sync-status', ensureAuthenticated, async (req, res) 
       ['group', groupId]
     );
 
-    console.log('[User Groups /groups/:groupId/wolke/sync-status GET] Retrieved sync statuses', { count: syncStatuses.length });
 
     res.json({
       success: true,
@@ -1943,7 +1857,6 @@ router.post('/:groupId/wolke/sync', ensureAuthenticated, async (req, res) => {
     const userId = req.user.id;
     const { shareLinkId, folderPath = '' } = req.body;
 
-    console.log('[User Groups /groups/:groupId/wolke/sync POST] Request received', { groupId, userId, shareLinkId, folderPath });
 
     // Check if user is member of the group (all members can sync)
     const { postgres } = await getPostgresAndCheckMembership(groupId, userId, false);
@@ -1962,7 +1875,6 @@ router.post('/:groupId/wolke/sync', ensureAuthenticated, async (req, res) => {
     // Start sync in background with group context
     wolkeSyncService.syncFolderWithContext('group', groupId, userId, shareLinkId, folderPath)
       .then(result => {
-        console.log(`[User Groups /groups/:groupId/wolke/sync POST] Sync completed:`, result);
       })
       .catch(error => {
         console.error(`[User Groups /groups/:groupId/wolke/sync POST] Sync failed:`, error);
@@ -1994,7 +1906,6 @@ router.post('/:groupId/wolke/auto-sync', ensureAuthenticated, async (req, res) =
     const userId = req.user.id;
     const { shareLinkId, folderPath = '', enabled } = req.body;
 
-    console.log('[User Groups /groups/:groupId/wolke/auto-sync POST] Request received', { groupId, userId, shareLinkId, enabled });
 
     // Check if user is admin of the group (only admins can set auto-sync)
     const { postgres } = await getPostgresAndCheckMembership(groupId, userId, true);

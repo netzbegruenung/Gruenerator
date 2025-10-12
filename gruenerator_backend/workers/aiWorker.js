@@ -105,6 +105,11 @@ async function processAIRequest(requestId, data) {
     explicitProvider: data.provider || 'none'
   });
 
+  // Log instructions if present in the data
+  if (data.instructions) {
+    console.log(`[AI Worker ${requestId}] Instructions:`, data.instructions);
+  }
+
   try {
     let result;
     

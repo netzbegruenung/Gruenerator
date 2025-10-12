@@ -417,21 +417,21 @@ input:not(:checked) + .slider .icon.moon {
     opacity: 0;
 }
 
-@media (max-width: 950px) and (min-width: 769px) {
+@media (max-width: 950px) and (min-width: 901px) {
     .header-nav ul li {
-      margin: 0 10px; 
+      margin: 0 10px;
     }
-    
+
     .header-nav ul li a,
     .header-nav ul li span {
-      font-size: 1em; 
+      font-size: 1em;
       padding: 0px;
     }
-    
+
     .header-toggle {
-      margin-left: 10px; 
+      margin-left: 10px;
     }
-    
+
     .switch {
         padding: 0px;
         margin-right: 0px;
@@ -466,7 +466,7 @@ input:not(:checked) + .slider .icon.moon {
     }
 }
 
-@media (min-width: 769px) {
+@media (min-width: 901px) {
     .header-menu-checkbox {
         display: none;
     }

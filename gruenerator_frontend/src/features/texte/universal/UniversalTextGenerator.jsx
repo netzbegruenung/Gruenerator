@@ -138,14 +138,15 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
   const form = useBaseForm({
     defaultValues: {
       useWebSearchTool: false,
-      usePrivacyMode: false
+      usePrivacyMode: false,
+      useProMode: false
     },
     // Generator configuration - using a placeholder endpoint since we handle submission manually
     generatorType: 'universal-text',
     componentName: componentName,
     endpoint: '/placeholder', // This won't be used
     instructionType: currentInstructionType,
-    features: ['webSearch', 'privacyMode'],
+    features: ['webSearch', 'privacyMode', 'proMode'],
     tabIndexKey: 'UNIVERSAL',
     helpContent: helpContent
   });
@@ -160,6 +161,7 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
     // Add feature toggles and attachments to form data
     formData.useWebSearchTool = form.generator.toggles.webSearch;
     formData.usePrivacyMode = form.generator.toggles.privacyMode;
+    formData.useBedrock = form.generator.toggles.proMode;  // Pro mode flag for backend API
     formData.attachments = form.generator.attachedFiles;
 
     try {

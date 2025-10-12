@@ -5,19 +5,63 @@
 
 const jwtAuthMiddleware = require('./jwtAuthMiddleware');
 
-// Dual authentication middleware - supports both JWT and session auth
+const mobileTokenRateLimiter = new Map();
+const MOBILE_TOKEN_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+const MOBILE_TOKEN_MAX_REQUESTS = 100; // 100 requests per window
+
+function checkMobileTokenRateLimit(token) {
+  const now = Date.now();
+  const key = `mobile_token:${token}`;
+
+  if (!mobileTokenRateLimiter.has(key)) {
+    mobileTokenRateLimiter.set(key, { count: 1, resetAt: now + MOBILE_TOKEN_WINDOW_MS });
+    return { allowed: true, remaining: MOBILE_TOKEN_MAX_REQUESTS - 1 };
+  }
+
+  const record = mobileTokenRateLimiter.get(key);
+
+  if (now > record.resetAt) {
+    mobileTokenRateLimiter.set(key, { count: 1, resetAt: now + MOBILE_TOKEN_WINDOW_MS });
+    return { allowed: true, remaining: MOBILE_TOKEN_MAX_REQUESTS - 1 };
+  }
+
+  if (record.count >= MOBILE_TOKEN_MAX_REQUESTS) {
+    return {
+      allowed: false,
+      remaining: 0,
+      retryAfter: Math.ceil((record.resetAt - now) / 1000)
+    };
+  }
+
+  record.count++;
+  return { allowed: true, remaining: MOBILE_TOKEN_MAX_REQUESTS - record.count };
+}
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, record] of mobileTokenRateLimiter.entries()) {
+    if (now > record.resetAt) {
+      mobileTokenRateLimiter.delete(key);
+    }
+  }
+}, 60 * 60 * 1000);
+
 function requireAuth(req, res, next) {
-  // Controlled development authentication bypass
-  if (process.env.NODE_ENV === 'development' && 
+  if (process.env.NODE_ENV === 'production' && process.env.ALLOW_DEV_AUTH_BYPASS === 'true') {
+    console.error('[SECURITY ALERT] Dev auth bypass attempted in PRODUCTION - blocking request');
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  if (process.env.NODE_ENV === 'development' &&
+      process.env.NODE_ENV !== 'production' && // Double check
       process.env.ALLOW_DEV_AUTH_BYPASS === 'true' &&
       process.env.DEV_AUTH_BYPASS_TOKEN) {
-    
+
     const bypassToken = req.headers['x-dev-auth-bypass'] || req.query.dev_auth_token;
-    
+
     if (bypassToken && bypassToken === process.env.DEV_AUTH_BYPASS_TOKEN) {
-      console.log('[AuthMiddleware] Development auth bypass activated');
-      req.user = { 
-        id: 'dev-user-123', 
+      req.user = {
+        id: 'dev-user-123',
         email: 'dev@gruenerator.de',
         display_name: 'Development User'
       };
@@ -25,10 +69,18 @@ function requireAuth(req, res, next) {
     }
   }
 
-  // Mobile app token bypass - simple shared token authentication
   const appToken = req.headers['x-app-token'];
   if (appToken && process.env.MOBILE_APP_TOKEN && appToken === process.env.MOBILE_APP_TOKEN) {
-    console.log('[AuthMiddleware] Mobile app token validated');
+    const rateLimitResult = checkMobileTokenRateLimit(appToken);
+
+    if (!rateLimitResult.allowed) {
+      console.warn('[Auth] Mobile token rate limit exceeded');
+      return res.status(429).json({
+        error: 'Rate limit exceeded',
+        retryAfter: rateLimitResult.retryAfter
+      });
+    }
+
     req.user = {
       id: 'mobile-app',
       email: 'app@gruenerator.de',
@@ -38,14 +90,11 @@ function requireAuth(req, res, next) {
     return next();
   }
 
-  // First try JWT authentication
   jwtAuthMiddleware(req, res, (jwtError) => {
     if (req.mobileAuth) {
-      // JWT auth successful
       return next();
     }
-    
-    // Fall back to session-based auth
+
     // In this app, Passport session middleware is only attached on auth routes.
     // For API routes, recognize an authenticated session by checking req.session.passport.user
     if (!req.user && req.session?.passport?.user) {

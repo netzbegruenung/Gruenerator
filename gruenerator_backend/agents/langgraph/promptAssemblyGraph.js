@@ -31,7 +31,14 @@ function buildDocumentBlocks(documents = []) {
     } else if (doc?.type === "image" && doc.source) {
       blocks.push({ type: "image", source: doc.source });
     } else if (doc?.type === "text" && doc.source?.text) {
-      blocks.push({ type: "text", text: doc.source.text });
+      let textContent = doc.source.text;
+      // Add source attribution for crawled URLs
+      if (doc.source.metadata?.contentSource === 'url_crawl') {
+        const title = doc.source.metadata.title || 'Crawled Content';
+        const url = doc.source.metadata.url || '';
+        textContent = `[Quelle: ${title}${url ? ` - ${url}` : ''}]\n\n${textContent}`;
+      }
+      blocks.push({ type: "text", text: textContent });
     }
   }
   const blockCounts = blocks.reduce((acc, b) => { acc[b.type] = (acc[b.type] || 0) + 1; return acc; }, {});
@@ -61,7 +68,7 @@ function formatRequestObject(request, locale = 'de-DE') {
   if (request.zitatgeber) parts.push(`Zitatgeber: ${request.zitatgeber}`);
   if (request.textForm) parts.push(`Textform: ${request.textForm}`);
   for (const [k, v] of Object.entries(request)) {
-    if (["theme", "thema", "details", "platforms", "zitatgeber", "textForm"].includes(k)) continue;
+    if (["theme", "thema", "details", "platforms", "zitatgeber", "textForm", "presseabbinder"].includes(k)) continue;
     if (v) {
       // Localize the value if it's a string
       const localizedValue = typeof v === 'string' ? localizePlaceholders(v, locale) : v;
@@ -73,41 +80,10 @@ function formatRequestObject(request, locale = 'de-DE') {
   return result;
 }
 
-function buildMainUserContent({ examples = [], knowledge = [], instructions = null, request = null, toolInstructions = [], constraints = null, formatting = null, locale = 'de-DE' }) {
+function buildMainUserContent({ examples = [], knowledge = [], instructions = null, request = null, toolInstructions = [], constraints = null, formatting = null, taskInstructions = null, outputFormat = null, locale = 'de-DE' }) {
   const parts = [];
 
-  // Add tool instructions first
-  if (toolInstructions && toolInstructions.length > 0) {
-    const localizedInstructions = toolInstructions.map(instr => localizePlaceholders(instr, locale));
-    parts.push(localizedInstructions.join(" "));
-  }
-
-  // Add constraints
-  if (constraints) {
-    parts.push(localizePlaceholders(constraints, locale));
-  }
-
-  // Add formatting instructions
-  if (formatting) {
-    parts.push(localizePlaceholders(formatting, locale));
-  }
-
-  // Add examples
-  const ex = formatExamples(examples);
-  if (ex) parts.push(ex);
-
-  // Localize knowledge content
-  if (Array.isArray(knowledge) && knowledge.length > 0) {
-    const localizedKnowledge = knowledge.map(k => localizePlaceholders(k, locale));
-    parts.push(`<knowledge>\n${localizedKnowledge.join("\n\n")}\n</knowledge>`);
-  }
-
-  // Localize instructions
-  if (instructions) {
-    const localizedInstructions = localizePlaceholders(instructions, locale);
-    parts.push(`<instructions>\n${localizedInstructions}\n</instructions>`);
-  }
-
+  // 1. USER REQUEST (what they want) - FIRST!
   if (request) {
     let txt;
     if (typeof request === "string") {
@@ -117,8 +93,51 @@ function buildMainUserContent({ examples = [], knowledge = [], instructions = nu
     }
     parts.push(`<request>\n${txt}\n</request>`);
   }
+
+  // 2. TASK INSTRUCTIONS (how to execute this specific task)
+  if (taskInstructions) {
+    parts.push(localizePlaceholders(taskInstructions, locale));
+  }
+
+  // 3. CUSTOM INSTRUCTIONS (user's personal guidance)
+  if (instructions) {
+    const localizedInstructions = localizePlaceholders(instructions, locale);
+    parts.push(`<instructions>\n${localizedInstructions}\n</instructions>`);
+  }
+
+  // 4. CONSTRAINTS (absolute limits)
+  if (constraints) {
+    parts.push(localizePlaceholders(constraints, locale));
+  }
+
+  // 5. FORMATTING RULES
+  if (formatting) {
+    parts.push(localizePlaceholders(formatting, locale));
+  }
+
+  // 6. EXAMPLES (if applicable)
+  const ex = formatExamples(examples);
+  if (ex) parts.push(ex);
+
+  // 7. CONTEXT HINTS (passive, informational)
+  if (toolInstructions && toolInstructions.length > 0) {
+    const localizedInstructions = toolInstructions.map(instr => localizePlaceholders(instr, locale));
+    parts.push(localizedInstructions.join(" "));
+  }
+
+  // 8. BACKGROUND KNOWLEDGE (optional context)
+  if (Array.isArray(knowledge) && knowledge.length > 0) {
+    const localizedKnowledge = knowledge.map(k => localizePlaceholders(k, locale));
+    parts.push(`<knowledge>\n${localizedKnowledge.join("\n\n")}\n</knowledge>`);
+  }
+
+  // 9. OUTPUT FORMAT (how to structure response) - LAST
+  if (outputFormat) {
+    parts.push(localizePlaceholders(outputFormat, locale));
+  }
+
   const combined = parts.length > 0 ? parts.join("\n\n---\n\n") : null;
-  console.log(`📋 [PromptAssembly] Main user content built (sections=${parts.length}, tools=${toolInstructions?.length || 0}, constraints=${constraints ? 'y' : 'n'}, formatting=${formatting ? 'y' : 'n'}, locale=${locale})`);
+  console.log(`📋 [PromptAssembly] Main user content built (sections=${parts.length}, task=${taskInstructions ? 'y' : 'n'}, custom=${instructions ? 'y' : 'n'}, constraints=${constraints ? 'y' : 'n'}, formatting=${formatting ? 'y' : 'n'}, locale=${locale})`);
   return combined;
 }
 
@@ -153,6 +172,8 @@ function assemblePromptGraph(state) {
     toolInstructions: state.toolInstructions || [],
     constraints: state.constraints,
     formatting: state.formatting,
+    taskInstructions: state.taskInstructions,
+    outputFormat: state.outputFormat,
     locale: state.locale || 'de-DE'
   });
   if (mainUser) {
@@ -304,12 +325,21 @@ async function assemblePromptGraphAsync(enrichedState, flags = {}) {
 
   if (shouldUseDocQnA) {
     console.log(`📋 [PromptAssemblyAsync] DocQnA enabled with ${effectiveDocuments.length} documents`);
-    // Build doc URLs (upload if needed)
-    const rawDocs = effectiveDocuments.filter(d => d && d.type === 'document' && d.source);
-    console.log(`📋 [PromptAssemblyAsync] Processing ${rawDocs.length} document uploads...`);
-    
+
+    // Separate crawled URLs from file attachments
+    // Crawled URLs should NOT go through DocQnA (already processed text)
+    const crawledUrlDocs = effectiveDocuments.filter(d =>
+      d && d.type === 'text' && d.source?.metadata?.contentSource === 'url_crawl'
+    );
+    const fileAttachmentDocs = effectiveDocuments.filter(d =>
+      d && d.type === 'document' && d.source
+    );
+
+    console.log(`📋 [PromptAssemblyAsync] Document split: ${fileAttachmentDocs.length} file attachments, ${crawledUrlDocs.length} crawled URLs`);
+    console.log(`📋 [PromptAssemblyAsync] Processing ${fileAttachmentDocs.length} file attachment uploads for DocQnA...`);
+
     const urlList = [];
-    for (const d of rawDocs) {
+    for (const d of fileAttachmentDocs) {
       const url = await uploadDocAndGetUrl(d);
       if (url) urlList.push(url);
     }
@@ -321,24 +351,24 @@ async function assemblePromptGraphAsync(enrichedState, flags = {}) {
         console.log('⚠️ [PromptAssemblyAsync] Doc URLs are data: URIs. Provider may reject them. Skipping DocQnA.');
         knowledgeCapsule = null;
       } else {
-        knowledgeCapsule = await runDocumentQnA(state, urlList);
+        knowledgeCapsule = await runDocumentQnA(enrichedState, urlList);
       }
-      // Suppress documents in final prompt if capsule succeeded
+      // Suppress file attachments in final prompt if capsule succeeded, but keep crawled URLs
       if (knowledgeCapsule) {
         console.log(`🧭 [LangGraph] DocQnA used: docs=${urlList.length}`);
-        effectiveDocuments = []; // don't include raw docs
+        effectiveDocuments = crawledUrlDocs; // keep crawled URLs, remove file attachments
       } else {
-        console.log('📋 [PromptAssemblyAsync] DocQnA returned no capsule; retaining raw documents');
+        console.log('📋 [PromptAssemblyAsync] DocQnA returned no capsule; retaining all documents');
       }
-    } else if (rawDocs.length > 0) {
+    } else if (fileAttachmentDocs.length > 0) {
       // Fallback when no URLs could be prepared (e.g., upload error): send direct document blocks
       console.log('📋 [PromptAssemblyAsync] No Doc URLs prepared; falling back to direct documents for DocQnA');
-      knowledgeCapsule = await runDocumentQnA(state, rawDocs);
+      knowledgeCapsule = await runDocumentQnA(enrichedState, fileAttachmentDocs);
       if (knowledgeCapsule) {
-        console.log(`🧭 [LangGraph] DocQnA used with direct documents: docs=${rawDocs.length}`);
-        effectiveDocuments = [];
+        console.log(`🧭 [LangGraph] DocQnA used with direct documents: docs=${fileAttachmentDocs.length}`);
+        effectiveDocuments = crawledUrlDocs; // keep crawled URLs, remove file attachments
       } else {
-        console.log('📋 [PromptAssemblyAsync] DocQnA fallback produced no capsule; retaining raw documents');
+        console.log('📋 [PromptAssemblyAsync] DocQnA fallback produced no capsule; retaining all documents');
       }
     }
   } else if (hasKnowledgeSelectorDocuments) {
@@ -356,11 +386,6 @@ async function assemblePromptGraphAsync(enrichedState, flags = {}) {
 
   console.log('📋 [PromptAssemblyAsync] Processing final content blocks...');
   const messages = [];
-
-  if (effectiveDocuments.length > 0) {
-    console.log(`📋 [PromptAssemblyAsync] Adding ${effectiveDocuments.length} effective documents`);
-    messages.push({ role: 'user', content: buildDocumentBlocks(effectiveDocuments) });
-  }
 
   const baseKnowledge = Array.isArray(enrichedState.knowledge) ? [...enrichedState.knowledge] : [];
   if (knowledgeCapsule) {
@@ -422,11 +447,18 @@ async function assemblePromptGraphAsync(enrichedState, flags = {}) {
     toolInstructions: enrichedState.toolInstructions || [],
     constraints: enrichedState.constraints,
     formatting: enrichedState.formatting,
+    taskInstructions: enrichedState.taskInstructions,
+    outputFormat: enrichedState.outputFormat,
     locale: enrichedState.locale || 'de-DE'
   });
   if (mainUser) {
     console.log('📋 [PromptAssemblyAsync] Added main user content');
     messages.push({ role: 'user', content: mainUser });
+  }
+
+  if (effectiveDocuments.length > 0) {
+    console.log(`📋 [PromptAssemblyAsync] Adding ${effectiveDocuments.length} effective documents`);
+    messages.push({ role: 'user', content: buildDocumentBlocks(effectiveDocuments) });
   }
 
   const tools = Array.isArray(enrichedState.tools) ? [...enrichedState.tools] : [];

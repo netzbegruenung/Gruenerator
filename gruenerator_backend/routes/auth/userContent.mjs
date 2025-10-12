@@ -36,8 +36,8 @@ router.get('/instructions-status/:instructionType', ensureAuthenticated, async (
     
     // Map instruction types to database fields
     const fieldMapping = {
-      antrag: ['custom_antrag_prompt', 'custom_antrag_gliederung'],
-      social: ['custom_social_prompt', 'presseabbinder'],
+      antrag: ['custom_antrag_prompt'],
+      social: ['custom_social_prompt'],
       universal: ['custom_universal_prompt'],
       gruenejugend: ['custom_gruenejugend_prompt'],
       rede: ['custom_rede_prompt'],
@@ -314,13 +314,11 @@ router.get('/anweisungen-wissen', ensureAuthenticated, async (req, res) => {
     res.json({
       success: true,
       antragPrompt: profileData?.custom_antrag_prompt || '',
-      antragGliederung: profileData?.custom_antrag_gliederung || '',
       socialPrompt: profileData?.custom_social_prompt || '',
       universalPrompt: profileData?.custom_universal_prompt || '',
       gruenejugendPrompt: profileData?.custom_gruenejugend_prompt || '',
       redePrompt: profileData?.custom_rede_prompt || '',
       buergeranfragenPrompt: profileData?.custom_buergeranfragen_prompt || '',
-      presseabbinder: profileData?.presseabbinder || '',
       knowledge: knowledgeEntries?.map(entry => ({
         id: entry.id,
         title: entry.title,
@@ -345,18 +343,28 @@ router.get('/anweisungen-wissen', ensureAuthenticated, async (req, res) => {
 router.put('/anweisungen-wissen', ensureAuthenticated, async (req, res) => {
   try {
     const userId = req.user.id;
-    const { custom_antrag_prompt, custom_antrag_gliederung, custom_social_prompt, custom_universal_prompt, custom_gruenejugend_prompt, presseabbinder, knowledge = [] } = req.body || {};
+    const {
+      custom_antrag_prompt,
+      custom_social_prompt,
+      custom_universal_prompt,
+      custom_gruenejugend_prompt,
+      custom_rede_prompt,  // Added missing field
+      custom_buergeranfragen_prompt,  // Added missing field
+      knowledge = []
+    } = req.body || {};
     console.log('[User Content /anweisungen-wissen PUT] Incoming request body for user:', userId);
+    console.log('[User Content /anweisungen-wissen PUT] Request body keys:', Object.keys(req.body || {}));
+    console.log('[User Content /anweisungen-wissen PUT] Knowledge entries count:', knowledge?.length || 0);
 
     // 1. Update profile prompts using ProfileService
     const profileService = getProfileService();
     const profilePayload = {
       custom_antrag_prompt: custom_antrag_prompt ?? null,
-      custom_antrag_gliederung: custom_antrag_gliederung ?? null,
       custom_social_prompt: custom_social_prompt ?? null,
       custom_universal_prompt: custom_universal_prompt ?? null,
       custom_gruenejugend_prompt: custom_gruenejugend_prompt ?? null,
-      presseabbinder: presseabbinder ?? null,
+      custom_rede_prompt: custom_rede_prompt ?? null,  // Added missing field
+      custom_buergeranfragen_prompt: custom_buergeranfragen_prompt ?? null,  // Added missing field
     };
     
     await profileService.updateProfile(userId, profilePayload);
