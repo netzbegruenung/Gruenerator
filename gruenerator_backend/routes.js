@@ -9,7 +9,6 @@ const recentValuesRouter = require('./routes/recentValues'); // Import recent va
 const claudeChatRoute = require('./routes/claude_chat');
 const { universalRouter, redeRouter, wahlprogrammRouter, buergeranfragenRouter } = require('./routes/claude_universal');
 const antragsversteherRoute = require('./routes/claude_antragsversteher');
-const wahlpruefsteinBundestagswahlRoute = require('./routes/wahlpruefsteinbundestagswahl');
 const sharepicDreizeilenCanvasRoute = require('./routes/sharepic/sharepic_canvas/dreizeilen_canvas');
 const zitatSharepicCanvasRoute = require('./routes/sharepic/sharepic_canvas/zitat_canvas');
 const zitatPureSharepicCanvasRoute = require('./routes/sharepic/sharepic_canvas/zitat_pure_canvas');
@@ -25,7 +24,6 @@ const editSessionRouter = require('./routes/sharepic/editSession');
 const claudeTextAdjustmentRoute = require('./routes/claude_text_adjustment');
 const claudeSuggestEditsRoute = require('./routes/claude_suggest_edits');
 const etherpadRoute = require('./routes/etherpad/etherpadController');
-const claudeKandidatRoute = require('./routes/claude_kandidat');
 const claudeGrueneJugendRoute = require('./routes/claude_gruene_jugend');
 const searchRouter = require('./routes/search/searchRoutes');
 const searchAnalysisRouter = require('./routes/search/searchAnalysis');
@@ -162,7 +160,6 @@ async function setupRoutes(app) {
   const { default: grueneratorChatRoute } = await import('./routes/chat/grueneratorChat.js');
   app.use('/api/chat', grueneratorChatRoute);
   app.use('/api/antragsversteher', antragsversteherRoute);
-  app.use('/api/wahlpruefsteinbundestagswahl', wahlpruefsteinBundestagswahlRoute);
   app.use('/api/dreizeilen_canvas', sharepicDreizeilenCanvasRoute);
   app.use('/api/zitat_canvas', zitatSharepicCanvasRoute);
   app.use('/api/zitat_pure_canvas', zitatPureSharepicCanvasRoute);
@@ -322,7 +319,6 @@ async function setupRoutes(app) {
   app.use('/api/claude_text_adjustment', claudeTextAdjustmentRoute);
   app.use('/api/etherpad', etherpadRoute);
   app.use('/api/claude_wahlprogramm', wahlprogrammRouter);
-  app.use('/api/claude_kandidat', claudeKandidatRoute);
   app.use('/api/claude_universal', universalRouter);
   app.use('/api/claude_gruene_jugend', claudeGrueneJugendRoute);
   app.use('/api/claude_gruenerator_ask', claudeGrueneratorAskRoute);
