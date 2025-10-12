@@ -423,6 +423,20 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
     }
   }, [hasSeenWelcome]);
 
+  useEffect(() => {
+    if (state.currentStep === FORM_STEPS.PREVIEW &&
+        state.formData.sloganAlternatives &&
+        state.formData.sloganAlternatives.length > 0) {
+      setShowAlternatives(true);
+    }
+  }, [state.currentStep, state.formData.sloganAlternatives]);
+
+  useEffect(() => {
+    if (state.currentStep !== FORM_STEPS.PREVIEW) {
+      setShowAlternatives(false);
+    }
+  }, [state.currentStep]);
+
   const validateForm = useCallback((formData, currentStep) => {
     const newErrors = {};
     
