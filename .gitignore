@@ -96,3 +96,6 @@ aws/
 # Cursor and agent files
 .cursorignore
 AGENTS.md
+
+# Storage files (crawler and queue data)
+gruenerator_backend/storage/
