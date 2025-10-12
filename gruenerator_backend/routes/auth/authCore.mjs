@@ -97,7 +97,6 @@ async function checkSessionHealth(req, res, next) {
       });
     });
 
-    console.log('[Auth] Session health check passed');
     next();
   } catch (error) {
     console.error('[Auth] Session health check failed:', error);
@@ -113,10 +112,6 @@ router.get('/login', checkSessionHealth, async (req, res, next) => {
   // Store redirect URL in session for all login types
   if (redirectTo) {
     req.session.redirectTo = redirectTo;
-    console.log('[Auth Login] Storing redirectTo in session:', redirectTo);
-    console.log('[Auth Login] Session ID:', req.sessionID);
-  } else {
-    console.log('[Auth Login] No redirectTo parameter provided');
   }
 
   // Store source preference for callback handling
@@ -142,7 +137,6 @@ router.get('/login', checkSessionHealth, async (req, res, next) => {
           console.error('[Auth Login] Failed to save session before auth:', err);
           reject(err);
         } else {
-          console.log('[Auth Login] Session saved successfully before auth');
           resolve();
         }
       });
@@ -190,9 +184,6 @@ router.get('/callback',
     try {
       // Get redirectTo from user object (survives session regeneration) or fallback to session
       const intendedRedirect = req.user?._redirectTo || req.session.redirectTo;
-      console.log('[AuthCallback] Session ID:', req.sessionID);
-      console.log('[AuthCallback] Intended redirect from session:', intendedRedirect);
-      console.log('[AuthCallback] Session contents:', Object.keys(req.session || {}).join(', '));
 
       // Clean up
       if (req.user && req.user._redirectTo) {
@@ -205,7 +196,6 @@ router.get('/callback',
       // If redirect target is an allowed mobile deep link, issue a short-lived login_code
       if (intendedRedirect && isAllowedMobileRedirect(intendedRedirect)) {
         try {
-          console.log('[AuthCallback] Mobile deep link allowed. Creating login_code...');
           const { SignJWT } = await import('jose');
           const { randomUUID } = await import('crypto');
           const secret = new TextEncoder().encode(
@@ -232,7 +222,6 @@ router.get('/callback',
               console.error('[AuthCallback] Error saving session (mobile deep link):', err);
             }
             const redirectWithCode = appendQueryParam(intendedRedirect, 'code', code);
-            console.log('[AuthCallback] Redirecting to mobile deep link:', redirectWithCode);
             return res.redirect(redirectWithCode);
           });
           return; // Stop further processing
@@ -240,8 +229,6 @@ router.get('/callback',
           console.error('[AuthCallback] Failed to create login_code for mobile redirect:', e);
           // fall through to normal redirect
         }
-      } else if (intendedRedirect) {
-        console.log('[AuthCallback] Mobile deep link not detected or not a gruenerator:// URL:', intendedRedirect);
       }
 
       // Ensure all redirect URLs are absolute
@@ -266,16 +253,10 @@ router.get('/callback',
 
       const redirectTo = absoluteRedirect;
 
-      console.log('[AuthCallback] URL conversion details:');
-      console.log('  - Original intendedRedirect:', intendedRedirect);
-      console.log('  - Base URL:', baseUrl);
-      console.log('  - Final absolute redirect:', redirectTo);
-
       req.session.save((err) => {
         if (err) {
           console.error('[AuthCallback] Error saving session:', err);
         }
-        console.log('[AuthCallback] Redirecting to web URL:', redirectTo);
         return res.redirect(redirectTo);
       });
       
