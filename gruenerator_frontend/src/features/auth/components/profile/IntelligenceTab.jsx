@@ -50,7 +50,7 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
 
     // Available tabs based on features
     const availableTabs = [
-        ...INTELLIGENCE_TABS,
+        ...INTELLIGENCE_TABS.filter(tab => tab.key !== 'wissen'), // Temporarily hide wissen tab
         ...(isMemoryEnabled ? [{ key: 'mem0ry', label: 'Memory' }] : [])
     ];
 
@@ -532,14 +532,15 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                 </div>
                             )}
 
+                            {/* Temporarily commented out - Wissen tab
                             {currentView === 'wissen' && (
-                                <div 
+                                <div
                                     role="tabpanel"
                                     id="wissen-panel"
                                     aria-labelledby="wissen-tab"
                                     tabIndex={-1}
                                 >
-                                <ProfileCard 
+                                <ProfileCard
                                     title="Persönliches Wissen"
                                     headerActions={
                                         <button
@@ -604,6 +605,7 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                 </ProfileCard>
                                 </div>
                             )}
+                            */}
 
                             {currentView === 'mem0ry' && isMemoryEnabled && (
                                 <div 
