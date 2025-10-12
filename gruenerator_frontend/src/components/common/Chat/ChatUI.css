@@ -62,7 +62,7 @@
 }
 
 /* Chat header */
-.editor-chat-header {
+.chat-header {
   padding: 12px 16px;
   background: var(--background-color-alt);
   border-bottom: var(--border-subtle);
@@ -71,10 +71,25 @@
   align-items: center;
 }
 
-.editor-chat-header h3 {
+.chat-header h2,
+.chat-header h3 {
   margin: 0;
-  font-size: 16px;
   color: var(--font-color);
+  font-weight: 600;
+}
+
+.chat-header h2 {
+  font-size: 18px;
+}
+
+.chat-header h3 {
+  font-size: 16px;
+}
+
+.chat-header-content {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-small);
 }
 
 .close-button {
@@ -615,7 +630,11 @@
 }
 
 @media (max-width: 480px) {
-  .editor-chat-header h3 {
+  .chat-header h2 {
+    font-size: 16px;
+  }
+
+  .chat-header h3 {
     font-size: 14px;
   }
 
