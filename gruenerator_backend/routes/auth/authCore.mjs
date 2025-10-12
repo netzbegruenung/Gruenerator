@@ -106,7 +106,7 @@ async function checkSessionHealth(req, res, next) {
 }
 
 // Initiates the login flow - all sources now use OIDC through Keycloak
-router.get('/login', checkSessionHealth, (req, res, next) => {
+router.get('/login', checkSessionHealth, async (req, res, next) => {
   const source = req.query.source;
   const { redirectTo, prompt } = req.query;
 
@@ -127,6 +127,29 @@ router.get('/login', checkSessionHealth, (req, res, next) => {
   // Handle registration requests
   if (prompt === 'register') {
     req.session.isRegistration = true;
+  }
+
+  // Save session to ensure redirectTo and other params are persisted before OAuth flow
+  try {
+    await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('Session save timeout before auth'));
+      }, 3000);
+
+      req.session.save((err) => {
+        clearTimeout(timeout);
+        if (err) {
+          console.error('[Auth Login] Failed to save session before auth:', err);
+          reject(err);
+        } else {
+          console.log('[Auth Login] Session saved successfully before auth');
+          resolve();
+        }
+      });
+    });
+  } catch (error) {
+    console.error('[Auth Login] Session save error:', error);
+    return res.redirect('/auth/error?message=session_storage_unavailable&retry=true');
   }
 
   let options = {
