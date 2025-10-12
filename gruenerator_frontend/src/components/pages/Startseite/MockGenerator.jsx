@@ -5,6 +5,7 @@ import '../../../assets/styles/components/mock-generator.css';
 const MockGenerator = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [showResult, setShowResult] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
   const containerRef = useRef(null);
   const timeoutRef = useRef(null);
   const hasAutoTriggeredRef = useRef(false);
@@ -36,9 +37,14 @@ const MockGenerator = () => {
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          if (entry.isIntersecting && entry.intersectionRatio > 0.35 && !hasAutoTriggeredRef.current) {
-            hasAutoTriggeredRef.current = true;
-            handleGenerate();
+          if (entry.isIntersecting && entry.intersectionRatio > 0.35) {
+            setIsVisible(true);
+            if (!hasAutoTriggeredRef.current) {
+              hasAutoTriggeredRef.current = true;
+              handleGenerate();
+            }
+          } else if (entry.intersectionRatio <= 0.35) {
+            setIsVisible(false);
           }
         });
       },
@@ -55,19 +61,33 @@ const MockGenerator = () => {
   }, [handleGenerate]);
 
   useEffect(() => {
-    if (showResult) {
+    if (showResult && isVisible) {
       const restartTimeout = setTimeout(() => {
         setShowResult(false);
         hasAutoTriggeredRef.current = false;
 
         setTimeout(() => {
-          handleGenerate();
+          if (isVisible) {
+            handleGenerate();
+          }
         }, 600);
       }, 5000);
 
       return () => clearTimeout(restartTimeout);
     }
-  }, [showResult, handleGenerate]);
+  }, [showResult, isVisible, handleGenerate]);
+
+  useEffect(() => {
+    if (!isVisible) {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+      if (isGenerating) {
+        setIsGenerating(false);
+      }
+    }
+  }, [isVisible, isGenerating]);
 
   useEffect(() => () => {
     if (timeoutRef.current) {
