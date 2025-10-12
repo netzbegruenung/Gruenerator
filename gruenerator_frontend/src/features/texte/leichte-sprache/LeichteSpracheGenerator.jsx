@@ -7,7 +7,7 @@ import useApiSubmit from '../../../components/hooks/useApiSubmit';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { HiGlobeAlt, HiShieldCheck } from 'react-icons/hi';
-import { createKnowledgeFormNotice, createKnowledgePrompt } from '../../../utils/knowledgeFormUtils';
+import { createKnowledgeFormNotice } from '../../../utils/knowledgeFormUtils';
 import { useFormFields } from '../../../components/common/Form/hooks';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 import { useGeneratorKnowledgeStore } from '../../../stores/core/generatorKnowledgeStore';
@@ -90,10 +90,11 @@ const LeichteSpracheGenerator = ({ showHeaderFooter = true }) => {
   const {
     source,
     availableKnowledge,
+    selectedKnowledgeIds,
+    selectedDocumentIds,
+    selectedTextIds,
     isInstructionsActive,
     instructions,
-    getKnowledgeContent,
-    getDocumentContent,
     getActiveInstruction,
     groupData: groupDetailsData
   } = useGeneratorKnowledgeStore();
@@ -136,24 +137,17 @@ const LeichteSpracheGenerator = ({ showHeaderFooter = true }) => {
       
       const searchQuery = extractQueryFromFormData(formDataToSubmit);
 
-      // Add knowledge, instructions, and documents
-      const finalPrompt = await createKnowledgePrompt({
-        source,
-        isInstructionsActive,
-        getActiveInstruction,
-        instructionType: 'leichte_sprache',
-        groupDetailsData,
-        getKnowledgeContent,
-        getDocumentContent,
-        memoryOptions: {
-          enableMemories: false, // Not using memories in this context
-          query: searchQuery
-        }
-      });
-      
-      if (finalPrompt) {
-        formDataToSubmit.customPrompt = finalPrompt;
-      }
+      // Get instructions for backend (if active) - backend handles all content extraction
+      const customPrompt = isInstructionsActive && getActiveInstruction
+        ? getActiveInstruction('leichte_sprache')
+        : null;
+
+      // Send only IDs and searchQuery - backend handles all content extraction
+      formDataToSubmit.customPrompt = customPrompt;
+      formDataToSubmit.selectedKnowledgeIds = selectedKnowledgeIds || [];
+      formDataToSubmit.selectedDocumentIds = selectedDocumentIds || [];
+      formDataToSubmit.selectedTextIds = selectedTextIds || [];
+      formDataToSubmit.searchQuery = searchQuery || '';
 
       const response = await submitForm(formDataToSubmit);
       if (response) {
@@ -172,7 +166,7 @@ const LeichteSpracheGenerator = ({ showHeaderFooter = true }) => {
     } finally {
       setStoreIsLoading(false);
     }
-  }, [submitForm, resetSuccess, setGeneratedText, setStoreIsLoading, source, isInstructionsActive, getActiveInstruction, groupDetailsData, getKnowledgeContent, getDocumentContent, processedAttachments, crawledUrls]);
+  }, [submitForm, resetSuccess, setGeneratedText, setStoreIsLoading, isInstructionsActive, getActiveInstruction, processedAttachments, crawledUrls, selectedKnowledgeIds, selectedDocumentIds, selectedTextIds]);
 
   const handleGeneratedContentChange = useCallback((content) => {
     setTranslatedContent(content);

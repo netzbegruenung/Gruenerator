@@ -11,7 +11,7 @@ import { useFormFields } from '../../common/Form/hooks';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 import useKnowledge from '../../hooks/useKnowledge';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
-import { createKnowledgeFormNotice, createKnowledgePrompt } from '../../../utils/knowledgeFormUtils';
+import { createKnowledgeFormNotice } from '../../../utils/knowledgeFormUtils';
 import { useGeneratorKnowledgeStore } from '../../../stores/core/generatorKnowledgeStore';
 import { useAuthStore } from '../../../stores/authStore';
 import { useTabIndex, useBaseFormTabIndex } from '../../../hooks/useTabIndex';
@@ -48,10 +48,11 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }) => {
   const {
     source,
     availableKnowledge,
+    selectedKnowledgeIds,
+    selectedDocumentIds,
+    selectedTextIds,
     isInstructionsActive,
     instructions,
-    getKnowledgeContent,
-    getDocumentContent,
     getActiveInstruction,
     groupData: groupDetailsData
   } = useGeneratorKnowledgeStore();
@@ -157,30 +158,28 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }) => {
         useBedrock: rhfData.useProMode,  // Pro mode flag for backend API
         attachments: allAttachments
       };
-      
-      // Add knowledge, instructions, documents, and memories
-      const finalPrompt = await createKnowledgePrompt({
-        source,
-        isInstructionsActive,
-        getActiveInstruction,
-        instructionType,
-        groupDetailsData,
-        getKnowledgeContent,
-        getDocumentContent,
-        memoryOptions: {
-          enableMemories: memoryEnabled,
-          query: rhfData.thema,
-          generatorType: 'gruenejugend',
-          userId: user?.id
-        }
-      });
-      
-      if (finalPrompt) {
-        formDataToSubmit.customPrompt = finalPrompt;
-        console.log('[GrueneJugendGenerator] Final structured prompt added to formData.', finalPrompt.substring(0,100)+'...');
-      } else {
-        console.log('[GrueneJugendGenerator] No custom instructions or knowledge for generation.');
-      }
+
+      // Extract search query from form data
+      const extractQueryFromFormData = (data) => {
+        const queryParts = [];
+        if (data.thema) queryParts.push(data.thema);
+        if (data.details) queryParts.push(data.details);
+        return queryParts.filter(part => part && part.trim()).join(' ');
+      };
+
+      const searchQuery = extractQueryFromFormData(rhfData);
+
+      // Get instructions for backend (if active) - backend handles all content extraction
+      const customPrompt = isInstructionsActive && getActiveInstruction
+        ? getActiveInstruction(instructionType)
+        : null;
+
+      // Send only IDs and searchQuery - backend handles all content extraction
+      formDataToSubmit.customPrompt = customPrompt;
+      formDataToSubmit.selectedKnowledgeIds = selectedKnowledgeIds || [];
+      formDataToSubmit.selectedDocumentIds = selectedDocumentIds || [];
+      formDataToSubmit.selectedTextIds = selectedTextIds || [];
+      formDataToSubmit.searchQuery = searchQuery || '';
 
       console.log('[GrueneJugendGenerator] Sende Formular mit Daten:', formDataToSubmit);
       const content = await submitForm(formDataToSubmit);
@@ -195,7 +194,7 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }) => {
     } finally {
       setStoreIsLoading(false);
     }
-  }, [submitForm, resetSuccess, setGeneratedText, setStoreIsLoading, source, isInstructionsActive, getActiveInstruction, groupDetailsData, getKnowledgeContent, getDocumentContent, memoryEnabled, user?.id, componentName, processedAttachments, crawledUrls]);
+  }, [submitForm, resetSuccess, setGeneratedText, setStoreIsLoading, isInstructionsActive, getActiveInstruction, componentName, processedAttachments, crawledUrls, selectedKnowledgeIds, selectedDocumentIds, selectedTextIds, instructionType]);
 
   const handleGeneratedContentChange = useCallback((content) => {
     console.log('[GrueneJugendGenerator] Content Change Handler aufgerufen mit:', content?.substring(0, 100) + '...');

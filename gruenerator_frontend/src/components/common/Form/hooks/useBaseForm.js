@@ -5,7 +5,7 @@ import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
 import { useGeneratorKnowledgeStore } from '../../../../stores/core/generatorKnowledgeStore';
 import useKnowledge from '../../../hooks/useKnowledge';
 import { useTabIndex, useBaseFormTabIndex } from '../../../../hooks/useTabIndex';
-import { createKnowledgeFormNotice, createKnowledgePrompt } from '../../../../utils/knowledgeFormUtils';
+import { createKnowledgeFormNotice } from '../../../../utils/knowledgeFormUtils';
 import { prepareFilesForSubmission } from '../../../../utils/fileAttachmentUtils';
 import { HiGlobeAlt, HiShieldCheck } from 'react-icons/hi';
 import { useOptimizedAuth } from '../../../../hooks/useAuth';
@@ -227,7 +227,7 @@ const useBaseForm = ({
     const { setGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
 
     // Knowledge system integration (only if not disabled)
-    let source, availableKnowledge, isInstructionsActive, instructions, getKnowledgeContent, getDocumentContent, getActiveInstruction, groupDetailsData;
+    let source, availableKnowledge, isInstructionsActive, instructions, getActiveInstruction, groupDetailsData;
     let selectedKnowledgeIds, selectedDocumentIds, selectedTextIds;
 
     if (!disableKnowledgeSystem) {
@@ -236,11 +236,9 @@ const useBaseForm = ({
       availableKnowledge = knowledgeStore.availableKnowledge;
       isInstructionsActive = knowledgeStore.isInstructionsActive;
       instructions = knowledgeStore.instructions;
-      getKnowledgeContent = knowledgeStore.getKnowledgeContent;
-      getDocumentContent = knowledgeStore.getDocumentContent;
       getActiveInstruction = knowledgeStore.getActiveInstruction;
       groupDetailsData = knowledgeStore.groupData;
-      // Extract selected IDs for separate backend processing
+      // Extract selected IDs for backend processing - backend handles all content extraction
       selectedKnowledgeIds = knowledgeStore.selectedKnowledgeIds;
       selectedDocumentIds = knowledgeStore.selectedDocumentIds;
       selectedTextIds = knowledgeStore.selectedTextIds;
@@ -250,8 +248,6 @@ const useBaseForm = ({
       availableKnowledge = [];
       isInstructionsActive = false;
       instructions = {};
-      getKnowledgeContent = () => null;
-      getDocumentContent = () => null;
       getActiveInstruction = () => null;
       groupDetailsData = null;
       selectedKnowledgeIds = [];
@@ -379,44 +375,27 @@ const useBaseForm = ({
 
         const searchQuery = extractQueryFromFormData(formDataToSubmit);
 
-        // Get structured knowledge data instead of concatenated prompt
-        const knowledgeData = await createKnowledgePrompt({
-          source,
-          isInstructionsActive,
-          getActiveInstruction,
-          instructionType,
-          groupDetailsData,
-          getKnowledgeContent,
-          getDocumentContent,
-          memoryOptions: {
-            enableMemories: memoryEnabled && generatorType === 'gruene-jugend',
-            query: searchQuery,
-            generatorType,
-            userId: user?.id
-          }
-        });
+        // Get instructions for backend (if active)
+        const customPrompt = isInstructionsActive && getActiveInstruction
+          ? getActiveInstruction(instructionType)
+          : null;
 
-        // Add structured data for backend processing
-        if (knowledgeData) {
-          // Check if we got structured data or legacy concatenated text
-          if (typeof knowledgeData === 'object' && knowledgeData.instructions !== undefined) {
-            // New structured format
-            formDataToSubmit.customPrompt = knowledgeData.instructions;
-            formDataToSubmit.knowledgeContent = knowledgeData.knowledgeContent;
-            formDataToSubmit.selectedKnowledgeIds = selectedKnowledgeIds;
-            formDataToSubmit.selectedDocumentIds = selectedDocumentIds;
-            formDataToSubmit.selectedTextIds = selectedTextIds;
-            formDataToSubmit.searchQuery = searchQuery;
-          } else {
-            // Legacy concatenated text format - keep for backward compatibility
-            formDataToSubmit.customPrompt = knowledgeData;
-          }
-        } else {
-          // No knowledge data, still pass IDs for direct processing
-          formDataToSubmit.selectedKnowledgeIds = selectedKnowledgeIds;
-          formDataToSubmit.selectedDocumentIds = selectedDocumentIds;
-          formDataToSubmit.selectedTextIds = selectedTextIds;
-          formDataToSubmit.searchQuery = searchQuery;
+        // Send only IDs and searchQuery - backend handles all content extraction
+        formDataToSubmit.customPrompt = customPrompt;
+        formDataToSubmit.selectedKnowledgeIds = selectedKnowledgeIds || [];
+        formDataToSubmit.selectedDocumentIds = selectedDocumentIds || [];
+        formDataToSubmit.selectedTextIds = selectedTextIds || [];
+        formDataToSubmit.searchQuery = searchQuery || '';
+
+        // Debug logging
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[useBaseForm] Submitting with IDs:', {
+            selectedKnowledgeIds: formDataToSubmit.selectedKnowledgeIds.length,
+            selectedDocumentIds: formDataToSubmit.selectedDocumentIds.length,
+            selectedTextIds: formDataToSubmit.selectedTextIds.length,
+            hasSearchQuery: Boolean(formDataToSubmit.searchQuery),
+            hasCustomPrompt: Boolean(formDataToSubmit.customPrompt)
+          });
         }
 
         const response = await submitForm(formDataToSubmit);
@@ -434,7 +413,7 @@ const useBaseForm = ({
       } finally {
         setStoreIsLoading(false);
       }
-    }, [submitForm, resetSuccess, setGeneratedText, setStoreIsLoading, source, isInstructionsActive, getActiveInstruction, groupDetailsData, getKnowledgeContent, getDocumentContent, processedAttachments, memoryEnabled, user?.id, componentName, generatorType, instructionType, selectedKnowledgeIds, selectedDocumentIds, selectedTextIds]);
+    }, [submitForm, resetSuccess, setGeneratedText, setStoreIsLoading, isInstructionsActive, getActiveInstruction, processedAttachments, componentName, generatorType, instructionType, selectedKnowledgeIds, selectedDocumentIds, selectedTextIds]);
 
     // Generated content handling
     const generatedContent = useGeneratedTextStore(state => state.getGeneratedText(componentName)) || '';

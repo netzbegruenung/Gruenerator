@@ -13,7 +13,7 @@ import { useSharedContent } from '../../../components/hooks/useSharedContent';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { HiInformationCircle, HiShieldCheck } from 'react-icons/hi';
-import { createKnowledgeFormNotice, createKnowledgePrompt } from '../../../utils/knowledgeFormUtils';
+import { createKnowledgeFormNotice } from '../../../utils/knowledgeFormUtils';
 import { useFormFields } from '../../../components/common/Form/hooks';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 import { useGeneratorKnowledgeStore } from '../../../stores/core/generatorKnowledgeStore';
@@ -178,10 +178,10 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
     source,
     availableKnowledge,
     selectedKnowledgeIds,
+    selectedDocumentIds,
+    selectedTextIds,
     isInstructionsActive,
     instructions,
-    getKnowledgeContent,
-    getDocumentContent,
     getActiveInstruction,
     groupData: groupDetailsData
   } = useGeneratorKnowledgeStore();
@@ -233,24 +233,17 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
       
       const searchQuery = extractQueryFromFormData(formDataToSubmit);
 
-      // Add knowledge, instructions, and documents
-      const finalPrompt = await createKnowledgePrompt({
-        source,
-        isInstructionsActive,
-        getActiveInstruction,
-        instructionType: 'social',
-        groupDetailsData,
-        getKnowledgeContent,
-        getDocumentContent,
-        memoryOptions: {
-          enableMemories: false, // Not using memories in this context
-          query: searchQuery
-        }
-      });
-      
-      if (finalPrompt) {
-        formDataToSubmit.customPrompt = finalPrompt;
-      }
+      // Get instructions for backend (if active) - backend handles all content extraction
+      const customPrompt = isInstructionsActive && getActiveInstruction
+        ? getActiveInstruction('social')
+        : null;
+
+      // Send only IDs and searchQuery - backend handles all content extraction
+      formDataToSubmit.customPrompt = customPrompt;
+      formDataToSubmit.selectedKnowledgeIds = selectedKnowledgeIds || [];
+      formDataToSubmit.selectedDocumentIds = selectedDocumentIds || [];
+      formDataToSubmit.selectedTextIds = selectedTextIds || [];
+      formDataToSubmit.searchQuery = searchQuery || '';
 
       let combinedResults = {};
 
@@ -263,7 +256,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
             uploadedImage,
             rhfData.sharepicType || 'default',
             rhfData.zitatAuthor,
-            finalPrompt, // Pass knowledge prompt to sharepic generation
+            customPrompt, // Pass custom instructions to sharepic generation
             allAttachments, // Include attachments
             rhfData.usePrivacyMode, // Include privacy mode
             null, // provider - will be handled by privacy mode settings
@@ -343,7 +336,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
     } finally {
       setStoreIsLoading(false);
     }
-  }, [submitForm, resetSuccess, setGeneratedText, setStoreIsLoading, source, isInstructionsActive, getActiveInstruction, groupDetailsData, getKnowledgeContent, getDocumentContent, generateSharepic, uploadedImage, processedAttachments, crawledUrls, socialMediaContent]);
+  }, [submitForm, resetSuccess, setGeneratedText, setStoreIsLoading, isInstructionsActive, getActiveInstruction, generateSharepic, uploadedImage, processedAttachments, crawledUrls, socialMediaContent, selectedKnowledgeIds, selectedDocumentIds, selectedTextIds]);
 
   const handleGeneratedContentChange = useCallback((content) => {
     setSocialMediaContent(content);
