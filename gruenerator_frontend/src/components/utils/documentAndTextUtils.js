@@ -169,11 +169,11 @@ export const bulkDeleteQA = async (qaIds) => {
 
         const result = await response.json();
         console.log('[documentAndTextUtils] Bulk delete QA result:', result);
-        
-        return handleBulkOperationResult(result, 'delete', 'Q&A-Sammlungen');
+
+        return handleBulkOperationResult(result, 'delete', 'Notebooks');
     } catch (error) {
         console.error('[documentAndTextUtils] Error in bulk delete QA:', error);
-        throw new Error(formatApiError(error, 'Bulk-Löschen der Q&A-Sammlungen'));
+        throw new Error(formatApiError(error, 'Bulk-Löschen der Notebooks'));
     }
 };
 
