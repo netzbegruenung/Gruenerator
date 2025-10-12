@@ -132,7 +132,7 @@ const standardRoutes = [
   { path: '/suche', component: GrueneratorenBundle.Search, withForm: true },
   { path: '/bundestag', component: GrueneratorenBundle.BundestagSearch, withForm: true },
   { path: '/ask', component: GrueneratorenBundle.Ask, withForm: true },
-  { path: '/ask-grundsatz', component: GrueneratorenBundle.AskGrundsatz, withForm: true },
+  { path: '/gruene-notebook', component: GrueneratorenBundle.AskGrundsatz, withForm: true },
   { path: '/documents/:documentId', component: GrueneratorenBundle.DocumentView },
   { path: '/reel', component: GrueneratorenBundle.Reel },
   { path: '/you', component: GrueneratorenBundle.You, withForm: true },
