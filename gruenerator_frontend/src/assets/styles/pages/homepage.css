@@ -320,7 +320,7 @@
 .feature-visual {
     flex: 1 1 50%;
     width: 50%;
-    min-height: auto;
+    min-height: 400px;
     position: relative;
 }
 
