@@ -355,7 +355,7 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
                 line2: lines[1] || '',
                 line3: lines[2] || ''
               });
-            } else if (data.type === 'quote' || data.type === 'quote_pure') {
+            } else if (data.type === 'zitat' || data.type === 'zitat_pure') {
               // For quotes, extract quote and name from text - handle both formats
               let quote = '';
               let name = '';
