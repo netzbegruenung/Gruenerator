@@ -218,7 +218,6 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
       "Kleine Anfragen: Präzise Fachinformationen punktuell abfragen",
       "Große Anfragen: Umfassende politische Themen mit Debatte",
       "Formuliere deine Idee klar und präzise",
-      "Hänge PDFs oder Bilder als Kontext an (max. 5MB pro Datei)",
       "Nutze die Websuche für aktuelle Informationen"
     ]
   };
