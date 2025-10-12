@@ -4,8 +4,7 @@ import { motion } from 'motion/react';
 import { HiDocumentText, HiChip, HiInformationCircle } from 'react-icons/hi';
 import { NotebookIcon } from '../../config/icons';
 const ReactMarkdown = lazy(() => import('react-markdown'));
-import ChatUI from '../../components/common/Chat/ChatUI';
-import ModeSelector from '../../components/common/Chat/ModeSelector';
+import ChatWorkbenchLayout from '../../components/common/Chat/ChatWorkbenchLayout';
 import useApiSubmit from '../../components/hooks/useApiSubmit';
 import useGeneratedTextStore from '../../stores/core/generatedTextStore';
 import ErrorBoundary from '../../components/ErrorBoundary';
@@ -214,50 +213,6 @@ const AskGrundsatzPage = () => {
     );
   };
 
-  // Custom floating input renderer for chat mode
-  const renderFloatingInput = () => {
-    const handleSubmit = (e) => {
-      e.preventDefault();
-      if (inputValue.trim() && !submitLoading) {
-        handleSubmitQuestion(inputValue.trim());
-      }
-    };
-
-    const handleKeyDown = (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        handleSubmit(e);
-      }
-    };
-
-    return (
-      <form onSubmit={handleSubmit} className="qa-chat-floating-input">
-        <ModeSelector
-          currentMode={mode}
-          modes={modes}
-          onModeChange={handleModeChange}
-          className="qa-chat-mode-selector"
-        />
-        <input
-          type="text"
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Stell deine Frage zu den Grundsatzprogrammen..."
-          disabled={submitLoading}
-          className="qa-floating-input"
-        />
-        <button 
-          type="submit" 
-          disabled={!inputValue.trim() || submitLoading}
-          className="qa-floating-submit"
-        >
-          ➤
-        </button>
-      </form>
-    );
-  };
-
   const renderRightPanel = () => {
     if (!storeGeneratedText) {
       return renderGrundsatzInfo();
@@ -289,109 +244,27 @@ const AskGrundsatzPage = () => {
     );
   };
 
-  const renderDossierMode = () => (
-    <div className="qa-chat-main qa-chat-dossier">
-      <div className="qa-chat-left-panel">
-        <div className="qa-chat-header">
-          <div className="qa-chat-header-content">
-            <h2>Grünes Notebook</h2>
-          </div>
-        </div>
-        
-        <ChatUI
-          messages={chatMessages}
-          onSubmit={handleSubmitQuestion}
-          isProcessing={submitLoading}
-          placeholder="Stell deine Frage zu den Grundsatzprogrammen..."
-          inputValue={inputValue}
-          onInputChange={setInputValue}
-          disabled={submitLoading}
-          className="qa-chat-ui"
-          renderInput={() => (
-            <form
-              className="qa-chat-dossier-input-wrapper"
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (inputValue.trim() && !submitLoading) {
-                  handleSubmitQuestion(inputValue.trim());
-                }
-              }}
-            >
-              <ModeSelector
-                currentMode={mode}
-                modes={modes}
-                onModeChange={handleModeChange}
-                className="qa-chat-mode-selector"
-              />
-              <input
-                type="text"
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    if (inputValue.trim() && !submitLoading) {
-                      handleSubmitQuestion(inputValue.trim());
-                    }
-                  }
-                }}
-                placeholder="Stell deine Frage zu den Grundsatzprogrammen..."
-                disabled={submitLoading}
-              />
-              <button 
-                type="submit" 
-                disabled={!inputValue.trim() || submitLoading}
-              >
-                ➤
-              </button>
-            </form>
-          )}
-        />
-      </div>
-      
-      <div className="qa-chat-right-panel">
-        {renderRightPanel()}
-      </div>
-    </div>
-  );
-
-  const renderChatMode = () => (
-    <div className="qa-chat-main qa-chat-fullscreen">
-      <div className="qa-chat-fullscreen-content">
-        <ChatUI
-          messages={chatMessages}
-          onSubmit={handleSubmitQuestion}
-          isProcessing={submitLoading}
-          placeholder="Stell deine Frage zu den Grundsatzprogrammen..."
-          inputValue={inputValue}
-          onInputChange={setInputValue}
-          disabled={submitLoading}
-          className="qa-chat-ui qa-chat-ui-fullscreen"
-          fullScreen={true}
-          renderMessage={(msg, index) => renderChatMessage(msg, index)}
-          renderInput={() => null} // Hide the default input
-        />
-        
-        {/* Render floating input within the chat container */}
-        {renderFloatingInput()}
-      </div>
-      
-      {/* Render info panel as a persistent element in chat mode */}
-      {renderGrundsatzInfo()}
-    </div>
-  );
-
   return (
     <ErrorBoundary>
-      <motion.div 
-        className={`qa-chat-container qa-chat-${mode}`}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.3 }}
-      >
-        <CitationModal />
-        {mode === 'dossier' ? renderDossierMode() : renderChatMode()}
-      </motion.div>
+      <CitationModal />
+      <ChatWorkbenchLayout
+        mode={mode}
+        modes={modes}
+        onModeChange={handleModeChange}
+        title="Grünes Notebook"
+        messages={chatMessages}
+        onSubmit={handleSubmitQuestion}
+        isProcessing={submitLoading}
+        placeholder="Stell deine Frage zu den Grundsatzprogrammen..."
+        inputValue={inputValue}
+        onInputChange={setInputValue}
+        disabled={submitLoading}
+        renderMessage={renderChatMessage}
+        rightPanelContent={renderRightPanel()}
+        infoPanelContent={renderGrundsatzInfo()}
+        enableVoiceInput={true}
+        hideHeader={true}
+      />
     </ErrorBoundary>
   );
 };
