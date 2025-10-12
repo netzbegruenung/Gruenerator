@@ -71,8 +71,8 @@ const BulkDeleteConfirmModal = ({
       'documents': 'Dokumente',
       'text': 'Text',
       'texts': 'Texte',
-      'qa': 'Q&A-Sammlung',
-      'qas': 'Q&A-Sammlungen',
+      'qa': 'Notebook',
+      'qas': 'Notebooks',
       'template': 'Vorlage',
       'templates': 'Vorlagen'
     };
