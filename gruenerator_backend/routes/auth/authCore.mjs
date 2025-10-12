@@ -66,8 +66,47 @@ router.get('/test', (req, res) => {
   });
 });
 
+// Session health check middleware
+async function checkSessionHealth(req, res, next) {
+  try {
+    // Test session storage by attempting a write and read
+    const testKey = '_session_health_test';
+    const testValue = Date.now().toString();
+
+    req.session[testKey] = testValue;
+
+    // Save and verify
+    await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('Session health check timeout'));
+      }, 3000);
+
+      req.session.save((err) => {
+        clearTimeout(timeout);
+        if (err) {
+          reject(err);
+        } else {
+          // Verify the value was saved
+          if (req.session[testKey] === testValue) {
+            delete req.session[testKey];
+            resolve();
+          } else {
+            reject(new Error('Session verification failed'));
+          }
+        }
+      });
+    });
+
+    console.log('[Auth] Session health check passed');
+    next();
+  } catch (error) {
+    console.error('[Auth] Session health check failed:', error);
+    return res.redirect('/auth/error?message=session_storage_unavailable&retry=true');
+  }
+}
+
 // Initiates the login flow - all sources now use OIDC through Keycloak
-router.get('/login', (req, res, next) => {
+router.get('/login', checkSessionHealth, (req, res, next) => {
   const source = req.query.source;
   const { redirectTo, prompt } = req.query;
 
@@ -254,11 +293,15 @@ router.get('/status-test', (req, res) => {
 
 // Error handling route
 router.get('/error', (req, res) => {
-  const errorMessage = req.query.message || 'An unspecified error occurred during authentication.';
+  const errorCode = req.query.message || 'unknown_error';
+  const correlationId = req.query.correlationId || 'N/A';
   const keycloakError = req.session?.messages?.slice(-1)[0];
   if (req.session?.messages) delete req.session.messages;
 
-  res.status(401).send(`Authentication Error: ${errorMessage}${keycloakError ? ` - Details: ${keycloakError}` : ''}`);
+  console.error(`[Auth Error] Code: ${errorCode}, Correlation: ${correlationId}, Keycloak: ${keycloakError || 'none'}`);
+
+  const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
+  res.status(401).send(`Authentication Error: ${errorCode}. Please try again or contact support with correlation ID: ${correlationId}`);
 });
 
 // Logout
