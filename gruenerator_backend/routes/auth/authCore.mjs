@@ -97,7 +97,6 @@ async function checkSessionHealth(req, res, next) {
       });
     });
 
-    console.log('[Auth] Session health check passed');
     next();
   } catch (error) {
     console.error('[Auth] Session health check failed:', error);
@@ -106,17 +105,13 @@ async function checkSessionHealth(req, res, next) {
 }
 
 // Initiates the login flow - all sources now use OIDC through Keycloak
-router.get('/login', checkSessionHealth, (req, res, next) => {
+router.get('/login', checkSessionHealth, async (req, res, next) => {
   const source = req.query.source;
   const { redirectTo, prompt } = req.query;
 
   // Store redirect URL in session for all login types
   if (redirectTo) {
     req.session.redirectTo = redirectTo;
-    console.log('[Auth Login] Storing redirectTo in session:', redirectTo);
-    console.log('[Auth Login] Session ID:', req.sessionID);
-  } else {
-    console.log('[Auth Login] No redirectTo parameter provided');
   }
 
   // Store source preference for callback handling
@@ -127,6 +122,28 @@ router.get('/login', checkSessionHealth, (req, res, next) => {
   // Handle registration requests
   if (prompt === 'register') {
     req.session.isRegistration = true;
+  }
+
+  // Save session to ensure redirectTo and other params are persisted before OAuth flow
+  try {
+    await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('Session save timeout before auth'));
+      }, 3000);
+
+      req.session.save((err) => {
+        clearTimeout(timeout);
+        if (err) {
+          console.error('[Auth Login] Failed to save session before auth:', err);
+          reject(err);
+        } else {
+          resolve();
+        }
+      });
+    });
+  } catch (error) {
+    console.error('[Auth Login] Session save error:', error);
+    return res.redirect('/auth/error?message=session_storage_unavailable&retry=true');
   }
 
   let options = {
@@ -167,9 +184,6 @@ router.get('/callback',
     try {
       // Get redirectTo from user object (survives session regeneration) or fallback to session
       const intendedRedirect = req.user?._redirectTo || req.session.redirectTo;
-      console.log('[AuthCallback] Session ID:', req.sessionID);
-      console.log('[AuthCallback] Intended redirect from session:', intendedRedirect);
-      console.log('[AuthCallback] Session contents:', Object.keys(req.session || {}).join(', '));
 
       // Clean up
       if (req.user && req.user._redirectTo) {
@@ -182,7 +196,6 @@ router.get('/callback',
       // If redirect target is an allowed mobile deep link, issue a short-lived login_code
       if (intendedRedirect && isAllowedMobileRedirect(intendedRedirect)) {
         try {
-          console.log('[AuthCallback] Mobile deep link allowed. Creating login_code...');
           const { SignJWT } = await import('jose');
           const { randomUUID } = await import('crypto');
           const secret = new TextEncoder().encode(
@@ -209,7 +222,6 @@ router.get('/callback',
               console.error('[AuthCallback] Error saving session (mobile deep link):', err);
             }
             const redirectWithCode = appendQueryParam(intendedRedirect, 'code', code);
-            console.log('[AuthCallback] Redirecting to mobile deep link:', redirectWithCode);
             return res.redirect(redirectWithCode);
           });
           return; // Stop further processing
@@ -217,8 +229,6 @@ router.get('/callback',
           console.error('[AuthCallback] Failed to create login_code for mobile redirect:', e);
           // fall through to normal redirect
         }
-      } else if (intendedRedirect) {
-        console.log('[AuthCallback] Mobile deep link not detected or not a gruenerator:// URL:', intendedRedirect);
       }
 
       // Ensure all redirect URLs are absolute
@@ -243,16 +253,10 @@ router.get('/callback',
 
       const redirectTo = absoluteRedirect;
 
-      console.log('[AuthCallback] URL conversion details:');
-      console.log('  - Original intendedRedirect:', intendedRedirect);
-      console.log('  - Base URL:', baseUrl);
-      console.log('  - Final absolute redirect:', redirectTo);
-
       req.session.save((err) => {
         if (err) {
           console.error('[AuthCallback] Error saving session:', err);
         }
-        console.log('[AuthCallback] Redirecting to web URL:', redirectTo);
         return res.redirect(redirectTo);
       });
       
