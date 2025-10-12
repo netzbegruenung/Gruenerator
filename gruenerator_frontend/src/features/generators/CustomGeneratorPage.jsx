@@ -63,7 +63,8 @@ const CustomGeneratorPage = ({ showHeaderFooter = true }) => {
     instructionType: 'custom_generator',
     tabIndexKey: 'CUSTOM_GENERATOR',
     helpContent: helpContent,
-    useFeatureIcons: false
+    useFeatureIcons: false,
+    disableKnowledgeSystem: true
   });
 
   // Reset form when generator config changes
