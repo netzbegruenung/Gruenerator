@@ -47,19 +47,25 @@ setInterval(() => {
 }, 60 * 60 * 1000);
 
 function requireAuth(req, res, next) {
+  // SECURITY: Fail-fast if dev bypass is enabled in production
   if (process.env.NODE_ENV === 'production' && process.env.ALLOW_DEV_AUTH_BYPASS === 'true') {
-    console.error('[SECURITY ALERT] Dev auth bypass attempted in PRODUCTION - blocking request');
-    return res.status(403).json({ error: 'Forbidden' });
+    console.error('[CRITICAL SECURITY ALERT] Dev auth bypass is enabled in PRODUCTION environment - this is a critical security vulnerability!');
+    console.error('[CRITICAL SECURITY ALERT] Blocking all requests. Set ALLOW_DEV_AUTH_BYPASS=false immediately!');
+    return res.status(500).json({
+      error: 'Critical security misconfiguration detected',
+      message: 'Contact system administrator immediately'
+    });
   }
 
+  // Development-only auth bypass (requires explicit token)
   if (process.env.NODE_ENV === 'development' &&
-      process.env.NODE_ENV !== 'production' && // Double check
       process.env.ALLOW_DEV_AUTH_BYPASS === 'true' &&
       process.env.DEV_AUTH_BYPASS_TOKEN) {
 
     const bypassToken = req.headers['x-dev-auth-bypass'] || req.query.dev_auth_token;
 
     if (bypassToken && bypassToken === process.env.DEV_AUTH_BYPASS_TOKEN) {
+      console.warn('[Auth] DEV AUTH BYPASS USED - Development only!');
       req.user = {
         id: 'dev-user-123',
         email: 'dev@gruenerator.de',
