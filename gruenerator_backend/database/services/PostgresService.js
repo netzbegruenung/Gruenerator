@@ -58,6 +58,10 @@ class PostgresService {
         this.healthStatus = 'initializing';
         this.lastError = null;
         this.initPromise = null;
+
+        // Security: Schema validation cache for SQL injection prevention
+        this.schemaCache = null;
+        this.schemaValidationEnabled = true;
     }
 
     getSafeConfigForLog() {
@@ -122,6 +126,74 @@ class PostgresService {
     async retryInit() {
         console.log('[PostgresService] Retrying database initialization...');
         await this.init();
+    }
+
+    /**
+     * Initialize schema validation from schema.sql file
+     * This builds a whitelist of valid tables and columns for SQL injection prevention
+     */
+    initSchemaValidation() {
+        try {
+            const schemaPath = path.join(__dirname, '../postgres/schema.sql');
+
+            if (!fs.existsSync(schemaPath)) {
+                console.warn('[PostgresService] Schema file not found, schema validation disabled');
+                this.schemaValidationEnabled = false;
+                return;
+            }
+
+            const schemaContent = fs.readFileSync(schemaPath, 'utf8');
+            this.schemaCache = this.parseSchemaFile(schemaContent);
+
+            console.log(`[PostgresService] Schema validation initialized with ${Object.keys(this.schemaCache).length} tables`);
+        } catch (error) {
+            console.error('[PostgresService] Failed to initialize schema validation:', error.message);
+            this.schemaValidationEnabled = false;
+        }
+    }
+
+    /**
+     * Validate table name against schema whitelist
+     * @throws {Error} if table name is invalid
+     */
+    validateTableName(tableName) {
+        if (!this.schemaValidationEnabled) {
+            return; // Validation disabled
+        }
+
+        if (!this.schemaCache) {
+            this.initSchemaValidation();
+        }
+
+        // Check against whitelist
+        if (!this.schemaCache || !this.schemaCache[tableName]) {
+            throw new Error(`Invalid table name: ${tableName}. Table not found in schema.`);
+        }
+    }
+
+    /**
+     * Validate column names against schema whitelist for a given table
+     * @throws {Error} if any column name is invalid
+     */
+    validateColumnNames(tableName, columnNames) {
+        if (!this.schemaValidationEnabled) {
+            return; // Validation disabled
+        }
+
+        if (!this.schemaCache) {
+            this.initSchemaValidation();
+        }
+
+        // First validate table exists
+        this.validateTableName(tableName);
+
+        const validColumns = this.schemaCache[tableName].map(col => col.name);
+
+        for (const columnName of columnNames) {
+            if (!validColumns.includes(columnName)) {
+                throw new Error(`Invalid column name: ${columnName} for table ${tableName}. Column not found in schema.`);
+            }
+        }
     }
 
     /**
@@ -215,16 +287,17 @@ class PostgresService {
             const lines = columnSection.split('\n').map(line => line.trim()).filter(line => line);
 
             for (const line of lines) {
-                if (line.startsWith('--') || 
-                    line.includes('CONSTRAINT') || 
-                    line.includes('UNIQUE(') ||
-                    line.includes('REFERENCES') ||
-                    line.includes('CHECK(') ||
-                    line.includes('PRIMARY KEY') ||
-                    line.includes('FOREIGN KEY')) {
+                // Skip comment lines and table-level constraints (but not column-level constraints)
+                if (line.startsWith('--') ||
+                    line.startsWith('CONSTRAINT') ||
+                    line.startsWith('UNIQUE(') ||
+                    line.startsWith('CHECK(') ||
+                    line.startsWith('PRIMARY KEY(') ||  // Table-level primary key
+                    line.startsWith('FOREIGN KEY')) {
                     continue;
                 }
 
+                // Match column definitions (including inline PRIMARY KEY, REFERENCES, etc.)
                 const columnMatch = line.match(/^([a-zA-Z_]\w*)\s+([A-Z]+(?:\([^)]+\))?(?:\s*\[\])?)\s*(.*?)(?:,\s*)?$/);
                 if (columnMatch) {
                     const [, columnName, dataType, constraints] = columnMatch;
@@ -603,7 +676,11 @@ class PostgresService {
      * Insert a record into a table
      */
     async insert(table, data) {
+        // Security: Validate table and column names against schema
+        this.validateTableName(table);
         const columns = Object.keys(data);
+        this.validateColumnNames(table, columns);
+
         const values = Object.values(data);
         const placeholders = values.map((_, index) => `$${index + 1}`);
 
@@ -626,9 +703,15 @@ class PostgresService {
      * Update records in a table
      */
     async update(table, data, whereConditions) {
-        const setClause = Object.keys(data).map((key, index) => `${key} = $${index + 1}`);
-        const whereClause = Object.keys(whereConditions).map((key, index) =>
-            `${key} = $${Object.keys(data).length + index + 1}`
+        // Security: Validate table and column names against schema
+        this.validateTableName(table);
+        const dataColumns = Object.keys(data);
+        const whereColumns = Object.keys(whereConditions);
+        this.validateColumnNames(table, [...dataColumns, ...whereColumns]);
+
+        const setClause = dataColumns.map((key, index) => `${key} = $${index + 1}`);
+        const whereClause = whereColumns.map((key, index) =>
+            `${key} = $${dataColumns.length + index + 1}`
         );
 
         const sql = `
@@ -656,8 +739,13 @@ class PostgresService {
      * Delete records from a table
      */
     async delete(table, whereConditions) {
-        const whereClause = Object.keys(whereConditions).map((key, index) => `${key} = $${index + 1}`);
-        
+        // Security: Validate table and column names against schema
+        this.validateTableName(table);
+        const whereColumns = Object.keys(whereConditions);
+        this.validateColumnNames(table, whereColumns);
+
+        const whereClause = whereColumns.map((key, index) => `${key} = $${index + 1}`);
+
         const sql = `DELETE FROM ${table} WHERE ${whereClause.join(' AND ')} RETURNING *`;
         const values = Object.values(whereConditions);
 
@@ -674,7 +762,11 @@ class PostgresService {
      * Upsert (INSERT ... ON CONFLICT UPDATE) a record
      */
     async upsert(table, data, conflictColumns = ['id']) {
+        // Security: Validate table and column names against schema
+        this.validateTableName(table);
         const columns = Object.keys(data);
+        this.validateColumnNames(table, [...columns, ...conflictColumns]);
+
         const values = Object.values(data);
         const placeholders = values.map((_, index) => `$${index + 1}`);
 
@@ -704,7 +796,11 @@ class PostgresService {
     async bulkInsert(table, records) {
         if (!records.length) return [];
 
+        // Security: Validate table and column names against schema
+        this.validateTableName(table);
         const columns = Object.keys(records[0]);
+        this.validateColumnNames(table, columns);
+
         const valuesClause = records.map((_, recordIndex) => {
             const placeholders = columns.map((_, colIndex) =>
                 `$${recordIndex * columns.length + colIndex + 1}`
