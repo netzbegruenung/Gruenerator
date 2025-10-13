@@ -286,6 +286,9 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
                 return typeMap[type] || type;
               };
 
+              const mappedType = mapTypeForEditor(data.type);
+              console.log('[Sharepicgenerator] Type mapping:', data.type, '→', mappedType);
+
               // Fetch image from backend if imageSessionId is provided
               let imageData = data.image; // fallback to stored image (final generated image)
               let originalImageData = null; // original background image for modifications
@@ -331,8 +334,9 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
               }
 
               // Load the sharepic data into the store
+              console.log('[Sharepicgenerator] Setting type in store:', mappedType);
               updateFormData({
-                type: mapTypeForEditor(data.type),
+                type: mappedType,
                 currentStep: FORM_STEPS.RESULT,
                 generatedImageSrc: imageData, // Display the generated image
                 uploadedImage: imageBlob, // Use original background for modifications
