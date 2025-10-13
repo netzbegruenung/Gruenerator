@@ -395,7 +395,6 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
       }
 
       // Store minimal data in sessionStorage for cross-tab access
-      console.log('[PresseSocial] Storing sharepic type:', sharepicData.type);
       const sessionData = {
         text: sharepicData.text,
         type: sharepicData.type,
