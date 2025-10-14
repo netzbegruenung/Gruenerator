@@ -208,10 +208,36 @@ if (cluster.isMaster) {
 
   // Security: Reduced request size limits to prevent DoS attacks
   // Specific upload routes (video, images) use multer with their own limits
-  app.use(express.json({limit: '10mb'}));
-  app.use(express.raw({limit: '10mb'}));
-  app.use(bodyParser.json({ limit: '10mb' }));
-  app.use(bodyParser.urlencoded({ limit: '10mb', extended: true }));
+  // IMPORTANT: Exclude TUS upload paths from body parsing (TUS handles streaming itself with 500MB limit)
+  const skipBodyParserForTUS = (req) => req.path.startsWith('/api/subtitler/upload');
+
+  app.use((req, res, next) => {
+    if (skipBodyParserForTUS(req)) {
+      return next();
+    }
+    express.json({limit: '10mb'})(req, res, next);
+  });
+
+  app.use((req, res, next) => {
+    if (skipBodyParserForTUS(req)) {
+      return next();
+    }
+    express.raw({limit: '10mb'})(req, res, next);
+  });
+
+  app.use((req, res, next) => {
+    if (skipBodyParserForTUS(req)) {
+      return next();
+    }
+    bodyParser.json({ limit: '10mb' })(req, res, next);
+  });
+
+  app.use((req, res, next) => {
+    if (skipBodyParserForTUS(req)) {
+      return next();
+    }
+    bodyParser.urlencoded({ limit: '10mb', extended: true })(req, res, next);
+  });
 
   app.use((req, res, next) => {
     res.setTimeout(900000); // 15 Minuten
