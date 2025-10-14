@@ -87,6 +87,18 @@ test-results/
 /test/
 /tests/
 test_*.js
+test_*.mjs
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Analysis and temporary documentation
+*_analysis.md
+
+# Migration files (temporary)
+add_*.js
 
 mem0_service/
 services/mem0Service.js
