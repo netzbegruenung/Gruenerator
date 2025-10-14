@@ -99,3 +99,8 @@ AGENTS.md
 
 # Storage files (crawler and queue data)
 gruenerator_backend/storage/
+
+# Root-level test and migration files
+test_*.js
+add_*.sql
+*.sql
