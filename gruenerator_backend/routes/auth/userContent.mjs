@@ -88,20 +88,31 @@ router.get('/instructions-status/:instructionType', ensureAuthenticated, async (
       antrag: ['custom_antrag_prompt'],
       social: ['custom_social_prompt']
     };
-    
+
     // Only check groups for instruction types that support group instructions
     if (groupIds.length > 0 && ['antrag', 'social'].includes(instructionType)) {
-      
+
       const groupFieldsToCheck = groupFieldMapping[instructionType];
-      
+
       if (groupFieldsToCheck && groupIds.length > 0) {
         try {
-          const groupInstructions = await postgres.query(
-            `SELECT group_id, ${groupFieldsToCheck.join(', ')} FROM group_instructions WHERE group_id = ANY($1) AND is_active = true`,
-            [groupIds],
-            { table: 'group_instructions' }
-          );
-          
+          // Security: Use explicit column selection to prevent SQL injection
+          // Never use dynamic column names in queries
+          let groupInstructions;
+          if (instructionType === 'antrag') {
+            groupInstructions = await postgres.query(
+              'SELECT group_id, custom_antrag_prompt FROM group_instructions WHERE group_id = ANY($1) AND is_active = true',
+              [groupIds],
+              { table: 'group_instructions' }
+            );
+          } else if (instructionType === 'social') {
+            groupInstructions = await postgres.query(
+              'SELECT group_id, custom_social_prompt FROM group_instructions WHERE group_id = ANY($1) AND is_active = true',
+              [groupIds],
+              { table: 'group_instructions' }
+            );
+          }
+
           // Filter groups that have instructions for this type
           groupsWithInstructions = groupInstructions
             ?.filter(group => {
