@@ -99,6 +99,10 @@ test_*.mjs
 
 # Migration files (temporary)
 add_*.js
+run_migration.js
+
+# Security documentation (temporary)
+SECURITY_FIXES.md
 
 mem0_service/
 services/mem0Service.js
