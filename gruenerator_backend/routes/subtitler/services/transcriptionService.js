@@ -1,9 +1,7 @@
 const path = require('path');
 const fs = require('fs').promises;
 const fsSync = require('fs');
-// const { nodewhisper } = require('nodejs-whisper'); // Commented out - module not installed
-const mistralVoiceService = require('../../voice/mistralVoiceService');
-const { transcribeWithAssemblyAI, checkServiceHealth } = require('./assemblyAIService');
+const { transcribeWithAssemblyAI } = require('./assemblyAIService');
 const { extractAudio } = require('./videoUploadService');
 // UNUSED: Short subtitle generator service commented out - only manual mode is used
 // const { generateShortSubtitlesViaAI } = require('./shortSubtitleGeneratorService');
@@ -11,135 +9,23 @@ const { generateManualSubtitles } = require('./manualSubtitleGeneratorService');
 const { generateWordHighlightSubtitles } = require('./wordHighlightSubtitleService');
 const { startBackgroundCompression } = require('./backgroundCompressionService');
 
-// Configuration for transcription provider
-const TRANSCRIPTION_PROVIDER = process.env.TRANSCRIPTION_PROVIDER || 'mistral';
-
 /**
- * Transcribe audio using the configured provider with fallback support
+ * Transcribe audio using AssemblyAI (ONLY provider - provides word timestamps)
  * @param {string} audioPath - Path to audio file
  * @param {boolean} requestWordTimestamps - Whether to request word timestamps
  * @returns {Promise<Object>} - Transcription result in consistent format
  */
 async function transcribeWithProvider(audioPath, requestWordTimestamps = false) {
-    console.log(`[transcriptionService] Using transcription provider: ${TRANSCRIPTION_PROVIDER}`);
+    console.log('[transcriptionService] Using AssemblyAI EU provider');
 
-    if (TRANSCRIPTION_PROVIDER === 'assemblyai') {
-        try {
-            // Check if AssemblyAI service is available
-            const isHealthy = await checkServiceHealth();
-            if (!isHealthy) {
-                console.warn('[transcriptionService] AssemblyAI service health check failed, falling back to Mistral');
-                return await transcribeWithMistral(audioPath, requestWordTimestamps);
-            }
-
-            console.log('[transcriptionService] Using AssemblyAI EU provider');
-            return await transcribeWithAssemblyAI(audioPath, requestWordTimestamps);
-
-        } catch (assemblyAIError) {
-            console.error('[transcriptionService] AssemblyAI failed, falling back to Mistral:', assemblyAIError.message);
-            console.log('[transcriptionService] Attempting Mistral fallback...');
-
-            try {
-                return await transcribeWithMistral(audioPath, requestWordTimestamps);
-            } catch (mistralError) {
-                console.error('[transcriptionService] Both AssemblyAI and Mistral failed');
-                throw new Error(`Transcription failed: AssemblyAI (${assemblyAIError.message}), Mistral fallback (${mistralError.message})`);
-            }
-        }
-    } else {
-        // Default to Mistral
-        console.log('[transcriptionService] Using Mistral provider');
-        return await transcribeWithMistral(audioPath, requestWordTimestamps);
-    }
-}
-
-/**
- * Transcribe audio using Mistral Voxtral
- * @param {string} audioPath - Path to audio file
- * @param {boolean} requestWordTimestamps - Whether to request word timestamps
- * @returns {Promise<Object>} - Transcription result in consistent format
- */
-async function transcribeWithMistral(audioPath, requestWordTimestamps = false) {
     try {
-        // Read the audio file
-        const audioBuffer = await fs.readFile(audioPath);
-        const filename = path.basename(audioPath);
-
-        const options = {
-            language: 'de',
-            timestamp_granularities: requestWordTimestamps ? ['segment'] : undefined
-        };
-
-        const result = await mistralVoiceService.transcribeFromBuffer(audioBuffer, filename, options);
-
-        // Convert to format expected by subtitle generators
-        if (requestWordTimestamps) {
-            // For word timestamps, we need to simulate the OpenAI format
-            // Since Mistral doesn't provide word-level timestamps, we'll use segments
-            return {
-                text: result.text,
-                words: result.segments ? convertSegmentsToWords(result.segments, result.text) : []
-            };
-        } else {
-            return {
-                text: result.segments ? formatSegmentsToText(result.segments) : result.text
-            };
-        }
+        return await transcribeWithAssemblyAI(audioPath, requestWordTimestamps);
     } catch (error) {
-        console.error('[transcriptionService] Mistral transcription error:', error);
-        throw error;
+        console.error('[transcriptionService] AssemblyAI transcription failed:', error.message);
+        throw new Error(`Transcription failed - AssemblyAI is required for word timestamps: ${error.message}`);
     }
 }
 
-/**
- * Convert Mistral segments to word-like format for compatibility
- */
-function convertSegmentsToWords(segments, fullText) {
-    const words = [];
-
-    segments.forEach(segment => {
-        const segmentWords = segment.text.trim().split(/\s+/);
-        const segmentDuration = segment.end - segment.start;
-        const wordDuration = segmentDuration / segmentWords.length;
-
-        segmentWords.forEach((word, index) => {
-            words.push({
-                word: word,
-                start: segment.start + (index * wordDuration),
-                end: segment.start + ((index + 1) * wordDuration)
-            });
-        });
-    });
-
-    return words;
-}
-
-/**
- * Format segments to text (replaces OpenAI formatSegmentsToText)
- */
-function formatSegmentsToText(segments) {
-    if (!Array.isArray(segments)) {
-        console.error('[transcriptionService] Invalid segments data for formatting:', segments);
-        return '';
-    }
-
-    return segments
-        .map(segment => {
-            if (typeof segment.start !== 'number' || typeof segment.end !== 'number' || typeof segment.text !== 'string') {
-                console.warn('[transcriptionService] Skipping invalid segment during formatting:', segment);
-                return null;
-            }
-
-            const startMinutes = Math.floor(segment.start / 60);
-            const startSeconds = Math.floor(segment.start % 60);
-            const endMinutes = Math.floor(segment.end / 60);
-            const endSeconds = Math.floor(segment.end % 60);
-
-            return `${startMinutes}:${String(startSeconds).padStart(2, '0')} - ${endMinutes}:${String(endSeconds).padStart(2, '0')}\n${segment.text.trim()}`;
-        })
-        .filter(Boolean)
-        .join('\n\n');
-}
 
 // UNUSED: parseTimestamp function commented out - only manual mode is used
 /*
