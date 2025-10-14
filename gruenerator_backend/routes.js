@@ -93,7 +93,8 @@ async function setupRoutes(app) {
   const { default: userGroups } = await import('./routes/auth/userGroups.mjs');
   const { default: userCustomGenerators } = await import('./routes/auth/userCustomGenerators.mjs');
   const { default: userTemplates } = await import('./routes/auth/userTemplates.mjs');
-  const { default: mobileAuthRoutes } = await import('./routes/auth/mobile.mjs');
+  // MOBILE AUTH DISABLED
+  // const { default: mobileAuthRoutes } = await import('./routes/auth/mobile.mjs');
   const { default: documentsRouter } = await import('./routes/documents.mjs');
   const { default: bundestagRouter } = await import('./routes/bundestag.mjs');
   
@@ -131,7 +132,8 @@ async function setupRoutes(app) {
   app.use('/api/auth', userGroups);
   app.use('/api/auth', userCustomGenerators);
   app.use('/api/auth', userTemplates);
-  app.use('/api/auth/mobile', mobileAuthRoutes);
+  // MOBILE AUTH DISABLED
+  // app.use('/api/auth/mobile', mobileAuthRoutes);
   app.use('/api/auth/qa-collections', qaCollectionsRouter);
   app.use('/api/auth/qa', qaInteractionRouter);
   app.use('/api/documents', documentsRouter);
