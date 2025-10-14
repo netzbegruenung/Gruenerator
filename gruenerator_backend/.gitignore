@@ -86,6 +86,7 @@ test-results/
 
 /test/
 /tests/
+test_*.js
 
 mem0_service/
 services/mem0Service.js
