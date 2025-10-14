@@ -82,6 +82,7 @@ scripts/
 
 # Documentation (local development)
 docs/
+!gruenerator_backend/docs/
 
 # Backup files
 backup/
