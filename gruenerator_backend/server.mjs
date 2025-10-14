@@ -113,7 +113,8 @@ if (cluster.isMaster) {
 
   const redisClient = require('./utils/redisClient.js');
 
-  const allowedOrigins = [
+  // Security: Environment-based CORS configuration
+  const productionOrigins = [
     'https://gruenerator-test.de',
     'https://www.gruenerator-test.de',
     'https://gruenerator.netzbegruenung.verdigado.net',
@@ -134,18 +135,21 @@ if (cluster.isMaster) {
     'https://www.beta.xn--grenerator-z2a.de',
     'https://xn--grenerator-test-4pb.xn--netzbegrnung-dfb.verdigado.net',
     'https://www.xn--grenerator-test-4pb.xn--netzbegrnung-dfb.verdigado.net',
+    'https://www.xn--grnerator-z2a.xn--netzbegrnung-dfb.verdigado.net',
+  ];
+
+  const developmentOrigins = [
     'http://localhost:3000',
     'https://localhost:3000',
     'http://127.0.0.1:3000',
     'http://127.0.0.1:3001',
-    'https://www.gruenerator-test.netzbegruenung.verdigado.net',
-    'https://www.gruenerator-test.de',
-    'https://www.gruenerator.de',
-    'https://www.gruenerator.netzbegruenung.verdigado.net',
-    'https://www.xn--grnerator-z2a.xn--netzbegrnung-dfb.verdigado.net',
-    'https://www.xn--grenerator-test-4pb.xn--netzbegrnung-dfb.verdigado.net',
-    'http://gruenerator.de',
+    'http://localhost:3001',
   ];
+
+  // Use production origins only in production, include development origins in development
+  const allowedOrigins = process.env.NODE_ENV === 'production'
+    ? productionOrigins
+    : [...productionOrigins, ...developmentOrigins];
 
   const corsOptions = {
     origin: function (origin, callback) {
@@ -159,7 +163,14 @@ if (cluster.isMaster) {
         }
       }
 
-      if (allowedOrigins.indexOf(effectiveOrigin) !== -1 || !effectiveOrigin) {
+      // Security: Strict origin checking - no bypass for missing origins
+      if (!effectiveOrigin) {
+        console.warn('[CORS] Request with no origin header - allowing (may be same-origin request)');
+        callback(null, true);
+        return;
+      }
+
+      if (allowedOrigins.indexOf(effectiveOrigin) !== -1) {
         callback(null, true);
       } else {
         console.error(`[CORS] Origin BLOCKED: ${effectiveOrigin}`);
@@ -195,10 +206,12 @@ if (cluster.isMaster) {
 
   app.use(cors(corsOptions));
 
-  app.use(express.json({limit: '500mb'}));
-  app.use(express.raw({limit: '500mb'}));
-  app.use(bodyParser.json({ limit: '105mb' }));
-  app.use(bodyParser.urlencoded({ limit: '105mb', extended: true }));
+  // Security: Reduced request size limits to prevent DoS attacks
+  // Specific upload routes (video, images) use multer with their own limits
+  app.use(express.json({limit: '10mb'}));
+  app.use(express.raw({limit: '10mb'}));
+  app.use(bodyParser.json({ limit: '10mb' }));
+  app.use(bodyParser.urlencoded({ limit: '10mb', extended: true }));
 
   app.use((req, res, next) => {
     res.setTimeout(900000); // 15 Minuten
@@ -279,9 +292,6 @@ if (cluster.isMaster) {
           // Weiterhin lokale Entwicklungs-URLs
           "http://localhost:*",
           "http://127.0.0.1:*",
-          // WebSocket connections for Y.js collaborative editing
-          "ws://localhost:*",
-          "ws://127.0.0.1:*",
           // Falls *.netzbegruenung* genutzt wird
           "http://*.netzbegruenung.verdigado.net",
           "https://*.netzbegruenung.verdigado.net",

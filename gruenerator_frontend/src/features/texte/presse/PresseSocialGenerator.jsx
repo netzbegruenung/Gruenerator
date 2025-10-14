@@ -393,7 +393,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
           console.warn('[PresseSocialGenerator] Failed to store image in backend:', imageUploadError);
         }
       }
-      
+
       // Store minimal data in sessionStorage for cross-tab access
       const sessionData = {
         text: sharepicData.text,
