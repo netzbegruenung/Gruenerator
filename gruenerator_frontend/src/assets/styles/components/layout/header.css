@@ -157,6 +157,24 @@
     position: relative; /* Maintains dropdown open state */
 }
 
+/* Create an invisible bridge to prevent mouse leave when moving to dropdown */
+.header-dropdown::before {
+    content: "";
+    position: absolute;
+    top: 80%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 120%;
+    height: 30px;
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* Enable pointer events on bridge when dropdown is showing */
+.header-dropdown:hover::before {
+    pointer-events: auto;
+}
+
 
 
 .header-dropdown-content {
@@ -170,12 +188,14 @@
     border-radius: 12px;
     opacity: 0;
     transform: translateY(-10px) translateX(-50%);
-    transition: opacity 0.3s ease, transform 0.3s ease;
+    transition: opacity 0.2s ease, transform 0.2s ease;
     flex-direction: column;
     justify-content: center;
     left: 50%;
     pointer-events: none;
     gap: 0.25rem;
+    /* Add top margin to prevent overlap with trigger */
+    margin-top: 0.5rem;
 }
 
 .header-dropdown-content.show {
