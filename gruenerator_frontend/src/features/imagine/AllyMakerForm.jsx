@@ -1,11 +1,11 @@
 import React, { forwardRef, useImperativeHandle, useState, useCallback } from 'react';
+import PropTypes from 'prop-types';
 import CreatableSelect from 'react-select/creatable';
 import FileUpload from '../../components/common/FileUpload';
 import FormFieldWrapper from '../../components/common/Form/Input/FormFieldWrapper';
 import TextAreaInput from '../../components/common/Form/Input/TextAreaInput';
 
-const AllyMakerForm = forwardRef(({ loading, isPrecisionMode = false }, ref) => {
-  const [uploadedImage, setUploadedImage] = useState(null);
+const AllyMakerForm = forwardRef(({ loading, isPrecisionMode = false, uploadedImage, onImageChange }, ref) => {
   const [selectedPlacement, setSelectedPlacement] = useState([]);
   const [precisionPlacement, setPrecisionPlacement] = useState('');
 
@@ -17,10 +17,6 @@ const AllyMakerForm = forwardRef(({ loading, isPrecisionMode = false }, ref) => 
     { value: 'oberarm', label: 'Oberarm' },
     { value: 'handgelenk', label: 'Handgelenk' }
   ];
-
-  const handleImageChange = useCallback((file) => {
-    setUploadedImage(file);
-  }, []);
 
   const handlePlacementChange = useCallback((newValues) => {
     const selectedValues = newValues || [];
@@ -37,7 +33,6 @@ const AllyMakerForm = forwardRef(({ loading, isPrecisionMode = false }, ref) => 
             : '')
     }),
     resetForm: () => {
-      setUploadedImage(null);
       setSelectedPlacement([]);
       setPrecisionPlacement('');
     },
@@ -48,12 +43,12 @@ const AllyMakerForm = forwardRef(({ loading, isPrecisionMode = false }, ref) => 
       }
       return true;
     }
-  }));
+  }), [uploadedImage, isPrecisionMode, precisionPlacement, selectedPlacement]);
 
   return (
     <>
       <FileUpload
-        handleChange={handleImageChange}
+        handleChange={onImageChange}
         allowedTypes={['.jpg', '.jpeg', '.png', '.webp']}
         file={uploadedImage}
         loading={loading}
@@ -129,5 +124,12 @@ const AllyMakerForm = forwardRef(({ loading, isPrecisionMode = false }, ref) => 
 });
 
 AllyMakerForm.displayName = 'AllyMakerForm';
+
+AllyMakerForm.propTypes = {
+  loading: PropTypes.bool,
+  isPrecisionMode: PropTypes.bool,
+  uploadedImage: PropTypes.object,
+  onImageChange: PropTypes.func.isRequired
+};
 
 export default AllyMakerForm;

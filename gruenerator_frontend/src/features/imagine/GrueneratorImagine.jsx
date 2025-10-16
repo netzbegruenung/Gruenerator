@@ -558,6 +558,8 @@ const GrueneratorImagine = ({ showHeaderFooter = true }) => {
         ref={allyMakerFormRef}
         loading={isLoading}
         isPrecisionMode={isPrecisionMode}
+        uploadedImage={uploadedImage}
+        onImageChange={handleImageChange}
       />
     </>
   );
