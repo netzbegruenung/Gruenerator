@@ -27,6 +27,7 @@ const Header = () => {
     const { announce } = useAccessibility();
     const headerRef = useRef(null);
     const closeTimeoutRef = useRef(null);
+    const openTimeoutRef = useRef(null);
 
     // Memoize menu items to prevent unnecessary recalculations
     const menuItems = useMemo(() => getMenuItems({ databaseBetaEnabled, youBetaEnabled, chatBetaEnabled }), [databaseBetaEnabled, youBetaEnabled, chatBetaEnabled]);
@@ -42,11 +43,14 @@ const Header = () => {
     }, [location.pathname]);
 
 
-    // Cleanup timeout on unmount
+    // Cleanup timeouts on unmount
     useEffect(() => {
         return () => {
             if (closeTimeoutRef.current) {
                 clearTimeout(closeTimeoutRef.current);
+            }
+            if (openTimeoutRef.current) {
+                clearTimeout(openTimeoutRef.current);
             }
         };
     }, []);
@@ -74,58 +78,55 @@ const Header = () => {
     };
 
     const handleMouseEnter = (dropdown) => {
-        // Clear any pending close timeout
+        // Clear any pending timeouts
         if (closeTimeoutRef.current) {
             clearTimeout(closeTimeoutRef.current);
             closeTimeoutRef.current = null;
         }
+        if (openTimeoutRef.current) {
+            clearTimeout(openTimeoutRef.current);
+            openTimeoutRef.current = null;
+        }
+
+        // Set active dropdown immediately for better responsiveness
+        // The CSS transition will handle the smooth appearance
         setActiveDropdown(dropdown);
     };
 
     const handleMouseLeave = (event) => {
-        // Check if the mouse is moving to an element that's part of the dropdown
+        // Get the dropdown container element
+        const dropdownContainer = event.currentTarget;
         const relatedTarget = event.relatedTarget;
-        
-        // If relatedTarget is null or not a DOM node, close the dropdown
+
+        // Clear any pending open timeout when leaving
+        if (openTimeoutRef.current) {
+            clearTimeout(openTimeoutRef.current);
+            openTimeoutRef.current = null;
+        }
+
+        // Check if we're moving to another element
         if (relatedTarget && relatedTarget instanceof Node) {
-            const dropdownContainer = event.currentTarget.closest('.header-dropdown');
-            
-            // Check if the mouse is moving to something within the same dropdown container
+            // Check if still within the dropdown container or its children
             if (dropdownContainer && dropdownContainer.contains(relatedTarget)) {
-                // Don't close - mouse is still within the dropdown area
+                // Still within dropdown, don't close
                 return;
             }
-            
-            // Check if moving to the dropdown content
-            const dropdownContent = dropdownContainer?.querySelector('.header-dropdown-content');
-            if (dropdownContent && dropdownContent.contains(relatedTarget)) {
-                // Don't close - mouse is moving to dropdown content
+
+            // Check if moving to another dropdown trigger
+            const targetDropdown = relatedTarget.closest('.header-dropdown');
+            if (targetDropdown && targetDropdown !== dropdownContainer) {
+                // Moving to another dropdown, close immediately
+                setActiveDropdown(null);
                 return;
             }
         }
-        
-        // Mouse is leaving the dropdown area, close with a small delay
+
+        // Add delay before closing to prevent flickering
+        // This gives time for the mouse to move between trigger and content
         closeTimeoutRef.current = setTimeout(() => {
             setActiveDropdown(null);
             closeTimeoutRef.current = null;
-        }, 200);
-    };
-
-    const handleHeaderMouseEnter = () => {
-        // Cancel any pending close when mouse re-enters header area
-        if (closeTimeoutRef.current) {
-            clearTimeout(closeTimeoutRef.current);
-            closeTimeoutRef.current = null;
-        }
-    };
-
-    const handleHeaderMouseLeave = () => {
-        // Close dropdown when leaving entire header area
-        setActiveDropdown(null);
-        if (closeTimeoutRef.current) {
-            clearTimeout(closeTimeoutRef.current);
-            closeTimeoutRef.current = null;
-        }
+        }, 100); // Reduced from 200ms for better UX
     };
 
     const handleFocus = (dropdown) => {
@@ -218,7 +219,7 @@ const Header = () => {
 
 
     return (
-        <header className={`header ${scrolled ? 'scrolled' : ''}`} ref={headerRef} role="banner" onMouseEnter={handleHeaderMouseEnter} onMouseLeave={handleHeaderMouseLeave}>
+        <header className={`header ${scrolled ? 'scrolled' : ''}`} ref={headerRef} role="banner">
             <div className="header-container">
                 <div className="header-logo">
                     <Link to="/" aria-label="Zur Startseite">
@@ -267,11 +268,10 @@ const Header = () => {
                                         aria-hidden="true" 
                                     />
                                 </span>
-                                <ul className={`${menuStyles.dropdownContent.base} ${activeDropdown === key ? menuStyles.dropdownContent.show : ''}`} 
+                                <ul className={`${menuStyles.dropdownContent.base} ${activeDropdown === key ? menuStyles.dropdownContent.show : ''}`}
                                     aria-label={`${menu.title} Untermenü`}
                                     role="menu"
                                     aria-hidden={activeDropdown !== key}
-                                    onMouseLeave={(e) => handleMouseLeave(e)}
                                 >
                                     {menu.items && menu.items.length > 0 && renderDropdownContent(key)}
                                 </ul>
