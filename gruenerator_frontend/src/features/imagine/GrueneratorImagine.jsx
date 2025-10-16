@@ -216,7 +216,6 @@ const GrueneratorImagine = ({ showHeaderFooter = true }) => {
   const handleTypeChange = useCallback((newType) => {
     setSelectedType(newType);
     // Reset form state when changing types
-    setUploadedImage(null);
     setSelectedInfrastructure([]);
     setResult(null);
     setPrecisionInstruction('');
