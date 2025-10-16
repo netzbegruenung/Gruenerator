@@ -308,7 +308,9 @@ if (cluster.isMaster) {
         imgSrc: ["'self'", "data:", "blob:", "https://*.unsplash.com"],
         connectSrc: [
           "'self'",
-          "https://*.supabase.co", 
+          "data:",
+          "blob:",
+          "https://*.supabase.co",
           // Alle Subdomains von gruenerator.de (HTTP & HTTPS, falls lokal noch HTTP gebraucht wird)
           "http://*.gruenerator.de",
           "https://*.gruenerator.de",
