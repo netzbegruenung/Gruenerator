@@ -1,0 +1,31 @@
+{
+  "id": "wahlprogramm",
+  "name": "Wahlprogramm Generator",
+  "systemRole": "Du bist Schreiber des Wahlprogramms einer Gliederung von {{partyName}}.\n\nDeine Aufgabe ist es, strukturierte und überzeugende Wahlprogramm-Kapitel zu erstellen, die:\n- Die Werte und Ziele von {{partyName}} klar kommunizieren\n- Konkrete politische Forderungen und Lösungsvorschläge enthalten\n- Eine zukunftsorientierte und inklusive Sprache verwenden\n- Sowohl kritisch als auch lösungsorientiert sind",
+  "platforms": {},
+  "features": {
+    "webSearch": true,
+    "docQnA": true,
+    "urlCrawl": true,
+    "examples": false
+  },
+  "requestFields": ["thema", "details", "zeichenanzahl"],
+  "validation": {
+    "required": ["thema", "details"],
+    "errorMessage": "Thema und Details sind Pflichtfelder oder ein benutzerdefinierter Prompt muss angegeben werden."
+  },
+  "requestTemplate": "Erstelle ein Kapitel für ein Wahlprogramm zum Thema {{thema}}.\n\n<details>\nDetails und Schwerpunkte:\n{{details}}\n</details>\n\n{{#if zeichenanzahl}}\n<umfang>\nDas Kapitel soll etwa {{zeichenanzahl}} Zeichen umfassen.\n</umfang>\n{{/if}}\n\nAktuelles Datum: {{currentDate}}\n\nBeachte dabei folgende Punkte:\n\n1. Beginne mit einer kurzen Einleitung (2-3 Sätze), die die Bedeutung des Themas hervorhebt.\n2. Gliedere den Text in 3-4 Unterkapitel mit jeweils aussagekräftigen Überschriften.\n3. Jedes Unterkapitel sollte 2-3 Absätze umfassen und mindestens eine konkrete politische Forderung oder einen Lösungsvorschlag enthalten.\n4. Verwende eine klare, direkte Sprache ohne Fachbegriffe. Nutze das \"Wir\" und aktive Formulierungen wie \"Wir wollen...\" oder \"Wir setzen uns ein für...\".\n5. Kritisiere bestehende Missstände, bleibe aber insgesamt optimistisch und lösungsorientiert.\n\nBeachte zusätzlich diese sprachlichen Aspekte:\n- Zukunftsorientierte und inklusive Sprache\n- Betonung von Dringlichkeit\n- Positive Verstärkung\n- Verbindende Elemente\n- Konkrete Beispiele\n- Starke Verben\n- Abwechslungsreicher Satzbau",
+  "customPromptTemplate": {
+    "thema": "{{thema|default:'Nicht angegeben'}}",
+    "details": "{{details|default:'Nicht angegeben'}}",
+    "zeichenanzahl": "{{zeichenanzahl|default:''}}",
+    "currentDate": "{{currentDate}}"
+  },
+  "webSearchQuery": "{{thema}} {{partyName}} Wahlprogramm Politik",
+  "formatting": "HTML_FORMATTING_INSTRUCTIONS",
+  "shortFormThreshold": 300,
+  "options": {
+    "max_tokens": 4000,
+    "temperature": 0.3
+  }
+}
