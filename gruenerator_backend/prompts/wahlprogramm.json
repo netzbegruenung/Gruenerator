@@ -22,7 +22,7 @@
     "currentDate": "{{currentDate}}"
   },
   "webSearchQuery": "{{thema}} {{partyName}} Wahlprogramm Politik",
-  "formatting": "HTML_FORMATTING_INSTRUCTIONS",
+  "formatting": "MARKDOWN_FORMATTING_INSTRUCTIONS",
   "shortFormThreshold": 300,
   "options": {
     "max_tokens": 4000,

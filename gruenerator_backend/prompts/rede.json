@@ -24,7 +24,7 @@
     "currentDate": "{{currentDate}}"
   },
   "webSearchQuery": "{{thema}} {{schwerpunkte}} {{partyName}} Politik Rede",
-  "formatting": "HTML_FORMATTING_INSTRUCTIONS",
+  "formatting": "MARKDOWN_FORMATTING_INSTRUCTIONS",
   "shortFormThreshold": 300,
   "options": {
     "max_tokens": 4000,
