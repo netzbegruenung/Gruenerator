@@ -379,25 +379,26 @@ async function contentEnricherNode(state) {
           maxContentLength: 50000 // 50KB limit
         });
 
-        if (crawlResult.success && crawlResult.content) {
+        if (crawlResult.success && crawlResult.data?.content) {
           return {
             ...originalResult,
-            content: crawlResult.content,
+            content: crawlResult.data.content,
             contentType: 'full',
-            fullContent: crawlResult.content,
+            fullContent: crawlResult.data.content,
             selectionReason: decision.reason,
             expectedValue: decision.expectedValue,
             crawlSuccess: true,
-            wordCount: crawlResult.wordCount,
+            wordCount: crawlResult.data.wordCount,
             extractedAt: new Date().toISOString()
           };
         } else {
-          console.warn(`[ContentEnricher] Crawl failed for ${originalResult.url}: ${crawlResult.error}`);
+          const errorMsg = crawlResult.data?.error || crawlResult.error || 'Unknown error';
+          console.warn(`[ContentEnricher] Crawl failed for ${originalResult.url}: ${errorMsg}`);
           return {
             ...originalResult,
             contentType: 'snippet',
             crawlSuccess: false,
-            crawlError: crawlResult.error
+            crawlError: errorMsg
           };
         }
       } catch (error) {
@@ -1055,8 +1056,9 @@ Fokussiere dich auf externe Quellen und verschiedene Perspektiven.`;
 
     if (result.success && result.content) {
       try {
-        // Clean up potential code fences
+        // Clean up potential code fences and markdown formatting
         let cleanContent = result.content.replace(/```json\s*|\s*```/g, '').trim();
+        cleanContent = cleanContent.replace(/\*\*/g, ''); // Remove bold markdown
         const parsed = JSON.parse(cleanContent);
         if (parsed.research_questions && Array.isArray(parsed.research_questions)) {
           return parsed.research_questions.slice(0, 5);
@@ -1235,10 +1237,12 @@ const createWebSearchGraph = () => {
   const graph = new StateGraph(SearchState)
     .addNode("planner", plannerNode)
     .addNode("searxng", searxngNode)
+    .addNode("intelligentCrawler", intelligentCrawlerAgent)
+    .addNode("contentEnricher", contentEnricherNode)
     .addNode("grundsatz", grundsatzNode)
     .addNode("aggregator", aggregatorNode)
-    .addNode("summarizer", summaryNode) // Renamed to avoid conflict with state attribute
-    .addNode("writer", dossierNode) // Renamed to avoid conflict with state attribute
+    .addNode("summarizer", intelligentSummaryNode)
+    .addNode("writer", dossierNode)
     .addEdge("__start__", "planner")
     .addEdge("planner", "searxng");
 
@@ -1252,8 +1256,15 @@ const createWebSearchGraph = () => {
     }
   );
 
+  // After searxng, run intelligent crawler to select URLs
+  graph.addEdge("searxng", "intelligentCrawler");
+
+  // After crawler decision, enrich content
+  graph.addEdge("intelligentCrawler", "contentEnricher");
+
+  // After content enrichment, route based on mode
   graph.addConditionalEdges(
-    "searxng",
+    "contentEnricher",
     (state) => state.mode === 'normal' ? "summarizer" : "aggregator"
   );
 
