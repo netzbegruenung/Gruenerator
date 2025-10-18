@@ -73,17 +73,31 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
     return initialType;
   });
   const [generatedContent, setGeneratedContent] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   // Create separate refs for each form type to avoid stale references
-  const formRefs = useRef({
-    [TEXT_TYPES.REDE]: useRef(),
-    [TEXT_TYPES.WAHLPROGRAMM]: useRef(),
-    [TEXT_TYPES.BUERGERANFRAGEN]: useRef(),
-    [TEXT_TYPES.UNIVERSAL]: useRef()
-  });
+  const redeFormRef = useRef();
+  const wahlprogrammFormRef = useRef();
+  const buergeranfragenFormRef = useRef();
+  const universalFormRef = useRef();
 
   // Get current form ref based on selected type
-  const currentFormRef = formRefs.current[selectedType];
+  const getCurrentFormRef = () => {
+    switch (selectedType) {
+      case TEXT_TYPES.REDE:
+        return redeFormRef;
+      case TEXT_TYPES.WAHLPROGRAMM:
+        return wahlprogrammFormRef;
+      case TEXT_TYPES.BUERGERANFRAGEN:
+        return buergeranfragenFormRef;
+      case TEXT_TYPES.UNIVERSAL:
+        return universalFormRef;
+      default:
+        return null;
+    }
+  };
+
+  const currentFormRef = getCurrentFormRef();
 
   useOptimizedAuth();
 
@@ -153,10 +167,26 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
 
   // Custom submission handler for dynamic form types
   const handleSubmit = useCallback(async () => {
-    if (!currentFormRef.current?.getFormData) return;
+    console.log('[UniversalTextGenerator] handleSubmit called', {
+      selectedType,
+      currentFormRef: currentFormRef,
+      hasRef: !!currentFormRef,
+      hasCurrent: !!currentFormRef?.current,
+      hasGetFormData: !!currentFormRef?.current?.getFormData
+    });
+
+    if (!currentFormRef?.current?.getFormData) {
+      console.error('[UniversalTextGenerator] Form ref not ready or getFormData not available');
+      return;
+    }
 
     const formData = currentFormRef.current.getFormData();
-    if (!formData) return;
+    console.log('[UniversalTextGenerator] Form data retrieved:', formData);
+
+    if (!formData) {
+      console.error('[UniversalTextGenerator] No form data returned');
+      return;
+    }
 
     // Add feature toggles and attachments to form data
     formData.useWebSearchTool = form.generator.toggles.webSearch;
@@ -164,21 +194,35 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
     formData.useBedrock = form.generator.toggles.proMode;  // Pro mode flag for backend API
     formData.attachments = form.generator.attachedFiles;
 
+    setIsLoading(true);
+
     try {
       // Import apiClient dynamically since this is a special case
       const { default: apiClient } = await import('../../../components/utils/apiClient');
 
+      console.log('[UniversalTextGenerator] Submitting to endpoint:', API_ENDPOINTS[selectedType]);
+      console.log('[UniversalTextGenerator] Final form data:', formData);
+
       // Submit to the correct endpoint for the selected type
       const response = await apiClient.post(API_ENDPOINTS[selectedType], formData);
-      const content = response.data || response;
+      const responseData = response.data || response;
+
+      // Handle both old string format and new {content, metadata} format
+      const content = typeof responseData === 'string' ? responseData : responseData.content;
+      const metadata = typeof responseData === 'object' ? responseData.metadata : {};
+
+      console.log('[UniversalTextGenerator] Response received:', { responseData, content, metadata });
 
       if (content) {
         setGeneratedContent(content);
         form.generator.handleGeneratedContentChange(content);
+        console.log('[UniversalTextGenerator] Content set successfully');
       }
     } catch (error) {
-      console.error('Error submitting form:', error);
+      console.error('[UniversalTextGenerator] Error submitting form:', error);
       form.handleSubmitError(error);
+    } finally {
+      setIsLoading(false);
     }
   }, [selectedType, form, currentFormRef]);
 
@@ -190,13 +234,13 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
   const renderForm = () => {
     switch (selectedType) {
       case TEXT_TYPES.REDE:
-        return <RedeForm key={`rede-${selectedType}`} ref={currentFormRef} tabIndex={form.generator.tabIndex} />;
+        return <RedeForm key={`rede-${selectedType}`} ref={redeFormRef} tabIndex={form.generator.tabIndex} />;
       case TEXT_TYPES.WAHLPROGRAMM:
-        return <WahlprogrammForm key={`wahlprogramm-${selectedType}`} ref={currentFormRef} tabIndex={form.generator.tabIndex} />;
+        return <WahlprogrammForm key={`wahlprogramm-${selectedType}`} ref={wahlprogrammFormRef} tabIndex={form.generator.tabIndex} />;
       case TEXT_TYPES.BUERGERANFRAGEN:
-        return <BuergeranfragenForm key={`buergeranfragen-${selectedType}`} ref={currentFormRef} tabIndex={form.generator.tabIndex} />;
+        return <BuergeranfragenForm key={`buergeranfragen-${selectedType}`} ref={buergeranfragenFormRef} tabIndex={form.generator.tabIndex} />;
       case TEXT_TYPES.UNIVERSAL:
-        return <UniversalForm key={`universal-${selectedType}`} ref={currentFormRef} tabIndex={form.generator.tabIndex} />;
+        return <UniversalForm key={`universal-${selectedType}`} ref={universalFormRef} tabIndex={form.generator.tabIndex} />;
       default:
         return null;
     }
@@ -235,6 +279,7 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
           generatedContent={generatedContent}
           onGeneratedContentChange={handleGeneratedContentChange}
           onSubmit={handleSubmit}
+          loading={isLoading}
           firstExtrasChildren={renderTextTypeSection()}
         >
           {renderForm()}
